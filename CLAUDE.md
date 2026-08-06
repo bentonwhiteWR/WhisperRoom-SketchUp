@@ -65,6 +65,34 @@ Full method: `reference/scale-estimation.md`. The short version, and it is not o
   proposal, a quote, or a SketchUp model gets flagged as estimated until Benton or the
   client confirms it with a tape measure.
 
+## The booth model is never mine to choose
+
+**Do not recommend, suggest, or default to a booth model.** Sales quotes it; I draw what's on
+the quote. Putting a model on a drawing that didn't come from the quote reads as a
+recommendation — worse, drawing a small one implies it's the largest that fits, which is
+usually false and has real consequences in front of a client.
+
+- Ask Benton for the quote link (`sales.whisperroom.com/q/W-…`) and read the model off it.
+- Then pull that model's exterior dimensions from `models.json`.
+- If I don't have a quote yet, say what the room can take dimensionally and stop there.
+
+### Footprint = booth + clearances (source: `WhisperRoomQuote\assets\layout-render.js`)
+
+The quote tool's own renderer is the authority. Its per-side clearance rule, in inches:
+
+| Side | Clearance |
+|---|---|
+| Nominal (any wall) | **1"** |
+| Vented wall | **6"**, or **10"** with exterior fan silencers (EFS) |
+| Door wall — swing | **23.5" / 29.5" / 34.5"** by frame width (<46 / 46 / ≥49) |
+| Door wall — ADA ramp | **45.625"** (3'-9⅝"), replaces the swing figure |
+| Step fitted | 12" |
+| Desk mounted outside | 14" |
+
+Wall panels come in 7 / 16 / 19 / 22 / 28 / 31 / 40 / 43 / 46" widths; the wide-access and
+ADA door frame is **49"**. Those are the numbers that decide whether panels make it down a
+corridor — use them for delivery-path questions instead of guessing.
+
 ## Recommending a layout
 
 - Pull candidate models from `models.json`. Quote the **exterior** dimensions when checking
@@ -122,21 +150,29 @@ polished-brand treatment belongs in the proposal, not the scratch layout.
 
 ## Proposals — the brand rules
 
-`WhisperRoom Proposals\docs\PROPOSAL-GUIDELINES.md` is the source of truth. Read it before
-each build; the summary in `reference/proposal-brand.md` is a reminder, not a replacement.
+**The newest shipped pack under `C:\Users\bento\Desktop\ProposalFiles\<Client>\` is the
+standard.** Open it before every build. As of Aug 2026 that is
+`ProposalFiles\David Smith\David-Smith-Booth-Renderings.pdf`.
 
-Non-negotiables carried forward:
+> `WhisperRoom Proposals\docs\PROPOSAL-GUIDELINES.md` is **superseded** — it documents the
+> original landscape v1 format. Do not build from it. Full current spec:
+> `reference/proposal-brand.md`.
 
-- **US Letter landscape, one render per page.** Cover = logo + centered orange title + hero.
-  Content pages = running header, orange title, one render, footer.
+Non-negotiables:
+
+- **US Letter portrait**, one render per page. Cover = logo top-left + meta top-right + orange
+  eyebrow + two-tone left-aligned headline + hero + caption + three-card spec strip + callout.
+  Content pages = same header with `PAGE 0n / N`, orange section number + title, one render in
+  a bordered box, `Image 0n` caption.
 - **Brand orange `#ee6216`.** No second accent color without a branding decision.
-- **Footer contact line verbatim:**
-  `Phone: (865) 558-5364 - Email: info@whisperroom.com — www.whisperroom.com`
-- **Render order:** hero → booth in room, door open → closed → dimensioned view → alternate
-  dimensioned angle → opposite corner → ventilation/detail → top-down plan. Lead with the
-  hero, include at least one dimensioned view, close with the floor plan.
-- Use the generator (`build-v2.js`) and copy the newest example config. **Never invent a
-  layout.**
+- **Footer both sides:** orange `Phone:`/`Email:` labels left —
+  `Phone: (865) 558-5364 · Email: info@whisperroom.com · www.whisperroom.com` —
+  and `WhisperRoom, Inc.™` plus the Knoxville address right.
+- **Render order:** exterior in the finished room → dimensioned three-quarter view → side
+  elevation → rear/ventilation → top-down plan with the door swing. Lead with the exterior,
+  always include a dimensioned view, always close with the plan.
+- Use the generator (`build-v2.js`) and copy the newest `examples\<client>\proposal-v2.json`.
+  **Never invent a layout.**
 
 ### Caption discipline — this is where the real risk is
 
@@ -159,6 +195,26 @@ The `whisperroom-proposal` skill covers the generator mechanics and the verifica
 (rasterize every page back to PNG, check every bottom edge). Invoke it for actual builds.
 
 ---
+
+## SketchUp itself
+
+SketchUp 2023 and 2024 are installed, both with plugin folders at
+`C:\Users\bento\AppData\Roaming\SketchUp\SketchUp <year>\SketchUp\Plugins\`.
+
+I cannot drive the SketchUp window — there's no live bridge from here, and I can't see the
+viewport or click anything. What I *can* do is write Ruby against the SketchUp API and hand it
+over. That covers most of the tedium: rooms built to exact interior dimensions, booth shells
+and ADA ramps placed to the clearance rules above, tags, and dimension entities.
+
+- Scripts live in `scripts/`. `scripts/csusb-rooms.rb` is the working example.
+- Model in **inches** — that's SketchUp's internal unit, and every catalog dimension is inches.
+- Wrap edits in `model.start_operation(name, true)` / `commit_operation` so one Undo reverses
+  the whole build, and `abort_operation` in a rescue.
+- Build walls **outward** from the measured interior polygon so wall thickness stays cosmetic
+  and never moves a dimension I reported.
+- Put everything on `WR-*` tags so Benton can switch pieces off for a render.
+- **I can't execute Ruby here** — no interpreter on this machine outside SketchUp. Say plainly
+  that a script is unrun, and keep it simple enough to fail loudly rather than silently.
 
 ## Working conventions
 
