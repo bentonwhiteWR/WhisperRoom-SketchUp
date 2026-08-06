@@ -212,23 +212,24 @@ The `whisperroom-proposal` skill covers the generator mechanics and the verifica
 
 ## SketchUp itself
 
-SketchUp 2023 and 2024 are installed, both with plugin folders at
-`C:\Users\bento\AppData\Roaming\SketchUp\SketchUp <year>\SketchUp\Plugins\`.
+**Full standard: `reference/sketchup-drawing.md`.** Read it before writing or changing a
+script — it carries the model standards, the default materials, the geometry rules, and the
+traps that have already cost time.
 
-I cannot drive the SketchUp window — there's no live bridge from here, and I can't see the
-viewport or click anything. What I *can* do is write Ruby against the SketchUp API and hand it
-over. That covers most of the tedium: rooms built to exact interior dimensions, booth shells
-and ADA ramps placed to the clearance rules above, tags, and dimension entities.
+I cannot drive the SketchUp window — no live bridge, and I can't see the viewport or click
+anything. What I *can* do is write Ruby against the SketchUp API and hand it over: rooms built
+to the measured interior dimensions, doors as real openings with swings, booth shells and ADA
+ramps to the clearance rules above, tags, materials, and dimension entities.
 
 - Scripts live in `scripts/`. `scripts/csusb-rooms.rb` is the working example.
-- Model in **inches** — that's SketchUp's internal unit, and every catalog dimension is inches.
-- Wrap edits in `model.start_operation(name, true)` / `commit_operation` so one Undo reverses
-  the whole build, and `abort_operation` in a rescue.
-- Build walls **outward** from the measured interior polygon so wall thickness stays cosmetic
-  and never moves a dimension I reported.
-- Put everything on `WR-*` tags so Benton can switch pieces off for a render.
+- Run via **Extensions → Developer → Ruby Console** (not Window), then
+  `load "C:/.../scripts/<name>.rb"` — forward slashes, and Ctrl+Z before re-running.
+- Imperial / Architectural units, 8'-0" default ceilings, walls built outward and mitred at
+  the corners, floor `0128_White`, walls `0099_LightSteelBlue`, doors `0043_SaddleBrown`.
+- Dimension **all four sides** plus every door off its wall corner.
 - **I can't execute Ruby here** — no interpreter on this machine outside SketchUp. Say plainly
-  that a script is unrun, and keep it simple enough to fail loudly rather than silently.
+  that a script is unrun, wrap the build so it fails loudly, and list everything in the model
+  that isn't measured.
 
 ## Working conventions
 

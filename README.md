@@ -13,10 +13,21 @@ identically on the laptop and the desktop.
 | File | What it is |
 |---|---|
 | `CLAUDE.md` | The rules the assistant loads every session. Start here. |
-| `reference/booth-models.md` | All 26 booth models — exterior dims, weights, prices, standard counts. Generated from `models.json`. |
-| `reference/scale-estimation.md` | Method for getting defensible dimensions out of an unlabeled client floor plan. |
-| `reference/proposal-brand.md` | Proposal color, type, layout, and render order at a glance. |
+| `reference/scale-estimation.md` | Getting defensible dimensions out of an unlabeled client floor plan. |
+| `reference/sketchup-drawing.md` | Model standards, default materials, geometry and dimensioning rules for SketchUp. |
+| `reference/proposal-brand.md` | The proposal format as it actually ships — portrait, layout, render order. |
+| `reference/booth-models.md` | All 26 booth models — exterior dims, weights, prices. Generated from `models.json`. |
+| `scripts/` | SketchUp Ruby (`csusb-rooms.rb`) and the catalog table generator. |
 | `clients/` | Per-client working notes. Client-supplied plans and renders are gitignored. |
+
+## The pipeline
+
+```
+client floor plan (PDF) → take-off → SketchUp model → renders → proposal PDF
+```
+
+The dimensioned view in a proposal is a SketchUp export carrying SketchUp dimension
+entities, so the model and the proposal are one pipeline.
 
 ## Related repos and folders
 
