@@ -21,7 +21,7 @@ Real, as-built dimensions for modelling. Benton's source drawings, Aug 2026.
 Panel names are their **plan length in inches** — a "46" wall" measures 46". The `size` in
 `booth-layouts.json` is the same number, so slots and panels agree directly.
 
-Height is not dimensioned on these drawings. Working value 82.5"; confirm before relying on it.
+**Panel height is 81".**
 
 ## Seam seals
 
@@ -52,11 +52,40 @@ Confirmed from the assembled drawing:
   the booth footprint on that side.
 - The **door frame occupies the full short wall**, hardware on the frame.
 
-**Open arithmetic.** The long wall's panels total `46 + 22 = 68"`, but the Standard interior
-run is `70"`. Two corner seam seals contributing 1" each at the ends would close that exactly
-— but the same logic gives `46 + 2 = 48"` on the short wall against a 46" interior run, which
-does not work. So the corner seal does not simply add 1" per end on both axes, and the real
-rule is still unknown. **Do not model corners until this is settled.**
+## The rule — this is the one to build from
+
+**Panels do not touch.** At every joint, the two panels butt into the *interior* of a mid-wall
+seam seal, and the seal's **2" stem fills the gap between them**. So:
+
+```
+interior wall run = Σ(panel lengths) + 2" × (number of joints)
+```
+
+It closes everywhere:
+
+| Wall | Panels | Joints | Run | Interior |
+|---|---|---|---|---|
+| 4872 long | 46 + 22 | 1 | 68 + 2 = **70** | 70 ✓ |
+| 4872 short | 46 | 0 | **46** | 46 ✓ |
+| 96120 back | 46 + 22 + 46 | 2 | 114 + 4 = **118** | 118 ✓ |
+| 96120 side | 46 + 46 | 1 | 92 + 2 = **94** | 94 ✓ |
+
+Corner seam seals sit at the corners **outboard** and consume none of the run.
+
+Wall assembly thickness is `1"` panel + `1"` seal plate = **2" per side**, which is exactly the
+`wallThickness: 2` in `booth-layouts.json` for Standard. Exterior = interior + 4".
+
+### This is why booth-layouts.json's slot sizes are unreliable
+
+They record the run, not the panels, and inconsistently. The 4872 calls its narrow panel `24`
+(the 22" panel with its 2" seal absorbed). The 96120 sides say `47 + 47` where the real build
+is `46 + seal + 46`. **Derive panels from the rule above, not from the slot sizes.**
+
+### Panel kinds are interchangeable
+
+Door frames, vent walls, cable walls, window walls and plain walls all swap freely into any
+position. `booth-layouts.json`'s per-slot `kind` is only a default — never treat it as a
+constraint, and never tell a client a panel can't move.
 
 ## Assembly, from the 4872 S exploded top-down
 
