@@ -34,6 +34,19 @@ module WR_CSUSB
   BUILD_BOOTH = false
   BOOTH_H     = 83.0     # 83 = Standard 6'-11" | 85 = Enhanced 7'-1"
 
+  # ─── materials ─────────────────────────────────────────────────────────
+  # Names match SketchUp's built-in "Colors-Named" collection, so these are the
+  # real library materials, not look-alikes. If the .skm can't be found the
+  # script creates a material with the same name and RGB, which looks identical.
+  MAT_FLOOR = "0128_White"             # white floor so dimensions read against it
+  MAT_WALL  = "0099_LightSteelBlue"
+  MAT_DOOR  = "0043_SaddleBrown"
+  MAT_RGB   = {
+    "0128_White"           => [255, 255, 255],
+    "0099_LightSteelBlue"  => [176, 196, 222],
+    "0043_SaddleBrown"     => [139,  69,  19]
+  }.freeze
+
   BOOTH_W   = 98.0       # MDL 96120, 8'-2"
   BOOTH_L   = 122.0      # 10'-2"
   RAMP_PROT = 45.625     # ADA ramp protrusion off the door wall
@@ -147,9 +160,29 @@ module WR_CSUSB
     out
   end
 
+  # Fetch a Colors-Named material, loading the real .skm when it can be found and
+  # falling back to an identically-named colour if it can't.
+  def self.material(model, name)
+    m = model.materials[name]
+    return m if m
+    begin
+      base = Sketchup.find_support_file("Materials")
+      if base
+        path = File.join(base, "Colors-Named", "#{name}.skm")
+        return model.materials.load(path) if File.exist?(path)
+      end
+    rescue StandardError
+      # fall through to the colour below
+    end
+    m = model.materials.add(name)
+    m.color = Sketchup::Color.new(*(MAT_RGB[name] || [200, 200, 200]))
+    m
+  end
+
   def self.slab(parent, poly, name, layer)
     grp = parent.add_group
-    grp.entities.add_face(poly.map { |p| pt(p[0], p[1], 0.0) })
+    f = grp.entities.add_face(poly.map { |p| pt(p[0], p[1], 0.0) })
+    f.reverse! if f && f.normal.z < 0     # front face up, so it takes paint cleanly
     grp.name  = name
     grp.layer = layer
     grp
@@ -330,26 +363,59 @@ module WR_CSUSB
     t_booth = tag(model, "WR-Booth", Sketchup::Color.new(238,  98,  22))
     t_door  = tag(model, "WR-Doors", Sketchup::Color.new( 64, 102, 124))
     t_note  = tag(model, "WR-Notes", Sketchup::Color.new( 30,  30,  30))
+
+    m_floor = material(model, MAT_FLOOR)
+    m_wall  = material(model, MAT_WALL)
+    m_door  = material(model, MAT_DOOR)
     ents = model.entities
 
     if BUILD_117
       a = ents.add_group
       a.name = "CHAPARRAL 117 - 51'-4\" x 48'-3\""
-      slab(a.entities, ROOM_117, "floor 117", t_floor)
-      build_walls(a.entities, ROOM_117, CEILING_117, t_room, "walls 117", DOORS_117)
-      build_doors(a.entities, ROOM_117, DOORS_117, t_door, "doors 117") if DRAW_DOORS
+      f = slab(a.entities, ROOM_117, "floor 117", t_floor)
+      f.material = m_floor if f
+      w = build_walls(a.entities, ROOM_117, CEILING_117, t_room, "walls 117", DOORS_117)
+      w.material = m_wall if w
+      if DRAW_DOORS
+        d = build_doors(a.entities, ROOM_117, DOORS_117, t_door, "doors 117")
+        d.material = m_door if d
+      end
 
       cx, cy, cs = COLUMN_117
       col = a.entities.add_group
       col.name  = "column ~16\" sq"
       col.layer = t_room
       quad(col, [[cx, cy], [cx + cs, cy], [cx + cs, cy + cs], [cx, cy + cs]], 0.0, CEILING_117, "column")
+      col.material = m_wall
 
       build_booth(a.entities, BOOTH_117, BOOTH_H, t_booth, "MDL 96120 - PLACEHOLDER") if BUILD_BOOTH
 
-      dim(a.entities, pt(0, 579.21), pt(615.95, 579.21), Geom::Vector3d.new(0,  90, 0))
-      dim(a.entities, pt(0, 579.21), pt(0, 0),           Geom::Vector3d.new(-90, 0, 0))
-      dim(a.entities, pt(0, 579.21), pt(522.09, 579.21), Geom::Vector3d.new(0,  62, 0))
+      # ── dimensions, all four sides ──
+      up    = Geom::Vector3d.new(0,  90, 0)
+      up2   = Geom::Vector3d.new(0,  62, 0)
+      left  = Geom::Vector3d.new(-90, 0, 0)
+      down  = Geom::Vector3d.new(0, -70, 0)
+      right = Geom::Vector3d.new(70,  0, 0)
+
+      # top — overall, then the north-wall chain
+      dim(a.entities, pt(0, 579.21),      pt(615.95, 579.21), up)
+      dim(a.entities, pt(0, 579.21),      pt(522.09, 579.21), up2)   # 43'-6"
+      dim(a.entities, pt(522.09, 579.21), pt(615.95, 579.21), up2)   # 7'-10" (117A)
+
+      # left — overall depth
+      dim(a.entities, pt(0, 579.21), pt(0, 0), left)
+
+      # bottom — south chain, projected: 31'-4" / 10'-6" / 9'-6"
+      dim(a.entities, pt(0, 0),      pt(376.05, 0), down)
+      dim(a.entities, pt(376.05, 0), pt(501.92, 0), down)
+      dim(a.entities, pt(501.92, 0), pt(615.95, 0), down)
+
+      # right — east chain: 6'-0" / 16'-6" / 9'-3" / 16'-6"
+      dim(a.entities, pt(615.95, 579.21), pt(615.95, 507.27), right)
+      dim(a.entities, pt(615.95, 507.27), pt(615.95, 309.06), right)
+      dim(a.entities, pt(615.95, 309.06), pt(615.95, 198.22), right)
+      dim(a.entities, pt(615.95, 198.22), pt(615.95, 0),      right)
+
       dim_doors(a.entities, ROOM_117, DOORS_117)
 
       txt = a.entities.add_text("117 — plan dims measured. Ceiling drawn at 8'-0\" (house default, NOT measured).", pt(40, 300, 1))
@@ -362,9 +428,14 @@ module WR_CSUSB
       b.name = "UNIV HALL 056 - 25'-3\" x 13'-4\""
       poly = ROOM_056.map { |p| [p[0] + off, p[1]] }
 
-      slab(b.entities, poly, "floor 056", t_floor)
-      build_walls(b.entities, poly, CEILING_056, t_room, "walls 056", DOORS_056)
-      build_doors(b.entities, poly, DOORS_056, t_door, "doors 056") if DRAW_DOORS
+      f2 = slab(b.entities, poly, "floor 056", t_floor)
+      f2.material = m_floor if f2
+      w2 = build_walls(b.entities, poly, CEILING_056, t_room, "walls 056", DOORS_056)
+      w2.material = m_wall if w2
+      if DRAW_DOORS
+        d2 = build_doors(b.entities, poly, DOORS_056, t_door, "doors 056")
+        d2.material = m_door if d2
+      end
 
       if BUILD_BOOTH
         booth = BOOTH_056.dup
@@ -375,6 +446,9 @@ module WR_CSUSB
       dim(b.entities, pt(off, 0), pt(off + 302.60, 0),                    Geom::Vector3d.new(0, -80, 0))
       dim(b.entities, pt(off + 302.60, 0), pt(off + 302.60, 160.40),      Geom::Vector3d.new(80, 0, 0))
       dim(b.entities, pt(off + 125.80, 160.40), pt(off + 302.60, 160.40), Geom::Vector3d.new(0, 62, 0))
+      # the curved wall has no single in-line dimension — give clear width at depth
+      dim(b.entities, pt(off + 70.15, 100.40), pt(off + 302.60, 100.40), Geom::Vector3d.new(0, 14, 0))
+      dim(b.entities, pt(off + 24.66,  40.40), pt(off + 302.60,  40.40), Geom::Vector3d.new(0, 14, 0))
       dim_doors(b.entities, poly, DOORS_056)
 
       txt = b.entities.add_text("056 — curved wall traced to ~1\". Ceiling drawn at 8'-0\" (house default, NOT measured).", pt(off + 20, 80, 1))
