@@ -1,0 +1,250 @@
+# -*- coding: utf-8 -*-
+"""Generate a self-contained SketchUp Ruby script that assembles a booth.
+
+    python gen-booth.py "MDL 4872" S            # defaults from the spec sheets
+    python gen-booth.py --design <#d= hash>     # a booth-builder share link payload
+
+Reads the authoritative data in WhisperRoomQuote:
+    lib/pl-data/booth-layouts.json     wall slots per model, exterior + per-variant interior
+    lib/pl-data/components-master.json every part's pack name and real L/W/T in inches
+    lib/pl-data/base-bom.json          {code: qty} per model, for the cross-check
+
+Emits Ruby with every panel's size and position baked in, so the script that
+reaches SketchUp has no dependencies and nothing to parse at run time.
+
+It VALIDATES rather than fudges: if a wall's slots don't tile its interior run,
+that is printed and written into the script's own console output instead of
+being silently absorbed.
+"""
+import json, os, sys, base64
+
+QUOTE = r'C:\Users\bento\Documents\Claude\WhisperRoomQuote\lib\pl-data'
+OUT_DIR = r'C:\Users\bento\Documents\Claude\Sketchup\scripts'
+PANEL_H = 82.5          # STD wall component L, from components-master
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+
+def load(name):
+    with open(os.path.join(QUOTE, name), encoding='utf-8') as f:
+        return json.load(f)
+
+
+def decode_design(h):
+    h = h.split('#d=')[-1].split('?d=')[-1].strip()
+    h = h.replace('-', '+').replace('_', '/')
+    h += '=' * (-len(h) % 4)
+    return json.loads(base64.b64decode(h).decode('utf-8'))
+
+
+def build(model, variant, assign=None):
+    layouts = load('booth-layouts.json')['layouts']
+    comps = load('components-master.json')['components']
+    boms = load('base-bom.json')['models']
+
+    if model not in layouts:
+        sys.exit('unknown model %r. known: %s' % (model, ', '.join(sorted(layouts))))
+    L = layouts[model]
+    if variant not in L['variants']:
+        sys.exit('unknown variant %r' % variant)
+
+    ext = L['exterior']
+    W, H = float(ext['w']), float(ext['h'])          # X extent, Y extent
+    t = float(L['variants'][variant]['wallThickness'])
+    inner = L['variants'][variant]['interior']
+
+    # pack -> physical dims, inverted out of components-master
+    by_pack = {}
+    for code, c in comps.items():
+        p = c.get('pack')
+        if p and p not in by_pack:
+            by_pack[p] = (code, c.get('L'), c.get('W'), c.get('T'), c.get('desc', ''))
+
+    runs = {'N': W - 2 * t, 'S': W - 2 * t, 'E': H - 2 * t, 'W': H - 2 * t}
+    notes, panels = [], []
+
+    for side in ('N', 'S', 'E', 'W'):
+        wall = L['walls'].get(side)
+        if not wall:
+            continue
+        slots = wall['slots']
+        nominal = sum(float(s['size']) for s in slots)
+        run = runs[side]
+        scale = run / nominal if nominal else 1.0
+        if abs(nominal - run) > 0.01:
+            notes.append('%s wall (%s): slots total %.2f", interior run is %.2f" '
+                         '-> panels scaled x%.4f' % (side, wall['label'], nominal, run, scale))
+
+        cursor = t
+        for s in slots:
+            size = float(s['size']) * scale
+            pack = (assign or {}).get(s['id'])
+            code, pl, pw, pt, desc = by_pack.get(pack, (None, None, None, None, ''))
+            if side in ('N', 'S'):
+                x, y = cursor, (H - t if side == 'N' else 0.0)
+                dx, dy = size, t
+            else:
+                x, y = (W - t if side == 'E' else 0.0), cursor
+                dx, dy = t, size
+            panels.append({
+                'id': s['id'], 'side': side, 'kind': s['kind'], 'pack': pack, 'code': code,
+                'x': round(x, 3), 'y': round(y, 3), 'dx': round(dx, 3), 'dy': round(dy, 3),
+                'h': PANEL_H, 'nominal': float(s['size']), 'desc': desc,
+            })
+            cursor += size
+
+    bom_key = '%s %s' % (model, variant)
+    bom = boms.get(bom_key, {}).get('components', {})
+    wall_codes = {c: q for c, q in bom.items()
+                  if comps.get(c, {}).get('pack', '').startswith(('STDWL', 'WA STD', 'ADA STD'))}
+    bom_panels = sum(wall_codes.values())
+
+    return dict(model=model, variant=variant, W=W, H=H, t=t, inner=inner, panels=panels,
+                notes=notes, bom_panels=bom_panels, wall_codes=wall_codes,
+                door=L.get('door', {}), label=L.get('label', ''))
+
+
+def emit_ruby(b):
+    slug = (b['model'].replace('MDL ', '').strip() + '-' + b['variant']).lower()
+    path = os.path.join(OUT_DIR, 'booth-%s.rb' % slug)
+    p_lines = ',\n'.join(
+        '    { :id=>%r, :side=>%r, :kind=>%r, :pack=>%s, :x=>%s, :y=>%s, :dx=>%s, :dy=>%s }'
+        % (p['id'], p['side'], p['kind'], ('%r' % p['pack']) if p['pack'] else 'nil',
+           p['x'], p['y'], p['dx'], p['dy'])
+        for p in b['panels'])
+    notes = '\n'.join('    puts "  NOTE: %s"' % n.replace('"', "'") for n in b['notes']) or '    # none'
+
+    rb = '''# @title Build Booth %(model)s %(variant)s
+# GENERATED by scripts/gen-booth.py — do not hand-edit; regenerate instead.
+#
+# %(model)s %(variant)s  ("%(label)s")
+#   exterior      %(W)s" x %(H)s"      wall thickness %(t)s"
+#   interior      %(iw)s" x %(ih)s"
+#   wall panels   %(n)d placed
+#   panel height  %(ph)s" (STD wall component L)
+#
+# Panels are massing boxes at true slot positions — correct sizes, positions and
+# names, not the real interlocking geometry. Good for layout, plans and fit.
+
+module WR_BOOTH_%(const)s
+  W  = %(W)s
+  H  = %(H)s
+  T  = %(t)s
+  PH = %(ph)s
+
+  PANELS = [
+%(panels)s
+  ]
+
+  def self.pt(x, y, z = 0.0); Geom::Point3d.new(x, y, z); end
+
+  def self.build
+    model = Sketchup.active_model
+    begin
+      o = model.options["UnitsOptions"]
+      o["LengthFormat"] = Length::Architectural
+    rescue StandardError
+    end
+    model.start_operation("Build %(model)s %(variant)s", true)
+
+    tag = lambda do |name, rgb|
+      l = model.layers[name] || model.layers.add(name)
+      l.color = Sketchup::Color.new(*rgb) rescue nil
+      l
+    end
+    t_wall = tag.call("WR-Booth-Walls", [120, 128, 140])
+    t_door = tag.call("WR-Booth-Door",  [238,  98,  22])
+    t_vent = tag.call("WR-Booth-Vent",  [ 64, 102, 124])
+    t_flr  = tag.call("WR-Booth-Floor", [210, 210, 210])
+
+    booth = model.entities.add_group
+    booth.name = "%(model)s %(variant)s"
+
+    f = booth.entities.add_group
+    face = f.entities.add_face([pt(0,0), pt(W,0), pt(W,H), pt(0,H)])
+    face.reverse! if face && face.normal.z < 0
+    f.name = "floor"; f.layer = t_flr
+
+    PANELS.each do |p|
+      g = booth.entities.add_group
+      fc = g.entities.add_face([ pt(p[:x], p[:y]),
+                                 pt(p[:x] + p[:dx], p[:y]),
+                                 pt(p[:x] + p[:dx], p[:y] + p[:dy]),
+                                 pt(p[:x], p[:y] + p[:dy]) ])
+      next if fc.nil?
+      fc.reverse! if fc.normal.z < 0
+      fc.pushpull(PH)
+      g.name  = "#{p[:id]}  #{p[:pack] || p[:kind]}"
+      g.layer = case p[:kind]
+                when "DRFRM" then t_door
+                when "VNT"   then t_vent
+                else              t_wall
+                end
+    end
+
+    model.commit_operation
+    model.active_view.zoom_extents
+
+    puts ""
+    puts "%(model)s %(variant)s built."
+    puts "  exterior %(W)s\\" x %(H)s\\"   interior %(iw)s\\" x %(ih)s\\"   wall %(t)s\\""
+    puts "  #{PANELS.size} wall panels placed, each #{PH}\\" tall"
+    puts "  packing list for this model lists %(bom)d wall panels%(agree)s"
+%(notes)s
+    puts "  Massing boxes — correct sizes and positions, not real interlocking geometry."
+    puts ""
+  rescue StandardError => e
+    model.abort_operation if model
+    puts "FAILED: #{e.class}: #{e.message}"
+    puts e.backtrace.first(5)
+  end
+end
+
+WR_BOOTH_%(const)s.build
+''' % dict(model=b['model'], variant=b['variant'], label=b['label'],
+           W=b['W'], H=b['H'], t=b['t'], iw=b['inner']['w'], ih=b['inner']['h'],
+           n=len(b['panels']), ph=PANEL_H, panels=p_lines, notes=notes,
+           bom=b['bom_panels'],
+           agree=(' — agrees' if b['bom_panels'] == len(b['panels']) else ' — MISMATCH, check the layout'),
+           const=(b['model'].replace('MDL ', '').strip() + '_' + b['variant']).replace(' ', '_'))
+
+    with open(path, 'w', encoding='utf-8') as fh:
+        fh.write(rb)
+    return path
+
+
+def main():
+    args = sys.argv[1:]
+    if args and args[0] == '--design':
+        d = decode_design(args[1])
+        model, variant, assign = d['m'], d.get('v', 'S'), d.get('a', {})
+        print('decoded design: %s %s, %d slot assignments' % (model, variant, len(assign)))
+    else:
+        model = args[0] if args else 'MDL 4872'
+        variant = args[1] if len(args) > 1 else 'S'
+        assign = {}
+
+    b = build(model, variant, assign)
+    print('\n%s %s  "%s"' % (b['model'], b['variant'], b['label']))
+    print('  exterior %g" x %g"   wall %g"   interior %s" x %s"'
+          % (b['W'], b['H'], b['t'], b['inner']['w'], b['inner']['h']))
+    print('\n  %-5s %-5s %-7s %-24s %9s %9s %8s %8s' %
+          ('SLOT', 'SIDE', 'KIND', 'PACK', 'X', 'Y', 'DX', 'DY'))
+    for p in b['panels']:
+        print('  %-5s %-5s %-7s %-24s %9.3f %9.3f %8.3f %8.3f' %
+              (p['id'], p['side'], p['kind'], p['pack'] or '(default)',
+               p['x'], p['y'], p['dx'], p['dy']))
+    print('\n  panels placed: %d   packing list wall panels: %d   %s'
+          % (len(b['panels']), b['bom_panels'],
+             'AGREE' if len(b['panels']) == b['bom_panels'] else '*** MISMATCH ***'))
+    for c, q in sorted(b['wall_codes'].items()):
+        print('      %s x%s' % (c, q))
+    if b['notes']:
+        print('\n  tiling notes:')
+        for n in b['notes']:
+            print('    ' + n)
+    path = emit_ruby(b)
+    print('\n  wrote %s' % path)
+
+
+if __name__ == '__main__':
+    main()
