@@ -15,8 +15,14 @@ or a weight** — this table is a convenience copy and will drift.
 
 **Prices are internal.** Never put one in a client-facing artifact unless Benton asks.
 
-Dimensions are **exterior** — width x depth x height — which is what you check fit against.
-Std ceiling is 6'-11", Enhanced is 7'-1".
+Plan dimensions are **exterior** — width x depth — which is what you check fit against.
+
+**The height column is the install clearance, not the booth's exact height.** Std reads
+6'-11" and Enhanced 7'-1"; those are the figures WhisperRoom markets and the height a room
+must give, because that is the space needed to lift the tray ceiling up and onto the booth
+during assembly. The booth itself measures slightly less — a 96120 E is 7'-0 5/16" as drawn
+in SketchUp. Use the catalog figure for fit; use the drawn figure only when transcribing a
+render's own callout. Don't add a further assembly allowance on top — it's already in there.
 
 | Model | Std dims (W x D x H) | Std lbs | Std price | Enh dims | Enh lbs | Enh price | Window | Vents | Foam | Cables | LEDs |
 |---|---|---|---|---|---|---|---|---|---|---|---|

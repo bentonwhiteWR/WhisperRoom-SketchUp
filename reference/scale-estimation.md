@@ -63,9 +63,11 @@ this to ±1 in."*
 
 Check these before doing any floor-area math — each one disqualifies faster than the last:
 
-1. **Ceiling height.** Std booth is `6'-11"`, Enhanced is `7'-1"`. Add clearance for
-   assembly and ventilation above. Clients almost never state this, and it's the most
-   common late surprise.
+1. **Ceiling height.** Std `6'-11"`, Enhanced `7'-1"`. These already **are** the install
+   clearance — the space needed to lift the tray ceiling up and onto the booth — not the
+   booth's exact height, which is slightly less. So don't stack another assembly allowance on
+   top; the room has to give this much. Clients almost never state their ceiling height, and
+   it's the most common late surprise.
 2. **Delivery path.** Doorways, corner turns, elevator car size, stairs. Panels ship flat
    and assemble in place, but they still have to physically reach the room.
 3. **Obstructions in the footprint.** Columns, baseboard heat, radiators, floor outlets,

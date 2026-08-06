@@ -98,9 +98,14 @@ corridor — use them for delivery-path questions instead of guessing.
 
 - Pull candidate models from `models.json`. Quote the **exterior** dimensions when checking
   fit — that's what `stdDims` / `enhDims` are.
-- Std ceiling is `6'-11"`, Enhanced is `7'-1"`. **Check the room's ceiling height before
-  anything else** — it disqualifies faster than floor area does, and it's the constraint
-  clients forget.
+- **The catalog height is the install clearance, not the booth.** `models.json` lists Std
+  `6'-11"` and Enhanced `7'-1"`. Those are the figures WhisperRoom markets and the height a
+  room has to give, because that is the space needed to lift the tray ceiling up and onto the
+  booth during assembly. The **exact** exterior height is slightly less — a 96120 E measures
+  `7'-0 5/16"` as drawn. Quote the catalog figure when asking "will it fit"; quote the drawn
+  figure only when transcribing a render's own callout.
+- **Check the room's ceiling height before anything else** — it disqualifies faster than
+  floor area does, and it's the constraint clients forget.
 - Prior WhisperRoom drawings place the booth **spaced 1" off the wall** and call out
   **door-swing clearance** on the plan. Follow that convention.
 - Delivery path is a real constraint: doorways, elevators, corners, and stairs. Booth
