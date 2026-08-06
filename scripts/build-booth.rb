@@ -1,0 +1,149 @@
+# @title Build Booth...
+#
+# Pick a booth from a dropdown and build it. This replaces the one-script-per-
+# booth arrangement — new booths appear in the list as soon as the data file is
+# regenerated, with no new script and no SketchUp restart.
+#
+# Data comes from wr-booth-data.rb in this folder, written by
+#   python gen-booth.py --all
+# which only includes booths whose assembly the run rule can actually prove.
+
+module WR_BuildBooth
+  DATA = File.join(File.dirname(__FILE__), 'wr-booth-data.rb')
+
+  # Booth panels and seam seals are finished in this. Loads the real .skm from
+  # SketchUp's own library; falls back to a same-named colour if it isn't found.
+  PANEL_MATERIAL = 'Carpet Plush Charcoal'
+  MAT_COLLECTION = 'Carpet, Fabrics, Leathers, Textiles and Wallpaper'
+
+  def self.pt(x, y, z = 0.0)
+    Geom::Point3d.new(x, y, z)
+  end
+
+  def self.material(model, name)
+    m = model.materials[name]
+    return m if m
+    begin
+      base = Sketchup.find_support_file('Materials')
+      if base
+        [MAT_COLLECTION, 'Colors-Named', ''].each do |sub|
+          path = sub.empty? ? File.join(base, "#{name}.skm") : File.join(base, sub, "#{name}.skm")
+          return model.materials.load(path) if File.exist?(path)
+        end
+      end
+    rescue StandardError
+    end
+    m = model.materials.add(name)
+    m.color = Sketchup::Color.new(64, 62, 60)
+    m
+  end
+
+  def self.run
+    unless File.exist?(DATA)
+      UI.messagebox("Booth data not found:\n#{DATA}\n\nRun:  python gen-booth.py --all")
+      return
+    end
+    load DATA                      # re-read every time, so regenerating is enough
+
+    keys = WR_BOOTH_DATA::BOOTHS.keys.sort_by do |k|
+      m = k[/\d+/]
+      [m ? m.to_i : 0, k]
+    end
+    if keys.empty?
+      UI.messagebox("No booths in the data file.")
+      return
+    end
+
+    last = Sketchup.read_default('WR_BuildBooth', 'last', keys.first)
+    last = keys.first unless keys.include?(last)
+
+    res = UI.inputbox(['Booth', 'Place at', 'Include seam seals'],
+                      [last, 'Model origin', 'Yes'],
+                      [keys.join('|'), 'Model origin|Pick a point', 'Yes|No'],
+                      'Build WhisperRoom Booth')
+    return unless res
+    key, place, seals = res[0], res[1], res[2] == 'Yes'
+    Sketchup.write_default('WR_BuildBooth', 'last', key)
+
+    if place == 'Pick a point'
+      UI.messagebox("Build lands at the model origin.\n\nIt comes in as one group — " \
+                    "move it wherever you want with the Move tool.")
+    end
+
+    build(key, seals)
+  end
+
+  def self.build(key, seals)
+    spec  = WR_BOOTH_DATA::BOOTHS[key]
+    model = Sketchup.active_model
+    begin
+      model.options['UnitsOptions']['LengthFormat'] = Length::Architectural
+    rescue StandardError
+    end
+    model.start_operation("Build #{key}", true)
+
+    tag = lambda do |name, rgb|
+      l = model.layers[name] || model.layers.add(name)
+      (l.color = Sketchup::Color.new(*rgb)) rescue nil
+      l
+    end
+    t_wall = tag.call('WR-Booth-Walls', [120, 128, 140])
+    t_door = tag.call('WR-Booth-Door',  [238,  98,  22])
+    t_vent = tag.call('WR-Booth-Vent',  [ 64, 102, 124])
+    t_seal = tag.call('WR-Booth-Seals', [ 90,  90,  96])
+    t_corn = tag.call('WR-Booth-Corners', [70, 70, 76])
+    t_flr  = tag.call('WR-Booth-Floor', [210, 210, 210])
+
+    mat = material(model, PANEL_MATERIAL)
+
+    booth = model.entities.add_group
+    booth.name = key
+
+    f  = booth.entities.add_group
+    fc = f.entities.add_face([pt(0, 0), pt(spec[:w], 0), pt(spec[:w], spec[:h]), pt(0, spec[:h])])
+    fc.reverse! if fc && fc.normal.z < 0
+    f.name = 'floor'
+    f.layer = t_flr
+
+    walls = 0
+    seal_n = 0
+    corner_n = 0
+    spec[:parts].each do |p|
+      next if (p[:k] == 'seal' || p[:k] == 'corner') && !seals
+      g = booth.entities.add_group
+      face = g.entities.add_face([pt(p[:x], p[:y]),
+                                  pt(p[:x] + p[:dx], p[:y]),
+                                  pt(p[:x] + p[:dx], p[:y] + p[:dy]),
+                                  pt(p[:x], p[:y] + p[:dy])])
+      next if face.nil?
+      face.reverse! if face.normal.z < 0
+      face.pushpull(spec[:ph])
+      g.name  = "#{p[:id]}  #{p[:sk]}"
+      g.layer = if p[:k] == 'corner' then (corner_n += 1; t_corn)
+                elsif p[:k] == 'seal' then (seal_n += 1; t_seal)
+                elsif p[:sk] == 'DRFRM' then (walls += 1; t_door)
+                elsif p[:sk] == 'VNT'   then (walls += 1; t_vent)
+                else (walls += 1; t_wall)
+                end
+      g.material = mat
+    end
+
+    model.commit_operation
+    model.active_view.zoom_extents
+
+    puts ''
+    puts "#{key} — #{spec[:label]}"
+    puts "  exterior #{spec[:w]}\" x #{spec[:h]}\"   interior #{spec[:iw]}\" x #{spec[:ih]}\""
+    puts "  #{walls} wall panels#{seals ? ", #{seal_n} mid-wall seam-seal pieces, #{corner_n} corner-seal legs" : ' (seals off)'}"
+    puts "  panels 1\" thick, #{spec[:ph]}\" tall, finished in #{PANEL_MATERIAL}"
+    puts '  Corner seals are the outer L profile only — the inner step is not modelled.'
+    puts ''
+  rescue StandardError => e
+    model.abort_operation if model
+    UI.messagebox("Build failed:\n\n#{e.class}: #{e.message}")
+    puts "FAILED: #{e.class}: #{e.message}"
+    puts e.backtrace.first(5)
+  end
+end
+
+WR_BuildBooth.run

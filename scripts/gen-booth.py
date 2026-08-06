@@ -121,15 +121,52 @@ def build(model, variant, assign=None):
                               pack=pack, length=ln,
                               x=round(x, 3), y=round(y, 3), dx=round(dx, 3), dy=round(dy, 3)))
             cursor += ln
-            if i < len(lengths) - 1:      # mid-wall seam seal fills the gap
+            if i < len(lengths) - 1:
+                # Mid-wall seam seal, in two pieces:
+                #   stem  — 2" wide, fills the gap; the panels butt into its sides
+                #   plate — 7 3/4" wide, in the 1" band outboard of the panel face
+                band = t - PANEL_T
+                mid = cursor + SEAL_W / 2.0
+                half = SEAL_PLATE / 2.0
                 if side in ('N', 'S'):
-                    sx, sy, sdx, sdy = cursor, y, SEAL_W, PANEL_T
+                    py = (H - band) if side == 'N' else 0.0
+                    parts.append(dict(kind='seal', id='%s-seal%d stem' % (side, i), side=side,
+                                      slot_kind='SEAL', pack='Std mid-wall seam seal (stem)',
+                                      length=SEAL_W, x=round(cursor, 3), y=round(y, 3),
+                                      dx=SEAL_W, dy=PANEL_T))
+                    parts.append(dict(kind='seal', id='%s-seal%d plate' % (side, i), side=side,
+                                      slot_kind='SEAL', pack='Std mid-wall seam seal (plate)',
+                                      length=SEAL_PLATE, x=round(mid - half, 3), y=round(py, 3),
+                                      dx=SEAL_PLATE, dy=band))
                 else:
-                    sx, sy, sdx, sdy = x, cursor, PANEL_T, SEAL_W
-                parts.append(dict(kind='seal', id='%s-seal%d' % (side, i), side=side,
-                                  slot_kind='SEAL', pack='Std mid-wall seam seal', length=SEAL_W,
-                                  x=round(sx, 3), y=round(sy, 3), dx=sdx, dy=sdy))
+                    px = (W - band) if side == 'E' else 0.0
+                    parts.append(dict(kind='seal', id='%s-seal%d stem' % (side, i), side=side,
+                                      slot_kind='SEAL', pack='Std mid-wall seam seal (stem)',
+                                      length=SEAL_W, x=round(x, 3), y=round(cursor, 3),
+                                      dx=PANEL_T, dy=SEAL_W))
+                    parts.append(dict(kind='seal', id='%s-seal%d plate' % (side, i), side=side,
+                                      slot_kind='SEAL', pack='Std mid-wall seam seal (plate)',
+                                      length=SEAL_PLATE, x=round(px, 3), y=round(mid - half, 3),
+                                      dx=band, dy=SEAL_PLATE))
                 cursor += SEAL_W
+
+    # Corner seam seals — L-shaped, 4 7/8" legs, sitting in the same outboard band
+    # as the mid-wall plates. Modelled as two rectangular legs meeting at the
+    # corner: the outer profile is exact; the small inner step on the drawing is
+    # not modelled.
+    band = t - PANEL_T
+    for cx, cy, sx, sy, name in ((0.0, 0.0, 1, 1, 'SW'), (W, 0.0, -1, 1, 'SE'),
+                                 (0.0, H, 1, -1, 'NW'), (W, H, -1, -1, 'NE')):
+        ax = cx if sx > 0 else cx - CORNER
+        ay = cy if sy > 0 else cy - band
+        parts.append(dict(kind='corner', id='%s corner' % name, side=name, slot_kind='CORNER',
+                          pack='Std corner seam seal', length=CORNER,
+                          x=round(ax, 3), y=round(ay, 3), dx=CORNER, dy=band))
+        bx = cx if sx > 0 else cx - band
+        by = cy if sy > 0 else cy - CORNER
+        parts.append(dict(kind='corner', id='%s corner' % name, side=name, slot_kind='CORNER',
+                          pack='Std corner seam seal', length=CORNER,
+                          x=round(bx, 3), y=round(by, 3), dx=band, dy=CORNER))
 
     bom_key = '%s %s' % (model, variant)
     bom = boms.get(bom_key, {}).get('components', {})
@@ -250,8 +287,61 @@ WR_BOOTH_%(const)s.build
     return path
 
 
+def emit_data():
+    """One data file with every booth the rule can prove, for the picker script."""
+    layouts = load('booth-layouts.json')['layouts']
+    good, skipped = {}, []
+    for model in sorted(layouts):
+        for variant in ('S', 'E'):
+            if variant not in layouts[model]['variants']:
+                continue
+            b = build(model, variant, {})
+            why = None
+            if any('(scaled)' in n for n in b['notes']):
+                why = 'panel lengths unresolved'
+            elif b['placed'] != b['bom_panels']:
+                why = 'layout %d panels vs BOM %d' % (b['placed'], b['bom_panels'])
+            if why:
+                skipped.append(('%s %s' % (model, variant), why))
+                continue
+            good['%s %s' % (model, variant)] = b
+
+    rows = []
+    for key, b in good.items():
+        parts = ',\n        '.join(
+            '{ :k=>%r, :id=>%r, :sk=>%r, :x=>%s, :y=>%s, :dx=>%s, :dy=>%s }'
+            % (p['kind'], p['id'], p['slot_kind'], p['x'], p['y'], p['dx'], p['dy'])
+            for p in b['parts'])
+        rows.append('''    %r => { :label=>%r, :w=>%s, :h=>%s, :iw=>%s, :ih=>%s, :ph=>81.0,
+      :parts => [
+        %s
+      ] }''' % (key, b['label'], b['W'], b['H'], b['iw'], b['ih'], parts))
+
+    path = os.path.join(OUT_DIR, 'wr-booth-data.rb')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write('# GENERATED by scripts/gen-booth.py --all — do not hand-edit.\n'
+                '# Every booth whose assembly the run rule can prove:\n'
+                '#   interior run = sum(panel lengths) + 2" per joint\n'
+                '# Panels 1" thick, 81" tall. Read by build-booth.rb.\n'
+                '#\n# Skipped, and why:\n'
+                + ''.join('#   %-16s %s\n' % (k, w) for k, w in skipped) +
+                '\nmodule WR_BOOTH_DATA\n  BOOTHS = {\n'
+                + ',\n'.join(rows) + '\n  }\nend\n')
+    return path, good, skipped
+
+
 def main():
     args = sys.argv[1:]
+    if args and args[0] == '--all':
+        path, good, skipped = emit_data()
+        print('wrote %s' % path)
+        print('  %d booths available in the picker:' % len(good))
+        for k in sorted(good):
+            print('     %s' % k)
+        print('  %d skipped:' % len(skipped))
+        for k, w in skipped:
+            print('     %-16s %s' % (k, w))
+        return
     if args and args[0] == '--design':
         d = decode_design(args[1])
         model, variant, assign = d['m'], d.get('v', 'S'), d.get('a', {})

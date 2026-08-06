@@ -11,7 +11,8 @@ require 'sketchup.rb'
 module WhisperRoom
   module Tools
     SCRIPTS_DIR = 'C:/Users/bento/Documents/Claude/Sketchup/scripts'
-    SKIP        = ['wr_tools.rb'].freeze
+    # wr-booth-data.rb is data loaded by build-booth.rb, not a command.
+    SKIP        = ['wr_tools.rb', 'wr-booth-data.rb'].freeze
 
     def self.scripts
       return [] unless File.directory?(SCRIPTS_DIR)
