@@ -36,6 +36,7 @@ not a wall of prose.
 | **Proposal brand + layout spec** | `C:\Users\bento\Documents\Claude\WhisperRoom Proposals\docs\PROPOSAL-GUIDELINES.md` |
 | Proposal generator | `...\WhisperRoom Proposals\build-v2.js` |
 | Prior proposal configs (copy the newest) | `...\WhisperRoom Proposals\examples\<client>\proposal-v2.json` |
+| **Scene → PNG batch exporter** | `...\WhisperRoomQuote\tools\sketchup-scene-export\` |
 | Historical proposals & drawings (Word/PDF) | `C:\Users\bento\Desktop\WhisperRoom\WR Proposals and Drawings\` |
 | Corporate brand guideline | `C:\Users\bento\Desktop\WhisperRoom\WhisperRoom - Brand Guideline.pdf` |
 | Finished client proposal packs | `C:\Users\bento\Desktop\ProposalFiles\<Client>\` |

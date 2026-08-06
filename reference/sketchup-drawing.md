@@ -118,6 +118,50 @@ dimensions on two sides is half-finished; that has already come back once.
 
 ---
 
+## Getting images out — the scene exporter
+
+`C:\Users\bento\Documents\Claude\WhisperRoomQuote\tools\sketchup-scene-export\`
+
+Batch-exports **every scene in the model to one PNG named after the scene**. Use it instead
+of hand-cranking File > Export > 2D Graphic per view.
+
+Two ways in:
+
+- **Installed** — Extension Manager > Install Extension > `wr_scene_export.rbz`. Adds
+  **File > Export All Scenes as PNGs…**; prompts for folder, width, anti-alias, transparency,
+  overwrite, and remembers folder + width between runs.
+- **One-shot** — edit the constants at the top of `quick-export.rb` and paste it into the
+  Ruby Console. Same logic, no install.
+
+What it takes care of: transitions forced to 0 so `write_image` can't catch a mid-tween
+frame; ground/horizon/fog re-killed *after* each scene switch (a scene can restore its own
+style); Windows-illegal characters stripped from names with collisions suffixed rather than
+overwritten; already-exported files skipped so an interrupted run resumes cheaply; and
+rendering options, transition time and selected scene restored in an `ensure` block.
+
+**The filename is the scene name — so name the scenes, not the files.**
+
+- For **booth component art** the names must match the MAP keys in
+  `bot/specsheet-work/import-art.py`. Run `check-scene-names.rb` first — it's read-only and
+  catches near-misses, which are the dangerous ones because they export happily to a filename
+  the importer then ignores. `expected-scene-names.txt` holds the current 92 keys.
+- For **proposal plates** name the scenes in plate order — `01-exterior`,
+  `02-dimensioned`, `03-side`, `04-ventilation`, `05-plan` — and they come out ready for
+  `proposal-v2.json`.
+
+Two things to set before a run:
+
+1. **Resize the SketchUp window to the aspect you want.** Height is derived from the current
+   viewport aspect, and every image in a run shares it.
+2. **Transparency.** `write_image` is always called with `:transparent => true`; the
+   "Force transparent background" answer actually controls whether ground/horizon/fog are
+   *drawn*. Yes → nothing behind the model → real alpha (right for component art). No → sky
+   and ground render → effectively opaque (right for a proposal plate showing a room).
+
+Test on one or two scenes into a throwaway folder before a long run. Widths above ~4000 px
+can fail on some GPUs — `write_image` returns false and the scene lands in the failed list
+rather than aborting the run.
+
 ## What to hand back
 
 A script, plus in the reply: the load line, what got built, and an explicit list of
