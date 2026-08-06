@@ -79,23 +79,14 @@ module WR_BuildBooth
     last = Sketchup.read_default('WR_BuildBooth', 'last', keys.first)
     last = keys.first unless keys.include?(last)
 
-    res = UI.inputbox(['Booth', 'Place at', 'Include seam seals'],
-                      [last, 'Model origin', 'Yes'],
-                      [keys.join('|'), 'Model origin|Pick a point', 'Yes|No'],
-                      'Build WhisperRoom Booth')
+    res = UI.inputbox(['Booth'], [last], [keys.join('|')], 'Build WhisperRoom Booth')
     return unless res
-    key, place, seals = res[0], res[1], res[2] == 'Yes'
+    key = res[0]
     Sketchup.write_default('WR_BuildBooth', 'last', key)
-
-    if place == 'Pick a point'
-      UI.messagebox("Build lands at the model origin.\n\nIt comes in as one group — " \
-                    "move it wherever you want with the Move tool.")
-    end
-
-    build(key, seals)
+    build(key)
   end
 
-  def self.build(key, seals)
+  def self.build(key)
     spec  = WR_BOOTH_DATA::BOOTHS[key]
     model = Sketchup.active_model
     begin
@@ -114,24 +105,16 @@ module WR_BuildBooth
     t_vent = tag.call('WR-Booth-Vent',  [ 64, 102, 124])
     t_seal = tag.call('WR-Booth-Seals', [ 90,  90,  96])
     t_corn = tag.call('WR-Booth-Corners', [70, 70, 76])
-    t_flr  = tag.call('WR-Booth-Floor', [210, 210, 210])
 
     mat = material(model, PANEL_MATERIAL)
 
     booth = model.entities.add_group
     booth.name = key
 
-    f  = booth.entities.add_group
-    fc = f.entities.add_face([pt(0, 0), pt(spec[:w], 0), pt(spec[:w], spec[:h]), pt(0, spec[:h])])
-    fc.reverse! if fc && fc.normal.z < 0
-    f.name = 'floor'
-    f.layer = t_flr
-
     walls = 0
     seal_n = 0
     corner_n = 0
     spec[:parts].each do |p|
-      next if (p[:k] == 'seal' || p[:k] == 'corner') && !seals
       g = booth.entities.add_group
       # Every part is a plan polygon — panels are rectangles, the mid-wall seal is
       # one T and the corner seal is one L, each extruded as a single solid.
@@ -155,9 +138,8 @@ module WR_BuildBooth
     puts ''
     puts "#{key} — #{spec[:label]}"
     puts "  exterior #{spec[:w]}\" x #{spec[:h]}\"   interior #{spec[:iw]}\" x #{spec[:ih]}\""
-    puts "  #{walls} wall panels#{seals ? ", #{seal_n} mid-wall seam-seal pieces, #{corner_n} corner-seal legs" : ' (seals off)'}"
+    puts "  #{walls} wall panels, #{seal_n} mid-wall seam seals, #{corner_n} corner seam seals"
     puts "  panels 1\" thick, #{spec[:ph]}\" tall, finished in #{PANEL_MATERIAL}"
-    puts '  Corner seals are the outer L profile only — the inner step is not modelled.'
     puts ''
   rescue StandardError => e
     model.abort_operation if model
