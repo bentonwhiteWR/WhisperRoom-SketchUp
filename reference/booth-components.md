@@ -40,6 +40,24 @@ are what actually make the corners — walls do not run corner to corner.
 - 1" leg thickness
 - inner faces at 2 7/8" and 1"
 
+## How it goes together — 4872 S, assembled top-down
+
+Confirmed from the assembled drawing:
+
+- **Long walls** — `46" + 22"` end to end, with a **mid-wall seam seal** over the joint.
+- **Short walls** — a **single 46" panel** each. One is the vent panel, the other the door
+  frame. They face each other.
+- **Four corner seam seals**, one per corner, and they are the outermost element at a corner.
+- The **vent assembly projects outward** from the vent panel — duct and silencer sit proud of
+  the booth footprint on that side.
+- The **door frame occupies the full short wall**, hardware on the frame.
+
+**Open arithmetic.** The long wall's panels total `46 + 22 = 68"`, but the Standard interior
+run is `70"`. Two corner seam seals contributing 1" each at the ends would close that exactly
+— but the same logic gives `46 + 2 = 48"` on the short wall against a 46" interior run, which
+does not work. So the corner seal does not simply add 1" per end on both axes, and the real
+rule is still unknown. **Do not model corners until this is settled.**
+
 ## Assembly, from the 4872 S exploded top-down
 
 Long walls (interior run 70") are `46" + 22"` with a **mid-wall seam seal** over the joint.
