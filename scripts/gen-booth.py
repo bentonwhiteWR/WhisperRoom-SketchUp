@@ -20,7 +20,7 @@ build is 46 + seal + 46. Panel lengths are solved from the run instead.
 
 components-master.json is NOT used for geometry — its L/W/T are shipping sizes.
 """
-import json, os, sys, base64
+import json, os, re, sys, base64
 
 QUOTE = r'C:\Users\bento\Documents\Claude\WhisperRoomQuote\lib\pl-data'
 OUT_DIR = r'C:\Users\bento\Documents\Claude\Sketchup\scripts'
@@ -64,17 +64,41 @@ def solve_panels(run, slot_sizes):
     """
     n = len(slot_sizes)
     target = run - SEAL_W * (n - 1)
+    listed = [float(s) for s in slot_sizes]
 
-    if abs(sum(slot_sizes) - target) < 0.01:
-        return [float(s) for s in slot_sizes], 'as listed'
+    if abs(sum(listed) - target) < 0.01 and all(any(abs(s - k) < 0.01 for k in STOCK) for s in listed):
+        return listed, 'as listed'
 
-    snapped = [min(STOCK, key=lambda s: abs(s - float(sz))) for sz in slot_sizes]
-    if abs(sum(snapped) - target) < 0.01:
-        return snapped, 'snapped to stock'
+    # Search real stock lengths, in slot order, totalling the target — choosing the
+    # combination closest to what the layout lists. This handles both ways the data
+    # goes wrong: a seal absorbed into one panel (4872's 24 is a 22, 4260's 18 is a
+    # 16) and a run split evenly across panels (96120's 47+47 is 46+46).
+    best = None
 
-    # last resort: keep the listed proportions, scale to fit
-    total = float(sum(slot_sizes)) or 1.0
-    return [round(float(sz) * target / total, 3) for sz in slot_sizes], 'scaled'
+    def walk(i, acc, cost):
+        nonlocal best
+        if best is not None and cost >= best[1]:
+            return
+        if i == n:
+            if abs(sum(acc) - target) < 0.01:
+                best = (list(acc), cost)
+            return
+        rest = n - i - 1
+        for s in STOCK:
+            rem = target - sum(acc) - s
+            if rem < rest * min(STOCK) - 0.01 or rem > rest * max(STOCK) + 0.01:
+                continue
+            acc.append(s)
+            walk(i + 1, acc, cost + abs(s - listed[i]))
+            acc.pop()
+
+    walk(0, [], 0.0)
+    if best:
+        exact = all(abs(a - b) < 0.01 for a, b in zip(best[0], listed))
+        return best[0], ('as listed' if exact else 'solved from stock')
+
+    total = sum(listed) or 1.0
+    return [round(s * target / total, 3) for s in listed], 'scaled'
 
 
 def build(model, variant, assign=None):
@@ -168,10 +192,23 @@ def build(model, variant, assign=None):
                           pack='Std corner seam seal', length=CORNER,
                           x=round(bx, 3), y=round(by, 3), dx=band, dy=CORNER))
 
+    # The BOM counts BOXES, and some boxes hold two panels — the 16" wall ships
+    # 2-per-box. components-master's desc starts with that count ("2 - STD WALL
+    # COMPONENT"), so expand by it. layout-render.js does the same thing in
+    # expandWallBoxes(); without it every 40-module booth looks short by the
+    # number of 2-packs it carries.
     bom_key = '%s %s' % (model, variant)
     bom = boms.get(bom_key, {}).get('components', {})
-    bom_panels = sum(q for c, q in bom.items()
-                     if comps.get(c, {}).get('pack', '').startswith(('STDWL', 'WA STD', 'ADA STD')))
+    bom_panels = 0
+    for code, qty in bom.items():
+        c = comps.get(code, {})
+        if not c.get('pack', '').startswith(('STDWL', 'WA STD', 'ADA STD')):
+            continue
+        if 'EXT' in c.get('pack', ''):        # height extensions are not walls
+            continue
+        m = re.match(r'\s*(\d+)\s*-', c.get('desc', ''))
+        per_box = int(m.group(1)) if m else 1
+        bom_panels += qty * per_box
     placed = sum(1 for p in parts if p['kind'] == 'panel')
 
     return dict(model=model, variant=variant, W=W, H=H, t=t, iw=iw, ih=ih,
