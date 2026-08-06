@@ -1,104 +1,90 @@
 # csusb-rooms.rb — build CSUSB Chaparral 117 + University Hall 056 in SketchUp
 #
-# Paste into the Ruby Console (Window > Ruby Console), or save this file and run
+#   Extensions > Developer > Ruby Console, then:
 #     load "C:/Users/bento/Documents/Claude/Sketchup/scripts/csusb-rooms.rb"
 #
-# WHAT IS ACCURATE HERE
-#   The interior wall polygons are the take-off: read from the vector layer of the
-#   client's PDFs and scaled off each sheet's printed scale bar. Those coordinates
-#   are good to about a quarter-inch of what the drawing says.
-#   WALL_T (wall thickness) is cosmetic — walls are extruded OUTWARD from the
-#   interior face, so changing it never moves an interior dimension.
-#   CEILING_* are GUESSES. Nobody has measured them. Change them before you trust
-#   any vertical dimension or any render that shows the ceiling.
+# Everything is imperial. Model units are set to Architectural on build.
 #
-# Booth is MDL 96120 per quotes W-1108052606 (Enhanced) and W-1108052610 (Standard).
-# Exterior 8'-2" x 10'-2"; 6'-11" high Standard, 7'-1" Enhanced.
-# ADA package: 32" leaf in a 49" frame, 34.5" swing, ramp protrudes 45.625".
-# Clearances follow the quote tool's own rule: 1" nominal, 10" on a vented wall
-# with exterior fan silencers, 45.625" on the ADA door wall.
+# WHAT IS MEASURED
+#   Interior wall polygons — read from the vector layer of the client's PDFs and
+#   scaled off each sheet's printed scale bar. Good to about a quarter-inch.
+#   117's three doors — position, 3'-0" width, hinge side and out-swing all read
+#   off the drawn leaves.
+#   056's door — only the 43" opening. Leaf width and hinge side are ASSUMED.
+#
+# WHAT IS NOT MEASURED
+#   CEILING_* — house default 8'-0". Nobody has measured either room.
+#   DOOR_H    — standard 6'-8". No elevations on the sheets.
+#   WALL_T    — cosmetic. Walls mitre OUTWARD from the interior face, so this
+#               never moves an interior dimension.
 
 module WR_CSUSB
 
-  # ─── parameters you will want to change ────────────────────────────────
-  CEILING_117   = 144.0        # GUESS. Exposed structure — measure to the LOWEST duct/pipe.
-  CEILING_056   = 96.0         # GUESS. Suspended lay-in grid — measure floor to tile.
+  # ─── parameters ────────────────────────────────────────────────────────
+  CEILING_117 = 96.0     # 8'-0" house default. Measure to the LOWEST duct/pipe — 117 is open structure.
+  CEILING_056 = 96.0     # 8'-0" house default. Measure floor to tile — 056 has a lay-in grid.
+  DOOR_H      = 80.0     # standard 6'-8" leaf
+  WALL_T      = 5.0      # drawings show 4.9" N/S, 5.3" E, 7.7" W in 117; 5.2" in 056
 
-  # Wall thickness. COSMETIC ONLY — walls are extruded OUTWARD from the measured
-  # interior face, so changing this never moves an interior dimension.
-  # What the drawings actually show, wall-line to wall-line:
-  #   117 north + south ≈ 4.9"   117 east ≈ 5.3"   117 west ≈ 7.7"   056 ≈ 5.2"
-  # 5.0 is the best single value. Set 4.0 if you'd rather draw them 4".
-  WALL_T        = 5.0
+  BUILD_117   = true
+  BUILD_056   = true
+  DRAW_DOORS  = true
+  DRAW_DIMS   = true
+  DIM_DOORS   = true     # dimension every door off its wall corner — how a booth gets placed
+  BUILD_BOOTH = false
+  BOOTH_H     = 83.0     # 83 = Standard 6'-11" | 85 = Enhanced 7'-1"
 
-  BUILD_117     = true
-  BUILD_056     = true
-  DRAW_DIMS     = true
-  BUILD_BOOTH   = false        # rooms only. Set true to also drop in the MDL 96120.
-  BOOTH_H       = 83.0         # 83 = Standard 6'-11" | 85 = Enhanced 7'-1"
-
-  # ─── booth constants (MDL 96120 + ADA package) ────────────────────────
-  BOOTH_W       = 98.0         # 8'-2"
-  BOOTH_L       = 122.0        # 10'-2"
-  RAMP_PROT     = 45.625       # ADA ramp protrusion off the door wall
-  DOOR_LEAF     = 32.0         # ADA leaf inside a 49" frame
-  VENT_CLR      = 10.0         # vented wall with exterior fan silencer boxes
-  NOM_CLR       = 1.0          # recommended gap everywhere else
+  BOOTH_W   = 98.0       # MDL 96120, 8'-2"
+  BOOTH_L   = 122.0      # 10'-2"
+  RAMP_PROT = 45.625     # ADA ramp protrusion off the door wall
 
   # ─── room 117, Chaparral Hall — interior face, inches ──────────────────
   # origin = inside south-west corner, +X east, +Y north
   ROOM_117 = [
-    [   0.00, 579.21 ],  # NW
-    [ 522.09, 579.21 ],  # north wall runs 43'-6" to the 117A closet
-    [ 522.09, 507.27 ],  # 117A west face, 6'-0" deep
-    [ 615.95, 507.27 ],  # 117A east face  (117A is 7'-10" wide)
-    [ 615.95, 309.06 ],  # east wall exposed run, 16'-6"
-    [ 501.92, 309.06 ],  # 109A north wall, 9'-6" wide
-    [ 501.92, 198.22 ],  # 109A west face, 9'-3" deep
-    [ 376.05, 198.22 ],  # return west to the 123 block, 10'-6"
-    [ 376.05,   0.00 ],  # 123 block west face, 16'-6" deep
-    [   0.00,   0.00 ]   # SW
+    [   0.00, 579.21 ],  # 0  NW
+    [ 522.09, 579.21 ],  # 1  north wall 43'-6" to the 117A closet
+    [ 522.09, 507.27 ],  # 2  117A west face, 6'-0" deep
+    [ 615.95, 507.27 ],  # 3  117A east face, 7'-10" wide
+    [ 615.95, 309.06 ],  # 4  east wall exposed run, 16'-6"
+    [ 501.92, 309.06 ],  # 5  109A north wall, 9'-6"
+    [ 501.92, 198.22 ],  # 6  109A west face, 9'-3" deep
+    [ 376.05, 198.22 ],  # 7  return west to the 123 block, 10'-6"
+    [ 376.05,   0.00 ],  # 8  123 block west face, 16'-6" deep
+    [   0.00,   0.00 ]   # 9  SW
   ].freeze
 
-  # doors: [x, y, width, axis]  — axis :x runs along a N/S wall, :y along an E/W wall
+  # :edge = polygon edge index (edge i runs point i -> i+1)
+  # :at   = distance along that edge from its first point to the near jamb
+  # :hinge/:swing measured from the drawn leaves — all three are 3'-0" and open out
   DOORS_117 = [
-    [ 132.60, 579.21, 36.0, :x ],   # north wall, centreline 12'-7" from the NW corner
-    [ 324.40, 579.21, 36.0, :x ],   # north wall, centreline 28'-6"
-    [   0.00, 137.90, 36.0, :y ]    # west  wall, centreline 35'-3" down from the NW corner
+    { :edge => 0, :at => 132.3, :w => 36.0, :hinge => :end,   :swing => :out },
+    { :edge => 0, :at => 324.0, :w => 36.0, :hinge => :end,   :swing => :out },
+    { :edge => 9, :at => 138.0, :w => 36.0, :hinge => :start, :swing => :out }
   ].freeze
 
-  # [x, y, side] — SW corner of the column. Centre is 15'-6" east of the west wall
-  # and 32'-3" south of the north wall, i.e. (186.0, 192.4) in these coordinates.
-  COLUMN_117 = [ 178.05, 184.46, 15.9 ].freeze
+  COLUMN_117 = [ 178.05, 184.46, 15.9 ].freeze   # SW corner; centre 15'-6" E / 32'-3" S of NW
 
   # ─── room 056, University Hall — interior face, inches ─────────────────
-  # The west side is the building's curved outer wall, traced as eight points off
-  # its inner face. Faithful to about an inch; it is not the exact radius.
   ROOM_056 = [
-    [ 302.60, 160.40 ],  # NE
-    [ 125.80, 160.40 ],  # north wall, 14'-9"
-    [  95.80, 129.60 ],  # ── door opening in the short angled wall ──
-    [  78.20, 109.87 ],
-    [  61.20,  89.87 ],
-    [  45.60,  69.87 ],  # curved outer wall
-    [  31.00,  49.87 ],
-    [  17.60,  29.87 ],
-    [   4.80,   9.87 ],
-    [   0.00,   0.00 ],  # SW
-    [ 302.60,   0.00 ]   # SE — south wall 25'-3", east wall 13'-4"
+    [ 302.60, 160.40 ],  # 0  NE
+    [ 125.80, 160.40 ],  # 1  north wall 14'-9"
+    [  95.80, 129.60 ],  # 2  angled wall — the only door is this whole edge
+    [  78.20, 109.87 ],  # 3
+    [  61.20,  89.87 ],  # 4
+    [  45.60,  69.87 ],  # 5  curved outer wall, traced to about an inch
+    [  31.00,  49.87 ],  # 6
+    [  17.60,  29.87 ],  # 7
+    [   4.80,   9.87 ],  # 8
+    [   0.00,   0.00 ],  # 9  SW
+    [ 302.60,   0.00 ]   # 10 SE
   ].freeze
 
-  # ─── booth placement ───────────────────────────────────────────────────
-  # 056: south-east corner ("toward the back", per Maxine), long axis north-south,
-  # ADA door and ramp facing WEST into the open part of the room. 10" reserved on
-  # the east wall for the vent/silencer side, 1" on the south.
-  BOOTH_056 = { :x => 194.60, :y => 1.00, :w => BOOTH_W, :l => BOOTH_L, :door => :W }
+  DOORS_056 = [
+    { :edge => 1, :at => 0.0, :w => 36.0, :hinge => :start, :swing => :out }
+  ].freeze
 
-  # 117: PLACEHOLDER ONLY. Maxine located the spot by photo ("where the student
-  # desks are in Room 1C"), not by compass, so the wall is not yet known. This
-  # drops the booth near the north-west corner purely so it exists in the model —
-  # move it once she confirms the wall.
-  BOOTH_117 = { :x => 60.00, :y => 400.00, :w => BOOTH_L, :l => BOOTH_W, :door => :S }
+  BOOTH_056 = { :x => 194.60, :y => 1.00, :w => BOOTH_W, :l => BOOTH_L, :door => :W }
+  BOOTH_117 = { :x =>  60.00, :y => 400.00, :w => BOOTH_L, :l => BOOTH_W, :door => :S }
 
   # ═══════════════════════════════════════════════════════════════════════
   def self.pt(x, y, z = 0.0)
@@ -111,98 +97,210 @@ module WR_CSUSB
     layer
   end
 
-  # extrude a closed polygon upward; returns the group
-  def self.slab(parent, poly, thickness, name, layer)
-    grp  = parent.add_group
-    face = grp.entities.add_face(poly.map { |p| pt(p[0], p[1], 0.0) })
-    return grp if face.nil?
-    face.reverse! if face.normal.z < 0
-    face.pushpull(thickness) if thickness > 0
+  # Signed area — the two rooms wind in opposite directions, so which side is
+  # "outside" cannot be hard-coded.
+  def self.ccw?(poly)
+    s = 0.0
+    n = poly.length
+    n.times do |i|
+      ax, ay = poly[i]
+      bx, by = poly[(i + 1) % n]
+      s += (ax * by) - (bx * ay)
+    end
+    s > 0.0
+  end
+
+  def self.edge_dirs(poly)
+    ccw = ccw?(poly)
+    n = poly.length
+    dirs = []
+    n.times do |i|
+      ax, ay = poly[i]
+      bx, by = poly[(i + 1) % n]
+      dx = bx - ax
+      dy = by - ay
+      len = Math.sqrt((dx * dx) + (dy * dy))
+      len = 1.0 if len < 1.0e-9
+      ux = dx / len
+      uy = dy / len
+      dirs << { :u => [ux, uy], :n => (ccw ? [uy, -ux] : [-uy, ux]), :len => len }
+    end
+    dirs
+  end
+
+  # Mitred outer polygon: each vertex is where the two offset wall faces meet.
+  # This is what squares the corners off instead of letting walls cross.
+  def self.mitre(poly, dirs, t)
+    n = poly.length
+    out = []
+    n.times do |i|
+      pv = dirs[(i - 1) % n][:n]
+      nv = dirs[i][:n]
+      c  = (pv[0] * nv[0]) + (pv[1] * nv[1])
+      if (1.0 + c).abs < 0.1
+        out << [poly[i][0] + (nv[0] * t), poly[i][1] + (nv[1] * t)]
+      else
+        k = t / (1.0 + c)
+        out << [poly[i][0] + (k * (pv[0] + nv[0])), poly[i][1] + (k * (pv[1] + nv[1]))]
+      end
+    end
+    out
+  end
+
+  def self.slab(parent, poly, name, layer)
+    grp = parent.add_group
+    grp.entities.add_face(poly.map { |p| pt(p[0], p[1], 0.0) })
     grp.name  = name
     grp.layer = layer
     grp
   end
 
-  # one wall per polygon edge, extruded OUTWARD from the interior face so the
-  # interior dimensions stay exactly as measured. Ends are extended by WALL_T so
-  # corners close.
-  def self.build_walls(parent, poly, height, layer, name)
+  def self.quad(parent, corners, z, h, name)
+    return if h <= 0.01
+    g = parent.entities.add_group
+    f = g.entities.add_face(corners.map { |p| pt(p[0], p[1], z) })
+    return if f.nil?
+    f.reverse! if f.normal.z < 0
+    f.pushpull(h)
+    g.name = name
+    g
+  end
+
+  # Walls mitred outward from the interior polygon, split around door openings,
+  # header over each opening. Corners meet cleanly — no crossing, no overshoot.
+  def self.build_walls(parent, poly, height, layer, name, doors)
+    dirs  = edge_dirs(poly)
+    outer = mitre(poly, dirs, WALL_T)
     walls = parent.add_group
     walls.name  = name
     walls.layer = layer
     n = poly.length
+
     n.times do |i|
       ax, ay = poly[i]
-      bx, by = poly[(i + 1) % n]
-      dx, dy = bx - ax, by - ay
-      len = Math.sqrt(dx * dx + dy * dy)
+      ux, uy = dirs[i][:u]
+      nx, ny = dirs[i][:n]
+      len    = dirs[i][:len]
       next if len < 0.01
-      ux, uy = dx / len, dy / len
-      # outward normal: interior polygon is wound counter-clockwise, so the
-      # outward side is to the RIGHT of travel
-      nx, ny = uy, -ux
-      ex, ey = ux * WALL_T, uy * WALL_T          # corner extension
-      ox, oy = nx * WALL_T, ny * WALL_T          # thickness offset
-      quad = [
-        [ ax - ex,           ay - ey           ],
-        [ bx + ex,           by + ey           ],
-        [ bx + ex + ox,      by + ey + oy      ],
-        [ ax - ex + ox,      ay - ey + oy      ]
-      ]
-      g = walls.entities.add_group
-      f = g.entities.add_face(quad.map { |p| pt(p[0], p[1], 0.0) })
-      next if f.nil?
-      f.reverse! if f.normal.z < 0
-      f.pushpull(height)
-      g.name = "wall"
+
+      inner = lambda { |d| [ax + (ux * d), ay + (uy * d)] }
+      # outer point at distance d: the mitred corner at the ends, a plain offset between
+      outp = lambda do |d|
+        return outer[i]           if d <= 0.001
+        return outer[(i + 1) % n] if d >= len - 0.001
+        ip = inner.call(d)
+        [ip[0] + (nx * WALL_T), ip[1] + (ny * WALL_T)]
+      end
+
+      ops = doors.select { |dr| dr[:edge] == i }
+                 .map    { |dr| [dr[:at], [dr[:at] + dr[:w], len].min] }
+                 .sort_by { |o| o[0] }
+
+      marks = [0.0]
+      ops.each { |o| marks << o[0] << o[1] }
+      marks << len
+
+      k = 0
+      while k < marks.length - 1
+        s = marks[k]
+        e = marks[k + 1]
+        if (e - s) > 0.05
+          quad(walls, [inner.call(s), inner.call(e), outp.call(e), outp.call(s)], 0.0, height, "wall")
+        end
+        k += 2
+      end
+
+      ops.each do |o|
+        quad(walls,
+             [inner.call(o[0]), inner.call(o[1]), outp.call(o[1]), outp.call(o[0])],
+             DOOR_H, height - DOOR_H, "header")
+      end
     end
     walls
   end
 
-  def self.build_doors(parent, doors, layer)
-    grp = parent.add_group
-    grp.name  = "door openings"
+  # Leaf drawn open 90 degrees on the measured hinge side, plus the floor swing arc.
+  def self.build_doors(parent, poly, doors, layer, name)
+    dirs = edge_dirs(poly)
+    grp  = parent.add_group
+    grp.name  = name
     grp.layer = layer
-    doors.each do |x, y, w, axis|
-      a = (axis == :x) ? [[x, y], [x + w, y]] : [[x, y], [x, y + w]]
-      grp.entities.add_edges(pt(a[0][0], a[0][1], 0.1), pt(a[1][0], a[1][1], 0.1))
-      # swing arc, 90 degrees, drawn into the room side
-      c  = pt(a[0][0], a[0][1], 0.1)
-      v1 = Geom::Vector3d.new(a[1][0] - a[0][0], a[1][1] - a[0][1], 0)
-      grp.entities.add_arc(c, v1, Geom::Vector3d.new(0, 0, 1), w, 0.degrees, 90.degrees, 16)
+
+    doors.each do |d|
+      i = d[:edge]
+      ax, ay = poly[i]
+      ux, uy = dirs[i][:u]
+      nx, ny = dirs[i][:n]
+      w = d[:w]
+
+      if d[:hinge] == :start
+        hx = ax + (ux * d[:at])
+        hy = ay + (uy * d[:at])
+        cx = ux
+        cy = uy
+      else
+        hx = ax + (ux * (d[:at] + w))
+        hy = ay + (uy * (d[:at] + w))
+        cx = -ux
+        cy = -uy
+      end
+      sx = (d[:swing] == :out) ? nx : -nx
+      sy = (d[:swing] == :out) ? ny : -ny
+
+      t = 1.75
+      leaf = [
+        [hx,                          hy                         ],
+        [hx + (sx * w),               hy + (sy * w)              ],
+        [hx + (sx * w) + (cx * t),    hy + (sy * w) + (cy * t)   ],
+        [hx + (cx * t),               hy + (cy * t)              ]
+      ]
+      quad(grp, leaf, 0.0, DOOR_H, "door leaf #{w.round}\" #{d[:swing]}")
+
+      cross = (cx * sy) - (cy * sx)
+      grp.entities.add_arc(pt(hx, hy, 0.25),
+                           Geom::Vector3d.new(cx, cy, 0),
+                           Geom::Vector3d.new(0, 0, cross > 0 ? 1 : -1),
+                           w, 0.degrees, 90.degrees, 16)
     end
     grp
   end
 
-  # booth as a box + ADA ramp wedge + door swing
+  # Door dimensions: corner -> near jamb, and the opening width. This is what you
+  # need to place a booth against a wall, so it is on by default.
+  def self.dim_doors(ents, poly, doors)
+    return unless DIM_DOORS
+    dirs = edge_dirs(poly)
+    doors.each do |d|
+      i = d[:edge]
+      ax, ay = poly[i]
+      ux, uy = dirs[i][:u]
+      nx, ny = dirs[i][:n]
+      off1 = Geom::Vector3d.new(nx * (WALL_T + 20.0), ny * (WALL_T + 20.0), 0)
+      off2 = Geom::Vector3d.new(nx * (WALL_T + 40.0), ny * (WALL_T + 40.0), 0)
+      corner = pt(ax, ay)
+      near   = pt(ax + (ux * d[:at]),            ay + (uy * d[:at]))
+      far    = pt(ax + (ux * (d[:at] + d[:w])),  ay + (uy * (d[:at] + d[:w])))
+      dim(ents, corner, near, off1)
+      dim(ents, near,   far,  off2)
+    end
+  end
+
   def self.build_booth(parent, spec, height, layer, label)
     g = parent.add_group
     g.name  = label
     g.layer = layer
-    x, y, w, l = spec[:x], spec[:y], spec[:w], spec[:l]
-
-    box = g.entities.add_group
-    f = box.entities.add_face([pt(x, y), pt(x + w, y), pt(x + w, y + l), pt(x, y + l)])
-    unless f.nil?
-      f.reverse! if f.normal.z < 0
-      f.pushpull(height)
-    end
-    box.name = "#{label} shell"
-
-    # ADA ramp — a wedge running out from the door wall, RAMP_PROT deep
-    r = g.entities.add_group
-    r.name = "ADA ramp (#{RAMP_PROT.round(1)}\" protrusion)"
-    case spec[:door]
-    when :W then rq = [[x - RAMP_PROT, y], [x, y], [x, y + l], [x - RAMP_PROT, y + l]]
-    when :E then rq = [[x + w, y], [x + w + RAMP_PROT, y], [x + w + RAMP_PROT, y + l], [x + w, y + l]]
-    when :S then rq = [[x, y - RAMP_PROT], [x + w, y - RAMP_PROT], [x + w, y], [x, y]]
-    else         rq = [[x, y + l], [x + w, y + l], [x + w, y + l + RAMP_PROT], [x, y + l + RAMP_PROT]]
-    end
-    rf = r.entities.add_face(rq.map { |p| pt(p[0], p[1], 0.0) })
-    unless rf.nil?
-      rf.reverse! if rf.normal.z < 0
-      rf.pushpull(1.5)
-    end
+    x = spec[:x]
+    y = spec[:y]
+    w = spec[:w]
+    l = spec[:l]
+    quad(g, [[x, y], [x + w, y], [x + w, y + l], [x, y + l]], 0.0, height, "#{label} shell")
+    rq = case spec[:door]
+         when :W then [[x - RAMP_PROT, y], [x, y], [x, y + l], [x - RAMP_PROT, y + l]]
+         when :E then [[x + w, y], [x + w + RAMP_PROT, y], [x + w + RAMP_PROT, y + l], [x + w, y + l]]
+         when :S then [[x, y - RAMP_PROT], [x + w, y - RAMP_PROT], [x + w, y], [x, y]]
+         else         [[x, y + l], [x + w, y + l], [x + w, y + l + RAMP_PROT], [x, y + l + RAMP_PROT]]
+         end
+    quad(g, rq, 0.0, 1.5, "ADA ramp #{RAMP_PROT}\"")
     g
   end
 
@@ -213,61 +311,73 @@ module WR_CSUSB
     puts "  (dimension skipped: #{e.message})"
   end
 
+  def self.set_imperial(model)
+    o = model.options["UnitsOptions"]
+    o["LengthFormat"] = Length::Architectural
+    o["LengthUnit"]   = Length::Inches
+  rescue StandardError => e
+    puts "  (couldn't set units automatically: #{e.message} — set Model Info > Units to Architectural)"
+  end
+
   # ═══════════════════════════════════════════════════════════════════════
   def self.build
     model = Sketchup.active_model
-    model.start_operation("CSUSB rooms + MDL 96120", true)
+    set_imperial(model)
+    model.start_operation("CSUSB rooms", true)
 
-    t_room  = tag(model, "WR-Room",   Sketchup::Color.new(120, 128, 140))
-    t_floor = tag(model, "WR-Floor",  Sketchup::Color.new(200, 200, 200))
-    t_booth = tag(model, "WR-Booth",  Sketchup::Color.new(238,  98,  22))
-    t_door  = tag(model, "WR-Doors",  Sketchup::Color.new( 64, 102, 124))
-    t_note  = tag(model, "WR-Notes",  Sketchup::Color.new( 30,  30,  30))
-
+    t_room  = tag(model, "WR-Room",  Sketchup::Color.new(120, 128, 140))
+    t_floor = tag(model, "WR-Floor", Sketchup::Color.new(200, 200, 200))
+    t_booth = tag(model, "WR-Booth", Sketchup::Color.new(238,  98,  22))
+    t_door  = tag(model, "WR-Doors", Sketchup::Color.new( 64, 102, 124))
+    t_note  = tag(model, "WR-Notes", Sketchup::Color.new( 30,  30,  30))
     ents = model.entities
 
     if BUILD_117
       a = ents.add_group
       a.name = "CHAPARRAL 117 - 51'-4\" x 48'-3\""
-      slab(a.entities, ROOM_117, 0, "floor 117", t_floor)
-      build_walls(a.entities, ROOM_117, CEILING_117, t_room, "walls 117")
-      build_doors(a.entities, DOORS_117, t_door)
+      slab(a.entities, ROOM_117, "floor 117", t_floor)
+      build_walls(a.entities, ROOM_117, CEILING_117, t_room, "walls 117", DOORS_117)
+      build_doors(a.entities, ROOM_117, DOORS_117, t_door, "doors 117") if DRAW_DOORS
 
       cx, cy, cs = COLUMN_117
       col = a.entities.add_group
       col.name  = "column ~16\" sq"
       col.layer = t_room
-      cf = col.entities.add_face([pt(cx, cy), pt(cx + cs, cy), pt(cx + cs, cy + cs), pt(cx, cy + cs)])
-      unless cf.nil?
-        cf.reverse! if cf.normal.z < 0
-        cf.pushpull(CEILING_117)
-      end
+      quad(col, [[cx, cy], [cx + cs, cy], [cx + cs, cy + cs], [cx, cy + cs]], 0.0, CEILING_117, "column")
 
-      build_booth(a.entities, BOOTH_117, BOOTH_H, t_booth, "MDL 96120 - PLACEHOLDER, confirm wall") if BUILD_BOOTH
+      build_booth(a.entities, BOOTH_117, BOOTH_H, t_booth, "MDL 96120 - PLACEHOLDER") if BUILD_BOOTH
 
-      dim(a.entities, pt(0, 579.21), pt(615.95, 579.21), Geom::Vector3d.new(0,  70, 0))
-      dim(a.entities, pt(0, 579.21), pt(0, 0),           Geom::Vector3d.new(-70, 0, 0))
-      dim(a.entities, pt(0, 579.21), pt(522.09, 579.21), Geom::Vector3d.new(0,  36, 0))
-      txt = a.entities.add_text("117 — dimensions from the drawing; ceiling height is a GUESS", pt(40, 300, 1))
+      dim(a.entities, pt(0, 579.21), pt(615.95, 579.21), Geom::Vector3d.new(0,  90, 0))
+      dim(a.entities, pt(0, 579.21), pt(0, 0),           Geom::Vector3d.new(-90, 0, 0))
+      dim(a.entities, pt(0, 579.21), pt(522.09, 579.21), Geom::Vector3d.new(0,  62, 0))
+      dim_doors(a.entities, ROOM_117, DOORS_117)
+
+      txt = a.entities.add_text("117 — plan dims measured. Ceiling drawn at 8'-0\" (house default, NOT measured).", pt(40, 300, 1))
       txt.layer = t_note if txt
     end
 
     if BUILD_056
-      off = 900.0    # park 056 to the east of 117 so both are visible
+      off  = 900.0
       b = ents.add_group
       b.name = "UNIV HALL 056 - 25'-3\" x 13'-4\""
-      poly  = ROOM_056.map { |p| [p[0] + off, p[1]] }
-      booth = BOOTH_056.dup
-      booth[:x] += off
+      poly = ROOM_056.map { |p| [p[0] + off, p[1]] }
 
-      slab(b.entities, poly, 0, "floor 056", t_floor)
-      build_walls(b.entities, poly, CEILING_056, t_room, "walls 056")
-      build_booth(b.entities, booth, BOOTH_H, t_booth, "MDL 96120 + ADA ramp") if BUILD_BOOTH
+      slab(b.entities, poly, "floor 056", t_floor)
+      build_walls(b.entities, poly, CEILING_056, t_room, "walls 056", DOORS_056)
+      build_doors(b.entities, poly, DOORS_056, t_door, "doors 056") if DRAW_DOORS
 
-      dim(b.entities, pt(off, 0), pt(off + 302.60, 0),               Geom::Vector3d.new(0, -60, 0))
-      dim(b.entities, pt(off + 302.60, 0), pt(off + 302.60, 160.40), Geom::Vector3d.new(60, 0, 0))
-      dim(b.entities, pt(off + 125.80, 160.40), pt(off + 302.60, 160.40), Geom::Vector3d.new(0, 60, 0))
-      txt = b.entities.add_text("056 — curved wall traced to ~1\"; ceiling height is a GUESS", pt(off + 20, 80, 1))
+      if BUILD_BOOTH
+        booth = BOOTH_056.dup
+        booth[:x] = booth[:x] + off
+        build_booth(b.entities, booth, BOOTH_H, t_booth, "MDL 96120 + ADA ramp")
+      end
+
+      dim(b.entities, pt(off, 0), pt(off + 302.60, 0),                    Geom::Vector3d.new(0, -80, 0))
+      dim(b.entities, pt(off + 302.60, 0), pt(off + 302.60, 160.40),      Geom::Vector3d.new(80, 0, 0))
+      dim(b.entities, pt(off + 125.80, 160.40), pt(off + 302.60, 160.40), Geom::Vector3d.new(0, 62, 0))
+      dim_doors(b.entities, poly, DOORS_056)
+
+      txt = b.entities.add_text("056 — curved wall traced to ~1\". Ceiling drawn at 8'-0\" (house default, NOT measured).", pt(off + 20, 80, 1))
       txt.layer = t_note if txt
     end
 
@@ -275,20 +385,17 @@ module WR_CSUSB
     model.active_view.zoom_extents
 
     puts ""
-    puts "Built. Everything is on WR-* tags so you can switch pieces off."
-    puts "  Room 117 interior : 51'-4\" x 48'-3\"   (2,013 sq ft net)"
-    puts "  Room 056 interior : 25'-3\" x 13'-4\"   (274 sq ft)"
-    puts "  Walls drawn at #{WALL_T}\" thick, extruded OUTWARD — interior dims are unaffected."
-    if BUILD_BOOTH
-      puts "  Booth MDL 96120   : 8'-2\" x 10'-2\" x #{BOOTH_H == 85.0 ? "7'-1\" Enhanced" : "6'-11\" Standard"}"
-      puts "  ADA ramp adds     : #{RAMP_PROT}\" off the door wall"
-      puts "  The 117 booth position is a PLACEHOLDER."
-    else
-      puts "  Rooms only (BUILD_BOOTH = false)."
-    end
+    puts "Built. Architectural units. Everything on WR-* tags."
+    puts "  117 : 51'-4\" x 48'-3\" (2,013 sq ft net) — 3 doors, all 3'-0\", all swing out"
+    puts "        north wall, near jambs 11'-0\" and 27'-0\" east of the NW corner"
+    puts "        west  wall, near jamb  11'-6\" north of the SW corner (35'-3\" CL down from NW)"
+    puts "  056 : 25'-3\" x 13'-4\" (274 sq ft) — one door, the full 43\" angled NW opening"
+    puts "  Walls #{WALL_T}\" thick, mitred at the corners, extruded OUTWARD."
+    puts "  Openings cut to #{DOOR_H}\" with a header over; leaves drawn open 90 degrees."
+    puts BUILD_BOOTH ? "  Booth MDL 96120 included (placeholder position)." : "  Rooms only (BUILD_BOOTH = false)."
     puts ""
-    puts "  CEILING_117 = #{CEILING_117}\" and CEILING_056 = #{CEILING_056}\" are PLACEHOLDERS."
-    puts "  Nobody has measured either one."
+    puts "  NOT MEASURED: ceilings (drawn 8'-0\" house default), DOOR_H #{DOOR_H}\","
+    puts "                and the 056 leaf width + hinge side (its 43\" opening IS measured)."
     puts ""
   rescue StandardError => e
     model.abort_operation if model

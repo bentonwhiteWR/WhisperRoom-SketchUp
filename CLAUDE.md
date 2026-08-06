@@ -196,6 +196,20 @@ The `whisperroom-proposal` skill covers the generator mechanics and the verifica
 
 ---
 
+## Benton's drawing conventions — apply these without being asked
+
+- **Imperial throughout**, unless a drawing or a client says otherwise. Feet and inches on
+  every dimension; set SketchUp to Architectural units.
+- **8'-0" ceilings by default** unless the client states a height. Draw it, label it as the
+  house default, and keep asking for the real number — it is still the thing that disqualifies
+  a booth fastest.
+- **Dimension the doors off their wall corners.** Corner → near jamb, then the opening width.
+  This is how a booth actually gets placed against a wall, so it is not optional.
+- **Square the wall corners.** Mitre the outside face where two walls meet — never let wall
+  solids cross and overshoot each other into an X.
+- Wall thickness is cosmetic: build outward from the measured interior face so it never moves
+  a dimension. The drawings read ~5" for these rooms; Benton usually draws 4". Either is fine.
+
 ## SketchUp itself
 
 SketchUp 2023 and 2024 are installed, both with plugin folders at
