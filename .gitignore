@@ -1,0 +1,25 @@
+# Client-supplied assets and renders — keep the notes, not the files
+clients/**/plans/
+clients/**/renders/
+clients/**/*.skp
+clients/**/*.skb
+clients/**/*.pdf
+clients/**/*.png
+clients/**/*.jpg
+clients/**/*.jpeg
+clients/**/*.webp
+clients/**/*.dwg
+clients/**/*.heic
+
+# SketchUp backups anywhere
+*.skb
+*.~sk
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+*.tmp
+
+# Scratch
+scratch/
