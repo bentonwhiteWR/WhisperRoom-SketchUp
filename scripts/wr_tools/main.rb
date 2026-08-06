@@ -67,20 +67,30 @@ module WhisperRoom
         cmd = UI::Command.new(s[:label]) { run(s[:file]) }
         cmd.tooltip         = s[:label]
         cmd.status_bar_text = "Run #{File.basename(s[:file])}"
-        cmd.small_icon = cmd.large_icon = icon_for(s[:file])
+        cmd.small_icon = icon_for(s[:file], 24)
+        cmd.large_icon = icon_for(s[:file], 32)
         tb.add_item(cmd)
       end
       console = UI::Command.new('Ruby Console') { Sketchup.send_action('showRubyPanel:') }
-      console.tooltip = 'Ruby Console'
-      console.small_icon = console.large_icon = icon_for(nil)
+      console.tooltip         = 'Ruby Console'
+      console.status_bar_text = 'Open the Ruby Console'
+      console.small_icon = icon_for('console', 24)
+      console.large_icon = icon_for('console', 32)
       tb.add_item(console)
       tb.show
     end
 
-    # SketchUp wants an icon path; if none ships with the plugin it falls back to
-    # a text button, which is fine and keeps this dependency-free.
-    def self.icon_for(_path)
-      png = File.join(File.dirname(__FILE__), 'icon.png')
+    # Pick an icon by what the script does, so the buttons are tellable apart.
+    # Hovering still gives the full name; this just stops them all looking alike.
+    def self.icon_for(path, size)
+      name = File.basename(path.to_s).downcase
+      tag = if    name == 'console'   then 'console'
+            elsif name.include?('booth')  then 'booth'
+            elsif name.include?('room')   then 'rooms'
+            elsif name.include?('export') || name.include?('scene') then 'export'
+            else 'generic'
+            end
+      png = File.join(File.dirname(__FILE__), "icon-#{tag}-#{size}.png")
       File.exist?(png) ? png : ''
     end
 
