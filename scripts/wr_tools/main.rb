@@ -10,7 +10,21 @@ require 'sketchup.rb'
 
 module WhisperRoom
   module Tools
-    SCRIPTS_DIR = 'C:/Users/bento/Documents/Claude/Sketchup/scripts'
+    # Where the repo's scripts/ folder lives. Machines differ — the laptop keeps
+    # Documents local, the desktop has it redirected into OneDrive, and the repo
+    # may sit at Claude/Sketchup or Claude/Sketchup/WhisperRoom-SketchUp. Take the
+    # first candidate that actually exists rather than hard-coding one machine.
+    # Set the WR_SCRIPTS_DIR environment variable to override on a new machine.
+    CANDIDATES = [
+      ENV['WR_SCRIPTS_DIR'],
+      File.join(ENV['USERPROFILE'].to_s, 'Documents/Claude/Sketchup/scripts'),
+      File.join(ENV['USERPROFILE'].to_s, 'Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts'),
+      File.join(ENV['USERPROFILE'].to_s, 'OneDrive/Documents/Claude/Sketchup/scripts'),
+      File.join(ENV['USERPROFILE'].to_s, 'OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts')
+    ].compact.map { |p| p.tr('\\', '/') }.freeze
+
+    SCRIPTS_DIR = (CANDIDATES.find { |p| File.directory?(p) } || CANDIDATES[1])
+
     # wr-booth-data.rb is data loaded by build-booth.rb, not a command.
     SKIP        = ['wr_tools.rb', 'wr-booth-data.rb'].freeze
 

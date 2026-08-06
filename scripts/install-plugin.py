@@ -15,17 +15,41 @@ SRC = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(os.environ.get('APPDATA', ''), 'SketchUp')
 
 
-def main():
-    if not os.path.isdir(ROOT):
-        sys.exit('No SketchUp folder at %s — is SketchUp installed for this user?' % ROOT)
+def installed_versions():
+    """SketchUp versions present in Program Files, e.g. ['SketchUp 2024'].
 
+    A freshly installed SketchUp has no %APPDATA%\\SketchUp profile until its
+    first launch, so we can't rely on that folder existing.
+    """
+    out = []
+    for base in (os.environ.get('ProgramFiles', ''),
+                 os.environ.get('ProgramFiles(x86)', '')):
+        root = os.path.join(base, 'SketchUp')
+        if os.path.isdir(root):
+            for entry in sorted(os.listdir(root)):
+                if os.path.isfile(os.path.join(root, entry, 'SketchUp.exe')):
+                    out.append(entry)
+    return out
+
+
+def main():
     targets = []
-    for entry in sorted(os.listdir(ROOT)):
-        plugins = os.path.join(ROOT, entry, 'SketchUp', 'Plugins')
-        if os.path.isdir(plugins):
-            targets.append((entry, plugins))
+    if os.path.isdir(ROOT):
+        for entry in sorted(os.listdir(ROOT)):
+            plugins = os.path.join(ROOT, entry, 'SketchUp', 'Plugins')
+            if os.path.isdir(plugins):
+                targets.append((entry, plugins))
+
     if not targets:
-        sys.exit('No Plugins folders found under %s' % ROOT)
+        # SketchUp installed but never launched — create the profile folder it
+        # would create itself on first run.
+        versions = installed_versions()
+        if not versions:
+            sys.exit('No SketchUp found in Program Files and no profile at %s.' % ROOT)
+        for v in versions:
+            plugins = os.path.join(ROOT, v, 'SketchUp', 'Plugins')
+            os.makedirs(plugins, exist_ok=True)
+            targets.append((v + ' (created profile folder)', plugins))
 
     for name, plugins in targets:
         shutil.copy2(os.path.join(SRC, 'wr_tools.rb'), plugins)
@@ -38,10 +62,11 @@ def main():
     print('')
     print('Restart SketchUp. Menu: Extensions > WhisperRoom')
     print('')
-    print('NOTE: wr_tools/main.rb hard-codes the scripts folder as')
+    print('wr_tools/main.rb finds the scripts folder itself from a candidate list.')
+    print('This repo\'s scripts folder is')
     print('   %s' % SRC.replace('\\', '/'))
-    print('If this repo lives elsewhere on this machine, edit SCRIPTS_DIR in')
-    print('wr_tools/main.rb before installing.')
+    print('If that is not one of the candidates, set the WR_SCRIPTS_DIR environment')
+    print('variable to it, or add it to CANDIDATES in wr_tools/main.rb.')
 
 
 if __name__ == '__main__':

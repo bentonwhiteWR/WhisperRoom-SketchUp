@@ -1,5 +1,40 @@
 # DEVLOG
 
+## 2026-08-06 (later) — desktop brought online
+
+**Repo cloned to the home desktop** at
+`C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\`. Documents is
+redirected into OneDrive on this machine, so the laptop's `C:\Users\bento\Documents\Claude\`
+does not exist here.
+
+**Plugin made machine-independent.** `wr_tools/main.rb` hard-coded
+`C:/Users/bento/Documents/Claude/Sketchup/scripts`, which resolves to nothing on the desktop.
+It now walks a `CANDIDATES` list (both Documents roots × both repo layouts) and takes the first
+that exists, with a `WR_SCRIPTS_DIR` environment-variable override for a new machine.
+`install-plugin.py` likewise no longer requires `%APPDATA%\SketchUp` to already exist — a
+SketchUp that has never been launched has no profile folder, so the installer now detects
+installed versions from Program Files and creates the Plugins folder itself.
+
+**Installed and verified on the desktop.** SketchUp 2024, `wr_tools.rb` + `wr_tools\` in
+`%APPDATA%\SketchUp\SketchUp 2024\SketchUp\Plugins\`. The resolver was run against this
+machine's filesystem and picks the OneDrive clone; 4 scripts will appear on the menu
+(`booth-4260-s`, `build-booth`, `csusb-rooms`, `export-scenes`). The menu itself is unverified
+until SketchUp is launched.
+
+**Sibling repos on the desktop.** `WhisperRoomQuote` was already present. `whisperroom-proposals`
+cloned to `<CLAUDE>\WhisperRoom Proposals\`.
+
+### Still missing on the desktop — needs a push from the laptop
+
+These are referenced by `CLAUDE.md` but are not in any branch of any repo on GitHub, so they
+exist only on the laptop:
+
+- `WhisperRoom Proposals\build-v2.js` and `examples\<client>\proposal-v2.json` — the
+  `whisperroom-proposals` repo on GitHub is still the single-commit **v1** system (`build.js`).
+- `WhisperRoomQuote\tools\sketchup-scene-export\` — never committed on any branch.
+- `Desktop\ProposalFiles\` and `Desktop\WhisperRoom\` (brand guideline, historical drawings) —
+  local-only by design; copy them across manually.
+
 ## 2026-08-06
 
 ### Done

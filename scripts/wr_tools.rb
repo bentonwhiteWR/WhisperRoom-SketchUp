@@ -5,10 +5,10 @@
 #     %APPDATA%\SketchUp\SketchUp 2024\SketchUp\Plugins\
 #   Restart SketchUp. You get a "WhisperRoom" menu and a toolbar.
 #
-# After that you never open the Ruby Console again. Every .rb in
-#   C:\Users\bento\Documents\Claude\Sketchup\scripts\
-# except this loader shows up as a menu item automatically, so any new script
-# appears without reinstalling anything — just hit Reload Scripts.
+# After that you never open the Ruby Console again. Every .rb in the repo's
+# scripts/ folder except this loader shows up as a menu item automatically, so
+# any new script appears without reinstalling anything — just hit Reload
+# Scripts. wr_tools/main.rb locates that folder itself (see CANDIDATES there).
 
 require 'sketchup.rb'
 require 'extensions.rb'

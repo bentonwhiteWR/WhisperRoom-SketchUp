@@ -27,13 +27,26 @@ not a wall of prose.
 
 ## Where everything actually lives (do not rediscover this)
 
+**Machine note — check this first.** The Claude workspace root differs per machine because
+Documents is redirected into OneDrive on some of them. Resolve `<CLAUDE>` once at the start
+of a session to whichever of these exists, then read every path below relative to it:
+
+| Machine | `<CLAUDE>` |
+|---|---|
+| Laptop | `C:\Users\bento\Documents\Claude\` |
+| Desktop | `C:\Users\bento\OneDrive\Documents\Claude\` |
+
+On the desktop this repo is cloned at `<CLAUDE>\Sketchup\WhisperRoom-SketchUp\`; on the
+laptop it sits directly at `<CLAUDE>\Sketchup\`. Never hard-code either — the SketchUp
+plugin resolves its own path the same way (see `scripts/wr_tools/main.rb`).
+
 | Thing | Path |
 |---|---|
-| Booth model catalog (dims, weights, prices, vents) | `C:\Users\bento\Documents\Claude\WhisperRoomQuote\whisperroom-catalog\data\models.json` |
+| Booth model catalog (dims, weights, prices, vents) | `<CLAUDE>\WhisperRoomQuote\whisperroom-catalog\data\models.json` |
 | Options / packages / compatibility | same folder — `options.json`, `packages.json`, `compatibility.json` |
 | Top-down wall + door + vent art (PNG) | `...\WhisperRoomQuote\assets\topdown\` |
 | Booth elevation art | `...\WhisperRoomQuote\assets\booth-art\` |
-| **Proposal brand + layout spec** | `C:\Users\bento\Documents\Claude\WhisperRoom Proposals\docs\PROPOSAL-GUIDELINES.md` |
+| **Proposal brand + layout spec** | `<CLAUDE>\WhisperRoom Proposals\docs\PROPOSAL-GUIDELINES.md` |
 | Proposal generator | `...\WhisperRoom Proposals\build-v2.js` |
 | Prior proposal configs (copy the newest) | `...\WhisperRoom Proposals\examples\<client>\proposal-v2.json` |
 | **Scene → PNG batch exporter** | `...\WhisperRoomQuote\tools\sketchup-scene-export\` |
