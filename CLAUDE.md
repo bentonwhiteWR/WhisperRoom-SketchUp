@@ -93,6 +93,28 @@ Use the **Artifact** tool. A layout Artifact should be:
 - Labeled with the model name and the exterior dims it's drawn at.
 - Explicit about what's estimated — put the tolerance **on the drawing**, not just in chat.
 
+### Dimension the top-down properly — this is the default, not an upgrade
+
+Benton reads the plan, not the prose. Overall dimensions alone are not enough; **every in-line
+wall run gets its own dimension string on the drawing.**
+
+- **Chain-dimension each side.** One row of segment dimensions closest to the building, one row
+  outside it carrying the overall. Every notch, return, and jog gets called out — an L-shaped
+  room needs all its runs, not just the bounding box.
+- **Close every chain and say so.** The segments must sum to the overall; state the closure.
+  A chain that doesn't close means a wall face was misread — find it before publishing.
+- **A chain line means segment lengths, never running totals.** If you want distance from a
+  datum, use a separate ordinate dimension. Mixing the two on one line is a real drafting error
+  and will be read as fact.
+- **Round to the nearest inch on the drawing, keep a tenth in the table.** Give a per-run table
+  under the plan with the precise decimal so nothing is lost to rounding.
+- **Dimension door centerlines** from a named corner, plus door-to-door spacing. That's what
+  placement actually turns on.
+- **Curved or angled walls have no single in-line dimension.** Run a depth datum down one side
+  and give the clear width at each depth; say how the curve was traced and how faithful it is.
+- Keep wall dimensions and secondary dimensions (doors, datums, clear rectangles) visually
+  distinct, and put a legend on the drawing.
+
 Brand orange is `#ee6216`. Keep working drawings clean and legible over decorated; the
 polished-brand treatment belongs in the proposal, not the scratch layout.
 
