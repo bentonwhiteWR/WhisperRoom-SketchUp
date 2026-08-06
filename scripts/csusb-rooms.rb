@@ -23,11 +23,19 @@ module WR_CSUSB
   # ─── parameters you will want to change ────────────────────────────────
   CEILING_117   = 144.0        # GUESS. Exposed structure — measure to the LOWEST duct/pipe.
   CEILING_056   = 96.0         # GUESS. Suspended lay-in grid — measure floor to tile.
-  WALL_T        = 5.0          # cosmetic wall thickness
-  BOOTH_H       = 83.0         # 83 = Standard 6'-11" | 85 = Enhanced 7'-1"
-  DRAW_DIMS     = true
+
+  # Wall thickness. COSMETIC ONLY — walls are extruded OUTWARD from the measured
+  # interior face, so changing this never moves an interior dimension.
+  # What the drawings actually show, wall-line to wall-line:
+  #   117 north + south ≈ 4.9"   117 east ≈ 5.3"   117 west ≈ 7.7"   056 ≈ 5.2"
+  # 5.0 is the best single value. Set 4.0 if you'd rather draw them 4".
+  WALL_T        = 5.0
+
   BUILD_117     = true
   BUILD_056     = true
+  DRAW_DIMS     = true
+  BUILD_BOOTH   = false        # rooms only. Set true to also drop in the MDL 96120.
+  BOOTH_H       = 83.0         # 83 = Standard 6'-11" | 85 = Enhanced 7'-1"
 
   # ─── booth constants (MDL 96120 + ADA package) ────────────────────────
   BOOTH_W       = 98.0         # 8'-2"
@@ -59,7 +67,9 @@ module WR_CSUSB
     [   0.00, 137.90, 36.0, :y ]    # west  wall, centreline 35'-3" down from the NW corner
   ].freeze
 
-  COLUMN_117 = [ 186.00, 187.30, 15.9 ].freeze   # [x, y, side] — 15'-6" E, 32'-3" S of the NW corner
+  # [x, y, side] — SW corner of the column. Centre is 15'-6" east of the west wall
+  # and 32'-3" south of the north wall, i.e. (186.0, 192.4) in these coordinates.
+  COLUMN_117 = [ 178.05, 184.46, 15.9 ].freeze
 
   # ─── room 056, University Hall — interior face, inches ─────────────────
   # The west side is the building's curved outer wall, traced as eight points off
@@ -233,7 +243,7 @@ module WR_CSUSB
         cf.pushpull(CEILING_117)
       end
 
-      build_booth(a.entities, BOOTH_117, BOOTH_H, t_booth, "MDL 96120 - PLACEHOLDER, confirm wall")
+      build_booth(a.entities, BOOTH_117, BOOTH_H, t_booth, "MDL 96120 - PLACEHOLDER, confirm wall") if BUILD_BOOTH
 
       dim(a.entities, pt(0, 579.21), pt(615.95, 579.21), Geom::Vector3d.new(0,  70, 0))
       dim(a.entities, pt(0, 579.21), pt(0, 0),           Geom::Vector3d.new(-70, 0, 0))
@@ -252,7 +262,7 @@ module WR_CSUSB
 
       slab(b.entities, poly, 0, "floor 056", t_floor)
       build_walls(b.entities, poly, CEILING_056, t_room, "walls 056")
-      build_booth(b.entities, booth, BOOTH_H, t_booth, "MDL 96120 + ADA ramp")
+      build_booth(b.entities, booth, BOOTH_H, t_booth, "MDL 96120 + ADA ramp") if BUILD_BOOTH
 
       dim(b.entities, pt(off, 0), pt(off + 302.60, 0),               Geom::Vector3d.new(0, -60, 0))
       dim(b.entities, pt(off + 302.60, 0), pt(off + 302.60, 160.40), Geom::Vector3d.new(60, 0, 0))
@@ -268,11 +278,17 @@ module WR_CSUSB
     puts "Built. Everything is on WR-* tags so you can switch pieces off."
     puts "  Room 117 interior : 51'-4\" x 48'-3\"   (2,013 sq ft net)"
     puts "  Room 056 interior : 25'-3\" x 13'-4\"   (274 sq ft)"
-    puts "  Booth MDL 96120   : 8'-2\" x 10'-2\" x #{BOOTH_H == 85.0 ? "7'-1\" Enhanced" : "6'-11\" Standard"}"
-    puts "  ADA ramp adds     : #{RAMP_PROT}\" off the door wall"
+    puts "  Walls drawn at #{WALL_T}\" thick, extruded OUTWARD — interior dims are unaffected."
+    if BUILD_BOOTH
+      puts "  Booth MDL 96120   : 8'-2\" x 10'-2\" x #{BOOTH_H == 85.0 ? "7'-1\" Enhanced" : "6'-11\" Standard"}"
+      puts "  ADA ramp adds     : #{RAMP_PROT}\" off the door wall"
+      puts "  The 117 booth position is a PLACEHOLDER."
+    else
+      puts "  Rooms only (BUILD_BOOTH = false)."
+    end
     puts ""
     puts "  CEILING_117 = #{CEILING_117}\" and CEILING_056 = #{CEILING_056}\" are PLACEHOLDERS."
-    puts "  The 117 booth position is a PLACEHOLDER until the wall is confirmed."
+    puts "  Nobody has measured either one."
     puts ""
   rescue StandardError => e
     model.abort_operation if model
