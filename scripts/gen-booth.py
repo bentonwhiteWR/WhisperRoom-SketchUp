@@ -101,6 +101,14 @@ def solve_panels(run, slot_sizes):
     return [round(s * target / total, 3) for s in listed], 'scaled'
 
 
+def poly_of(p):
+    """Every part as a plan polygon — rectangles expand, T and L shapes pass through."""
+    if 'poly' in p:
+        return p['poly']
+    x, y, dx, dy = p['x'], p['y'], p['dx'], p['dy']
+    return [(x, y), (x + dx, y), (x + dx, y + dy), (x, y + dy)]
+
+
 def build(model, variant, assign=None):
     layouts = load('booth-layouts.json')['layouts']
     boms = load('base-bom.json')['models']
@@ -146,51 +154,55 @@ def build(model, variant, assign=None):
                               x=round(x, 3), y=round(y, 3), dx=round(dx, 3), dy=round(dy, 3)))
             cursor += ln
             if i < len(lengths) - 1:
-                # Mid-wall seam seal, in two pieces:
-                #   stem  — 2" wide, fills the gap; the panels butt into its sides
-                #   plate — 7 3/4" wide, in the 1" band outboard of the panel face
+                # Mid-wall seam seal — ONE T-shaped piece. The 7 3/4" x 1" base sits
+                # in the outboard band; the 2" stem fills the gap and the two panels
+                # butt into its sides.
                 band = t - PANEL_T
                 mid = cursor + SEAL_W / 2.0
-                half = SEAL_PLATE / 2.0
-                if side in ('N', 'S'):
-                    py = (H - band) if side == 'N' else 0.0
-                    parts.append(dict(kind='seal', id='%s-seal%d stem' % (side, i), side=side,
-                                      slot_kind='SEAL', pack='Std mid-wall seam seal (stem)',
-                                      length=SEAL_W, x=round(cursor, 3), y=round(y, 3),
-                                      dx=SEAL_W, dy=PANEL_T))
-                    parts.append(dict(kind='seal', id='%s-seal%d plate' % (side, i), side=side,
-                                      slot_kind='SEAL', pack='Std mid-wall seam seal (plate)',
-                                      length=SEAL_PLATE, x=round(mid - half, 3), y=round(py, 3),
-                                      dx=SEAL_PLATE, dy=band))
+                h = SEAL_PLATE / 2.0
+                s = SEAL_W / 2.0
+                if side == 'N':
+                    o, p = H, H - band          # o = exterior face, p = base/stem line
+                    poly = [(mid - s, p - PANEL_T), (mid + s, p - PANEL_T), (mid + s, p),
+                            (mid + h, p), (mid + h, o), (mid - h, o), (mid - h, p), (mid - s, p)]
+                elif side == 'S':
+                    o, p = 0.0, band
+                    poly = [(mid - s, p + PANEL_T), (mid - s, p), (mid - h, p), (mid - h, o),
+                            (mid + h, o), (mid + h, p), (mid + s, p), (mid + s, p + PANEL_T)]
+                elif side == 'E':
+                    o, p = W, W - band
+                    poly = [(p - PANEL_T, mid - s), (p, mid - s), (p, mid - h), (o, mid - h),
+                            (o, mid + h), (p, mid + h), (p, mid + s), (p - PANEL_T, mid + s)]
                 else:
-                    px = (W - band) if side == 'E' else 0.0
-                    parts.append(dict(kind='seal', id='%s-seal%d stem' % (side, i), side=side,
-                                      slot_kind='SEAL', pack='Std mid-wall seam seal (stem)',
-                                      length=SEAL_W, x=round(x, 3), y=round(cursor, 3),
-                                      dx=PANEL_T, dy=SEAL_W))
-                    parts.append(dict(kind='seal', id='%s-seal%d plate' % (side, i), side=side,
-                                      slot_kind='SEAL', pack='Std mid-wall seam seal (plate)',
-                                      length=SEAL_PLATE, x=round(px, 3), y=round(mid - half, 3),
-                                      dx=band, dy=SEAL_PLATE))
+                    o, p = 0.0, band
+                    poly = [(p + PANEL_T, mid - s), (p + PANEL_T, mid + s), (p, mid + s),
+                            (p, mid + h), (o, mid + h), (o, mid - h), (p, mid - h), (p, mid - s)]
+                parts.append(dict(kind='seal', id='%s-seal%d' % (side, i), side=side,
+                                  slot_kind='SEAL', pack='Std mid-wall seam seal', length=SEAL_PLATE,
+                                  poly=[(round(a, 3), round(b, 3)) for a, b in poly]))
                 cursor += SEAL_W
 
     # Corner seam seals — L-shaped, 4 7/8" legs, sitting in the same outboard band
     # as the mid-wall plates. Modelled as two rectangular legs meeting at the
     # corner: the outer profile is exact; the small inner step on the drawing is
     # not modelled.
+    # Corner seam seal — ONE piece: an L of 4 7/8" legs in the outboard band, PLUS
+    # the 1" x 1" block at the inside corner that the two panel ends butt into.
+    # Eight points, mirrored per corner.
     band = t - PANEL_T
     for cx, cy, sx, sy, name in ((0.0, 0.0, 1, 1, 'SW'), (W, 0.0, -1, 1, 'SE'),
                                  (0.0, H, 1, -1, 'NW'), (W, H, -1, -1, 'NE')):
-        ax = cx if sx > 0 else cx - CORNER
-        ay = cy if sy > 0 else cy - band
-        parts.append(dict(kind='corner', id='%s corner' % name, side=name, slot_kind='CORNER',
-                          pack='Std corner seam seal', length=CORNER,
-                          x=round(ax, 3), y=round(ay, 3), dx=CORNER, dy=band))
-        bx = cx if sx > 0 else cx - band
-        by = cy if sy > 0 else cy - CORNER
-        parts.append(dict(kind='corner', id='%s corner' % name, side=name, slot_kind='CORNER',
-                          pack='Std corner seam seal', length=CORNER,
-                          x=round(bx, 3), y=round(by, 3), dx=band, dy=CORNER))
+        poly = [(cx, cy),
+                (cx + sx * CORNER, cy),
+                (cx + sx * CORNER, cy + sy * band),
+                (cx + sx * t,      cy + sy * band),
+                (cx + sx * t,      cy + sy * t),
+                (cx + sx * band,   cy + sy * t),
+                (cx + sx * band,   cy + sy * CORNER),
+                (cx,               cy + sy * CORNER)]
+        parts.append(dict(kind='corner', id='%s corner seal' % name, side=name,
+                          slot_kind='CORNER', pack='Std corner seam seal', length=CORNER,
+                          poly=[(round(a, 3), round(b, 3)) for a, b in poly]))
 
     # The BOM counts BOXES, and some boxes hold two panels — the 16" wall ships
     # 2-per-box. components-master's desc starts with that count ("2 - STD WALL
@@ -220,9 +232,9 @@ def emit_ruby(b):
     slug = (b['model'].replace('MDL ', '').strip() + '-' + b['variant']).lower()
     path = os.path.join(OUT_DIR, 'booth-%s.rb' % slug)
     rows = ',\n'.join(
-        '    { :k=>%r, :id=>%r, :side=>%r, :sk=>%r, :pack=>%s, :x=>%s, :y=>%s, :dx=>%s, :dy=>%s }'
-        % (p['kind'], p['id'], p['side'], p['slot_kind'],
-           ('%r' % p['pack']) if p['pack'] else 'nil', p['x'], p['y'], p['dx'], p['dy'])
+        '    { :k=>%r, :id=>%r, :sk=>%r, :poly=>[%s] }'
+        % (p['kind'], p['id'], p['slot_kind'],
+           ','.join('[%s,%s]' % (a, c) for a, c in poly_of(p)))
         for p in b['parts'])
     notes = '\n'.join('    puts "  NOTE: %s"' % n.replace('"', "'") for n in b['notes']) or '    # none'
     const = (b['model'].replace('MDL ', '').strip() + '_' + b['variant']).replace(' ', '_')
@@ -346,8 +358,9 @@ def emit_data():
     rows = []
     for key, b in good.items():
         parts = ',\n        '.join(
-            '{ :k=>%r, :id=>%r, :sk=>%r, :x=>%s, :y=>%s, :dx=>%s, :dy=>%s }'
-            % (p['kind'], p['id'], p['slot_kind'], p['x'], p['y'], p['dx'], p['dy'])
+            '{ :k=>%r, :id=>%r, :sk=>%r, :poly=>[%s] }'
+            % (p['kind'], p['id'], p['slot_kind'],
+               ','.join('[%s,%s]' % (a, c) for a, c in poly_of(p)))
             for p in b['parts'])
         rows.append('''    %r => { :label=>%r, :w=>%s, :h=>%s, :iw=>%s, :ih=>%s, :ph=>81.0,
       :parts => [
@@ -391,12 +404,15 @@ def main():
     b = build(model, variant, assign)
     print('\n%s %s  "%s"' % (b['model'], b['variant'], b['label']))
     print('  exterior %g" x %g"   interior %g" x %g"' % (b['W'], b['H'], b['iw'], b['ih']))
-    print('\n  %-10s %-5s %-7s %-28s %8s %8s %7s %7s'
-          % ('PART', 'SIDE', 'KIND', 'PACK', 'X', 'Y', 'DX', 'DY'))
+    print('\n  %-18s %-5s %-7s %-26s %4s %s'
+          % ('PART', 'SIDE', 'KIND', 'PACK', 'PTS', 'PLAN EXTENT'))
     for p in b['parts']:
-        print('  %-10s %-5s %-7s %-28s %8.3f %8.3f %7.3f %7.3f'
+        poly = poly_of(p)
+        xs = [a for a, _ in poly]
+        ys = [c for _, c in poly]
+        print('  %-18s %-5s %-7s %-26s %4d  x %7.3f..%-7.3f y %7.3f..%-7.3f'
               % (p['id'], p['side'], p['slot_kind'], p['pack'] or '(default)',
-                 p['x'], p['y'], p['dx'], p['dy']))
+                 len(poly), min(xs), max(xs), min(ys), max(ys)))
     print('\n  panels %d   seals %d   packing list %d   %s'
           % (b['placed'], sum(1 for p in b['parts'] if p['kind'] == 'seal'), b['bom_panels'],
              'AGREE' if b['placed'] == b['bom_panels'] else '*** MISMATCH ***'))

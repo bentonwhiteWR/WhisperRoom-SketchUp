@@ -20,20 +20,42 @@ module WR_BuildBooth
     Geom::Point3d.new(x, y, z)
   end
 
-  def self.material(model, name)
-    m = model.materials[name]
-    return m if m
+  # Load the REAL .skm so the panels get the carpet texture, not a flat grey.
+  # Sketchup.find_support_file doesn't reach the shared library, which lives under
+  # ProgramData — so look there directly, newest SketchUp first.
+  def self.material_roots
+    roots = []
     begin
-      base = Sketchup.find_support_file('Materials')
-      if base
-        [MAT_COLLECTION, 'Colors-Named', ''].each do |sub|
-          path = sub.empty? ? File.join(base, "#{name}.skm") : File.join(base, sub, "#{name}.skm")
-          return model.materials.load(path) if File.exist?(path)
-        end
-      end
+      b = Sketchup.find_support_file('Materials')
+      roots << b if b
     rescue StandardError
     end
-    m = model.materials.add(name)
+    pd = ENV['ProgramData'] || 'C:/ProgramData'
+    %w[2026 2025 2024 2023 2022].each do |v|
+      roots << File.join(pd.tr('\\', '/'), 'SketchUp', "SketchUp #{v}", 'SketchUp', 'Materials')
+    end
+    roots
+  end
+
+  def self.material(model, name)
+    m = model.materials[name]
+    return m if m && m.texture           # already here WITH its texture
+
+    material_roots.each do |root|
+      next unless File.directory?(root)
+      [MAT_COLLECTION, 'Colors-Named', ''].each do |sub|
+        path = sub.empty? ? File.join(root, "#{name}.skm") : File.join(root, sub, "#{name}.skm")
+        next unless File.exist?(path)
+        begin
+          loaded = model.materials.load(path)
+          return loaded if loaded
+        rescue StandardError
+        end
+      end
+    end
+
+    puts "  (couldn't find #{name}.skm — falling back to a flat colour)"
+    m ||= model.materials.add(name)
     m.color = Sketchup::Color.new(64, 62, 60)
     m
   end
@@ -111,10 +133,9 @@ module WR_BuildBooth
     spec[:parts].each do |p|
       next if (p[:k] == 'seal' || p[:k] == 'corner') && !seals
       g = booth.entities.add_group
-      face = g.entities.add_face([pt(p[:x], p[:y]),
-                                  pt(p[:x] + p[:dx], p[:y]),
-                                  pt(p[:x] + p[:dx], p[:y] + p[:dy]),
-                                  pt(p[:x], p[:y] + p[:dy])])
+      # Every part is a plan polygon — panels are rectangles, the mid-wall seal is
+      # one T and the corner seal is one L, each extruded as a single solid.
+      face = g.entities.add_face(p[:poly].map { |q| pt(q[0], q[1]) })
       next if face.nil?
       face.reverse! if face.normal.z < 0
       face.pushpull(spec[:ph])
