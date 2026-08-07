@@ -46,11 +46,28 @@ module WR_PendantJig
   GUIDE_LEN     = 36.00   # tube guide length — two thirds of the 54 mm tube
   WALL          =  3.10   # wall around the housing socket -> body OD 21.49
   FLANGE_DIA    = 28.00   # foot, so the jig stands square instead of on the housing
-  FLANGE_H      =  2.00
+  FLANGE_H      =  3.50   # tall enough for a 45 deg underside — see PRINTING below
   FLANGE_RELIEF =  1.50   # added to housing dia for the flange bore, so the
                           # protruding 1 mm of housing never touches the bench
   GLUE_RELIEF_D =  1.60   # added to tube dia at the shoulder: a gutter for
   GLUE_RELIEF_H =  1.50   # squeeze-out, so glue can't bond the tube to the jig
+
+  # ---------------------------------------------------------------- PRINTING --
+  # PRINT IT SOCKET-OPENING-UP, i.e. flipped from how it is drawn here. That
+  # puts the shoulder the housing registers against on TOP of solid material,
+  # so it prints as a clean flat layer instead of drooping as an unsupported
+  # ceiling over the socket. It is the one surface whose flatness decides
+  # whether the housing sits square, so it gets the good side of the print.
+  #
+  # Everything below exists to make that orientation work without supports.
+  RELIEF_W      =  0.80   # corner-relief groove at the shoulder: cuts the inside
+  RELIEF_H      =  0.80   # corner OUTWARD past the housing OD, so the fillet a
+                          # nozzle always leaves in an internal corner cannot
+                          # hold the housing off its seat. This is the fix for
+                          # "rounded edges might make it lean."
+  MOUTH_CH      =  0.60   # chamfer at the tube-guide mouth. That face is on the
+                          # bed when printed inverted, and elephant's foot would
+                          # otherwise squeeze the bore and pinch the tube.
 
   # ------------------------------------------------------------------ layout --
   COUNT         =  1      # 1 for the test print; set 5 for the gang fixture
@@ -58,6 +75,15 @@ module WR_PendantJig
   TIE_BAR       = true    # bar linking the flanges when COUNT > 1 (slicers union it)
   TIE_W         = 10.00
   SEGMENTS      = 72      # facets around — 72 gives ~0.9 mm chords on the OD
+
+  # true  -> model is flipped to PRINT orientation, ready to export straight to STL
+  # false -> model is drawn in USE orientation, standing on its flange as on a bench
+  FLIP_FOR_PRINT = false
+
+  # false shows the true faceted geometry. SketchUp softens near-coplanar edges
+  # for display, which makes a faceted cylinder LOOK rounded — it is not, and
+  # the STL is unaffected either way. Set false when you want to see the facets.
+  SMOOTH_SHADING = true
 
   # Ghost copies of the real parts, so the fit is visible. Not printed.
   SHOW_PARTS    = true
@@ -75,25 +101,45 @@ module WR_PendantJig
   end
 
   # The half-section, revolved about Z. Listed as [radius, height] pairs walking
-  # the closed loop: up the outside, in across the top, down the bores, out
-  # across the bottom. Every step is a real feature of the part.
+  # the closed loop counter-clockwise: up the outside, in across the top, down
+  # the bores, out across the bottom. Every vertex is a real feature.
+  #
+  # Read the z values as DRAWN (flange at the bottom). Printing flips it, so
+  # every downward-facing surface here is an upward-facing one on the bed and
+  # vice versa — which is the whole reason the chamfers sit where they do.
   def self.profile
     rf = FLANGE_DIA / 2.0
     rb = body_dia   / 2.0
+    rv = socket_dia / 2.0 + RELIEF_W               # corner-relief groove
     rr = (HOUSING_DIA + FLANGE_RELIEF) / 2.0
     rh = socket_dia / 2.0
     rg = (tube_bore + GLUE_RELIEF_D)   / 2.0
     rt = tube_bore  / 2.0
 
-    z1 = FLANGE_H                      # flange top
-    z2 = z1 + SOCKET_DEPTH             # shoulder the housing face butts against
-    z3 = z2 + GLUE_RELIEF_H            # top of the squeeze-out gutter
-    z4 = total_h                       # top of the tube guide
+    z1   = FLANGE_H                    # flange top / socket mouth
+    z2   = z1 + SOCKET_DEPTH           # shoulder the housing face butts against
+    z3   = z2 + GLUE_RELIEF_H          # top of the squeeze-out gutter
+    z4   = total_h                     # top of the tube guide
 
-    [[rr, 0], [rf, 0], [rf, z1], [rb, z1], [rb, z4],   # outside, bottom to top
-     [rt, z4], [rt, z3], [rg, z3], [rg, z2],           # tube guide + gutter
-     [rh, z2], [rh, z1], [rr, z1]]                     # housing socket + relief
-  end
+    land = FLANGE_H - (rf - rb)        # straight bit under the flange chamfer
+    lead = rr - rh                     # 45 deg lead-in into the housing socket
+
+    [[rr,           0],                # -- bottom face, inner edge
+     [rf,           0],                #    bottom face, outer edge
+     [rf,        land],                #    flange rim
+     [rb,    FLANGE_H],                #    45 deg flange underside (when printed)
+     [rb,          z4],                #    body outer wall
+     [rt + MOUTH_CH, z4],              # -- top face
+     [rt, z4 - MOUTH_CH],              #    guide-mouth chamfer (bed side)
+     [rt,          z3],                #    tube guide bore
+     [rg,          z3],                #    glue gutter
+     [rg,          z2],                #
+     [rv,          z2],                # -- the seat, out to the relief groove
+     [rv, z2 - RELIEF_H],              #    corner relief: nothing intrudes
+     [rh, z2 - RELIEF_H],              #    inside rh near the seat
+     [rh,    FLANGE_H],                #    housing socket wall
+     [rr, FLANGE_H - lead]]            #    45 deg lead-in, then back to [rr, 0]
+  end                                  #    which closes the loop by wrapping
 
   # One jig as a single closed solid.
   #
@@ -139,8 +185,9 @@ module WR_PendantJig
     end
 
     # 12 = AUTO_SOFTEN | SMOOTH_SOFT_EDGES: the cylindrical bands read smooth,
-    # the steps between features stay as hard edges.
-    g.entities.add_faces_from_mesh(mesh, 12)
+    # the steps between features stay hard. Purely a display choice — the
+    # geometry and therefore the STL are identical either way.
+    g.entities.add_faces_from_mesh(mesh, SMOOTH_SHADING ? 12 : 0)
 
     # A mesh wound the wrong way is a solid with negative volume, and slicers
     # read that as inside-out.
@@ -281,6 +328,13 @@ module WR_PendantJig
 
     dimension(model, t_dim)
 
+    # Flip about X so the socket opens upward — the orientation it prints in.
+    # Done last so the dimensions come along with it.
+    if FLIP_FOR_PRINT
+      flip = Geom::Transformation.rotation(ORIGIN, X_AXIS, Math::PI)
+      root.transform!(flip)
+    end
+
     model.commit_operation
     model.active_view.zoom_extents
     report(solids, naked, vol_mm)
@@ -355,13 +409,34 @@ module WR_PendantJig
     puts format('    SOCKET_DEPTH  %.2f   from "around 18" of the 19 mm housing', SOCKET_DEPTH)
     puts format('    GUIDE_LEN     %.2f   two thirds of the 54 mm tube', GUIDE_LEN)
     puts format('    WALL          %.2f   picked for print strength, nothing more', WALL)
-    puts format('    FLANGE        %.2f x %.2f  so it stands square on the bench', FLANGE_DIA, FLANGE_H)
+    puts format('    FLANGE        %.2f x %.2f  stands square on the bench; the height is', FLANGE_DIA, FLANGE_H)
+    puts format('                              set by needing a 45 deg underside (%.2f mm land left)',
+                FLANGE_H - (FLANGE_DIA - body_dia) / 2.0)
+    puts format('    RELIEF        %.2f x %.2f  corner groove at the seat', RELIEF_W, RELIEF_H)
+    puts format('    MOUTH_CH      %.2f        chamfer at the bed-side guide mouth', MOUTH_CH)
     puts format('    FLANGE_RELIEF %.2f   clears the 1.00 mm of housing left proud of the socket', FLANGE_RELIEF)
     puts format('    GLUE gutter   %.2f x %.2f  added to stop glue bonding the tube to the jig', GLUE_RELIEF_D, GLUE_RELIEF_H)
     puts format('    INSERTION     %.2f   ghost tube only — never asked, affects nothing printed', INSERTION)
     puts ''
-    puts '  PRINT IT FLANGE DOWN. Both bores are then vertical and self-supporting,'
-    puts '  and the shoulder the housing registers against is a clean layer face.'
+    puts '  PRINT IT SOCKET-OPENING-UP — flipped from how it is drawn here.'
+    puts '    The shoulder the housing seats on then prints ON TOP of solid material'
+    puts '    instead of drooping as an unsupported ceiling over the socket. That one'
+    puts '    surface decides whether the housing sits square, so it gets the good side.'
+    puts format('    Every sloped face is 45 deg in that orientation, so NO SUPPORTS.')
+    puts "    Set FLIP_FOR_PRINT = true to have the script draw it that way instead."
+    puts '    Bed contact is a ring about 21 mm across on a 57 mm tall part — use a brim.'
+    puts ''
+    puts '  WHY IT WILL NOT LEAN'
+    puts format('    corner relief %.2f x %.2f pushes the internal corner out to r %.2f,',
+                RELIEF_W, RELIEF_H, socket_dia / 2.0 + RELIEF_W)
+    puts format('    which is %.2f mm clear of the housing OD at r %.2f. The fillet a nozzle',
+                socket_dia / 2.0 + RELIEF_W - HOUSING_DIA / 2.0, HOUSING_DIA / 2.0)
+    puts '    always leaves in an internal corner therefore sits OUTSIDE the housing'
+    puts '    and cannot hold its face off the seat.'
+    puts ''
+    puts '  Nothing in this model is filleted. SketchUp softens near-coplanar edges for'
+    puts '  display, which makes a faceted cylinder look rounded; the steps are square'
+    puts '  and the STL is identical. SMOOTH_SHADING = false to see the real facets.'
     puts ''
   end
 end
