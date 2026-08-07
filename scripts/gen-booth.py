@@ -22,8 +22,24 @@ components-master.json is NOT used for geometry — its L/W/T are shipping sizes
 """
 import json, os, re, sys, base64
 
-QUOTE = r'C:\Users\bento\Documents\Claude\WhisperRoomQuote\lib\pl-data'
-OUT_DIR = r'C:\Users\bento\Documents\Claude\Sketchup\scripts'
+def _claude_root():
+    """The Claude workspace root. Documents is local on the laptop and
+    redirected into OneDrive on the desktop, so resolve it rather than
+    hard-code one machine. WR_CLAUDE_ROOT overrides on a new one."""
+    env = os.environ.get('WR_CLAUDE_ROOT')
+    if env and os.path.isdir(env):
+        return env
+    home = os.environ.get('USERPROFILE') or os.path.expanduser('~')
+    for c in (os.path.join(home, 'Documents', 'Claude'),
+              os.path.join(home, 'OneDrive', 'Documents', 'Claude')):
+        if os.path.isdir(c):
+            return c
+    return os.path.join(home, 'Documents', 'Claude')
+
+
+QUOTE = os.path.join(_claude_root(), 'WhisperRoomQuote', 'lib', 'pl-data')
+# wr-booth-data.rb belongs beside this script, wherever the repo is cloned.
+OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 PANEL_T = 1.0      # every wall panel
 PANEL_H = 81.0     # every wall panel

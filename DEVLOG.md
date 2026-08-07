@@ -1,5 +1,59 @@
 # DEVLOG
 
+## 2026-08-06 (late) — orbit exporter, and what the manual actually is
+
+Benton's target for the assembly manual is now clear and it is bigger than a
+generic manual: **a manual generated from a customer's own Booth Planner
+configuration.** Press a button, pull that design into SketchUp exactly as the
+customer specified it, and produce step-by-step assembly for that booth.
+
+**Most of the front half already exists and nobody wrote it down.**
+`booth-builder.html` encodes a design as base64 JSON in a `#d=` URL fragment,
+and `gen-booth.py --design "<link>"` already decodes it and solves the panel
+geometry. So the path is:
+
+```
+booth-builder #d= link
+  -> gen-booth.py --design      EXISTS
+  -> wr-booth-data.rb           EXISTS
+  -> build-booth.rb             EXISTS  (25 Standard booths build today)
+  -> orbit-export.rb            NEW, below
+  -> manifest.json              NEW, written by the exporter
+  -> the manual                 not built
+```
+
+**`scripts/orbit-export.rb`** is the new piece. It photographs a part — or every
+part of an assembly, isolated one at a time — from every angle in one run, and
+writes a `manifest.json` describing what came out.
+
+The design decision that matters is **constant scale**. `zoom_extents` reframes
+every shot, so a part would change size as it turns and two parts on facing
+pages would not match. The camera instead uses parallel projection with a view
+height computed once for the whole run from the largest part's bounding
+diagonal — the diagonal rather than the width, because a part's widest
+silhouette as it turns is its diagonal. "Each part fills the frame" is offered
+as an alternative, and the console says plainly that it is wrong for any step
+showing two parts together.
+
+Style is deliberately left alone. Set edges, shading and hidden-line in
+SketchUp before running; the script only forces ground, horizon and fog off so
+transparency works, and restores them. Guessing at rendering-option keys was
+not worth the risk.
+
+The manifest is the contract: part, slug, size, and every frame with its
+azimuth and elevation, plus a null `step` to fill in for assembly order.
+Nothing downstream needs to know SketchUp exists.
+
+### Also fixed: the generators were laptop-only
+
+`gen-booth.py` and `gen-booth-models.py` hard-coded
+`C:\Users\bento\Documents\Claude\...`, which does not exist on the desktop —
+the same redirection problem the plugin had. Both now resolve the workspace
+root, with `WR_CLAUDE_ROOT` as an override, and write relative to their own
+location. Verified: all four paths land on real files here. Without this,
+`gen-booth.py --design` — the front half of the button — could not run on this
+machine at all.
+
 ## 2026-08-06 (late) — the plugin gets a panel
 
 **The menu could never have worked the way it was meant to.** SketchUp has no

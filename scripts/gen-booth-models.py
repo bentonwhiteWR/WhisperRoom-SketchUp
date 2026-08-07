@@ -1,8 +1,26 @@
-import json, sys
+import json, os, sys
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-SRC = r'C:\Users\bento\Documents\Claude\WhisperRoomQuote\whisperroom-catalog\data\models.json'
-DST = r'C:\Users\bento\Documents\Claude\Sketchup\reference\booth-models.md'
+
+def _claude_root():
+    """Documents is local on the laptop and redirected into OneDrive on the
+    desktop. Resolve rather than hard-code; WR_CLAUDE_ROOT overrides."""
+    env = os.environ.get('WR_CLAUDE_ROOT')
+    if env and os.path.isdir(env):
+        return env
+    home = os.environ.get('USERPROFILE') or os.path.expanduser('~')
+    for c in (os.path.join(home, 'Documents', 'Claude'),
+              os.path.join(home, 'OneDrive', 'Documents', 'Claude')):
+        if os.path.isdir(c):
+            return c
+    return os.path.join(home, 'Documents', 'Claude')
+
+
+SRC = os.path.join(_claude_root(), 'WhisperRoomQuote',
+                   'whisperroom-catalog', 'data', 'models.json')
+# reference/ is a sibling of the scripts/ folder this file lives in.
+DST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                   'reference', 'booth-models.md')
 
 d = json.load(open(SRC, encoding='utf-8'))
 
