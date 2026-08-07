@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WhisperRoom</title>
+<style>
+  :root {
+    --bg:      #f2f3f5;
+    --card:    #ffffff;
+    --card-h:  #ffffff;
+    --ink:     #14181c;
+    --ink-2:   #626c75;
+    --ink-3:   #949ea6;
+    --rule:    #dfe3e7;
+    --accent:  #ee6216;
+    --accent-w:rgba(238,98,22,.10);
+    --shadow:  0 1px 2px rgba(18,22,26,.07);
+    --shadow-h:0 2px 4px rgba(18,22,26,.10), 0 8px 18px rgba(18,22,26,.08);
+    --field:   #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:      #1b1e21;
+      --card:    #23272b;
+      --card-h:  #282d31;
+      --ink:     #e6eaed;
+      --ink-2:   #98a2aa;
+      --ink-3:   #6d777e;
+      --rule:    #32383d;
+      --accent:  #ff7a33;
+      --accent-w:rgba(255,122,51,.13);
+      --shadow:  0 1px 2px rgba(0,0,0,.35);
+      --shadow-h:0 2px 4px rgba(0,0,0,.4), 0 8px 18px rgba(0,0,0,.35);
+      --field:   #191c1f;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    cursor: default;
+  }
+
+  /* ------------------------------------------------------------ header ---- */
+  header {
+    flex: 0 0 auto;
+    padding: 14px 16px 0;
+    background: var(--bg);
+  }
+  .brand {
+    display: flex; align-items: baseline; gap: 9px;
+    padding-bottom: 12px;
+  }
+  .brand b {
+    font-size: 15px; font-weight: 650; letter-spacing: .015em;
+  }
+  .brand .mark {
+    width: 9px; height: 9px; border-radius: 2px;
+    background: var(--accent); flex: 0 0 auto;
+    transform: translateY(-1px);
+  }
+  .brand small {
+    margin-left: auto;
+    font-family: Consolas, ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: .06em; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .search {
+    position: relative; padding-bottom: 12px;
+  }
+  .search svg {
+    position: absolute; left: 10px; top: 9px;
+    width: 14px; height: 14px; stroke: var(--ink-3); fill: none;
+    stroke-width: 1.8; pointer-events: none;
+  }
+  input {
+    width: 100%; padding: 8px 30px 8px 31px;
+    background: var(--field); color: var(--ink);
+    border: 1px solid var(--rule); border-radius: 7px;
+    font: inherit; outline: none;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  input::placeholder { color: var(--ink-3); }
+  input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-w);
+  }
+  .clear {
+    position: absolute; right: 8px; top: 6px;
+    width: 20px; height: 20px; border-radius: 5px;
+    border: 0; background: transparent; color: var(--ink-3);
+    font-size: 15px; line-height: 18px; cursor: pointer; display: none;
+  }
+  .clear:hover { background: var(--rule); color: var(--ink); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; padding-bottom: 12px; }
+  .chips .lab {
+    font-family: Consolas, ui-monospace, monospace;
+    font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink-3); align-self: center; margin-right: 2px;
+  }
+  .chip {
+    padding: 3px 9px; border-radius: 20px; cursor: pointer;
+    background: var(--card); border: 1px solid var(--rule);
+    color: var(--ink-2); font-size: 11.5px;
+    max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    transition: border-color .12s, color .12s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* -------------------------------------------------------------- list ---- */
+  main {
+    flex: 1 1 auto; overflow-y: auto; overflow-x: hidden;
+    padding: 0 16px 4px;
+  }
+  main::-webkit-scrollbar { width: 10px; }
+  main::-webkit-scrollbar-thumb {
+    background: var(--rule); border-radius: 6px;
+    border: 3px solid var(--bg);
+  }
+  main::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+
+  .card {
+    position: relative;
+    display: block; width: 100%; text-align: left;
+    background: var(--card); border: 1px solid var(--rule); border-radius: 9px;
+    padding: 11px 13px 11px 14px; margin-bottom: 7px;
+    box-shadow: var(--shadow); cursor: pointer;
+    transition: transform .1s, box-shadow .12s, border-color .12s;
+    overflow: hidden;
+  }
+  .card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--accent); opacity: 0;
+    transition: opacity .12s;
+  }
+  .card:hover, .card.sel {
+    background: var(--card-h);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-h);
+    transform: translateY(-1px);
+  }
+  .card:hover::before, .card.sel::before { opacity: 1; }
+  .card:active { transform: translateY(0); }
+
+  .row { display: flex; align-items: baseline; gap: 8px; }
+  .title {
+    font-size: 13.5px; font-weight: 620; letter-spacing: .005em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .when {
+    margin-left: auto; flex: 0 0 auto;
+    font-family: Consolas, ui-monospace, monospace;
+    font-size: 10px; color: var(--ink-3); white-space: nowrap;
+  }
+  .new {
+    flex: 0 0 auto; padding: 1px 6px; border-radius: 3px;
+    background: var(--accent); color: #fff;
+    font-family: Consolas, ui-monospace, monospace;
+    font-size: 8.5px; letter-spacing: .11em; font-weight: 700;
+    transform: translateY(-1px);
+  }
+  .blurb {
+    color: var(--ink-2); font-size: 12px; margin-top: 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .file {
+    font-family: Consolas, ui-monospace, monospace;
+    font-size: 10px; color: var(--ink-3); margin-top: 5px;
+  }
+  mark { background: var(--accent-w); color: var(--accent); border-radius: 2px; }
+
+  .empty {
+    text-align: center; color: var(--ink-3); padding: 38px 20px;
+    font-size: 12.5px;
+  }
+  .empty code {
+    display: block; margin-top: 8px; word-break: break-all;
+    font-family: Consolas, ui-monospace, monospace; font-size: 10.5px;
+  }
+
+  /* ------------------------------------------------------------ footer ---- */
+  footer {
+    flex: 0 0 auto;
+    display: flex; gap: 6px; align-items: center;
+    padding: 10px 16px; border-top: 1px solid var(--rule);
+    background: var(--bg);
+  }
+  button.act {
+    padding: 6px 11px; border-radius: 6px; cursor: pointer;
+    background: var(--card); color: var(--ink-2);
+    border: 1px solid var(--rule); font: inherit; font-size: 11.5px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: border-color .12s, color .12s;
+  }
+  button.act:hover { border-color: var(--accent); color: var(--accent); }
+  button.act svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  button.act.right { margin-left: auto; }
+  .hint {
+    font-family: Consolas, ui-monospace, monospace;
+    font-size: 9.5px; color: var(--ink-3); letter-spacing: .04em;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="mark"></span>
+    <b>WhisperRoom</b>
+    <small id="count"></small>
+  </div>
+
+  <div class="search">
+    <svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="5"/><path d="M11 11l4 4"/></svg>
+    <input id="q" type="text" placeholder="Filter scripts…" autocomplete="off" spellcheck="false">
+    <button class="clear" id="clear" title="Clear">&times;</button>
+  </div>
+
+  <div class="chips" id="chips"></div>
+</header>
+
+<main id="list"></main>
+
+<footer>
+  <button class="act" id="rescan">
+    <svg viewBox="0 0 16 16"><path d="M14 8a6 6 0 1 1-1.8-4.3"/><path d="M14 1.5V5h-3.5"/></svg>
+    Rescan
+  </button>
+  <button class="act" id="folder">
+    <svg viewBox="0 0 16 16"><path d="M1.5 4.5h4l1.2 1.5h7.8v7H1.5z"/></svg>
+    Folder
+  </button>
+  <button class="act right" id="console">
+    <svg viewBox="0 0 16 16"><path d="M1.5 2.5h13v11h-13z"/><path d="M4 6l2.2 2L4 10"/><path d="M8.5 10.5H12"/></svg>
+    Console
+  </button>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var DATA = { dir: "", scripts: [], recent: [] };
+  var view = [];
+  var sel  = 0;
+
+  var $q      = document.getElementById("q");
+  var $list   = document.getElementById("list");
+  var $chips  = document.getElementById("chips");
+  var $count  = document.getElementById("count");
+  var $clear  = document.getElementById("clear");
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Highlight the filter term without letting it inject markup.
+  function hl(text, term) {
+    var safe = esc(text);
+    if (!term) return safe;
+    var i = safe.toLowerCase().indexOf(esc(term).toLowerCase());
+    if (i < 0) return safe;
+    var n = esc(term).length;
+    return safe.slice(0, i) + "<mark>" + safe.slice(i, i + n) + "</mark>" + safe.slice(i + n);
+  }
+
+  function filtered() {
+    var t = $q.value.trim().toLowerCase();
+    if (!t) return DATA.scripts.slice();
+    return DATA.scripts.filter(function (s) {
+      return (s.title + " " + s.name + " " + s.blurb).toLowerCase().indexOf(t) >= 0;
+    });
+  }
+
+  function draw() {
+    var term = $q.value.trim();
+    view = filtered();
+    if (sel >= view.length) sel = Math.max(0, view.length - 1);
+    $clear.style.display = term ? "block" : "none";
+
+    $count.textContent = DATA.scripts.length
+      ? (term ? view.length + " / " + DATA.scripts.length : DATA.scripts.length + " SCRIPTS")
+      : "";
+
+    if (!DATA.scripts.length) {
+      $list.innerHTML = '<div class="empty">No .rb files found in<code>' +
+        esc(DATA.dir) + "</code></div>";
+      return;
+    }
+    if (!view.length) {
+      $list.innerHTML = '<div class="empty">Nothing matches &ldquo;' + esc(term) + "&rdquo;</div>";
+      return;
+    }
+
+    $list.innerHTML = view.map(function (s, i) {
+      return '<div class="card' + (i === sel ? " sel" : "") + '" data-i="' + i + '">' +
+             '<div class="row">' +
+               '<span class="title">' + hl(s.title, term) + "</span>" +
+               (s.fresh ? '<span class="new">NEW</span>' : "") +
+               '<span class="when">' + esc(s.ago) + "</span>" +
+             "</div>" +
+             (s.blurb ? '<div class="blurb">' + hl(s.blurb, term) + "</div>" : "") +
+             '<div class="file">' + hl(s.name, term) + "</div>" +
+             "</div>";
+    }).join("");
+
+    Array.prototype.forEach.call($list.querySelectorAll(".card"), function (el) {
+      el.addEventListener("click", function () { runAt(+el.dataset.i); });
+    });
+  }
+
+  function drawChips() {
+    var names = (DATA.recent || []).filter(function (n) {
+      return DATA.scripts.some(function (s) { return s.name === n; });
+    });
+    if (!names.length) { $chips.innerHTML = ""; return; }
+    $chips.innerHTML = '<span class="lab">Recent</span>' + names.map(function (n) {
+      var s = DATA.scripts.filter(function (x) { return x.name === n; })[0];
+      return '<div class="chip" data-n="' + esc(n) + '" title="' + esc(s.name) + '">' +
+             esc(s.title) + "</div>";
+    }).join("");
+    Array.prototype.forEach.call($chips.querySelectorAll(".chip"), function (el) {
+      el.addEventListener("click", function () {
+        var s = DATA.scripts.filter(function (x) { return x.name === el.dataset.n; })[0];
+        if (s) sketchup.run(s.file);
+      });
+    });
+  }
+
+  function runAt(i) {
+    var s = view[i];
+    if (s) sketchup.run(s.file);
+  }
+
+  function move(d) {
+    if (!view.length) return;
+    sel = Math.min(view.length - 1, Math.max(0, sel + d));
+    draw();
+    var el = $list.querySelector(".card.sel");
+    if (el) el.scrollIntoView({ block: "nearest" });
+  }
+
+  $q.addEventListener("input", function () { sel = 0; draw(); });
+  $q.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
+    else if (e.key === "Enter")  { e.preventDefault(); runAt(sel); }
+    else if (e.key === "Escape") { $q.value = ""; sel = 0; draw(); }
+  });
+  $clear.addEventListener("click", function () { $q.value = ""; sel = 0; draw(); $q.focus(); });
+
+  document.getElementById("rescan").addEventListener("click", function () { sketchup.rescan(); });
+  document.getElementById("folder").addEventListener("click", function () { sketchup.folder(); });
+  document.getElementById("console").addEventListener("click", function () { sketchup.console(); });
+
+  // Called from Ruby.
+  window.WR = {
+    render: function (payload) {
+      DATA = payload || DATA;
+      drawChips();
+      draw();
+    }
+  };
+
+  window.addEventListener("load", function () {
+    if (window.sketchup && sketchup.ready) sketchup.ready();
+    $q.focus();
+  });
+}());
+</script>
+</body>
+</html>

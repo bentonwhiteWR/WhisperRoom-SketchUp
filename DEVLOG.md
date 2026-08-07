@@ -1,5 +1,55 @@
 # DEVLOG
 
+## 2026-08-06 (late) — the plugin gets a panel
+
+**The menu could never have worked the way it was meant to.** SketchUp has no
+API for removing or rebuilding a menu item once added, so "Reload Scripts" was
+only ever able to pop a message box explaining that a restart was needed. For a
+folder we add scripts to constantly, that is backwards.
+
+`wr_tools` now opens a **`UI::HtmlDialog` panel** instead. It rescans `scripts/`
+every time it opens or you hit Rescan, so a new file is one click away with no
+restart and no reinstall.
+
+- **Newest first.** Sorted on file mtime, with a NEW pill on anything touched in
+  the last 24 hours. The script being worked on is nearly always the one to run.
+- **Type to filter**, arrow keys to move, Enter to run. Matches on title, file
+  name and blurb.
+- **Recent chips** across the top, five deep, persisted in `Sketchup.write_default`.
+- Each row shows the script's `@title`, the comment paragraph under it as a
+  blurb, the file name and how long ago it changed — all parsed from the header,
+  so a script documents itself in the launcher by being commented normally.
+- Toolbar cut from seven buttons to three (Panel, Folder, Console) with **SVG
+  icons**, which stay crisp at any toolbar size. The old PNGs remain as a
+  fallback so a partial install shows buttons rather than blanks.
+- The menu is kept, still frozen at load time, as a fallback.
+
+**`scripts/rbcheck.py` is new.** There is no Ruby interpreter on either machine
+outside SketchUp, so nothing in `scripts/` gets syntax-checked before it reaches
+the Ruby Console. It is not a parser — it strips strings, heredocs and comments
+and matches block openers against `end`, which catches the one error that
+actually happens when hand-editing a long file. Run `python rbcheck.py` in
+`scripts/`. All 9 files currently balance.
+
+Worth knowing about it: the first version flagged `build-booth.rb` and
+`tube-drying-stand.rb`, and both were **false positives** — it did not know that
+`dir = case axis` opens a block. Fixed. A checker that cries wolf is worse than
+no checker.
+
+### Next, for the dynamic assembly manual
+
+Benton's direction for this workspace is mass component photography at many
+angles, feeding a rebuilt assembly manual. Nothing below is built yet:
+
+1. **Orbit exporter.** `export-scenes.rb` only exports scenes that already
+   exist. The manual needs N angles per component without hand-making N scenes:
+   drive `Sketchup::Camera` round a component's bounding box at a set azimuth
+   and elevation step, `write_image` each stop, name them predictably.
+2. **Exploded views** driven off the tag structure the fixtures already use.
+3. **A manifest** — a JSON sidecar naming every image with its component,
+   azimuth and elevation, so the manual can be generated from data rather than
+   by hand-placing pictures. This is the piece that makes it *dynamic*.
+
 ## 2026-08-06 (evening) — pendant fixtures
 
 A side project, not WhisperRoom: 3D-printed fixtures for the pendant line.
