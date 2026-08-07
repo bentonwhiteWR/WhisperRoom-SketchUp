@@ -1,5 +1,46 @@
 # DEVLOG
 
+## 2026-08-06 (evening) — pendant fixtures
+
+A side project, not WhisperRoom: 3D-printed fixtures for the pendant line.
+Both are parametric, both print without supports, and both self-audit to the
+Ruby Console on every run.
+
+**`scripts/pendant-jig.rb`** — holds the metal housing square and centres the
+polycarbonate tube in it while the adhesive cures. Ø15.29 socket × 18 deep,
+Ø9.90 tube guide × 36, one lathed solid, 57.50 tall, ~18 g. Holds the tube to
+0.40° / 0.375 mm over its length.
+
+Two things went wrong on the way and are worth remembering:
+
+- **`follow_me` left the rims cracked.** A revolve has to close back on itself
+  and SketchUp does not reliably weld that seam. Rebuilt as an explicit
+  `Geom::PolygonMesh` whose last column of quads wraps to column 0 by index, so
+  there is no seam to fail. **Every solid now reports its naked-edge count** —
+  that check is what should have caught it, and it costs nothing.
+- **The first version printed the wrong way up.** Flange-down made the shoulder
+  the housing registers against an unsupported ceiling over the socket, which
+  is the one surface whose flatness decides whether the housing sits square.
+  It prints socket-up. That drove the 45° flange underside, the lead-in, and
+  the guide-mouth chamfer.
+
+**`scripts/tube-drying-stand.rb`** — 60 tubes upright while epoxy cures. 10 × 6
+pockets, 123.50 × 74.90 × 31.50, ~94 g. Rev B added 136 diamond openings and
+dropped the seven under-ribs for four corner pads once it was clear the thing
+prints inverted. Worst-case lean 1.62°, which is a ceiling rather than an
+expectation — a 54 mm tube on a 9.65 mm base self-rights, and would need 10.1°
+to topple. **Cut-end squareness is the likelier dominant error**; measure a
+tube against a square before spending print time on a deeper pocket.
+
+**`reference/3d-printing.md`** is new and carries the printer (Dremel 3D45),
+the sourced overhang and bridging limits, the two slicer settings that are not
+the defaults, and the design rules that follow. Read it before changing either
+fixture's geometry.
+
+**Nothing here has been printed yet, and no script has been run.** Clearances
+are all built on the 0.25 mm allowance and are unconfirmed. Print the jig
+first — an hour and 18 g calibrates that figure before the stand's 94 g.
+
 ## 2026-08-06 (later) — desktop brought online
 
 **Repo cloned to the home desktop** at
