@@ -1,8 +1,17 @@
 # @title Tube Drying Stand...
 #
-# A 3D-printable rack that stands 60 polycarbonate tubes upright while the
-# epoxy cures. Open diamond-lattice walls, a ledge under each pocket to catch
-# the tube, and four small corner feet.
+# A 3D-printable rack that stands polycarbonate tubes upright while the epoxy
+# cures, sized to drop into a 92 x 135 mm silicone tray. Open diamond-lattice
+# walls, a ledge under each pocket to catch the tube, and four small corner
+# feet.
+#
+# TWO stands, each 5 tubes per row x 6 rows = 30, so 60 in the tray. They sit
+# side by side turned 90 deg to the tray: 125.50 x 74.90 inside 135 x 92.
+#
+# One stand of 60 does not fit — 12 rows is 147.80 mm against 135. Splitting it
+# in two and turning them is what buys the count back, and two smaller parts
+# print faster and are easier to lift out full. See the TRAY FIT block the
+# script prints.
 #
 #           /\  /\  /\      diamond openings, 20.6 deg from vertical
 #   walls  /  \/  \/  \     — well inside the 45 deg self-supporting limit
@@ -19,6 +28,10 @@
 #
 # All dimensions MILLIMETRES. The script sets the model to mm/decimal.
 #
+# Run it from the WhisperRoom panel, or by hand — the repo lives at a different
+# path on each machine, so use whichever of these exists:
+#
+#   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/tube-drying-stand.rb"
 #   load "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/tube-drying-stand.rb"
 #
 # Ctrl+Z before re-running.
@@ -28,9 +41,23 @@ module WR_TubeStand
   TUBE_DIA     =  9.65    # polycarbonate tube outside diameter
   TUBE_LEN     = 54.00    # tube overall length
 
+  # ------------------------------------------------------------- the container --
+  # Inside dimensions of the silicone tray the finished stand drops into.
+  # REPORTED, not measured — Benton gave these figures; nobody has put a
+  # caliper across the tray. Silicone moulds also have radiused inner corners
+  # and draft, so treat the numbers as the absolute ceiling, not the target.
+  TRAY_W       = 92.00
+  TRAY_D       = 135.00
+
   # ----------------------------------------------------------------- the grid --
-  COLS         = 10
-  ROWS         =  6       # 10 x 6 = 60 tubes
+  # 5 tubes per row, as asked. Two stands of 6 rows gives 60 in the tray; one
+  # stand of 12 rows is 147.80 mm and does not go in 135. The run() fit check
+  # enforces this, so changing these numbers cannot quietly produce a set that
+  # will not fit.
+  COLS         =  5
+  ROWS         =  6       # 5 x 6 = 30 per stand, x2 stands = 60 tubes
+  COPIES       =  2       # laid out along X, i.e. along the tray's long side
+  COPY_GAP     =  1.00    # between neighbouring stands, so they lift out singly
   POCKET_CLEAR =  0.50    # added to the tube dia to get the square pocket side
   POCKET_DEPTH = 25.00    # wall height, and the span the tube is located over
   WALL_T       =  2.00    # grid wall thickness
@@ -74,6 +101,18 @@ module WR_TubeStand
   # plus the ledge. Deriving it means it stays on solid material if the grid
   # parameters change.
   def self.foot;     WALL_T + LEDGE_W;                end
+
+  # Footprint of the whole set of stands, side by side along X.
+  def self.set_w;  COPIES * plate_w + (COPIES - 1) * COPY_GAP;  end
+  def self.set_d;  plate_d;                                     end
+
+  # Slack left in the tray, in whichever orientation actually fits. Negative in
+  # either axis means it does not go in.
+  def self.tray_slack
+    upright = [TRAY_W - set_w, TRAY_D - set_d]
+    turned  = [TRAY_D - set_w, TRAY_W - set_d]
+    upright.min >= turned.min ? [:upright, *upright] : [:turned, *turned]
+  end
 
   OVERLAP = 0.50   # pieces overlap by this so there are no coincident faces
 
@@ -250,6 +289,19 @@ module WR_TubeStand
       return
     end
 
+    # And it has to go in the tray. Refusing to build is the point — a stand
+    # that is 12 mm too long is 94 g of filament and nine hours to find out.
+    _fit, slack_w, slack_d = tray_slack
+    if slack_w < 0 || slack_d < 0
+      UI.messagebox("This set does not fit the tray.\n\n" \
+                    "#{COPIES} stand(s) of #{format('%.2f x %.2f', plate_w, plate_d)}\n" \
+                    "set    #{format('%.2f x %.2f', set_w, set_d)}\n" \
+                    "tray   #{format('%.2f x %.2f', TRAY_W, TRAY_D)}\n" \
+                    "over by#{format(' %.2f / %.2f', -slack_w, -slack_d)}\n\n" \
+                    "Drop COLS, ROWS or COPIES, or tighten WALL_T / POCKET_CLEAR.")
+      return
+    end
+
     model = Sketchup.active_model
     begin
       o = model.options['UnitsOptions']
@@ -279,8 +331,19 @@ module WR_TubeStand
       gt.layer = t_ref
     end
 
+    # The rest of the set. Copied rather than rebuilt, so every stand is
+    # identical by construction and the solid/naked counts above cover them all.
+    stands = [root]
+    (COPIES - 1).times do |i|
+      dup = root.copy
+      dup.name = "#{root.name} (#{i + 2})"
+      dup.transform!(Geom::Transformation.translation(
+                       Geom::Vector3d.new(((plate_w + COPY_GAP) * (i + 1)).mm, 0, 0)))
+      stands << dup
+    end
+
     if FLIP_FOR_PRINT
-      root.transform!(Geom::Transformation.rotation(ORIGIN, X_AXIS, Math::PI))
+      stands.each { |g| g.transform!(Geom::Transformation.rotation(ORIGIN, X_AXIS, Math::PI)) }
     end
 
     model.commit_operation
@@ -301,7 +364,8 @@ module WR_TubeStand
     lattice_area = plate_w * plate_d - COLS * ROWS * pocket * pocket
 
     puts ''
-    puts "TUBE DRYING STAND  —  #{COLS} x #{ROWS} = #{COLS * ROWS} tubes, all dimensions mm"
+    puts "TUBE DRYING STAND  —  #{COPIES} stands of #{COLS} x #{ROWS} = " \
+         "#{COPIES * COLS * ROWS} tubes, all dimensions mm"
     puts ''
     puts format('  plate           %.2f x %.2f x %.2f tall', plate_w, plate_d, total_h)
     puts format('  pocket          %.2f square x %.2f deep   (tube %.2f + %.2f)',
@@ -311,9 +375,30 @@ module WR_TubeStand
     puts format('  diamonds        %d of them, %.2f wide x %.2f tall', n_dia, dia_w, dia_h)
     puts format('  feet            4 corner pads, %.2f square x %.2f tall', foot, FOOT_H)
     puts ''
+    puts '  TRAY FIT'
+    orient, slack_w, slack_d = tray_slack
+    puts format('    tray            %.2f x %.2f inside  (REPORTED, not measured)', TRAY_W, TRAY_D)
+    puts format('    one stand       %.2f x %.2f', plate_w, plate_d)
+    puts format('    %d side by side  %.2f x %.2f         sits %s in the tray',
+                COPIES, set_w, set_d, orient == :upright ? 'square' : 'turned 90 deg')
+    puts format('    slack           %.2f across, %.2f along', slack_w, slack_d)
+    puts format('    tubes           %d per row x %d rows x %d stands = %d',
+                COLS, ROWS, COPIES, COPIES * COLS * ROWS)
+    puts ''
+    puts '    Why two and not one. A single stand of 60 is 12 rows, which is'
+    puts format('    %.2f long against a %.2f tray. Split in two and turned 90 deg,',
+                12 * pitch + WALL_T, TRAY_D)
+    puts '    the same 60 pockets go in with room to spare.'
+    puts '    Silicone trays have radiused inner corners and draft. Slack under'
+    puts '    about 2 mm per side is not real slack — measure the tray first.'
+    puts ''
     puts '  WATERTIGHT CHECK'
     puts "    #{solids} of #{n_parts} parts are solid, #{naked} naked edges (must be 0)"
-    puts format('    printed volume %.1f cm3 -> about %.0f g in PLA', vol / 1000.0, vol / 1000.0 * 1.24)
+    puts '    Counted on the first stand; the others are copies of it.'
+    puts format('    printed volume %.1f cm3 per stand -> about %.0f g in PLA', vol / 1000.0,
+                vol / 1000.0 * 1.24)
+    puts format('    all %d stands   %.1f cm3 -> about %.0f g', COPIES,
+                COPIES * vol / 1000.0, COPIES * vol / 1000.0 * 1.24)
     puts '    Panels overlap by 0.50 at every intersection, so summing the group'
     puts '    volumes would double-count. The figure above is the union, worked'
     puts '    out from the geometry. Export the lot as one STL; slicers union it.'
@@ -346,7 +431,10 @@ module WR_TubeStand
     puts format('    DIA_POST      %.2f   DIA_MARGIN %.2f   WALL_T %.2f   BASE_T %.2f',
                 DIA_POST, DIA_MARGIN, WALL_T, BASE_T)
     puts format('    FOOT_H        %.2f   foot size %.2f is derived, not chosen', FOOT_H, foot)
-    puts format('    COLS x ROWS   %d x %d  Benton asked for about 60', COLS, ROWS)
+    puts format('    COLS x ROWS   %d x %d   5 per row was asked for; 2 stands of 6 rows',
+                COLS, ROWS)
+    puts format('    COPIES        %d      is how 60 fits a tray one 60-stand cannot', COPIES)
+    puts format('    COPY_GAP      %.2f   so a full stand lifts out on its own', COPY_GAP)
     puts ''
     puts '  Stand it on foil or paper. The whole underside drains.'
     puts ''

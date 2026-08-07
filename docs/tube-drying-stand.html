@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tube Drying Stand — 10 × 6</title>
+<title>Tube Drying Stand — 2 × (5 × 6)</title>
 <style>
   :root {
     --paper:  #e6e9ec;  --sheet:  #f6f7f8;  --ink:    #14181c;
@@ -14,7 +14,7 @@
     --shadow: 0 1px 2px rgba(20,24,28,.06), 0 8px 28px rgba(20,24,28,.06);
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --paper:  #0e1114;  --sheet:  #171b1f;  --ink:    #e3e7ea;
       --ink-2:  #949ea6;  --ink-3:  #6c767e;  --rule:   #303840;
       --rule-2: #232a30;  --accent: #f07a3e;  --tube:   #59b8b4;
@@ -30,14 +30,6 @@
     --tube-f: rgba(89,184,180,.14);
     --solid:  #39424a;  --ok:     #63b98a;
     --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.34);
-  }
-  :root[data-theme="light"] {
-    --paper:  #e6e9ec;  --sheet:  #f6f7f8;  --ink:    #14181c;
-    --ink-2:  #5b656e;  --ink-3:  #8b959d;  --rule:   #c3cad0;
-    --rule-2: #dde2e6;  --accent: #c44f16;  --tube:   #1f6f6d;
-    --tube-f: rgba(31,111,109,.16);
-    --solid:  #cfd5da;  --ok:     #2c6e49;
-    --shadow: 0 1px 2px rgba(20,24,28,.06), 0 8px 28px rgba(20,24,28,.06);
   }
 
   * { box-sizing: border-box; }
@@ -109,15 +101,19 @@
     color: var(--ink-3); padding-top: 8px;
   }
 
-  .thin { stroke: var(--rule); stroke-width: .25; fill: none; }
-  .fill { fill: var(--solid); stroke: var(--ink); stroke-width: .35; }
-  .dim  { stroke: var(--accent); stroke-width: .28; fill: none; }
-  .ext  { stroke: var(--accent); stroke-width: .18; fill: none; opacity: .75; }
-  .tu   { fill: var(--tube-f); stroke: var(--tube); stroke-width: .35; }
+  .thin  { stroke: var(--rule); stroke-width: .25; fill: none; }
+  .fill  { fill: var(--solid); stroke: var(--ink); stroke-width: .35; }
+  .dim   { stroke: var(--accent); stroke-width: .28; fill: none; }
+  .ext   { stroke: var(--accent); stroke-width: .18; fill: none; opacity: .75; }
+  .tu    { fill: var(--tube-f); stroke: var(--tube); stroke-width: .35; }
+  /* phantom line — drafting convention for an adjacent part not in this drawing */
+  .phant { stroke: var(--ink-3); stroke-width: .5; fill: none;
+           stroke-dasharray: 6 2 1 2; }
   text  { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; fill: var(--ink-2); }
   .dt   { fill: var(--accent); font-size: 3.1px; }
   .lb   { fill: var(--ink-2); font-size: 2.9px; }
   .lb-t { fill: var(--tube); font-size: 2.9px; }
+  .lb-p { fill: var(--ink-3); font-size: 3.1px; letter-spacing: .1em; }
 
   table { border-collapse: collapse; width: 100%; font-size: 14px; }
   caption {
@@ -134,9 +130,19 @@
   td.n, th.n { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
                font-variant-numeric: tabular-nums; white-space: nowrap; }
   tr.pick td { color: var(--accent); }
-  tr.pick td:first-child::after { content: "  ← as drawn"; font-size: 11px; }
+  tr.pick td:first-child::after { content: "  \2190 as drawn"; font-size: 11px; }
+  tr.no td:first-child, tr.no td.n { color: var(--ink-3); }
   .tw { overflow-x: auto; }
   .pass { color: var(--ok); font-weight: 600; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 12.5px; }
+  .fail { color: var(--accent); font-weight: 600; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 12.5px; }
+
+  code {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: .88em; background: var(--rule-2); padding: 1px 5px; border-radius: 2px;
+  }
+
+  .callout { border-left: 3px solid var(--accent); padding: 12px 0 12px 16px; font-size: 14.5px; color: var(--ink-2); }
+  .callout b { color: var(--ink); font-weight: 600; }
 
   .tag {
     display: inline-block; padding: 1px 7px; border-radius: 2px;
@@ -146,15 +152,34 @@
   .tag.m { background: var(--accent); color: var(--sheet); }
   .tag.c { border: 1px solid var(--rule); color: var(--ink-3); }
   .tag.d { border: 1px solid var(--ok); color: var(--ok); }
+  .tag.r { border: 1px dashed var(--ink-3); color: var(--ink-3); }
 
   ol.steps { margin: 0; padding-left: 1.15em; display: grid; gap: 9px; font-size: 14.5px; }
-  code {
-    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
-    font-size: .88em; background: var(--rule-2); padding: 1px 5px; border-radius: 2px;
-  }
 
-  .callout { border-left: 3px solid var(--accent); padding: 12px 0 12px 16px; font-size: 14.5px; color: var(--ink-2); }
-  .callout b { color: var(--ink); font-weight: 600; }
+  /* ---- 3D viewport ---- */
+  .view { position: relative; border: 1px solid var(--rule); background: var(--sheet); }
+  .view canvas { display: block; width: 100%; height: clamp(320px, 52vw, 500px); touch-action: none; cursor: grab; }
+  .view canvas:active { cursor: grabbing; }
+  .view canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .ctl {
+    display: flex; flex-wrap: wrap; gap: 1px; background: var(--rule);
+    border-top: 1px solid var(--rule);
+  }
+  .ctl button {
+    flex: 1 1 auto; min-width: 96px; background: var(--sheet); color: var(--ink-2);
+    border: 0; padding: 9px 12px; cursor: pointer;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+  }
+  .ctl button:hover { color: var(--ink); }
+  .ctl button[aria-pressed="true"] { background: var(--accent); color: var(--sheet); }
+  .ctl button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+  .readout {
+    position: absolute; left: 10px; bottom: 10px; pointer-events: none;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .09em; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
 
   .block {
     display: grid; gap: 1px; background: var(--rule);
@@ -175,83 +200,145 @@
 <div class="sheet">
 
   <header class="titlebar">
-    <h1>Tube Drying Stand <span>/ 10 × 6</span></h1>
-    <p class="sub">Holds 60 polycarbonate tubes upright while the epoxy cures. Diamond-fenced walls, a ledge under each pocket, four corner feet — and it prints inverted, without supports.</p>
-    <p class="rev">Rev B</p>
+    <h1>Tube Drying Stand <span>/ 2 &times; (5 &times; 6)</span></h1>
+    <p class="sub">Sixty polycarbonate tubes stood upright while the epoxy cures, as two identical stands that sit side by side in a 92 &times; 135 silicone tray. Diamond-fenced walls, a ledge under each pocket, four corner feet &mdash; and it prints inverted, without supports.</p>
+    <p class="rev">Rev C</p>
   </header>
 
   <dl class="strip">
-    <div><dt>Capacity</dt><dd>60 <em>tubes</em></dd></div>
-    <div><dt>Footprint</dt><dd>123.5 × 74.9</dd></div>
+    <div><dt>Capacity</dt><dd>60 <em>tubes, 30 per stand</em></dd></div>
+    <div><dt>One stand</dt><dd>62.75 &times; 74.90</dd></div>
+    <div><dt>Pair</dt><dd>126.50 &times; 74.90</dd></div>
+    <div><dt>Tray inside</dt><dd>135 &times; 92</dd></div>
     <div><dt>Height</dt><dd>31.5 <em>mm</em></dd></div>
-    <div><dt>Pocket</dt><dd>10.15 <em>sq × 25 deep</em></dd></div>
-    <div><dt>Worst lean</dt><dd>1.62<em>°</em></dd></div>
-    <div><dt>Material</dt><dd>94 g <em><s>129 g</s> −27%</em></dd></div>
+    <div><dt>Material</dt><dd>98.6 g <em>49.3 g each</em></dd></div>
   </dl>
 
   <div class="body">
 
-    <!-- ===================== ELEVATION ===================== -->
+    <!-- ===================== TRAY FIT ===================== -->
     <section>
-      <h2>Wall elevation — the fence</h2>
-      <p class="note">One diamond per pocket, in every wall of both grids: <strong>136 openings</strong> that take 18.5 cm³ of plastic out. Diamonds rather than round holes because a diamond has no flank steeper than its own apex angle — these run <strong>20.6° from vertical</strong>, where 45° is the limit. They cost nothing in accuracy: the solid 3 mm bands top and bottom still locate the tube over the full 25 mm.</p>
+      <h2>Tray fit &mdash; why two stands and not one</h2>
+      <p class="note">Sixty pockets at five per row is twelve rows, and twelve rows measure <strong>147.80</strong> against a tray that is 135 long. It does not go in. Cut the same sixty into <strong>two stands of six rows</strong> and turn them ninety degrees, and the pair measures 126.50 across the tray&rsquo;s long axis with <strong>4.25 clear at each end</strong> and 8.55 at each side. Same tube count, and two smaller parts print faster and lift out one at a time.</p>
       <figure>
         <div class="frame">
-          <svg viewBox="-9 -7 68 50" role="img" aria-label="Elevation of a grid wall showing four diamond-shaped openings, the ledge plate below it and a corner foot.">
+          <svg viewBox="-25 -23 190 143" role="img" aria-label="Plan of the silicone tray, 135 by 92 millimetres inside, holding two stands of thirty pockets side by side with 4.25 millimetres clear at each end and 8.55 at each side.">
             <defs>
-              <marker id="ea" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+              <marker id="at" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto">
                 <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
               </marker>
+              <pattern id="cellA" x="6.25" y="10.55" width="12.15" height="12.15" patternUnits="userSpaceOnUse">
+                <rect x="0" y="0" width="10.15" height="10.15" fill="var(--sheet)" stroke="var(--ink)" stroke-width=".3"/>
+                <rect x="2" y="2" width="6.15" height="6.15" fill="var(--paper)" stroke="var(--tube)" stroke-width=".3"/>
+              </pattern>
+              <pattern id="cellB" x="69.75" y="10.55" width="12.15" height="12.15" patternUnits="userSpaceOnUse">
+                <rect x="0" y="0" width="10.15" height="10.15" fill="var(--sheet)" stroke="var(--ink)" stroke-width=".3"/>
+                <rect x="2" y="2" width="6.15" height="6.15" fill="var(--paper)" stroke="var(--tube)" stroke-width=".3"/>
+              </pattern>
             </defs>
 
-            <!-- wall body z 6.5..31.5 -> y 3.5..28.5 -->
-            <path class="fill" d="M0,3.5 H50.6 V28.5 H0 Z
-              M3.5,16 L7.075,6.5 L10.65,16 L7.075,25.5 Z
-              M15.65,16 L19.225,6.5 L22.8,16 L19.225,25.5 Z
-              M27.8,16 L31.375,6.5 L34.95,16 L31.375,25.5 Z
-              M39.95,16 L43.525,6.5 L47.1,16 L43.525,25.5 Z" fill-rule="evenodd"/>
+            <!-- tray, phantom: adjacent part, not in this drawing -->
+            <rect class="phant" x="0" y="0" width="135" height="92"/>
+            <text class="lb-p" x="1.5" y="-2.4">SILICONE TRAY &mdash; INSIDE 135.00 &times; 92.00, REPORTED</text>
 
-            <!-- ledge plate edge-on, z 4..6.5 -> y 28.5..31 -->
-            <rect class="fill" x="0" y="28.5" width="50.6" height="2.5"/>
-            <!-- corner foot z 0..4 -> y 31..35 -->
-            <rect class="fill" x="0" y="31" width="4" height="4"/>
-            <line class="thin" x1="-4" y1="35" x2="55" y2="35"/>
-            <text class="lb" x="-8.5" y="38.2">bench — corner feet only, 4 off</text>
+            <!-- stand A at x 4.25, stand B at x 67.75; both y 8.55 -->
+            <rect x="4.25" y="8.55" width="62.75" height="74.9" fill="var(--solid)" stroke="var(--ink)" stroke-width=".45"/>
+            <rect x="6.25" y="10.55" width="58.75" height="70.9" fill="url(#cellA)"/>
+            <rect x="67.75" y="8.55" width="62.75" height="74.9" fill="var(--solid)" stroke="var(--ink)" stroke-width=".45"/>
+            <rect x="69.75" y="10.55" width="58.75" height="70.9" fill="url(#cellB)"/>
 
-            <!-- diamond dims -->
-            <line class="ext" x1="3.5" y1="16" x2="3.5" y2="-4"/>
-            <line class="ext" x1="10.65" y1="16" x2="10.65" y2="-4"/>
-            <line class="dim" x1="3.5" y1="-2" x2="10.65" y2="-2" marker-start="url(#ea)" marker-end="url(#ea)"/>
-            <text class="dt" x="7.075" y="-3.4" text-anchor="middle">7.15</text>
+            <!-- corner feet, both stands -->
+            <g fill="none" stroke="var(--accent)" stroke-width=".45">
+              <rect x="4.25" y="8.55" width="4" height="4"/>
+              <rect x="63" y="8.55" width="4" height="4"/>
+              <rect x="4.25" y="79.45" width="4" height="4"/>
+              <rect x="63" y="79.45" width="4" height="4"/>
+              <rect x="67.75" y="8.55" width="4" height="4"/>
+              <rect x="126.5" y="8.55" width="4" height="4"/>
+              <rect x="67.75" y="79.45" width="4" height="4"/>
+              <rect x="126.5" y="79.45" width="4" height="4"/>
+            </g>
 
-            <line class="ext" x1="19.225" y1="6.5" x2="26" y2="6.5"/>
-            <line class="ext" x1="19.225" y1="25.5" x2="26" y2="25.5"/>
-            <line class="dim" x1="24.6" y1="6.5" x2="24.6" y2="25.5" marker-start="url(#ea)" marker-end="url(#ea)"/>
-            <text class="dt" x="23" y="16" text-anchor="middle" transform="rotate(-90 23 16)">19.00</text>
+            <text class="lb" x="35.6" y="47.5" text-anchor="middle">STAND 1</text>
+            <text class="lb" x="99.1" y="47.5" text-anchor="middle">STAND 2</text>
 
-            <!-- flank angle -->
-            <line class="ext" x1="31.375" y1="6.5" x2="31.375" y2="16"/>
-            <text class="dt" x="35.8" y="11.4">20.6°</text>
+            <!-- overall tray width -->
+            <line class="ext" x1="0" y1="92" x2="0" y2="112"/>
+            <line class="ext" x1="135" y1="92" x2="135" y2="112"/>
+            <line class="dim" x1="0" y1="109" x2="135" y2="109" marker-start="url(#at)" marker-end="url(#at)"/>
+            <text class="dt" x="67.5" y="107.4" text-anchor="middle">135.00 tray</text>
 
-            <!-- solid bands -->
-            <line class="ext" x1="50.6" y1="3.5" x2="57" y2="3.5"/>
-            <line class="ext" x1="50.6" y1="6.5" x2="57" y2="6.5"/>
-            <line class="dim" x1="55.4" y1="3.5" x2="55.4" y2="6.5" marker-start="url(#ea)" marker-end="url(#ea)"/>
-            <text class="dt" x="52" y="2">3.00 band</text>
-            <text class="lb" x="52" y="30.4">2.50 ledge</text>
+            <!-- chain: slack, stand, gap, stand, slack -->
+            <line class="ext" x1="4.25" y1="83.45" x2="4.25" y2="103"/>
+            <line class="ext" x1="67" y1="83.45" x2="67" y2="103"/>
+            <line class="ext" x1="67.75" y1="83.45" x2="67.75" y2="103"/>
+            <line class="ext" x1="130.5" y1="83.45" x2="130.5" y2="103"/>
+            <line class="dim" x1="0" y1="99.5" x2="4.25" y2="99.5" marker-start="url(#at)" marker-end="url(#at)"/>
+            <line class="dim" x1="4.25" y1="99.5" x2="67" y2="99.5" marker-start="url(#at)" marker-end="url(#at)"/>
+            <line class="dim" x1="67.75" y1="99.5" x2="130.5" y2="99.5" marker-start="url(#at)" marker-end="url(#at)"/>
+            <line class="dim" x1="130.5" y1="99.5" x2="135" y2="99.5" marker-start="url(#at)" marker-end="url(#at)"/>
+            <text class="dt" x="2.1" y="103.6" text-anchor="middle">4.25</text>
+            <text class="dt" x="35.6" y="98" text-anchor="middle">62.75</text>
+            <text class="dt" x="67.4" y="94.4" text-anchor="middle">1.00</text>
+            <text class="dt" x="99.1" y="98" text-anchor="middle">62.75</text>
+            <text class="dt" x="132.7" y="103.6" text-anchor="middle">4.25</text>
+
+            <!-- depth chain -->
+            <line class="ext" x1="0" y1="0" x2="-21" y2="0"/>
+            <line class="ext" x1="4.25" y1="8.55" x2="-21" y2="8.55"/>
+            <line class="ext" x1="4.25" y1="83.45" x2="-21" y2="83.45"/>
+            <line class="ext" x1="0" y1="92" x2="-21" y2="92"/>
+            <line class="dim" x1="-18" y1="0" x2="-18" y2="92" marker-start="url(#at)" marker-end="url(#at)"/>
+            <line class="dim" x1="-9" y1="0" x2="-9" y2="8.55" marker-start="url(#at)" marker-end="url(#at)"/>
+            <line class="dim" x1="-9" y1="8.55" x2="-9" y2="83.45" marker-start="url(#at)" marker-end="url(#at)"/>
+            <line class="dim" x1="-9" y1="83.45" x2="-9" y2="92" marker-start="url(#at)" marker-end="url(#at)"/>
+            <text class="dt" x="-19.6" y="46" text-anchor="middle" transform="rotate(-90 -19.6 46)">92.00 tray</text>
+            <text class="dt" x="-10.6" y="4.6" text-anchor="middle" transform="rotate(-90 -10.6 4.6)">8.55</text>
+            <text class="dt" x="-10.6" y="46" text-anchor="middle" transform="rotate(-90 -10.6 46)">74.90</text>
+            <text class="dt" x="-10.6" y="88" text-anchor="middle" transform="rotate(-90 -10.6 88)">8.55</text>
+
+            <!-- what will not fit -->
+            <line class="ext" x1="135" y1="0" x2="147.8" y2="0"/>
+            <line class="ext" x1="135" y1="92" x2="147.8" y2="92"/>
+            <line class="phant" x1="147.8" y1="-4" x2="147.8" y2="96"/>
+            <line class="dim" x1="135" y1="46" x2="147.8" y2="46" marker-start="url(#at)" marker-end="url(#at)"/>
+            <text class="dt" x="141.4" y="44.6" text-anchor="middle">12.80</text>
+            <text class="lb-p" x="150" y="42.6">A SINGLE 5 &times; 12</text>
+            <text class="lb-p" x="150" y="47.6">STAND, 147.80 LONG,</text>
+            <text class="lb-p" x="150" y="52.6">WOULD REACH TO HERE</text>
           </svg>
         </div>
-        <figcaption>Wall elevation, 4 of 10 bays · solid strip between diamonds is 5.00 wide</figcaption>
+        <figcaption>Tray plan, to scale &middot; chain closes: 4.25 + 62.75 + 1.00 + 62.75 + 4.25 = 135.00</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===================== 3D ===================== -->
+    <section>
+      <h2>Three-quarter view &mdash; drag to orbit</h2>
+      <p class="note">The same geometry the Ruby script builds, drawn live from the constants at the top of it. Each diamond is a real opening with its <strong>2.00 wall thickness showing in the reveal</strong>, and the view is depth-buffered, so what sits behind a wall stays behind it. Drag to spin, or use the arrow keys. <strong>Print orientation</strong> flips the pair the way it has to go on the bed &mdash; wall tops down, feet last &mdash; which is the single thing about this part that is easiest to get wrong.</p>
+      <figure>
+        <div class="view">
+          <canvas id="cv" tabindex="0" role="img" aria-label="Interactive three-quarter view of the two drying stands, showing the diamond-fenced lattice walls, the ledge plate beneath and the corner feet."></canvas>
+          <div class="readout" id="ro">AZ 38&deg; &nbsp; EL 26&deg;</div>
+        </div>
+        <div class="ctl">
+          <button id="bPair" aria-pressed="true">Both stands</button>
+          <button id="bTray" aria-pressed="true">Tray outline</button>
+          <button id="bTube" aria-pressed="false">Tubes</button>
+          <button id="bFlip" aria-pressed="false">Print orientation</button>
+          <button id="bReset">Reset view</button>
+        </div>
+        <figcaption>Live perspective view &middot; every opening carries its 2.00 reveal &middot; hidden lines removed</figcaption>
       </figure>
     </section>
 
     <!-- ===================== PLAN ===================== -->
     <section>
-      <h2>Plan — 10 × 6 on a 12.15 pitch</h2>
-      <p class="note">Drawn to scale. The grid closes exactly: ten pockets and eleven walls come to 123.50 across, six and seven to 74.90 deep. Each pocket floor is a <strong>2.00 mm ledge frame</strong> leaving a 6.15 square opening — whose diagonal is 8.70, so a 9.65 tube cannot drop through it in any orientation, while the whole middle drains.</p>
+      <h2>Plan &mdash; one stand, 5 &times; 6 on a 12.15 pitch</h2>
+      <p class="note">The grid closes exactly: five pockets and six walls come to 62.75 across, six pockets and seven walls to 74.90 deep. Each pocket floor is a <strong>2.00 ledge frame</strong> leaving a 6.15 square opening &mdash; whose diagonal is 8.70, so a 9.65 tube cannot drop through it in any orientation, while the whole middle drains.</p>
       <figure>
         <div class="frame">
-          <svg viewBox="-24 -20 172 122" role="img" aria-label="Top view: a 10 by 6 grid of square pockets, each with a square drain opening, on a 123.5 by 74.9 mm plate with four corner feet.">
+          <svg viewBox="-24 -20 112 122" role="img" aria-label="Top view of one stand: a 5 by 6 grid of square pockets, each with a square drain opening, on a 62.75 by 74.9 millimetre plate with four corner feet.">
             <defs>
               <marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto">
                 <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
@@ -262,19 +349,20 @@
               </pattern>
             </defs>
 
-            <rect x="0" y="0" width="123.5" height="74.9" fill="var(--solid)" stroke="var(--ink)" stroke-width=".5"/>
-            <rect x="2" y="2" width="121.5" height="72.9" fill="url(#cell)"/>
+            <rect x="0" y="0" width="62.75" height="74.9" fill="var(--solid)" stroke="var(--ink)" stroke-width=".5"/>
+            <rect x="2" y="2" width="58.75" height="70.9" fill="url(#cell)"/>
 
-            <!-- corner feet -->
-            <rect x="0" y="0" width="4" height="4" fill="none" stroke="var(--accent)" stroke-width=".5"/>
-            <rect x="119.5" y="0" width="4" height="4" fill="none" stroke="var(--accent)" stroke-width=".5"/>
-            <rect x="0" y="70.9" width="4" height="4" fill="none" stroke="var(--accent)" stroke-width=".5"/>
-            <rect x="119.5" y="70.9" width="4" height="4" fill="none" stroke="var(--accent)" stroke-width=".5"/>
+            <g fill="none" stroke="var(--accent)" stroke-width=".5">
+              <rect x="0" y="0" width="4" height="4"/>
+              <rect x="58.75" y="0" width="4" height="4"/>
+              <rect x="0" y="70.9" width="4" height="4"/>
+              <rect x="58.75" y="70.9" width="4" height="4"/>
+            </g>
 
             <line class="ext" x1="0" y1="74.9" x2="0" y2="90"/>
-            <line class="ext" x1="123.5" y1="74.9" x2="123.5" y2="90"/>
-            <line class="dim" x1="0" y1="87" x2="123.5" y2="87" marker-start="url(#ar)" marker-end="url(#ar)"/>
-            <text class="dt" x="61.75" y="85.4" text-anchor="middle">123.50</text>
+            <line class="ext" x1="62.75" y1="74.9" x2="62.75" y2="90"/>
+            <line class="dim" x1="0" y1="87" x2="62.75" y2="87" marker-start="url(#ar)" marker-end="url(#ar)"/>
+            <text class="dt" x="31.375" y="85.4" text-anchor="middle">62.75</text>
 
             <line class="ext" x1="0" y1="0" x2="-16" y2="0"/>
             <line class="ext" x1="0" y1="74.9" x2="-16" y2="74.9"/>
@@ -291,13 +379,63 @@
             <text class="dt" x="7.1" y="-7.4" text-anchor="middle">10.15</text>
             <text class="dt" x="8.1" y="-13.4" text-anchor="middle">12.15 pitch</text>
 
-            <line class="ext" x1="117.3" y1="70.9" x2="132" y2="62"/>
-            <text class="lb-t" x="132.6" y="61.4">6.15 sq opening</text>
-            <text class="lb" x="132.6" y="65.4">2.00 ledge all round</text>
-            <text class="dt" x="-22" y="-14">□ feet, 4.00 sq</text>
+            <line class="ext" x1="56.55" y1="70.9" x2="71" y2="62"/>
+            <text class="lb-t" x="71.6" y="61.4">6.15 sq opening</text>
+            <text class="lb" x="71.6" y="65.4">2.00 ledge all round</text>
+            <text class="dt" x="-22" y="-14">&#9633; feet, 4.00 sq</text>
           </svg>
         </div>
-        <figcaption>Plan view, to scale · corner feet shown in outline</figcaption>
+        <figcaption>Plan view of one stand, to scale &middot; corner feet shown in outline</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===================== ELEVATION ===================== -->
+    <section>
+      <h2>Wall elevation &mdash; the fence</h2>
+      <p class="note">One diamond per pocket, in every wall of both grids: <strong>71 openings per stand</strong>. Diamonds rather than round holes because a diamond has no flank steeper than its own apex angle &mdash; these run <strong>20.6&deg; from vertical</strong>, where 45&deg; is the limit. They cost nothing in accuracy: the solid 3.00 bands top and bottom still locate the tube over the full 25.</p>
+      <figure>
+        <div class="frame">
+          <svg viewBox="-9 -7 80 50" role="img" aria-label="Elevation of a grid wall showing five diamond-shaped openings, the ledge plate below it and a corner foot.">
+            <defs>
+              <marker id="ea" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
+              </marker>
+            </defs>
+
+            <path class="fill" d="M0,3.5 H62.75 V28.5 H0 Z
+              M3.5,16 L7.075,6.5 L10.65,16 L7.075,25.5 Z
+              M15.65,16 L19.225,6.5 L22.8,16 L19.225,25.5 Z
+              M27.8,16 L31.375,6.5 L34.95,16 L31.375,25.5 Z
+              M39.95,16 L43.525,6.5 L47.1,16 L43.525,25.5 Z
+              M52.1,16 L55.675,6.5 L59.25,16 L55.675,25.5 Z" fill-rule="evenodd"/>
+
+            <rect class="fill" x="0" y="28.5" width="62.75" height="2.5"/>
+            <rect class="fill" x="0" y="31" width="4" height="4"/>
+            <rect class="fill" x="58.75" y="31" width="4" height="4"/>
+            <line class="thin" x1="-4" y1="35" x2="68" y2="35"/>
+            <text class="lb" x="-8.5" y="38.2">bench &mdash; corner feet only, 4 off</text>
+
+            <line class="ext" x1="3.5" y1="16" x2="3.5" y2="-4"/>
+            <line class="ext" x1="10.65" y1="16" x2="10.65" y2="-4"/>
+            <line class="dim" x1="3.5" y1="-2" x2="10.65" y2="-2" marker-start="url(#ea)" marker-end="url(#ea)"/>
+            <text class="dt" x="7.075" y="-3.4" text-anchor="middle">7.15</text>
+
+            <line class="ext" x1="19.225" y1="6.5" x2="26" y2="6.5"/>
+            <line class="ext" x1="19.225" y1="25.5" x2="26" y2="25.5"/>
+            <line class="dim" x1="24.6" y1="6.5" x2="24.6" y2="25.5" marker-start="url(#ea)" marker-end="url(#ea)"/>
+            <text class="dt" x="23" y="16" text-anchor="middle" transform="rotate(-90 23 16)">19.00</text>
+
+            <line class="ext" x1="31.375" y1="6.5" x2="31.375" y2="16"/>
+            <text class="dt" x="35.8" y="11.4">20.6&deg;</text>
+
+            <line class="ext" x1="62.75" y1="3.5" x2="69" y2="3.5"/>
+            <line class="ext" x1="62.75" y1="6.5" x2="69" y2="6.5"/>
+            <line class="dim" x1="67.4" y1="3.5" x2="67.4" y2="6.5" marker-start="url(#ea)" marker-end="url(#ea)"/>
+            <text class="dt" x="64" y="2">3.00 band</text>
+            <text class="lb" x="64" y="30.4">2.50 ledge</text>
+          </svg>
+        </div>
+        <figcaption>Wall elevation, all 5 bays of a long wall &middot; solid strip between diamonds is 5.00 wide</figcaption>
       </figure>
     </section>
 
@@ -305,96 +443,131 @@
 
       <!-- ===================== SECTION ===================== -->
       <section>
-        <h2>Section — near a corner</h2>
-        <p class="note">A tube drops in until it lands on the ledge, catching it by <strong>1.75 mm</strong> of overlap. Everything inboard of that is open, and the whole underside is now clear at 4 mm.</p>
+        <h2>Section &mdash; the full width</h2>
+        <p class="note">A tube drops in until it lands on the ledge, catching it by <strong>1.75 mm</strong> of overlap. Everything inboard of that is open, and the whole underside is clear at 4 mm on the two corner feet this cut passes through.</p>
         <figure>
           <div class="frame">
-            <svg viewBox="-15 -4 68 58" role="img" aria-label="Cross section: a corner foot, the ledge plate with square openings, pocket walls, and tubes resting on the ledges.">
+            <svg viewBox="-16 -4 98 58" role="img" aria-label="Cross section across the full 62.75 millimetre width: a corner foot at each end, the ledge plate with square openings, six pocket walls, and five tubes resting on the ledges.">
               <defs>
                 <marker id="ar2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto">
                   <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
                 </marker>
               </defs>
 
-              <line class="thin" x1="-8" y1="45" x2="46" y2="45"/>
+              <line class="thin" x1="-8" y1="45" x2="70" y2="45"/>
               <text class="lb" x="-8" y="48.4">bench</text>
 
-              <!-- corner foot only: z 0..4 -> y 41..45 -->
+              <!-- corner feet, both ends of the cut -->
               <rect class="fill" x="0" y="41" width="4" height="4"/>
-              <text class="lb" x="-13.4" y="43.6">4.00 foot</text>
+              <rect class="fill" x="58.75" y="41" width="4" height="4"/>
+              <text class="lb" x="-14.4" y="43.6">4.00 foot</text>
 
-              <!-- ledge plate z 4..6.5 -> y 38.5..41, broken by 3 openings -->
-              <rect class="fill" x="0"     y="38.5" width="4"    height="2.5"/>
-              <rect class="fill" x="10.15" y="38.5" width="6"    height="2.5"/>
-              <rect class="fill" x="22.30" y="38.5" width="6"    height="2.5"/>
-              <rect class="fill" x="34.45" y="38.5" width="4"    height="2.5"/>
+              <!-- ledge plate: solid bands between the pocket openings -->
+              <rect class="fill" x="0"     y="38.5" width="4" height="2.5"/>
+              <rect class="fill" x="10.15" y="38.5" width="6" height="2.5"/>
+              <rect class="fill" x="22.30" y="38.5" width="6" height="2.5"/>
+              <rect class="fill" x="34.45" y="38.5" width="6" height="2.5"/>
+              <rect class="fill" x="46.60" y="38.5" width="6" height="2.5"/>
+              <rect class="fill" x="58.75" y="38.5" width="4" height="2.5"/>
 
-              <!-- pocket walls z 6.5..31.5 -> y 13.5..38.5 -->
+              <!-- six pocket walls -->
               <rect class="fill" x="0"     y="13.5" width="2" height="25"/>
               <rect class="fill" x="12.15" y="13.5" width="2" height="25"/>
               <rect class="fill" x="24.30" y="13.5" width="2" height="25"/>
               <rect class="fill" x="36.45" y="13.5" width="2" height="25"/>
+              <rect class="fill" x="48.60" y="13.5" width="2" height="25"/>
+              <rect class="fill" x="60.75" y="13.5" width="2" height="25"/>
 
-              <!-- tubes -->
+              <!-- five tubes, shown broken -->
               <rect class="tu" x="2.25"  y="3" width="9.65" height="35.5"/>
               <rect class="tu" x="14.40" y="3" width="9.65" height="35.5"/>
               <rect class="tu" x="26.55" y="3" width="9.65" height="35.5"/>
-              <path class="thin" d="M1 4 L13 2.4 M13.2 4 L25.2 2.4 M25.4 4 L37.4 2.4"/>
-              <text class="lb-t" x="19.2" y="-0.6" text-anchor="middle">tube ⌀9.65 × 54 long</text>
+              <rect class="tu" x="38.70" y="3" width="9.65" height="35.5"/>
+              <rect class="tu" x="50.85" y="3" width="9.65" height="35.5"/>
+              <path class="thin" d="M1 4 L13 2.4 M13.2 4 L25.2 2.4 M25.4 4 L37.4 2.4
+                                    M37.6 4 L49.6 2.4 M49.8 4 L61.8 2.4"/>
+              <text class="lb-t" x="31.4" y="-0.6" text-anchor="middle">tubes &#8960;9.65 &times; 54 long</text>
 
-              <line class="ext" x1="14.15" y1="13.5" x2="44" y2="13.5"/>
-              <line class="ext" x1="14.15" y1="38.5" x2="44" y2="38.5"/>
-              <line class="dim" x1="42" y1="13.5" x2="42" y2="38.5" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
-              <text class="dt" x="40.4" y="26" text-anchor="middle" transform="rotate(-90 40.4 26)">25.00</text>
+              <line class="ext" x1="62.75" y1="13.5" x2="72" y2="13.5"/>
+              <line class="ext" x1="62.75" y1="38.5" x2="72" y2="38.5"/>
+              <line class="dim" x1="70" y1="13.5" x2="70" y2="38.5" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+              <text class="dt" x="68.4" y="26" text-anchor="middle" transform="rotate(-90 68.4 26)">25.00</text>
+
+              <line class="ext" x1="0" y1="45" x2="0" y2="55"/>
+              <line class="ext" x1="62.75" y1="45" x2="62.75" y2="55"/>
+              <line class="dim" x1="0" y1="53" x2="62.75" y2="53" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+              <text class="dt" x="31.375" y="51.6" text-anchor="middle">62.75</text>
 
               <line class="ext" x1="16.15" y1="41" x2="16.15" y2="49"/>
               <line class="ext" x1="22.30" y1="41" x2="22.30" y2="49"/>
               <line class="dim" x1="16.15" y1="47.6" x2="22.30" y2="47.6" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
-              <text class="dt" x="19.2" y="51.6" text-anchor="middle">6.15 open</text>
+              <text class="dt" x="19.2" y="46.2" text-anchor="middle">6.15 open</text>
 
               <line class="ext" x1="12.07" y1="20" x2="-6" y2="20"/>
-              <text class="lb" x="-14.4" y="19">0.25 side gap</text>
+              <text class="lb" x="-15.4" y="19">0.25 side gap</text>
               <line class="ext" x1="11" y1="39.8" x2="-6" y2="33"/>
-              <text class="lb" x="-14.4" y="32">1.75 ledge overlap</text>
+              <text class="lb" x="-15.4" y="32">1.75 ledge overlap</text>
             </svg>
           </div>
-          <figcaption>Section through three pockets · tube shown broken</figcaption>
+          <figcaption>Section across all 5 pockets &middot; both corner feet shown &middot; tubes shown broken</figcaption>
         </figure>
       </section>
 
       <!-- ===================== PRINT AUDIT ===================== -->
       <section>
-        <h2>Printability — checked surface by surface</h2>
-        <p class="note"><strong>It must print inverted, wall tops on the bed.</strong> That is not a preference: right way up, the plate is one 123 × 75 unsupported overhang held on four 4 mm pads. Inverted, every surface falls inside the published limits.</p>
+        <h2>Printability &mdash; checked surface by surface</h2>
+        <p class="note"><strong>It must print inverted, wall tops on the bed.</strong> Right way up, the plate is an unsupported overhang held on four 4 mm pads. Inverted, every surface falls inside the published limits &mdash; and none of these figures moved when the stand got shorter.</p>
 
         <div class="tw">
           <table>
-            <caption>Inverted orientation — audit</caption>
+            <caption>Inverted orientation &mdash; audit, per stand</caption>
             <thead>
               <tr><th>Surface</th><th class="n">This part</th><th class="n">Limit</th><th></th></tr>
             </thead>
             <tbody>
-              <tr><td>Diamond flanks</td><td class="n">20.6° from vert.</td><td class="n">45° <em>(3D45: 65°+)</em></td><td class="pass">PASS</td></tr>
-              <tr><td>Ledge overhang<br><small>this is the tube seat</small></td><td class="n">2.00 mm<br><small>≈4½ lines</small></td><td class="n">~5 mm</td><td class="pass">PASS</td></tr>
+              <tr><td>Diamond flanks</td><td class="n">20.6&deg; from vert.</td><td class="n">45&deg; <em>(3D45: 65&deg;+)</em></td><td class="pass">PASS</td></tr>
+              <tr><td>Ledge overhang<br><small>this is the tube seat</small></td><td class="n">2.00 mm<br><small>&asymp;4&frac12; lines</small></td><td class="n">~5 mm</td><td class="pass">PASS</td></tr>
               <tr><td>Plate bridging pocket</td><td class="n">10.15 mm</td><td class="n">~10 mm</td><td class="pass">WATCH</td></tr>
-              <tr><td>Pocket walls</td><td class="n">vertical</td><td class="n">—</td><td class="pass">PASS</td></tr>
-              <tr><td>Feet</td><td class="n">on solid plate</td><td class="n">—</td><td class="pass">PASS</td></tr>
-              <tr><td>Bed contact</td><td class="n">3 069 mm²</td><td class="n">—</td><td class="pass">BRIM</td></tr>
+              <tr><td>Pocket walls</td><td class="n">vertical</td><td class="n">&mdash;</td><td class="pass">PASS</td></tr>
+              <tr><td>Feet</td><td class="n">on solid plate</td><td class="n">&mdash;</td><td class="pass">PASS</td></tr>
+              <tr><td>Bed contact</td><td class="n">1 609 mm&sup2;</td><td class="n">&mdash;</td><td class="pass">BRIM</td></tr>
             </tbody>
           </table>
         </div>
 
-        <p class="callout"><b>No enclosed voids anywhere</b>, so there is nothing for support material to get trapped inside even if you leave supports switched on by mistake. The 10.15 mm bridge is the only figure sitting on its limit — raise <code>LEDGE_W</code> to shorten it if it comes out rough.</p>
-        <p class="note" style="margin-top:14px"><strong>On the Dremel 3D45 specifically:</strong> 0.4 mm nozzle, so the line-width figures above are exact. Independent testing has it clearing 65° overhangs, well past the 45° baseline. Two things to set — <strong>build plate adhesion to Brim</strong>, because Dremel's slicer defaults to a skirt and a skirt does nothing for adhesion, and <strong>run the door open for PLA</strong>, since the enclosure cuts part cooling and cooling is what the 10.15 mm bridge depends on.</p>
+        <p class="callout"><b>Bed contact halved when the stand did</b> &mdash; 1 609 mm&sup2; instead of 3 069, on a part that is still 62.75 wide and only 31.5 tall. It is not tippy, but the brim matters more than it did. Print the two stands side by side in one job and they brim together.</p>
+        <p class="note" style="margin-top:14px"><strong>On the Dremel 3D45:</strong> 0.4 mm nozzle, so the line-width figures are exact. Set <strong>build plate adhesion to Brim</strong> &mdash; Dremel&rsquo;s slicer defaults to a skirt, which does nothing for adhesion &mdash; and <strong>run the door open for PLA</strong>, since the enclosure cuts part cooling and cooling is what the 10.15 bridge depends on.</p>
       </section>
     </div>
 
     <div class="cols">
 
+      <!-- ===================== WHAT FITS ===================== -->
+      <section>
+        <h2>What the tray will take</h2>
+        <p class="note">Count moves in steps of 20 and rows hold five, so the only question is how many rows go in the 135, once or twice over. Every row of this table is the same 12.15 pitch; only the arrangement changes.</p>
+        <div class="tw">
+          <table>
+            <caption>Arrangements against a 135 &times; 92 tray</caption>
+            <thead>
+              <tr><th>Arrangement</th><th class="n">Tubes</th><th class="n">Footprint</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1 stand, 5 &times; 8</td><td class="n">40</td><td class="n">62.75 &times; 99.20</td><td class="pass">FITS</td></tr>
+              <tr class="pick"><td>2 stands, 5 &times; 6</td><td class="n">60</td><td class="n">126.50 &times; 74.90</td><td class="pass">FITS</td></tr>
+              <tr class="no"><td>2 stands, 5 &times; 7</td><td class="n">70</td><td class="n">126.50 &times; 87.05</td><td class="pass">FITS<br><small>not a step of 20</small></td></tr>
+              <tr class="no"><td>1 stand, 5 &times; 12</td><td class="n">60</td><td class="n">62.75 &times; 147.80</td><td class="fail">12.80 OVER</td></tr>
+              <tr class="no"><td>2 stands, 5 &times; 8</td><td class="n">80</td><td class="n">126.50 &times; 99.20</td><td class="fail">7.20 OVER</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="callout" style="margin-top:14px"><b>Eighty is 7.20 short of going in.</b> It would need the pocket pitch down to 11.14, which means either 1.2 walls or 0.3 tube clearance. Both are real options, neither is a free one &mdash; say the word and they get costed properly rather than guessed at.</p>
+      </section>
+
       <!-- ===================== LEAN ===================== -->
       <section>
         <h2>How straight a tube stands</h2>
-        <p class="note">The pocket is square and the tube round, so the worst case is the <strong>diagonal</strong> of the clearance square, wedged corner to corner. Lean is clearance over depth, which makes depth the lever. The diamonds do not enter into it — the solid bands top and bottom still span the full 25 mm.</p>
+        <p class="note">The pocket is square and the tube round, so the worst case is the <strong>diagonal</strong> of the clearance square, wedged corner to corner. Lean is clearance over depth, which makes depth the lever &mdash; and depth did not change here, so neither did this. The diamonds do not enter into it: the solid bands top and bottom still span the full 25.</p>
         <div class="tw">
           <table>
             <caption>Pocket depth vs. worst-case lean, at 0.50 clearance</caption>
@@ -402,19 +575,22 @@
               <tr><th class="n">Depth</th><th class="n">Lean</th><th class="n">Off at tube top</th></tr>
             </thead>
             <tbody>
-              <tr class="pick"><td class="n">25 mm</td><td class="n">1.62°</td><td class="n">1.53 mm</td></tr>
-              <tr><td class="n">30 mm</td><td class="n">1.35°</td><td class="n">1.27 mm</td></tr>
-              <tr><td class="n">35 mm</td><td class="n">1.16°</td><td class="n">1.09 mm</td></tr>
-              <tr><td class="n">40 mm</td><td class="n">1.01°</td><td class="n">0.95 mm</td></tr>
+              <tr class="pick"><td class="n">25 mm</td><td class="n">1.62&deg;</td><td class="n">1.53 mm</td></tr>
+              <tr><td class="n">30 mm</td><td class="n">1.35&deg;</td><td class="n">1.27 mm</td></tr>
+              <tr><td class="n">35 mm</td><td class="n">1.16&deg;</td><td class="n">1.09 mm</td></tr>
+              <tr><td class="n">40 mm</td><td class="n">1.01&deg;</td><td class="n">0.95 mm</td></tr>
             </tbody>
           </table>
         </div>
       </section>
+    </div>
+
+    <div>
 
       <!-- ===================== PARAMETERS ===================== -->
       <section>
         <h2>Where every number came from</h2>
-        <p class="note">Two dimensions are measured off real parts, one is derived from the others, and the rest are choices — every one a named constant at the top of the script.</p>
+        <p class="note">Two dimensions are measured off real parts, the tray is a figure you gave me, one is derived, and the rest are choices &mdash; each a named constant at the top of the script.</p>
         <div class="tw">
           <table>
             <thead>
@@ -423,14 +599,17 @@
             <tbody>
               <tr><td><code>TUBE_DIA</code></td><td class="n">9.65</td><td><span class="tag m">measured</span></td></tr>
               <tr><td><code>TUBE_LEN</code></td><td class="n">54.00</td><td><span class="tag m">measured</span></td></tr>
+              <tr><td><code>TRAY_W</code> / <code>TRAY_D</code></td><td class="n">92 / 135</td><td><span class="tag r">reported</span> your figure, no caliper on it yet</td></tr>
               <tr><td>foot size</td><td class="n">4.00</td><td><span class="tag d">derived</span> <code>WALL_T + LEDGE_W</code>, so it always lands on solid plate</td></tr>
+              <tr><td><code>COLS</code> &times; <code>ROWS</code></td><td class="n">5 &times; 6</td><td><span class="tag c">chosen</span> five per row, as asked</td></tr>
+              <tr><td><code>COPIES</code></td><td class="n">2</td><td><span class="tag c">chosen</span> what makes 60 fit</td></tr>
+              <tr><td><code>COPY_GAP</code></td><td class="n">1.00</td><td><span class="tag c">chosen</span> so one stand lifts out alone</td></tr>
               <tr><td><code>POCKET_CLEAR</code></td><td class="n">0.50</td><td><span class="tag c">chosen</span> drop-in vs. lean</td></tr>
               <tr><td><code>POCKET_DEPTH</code></td><td class="n">25.00</td><td><span class="tag c">chosen</span> your figure</td></tr>
-              <tr><td><code>LEDGE_W</code></td><td class="n">2.00</td><td><span class="tag c">chosen</span> catches the tube, prints clean</td></tr>
-              <tr><td><code>DIA_POST</code> / <code>DIA_MARGIN</code></td><td class="n">1.50 / 3.00</td><td><span class="tag c">chosen</span> strip at the crossings, band at the rims</td></tr>
+              <tr><td><code>LEDGE_W</code></td><td class="n">2.00</td><td><span class="tag c">chosen</span> catches the tube, drains the rest</td></tr>
               <tr><td><code>WALL_T</code> / <code>BASE_T</code></td><td class="n">2.00 / 2.50</td><td><span class="tag c">chosen</span> 5 perimeters at 0.4</td></tr>
+              <tr><td><code>DIA_POST</code> / <code>DIA_MARGIN</code></td><td class="n">1.50 / 3.00</td><td><span class="tag c">chosen</span> strip at the crossings, band at the rims</td></tr>
               <tr><td><code>FOOT_H</code></td><td class="n">4.00</td><td><span class="tag c">chosen</span> clears the bench</td></tr>
-              <tr><td><code>COLS</code> × <code>ROWS</code></td><td class="n">10 × 6</td><td><span class="tag c">chosen</span> you asked for ~60</td></tr>
             </tbody>
           </table>
         </div>
@@ -438,24 +617,517 @@
     </div>
 
     <section>
-      <h2>What changed from Rev A</h2>
+      <h2>What changed from Rev B</h2>
       <ol class="steps">
-        <li><strong>Seven under-ribs → four corner pads.</strong> The ribs only existed to stop the plate being an overhang; printing inverted removes that problem entirely, so they went. The whole underside is now open to drain.</li>
-        <li><strong>136 diamond openings.</strong> Took 18.5 cm³ out of the walls and gave the curing tubes some airflow.</li>
-        <li><strong>Round drain holes → square ledge openings.</strong> A 6.15 square drains far better than a ⌀5 hole and, printed inverted, leaves a clean 2 mm step instead of a hole closing in over a void.</li>
-        <li><strong>94 g instead of 129 g</strong> — 27% less filament, and the print is shorter with it.</li>
+        <li><strong>One 10 &times; 6 stand became two 5 &times; 6 stands.</strong> Five tubes per row, as asked, and turning the pair ninety degrees is what lets sixty pockets into a tray that a single sixty-pocket stand overshoots by 12.80.</li>
+        <li><strong>The script now refuses to build a set that will not fit.</strong> <code>TRAY_W</code> and <code>TRAY_D</code> are constants, and <code>run</code> aborts with the overage before it draws anything &mdash; a stand 12 mm too long is 50 g of filament and hours to discover.</li>
+        <li><strong>98.6 g the pair, against 94 g for the old single.</strong> Four and a half grams more, spent on the extra set of perimeter walls. That is the cost of splitting it, and it buys two parts that print and handle independently.</li>
+        <li><strong>Nothing else moved.</strong> Pocket, ledge, diamond, foot and print-orientation geometry are byte-for-byte what Rev B had, so the whole printability audit carries over unchanged.</li>
       </ol>
     </section>
   </div>
 
   <dl class="block">
-    <div><dt>Part</dt><dd>Tube drying stand, 60-up · Rev B</dd></div>
+    <div><dt>Part</dt><dd>Tube drying stand, 2 &times; 30 &middot; Rev C</dd></div>
     <div><dt>Script</dt><dd><code>scripts/tube-drying-stand.rb</code></dd></div>
     <div><dt>Units</dt><dd>Millimetres, decimal</dd></div>
-    <div><dt>Build</dt><dd>23 solids — plate, 18 walls, 4 feet</dd></div>
+    <div><dt>Build</dt><dd>18 solids each &mdash; plate, 13 walls, 4 feet</dd></div>
     <div><dt>Orientation</dt><dd>Print inverted, no supports</dd></div>
-    <div><dt>Status</dt><dd>Geometry checked, unprinted</dd></div>
+    <div><dt>Status</dt><dd>Geometry unverified &mdash; script not yet run</dd></div>
   </dl>
 </div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- the part, straight off the script's constants -----------------------
+  var P = {
+    pitch: 12.15, pocket: 10.15, wall: 2, base: 2.5, ledge: 2, opening: 6.15,
+    depth: 25, footH: 4, cols: 5, rows: 6, copies: 2, gap: 1,
+    diaW: 7.15, diaH: 19, tubeD: 9.65, tubeLen: 54, trayW: 135, trayD: 92
+  };
+  P.plateW = P.cols * P.pitch + P.wall;                     // 62.75
+  P.plateD = P.rows * P.pitch + P.wall;                     // 74.90
+  P.setW   = P.copies * P.plateW + (P.copies - 1) * P.gap;  // 126.50
+  P.foot   = P.wall + P.ledge;                              // 4.00
+  P.zPlate = P.footH;                                       // 4.0
+  P.zFloor = P.footH + P.base;                              // 6.5
+  P.zTop   = P.zFloor + P.depth;                            // 31.5
+
+  // =========================================================================
+  // Geometry. Two parallel outputs: triangles for the shaded solid, and a
+  // separate line list for the edges. The lines come from the REAL polygon
+  // boundaries, never from the triangulation, so no seam that does not exist
+  // on the part gets drawn.
+  // =========================================================================
+  function Mesh() { this.pos = []; this.nrm = []; this.mat = []; this.lin = []; }
+
+  Mesh.prototype.tri = function (a, b, c, n, m) {
+    this.pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+    for (var i = 0; i < 3; i++) { this.nrm.push(n[0], n[1], n[2]); this.mat.push(m); }
+  };
+  Mesh.prototype.quad = function (a, b, c, d, n, m) {
+    this.tri(a, b, c, n, m); this.tri(a, c, d, n, m);
+  };
+  Mesh.prototype.fan = function (pts, n, m) {           // convex polygon
+    for (var i = 1; i < pts.length - 1; i++) this.tri(pts[0], pts[i], pts[i + 1], n, m);
+  };
+  Mesh.prototype.loop = function (pts) {                // closed edge loop
+    for (var i = 0; i < pts.length; i++) {
+      var a = pts[i], b = pts[(i + 1) % pts.length];
+      this.lin.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+    }
+  };
+  Mesh.prototype.seg = function (a, b) {
+    this.lin.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+  };
+
+  function box(M, x0, y0, z0, x1, y1, z1, m, edges) {
+    var p = function (x, y, z) { return [x, y, z]; };
+    M.quad(p(x0, y1, z0), p(x0, y0, z0), p(x0, y0, z1), p(x0, y1, z1), [-1, 0, 0], m);
+    M.quad(p(x1, y0, z0), p(x1, y1, z0), p(x1, y1, z1), p(x1, y0, z1), [1, 0, 0], m);
+    M.quad(p(x0, y0, z0), p(x1, y0, z0), p(x1, y0, z1), p(x0, y0, z1), [0, -1, 0], m);
+    M.quad(p(x1, y1, z0), p(x0, y1, z0), p(x0, y1, z1), p(x1, y1, z1), [0, 1, 0], m);
+    M.quad(p(x0, y0, z0), p(x0, y1, z0), p(x1, y1, z0), p(x1, y0, z0), [0, 0, -1], m);
+    M.quad(p(x0, y0, z1), p(x1, y0, z1), p(x1, y1, z1), p(x0, y1, z1), [0, 0, 1], m);
+    if (edges === false) return;
+    M.loop([p(x0, y0, z0), p(x1, y0, z0), p(x1, y1, z0), p(x0, y1, z0)]);
+    M.loop([p(x0, y0, z1), p(x1, y0, z1), p(x1, y1, z1), p(x0, y1, z1)]);
+    M.seg(p(x0, y0, z0), p(x0, y0, z1)); M.seg(p(x1, y0, z0), p(x1, y0, z1));
+    M.seg(p(x1, y1, z0), p(x1, y1, z1)); M.seg(p(x0, y1, z0), p(x0, y1, z1));
+  }
+
+  // One fenestrated wall panel.
+  //   axis 'x' -> runs along X, is P.wall thick in Y.  'y' -> the other way.
+  // The pierced face is cut into exact regions rather than triangulated with
+  // holes: full-height panels between diamonds, a band above and below each
+  // diamond, and four corner triangles around it. Every diamond also gets its
+  // four reveal faces, which is what gives an opening its visible thickness.
+  function wall(M, axis, off, u0, u1, cent) {
+    var v0 = off, v1 = off + P.wall, z0 = P.zFloor, z1 = P.zTop;
+    var hw = P.diaW / 2, hh = P.diaH / 2, zc = z0 + P.depth / 2;
+    var i, k;
+
+    // (u, v, z) -> world, so one routine serves both wall directions.
+    var W = axis === 'x'
+      ? function (u, v, z) { return [u, v, z]; }
+      : function (u, v, z) { return [v, u, z]; };
+    var nOut = axis === 'x' ? [0, -1, 0] : [-1, 0, 0];
+    var nIn  = axis === 'x' ? [0, 1, 0]  : [1, 0, 0];
+    var nU0  = axis === 'x' ? [-1, 0, 0] : [0, -1, 0];
+    var nU1  = axis === 'x' ? [1, 0, 0]  : [0, 1, 0];
+
+    function face(v, n) {
+      var flip = n === nIn;
+      function q(pts) {                       // pts as [u,z] pairs, CCW in u-z
+        var w = pts.map(function (p) { return W(p[0], v, p[1]); });
+        if (flip) w.reverse();
+        M.fan(w, n, 0);
+      }
+      var edgeU = u0;
+      for (i = 0; i < cent.length; i++) {
+        var c = cent[i];
+        if (c - hw > edgeU) q([[edgeU, z0], [c - hw, z0], [c - hw, z1], [edgeU, z1]]);
+        q([[c - hw, zc + hh], [c + hw, zc + hh], [c + hw, z1], [c - hw, z1]]);   // top band
+        q([[c - hw, z0], [c + hw, z0], [c + hw, zc - hh], [c - hw, zc - hh]]);   // bottom band
+        q([[c - hw, zc], [c, zc + hh], [c - hw, zc + hh]]);                      // 4 corners
+        q([[c, zc + hh], [c + hw, zc], [c + hw, zc + hh]]);
+        q([[c - hw, zc - hh], [c, zc - hh], [c - hw, zc]]);
+        q([[c, zc - hh], [c + hw, zc - hh], [c + hw, zc]]);
+        edgeU = c + hw;
+      }
+      if (u1 > edgeU) q([[edgeU, z0], [u1, z0], [u1, z1], [edgeU, z1]]);
+    }
+    face(v0, nOut);
+    face(v1, nIn);
+
+    // ends, top and bottom of the panel
+    M.quad(W(u0, v0, z0), W(u0, v1, z0), W(u0, v1, z1), W(u0, v0, z1), nU0, 0);
+    M.quad(W(u1, v1, z0), W(u1, v0, z0), W(u1, v0, z1), W(u1, v1, z1), nU1, 0);
+    M.quad(W(u0, v0, z1), W(u1, v0, z1), W(u1, v1, z1), W(u0, v1, z1), [0, 0, 1], 0);
+    M.quad(W(u0, v0, z0), W(u0, v1, z0), W(u1, v1, z0), W(u1, v0, z0), [0, 0, -1], 0);
+
+    // diamond reveals — the inside surfaces of each opening
+    for (i = 0; i < cent.length; i++) {
+      var cc = cent[i];
+      var D = [[cc - hw, zc], [cc, zc - hh], [cc + hw, zc], [cc, zc + hh]];
+      for (k = 0; k < 4; k++) {
+        var a = D[k], b = D[(k + 1) % 4];
+        var du = b[0] - a[0], dz = b[1] - a[1];
+        var L = Math.sqrt(du * du + dz * dz) || 1;
+        var nu = dz / L, nz = -du / L;              // into the opening
+        var n = axis === 'x' ? [nu, 0, nz] : [0, nu, nz];
+        M.quad(W(a[0], v0, a[1]), W(b[0], v0, b[1]), W(b[0], v1, b[1]), W(a[0], v1, a[1]), n, 0);
+      }
+      M.loop(D.map(function (p) { return W(p[0], v0, p[1]); }));
+      M.loop(D.map(function (p) { return W(p[0], v1, p[1]); }));
+      for (k = 0; k < 4; k++) M.seg(W(D[k][0], v0, D[k][1]), W(D[k][0], v1, D[k][1]));
+    }
+
+    // outline of the panel
+    M.loop([W(u0, v0, z0), W(u1, v0, z0), W(u1, v0, z1), W(u0, v0, z1)]);
+    M.loop([W(u0, v1, z0), W(u1, v1, z0), W(u1, v1, z1), W(u0, v1, z1)]);
+    M.seg(W(u0, v0, z1), W(u0, v1, z1)); M.seg(W(u1, v0, z1), W(u1, v1, z1));
+  }
+
+  // Solid bands of the ledge plate along one axis — the complement of the
+  // pocket openings.
+  function bands(n) {
+    var out = [[0, P.wall + P.ledge]], i;
+    for (i = 1; i < n; i++) {
+      out.push([P.wall + P.ledge + P.opening + (i - 1) * P.pitch, P.wall + P.ledge + i * P.pitch]);
+    }
+    out.push([P.wall + P.ledge + P.opening + (n - 1) * P.pitch, n * P.pitch + P.wall]);
+    return out;
+  }
+
+  function centres(n, dx) {
+    var out = [], i;
+    for (i = 0; i < n; i++) out.push(dx + P.wall + i * P.pitch + P.pocket / 2);
+    return out;
+  }
+
+  function stand(M, dx) {
+    var i, b;
+    // ledge plate, as crossing solid bands. No edges: it is one solid on the
+    // real part, so the seams between bands are an artefact of how it is built
+    // here and drawing them would invent lines the model does not have.
+    b = bands(P.cols);
+    for (i = 0; i < b.length; i++) {
+      box(M, dx + b[i][0], 0, P.zPlate, dx + b[i][1], P.plateD, P.zFloor, 0, false);
+    }
+    b = bands(P.rows);
+    for (i = 0; i < b.length; i++) {
+      box(M, dx, b[i][0], P.zPlate, dx + P.plateW, b[i][1], P.zFloor, 0, false);
+    }
+    // plate outline only
+    M.loop([[dx, 0, P.zPlate], [dx + P.plateW, 0, P.zPlate],
+            [dx + P.plateW, P.plateD, P.zPlate], [dx, P.plateD, P.zPlate]]);
+
+    for (i = 0; i <= P.rows; i++) {
+      wall(M, 'x', i * P.pitch, dx, dx + P.plateW, centres(P.cols, dx));
+    }
+    for (i = 0; i <= P.cols; i++) {
+      wall(M, 'y', dx + i * P.pitch, 0, P.plateD, centres(P.rows, 0));
+    }
+    var f = P.foot;
+    var cs = [[0, 0], [P.plateW - f, 0], [0, P.plateD - f], [P.plateW - f, P.plateD - f]];
+    for (i = 0; i < cs.length; i++) {
+      box(M, dx + cs[i][0], cs[i][1], 0, dx + cs[i][0] + f, cs[i][1] + f, P.footH, 1);
+    }
+  }
+
+  function tubes(M, dx) {
+    var SEG = 12, r = P.tubeD / 2, c, rr, k;
+    for (c = 0; c < P.cols; c++) {
+      for (rr = 0; rr < P.rows; rr++) {
+        var cx = dx + P.wall + c * P.pitch + P.pocket / 2;
+        var cy = P.wall + rr * P.pitch + P.pocket / 2;
+        var z0 = P.zFloor, z1 = P.zFloor + P.tubeLen, ring = [];
+        for (k = 0; k < SEG; k++) {
+          var t = k / SEG * Math.PI * 2;
+          ring.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]);
+        }
+        for (k = 0; k < SEG; k++) {
+          var a = ring[k], b = ring[(k + 1) % SEG];
+          var mx = (a[0] + b[0]) / 2 - cx, my = (a[1] + b[1]) / 2 - cy;
+          var L = Math.sqrt(mx * mx + my * my) || 1;
+          M.quad([a[0], a[1], z0], [b[0], b[1], z0], [b[0], b[1], z1], [a[0], a[1], z1],
+                 [mx / L, my / L, 0], 2);
+        }
+        var cap = ring.map(function (p) { return [p[0], p[1], z1]; });
+        M.fan(cap, [0, 0, 1], 2);
+        M.loop(cap);
+      }
+    }
+  }
+
+  function trayLines() {
+    var x0 = -(P.trayW - P.setW) / 2, y0 = -(P.trayD - P.plateD) / 2;
+    var x1 = x0 + P.trayW, y1 = y0 + P.trayD, out = [];
+    [[-1.5], [17]].forEach(function (h) {
+      var z = h[0];
+      var L = [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]];
+      for (var i = 0; i < 4; i++) {
+        var a = L[i], b = L[(i + 1) % 4];
+        out.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+      }
+    });
+    [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].forEach(function (c) {
+      out.push(c[0], c[1], -1.5, c[0], c[1], 17);
+    });
+    return out;
+  }
+
+  // =========================================================================
+  // Matrices
+  // =========================================================================
+  function mul(a, b) {
+    var o = new Float32Array(16), i, j, k;
+    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) {
+      var s = 0;
+      for (k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k];
+      o[i * 4 + j] = s;
+    }
+    return o;
+  }
+  function perspective(fovy, asp, n, f) {
+    var t = 1 / Math.tan(fovy / 2);
+    return new Float32Array([t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1,
+                             0, 0, 2 * f * n / (n - f), 0]);
+  }
+  function lookAt(eye, at, up) {
+    function s(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+    function x(a, b) {
+      return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    }
+    function d(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+    function nz(a) { var m = Math.sqrt(d(a, a)) || 1; return [a[0] / m, a[1] / m, a[2] / m]; }
+    var z = nz(s(eye, at)), xx = nz(x(up, z)), y = x(z, xx);
+    return new Float32Array([
+      xx[0], y[0], z[0], 0, xx[1], y[1], z[1], 0, xx[2], y[2], z[2], 0,
+      -d(xx, eye), -d(y, eye), -d(z, eye), 1
+    ]);
+  }
+
+  // =========================================================================
+  // GL
+  // =========================================================================
+  var cv = document.getElementById('cv'), ro = document.getElementById('ro');
+  var gl = null;
+  try {
+    gl = cv.getContext('webgl', { antialias: true, alpha: true, depth: true }) ||
+         cv.getContext('experimental-webgl', { antialias: true, alpha: true, depth: true });
+  } catch (e) { gl = null; }
+
+  if (!gl) {
+    cv.insertAdjacentHTML('afterend',
+      '<p class="note" style="padding:16px">This view needs WebGL, which this browser has ' +
+      'turned off. Every dimension it would show is in the plan and section above.</p>');
+    return;
+  }
+
+  var VS = [
+    'attribute vec3 aPos; attribute vec3 aNrm; attribute float aMat;',
+    'uniform mat4 uMVP; uniform float uFlip; uniform float uMidZ;',
+    'varying vec3 vN; varying float vM;',
+    'void main(){',
+    '  vec3 p = aPos; vec3 n = aNrm;',
+    '  if (uFlip > 0.5) { p.z = 2.0*uMidZ - p.z; n.z = -n.z; }',
+    '  vN = n; vM = aMat;',
+    '  gl_Position = uMVP * vec4(p, 1.0);',
+    '}'
+  ].join('\n');
+
+  var FS = [
+    'precision mediump float;',
+    'varying vec3 vN; varying float vM;',
+    'uniform vec3 uSolid; uniform vec3 uFoot; uniform vec3 uTube; uniform vec3 uLight;',
+    'void main(){',
+    '  vec3 n = normalize(vN);',
+    '  if (!gl_FrontFacing) n = -n;',
+    '  float d = 0.58 + 0.42 * max(dot(n, normalize(uLight)), 0.0);',
+    '  vec3 base = uSolid;',
+    '  if (vM > 1.5) base = uTube; else if (vM > 0.5) base = uFoot;',
+    '  gl_FragColor = vec4(base * d, 1.0);',
+    '}'
+  ].join('\n');
+
+  var LVS = 'attribute vec3 aPos; uniform mat4 uMVP; uniform float uFlip; uniform float uMidZ;' +
+            'void main(){ vec3 p = aPos; if (uFlip > 0.5) p.z = 2.0*uMidZ - p.z;' +
+            ' gl_Position = uMVP * vec4(p, 1.0); }';
+  var LFS = 'precision mediump float; uniform vec4 uCol; void main(){ gl_FragColor = uCol; }';
+
+  function compile(src, type) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  function program(vs, fs) {
+    var p = gl.createProgram();
+    gl.attachShader(p, compile(vs, gl.VERTEX_SHADER));
+    gl.attachShader(p, compile(fs, gl.FRAGMENT_SHADER));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    return p;
+  }
+
+  var progT = program(VS, FS), progL = program(LVS, LFS);
+  var bufP = gl.createBuffer(), bufN = gl.createBuffer(), bufM = gl.createBuffer();
+  var bufL = gl.createBuffer();
+  var nTri = 0, nLin = 0;
+
+  // ---- state ---------------------------------------------------------------
+  var HOME = { az: 38, el: 26 };
+  var st = { az: HOME.az, el: HOME.el, pair: true, tray: true, tubes: false, flip: false };
+  var built = '';
+
+  function build() {
+    var key = [st.pair, st.tray, st.tubes].join('|');
+    if (key === built) return;
+    var M = new Mesh();
+    stand(M, 0);
+    if (st.pair) stand(M, P.plateW + P.gap);
+    if (st.tubes) { tubes(M, 0); if (st.pair) tubes(M, P.plateW + P.gap); }
+    var lines = M.lin;
+    if (st.tray && st.pair) lines = lines.concat(trayLines());
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufP);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(M.pos), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufN);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(M.nrm), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufM);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(M.mat), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufL);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines), gl.STATIC_DRAW);
+    nTri = M.pos.length / 3;
+    nLin = lines.length / 3;
+    built = key;
+  }
+
+  // ---- colour, read from the sheet's own tokens ----------------------------
+  var COL = {};
+  function rgb(hex) {
+    hex = hex.trim().replace('#', '');
+    if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    return [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255,
+            parseInt(hex.slice(4, 6), 16) / 255];
+  }
+  function readTokens() {
+    var cs = getComputedStyle(document.documentElement);
+    function t(k, fb) {
+      var v = cs.getPropertyValue('--' + k).trim();
+      return rgb(v && v.charAt(0) === '#' ? v : fb);
+    }
+    COL.solid = t('solid', '#cfd5da');
+    COL.ink   = t('ink', '#14181c');
+    COL.ghost = t('ink-3', '#8b959d');
+    COL.tube  = t('tube', '#1f6f6d');
+    COL.foot  = COL.solid.map(function (v) { return v * 0.88; });
+  }
+
+  function draw() {
+    build();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    gl.viewport(0, 0, cv.width, cv.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.enable(gl.DEPTH_TEST);
+    gl.disable(gl.CULL_FACE);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    var spanX = st.pair ? P.setW : P.plateW;
+    var topZ  = st.tubes ? P.zFloor + P.tubeLen : P.zTop;
+    var mid   = [spanX / 2, P.plateD / 2, topZ / 2];
+    var rad   = 0.5 * Math.sqrt(spanX * spanX + P.plateD * P.plateD + topZ * topZ);
+
+    var fov = 32 * Math.PI / 180;
+    var asp = w / h;
+    var dist = rad / Math.sin(Math.min(fov, 2 * Math.atan(Math.tan(fov / 2) * asp)) / 2) * 1.06;
+    var az = st.az * Math.PI / 180, el = st.el * Math.PI / 180;
+    var eye = [mid[0] + dist * Math.cos(el) * Math.sin(az),
+               mid[1] - dist * Math.cos(el) * Math.cos(az),
+               mid[2] + dist * Math.sin(el)];
+    var mvp = mul(perspective(fov, asp, dist * 0.05, dist * 4), lookAt(eye, mid, [0, 0, 1]));
+
+    // solid
+    gl.useProgram(progT);
+    gl.uniformMatrix4fv(gl.getUniformLocation(progT, 'uMVP'), false, mvp);
+    gl.uniform1f(gl.getUniformLocation(progT, 'uFlip'), st.flip ? 1 : 0);
+    gl.uniform1f(gl.getUniformLocation(progT, 'uMidZ'), mid[2]);
+    gl.uniform3fv(gl.getUniformLocation(progT, 'uSolid'), COL.solid);
+    gl.uniform3fv(gl.getUniformLocation(progT, 'uFoot'), COL.foot);
+    gl.uniform3fv(gl.getUniformLocation(progT, 'uTube'), COL.tube);
+    gl.uniform3fv(gl.getUniformLocation(progT, 'uLight'), [-0.42, -0.62, 0.66]);
+    function attr(prog, name, buf, size) {
+      var l = gl.getAttribLocation(prog, name);
+      if (l < 0) return;
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.enableVertexAttribArray(l);
+      gl.vertexAttribPointer(l, size, gl.FLOAT, false, 0, 0);
+    }
+    attr(progT, 'aPos', bufP, 3);
+    attr(progT, 'aNrm', bufN, 3);
+    attr(progT, 'aMat', bufM, 1);
+    gl.enable(gl.POLYGON_OFFSET_FILL);
+    gl.polygonOffset(1.0, 1.0);
+    gl.drawArrays(gl.TRIANGLES, 0, nTri);
+    gl.disable(gl.POLYGON_OFFSET_FILL);
+
+    // edges, depth-tested against the solid so hidden lines stay hidden
+    gl.useProgram(progL);
+    gl.uniformMatrix4fv(gl.getUniformLocation(progL, 'uMVP'), false, mvp);
+    gl.uniform1f(gl.getUniformLocation(progL, 'uFlip'), st.flip ? 1 : 0);
+    gl.uniform1f(gl.getUniformLocation(progL, 'uMidZ'), mid[2]);
+    gl.uniform4f(gl.getUniformLocation(progL, 'uCol'),
+                 COL.ink[0], COL.ink[1], COL.ink[2], 0.55);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    attr(progL, 'aPos', bufL, 3);
+    gl.drawArrays(gl.LINES, 0, nLin);
+    gl.disable(gl.BLEND);
+
+    ro.textContent = 'AZ ' + Math.round((st.az % 360 + 360) % 360) + '°   EL '
+                   + Math.round(st.el) + '°' + (st.flip ? '   INVERTED' : '');
+  }
+
+  // ---- interaction ---------------------------------------------------------
+  var drag = null;
+  cv.addEventListener('pointerdown', function (e) {
+    drag = { x: e.clientX, y: e.clientY, az: st.az, el: st.el };
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    st.az = drag.az + (e.clientX - drag.x) * 0.45;
+    st.el = Math.max(-15, Math.min(88, drag.el + (e.clientY - drag.y) * 0.35));
+    draw();
+  });
+  function endDrag() { drag = null; }
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('keydown', function (e) {
+    var step = e.shiftKey ? 15 : 5, used = true;
+    if (e.key === 'ArrowLeft') st.az -= step;
+    else if (e.key === 'ArrowRight') st.az += step;
+    else if (e.key === 'ArrowUp') st.el = Math.min(88, st.el + step);
+    else if (e.key === 'ArrowDown') st.el = Math.max(-15, st.el - step);
+    else used = false;
+    if (used) { e.preventDefault(); draw(); }
+  });
+
+  function toggle(id, key) {
+    var b = document.getElementById(id);
+    b.addEventListener('click', function () {
+      st[key] = !st[key];
+      b.setAttribute('aria-pressed', String(st[key]));
+      draw();
+    });
+  }
+  toggle('bPair', 'pair');
+  toggle('bTray', 'tray');
+  toggle('bTube', 'tubes');
+  toggle('bFlip', 'flip');
+  document.getElementById('bReset').addEventListener('click', function () {
+    st.az = HOME.az; st.el = HOME.el; draw();
+  });
+
+  readTokens();
+  draw();
+  window.addEventListener('resize', draw);
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onTheme = function () { readTokens(); draw(); };
+    if (mq.addEventListener) mq.addEventListener('change', onTheme);
+    else if (mq.addListener) mq.addListener(onTheme);
+  }
+  new MutationObserver(function () { readTokens(); draw(); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+</script>
 </body>
 </html>

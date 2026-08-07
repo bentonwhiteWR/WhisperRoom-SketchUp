@@ -39,7 +39,7 @@ module WhisperRoom
     SKIP     = ['wr_tools.rb', 'wr-booth-data.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5
-    PIN_N    = 8        # toolbar buttons for pinned scripts
+    PIN_N    = 8        # favourites the strip holds before it gets crowded
     FRESH_H  = 24        # a script touched this recently gets a NEW pill
 
     # ---------------------------------------------------------------- scanning --
@@ -52,13 +52,32 @@ module WhisperRoom
          .map    { |f| File.join(SCRIPTS_DIR, f) }
     end
 
-    # Pull "@title" and the comment paragraph under it out of a script header.
+    # Pull the @-directives and the comment paragraph out of a script header.
+    #
+    # A script becomes an ABILITY — a thing with an on and an off, rather than a
+    # thing you run — purely by declaring it in its own header:
+    #
+    #   # @ability Exploded
+    #   # @ability-blurb Pull the assembly apart; switch off to put it back.
+    #   # @setting mode   choice  Axis|Radial|Vertical only  Direction
+    #   # @setting spread number  60                         Spread (%)
+    #   # @on  WR_ExplodeView.ability_on(opts)
+    #   # @off WR_ExplodeView.ability_off(opts)
+    #
+    # Declaring it in the script rather than in a list here means a new ability
+    # needs no edit to the plugin, and the declaration cannot drift away from the
+    # code it describes.
+    #
+    # @setting is WHITESPACE-DELIMITED, so a choice value cannot contain a space:
+    # write Axis|Radial|Vertical, not Axis|Radial|Vertical only. Everything after
+    # the default is the human label and may contain spaces.
     def self.meta_of(path)
       title = nil
       blurb = []
       started = false
+      abil = nil
       File.foreach(path).with_index do |line, i|
-        break if i > 40
+        break if i > 60
         unless line =~ /^\s*#/
           break unless line.strip.empty?
           next
@@ -66,6 +85,31 @@ module WhisperRoom
         text = line.sub(/^\s*#\s?/, '').rstrip
         if text =~ /^@title\s+(.+)$/
           title = Regexp.last_match(1).strip.sub(/\.\.\.\z/, '')
+          next
+        end
+        if text =~ /^@ability\s+(.+)$/
+          abil ||= { 'label' => nil, 'blurb' => '', 'settings' => [], 'on' => nil, 'off' => nil }
+          abil['label'] = Regexp.last_match(1).strip
+          next
+        end
+        if text =~ /^@ability-blurb\s+(.+)$/
+          abil ||= { 'label' => nil, 'blurb' => '', 'settings' => [], 'on' => nil, 'off' => nil }
+          abil['blurb'] = Regexp.last_match(1).strip
+          next
+        end
+        if text =~ /^@setting\s+(\S+)\s+(\S+)\s+(\S+)\s*(.*)$/
+          abil ||= { 'label' => nil, 'blurb' => '', 'settings' => [], 'on' => nil, 'off' => nil }
+          key, kind, dflt, lbl = Regexp.last_match(1), Regexp.last_match(2),
+                                 Regexp.last_match(3), Regexp.last_match(4).strip
+          abil['settings'] << { 'key' => key, 'kind' => kind, 'default' => dflt,
+                                'label' => (lbl.empty? ? key : lbl),
+                                'choices' => (kind == 'choice' ? dflt.split('|') : []) }
+          abil['settings'].last['default'] = dflt.split('|').first if kind == 'choice'
+          next
+        end
+        if text =~ /^@(on|off)\s+(.+)$/
+          abil ||= { 'label' => nil, 'blurb' => '', 'settings' => [], 'on' => nil, 'off' => nil }
+          abil[Regexp.last_match(1)] = Regexp.last_match(2).strip
           next
         end
         next if text =~ /^@/
@@ -77,9 +121,10 @@ module WhisperRoom
         blurb << text
         break if blurb.join(' ').length > 200
       end
-      [title, blurb.join(' ')]
+      abil = nil unless abil && abil['label'] && abil['on'] && abil['off']
+      [title, blurb.join(' '), abil]
     rescue StandardError
-      [nil, '']
+      [nil, '', nil]
     end
 
     def self.pretty(basename)
@@ -101,16 +146,17 @@ module WhisperRoom
     # Newest first — the thing being worked on is nearly always the thing to run.
     def self.scan
       script_files.map { |path|
-        title, blurb = meta_of(path)
+        title, blurb, abil = meta_of(path)
         mtime = File.mtime(path)
         {
-          'file'  => path,
-          'name'  => File.basename(path),
-          'title' => title || pretty(File.basename(path)),
-          'blurb' => blurb,
-          'ago'   => ago(mtime),
-          'fresh' => (Time.now - mtime) < FRESH_H * 3600,
-          'stamp' => mtime.to_i
+          'file'    => path,
+          'name'    => File.basename(path),
+          'title'   => title || pretty(File.basename(path)),
+          'blurb'   => blurb,
+          'ago'     => ago(mtime),
+          'fresh'   => (Time.now - mtime) < FRESH_H * 3600,
+          'stamp'   => mtime.to_i,
+          'ability' => abil
         }
       }.sort_by { |s| -s['stamp'] }
     end
@@ -130,16 +176,21 @@ module WhisperRoom
       nil
     end
 
-    # ----------------------------------------------------------------- pinned --
+    # -------------------------------------------------------------- favourites --
     #
-    # Pinned scripts get their own toolbar button. They appear NEXT LAUNCH, not
-    # immediately, and that is deliberate: UI::Toolbar#add_item can be called at
-    # runtime, but on Windows it has a known severe slowdown when the toolbar was
-    # docked in a previous session (SketchUp api-issue-tracker #628). Reading the
-    # pin list at load and building the buttons once avoids that entirely.
+    # Starred scripts pin to the strip across the top of the panel, and they
+    # appear THE INSTANT you star them.
     #
-    # For a shortcut that works this second, bind a key to the script's menu item
-    # under Window > Preferences > Shortcuts — every script has one.
+    # They used to become toolbar buttons instead, which could only ever appear
+    # at the next launch — UI::Toolbar#add_item works at runtime, but on Windows
+    # it has a known severe slowdown when the toolbar was docked in a previous
+    # session (SketchUp api-issue-tracker #628), so the buttons had to be built
+    # once at load. A star that does nothing until you restart reads as broken,
+    # and it was reported as broken. The panel strip has no such limitation.
+    #
+    # The toolbar now carries only the three fixed buttons, which never change.
+    # For a keyboard shortcut, bind a key to the script's menu item under
+    # Window > Preferences > Shortcuts — every script has one.
 
     def self.pinned
       JSON.parse(Sketchup.read_default(PREF_KEY, 'pinned', '[]').to_s)
@@ -151,8 +202,177 @@ module WhisperRoom
       list = pinned
       list = list.include?(name) ? list.reject { |n| n == name } : (list + [name])
       Sketchup.write_default(PREF_KEY, 'pinned', list.first(PIN_N).to_json)
+      refresh_fav_labels
     rescue StandardError
       nil
+    end
+
+    # What toolbar slot i currently points at, resolved against what is on disk
+    # so a pin left behind by a deleted script cannot fire a dead button.
+    def self.favourite_at(i)
+      name = pinned[i]
+      return nil if name.nil?
+      scan.find { |s| s['name'] == name }
+    end
+
+    def self.run_favourite(i)
+      s = favourite_at(i)
+      if s.nil?
+        UI.messagebox("Favourite slot #{i + 1} is empty.\n\n" \
+                      "Open the WhisperRoom panel, go to Scripts, and click the " \
+                      "star on any script to put it here.")
+        return
+      end
+      run(s['file'])
+      push
+    end
+
+    # Tooltips are settable after the command is created, so a slot can be
+    # renamed without rebuilding the toolbar. Whether SketchUp repaints the
+    # tooltip immediately is version-dependent; the ACTION is always current
+    # either way, because it resolves the pin list at click time.
+    def self.refresh_fav_labels
+      return if @fav_cmds.nil?
+      @fav_cmds.each_with_index do |cmd, i|
+        s = favourite_at(i)
+        text = s ? "#{s['title']}  (favourite #{i + 1})" : "Favourite #{i + 1} — empty"
+        cmd.tooltip = text
+        cmd.status_bar_text = s ? "Run #{s['name']}" : 'Star a script in the WhisperRoom panel'
+      end
+    rescue StandardError
+      nil
+    end
+
+    # -------------------------------------------------------------- abilities --
+    #
+    # An ability is a thing with an ON and an OFF, as against a script, which is
+    # a thing you run. The point is not to save a click: it is that toggling off
+    # UNDOES the same work that toggling on did, so you stop filling a dialog in
+    # every time you want to look at something a different way.
+    #
+    # STATE LIVES IN THE MODEL, not in the plugin. Whether this assembly is
+    # exploded is a fact about the model, so it is stored on the model and it
+    # survives save, close and reopen. Settings are per-user and live in prefs.
+    #
+    # A broken ability must not take the panel with it, so every call is wrapped
+    # and reports its own failure onto its own card.
+
+    ABIL_DICT = 'WR_Tools_Abilities'.freeze
+
+    # Reference-only geometry, across every script in the folder. This is the one
+    # ability with no script behind it — there is nothing to run, only tags to
+    # show and hide, so it is built in.
+    REF_TAGS = [
+      'WR-Explode-Leaders',   # explode-view.rb
+      'WR-Notes',             # build-room.rb, csusb-rooms.rb
+      'STAND-Tubes',          # tube-drying-stand.rb
+      'JIG-Parts',            # pendant-jig.rb
+      'JIG-Dims'
+    ].freeze
+
+    def self.builtin_abilities
+      [{
+        'id'       => 'ghost',
+        'label'    => 'Reference geometry',
+        'blurb'    => 'Show the ghost parts and leader lines every script draws for ' \
+                      'reference — tubes, housings, explode leaders, notes.',
+        'settings' => [],
+        'builtin'  => true
+      }]
+    end
+
+    def self.abilities
+      out = builtin_abilities
+      scan.each do |s|
+        a = s['ability']
+        next unless a
+        out << a.merge('id' => s['name'], 'file' => s['file'],
+                       'script' => s['title'], 'builtin' => false)
+      end
+      out.each { |a| a['on_now'] = state(a['id']); a['values'] = values_for(a) }
+      out
+    end
+
+    def self.state(id)
+      m = Sketchup.active_model
+      return false unless m
+      m.get_attribute(ABIL_DICT, id, false) ? true : false
+    rescue StandardError
+      false
+    end
+
+    def self.set_state(id, on)
+      m = Sketchup.active_model
+      m.set_attribute(ABIL_DICT, id, on ? true : false) if m
+    rescue StandardError
+      nil
+    end
+
+    def self.values_for(a)
+      out = {}
+      (a['settings'] || []).each do |s|
+        v = Sketchup.read_default(PREF_KEY, "set_#{a['id']}_#{s['key']}", s['default']).to_s
+        out[s['key']] = v.empty? ? s['default'] : v
+      end
+      out
+    end
+
+    def self.save_setting(id, key, value)
+      Sketchup.write_default(PREF_KEY, "set_#{id}_#{key}", value.to_s)
+    rescue StandardError
+      nil
+    end
+
+    # Every tag whose name is in REF_TAGS, plus anything ending in -Ref, so a
+    # future script can opt in without editing this list.
+    def self.ref_layers(model)
+      model.layers.select { |l|
+        REF_TAGS.include?(l.name) || l.name =~ /-Ref\z/i
+      }
+    end
+
+    def self.toggle_ghost(on)
+      model = Sketchup.active_model
+      ls = ref_layers(model)
+      if ls.empty?
+        return [false, 'No reference tags in this model yet — build something first.']
+      end
+      ls.each { |l| l.visible = on }
+      model.active_view.refresh rescue nil
+      [true, "#{on ? 'Showing' : 'Hiding'} #{ls.size} reference tag(s)"]
+    rescue StandardError => e
+      [false, "#{e.class}: #{e.message}"]
+    end
+
+    # The @on / @off directives are Ruby, evaluated with `opts` bound to the
+    # ability's saved settings. That is not a new risk: `load` already runs every
+    # line of these files, and they are this repo's own scripts.
+    def self.toggle(id, on)
+      a = abilities.find { |x| x['id'] == id }
+      return [false, "No such ability: #{id}"] unless a
+
+      if a['builtin']
+        ok, msg = toggle_ghost(on)
+        set_state(id, on) if ok
+        return [ok, msg]
+      end
+
+      unless File.exist?(a['file'].to_s)
+        return [false, "Script is gone: #{a['file']}"]
+      end
+      load a['file']                     # re-read every time, so edits take effect
+      opts = values_for(a)
+      expr = on ? a['on'] : a['off']
+      result = eval(expr, binding, a['file'])   # rubocop:disable Security/Eval
+      if result == false
+        return [false, "#{a['label']} could not #{on ? 'start' : 'stop'} — see the console."]
+      end
+      set_state(id, on)
+      [true, "#{a['label']} #{on ? 'on' : 'off'}"]
+    rescue StandardError => e
+      puts "ABILITY FAILED (#{id}, #{on ? 'on' : 'off'}): #{e.class}: #{e.message}"
+      puts e.backtrace.first(5)
+      [false, "#{e.class}: #{e.message}"]
     end
 
     # ---------------------------------------------------------------- running --
@@ -174,8 +394,14 @@ module WhisperRoom
     # ------------------------------------------------------------------ panel --
 
     def self.payload
-      { 'dir' => SCRIPTS_DIR, 'scripts' => scan,
-        'recent' => recent, 'pinned' => pinned }
+      { 'dir' => SCRIPTS_DIR, 'scripts' => scan, 'abilities' => abilities,
+        'recent' => recent, 'pinned' => pinned, 'note' => @note }
+    end
+
+    def self.push_note(msg)
+      @note = msg
+      push
+      @note = nil
     end
 
     def self.push
@@ -211,6 +437,14 @@ module WhisperRoom
       d.add_action_callback('rescan')  { |_c| push }
       d.add_action_callback('run')     { |_c, file| run(file); push }
       d.add_action_callback('pin')     { |_c, name| toggle_pin(name); push }
+      d.add_action_callback('ability') do |_c, id, on|
+        _ok, msg = toggle(id, on.to_s == 'true')
+        push_note(msg)
+      end
+      d.add_action_callback('setting') do |_c, id, key, value|
+        save_setting(id, key, value)
+        push
+      end
       d.add_action_callback('folder')  { |_c| UI.openURL('file:///' + SCRIPTS_DIR) }
       d.add_action_callback('console') { |_c| Sketchup.send_action('showRubyPanel:') }
       d.set_on_closed { @dlg = nil }
@@ -267,16 +501,24 @@ module WhisperRoom
       tb.add_item(command('WhisperRoom Panel', 'panel',
                           'Browse and run WhisperRoom scripts') { open_panel })
 
-      # Pinned scripts, resolved against what is actually on disk right now so a
-      # pin left behind by a deleted script cannot produce a dead button.
-      here = scan
-      pins = pinned.map { |n| here.find { |s| s['name'] == n } }.compact
-      unless pins.empty?
-        tb.add_separator
-        pins.each do |s|
-          tb.add_item(command(s['title'], 'script', "Run #{s['name']}") { run(s['file']) })
-        end
+      # ---- favourite slots on the toolbar ----------------------------------
+      #
+      # A toolbar cannot GAIN a button at runtime without the Windows docking
+      # slowdown (api-issue-tracker #628), so all eight slots are created here,
+      # once, at load. What each one RUNS is looked up at click time, so
+      # starring a script in the panel rebinds its slot immediately — no
+      # restart. The button face is a numbered star; the tooltip carries the
+      # script name and is refreshed whenever the pin list changes.
+      tb.add_separator
+      @fav_cmds = []
+      PIN_N.times do |i|
+        cmd = UI::Command.new("Favourite #{i + 1}") { run_favourite(i) }
+        cmd.small_icon = icon_for("fav#{i + 1}", 24)
+        cmd.large_icon = icon_for("fav#{i + 1}", 32)
+        @fav_cmds << cmd
+        tb.add_item(cmd)
       end
+      refresh_fav_labels
 
       tb.add_separator
       tb.add_item(command('Scripts Folder', 'folder',

@@ -1,4 +1,11 @@
 # @title Exploded View...
+# @ability Exploded
+# @ability-blurb Pull the selected assembly apart; switch off to put it back.
+# @setting mode   choice  Axis|Radial|Vertical  Direction
+# @setting spread number  60                   Spread (%)
+# @setting leads  choice  Yes|No               Leader lines
+# @on  WR_ExplodeView.ability_on(opts)
+# @off WR_ExplodeView.ability_off(opts)
 #
 # Pull an assembly apart for an assembly-manual illustration, and put it back.
 #
@@ -57,9 +64,15 @@ module WR_ExplodeView
 
   # The direct children of whatever is selected. Top-level parts are what a
   # manual shows; nesting deeper just produces confetti.
-  def self.parts(model)
+  # allow_homed: on a reset, fall back to every part that already carries a home
+  # attribute rather than demanding a selection that no longer exists.
+  def self.parts(model, allow_homed = false)
     sel = model.selection
     if sel.empty?
+      if allow_homed
+        homed = homed_parts(model)
+        return homed unless homed.empty?
+      end
       UI.messagebox("Select the assembly first.\n\n(Or select several parts.)")
       return nil
     end
@@ -201,20 +214,74 @@ module WR_ExplodeView
 
   # ------------------------------------------------------------------- entry --
 
+  # ------------------------------------------------------------- entry points --
+  #
+  # Three ways in, one body:
+  #   run          — asks, then performs. The Ruby Console / menu path.
+  #   ability_on   — explode with stored settings, no dialog. The panel's toggle.
+  #   ability_off  — put everything back. Also no dialog.
+  #
+  # The panel toggles this dozens of times in a session, so the ability path must
+  # never put a modal in the way. That is the whole reason it exists.
+
   def self.run
+    cfg = ask
+    return unless cfg
+    perform(cfg)
+  end
+
+  def self.ability_on(opts = {})
+    perform(stored_cfg(opts).merge('action' => 'Explode', 'frames' => '0'))
+  end
+
+  def self.ability_off(opts = {})
+    perform(stored_cfg(opts).merge('action' => 'Reset', 'frames' => '0'))
+  end
+
+  # Whatever was last saved, with the panel's settings laid over the top.
+  def self.stored_cfg(opts)
+    base = {}
+    DEFAULTS.each_key do |k|
+      v = Sketchup.read_default(PREF, k, DEFAULTS[k]).to_s
+      base[k] = v.empty? ? DEFAULTS[k] : v
+    end
+    opts.each { |k, v| base[k.to_s] = v.to_s unless v.nil? || v.to_s.empty? }
+    base
+  end
+
+  # Every part that has ever been moved carries its home as an attribute, so a
+  # reset can find its own work with nothing selected. That matters for a toggle:
+  # by the time you switch it off, the selection is usually long gone.
+  def self.homed_parts(model)
+    found = []
+    scan = lambda do |ents, depth|
+      return if depth > 3
+      ents.each do |e|
+        next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+        if e.get_attribute(DICT, 'home').is_a?(Array)
+          found << e
+        else
+          kids = (e.respond_to?(:entities) ? e.entities : nil) rescue nil
+          scan.call(kids, depth + 1) if kids
+        end
+      end
+    end
+    scan.call(model.entities, 0)
+    found
+  end
+
+  def self.perform(cfg)
     model = Sketchup.active_model
-    ps = parts(model)
-    return if ps.nil?
+    reset = cfg['action'] == 'Reset'
+
+    ps = parts(model, reset)
+    return false if ps.nil?
     if ps.size < 2
       UI.messagebox("Only #{ps.size} part found.\n\nSelect a group that CONTAINS the parts, " \
                     "or select several parts.")
-      return
+      return false
     end
 
-    cfg = ask
-    return unless cfg
-
-    reset  = cfg['action'] == 'Reset'
     mode   = if cfg['mode'].start_with?('Radial') then :radial
              elsif cfg['mode'].start_with?('Vertical') then :vertical
              else :axis
@@ -236,7 +303,7 @@ module WR_ExplodeView
       puts "EXPLODED VIEW — reset #{plan.size} part(s) to home, #{cleared} leader group(s) removed"
       puts ''
       model.active_view.zoom_extents
-      return
+      return true
     end
 
     place(plan, 1.0)
@@ -253,11 +320,13 @@ module WR_ExplodeView
 
     model.active_view.zoom_extents
     report(plan, mode, spread, size, leads, cleared, swept, cfg['dir'])
+    true
   rescue StandardError => e
     model.abort_operation if model
     UI.messagebox("Exploded view failed:\n\n#{e.class}: #{e.message}")
     puts "FAILED: #{e.class}: #{e.message}"
     puts e.backtrace.first(5)
+    false
   end
 
   def self.report(plan, mode, spread, size, leads, cleared, swept, dir)

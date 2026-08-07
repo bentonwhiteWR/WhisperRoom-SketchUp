@@ -176,7 +176,7 @@
     flex: 0 0 auto; width: 21px; height: 21px; padding: 0; margin: -2px -3px 0 0;
     border: 0; background: transparent; color: var(--ink-3); cursor: pointer;
     display: grid; place-items: center; border-radius: 4px;
-    opacity: 0; transition: opacity .12s, color .12s;
+    opacity: .38; transition: opacity .12s, color .12s;
   }
   .card:hover .pin, .card.sel .pin, .pin.on { opacity: 1; }
   .pin:hover { color: var(--accent); background: var(--accent-w); }
@@ -184,12 +184,6 @@
   .pin svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
   .pin.on svg { fill: currentColor; }
 
-  .pinnote {
-    display: none; padding: 0 0 12px;
-    font-family: Consolas, ui-monospace, monospace;
-    font-size: 10px; letter-spacing: .04em; color: var(--ink-3);
-  }
-  .pinnote b { color: var(--accent); font-weight: 600; }
 
   .blurb {
     color: var(--ink-2); font-size: 12px; margin-top: 3px;
@@ -211,13 +205,7 @@
     font-family: Consolas, ui-monospace, monospace; font-size: 10.5px;
   }
 
-  /* ------------------------------------------------------------ footer ---- */
-  footer {
-    flex: 0 0 auto;
-    display: flex; gap: 6px; align-items: center;
-    padding: 10px 16px; border-top: 1px solid var(--rule);
-    background: var(--bg);
-  }
+  /* ------------------------------------------- utility buttons, top bar ---- */
   button.act {
     padding: 6px 11px; border-radius: 6px; cursor: pointer;
     background: var(--card); color: var(--ink-2);
@@ -227,11 +215,115 @@
   }
   button.act:hover { border-color: var(--accent); color: var(--accent); }
   button.act svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.7; }
-  button.act.right { margin-left: auto; }
   .hint {
     font-family: Consolas, ui-monospace, monospace;
     font-size: 9.5px; color: var(--ink-3); letter-spacing: .04em;
   }
+
+  /* ------------------------------------------------------- favourites ---- */
+  /* Favourites and the utility buttons share one bar at the top. Favourites
+     used to sit alone above the tabs and the utilities were in a footer, so
+     the two things you reach for most were at opposite ends of the panel. */
+  .topbar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding-bottom: 11px; margin-bottom: 11px; border-bottom: 1px solid var(--rule);
+  }
+  .tools { margin-left: auto; display: flex; gap: 5px; flex: 0 0 auto; }
+  .favs { display: flex; flex-wrap: wrap; gap: 5px; flex: 1 1 auto; min-width: 0; }
+  .favs .lab {
+    font-family: Consolas, ui-monospace, monospace;
+    font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink-3); align-self: center; margin-right: 2px;
+  }
+  .fav {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px 4px 8px; border-radius: 20px; cursor: pointer;
+    background: var(--accent-w); border: 1px solid transparent;
+    color: var(--accent); font: inherit; font-size: 11.5px; font-weight: 600;
+    max-width: 170px; white-space: nowrap;
+  }
+  .fav:hover { border-color: var(--accent); }
+  .fav svg { width: 11px; height: 11px; fill: currentColor; stroke: none; flex: 0 0 auto; }
+  .fav span { overflow: hidden; text-overflow: ellipsis; }
+  .favs .none {
+    font-size: 11.5px; color: var(--ink-3);
+  }
+
+  /* ------------------------------------------------------------- tabs ---- */
+  .tabs {
+    display: flex; gap: 2px; margin: 0 -16px 12px; padding: 0 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .tab {
+    border: 0; background: transparent; cursor: pointer; font: inherit;
+    padding: 7px 13px; font-size: 12.5px; color: var(--ink-3);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tab:hover { color: var(--ink-2); }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 620; }
+  .tab .n {
+    font-family: Consolas, ui-monospace, monospace; font-size: 9.5px;
+    padding: 1px 5px; border-radius: 9px; background: var(--rule); color: var(--ink-3);
+  }
+  .tab[aria-selected="true"] .n { background: var(--accent); color: #fff; }
+
+  /* -------------------------------------------------------- abilities ---- */
+  .abil {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 9px;
+    padding: 11px 13px; margin-bottom: 7px; box-shadow: var(--shadow);
+  }
+  .abil.on { border-color: var(--accent); }
+  .abil .arow { display: flex; align-items: center; gap: 9px; }
+  .abil .title { flex: 1 1 auto; }
+  .sw {
+    flex: 0 0 auto; width: 34px; height: 19px; padding: 0; cursor: pointer;
+    border: 1px solid var(--rule); border-radius: 11px; background: var(--field);
+    position: relative; transition: background .14s, border-color .14s;
+  }
+  .sw i {
+    position: absolute; left: 2px; top: 1px; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--ink-3); transition: transform .14s, background .14s;
+  }
+  .sw[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+  .sw[aria-checked="true"] i { transform: translateX(15px); background: #fff; }
+  .sw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .gear {
+    flex: 0 0 auto; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px;
+    background: transparent; color: var(--ink-3); cursor: pointer; display: grid; place-items: center;
+  }
+  .gear:hover { color: var(--accent); background: var(--accent-w); }
+  .gear svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .abil .blurb { margin-top: 5px; }
+  .abil .src {
+    font-family: Consolas, ui-monospace, monospace;
+    font-size: 10px; color: var(--ink-3); margin-top: 6px;
+  }
+  .set {
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule);
+    display: grid; gap: 8px;
+  }
+  .set label {
+    display: grid; grid-template-columns: 1fr 132px; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--ink-2);
+  }
+  .set select, .set input {
+    padding: 5px 7px; border-radius: 6px; border: 1px solid var(--rule);
+    background: var(--field); color: var(--ink); font: inherit; font-size: 12px;
+    width: 100%; outline: none;
+  }
+  .set select:focus, .set input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-w); }
+  .set .why {
+    font-size: 11px; color: var(--ink-3); grid-column: 1 / -1; margin: -2px 0 2px;
+  }
+
+  .notebar {
+    flex: 0 0 auto; display: none; padding: 7px 16px;
+    background: var(--accent-w); color: var(--accent);
+    font-family: Consolas, ui-monospace, monospace; font-size: 11px;
+    border-top: 1px solid var(--rule);
+  }
+  .notebar.bad { font-weight: 600; }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -245,47 +337,72 @@
     <small id="count"></small>
   </div>
 
-  <div class="search">
+  <div class="topbar">
+    <div class="favs" id="favs"></div>
+    <div class="tools">
+      <button class="act" id="rescan" title="Re-read the scripts folder">
+        <svg viewBox="0 0 16 16"><path d="M14 8a6 6 0 1 1-1.8-4.3"/><path d="M14 1.5V5h-3.5"/></svg>
+        Rescan
+      </button>
+      <button class="act" id="folder" title="Open the scripts folder">
+        <svg viewBox="0 0 16 16"><path d="M1.5 4.5h4l1.2 1.5h7.8v7H1.5z"/></svg>
+        Folder
+      </button>
+      <button class="act" id="console" title="Open the Ruby Console">
+        <svg viewBox="0 0 16 16"><path d="M1.5 2.5h13v11h-13z"/><path d="M4 6l2.2 2L4 10"/><path d="M8.5 10.5H12"/></svg>
+        Console
+      </button>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tabAb" role="tab" aria-selected="true" aria-controls="list">
+      Abilities <span class="n" id="nAb"></span>
+    </button>
+    <button class="tab" id="tabSc" role="tab" aria-selected="false" aria-controls="list">
+      Scripts <span class="n" id="nSc"></span>
+    </button>
+  </div>
+
+  <div class="search" id="searchWrap">
     <svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="5"/><path d="M11 11l4 4"/></svg>
     <input id="q" type="text" placeholder="Filter scripts…" autocomplete="off" spellcheck="false">
     <button class="clear" id="clear" title="Clear">&times;</button>
   </div>
 
   <div class="chips" id="chips"></div>
-  <div class="pinnote" id="pinnote"></div>
 </header>
 
 <main id="list"></main>
+<div class="notebar" id="notebar"></div>
 
-<footer>
-  <button class="act" id="rescan">
-    <svg viewBox="0 0 16 16"><path d="M14 8a6 6 0 1 1-1.8-4.3"/><path d="M14 1.5V5h-3.5"/></svg>
-    Rescan
-  </button>
-  <button class="act" id="folder">
-    <svg viewBox="0 0 16 16"><path d="M1.5 4.5h4l1.2 1.5h7.8v7H1.5z"/></svg>
-    Folder
-  </button>
-  <button class="act right" id="console">
-    <svg viewBox="0 0 16 16"><path d="M1.5 2.5h13v11h-13z"/><path d="M4 6l2.2 2L4 10"/><path d="M8.5 10.5H12"/></svg>
-    Console
-  </button>
-</footer>
 
 <script>
 (function () {
   "use strict";
 
-  var DATA = { dir: "", scripts: [], recent: [] };
+  // Two tabs, because the two things behave differently and mixing them was
+  // confusing. An ABILITY has an on and an off and holds its settings; a SCRIPT
+  // is a thing you run once. Favourites sit above both and always apply.
+  var DATA = { dir: "", scripts: [], abilities: [], recent: [], pinned: [] };
   var view = [];
   var sel  = 0;
+  var mode = "ab";          // "ab" | "sc"
+  var open = {};            // ability id -> settings drawer expanded
 
-  var $q      = document.getElementById("q");
-  var $list   = document.getElementById("list");
-  var $chips  = document.getElementById("chips");
-  var $count  = document.getElementById("count");
-  var $clear  = document.getElementById("clear");
-  var $pinnote = document.getElementById("pinnote");
+  var $q       = document.getElementById("q");
+  var $list    = document.getElementById("list");
+  var $chips   = document.getElementById("chips");
+  var $count   = document.getElementById("count");
+  var $clear   = document.getElementById("clear");
+  var $favs    = document.getElementById("favs");
+  var $search  = document.getElementById("searchWrap");
+  var $tabAb   = document.getElementById("tabAb");
+  var $tabSc   = document.getElementById("tabSc");
+  var $nAb     = document.getElementById("nAb");
+  var $nSc     = document.getElementById("nSc");
+  var $note    = document.getElementById("notebar");
+  var noteTimer = null;
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -318,7 +435,122 @@
     return pin.concat(rest);
   }
 
+  var STAR = '<svg viewBox="0 0 16 16"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.2L8 11.5 ' +
+             '4.2 13.5l.7-4.2-3.1-3 4.3-.6z" stroke-linejoin="round"/></svg>';
+  var GEAR = '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4"/>' +
+             '<path d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4' +
+             'M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6L3.3 3.3"/></svg>';
+
+  // ------------------------------------------------------------ favourites --
+  // Starred scripts, straight across the top. One click runs. Unlike the old
+  // toolbar pins these appear the moment you star something.
+  function drawFavs() {
+    var names = (DATA.pinned || []).filter(function (n) {
+      return DATA.scripts.some(function (s) { return s.name === n; });
+    });
+    if (!names.length) {
+      $favs.innerHTML = '<span class="lab">Favourites</span>' +
+        '<span class="none">Star a script to pin it here.</span>';
+      return;
+    }
+    $favs.innerHTML = '<span class="lab">Favourites</span>' + names.map(function (n) {
+      var s = DATA.scripts.filter(function (x) { return x.name === n; })[0];
+      return '<button class="fav" data-n="' + esc(n) + '" title="Run ' + esc(s.name) + '">' +
+             STAR + "<span>" + esc(s.title) + "</span></button>";
+    }).join("");
+    Array.prototype.forEach.call($favs.querySelectorAll(".fav"), function (el) {
+      el.addEventListener("click", function () {
+        var s = DATA.scripts.filter(function (x) { return x.name === el.dataset.n; })[0];
+        if (s) sketchup.run(s.file);
+      });
+    });
+  }
+
+  function note(msg, bad) {
+    if (!msg) { $note.style.display = "none"; return; }
+    $note.textContent = msg;
+    $note.className = "notebar" + (bad ? " bad" : "");
+    $note.style.display = "block";
+    if (noteTimer) clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () { $note.style.display = "none"; }, 6000);
+  }
+
+  // ------------------------------------------------------------- abilities --
+  function drawAbilities() {
+    var list = DATA.abilities || [];
+    $count.textContent = list.filter(function (a) { return a.on_now; }).length + " ON";
+    if (!list.length) {
+      $list.innerHTML = '<div class="empty">No abilities found.<code>' +
+        'Add "@ability" to a script header to make one.</code></div>';
+      return;
+    }
+    $list.innerHTML = list.map(function (a) {
+      var sets = a.settings || [];
+      var showSet = open[a.id] && sets.length;
+      var fields = sets.map(function (s) {
+        var v = (a.values || {})[s.key];
+        var input;
+        if (s.kind === "choice") {
+          input = '<select data-id="' + esc(a.id) + '" data-k="' + esc(s.key) + '">' +
+            (s.choices || []).map(function (c) {
+              return '<option' + (c === v ? " selected" : "") + ">" + esc(c) + "</option>";
+            }).join("") + "</select>";
+        } else {
+          input = '<input type="text" value="' + esc(v) + '" data-id="' + esc(a.id) +
+                  '" data-k="' + esc(s.key) + '">';
+        }
+        return "<label><span>" + esc(s.label) + "</span>" + input + "</label>";
+      }).join("");
+
+      return '<div class="abil' + (a.on_now ? " on" : "") + '" data-id="' + esc(a.id) + '">' +
+        '<div class="arow">' +
+          '<button class="sw" role="switch" aria-checked="' + (a.on_now ? "true" : "false") +
+            '" data-id="' + esc(a.id) + '" title="' + (a.on_now ? "Switch off" : "Switch on") +
+            '"><i></i></button>' +
+          '<span class="title">' + esc(a.label) + "</span>" +
+          (sets.length ? '<button class="gear" data-id="' + esc(a.id) +
+                         '" title="Settings">' + GEAR + "</button>" : "") +
+        "</div>" +
+        (a.blurb ? '<div class="blurb">' + esc(a.blurb) + "</div>" : "") +
+        (showSet ? '<div class="set">' +
+            '<div class="why">Saved as you change them, and used every time you switch it on.</div>' +
+            fields + "</div>" : "") +
+        '<div class="src">' + (a.builtin ? "built in" : esc(a.id)) + "</div>" +
+        "</div>";
+    }).join("");
+
+    Array.prototype.forEach.call($list.querySelectorAll(".sw"), function (el) {
+      el.addEventListener("click", function () {
+        var on = el.getAttribute("aria-checked") !== "true";
+        el.setAttribute("aria-checked", on ? "true" : "false");   // optimistic
+        sketchup.ability(el.dataset.id, on ? "true" : "false");
+      });
+    });
+    Array.prototype.forEach.call($list.querySelectorAll(".gear"), function (el) {
+      el.addEventListener("click", function () {
+        open[el.dataset.id] = !open[el.dataset.id];
+        drawAbilities();
+      });
+    });
+    Array.prototype.forEach.call($list.querySelectorAll(".set select, .set input"),
+      function (el) {
+        el.addEventListener("change", function () {
+          sketchup.setting(el.dataset.id, el.dataset.k, el.value);
+        });
+      });
+  }
+
   function draw() {
+    $nAb.textContent = (DATA.abilities || []).length;
+    $nSc.textContent = (DATA.scripts || []).length;
+    $tabAb.setAttribute("aria-selected", mode === "ab" ? "true" : "false");
+    $tabSc.setAttribute("aria-selected", mode === "sc" ? "true" : "false");
+    $search.style.display = mode === "sc" ? "block" : "none";
+    $chips.style.display  = mode === "sc" ? "flex" : "none";
+
+    drawFavs();
+    if (mode === "ab") { drawAbilities(); return; }
+
     var term = $q.value.trim();
     view = filtered();
     if (sel >= view.length) sel = Math.max(0, view.length - 1);
@@ -338,18 +570,16 @@
       return;
     }
 
-    var STAR = '<svg viewBox="0 0 16 16"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.2L8 11.5 ' +
-               '4.2 13.5l.7-4.2-3.1-3 4.3-.6z" stroke-linejoin="round"/></svg>';
-
     $list.innerHTML = view.map(function (s, i) {
       var p = isPinned(s.name);
       return '<div class="card' + (i === sel ? " sel" : "") + '" data-i="' + i + '">' +
              '<div class="row">' +
                '<span class="title">' + hl(s.title, term) + "</span>" +
+               (s.ability ? '<span class="new">ABILITY</span>' : "") +
                (s.fresh ? '<span class="new">NEW</span>' : "") +
                '<span class="when">' + esc(s.ago) + "</span>" +
                '<button class="pin' + (p ? " on" : "") + '" data-n="' + esc(s.name) +
-                 '" title="' + (p ? "Unpin from toolbar" : "Pin to toolbar") + '">' + STAR +
+                 '" title="' + (p ? "Remove from favourites" : "Add to favourites") + '">' + STAR +
                "</button>" +
              "</div>" +
              (s.blurb ? '<div class="blurb">' + hl(s.blurb, term) + "</div>" : "") +
@@ -367,13 +597,6 @@
         sketchup.pin(el.dataset.n);
       });
     });
-
-    var np = (DATA.pinned || []).length;
-    $pinnote.style.display = np ? "block" : "none";
-    $pinnote.innerHTML = np
-      ? "<b>" + np + " pinned</b> — toolbar buttons appear next time SketchUp starts. " +
-        "For a key right now: Window &rsaquo; Preferences &rsaquo; Shortcuts."
-      : "";
   }
 
   function drawChips() {
@@ -416,22 +639,32 @@
   });
   $clear.addEventListener("click", function () { $q.value = ""; sel = 0; draw(); $q.focus(); });
 
+  function setMode(m) {
+    mode = m;
+    draw();
+    if (m === "sc") $q.focus();
+  }
+  $tabAb.addEventListener("click", function () { setMode("ab"); });
+  $tabSc.addEventListener("click", function () { setMode("sc"); });
+
   document.getElementById("rescan").addEventListener("click", function () { sketchup.rescan(); });
   document.getElementById("folder").addEventListener("click", function () { sketchup.folder(); });
   document.getElementById("console").addEventListener("click", function () { sketchup.console(); });
 
-  // Called from Ruby.
+  // Called from Ruby. Ruby is the source of truth for every switch position —
+  // the optimistic flip on click is only so the switch feels immediate, and
+  // this render corrects it if the ability refused to change.
   window.WR = {
     render: function (payload) {
       DATA = payload || DATA;
       drawChips();
       draw();
+      if (DATA.note) note(DATA.note, /fail|error|could not|no /i.test(DATA.note));
     }
   };
 
   window.addEventListener("load", function () {
     if (window.sketchup && sketchup.ready) sketchup.ready();
-    $q.focus();
   });
 }());
 </script>

@@ -1,0 +1,422 @@
+<title>Bohn Music Academy — Room Take-off</title>
+<style>
+  :root {
+    --paper:  #e6e9ec;  --sheet:  #f6f7f8;  --ink:    #14181c;
+    --ink-2:  #5b656e;  --ink-3:  #8b959d;  --rule:   #c3cad0;
+    --rule-2: #dde2e6;  --accent: #c44f16;  --tube:   #1f6f6d;
+    --tube-f: rgba(31,111,109,.16);
+    --solid:  #cfd5da;  --ok:     #2c6e49;
+    --shadow: 0 1px 2px rgba(20,24,28,.06), 0 8px 28px rgba(20,24,28,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:  #0e1114;  --sheet:  #171b1f;  --ink:    #e3e7ea;
+      --ink-2:  #949ea6;  --ink-3:  #6c767e;  --rule:   #303840;
+      --rule-2: #232a30;  --accent: #f07a3e;  --tube:   #59b8b4;
+      --tube-f: rgba(89,184,180,.14);
+      --solid:  #39424a;  --ok:     #63b98a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.34);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:  #0e1114;  --sheet:  #171b1f;  --ink:    #e3e7ea;
+    --ink-2:  #949ea6;  --ink-3:  #6c767e;  --rule:   #303840;
+    --rule-2: #232a30;  --accent: #f07a3e;  --tube:   #59b8b4;
+    --tube-f: rgba(89,184,180,.14);
+    --solid:  #39424a;  --ok:     #63b98a;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.34);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0; padding: clamp(14px, 3vw, 40px);
+    background: var(--paper); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 1180px; margin: 0 auto;
+    background: var(--sheet); border: 1px solid var(--rule); box-shadow: var(--shadow);
+  }
+
+  .titlebar {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px;
+    padding: 22px clamp(16px, 3vw, 34px) 18px; border-bottom: 2px solid var(--ink);
+  }
+  .titlebar h1 {
+    margin: 0; flex: 1 1 320px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: clamp(19px, 2.6vw, 27px); font-weight: 600;
+    letter-spacing: .09em; text-transform: uppercase; text-wrap: balance;
+  }
+  .titlebar h1 span { color: var(--accent); }
+  .sub { flex: 0 1 auto; max-width: 46ch; color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+  .rev {
+    flex: 0 0 auto; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+  }
+
+  .strip {
+    display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    background: var(--rule-2); border-bottom: 1px solid var(--rule);
+  }
+  .strip div { background: var(--sheet); padding: 13px clamp(14px, 2vw, 20px); }
+  .strip dt {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 3px;
+  }
+  .strip dd {
+    margin: 0; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 19px; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+  }
+  .strip dd em { font-style: normal; font-size: 12px; color: var(--ink-2); }
+  .strip dd s { color: var(--ink-3); text-decoration-thickness: 1px; font-size: 13px; }
+
+  .body { padding: clamp(16px, 3vw, 34px); display: grid; gap: 34px; }
+  .cols { display: grid; gap: 34px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { .cols { grid-template-columns: 1.32fr 1fr; } }
+
+  h2 {
+    margin: 0 0 4px; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 12px; letter-spacing: .15em; text-transform: uppercase;
+    font-weight: 600; color: var(--ink);
+  }
+  .note { color: var(--ink-2); font-size: 14.5px; max-width: 68ch; margin: 0 0 14px; }
+  .note strong { color: var(--ink); font-weight: 600; }
+
+  figure { margin: 0; }
+  .frame { border: 1px solid var(--rule); background: var(--sheet); padding: 10px; overflow-x: auto; }
+  .frame svg { display: block; width: 100%; height: auto; min-width: 300px; }
+  figcaption {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); padding-top: 8px;
+  }
+
+  .thin  { stroke: var(--rule); stroke-width: .25; fill: none; }
+  .fill  { fill: var(--solid); stroke: var(--ink); stroke-width: .35; }
+  .dim   { stroke: var(--accent); stroke-width: .28; fill: none; }
+  .ext   { stroke: var(--accent); stroke-width: .18; fill: none; opacity: .75; }
+  .tu    { fill: var(--tube-f); stroke: var(--tube); stroke-width: .35; }
+  /* phantom line — drafting convention for an adjacent part not in this drawing */
+  .phant { stroke: var(--ink-3); stroke-width: .5; fill: none;
+           stroke-dasharray: 6 2 1 2; }
+  text  { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; fill: var(--ink-2); }
+  .dt   { fill: var(--accent); font-size: 3.1px; }
+  .lb   { fill: var(--ink-2); font-size: 2.9px; }
+  .lb-t { fill: var(--tube); font-size: 2.9px; }
+  .lb-p { fill: var(--ink-3); font-size: 3.1px; letter-spacing: .1em; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  caption {
+    text-align: left; padding-bottom: 8px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3);
+  }
+  th, td { padding: 7px 12px 7px 0; text-align: left; border-bottom: 1px solid var(--rule-2); vertical-align: top; }
+  thead th {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; border-bottom: 1px solid var(--rule);
+  }
+  td.n, th.n { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+               font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.pick td { color: var(--accent); }
+  tr.pick td:first-child::after { content: "  \2190 as drawn"; font-size: 11px; }
+  tr.no td:first-child, tr.no td.n { color: var(--ink-3); }
+  .tw { overflow-x: auto; }
+  .pass { color: var(--ok); font-weight: 600; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 12.5px; }
+  .fail { color: var(--accent); font-weight: 600; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 12.5px; }
+
+  code {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: .88em; background: var(--rule-2); padding: 1px 5px; border-radius: 2px;
+  }
+
+  .callout { border-left: 3px solid var(--accent); padding: 12px 0 12px 16px; font-size: 14.5px; color: var(--ink-2); }
+  .callout b { color: var(--ink); font-weight: 600; }
+
+  .tag {
+    display: inline-block; padding: 1px 7px; border-radius: 2px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+  }
+  .tag.m { background: var(--accent); color: var(--sheet); }
+  .tag.c { border: 1px solid var(--rule); color: var(--ink-3); }
+  .tag.d { border: 1px solid var(--ok); color: var(--ok); }
+  .tag.r { border: 1px dashed var(--ink-3); color: var(--ink-3); }
+
+  ol.steps { margin: 0; padding-left: 1.15em; display: grid; gap: 9px; font-size: 14.5px; }
+
+  /* ---- 3D viewport ---- */
+  .view { position: relative; border: 1px solid var(--rule); background: var(--sheet); }
+  .view canvas { display: block; width: 100%; height: clamp(320px, 52vw, 500px); touch-action: none; cursor: grab; }
+  .view canvas:active { cursor: grabbing; }
+  .view canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .ctl {
+    display: flex; flex-wrap: wrap; gap: 1px; background: var(--rule);
+    border-top: 1px solid var(--rule);
+  }
+  .ctl button {
+    flex: 1 1 auto; min-width: 96px; background: var(--sheet); color: var(--ink-2);
+    border: 0; padding: 9px 12px; cursor: pointer;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+  }
+  .ctl button:hover { color: var(--ink); }
+  .ctl button[aria-pressed="true"] { background: var(--accent); color: var(--sheet); }
+  .ctl button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+  .readout {
+    position: absolute; left: 10px; bottom: 10px; pointer-events: none;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .09em; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .block {
+    display: grid; gap: 1px; background: var(--rule);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border-top: 2px solid var(--ink);
+  }
+  .block div { background: var(--sheet); padding: 11px clamp(14px, 2vw, 20px); }
+  .block dt {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .block dd { margin: 2px 0 0; font-size: 13.5px; }
+  a { color: var(--accent); }
+</style>
+<style>
+  .plan .dt   { font-size: 15px; }
+  .plan .lb   { font-size: 13px; }
+  .plan .lb-t { font-size: 13px; }
+  .plan .lb-p { font-size: 14px; letter-spacing: .08em; }
+  .plan .dim  { stroke-width: 1.4; }
+  .plan .ext  { stroke-width: 0.9; }
+  .plan .thin { stroke-width: 1.2; }
+  .warn { border-left: 3px solid var(--accent); background: var(--rule-2);
+          padding: 14px 16px; font-size: 14.5px; color: var(--ink-2); }
+  .warn b { color: var(--ink); font-weight: 600; }
+  .warn .hd { display: block; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+              font-size: 11px; letter-spacing: .13em; text-transform: uppercase;
+              color: var(--accent); margin-bottom: 6px; }
+</style>
+
+<div class="sheet">
+
+  <header class="titlebar">
+    <h1>Bohn Music Academy <span>/ Room Take-off</span></h1>
+    <p class="sub">A music studio, drawn from the client&rsquo;s dimensioned sketch and five site photos, with every wall figure confirmed by Benton. <strong>The room is not square</strong> &mdash; it is 10 in wider at the corner-room end &mdash; and assuming it was is what made the first pass wrong.</p>
+    <p class="rev">Rev B &middot; dims confirmed</p>
+  </header>
+
+  <dl class="strip">
+    <div><dt>Long side</dt><dd>635&frac14; <em>52'-11&frac14;</em></dd></div>
+    <div><dt>Short side</dt><dd>336&frac12; <em>28'-0&frac12;</em></dd></div>
+    <div><dt>Door side</dt><dd>195&frac14; <em>16'-3&frac14;</em></dd></div>
+    <div><dt>Open floor</dt><dd>1,432 <em>sq ft</em></dd></div>
+    <div><dt>Ceiling</dt><dd>~27 <em>ft to deck</em></dd></div>
+    <div><dt>Out of square</dt><dd>1.0<em>&deg; &middot; 10 in over 47 ft</em></dd></div>
+  </dl>
+
+  <div class="body">
+
+    <!-- ===================== PLAN ===================== -->
+    <section>
+      <h2>Plan &mdash; to scale, every wall as measured</h2>
+      <p class="note">All six measured dimensions are drawn as given. They describe a room whose two long walls are <strong>not parallel</strong>: 346&frac12; across the corner-room end against 336&frac12; at the far end. The corner room is a small enclosed room, not a solid block. <strong>Door and swing are on the 195&frac14; side</strong>, and there is a <strong>column</strong> at the far corner of that same wall.</p>
+      <figure>
+        <div class="frame">
+          <svg class="plan" viewBox="-175 -125 995 645" role="img" aria-label="Scaled plan: a 635.25 inch long room, 336.5 inches at the far end and 346.5 inches at the corner-room end, with a 151.25 by 73.5 inch corner room, a door and swing on the 195.25 inch wall, a column at that wall's far corner, and a roll-up door on the long wall.">
+            <defs>
+              <marker id="ba" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
+              </marker>
+              <pattern id="rm" width="13" height="13" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width="13" height="13" fill="var(--rule-2)"/>
+                <line x1="0" y1="0" x2="0" y2="13" stroke="var(--ink-3)" stroke-width="1.2"/>
+              </pattern>
+            </defs>
+
+            <!-- open floor -->
+            <path d="M0,346.5 L635.25,346.5 L635.25,10 L73.5,0 L73.5,151.25 L0,151.25 Z"
+                  fill="var(--sheet)" stroke="var(--ink)" stroke-width="3"/>
+
+            <!-- corner room -->
+            <rect x="0" y="0" width="73.5" height="151.25"
+                  fill="url(#rm)" stroke="var(--ink)" stroke-width="2"/>
+            <text class="lb" x="36.75" y="76" text-anchor="middle" transform="rotate(-90 36.75 76)">CORNER ROOM</text>
+
+            <!-- column at the far corner of the door wall -->
+            <rect x="0" y="334.5" width="12" height="12" fill="var(--ink)" opacity=".8"/>
+            <line class="ext" x1="12" y1="341" x2="96" y2="395"/>
+            <text class="lb-p" x="100" y="399">COLUMN</text>
+            <text class="lb" x="100" y="415">size not dimensioned</text>
+
+            <!-- door + swing on the 195 1/4 wall -->
+            <line x1="0" y1="171" x2="0" y2="207" stroke="var(--tube)" stroke-width="7"/>
+            <path d="M0,207 A36,36 0 0 0 36,171" fill="none" stroke="var(--tube)" stroke-width="1.6"/>
+            <text class="lb-t" x="48" y="224">door + swing</text>
+            <text class="lb-t" x="48" y="240">on the 195&frac14; wall</text>
+
+            <!-- roll-up door on the long 563 1/4 wall -->
+            <line x1="300" y1="4.03" x2="480" y2="7.24" stroke="var(--accent)" stroke-width="7"/>
+            <text class="lb-p" x="390" y="-16" text-anchor="middle">ROLL-UP DOOR</text>
+            <text class="lb" x="390" y="-33" text-anchor="middle">width and position NOT dimensioned</text>
+
+            <!-- ---------- bottom: full long side ---------- -->
+            <line class="ext" x1="0" y1="346.5" x2="0" y2="452"/>
+            <line class="ext" x1="635.25" y1="346.5" x2="635.25" y2="452"/>
+            <line class="dim" x1="0" y1="440" x2="635.25" y2="440" marker-start="url(#ba)" marker-end="url(#ba)"/>
+            <text class="dt" x="317" y="433" text-anchor="middle">635&frac14;  =  52'-11&frac14;   full long side</text>
+
+            <!-- ---------- right: short side ---------- -->
+            <line class="ext" x1="635.25" y1="10" x2="722" y2="10"/>
+            <line class="ext" x1="635.25" y1="346.5" x2="722" y2="346.5"/>
+            <line class="dim" x1="708" y1="10" x2="708" y2="346.5" marker-start="url(#ba)" marker-end="url(#ba)"/>
+            <text class="dt" x="700" y="178" text-anchor="middle" transform="rotate(-90 700 178)">336&frac12;  =  28'-0&frac12;   short side</text>
+
+            <!-- ---------- top: wall outside the corner room ---------- -->
+            <line class="ext" x1="73.5" y1="0" x2="73.5" y2="-64"/>
+            <line class="ext" x1="635.25" y1="10" x2="635.25" y2="-64"/>
+            <line class="dim" x1="73.5" y1="-52" x2="635.25" y2="-52" marker-start="url(#ba)" marker-end="url(#ba)"/>
+            <text class="dt" x="354" y="-59" text-anchor="middle">563&frac14;   outside the corner room</text>
+
+            <!-- ---------- left chain ---------- -->
+            <line class="ext" x1="0" y1="0" x2="-102" y2="0"/>
+            <line class="ext" x1="0" y1="151.25" x2="-102" y2="151.25"/>
+            <line class="ext" x1="0" y1="346.5" x2="-102" y2="346.5"/>
+            <line class="dim" x1="-70" y1="0" x2="-70" y2="151.25" marker-start="url(#ba)" marker-end="url(#ba)"/>
+            <line class="dim" x1="-70" y1="151.25" x2="-70" y2="346.5" marker-start="url(#ba)" marker-end="url(#ba)"/>
+            <text class="dt" x="-78" y="76" text-anchor="middle" transform="rotate(-90 -78 76)">151&frac14;</text>
+            <text class="dt" x="-78" y="249" text-anchor="middle" transform="rotate(-90 -78 249)">195&frac14;  door side</text>
+            <line class="dim" x1="-142" y1="0" x2="-142" y2="346.5" marker-start="url(#ba)" marker-end="url(#ba)"/>
+            <text class="dt" x="-150" y="173" text-anchor="middle" transform="rotate(-90 -150 173)">346&frac12; this end</text>
+
+            <!-- corner room depth -->
+            <line class="ext" x1="0" y1="151.25" x2="0" y2="198"/>
+            <line class="ext" x1="73.5" y1="151.25" x2="73.5" y2="198"/>
+            <line class="dim" x1="0" y1="188" x2="73.5" y2="188" marker-start="url(#ba)" marker-end="url(#ba)"/>
+            <text class="dt" x="36" y="181" text-anchor="middle">73&frac12;</text>
+
+            <!-- out-of-square callout -->
+            <line class="ext" x1="628" y1="14" x2="545" y2="66" stroke="var(--accent)"/>
+            <text class="dt" x="300" y="80">10 in NARROWER at this end</text>
+            <text class="lb" x="300" y="96">the long walls are not parallel &mdash; 1.0&deg; of convergence</text>
+
+            <!-- scale bar -->
+            <line class="thin" x1="180" y1="472" x2="420" y2="472" stroke="var(--ink)"/>
+            <line class="thin" x1="180" y1="465" x2="180" y2="479" stroke="var(--ink)"/>
+            <line class="thin" x1="300" y1="465" x2="300" y2="479" stroke="var(--ink)"/>
+            <line class="thin" x1="420" y1="465" x2="420" y2="479" stroke="var(--ink)"/>
+            <rect x="180" y="468" width="120" height="8" fill="var(--ink)" opacity=".75"/>
+            <text class="lb" x="180" y="494">0</text>
+            <text class="lb" x="293" y="494">10 ft</text>
+            <text class="lb" x="408" y="494">20 ft</text>
+
+            <text class="lb-p" x="-165" y="-96">ALL DIMENSIONS INCHES &middot; CLIENT-MEASURED, CONFIRMED BY BENTON &middot; NOT RE-TAPED BY US</text>
+          </svg>
+        </div>
+        <figcaption>Plan to scale &middot; all six measured walls drawn as given &middot; one residual of 1&frac12; in, explained below</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===================== THE SHAPE ===================== -->
+    <section>
+      <p class="warn">
+        <span class="hd">The room is out of square, and that is the finding</span>
+        Across the corner-room end the wall runs <b>195&frac14; + 151&frac14; = 346&frac12;</b>. At the far end it is <b>336&frac12;</b>. Those ten inches are not a measuring error &mdash; they are the room. The two long walls converge by about <b>1.0&deg;</b> over 47 ft.
+        <br><br>
+        The first version of this drawing assumed a rectangle and &ldquo;corrected&rdquo; the 195&frac14; down to 185&frac14; to make it close. The measurement was right and the assumption was wrong.
+        <br><br>
+        With all six figures drawn as measured, exactly <b>one residual</b> is left: the wall outside the corner room computes to <b>561&frac34;</b> against the <b>563&frac14;</b> written &mdash; <b>1&frac12; in over 47 ft</b>. That is ordinary tape error at that distance and needs no explaining away. Every other wall closes exactly.
+        <br><br>
+        <b>Why it matters for a booth.</b> A booth is square and the room is not. Set one along the long wall and the gap behind it tapers by up to 10 in end to end. That is easy to live with, but it has to be planned rather than discovered on site, and it decides which end you set out from.
+      </p>
+    </section>
+
+    <div class="cols">
+
+      <section>
+        <h2>What the room gives you</h2>
+        <p class="note">Large, open and tall. None of the usual constraints bite. Reported for planning &mdash; which model goes in is the quote&rsquo;s call, not mine.</p>
+        <div class="tw">
+          <table>
+            <caption>Constraints, and how close each one is</caption>
+            <thead>
+              <tr><th>Constraint</th><th class="n">Here</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Ceiling height<br><small>the one that disqualifies fastest</small></td><td class="n">~27 ft</td><td class="pass">NO ISSUE</td></tr>
+              <tr><td>Open floor area</td><td class="n">1,432 sq ft</td><td class="pass">AMPLE</td></tr>
+              <tr><td>Shortest clear run</td><td class="n">28'-0&frac12;</td><td class="pass">AMPLE</td></tr>
+              <tr><td>Delivery path</td><td class="n">roll-up door</td><td class="pass">EXCELLENT</td></tr>
+              <tr><td>Level, single storey</td><td class="n">on grade</td><td class="pass">NO ISSUE</td></tr>
+              <tr><td>Out of square</td><td class="n">1.0&deg;, 10 in</td><td class="pass">PLAN FOR IT</td></tr>
+              <tr><td>Column</td><td class="n">not dimensioned</td><td class="fail">MEASURE IT</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="callout" style="margin-top:14px"><b>The roll-up door is the good news.</b> Panels ship flat and assemble in place, and a roll-up opening straight onto the long wall removes the corridor-and-corner problem that usually decides these jobs. Confirm what is on the far side &mdash; in the photos it appears to open into the same building rather than to outside.</p>
+      </section>
+
+      <section>
+        <h2>Where every number came from</h2>
+        <p class="note">Six measured walls, all confirmed. Everything still open is listed rather than guessed at.</p>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>Figure</th><th class="n">Value</th><th>Source</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Full long side</td><td class="n">635&frac14;</td><td><span class="tag m">confirmed</span></td></tr>
+              <tr><td>Short side</td><td class="n">336&frac12;</td><td><span class="tag m">confirmed</span></td></tr>
+              <tr><td>Door side</td><td class="n">195&frac14;</td><td><span class="tag m">confirmed</span> door and swing on this wall</td></tr>
+              <tr><td>Outside corner room</td><td class="n">563&frac14;</td><td><span class="tag m">confirmed</span> draws 561&frac34;, 1&frac12; residual</td></tr>
+              <tr><td>Corner room</td><td class="n">151&frac14; &times; 73&frac12;</td><td><span class="tag m">confirmed</span></td></tr>
+              <tr><td>This end, overall</td><td class="n">346&frac12;</td><td><span class="tag d">derived</span> 195&frac14; + 151&frac14;</td></tr>
+              <tr><td>Out of square</td><td class="n">1.0&deg;</td><td><span class="tag d">derived</span> 346&frac12; against 336&frac12;</td></tr>
+              <tr><td>Ceiling</td><td class="n">~27 ft</td><td><span class="tag r">client</span> two higher figures struck through on the sketch</td></tr>
+              <tr><td>Column</td><td class="n">&mdash;</td><td><span class="tag c">not given</span> corner known, size not</td></tr>
+              <tr><td>Roll-up door</td><td class="n">&mdash;</td><td><span class="tag c">not given</span> width and position</td></tr>
+              <tr><td>Door width</td><td class="n">&mdash;</td><td><span class="tag c">not given</span> drawn at 36 in</td></tr>
+              <tr><td>Electrical</td><td class="n">&mdash;</td><td><span class="tag c">not given</span> two panels visible in photos</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <section>
+      <h2>What the photos add that the sketch does not</h2>
+      <ol class="steps">
+        <li><strong>Open structure ceiling, painted black, with a skylight.</strong> White wall to roughly 12&ndash;14 ft, black deck above with exposed joists, hanging linear fixtures and a large ceiling fan. A booth sits well clear of all of it, but those hanging fixtures are the only things anywhere near booth height &mdash; locate them before choosing a spot.</li>
+        <li><strong>Two electrical panels</strong> on one long wall, roughly a third of the way along. Convenient for a feed, and a reason not to block that wall.</li>
+        <li><strong>Carpet tile over slab</strong>, flat and continuous. No thresholds or level changes visible in any photo.</li>
+        <li><strong>The room is in active use</strong> &mdash; grand piano, seating group, bookcase, music stands, a riser. Where the booth goes is as much about the room&rsquo;s use as about fit.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>What I need before this becomes a proposal</h2>
+      <ol class="steps">
+        <li><strong>The quote link</strong> &mdash; <code>sales.whisperroom.com/q/W-&hellip;</code>. The model comes off the quote and I draw what is on it. At 27 ft of ceiling and 1,400 sq ft essentially the whole catalogue fits, so drawing a small one would read as a recommendation.</li>
+        <li><strong>The column&rsquo;s size and exactly where it sits.</strong> It is the only thing on the plan with no dimension at all, and it is on the same wall as the door.</li>
+        <li><strong>The roll-up door&rsquo;s clear width and position</strong>, and what is on the far side of it.</li>
+        <li><strong>Which wall the Academy wants it on</strong>, and whether the piano stays. That decides door swing and vent routing more than the dimensions do.</li>
+      </ol>
+    </section>
+  </div>
+
+  <dl class="block">
+    <div><dt>Client</dt><dd>Bohn Music Academy</dd></div>
+    <div><dt>Pack</dt><dd>Desktop\ProposalFiles\Bohn Music Academy</dd></div>
+    <div><dt>Units</dt><dd>Inches, architectural</dd></div>
+    <div><dt>Walls</dt><dd>6 measured, 1 residual of 1&frac12; in</dd></div>
+    <div><dt>Booth</dt><dd>Not selected &mdash; awaiting quote</dd></div>
+    <div><dt>Status</dt><dd>Dims confirmed, not re-taped by us</dd></div>
+  </dl>
+</div>

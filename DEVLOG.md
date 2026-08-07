@@ -322,3 +322,88 @@ python scripts/install-plugin.py     # then restart SketchUp
 
 Only `wr_tools` needs installing. Everything else in `scripts/` is read live from the repo, so
 edits take effect on the next click with no restart.
+
+---
+
+## 2026-08-07
+
+### Done
+
+**Plugin rebuilt around abilities and favourites.** The panel now has two tabs.
+**Abilities** are on/off toggles that undo what they do — Exploded, Dimensioned,
+Proposal scenes, and a built-in Reference geometry tag toggle. They are declared
+in each script's own header (`@ability`, `@setting`, `@on`, `@off`), so a new one
+needs no plugin edit. State lives on the model, so it survives save and reopen.
+**Favourites** now appear both as a strip in the panel and as eight numbered
+toolbar buttons. The toolbar slots are created once at load and resolve the pin
+list at click time, so starring rebinds a slot immediately — the old behaviour
+needed a restart and read as broken.
+
+**Five exporters, each with a dialog and a scene/component selector**
+(`all` / `current` / `1-7,12` / text):
+
+- `export-scenes.rb` — proposal plates, opaque, folder browser
+- `export-component-art.rb` — every scene, transparent, manifest, HX suffixing
+- `export-this-view.rb` — one-off, settings seeded from the batch exporter
+- `angled-component-art.rb` — the Iso30 library, four parallel cameras
+- `merge-scenes.rb` — import a .skp and rebuild its scenes at the new offset
+
+Filenames are now the scene name **verbatim**; only characters Windows forbids
+are replaced. They used to fold spaces to hyphens.
+
+**Design sheets are now the standard deliverable** for anything we design.
+`reference/design-sheet.md` is the spec; `docs/tube-drying-stand.html` and
+`docs/pendant-jig.html` are the exemplars. Both carry a live WebGL view.
+
+- Drying stand → two 5x6 stands, 60 tubes, fits a 92x135 silicone tray.
+- Pendant jig Rev B → tube bore Ø10.10, socket 6.50, flange 3.50, total 46.00.
+  Hand-held: 9.00 of housing left proud to grip.
+
+**Bohn Music Academy** take-off and proposal. Room 635¼ x 336½, ~27 ft ceiling.
+8-page PDF delivered to `Desktop\ProposalFiles\Bohn Music Academy\`.
+
+### The one that cost the most time
+
+`view.write_image` came back dark with a broken alpha channel. Four confident
+explanations were wrong (ambient occlusion, watermark, shading, an open editing
+context). The cause, proven from pixel values rather than reasoning:
+
+**SketchUp 24.0.553's new graphics engine composites a uniform 75% black layer
+over everything write_image produces, in colour AND alpha.**
+
+    out_rgb   = 0.25 * src_rgb
+    out_alpha = 191.25 + 0.25 * src_alpha
+
+A wireframe export contains only the values {0, 4, 8 ... 64} — multiples of four
+capped at 255 x 0.25. The Classic engine exports correctly but renders chrome as
+flat black, which is worse because it is not recoverable. So: keep the new
+engine and undo the composite. `scripts/fix-angled-alpha.py` does it, and the
+angled exporter runs it automatically.
+
+**`rbcheck.py` cannot catch a syntax error or an undefined variable.** It counts
+block keywords. It reported "balanced" on a file with a `rescue` modifier inside
+a subscript assignment (which never parsed) and on one referencing a deleted
+variable. Treat a clean run as "blocks balance", nothing more.
+
+### Next steps
+
+1. `python scripts/install-plugin.py`, then **restart SketchUp** — the eight
+   favourite toolbar slots only appear at load.
+2. **Nothing in `scripts/` has a confirmed run except `tube-drying-stand.rb`.**
+   The abilities, the four exporters and `merge-scenes.rb` are all unrun.
+   Cheapest first: open the panel, toggle **Reference geometry** (no script, no
+   selection — it isolates the ability framework from the scripts).
+3. Angled library: run Batch 1 as a **dry run**. The diagnostics file lists every
+   scene label against the component it resolved to. That table is what is needed
+   to write the scene-label → `Component_…` mapping, which is still missing —
+   files currently come out `LeftWADoorWithRamp_…`, the importer wants
+   `Component_WADoorWithRamp_…`.
+4. Pendant jig and drying stand are both **unprinted and the scripts unrun since
+   the last edits**.
+
+### Open decisions
+
+- Angled set: frame on the part (fills the canvas) or on the insertion point
+  (clean registration, half the canvas)? Currently part-centred.
+- Bohn: booth model still not chosen — waiting on the quote link. The column on
+  the door wall has no dimension at all and sits where a booth would go.

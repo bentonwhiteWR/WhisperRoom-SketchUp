@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pendant Curing Jig — Rev B</title>
+<style>
+  :root {
+    --paper:  #e6e9ec;  --sheet:  #f6f7f8;  --ink:    #14181c;
+    --ink-2:  #5b656e;  --ink-3:  #8b959d;  --rule:   #c3cad0;
+    --rule-2: #dde2e6;  --accent: #c44f16;  --tube:   #1f6f6d;
+    --tube-f: rgba(31,111,109,.16);
+    --solid:  #cfd5da;  --ok:     #2c6e49;
+    --shadow: 0 1px 2px rgba(20,24,28,.06), 0 8px 28px rgba(20,24,28,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:  #0e1114;  --sheet:  #171b1f;  --ink:    #e3e7ea;
+      --ink-2:  #949ea6;  --ink-3:  #6c767e;  --rule:   #303840;
+      --rule-2: #232a30;  --accent: #f07a3e;  --tube:   #59b8b4;
+      --tube-f: rgba(89,184,180,.14);
+      --solid:  #39424a;  --ok:     #63b98a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.34);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:  #0e1114;  --sheet:  #171b1f;  --ink:    #e3e7ea;
+    --ink-2:  #949ea6;  --ink-3:  #6c767e;  --rule:   #303840;
+    --rule-2: #232a30;  --accent: #f07a3e;  --tube:   #59b8b4;
+    --tube-f: rgba(89,184,180,.14);
+    --solid:  #39424a;  --ok:     #63b98a;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.34);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0; padding: clamp(14px, 3vw, 40px);
+    background: var(--paper); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 1180px; margin: 0 auto;
+    background: var(--sheet); border: 1px solid var(--rule); box-shadow: var(--shadow);
+  }
+
+  .titlebar {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px;
+    padding: 22px clamp(16px, 3vw, 34px) 18px; border-bottom: 2px solid var(--ink);
+  }
+  .titlebar h1 {
+    margin: 0; flex: 1 1 320px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: clamp(19px, 2.6vw, 27px); font-weight: 600;
+    letter-spacing: .09em; text-transform: uppercase; text-wrap: balance;
+  }
+  .titlebar h1 span { color: var(--accent); }
+  .sub { flex: 0 1 auto; max-width: 46ch; color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+  .rev {
+    flex: 0 0 auto; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+  }
+
+  .strip {
+    display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    background: var(--rule-2); border-bottom: 1px solid var(--rule);
+  }
+  .strip div { background: var(--sheet); padding: 13px clamp(14px, 2vw, 20px); }
+  .strip dt {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 3px;
+  }
+  .strip dd {
+    margin: 0; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 19px; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+  }
+  .strip dd em { font-style: normal; font-size: 12px; color: var(--ink-2); }
+  .strip dd s { color: var(--ink-3); text-decoration-thickness: 1px; font-size: 13px; }
+
+  .body { padding: clamp(16px, 3vw, 34px); display: grid; gap: 34px; }
+  .cols { display: grid; gap: 34px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { .cols { grid-template-columns: 1.32fr 1fr; } }
+
+  h2 {
+    margin: 0 0 4px; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 12px; letter-spacing: .15em; text-transform: uppercase;
+    font-weight: 600; color: var(--ink);
+  }
+  .note { color: var(--ink-2); font-size: 14.5px; max-width: 68ch; margin: 0 0 14px; }
+  .note strong { color: var(--ink); font-weight: 600; }
+
+  figure { margin: 0; }
+  .frame { border: 1px solid var(--rule); background: var(--sheet); padding: 10px; overflow-x: auto; }
+  .frame svg { display: block; width: 100%; height: auto; min-width: 300px; }
+  figcaption {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); padding-top: 8px;
+  }
+
+  .thin  { stroke: var(--rule); stroke-width: .25; fill: none; }
+  .fill  { fill: var(--solid); stroke: var(--ink); stroke-width: .35; }
+  .dim   { stroke: var(--accent); stroke-width: .28; fill: none; }
+  .ext   { stroke: var(--accent); stroke-width: .18; fill: none; opacity: .75; }
+  .tu    { fill: var(--tube-f); stroke: var(--tube); stroke-width: .35; }
+  /* phantom line — drafting convention for an adjacent part not in this drawing */
+  .phant { stroke: var(--ink-3); stroke-width: .5; fill: none;
+           stroke-dasharray: 6 2 1 2; }
+  text  { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; fill: var(--ink-2); }
+  .dt   { fill: var(--accent); font-size: 3.1px; }
+  .lb   { fill: var(--ink-2); font-size: 2.9px; }
+  .lb-t { fill: var(--tube); font-size: 2.9px; }
+  .lb-p { fill: var(--ink-3); font-size: 3.1px; letter-spacing: .1em; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  caption {
+    text-align: left; padding-bottom: 8px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3);
+  }
+  th, td { padding: 7px 12px 7px 0; text-align: left; border-bottom: 1px solid var(--rule-2); vertical-align: top; }
+  thead th {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; border-bottom: 1px solid var(--rule);
+  }
+  td.n, th.n { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+               font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.pick td { color: var(--accent); }
+  tr.pick td:first-child::after { content: "  \2190 as drawn"; font-size: 11px; }
+  tr.no td:first-child, tr.no td.n { color: var(--ink-3); }
+  .tw { overflow-x: auto; }
+  .pass { color: var(--ok); font-weight: 600; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 12.5px; }
+  .fail { color: var(--accent); font-weight: 600; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 12.5px; }
+
+  code {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: .88em; background: var(--rule-2); padding: 1px 5px; border-radius: 2px;
+  }
+
+  .callout { border-left: 3px solid var(--accent); padding: 12px 0 12px 16px; font-size: 14.5px; color: var(--ink-2); }
+  .callout b { color: var(--ink); font-weight: 600; }
+
+  .tag {
+    display: inline-block; padding: 1px 7px; border-radius: 2px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+  }
+  .tag.m { background: var(--accent); color: var(--sheet); }
+  .tag.c { border: 1px solid var(--rule); color: var(--ink-3); }
+  .tag.d { border: 1px solid var(--ok); color: var(--ok); }
+  .tag.r { border: 1px dashed var(--ink-3); color: var(--ink-3); }
+
+  ol.steps { margin: 0; padding-left: 1.15em; display: grid; gap: 9px; font-size: 14.5px; }
+
+  /* ---- 3D viewport ---- */
+  .view { position: relative; border: 1px solid var(--rule); background: var(--sheet); }
+  .view canvas { display: block; width: 100%; height: clamp(320px, 52vw, 500px); touch-action: none; cursor: grab; }
+  .view canvas:active { cursor: grabbing; }
+  .view canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .ctl {
+    display: flex; flex-wrap: wrap; gap: 1px; background: var(--rule);
+    border-top: 1px solid var(--rule);
+  }
+  .ctl button {
+    flex: 1 1 auto; min-width: 96px; background: var(--sheet); color: var(--ink-2);
+    border: 0; padding: 9px 12px; cursor: pointer;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+  }
+  .ctl button:hover { color: var(--ink); }
+  .ctl button[aria-pressed="true"] { background: var(--accent); color: var(--sheet); }
+  .ctl button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+  .readout {
+    position: absolute; left: 10px; bottom: 10px; pointer-events: none;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .09em; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .block {
+    display: grid; gap: 1px; background: var(--rule);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border-top: 2px solid var(--ink);
+  }
+  .block div { background: var(--sheet); padding: 11px clamp(14px, 2vw, 20px); }
+  .block dt {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .block dd { margin: 2px 0 0; font-size: 13.5px; }
+  a { color: var(--accent); }
+</style>
+
+</head>
+<body>
+<style>
+  /* Page-specific additions to the sheet. Section hatching and the two ghost
+     parts; everything else comes from the shared sheet above. */
+  .hs   { fill: rgba(196,79,22,.14); stroke: var(--accent); stroke-width: .3; }
+  .lb-h { fill: var(--accent); font-size: 2.9px; }
+  .warn { border-left: 3px solid var(--accent); background: var(--rule-2);
+          padding: 14px 16px; font-size: 14.5px; color: var(--ink-2); }
+  .warn b { color: var(--ink); font-weight: 600; }
+  .warn .hd { display: block; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+              font-size: 11px; letter-spacing: .13em; text-transform: uppercase;
+              color: var(--accent); margin-bottom: 6px; }
+</style>
+
+<div class="sheet">
+
+  <header class="titlebar">
+    <h1>Pendant Curing Jig <span>/ Rev B</span></h1>
+    <p class="sub">Holds a pendant&rsquo;s metal housing square and centres the polycarbonate tube in it while the adhesive cures. One lathed solid, printed socket-opening-up without supports. <strong>Every change in this revision came off a printed jig you handled</strong> &mdash; not off a caliper, and not off a guess.</p>
+    <p class="rev">Fit-tested</p>
+  </header>
+
+  <dl class="strip">
+    <div><dt>Tube bore</dt><dd>&#8960;10.10 <em><s>9.90</s> +0.20</em></dd></div>
+    <div><dt>Socket</dt><dd>&#8960;15.29 <em>&times; 6.50 <s>18.00</s></em></dd></div>
+    <div><dt>Face to joint</dt><dd>10.00 <em>the governing dim</em></dd></div>
+    <div><dt>Grab length</dt><dd>9.00 <em>housing below the flange</em></dd></div>
+    <div><dt>Height</dt><dd>46.00 <em><s>57.50</s> &minus;11.50</em></dd></div>
+    <div><dt>Material</dt><dd>15.2 g <em>12.2 cm&sup3; PLA</em></dd></div>
+  </dl>
+
+  <div class="body">
+
+    <!-- ===================== SECTION ===================== -->
+    <section>
+      <h2>Section on the axis &mdash; every bore in one view</h2>
+      <p class="note">The part is one revolved profile, so a single section through the axis describes the whole of it. Two changes to read here: the <strong>tube guide opened 0.20 on diameter</strong> to &#8960;10.10, and the <strong>housing socket cut to 6.50</strong> so that flange face to the housing/tube junction comes to your <strong>10.00</strong>. Housing and tube are ghosted in position, which is what makes the point of the change visible &mdash; <strong>9.00 of housing now hangs below the flange</strong>, where your fingers can reach it.</p>
+      <figure>
+        <div class="frame">
+          <svg viewBox="-56 -18 146 88" role="img" aria-label="Section through the axis of the pendant curing jig: a 3.5 millimetre flange, a 6.5 millimetre housing socket, the glue gutter and the 36 millimetre tube guide, with the metal housing standing 9 millimetres proud below the flange where it can be held.">
+            <defs>
+              <marker id="ja" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="4.4" markerHeight="4.4" orient="auto">
+                <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
+              </marker>
+              <pattern id="hatch" width="2.2" height="2.2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width="2.2" height="2.2" fill="var(--solid)"/>
+                <line x1="0" y1="0" x2="0" y2="2.2" stroke="var(--ink)" stroke-width=".2" opacity=".45"/>
+              </pattern>
+            </defs>
+
+            <!-- ---------- reference parts, drawn first ---------- -->
+            <rect class="hs" x="-7.52" y="36" width="15.04" height="19"/>
+            <rect class="tu" x="-4.825" y="-2" width="9.65" height="48"/>
+            <path class="thin" d="M-6.2,-0.6 L6.2,-2.6"/>
+
+            <!-- ---------- the jig, sectioned ---------- -->
+            <path d="M8.27,46 L14,46 L14,45.755 L10.745,42.5 L10.745,0 L5.65,0 L5.05,0.6
+                     L5.05,34.5 L5.85,34.5 L5.85,36 L8.445,36 L8.445,36.8 L7.645,36.8
+                     L7.645,42.5 L8.27,43.125 Z"
+                  fill="url(#hatch)" stroke="var(--ink)" stroke-width=".42"/>
+            <path d="M-8.27,46 L-14,46 L-14,45.755 L-10.745,42.5 L-10.745,0 L-5.65,0 L-5.05,0.6
+                     L-5.05,34.5 L-5.85,34.5 L-5.85,36 L-8.445,36 L-8.445,36.8 L-7.645,36.8
+                     L-7.645,42.5 L-8.27,43.125 Z"
+                  fill="url(#hatch)" stroke="var(--ink)" stroke-width=".42"/>
+
+            <line x1="0" y1="-6" x2="0" y2="60" stroke="var(--ink-3)" stroke-width=".28"
+                  stroke-dasharray="4.5 1.4 .7 1.4"/>
+
+            <!-- ---------- bores, above ---------- -->
+            <line class="ext" x1="-5.05" y1="0" x2="-5.05" y2="-6.6"/>
+            <line class="ext" x1="5.05" y1="0" x2="5.05" y2="-6.6"/>
+            <line class="dim" x1="-5.05" y1="-5.6" x2="5.05" y2="-5.6" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="0" y="-6.9" text-anchor="middle">&#8960;10.10</text>
+
+            <line class="ext" x1="-10.745" y1="0" x2="-10.745" y2="-12.6"/>
+            <line class="ext" x1="10.745" y1="0" x2="10.745" y2="-12.6"/>
+            <line class="dim" x1="-10.745" y1="-11.6" x2="10.745" y2="-11.6" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="0" y="-12.9" text-anchor="middle">&#8960;21.49</text>
+
+            <!-- ---------- height chain, left. Segments only, no running totals ---------- -->
+            <line class="ext" x1="-14" y1="46" x2="-46" y2="46"/>
+            <line class="ext" x1="-10.745" y1="42.5" x2="-24" y2="42.5"/>
+            <line class="ext" x1="-8.445" y1="36" x2="-36" y2="36"/>
+            <line class="ext" x1="-10.745" y1="0" x2="-46" y2="0"/>
+
+            <line class="dim" x1="-20" y1="46" x2="-20" y2="42.5" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="-20" y1="42.5" x2="-20" y2="36" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="-20" y1="36" x2="-20" y2="0" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="-21.6" y="45.4" text-anchor="end">3.50</text>
+            <text class="dt" x="-21.6" y="40.2" text-anchor="end">6.50</text>
+            <text class="dt" x="-21.6" y="18" text-anchor="middle" transform="rotate(-90 -21.6 18)">36.00 guide</text>
+
+            <!-- the governing dimension: flange face to the housing/tube junction -->
+            <line class="dim" x1="-32" y1="46" x2="-32" y2="36" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="ext" x1="-14" y1="46" x2="-36" y2="46"/>
+            <text class="dt" x="-33.6" y="41" text-anchor="middle" transform="rotate(-90 -33.6 41)">10.00</text>
+
+            <line class="dim" x1="-43" y1="46" x2="-43" y2="0" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="-44.6" y="23" text-anchor="middle" transform="rotate(-90 -44.6 23)">46.00 overall</text>
+
+            <!-- ---------- flange OD, below ---------- -->
+            <line class="ext" x1="-14" y1="46" x2="-14" y2="62"/>
+            <line class="ext" x1="14" y1="46" x2="14" y2="62"/>
+            <line class="dim" x1="-14" y1="60.5" x2="14" y2="60.5" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="0" y="59.2" text-anchor="middle">&#8960;28.00 flange</text>
+
+            <!-- ---------- the grab length ---------- -->
+            <line class="ext" x1="14" y1="46" x2="21" y2="46"/>
+            <line class="ext" x1="7.52" y1="55" x2="21" y2="55"/>
+            <line class="dim" x1="18.5" y1="46" x2="18.5" y2="55" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="16.9" y="50.5" text-anchor="middle" transform="rotate(-90 16.9 50.5)">9.00</text>
+
+            <!-- ---------- leader stack, right. One column, fixed x, nothing overlapping ---------- -->
+            <line class="ext" x1="5.35" y1="0.4" x2="21" y2="5"/>
+            <text class="lb" x="21.8" y="5.6">0.60 mouth chamfer, bed side</text>
+
+            <line class="ext" x1="5.05" y1="20" x2="21" y2="17"/>
+            <text class="lb" x="21.8" y="17.6">&#8960;10.10 tube guide, 36.00 long</text>
+
+            <line class="ext" x1="5.85" y1="35.25" x2="21" y2="27"/>
+            <text class="lb" x="21.8" y="27.6">&#8960;11.70 &times; 1.50 glue gutter</text>
+
+            <line class="ext" x1="8.445" y1="36.4" x2="21" y2="32"/>
+            <text class="lb" x="21.8" y="32.6">0.80 &times; 0.80 corner relief</text>
+
+            <line class="ext" x1="7.645" y1="39" x2="21" y2="37"/>
+            <text class="lb" x="21.8" y="37.6">&#8960;15.29 socket, 6.50 deep</text>
+
+            <line class="ext" x1="8.27" y1="44.5" x2="21" y2="42"/>
+            <text class="lb" x="21.8" y="42.6">&#8960;16.54 flange relief bore</text>
+
+            <line class="ext" x1="7.52" y1="50" x2="21" y2="50"/>
+            <text class="lb-h" x="21.8" y="50.6">housing &#8960;15.04 &times; 19.00 (ref)</text>
+            <text class="lb-h" x="21.8" y="54.6">12.50 proud of the socket mouth,</text>
+            <text class="lb-h" x="21.8" y="58.6">9.00 of it below the flange</text>
+            <text class="lb-h" x="21.8" y="62.6">&mdash; this is what you hold</text>
+
+            <line class="ext" x1="-4.825" y1="30" x2="-21" y2="30"/>
+            <text class="lb-t" x="-21.8" y="30.6" text-anchor="end">tube &#8960;9.65 &times; 54.00 (ref),</text>
+            <text class="lb-t" x="-21.8" y="34.6" text-anchor="end">shown broken</text>
+          </svg>
+        </div>
+        <figcaption>Section on the axis, to scale &middot; hatched material is cut &middot; housing and tube are reference only</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===================== THE FLAG ===================== -->
+    <section>
+      <p class="warn">
+        <span class="hd">What the socket depth is actually for</span>
+        An earlier pass at this revision grew the flange to 7.00 on the theory that the jig stands on a bench with the housing tucked up inside it. <b>It does not.</b> The housing is held in the fingers and the jig is pushed onto it, so every millimetre of flange is a millimetre of housing you cannot reach. The flange is back to <b>3.50</b>, which is its floor &mdash; below that the underside is steeper than 45&deg; and needs supports.
+        <br><br>
+        The governing dimension is now yours: <b>flange face to the housing/tube junction = 10.00</b>. That junction is the shoulder the housing butts against, so <code>FLANGE_H + SOCKET_DEPTH = 10.00</code>, and with the flange at its 3.50 floor the socket gets the remaining <b>6.50</b>. Total height falls to <b>46.00</b>, which is 11.50 off Rev A rather than the 5.00 first asked for &mdash; the 10.00 spec is the tighter constraint and it wins. <b>9.00 of housing now hangs below the flange</b> for you to hold.
+      </p>
+    </section>
+
+    <!-- ===================== 3D ===================== -->
+    <section>
+      <h2>Cutaway &mdash; drag to orbit</h2>
+      <p class="note">The revolved solid, built live from the same constants. A quarter is cut away by default so the bores are visible; the cut faces are shaded, the outside surfaces are not. <strong>Print side up</strong> flips it to the orientation it has to print in &mdash; socket opening upward, so the shoulder the housing seats against prints on top of solid material instead of drooping over the socket.</p>
+      <figure>
+        <div class="view">
+          <canvas id="jv" tabindex="0" role="img" aria-label="Interactive cutaway of the pendant curing jig, showing the housing socket, glue gutter and tube guide bored through a revolved body."></canvas>
+          <div class="readout" id="jro">AZ 34&deg; &nbsp; EL 22&deg;</div>
+        </div>
+        <div class="ctl">
+          <button id="jCut" aria-pressed="true">Cutaway</button>
+          <button id="jParts" aria-pressed="true">Housing &amp; tube</button>
+          <button id="jFlip" aria-pressed="false">Print side up</button>
+          <button id="jReset">Reset view</button>
+        </div>
+        <figcaption>Live cutaway &middot; 64 facets around, the same as the script&rsquo;s SEGMENTS</figcaption>
+      </figure>
+    </section>
+
+    <div class="cols">
+
+      <!-- ===================== WHAT CHANGED ===================== -->
+      <section>
+        <h2>What changed from Rev A, and on what evidence</h2>
+        <p class="note">Rev A was printed and test-fitted. Both changes come from that fit, which makes them better sourced than the measured dimensions &mdash; a fit test includes this printer&rsquo;s real behaviour, and a caliper on the mating part does not.</p>
+        <div class="tw">
+          <table>
+            <caption>Rev A &rarr; Rev B</caption>
+            <thead>
+              <tr><th></th><th class="n">Rev A</th><th class="n">Rev B</th><th>Why</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Tube clearance</td><td class="n">0.25</td><td class="n">0.45</td><td>bore was too tight on the real tubing</td></tr>
+              <tr><td>Tube bore</td><td class="n">&#8960;9.90</td><td class="n">&#8960;10.10</td><td>follows the clearance</td></tr>
+              <tr><td>Housing clearance</td><td class="n">0.25</td><td class="n">0.25</td><td><em>unchanged &mdash; this fit was good</em></td></tr>
+              <tr><td>Socket depth</td><td class="n">18.00</td><td class="n">6.50</td><td>set by the 10.00 spec, not chosen</td></tr>
+              <tr><td>Flange height</td><td class="n">3.50</td><td class="n">3.50</td><td><em>unchanged &mdash; already at its 45&deg; floor</em></td></tr>
+              <tr><td>Face to joint</td><td class="n">21.50</td><td class="n">10.00</td><td>your figure &mdash; the governing one</td></tr>
+              <tr><td>Glue gutter</td><td class="n">&#8960;11.50</td><td class="n">&#8960;11.70</td><td>derived from the tube bore</td></tr>
+              <tr><td>Grab length</td><td class="n">none</td><td class="n">9.00</td><td>housing you can get fingers on</td></tr>
+              <tr><td>Overall height</td><td class="n">57.50</td><td class="n">46.00</td><td>follows</td></tr>
+              <tr><td>Material</td><td class="n">17.9 g</td><td class="n">15.2 g</td><td>shorter part</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="callout" style="margin-top:14px"><b>The two clearances are now separate constants.</b> Rev A used one figure for both bores, so opening the tube guide would have loosened the housing socket you said fits well. <code>CLEARANCE</code> stays at 0.25 for the socket; <code>TUBE_CLEAR</code> is 0.45 for the guide.</p>
+      </section>
+
+      <!-- ===================== LEAN ===================== -->
+      <section>
+        <h2>What the short socket costs</h2>
+        <p class="note">The fixture holds two things straight, and it now holds them to very different standards. The tube is gripped over 36.00 of guide; the housing is gripped over 6.50 of socket. <strong>The housing is now what limits how square the joint comes out</strong>, by a factor of three &mdash; and that is a direct consequence of the 10.00, not something that can be tuned away.</p>
+        <div class="tw">
+          <table>
+            <caption>Worst-case rock, from clearance over engaged length</caption>
+            <thead>
+              <tr><th>What</th><th class="n">Engaged</th><th class="n">Clearance</th><th class="n">Can rock</th></tr>
+            </thead>
+            <tbody>
+              <tr class="pick"><td>Housing in socket</td><td class="n">6.50</td><td class="n">0.25</td><td class="n">2.20&deg;</td></tr>
+              <tr class="no"><td>&nbsp;&nbsp;at 13.00 socket</td><td class="n">13.00</td><td class="n">0.25</td><td class="n">1.10&deg;</td></tr>
+              <tr class="no"><td>&nbsp;&nbsp;at 18.00, Rev A</td><td class="n">18.00</td><td class="n">0.25</td><td class="n">0.80&deg;</td></tr>
+              <tr class="pick"><td>Tube in guide</td><td class="n">36.00</td><td class="n">0.45</td><td class="n">0.72&deg;</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="callout" style="margin-top:14px"><b>I am not proposing to change it.</b> You have handled the printed part and I have not, and reach clearly matters more here than the last degree of squareness. But it is worth knowing which number is now the weak one: if a cured joint comes out visibly off, look at the housing sitting crooked in a 6.50 socket before you look at the tube.</p>
+      </section>
+    </div>
+
+    <div class="cols">
+
+      <!-- ===================== PRINTING ===================== -->
+      <section>
+        <h2>Printing &mdash; unchanged, and easier</h2>
+        <p class="note"><strong>Socket opening up, flipped from how it is drawn.</strong> That puts the shoulder the housing registers against on top of solid material, so it prints as a clean flat layer instead of drooping as an unsupported ceiling over the socket. It is the one surface whose flatness decides whether the housing sits square.</p>
+        <div class="tw">
+          <table>
+            <caption>Print audit, socket-opening-up</caption>
+            <thead>
+              <tr><th>Surface</th><th class="n">This part</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Flange underside</td><td class="n">45&deg;</td><td class="pass">PASS</td></tr>
+              <tr><td>Socket lead-in</td><td class="n">45&deg;</td><td class="pass">PASS</td></tr>
+              <tr><td>Housing seat</td><td class="n">on solid</td><td class="pass">PASS</td></tr>
+              <tr><td>Bed contact</td><td class="n">283 mm&sup2; ring</td><td class="pass">BRIM</td></tr>
+              <tr><td>Height : base</td><td class="n">2.14 : 1 <small>was 2.68</small></td><td class="pass">BETTER</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="callout" style="margin-top:14px"><b>Shortening it helped the print.</b> At 46.00 on the same 21.49 bed ring it is noticeably squatter than Rev A, so it is less inclined to be knocked off the bed. Every sloped face is still 45&deg;, so no supports. The corner relief at the seat is untouched and still pushes the internal corner 0.925 clear of the housing OD, so the fillet a nozzle always leaves cannot hold the housing off its seat.</p>
+      </section>
+
+      <!-- ===================== PARAMETERS ===================== -->
+      <section>
+        <h2>Where every number came from</h2>
+        <p class="note">Four sources, and they are not equal. A fit test beats a measurement here, because it already contains whatever this printer does to a nominal dimension.</p>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>Constant</th><th class="n">Value</th><th>Source</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>CLEARANCE</code></td><td class="n">0.25</td><td><span class="tag d">fit-tested</span> housing socket came out good</td></tr>
+              <tr><td><code>TUBE_CLEAR</code></td><td class="n">0.45</td><td><span class="tag d">fit-tested</span> 0.25 was too tight, opened 0.20</td></tr>
+              <tr><td><code>SOCKET_DEPTH</code></td><td class="n">6.50</td><td><span class="tag r">derived</span> 10.00 &minus; <code>FLANGE_H</code>, from your face-to-joint spec</td></tr>
+              <tr><td>face to joint</td><td class="n">10.00</td><td><span class="tag m">specified</span> your figure &mdash; governs the socket</td></tr>
+              <tr><td><code>HOUSING_DIA</code></td><td class="n">15.04</td><td><span class="tag m">measured</span></td></tr>
+              <tr><td><code>HOUSING_LEN</code></td><td class="n">19.00</td><td><span class="tag m">measured</span></td></tr>
+              <tr><td><code>TUBE_DIA</code></td><td class="n">9.65</td><td><span class="tag m">measured</span></td></tr>
+              <tr><td><code>TUBE_LEN</code></td><td class="n">54.00</td><td><span class="tag m">measured</span></td></tr>
+              <tr><td>socket / tube bore</td><td class="n">15.29 / 10.10</td><td><span class="tag r">derived</span> nominal + its clearance</td></tr>
+              <tr><td>body OD</td><td class="n">21.49</td><td><span class="tag r">derived</span> socket + 2 &times; <code>WALL</code></td></tr>
+              <tr><td><code>GUIDE_LEN</code></td><td class="n">36.00</td><td><span class="tag c">chosen</span> two thirds of the tube</td></tr>
+              <tr><td><code>WALL</code></td><td class="n">3.10</td><td><span class="tag c">chosen</span> print strength, nothing more</td></tr>
+              <tr><td><code>FLANGE_DIA</code></td><td class="n">28.00</td><td><span class="tag c">chosen</span> foot wide enough to stand square</td></tr>
+              <tr><td><code>FLANGE_H</code></td><td class="n">3.50</td><td><span class="tag r">derived</span> its floor: below 3.255 the underside is steeper than 45&deg;</td></tr>
+              <tr><td><code>RELIEF</code></td><td class="n">0.80 &times; 0.80</td><td><span class="tag c">chosen</span> corner groove at the seat</td></tr>
+              <tr><td><code>MOUTH_CH</code></td><td class="n">0.60</td><td><span class="tag c">chosen</span> beats elephant&rsquo;s foot at the bed-side mouth</td></tr>
+              <tr><td><code>INSERTION</code></td><td class="n">10.00</td><td><span class="tag c">assumed</span> ghost tube only, affects nothing printed</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <dl class="block">
+    <div><dt>Part</dt><dd>Pendant curing jig &middot; Rev B</dd></div>
+    <div><dt>Script</dt><dd><code>scripts/pendant-jig.rb</code></dd></div>
+    <div><dt>Units</dt><dd>Millimetres, decimal</dd></div>
+    <div><dt>Build</dt><dd>One revolved solid, 64 facets</dd></div>
+    <div><dt>Orientation</dt><dd>Print socket-up, no supports</dd></div>
+    <div><dt>Status</dt><dd>Rev B geometry unverified &mdash; script not yet re-run</dd></div>
+  </dl>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- constants, straight off pendant-jig.rb ------------------------------
+  var P = {
+    housingD: 15.04, housingL: 19.00, tubeD: 9.65, tubeL: 54.00,
+    clear: 0.25, tubeClear: 0.45,
+    socketDepth: 6.50, guideLen: 36.00, wall: 3.10,
+    flangeD: 28.00, flangeH: 3.50, flangeRelief: 1.50,
+    glueD: 1.60, glueH: 1.50, reliefW: 0.80, reliefH: 0.80, mouthCh: 0.60,
+    insertion: 10.00, seg: 64
+  };
+  P.socketD = P.housingD + P.clear;            // 15.29
+  P.bore    = P.tubeD + P.tubeClear;           // 10.10
+  P.bodyD   = P.socketD + 2 * P.wall;          // 21.49
+  P.totalH  = P.flangeH + P.socketDepth + P.guideLen;   // 46.00
+
+  // The half-section, walked counter-clockwise, exactly as the Ruby builds it.
+  function profile() {
+    var rf = P.flangeD / 2, rb = P.bodyD / 2;
+    var rv = P.socketD / 2 + P.reliefW, rr = (P.housingD + P.flangeRelief) / 2;
+    var rh = P.socketD / 2, rg = (P.bore + P.glueD) / 2, rt = P.bore / 2;
+    var z1 = P.flangeH, z2 = z1 + P.socketDepth, z3 = z2 + P.glueH, z4 = P.totalH;
+    var land = P.flangeH - (rf - rb), lead = rr - rh;
+    return [[rr, 0], [rf, 0], [rf, land], [rb, P.flangeH], [rb, z4],
+            [rt + P.mouthCh, z4], [rt, z4 - P.mouthCh], [rt, z3],
+            [rg, z3], [rg, z2], [rv, z2], [rv, z2 - P.reliefH],
+            [rh, z2 - P.reliefH], [rh, P.flangeH], [rr, P.flangeH - lead]];
+  }
+
+  // =========================================================================
+  // Mesh. Normals are computed per triangle, so a winding slip can never show
+  // up as a black face — the shader lights both sides.
+  // =========================================================================
+  function Mesh() { this.pos = []; this.nrm = []; this.mat = []; this.lin = []; }
+  Mesh.prototype.tri = function (a, b, c, m) {
+    var ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+    var vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    var nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    var L = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+    nx /= L; ny /= L; nz /= L;
+    this.pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+    for (var i = 0; i < 3; i++) { this.nrm.push(nx, ny, nz); this.mat.push(m); }
+  };
+  Mesh.prototype.quad = function (a, b, c, d, m) { this.tri(a, b, c, m); this.tri(a, c, d, m); };
+  Mesh.prototype.ring = function (r, z, a0, a1, n) {
+    var prev = null, i;
+    for (i = 0; i <= n; i++) {
+      var a = a0 + (a1 - a0) * i / n;
+      var p = [r * Math.cos(a), r * Math.sin(a), z];
+      if (prev) this.lin.push(prev[0], prev[1], prev[2], p[0], p[1], p[2]);
+      prev = p;
+    }
+  };
+  Mesh.prototype.loop2 = function (pts, ang) {
+    var ca = Math.cos(ang), sa = Math.sin(ang), i;
+    for (i = 0; i < pts.length; i++) {
+      var a = pts[i], b = pts[(i + 1) % pts.length];
+      this.lin.push(a[0] * ca, a[0] * sa, a[1], b[0] * ca, b[0] * sa, b[1]);
+    }
+  };
+
+  // Ear clipping, so the cut face of a section can be filled. The profile is
+  // simple but distinctly non-convex — the bores are the whole point of it.
+  function earClip(poly) {
+    var n = poly.length, idx = [], out = [], i;
+    for (i = 0; i < n; i++) idx.push(i);
+    var area = 0;
+    for (i = 0; i < n; i++) {
+      var p = poly[i], q = poly[(i + 1) % n];
+      area += p[0] * q[1] - q[0] * p[1];
+    }
+    if (area < 0) idx.reverse();
+    function inTri(p, a, b, c) {
+      function s(u, v, w) {
+        return (u[0] - w[0]) * (v[1] - w[1]) - (v[0] - w[0]) * (u[1] - w[1]);
+      }
+      var d1 = s(p, a, b), d2 = s(p, b, c), d3 = s(p, c, a);
+      var neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+      var pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+      return !(neg && pos);
+    }
+    var guard = 0;
+    while (idx.length > 3 && guard++ < 500) {
+      var clipped = false;
+      for (i = 0; i < idx.length; i++) {
+        var i0 = idx[(i + idx.length - 1) % idx.length], i1 = idx[i],
+            i2 = idx[(i + 1) % idx.length];
+        var a = poly[i0], b = poly[i1], c = poly[i2];
+        if ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) <= 0) continue;
+        var ok = true;
+        for (var k = 0; k < idx.length; k++) {
+          var pk = idx[k];
+          if (pk === i0 || pk === i1 || pk === i2) continue;
+          if (inTri(poly[pk], a, b, c)) { ok = false; break; }
+        }
+        if (!ok) continue;
+        out.push([i0, i1, i2]); idx.splice(i, 1); clipped = true; break;
+      }
+      if (!clipped) break;
+    }
+    if (idx.length === 3) out.push([idx[0], idx[1], idx[2]]);
+    return out;
+  }
+
+  // Revolve a closed profile between two angles. Full turn -> no caps; a
+  // partial turn -> the two cut faces get filled, which is what makes the
+  // cutaway read as a section rather than as a broken shell.
+  function lathe(M, prof, a0, a1, mat, cutMat, edges) {
+    var n = prof.length, seg = P.seg, i, j;
+    var full = Math.abs((a1 - a0) - 2 * Math.PI) < 1e-6;
+    var steps = full ? seg : Math.max(8, Math.round(seg * (a1 - a0) / (2 * Math.PI)));
+    function pt(k, a) { return [prof[k][0] * Math.cos(a), prof[k][0] * Math.sin(a), prof[k][1]]; }
+
+    for (j = 0; j < steps; j++) {
+      var aj = a0 + (a1 - a0) * j / steps, ak = a0 + (a1 - a0) * (j + 1) / steps;
+      for (i = 0; i < n; i++) {
+        var i2 = (i + 1) % n;
+        M.quad(pt(i, aj), pt(i2, aj), pt(i2, ak), pt(i, ak), mat);
+      }
+    }
+    if (!full) {
+      var tris = earClip(prof);
+      [a0, a1].forEach(function (a) {
+        var ca = Math.cos(a), sa = Math.sin(a);
+        tris.forEach(function (t) {
+          M.tri([prof[t[0]][0] * ca, prof[t[0]][0] * sa, prof[t[0]][1]],
+                [prof[t[1]][0] * ca, prof[t[1]][0] * sa, prof[t[1]][1]],
+                [prof[t[2]][0] * ca, prof[t[2]][0] * sa, prof[t[2]][1]], cutMat);
+        });
+        M.loop2(prof, a);
+      });
+    }
+    if (edges === false) return;
+    for (i = 0; i < n; i++) M.ring(prof[i][0], prof[i][1], a0, a1, steps);
+  }
+
+  function cylProfile(d, z0, z1) {
+    var r = d / 2;
+    return [[0.001, z0], [r, z0], [r, z1], [0.001, z1]];
+  }
+
+  // =========================================================================
+  // Matrices
+  // =========================================================================
+  function mul(a, b) {
+    var o = new Float32Array(16), i, j, k;
+    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) {
+      var s = 0;
+      for (k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k];
+      o[i * 4 + j] = s;
+    }
+    return o;
+  }
+  function perspective(fovy, asp, n, f) {
+    var t = 1 / Math.tan(fovy / 2);
+    return new Float32Array([t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1,
+                             0, 0, 2 * f * n / (n - f), 0]);
+  }
+  function lookAt(eye, at, up) {
+    function sb(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+    function cr(a, b) {
+      return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    }
+    function dt(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+    function nz(a) { var m = Math.sqrt(dt(a, a)) || 1; return [a[0] / m, a[1] / m, a[2] / m]; }
+    var z = nz(sb(eye, at)), x = nz(cr(up, z)), y = cr(z, x);
+    return new Float32Array([x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0,
+                             -dt(x, eye), -dt(y, eye), -dt(z, eye), 1]);
+  }
+
+  // =========================================================================
+  // GL
+  // =========================================================================
+  var cv = document.getElementById('jv'), ro = document.getElementById('jro');
+  var gl = null;
+  try {
+    gl = cv.getContext('webgl', { antialias: true, alpha: true, depth: true }) ||
+         cv.getContext('experimental-webgl', { antialias: true, alpha: true, depth: true });
+  } catch (e) { gl = null; }
+  if (!gl) {
+    cv.insertAdjacentHTML('afterend',
+      '<p class="note" style="padding:16px">This view needs WebGL, which this browser has ' +
+      'turned off. Every dimension it would show is on the section above.</p>');
+    return;
+  }
+
+  var VS = [
+    'attribute vec3 aPos; attribute vec3 aNrm; attribute float aMat;',
+    'uniform mat4 uMVP; uniform float uFlip; uniform float uMidZ;',
+    'varying vec3 vN; varying float vM;',
+    'void main(){ vec3 p=aPos; vec3 n=aNrm;',
+    '  if (uFlip>0.5){ p.z = 2.0*uMidZ - p.z; n.z = -n.z; }',
+    '  vN=n; vM=aMat; gl_Position = uMVP*vec4(p,1.0); }'
+  ].join('\n');
+  var FS = [
+    'precision mediump float; varying vec3 vN; varying float vM;',
+    'uniform vec3 uBody; uniform vec3 uCut; uniform vec3 uHousing; uniform vec3 uTube;',
+    'uniform vec3 uLight;',
+    'void main(){ vec3 n=normalize(vN); if(!gl_FrontFacing) n=-n;',
+    '  float d = 0.58 + 0.42*max(dot(n, normalize(uLight)), 0.0);',
+    '  vec3 base = uBody; float al = 1.0;',
+    '  if (vM > 2.5) { base = uTube;    al = 0.55; }',
+    '  else if (vM > 1.5) { base = uHousing; al = 0.62; }',
+    '  else if (vM > 0.5) { base = uCut; }',
+    '  gl_FragColor = vec4(base*d, al); }'
+  ].join('\n');
+  var LVS = 'attribute vec3 aPos; uniform mat4 uMVP; uniform float uFlip; uniform float uMidZ;' +
+            'void main(){ vec3 p=aPos; if(uFlip>0.5) p.z=2.0*uMidZ-p.z;' +
+            ' gl_Position=uMVP*vec4(p,1.0); }';
+  var LFS = 'precision mediump float; uniform vec4 uCol; void main(){ gl_FragColor=uCol; }';
+
+  function compile(src, t) {
+    var s = gl.createShader(t);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  function program(v, f) {
+    var p = gl.createProgram();
+    gl.attachShader(p, compile(v, gl.VERTEX_SHADER));
+    gl.attachShader(p, compile(f, gl.FRAGMENT_SHADER));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    return p;
+  }
+  var progT = program(VS, FS), progL = program(LVS, LFS);
+  var bP = gl.createBuffer(), bN = gl.createBuffer(), bM = gl.createBuffer(), bL = gl.createBuffer();
+  var nTri = 0, nLin = 0;
+
+  var HOME = { az: 34, el: 22 };
+  var st = { az: HOME.az, el: HOME.el, cut: true, parts: true, flip: false };
+  var built = '';
+
+  function build() {
+    var key = [st.cut, st.parts].join('|');
+    if (key === built) return;
+    var M = new Mesh(), prof = profile();
+    var a0 = st.cut ? -0.12 : 0;
+    var a1 = st.cut ? (-0.12 + 1.5 * Math.PI) : 2 * Math.PI;
+    lathe(M, prof, a0, a1, 0, 1);
+    if (st.parts) {
+      var z2 = P.flangeH + P.socketDepth;
+      lathe(M, cylProfile(P.housingD, z2 - P.housingL, z2), a0, a1, 2, 2, false);
+      lathe(M, cylProfile(P.tubeD, z2 - P.insertion, z2 - P.insertion + P.tubeL),
+            a0, a1, 3, 3, false);
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, bP);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(M.pos), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bN);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(M.nrm), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bM);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(M.mat), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bL);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(M.lin), gl.STATIC_DRAW);
+    nTri = M.pos.length / 3; nLin = M.lin.length / 3;
+    built = key;
+  }
+
+  var COL = {};
+  function rgb(h) {
+    h = h.trim().replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255,
+            parseInt(h.slice(4, 6), 16) / 255];
+  }
+  function readTokens() {
+    var cs = getComputedStyle(document.documentElement);
+    function t(k, fb) {
+      var v = cs.getPropertyValue('--' + k).trim();
+      return rgb(v && v.charAt(0) === '#' ? v : fb);
+    }
+    COL.body = t('solid', '#cfd5da');
+    COL.ink  = t('ink', '#14181c');
+    COL.tube = t('tube', '#1f6f6d');
+    COL.housing = t('accent', '#c44f16');
+    // The cut face is the body tone pushed toward the accent, which is how a
+    // section is conventionally distinguished from an outside surface.
+    COL.cut = [COL.body[0] * 0.72 + COL.housing[0] * 0.28,
+               COL.body[1] * 0.72 + COL.housing[1] * 0.18,
+               COL.body[2] * 0.72 + COL.housing[2] * 0.18];
+  }
+
+  function draw() {
+    build();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    gl.viewport(0, 0, cv.width, cv.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.enable(gl.DEPTH_TEST);
+    gl.disable(gl.CULL_FACE);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    var topZ = st.parts ? P.flangeH + P.socketDepth - P.insertion + P.tubeL : P.totalH;
+    var botZ = st.parts ? Math.min(0, P.flangeH + P.socketDepth - P.housingL) : 0;
+    var mid = [0, 0, (topZ + botZ) / 2];
+    var rad = 0.5 * Math.sqrt(P.flangeD * P.flangeD * 2 + (topZ - botZ) * (topZ - botZ));
+
+    var fov = 30 * Math.PI / 180, asp = w / h;
+    var dist = rad / Math.sin(Math.min(fov, 2 * Math.atan(Math.tan(fov / 2) * asp)) / 2) * 1.08;
+    var az = st.az * Math.PI / 180, el = st.el * Math.PI / 180;
+    var eye = [mid[0] + dist * Math.cos(el) * Math.sin(az),
+               mid[1] - dist * Math.cos(el) * Math.cos(az),
+               mid[2] + dist * Math.sin(el)];
+    var mvp = mul(perspective(fov, asp, dist * 0.05, dist * 4), lookAt(eye, mid, [0, 0, 1]));
+
+    function attr(prog, name, buf, size) {
+      var l = gl.getAttribLocation(prog, name);
+      if (l < 0) return;
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.enableVertexAttribArray(l);
+      gl.vertexAttribPointer(l, size, gl.FLOAT, false, 0, 0);
+    }
+    gl.useProgram(progT);
+    gl.uniformMatrix4fv(gl.getUniformLocation(progT, 'uMVP'), false, mvp);
+    gl.uniform1f(gl.getUniformLocation(progT, 'uFlip'), st.flip ? 1 : 0);
+    gl.uniform1f(gl.getUniformLocation(progT, 'uMidZ'), mid[2]);
+    gl.uniform3fv(gl.getUniformLocation(progT, 'uBody'), COL.body);
+    gl.uniform3fv(gl.getUniformLocation(progT, 'uCut'), COL.cut);
+    gl.uniform3fv(gl.getUniformLocation(progT, 'uHousing'), COL.housing);
+    gl.uniform3fv(gl.getUniformLocation(progT, 'uTube'), COL.tube);
+    gl.uniform3fv(gl.getUniformLocation(progT, 'uLight'), [-0.40, -0.64, 0.66]);
+    attr(progT, 'aPos', bP, 3); attr(progT, 'aNrm', bN, 3); attr(progT, 'aMat', bM, 1);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1.0, 1.0);
+    gl.drawArrays(gl.TRIANGLES, 0, nTri);
+    gl.disable(gl.POLYGON_OFFSET_FILL);
+
+    gl.useProgram(progL);
+    gl.uniformMatrix4fv(gl.getUniformLocation(progL, 'uMVP'), false, mvp);
+    gl.uniform1f(gl.getUniformLocation(progL, 'uFlip'), st.flip ? 1 : 0);
+    gl.uniform1f(gl.getUniformLocation(progL, 'uMidZ'), mid[2]);
+    gl.uniform4f(gl.getUniformLocation(progL, 'uCol'), COL.ink[0], COL.ink[1], COL.ink[2], 0.5);
+    attr(progL, 'aPos', bL, 3);
+    gl.drawArrays(gl.LINES, 0, nLin);
+    gl.disable(gl.BLEND);
+
+    ro.textContent = 'AZ ' + Math.round((st.az % 360 + 360) % 360) + '°   EL '
+                   + Math.round(st.el) + '°' + (st.flip ? '   PRINT SIDE UP' : '');
+  }
+
+  var drag = null;
+  cv.addEventListener('pointerdown', function (e) {
+    drag = { x: e.clientX, y: e.clientY, az: st.az, el: st.el };
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    st.az = drag.az + (e.clientX - drag.x) * 0.45;
+    st.el = Math.max(-20, Math.min(88, drag.el + (e.clientY - drag.y) * 0.35));
+    draw();
+  });
+  function end() { drag = null; }
+  cv.addEventListener('pointerup', end);
+  cv.addEventListener('pointercancel', end);
+  cv.addEventListener('keydown', function (e) {
+    var s = e.shiftKey ? 15 : 5, used = true;
+    if (e.key === 'ArrowLeft') st.az -= s;
+    else if (e.key === 'ArrowRight') st.az += s;
+    else if (e.key === 'ArrowUp') st.el = Math.min(88, st.el + s);
+    else if (e.key === 'ArrowDown') st.el = Math.max(-20, st.el - s);
+    else used = false;
+    if (used) { e.preventDefault(); draw(); }
+  });
+  function toggle(id, key) {
+    var b = document.getElementById(id);
+    b.addEventListener('click', function () {
+      st[key] = !st[key];
+      b.setAttribute('aria-pressed', String(st[key]));
+      draw();
+    });
+  }
+  toggle('jCut', 'cut');
+  toggle('jParts', 'parts');
+  toggle('jFlip', 'flip');
+  document.getElementById('jReset').addEventListener('click', function () {
+    st.az = HOME.az; st.el = HOME.el; draw();
+  });
+
+  readTokens();
+  draw();
+  window.addEventListener('resize', draw);
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var on = function () { readTokens(); draw(); };
+    if (mq.addEventListener) mq.addEventListener('change', on);
+    else if (mq.addListener) mq.addListener(on);
+  }
+  new MutationObserver(function () { readTokens(); draw(); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+</script>
+</body>
+</html>

@@ -1,4 +1,8 @@
 # @title Proposal Scenes...
+# @ability Proposal scenes
+# @ability-blurb Create the five proposal plates; switch off to remove them.
+# @on  WR_ProposalScenes.ability_on(opts)
+# @off WR_ProposalScenes.ability_off(opts)
 #
 # Create the five proposal plates as scenes, in order, each carrying its own
 # camera, tag visibility and style. Then export-scenes.rb turns them into
@@ -110,7 +114,39 @@ module WR_ProposalScenes
 
   # ------------------------------------------------------------------- build --
 
-  def self.run
+  # --- panel ability -------------------------------------------------------
+  # The five plates are named and owned by this script, so switching off can
+  # remove exactly those and leave any scene you made by hand alone.
+
+  def self.scene_names
+    PLATES.map { |p| p[:name] }
+  end
+
+  def self.ability_off(_opts = {})
+    pages = Sketchup.active_model.pages
+    n = 0
+    scene_names.each do |nm|
+      p = pages[nm]
+      next unless p
+      pages.erase(p)
+      n += 1
+    end
+    puts ''
+    puts "PROPOSAL SCENES — removed #{n} of #{PLATES.size} plate scene(s)"
+    puts ''
+    true
+  rescue StandardError => e
+    UI.messagebox("Removing proposal scenes failed:\n\n#{e.class}: #{e.message}")
+    false
+  end
+
+  def self.ability_on(_opts = {})
+    run(true)
+  end
+
+  # silent: skip the replace-these-scenes prompt. The ability path always
+  # replaces, because a toggle cannot stop to ask a question.
+  def self.run(silent = false)
     model = Sketchup.active_model
     view  = model.active_view
     pages = model.pages
@@ -124,11 +160,13 @@ module WR_ProposalScenes
     centre = bb.center
     radius = bb.diagonal.to_f / 2.0
 
-    clash = PLATES.map { |p| p[:name] }.select { |n| pages[n] }
+    clash = scene_names.select { |n| pages[n] }
     unless clash.empty?
-      ans = UI.messagebox("These scenes already exist:\n  #{clash.join("\n  ")}\n\n" \
-                          "Replace them?", MB_YESNOCANCEL)
-      return unless ans == IDYES
+      unless silent
+        ans = UI.messagebox("These scenes already exist:\n  #{clash.join("\n  ")}\n\n" \
+                            "Replace them?", MB_YESNOCANCEL)
+        return unless ans == IDYES
+      end
       clash.each { |n| pages.erase(pages[n]) if pages[n] }
     end
 

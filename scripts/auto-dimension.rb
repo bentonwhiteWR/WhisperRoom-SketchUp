@@ -1,4 +1,8 @@
 # @title Auto Dimension...
+# @ability Dimensioned
+# @ability-blurb Chain-dimension the room; switch off to remove what it drew.
+# @on  WR_AutoDimension.ability_on(opts)
+# @off WR_AutoDimension.ability_off(opts)
 #
 # Chain-dimension a room to the house standard: every in-line wall run on all
 # four sides, an overall outside the chain, and every door off its wall corner.
@@ -276,6 +280,55 @@ module WR_AutoDimension
   end
 
   # ------------------------------------------------------------------- entry --
+
+  # Everything this script has ever drawn lives on a WR-Dims* tag, so it can
+  # always find and remove exactly its own work and nothing a person drew.
+  def self.own_dims(model)
+    model.entities.grep(Sketchup::DimensionLinear)
+         .select { |d| d.layer && d.layer.name.start_with?(TAG_DIM) }
+  end
+
+  def self.clear_dims(model)
+    dims = own_dims(model)
+    return 0 if dims.empty?
+    model.start_operation('Clear dimensions', true)
+    n = 0
+    dims.each { |d| (d.erase!; n += 1) if d.valid? }
+    model.commit_operation
+    n
+  end
+
+  # --- panel ability -------------------------------------------------------
+  # No prompts on this path. A toggle has to be idempotent, so switching on
+  # always replaces rather than asking whether to double up.
+
+  def self.ability_on(_opts = {})
+    model = Sketchup.active_model
+    face  = floor_face(model)
+    if face.nil?
+      UI.messagebox("No floor face found.\n\nSelect the room (or its floor) and try again.")
+      return false
+    end
+    clear_dims(model)
+    model.start_operation('Auto dimension', true)
+    res = dimension_face(face)
+    model.commit_operation
+    report(res)
+    true
+  rescue StandardError => e
+    model.abort_operation if model
+    UI.messagebox("Auto dimension failed:\n\n#{e.class}: #{e.message}")
+    puts "FAILED: #{e.class}: #{e.message}"
+    false
+  end
+
+  def self.ability_off(_opts = {})
+    n = clear_dims(Sketchup.active_model)
+    puts ''
+    puts "AUTO DIMENSION — removed #{n} dimension(s) from #{TAG_DIM} / #{TAG_DOOR}"
+    puts ''
+    true
+  end
 
   def self.run
     model = Sketchup.active_model

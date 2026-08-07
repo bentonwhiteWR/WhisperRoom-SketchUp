@@ -22,8 +22,9 @@ independent review, Aug 2026:
 | Layers | 50–300 µm |
 | Slicer | Dremel DigiLab 3D Slicer, Cura-derived |
 
-Both current fixtures fit with room to spare — the drying stand is
-123.5 × 74.9 and uses under half the plate.
+Both current fixtures fit with room to spare — the drying stand is now two
+parts of 62.75 × 74.9, and the pair sits side by side on under half the plate.
+Print them together in one job so they share a brim.
 
 ### Two settings that are not the defaults
 
@@ -83,7 +84,8 @@ built on it and **none of it is confirmed by a print yet.**
 | Tube into stand pocket | +0.50 on the square | `tube-drying-stand.rb` |
 
 **Print the jig first.** It is ~18 g and about an hour, and it calibrates the
-0.25 figure on this printer before 94 g and most of a day goes into the stand.
+0.25 figure on this printer before 98.6 g and most of a day goes into the pair
+of stands.
 If the housing is tight or sloppy in the jig, the same correction applies to
 `POCKET_CLEAR`.
 

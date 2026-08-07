@@ -1,130 +1,260 @@
-# export-scenes.rb — batch-export every scene in the open model to a PNG.
+# @title Export Scenes...
 #
-#   Extensions > Developer > Ruby Console, then:
-#     load "C:/Users/bento/Documents/Claude/Sketchup/scripts/export-scenes.rb"
+# Batch-export scenes to PNG. The proposal-plate exporter: opaque backgrounds,
+# into ProposalFiles, named for the plate order that proposal-v2.json expects.
 #
-# Core logic is lifted from WhisperRoomQuote\tools\sketchup-scene-export\quick-export.rb.
-# That original is untouched — it exports booth COMPONENT art (transparent, named
-# to import-art.py's MAP keys). This copy is pointed at ProposalFiles and defaults
-# to opaque backgrounds, which is what a proposal plate wants.
+#   01-exterior  02-dimensioned  03-side  04-ventilation  05-plan
 #
-# THE FILENAME IS THE SCENE NAME. Name scenes in plate order and they drop straight
-# into proposal-v2.json:  01-exterior  02-dimensioned  03-side  04-ventilation  05-plan
+# Core logic came from WhisperRoomQuote\tools\sketchup-scene-export\quick-export.rb.
+# That original is untouched.
 #
-# BEFORE YOU RUN: resize the SketchUp window to the aspect you want. Height is
-# derived from the viewport, and every image in the run inherits it.
+# THE FILE IS NAMED AFTER THE SCENE, VERBATIM. Only the characters Windows
+# genuinely refuses are replaced. Spaces, brackets and ampersands are kept as
+# the scene has them. This script used to fold spaces into hyphens and strip
+# anything non-alphanumeric, so "01 Exterior View" landed as
+# "01-Exterior-View" and a file could not be matched back to its scene by eye.
+#
+# BEFORE YOU RUN: size the SketchUp window to the aspect you want. Height comes
+# from the viewport and every image in the run inherits it.
+#
+#   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/export-scenes.rb"
 
-OUT_DIR   = 'C:/Users/bento/Desktop/ProposalFiles/ImageExports'
-CLIENT    = ''      # optional subfolder, e.g. 'CSUSB' -> ...\ImageExports\CSUSB
-WIDTH     = 2400    # px. Above ~4000 can fail on some GPUs.
-ANTIALIAS = true
-
-# false = sky/ground render as the scene has them -> opaque. Right for proposal
-#         plates showing a booth in a room.
-# true  = ground, horizon and fog hidden -> real alpha. Right for component art.
-TRANSPARENT = false
-
-OVERWRITE = false   # false = skip scenes already exported, so a run is resumable
-
-# ─────────────────────────────────────────────────────────────────────────
+require 'sketchup.rb'
 require 'fileutils'
 
-model = Sketchup.active_model
-view  = model.active_view
-pages = model.pages
+module WR_ExportScenes
+  PREF = 'WR_ExportScenes'.freeze
 
-if pages.count.zero?
-  UI.messagebox("No scenes in this model.\n\nAdd scenes first (View > Animation > Add Scene).")
-else
-  dir = CLIENT.strip.empty? ? OUT_DIR : File.join(OUT_DIR, CLIENT.strip)
-  FileUtils.mkdir_p(dir)
+  DEFAULTS = {
+    'scenes' => 'all',
+    'dir'    => 'C:/Users/bento/Desktop/ProposalFiles',
+    'width'  => '2400',
+    'bg'     => 'Opaque',
+    'over'   => 'No',
+    'dry'    => 'No'
+  }.freeze
 
-  # A non-zero transition lets write_image catch a half-finished tween.
-  page_opts       = model.options['PageOptions']
-  prev_transition = page_opts['TransitionTime']
-  page_opts['TransitionTime'] = 0
+  # Only what Windows actually forbids in a filename.
+  FORBIDDEN = /[<>:"\/\\|?*\x00-\x1f]/.freeze
 
-  ro = model.rendering_options
-  prev_ro = TRANSPARENT ? {
-    'DrawGround'  => ro['DrawGround'],
-    'DrawHorizon' => ro['DrawHorizon'],
-    'DisplayFog'  => ro['DisplayFog']
-  } : {}
+  # ------------------------------------------------------------------- input --
 
-  prev_page = pages.selected_page
-  height    = (WIDTH * view.vpheight.to_f / view.vpwidth.to_f).round
+  def self.ask
+    keys = %w[scenes dir width bg over dry]
+    prompts = ['Scenes — all / current / 1-7,12 / text',
+               'Output folder — blank to browse',
+               'Image width (px)',
+               'Background',
+               'Overwrite files already there',
+               'Dry run — list only, write nothing']
+    defaults = keys.map do |k|
+      v = Sketchup.read_default(PREF, k, DEFAULTS[k]).to_s
+      v.empty? ? DEFAULTS[k] : v
+    end
+    lists = ['', '', '', 'Opaque|Transparent', 'Yes|No', 'Yes|No']
+    res = UI.inputbox(prompts, defaults, lists, 'Export Scenes')
+    return nil unless res
+    cfg = {}
+    keys.each_with_index { |k, i| cfg[k] = res[i].to_s.strip }
 
-  written = 0
-  skipped = 0
-  failed  = []
-  used    = {}
+    cfg['dir'] = pick_dir(cfg['dir'])
+    return nil if cfg['dir'].nil?
 
-  begin
-    pages.each_with_index do |page, i|
-      base = page.name.strip
-                 .gsub(/[^0-9A-Za-z._ -]+/, '-')
-                 .gsub(/\s+/, '-')
-                 .gsub(/-+/, '-')
-                 .sub(/\A-+/, '')
-                 .sub(/-+\z/, '')
-      base = "scene-#{i + 1}" if base.empty?
+    keys.each { |k| Sketchup.write_default(PREF, k, cfg[k]) }
+    cfg
+  end
 
-      # two scene names can sanitize to the same string — don't clobber
-      if used.key?(base)
+  # Blank opens a real folder browser. A typed path is used as-is and created if
+  # it does not exist yet, so a new client folder needs no ceremony.
+  def self.pick_dir(path)
+    p = path.to_s.strip.tr('\\', '/')
+    return p unless p.empty?
+    picked = (UI.select_directory(:title => 'Where should the images go?') rescue nil)
+    return nil if picked.nil? || picked.to_s.empty?
+    picked.to_s.tr('\\', '/')
+  end
+
+  def self.sanitize(s)
+    out = s.to_s.strip.gsub(FORBIDDEN, '-')
+    out.sub(/[. ]+\z/, '')      # Windows silently drops a trailing dot or space
+  end
+
+  # --------------------------------------------------------------- selection --
+  #
+  #   all              every scene
+  #   current          the one selected right now
+  #   1-7,12           scene numbers, as printed in the table
+  #   exterior         any scene whose name contains that text
+  #
+  # Anything matching nothing is reported rather than quietly skipped.
+  def self.select_pages(model, spec)
+    pages = model.pages.to_a
+    s = spec.to_s.strip.downcase
+    return [pages, 'all'] if s.empty? || s == 'all' || s == '*'
+
+    if s == 'current' || s == 'this'
+      pg = model.pages.selected_page
+      return [[], 'current — but no scene is selected'] if pg.nil?
+      return [[pg], "current scene: #{pg.name}"]
+    end
+
+    picked = []
+    misses = []
+    s.split(',').map(&:strip).reject(&:empty?).each do |tok|
+      hit = if tok =~ /\A(\d+)\s*-\s*(\d+)\z/
+              a = Regexp.last_match(1).to_i
+              b = Regexp.last_match(2).to_i
+              a, b = b, a if a > b
+              (a..b).map { |n| pages[n - 1] }.compact
+            elsif tok =~ /\A\d+\z/
+              n = tok.to_i
+              [n >= 1 ? pages[n - 1] : nil].compact
+            else
+              pages.select { |p| p.name.to_s.downcase.include?(tok) }
+            end
+      hit.empty? ? misses << tok : picked.concat(hit)
+    end
+    picked = picked.compact.uniq
+    note = spec.to_s.strip
+    note += "  — nothing matched #{misses.join(', ')}" unless misses.empty?
+    [picked, note]
+  end
+
+  # -------------------------------------------------------------------- run --
+
+  def self.run
+    model = Sketchup.active_model
+    view  = model.active_view
+    pages = model.pages
+
+    if pages.count.zero?
+      UI.messagebox("No scenes in this model.\n\n" \
+                    "Add scenes first (View > Animation > Add Scene).")
+      return
+    end
+
+    cfg = ask
+    return unless cfg
+
+    chosen, pick_note = select_pages(model, cfg['scenes'])
+    if chosen.empty?
+      UI.messagebox("No scenes selected by \"#{cfg['scenes']}\".\n\n" \
+                    "Use all, current, numbers like 1-7,12, or text from a scene name.")
+      return
+    end
+
+    width  = cfg['width'].to_i
+    width  = 2400 if width < 200 || width > 6000
+    height = (width * view.vpheight.to_f / view.vpwidth.to_f).round
+    trans  = cfg['bg'] == 'Transparent'
+    over   = cfg['over'] == 'Yes'
+    dry    = cfg['dry'] == 'Yes'
+
+    index = {}
+    pages.to_a.each_with_index { |p, i| index[p.name.to_s] = i + 1 }
+
+    used = {}
+    plan = chosen.map do |page|
+      base = sanitize(page.name)
+      base = "scene-#{index[page.name.to_s] || 0}" if base.empty?
+      if used.key?(base)          # two scenes can share a name after sanitising
         used[base] += 1
-        base = "#{base}-#{used[base]}"
+        base = "#{base} (#{used[base]})"
       else
         used[base] = 1
       end
-
-      path = File.join(dir, "#{base}.png")
-
-      if !OVERWRITE && File.exist?(path)
-        skipped += 1
-        puts "  skip  #{base}.png (already there)"
-        next
-      end
-
-      pages.selected_page = page
-
-      # A scene can restore its own style, so re-apply AFTER the switch.
-      if TRANSPARENT
-        ro['DrawGround']  = false
-        ro['DrawHorizon'] = false
-        ro['DisplayFog']  = false
-      end
-
-      view.refresh
-      Sketchup.status_text = "Exporting scene #{i + 1} of #{pages.count}: #{page.name}"
-
-      ok = view.write_image(
-        :filename    => path,
-        :width       => WIDTH,
-        :height      => height,
-        :antialias   => ANTIALIAS,
-        :transparent => TRANSPARENT
-      )
-
-      if ok
-        written += 1
-        puts "  ok    #{page.name}  ->  #{base}.png"
-      else
-        failed << page.name
-        puts "  FAIL  #{page.name}"
-      end
+      { :page => page, :n => index[page.name.to_s] || 0, :base => base }
     end
-  ensure
-    prev_ro.each { |k, v| ro[k] = v }
-    page_opts['TransitionTime'] = prev_transition
-    pages.selected_page = prev_page if prev_page
-    Sketchup.status_text = ''
-  end
 
-  msg  = "#{written} written, #{skipped} skipped, #{failed.size} failed\n\n"
-  msg << "#{dir}\n#{WIDTH} x #{height} px, "
-  msg << (TRANSPARENT ? "transparent" : "opaque background")
-  msg << "\n\nFailed: #{failed.join(', ')}" unless failed.empty?
-  puts ""
-  puts msg
-  UI.messagebox(msg)
+    puts ''
+    puts "EXPORT SCENES#{dry ? '   —   DRY RUN, nothing written' : ''}"
+    puts ''
+    puts "  out      #{cfg['dir']}"
+    puts "  picked   #{pick_note}"
+    puts "  size     #{width} x #{height} px, #{trans ? 'transparent' : 'opaque'}"
+    puts "  scenes   #{plan.size} of #{pages.count}"
+    puts ''
+    plan.each { |p| puts format('    %3d  %-40s -> %s.png', p[:n], p[:page].name, p[:base]) }
+    puts ''
+    puts '  The number on the left is the scene number — use it in the Scenes field.'
+    puts '  Filenames are the scene names verbatim; only characters Windows forbids'
+    puts '  are replaced.'
+    puts ''
+
+    if dry
+      UI.messagebox("Dry run: #{plan.size} scene(s).\n\nCheck the console, then run " \
+                    "again with Dry run = No.")
+      return
+    end
+
+    FileUtils.mkdir_p(cfg['dir'])
+
+    page_opts = model.options['PageOptions']
+    prev_tt   = page_opts['TransitionTime']
+    page_opts['TransitionTime'] = 0        # else write_image can catch a tween
+
+    ro = model.rendering_options
+    prev_ro = trans ? { 'DrawGround'  => ro['DrawGround'],
+                        'DrawHorizon' => ro['DrawHorizon'],
+                        'DisplayFog'  => ro['DisplayFog'] } : {}
+    prev_page = pages.selected_page
+
+    written = 0
+    skipped = 0
+    failed  = []
+
+    begin
+      plan.each_with_index do |p, i|
+        path = File.join(cfg['dir'], "#{p[:base]}.png")
+        if !over && File.exist?(path)
+          skipped += 1
+          puts "  skip  #{p[:base]}.png (already there)"
+          next
+        end
+
+        pages.selected_page = p[:page]
+
+        # A scene can restore its own style, so force these AFTER the switch.
+        if trans
+          ro['DrawGround']  = false
+          ro['DrawHorizon'] = false
+          ro['DisplayFog']  = false
+        end
+
+        view.refresh
+        Sketchup.status_text = "Exporting #{i + 1} of #{plan.size}: #{p[:page].name}"
+
+        ok = view.write_image(:filename    => path,
+                              :width       => width,
+                              :height      => height,
+                              :antialias   => true,
+                              :transparent => trans)
+        if ok
+          written += 1
+          puts format('  ok    %-40s -> %s.png', p[:page].name, p[:base])
+        else
+          failed << p[:page].name
+          puts "  FAIL  #{p[:page].name}"
+        end
+      end
+    ensure
+      prev_ro.each { |k, v| ro[k] = v }
+      page_opts['TransitionTime'] = prev_tt
+      pages.selected_page = prev_page if prev_page
+      Sketchup.status_text = ''
+    end
+
+    msg  = "#{written} written, #{skipped} skipped, #{failed.size} failed\n\n"
+    msg << "#{cfg['dir']}\n#{width} x #{height} px, #{trans ? 'transparent' : 'opaque'}"
+    msg << "\n\nFailed: #{failed.join(', ')}" unless failed.empty?
+    puts ''
+    puts msg
+    UI.messagebox(msg)
+  rescue StandardError => e
+    UI.messagebox("Export Scenes failed:\n\n#{e.class}: #{e.message}")
+    puts "FAILED: #{e.class}: #{e.message}"
+    puts e.backtrace.first(5)
+  end
 end
+
+WR_ExportScenes.run

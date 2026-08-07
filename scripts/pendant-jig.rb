@@ -7,23 +7,33 @@
 #
 #     +---------------+  <- top of tube guide
 #     |   |     |     |
-#     |   | Ø9.90|    |     tube guide, GUIDE_LEN long
+#     |   |Ø10.10|    |     tube guide, GUIDE_LEN long
 #     |   |     |     |
-#     |   +--+--+     |  <- glue-squeeze relief (Ø11.50 x 1.50)
+#     |   +--+--+     |  <- glue-squeeze relief (Ø11.70 x 1.50)
 #     |  |       |    |
 #     |  | Ø15.29|    |     housing socket, SOCKET_DEPTH deep
 #     |  |       |    |
-#   +-+--+-------+--+-+  <- flange, so it stands square on the bench
-#   |    | Ø16.50 |   |     relief: the 1 mm of housing that doesn't
-#   +----+--------+---+       fit in the socket hangs clear of the bench
+#   +-+--+-------+--+-+  <- flange, kept at its 3.50 minimum
+#   +----+---------+---+
+#        |         |        9.00 of housing left below the flange —
+#        |         |          this is what you hold while you push
+#
+# HAND-HELD. The housing is gripped in the fingers and the jig pushed onto it.
+# Flange face to the housing/tube junction is 10.00, which is the governing
+# dimension: FLANGE_H + SOCKET_DEPTH = 10.00, and the flange is kept as small as
+# the 45 deg underside allows so the socket gets as much of that 10 as possible.
 #
 # Nothing here is metric-to-imperial converted for you: every constant below is
 # in MILLIMETRES and the script sets the model to mm/decimal.
 #
 # EVERY BORE ALREADY INCLUDES THE PRINT CLEARANCE. Set the nominal part size in
-# HOUSING_DIA / TUBE_DIA and the clearance once in CLEARANCE — don't pre-inflate.
+# HOUSING_DIA / TUBE_DIA and the clearance in CLEARANCE / TUBE_CLEAR — don't
+# pre-inflate. The two clearances are separate because the housing socket fits
+# well at 0.25 and the tube guide did not.
 #
-# Run it from Extensions > Developer > Ruby Console:
+# Run it from the WhisperRoom panel, or by hand — the repo sits at a different
+# path on each machine, so use whichever of these exists:
+#   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/pendant-jig.rb"
 #   load "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/pendant-jig.rb"
 # Ctrl+Z before re-running.
 
@@ -36,19 +46,39 @@ module WR_PendantJig
   TUBE_LEN      = 54.00   # polycarbonate tube overall length
 
   # -------------------------------------------------------------- print fit --
-  # Added to DIAMETER, so each bore gains half this on the radius. Benton's
-  # usual allowance for a part that still has to squeeze in with a little play.
-  CLEARANCE     =  0.25
+  # Added to DIAMETER, so each bore gains half this on the radius.
+  #
+  # Two separate figures, and that is the whole point. Rev A used 0.25 for both.
+  # On the printed part the housing socket came out a good fit and the tube guide
+  # came out too tight, so only the tube figure moved. FIT-TESTED, which makes
+  # these the best-sourced numbers in the file — better than anything measured,
+  # because they include this printer's real behaviour.
+  CLEARANCE     =  0.25   # housing socket — confirmed good on the printed jig
+  TUBE_CLEAR    =  0.45   # tube guide — was 0.25 and too tight, opened by 0.20
 
   # ----------------------------------------------------------------- chosen --
   # None of these came off a part. Change them freely and re-run.
-  SOCKET_DEPTH  = 18.00   # how far the housing goes in ("around 18") of its 19
+  SOCKET_DEPTH  =  6.50   # how far the housing goes in, of its 19.
+                          #
+                          # NOT a free choice: Benton's spec is that the flange
+                          # underside to the housing/tube junction is 10.00, and
+                          # that junction IS the shoulder. So this is
+                          # 10.00 - FLANGE_H, and it moves if the flange does.
+                          # Was 18.00 (Rev A), then 13.00, now 6.50.
   GUIDE_LEN     = 36.00   # tube guide length — two thirds of the 54 mm tube
   WALL          =  3.10   # wall around the housing socket -> body OD 21.49
   FLANGE_DIA    = 28.00   # foot, so the jig stands square instead of on the housing
-  FLANGE_H      =  3.50   # tall enough for a 45 deg underside — see PRINTING below
+  FLANGE_H      =  3.50   # As SMALL as the 45 deg underside allows, which is
+                          # FLANGE_DIA/2 - body_dia/2 = 3.255, rounded up.
+                          #
+                          # This briefly went to 7.00 on the theory that the jig
+                          # stands on a bench with the housing tucked up inside
+                          # it. It does not. THE HOUSING IS HELD IN THE HAND and
+                          # the jig is pushed onto it, so every mm of flange is a
+                          # mm of housing you cannot get your fingers to. Keep it
+                          # at the minimum and spend the 10.00 on socket instead.
   FLANGE_RELIEF =  1.50   # added to housing dia for the flange bore, so the
-                          # protruding 1 mm of housing never touches the bench
+                          # protruding part of the housing passes through clear
   GLUE_RELIEF_D =  1.60   # added to tube dia at the shoulder: a gutter for
   GLUE_RELIEF_H =  1.50   # squeeze-out, so glue can't bond the tube to the jig
 
@@ -91,10 +121,22 @@ module WR_PendantJig
                           # Cosmetic only — it does not change the jig.
 
   # ------------------------------------------------------------------ derived --
-  def self.socket_dia; HOUSING_DIA + CLEARANCE; end
-  def self.tube_bore;  TUBE_DIA    + CLEARANCE; end
-  def self.body_dia;   socket_dia  + 2 * WALL;  end
+  def self.socket_dia; HOUSING_DIA + CLEARANCE;  end
+  def self.tube_bore;  TUBE_DIA    + TUBE_CLEAR; end
+  def self.body_dia;   socket_dia  + 2 * WALL;   end
   def self.total_h;    FLANGE_H + SOCKET_DEPTH + GUIDE_LEN; end
+
+  # This is a HAND-HELD fixture. The housing is held in the fingers and the jig
+  # pushed down onto it, so what matters is how much housing is left sticking
+  # out below the flange to hold. Not bench clearance — there is no bench.
+  def self.proud;   HOUSING_LEN - SOCKET_DEPTH; end   # below the socket mouth
+  def self.grab;    proud - FLANGE_H;           end   # below the flange underside
+  def self.junction; FLANGE_H + SOCKET_DEPTH;   end   # flange face -> shoulder
+
+  # The price of a short socket: how far the housing can rock inside it.
+  def self.housing_tilt(depth = SOCKET_DEPTH)
+    Math.atan(CLEARANCE / depth) * 180.0 / Math::PI
+  end
 
   def self.pt(x, z)
     Geom::Point3d.new(x.mm, 0, z.mm)
@@ -371,8 +413,8 @@ module WR_PendantJig
 
   def self.report(solids, naked, vol_mm)
     # The whole point of the jig is how straight it holds the tube, so state it.
-    tube_play  = CLEARANCE / 2.0
-    tilt_deg   = Math.atan(CLEARANCE / GUIDE_LEN) * 180.0 / Math::PI
+    tube_play  = TUBE_CLEAR / 2.0
+    tilt_deg   = Math.atan(TUBE_CLEAR / GUIDE_LEN) * 180.0 / Math::PI
     tip_err    = Math.tan(tilt_deg * Math::PI / 180.0) * TUBE_LEN
 
     puts ''
@@ -382,7 +424,7 @@ module WR_PendantJig
     puts format('  housing socket  dia %.2f  x  %.2f deep   (housing %.2f + %.2f clearance)',
                 socket_dia, SOCKET_DEPTH, HOUSING_DIA, CLEARANCE)
     puts format('  tube guide      dia %.2f  x  %.2f long   (tube %.2f + %.2f clearance)',
-                tube_bore, GUIDE_LEN, TUBE_DIA, CLEARANCE)
+                tube_bore, GUIDE_LEN, TUBE_DIA, TUBE_CLEAR)
     puts format('  glue gutter     dia %.2f  x  %.2f deep at the shoulder',
                 tube_bore + GLUE_RELIEF_D, GLUE_RELIEF_H)
     puts format('  flange          dia %.2f  x  %.2f, bore dia %.2f',
@@ -400,18 +442,44 @@ module WR_PendantJig
       puts '    -> NOT closed. Send me this line and I will fix it.'
     end
     puts ''
+    puts '  GRIP AND GRAB  —  this is a hand-held fixture, not a bench stand'
+    puts format('    flange face to shoulder   %.2f   (Benton\'s spec: 10.00)', junction)
+    puts format('    socket holds              %.2f of the %.2f housing', SOCKET_DEPTH, HOUSING_LEN)
+    puts format('    proud of the socket mouth %.2f,  of which %.2f is below the flange',
+                proud, grab)
+    if grab < 5.0
+      puts format('    *** ONLY %.2f mm OF HOUSING TO HOLD. Drop FLANGE_H or SOCKET_DEPTH.', grab)
+    else
+      puts format('    -> %.2f mm of housing left to get your fingers on. OK.', grab)
+    end
+    puts ''
+    puts '    WHAT THE SHORT SOCKET COSTS. Engagement is what holds the housing'
+    puts '    square, and this is the fixture\'s whole job, so it is worth stating:'
+    [18.0, 13.0, SOCKET_DEPTH].each do |d|
+      mark = (d - SOCKET_DEPTH).abs < 0.001 ? '  <- as drawn' : ''
+      puts format('      %5.2f engagement -> housing can rock %.2f deg%s', d, housing_tilt(d), mark)
+    end
+    puts format('    The tube guide is far better than that at %.2f deg, so the housing,',
+                Math.atan(TUBE_CLEAR / GUIDE_LEN) * 180.0 / Math::PI)
+    puts '    not the tube, is now what limits how square the joint comes out.'
+    puts ''
     puts '  HOW STRAIGHT IT ACTUALLY HOLDS THE TUBE'
     puts format('    %.3f mm radial play in the guide over %.1f mm of guide length', tube_play, GUIDE_LEN)
     puts format('    = up to %.2f deg of tilt, or %.2f mm off-axis at the far end of the tube', tilt_deg, tip_err)
     puts '    Lengthen GUIDE_LEN or tighten CLEARANCE if that is not good enough.'
     puts ''
+    puts '  FIT-TESTED on the printed jig — better sourced than any measurement:'
+    puts format('    CLEARANCE     %.2f   housing socket, came out a good fit', CLEARANCE)
+    puts format('    TUBE_CLEAR    %.2f   tube guide, was %.2f and too tight', TUBE_CLEAR, CLEARANCE)
+    puts format('    SOCKET_DEPTH  %.2f   was 18.00, shortened by 5.00', SOCKET_DEPTH)
+    puts ''
     puts '  NOT MEASURED — every one of these is a choice, not a part dimension:'
-    puts format('    SOCKET_DEPTH  %.2f   from "around 18" of the 19 mm housing', SOCKET_DEPTH)
     puts format('    GUIDE_LEN     %.2f   two thirds of the 54 mm tube', GUIDE_LEN)
     puts format('    WALL          %.2f   picked for print strength, nothing more', WALL)
-    puts format('    FLANGE        %.2f x %.2f  stands square on the bench; the height is', FLANGE_DIA, FLANGE_H)
-    puts format('                              set by needing a 45 deg underside (%.2f mm land left)',
-                FLANGE_H - (FLANGE_DIA - body_dia) / 2.0)
+    puts format('    FLANGE        %.2f x %.2f  height is set by BENCH CLEARANCE, not by the', FLANGE_DIA, FLANGE_H)
+    puts format('                              45 deg rule: it must exceed the %.2f of housing left', proud)
+    puts format('                              proud. Underside is still 45 deg, with %.2f of', FLANGE_H - (FLANGE_DIA - body_dia) / 2.0)
+    puts '                              straight land below the chamfer taking up the rest.'
     puts format('    RELIEF        %.2f x %.2f  corner groove at the seat', RELIEF_W, RELIEF_H)
     puts format('    MOUTH_CH      %.2f        chamfer at the bed-side guide mouth', MOUTH_CH)
     puts format('    FLANGE_RELIEF %.2f   clears the 1.00 mm of housing left proud of the socket', FLANGE_RELIEF)
