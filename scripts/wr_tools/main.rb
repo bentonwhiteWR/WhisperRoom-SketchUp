@@ -39,6 +39,7 @@ module WhisperRoom
     SKIP     = ['wr_tools.rb', 'wr-booth-data.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5
+    PIN_N    = 8        # toolbar buttons for pinned scripts
     FRESH_H  = 24        # a script touched this recently gets a NEW pill
 
     # ---------------------------------------------------------------- scanning --
@@ -129,6 +130,31 @@ module WhisperRoom
       nil
     end
 
+    # ----------------------------------------------------------------- pinned --
+    #
+    # Pinned scripts get their own toolbar button. They appear NEXT LAUNCH, not
+    # immediately, and that is deliberate: UI::Toolbar#add_item can be called at
+    # runtime, but on Windows it has a known severe slowdown when the toolbar was
+    # docked in a previous session (SketchUp api-issue-tracker #628). Reading the
+    # pin list at load and building the buttons once avoids that entirely.
+    #
+    # For a shortcut that works this second, bind a key to the script's menu item
+    # under Window > Preferences > Shortcuts — every script has one.
+
+    def self.pinned
+      JSON.parse(Sketchup.read_default(PREF_KEY, 'pinned', '[]').to_s)
+    rescue StandardError
+      []
+    end
+
+    def self.toggle_pin(name)
+      list = pinned
+      list = list.include?(name) ? list.reject { |n| n == name } : (list + [name])
+      Sketchup.write_default(PREF_KEY, 'pinned', list.first(PIN_N).to_json)
+    rescue StandardError
+      nil
+    end
+
     # ---------------------------------------------------------------- running --
 
     def self.run(path)
@@ -148,7 +174,8 @@ module WhisperRoom
     # ------------------------------------------------------------------ panel --
 
     def self.payload
-      { 'dir' => SCRIPTS_DIR, 'scripts' => scan, 'recent' => recent }
+      { 'dir' => SCRIPTS_DIR, 'scripts' => scan,
+        'recent' => recent, 'pinned' => pinned }
     end
 
     def self.push
@@ -183,6 +210,7 @@ module WhisperRoom
       d.add_action_callback('ready')   { |_c| push }
       d.add_action_callback('rescan')  { |_c| push }
       d.add_action_callback('run')     { |_c, file| run(file); push }
+      d.add_action_callback('pin')     { |_c, name| toggle_pin(name); push }
       d.add_action_callback('folder')  { |_c| UI.openURL('file:///' + SCRIPTS_DIR) }
       d.add_action_callback('console') { |_c| Sketchup.send_action('showRubyPanel:') }
       d.set_on_closed { @dlg = nil }
@@ -238,6 +266,18 @@ module WhisperRoom
       tb = UI::Toolbar.new('WhisperRoom')
       tb.add_item(command('WhisperRoom Panel', 'panel',
                           'Browse and run WhisperRoom scripts') { open_panel })
+
+      # Pinned scripts, resolved against what is actually on disk right now so a
+      # pin left behind by a deleted script cannot produce a dead button.
+      here = scan
+      pins = pinned.map { |n| here.find { |s| s['name'] == n } }.compact
+      unless pins.empty?
+        tb.add_separator
+        pins.each do |s|
+          tb.add_item(command(s['title'], 'script', "Run #{s['name']}") { run(s['file']) })
+        end
+      end
+
       tb.add_separator
       tb.add_item(command('Scripts Folder', 'folder',
                           'Open the scripts folder') { UI.openURL('file:///' + SCRIPTS_DIR) })
