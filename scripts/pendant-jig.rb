@@ -95,23 +95,55 @@ module WR_PendantJig
      [rh, z2], [rh, z1], [rr, z1]]                     # housing socket + relief
   end
 
-  # One jig as a single lathed solid. No Solid Tools, so this works in Make as
-  # well as Pro — a revolve gives us the bores without any boolean subtraction.
+  # One jig as a single closed solid.
+  #
+  # This is built as an explicit polygon mesh rather than with follow_me. A
+  # follow_me revolve has to close back on itself, and SketchUp does not
+  # reliably weld that last seam — you get hairline cracks at the rims and the
+  # group stops being a solid. Building the mesh ourselves means the last
+  # column of quads is wrapped back to column 0 by index, so there is no seam
+  # to fail. It also needs no Solid Tools, so it works in Make as well as Pro.
+  #
+  # Geom::PolygonMesh#add_point merges coincident points, which is what welds
+  # every shared rim edge into one edge with exactly two faces on it.
   def self.build_jig(parent, x_offset)
-    g = parent.entities.add_group
-    ents = g.entities
+    g    = parent.entities.add_group
+    prof = profile
+    n    = prof.size
 
-    face = ents.add_face(profile.map { |r, z| pt(r, z) })
-    raise 'profile face failed — check that no two radii collide' if face.nil?
+    mesh = Geom::PolygonMesh.new(n * SEGMENTS, n * SEGMENTS)
 
-    # Path circle centred on the revolve axis. Radius is deliberately larger
-    # than the profile's widest point so the two never touch and SketchUp can't
-    # weld them together; it has no effect on the result.
-    path = ents.add_circle(ORIGIN, Z_AXIS, (FLANGE_DIA).mm, SEGMENTS)
-    face.followme(path)
-    path.each { |e| e.erase! if e.valid? }
+    # idx[i][j] — profile point i, swept to rotation step j.
+    idx = Array.new(n) { Array.new(SEGMENTS) }
+    SEGMENTS.times do |j|
+      a  = 2.0 * Math::PI * j / SEGMENTS
+      ca = Math.cos(a)
+      sa = Math.sin(a)
+      prof.each_with_index do |(r, z), i|
+        idx[i][j] = mesh.add_point(Geom::Point3d.new((r * ca).mm, (r * sa).mm, z.mm))
+      end
+    end
 
-    # A reversed lathe reads as a solid with negative volume, and slicers hate it.
+    # The profile is a closed loop and every radius is > 0, so sweeping it all
+    # the way round gives a watertight surface with no caps needed. Both loops
+    # wrap with %, which is where the seam would otherwise be.
+    # Wound so the normals face outward. The profile runs counter-clockwise in
+    # the radius/height plane, which makes this order the outward one — checked
+    # by summing the signed mesh volume, not guessed.
+    n.times do |i|
+      i2 = (i + 1) % n
+      SEGMENTS.times do |j|
+        j2 = (j + 1) % SEGMENTS
+        mesh.add_polygon(idx[i][j2], idx[i2][j2], idx[i2][j], idx[i][j])
+      end
+    end
+
+    # 12 = AUTO_SOFTEN | SMOOTH_SOFT_EDGES: the cylindrical bands read smooth,
+    # the steps between features stay as hard edges.
+    g.entities.add_faces_from_mesh(mesh, 12)
+
+    # A mesh wound the wrong way is a solid with negative volume, and slicers
+    # read that as inside-out.
     if g.manifold? && g.volume < 0
       g.entities.grep(Sketchup::Face).each(&:reverse!)
     end
@@ -119,6 +151,32 @@ module WR_PendantJig
     g.transform!(Geom::Transformation.translation([x_offset.mm, 0, 0]))
     g.name = 'Pendant jig'
     g
+  end
+
+  # An edge with anything other than two faces on it is a crack. This is the
+  # check that would have caught the follow_me seam, so it now runs every time.
+  def self.naked_edges(group)
+    group.entities.grep(Sketchup::Edge).count { |e| e.faces.size != 2 }
+  end
+
+  # Pappus's theorem: a closed section revolved about an axis sweeps a volume of
+  # 2*pi*Rc*A, Rc being the section centroid's radius. It gives an independent
+  # number to sanity-check the mesh volume against — if the two disagree by more
+  # than the faceting error, something in the mesh is wrong.
+  def self.expected_volume
+    p  = profile
+    n  = p.size
+    a2 = 0.0
+    cr = 0.0
+    n.times do |i|
+      r1, z1 = p[i]
+      r2, z2 = p[(i + 1) % n]
+      x = r1 * z2 - r2 * z1
+      a2 += x
+      cr += (r1 + r2) * x
+    end
+    return 0.0 if a2.abs < 1e-9
+    2.0 * Math::PI * (cr / (3.0 * a2)).abs * (a2 / 2.0).abs
   end
 
   # Overlaps the flanges by design — every slicer unions overlapping solids, so
@@ -188,10 +246,18 @@ module WR_PendantJig
     root.name = COUNT > 1 ? "Pendant jig x#{COUNT}" : 'Pendant jig'
 
     solids = 0
+    naked  = 0
+    vol_mm = 0.0
     COUNT.times do |i|
       g = build_jig(root, i * PITCH)
       g.layer = t_jig
-      solids += 1 if g.manifold?
+      naked += naked_edges(g)
+      if g.manifold?
+        solids += 1
+        # SketchUp volume comes back in cubic inches.
+        one = 1.0.mm.to_f
+        vol_mm += g.volume / (one * one * one)
+      end
     end
 
     if COUNT > 1 && TIE_BAR
@@ -217,7 +283,7 @@ module WR_PendantJig
 
     model.commit_operation
     model.active_view.zoom_extents
-    report(solids)
+    report(solids, naked, vol_mm)
   rescue StandardError => e
     model.abort_operation if model
     UI.messagebox("Jig build failed:\n\n#{e.class}: #{e.message}")
@@ -249,7 +315,7 @@ module WR_PendantJig
     puts "  (dimensions skipped: #{err.message})"
   end
 
-  def self.report(solids)
+  def self.report(solids, naked, vol_mm)
     # The whole point of the jig is how straight it holds the tube, so state it.
     tube_play  = CLEARANCE / 2.0
     tilt_deg   = Math.atan(CLEARANCE / GUIDE_LEN) * 180.0 / Math::PI
@@ -267,7 +333,18 @@ module WR_PendantJig
                 tube_bore + GLUE_RELIEF_D, GLUE_RELIEF_H)
     puts format('  flange          dia %.2f  x  %.2f, bore dia %.2f',
                 FLANGE_DIA, FLANGE_H, HOUSING_DIA + FLANGE_RELIEF)
-    puts "  solids built    #{solids} of #{COUNT} manifold"
+    puts ''
+    puts '  WATERTIGHT CHECK  (this is the bit that was broken before)'
+    puts "    #{solids} of #{COUNT} groups report as solid"
+    puts "    #{naked} naked edges  — must be 0. Anything else is a crack in a rim."
+    puts format('    volume %.1f mm3   vs %.1f exact  (%+.2f%% — faceting, under 0.5%% is fine)',
+                vol_mm, expected_volume,
+                expected_volume.zero? ? 0.0 : 100.0 * (vol_mm - expected_volume) / expected_volume)
+    if naked.zero? && solids == COUNT
+      puts '    -> closed. Entity Info will say Solid Group, and it will slice.'
+    else
+      puts '    -> NOT closed. Send me this line and I will fix it.'
+    end
     puts ''
     puts '  HOW STRAIGHT IT ACTUALLY HOLDS THE TUBE'
     puts format('    %.3f mm radial play in the guide over %.1f mm of guide length', tube_play, GUIDE_LEN)
