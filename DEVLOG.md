@@ -1,5 +1,59 @@
 # DEVLOG
 
+## 2026-08-06 (night) — the room tools, exploded views, and docs in the repo
+
+**`auto-dimension.rb`** chain-dimensions a room off its **interior floor face**,
+so the dimensions can never disagree with the geometry. Three things it refuses
+to get wrong, all three of which are in `reference/sketchup-drawing.md` as
+having cost time already: winding is **computed** from the signed area rather
+than assumed; chains must close, reported per axis, and it prints
+`DOES NOT CLOSE` instead of drawing a plausible wrong number; chain lines carry
+segment lengths only, never running totals. Doors come off the `WR-Doors` tag —
+a gap in a wall might be a modelling mistake, a tagged door is a stated fact.
+
+**`build-room.rb`** is the take-off editor. Direction-and-length runs, live
+polygon and closure, and **Build stays disabled until it closes**. Walls build
+outward from the interior polygon and mitre by intersecting adjacent offset
+edges. Doors split the run with a header over the gap and the leaf drawn open
+90 degrees.
+
+One non-obvious detail: the opening marker sits in the wall plane on
+`WR-Doors`, and the leaf and swing go on `WR-Doors-Leaf`. A leaf swung 90
+degrees has bounds reaching into the room, and `auto-dimension` reads bounds to
+find the jambs — on one tag it would have produced wrong jamb dimensions.
+
+It finishes by calling `auto-dimension`, which is why that was built first.
+
+**`proposal-scenes.rb`** creates the five plates in order, each holding its own
+camera, tag visibility and style, so `02-dimensioned` shows `WR-Dims` and the
+other four hide it. Door and vent sides are **read** from the `WR-Booth-Door`
+and `WR-Booth-Vent` tags `build-booth.rb` already writes. The angles are
+defaults, and the script says so — framing is a taste call, the ordering and
+per-scene tag state are the parts worth automating.
+
+**`explode-view.rb`** pulls an assembly apart and puts it back. Each part
+records its home the first time it moves, so a re-explode measures from home
+rather than compounding, Reset is exact, and the homes save with the model.
+Default is **one axis per part** — whichever it is already furthest along — so
+panels come straight off their walls. Radial drift looks acceptable in a
+viewport and wrong on a printed page, which is the only place it matters.
+
+**Plugin:** scripts can now be **starred to pin** them to the toolbar. Buttons
+appear next launch, not immediately, because `UI::Toolbar#add_item` has a known
+severe slowdown on Windows when the toolbar was docked in a previous session
+(api-issue-tracker #628). The panel says so on screen. For an instant shortcut,
+Window > Preferences > Shortcuts binds a key to any script's menu item.
+
+**`docs/` is new.** The four design pages that were living only as Artifacts are
+now in the repo, wrapped as standalone documents that open straight off disk.
+They hold reasoning that is not recoverable from the code — why the jig prints
+socket-up, why chains must close before anything is built — in a form you can
+poke at rather than read.
+
+**Still unrun.** Nothing in `scripts/` has executed. `rbcheck.py` says all 14
+Ruby files balance and the two dialogs' JavaScript parses; that is the whole of
+what is verified.
+
 ## 2026-08-06 (late) — orbit exporter, and what the manual actually is
 
 Benton's target for the assembly manual is now clear and it is bigger than a

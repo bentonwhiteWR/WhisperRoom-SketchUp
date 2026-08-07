@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Room Tools — Scope</title>
+<style>
+  :root {
+    --bg:#e7eaed; --card:#f7f8f9; --ink:#14181c; --ink-2:#5b656e; --ink-3:#8b959d;
+    --rule:#c5ccd2; --rule-2:#dde2e6; --accent:#c44f16; --ok:#2c6e49; --bad:#b03027;
+    --solid:#cfd5da; --field:#fff;
+    --shadow:0 1px 2px rgba(20,24,28,.06), 0 10px 30px rgba(20,24,28,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1215; --card:#191d21; --ink:#e4e8eb; --ink-2:#949ea6; --ink-3:#6c767e;
+      --rule:#2e353b; --rule-2:#232a30; --accent:#f07a3e; --ok:#63b98a; --bad:#e8705f;
+      --solid:#39424a; --field:#12161a;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.4); }
+  }
+  :root[data-theme="dark"] { --bg:#0f1215; --card:#191d21; --ink:#e4e8eb; --ink-2:#949ea6;
+    --ink-3:#6c767e; --rule:#2e353b; --rule-2:#232a30; --accent:#f07a3e; --ok:#63b98a;
+    --bad:#e8705f; --solid:#39424a; --field:#12161a;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.4); }
+  :root[data-theme="light"] { --bg:#e7eaed; --card:#f7f8f9; --ink:#14181c; --ink-2:#5b656e;
+    --ink-3:#8b959d; --rule:#c5ccd2; --rule-2:#dde2e6; --accent:#c44f16; --ok:#2c6e49;
+    --bad:#b03027; --solid:#cfd5da; --field:#fff;
+    --shadow:0 1px 2px rgba(20,24,28,.06), 0 10px 30px rgba(20,24,28,.07); }
+
+  * { box-sizing: border-box; }
+  body { margin:0; padding:clamp(14px,3vw,44px); background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif; font-size:16px;
+    line-height:1.62; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1080px; margin:0 auto; display:grid; gap:clamp(26px,4vw,44px); }
+  .mono, .eyebrow, .num, code, .cap, th, .rd {
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace; }
+
+  .eyebrow { font-size:10.5px; letter-spacing:.17em; text-transform:uppercase;
+    color:var(--accent); margin:0 0 10px; }
+  h1 { margin:0; font-size:clamp(26px,4.4vw,44px); line-height:1.07; font-weight:660;
+    letter-spacing:-.02em; text-wrap:balance; }
+  h1 span { color:var(--ink-3); }
+  .lede { margin:16px 0 0; max-width:64ch; font-size:clamp(16px,1.7vw,18px); color:var(--ink-2); }
+  .lede b { color:var(--ink); font-weight:600; }
+
+  /* ------------------------------------------------------------- demo ---- */
+  .demo { display:grid; border:1px solid var(--rule); border-radius:3px;
+    background:var(--card); box-shadow:var(--shadow); overflow:hidden; }
+  @media (min-width:860px) { .demo { grid-template-columns:1fr 300px; } }
+  .plan { padding:clamp(12px,2vw,20px); overflow-x:auto; border-right:1px solid var(--rule); }
+  .plan svg { display:block; width:100%; height:auto; min-width:420px; }
+  .ctrl { padding:clamp(16px,2vw,20px); display:grid; align-content:start; gap:14px;
+    border-top:1px solid var(--rule); }
+  @media (min-width:860px) { .ctrl { border-top:0; } }
+  .rd { font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); }
+  .runs { display:grid; gap:5px; }
+  .run { display:grid; grid-template-columns:22px 1fr 74px; gap:8px; align-items:center; }
+  .run .d { font-family:ui-monospace,Consolas,monospace; font-size:12px; color:var(--accent);
+    font-weight:600; }
+  .run input { width:100%; padding:5px 8px; background:var(--field); color:var(--ink);
+    border:1px solid var(--rule); border-radius:4px; font:inherit; font-size:13px;
+    font-family:ui-monospace,Consolas,monospace; font-variant-numeric:tabular-nums; outline:none; }
+  .run input:focus { border-color:var(--accent); }
+  .run .arch { font-family:ui-monospace,Consolas,monospace; font-size:12px; color:var(--ink-3);
+    text-align:right; font-variant-numeric:tabular-nums; }
+  .closure { border-top:1px solid var(--rule-2); padding-top:12px; font-size:13px; }
+  .closure .tag { font-family:ui-monospace,Consolas,monospace; font-size:10px; letter-spacing:.11em;
+    padding:1px 7px; border-radius:2px; color:#fff; }
+  .closure.good .tag { background:var(--ok); }
+  .closure.bad  .tag { background:var(--bad); }
+  .closure p { margin:8px 0 0; color:var(--ink-2); font-size:12.5px; }
+  .closure code { font-size:12px; }
+  .reset { justify-self:start; padding:5px 10px; border-radius:4px; cursor:pointer;
+    background:transparent; border:1px solid var(--rule); color:var(--ink-2);
+    font:inherit; font-size:11.5px; }
+  .reset:hover { border-color:var(--accent); color:var(--accent); }
+
+  .dimline { stroke:var(--accent); stroke-width:1.1; fill:none; }
+  .extline { stroke:var(--accent); stroke-width:.7; fill:none; opacity:.7; }
+  .dimtxt  { fill:var(--accent); font-size:9px; font-family:ui-monospace,Consolas,monospace; }
+  .ovtxt   { fill:var(--ink-2); font-size:9.5px; font-family:ui-monospace,Consolas,monospace; }
+
+  /* ---------------------------------------------------------- sections --- */
+  h2 { margin:0 0 6px; font-size:clamp(19px,2.2vw,24px); font-weight:640; letter-spacing:-.012em; }
+  .sub { margin:0 0 20px; color:var(--ink-2); max-width:66ch; }
+  .tool { background:var(--card); border:1px solid var(--rule); border-radius:3px;
+    padding:clamp(18px,2.4vw,26px); display:grid; gap:14px; }
+  .tool.lead { border-left:3px solid var(--accent); }
+  .thead { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .thead .num { font-size:11px; letter-spacing:.1em; color:var(--ink-3); }
+  .thead h3 { margin:0; font-size:18px; font-weight:640; }
+  .thead code { font-size:13px; color:var(--ink-2); background:var(--rule-2);
+    padding:1px 6px; border-radius:2px; }
+  .thead .eff { margin-left:auto; font-family:ui-monospace,Consolas,monospace; font-size:10.5px;
+    letter-spacing:.09em; color:var(--ink-3); }
+  .tool p { margin:0; color:var(--ink-2); font-size:14.5px; max-width:70ch; }
+  .tool p b { color:var(--ink); font-weight:600; }
+  .hard { display:grid; gap:9px; margin:0; padding:0; list-style:none; }
+  .hard li { display:grid; grid-template-columns:auto 1fr; gap:12px; font-size:14px;
+    color:var(--ink-2); }
+  .hard b { color:var(--ink); font-weight:600; }
+  .hard .k { font-family:ui-monospace,Consolas,monospace; font-size:10px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--accent); padding-top:4px; white-space:nowrap; }
+  .out { border-top:1px dashed var(--rule-2); padding-top:11px;
+    font-family:ui-monospace,Consolas,monospace; font-size:12.5px; color:var(--ink-3); }
+  .out b { color:var(--accent); font-weight:600; }
+
+  .grid2 { display:grid; gap:clamp(20px,2.6vw,30px); }
+  @media (min-width:820px) { .grid2 { grid-template-columns:1fr 1fr; } }
+  .idea { background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:18px 20px; }
+  .idea h4 { margin:0 0 6px; font-size:15.5px; font-weight:630; }
+  .idea p { margin:0; color:var(--ink-2); font-size:14px; }
+  .idea .why { display:block; margin-top:9px; font-family:ui-monospace,Consolas,monospace;
+    font-size:11px; color:var(--ink-3); }
+
+  .order { border:1px solid var(--rule); border-radius:3px; background:var(--card);
+    padding:16px; overflow-x:auto; }
+  .order svg { display:block; width:100%; height:auto; min-width:520px; }
+  .cap { font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3);
+    padding-top:9px; }
+  code { font-size:.88em; background:var(--rule-2); padding:1px 5px; border-radius:2px; }
+  footer { border-top:1px solid var(--rule); padding-top:16px; font-size:12.5px;
+    color:var(--ink-3); display:flex; flex-wrap:wrap; gap:6px 26px; }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">SketchUp workspace · scope</p>
+    <h1>Three room tools. <span>Two of them are the same tool.</span></h1>
+    <p class="lede">Auto-dimension and Room-from-take-off share almost all their code — the second one finishes by calling the first. That changes the build order and takes roughly a third off the total. <b>The panel below is the proposed interface</b>, not a picture of one: change a wall run and watch the chain close or fail.</p>
+  </header>
+
+  <!-- ============================== DEMO ============================== -->
+  <section class="demo">
+    <div class="plan">
+      <svg id="sv" viewBox="-78 -78 372 312" role="img" aria-label="Plan of an L-shaped room with chain dimensions on every wall run and overall dimensions outside them."></svg>
+    </div>
+    <div class="ctrl">
+      <div>
+        <div class="rd">Wall runs — inches</div>
+      </div>
+      <div class="runs" id="runs"></div>
+      <div class="closure" id="cl"></div>
+      <button class="reset" id="reset">Reset to a closing room</button>
+    </div>
+  </section>
+
+  <!-- ============================== TOOLS ============================= -->
+  <section>
+    <h2>What each one does</h2>
+    <p class="sub">Effort is a rough sitting count. The hard parts are named because they are where these go wrong, and every one of them is something your own <code>CLAUDE.md</code> already warns about.</p>
+
+    <div style="display:grid;gap:16px">
+
+      <article class="tool lead">
+        <div class="thead">
+          <span class="num">01</span>
+          <h3>Auto-dimension</h3>
+          <code>auto-dimension.rb</code>
+          <span class="eff">~2 sittings · BUILD FIRST</span>
+        </div>
+        <p>Select a room. It reads the <b>interior floor face</b> — the measured polygon is the truth, so everything derives from that — walks its outer loop, merges collinear edges into runs, and draws a chain dimension on every run plus an overall outside it. On all four sides, every notch and return, not just the bounding box.</p>
+        <ul class="hard">
+          <li><span class="k">winding</span><span><b>Which side is outside cannot be hard-coded.</b> Two rooms in one script have already wound opposite ways and built walls inward. It computes the signed area and derives each run's outward normal from that.</span></li>
+          <li><span class="k">closure</span><span><b>Segments must sum to the overall, and it says so out loud.</b> A chain that doesn't close means a wall face was misread. It prints the closure per axis and flags the failure rather than drawing a plausible wrong number.</span></li>
+          <li><span class="k">doors</span><span>Each door dimensioned corner → near jamb, then the opening width. Read off the <code>WR-Doors</code> tag rather than guessed from wall gaps.</span></li>
+          <li><span class="k">rounding</span><span>Nearest inch on the drawing, a tenth in the console table. Chain lines carry segment lengths only — never running totals, which is a real drafting error and reads as fact.</span></li>
+        </ul>
+        <div class="out">Produces <b>dimension entities on WR-Dims</b> + a per-run table with decimals + a closure statement</div>
+      </article>
+
+      <article class="tool">
+        <div class="thead">
+          <span class="num">02</span>
+          <h3>Room from a take-off</h3>
+          <code>build-room.rb</code>
+          <span class="eff">~1.5 sittings after 01</span>
+        </div>
+        <p>The panel above, as an HtmlDialog. Type the runs the way you read them off a plan — a direction and a length each — and it previews the polygon live and tells you whether it closes <b>before</b> anything is built. Then: floor face, walls built outward from the interior face and mitred at the corners, 8'-0" ceiling labelled as the house default, doors as real openings with swings, standard materials, correct tags.</p>
+        <p>Then it calls 01 and the room comes out dimensioned. <b>That is why 01 goes first</b> — build it the other way round and you write the dimension logic twice.</p>
+        <ul class="hard">
+          <li><span class="k">closure</span><span>A take-off that doesn't close is the normal case, not the exception — the dialog shows the gap in inches so you can find the misread wall on the plan instead of in the model.</span></li>
+          <li><span class="k">mitres</span><span>Outer corners come from intersecting adjacent offset edges. Extending each wall by its thickness at both ends makes them cross into an X at every corner.</span></li>
+        </ul>
+        <div class="out">Produces <b>a built, dimensioned, tagged room</b> from typed numbers in about a minute</div>
+      </article>
+
+      <article class="tool">
+        <div class="thead">
+          <span class="num">05</span>
+          <h3>Proposal scenes</h3>
+          <code>proposal-scenes.rb</code>
+          <span class="eff">~1 sitting</span>
+        </div>
+        <p>Creates the five plates in order — <code>01-exterior</code>, <code>02-dimensioned</code>, <code>03-side</code>, <code>04-ventilation</code>, <code>05-plan</code> — with cameras placed, and each scene storing its own <b>tag visibility and style</b>. That last part is the real work: dimensions on for plate 02 and off everywhere else, the plan parallel-projected with the door swing visible, the ventilation view aimed at the vented wall.</p>
+        <p>Then <code>export-scenes.rb</code> already turns them into correctly-named PNGs, and the filenames drop straight into <code>proposal-v2.json</code>. That closes the loop from model to proposal with no hand-naming.</p>
+        <ul class="hard">
+          <li><span class="k">taste</span><span><b>The exact camera angle is your call, not mine.</b> It places sensible defaults; you nudge and re-save the scene. The value here is the naming, the ordering and the per-scene tag state — not perfect framing.</span></li>
+        </ul>
+        <div class="out">Produces <b>5 named scenes</b> → export-scenes → a proposal-ready plate set</div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================= ORDER ============================== -->
+  <section>
+    <h2>Build order</h2>
+    <p class="sub">Shared code is why the order matters. 01 is a dependency of 02; 05 is independent and can slot in anywhere.</p>
+    <div class="order">
+      <svg viewBox="0 0 620 118" role="img" aria-label="Dependency: auto-dimension feeds room-from-take-off; proposal scenes is independent and feeds the existing scene exporter.">
+        <defs><marker id="m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/></marker></defs>
+        <g font-family="ui-monospace, Consolas, monospace" font-size="11">
+          <rect x="1" y="8" width="150" height="42" rx="2" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+          <text x="76" y="26" text-anchor="middle" fill="var(--accent)">01 auto-dimension</text>
+          <text x="76" y="40" text-anchor="middle" fill="var(--ink-3)" font-size="10">the shared engine</text>
+
+          <rect x="205" y="8" width="150" height="42" rx="2" fill="none" stroke="var(--rule)"/>
+          <text x="280" y="26" text-anchor="middle" fill="var(--ink-2)">02 build-room</text>
+          <text x="280" y="40" text-anchor="middle" fill="var(--ink-3)" font-size="10">calls 01 to finish</text>
+
+          <rect x="1" y="70" width="150" height="42" rx="2" fill="none" stroke="var(--rule)"/>
+          <text x="76" y="88" text-anchor="middle" fill="var(--ink-2)">05 proposal-scenes</text>
+          <text x="76" y="102" text-anchor="middle" fill="var(--ink-3)" font-size="10">independent</text>
+
+          <rect x="205" y="70" width="150" height="42" rx="2" fill="none" stroke="var(--rule)" stroke-dasharray="3 3"/>
+          <text x="280" y="88" text-anchor="middle" fill="var(--ink-2)">export-scenes</text>
+          <text x="280" y="102" text-anchor="middle" fill="var(--ink-3)" font-size="10">already exists</text>
+
+          <rect x="410" y="39" width="150" height="42" rx="2" fill="none" stroke="var(--rule)"/>
+          <text x="485" y="57" text-anchor="middle" fill="var(--ink-2)">the proposal</text>
+          <text x="485" y="71" text-anchor="middle" fill="var(--ink-3)" font-size="10">build-v2.js</text>
+
+          <path d="M153 29 H201" stroke="var(--accent)" fill="none" marker-end="url(#m)"/>
+          <path d="M153 91 H201" stroke="var(--accent)" fill="none" marker-end="url(#m)"/>
+          <path d="M357 29 H385 V60 H406" stroke="var(--accent)" fill="none" marker-end="url(#m)"/>
+          <path d="M357 91 H385 V60" stroke="var(--accent)" fill="none"/>
+        </g>
+      </svg>
+      <div class="cap">01 first — building 02 first means writing the dimension logic twice</div>
+    </div>
+  </section>
+
+  <!-- ============================= IDEAS ============================== -->
+  <section>
+    <h2>Three more worth having</h2>
+    <p class="sub">Picked because each one catches a mistake before a customer sees it, which is where the value is on this work.</p>
+    <div class="grid2">
+      <div class="idea">
+        <h4>Pre-flight audit</h4>
+        <p>Read-only. Checks a model against your own standards before anything is exported: units Architectural, ceiling height labelled or flagged as the house default, all four sides dimensioned, every chain closing, tags correct, no stray geometry outside a group.</p>
+        <span class="why">~1 sitting · your notes say a half-dimensioned drawing has already reached a client once</span>
+      </div>
+      <div class="idea">
+        <h4>Delivery path check</h4>
+        <p>Panel widths — 7 / 16 / 19 / 22 / 28 / 31 / 40 / 43 / 46″, plus the 49″ wide-access and ADA frame — against a corridor, doorway, elevator or stair you enter. Answers "can it physically get there" with the catalogue's own numbers rather than a guess.</p>
+        <span class="why">~half a sitting · cheap to build, expensive to discover late</span>
+      </div>
+      <div class="idea">
+        <h4>Fit and clearance check</h4>
+        <p>Drop a booth into a room and have it draw and verify the real clearances: 1″ nominal, 6″ vented or 10″ with fan silencers, door swing by frame width, 45.625″ for an ADA ramp. Checks ceiling height first, because that disqualifies faster than floor area does.</p>
+        <span class="why">~1.5 sittings · it puts the numbers on the drawing instead of in your head</span>
+      </div>
+      <div class="idea">
+        <h4>Still the blocker: Enhanced booths</h4>
+        <p>All 25 Enhanced variants are skipped in <code>wr-booth-data.rb</code> for unresolved panel lengths — exactly half the catalogue can't be built at all. Nothing on the assembly-manual track matters until that resolves, and it's a data problem I can investigate rather than a design question for you.</p>
+        <span class="why">unknown effort until I've looked · I'd take this before the manual</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Nothing here is built yet.</span>
+    <span>01 → 02 → 05 is about 4.5 sittings.</span>
+    <span>Say which and I'll start.</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Direction is fixed per run and the length is yours to change — which is how
+  // you read runs off a plan, and it makes a non-closing take-off obvious.
+  var SEED = [
+    { d: "E", v: 216 }, { d: "S", v: 96 }, { d: "W", v: 84 },
+    { d: "S", v: 60 },  { d: "W", v: 132 }, { d: "N", v: 156 }
+  ];
+  var VEC = { E: [1, 0], S: [0, 1], W: [-1, 0], N: [0, -1] };
+  var runs = SEED.map(function (r) { return { d: r.d, v: r.v }; });
+
+  var $sv = document.getElementById("sv");
+  var $runs = document.getElementById("runs");
+  var $cl = document.getElementById("cl");
+
+  // Architectural: 216 -> 18'-0"
+  function arch(n) {
+    var neg = n < 0; n = Math.abs(n);
+    var ft = Math.floor(n / 12), inch = Math.round((n - ft * 12) * 10) / 10;
+    if (inch >= 12) { ft += 1; inch -= 12; }
+    var s = ft + "'-" + (inch % 1 === 0 ? inch : inch.toFixed(1)) + '"';
+    return (neg ? "-" : "") + s;
+  }
+
+  function pts() {
+    var p = [[0, 0]], x = 0, y = 0;
+    runs.forEach(function (r) {
+      var v = VEC[r.d];
+      x += v[0] * r.v; y += v[1] * r.v;
+      p.push([x, y]);
+    });
+    return p;
+  }
+
+  function el(tag, attrs, text) {
+    var e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function draw() {
+    var p = pts();
+    var dx = p[p.length - 1][0], dy = p[p.length - 1][1];
+    var closed = Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01;
+
+    var xs = p.map(function (q) { return q[0]; }), ys = p.map(function (q) { return q[1]; });
+    var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+    var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+
+    $sv.setAttribute("viewBox",
+      (x0 - 78) + " " + (y0 - 78) + " " + (x1 - x0 + 156) + " " + (y1 - y0 + 156));
+    while ($sv.firstChild) $sv.removeChild($sv.firstChild);
+
+    // Interior polygon. Drawn open when it doesn't close — that IS the failure.
+    var d = p.map(function (q, i) { return (i ? "L" : "M") + q[0] + "," + q[1]; }).join(" ");
+    $sv.appendChild(el("path", {
+      d: d + (closed ? " Z" : ""),
+      fill: closed ? "var(--solid)" : "none",
+      stroke: closed ? "var(--ink)" : "var(--bad)",
+      "stroke-width": 2, "stroke-linejoin": "round",
+      "stroke-dasharray": closed ? "none" : "7 5"
+    }));
+
+    if (!closed) {
+      $sv.appendChild(el("path", {
+        d: "M" + p[p.length - 1][0] + "," + p[p.length - 1][1] + " L0,0",
+        stroke: "var(--bad)", "stroke-width": 1.4, "stroke-dasharray": "3 4", fill: "none"
+      }));
+    }
+
+    // One chain dimension per run, offset outward from the room's centre.
+    runs.forEach(function (r, i) {
+      var a = p[i], b = p[i + 1];
+      if (r.v <= 0) return;
+      var mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      var vx = VEC[r.d][0], vy = VEC[r.d][1];
+      var nx = -vy, ny = vx;                       // one of the two normals
+      if ((mx - cx) * nx + (my - cy) * ny < 0) { nx = -nx; ny = -ny; }  // pick outward
+      var o = 22;
+      var ax = a[0] + nx * o, ay = a[1] + ny * o;
+      var bx = b[0] + nx * o, by = b[1] + ny * o;
+
+      $sv.appendChild(el("path", { d: "M" + a[0] + "," + a[1] + " L" + (a[0] + nx * (o + 6)) + "," + (a[1] + ny * (o + 6)), class: "extline" }));
+      $sv.appendChild(el("path", { d: "M" + b[0] + "," + b[1] + " L" + (b[0] + nx * (o + 6)) + "," + (b[1] + ny * (o + 6)), class: "extline" }));
+      $sv.appendChild(el("path", { d: "M" + ax + "," + ay + " L" + bx + "," + by, class: "dimline" }));
+      var t = el("text", {
+        x: mx + nx * (o + 9), y: my + ny * (o + 9) + 3,
+        "text-anchor": "middle", class: "dimtxt"
+      }, arch(r.v));
+      if (Math.abs(vy) > 0) t.setAttribute("transform", "rotate(-90 " + (mx + nx * (o + 9)) + " " + (my + ny * (o + 9) + 3) + ")");
+      $sv.appendChild(t);
+    });
+
+    // Overall, outside the chain — the row that has to agree with the sum.
+    var W = x1 - x0, H = y1 - y0;
+    $sv.appendChild(el("path", { d: "M" + x0 + "," + (y1 + 56) + " L" + x1 + "," + (y1 + 56), class: "dimline" }));
+    $sv.appendChild(el("text", { x: cx, y: y1 + 52, "text-anchor": "middle", class: "ovtxt" }, "overall  " + arch(W)));
+    $sv.appendChild(el("path", { d: "M" + (x0 - 56) + "," + y0 + " L" + (x0 - 56) + "," + y1, class: "dimline" }));
+    var vt = el("text", { x: x0 - 60, y: cy, "text-anchor": "middle", class: "ovtxt" }, "overall  " + arch(H));
+    vt.setAttribute("transform", "rotate(-90 " + (x0 - 60) + " " + cy + ")");
+    $sv.appendChild(vt);
+
+    // Closure, per axis — the check that stops a misread wall reaching a client.
+    var sumH = runs.filter(function (r) { return r.d === "E" || r.d === "W"; })
+                   .reduce(function (a, r) { return a + (r.d === "E" ? r.v : -r.v); }, 0);
+    var sumV = runs.filter(function (r) { return r.d === "N" || r.d === "S"; })
+                   .reduce(function (a, r) { return a + (r.d === "S" ? r.v : -r.v); }, 0);
+    $cl.className = "closure " + (closed ? "good" : "bad");
+    $cl.innerHTML = '<span class="tag">' + (closed ? "CHAIN CLOSES" : "DOES NOT CLOSE") + "</span>" +
+      (closed
+        ? "<p>East–west runs sum to <code>0</code>, north–south to <code>0</code>. Every chain agrees with its overall, so no wall face was misread.</p>"
+        : "<p>Out by <code>" + arch(Math.abs(sumH)) + "</code> east–west and <code>" +
+          arch(Math.abs(sumV)) + "</code> north–south. The real tool would refuse to build and " +
+          "point you back at the plan — a chain that doesn't close means a wall face was read wrong.</p>");
+  }
+
+  function build() {
+    $runs.innerHTML = "";
+    runs.forEach(function (r, i) {
+      var row = document.createElement("div");
+      row.className = "run";
+      row.innerHTML = '<span class="d">' + r.d + '</span>' +
+        '<input type="number" step="1" min="0" value="' + r.v + '" data-i="' + i + '">' +
+        '<span class="arch"></span>';
+      $runs.appendChild(row);
+    });
+    Array.prototype.forEach.call($runs.querySelectorAll("input"), function (inp) {
+      inp.addEventListener("input", function () {
+        var v = parseFloat(inp.value);
+        runs[+inp.dataset.i].v = isNaN(v) ? 0 : v;
+        sync();
+      });
+    });
+    sync();
+  }
+
+  function sync() {
+    Array.prototype.forEach.call($runs.querySelectorAll(".run"), function (row, i) {
+      row.querySelector(".arch").textContent = arch(runs[i].v);
+    });
+    draw();
+  }
+
+  document.getElementById("reset").addEventListener("click", function () {
+    runs = SEED.map(function (r) { return { d: r.d, v: r.v }; });
+    build();
+  });
+
+  new MutationObserver(draw).observe(document.documentElement,
+    { attributes: true, attributeFilter: ["data-theme"] });
+
+  build();
+}());
+</script>
+</body>
+</html>

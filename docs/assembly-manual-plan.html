@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dynamic Assembly Manual — Build Plan</title>
+<style>
+  :root {
+    --bg:      #e7eaed;  --card:  #f7f8f9;  --ink:   #14181c;
+    --ink-2:   #5b656e;  --ink-3: #8b959d;  --rule:  #c5ccd2;
+    --rule-2:  #dde2e6;  --accent:#c44f16;  --live:  #1f6f6d;
+    --stage:   #dfe4e8;  --lit:   #b9c2c9;  --dim:   #7d8a94;
+    --shadow:  0 1px 2px rgba(20,24,28,.06), 0 10px 30px rgba(20,24,28,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:    #0f1215;  --card:  #191d21;  --ink:   #e4e8eb;
+      --ink-2: #949ea6;  --ink-3: #6c767e;  --rule:  #2e353b;
+      --rule-2:#232a30;  --accent:#f07a3e;  --live:  #59b8b4;
+      --stage: #14181b;  --lit:   #6f7d87;  --dim:   #333c44;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:    #0f1215;  --card:  #191d21;  --ink:   #e4e8eb;
+    --ink-2: #949ea6;  --ink-3: #6c767e;  --rule:  #2e353b;
+    --rule-2:#232a30;  --accent:#f07a3e;  --live:  #59b8b4;
+    --stage: #14181b;  --lit:   #6f7d87;  --dim:   #333c44;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.4);
+  }
+  :root[data-theme="light"] {
+    --bg:    #e7eaed;  --card:  #f7f8f9;  --ink:   #14181c;
+    --ink-2: #5b656e;  --ink-3: #8b959d;  --rule:  #c5ccd2;
+    --rule-2:#dde2e6;  --accent:#c44f16;  --live:  #1f6f6d;
+    --stage: #dfe4e8;  --lit:   #b9c2c9;  --dim:   #7d8a94;
+    --shadow:0 1px 2px rgba(20,24,28,.06), 0 10px 30px rgba(20,24,28,.07);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: clamp(14px, 3vw, 44px);
+    background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    font-size: 16px; line-height: 1.62; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: clamp(28px, 4vw, 46px); }
+
+  .mono, .eyebrow, .num, .rd, code, th, .cap {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  /* ---------------------------------------------------------- masthead --- */
+  .eyebrow {
+    font-size: 10.5px; letter-spacing: .17em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px;
+  }
+  h1 {
+    margin: 0; font-size: clamp(27px, 4.6vw, 46px); line-height: 1.06;
+    font-weight: 660; letter-spacing: -.02em; text-wrap: balance;
+  }
+  h1 span { color: var(--ink-3); }
+  .lede {
+    margin: 16px 0 0; max-width: 62ch; font-size: clamp(16px, 1.7vw, 18px);
+    color: var(--ink-2);
+  }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  /* ------------------------------------------------------------- demo ---- */
+  .demo {
+    display: grid; gap: 0; border: 1px solid var(--rule); border-radius: 3px;
+    background: var(--card); box-shadow: var(--shadow); overflow: hidden;
+  }
+  @media (min-width: 820px) { .demo { grid-template-columns: 1.25fr .95fr; } }
+
+  .stage {
+    position: relative; background: var(--stage);
+    min-height: 400px; display: grid; place-items: center;
+    cursor: grab; touch-action: none;
+    border-right: 1px solid var(--rule);
+  }
+  .stage:active { cursor: grabbing; }
+  .stage canvas { display: block; width: 100%; height: auto; max-width: 460px; }
+  .hint {
+    position: absolute; left: 0; right: 0; bottom: 12px; text-align: center;
+    font-size: 11.5px; color: var(--ink-3); pointer-events: none;
+    transition: opacity .4s;
+  }
+  .ticks {
+    position: absolute; top: 14px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 3px; pointer-events: none;
+  }
+  .tick { width: 3px; height: 8px; border-radius: 2px; background: var(--dim); opacity: .5; }
+  .tick.on { background: var(--accent); opacity: 1; height: 12px; }
+
+  .readout { padding: clamp(18px, 2.4vw, 26px); display: grid; align-content: start; gap: 16px; }
+  .rd { font-size: 11px; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .file {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: clamp(13px, 1.5vw, 15.5px); color: var(--accent);
+    word-break: break-all; line-height: 1.4; margin-top: 5px;
+  }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 13.5px; }
+  .kv dt { color: var(--ink-3); font-family: ui-monospace, Consolas, monospace; font-size: 11px;
+           letter-spacing: .1em; text-transform: uppercase; align-self: center; }
+  .kv dd { margin: 0; font-family: ui-monospace, Consolas, monospace;
+           font-variant-numeric: tabular-nums; }
+  .demo-note {
+    border-top: 1px solid var(--rule-2); padding-top: 14px;
+    font-size: 13.5px; color: var(--ink-2);
+  }
+  .demo-note b { color: var(--ink); font-weight: 600; }
+
+  /* ----------------------------------------------------------- sections -- */
+  h2 {
+    margin: 0 0 6px; font-size: clamp(19px, 2.2vw, 24px);
+    font-weight: 640; letter-spacing: -.012em;
+  }
+  .sub { margin: 0 0 22px; color: var(--ink-2); max-width: 66ch; }
+
+  .steps { display: grid; gap: 14px; }
+  .step {
+    display: grid; gap: 4px 20px; grid-template-columns: auto 1fr;
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 3px; padding: 18px 20px;
+  }
+  .step.first { border-left: 3px solid var(--accent); }
+  .num {
+    font-size: 11px; letter-spacing: .1em; color: var(--ink-3);
+    padding-top: 4px; font-variant-numeric: tabular-nums;
+  }
+  .step h3 { margin: 0; font-size: 16.5px; font-weight: 620; }
+  .step h3 code { font-size: 14px; color: var(--ink-2); font-weight: 400; }
+  .step p { margin: 6px 0 0; color: var(--ink-2); font-size: 14.5px; max-width: 68ch; }
+  .step .out {
+    grid-column: 2; margin-top: 10px; padding-top: 10px;
+    border-top: 1px dashed var(--rule-2);
+    font-size: 12.5px; color: var(--ink-3);
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  .step .out b { color: var(--accent); font-weight: 600; }
+  .pill {
+    display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 2px;
+    background: var(--accent); color: var(--card);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 9.5px; letter-spacing: .11em; vertical-align: 2px;
+  }
+
+  .frame { border: 1px solid var(--rule); background: var(--card); border-radius: 3px; padding: 16px; overflow-x: auto; }
+  .frame svg { display: block; width: 100%; height: auto; min-width: 480px; }
+  .cap { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); padding-top: 9px; }
+
+  .two { display: grid; gap: clamp(24px, 3vw, 38px); }
+  @media (min-width: 820px) { .two { grid-template-columns: 1fr 1fr; } }
+
+  ul.plain { margin: 0; padding-left: 1.15em; display: grid; gap: 8px; color: var(--ink-2); font-size: 14.5px; }
+  ul.plain b { color: var(--ink); font-weight: 600; }
+
+  .ask {
+    background: var(--card); border: 1px solid var(--rule);
+    border-left: 3px solid var(--live); border-radius: 3px;
+    padding: 18px 20px; display: grid; gap: 6px;
+  }
+  .ask .q { font-weight: 620; font-size: 15.5px; }
+  .ask p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+
+  code {
+    font-size: .88em; background: var(--rule-2);
+    padding: 1px 5px; border-radius: 2px;
+  }
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 16px;
+    font-size: 12.5px; color: var(--ink-3);
+    display: flex; flex-wrap: wrap; gap: 6px 26px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">SketchUp workspace · proposal</p>
+    <h1>Photograph every part, <span>then let the manual assemble itself.</span></h1>
+    <p class="lede">Four pieces, in build order. The first one is useful on its own the day it exists — everything after it is optional until you've seen real output. <b>Drag the part below</b>: that is the interaction I think you're describing, and the filename underneath is what the exporter would actually be writing.</p>
+  </header>
+
+  <!-- ============================ LIVE DEMO ============================ -->
+  <section class="demo">
+    <div class="stage" id="stage">
+      <div class="ticks" id="ticks"></div>
+      <canvas id="cv" width="760" height="760"></canvas>
+      <div class="hint" id="hint">drag to rotate</div>
+    </div>
+    <div class="readout">
+      <div>
+        <div class="rd">Now showing</div>
+        <div class="file" id="fname">jig_az000_el030.png</div>
+      </div>
+      <dl class="kv">
+        <dt>Frame</dt><dd id="frame">1 / 24</dd>
+        <dt>Azimuth</dt><dd id="az">0°</dd>
+        <dt>Step</dt><dd>15°</dd>
+        <dt>Elevation</dt><dd id="el">30°</dd>
+      </dl>
+      <p class="demo-note">This is the real pendant jig, drawn from the same profile <code>pendant-jig.rb</code> revolves — flange, housing socket, glue gutter, tube guide. <b>In the finished manual these are flat PNGs</b>, not live 3D: 24 pre-rendered frames swapped on drag. That is why the angle snaps, and it is why it will run on anything.</p>
+    </div>
+  </section>
+
+  <!-- ============================ THE GAP ============================ -->
+  <section>
+    <h2>What's missing today</h2>
+    <p class="sub"><code>export-scenes.rb</code> exports scenes that already exist. To get 24 angles you would hand-build 24 scenes, per part. That is the whole gap — everything below closes it.</p>
+    <div class="frame">
+      <svg viewBox="0 0 620 132" role="img" aria-label="Pipeline: SketchUp model to orbit exporter to images plus manifest to generated manual.">
+        <defs>
+          <marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
+          </marker>
+        </defs>
+        <g font-family="ui-monospace, Consolas, monospace" font-size="11">
+          <rect x="1" y="34" width="112" height="46" rx="2" fill="none" stroke="var(--rule)"/>
+          <text x="57" y="53" text-anchor="middle" fill="var(--ink-2)">SketchUp</text>
+          <text x="57" y="67" text-anchor="middle" fill="var(--ink-3)" font-size="10">component</text>
+
+          <rect x="157" y="26" width="128" height="62" rx="2" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+          <text x="221" y="45" text-anchor="middle" fill="var(--accent)">orbit-export</text>
+          <text x="221" y="59" text-anchor="middle" fill="var(--ink-3)" font-size="10">24 az × 3 el</text>
+          <text x="221" y="72" text-anchor="middle" fill="var(--ink-3)" font-size="10">fixed scale</text>
+
+          <rect x="329" y="10" width="122" height="42" rx="2" fill="none" stroke="var(--rule)"/>
+          <text x="390" y="27" text-anchor="middle" fill="var(--ink-2)">72 PNGs</text>
+          <text x="390" y="41" text-anchor="middle" fill="var(--ink-3)" font-size="10">transparent</text>
+
+          <rect x="329" y="62" width="122" height="42" rx="2" fill="none" stroke="var(--rule)"/>
+          <text x="390" y="79" text-anchor="middle" fill="var(--ink-2)">manifest.json</text>
+          <text x="390" y="93" text-anchor="middle" fill="var(--ink-3)" font-size="10">part · angle · step</text>
+
+          <rect x="495" y="34" width="124" height="46" rx="2" fill="none" stroke="var(--rule)"/>
+          <text x="557" y="53" text-anchor="middle" fill="var(--ink-2)">the manual</text>
+          <text x="557" y="67" text-anchor="middle" fill="var(--ink-3)" font-size="10">generated</text>
+
+          <path d="M115 57 H153" stroke="var(--accent)" fill="none" marker-end="url(#a)"/>
+          <path d="M287 46 H325" stroke="var(--accent)" fill="none" marker-end="url(#a)"/>
+          <path d="M287 68 H325" stroke="var(--accent)" fill="none" marker-end="url(#a)"/>
+          <path d="M453 31 H475 V57 H491" stroke="var(--accent)" fill="none" marker-end="url(#a)"/>
+          <path d="M453 83 H475 V57" stroke="var(--accent)" fill="none"/>
+          <text x="128" y="122" fill="var(--ink-3)" font-size="10">re-run after any geometry change — that is the "dynamic" part</text>
+        </g>
+      </svg>
+      <div class="cap">Pipeline · one command from model to images</div>
+    </div>
+  </section>
+
+  <!-- ============================ THE PIECES ============================ -->
+  <section>
+    <h2>The four pieces</h2>
+    <p class="sub">Numbered because it is a real build order, not decoration — each one only makes sense once the one above it exists.</p>
+
+    <div class="steps">
+      <article class="step first">
+        <div class="num">01</div>
+        <div>
+          <h3>Orbit exporter <code>orbit-export.rb</code><span class="pill">START HERE</span></h3>
+          <p>Pick the current selection or a component from a dropdown. Set azimuth step, elevation list, image width, output folder. It walks the camera round and writes a PNG at every stop.</p>
+          <p>The part that matters is <b>fixed framing</b>: camera distance is computed from the component's bounding box, not <code>zoom_extents</code>, so every image in a run shares an identical scale and centre. Parts stay comparable to each other and a spin doesn't wobble. Parallel projection optional, for the technical-illustration look.</p>
+          <div class="out">Produces <b>72 transparent PNGs per part</b> · <code>housing_az045_el030.png</code> · resumable, restores your camera</div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="num">02</div>
+        <div>
+          <h3>Exploded views <code>explode.rb</code></h3>
+          <p>Offsets sub-parts outward from the assembly centroid along their own axes by a factor you set, in one undoable operation. Feed the result to the exporter and you get exploded views from every angle — which is most of what an assembly manual's pictures actually are.</p>
+          <div class="out">Produces <b>the same 72 frames, exploded</b> · reuses the tag structure already in the scripts</div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="num">03</div>
+        <div>
+          <h3>The manifest <code>manifest.json</code></h3>
+          <p>Every image tagged with its component, azimuth, elevation and assembly step. This is the piece that makes the manual <b>dynamic</b> rather than a folder of pictures: change a part, re-run the exporter, and the manual updates itself. Without it you are back to hand-placing images, which is what you have now.</p>
+          <div class="out">Produces <b>the contract</b> between SketchUp and the manual — nothing downstream needs to know about SketchUp</div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="num">04</div>
+        <div>
+          <h3>The manual</h3>
+          <p>Generated from the manifest. Each step shows its part; drag to rotate, exactly as above. Works offline, runs on a phone on a workbench, and needs no plugin. If it also has to print, the same manifest can drive a PDF — and I would reuse <code>build-v2.js</code> rather than write a second generator.</p>
+          <div class="out">Produces <b>the deliverable</b> · rebuilt by re-running, never by hand</div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div class="two">
+    <section>
+      <h2>What I wouldn't build</h2>
+      <ul class="plain">
+        <li><b>A second PDF engine.</b> <code>build-v2.js</code> already does branded page layout. If the manual needs printing, it drives it.</li>
+        <li><b>Live 3D in the browser.</b> Pre-rendered frames look better, load faster, use SketchUp's own renderer, and can't break on a shop tablet.</li>
+        <li><b>The manual before the exporter.</b> Look at real output first — the format decision is much easier with 72 actual images in a folder than in the abstract.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Two things I need from you</h2>
+      <div class="steps">
+        <div class="ask">
+          <div class="q">Which product?</div>
+          <p>WhisperRoom booths — 25 models, panels and seam seals — or the pendant line? Booths mean per-model variants and the catalog as a data source. Pendants are a much smaller, self-contained first target, and the parts already exist as scripts.</p>
+        </div>
+        <div class="ask">
+          <div class="q">Did I read "dynamic" right?</div>
+          <p>I've taken it as drag-to-spin plus regenerated-from-data. If you meant something else — interactive step-throughs, per-configuration manuals, something linking back to a quote — say so now, because it changes what the manifest has to carry.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <span>Nothing here is built yet.</span>
+    <span>Roughly a sitting per piece.</span>
+    <span>Recorded in <code>DEVLOG.md</code></span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // The pendant jig's actual lathe profile, [radius, height] in mm — the same
+  // list pendant-jig.rb revolves. Flange, 45° underside, housing socket, corner
+  // relief, glue gutter, tube guide, mouth chamfer.
+  var PROFILE = [
+    [8.270,  0.000], [14.000,  0.000], [14.000,  0.245], [10.745,  3.500],
+    [10.745, 57.500], [5.550, 57.500], [4.950, 56.900], [4.950, 23.000],
+    [5.750, 23.000], [5.750, 21.500], [8.445, 21.500], [8.445, 20.700],
+    [7.645, 20.700], [7.645,  3.500], [8.270,  2.875]
+  ];
+
+  var SEG   = 44;                 // mesh resolution around
+  var STEPS = 24;                 // exported frames — 15° apart
+  var EL    = 30 * Math.PI / 180;
+
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+  var stage = document.getElementById("stage");
+  var $f = document.getElementById("fname"), $fr = document.getElementById("frame");
+  var $az = document.getElementById("az"), $ticks = document.getElementById("ticks");
+  var $hint = document.getElementById("hint");
+
+  // Build the revolved quad mesh once.
+  var verts = [], quads = [];
+  (function build() {
+    var n = PROFILE.length, i, j;
+    for (j = 0; j < SEG; j++) {
+      var a = 2 * Math.PI * j / SEG, ca = Math.cos(a), sa = Math.sin(a);
+      for (i = 0; i < n; i++) {
+        verts.push([PROFILE[i][0] * ca, PROFILE[i][0] * sa, PROFILE[i][1]]);
+      }
+    }
+    var idx = function (i, j) { return (j % SEG) * n + (i % n); };
+    for (j = 0; j < SEG; j++) {
+      for (i = 0; i < n; i++) {
+        quads.push([idx(i, j), idx(i + 1, j), idx(i + 1, j + 1), idx(i, j + 1)]);
+      }
+    }
+  }());
+
+  function css(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function hexToRgb(h) {
+    h = h.replace("#", "");
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var v = parseInt(h, 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+
+  var tick = [];
+  for (var t = 0; t < STEPS; t++) {
+    var d = document.createElement("div");
+    d.className = "tick";
+    $ticks.appendChild(d);
+    tick.push(d);
+  }
+
+  var frame = 0;
+
+  function draw() {
+    var az = frame * 2 * Math.PI / STEPS;
+    var W = cv.width, H = cv.height;
+    var ca = Math.cos(az), sa = Math.sin(az);
+    var ce = Math.cos(EL),  se = Math.sin(EL);
+
+    // Project every vertex: spin about Z, tilt about X, orthographic.
+    var P = new Array(verts.length);
+    var k;
+    for (k = 0; k < verts.length; k++) {
+      var v = verts[k];
+      var x = v[0] * ca - v[1] * sa;
+      var y = v[0] * sa + v[1] * ca;
+      var z = v[2] - 28.75;                       // centre the part on its own height
+      P[k] = [x, y * ce + z * se, -y * se + z * ce];
+    }
+
+    // Fixed scale, exactly like the exporter's fixed framing — the part must
+    // not resize as it turns.
+    var s = H / 74;
+    var cx = W / 2, cy = H / 2;
+
+    var faces = [];
+    for (k = 0; k < quads.length; k++) {
+      var q = quads[k];
+      var a = P[q[0]], b = P[q[1]], c = P[q[2]], d2 = P[q[3]];
+      var depth = (a[1] + b[1] + c[1] + d2[1]) / 4;
+      // Normal from two edges, in view space.
+      var ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+      var wx = d2[0] - a[0], wy = d2[1] - a[1], wz = d2[2] - a[2];
+      var nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+      var len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+      faces.push([depth, a, b, c, d2, -ny / len, nz / len]);
+    }
+    faces.sort(function (p, r) { return r[0] - p[0]; });   // far first
+
+    var lit = hexToRgb(css("--lit") || "#b9c2c9");
+    var dim = hexToRgb(css("--dim") || "#7d8a94");
+
+    ctx.clearRect(0, 0, W, H);
+    for (k = 0; k < faces.length; k++) {
+      var f = faces[k];
+      // Lambert against a light over the viewer's shoulder, lifted a little.
+      var l = Math.max(0, f[5] * 0.78 + f[6] * 0.62);
+      var sh = 0.30 + 0.70 * l;
+      var col = "rgb(" + Math.round(dim[0] + (lit[0] - dim[0]) * sh) + "," +
+                         Math.round(dim[1] + (lit[1] - dim[1]) * sh) + "," +
+                         Math.round(dim[2] + (lit[2] - dim[2]) * sh) + ")";
+      ctx.beginPath();
+      ctx.moveTo(cx + f[1][0] * s, cy - f[1][2] * s);
+      ctx.lineTo(cx + f[2][0] * s, cy - f[2][2] * s);
+      ctx.lineTo(cx + f[3][0] * s, cy - f[3][2] * s);
+      ctx.lineTo(cx + f[4][0] * s, cy - f[4][2] * s);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1;
+      ctx.fill();
+      ctx.stroke();                                  // hairline seals seams
+    }
+
+    var deg = Math.round(frame * 360 / STEPS);
+    var pad = deg < 10 ? "00" + deg : (deg < 100 ? "0" + deg : "" + deg);
+    $f.textContent = "jig_az" + pad + "_el030.png";
+    $fr.textContent = (frame + 1) + " / " + STEPS;
+    $az.textContent = deg + "°";
+    for (var i = 0; i < STEPS; i++) tick[i].className = "tick" + (i === frame ? " on" : "");
+  }
+
+  // --- drag, snapped to the exported step ---
+  var dragging = false, startX = 0, startFrame = 0, touched = false;
+
+  function px() { return Math.max(9, stage.clientWidth / STEPS); }
+
+  function down(e) {
+    dragging = true;
+    startX = (e.touches ? e.touches[0].clientX : e.clientX);
+    startFrame = frame;
+    if (!touched) { touched = true; $hint.style.opacity = "0"; }
+    e.preventDefault();
+  }
+  function move(e) {
+    if (!dragging) return;
+    var x = (e.touches ? e.touches[0].clientX : e.clientX);
+    var n = Math.round((x - startX) / px());
+    var f = ((startFrame + n) % STEPS + STEPS) % STEPS;
+    if (f !== frame) { frame = f; draw(); }
+    e.preventDefault();
+  }
+  function up() { dragging = false; }
+
+  stage.addEventListener("mousedown", down);
+  window.addEventListener("mousemove", move);
+  window.addEventListener("mouseup", up);
+  stage.addEventListener("touchstart", down, { passive: false });
+  stage.addEventListener("touchmove", move, { passive: false });
+  window.addEventListener("touchend", up);
+
+  stage.tabIndex = 0;
+  stage.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight") { frame = (frame + 1) % STEPS; draw(); e.preventDefault(); }
+    if (e.key === "ArrowLeft")  { frame = (frame + STEPS - 1) % STEPS; draw(); e.preventDefault(); }
+  });
+
+  // A slow idle turn until it is touched, so the interaction announces itself.
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduce) {
+    var spin = setInterval(function () {
+      if (touched) { clearInterval(spin); return; }
+      frame = (frame + 1) % STEPS;
+      draw();
+    }, 130);
+  }
+
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  new MutationObserver(draw).observe(document.documentElement, {
+    attributes: true, attributeFilter: ["data-theme"]
+  });
+
+  draw();
+}());
+</script>
+</body>
+</html>

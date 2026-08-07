@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exploded Views</title>
+<style>
+  :root{--bg:#e7eaed;--card:#f7f8f9;--ink:#14181c;--ink-2:#5b656e;--ink-3:#8b959d;
+    --rule:#c5ccd2;--rule-2:#dde2e6;--accent:#c44f16;--stage:#dfe4e8;
+    --top:#cfd7dd;--fr:#aeb8c0;--sd:#8b969f;--edge:#5d676f;
+    --shadow:0 1px 2px rgba(20,24,28,.06),0 10px 30px rgba(20,24,28,.07);}
+  @media (prefers-color-scheme:dark){:root{--bg:#0f1215;--card:#191d21;--ink:#e4e8eb;
+    --ink-2:#949ea6;--ink-3:#6c767e;--rule:#2e353b;--rule-2:#232a30;--accent:#f07a3e;
+    --stage:#14181b;--top:#5a666f;--fr:#434e56;--sd:#333c43;--edge:#8b969f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.4);}}
+  :root[data-theme="dark"]{--bg:#0f1215;--card:#191d21;--ink:#e4e8eb;--ink-2:#949ea6;
+    --ink-3:#6c767e;--rule:#2e353b;--rule-2:#232a30;--accent:#f07a3e;--stage:#14181b;
+    --top:#5a666f;--fr:#434e56;--sd:#333c43;--edge:#8b969f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.4);}
+  :root[data-theme="light"]{--bg:#e7eaed;--card:#f7f8f9;--ink:#14181c;--ink-2:#5b656e;
+    --ink-3:#8b959d;--rule:#c5ccd2;--rule-2:#dde2e6;--accent:#c44f16;--stage:#dfe4e8;
+    --top:#cfd7dd;--fr:#aeb8c0;--sd:#8b969f;--edge:#5d676f;
+    --shadow:0 1px 2px rgba(20,24,28,.06),0 10px 30px rgba(20,24,28,.07);}
+
+  *{box-sizing:border-box}
+  body{margin:0;padding:clamp(14px,3vw,44px);background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;font-size:16px;
+    line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;display:grid;gap:clamp(26px,4vw,44px)}
+  .mono,.eyebrow,.rd,code,.cap,.num{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace}
+
+  .eyebrow{font-size:10.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  h1{margin:0;font-size:clamp(26px,4.4vw,44px);line-height:1.07;font-weight:660;
+    letter-spacing:-.02em;text-wrap:balance}
+  h1 span{color:var(--ink-3)}
+  .lede{margin:16px 0 0;max-width:63ch;font-size:clamp(16px,1.7vw,18px);color:var(--ink-2)}
+  .lede b{color:var(--ink);font-weight:600}
+
+  .demo{border:1px solid var(--rule);border-radius:3px;background:var(--card);
+    box-shadow:var(--shadow);overflow:hidden}
+  .stage{background:var(--stage);display:grid;place-items:center;padding:8px}
+  .stage svg{display:block;width:100%;height:auto;max-width:660px}
+  .bar{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;
+    padding:13px clamp(14px,2vw,20px);border-top:1px solid var(--rule)}
+  .rd{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+  .sl{display:flex;align-items:center;gap:10px;flex:1 1 240px;min-width:220px}
+  input[type=range]{flex:1;accent-color:var(--accent);min-width:120px}
+  .val{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;
+    font-variant-numeric:tabular-nums;color:var(--accent);width:44px;text-align:right}
+  .seg{display:inline-flex;border:1px solid var(--rule);border-radius:5px;overflow:hidden}
+  .seg button{padding:5px 11px;border:0;background:transparent;color:var(--ink-2);
+    font:inherit;font-size:12px;cursor:pointer}
+  .seg button.on{background:var(--accent);color:#fff}
+  .chk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);cursor:pointer}
+
+  .note{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);
+    border-radius:3px;padding:16px 20px;font-size:14.5px;color:var(--ink-2)}
+  .note b{color:var(--ink);font-weight:600}
+
+  h2{margin:0 0 6px;font-size:clamp(19px,2.2vw,24px);font-weight:640;letter-spacing:-.012em}
+  .sub{margin:0 0 20px;color:var(--ink-2);max-width:66ch}
+  .grid2{display:grid;gap:clamp(18px,2.4vw,28px)}
+  @media(min-width:800px){.grid2{grid-template-columns:1fr 1fr}}
+  .box{background:var(--card);border:1px solid var(--rule);border-radius:3px;padding:18px 20px}
+  .box h4{margin:0 0 6px;font-size:15.5px;font-weight:630}
+  .box p{margin:0;color:var(--ink-2);font-size:14px}
+  .box .k{display:block;margin-top:9px;font-family:ui-monospace,Consolas,monospace;
+    font-size:11px;color:var(--ink-3)}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{padding:7px 12px 7px 0;text-align:left;border-bottom:1px solid var(--rule-2);vertical-align:top}
+  thead th{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--ink-3);font-weight:600;border-bottom:1px solid var(--rule)}
+  td.n{font-family:ui-monospace,Consolas,monospace;white-space:nowrap}
+  code{font-size:.88em;background:var(--rule-2);padding:1px 5px;border-radius:2px}
+  footer{border-top:1px solid var(--rule);padding-top:16px;font-size:12.5px;color:var(--ink-3);
+    display:flex;flex-wrap:wrap;gap:6px 26px}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">SketchUp workspace · built</p>
+    <h1>Pull it apart, <span>put it back exactly.</span></h1>
+    <p class="lede">Every part records where it came from the first time it moves, so a re-explode measures from home instead of compounding onto the last run — and Reset is exact, weeks later, because the homes save with the model. <b>Drag the spread below</b>, then switch the direction mode to see the decision this whole script turns on.</p>
+  </header>
+
+  <!-- ============================ DEMO ============================ -->
+  <section class="demo">
+    <div class="stage">
+      <svg id="sv" viewBox="-260 -230 520 440" role="img" aria-label="Isometric view of a booth assembly exploding into its floor, ceiling, four wall panels and door frame."></svg>
+    </div>
+    <div class="bar">
+      <div class="sl">
+        <span class="rd">Spread</span>
+        <input id="sp" type="range" min="0" max="100" value="0">
+        <span class="val" id="spv">0%</span>
+      </div>
+      <div>
+        <span class="rd" style="display:inline;margin-right:8px">Direction</span>
+        <span class="seg">
+          <button id="mAxis" class="on">Axis</button>
+          <button id="mRad">Radial</button>
+        </span>
+      </div>
+      <label class="chk"><input type="checkbox" id="ld" checked> Leader lines</label>
+    </div>
+  </section>
+
+  <p class="note"><b>Switch to Radial and drag the spread again.</b> Parts drift diagonally, cross each other's paths, and the eye can no longer tell which wall came off which face. That is why <b>Axis is the default</b>: each part moves along one axis only — whichever it is already furthest along — so panels come straight off their walls and the ceiling straight up. It looks acceptable in a viewport and wrong on a printed page, which is the only place it matters.</p>
+
+  <!-- ============================ HOW ============================ -->
+  <section>
+    <h2>How it decides</h2>
+    <p class="sub">Three rules, all of them about being readable on paper rather than impressive on screen.</p>
+    <div class="grid2">
+      <div class="box">
+        <h4>One axis per part</h4>
+        <p>The part's offset from the assembly centre is measured, and the largest of its three components wins. A wall panel sitting 24″ out in X and 0″ in Y moves in X. Nothing travels diagonally.</p>
+        <span class="k">mode: Axis · Radial · Vertical only</span>
+      </div>
+      <div class="box">
+        <h4>Outer parts travel further</h4>
+        <p>Distance scales with how far the part already sits from the centre, so layers fan out instead of bunching. A floor under the multiplier stops a near-centre part ending up buried inside its neighbours.</p>
+        <span class="k">0.35 + 0.65 × (distance ÷ furthest)</span>
+      </div>
+      <div class="box">
+        <h4>Home is recorded, not inferred</h4>
+        <p>The first move writes each part's home position onto the part as an attribute. Every later explode is computed from home, so changing the spread never compounds — and Reset is exact rather than approximate.</p>
+        <span class="k">saved with the model · survives reopening</span>
+      </div>
+      <div class="box">
+        <h4>Leaders are cleared, not stacked</h4>
+        <p>Leader lines go on <code>WR-Explode-Leaders</code> and every run wipes the previous set first. Three explodes at three spreads leaves one set of leaders, not three.</p>
+        <span class="k">own tag · switch off for a clean render</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ USE ============================= -->
+  <section>
+    <h2>Using it</h2>
+    <p class="sub">Select the group that <em>contains</em> the parts — it explodes the direct children, because top-level parts are what a manual shows and going deeper produces confetti.</p>
+    <div class="tw" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Setting</th><th class="n">Default</th><th>What it's for</th></tr></thead>
+        <tbody>
+          <tr><td>Action</td><td class="n">Explode</td><td>Reset puts every part back on its recorded home</td></tr>
+          <tr><td>Direction</td><td class="n">Axis</td><td>Radial and vertical-only are there for assemblies that suit them</td></tr>
+          <tr><td>Spread</td><td class="n">60%</td><td>Of the assembly's own size, so it scales from a jig to a booth</td></tr>
+          <tr><td>Leader lines</td><td class="n">Yes</td><td>Off for a clean hero render, on for a step drawing</td></tr>
+          <tr><td>Sweep frames</td><td class="n">0</td><td>Set to 12 and it writes assembled → exploded as PNGs, current camera</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note" style="margin-top:18px"><b>The pairing that matters:</b> explode, then run <b>Orbit Export</b>. Every frame is then of the exploded assembly, at constant scale, with a manifest — which is the picture set an assembly manual is actually made of. Reset first if you want the assembled version too.</p>
+  </section>
+
+  <footer>
+    <span><code>scripts/explode-view.rb</code></span>
+    <span>Pushed · f69ead5</span>
+    <span>Unrun — verify in SketchUp</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // A 4872 Standard, roughly: interior 48 x 72 x 81, 4" walls. Boxes are
+  // [x, y, z, w, d, h] in inches — the same shape build-booth.rb produces.
+  var PARTS = [
+    { n:"floor",    b:[  0,  0, -4, 48, 72,  4] },
+    { n:"ceiling",  b:[  0,  0, 81, 48, 72,  4] },
+    { n:"back",     b:[  0, 72,  0, 48,  4, 81] },
+    { n:"left",     b:[ -4,  0,  0,  4, 72, 81] },
+    { n:"right",    b:[ 48,  0,  0,  4, 72, 81] },
+    { n:"front",    b:[  0, -4,  0, 14,  4, 81] },
+    { n:"door",     b:[ 14, -4,  0, 34,  4, 81] }
+  ];
+
+  var C = Math.cos(Math.PI / 6), S = 0.5;          // isometric
+  var K = 2.15;                                    // px per inch
+
+  var $sv = document.getElementById("sv"), $sp = document.getElementById("sp"),
+      $spv = document.getElementById("spv"), $ld = document.getElementById("ld");
+  var mode = "axis", spread = 0;
+
+  function iso(x, y, z) { return [ (x - y) * C * K, ((x + y) * S - z) * K ]; }
+  function cen(b) { return [b[0] + b[3] / 2, b[1] + b[4] / 2, b[2] + b[5] / 2]; }
+
+  // Assembly centre and size, from HOME positions — the same thing the script
+  // does, so a re-explode is never measured off an already-exploded model.
+  var lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+  PARTS.forEach(function (p) {
+    for (var i = 0; i < 3; i++) {
+      lo[i] = Math.min(lo[i], p.b[i]);
+      hi[i] = Math.max(hi[i], p.b[i] + p.b[i + 3]);
+    }
+  });
+  var CTR = [(lo[0]+hi[0])/2, (lo[1]+hi[1])/2, (lo[2]+hi[2])/2];
+  var SIZE = Math.sqrt(Math.pow(hi[0]-lo[0],2) + Math.pow(hi[1]-lo[1],2) + Math.pow(hi[2]-lo[2],2));
+
+  var VECS = PARTS.map(function (p) {
+    var c = cen(p.b);
+    return [c[0]-CTR[0], c[1]-CTR[1], c[2]-CTR[2]];
+  });
+  var FAR = Math.max.apply(null, VECS.map(function (v) {
+    return Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+  }));
+
+  function offsetFor(i) {
+    var v = VECS[i], len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    if (len < 0.01) return [0, 0, 0];
+    var d;
+    if (mode === "radial") {
+      d = [v[0]/len, v[1]/len, v[2]/len];
+    } else {
+      var a = [Math.abs(v[0]), Math.abs(v[1]), Math.abs(v[2])];
+      var m = a.indexOf(Math.max.apply(null, a));
+      d = [0, 0, 0];
+      d[m] = v[m] < 0 ? -1 : 1;
+    }
+    var reach = 0.35 + 0.65 * (len / FAR);
+    var dist = SIZE * spread * reach;
+    return [d[0]*dist, d[1]*dist, d[2]*dist];
+  }
+
+  function el(t, a) {
+    var e = document.createElementNS("http://www.w3.org/2000/svg", t);
+    for (var k in a) e.setAttribute(k, a[k]);
+    return e;
+  }
+  function poly(pts, fill) {
+    return el("polygon", { points: pts.map(function (p) { return p[0]+","+p[1]; }).join(" "),
+      fill: fill, stroke: "var(--edge)", "stroke-width": .7, "stroke-linejoin": "round" });
+  }
+
+  function draw() {
+    while ($sv.firstChild) $sv.removeChild($sv.firstChild);
+
+    var items = PARTS.map(function (p, i) {
+      var o = offsetFor(i);
+      var b = [p.b[0]+o[0], p.b[1]+o[1], p.b[2]+o[2], p.b[3], p.b[4], p.b[5]];
+      var c = cen(b);
+      // Farther = larger x + y, smaller z, for this projection.
+      return { b: b, c: c, home: cen(p.b), depth: c[0] + c[1] - c[2] };
+    });
+
+    // Leaders first so boxes sit on top of them.
+    if ($ld.checked && spread > 0.001) {
+      items.forEach(function (it) {
+        var a = iso(it.home[0], it.home[1], it.home[2]);
+        var z = iso(it.c[0], it.c[1], it.c[2]);
+        $sv.appendChild(el("line", { x1:a[0], y1:a[1], x2:z[0], y2:z[1],
+          stroke:"var(--accent)", "stroke-width":1, "stroke-dasharray":"4 4", opacity:.65 }));
+      });
+    }
+
+    items.sort(function (p, q) { return q.depth - p.depth; });   // far first
+
+    items.forEach(function (it) {
+      var b = it.b, x = b[0], y = b[1], z = b[2], w = b[3], d = b[4], h = b[5];
+      // Only the three faces that can be seen from this corner.
+      $sv.appendChild(poly([iso(x,y,z+h), iso(x+w,y,z+h), iso(x+w,y+d,z+h), iso(x,y+d,z+h)], "var(--top)"));
+      $sv.appendChild(poly([iso(x,y,z), iso(x+w,y,z), iso(x+w,y,z+h), iso(x,y,z+h)], "var(--fr)"));
+      $sv.appendChild(poly([iso(x,y,z), iso(x,y+d,z), iso(x,y+d,z+h), iso(x,y,z+h)], "var(--sd)"));
+    });
+  }
+
+  $sp.addEventListener("input", function () {
+    spread = (+$sp.value) / 100;
+    $spv.textContent = $sp.value + "%";
+    draw();
+  });
+  $ld.addEventListener("change", draw);
+  document.getElementById("mAxis").addEventListener("click", function () {
+    mode = "axis";
+    this.classList.add("on");
+    document.getElementById("mRad").classList.remove("on");
+    draw();
+  });
+  document.getElementById("mRad").addEventListener("click", function () {
+    mode = "radial";
+    this.classList.add("on");
+    document.getElementById("mAxis").classList.remove("on");
+    draw();
+  });
+
+  new MutationObserver(draw).observe(document.documentElement,
+    { attributes: true, attributeFilter: ["data-theme"] });
+
+  // Open assembled, then ease apart once so the control explains itself.
+  draw();
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduce) {
+    var t = 0;
+    var anim = setInterval(function () {
+      t += 1;
+      if (t > 55) { clearInterval(anim); return; }
+      var v = Math.round(60 * (1 - Math.pow(1 - t / 55, 3)));
+      $sp.value = v; spread = v / 100; $spv.textContent = v + "%";
+      draw();
+    }, 22);
+    $sp.addEventListener("pointerdown", function () { clearInterval(anim); });
+  }
+}());
+</script>
+</body>
+</html>

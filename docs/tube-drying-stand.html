@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tube Drying Stand — 10 × 6</title>
+<style>
+  :root {
+    --paper:  #e6e9ec;  --sheet:  #f6f7f8;  --ink:    #14181c;
+    --ink-2:  #5b656e;  --ink-3:  #8b959d;  --rule:   #c3cad0;
+    --rule-2: #dde2e6;  --accent: #c44f16;  --tube:   #1f6f6d;
+    --tube-f: rgba(31,111,109,.16);
+    --solid:  #cfd5da;  --ok:     #2c6e49;
+    --shadow: 0 1px 2px rgba(20,24,28,.06), 0 8px 28px rgba(20,24,28,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:  #0e1114;  --sheet:  #171b1f;  --ink:    #e3e7ea;
+      --ink-2:  #949ea6;  --ink-3:  #6c767e;  --rule:   #303840;
+      --rule-2: #232a30;  --accent: #f07a3e;  --tube:   #59b8b4;
+      --tube-f: rgba(89,184,180,.14);
+      --solid:  #39424a;  --ok:     #63b98a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.34);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:  #0e1114;  --sheet:  #171b1f;  --ink:    #e3e7ea;
+    --ink-2:  #949ea6;  --ink-3:  #6c767e;  --rule:   #303840;
+    --rule-2: #232a30;  --accent: #f07a3e;  --tube:   #59b8b4;
+    --tube-f: rgba(89,184,180,.14);
+    --solid:  #39424a;  --ok:     #63b98a;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.34);
+  }
+  :root[data-theme="light"] {
+    --paper:  #e6e9ec;  --sheet:  #f6f7f8;  --ink:    #14181c;
+    --ink-2:  #5b656e;  --ink-3:  #8b959d;  --rule:   #c3cad0;
+    --rule-2: #dde2e6;  --accent: #c44f16;  --tube:   #1f6f6d;
+    --tube-f: rgba(31,111,109,.16);
+    --solid:  #cfd5da;  --ok:     #2c6e49;
+    --shadow: 0 1px 2px rgba(20,24,28,.06), 0 8px 28px rgba(20,24,28,.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0; padding: clamp(14px, 3vw, 40px);
+    background: var(--paper); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 1180px; margin: 0 auto;
+    background: var(--sheet); border: 1px solid var(--rule); box-shadow: var(--shadow);
+  }
+
+  .titlebar {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px;
+    padding: 22px clamp(16px, 3vw, 34px) 18px; border-bottom: 2px solid var(--ink);
+  }
+  .titlebar h1 {
+    margin: 0; flex: 1 1 320px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: clamp(19px, 2.6vw, 27px); font-weight: 600;
+    letter-spacing: .09em; text-transform: uppercase; text-wrap: balance;
+  }
+  .titlebar h1 span { color: var(--accent); }
+  .sub { flex: 0 1 auto; max-width: 46ch; color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+  .rev {
+    flex: 0 0 auto; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+  }
+
+  .strip {
+    display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    background: var(--rule-2); border-bottom: 1px solid var(--rule);
+  }
+  .strip div { background: var(--sheet); padding: 13px clamp(14px, 2vw, 20px); }
+  .strip dt {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 3px;
+  }
+  .strip dd {
+    margin: 0; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 19px; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+  }
+  .strip dd em { font-style: normal; font-size: 12px; color: var(--ink-2); }
+  .strip dd s { color: var(--ink-3); text-decoration-thickness: 1px; font-size: 13px; }
+
+  .body { padding: clamp(16px, 3vw, 34px); display: grid; gap: 34px; }
+  .cols { display: grid; gap: 34px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { .cols { grid-template-columns: 1.32fr 1fr; } }
+
+  h2 {
+    margin: 0 0 4px; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 12px; letter-spacing: .15em; text-transform: uppercase;
+    font-weight: 600; color: var(--ink);
+  }
+  .note { color: var(--ink-2); font-size: 14.5px; max-width: 68ch; margin: 0 0 14px; }
+  .note strong { color: var(--ink); font-weight: 600; }
+
+  figure { margin: 0; }
+  .frame { border: 1px solid var(--rule); background: var(--sheet); padding: 10px; overflow-x: auto; }
+  .frame svg { display: block; width: 100%; height: auto; min-width: 300px; }
+  figcaption {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); padding-top: 8px;
+  }
+
+  .thin { stroke: var(--rule); stroke-width: .25; fill: none; }
+  .fill { fill: var(--solid); stroke: var(--ink); stroke-width: .35; }
+  .dim  { stroke: var(--accent); stroke-width: .28; fill: none; }
+  .ext  { stroke: var(--accent); stroke-width: .18; fill: none; opacity: .75; }
+  .tu   { fill: var(--tube-f); stroke: var(--tube); stroke-width: .35; }
+  text  { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; fill: var(--ink-2); }
+  .dt   { fill: var(--accent); font-size: 3.1px; }
+  .lb   { fill: var(--ink-2); font-size: 2.9px; }
+  .lb-t { fill: var(--tube); font-size: 2.9px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  caption {
+    text-align: left; padding-bottom: 8px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3);
+  }
+  th, td { padding: 7px 12px 7px 0; text-align: left; border-bottom: 1px solid var(--rule-2); vertical-align: top; }
+  thead th {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; border-bottom: 1px solid var(--rule);
+  }
+  td.n, th.n { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+               font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.pick td { color: var(--accent); }
+  tr.pick td:first-child::after { content: "  ← as drawn"; font-size: 11px; }
+  .tw { overflow-x: auto; }
+  .pass { color: var(--ok); font-weight: 600; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 12.5px; }
+
+  .tag {
+    display: inline-block; padding: 1px 7px; border-radius: 2px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+  }
+  .tag.m { background: var(--accent); color: var(--sheet); }
+  .tag.c { border: 1px solid var(--rule); color: var(--ink-3); }
+  .tag.d { border: 1px solid var(--ok); color: var(--ok); }
+
+  ol.steps { margin: 0; padding-left: 1.15em; display: grid; gap: 9px; font-size: 14.5px; }
+  code {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: .88em; background: var(--rule-2); padding: 1px 5px; border-radius: 2px;
+  }
+
+  .callout { border-left: 3px solid var(--accent); padding: 12px 0 12px 16px; font-size: 14.5px; color: var(--ink-2); }
+  .callout b { color: var(--ink); font-weight: 600; }
+
+  .block {
+    display: grid; gap: 1px; background: var(--rule);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border-top: 2px solid var(--ink);
+  }
+  .block div { background: var(--sheet); padding: 11px clamp(14px, 2vw, 20px); }
+  .block dt {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .block dd { margin: 2px 0 0; font-size: 13.5px; }
+  a { color: var(--accent); }
+</style>
+
+</head>
+<body>
+<div class="sheet">
+
+  <header class="titlebar">
+    <h1>Tube Drying Stand <span>/ 10 × 6</span></h1>
+    <p class="sub">Holds 60 polycarbonate tubes upright while the epoxy cures. Diamond-fenced walls, a ledge under each pocket, four corner feet — and it prints inverted, without supports.</p>
+    <p class="rev">Rev B</p>
+  </header>
+
+  <dl class="strip">
+    <div><dt>Capacity</dt><dd>60 <em>tubes</em></dd></div>
+    <div><dt>Footprint</dt><dd>123.5 × 74.9</dd></div>
+    <div><dt>Height</dt><dd>31.5 <em>mm</em></dd></div>
+    <div><dt>Pocket</dt><dd>10.15 <em>sq × 25 deep</em></dd></div>
+    <div><dt>Worst lean</dt><dd>1.62<em>°</em></dd></div>
+    <div><dt>Material</dt><dd>94 g <em><s>129 g</s> −27%</em></dd></div>
+  </dl>
+
+  <div class="body">
+
+    <!-- ===================== ELEVATION ===================== -->
+    <section>
+      <h2>Wall elevation — the fence</h2>
+      <p class="note">One diamond per pocket, in every wall of both grids: <strong>136 openings</strong> that take 18.5 cm³ of plastic out. Diamonds rather than round holes because a diamond has no flank steeper than its own apex angle — these run <strong>20.6° from vertical</strong>, where 45° is the limit. They cost nothing in accuracy: the solid 3 mm bands top and bottom still locate the tube over the full 25 mm.</p>
+      <figure>
+        <div class="frame">
+          <svg viewBox="-9 -7 68 50" role="img" aria-label="Elevation of a grid wall showing four diamond-shaped openings, the ledge plate below it and a corner foot.">
+            <defs>
+              <marker id="ea" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
+              </marker>
+            </defs>
+
+            <!-- wall body z 6.5..31.5 -> y 3.5..28.5 -->
+            <path class="fill" d="M0,3.5 H50.6 V28.5 H0 Z
+              M3.5,16 L7.075,6.5 L10.65,16 L7.075,25.5 Z
+              M15.65,16 L19.225,6.5 L22.8,16 L19.225,25.5 Z
+              M27.8,16 L31.375,6.5 L34.95,16 L31.375,25.5 Z
+              M39.95,16 L43.525,6.5 L47.1,16 L43.525,25.5 Z" fill-rule="evenodd"/>
+
+            <!-- ledge plate edge-on, z 4..6.5 -> y 28.5..31 -->
+            <rect class="fill" x="0" y="28.5" width="50.6" height="2.5"/>
+            <!-- corner foot z 0..4 -> y 31..35 -->
+            <rect class="fill" x="0" y="31" width="4" height="4"/>
+            <line class="thin" x1="-4" y1="35" x2="55" y2="35"/>
+            <text class="lb" x="-8.5" y="38.2">bench — corner feet only, 4 off</text>
+
+            <!-- diamond dims -->
+            <line class="ext" x1="3.5" y1="16" x2="3.5" y2="-4"/>
+            <line class="ext" x1="10.65" y1="16" x2="10.65" y2="-4"/>
+            <line class="dim" x1="3.5" y1="-2" x2="10.65" y2="-2" marker-start="url(#ea)" marker-end="url(#ea)"/>
+            <text class="dt" x="7.075" y="-3.4" text-anchor="middle">7.15</text>
+
+            <line class="ext" x1="19.225" y1="6.5" x2="26" y2="6.5"/>
+            <line class="ext" x1="19.225" y1="25.5" x2="26" y2="25.5"/>
+            <line class="dim" x1="24.6" y1="6.5" x2="24.6" y2="25.5" marker-start="url(#ea)" marker-end="url(#ea)"/>
+            <text class="dt" x="23" y="16" text-anchor="middle" transform="rotate(-90 23 16)">19.00</text>
+
+            <!-- flank angle -->
+            <line class="ext" x1="31.375" y1="6.5" x2="31.375" y2="16"/>
+            <text class="dt" x="35.8" y="11.4">20.6°</text>
+
+            <!-- solid bands -->
+            <line class="ext" x1="50.6" y1="3.5" x2="57" y2="3.5"/>
+            <line class="ext" x1="50.6" y1="6.5" x2="57" y2="6.5"/>
+            <line class="dim" x1="55.4" y1="3.5" x2="55.4" y2="6.5" marker-start="url(#ea)" marker-end="url(#ea)"/>
+            <text class="dt" x="52" y="2">3.00 band</text>
+            <text class="lb" x="52" y="30.4">2.50 ledge</text>
+          </svg>
+        </div>
+        <figcaption>Wall elevation, 4 of 10 bays · solid strip between diamonds is 5.00 wide</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===================== PLAN ===================== -->
+    <section>
+      <h2>Plan — 10 × 6 on a 12.15 pitch</h2>
+      <p class="note">Drawn to scale. The grid closes exactly: ten pockets and eleven walls come to 123.50 across, six and seven to 74.90 deep. Each pocket floor is a <strong>2.00 mm ledge frame</strong> leaving a 6.15 square opening — whose diagonal is 8.70, so a 9.65 tube cannot drop through it in any orientation, while the whole middle drains.</p>
+      <figure>
+        <div class="frame">
+          <svg viewBox="-24 -20 172 122" role="img" aria-label="Top view: a 10 by 6 grid of square pockets, each with a square drain opening, on a 123.5 by 74.9 mm plate with four corner feet.">
+            <defs>
+              <marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
+              </marker>
+              <pattern id="cell" x="2" y="2" width="12.15" height="12.15" patternUnits="userSpaceOnUse">
+                <rect x="0" y="0" width="10.15" height="10.15" fill="var(--sheet)" stroke="var(--ink)" stroke-width=".35"/>
+                <rect x="2" y="2" width="6.15" height="6.15" fill="var(--paper)" stroke="var(--tube)" stroke-width=".35"/>
+              </pattern>
+            </defs>
+
+            <rect x="0" y="0" width="123.5" height="74.9" fill="var(--solid)" stroke="var(--ink)" stroke-width=".5"/>
+            <rect x="2" y="2" width="121.5" height="72.9" fill="url(#cell)"/>
+
+            <!-- corner feet -->
+            <rect x="0" y="0" width="4" height="4" fill="none" stroke="var(--accent)" stroke-width=".5"/>
+            <rect x="119.5" y="0" width="4" height="4" fill="none" stroke="var(--accent)" stroke-width=".5"/>
+            <rect x="0" y="70.9" width="4" height="4" fill="none" stroke="var(--accent)" stroke-width=".5"/>
+            <rect x="119.5" y="70.9" width="4" height="4" fill="none" stroke="var(--accent)" stroke-width=".5"/>
+
+            <line class="ext" x1="0" y1="74.9" x2="0" y2="90"/>
+            <line class="ext" x1="123.5" y1="74.9" x2="123.5" y2="90"/>
+            <line class="dim" x1="0" y1="87" x2="123.5" y2="87" marker-start="url(#ar)" marker-end="url(#ar)"/>
+            <text class="dt" x="61.75" y="85.4" text-anchor="middle">123.50</text>
+
+            <line class="ext" x1="0" y1="0" x2="-16" y2="0"/>
+            <line class="ext" x1="0" y1="74.9" x2="-16" y2="74.9"/>
+            <line class="dim" x1="-13" y1="0" x2="-13" y2="74.9" marker-start="url(#ar)" marker-end="url(#ar)"/>
+            <text class="dt" x="-14.6" y="37.45" text-anchor="middle" transform="rotate(-90 -14.6 37.45)">74.90</text>
+
+            <line class="ext" x1="2" y1="0" x2="2" y2="-15"/>
+            <line class="ext" x1="12.15" y1="0" x2="12.15" y2="-15"/>
+            <line class="ext" x1="14.15" y1="0" x2="14.15" y2="-9"/>
+            <line class="dim" x1="0" y1="-6" x2="2" y2="-6" marker-start="url(#ar)" marker-end="url(#ar)"/>
+            <line class="dim" x1="2" y1="-6" x2="12.15" y2="-6" marker-start="url(#ar)" marker-end="url(#ar)"/>
+            <line class="dim" x1="2" y1="-12" x2="14.15" y2="-12" marker-start="url(#ar)" marker-end="url(#ar)"/>
+            <text class="dt" x="1" y="-7.4" text-anchor="middle">2.00</text>
+            <text class="dt" x="7.1" y="-7.4" text-anchor="middle">10.15</text>
+            <text class="dt" x="8.1" y="-13.4" text-anchor="middle">12.15 pitch</text>
+
+            <line class="ext" x1="117.3" y1="70.9" x2="132" y2="62"/>
+            <text class="lb-t" x="132.6" y="61.4">6.15 sq opening</text>
+            <text class="lb" x="132.6" y="65.4">2.00 ledge all round</text>
+            <text class="dt" x="-22" y="-14">□ feet, 4.00 sq</text>
+          </svg>
+        </div>
+        <figcaption>Plan view, to scale · corner feet shown in outline</figcaption>
+      </figure>
+    </section>
+
+    <div class="cols">
+
+      <!-- ===================== SECTION ===================== -->
+      <section>
+        <h2>Section — near a corner</h2>
+        <p class="note">A tube drops in until it lands on the ledge, catching it by <strong>1.75 mm</strong> of overlap. Everything inboard of that is open, and the whole underside is now clear at 4 mm.</p>
+        <figure>
+          <div class="frame">
+            <svg viewBox="-15 -4 68 58" role="img" aria-label="Cross section: a corner foot, the ledge plate with square openings, pocket walls, and tubes resting on the ledges.">
+              <defs>
+                <marker id="ar2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto">
+                  <path d="M0,1 L7,4 L0,7 z" fill="var(--accent)"/>
+                </marker>
+              </defs>
+
+              <line class="thin" x1="-8" y1="45" x2="46" y2="45"/>
+              <text class="lb" x="-8" y="48.4">bench</text>
+
+              <!-- corner foot only: z 0..4 -> y 41..45 -->
+              <rect class="fill" x="0" y="41" width="4" height="4"/>
+              <text class="lb" x="-13.4" y="43.6">4.00 foot</text>
+
+              <!-- ledge plate z 4..6.5 -> y 38.5..41, broken by 3 openings -->
+              <rect class="fill" x="0"     y="38.5" width="4"    height="2.5"/>
+              <rect class="fill" x="10.15" y="38.5" width="6"    height="2.5"/>
+              <rect class="fill" x="22.30" y="38.5" width="6"    height="2.5"/>
+              <rect class="fill" x="34.45" y="38.5" width="4"    height="2.5"/>
+
+              <!-- pocket walls z 6.5..31.5 -> y 13.5..38.5 -->
+              <rect class="fill" x="0"     y="13.5" width="2" height="25"/>
+              <rect class="fill" x="12.15" y="13.5" width="2" height="25"/>
+              <rect class="fill" x="24.30" y="13.5" width="2" height="25"/>
+              <rect class="fill" x="36.45" y="13.5" width="2" height="25"/>
+
+              <!-- tubes -->
+              <rect class="tu" x="2.25"  y="3" width="9.65" height="35.5"/>
+              <rect class="tu" x="14.40" y="3" width="9.65" height="35.5"/>
+              <rect class="tu" x="26.55" y="3" width="9.65" height="35.5"/>
+              <path class="thin" d="M1 4 L13 2.4 M13.2 4 L25.2 2.4 M25.4 4 L37.4 2.4"/>
+              <text class="lb-t" x="19.2" y="-0.6" text-anchor="middle">tube ⌀9.65 × 54 long</text>
+
+              <line class="ext" x1="14.15" y1="13.5" x2="44" y2="13.5"/>
+              <line class="ext" x1="14.15" y1="38.5" x2="44" y2="38.5"/>
+              <line class="dim" x1="42" y1="13.5" x2="42" y2="38.5" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+              <text class="dt" x="40.4" y="26" text-anchor="middle" transform="rotate(-90 40.4 26)">25.00</text>
+
+              <line class="ext" x1="16.15" y1="41" x2="16.15" y2="49"/>
+              <line class="ext" x1="22.30" y1="41" x2="22.30" y2="49"/>
+              <line class="dim" x1="16.15" y1="47.6" x2="22.30" y2="47.6" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+              <text class="dt" x="19.2" y="51.6" text-anchor="middle">6.15 open</text>
+
+              <line class="ext" x1="12.07" y1="20" x2="-6" y2="20"/>
+              <text class="lb" x="-14.4" y="19">0.25 side gap</text>
+              <line class="ext" x1="11" y1="39.8" x2="-6" y2="33"/>
+              <text class="lb" x="-14.4" y="32">1.75 ledge overlap</text>
+            </svg>
+          </div>
+          <figcaption>Section through three pockets · tube shown broken</figcaption>
+        </figure>
+      </section>
+
+      <!-- ===================== PRINT AUDIT ===================== -->
+      <section>
+        <h2>Printability — checked surface by surface</h2>
+        <p class="note"><strong>It must print inverted, wall tops on the bed.</strong> That is not a preference: right way up, the plate is one 123 × 75 unsupported overhang held on four 4 mm pads. Inverted, every surface falls inside the published limits.</p>
+
+        <div class="tw">
+          <table>
+            <caption>Inverted orientation — audit</caption>
+            <thead>
+              <tr><th>Surface</th><th class="n">This part</th><th class="n">Limit</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Diamond flanks</td><td class="n">20.6° from vert.</td><td class="n">45° <em>(3D45: 65°+)</em></td><td class="pass">PASS</td></tr>
+              <tr><td>Ledge overhang<br><small>this is the tube seat</small></td><td class="n">2.00 mm<br><small>≈4½ lines</small></td><td class="n">~5 mm</td><td class="pass">PASS</td></tr>
+              <tr><td>Plate bridging pocket</td><td class="n">10.15 mm</td><td class="n">~10 mm</td><td class="pass">WATCH</td></tr>
+              <tr><td>Pocket walls</td><td class="n">vertical</td><td class="n">—</td><td class="pass">PASS</td></tr>
+              <tr><td>Feet</td><td class="n">on solid plate</td><td class="n">—</td><td class="pass">PASS</td></tr>
+              <tr><td>Bed contact</td><td class="n">3 069 mm²</td><td class="n">—</td><td class="pass">BRIM</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="callout"><b>No enclosed voids anywhere</b>, so there is nothing for support material to get trapped inside even if you leave supports switched on by mistake. The 10.15 mm bridge is the only figure sitting on its limit — raise <code>LEDGE_W</code> to shorten it if it comes out rough.</p>
+        <p class="note" style="margin-top:14px"><strong>On the Dremel 3D45 specifically:</strong> 0.4 mm nozzle, so the line-width figures above are exact. Independent testing has it clearing 65° overhangs, well past the 45° baseline. Two things to set — <strong>build plate adhesion to Brim</strong>, because Dremel's slicer defaults to a skirt and a skirt does nothing for adhesion, and <strong>run the door open for PLA</strong>, since the enclosure cuts part cooling and cooling is what the 10.15 mm bridge depends on.</p>
+      </section>
+    </div>
+
+    <div class="cols">
+
+      <!-- ===================== LEAN ===================== -->
+      <section>
+        <h2>How straight a tube stands</h2>
+        <p class="note">The pocket is square and the tube round, so the worst case is the <strong>diagonal</strong> of the clearance square, wedged corner to corner. Lean is clearance over depth, which makes depth the lever. The diamonds do not enter into it — the solid bands top and bottom still span the full 25 mm.</p>
+        <div class="tw">
+          <table>
+            <caption>Pocket depth vs. worst-case lean, at 0.50 clearance</caption>
+            <thead>
+              <tr><th class="n">Depth</th><th class="n">Lean</th><th class="n">Off at tube top</th></tr>
+            </thead>
+            <tbody>
+              <tr class="pick"><td class="n">25 mm</td><td class="n">1.62°</td><td class="n">1.53 mm</td></tr>
+              <tr><td class="n">30 mm</td><td class="n">1.35°</td><td class="n">1.27 mm</td></tr>
+              <tr><td class="n">35 mm</td><td class="n">1.16°</td><td class="n">1.09 mm</td></tr>
+              <tr><td class="n">40 mm</td><td class="n">1.01°</td><td class="n">0.95 mm</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================== PARAMETERS ===================== -->
+      <section>
+        <h2>Where every number came from</h2>
+        <p class="note">Two dimensions are measured off real parts, one is derived from the others, and the rest are choices — every one a named constant at the top of the script.</p>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>Constant</th><th class="n">Value</th><th>Source</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>TUBE_DIA</code></td><td class="n">9.65</td><td><span class="tag m">measured</span></td></tr>
+              <tr><td><code>TUBE_LEN</code></td><td class="n">54.00</td><td><span class="tag m">measured</span></td></tr>
+              <tr><td>foot size</td><td class="n">4.00</td><td><span class="tag d">derived</span> <code>WALL_T + LEDGE_W</code>, so it always lands on solid plate</td></tr>
+              <tr><td><code>POCKET_CLEAR</code></td><td class="n">0.50</td><td><span class="tag c">chosen</span> drop-in vs. lean</td></tr>
+              <tr><td><code>POCKET_DEPTH</code></td><td class="n">25.00</td><td><span class="tag c">chosen</span> your figure</td></tr>
+              <tr><td><code>LEDGE_W</code></td><td class="n">2.00</td><td><span class="tag c">chosen</span> catches the tube, prints clean</td></tr>
+              <tr><td><code>DIA_POST</code> / <code>DIA_MARGIN</code></td><td class="n">1.50 / 3.00</td><td><span class="tag c">chosen</span> strip at the crossings, band at the rims</td></tr>
+              <tr><td><code>WALL_T</code> / <code>BASE_T</code></td><td class="n">2.00 / 2.50</td><td><span class="tag c">chosen</span> 5 perimeters at 0.4</td></tr>
+              <tr><td><code>FOOT_H</code></td><td class="n">4.00</td><td><span class="tag c">chosen</span> clears the bench</td></tr>
+              <tr><td><code>COLS</code> × <code>ROWS</code></td><td class="n">10 × 6</td><td><span class="tag c">chosen</span> you asked for ~60</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <section>
+      <h2>What changed from Rev A</h2>
+      <ol class="steps">
+        <li><strong>Seven under-ribs → four corner pads.</strong> The ribs only existed to stop the plate being an overhang; printing inverted removes that problem entirely, so they went. The whole underside is now open to drain.</li>
+        <li><strong>136 diamond openings.</strong> Took 18.5 cm³ out of the walls and gave the curing tubes some airflow.</li>
+        <li><strong>Round drain holes → square ledge openings.</strong> A 6.15 square drains far better than a ⌀5 hole and, printed inverted, leaves a clean 2 mm step instead of a hole closing in over a void.</li>
+        <li><strong>94 g instead of 129 g</strong> — 27% less filament, and the print is shorter with it.</li>
+      </ol>
+    </section>
+  </div>
+
+  <dl class="block">
+    <div><dt>Part</dt><dd>Tube drying stand, 60-up · Rev B</dd></div>
+    <div><dt>Script</dt><dd><code>scripts/tube-drying-stand.rb</code></dd></div>
+    <div><dt>Units</dt><dd>Millimetres, decimal</dd></div>
+    <div><dt>Build</dt><dd>23 solids — plate, 18 walls, 4 feet</dd></div>
+    <div><dt>Orientation</dt><dd>Print inverted, no supports</dd></div>
+    <div><dt>Status</dt><dd>Geometry checked, unprinted</dd></div>
+  </dl>
+</div>
+</body>
+</html>
