@@ -15,13 +15,17 @@
 #     |  |       |    |
 #   +-+--+-------+--+-+  <- flange, kept at its 3.50 minimum
 #   +----+---------+---+
-#        |         |        9.00 of housing left below the flange —
+#        |         |        4.00 of housing left below the flange —
 #        |         |          this is what you hold while you push
 #
 # HAND-HELD. The housing is gripped in the fingers and the jig pushed onto it.
-# Flange face to the housing/tube junction is 10.00, which is the governing
-# dimension: FLANGE_H + SOCKET_DEPTH = 10.00, and the flange is kept as small as
-# the 45 deg underside allows so the socket gets as much of that 10 as possible.
+# Flange face to the housing/tube junction is 15.00. That figure was 10.00
+# through Rev B; the printed Rev B jig worked well but did not take the housing
+# deep enough, so Benton called for 5.00 more socket. FLANGE_H is already at its
+# minimum, so all 5.00 went into SOCKET_DEPTH and the junction moved with it.
+#
+# READ THE GRIP WARNING IN THE REPORT. Deeper socket means less housing left
+# proud to hold, and at 11.50 the grab is down to 4.00.
 #
 # Nothing here is metric-to-imperial converted for you: every constant below is
 # in MILLIMETRES and the script sets the model to mm/decimal.
@@ -58,13 +62,17 @@ module WR_PendantJig
 
   # ----------------------------------------------------------------- chosen --
   # None of these came off a part. Change them freely and re-run.
-  SOCKET_DEPTH  =  6.50   # how far the housing goes in, of its 19.
+  SOCKET_DEPTH  = 11.50   # how far the housing goes in, of its 19.
                           #
-                          # NOT a free choice: Benton's spec is that the flange
-                          # underside to the housing/tube junction is 10.00, and
-                          # that junction IS the shoulder. So this is
-                          # 10.00 - FLANGE_H, and it moves if the flange does.
-                          # Was 18.00 (Rev A), then 13.00, now 6.50.
+                          # FIT-TESTED. Rev B printed at 6.50 and the jig worked
+                          # well, but the housing did not seat deep enough, so
+                          # Benton asked for 5.00 more. 6.50 + 5.00 = 11.50.
+                          #
+                          # This supersedes the old "flange face to junction is
+                          # 10.00" spec, which is what set 6.50 in the first
+                          # place. That junction is now 15.00 and the 10.00
+                          # figure is dead — do not restore it.
+                          # Was 18.00 (Rev A), 13.00, 6.50 (Rev B), now 11.50.
   GUIDE_LEN     = 36.00   # tube guide length — two thirds of the 54 mm tube
   WALL          =  3.10   # wall around the housing socket -> body OD 21.49
   FLANGE_DIA    = 28.00   # foot, so the jig stands square instead of on the housing
@@ -100,7 +108,10 @@ module WR_PendantJig
                           # otherwise squeeze the bore and pinch the tube.
 
   # ------------------------------------------------------------------ layout --
-  COUNT         =  1      # 1 for the test print; set 5 for the gang fixture
+  COUNT         =  5      # 5-up gang fixture. Set 1 for a single test print.
+                          # At PITCH 32.00 the 28.00 flanges sit 4.00 apart and
+                          # the tie bar bridges them, so it prints as one piece
+                          # 156.00 long across the flanges.
   PITCH         = 32.00   # centre-to-centre when COUNT > 1
   TIE_BAR       = true    # bar linking the flanges when COUNT > 1 (slicers union it)
   TIE_W         = 10.00
@@ -443,7 +454,7 @@ module WR_PendantJig
     end
     puts ''
     puts '  GRIP AND GRAB  —  this is a hand-held fixture, not a bench stand'
-    puts format('    flange face to shoulder   %.2f   (Benton\'s spec: 10.00)', junction)
+    puts format('    flange face to shoulder   %.2f   (Rev C spec: 15.00, was 10.00)', junction)
     puts format('    socket holds              %.2f of the %.2f housing', SOCKET_DEPTH, HOUSING_LEN)
     puts format('    proud of the socket mouth %.2f,  of which %.2f is below the flange',
                 proud, grab)
@@ -471,7 +482,8 @@ module WR_PendantJig
     puts '  FIT-TESTED on the printed jig — better sourced than any measurement:'
     puts format('    CLEARANCE     %.2f   housing socket, came out a good fit', CLEARANCE)
     puts format('    TUBE_CLEAR    %.2f   tube guide, was %.2f and too tight', TUBE_CLEAR, CLEARANCE)
-    puts format('    SOCKET_DEPTH  %.2f   was 18.00, shortened by 5.00', SOCKET_DEPTH)
+    puts format('    SOCKET_DEPTH  %.2f   Rev B printed at 6.50 and did not seat', SOCKET_DEPTH)
+    puts '                          deep enough; deepened by 5.00 on Benton\'s call'
     puts ''
     puts '  NOT MEASURED — every one of these is a choice, not a part dimension:'
     puts format('    GUIDE_LEN     %.2f   two thirds of the 54 mm tube', GUIDE_LEN)
