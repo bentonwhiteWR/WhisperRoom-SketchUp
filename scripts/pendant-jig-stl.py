@@ -61,8 +61,8 @@ TIE_W         = 10.00   # DEAD. Kept only so --check still finds it in the .rb.
                         # nowhere to go. Replaced by two rails, below.
 TIE_CLEAR     =  0.50   # gap between the flange bore and the inner brace face
 TIE_OUTER     = 13.00   # DEAD with the flat rails. Kept for the drift check.
-BRACE_T       =  2.40   # brace wall thickness — 6 passes of a 0.4 nozzle
-BRACE_FRAC    =  1.00   # brace height as a fraction of the part height
+BRACE_T       =  3.20   # spine thickness — 8 passes of a 0.4 nozzle
+BRACE_FRAC    =  1.00   # spine height as a fraction of the part height
 SEGMENTS      = 72
 
 # The .rb constants this file duplicates, for --check.
@@ -371,31 +371,35 @@ def main():
     tie = []
     rails = []
     if count > 1 and TIE_BAR and not args.no_tie:
-        # TWO VERTICAL WEBS, standing on edge, full height of the part.
+        # ONE CENTRE SPINE, standing on edge, full height — in the GAPS only.
         #
-        # Three earlier shapes were wrong or weak. One slab across the axis
-        # blocked every flange bore. Two flat rails at flange height cleared
-        # the bores but were 4.23 x 3.50 lying down, about 15 mm4 of second
-        # moment each — a strap, not a brace. Standing the same material on
-        # edge over the full 51.00 gives roughly 26500 mm4, and stiffness in
-        # bending goes as the cube of depth, so this is not a small change.
+        # Fourth shape, and the right one. The three before it:
         #
-        # It also fixes the print. Flat rails sit at flange height, which is
-        # the LAST thing printed in socket-up orientation, so the five towers
-        # are unlinked for the whole build. Full-height webs tie them together
-        # from the first layer.
+        #   1. One slab down the centreline at flange height, running the full
+        #      length. It lay across every flange bore; no housing could enter.
+        #   2. Two flat rails outboard of the bores, still at flange height.
+        #      Bores clear, but 4.23 x 3.50 lying down is ~15 mm4 — a strap.
+        #   3. Two vertical webs outboard, full height. Very stiff, but they
+        #      wall in both sides, and out at y 8.77 the body only reaches
+        #      them over a 12.4 strip, so the weld to each unit is shallow.
         #
-        # Inner face clears the flange bore, the widest internal feature. The
-        # webs straddle the body wall, so they fuse to every unit up its
-        # entire length.
-        x0 = -FLANGE_DIA / 2.0
-        x1 = (count - 1) * PITCH + FLANGE_DIA / 2.0
-        y_in = flange_bore_r() + TIE_CLEAR
+        # On the centreline the bodies come closest together, so a spine here
+        # meets each one at its widest point and welds deep. It leaves both
+        # flanks open to see and grab, and costs about a third of the material
+        # two side webs did.
+        #
+        # THE CATCH, and it is the same trap as shape 1: a spine cannot run
+        # continuously, because at each unit the centreline IS the bore. Each
+        # segment therefore stops clear of the bore on both sides, so the
+        # spine is a row of posts bridging gap by gap.
+        x_stop = flange_bore_r() + TIE_CLEAR      # widest internal feature
+        a, b = -BRACE_T / 2.0, BRACE_T / 2.0
         z_top = total_h * BRACE_FRAC
-        for sign in (-1.0, 1.0):
-            a, b = sorted((sign * y_in, sign * (y_in + BRACE_T)))
-            rails.append((x0, x1, a, b, 0.0, z_top))
-            tie.extend(box(x0, x1, a, b, 0.0, z_top))
+        for i in range(count - 1):
+            gx0 = i * PITCH + x_stop
+            gx1 = (i + 1) * PITCH - x_stop
+            rails.append((gx0, gx1, a, b, 0.0, z_top))
+            tie.extend(box(gx0, gx1, a, b, 0.0, z_top))
         tris.extend(tie)
 
     # Run this on the ASSEMBLED row, after the tie bar, before writing anything.

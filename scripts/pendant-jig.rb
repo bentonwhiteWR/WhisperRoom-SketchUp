@@ -125,8 +125,8 @@ module WR_PendantJig
   TIE_CLEAR     =  0.50   # gap from the flange bore to the inner brace face
   TIE_OUTER     = 13.00   # DEAD with the flat rails. Kept so the numbers still
                           # line up with pendant-jig-stl.py's drift check.
-  BRACE_T       =  2.40   # brace wall thickness — 6 passes of a 0.4 nozzle
-  BRACE_FRAC    =  1.00   # brace height as a fraction of the part height
+  BRACE_T       =  3.20   # spine thickness — 8 passes of a 0.4 nozzle
+  BRACE_FRAC    =  1.00   # spine height as a fraction of the part height
   SEGMENTS      = 72      # facets around — 72 gives ~0.9 mm chords on the OD
 
   # true  -> model is flipped to PRINT orientation, ready to export straight to STL
@@ -291,43 +291,55 @@ module WR_PendantJig
     2.0 * Math::PI * (cr / (3.0 * a2)).abs * (a2 / 2.0).abs
   end
 
-  # TWO VERTICAL WEBS, standing on edge, running the full height of the part.
+  # ONE CENTRE SPINE, standing on edge, full height — in the GAPS only.
   #
-  # Three shapes came before this one and all were worse:
+  # Fourth shape here, and the right one. The three before it:
   #
-  #   1. One slab down the centreline at flange height. The flange bore is
-  #      Ø16.54 and the slab lay straight across it, so the housing could not
-  #      enter ANY unit in the row. Caught in the printed STL, not here.
-  #   2. Two flat rails either side of the bore, still at flange height. The
-  #      bores were clear, but 4.23 x 3.50 lying flat is about 15 mm4 of
-  #      second moment — a strap, not a brace. It felt flimsy, correctly.
-  #   3. This: the same material stood on edge over the full height, about
-  #      26500 mm4. Bending stiffness goes as the CUBE of depth, which is why
-  #      turning the section through 90 degrees is worth ~1750x, not 2x.
+  #   1. One slab down the centreline at flange height, running the full
+  #      length. The flange bore is Ø16.54 and the slab lay straight across
+  #      it, so the housing could not enter ANY unit. Caught in the printed
+  #      STL, not here.
+  #   2. Two flat rails outboard of the bores, still at flange height. Bores
+  #      clear, but 4.23 x 3.50 lying flat is about 15 mm4 of second moment —
+  #      a strap, not a brace. It felt flimsy, correctly.
+  #   3. Two vertical webs outboard, full height. Genuinely stiff, but they
+  #      wall in both flanks, and out at y 8.77 the body only reaches them
+  #      over a 12.4 strip, so the weld to each unit is shallow.
   #
-  # It also fixes the print. Flange-height ties are the LAST thing laid down
-  # in socket-up orientation, so the five 51 mm towers stand unlinked for the
-  # whole build. Full-height webs join them from the first layer.
+  # On the centreline the bodies come CLOSEST together, so a spine there meets
+  # each at its widest point: 1.97 into the body wall and 5.23 into the
+  # flange. It leaves both flanks open to see and grab, and costs about a
+  # third of what two side webs did. Standing on edge over the full 51.00 it
+  # is ~35400 mm4 against the rails' 30 — bending stiffness goes as the CUBE
+  # of depth, which is why rotating the section matters so much more than
+  # thickening it.
   #
-  # The inner face clears the flange bore, which is the widest internal
-  # feature; the webs straddle the body wall, so they fuse to every unit up
-  # its whole length. Overlapping by design — slicers union it.
-  def self.brace_inner; (HOUSING_DIA + FLANGE_RELIEF) / 2.0 + TIE_CLEAR; end
+  # Full height also fixes the print: a flange-height tie is the LAST thing
+  # laid down socket-up, so five 51 mm towers would stand unlinked for the
+  # whole build. This joins them from the first layer.
+  #
+  # THE CATCH, and it is trap 1 again: the spine cannot run continuously,
+  # because at each unit the centreline IS the bore. Every segment stops
+  # clear of the bore at both ends, so the spine is a row of posts bridging
+  # gap by gap. Overlapping by design — slicers union it.
+  def self.spine_stop; (HOUSING_DIA + FLANGE_RELIEF) / 2.0 + TIE_CLEAR; end
 
   def self.build_tie(parent)
-    span_x0 = -FLANGE_DIA / 2.0
-    span_x1 = (COUNT - 1) * PITCH + FLANGE_DIA / 2.0
     g = parent.entities.add_group
-    [1.0, -1.0].each do |sign|
-      y0, y1 = [sign * brace_inner, sign * (brace_inner + BRACE_T)].minmax
-      f = g.entities.add_face([pt2(span_x0, y0), pt2(span_x1, y0),
-                               pt2(span_x1, y1), pt2(span_x0, y1)])
+    y0 = -BRACE_T / 2.0
+    y1 =  BRACE_T / 2.0
+    (COUNT - 1).times do |i|
+      gx0 = i * PITCH + spine_stop
+      gx1 = (i + 1) * PITCH - spine_stop
+      next if gx1 <= gx0
+      f = g.entities.add_face([pt2(gx0, y0), pt2(gx1, y0),
+                               pt2(gx1, y1), pt2(gx0, y1)])
       next if f.nil?
       f.reverse! if f.normal.z < 0
       f.pushpull((total_h * BRACE_FRAC).mm)
     end
     return nil if g.entities.grep(Sketchup::Face).empty?
-    g.name = 'Braces'
+    g.name = 'Spine'
     g
   end
 
