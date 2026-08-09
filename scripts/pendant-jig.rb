@@ -122,8 +122,11 @@ module WR_PendantJig
                           # bore and the housing could not get in. Caught in the
                           # printed STL, not here. Kept only so the numbers still
                           # line up with pendant-jig-stl.py's drift check.
-  TIE_CLEAR     =  0.50   # gap from the flange bore to the inner rail edge
-  TIE_OUTER     = 13.00   # rail outer edge, inside the 14.00 flange radius
+  TIE_CLEAR     =  0.50   # gap from the flange bore to the inner brace face
+  TIE_OUTER     = 13.00   # DEAD with the flat rails. Kept so the numbers still
+                          # line up with pendant-jig-stl.py's drift check.
+  BRACE_T       =  2.40   # brace wall thickness — 6 passes of a 0.4 nozzle
+  BRACE_FRAC    =  1.00   # brace height as a fraction of the part height
   SEGMENTS      = 72      # facets around — 72 gives ~0.9 mm chords on the OD
 
   # true  -> model is flipped to PRINT orientation, ready to export straight to STL
@@ -288,31 +291,43 @@ module WR_PendantJig
     2.0 * Math::PI * (cr / (3.0 * a2)).abs * (a2 / 2.0).abs
   end
 
-  # TWO RAILS, one either side of the bore — NOT one slab down the middle.
+  # TWO VERTICAL WEBS, standing on edge, running the full height of the part.
   #
-  # A single centred bar is the obvious way to link the flanges and it is
-  # wrong: the flange bore is Ø16.54 and the bar ran straight through it, so
-  # the housing had nowhere to enter. Every unit in the row was blocked. The
-  # rails run outboard of the bore instead and leave it open end to end.
+  # Three shapes came before this one and all were worse:
   #
-  # Still overlaps the flanges by design — every slicer unions overlapping
-  # solids, so the gang prints as one piece without needing Solid Tools.
-  def self.rail_inner; (HOUSING_DIA + FLANGE_RELIEF) / 2.0 + TIE_CLEAR; end
+  #   1. One slab down the centreline at flange height. The flange bore is
+  #      Ø16.54 and the slab lay straight across it, so the housing could not
+  #      enter ANY unit in the row. Caught in the printed STL, not here.
+  #   2. Two flat rails either side of the bore, still at flange height. The
+  #      bores were clear, but 4.23 x 3.50 lying flat is about 15 mm4 of
+  #      second moment — a strap, not a brace. It felt flimsy, correctly.
+  #   3. This: the same material stood on edge over the full height, about
+  #      26500 mm4. Bending stiffness goes as the CUBE of depth, which is why
+  #      turning the section through 90 degrees is worth ~1750x, not 2x.
+  #
+  # It also fixes the print. Flange-height ties are the LAST thing laid down
+  # in socket-up orientation, so the five 51 mm towers stand unlinked for the
+  # whole build. Full-height webs join them from the first layer.
+  #
+  # The inner face clears the flange bore, which is the widest internal
+  # feature; the webs straddle the body wall, so they fuse to every unit up
+  # its whole length. Overlapping by design — slicers union it.
+  def self.brace_inner; (HOUSING_DIA + FLANGE_RELIEF) / 2.0 + TIE_CLEAR; end
 
   def self.build_tie(parent)
     span_x0 = -FLANGE_DIA / 2.0
     span_x1 = (COUNT - 1) * PITCH + FLANGE_DIA / 2.0
     g = parent.entities.add_group
     [1.0, -1.0].each do |sign|
-      y0, y1 = [sign * rail_inner, sign * TIE_OUTER].minmax
+      y0, y1 = [sign * brace_inner, sign * (brace_inner + BRACE_T)].minmax
       f = g.entities.add_face([pt2(span_x0, y0), pt2(span_x1, y0),
                                pt2(span_x1, y1), pt2(span_x0, y1)])
       next if f.nil?
       f.reverse! if f.normal.z < 0
-      f.pushpull(FLANGE_H.mm)
+      f.pushpull((total_h * BRACE_FRAC).mm)
     end
     return nil if g.entities.grep(Sketchup::Face).empty?
-    g.name = 'Tie rails'
+    g.name = 'Braces'
     g
   end
 

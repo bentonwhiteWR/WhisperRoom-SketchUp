@@ -59,8 +59,10 @@ TIE_W         = 10.00   # DEAD. Kept only so --check still finds it in the .rb.
                         # The old tie bar was one slab this wide on the axis,
                         # which plugged every flange bore — the housing had
                         # nowhere to go. Replaced by two rails, below.
-TIE_CLEAR     =  0.50   # gap between the flange bore and the inner rail edge
-TIE_OUTER     = 13.00   # rail outer edge, inside the 14.00 flange radius
+TIE_CLEAR     =  0.50   # gap between the flange bore and the inner brace face
+TIE_OUTER     = 13.00   # DEAD with the flat rails. Kept for the drift check.
+BRACE_T       =  2.40   # brace wall thickness — 6 passes of a 0.4 nozzle
+BRACE_FRAC    =  1.00   # brace height as a fraction of the part height
 SEGMENTS      = 72
 
 # The .rb constants this file duplicates, for --check.
@@ -75,6 +77,7 @@ MIRRORED = {
     "RELIEF_W": RELIEF_W, "RELIEF_H": RELIEF_H, "MOUTH_CH": MOUTH_CH,
     "PITCH": PITCH, "TIE_W": TIE_W, "SEGMENTS": float(SEGMENTS),
     "TIE_CLEAR": TIE_CLEAR, "TIE_OUTER": TIE_OUTER,
+    "BRACE_T": BRACE_T, "BRACE_FRAC": BRACE_FRAC,
 }
 
 # ------------------------------------------------------------------- derived --
@@ -118,26 +121,41 @@ def point_in_profile(r, z, prof):
     return inside
 
 
-def bore_obstructions(count, rails, prof, margin=0.15):
-    """Sample the flange-bore VOLUME and report anything solid inside it.
+def void_radius(z, prof, margin=0.15):
+    """How far out the central channel is open at height z. 0 if solid on axis."""
+    r = 0.0
+    while r < FLANGE_DIA:
+        if point_in_profile(r, z, prof):
+            return max(0.0, r - margin)
+        r += 0.05
+    return 0.0
+
+
+def bore_obstructions(count, braces, prof):
+    """Sample the whole internal channel and report anything solid inside it.
 
     THIS IS THE CHECK THAT WAS MISSING, and the first version of it was still
     wrong. The first Rev C STL shipped with a tie bar slab lying straight
-    across all five bores. The per-unit watertight test passed, because the
-    slab was appended after it had already run. A vertex-based test then also
-    passed, because the slab's corners sit outside the bores even though its
-    middle spans them — testing vertices cannot catch a plate crossing a hole.
+    across all five flange bores. The per-unit watertight test passed, because
+    the slab was appended after it had already run. A vertex-based test then
+    also passed, because the slab's corners sit outside the bores even though
+    its middle spans them — testing vertices cannot catch a plate crossing a
+    hole.
 
     So this samples points that must be air and asks whether any solid claims
-    them. Solids are tested analytically: the revolve by point-in-polygon on
-    its own section, the rails as boxes. USE coordinates, before the flip.
+    them. The channel is found from the section itself rather than assumed, so
+    it covers the flange bore, the housing socket, the glue gutter, and the
+    tube guide — not just the one hole that happened to break. Solids are
+    tested analytically: each unit's revolve by point-in-polygon, the braces
+    as boxes. USE coordinates, before the print flip.
     """
     hits = []
     axes = [i * PITCH for i in range(count)]
+    steps = 40
     for i, ax in enumerate(axes):
-        for zs in range(1, 9):
-            z = FLANGE_H * zs / 9.0
-            r_max = bore_min_radius(z) - margin
+        for zs in range(1, steps):
+            z = total_h * zs / steps
+            r_max = void_radius(z, prof)
             if r_max <= 0:
                 continue
             for rs in range(4):
@@ -147,14 +165,14 @@ def bore_obstructions(count, rails, prof, margin=0.15):
                     x = ax + r * math.cos(a)
                     y = r * math.sin(a)
                     what = None
-                    for other in axes:
-                        if point_in_profile(math.hypot(x - other, y), z, prof):
-                            what = "jig body"
+                    for j, other in enumerate(axes):
+                        if j != i and point_in_profile(math.hypot(x - other, y), z, prof):
+                            what = f"body of unit {j + 1}"
                             break
                     if what is None:
-                        for (x0, x1, y0, y1, z0, z1) in rails:
+                        for (x0, x1, y0, y1, z0, z1) in braces:
                             if x0 <= x <= x1 and y0 <= y <= y1 and z0 <= z <= z1:
-                                what = "tie bar"
+                                what = "brace"
                                 break
                     if what:
                         hits.append((i + 1, round(x, 2), round(y, 2), round(z, 2), what))
@@ -353,17 +371,31 @@ def main():
     tie = []
     rails = []
     if count > 1 and TIE_BAR and not args.no_tie:
-        # TWO RAILS, not one slab. A single bar on the axis sits straight across
-        # the flange bore and blocks the housing from entering — that is exactly
-        # what shipped in the first Rev C STL. The rails run outboard of the
-        # bore instead, so every bore stays open end to end.
+        # TWO VERTICAL WEBS, standing on edge, full height of the part.
+        #
+        # Three earlier shapes were wrong or weak. One slab across the axis
+        # blocked every flange bore. Two flat rails at flange height cleared
+        # the bores but were 4.23 x 3.50 lying down, about 15 mm4 of second
+        # moment each — a strap, not a brace. Standing the same material on
+        # edge over the full 51.00 gives roughly 26500 mm4, and stiffness in
+        # bending goes as the cube of depth, so this is not a small change.
+        #
+        # It also fixes the print. Flat rails sit at flange height, which is
+        # the LAST thing printed in socket-up orientation, so the five towers
+        # are unlinked for the whole build. Full-height webs tie them together
+        # from the first layer.
+        #
+        # Inner face clears the flange bore, the widest internal feature. The
+        # webs straddle the body wall, so they fuse to every unit up its
+        # entire length.
         x0 = -FLANGE_DIA / 2.0
         x1 = (count - 1) * PITCH + FLANGE_DIA / 2.0
         y_in = flange_bore_r() + TIE_CLEAR
+        z_top = total_h * BRACE_FRAC
         for sign in (-1.0, 1.0):
-            a, b = sorted((sign * y_in, sign * TIE_OUTER))
-            rails.append((x0, x1, a, b, 0.0, FLANGE_H))
-            tie.extend(box(x0, x1, a, b, 0.0, FLANGE_H))
+            a, b = sorted((sign * y_in, sign * (y_in + BRACE_T)))
+            rails.append((x0, x1, a, b, 0.0, z_top))
+            tie.extend(box(x0, x1, a, b, 0.0, z_top))
         tris.extend(tie)
 
     # Run this on the ASSEMBLED row, after the tie bar, before writing anything.
