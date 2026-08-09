@@ -116,8 +116,14 @@ module WR_PendantJig
                           # the tie bar bridges them, so it prints as one piece
                           # 156.00 long across the flanges.
   PITCH         = 32.00   # centre-to-centre when COUNT > 1
-  TIE_BAR       = true    # bar linking the flanges when COUNT > 1 (slicers union it)
-  TIE_W         = 10.00
+  TIE_BAR       = true    # rails linking the flanges when COUNT > 1 (slicers union them)
+  TIE_W         = 10.00   # DEAD. The tie used to be ONE slab this wide, centred
+                          # on the axis. It lay straight across every flange
+                          # bore and the housing could not get in. Caught in the
+                          # printed STL, not here. Kept only so the numbers still
+                          # line up with pendant-jig-stl.py's drift check.
+  TIE_CLEAR     =  0.50   # gap from the flange bore to the inner rail edge
+  TIE_OUTER     = 13.00   # rail outer edge, inside the 14.00 flange radius
   SEGMENTS      = 72      # facets around — 72 gives ~0.9 mm chords on the OD
 
   # true  -> model is flipped to PRINT orientation, ready to export straight to STL
@@ -282,18 +288,31 @@ module WR_PendantJig
     2.0 * Math::PI * (cr / (3.0 * a2)).abs * (a2 / 2.0).abs
   end
 
-  # Overlaps the flanges by design — every slicer unions overlapping solids, so
-  # the gang fixture prints as one piece without needing Solid Tools.
+  # TWO RAILS, one either side of the bore — NOT one slab down the middle.
+  #
+  # A single centred bar is the obvious way to link the flanges and it is
+  # wrong: the flange bore is Ø16.54 and the bar ran straight through it, so
+  # the housing had nowhere to enter. Every unit in the row was blocked. The
+  # rails run outboard of the bore instead and leave it open end to end.
+  #
+  # Still overlaps the flanges by design — every slicer unions overlapping
+  # solids, so the gang prints as one piece without needing Solid Tools.
+  def self.rail_inner; (HOUSING_DIA + FLANGE_RELIEF) / 2.0 + TIE_CLEAR; end
+
   def self.build_tie(parent)
     span_x0 = -FLANGE_DIA / 2.0
     span_x1 = (COUNT - 1) * PITCH + FLANGE_DIA / 2.0
     g = parent.entities.add_group
-    f = g.entities.add_face([pt2(span_x0, -TIE_W / 2.0), pt2(span_x1, -TIE_W / 2.0),
-                             pt2(span_x1,  TIE_W / 2.0), pt2(span_x0,  TIE_W / 2.0)])
-    return nil if f.nil?
-    f.reverse! if f.normal.z < 0
-    f.pushpull(FLANGE_H.mm)
-    g.name = 'Tie bar'
+    [1.0, -1.0].each do |sign|
+      y0, y1 = [sign * rail_inner, sign * TIE_OUTER].minmax
+      f = g.entities.add_face([pt2(span_x0, y0), pt2(span_x1, y0),
+                               pt2(span_x1, y1), pt2(span_x0, y1)])
+      next if f.nil?
+      f.reverse! if f.normal.z < 0
+      f.pushpull(FLANGE_H.mm)
+    end
+    return nil if g.entities.grep(Sketchup::Face).empty?
+    g.name = 'Tie rails'
     g
   end
 

@@ -55,7 +55,12 @@ MOUTH_CH      =  0.60
 COUNT         =  5
 PITCH         = 32.00
 TIE_BAR       = True
-TIE_W         = 10.00
+TIE_W         = 10.00   # DEAD. Kept only so --check still finds it in the .rb.
+                        # The old tie bar was one slab this wide on the axis,
+                        # which plugged every flange bore — the housing had
+                        # nowhere to go. Replaced by two rails, below.
+TIE_CLEAR     =  0.50   # gap between the flange bore and the inner rail edge
+TIE_OUTER     = 13.00   # rail outer edge, inside the 14.00 flange radius
 SEGMENTS      = 72
 
 # The .rb constants this file duplicates, for --check.
@@ -69,6 +74,7 @@ MIRRORED = {
     "GLUE_RELIEF_D": GLUE_RELIEF_D, "GLUE_RELIEF_H": GLUE_RELIEF_H,
     "RELIEF_W": RELIEF_W, "RELIEF_H": RELIEF_H, "MOUTH_CH": MOUTH_CH,
     "PITCH": PITCH, "TIE_W": TIE_W, "SEGMENTS": float(SEGMENTS),
+    "TIE_CLEAR": TIE_CLEAR, "TIE_OUTER": TIE_OUTER,
 }
 
 # ------------------------------------------------------------------- derived --
@@ -76,6 +82,83 @@ socket_dia = HOUSING_DIA + CLEARANCE
 tube_bore  = TUBE_DIA + TUBE_CLEAR
 body_dia   = socket_dia + 2 * WALL
 total_h    = FLANGE_H + SOCKET_DEPTH + GUIDE_LEN
+
+
+def flange_bore_r():
+    """Radius of the hole through the flange that the housing passes into."""
+    return (HOUSING_DIA + FLANGE_RELIEF) / 2.0
+
+
+def bore_min_radius(z):
+    """Radius the flange bore is open to at height z, in USE coordinates.
+
+    Straight at the full bore radius up to the 45 deg lead-in, then closing
+    down to the socket wall at the top of the flange.
+    """
+    rr = flange_bore_r()
+    rh = socket_dia / 2.0
+    lead = rr - rh
+    knee = FLANGE_H - lead
+    if z <= knee:
+        return rr
+    return rr - (z - knee)
+
+
+def point_in_profile(r, z, prof):
+    """Even-odd test of (radius, height) against the closed section polygon."""
+    inside = False
+    n = len(prof)
+    for i in range(n):
+        r1, z1 = prof[i]
+        r2, z2 = prof[(i + 1) % n]
+        if (z1 > z) != (z2 > z):
+            xr = r1 + (z - z1) * (r2 - r1) / (z2 - z1)
+            if r < xr:
+                inside = not inside
+    return inside
+
+
+def bore_obstructions(count, rails, prof, margin=0.15):
+    """Sample the flange-bore VOLUME and report anything solid inside it.
+
+    THIS IS THE CHECK THAT WAS MISSING, and the first version of it was still
+    wrong. The first Rev C STL shipped with a tie bar slab lying straight
+    across all five bores. The per-unit watertight test passed, because the
+    slab was appended after it had already run. A vertex-based test then also
+    passed, because the slab's corners sit outside the bores even though its
+    middle spans them — testing vertices cannot catch a plate crossing a hole.
+
+    So this samples points that must be air and asks whether any solid claims
+    them. Solids are tested analytically: the revolve by point-in-polygon on
+    its own section, the rails as boxes. USE coordinates, before the flip.
+    """
+    hits = []
+    axes = [i * PITCH for i in range(count)]
+    for i, ax in enumerate(axes):
+        for zs in range(1, 9):
+            z = FLANGE_H * zs / 9.0
+            r_max = bore_min_radius(z) - margin
+            if r_max <= 0:
+                continue
+            for rs in range(4):
+                r = r_max * rs / 3.0
+                for asteps in range(12):
+                    a = 2.0 * math.pi * asteps / 12.0
+                    x = ax + r * math.cos(a)
+                    y = r * math.sin(a)
+                    what = None
+                    for other in axes:
+                        if point_in_profile(math.hypot(x - other, y), z, prof):
+                            what = "jig body"
+                            break
+                    if what is None:
+                        for (x0, x1, y0, y1, z0, z1) in rails:
+                            if x0 <= x <= x1 and y0 <= y <= y1 and z0 <= z <= z1:
+                                what = "tie bar"
+                                break
+                    if what:
+                        hits.append((i + 1, round(x, 2), round(y, 2), round(z, 2), what))
+    return hits
 
 
 def profile():
@@ -268,10 +351,31 @@ def main():
     vol_exact = pappus_volume(prof)
 
     tie = []
+    rails = []
     if count > 1 and TIE_BAR and not args.no_tie:
-        tie = box(-FLANGE_DIA / 2.0, (count - 1) * PITCH + FLANGE_DIA / 2.0,
-                  -TIE_W / 2.0, TIE_W / 2.0, 0.0, FLANGE_H)
+        # TWO RAILS, not one slab. A single bar on the axis sits straight across
+        # the flange bore and blocks the housing from entering — that is exactly
+        # what shipped in the first Rev C STL. The rails run outboard of the
+        # bore instead, so every bore stays open end to end.
+        x0 = -FLANGE_DIA / 2.0
+        x1 = (count - 1) * PITCH + FLANGE_DIA / 2.0
+        y_in = flange_bore_r() + TIE_CLEAR
+        for sign in (-1.0, 1.0):
+            a, b = sorted((sign * y_in, sign * TIE_OUTER))
+            rails.append((x0, x1, a, b, 0.0, FLANGE_H))
+            tie.extend(box(x0, x1, a, b, 0.0, FLANGE_H))
         tris.extend(tie)
+
+    # Run this on the ASSEMBLED row, after the tie bar, before writing anything.
+    blocked = bore_obstructions(count, rails, prof)
+    if blocked:
+        print()
+        print("BORE OBSTRUCTED — refusing to write.")
+        print(f"  {len(blocked)} sample points inside a flange bore are solid;")
+        print("  the housing cannot enter. First few (unit, x, y, z, what):")
+        for pt in blocked[:6]:
+            print(f"    {pt}")
+        return 1
 
     zs = [p[2] for tri in tris for p in tri]
     dz = max(zs) if flip else 0.0
@@ -301,6 +405,10 @@ def main():
           f"({err:+.2f}% — faceting, under 0.5% is fine)")
     print("    -> closed." if naked == 0 and vol_mesh > 0
           else "    -> NOT closed. Do not slice this.")
+    print()
+    print("  BORE CHECK  (whole row, after the tie bar)")
+    print(f"    0 obstructions — every flange bore is open to r "
+          f"{flange_bore_r():.2f} for the housing")
     print()
     print("  BOUNDING BOX")
     print(f"    X {max(xs) - min(xs):7.2f}   Y {max(ys) - min(ys):7.2f}"
