@@ -24,8 +24,11 @@
 # deep enough, so Benton called for 5.00 more socket. FLANGE_H is already at its
 # minimum, so all 5.00 went into SOCKET_DEPTH and the junction moved with it.
 #
-# READ THE GRIP WARNING IN THE REPORT. Deeper socket means less housing left
-# proud to hold, and at 11.50 the grab is down to 4.00.
+# The report still warns that the grab is down to 4.00. SETTLED — Benton ruled
+# it a non-issue: the cap gives somewhere to hold, and the unit comes out by
+# pressing on the tube from the far side rather than by pulling on the housing.
+# Left the warning in because it is the right default for anyone changing
+# SOCKET_DEPTH again without that context.
 #
 # Nothing here is metric-to-imperial converted for you: every constant below is
 # in MILLIMETRES and the script sets the model to mm/decimal.
