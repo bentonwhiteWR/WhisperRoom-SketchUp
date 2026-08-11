@@ -1,5 +1,97 @@
 # DEVLOG
 
+## 2026-08-11 — booths from real components, booths from links, plugin redesign
+
+**The headline: paste a booth-builder share link, get that customer's exact
+booth built from real components.** Both link forms work — `?d=<id>` fetches
+`/api/booth-design/<id>` from the link's own host, `#d=<base64>` decodes
+locally — verified byte-identical on a real pair. Furniture (desk, MJP) and
+roof vents are reported as out of scope rather than dropped.
+
+**`build-booth-components.rb`** places the actual `.skp` components from
+`P:/Sketchup/NewMasterComponentList` into the layout slots. Every rule is
+measured per part, never tabulated, and each was earned the hard way:
+
+- *Orientation*: axes classified by extent — height ≈ 81/91, width larger of
+  the rest — with a retry that swaps width/thickness when the panel search
+  fails (the WA ramp door projects 60" out of a 49" frame and fooled the guess).
+- *Placement*: by the WALL PANEL found inside each part (tall faces, widest
+  cluster), never the bounding box — an EFS silencer widens a part sideways by
+  10"+ and a leaf swings 32" out. Panels flush to corners; thin parts centred
+  in their band (HX's 1.125" H-strip stays symmetric); seals centred; parts
+  top-aligned so vent fans hang below the wall line.
+- *Facing*: the floor rule (below-the-wall geometry stands on the host floor,
+  which is outside) outranks a bulk vote, which outranks the convention. Doors
+  point their leaf inward; WA doors and everything with below-wall geometry
+  self-orient. VSS/EFS vents carry bulk on BOTH sides, so only the fan is a
+  reliable witness.
+- *Wide access*: walls re-derive from real part widths when they disagree with
+  the layout slots — the seal beside a 49" WA frame shifts 3" (46-series) or
+  9" (40-series), emerging from the walk rather than hard-coded.
+- The console table prints slot/part/fit/panel/facing plus raw facing votes
+  per thick part. FIT shows the signed number, not a pass mark.
+
+**`gen-booth.py`: E/W walls now run north→south**, matching the portal's own
+renderer (`layout-render.js`) — they ran south→north, mirroring every E/W wall
+in the catalogue. `wr-booth-data.rb` regenerated (also picks up the upstream
+"96168 never had a 28-inch vent" fix). All 25 Standard booths resolve every
+slot against the component folder, standard and HX.
+
+**The measurement pass that made it possible:** `probe-components.rb` loads
+all 182 component files and measures extents, origins, anchors. Findings that
+drove the design: origins are inconsistent (73/182 at a corner) so placement
+must use bounding geometry; `_HX` = 91" panels (+10", not the Enhanced
+variant); panels measure their names to 0.02"; vent fan drop is identical
+between standard and HX.
+
+**New tools:** `elevation-export.rb` (axis views at ONE shared scale per run —
+auto is per-run-consistent, typed survives re-runs), `list-scenes.rb`
+(numbered scene table), `find-replace-names.rb` (preview-first rename across
+scenes/definitions/tags/materials, collision-refusing, one undo),
+`save-scene-components.rb` (each scene's component → its own .skp),
+`booth-from-link.rb`, `combine-ao.py`.
+
+**Angled Component Art:** batch 4 (all four cameras, every scene); style
+selectable BY NAME from the model's styles (the exporter never activates
+scenes, so scene styles never applied — that was the missing-edges mystery);
+"Bold edges" override; and a two-pass **Viewport shading (AO)** option —
+transparent shot for alpha, opaque AO shot for colour, married by
+`combine-ao.py`. Interior edges are engine-fixed at 1px; judge exports at 100%.
+
+**wr_tools redesigned:** one surface, one search over scripts AND abilities,
+favourites as pills, scripts grouped by `# @cat` headers (untagged one-offs
+sink to MORE SCRIPTS), per-script SVG icons on toolbar and pills, and the
+command bar accepts a pasted booth-builder link directly.
+
+**The trap that started the day:** `Sketchup.read_default` EVALS its stored
+string and `write_default` doesn't escape quotes — a JSON favourites list
+raised SyntaxError (not a StandardError!) at load and took the extension down.
+Preference lists are now pipe-joined, quotes stripped on write, Exception
+rescued with self-healing. Every new script carries the same guard.
+
+### Next steps (tonight, desktop)
+
+1. `git pull`, then `python scripts/install-plugin.py`, restart SketchUp.
+   Desktop repo path differs (see CLAUDE.md); the plugin resolves it.
+   Components live on `P:` — confirm the desktop sees that share.
+2. **Floors and ceilings**: export the components (save-scene-components),
+   probe them, then wire the datum shift — walls up by the floor lip, fans
+   stay at host-floor zero (documented in build-booth-components.rb).
+3. **Enhanced walls**: Benton authors combined components (exterior + interior
+   wall + foam grouped, relationship baked in). Separately: solve the E run
+   rule in gen-booth.py — all 25 E variants still skip. Panel finder needs a
+   prefer-outermost-slab tweak once two same-width tall slabs exist in one part.
+4. If any facing still misbehaves: the console votes table is the data —
+   paste it rather than iterating by screenshot.
+5. Team hand-off: .rbz packaging decision pending (Python dependency, P: path,
+   personal defaults). Pilot with one teammate first.
+
+### Open decisions
+
+- Angled art style for batch 3+ (named style vs Bold edges vs AO two-pass) —
+  test batch 0 first; the viewer team must be told if the look changes.
+- Panel category names/splits are one-line edits if the taxonomy feels wrong.
+
 ## 2026-08-06 (night) — the room tools, exploded views, and docs in the repo
 
 **`auto-dimension.rb`** chain-dimensions a room off its **interior floor face**,

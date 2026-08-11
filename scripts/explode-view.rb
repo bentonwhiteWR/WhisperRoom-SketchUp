@@ -1,4 +1,5 @@
 # @title Exploded View...
+# @cat Room tools
 # @ability Exploded
 # @ability-blurb Pull the selected assembly apart; switch off to put it back.
 # @setting mode   choice  Axis|Radial|Vertical  Direction

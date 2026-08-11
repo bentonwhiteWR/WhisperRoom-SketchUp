@@ -1,4 +1,5 @@
 # @title Proposal Scenes...
+# @cat Room tools
 # @ability Proposal scenes
 # @ability-blurb Create the five proposal plates; switch off to remove them.
 # @on  WR_ProposalScenes.ability_on(opts)

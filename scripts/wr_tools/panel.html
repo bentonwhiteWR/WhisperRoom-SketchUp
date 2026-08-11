@@ -4,412 +4,397 @@
 <meta charset="utf-8">
 <title>WhisperRoom</title>
 <style>
+  /* One surface, one search, no tabs. The old panel split abilities and
+     scripts across two tabs with search on only one of them, stacked four
+     header bands, and made every script a fat card. This one is a single
+     scrolling list under a single command bar that filters everything —
+     and understands a pasted booth-builder link. */
+
   :root {
-    --bg:      #f2f3f5;
-    --card:    #ffffff;
-    --card-h:  #ffffff;
-    --ink:     #14181c;
-    --ink-2:   #626c75;
-    --ink-3:   #949ea6;
-    --rule:    #dfe3e7;
+    --bg:      #f4f5f6;
+    --surface: #ffffff;
+    --ink:     #1c2327;
+    --muted:   #66727a;
+    --faint:   #9aa4ab;
+    --line:    #e2e6e9;
     --accent:  #ee6216;
-    --accent-w:rgba(238,98,22,.10);
-    --shadow:  0 1px 2px rgba(18,22,26,.07);
-    --shadow-h:0 2px 4px rgba(18,22,26,.10), 0 8px 18px rgba(18,22,26,.08);
-    --field:   #ffffff;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:      #1b1e21;
-      --card:    #23272b;
-      --card-h:  #282d31;
-      --ink:     #e6eaed;
-      --ink-2:   #98a2aa;
-      --ink-3:   #6d777e;
-      --rule:    #32383d;
-      --accent:  #ff7a33;
-      --accent-w:rgba(255,122,51,.13);
-      --shadow:  0 1px 2px rgba(0,0,0,.35);
-      --shadow-h:0 2px 4px rgba(0,0,0,.4), 0 8px 18px rgba(0,0,0,.35);
-      --field:   #191c1f;
-    }
+    --accent-soft: #fdeee4;
+    --on:      #1d8a4b;
   }
 
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; margin: 0; }
+
   html, body { height: 100%; }
   body {
-    margin: 0;
+    font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
     background: var(--bg);
     color: var(--ink);
-    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-    font-size: 13px;
-    line-height: 1.45;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    -webkit-font-smoothing: antialiased;
-    user-select: none;
-    cursor: default;
   }
 
-  /* ------------------------------------------------------------ header ---- */
-  header {
-    flex: 0 0 auto;
-    padding: 14px 16px 0;
-    background: var(--bg);
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: #c9d0d5; border-radius: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  svg { width: 14px; height: 14px; fill: none; stroke: currentColor;
+        stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ------------------------------------------------------------ top bar -- */
+
+  .top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px 8px;
   }
   .brand {
-    display: flex; align-items: baseline; gap: 9px;
-    padding-bottom: 12px;
+    font-weight: 650;
+    font-size: 13.5px;
+    letter-spacing: .01em;
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    gap: 7px;
   }
-  .brand b {
-    font-size: 15px; font-weight: 650; letter-spacing: .015em;
+  .brand::before {
+    content: "";
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
   }
-  .brand .mark {
-    width: 9px; height: 9px; border-radius: 2px;
-    background: var(--accent); flex: 0 0 auto;
-    transform: translateY(-1px);
+  .iconbtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
   }
-  .brand small {
-    margin-left: auto;
-    font-family: Consolas, ui-monospace, monospace;
-    font-size: 10.5px; letter-spacing: .06em; color: var(--ink-3);
-    font-variant-numeric: tabular-nums;
-  }
+  .iconbtn:hover { background: var(--surface); border-color: var(--line); color: var(--ink); }
+  .iconbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-  .search {
-    position: relative; padding-bottom: 12px;
-  }
-  .search svg {
-    position: absolute; left: 10px; top: 9px;
-    width: 14px; height: 14px; stroke: var(--ink-3); fill: none;
-    stroke-width: 1.8; pointer-events: none;
-  }
-  input {
-    width: 100%; padding: 8px 30px 8px 31px;
-    background: var(--field); color: var(--ink);
-    border: 1px solid var(--rule); border-radius: 7px;
-    font: inherit; outline: none;
-    transition: border-color .12s, box-shadow .12s;
-  }
-  input::placeholder { color: var(--ink-3); }
-  input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-w);
-  }
-  .clear {
-    position: absolute; right: 8px; top: 6px;
-    width: 20px; height: 20px; border-radius: 5px;
-    border: 0; background: transparent; color: var(--ink-3);
-    font-size: 15px; line-height: 18px; cursor: pointer; display: none;
-  }
-  .clear:hover { background: var(--rule); color: var(--ink); }
+  /* -------------------------------------------------------- command bar -- */
 
-  .chips { display: flex; flex-wrap: wrap; gap: 5px; padding-bottom: 12px; }
-  .chips .lab {
-    font-family: Consolas, ui-monospace, monospace;
-    font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase;
-    color: var(--ink-3); align-self: center; margin-right: 2px;
-  }
-  .chip {
-    padding: 3px 9px; border-radius: 20px; cursor: pointer;
-    background: var(--card); border: 1px solid var(--rule);
-    color: var(--ink-2); font-size: 11.5px;
-    max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    transition: border-color .12s, color .12s;
-  }
-  .chip:hover { border-color: var(--accent); color: var(--accent); }
-
-  /* -------------------------------------------------------------- list ---- */
-  main {
-    flex: 1 1 auto; overflow-y: auto; overflow-x: hidden;
-    padding: 0 16px 4px;
-  }
-  main::-webkit-scrollbar { width: 10px; }
-  main::-webkit-scrollbar-thumb {
-    background: var(--rule); border-radius: 6px;
-    border: 3px solid var(--bg);
-  }
-  main::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
-
-  .card {
+  .cmd {
+    margin: 0 12px 8px;
     position: relative;
-    display: block; width: 100%; text-align: left;
-    background: var(--card); border: 1px solid var(--rule); border-radius: 9px;
-    padding: 11px 13px 11px 14px; margin-bottom: 7px;
-    box-shadow: var(--shadow); cursor: pointer;
-    transition: transform .1s, box-shadow .12s, border-color .12s;
-    overflow: hidden;
   }
-  .card::before {
-    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-    background: var(--accent); opacity: 0;
-    transition: opacity .12s;
+  .cmd input {
+    width: 100%;
+    padding: 8px 30px 8px 32px;
+    font: inherit;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    outline: none;
   }
-  .card:hover, .card.sel {
-    background: var(--card-h);
-    border-color: var(--accent);
-    box-shadow: var(--shadow-h);
-    transform: translateY(-1px);
+  .cmd input:focus { border-color: var(--accent); }
+  .cmd .lens {
+    position: absolute; left: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--faint);
+    pointer-events: none;
   }
-  .card:hover::before, .card.sel::before { opacity: 1; }
-  .card:active { transform: translateY(0); }
+  .cmd .clear {
+    position: absolute; right: 6px; top: 50%;
+    transform: translateY(-50%);
+    width: 22px; height: 22px;
+    display: none;
+    align-items: center; justify-content: center;
+    border: 0; border-radius: 5px;
+    background: transparent;
+    color: var(--faint);
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .cmd .clear:hover { color: var(--ink); background: var(--bg); }
 
-  .row { display: flex; align-items: baseline; gap: 8px; }
-  .title {
-    font-size: 13.5px; font-weight: 620; letter-spacing: .005em;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* A pasted booth-builder link turns the command bar into an action. */
+  .linkgo {
+    display: none;
+    margin: 0 12px 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: var(--accent-soft);
+    cursor: pointer;
+    align-items: center;
+    gap: 10px;
   }
-  .when {
-    margin-left: auto; flex: 0 0 auto;
-    font-family: Consolas, ui-monospace, monospace;
-    font-size: 10px; color: var(--ink-3); white-space: nowrap;
-  }
-  .new {
-    flex: 0 0 auto; padding: 1px 6px; border-radius: 3px;
-    background: var(--accent); color: #fff;
-    font-family: Consolas, ui-monospace, monospace;
-    font-size: 8.5px; letter-spacing: .11em; font-weight: 700;
-    transform: translateY(-1px);
-  }
-  .pin {
-    flex: 0 0 auto; width: 21px; height: 21px; padding: 0; margin: -2px -3px 0 0;
-    border: 0; background: transparent; color: var(--ink-3); cursor: pointer;
-    display: grid; place-items: center; border-radius: 4px;
-    opacity: .38; transition: opacity .12s, color .12s;
-  }
-  .card:hover .pin, .card.sel .pin, .pin.on { opacity: 1; }
-  .pin:hover { color: var(--accent); background: var(--accent-w); }
-  .pin.on { color: var(--accent); }
-  .pin svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
-  .pin.on svg { fill: currentColor; }
+  .linkgo .t  { font-weight: 600; }
+  .linkgo .s  { color: var(--muted); font-size: 12px; overflow: hidden;
+                text-overflow: ellipsis; white-space: nowrap; }
+  .linkgo svg { color: var(--accent); flex: 0 0 auto; }
+  .linkgo:hover { background: #fbe2d1; }
 
+  /* --------------------------------------------------------- favourites -- */
 
-  .blurb {
-    color: var(--ink-2); font-size: 12px; margin-top: 3px;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden;
+  .favs {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin: 0 12px 8px;
+    overflow-x: auto;
+    overflow-y: visible;
+    flex: 0 0 auto;        /* the flex column must never squeeze this row */
+    min-height: 32px;
+    padding: 2px 0 4px;
   }
-  .file {
-    font-family: Consolas, ui-monospace, monospace;
-    font-size: 10px; color: var(--ink-3); margin-top: 5px;
-  }
-  mark { background: var(--accent-w); color: var(--accent); border-radius: 2px; }
-
-  .empty {
-    text-align: center; color: var(--ink-3); padding: 38px 20px;
-    font-size: 12.5px;
-  }
-  .empty code {
-    display: block; margin-top: 8px; word-break: break-all;
-    font-family: Consolas, ui-monospace, monospace; font-size: 10.5px;
-  }
-
-  /* ------------------------------------------- utility buttons, top bar ---- */
-  button.act {
-    padding: 6px 11px; border-radius: 6px; cursor: pointer;
-    background: var(--card); color: var(--ink-2);
-    border: 1px solid var(--rule); font: inherit; font-size: 11.5px;
-    display: inline-flex; align-items: center; gap: 6px;
-    transition: border-color .12s, color .12s;
-  }
-  button.act:hover { border-color: var(--accent); color: var(--accent); }
-  button.act svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.7; }
-  .hint {
-    font-family: Consolas, ui-monospace, monospace;
-    font-size: 9.5px; color: var(--ink-3); letter-spacing: .04em;
-  }
-
-  /* ------------------------------------------------------- favourites ---- */
-  /* Favourites and the utility buttons share one bar at the top. Favourites
-     used to sit alone above the tabs and the utilities were in a footer, so
-     the two things you reach for most were at opposite ends of the panel. */
-  .topbar {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding-bottom: 11px; margin-bottom: 11px; border-bottom: 1px solid var(--rule);
-  }
-  .tools { margin-left: auto; display: flex; gap: 5px; flex: 0 0 auto; }
-  .favs { display: flex; flex-wrap: wrap; gap: 5px; flex: 1 1 auto; min-width: 0; }
-  .favs .lab {
-    font-family: Consolas, ui-monospace, monospace;
-    font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase;
-    color: var(--ink-3); align-self: center; margin-right: 2px;
-  }
+  .favs:empty { display: none; }
   .fav {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 10px 4px 8px; border-radius: 20px; cursor: pointer;
-    background: var(--accent-w); border: 1px solid transparent;
-    color: var(--accent); font: inherit; font-size: 11.5px; font-weight: 600;
-    max-width: 170px; white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px 5px 8px;
+    border: 1px solid var(--line);
+    border-radius: 15px;
+    background: var(--surface);
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--ink);
+    cursor: pointer;
+    white-space: nowrap;
+    flex: 0 0 auto;
   }
+  .fav svg { width: 11px; height: 11px; fill: var(--accent); stroke: none; }
+  .fav.ic svg { width: 13px; height: 13px; fill: none; stroke: var(--muted);
+                stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .fav:hover { border-color: var(--accent); }
-  .fav svg { width: 11px; height: 11px; fill: currentColor; stroke: none; flex: 0 0 auto; }
-  .fav span { overflow: hidden; text-overflow: ellipsis; }
-  .favs .none {
-    font-size: 11.5px; color: var(--ink-3);
+
+  /* --------------------------------------------------------------- list -- */
+
+  .scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 0 12px 12px;
   }
 
-  /* ------------------------------------------------------------- tabs ---- */
-  .tabs {
-    display: flex; gap: 2px; margin: 0 -16px 12px; padding: 0 16px;
-    border-bottom: 1px solid var(--rule);
+  .sect {
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: .12em;
+    color: var(--faint);
+    margin: 14px 2px 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
   }
-  .tab {
-    border: 0; background: transparent; cursor: pointer; font: inherit;
-    padding: 7px 13px; font-size: 12.5px; color: var(--ink-3);
-    border-bottom: 2px solid transparent; margin-bottom: -1px;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .tab:hover { color: var(--ink-2); }
-  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 620; }
-  .tab .n {
-    font-family: Consolas, ui-monospace, monospace; font-size: 9.5px;
-    padding: 1px 5px; border-radius: 9px; background: var(--rule); color: var(--ink-3);
-  }
-  .tab[aria-selected="true"] .n { background: var(--accent); color: #fff; }
+  .sect .n { font-weight: 400; letter-spacing: 0; }
 
-  /* -------------------------------------------------------- abilities ---- */
-  .abil {
-    background: var(--card); border: 1px solid var(--rule); border-radius: 9px;
-    padding: 11px 13px; margin-bottom: 7px; box-shadow: var(--shadow);
+  .group {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    overflow: hidden;
   }
-  .abil.on { border-color: var(--accent); }
-  .abil .arow { display: flex; align-items: center; gap: 9px; }
-  .abil .title { flex: 1 1 auto; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    cursor: pointer;
+    border-top: 1px solid var(--line);
+  }
+  .row:first-child { border-top: 0; }
+  .row:hover, .row.sel { background: #f8f4f1; }
+
+  .row .body   { flex: 1 1 auto; min-width: 0; }
+  .row .title  { font-weight: 550; }
+  .row .blurb  {
+    color: var(--muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .row .meta {
+    color: var(--faint);
+    font-size: 11px;
+    white-space: nowrap;
+    text-align: right;
+    flex: 0 0 auto;
+  }
+  .row .meta .file { display: block; }
+  mark { background: #ffe3a8; color: inherit; border-radius: 2px; }
+
+  .tag {
+    font-size: 9.5px;
+    font-weight: 650;
+    letter-spacing: .07em;
+    color: var(--accent);
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    padding: 0 4px;
+    flex: 0 0 auto;
+  }
+
+  .star {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; height: 24px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--faint);
+    cursor: pointer;
+    opacity: 0;
+    flex: 0 0 auto;
+  }
+  .row:hover .star, .star.on { opacity: 1; }
+  .star svg { width: 13px; height: 13px; }
+  .star.on  { color: var(--accent); }
+  .star.on svg { fill: currentColor; }
+  .star:hover { background: var(--bg); color: var(--accent); }
+
+  /* ---------------------------------------------------------- abilities -- */
+
   .sw {
-    flex: 0 0 auto; width: 34px; height: 19px; padding: 0; cursor: pointer;
-    border: 1px solid var(--rule); border-radius: 11px; background: var(--field);
-    position: relative; transition: background .14s, border-color .14s;
+    position: relative;
+    width: 32px; height: 18px;
+    border: 0;
+    border-radius: 9px;
+    background: #ccd3d8;
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: background .12s;
   }
   .sw i {
-    position: absolute; left: 2px; top: 1px; width: 14px; height: 14px;
-    border-radius: 50%; background: var(--ink-3); transition: transform .14s, background .14s;
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: left .12s;
   }
-  .sw[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
-  .sw[aria-checked="true"] i { transform: translateX(15px); background: #fff; }
-  .sw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .gear {
-    flex: 0 0 auto; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px;
-    background: transparent; color: var(--ink-3); cursor: pointer; display: grid; place-items: center;
+  .sw[aria-checked="true"] { background: var(--on); }
+  .sw[aria-checked="true"] i { left: 16px; }
+
+  .gear { composes: none; }
+  .settings {
+    padding: 4px 10px 10px 51px;
+    display: grid;
+    gap: 6px;
+    border-top: 1px dashed var(--line);
+    background: #fbfcfc;
   }
-  .gear:hover { color: var(--accent); background: var(--accent-w); }
-  .gear svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
-  .abil .blurb { margin-top: 5px; }
-  .abil .src {
-    font-family: Consolas, ui-monospace, monospace;
-    font-size: 10px; color: var(--ink-3); margin-top: 6px;
+  .settings label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
   }
-  .set {
-    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule);
-    display: grid; gap: 8px;
+  .settings label span { flex: 0 0 auto; min-width: 90px; }
+  .settings input, .settings select {
+    flex: 1 1 auto;
+    font: inherit;
+    padding: 3px 6px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--ink);
   }
-  .set label {
-    display: grid; grid-template-columns: 1fr 132px; align-items: center; gap: 8px;
-    font-size: 12px; color: var(--ink-2);
+  .settings input:focus, .settings select:focus { outline: none; border-color: var(--accent); }
+
+  .empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 26px 12px;
   }
-  .set select, .set input {
-    padding: 5px 7px; border-radius: 6px; border: 1px solid var(--rule);
-    background: var(--field); color: var(--ink); font: inherit; font-size: 12px;
-    width: 100%; outline: none;
-  }
-  .set select:focus, .set input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-w); }
-  .set .why {
-    font-size: 11px; color: var(--ink-3); grid-column: 1 / -1; margin: -2px 0 2px;
+  .empty code {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--faint);
+    word-break: break-all;
   }
 
-  .notebar {
-    flex: 0 0 auto; display: none; padding: 7px 16px;
-    background: var(--accent-w); color: var(--accent);
-    font-family: Consolas, ui-monospace, monospace; font-size: 11px;
-    border-top: 1px solid var(--rule);
-  }
-  .notebar.bad { font-weight: 600; }
+  /* --------------------------------------------------------------- note -- */
 
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  .note {
+    display: none;
+    margin: 0 12px 10px;
+    padding: 7px 11px;
+    border-radius: 7px;
+    background: #eef6ef;
+    border: 1px solid #cfe6d4;
+    color: #22572f;
+    font-size: 12px;
+  }
+  .note.bad { background: #fbeeec; border-color: #efd2cc; color: #93382a; }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="brand">
-    <span class="mark"></span>
-    <b>WhisperRoom</b>
-    <small id="count"></small>
+  <div class="top">
+    <span class="brand">WhisperRoom</span>
+    <button class="iconbtn" id="rescan" title="Rescan the scripts folder">
+      <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></svg>
+    </button>
+    <button class="iconbtn" id="folder" title="Open the scripts folder">
+      <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+    </button>
+    <button class="iconbtn" id="console" title="Ruby Console">
+      <svg viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></svg>
+    </button>
   </div>
 
-  <div class="topbar">
-    <div class="favs" id="favs"></div>
-    <div class="tools">
-      <button class="act" id="rescan" title="Re-read the scripts folder">
-        <svg viewBox="0 0 16 16"><path d="M14 8a6 6 0 1 1-1.8-4.3"/><path d="M14 1.5V5h-3.5"/></svg>
-        Rescan
-      </button>
-      <button class="act" id="folder" title="Open the scripts folder">
-        <svg viewBox="0 0 16 16"><path d="M1.5 4.5h4l1.2 1.5h7.8v7H1.5z"/></svg>
-        Folder
-      </button>
-      <button class="act" id="console" title="Open the Ruby Console">
-        <svg viewBox="0 0 16 16"><path d="M1.5 2.5h13v11h-13z"/><path d="M4 6l2.2 2L4 10"/><path d="M8.5 10.5H12"/></svg>
-        Console
-      </button>
+  <div class="cmd">
+    <svg class="lens" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="q" placeholder="Search — or paste a booth-builder link" autofocus
+           autocomplete="off" spellcheck="false">
+    <button class="clear" id="clear" title="Clear">&#10005;</button>
+  </div>
+
+  <div class="linkgo" id="linkgo">
+    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+    <div style="min-width:0">
+      <div class="t">Build this booth design</div>
+      <div class="s" id="linktext"></div>
     </div>
   </div>
 
-  <div class="tabs" role="tablist">
-    <button class="tab" id="tabAb" role="tab" aria-selected="true" aria-controls="list">
-      Abilities <span class="n" id="nAb"></span>
-    </button>
-    <button class="tab" id="tabSc" role="tab" aria-selected="false" aria-controls="list">
-      Scripts <span class="n" id="nSc"></span>
-    </button>
-  </div>
-
-  <div class="search" id="searchWrap">
-    <svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="5"/><path d="M11 11l4 4"/></svg>
-    <input id="q" type="text" placeholder="Filter scripts…" autocomplete="off" spellcheck="false">
-    <button class="clear" id="clear" title="Clear">&times;</button>
-  </div>
-
-  <div class="chips" id="chips"></div>
-</header>
-
-<main id="list"></main>
-<div class="notebar" id="notebar"></div>
-
+  <div class="favs" id="favs"></div>
+  <div class="note" id="note"></div>
+  <div class="scroll" id="scroll"></div>
 
 <script>
 (function () {
   "use strict";
 
-  // Two tabs, because the two things behave differently and mixing them was
-  // confusing. An ABILITY has an on and an off and holds its settings; a SCRIPT
-  // is a thing you run once. Favourites sit above both and always apply.
   var DATA = { dir: "", scripts: [], abilities: [], recent: [], pinned: [] };
-  var view = [];
-  var sel  = 0;
-  var mode = "ab";          // "ab" | "sc"
-  var open = {};            // ability id -> settings drawer expanded
+  var view = [];              // filtered scripts, for keyboard navigation
+  var sel = -1;
+  var open = {};              // ability id -> settings expanded
 
-  var $q       = document.getElementById("q");
-  var $list    = document.getElementById("list");
-  var $chips   = document.getElementById("chips");
-  var $count   = document.getElementById("count");
-  var $clear   = document.getElementById("clear");
-  var $favs    = document.getElementById("favs");
-  var $search  = document.getElementById("searchWrap");
-  var $tabAb   = document.getElementById("tabAb");
-  var $tabSc   = document.getElementById("tabSc");
-  var $nAb     = document.getElementById("nAb");
-  var $nSc     = document.getElementById("nSc");
-  var $note    = document.getElementById("notebar");
+  var $q      = document.getElementById("q");
+  var $clear  = document.getElementById("clear");
+  var $scroll = document.getElementById("scroll");
+  var $favs   = document.getElementById("favs");
+  var $note   = document.getElementById("note");
+  var $linkgo = document.getElementById("linkgo");
+  var $linktext = document.getElementById("linktext");
   var noteTimer = null;
+
+  var STAR = '<svg viewBox="0 0 16 16"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.2L8 11.5 ' +
+             '4.2 13.5l.7-4.2-3.1-3 4.3-.6z" stroke-linejoin="round"/></svg>';
+  var GEAR = '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4"/>' +
+             '<path d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4' +
+             'M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6L3.3 3.3"/></svg>';
 
   function esc(s) {
     return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
-  // Highlight the filter term without letting it inject markup.
   function hl(text, term) {
     var safe = esc(text);
     if (!term) return safe;
@@ -419,74 +404,63 @@
     return safe.slice(0, i) + "<mark>" + safe.slice(i, i + n) + "</mark>" + safe.slice(i + n);
   }
 
-  function isPinned(name) {
-    return (DATA.pinned || []).indexOf(name) >= 0;
+  function byName(name) {
+    return DATA.scripts.filter(function (s) { return s.name === name; })[0];
   }
+  function isPinned(name) { return (DATA.pinned || []).indexOf(name) >= 0; }
 
-  // Pinned float to the top; everything else keeps the newest-first order Ruby
-  // already sorted into.
-  function filtered() {
-    var t = $q.value.trim().toLowerCase();
-    var out = !t ? DATA.scripts.slice() : DATA.scripts.filter(function (s) {
-      return (s.title + " " + s.name + " " + s.blurb).toLowerCase().indexOf(t) >= 0;
-    });
-    var pin = [], rest = [];
-    out.forEach(function (s) { (isPinned(s.name) ? pin : rest).push(s); });
-    return pin.concat(rest);
-  }
-
-  var STAR = '<svg viewBox="0 0 16 16"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.2L8 11.5 ' +
-             '4.2 13.5l.7-4.2-3.1-3 4.3-.6z" stroke-linejoin="round"/></svg>';
-  var GEAR = '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4"/>' +
-             '<path d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4' +
-             'M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6L3.3 3.3"/></svg>';
-
-  // ------------------------------------------------------------ favourites --
-  // Starred scripts, straight across the top. One click runs. Unlike the old
-  // toolbar pins these appear the moment you star something.
-  function drawFavs() {
-    var names = (DATA.pinned || []).filter(function (n) {
-      return DATA.scripts.some(function (s) { return s.name === n; });
-    });
-    if (!names.length) {
-      $favs.innerHTML = '<span class="lab">Favourites</span>' +
-        '<span class="none">Star a script to pin it here.</span>';
-      return;
-    }
-    $favs.innerHTML = '<span class="lab">Favourites</span>' + names.map(function (n) {
-      var s = DATA.scripts.filter(function (x) { return x.name === n; })[0];
-      return '<button class="fav" data-n="' + esc(n) + '" title="Run ' + esc(s.name) + '">' +
-             STAR + "<span>" + esc(s.title) + "</span></button>";
-    }).join("");
-    Array.prototype.forEach.call($favs.querySelectorAll(".fav"), function (el) {
-      el.addEventListener("click", function () {
-        var s = DATA.scripts.filter(function (x) { return x.name === el.dataset.n; })[0];
-        if (s) sketchup.run(s.file);
-      });
-    });
+  // A pasted booth-builder link is a command, not a search term.
+  function boothLink(t) {
+    return /booth-builder\?d=[A-Za-z0-9_-]+|#d=[A-Za-z0-9_-]{20,}/.test(t) ? t : null;
   }
 
   function note(msg, bad) {
     if (!msg) { $note.style.display = "none"; return; }
     $note.textContent = msg;
-    $note.className = "notebar" + (bad ? " bad" : "");
+    $note.className = "note" + (bad ? " bad" : "");
     $note.style.display = "block";
     if (noteTimer) clearTimeout(noteTimer);
     noteTimer = setTimeout(function () { $note.style.display = "none"; }, 6000);
   }
 
-  // ------------------------------------------------------------- abilities --
-  function drawAbilities() {
-    var list = DATA.abilities || [];
-    $count.textContent = list.filter(function (a) { return a.on_now; }).length + " ON";
-    if (!list.length) {
-      $list.innerHTML = '<div class="empty">No abilities found.<code>' +
-        'Add "@ability" to a script header to make one.</code></div>';
-      return;
-    }
-    $list.innerHTML = list.map(function (a) {
+  // ---------------------------------------------------------- favourites --
+
+  // Known scripts wear their own icon instead of the generic star — matches
+  // the toolbar (icon-*.svg in this folder).
+  var FAV_ICONS = {
+    "save-scene-components.rb":
+      '<svg viewBox="0 0 24 24"><path d="M12 3l7 3.5v5L12 15 5 11.5v-5z"/><path d="M12 15v4m0 0l-2.4-2.4M12 19l2.4-2.4" style="stroke:#ee6216"/></svg>',
+    "build-booth-components.rb":
+      '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M9 20l5-5" style="stroke:#ee6216"/></svg>',
+    "booth-from-link.rb":
+      '<svg viewBox="0 0 24 24"><rect x="10" y="10" width="10" height="10" rx="1"/><path d="M9.6 5.2L7.8 3.4a3 3 0 0 0-4.2 4.2l1.8 1.8M5.2 9.6l1.8 1.8" style="stroke:#ee6216"/><path d="M8.5 8.5l3.5 3.5"/></svg>',
+    "elevation-export.rb":
+      '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16"/><rect x="8.2" y="7" width="7.6" height="6"/><path d="M5 2h14" style="stroke:#ee6216"/></svg>',
+    "angled-component-art.rb":
+      '<svg viewBox="0 0 24 24"><path d="M12 4l7 4v8l-7 4-7-4V8z"/><path d="M12 4v8m0 0l7-4m-7 4l-7-4"/><path d="M21 3l-5.5 3.2" style="stroke:#ee6216"/></svg>'
+  };
+
+  function drawFavs() {
+    var names = (DATA.pinned || []).filter(byName);
+    $favs.innerHTML = names.map(function (n) {
+      var s = byName(n);
+      var ic = FAV_ICONS[n] || STAR;
+      return '<button class="fav' + (FAV_ICONS[n] ? " ic" : "") + '" data-n="' + esc(n) +
+             '" title="Run ' + esc(n) + '">' + ic + esc(s.title) + "</button>";
+    }).join("");
+    Array.prototype.forEach.call($favs.querySelectorAll(".fav"), function (el) {
+      el.addEventListener("click", function () {
+        var s = byName(el.dataset.n);
+        if (s) sketchup.run(s.file);
+      });
+    });
+  }
+
+  // ----------------------------------------------------------- abilities --
+
+  function abilityRows(list, term) {
+    return list.map(function (a) {
       var sets = a.settings || [];
-      var showSet = open[a.id] && sets.length;
       var fields = sets.map(function (s) {
         var v = (a.values || {})[s.key];
         var input;
@@ -502,119 +476,136 @@
         return "<label><span>" + esc(s.label) + "</span>" + input + "</label>";
       }).join("");
 
-      return '<div class="abil' + (a.on_now ? " on" : "") + '" data-id="' + esc(a.id) + '">' +
-        '<div class="arow">' +
-          '<button class="sw" role="switch" aria-checked="' + (a.on_now ? "true" : "false") +
-            '" data-id="' + esc(a.id) + '" title="' + (a.on_now ? "Switch off" : "Switch on") +
-            '"><i></i></button>' +
-          '<span class="title">' + esc(a.label) + "</span>" +
-          (sets.length ? '<button class="gear" data-id="' + esc(a.id) +
-                         '" title="Settings">' + GEAR + "</button>" : "") +
-        "</div>" +
-        (a.blurb ? '<div class="blurb">' + esc(a.blurb) + "</div>" : "") +
-        (showSet ? '<div class="set">' +
-            '<div class="why">Saved as you change them, and used every time you switch it on.</div>' +
-            fields + "</div>" : "") +
-        '<div class="src">' + (a.builtin ? "built in" : esc(a.id)) + "</div>" +
-        "</div>";
+      return '<div class="row" data-ab="' + esc(a.id) + '">' +
+               '<button class="sw" role="switch" aria-checked="' + (a.on_now ? "true" : "false") +
+                 '" data-id="' + esc(a.id) + '"><i></i></button>' +
+               '<div class="body">' +
+                 '<div class="title">' + hl(a.label, term) + "</div>" +
+                 (a.blurb ? '<div class="blurb">' + hl(a.blurb, term) + "</div>" : "") +
+               "</div>" +
+               (sets.length ? '<button class="star on gear" style="opacity:1" data-g="' +
+                              esc(a.id) + '" title="Settings">' + GEAR + "</button>" : "") +
+             "</div>" +
+             (open[a.id] && sets.length ? '<div class="settings">' + fields + "</div>" : "");
     }).join("");
-
-    Array.prototype.forEach.call($list.querySelectorAll(".sw"), function (el) {
-      el.addEventListener("click", function () {
-        var on = el.getAttribute("aria-checked") !== "true";
-        el.setAttribute("aria-checked", on ? "true" : "false");   // optimistic
-        sketchup.ability(el.dataset.id, on ? "true" : "false");
-      });
-    });
-    Array.prototype.forEach.call($list.querySelectorAll(".gear"), function (el) {
-      el.addEventListener("click", function () {
-        open[el.dataset.id] = !open[el.dataset.id];
-        drawAbilities();
-      });
-    });
-    Array.prototype.forEach.call($list.querySelectorAll(".set select, .set input"),
-      function (el) {
-        el.addEventListener("change", function () {
-          sketchup.setting(el.dataset.id, el.dataset.k, el.value);
-        });
-      });
   }
 
-  function draw() {
-    $nAb.textContent = (DATA.abilities || []).length;
-    $nSc.textContent = (DATA.scripts || []).length;
-    $tabAb.setAttribute("aria-selected", mode === "ab" ? "true" : "false");
-    $tabSc.setAttribute("aria-selected", mode === "sc" ? "true" : "false");
-    $search.style.display = mode === "sc" ? "block" : "none";
-    $chips.style.display  = mode === "sc" ? "flex" : "none";
+  // ------------------------------------------------------------- scripts --
 
-    drawFavs();
-    if (mode === "ab") { drawAbilities(); return; }
-
-    var term = $q.value.trim();
-    view = filtered();
-    if (sel >= view.length) sel = Math.max(0, view.length - 1);
-    $clear.style.display = term ? "block" : "none";
-
-    $count.textContent = DATA.scripts.length
-      ? (term ? view.length + " / " + DATA.scripts.length : DATA.scripts.length + " SCRIPTS")
-      : "";
-
-    if (!DATA.scripts.length) {
-      $list.innerHTML = '<div class="empty">No .rb files found in<code>' +
-        esc(DATA.dir) + "</code></div>";
-      return;
-    }
-    if (!view.length) {
-      $list.innerHTML = '<div class="empty">Nothing matches &ldquo;' + esc(term) + "&rdquo;</div>";
-      return;
-    }
-
-    $list.innerHTML = view.map(function (s, i) {
-      var p = isPinned(s.name);
-      return '<div class="card' + (i === sel ? " sel" : "") + '" data-i="' + i + '">' +
-             '<div class="row">' +
-               '<span class="title">' + hl(s.title, term) + "</span>" +
-               (s.ability ? '<span class="new">ABILITY</span>' : "") +
-               (s.fresh ? '<span class="new">NEW</span>' : "") +
-               '<span class="when">' + esc(s.ago) + "</span>" +
-               '<button class="pin' + (p ? " on" : "") + '" data-n="' + esc(s.name) +
-                 '" title="' + (p ? "Remove from favourites" : "Add to favourites") + '">' + STAR +
-               "</button>" +
+  function scriptRow(s, i, term) {
+    var p = isPinned(s.name);
+    return '<div class="row' + (i === sel ? " sel" : "") + '" data-i="' + i + '">' +
+             '<div class="body">' +
+               '<div class="title">' + hl(s.title, term) +
+                 (s.fresh ? ' <span class="tag">NEW</span>' : "") + "</div>" +
+               (s.blurb ? '<div class="blurb">' + hl(s.blurb, term) + "</div>" : "") +
              "</div>" +
-             (s.blurb ? '<div class="blurb">' + hl(s.blurb, term) + "</div>" : "") +
-             '<div class="file">' + hl(s.name, term) + "</div>" +
-             "</div>";
-    }).join("");
+             '<div class="meta">' + esc(s.ago) +
+               '<span class="file">' + hl(s.name, term) + "</span></div>" +
+             '<button class="star' + (p ? " on" : "") + '" data-n="' + esc(s.name) +
+               '" title="' + (p ? "Unpin" : "Pin to favourites") + '">' + STAR + "</button>" +
+           "</div>";
+  }
 
-    Array.prototype.forEach.call($list.querySelectorAll(".card"), function (el) {
+  // ----------------------------------------------------------------- draw --
+
+  function draw() {
+    var term = $q.value.trim();
+    $clear.style.display = term ? "flex" : "none";
+
+    var link = boothLink(term);
+    $linkgo.style.display = link ? "flex" : "none";
+    if (link) { $linktext.textContent = term; }
+
+    var t = term.toLowerCase();
+    var abs = (DATA.abilities || []).filter(function (a) {
+      return !t || (a.label + " " + (a.blurb || "")).toLowerCase().indexOf(t) >= 0;
+    });
+    view = (DATA.scripts || []).filter(function (s) {
+      return !t || (s.title + " " + s.name + " " + (s.blurb || "")).toLowerCase().indexOf(t) >= 0;
+    });
+    if (link) { abs = []; view = []; }
+    if (sel >= view.length) sel = view.length - 1;
+
+    var h = "";
+    if (abs.length) {
+      h += '<div class="sect">ABILITIES <span class="n">' +
+           abs.filter(function (a) { return a.on_now; }).length + " on</span></div>" +
+           '<div class="group">' + abilityRows(abs, term) + "</div>";
+    }
+    if (view.length) {
+      // Scripts grouped by their "@cat" header. Known categories in a fixed
+      // order; anything uncategorised — generated booths, one-off layouts —
+      // sinks into MORE SCRIPTS at the bottom, where run-once scripts belong.
+      var ORDER = ["Build a booth", "Export art", "Model tools", "Room tools"];
+      var MORE = "More scripts";
+      var groups = {};
+      view.forEach(function (s) {
+        var c = s.cat || MORE;
+        (groups[c] = groups[c] || []).push(s);
+      });
+      var names = Object.keys(groups).sort(function (a, b) {
+        if (a === MORE) return 1;
+        if (b === MORE) return -1;
+        var ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+        if (ia < 0 && ib < 0) return a < b ? -1 : 1;
+        if (ia < 0) return 1;
+        if (ib < 0) return -1;
+        return ia - ib;
+      });
+      var flat = [];
+      names.forEach(function (c) { groups[c].forEach(function (s) { flat.push(s); }); });
+      view = flat;                       // keyboard order follows display order
+      var idx = 0;
+      names.forEach(function (c) {
+        h += '<div class="sect">' + esc(c).toUpperCase() + ' <span class="n">' +
+             groups[c].length + "</span></div>" +
+             '<div class="group">' + groups[c].map(function (s) {
+               return scriptRow(s, idx++, term);
+             }).join("") + "</div>";
+      });
+    }
+    if (!h && !link) {
+      h = DATA.scripts.length
+        ? '<div class="empty">Nothing matches &ldquo;' + esc(term) + "&rdquo;</div>"
+        : '<div class="empty">No .rb files found in<code>' + esc(DATA.dir) + "</code></div>";
+    }
+    $scroll.innerHTML = h;
+    wire(term);
+  }
+
+  function wire() {
+    Array.prototype.forEach.call($scroll.querySelectorAll(".row[data-i]"), function (el) {
       el.addEventListener("click", function () { runAt(+el.dataset.i); });
     });
-    // The star sits inside the card, so stop the click running the script too.
-    Array.prototype.forEach.call($list.querySelectorAll(".pin"), function (el) {
+    Array.prototype.forEach.call($scroll.querySelectorAll(".star[data-n]"), function (el) {
       el.addEventListener("click", function (e) {
         e.stopPropagation();
         sketchup.pin(el.dataset.n);
       });
     });
-  }
-
-  function drawChips() {
-    var names = (DATA.recent || []).filter(function (n) {
-      return DATA.scripts.some(function (s) { return s.name === n; });
-    });
-    if (!names.length) { $chips.innerHTML = ""; return; }
-    $chips.innerHTML = '<span class="lab">Recent</span>' + names.map(function (n) {
-      var s = DATA.scripts.filter(function (x) { return x.name === n; })[0];
-      return '<div class="chip" data-n="' + esc(n) + '" title="' + esc(s.name) + '">' +
-             esc(s.title) + "</div>";
-    }).join("");
-    Array.prototype.forEach.call($chips.querySelectorAll(".chip"), function (el) {
-      el.addEventListener("click", function () {
-        var s = DATA.scripts.filter(function (x) { return x.name === el.dataset.n; })[0];
-        if (s) sketchup.run(s.file);
+    Array.prototype.forEach.call($scroll.querySelectorAll(".sw"), function (el) {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var on = el.getAttribute("aria-checked") !== "true";
+        el.setAttribute("aria-checked", on ? "true" : "false");   // optimistic
+        sketchup.ability(el.dataset.id, on ? "true" : "false");
       });
     });
+    Array.prototype.forEach.call($scroll.querySelectorAll("[data-g]"), function (el) {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
+        open[el.dataset.g] = !open[el.dataset.g];
+        draw();
+      });
+    });
+    Array.prototype.forEach.call($scroll.querySelectorAll(".settings select, .settings input"),
+      function (el) {
+        el.addEventListener("change", function () {
+          sketchup.setting(el.dataset.id, el.dataset.k, el.value);
+        });
+        el.addEventListener("click", function (e) { e.stopPropagation(); });
+      });
   }
 
   function runAt(i) {
@@ -624,40 +615,48 @@
 
   function move(d) {
     if (!view.length) return;
-    sel = Math.min(view.length - 1, Math.max(0, sel + d));
+    sel = Math.min(view.length - 1, Math.max(0, (sel < 0 ? -d : sel) + d));
     draw();
-    var el = $list.querySelector(".card.sel");
+    var el = $scroll.querySelector(".row.sel");
     if (el) el.scrollIntoView({ block: "nearest" });
   }
 
-  $q.addEventListener("input", function () { sel = 0; draw(); });
-  $q.addEventListener("keydown", function (e) {
-    if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
-    else if (e.key === "Enter")  { e.preventDefault(); runAt(sel); }
-    else if (e.key === "Escape") { $q.value = ""; sel = 0; draw(); }
-  });
-  $clear.addEventListener("click", function () { $q.value = ""; sel = 0; draw(); $q.focus(); });
+  // ------------------------------------------------------------ commands --
 
-  function setMode(m) {
-    mode = m;
-    draw();
-    if (m === "sc") $q.focus();
+  $q.addEventListener("input", function () { sel = -1; draw(); });
+  $q.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown")      { e.preventDefault(); move(1); }
+    else if (e.key === "ArrowUp")   { e.preventDefault(); move(-1); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      var link = boothLink($q.value.trim());
+      if (link) { buildLink(link); }
+      else if (sel >= 0) { runAt(sel); }
+      else if (view.length === 1) { runAt(0); }
+    }
+    else if (e.key === "Escape") { $q.value = ""; sel = -1; draw(); }
+  });
+  $clear.addEventListener("click", function () { $q.value = ""; sel = -1; draw(); $q.focus(); });
+
+  function buildLink(link) {
+    if (window.sketchup && sketchup.buildlink) {
+      sketchup.buildlink(link);
+      $q.value = "";
+      draw();
+    }
   }
-  $tabAb.addEventListener("click", function () { setMode("ab"); });
-  $tabSc.addEventListener("click", function () { setMode("sc"); });
+  $linkgo.addEventListener("click", function () { buildLink($q.value.trim()); });
 
   document.getElementById("rescan").addEventListener("click", function () { sketchup.rescan(); });
   document.getElementById("folder").addEventListener("click", function () { sketchup.folder(); });
   document.getElementById("console").addEventListener("click", function () { sketchup.console(); });
 
-  // Called from Ruby. Ruby is the source of truth for every switch position —
-  // the optimistic flip on click is only so the switch feels immediate, and
-  // this render corrects it if the ability refused to change.
+  // Ruby is the source of truth for every switch position; the optimistic flip
+  // on click only makes the switch feel immediate, and this render corrects it.
   window.WR = {
     render: function (payload) {
       DATA = payload || DATA;
-      drawChips();
+      drawFavs();
       draw();
       if (DATA.note) note(DATA.note, /fail|error|could not|no /i.test(DATA.note));
     }

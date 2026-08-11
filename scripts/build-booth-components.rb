@@ -1,0 +1,938 @@
+# @title Build Booth (real components)...
+# @cat Build a booth
+#
+# Builds a booth out of the REAL component .skp files instead of extruded boxes.
+#
+#   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/build-booth-components.rb"
+#
+# build-booth.rb draws each panel as a rectangle and push-pulls it into a
+# featureless slab. That is fine for a plan check and useless for a render: a
+# door frame is a grey box with no door in it. This places the actual component,
+# so the booth has doors that swing, windows with glass, and vents with ducts.
+#
+# Layout comes from the same wr-booth-data.rb — every panel's position, run
+# length, wall and kind. Nothing about the layout changes. All that changes is
+# what gets put in each slot.
+#
+# ============================================================================
+# HOW A COMPONENT IS ORIENTED, AND WHY IT IS MEASURED RATHER THAN TABULATED
+#
+# The components are not authored to one convention. Measured across all 182:
+#
+#   * HEIGHT runs along the definition's own Y — 81.000 standard, 91.000 for HX.
+#     Not Z. Every wall part agrees on this.
+#   * WIDTH is on Z for solid panels, doors and both seam seals, and on X for
+#     the WDO window panels and the vents. Two families, no flag to tell them
+#     apart.
+#   * ORIGINS ARE NOT CONSISTENT. Only 73 of 182 sit at their bounding box's
+#     minimum corner; 34 sit at no recognisable anchor at all. 40PanelSolid's
+#     origin is a full inch outside its own box on two axes while 7Panel's is on
+#     the corner.
+#
+# So placement CANNOT use the insertion point, and orientation cannot use a
+# lookup table that someone has to keep in step with the model. Both are derived
+# per part from the definition's own bounding box:
+#
+#     height axis    = whichever axis measures about 81 or 91
+#     width axis     = the larger of the remaining two
+#     thickness axis = the smaller of the remaining two
+#
+# That is true for both families and stays true if a part is re-exported.
+# ============================================================================
+#
+# HX PANELS SIT ON THE SAME CENTRELINE. An HX panel measures 1.125 thick against
+# a standard panel's 1.000. The extra eighth is a black H strip that stands proud
+# equally on both faces — a sixteenth each side — so the panel's mounting plane
+# has not moved. Thin parts are therefore centred on the wall centreline, never
+# butted to a face. Butting would throw the wall out by a sixteenth and read as a
+# rounding bug.
+
+require 'sketchup.rb'
+
+module WR_BuildBoothComponents
+  DATA = File.join(File.dirname(__FILE__), 'wr-booth-data.rb')
+  PREF = 'WR_BuildBoothComponents'.freeze
+  DEFAULT_DIR = 'P:/Sketchup/NewMasterComponentList'.freeze
+
+  ORIGIN = Geom::Point3d.new(0, 0, 0)
+  VX = Geom::Vector3d.new(1, 0, 0)
+  VY = Geom::Vector3d.new(0, 1, 0)
+  VZ = Geom::Vector3d.new(0, 0, 1)
+
+  SEAL_COMP   = 'MidWallSeamSeal'.freeze
+  CORNER_COMP = 'CornerSeamSeal'.freeze
+
+  # Per-booth slot assignments. The layout data says a slot is a VNT or a DRFRM;
+  # it does not say WHICH vent or WHICH door, and that is a customer choice. This
+  # is where a decoded booth-builder link's "a" field will land once that route
+  # is wired up — same shape, slot id to component name.
+  ASSIGN = {
+    'MDL 7272 S' => {
+      'N0' => '46VNT_VSS',        # vent wall, VSS
+      'N1' => '22PanelSolid',
+      'S0' => 'Right46Door',      # right-hand door, at the data's own end of the wall
+      'S1' => '22PanelSolid',
+      'E0' => '46VNT_VSS',        # second vent slot, VSS
+      'E1' => '22PanelSolid',
+      'W0' => '46Panel3236WDO',   # 32x36 window, on the wall left of the door
+      'W1' => '22PanelSolid'
+    }
+  }.freeze
+
+  # Fallback when a slot has no explicit assignment: build a name from the slot's
+  # kind and its measured run length. Reported whenever it is used, because a
+  # guessed component is not the same as a specified one.
+  def self.guess_component(kind, run)
+    w = run.round
+    case kind
+    when 'VNT'   then "#{w}VNT"
+    when 'DRFRM' then "Right#{w}Door"
+    when 'CBL'   then "#{w}PanelCBL"
+    when 'SEAL'  then SEAL_COMP
+    when 'CORNER' then CORNER_COMP
+    else
+      # 7, 19, 28, 31, 43 are plain "nPanel"; 16, 22, 40, 46 are "nPanelSolid".
+      %w[7 19 28 31 43].include?(w.to_s) ? "#{w}Panel" : "#{w}PanelSolid"
+    end
+  end
+
+  # ------------------------------------------------------------------- input --
+
+  def self.ask
+    unless File.exist?(DATA)
+      UI.messagebox("Booth data not found:\n#{DATA}\n\nRun:  python gen-booth.py --all")
+      return nil
+    end
+    load DATA
+
+    keys = WR_BOOTH_DATA::BOOTHS.keys.sort_by { |k| [(k[/\d+/] || '0').to_i, k] }
+    return nil if keys.empty?
+
+    last = read_pref('booth', keys.include?('MDL 7272 S') ? 'MDL 7272 S' : keys.first)
+    last = keys.first unless keys.include?(last)
+    dir  = read_pref('dir', DEFAULT_DIR)
+
+    res = UI.inputbox(['Booth', 'Component folder', 'Height', 'Dry run — report only'],
+                      [last, dir, 'Standard (81 in)', 'No'],
+                      [keys.join('|'), '', 'Standard (81 in)|HX (91 in)', 'Yes|No'],
+                      'Build Booth from Components')
+    return nil unless res
+
+    d = res[1].to_s.strip.tr('\\', '/').sub(%r{/+\z}, '')
+    unless File.directory?(d)
+      UI.messagebox("Not a folder:\n#{d}")
+      return nil
+    end
+    write_pref('booth', res[0])
+    write_pref('dir', d)
+    { 'booth' => res[0], 'dir' => d, 'hx' => res[2].to_s.start_with?('HX'),
+      'dry' => res[3] == 'Yes' }
+  end
+
+  # read_default EVALS the stored string and write_default does not escape quotes
+  # in it, so a stored value with a quote raises SyntaxError — not a
+  # StandardError, so it escapes an ordinary rescue.
+  def self.read_pref(k, fallback)
+    v = Sketchup.read_default(PREF, k, fallback).to_s
+    v.empty? ? fallback : v
+  rescue Exception
+    fallback
+  end
+
+  def self.write_pref(k, v)
+    Sketchup.write_default(PREF, k, v.to_s.delete('"'))
+  rescue Exception
+    nil
+  end
+
+  # ------------------------------------------------------------- definitions --
+
+  def self.load_def(model, dir, name, cache)
+    return cache[name] if cache.key?(name)
+    path = File.join(dir, "#{name}.skp")
+    unless File.exist?(path)
+      # The set is not consistently cased — 40VNT_VSS but 40Vnt_VSS_CP.
+      hit = Dir.glob(File.join(dir, '*.skp')).find { |f| File.basename(f, '.skp').downcase == name.downcase }
+      path = hit
+    end
+    if path.nil? || !File.exist?(path)
+      cache[name] = nil
+      return nil
+    end
+    cache[name] = (model.definitions.load(path) rescue nil)
+  end
+
+  # height / width / thickness axis indices, measured from the definition itself.
+  # Extents are taken as max minus min, per axis, and NOT from BoundingBox's
+  # width/height/depth. Which of those three means Y and which means Z is a
+  # coin-flip anyone reading the code has to look up, and getting it backwards
+  # swaps a part's height with its width — which is exactly what laid the window
+  # panel flat on the floor in the first build. max-min needs no lookup.
+  def self.classify(defn, hx)
+    bb = defn.bounds
+    return nil unless bb.valid?
+    mn = bb.min
+    mx = bb.max
+    e = [mx.x.to_f - mn.x.to_f, mx.y.to_f - mn.y.to_f, mx.z.to_f - mn.z.to_f]
+    want = hx ? 91.0 : 81.0
+    hi = (0..2).min_by { |i| (e[i] - want).abs }
+    # A vent housing stands a little proud of 81; anything within 6 in is still
+    # the height axis. Beyond that the part is not a wall part and is reported.
+    return nil if (e[hi] - want).abs > 6.0
+    rest = (0..2).to_a - [hi]
+    wi, ti = e[rest[0]] >= e[rest[1]] ? [rest[0], rest[1]] : [rest[1], rest[0]]
+    { :e => e, :hi => hi, :wi => wi, :ti => ti, :want => want,
+      :h => e[hi], :w => e[wi], :t => e[ti], :bb => bb }
+  end
+
+  # ------------------------------------------------------------------ placing --
+
+  def self.axis_vec(sym)
+    sym == :x ? VX : (sym == :y ? VY : VZ)
+  end
+
+  # Which orderings of (height, thickness, width) are an even permutation of the
+  # definition's own X, Y, Z. Used to get the handedness right by construction.
+  EVEN = [[0, 1, 2], [1, 2, 0], [2, 0, 1]].freeze
+
+  # Rotation only. Two constraints are pinned and the third is DERIVED:
+  #
+  #     the height axis  -> world up
+  #     the thickness axis -> the wall's outward normal
+  #     the width axis   -> whatever a right-handed system then requires
+  #
+  # The first version pinned all three and then "fixed" the handedness by
+  # reversing the normal when the determinant came out negative. That produced a
+  # valid right-handed transform and a part rotated 180 degrees about its own
+  # height — inside face pointing out. It happened on exactly the two walls whose
+  # run and normal directions made the determinant negative, which is why half
+  # the booth looked right and half was reversed.
+  #
+  # Deriving the width direction instead cannot do that. Whether the result faces
+  # exterior-out or exterior-in is then ONE global convention rather than a
+  # per-wall accident, which is what the Face outward option flips.
+  def self.rotation(cls, nrm_vec)
+    hi = cls[:hi]
+    ti = cls[:ti]
+    wi = cls[:wi]
+    s = EVEN.include?([hi, ti, wi]) ? 1 : -1
+    ax = [nil, nil, nil]
+    ax[hi] = VZ
+    ax[ti] = nrm_vec
+    ax[wi] = s > 0 ? VZ.cross(nrm_vec) : nrm_vec.cross(VZ)
+    Geom::Transformation.axes(ORIGIN, ax[0], ax[1], ax[2])
+  end
+
+  # World-space extents of the definition once rotated.
+  def self.rotated_bounds(cls, rot)
+    bb = cls[:bb]
+    xs = []
+    ys = []
+    zs = []
+    8.times do |i|
+      p = bb.corner(i).transform(rot)
+      xs << p.x.to_f
+      ys << p.y.to_f
+      zs << p.z.to_f
+    end
+    { :x => [xs.min, xs.max], :y => [ys.min, ys.max], :z => [zs.min, zs.max] }
+  end
+
+  THIN = 3.0     # anything thicker than this has a leaf, a duct or a housing
+  IDENTITY = Geom::Transformation.new
+
+  # ---------------------------------------------------------- facing --------
+  #
+  # Which way a definition's own thickness axis points relative to the booth.
+  # There is no dialog for this — nobody wants a booth built inside out — but it
+  # IS a single flag, because it cannot be derived from geometry. A panel is a
+  # slab; nothing about its bounding box says which face is the room side.
+  #
+  # FACE_OUT = true  means the definition's +thickness points AWAY from the booth
+  # FACE_OUT = false means it points INTO the booth
+  #
+  # If every part comes out reversed, change this one word and rebuild. Do not
+  # add per-part exceptions to compensate — a mix of a global flag and a list of
+  # exceptions is how this ended up flipping back and forth. Get the global one
+  # right first, and only then add a name here if a genuinely odd part remains.
+  FACE_OUT = false
+
+  # Parts whose thickness axis is authored opposite to everything else. The
+  # mid-wall seam seal is the one confirmed case: it read correctly in the run
+  # where every panel read backwards, on both settings of the global flag.
+  REVERSED = %w[MidWallSeamSeal MidWallSeamSeal_HX].freeze
+
+  # Every vertex in a definition, in the definition's own coordinates, following
+  # nested groups and components. A door's leaf and a vent's duct are nested, so
+  # a non-recursive walk sees almost nothing.
+  def self.collect_points(ents, tr, out, depth = 0)
+    return if depth > 8
+    ents.each do |e|
+      if e.is_a?(Sketchup::Edge)
+        out << e.start.position.transform(tr)
+        out << e.end.position.transform(tr)
+      elsif e.is_a?(Sketchup::ComponentInstance)
+        collect_points(e.definition.entities, tr * e.transformation, out, depth + 1)
+      elsif e.is_a?(Sketchup::Group)
+        collect_points(e.entities, tr * e.transformation, out, depth + 1)
+      end
+    end
+  end
+
+  # Every face in a definition as an axis-aligned box in the definition's own
+  # coordinates, following nested groups and components.
+  def self.collect_faces(ents, tr, out, depth = 0)
+    return if depth > 8
+    ents.each do |e|
+      if e.is_a?(Sketchup::Face)
+        xs = []
+        ys = []
+        zs = []
+        e.vertices.each do |v|
+          p = v.position.transform(tr)
+          xs << p.x.to_f
+          ys << p.y.to_f
+          zs << p.z.to_f
+        end
+        next if xs.empty?
+        out << [[xs.min, xs.max], [ys.min, ys.max], [zs.min, zs.max]]
+      elsif e.is_a?(Sketchup::ComponentInstance)
+        collect_faces(e.definition.entities, tr * e.transformation, out, depth + 1)
+      elsif e.is_a?(Sketchup::Group)
+        collect_faces(e.entities, tr * e.transformation, out, depth + 1)
+      end
+    end
+  end
+
+  def self.coord(p, i)
+    i.zero? ? p.x.to_f : (i == 1 ? p.y.to_f : p.z.to_f)
+  end
+
+  # ============================================================================
+  # FINDING THE WALL PANEL INSIDE A THICK PART
+  #
+  # A door measures 32 inches through its thickness axis because the leaf is
+  # modelled standing open. Only about an inch of that is the frame that sits in
+  # the wall. Placing such a part by its bounding box is therefore meaningless,
+  # and the first attempt — inner face of the box to the inner face of the wall —
+  # is what pushed the door a whole leaf-depth outboard of its neighbours.
+  #
+  # The wall panel is findable, though, and without a table. It is the only part
+  # of the component that spans nearly the FULL width and FULL height. A leaf, a
+  # duct, a handle or a hinge spans neither.
+  #
+  # So: slice the part along its thickness in quarter-inch bins, ask of each bin
+  # whether the geometry in it covers most of the part's width and height, and
+  # take the longest run of bins that does. That run is the wall panel, and its
+  # midpoint is what gets placed on the wall centreline.
+  #
+  # This makes ONE rule cover panels, doors and vents alike, and it satisfies the
+  # HX centreline requirement for free — the slab it finds on an HX panel is the
+  # panel, so centring the slab centres the panel.
+  # ============================================================================
+  def self.wall_slab(defn, cls)
+    boxes = []
+    collect_faces(defn.entities, IDENTITY, boxes)
+    return nil if boxes.empty?
+
+    ti = cls[:ti]
+    wi = cls[:wi]
+    hi = cls[:hi]
+    want = cls[:want]
+
+    # The panel is found by HEIGHT, and only by height. Nothing here may assume
+    # the panel spans the part's width: an EFS vent's exterior silencer stands
+    # BESIDE the panel and widens the part's box by ten inches and more
+    # (40VNT_VSS_EFS_HX boxes 56.2 in around its 40 in panel). The old finder
+    # demanded near-full-width faces, so on every EFS part it found nothing and
+    # the vent fell back to bounding-box placement — which is exactly what
+    # shoved the 102126's vent panels sideways into the neighbouring wall.
+    #
+    # A wall panel is the one thing that spans the wall's height. Of the tall
+    # faces, the widest cluster is the panel; a silencer or VSS stack is tall
+    # but narrow, a door leaf is wide but short.
+    tall = boxes.select { |b| (b[hi][1] - b[hi][0]) >= 0.8 * want }
+    return nil if tall.empty?
+    wmax = tall.map { |b| b[wi][1] - b[wi][0] }.max
+    panel = tall.select { |b| (b[wi][1] - b[wi][0]) >= wmax - 1.0 }
+    t0 = panel.map { |b| b[ti][0] }.min
+    t1 = panel.map { |b| b[ti][1] }.max
+    w0 = panel.map { |b| b[wi][0] }.min
+    w1 = panel.map { |b| b[wi][1] }.max
+    return nil if (t1 - t0) > 3.0        # caught something that is not a panel
+
+    # Bulk vote: which side of the panel carries the leaf / housing / trim.
+    above = 0.0
+    below = 0.0
+    boxes.each do |b|
+      above += [b[ti][1] - t1, 0.0].max
+      below += [t0 - b[ti][0], 0.0].max
+    end
+    bulk = if (above - below).abs < 0.5
+             0
+           else
+             above > below ? 1 : -1
+           end
+
+    # THE FLOOR RULE, which outranks the bulk vote. What hangs below the
+    # panel's bottom edge stands on the host-room floor — a fan unit, a ramp —
+    # and the host-room floor is OUTSIDE the booth. A VSS/EFS vent carries bulk
+    # on BOTH sides (housing out, silencer stack in), so the bulk vote flips
+    # with authoring; the fan cannot.
+    hb = panel.map { |b| b[hi][0] }.min
+    mid = (t0 + t1) / 2.0
+    plus = 0.0
+    minus = 0.0
+    boxes.each do |b|
+      depth = hb - b[hi][0]
+      next if depth <= 0.25
+      c = (b[ti][0] + b[ti][1]) / 2.0
+      c > mid ? plus += depth : minus += depth
+    end
+    floor_side = 0
+    floor_side = 1  if plus > minus + 0.1
+    floor_side = -1 if minus > plus + 0.1
+
+    { :t0 => t0, :t1 => t1, :w0 => w0, :w1 => w1, :bulk => bulk, :floor => floor_side,
+      :va => above, :vb => below, :fp => plus, :fm => minus }
+  end
+
+  def self.place(cls, poly, centre, reversed = false, nominal = 81.0, slab = nil,
+                 proud = 0.0, flush = false, bulk_out = true)
+    xs = poly.map { |p| p[0].to_f }
+    ys = poly.map { |p| p[1].to_f }
+    x0 = xs.min
+    x1 = xs.max
+    y0 = ys.min
+    y1 = ys.max
+
+    if (x1 - x0) >= (y1 - y0)
+      run_sym = :x
+      nrm_sym = :y
+      slot = [x0, x1]
+      band = [y0, y1]
+      out  = ((y0 + y1) / 2.0) >= centre[1] ? 1.0 : -1.0
+    else
+      run_sym = :y
+      nrm_sym = :x
+      slot = [y0, y1]
+      band = [x0, x1]
+      out  = ((x0 + x1) / 2.0) >= centre[0] ? 1.0 : -1.0
+    end
+
+    # Facing. A part carrying real bulk beyond its wall panel — a door leaf, a
+    # vent housing, a window trim — is oriented so the bulk faces OUT of the
+    # booth, measured from its own geometry. Only symmetric parts (plain
+    # panels, seals) fall back to the authored convention, which observation
+    # says is consistent for them even though it is not for the thick parts.
+    band_depth = band[1] - band[0]
+    use_slab = slab && (cls[:t] - band_depth) > 0.2
+    bulk = use_slab && slab ? slab[:bulk] : 0
+    floor_side = use_slab && slab ? slab[:floor] : 0
+    # Facing priority: the floor rule (what hangs below the wall stands on the
+    # host floor, outside) beats the bulk vote, which beats the convention.
+    # bulk_out is false for DOOR slots: both approved booths regressed when the
+    # leaf was pointed out of the booth, so a door's bulk — its swung-open leaf —
+    # belongs on the room side of the wall, the opposite of a vent's housing.
+    # Still measured per part, so a door authored either way round builds alike.
+    sense = if floor_side != 0
+              floor_side
+            elsif bulk != 0
+              bulk_out ? bulk : -bulk
+            else
+              s = FACE_OUT ? 1.0 : -1.0
+              reversed ? -s : s
+            end
+    o = out * sense
+    nrm_vec = Geom::Vector3d.new(*(nrm_sym == :x ? [o, 0, 0] : [0, o, 0]))
+
+    rot = rotation(cls, nrm_vec)
+    rb  = rotated_bounds(cls, rot)
+
+    r = rb[run_sym]
+    # Along the wall, the PANEL box decides — never the part box. An EFS
+    # silencer widens the part sideways, and flushing the part box to the slot
+    # would shove the panel into the neighbouring wall by the overhang.
+    if slab
+      lo  = [cls[:bb].min.x.to_f, cls[:bb].min.y.to_f, cls[:bb].min.z.to_f]
+      hi2 = [cls[:bb].max.x.to_f, cls[:bb].max.y.to_f, cls[:bb].max.z.to_f]
+      lo[cls[:ti]]  = slab[:t0]
+      hi2[cls[:ti]] = slab[:t1]
+      lo[cls[:wi]]  = slab[:w0]
+      hi2[cls[:wi]] = slab[:w1]
+      xs = []
+      ys = []
+      [lo[0], hi2[0]].each do |x|
+        [lo[1], hi2[1]].each do |y|
+          [lo[2], hi2[2]].each do |z|
+            pt = Geom::Point3d.new(x, y, z).transform(rot)
+            xs << pt.x.to_f
+            ys << pt.y.to_f
+          end
+        end
+      end
+      r = run_sym == :x ? [xs.min, xs.max] : [ys.min, ys.max]
+    end
+    n = rb[nrm_sym]
+    thickness = n[1] - n[0]
+
+    # Along the wall, a wall PANEL is pushed hard against the corner rather than
+    # centred in its slot.
+    #
+    # Centring splits any difference between the slot and the real part evenly
+    # across both ends, so a panel a hundredth under its nominal width leaves
+    # half a hundredth of daylight where it meets the wall at right angles to it.
+    # That is invisible in a plan and obvious when you zoom into the corner.
+    # Pushing each panel toward the nearer corner puts the whole of that
+    # difference at the panel's inboard end instead, where a seam seal covers it.
+    #
+    # Seals and corner pieces stay centred: they bridge joints rather than
+    # terminate against anything, and they are symmetric.
+    slot_c = (slot[0] + slot[1]) / 2.0
+    booth_c = run_sym == :x ? centre[0] : centre[1]
+    d_run = if !flush
+              slot_c - ((r[0] + r[1]) / 2.0)
+            elsif slot_c < booth_c
+              slot[0] - r[0]
+            else
+              slot[1] - r[1]
+            end
+    d_up  = nominal - rb[:z][1]           # top of the part to the top of the wall
+
+    # Across the wall, two cases, decided by comparing the part's own thickness
+    # against the depth its layout polygon reserves for it.
+    #
+    # WHEN THEY MATCH, the polygon already describes the whole part and the part
+    # is simply centred in it. A 1 in panel in a 1 in band. A 2 in seam seal in
+    # the 2 in band the layout gives it — one inch coincident with the wall and
+    # one inch proud of it, which is what the seal is. An HX panel's 1.125 in a
+    # 1 in band, centred, which keeps the H strip's sixteenth even on both faces.
+    #
+    # WHEN THE PART IS MUCH THICKER than its band, the extra is a door leaf or a
+    # fan housing and centring is meaningless — then the wall panel found inside
+    # the part goes on the centreline instead.
+    #
+    # Centring the slab in BOTH cases is what set the seam seals half an inch too
+    # far into the booth: the slab is the seal's flange, not the seal.
+    # (band_depth and use_slab are computed above, where facing needed them.)
+    d_nrm = if use_slab
+              c = [0.0, 0.0, 0.0]
+              c[cls[:ti]] = (slab[:t0] + slab[:t1]) / 2.0
+              p = Geom::Point3d.new(c[0], c[1], c[2]).transform(rot)
+              ((band[0] + band[1]) / 2.0) - (nrm_sym == :x ? p.x.to_f : p.y.to_f)
+            else
+              ((band[0] + band[1]) / 2.0) - ((n[0] + n[1]) / 2.0)
+            end
+    d_nrm += out * proud       # `out` is +1 away from the booth, so this is outward
+
+    dx = run_sym == :x ? d_run : d_nrm
+    dy = run_sym == :x ? d_nrm : d_run
+    move = Geom::Transformation.translation(Geom::Vector3d.new(dx, dy, d_up))
+    # Reported so a facing fault can be read off the console instead of guessed
+    # at from a screenshot: which world direction this part's own +thickness axis
+    # ended up pointing, and whether that is out of the booth or into it.
+    facing = format('%s%s %s%s', nrm_sym.to_s.upcase, o > 0 ? '+' : '-',
+                    o == out ? 'OUT' : 'IN',
+                    floor_side != 0 ? '·floor' : (bulk != 0 ? '·bulk' : ''))
+    [move * rot, slot[1] - slot[0], thickness, rb[:z][1] - rb[:z][0], facing]
+  end
+
+  # Corner seals are an L, and which way the L faces cannot be read from a
+  # bounding box — it is square. It IS readable from the geometry: the L hugs one
+  # corner of that square, so the average of its vertices sits off centre toward
+  # that corner. Compare that against the corner the layout wants and rotate.
+  # Measured in WORLD space, after the placement transform has been applied.
+  #
+  # The first version measured the L's lean in the definition's own width and
+  # thickness axes and compared that to the target. That is only correct when
+  # those two axes map to world in the orientation you assumed, and on two of the
+  # four corners they do not — which is exactly why two corners came out right
+  # and two came out reversed.
+  #
+  # Transforming the centroid first removes the assumption. Where the L actually
+  # leans, once placed, against where it should lean. No handedness to reason
+  # about.
+  # A corner seal is an L that must hug the booth's outside corner. There are
+  # only FOUR orientations it can legally have, so rather than compute an angle
+  # and trust it, try all four and keep whichever puts the L's centre of mass
+  # nearest the corner it is supposed to wrap.
+  #
+  # Computing the angle from a centroid, which is what this did before, is off by
+  # 45 degrees whenever the L's mass sits diagonally but the reference vector
+  # does not — and it lands nowhere near a right angle, which a corner seal must
+  # always be at. Four candidates cannot do that: every answer is square with the
+  # walls by construction.
+  def self.corner_yaw(defn, tr, pivot, target)
+    pts = []
+    collect_points(defn.entities, tr, pts)
+    return 0.0 if pts.empty?
+    sx = 0.0
+    sy = 0.0
+    pts.each do |p|
+      sx += p.x.to_f
+      sy += p.y.to_f
+    end
+    cen = Geom::Point3d.new(sx / pts.length, sy / pts.length, 0)
+
+    best = 0.0
+    bestd = nil
+    4.times do |i|
+      yaw = i * Math::PI / 2.0
+      c = cen.transform(Geom::Transformation.rotation(pivot, VZ, yaw))
+      d = Math.hypot(c.x.to_f - target[0], c.y.to_f - target[1])
+      if bestd.nil? || d < bestd
+        bestd = d
+        best = yaw
+      end
+    end
+    best
+  end
+
+  # ------------------------------------------------- wide-access rebalance --
+  #
+  # A wide-access door frame is 49 in — wider than the 46 or 40 module slot the
+  # layout reserves for it. The portal shrinks the companion panel beside it
+  # (46+22 -> 49+19, 40+40 -> 49+31) and those shrunk packs arrive in the
+  # link's assignments — but the LAYOUT polygons still hold the module widths.
+  # So each wall is re-derived from the real part widths: boundaries walk from
+  # the wall's first slot edge, every panel takes its true width, every seal
+  # its 2 in joint. Beside a WA door the seal therefore shifts 3 in on a
+  # 46-series wall and 9 in on a 40-series — Benton's own figures.
+  #
+  # Applied only when some panel differs from its slot by over 0.1 in, and only
+  # when the re-derived wall still lands on the original end within 0.15 in;
+  # otherwise the wall is left as generated and said so.
+  def self.rebalance_walls(rows)
+    by_wall = {}
+    rows.each do |r|
+      p = r[:part]
+      next if p[:k] == 'corner'
+      w = p[:id].to_s[0, 1]
+      next unless %w[N S E W].include?(w)
+      (by_wall[w] ||= []) << r
+    end
+
+    by_wall.each do |w, list|
+      run_x = %w[N S].include?(w)
+      ext = lambda do |poly|
+        vs = poly.map { |q| (run_x ? q[0] : q[1]).to_f }
+        [vs.min, vs.max]
+      end
+      pw_of = lambda do |r|
+        r[:slab] ? (r[:slab][:w1] - r[:slab][:w0]) : r[:cls][:w]
+      end
+      list.sort_by! { |r| ext.call(r[:part][:poly])[0] }
+
+      need = list.any? do |r|
+        next false unless r[:part][:k] == 'panel'
+        s = ext.call(r[:part][:poly])
+        (pw_of.call(r) - (s[1] - s[0])).abs > 0.1
+      end
+      next unless need
+
+      first = ext.call(list.first[:part][:poly])[0]
+      last  = ext.call(list.last[:part][:poly])[1]
+
+      pos = first
+      old_end = first
+      plan = []
+      list.each do |r|
+        p = r[:part]
+        s = ext.call(p[:poly])
+        if p[:k] == 'panel'
+          pw = pw_of.call(r)
+          plan << [r, pos, pw, s]
+          pos += pw
+          old_end = s[1]
+        else
+          plan << [r, pos - old_end, nil, s]   # joint start moves by this much
+          pos += 2.0
+        end
+      end
+
+      if (pos - last).abs > 0.15
+        puts format('  *** %s wall does not close after rebalancing to real widths '                     '(off %+.3f in) — leaving it as generated.', w, pos - last)
+        next
+      end
+
+      plan.each do |r, a, pw, s|
+        p = r[:part]
+        if p[:k] == 'panel'
+          next if (a - s[0]).abs < 0.001 && (pw - (s[1] - s[0])).abs < 0.001
+          n = p[:poly].map { |q| (run_x ? q[1] : q[0]).to_f }
+          n0 = n.min
+          n1 = n.max
+          p[:poly] = if run_x
+                       [[a, n0], [a + pw, n0], [a + pw, n1], [a, n1]]
+                     else
+                       [[n0, a], [n0, a + pw], [n1, a + pw], [n1, a]]
+                     end
+          puts format('  rebalanced %-8s %-24s %.3f..%.3f  (slot was %.3f..%.3f)',
+                      p[:id], r[:name], a, a + pw, s[0], s[1])
+        elsif a.abs > 0.001
+          p[:poly] = p[:poly].map { |q| run_x ? [q[0].to_f + a, q[1]] : [q[0], q[1].to_f + a] }
+          puts format('  rebalanced %-8s seal shifted %+.3f in along the wall', p[:id], a)
+        end
+      end
+    end
+  end
+
+  # -------------------------------------------------------------------- run --
+
+  def self.run
+    # Printed before anything can go wrong, so "no output at all" means the file
+    # never loaded or the Ruby Console was not open when it ran — as against the
+    # script running and finding nothing to say.
+    puts ''
+    puts "build-booth-components.rb loaded at #{Time.now.strftime('%H:%M:%S')}"
+
+    cfg = ask
+    if cfg.nil?
+      puts '  cancelled at the dialog — nothing was built.'
+      return
+    end
+
+    build_booth(cfg['booth'], ASSIGN[cfg['booth']] || {}, cfg)
+  end
+
+  # The programmatic entry point: everything the dialog flow does, callable with
+  # an explicit slot->component map. This is where a decoded booth-builder link
+  # lands (booth-from-link.rb), with `assign` built from the customer's packs.
+  # cfg needs 'dir', 'hx' (bool) and 'dry' (bool).
+  def self.build_booth(key, assign, cfg)
+    load DATA   # every build: rebalance_walls edits the loaded polygons in place
+    spec = WR_BOOTH_DATA::BOOTHS[key]
+    if spec.nil?
+      UI.messagebox("#{key} is not in the data file." +
+                    (key.end_with?(' E') ? "\n\nEnhanced variants are not buildable yet — " \
+                    'their panel lengths are unresolved in the layout data.' : ''))
+      return
+    end
+
+    model = Sketchup.active_model
+    begin
+      model.options['UnitsOptions']['LengthFormat'] = Length::Architectural
+    rescue StandardError
+    end
+
+    assign ||= {}
+    centre = [spec[:w] / 2.0, spec[:h] / 2.0]
+    cache  = {}
+    rows   = []
+    missing = []
+    guessed = []
+
+    puts ''
+    puts '=' * 78
+    puts "BUILD FROM COMPONENTS — #{key}   #{spec[:label]}"
+    puts "  exterior #{spec[:w]}\" x #{spec[:h]}\"   interior #{spec[:iw]}\" x #{spec[:ih]}\""
+    puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"
+    puts "  parts    #{cfg['dir']}"
+    puts '=' * 78
+
+    # ---- pass 1: resolve and measure everything before touching the model.
+    spec[:parts].each do |p|
+      name = if p[:k] == 'corner' then CORNER_COMP
+             elsif p[:k] == 'seal' then SEAL_COMP
+             else assign[p[:id]]
+             end
+      if name.nil?
+        xs = p[:poly].map { |q| q[0].to_f }
+        ys = p[:poly].map { |q| q[1].to_f }
+        run = [xs.max - xs.min, ys.max - ys.min].max
+        name = guess_component(p[:sk], run)
+        guessed << "#{p[:id]} (#{p[:sk]}) -> #{name}"
+      end
+      name = "#{name}_HX" if cfg['hx'] && !name.end_with?('_HX')
+
+      defn = load_def(model, cfg['dir'], name, cache)
+      if defn.nil?
+        missing << "#{p[:id]}  #{name}.skp"
+        next
+      end
+      cls = classify(defn, cfg['hx'])
+      if cls.nil?
+        missing << "#{p[:id]}  #{name} — no axis measures #{cfg['hx'] ? 91 : 81} in, not a wall part"
+        next
+      end
+      slab = wall_slab(defn, cls)
+      # A part that projects FURTHER from the wall than its frame is wide fools
+      # the larger-remaining-axis-is-width guess: the WA ramp door reaches
+      # about 60 in out of a 49 in frame, so "width" landed on the ramp axis
+      # and the whole part came in rotated 90 degrees in plan. The tell is the
+      # panel search failing or finding nonsense — so retry with width and
+      # thickness swapped and keep whichever yields a real wall panel.
+      if slab.nil? || (slab[:w1] - slab[:w0]) < 5.0
+        alt = cls.merge(:wi => cls[:ti], :ti => cls[:wi], :w => cls[:t], :t => cls[:w])
+        slab2 = wall_slab(defn, alt)
+        if slab2 && (slab2[:w1] - slab2[:w0]) >= 5.0
+          puts "  axis swap  #{name}: width is the #{alt[:wi]} axis, not #{cls[:wi]} — " \
+               'the part projects further than it is wide'
+          cls = alt
+          slab = slab2
+        end
+      end
+      rows << { :part => p, :name => name, :defn => defn, :cls => cls, :slab => slab }
+    end
+
+    unless missing.empty?
+      puts ''
+      puts "  *** #{missing.length} part(s) could not be resolved. Nothing has been built."
+      missing.each { |m| puts "      #{m}" }
+      puts ''
+      UI.messagebox("#{missing.length} component(s) missing or unusable.\n\n" \
+                    "Nothing was built. The list is in the Ruby Console.")
+      return
+    end
+
+    unless guessed.empty?
+      puts ''
+      puts "  #{guessed.length} slot(s) had no explicit assignment and were guessed from kind + run:"
+      guessed.each { |g| puts "      #{g}" }
+    end
+
+    rebalance_walls(rows)
+
+    # ---- pass 2: place.
+    puts ''
+    puts "  FACE_OUT = #{FACE_OUT}  — if EVERY part is reversed, flip that one constant."
+    puts ''
+    puts format('  %-16s %-22s %8s %8s  %-11s %-9s %-9s %s',
+                'SLOT', 'COMPONENT', 'SLOT in', 'PART in', 'FIT',
+                'PANEL', 'FACING', 'BELOW WALL')
+    puts '  ' + '-' * 100
+
+    model.start_operation("Build #{key} from components", true) unless cfg['dry']
+    begin
+      tag = lambda do |nm, rgb|
+        next nil if cfg['dry']
+        l = model.layers[nm] || model.layers.add(nm)
+        (l.color = Sketchup::Color.new(*rgb)) rescue nil
+        l
+      end
+      t_wall = tag.call('WR-Booth-Walls',   [120, 128, 140])
+      t_door = tag.call('WR-Booth-Door',    [238,  98,  22])
+      t_vent = tag.call('WR-Booth-Vent',    [64, 102, 124])
+      t_seal = tag.call('WR-Booth-Seals',   [90,  90,  96])
+      t_corn = tag.call('WR-Booth-Corners', [70,  70,  76])
+
+      booth = cfg['dry'] ? nil : model.entities.add_group
+      booth.name = "#{key} (components)" if booth
+
+      placed = 0
+      warn = []
+      rows.each do |r|
+        p = r[:part]
+        nominal = cfg['hx'] ? 91.0 : 81.0
+        rev = REVERSED.include?(r[:name])
+        proud = p[:k] == 'seal' ? SEAL_PROUD : 0.0
+        tr, slot_len, thickness, part_h, facing = place(r[:cls], p[:poly], centre,
+                                                        rev, nominal, r[:slab], proud,
+                                                        p[:k] == 'panel',
+                                                        p[:sk] != 'DRFRM')
+        drop = part_h - nominal
+
+        if p[:k] == 'corner'
+          xs = p[:poly].map { |q| q[0].to_f }
+          ys = p[:poly].map { |q| q[1].to_f }
+          pivot = Geom::Point3d.new((xs.min + xs.max) / 2.0, (ys.min + ys.max) / 2.0, 0)
+          # Aim the L's centre of mass at the BOOTH'S MIDDLE.
+          #
+          # Two earlier versions aimed it at a vertex of the corner polygon —
+          # first the one furthest from the middle, then the one nearest. Those
+          # made no difference, and it took a screenshot to see why: every vertex
+          # of that polygon lies on the same diagonal from the polygon's own
+          # centre, so "nearest" and "furthest" point the SAME way and pick the
+          # same orientation. Aiming at the booth's middle is the direction that
+          # is genuinely opposite, and it is the 180 the corners needed.
+          target = [centre[0], centre[1]]
+          yaw = corner_yaw(r[:defn], tr, pivot, target)
+          tr = Geom::Transformation.rotation(pivot, VZ, yaw) * tr
+        end
+
+        # The exact difference, not a pass mark. A part 0.01 under its slot is
+        # "ok" by any tolerance and still shows as daylight at a corner, so the
+        # number is what gets printed.
+        # Fit compares the PANEL against its slot. The part box is no measure —
+        # an EFS silencer widens the part far beyond the slot on purpose.
+        pw = r[:slab] ? (r[:slab][:w1] - r[:slab][:w0]) : r[:cls][:w]
+        fit = if p[:k] == 'panel'
+                d = pw - slot_len
+                d.abs < 0.0005 ? 'exact' : format('%+.4f', d)
+              else
+                'n/a'
+              end
+        if p[:k] == 'panel' && (pw - slot_len).abs > 0.02
+          warn << "#{p[:id]} #{r[:name]}: #{fit} in against its slot"
+        end
+
+        puts format('  %-16s %-22s %8.3f %8.3f  %-11s %-9s %-9s %s',
+                    p[:id], r[:name], slot_len, pw, fit,
+                    r[:slab] ? format('%.4f', r[:slab][:t1] - r[:slab][:t0]) : 'NOT FOUND',
+                    facing, drop > 0.01 ? format('hangs %.3f', drop) : '')
+        if r[:slab] && r[:cls][:t] > 3.0
+          s2 = r[:slab]
+          puts format('  %-16s   votes: bulk +%.1f / -%.1f   floor +%.1f / -%.1f   panel w %.3f..%.3f of part %.3f',
+                      '', s2[:va], s2[:vb], s2[:fp], s2[:fm], s2[:w0], s2[:w1], r[:cls][:w])
+        end
+        next if cfg['dry']
+
+        inst = booth.entities.add_instance(r[:defn], tr)
+        inst.name = "#{p[:id]}  #{r[:name]}"
+        inst.layer = if p[:k] == 'corner' then t_corn
+                     elsif p[:k] == 'seal' then t_seal
+                     elsif p[:sk] == 'DRFRM' then t_door
+                     elsif p[:sk] == 'VNT' then t_vent
+                     else t_wall
+                     end
+        placed += 1
+      end
+
+      model.commit_operation unless cfg['dry']
+      model.active_view.zoom_extents unless cfg['dry']
+
+      thick = rows.count { |r| r[:cls][:t] > THIN }
+      puts ''
+      puts '  ' + '-' * 60
+      if cfg['dry']
+        puts "  DRY RUN — nothing built. #{rows.length} parts would be placed."
+        # A dry run whose whole result is console text is invisible if the
+        # console happens to be closed, so say it in a dialog too.
+        UI.messagebox("DRY RUN — nothing built.\n\n#{rows.length} parts resolved" \
+                      "#{warn.empty? ? ' and every panel matches its slot.' : ", #{warn.length} do NOT match their slot."}" \
+                      "\n\nThe full table is in the Ruby Console:\n" \
+                      'Extensions > Developer > Ruby Console.')
+      else
+        puts "  placed #{placed} component instances."
+      end
+      puts "  #{thick} part(s) carry bulk beyond their wall panel (a leaf, a housing,"
+      puts '  a trim) and were oriented so that bulk faces OUT of the booth — measured'
+      puts "  from each part's own geometry, marked ·bulk in the FACING column. Parts"
+      puts '  authored either way round therefore come out the same. If one of THOSE'
+      puts '  faces the wrong way, the part itself points its bulk into the booth.'
+      unless warn.empty?
+        puts ''
+        puts "  *** #{warn.length} part(s) do not measure their slot:"
+        warn.each { |w| puts "      #{w}" }
+      end
+      puts '  ' + '-' * 60
+      puts ''
+    rescue Exception => e
+      model.abort_operation unless cfg['dry']
+      raise e
+    end
+    nil
+  end
+end
+
+begin
+  # $wr_no_autorun lets booth-from-link.rb load this file for its build_booth
+  # method without popping the dialog.
+  WR_BuildBoothComponents.run unless $wr_no_autorun
+rescue Exception => e
+  puts ''
+  puts "FAILED: #{e.class}: #{e.message}"
+  puts e.backtrace.first(12).map { |l| "  #{l}" }.join("\n")
+  UI.messagebox("Build from components failed:\n\n#{e.class}: #{e.message}\n\n" \
+                'Full backtrace is in the Ruby Console.')
+end

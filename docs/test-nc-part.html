@@ -1,0 +1,1200 @@
+<title>TEST.NC — what the program cuts</title>
+<style>
+  :root {
+    --bg:        #e8ebed;
+    --surface:   #ffffff;
+    --surface-2: #f3f5f6;
+    --ink:       #11171a;
+    --muted:     #5a656d;
+    --line:      #cbd3d8;
+    --line-soft: #dde3e7;
+    --accent:    #ee6216;
+    --steel:     #35657f;
+    --warn:      #a8341f;
+    --mat-top:   #cdbda2;
+    --mat-side:  #a8977c;
+    --mat-rab:   #bcab90;
+    --shadow:    rgba(17,23,26,.10);
+
+    --f-sans: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --f-mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #0d1214;
+      --surface:   #151b1e;
+      --surface-2: #1b2226;
+      --ink:       #e2e9ec;
+      --muted:     #8a959c;
+      --line:      #29343a;
+      --line-soft: #202a2f;
+      --accent:    #ff7f3c;
+      --steel:     #6ea6c6;
+      --warn:      #e2705c;
+      --mat-top:   #a3927a;
+      --mat-side:  #77684f;
+      --mat-rab:   #8d7d65;
+      --shadow:    rgba(0,0,0,.45);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #0d1214;
+    --surface:   #151b1e;
+    --surface-2: #1b2226;
+    --ink:       #e2e9ec;
+    --muted:     #8a959c;
+    --line:      #29343a;
+    --line-soft: #202a2f;
+    --accent:    #ff7f3c;
+    --steel:     #6ea6c6;
+    --warn:      #e2705c;
+    --mat-top:   #a3927a;
+    --mat-side:  #77684f;
+    --mat-rab:   #8d7d65;
+    --shadow:    rgba(0,0,0,.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--f-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  /* ------------------------------------------------------------- masthead -- */
+
+  .masthead { display: flex; flex-direction: column; gap: 10px; }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+  .eyebrow .dim { color: var(--muted); }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(28px, 4.2vw, 44px);
+    line-height: 1.08;
+    letter-spacing: -.022em;
+    font-weight: 650;
+    text-wrap: balance;
+  }
+  h1 em { font-style: normal; color: var(--muted); font-weight: 450; }
+
+  .standfirst {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--muted);
+    font-size: 17px;
+  }
+
+  /* ---------------------------------------------------------------- stage -- */
+
+  .stage {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px var(--shadow);
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--surface-2);
+  }
+
+  .toolbar .grp { display: flex; gap: 4px; }
+  .toolbar .sep { flex: 1 1 auto; }
+
+  button {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 6px 11px;
+    cursor: pointer;
+    transition: color .12s, border-color .12s, background .12s;
+  }
+  button:hover { color: var(--ink); border-color: var(--muted); }
+  button[aria-pressed="true"] {
+    color: var(--surface);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .hint {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .04em;
+  }
+
+  #view {
+    display: block;
+    width: 100%;
+    height: 540px;
+    cursor: grab;
+    touch-action: none;
+  }
+  #view:active { cursor: grabbing; }
+
+  @media (max-width: 720px) { #view { height: 380px; } }
+
+  /* ------------------------------------------------------------ transport -- */
+
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    border-top: 1px solid var(--line-soft);
+    background: var(--surface-2);
+  }
+
+  button.play {
+    color: var(--surface);
+    background: var(--accent);
+    border-color: var(--accent);
+    min-width: 108px;
+  }
+  button.play:hover { color: var(--surface); background: var(--accent); opacity: .88; }
+
+  .spd {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  select {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 5px 6px;
+  }
+  select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  #scrub {
+    flex: 1 1 220px;
+    min-width: 160px;
+    accent-color: var(--accent);
+    height: 22px;
+  }
+  #scrub:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .readout {
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .04em;
+    color: var(--muted);
+    flex: 1 1 100%;
+  }
+  #op-label { color: var(--ink); }
+  #op-clock { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  @media (min-width: 860px) {
+    .readout { flex: 0 1 340px; }
+  }
+
+  /* ----------------------------------------------------------------- data -- */
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .card {
+    background: var(--surface);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .card .k {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .card .v {
+    font-family: var(--f-mono);
+    font-size: 21px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.01em;
+  }
+  .card .n { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+  section { display: flex; flex-direction: column; gap: 14px; }
+
+  h2 {
+    margin: 0;
+    font-size: 13px;
+    font-family: var(--f-mono);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent);
+  }
+
+  .scroll { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    min-width: 620px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  td.num {
+    font-family: var(--f-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .swatch {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    margin-right: 8px;
+    vertical-align: baseline;
+    border: 1px solid var(--line);
+  }
+
+  p { margin: 0; max-width: 74ch; }
+  .notes { display: flex; flex-direction: column; gap: 12px; }
+  .notes p { color: var(--muted); font-size: 15px; }
+  .notes strong { color: var(--ink); font-weight: 600; }
+  code {
+    font-family: var(--f-mono);
+    font-size: .88em;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+
+  .flag {
+    border-left: 3px solid var(--warn);
+    background: var(--surface);
+    padding: 14px 18px;
+    border-radius: 0 4px 4px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .flag .k {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--warn);
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    color: var(--muted);
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>TEST.NC</span>
+      <span class="dim">HAAS · G20 INCH · G54</span>
+      <span class="dim">2 TOOLS · 24 HOLES</span>
+    </div>
+    <h1>The program cuts a panel with a window <em>— 81⅛ × 40⅛ × ¾</em></h1>
+    <p class="standfirst">
+      Every dimension below is read out of the toolpath, not measured off a drawing.
+      Drag the model to orbit it, or press <strong>Run program</strong> to watch the
+      tool cut it in the order the file actually runs — 24 holes first, then the
+      outside edges, then the window.
+    </p>
+  </header>
+
+  <div class="stage">
+    <div class="toolbar">
+      <div class="grp">
+        <button data-view="iso" aria-pressed="true">Iso</button>
+        <button data-view="top">Top</button>
+        <button data-view="end">End</button>
+        <button data-view="low">Low</button>
+        <button data-view="under">Under</button>
+      </div>
+      <div class="grp">
+        <button id="tog-holes" aria-pressed="true">Callouts</button>
+        <button id="tog-origin" aria-pressed="true">G54 origin</button>
+        <button id="tog-path" aria-pressed="true">Toolpath</button>
+      </div>
+      <span class="sep"></span>
+      <span class="hint">drag to orbit · middle-drag to pan · scroll to zoom</span>
+    </div>
+
+    <canvas id="view"></canvas>
+
+    <div class="transport">
+      <button id="play" class="play">Run program</button>
+      <button id="rewind">Rewind</button>
+      <label class="spd">
+        <span>Speed</span>
+        <select id="speed">
+          <option value="1">1× real time</option>
+          <option value="5">5×</option>
+          <option value="10" selected>10×</option>
+          <option value="20">20×</option>
+          <option value="60">60×</option>
+        </select>
+      </label>
+      <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Position in program" />
+      <div class="readout">
+        <span id="op-label">Not started</span>
+        <span id="op-clock">0:00 / 0:00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <span class="k">Finished panel</span>
+      <span class="v">81.125 × 40.125</span>
+      <span class="n">Derived from the four comped perimeter passes, G41 left, 0.1875 radius</span>
+    </div>
+    <div class="card">
+      <span class="k">Thickness</span>
+      <span class="v">0.750</span>
+      <span class="n">Assumed: through cut at Z−0.78, drills at Z−0.80</span>
+    </div>
+    <div class="card">
+      <span class="k">Window opening</span>
+      <span class="v">46.625 × 24.625</span>
+      <span class="n">Cut through at Z−0.78, with a stepped rabbet around it</span>
+    </div>
+    <div class="card">
+      <span class="k">Estimated cycle time</span>
+      <span class="v" id="cycle-v">—</span>
+      <span class="n" id="cycle-n">At the file's own feed rates</span>
+    </div>
+    <div class="card">
+      <span class="k">Round bore</span>
+      <span class="v">⌀1.748</span>
+      <span class="n">Two concentric ring passes, through, centred on the panel width</span>
+    </div>
+  </div>
+
+  <section>
+    <h2>Feature schedule</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th><th>Qty</th><th>Size</th><th>Depth</th><th>Tool</th><th>Where it comes from</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="swatch" style="background:var(--steel)"></span>Window frame holes</td>
+            <td class="num">16</td><td class="num">⌀0.3125</td><td class="num">through</td>
+            <td class="num">T4</td><td>Lines 10–70, a ring around the opening</td>
+          </tr>
+          <tr>
+            <td><span class="swatch" style="background:var(--accent)"></span>Border holes</td>
+            <td class="num">8</td><td class="num">⌀0.375</td><td class="num">through</td>
+            <td class="num">T3</td><td>Lines 81–109, inset 2.0625 from all four edges</td>
+          </tr>
+          <tr>
+            <td>Panel perimeter</td>
+            <td class="num">4</td><td class="num">81.125 × 40.125</td><td class="num">0.72 then 0.78</td>
+            <td class="num">T3</td><td>Lines 112–193, an onion-skin pass then through</td>
+          </tr>
+          <tr>
+            <td>Rabbet, outer step</td>
+            <td class="num">1</td><td class="num">48.31 × 26.31</td><td class="num">0.375</td>
+            <td class="num">T3</td><td>Lines 202–272, two passes around the opening</td>
+          </tr>
+          <tr>
+            <td>Rabbet, inner lip</td>
+            <td class="num">1</td><td class="num">0.1875 wide</td><td class="num">0.500</td>
+            <td class="num">T3</td><td>Lines 194–201, a single pass at the opening edge</td>
+          </tr>
+          <tr>
+            <td>Window opening</td>
+            <td class="num">1</td><td class="num">46.625 × 24.625</td><td class="num">through</td>
+            <td class="num">T3</td><td>Lines 273–280, the same path taken to Z−0.78</td>
+          </tr>
+          <tr>
+            <td>Round bore</td>
+            <td class="num">1</td><td class="num">⌀1.748</td><td class="num">through</td>
+            <td class="num">T3</td><td>Lines 281–386, an inner and an outer ring pass</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="notes">
+    <h2>What I derived, and what I assumed</h2>
+    <p>
+      <strong>The outline comes from the cutter-compensation side, not from the stock.</strong>
+      The four perimeter passes run at <code>X0</code>, <code>Y8.875</code>,
+      <code>X−81.125</code> and <code>Y49</code>, all under <code>G41</code>. Working out
+      which side of each line the tool sits on puts the finished material between
+      <code>X0</code> and <code>X−81.125</code>, and between <code>Y8.875</code> and
+      <code>Y49</code>. The strip below <code>Y8.875</code> is offcut. That is where
+      81.125 × 40.125 comes from — <strong>derived</strong>, and it depends on the
+      compensation reading being right.
+    </p>
+    <p>
+      <strong>Thickness is assumed, not stated.</strong> Nothing in the file declares
+      stock. The through passes go to Z−0.78 and the drills to Z−0.80, which puts the
+      table just below the tool and implies ¾ material. If the stock is something else,
+      every depth in the model above is still correct but the slab is the wrong thickness.
+    </p>
+    <p>
+      <strong>The rabbet is the least certain part of the drawing.</strong> Three
+      overlapping rectangular passes at Z−0.375 and Z−0.5 surround the opening. I have
+      drawn them as a two-level recess, which is what a window stop or a glazing rebate
+      would look like. The passes do not quite overlap edge to edge, so the real floor may
+      have a narrow ridge left standing between them that the model does not show.
+    </p>
+    <p>
+      <strong>The 24 holes and the round bore are read directly</strong> from the
+      <code>G81</code> coordinates and the two circle passes, so those positions are as
+      exact as the program is.
+    </p>
+    <p>
+      <strong>The animation runs the file's own feeds.</strong> Every cut is timed at
+      the <code>F</code> word that governs it — <code>F90</code> for a plunge,
+      <code>F330</code> and <code>F400</code> for the profiles, <code>F360</code> for the
+      drill cycles — with rapids at a nominal 500 in/min. So the clock is a fair estimate
+      of cycle time at 1×, not a fixed-rate flythrough. Two simplifications: the 0.025 in
+      ramp-on steps at the head of each comped profile are folded into the move they lead
+      into, and the corner arcs are rebuilt as true quarter arcs rather than replayed as
+      the post's individual chords.
+    </p>
+  </section>
+
+  <div class="flag">
+    <span class="k">Before this gets cut</span>
+    <p>
+      This drawing is what the program <em>describes</em>. It is not what the machine will
+      necessarily produce: cutter compensation is left switched on across a rapid and a
+      plunge at lines 119–122 and again at 160–163, which moves the tool about a radius
+      off the programmed point before it enters the material. The two long edges are also
+      taken all the way through before every interior feature is cut, so the panel is
+      loose for the last third of the program unless it is held down by vacuum.
+    </p>
+  </div>
+
+  <footer>
+    Geometry derived from TEST.NC · orthographic projection, no perspective ·
+    all dimensions in inches
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------- geometry --
+  //
+  // Part space: u runs along the 81.125 length, v across the 40.125 width, z down
+  // into the material with the top face at 0. The G-code's own frame is
+  // u = -X, v = Y - 8.875, so the G54 origin sits 8.875 off the near edge.
+
+  var L = 81.125, W = 40.125, T = 0.75;
+  var VOFF = 8.875;                        // v = Y - VOFF
+
+  var WIN = { u0: 27.5, u1: 74.125, v0: 7.75, v1: 32.375 };   // through opening
+  var LIP = 0.1875;                                            // Z-0.5 step width
+  var RAB = { u0: 26.656, u1: 74.969, v0: 6.906, v1: 33.219 }; // Z-0.375 outer
+  var Z_RAB = -0.375, Z_LIP = -0.5;
+
+  function hole(u, v, d, t) { return { u: u, v: v, r: d / 2, tool: t }; }
+
+  var HOLES = [];
+  // T4, 5/16, ringing the window opening
+  [25.9375, 35.875, 45.8125, 55.8125, 65.75, 75.6875].forEach(function (u) {
+    HOLES.push(hole(u, 33.9375, 0.3125, 4));
+  });
+  [65.75, 55.8125, 45.8125, 35.875, 25.9375].forEach(function (u) {
+    HOLES.push(hole(u, 6.1875, 0.3125, 4));
+  });
+  [24.6875, 15.4375].forEach(function (v) {
+    HOLES.push(hole(75.6875, v, 0.3125, 4));
+    HOLES.push(hole(25.9375, v, 0.3125, 4));
+  });
+  // T3, 3/8, the 2.0625 border pattern
+  [2.0625, 27.6875, 53.4375, 79.0625].forEach(function (u) {
+    HOLES.push(hole(u, 2.0625, 0.375, 3));
+    HOLES.push(hole(u, 38.0625, 0.375, 3));
+  });
+  // the round bore
+  var BORE = { u: 9.6875, v: 20.0625, r: 0.874 };
+
+  // ------------------------------------------------------------------ camera --
+
+  var yaw = -0.62, pitch = 0.60, zoom = 1, panX = 0, panY = 0;
+  var VIEWS = {
+    iso:   { yaw: -0.62, pitch:  0.60, zoom: 1 },
+    top:   { yaw: 0,     pitch:  1.52, zoom: 1.06 },
+    end:   { yaw: -1.45, pitch:  0.30, zoom: 1 },
+    low:   { yaw: -0.55, pitch:  0.13, zoom: 1.02 },
+    under: { yaw: -0.62, pitch: -0.60, zoom: 1 }
+  };
+
+  var canvas = document.getElementById("view");
+  var ctx = canvas.getContext("2d");
+  var w = 0, h = 0, scale = 1, cx = 0, cy = 0;
+  var showCallouts = true, showOrigin = true;
+
+  function css(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  // Orthographic. Straight lines stay straight, which is what a part drawing wants.
+  function project(u, v, z) {
+    var x = u - L / 2, y = v - W / 2, zz = z + T / 2;
+    var ca = Math.cos(yaw), sa = Math.sin(yaw);
+    var x1 = x * ca - y * sa, y1 = x * sa + y * ca;
+    var cp = Math.cos(pitch), sp = Math.sin(pitch);
+    var y2 = y1 * cp - zz * sp, z2 = y1 * sp + zz * cp;
+    return { x: cx + x1 * scale, y: cy - y2 * scale, d: z2 };
+  }
+
+  // Face normal after the same rotation, for shading and backface culling.
+  function rotNormal(nu, nv, nz) {
+    var ca = Math.cos(yaw), sa = Math.sin(yaw);
+    var x1 = nu * ca - nv * sa, y1 = nu * sa + nv * ca;
+    var cp = Math.cos(pitch), sp = Math.sin(pitch);
+    return { x: x1, y: y1 * cp - nz * sp, z: y1 * sp + nz * cp };
+  }
+
+  function shade(hex, amt) {
+    var n = parseInt(hex.slice(1), 16);
+    var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    r = Math.max(0, Math.min(255, Math.round(r * amt)));
+    g = Math.max(0, Math.min(255, Math.round(g * amt)));
+    b = Math.max(0, Math.min(255, Math.round(b * amt)));
+    return "rgb(" + r + "," + g + "," + b + ")";
+  }
+
+  // Light fixed in view space, so the part turns under a steady lamp.
+  function lambert(n) {
+    var d = n.x * 0.32 + n.y * 0.28 + n.z * 0.90;
+    return 0.62 + 0.38 * Math.max(0, d);
+  }
+
+  function ringPts(cu, cv, r, segs) {
+    var out = [];
+    for (var i = 0; i < segs; i++) {
+      var a = (i / segs) * Math.PI * 2;
+      out.push([cu + Math.cos(a) * r, cv + Math.sin(a) * r, Math.cos(a), Math.sin(a)]);
+    }
+    return out;
+  }
+
+  function pathFrom(pts, z, p) {
+    p.moveTo(project(pts[0][0], pts[0][1], z).x, project(pts[0][0], pts[0][1], z).y);
+    for (var i = 1; i < pts.length; i++) {
+      var q = project(pts[i][0], pts[i][1], z);
+      p.lineTo(q.x, q.y);
+    }
+    p.closePath();
+  }
+
+  function rectPts(r) {
+    return [[r.u0, r.v0], [r.u1, r.v0], [r.u1, r.v1], [r.u0, r.v1]];
+  }
+
+  function quad(a, b, c, d, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y);
+    ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 0.6; ctx.stroke(); }
+  }
+
+  // Vertical wall between two heights along a run of points. `flip` faces the
+  // normal inward, which is what a hole or an opening needs.
+  function wall(pts, zTop, zBot, baseCol, edge, flip, closed) {
+    var n = pts.length, last = closed ? n : n - 1;
+    for (var i = 0; i < last; i++) {
+      var a = pts[i], b = pts[(i + 1) % n];
+      var du = b[0] - a[0], dv = b[1] - a[1];
+      var len = Math.hypot(du, dv) || 1;
+      var nu = dv / len, nv = -du / len;
+      if (flip) { nu = -nu; nv = -nv; }
+      var rn = rotNormal(nu, nv, 0);
+      if (rn.z <= 0.02) continue;                 // facing away, skip it
+      quad(project(a[0], a[1], zTop), project(b[0], b[1], zTop),
+           project(b[0], b[1], zBot), project(a[0], a[1], zBot),
+           shade(baseCol, lambert(rn)), edge);
+    }
+  }
+
+  // --------------------------------------------------------------- toolpath --
+  //
+  // The program's own motion, in program order, converted from G-code X/Y into
+  // part space. Feeds are the file's own F words, so the preview's relative
+  // timing is the machine's: a plunge at F90 really does take four times as long
+  // per inch as a cut at F360. Rapids are drawn at a nominal 500 in/min.
+  //
+  // Two honest simplifications. The 0.025 in ramp-on steps at the head of each
+  // comped profile are collapsed into the move they lead into — they are real
+  // but invisible at this scale. And the arcs, which the post already emitted as
+  // short chords, are rebuilt as true arcs at the radius those chords describe.
+
+  var CLEAR = 0.25;                       // the G0 retract plane, above the top
+  var RAPID = 500;                        // in/min, nominal
+
+  function g(x, y) { return [-x, y - VOFF]; }   // G-code X,Y -> part u,v
+
+  var DRILL_T4 = [
+    [-25.9375, 42.8125], [-35.875, 42.8125], [-45.8125, 42.8125],
+    [-55.8125, 42.8125], [-65.75, 42.8125], [-75.6875, 42.8125],
+    [-75.6875, 33.5625], [-75.6875, 24.3125], [-75.6875, 15.0625],
+    [-65.75, 15.0625], [-55.8125, 15.0625], [-45.8125, 15.0625],
+    [-35.875, 15.0625], [-25.9375, 15.0625], [-25.9375, 24.3125],
+    [-25.9375, 33.5625]
+  ];
+  var DRILL_T3 = [
+    [-2.0625, 10.9375], [-27.6875, 10.9375], [-53.4375, 10.9375],
+    [-79.0625, 10.9375], [-79.0625, 46.9375], [-53.4375, 46.9375],
+    [-27.6875, 46.9375], [-2.0625, 46.9375]
+  ];
+
+  var EDGE_R = [[0, 48.8625], [0, 0]];
+  var EDGE_B = [[-0.1375, 8.875], [-80.9875, 8.875]];
+  var EDGE_L = [[-81.125, -0.05], [-81.125, 49.05]];
+  var EDGE_T = [[-80.9875, 49], [-0.1375, 49]];
+  var RECT_IN = [[-27.5, 41.25], [-74.125, 41.25], [-74.125, 16.625],
+                 [-27.5, 16.625], [-27.5, 41.25]];
+  var RECT_OUT = [[-26.8438, 41.9062], [-74.7813, 41.9062], [-74.7813, 15.9687],
+                  [-26.8438, 15.9687], [-26.8438, 41.9062]];
+
+  // The comped contour, whose corners the post emitted as short chords. Rebuilt
+  // here as true quarter arcs at the 0.1875 radius those chords describe.
+  function arcRect(xa, xb, ya, yb, r) {
+    // xa/xb and ya/yb are the straight-run extremes; corners are quarter arcs.
+    var out = [], i, a;
+    function corner(cx, cy, from) {
+      for (i = 0; i <= 5; i++) {
+        a = from + (i / 5) * (Math.PI / 2);
+        out.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+      }
+    }
+    out.push([xa, yb - r]);
+    corner(xa - r, yb - r, 0);
+    out.push([xb + r, yb]);
+    corner(xb + r, yb - r, Math.PI / 2);
+    out.push([xb, ya + r]);
+    corner(xb + r, ya + r, Math.PI);
+    out.push([xa - r, ya]);
+    corner(xa - r, ya + r, Math.PI * 1.5);
+    out.push([xa, yb - r]);
+    return out;
+  }
+
+  function circlePath(cx, cy, r, segs) {
+    var out = [], i;
+    for (i = 0; i <= segs; i++) {
+      var a = (i / segs) * Math.PI * 2;
+      out.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+    }
+    return out;
+  }
+
+  var MOVES = [];
+  var here = [0, 0, CLEAR];
+
+  function push(type, to, tool, label, feed) {
+    var d = Math.hypot(to[0] - here[0], to[1] - here[1], to[2] - here[2]);
+    MOVES.push({ type: type, from: here.slice(), to: to.slice(), tool: tool,
+                 label: label, len: d, dur: (d / feed) * 60 });
+    here = to.slice();
+  }
+
+  function drill(xy, tool, label) {
+    var p = g(xy[0], xy[1]);
+    push("rapid", [p[0], p[1], CLEAR], tool, label, RAPID);
+    push("rapid", [p[0], p[1], 0.1], tool, label, RAPID);   // to the R plane
+    push("drill", [p[0], p[1], -0.8], tool, label, 360);
+    push("rapid", [p[0], p[1], CLEAR], tool, label, RAPID);
+  }
+
+  function contour(pts, z, tool, label, feed) {
+    var p0 = g(pts[0][0], pts[0][1]);
+    push("rapid", [p0[0], p0[1], CLEAR], tool, label, RAPID);
+    push("feed", [p0[0], p0[1], z], tool, label, 90);       // the F90 plunge
+    for (var i = 1; i < pts.length; i++) {
+      var p = g(pts[i][0], pts[i][1]);
+      push("feed", [p[0], p[1], z], tool, label, feed);
+    }
+    push("rapid", [here[0], here[1], CLEAR], tool, label, RAPID);
+  }
+
+  (function buildProgram() {
+    DRILL_T4.forEach(function (xy, i) {
+      drill(xy, 4, "T4 ⌀ 0.3125 · hole " + (i + 1) + " of 16");
+    });
+    DRILL_T3.forEach(function (xy, i) {
+      drill(xy, 3, "T3 ⌀ 0.375 · border hole " + (i + 1) + " of 8");
+    });
+    contour(EDGE_R, -0.72, 3, "Perimeter, X0 edge · Z−0.72 skim", 330);
+    contour(EDGE_B, -0.72, 3, "Perimeter, Y8.875 edge · Z−0.72 skim", 330);
+    contour(EDGE_L, -0.72, 3, "Perimeter, X−81.125 edge · Z−0.72 skim", 330);
+    contour(EDGE_T, -0.72, 3, "Perimeter, Y49 edge · Z−0.72 skim", 330);
+    contour(EDGE_R, -0.78, 3, "Perimeter, X0 edge · Z−0.78 THROUGH", 400);
+    contour(EDGE_B, -0.78, 3, "Perimeter, Y8.875 edge · Z−0.78 THROUGH", 400);
+    contour(EDGE_L, -0.78, 3, "Perimeter, X−81.125 edge · Z−0.78 THROUGH", 400);
+    contour(EDGE_T, -0.78, 3, "Perimeter, Y49 edge · Z−0.78 THROUGH", 400);
+    contour(RECT_IN, -0.5, 3, "Rabbet inner lip · Z−0.5", 330);
+    contour(arcRect(-27.1563, -74.4688, 16.4687, 41.5937, 0.1875), -0.375, 3,
+            "Rabbet, comped contour · Z−0.375", 330);
+    contour(RECT_OUT, -0.375, 3, "Rabbet outer pass · Z−0.375", 330);
+    contour(RECT_IN, -0.78, 3, "Window opening · Z−0.78 THROUGH", 330);
+    contour(circlePath(-9.6875, 28.9375, 0.3281, 28), -0.78, 3,
+            "Round bore, inner ring · THROUGH", 400);
+    contour(circlePath(-9.6875, 28.9375, 0.6865, 36), -0.78, 3,
+            "Round bore, outer ring · THROUGH", 330);
+  })();
+
+  var TOTAL = 0, CUT_T = 0, RAPID_T = 0;
+  MOVES.forEach(function (m) {
+    m.t0 = TOTAL; TOTAL += m.dur; m.t1 = TOTAL;
+    if (m.type === "rapid") { RAPID_T += m.dur; } else { CUT_T += m.dur; }
+  });
+
+  var clock = 0, playing = false, speed = 10, showPath = true, lastFrame = 0;
+
+  function lerp(m, f) {
+    return [m.from[0] + (m.to[0] - m.from[0]) * f,
+            m.from[1] + (m.to[1] - m.from[1]) * f,
+            m.from[2] + (m.to[2] - m.from[2]) * f];
+  }
+
+  function moveAt(t) {
+    for (var i = 0; i < MOVES.length; i++) {
+      if (t <= MOVES[i].t1 || i === MOVES.length - 1) {
+        var m = MOVES[i];
+        var f = m.dur > 0 ? Math.max(0, Math.min(1, (t - m.t0) / m.dur)) : 1;
+        return { m: m, f: f, i: i };
+      }
+    }
+    return null;
+  }
+
+  function mmss(s) {
+    var t = Math.max(0, Math.round(s));
+    return Math.floor(t / 60) + ":" + ("0" + (t % 60)).slice(-2);
+  }
+
+  function drawToolpath(C) {
+    if (!showPath) return;
+    var cur = moveAt(clock);
+    if (!cur) return;
+
+    // Cuts already made, drawn solid. Colour separates the two tools.
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (var i = 0; i <= cur.i; i++) {
+      var m = MOVES[i];
+      if (m.type === "rapid") continue;
+      var end = i === cur.i ? lerp(m, cur.f) : m.to;
+      var a = project(m.from[0], m.from[1], m.from[2]);
+      var b = project(end[0], end[1], end[2]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = m.tool === 4 ? C.steel : C.accent;
+      ctx.lineWidth = m.type === "drill" ? 3 : 2;
+      ctx.globalAlpha = i === cur.i ? 1 : 0.55;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // The move in progress, if it is a rapid: dashed, so travel reads as travel.
+    if (cur.m.type === "rapid") {
+      var p = lerp(cur.m, cur.f);
+      var s0 = project(cur.m.from[0], cur.m.from[1], cur.m.from[2]);
+      var s1 = project(p[0], p[1], p[2]);
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y);
+      ctx.strokeStyle = C.muted;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // The tool: a stub of shank with a flat tip the true diameter of the cutter.
+    var tp = lerp(cur.m, cur.f);
+    var dia = cur.m.tool === 4 ? 0.3125 : 0.375;
+    var tip = project(tp[0], tp[1], tp[2]);
+    var top = project(tp[0], tp[1], tp[2] + 3.2);
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y); ctx.lineTo(top.x, top.y);
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = Math.max(2, dia * scale * 0.9);
+    ctx.globalAlpha = 0.75;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    var ring = ringPts(tp[0], tp[1], dia / 2, 20);
+    var pr = new Path2D();
+    pathFrom(ring, tp[2], pr);
+    ctx.fillStyle = cur.m.type === "rapid" ? C.muted : (cur.m.tool === 4 ? C.steel : C.accent);
+    ctx.fill(pr);
+    ctx.strokeStyle = C.surface; ctx.lineWidth = 1; ctx.stroke(pr);
+
+    document.getElementById("op-label").textContent = cur.m.label;
+    document.getElementById("op-clock").textContent = mmss(clock) + " / " + mmss(TOTAL);
+    var sc = document.getElementById("scrub");
+    if (document.activeElement !== sc) {
+      sc.value = String(Math.round((clock / TOTAL) * 1000));
+    }
+  }
+
+  // ------------------------------------------------------------------- draw --
+
+  function draw() {
+    var C = {
+      top: css("--mat-top"), side: css("--mat-side"), rab: css("--mat-rab"),
+      line: css("--line"), ink: css("--ink"), muted: css("--muted"),
+      accent: css("--accent"), steel: css("--steel"), surface: css("--surface")
+    };
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    var fit = Math.min(w / (L * 1.16), h / (L * 0.62));
+    scale = fit * zoom;
+    cx = w / 2 + panX; cy = h / 2 + panY;
+
+    var edge = "rgba(0,0,0,0.16)";
+
+    // Which way is the slab facing? Asking the rotated normal rather than the
+    // pitch angle keeps this correct however far the model is tumbled, including
+    // past vertical, where the sign of the pitch no longer tells you anything.
+    var topVisible = rotNormal(0, 0, 1).z > 0;
+
+    // 1. hole bores — only the far walls are visible, wall() culls the rest
+    HOLES.concat([BORE]).forEach(function (o) {
+      var pts = ringPts(o.u, o.v, o.r, 26);
+      wall(pts, 0, -T, C.side, null, true, true);
+    });
+
+    // 2. panel outer sides
+    wall(rectPts({ u0: 0, u1: L, v0: 0, v1: W }), 0, -T, C.side, edge, false, true);
+
+    // 3. window opening walls, from the lip floor down through the panel
+    wall(rectPts(WIN), Z_LIP, -T, C.side, edge, true, true);
+
+    var lipOuter = { u0: WIN.u0 - LIP, u1: WIN.u1 + LIP, v0: WIN.v0 - LIP, v1: WIN.v1 + LIP };
+
+    if (topVisible) {
+      // 4. the 0.5-deep lip floor, a narrow ledge at the opening edge
+      var pLip = new Path2D();
+      pathFrom(rectPts(lipOuter), Z_LIP, pLip);
+      pathFrom(rectPts(WIN), Z_LIP, pLip);
+      ctx.fillStyle = shade(C.rab, lambert(rotNormal(0, 0, 1)) * 0.86);
+      ctx.fill(pLip, "evenodd");
+
+      // 5. step up from the lip to the 0.375 rabbet floor
+      wall(rectPts(lipOuter), Z_RAB, Z_LIP, C.side, edge, true, true);
+
+      // 6. the 0.375 rabbet floor
+      var pRab = new Path2D();
+      pathFrom(rectPts(RAB), Z_RAB, pRab);
+      pathFrom(rectPts(lipOuter), Z_RAB, pRab);
+      ctx.fillStyle = shade(C.rab, lambert(rotNormal(0, 0, 1)) * 0.94);
+      ctx.fill(pRab, "evenodd");
+
+      // 7. rabbet outer wall, rising back to the top face
+      wall(rectPts(RAB), 0, Z_RAB, C.side, edge, false, true);
+
+      // 8. the top face: outer rectangle less the rabbet and every bore
+      var pTop = new Path2D();
+      pathFrom(rectPts({ u0: 0, u1: L, v0: 0, v1: W }), 0, pTop);
+      pathFrom(rectPts(RAB), 0, pTop);
+      HOLES.concat([BORE]).forEach(function (o) {
+        pathFrom(ringPts(o.u, o.v, o.r, 26), 0, pTop);
+      });
+      ctx.fillStyle = shade(C.top, lambert(rotNormal(0, 0, 1)));
+      ctx.fill(pTop, "evenodd");
+      ctx.strokeStyle = edge; ctx.lineWidth = 0.7; ctx.stroke(pTop);
+    } else {
+      // The underside is a plain slab: the rabbet is a top-face recess and does
+      // not break through, so from below there is only the outline, the window
+      // and the bores.
+      var pBot = new Path2D();
+      pathFrom(rectPts({ u0: 0, u1: L, v0: 0, v1: W }), -T, pBot);
+      pathFrom(rectPts(WIN), -T, pBot);
+      HOLES.concat([BORE]).forEach(function (o) {
+        pathFrom(ringPts(o.u, o.v, o.r, 26), -T, pBot);
+      });
+      ctx.fillStyle = shade(C.top, lambert(rotNormal(0, 0, -1)) * 0.9);
+      ctx.fill(pBot, "evenodd");
+      ctx.strokeStyle = edge; ctx.lineWidth = 0.7; ctx.stroke(pBot);
+    }
+
+    // 9. callouts, which live on the top face
+    if (showCallouts && topVisible) {
+      ctx.lineWidth = 1.2;
+      HOLES.forEach(function (o) {
+        var c = project(o.u, o.v, 0);
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, Math.max(3.2, o.r * scale * 1.9), 0, Math.PI * 2);
+        ctx.strokeStyle = o.tool === 4 ? C.steel : C.accent;
+        ctx.stroke();
+      });
+      var b = project(BORE.u, BORE.v, 0);
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, BORE.r * scale * 1.45, 0, Math.PI * 2);
+      ctx.strokeStyle = C.accent;
+      ctx.stroke();
+    }
+
+    // 10. the G54 origin, which sits off the part on the offcut side
+    if (showOrigin && topVisible) {
+      var o = project(0, -VOFF, 0);
+      var ax = project(6, -VOFF, 0), ay = project(0, -VOFF + 6, 0);
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = C.accent;
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(ax.x, ax.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(ay.x, ay.y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(o.x, o.y, 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = C.accent; ctx.fill();
+
+      ctx.font = "500 11px " + css("--f-mono");
+      ctx.fillStyle = C.muted;
+      ctx.textAlign = "center";
+      ctx.fillText("G54  X0 Y0", o.x, o.y + 18);
+      ctx.fillStyle = C.accent;
+      ctx.fillText("−X", ax.x, ax.y - 7);
+      ctx.fillText("+Y", ay.x, ay.y - 7);
+      ctx.textAlign = "start";
+    }
+
+    // 11. the program's own motion, on top of the part
+    drawToolpath(C);
+  }
+
+  // ------------------------------------------------------------ interaction --
+
+  function resize() {
+    var dpr = window.devicePixelRatio || 1;
+    var r = canvas.getBoundingClientRect();
+    w = r.width; h = r.height;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  var dragging = false, panning = false, lx = 0, ly = 0;
+
+  // Middle button pans, left button orbits. Shift with the left button pans too,
+  // for trackpads and anything else without a usable middle click.
+  canvas.addEventListener("pointerdown", function (e) {
+    panning = e.button === 1 || e.shiftKey;
+    dragging = !panning;
+    if (panning) e.preventDefault();
+    lx = e.clientX; ly = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  // Windows opens the autoscroll widget on a middle click unless this is eaten.
+  canvas.addEventListener("auxclick", function (e) {
+    if (e.button === 1) e.preventDefault();
+  });
+  canvas.addEventListener("mousedown", function (e) {
+    if (e.button === 1) e.preventDefault();
+  });
+
+  canvas.addEventListener("pointermove", function (e) {
+    if (panning) {
+      panX += e.clientX - lx;
+      panY += e.clientY - ly;
+      lx = e.clientX; ly = e.clientY;
+      draw();
+      return;
+    }
+    if (!dragging) return;
+    // Pitch tumbles right through vertical and keeps going. Once past it the
+    // model is upside down, so horizontal drag is flipped to match — otherwise
+    // the part appears to spin away from the mouse.
+    var flip = Math.cos(pitch) < 0 ? -1 : 1;
+    yaw += (e.clientX - lx) * 0.008 * flip;
+    pitch += (e.clientY - ly) * 0.006;
+    if (pitch > Math.PI) pitch -= Math.PI * 2;
+    if (pitch < -Math.PI) pitch += Math.PI * 2;
+    lx = e.clientX; ly = e.clientY;
+    setPressed(null);
+    draw();
+  });
+  ["pointerup", "pointercancel"].forEach(function (ev) {
+    canvas.addEventListener(ev, function () { dragging = false; panning = false; });
+  });
+  canvas.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.45, Math.min(6, zoom * (e.deltaY > 0 ? 0.92 : 1.087)));
+    draw();
+  }, { passive: false });
+
+  function setPressed(name) {
+    document.querySelectorAll("[data-view]").forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.view === name ? "true" : "false");
+    });
+  }
+
+  document.querySelectorAll("[data-view]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var v = VIEWS[b.dataset.view];
+      yaw = v.yaw; pitch = v.pitch; zoom = v.zoom;
+      panX = 0; panY = 0;                    // a preset is a full reset, pan too
+      setPressed(b.dataset.view);
+      draw();
+    });
+  });
+
+  function toggle(id, get, set) {
+    var el = document.getElementById(id);
+    el.addEventListener("click", function () {
+      set(!get());
+      el.setAttribute("aria-pressed", get() ? "true" : "false");
+      draw();
+    });
+  }
+  toggle("tog-holes", function () { return showCallouts; },
+         function (x) { showCallouts = x; });
+  toggle("tog-origin", function () { return showOrigin; },
+         function (x) { showOrigin = x; });
+  toggle("tog-path", function () { return showPath; },
+         function (x) { showPath = x; });
+
+  // ------------------------------------------------------------- transport --
+
+  var $play = document.getElementById("play");
+  var $scrub = document.getElementById("scrub");
+
+  function setPlaying(on) {
+    playing = on;
+    $play.textContent = on ? "Pause" : (clock >= TOTAL ? "Run again" : "Run program");
+    if (on) { lastFrame = 0; requestAnimationFrame(tick); }
+  }
+
+  function tick(ts) {
+    if (!playing) return;
+    if (lastFrame) clock += ((ts - lastFrame) / 1000) * speed;
+    lastFrame = ts;
+    if (clock >= TOTAL) { clock = TOTAL; setPlaying(false); }
+    draw();
+    if (playing) requestAnimationFrame(tick);
+  }
+
+  $play.addEventListener("click", function () {
+    if (clock >= TOTAL) clock = 0;
+    setPlaying(!playing);
+    draw();
+  });
+
+  document.getElementById("rewind").addEventListener("click", function () {
+    clock = 0; setPlaying(false); draw();
+  });
+
+  document.getElementById("speed").addEventListener("change", function (e) {
+    speed = parseFloat(e.target.value);
+  });
+
+  $scrub.addEventListener("input", function (e) {
+    clock = (parseFloat(e.target.value) / 1000) * TOTAL;
+    setPlaying(false);
+    draw();
+  });
+
+  // The cycle estimate is the sum of every move at its own governing feed, so it
+  // is arithmetic on the file rather than a guess. It does not include tool
+  // changes, spindle run-up, or any acceleration and deceleration, so a real
+  // machine will always be slower — treat it as a floor, not a prediction.
+  document.getElementById("cycle-v").textContent = mmss(TOTAL);
+  document.getElementById("cycle-n").textContent =
+    mmss(CUT_T) + " cutting, " + mmss(RAPID_T) + " rapid. Excludes tool changes " +
+    "and accel/decel, so the real cycle runs longer.";
+
+  window.addEventListener("resize", resize);
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", draw);
+  }
+  resize();
+})();
+</script>

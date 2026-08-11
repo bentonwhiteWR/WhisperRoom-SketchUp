@@ -1,4 +1,5 @@
 # @title Auto Dimension...
+# @cat Room tools
 # @ability Dimensioned
 # @ability-blurb Chain-dimension the room; switch off to remove what it drew.
 # @on  WR_AutoDimension.ability_on(opts)

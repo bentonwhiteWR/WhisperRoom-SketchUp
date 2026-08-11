@@ -1,4 +1,5 @@
 # @title Export This View...
+# @cat Export art
 #
 # Save what is on screen right now as one PNG, named after the current scene.
 #

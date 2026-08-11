@@ -163,7 +163,12 @@ def build(model, variant, assign=None):
                 x, y = cursor, (H - t if side == 'N' else t - PANEL_T)
                 dx, dy = ln, PANEL_T
             else:
-                x, y = (W - t if side == 'E' else t - PANEL_T), cursor
+                # E/W slot lists run NORTH -> SOUTH. That is the booth builder's own
+                # convention (layout-render.js top-down: ay = runY(aIn), y-down from
+                # the N wall), and this walked them south->north until 2026-08-11 —
+                # which put every E/W wall's panels at the mirrored end. N/S run
+                # west->east in both, so only these two flip.
+                x, y = (W - t if side == 'E' else t - PANEL_T), H - cursor - ln
                 dx, dy = PANEL_T, ln
             parts.append(dict(kind='panel', id=slot['id'], side=side, slot_kind=slot['kind'],
                               pack=pack, length=ln,
@@ -175,6 +180,8 @@ def build(model, variant, assign=None):
                 # butt into its sides.
                 band = t - PANEL_T
                 mid = cursor + SEAL_W / 2.0
+                if side in ('E', 'W'):
+                    mid = H - cursor - SEAL_W / 2.0   # same N->S flip as the panels
                 h = SEAL_PLATE / 2.0
                 s = SEAL_W / 2.0
                 if side == 'N':

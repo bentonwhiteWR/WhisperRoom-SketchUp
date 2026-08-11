@@ -1,4 +1,5 @@
 # @title Build Room...
+# @cat Room tools
 #
 # Type a take-off, get a built and dimensioned room.
 #

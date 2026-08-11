@@ -1,4 +1,5 @@
 # @title Merge Scenes...
+# @cat Model tools
 #
 # Bring one .skp into another AND keep the incoming file's scenes.
 #

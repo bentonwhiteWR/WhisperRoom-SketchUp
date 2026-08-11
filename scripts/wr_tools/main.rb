@@ -144,6 +144,22 @@ module WhisperRoom
     end
 
     # Newest first — the thing being worked on is nearly always the thing to run.
+    # A script's category comes from a "# @cat <name>" header line. Scripts
+    # WITHOUT one — generated booth files, one-off layouts — sink to the
+    # catch-all group at the bottom of the panel, which is exactly where a
+    # run-once script belongs.
+    def self.cat_of(path)
+      File.foreach(path).with_index do |line, i|
+        break if i > 60
+        next unless line =~ /^\s*#/
+        m = line.match(/^\s*#\s*@cat\s+(.+)$/)
+        return m[1].strip if m
+      end
+      nil
+    rescue StandardError
+      nil
+    end
+
     def self.scan
       script_files.map { |path|
         title, blurb, abil = meta_of(path)
@@ -152,6 +168,7 @@ module WhisperRoom
           'file'    => path,
           'name'    => File.basename(path),
           'title'   => title || pretty(File.basename(path)),
+          'cat'     => cat_of(path),
           'blurb'   => blurb,
           'ago'     => ago(mtime),
           'fresh'   => (Time.now - mtime) < FRESH_H * 3600,
@@ -161,19 +178,64 @@ module WhisperRoom
       }.sort_by { |s| -s['stamp'] }
     end
 
+    # ------------------------------------------------------------ preferences --
+    #
+    # NEVER store a string containing a double quote in a SketchUp default.
+    #
+    # `Sketchup.read_default` EVALS the stored string as Ruby, and
+    # `write_default` does not escape quotes inside it. So a JSON array goes in
+    # as `["a.rb"]` and comes back out as the eval source `"["a.rb"]"` — the
+    # inner quote closes the literal and Ruby raises
+    #
+    #     SyntaxError: unexpected local variable or method, expecting end-of-input
+    #
+    # SyntaxError descends from ScriptError, NOT StandardError, so a plain
+    # `rescue StandardError` does not catch it. That is how one starred script
+    # took the whole extension down at load on 2026-08-10: the bad value was
+    # written once, and every launch after it failed at `pinned`.
+    #
+    # Lists are therefore stored pipe-joined. `|` is illegal in a Windows
+    # filename, so it cannot appear in a script name, and it is inert inside a
+    # double-quoted Ruby literal. `read_pref` also rescues Exception and clears
+    # a value it cannot read, so a default written by an older build heals
+    # itself on the next launch instead of erroring forever.
+
+    LIST_SEP = '|'.freeze
+
+    def self.read_pref(key, fallback = '')
+      Sketchup.read_default(PREF_KEY, key, fallback).to_s
+    rescue Exception
+      begin
+        Sketchup.write_default(PREF_KEY, key, fallback.to_s)
+      rescue Exception
+        nil
+      end
+      fallback.to_s
+    end
+
+    def self.write_pref(key, value)
+      Sketchup.write_default(PREF_KEY, key, value.to_s.delete('"'))
+    rescue Exception
+      nil
+    end
+
+    def self.read_list(key)
+      read_pref(key).split(LIST_SEP).reject(&:empty?)
+    end
+
+    def self.write_list(key, list)
+      write_pref(key, list.reject { |n| n.to_s.include?(LIST_SEP) }.join(LIST_SEP))
+    end
+
     # ---------------------------------------------------------------- recents --
 
     def self.recent
-      JSON.parse(Sketchup.read_default(PREF_KEY, 'recent', '[]').to_s)
-    rescue StandardError
-      []
+      read_list('recent')
     end
 
     def self.remember(name)
       list = ([name] + recent.reject { |n| n == name }).first(RECENT_N)
-      Sketchup.write_default(PREF_KEY, 'recent', list.to_json)
-    rescue StandardError
-      nil
+      write_list('recent', list)
     end
 
     # -------------------------------------------------------------- favourites --
@@ -193,15 +255,13 @@ module WhisperRoom
     # Window > Preferences > Shortcuts — every script has one.
 
     def self.pinned
-      JSON.parse(Sketchup.read_default(PREF_KEY, 'pinned', '[]').to_s)
-    rescue StandardError
-      []
+      read_list('pinned')
     end
 
     def self.toggle_pin(name)
       list = pinned
       list = list.include?(name) ? list.reject { |n| n == name } : (list + [name])
-      Sketchup.write_default(PREF_KEY, 'pinned', list.first(PIN_N).to_json)
+      write_list('pinned', list.first(PIN_N))
       refresh_fav_labels
     rescue StandardError
       nil
@@ -231,6 +291,16 @@ module WhisperRoom
     # renamed without rebuilding the toolbar. Whether SketchUp repaints the
     # tooltip immediately is version-dependent; the ACTION is always current
     # either way, because it resolves the pin list at click time.
+    # The scripts that earn their own toolbar icon. Anything else pinned still
+    # works — it just wears its numbered star.
+    FAV_ICONS = {
+      'save-scene-components.rb'  => 'scenecomps',
+      'build-booth-components.rb' => 'boothbuild',
+      'booth-from-link.rb'        => 'boothlink',
+      'elevation-export.rb'       => 'elevation',
+      'angled-component-art.rb'   => 'angled'
+    }.freeze
+
     def self.refresh_fav_labels
       return if @fav_cmds.nil?
       @fav_cmds.each_with_index do |cmd, i|
@@ -238,6 +308,20 @@ module WhisperRoom
         text = s ? "#{s['title']}  (favourite #{i + 1})" : "Favourite #{i + 1} — empty"
         cmd.tooltip = text
         cmd.status_bar_text = s ? "Run #{s['name']}" : 'Star a script in the WhisperRoom panel'
+        # Give known scripts their own face. Whether SketchUp repaints a live
+        # toolbar icon is version-dependent (same caveat as the tooltip); worst
+        # case the new face appears at the next launch, which still beats eight
+        # identical stars.
+        begin
+          key = s && FAV_ICONS[s['name']]
+          icon = key ? File.join(File.dirname(__FILE__), "icon-#{key}.svg") : nil
+          icon = nil unless icon && File.exist?(icon)
+          icon ||= File.join(File.dirname(__FILE__), "icon-fav#{i + 1}.svg")
+          cmd.small_icon = icon
+          cmd.large_icon = icon
+        rescue StandardError
+          nil
+        end
       end
     rescue StandardError
       nil
@@ -311,16 +395,14 @@ module WhisperRoom
     def self.values_for(a)
       out = {}
       (a['settings'] || []).each do |s|
-        v = Sketchup.read_default(PREF_KEY, "set_#{a['id']}_#{s['key']}", s['default']).to_s
+        v = read_pref("set_#{a['id']}_#{s['key']}", s['default'])
         out[s['key']] = v.empty? ? s['default'] : v
       end
       out
     end
 
     def self.save_setting(id, key, value)
-      Sketchup.write_default(PREF_KEY, "set_#{id}_#{key}", value.to_s)
-    rescue StandardError
-      nil
+      write_pref("set_#{id}_#{key}", value)
     end
 
     # Every tag whose name is in REF_TAGS, plus anything ending in -Ref, so a
@@ -437,6 +519,24 @@ module WhisperRoom
       d.add_action_callback('rescan')  { |_c| push }
       d.add_action_callback('run')     { |_c, file| run(file); push }
       d.add_action_callback('pin')     { |_c, name| toggle_pin(name); push }
+      # A booth-builder link pasted into the panel's command bar. The run
+      # callback carries no arguments, so the link is handed to
+      # booth-from-link.rb through that script's own preference — its dialog
+      # opens with the link already filled in.
+      d.add_action_callback('buildlink') do |_c, url|
+        begin
+          Sketchup.write_default('WR_BoothLink', 'link', url.to_s.delete('"'))
+        rescue Exception
+          nil
+        end
+        f = File.join(SCRIPTS_DIR, 'booth-from-link.rb')
+        if File.exist?(f)
+          run(f)
+        else
+          UI.messagebox('booth-from-link.rb is not in the scripts folder.')
+        end
+        push
+      end
       d.add_action_callback('ability') do |_c, id, on|
         _ok, msg = toggle(id, on.to_s == 'true')
         push_note(msg)

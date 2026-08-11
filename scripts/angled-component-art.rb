@@ -1,4 +1,5 @@
 # @title Angled Component Art...
+# @cat Export art
 #
 # The Iso30 component library: every part shot at four fixed angled cameras on
 # one shared canvas, so a web page can composite a whole booth by translation
@@ -135,7 +136,7 @@ module WR_AngledArt
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys = %w[batch pick dir px view frame style over recov dry]
+    keys = %w[batch pick dir px view frame style ao over recov dry]
     prompts = ['Batch',
                'Scenes — batch / current / 1-7,12 / text',
                'Output folder',
@@ -143,6 +144,7 @@ module WR_AngledArt
                'View height — auto, or inches',
                'Frame on',
                'Style',
+               'Viewport shading (AO) — second opaque pass per image',
                'Overwrite files already there',
                'Recover brightness after export (new graphics engine)',
                'Dry run — measure and list only']
@@ -150,15 +152,31 @@ module WR_AngledArt
       v = Sketchup.read_default(PREF, k, DEFAULTS[k]).to_s
       v.empty? ? DEFAULTS[k] : v
     end
+    # Every style IN THE MODEL is offered by name. The exporter never activates
+    # scenes — it reads each scene's stored camera directly, to skip a few
+    # hundred scene transitions — so a scene's own style NEVER applies by
+    # itself: the render uses whatever style the viewport happens to have. That
+    # is how a batch expected in Construction Documentation Style came out with
+    # no edge lines. Picking the style here makes it explicit and repeatable.
+    style_opts = ["Leave the style alone (the model's own)",
+                  'Bold edges — model style, profiles forced on',
+                  'Shaded, no textures',
+                  'Line art (hidden line, no shadows)',
+                  'PROBE — one camera, every style, for comparison']
+    begin
+      Sketchup.active_model.styles.each { |s| style_opts << "Style: #{s.name}" }
+    rescue StandardError
+    end
+
     lists = ['0 — one component, four images, STOP|' \
              '1 — exterior: walls, windows, doors, vents, seals|' \
              '2 — exterior: caster-plate vent walls|' \
-             '3 — interiors and furniture',
+             '3 — interiors and furniture|' \
+             '4 — every scene, all four images',
              '', '', '', '',
              'Part centred (fills the frame)|Insertion point at centre (registration)',
-             "Leave the style alone (the model's own)|Shaded, no textures|Line art (hidden line, no shadows)|" \
-             'PROBE — one camera, every style, for comparison',
-             'Yes|No', 'Yes|No', 'Yes|No']
+             style_opts.join('|'),
+             'No|Yes', 'Yes|No', 'Yes|No', 'Yes|No']
     res = UI.inputbox(prompts, defaults, lists, 'Angled Component Art (Iso30)')
     return nil unless res
     cfg = {}
@@ -213,6 +231,15 @@ module WR_AngledArt
   # not recognise still renders — with all four — and is reported, because on a
   # first run through a new file seeing the real names matters more than
   # enforcing a list.
+  #
+  # Batches 1, 2 and 3 give a part TWO images, because a wall panel photographed
+  # from inside the booth and from outside it is two different pictures and the
+  # other two cameras would only ever see its back. Batch 4 overrides that and
+  # takes all four of everything — four times the files and four times the run
+  # time, so it is the deliberate choice, not the default.
+  #
+  # The batch does NOT decide which scenes run. That is the Scenes field alone.
+  # The only batch that touches the scene list is 0, which cuts it to one.
   def self.cams_for(name, batch)
     m = master[name]
     case batch.to_s[0, 1]
@@ -220,6 +247,7 @@ module WR_AngledArt
     when '1' then m == INT ? INT : EXT
     when '2' then EXT
     when '3' then m == EXT ? EXT : INT
+    when '4' then ALL
     else m || ALL
     end
   end
@@ -357,6 +385,14 @@ module WR_AngledArt
   SHADED   = { 'RenderMode' => 2, 'Texture' => false, 'DisplayFog' => false,
                'DrawGround' => false, 'DrawHorizon' => false, 'DepthCue' => false }.freeze
 
+  # Materials and textures stay as the model has them; edges and profiles are
+  # forced on and heavy. For when the export needs the construction-document
+  # look and the named style is not in the model. apply_style reads every key
+  # back, so a key this SketchUp build does not accept shows up in the
+  # diagnostics as stuck rather than failing silently.
+  BOLD_EDGES = { 'EdgeDisplayMode' => 1, 'DrawSilhouettes' => true,
+                 'SilhouetteWidth' => 3 }.freeze
+
   # Ground, horizon and fog always go off — real alpha needs it whatever the
   # style, and a scene can put an opaque sky back, so it is re-applied after
   # every scene change rather than once at the start. NOTHING ELSE is touched
@@ -383,14 +419,44 @@ module WR_AngledArt
                    'DisplayWatermarks' => false,
                    'AmbientOcclusion'  => false }.freeze
 
+  def self.find_style(model, name)
+    hit = nil
+    model.styles.each { |s| hit = s if s.name == name }
+    hit
+  rescue StandardError
+    nil
+  end
+
   def self.push_style(model, mode)
     ro = model.rendering_options
     want, shadows = case mode
-                    when /Line art/ then [LINE_ART.merge(TRANSPARENCY), true]
-                    when /Shaded/   then [SHADED.merge(TRANSPARENCY),   true]
-                    else                 [TRANSPARENCY.dup,             false]
+                    when /Line art/     then [LINE_ART.merge(TRANSPARENCY), true]
+                    when /Shaded/       then [SHADED.merge(TRANSPARENCY),   true]
+                    when /\ABold edges/ then [BOLD_EDGES.merge(TRANSPARENCY), false]
+                    else                     [TRANSPARENCY.dup,             false]
                     end
-    saved = { :ro => {}, :shadows => nil, :touch => shadows }
+    saved = { :ro => {}, :shadows => nil, :touch => shadows, :style => nil }
+
+    # A named style is SELECTED for the run and restored afterwards. This is the
+    # only way a scene's intended style reaches the export, since scenes are
+    # never activated. The transparency keys still overlay it — a style's own
+    # sky or watermark would otherwise make the alpha channel opaque again.
+    if mode =~ /\AStyle: (.+)\z/
+      name = Regexp.last_match(1)
+      st = find_style(model, name)
+      if st.nil?
+        puts "  *** STYLE NOT IN THIS MODEL: #{name.inspect} — using the active style."
+      else
+        saved[:style] = (model.styles.selected_style.name rescue nil)
+        begin
+          model.styles.selected_style = st
+        rescue StandardError => e
+          saved[:style] = nil
+          puts "  *** COULD NOT SELECT STYLE #{name.inspect}: #{e.class} — using the active style."
+        end
+      end
+    end
+
     want.each_key { |k| saved[:ro][k] = (ro[k] rescue nil) }
     saved[:shadows] = (model.shadow_info['DisplayShadows'] rescue nil) if shadows
     [saved, want, shadows]
@@ -422,6 +488,10 @@ module WR_AngledArt
     saved[:ro].each { |k, v| (ro[k] = v) rescue nil unless v.nil? }
     if saved[:touch] && !saved[:shadows].nil?
       (model.shadow_info['DisplayShadows'] = saved[:shadows]) rescue nil
+    end
+    if saved[:style]
+      st = find_style(model, saved[:style])
+      (model.styles.selected_style = st) rescue nil if st
     end
   end
 
@@ -660,6 +730,27 @@ module WR_AngledArt
     false
   end
 
+  # Marries each AO colour pass to its transparent mask: RGB from the opaque
+  # AO shot, alpha from the clean transparent shot. Runs AFTER recover(), so
+  # both images are already un-darkened. One known soft spot: semi-transparent
+  # rim pixels take their colour from the opaque render, so a faint dark
+  # fringe is possible against very light page backgrounds.
+  def self.combine_ao(cfg)
+    script = File.join(File.dirname(__FILE__), 'combine-ao.py')
+    unless File.exist?(script)
+      puts "  AO COMBINE SKIPPED — #{script} is missing."
+      return false
+    end
+    cmd = "python \"#{script.tr('/', '\\')}\" \"#{cfg['dir'].tr('/', '\\')}\""
+    puts "  combining AO passes: #{cmd}"
+    ok = system(cmd)
+    puts ok ? '  AO combine done.' : '  *** AO COMBINE FAILED — _aocolor files left in place.'
+    ok
+  rescue StandardError => e
+    puts "  AO combine error: #{e.class}: #{e.message}"
+    false
+  end
+
   # -------------------------------------------------------------------- run --
 
   def self.run
@@ -677,6 +768,7 @@ module WR_AngledArt
     px   = 2400 if px < 200 || px > 6000
     dry  = cfg['dry'] == 'Yes'
     over = cfg['over'] == 'Yes'
+    ao   = cfg['ao'] == 'Yes'
 
     chosen, pick_note = select_scenes(model, cfg['pick'])
     chosen = chosen.first(1) if cfg['batch'].to_s.start_with?('0')   # Step 0: one, then stop
@@ -868,6 +960,21 @@ module WR_AngledArt
               Sketchup.status_text = "Iso30 #{i + 1}/#{good.size}: #{m[:name]} #{c}"
               ok = view.write_image(:filename => path, :width => px, :height => px,
                                     :antialias => true, :transparent => true)
+              # Viewport-shading pass. Ambient occlusion is the soft contact
+              # shading the viewport shows and the export loses — it must be
+              # OFF for the transparent shot because it tints the whole frame
+              # and kills the alpha. So: same camera, AO back on, opaque
+              # background. The transparent shot above becomes the alpha MASK,
+              # this one carries the colour; combine-ao.py marries them.
+              if ao && ok
+                (model.rendering_options['AmbientOcclusion'] = true) rescue nil
+                view.refresh
+                ok2 = view.write_image(:filename => path.sub(/\.png\z/, '_aocolor.png'),
+                                       :width => px, :height => px,
+                                       :antialias => true, :transparent => false)
+                failed << "#{File.basename(path)} (AO pass)" unless ok2
+                (model.rendering_options['AmbientOcclusion'] = false) rescue nil
+              end
               if ok
                 written += 1
                 puts "  ok    #{File.basename(path)}"
@@ -886,6 +993,7 @@ module WR_AngledArt
       end
 
       recover(cfg) if cfg['recov'] == 'Yes'
+      combine_ao(cfg) if ao
 
       tt = cfg['batch'].to_s.start_with?('0') ? translation_test(model, cfg, px, view_h, good.first) : nil
       report(cfg, px, view_h, scale, written, failed, tt)

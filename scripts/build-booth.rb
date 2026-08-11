@@ -1,4 +1,5 @@
 # @title Build Booth...
+# @cat Build a booth
 #
 # Pick a booth from a dropdown and build it. This replaces the one-script-per-
 # booth arrangement — new booths appear in the list as soon as the data file is
