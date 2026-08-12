@@ -28,9 +28,16 @@
 # wall then come out at genuinely different sizes, which is the point. Leave it
 # on "scene" to keep each scene's own saved zoom, the old behaviour.
 #
-# What has to match the Iso30 set is PX PER INCH, not the view height, because
-# the two exporters do not share a canvas: the angled one is square and this one
-# takes its aspect from the viewport. The console prints the number to type.
+# PICK IT TO FIT FIRST. View height is the frame's vertical extent, so anything
+# taller is clipped — silently, because write_image returns true either way. The
+# tallest parts here run about 92 in (a 91 in HX panel with a fan hanging below
+# it), so 104 in leaves a sensible margin. The console warns if the number typed
+# is too small.
+#
+# Matching the Iso30 set's px per inch is SECONDARY and often pointless. It only
+# buys anything if something downstream shows the flat and angled images at a
+# shared physical scale; if the viewer scales each image to fit its own box, all
+# that matters is consistency within this run.
 #
 # BEFORE YOU RUN: size the SketchUp window to the aspect you want. Image height
 # comes from the viewport aspect and every image in the run inherits it — and it
@@ -241,6 +248,17 @@ module WR_ComponentArt
   # px per inch = image height in px / view height in inches. That is the number
   # to match against the angled set, NOT the view height, because the two
   # exporters do not use the same canvas.
+  # The tallest thing this library shoots, in inches, and the headroom to leave
+  # around it. A standard wall panel is 81 and an HX panel is 91; the measured
+  # 46VNT_VSS_EFS came to 82.3 because its fan hangs below the panel, so an HX
+  # vent wall is about 92. Anything taller than the view height is CLIPPED and
+  # write_image still returns true, so nothing complains.
+  #
+  # These are a floor for the WARNING, not a scale anybody has to use. Raise them
+  # if a taller part joins the library.
+  TALLEST = 92.0
+  MARGIN  = 12.0
+
   def self.view_height(spec)
     s = spec.to_s.strip
     return nil if s.empty? || s.downcase == 'scene'
@@ -475,18 +493,29 @@ module WR_ComponentArt
     vh = view_height(cfg['view'])
     if vh
       puts format('  scale    view height %.3f in -> %.3f px per inch  (PINNED, ' \
-                  "every scene the same)", vh, height / vh)
+                  'every scene the same)', vh, height / vh)
+      # THE FIRST CONSTRAINT IS FITTING, NOT MATCHING. View height is the frame's
+      # vertical extent, so anything taller than it is CLIPPED, silently — a
+      # write_image that cuts the top off a panel still returns true.
+      if vh < TALLEST + MARGIN
+        puts format('  *** %.3f in is not enough headroom. The tallest parts here are', vh)
+        puts format('  *** about %.0f in (a %d in HX panel with a fan hanging below it),', TALLEST, 91)
+        puts '  *** and anything taller than the view height is CLIPPED without'
+        puts '  *** any error. Use at least %.0f in.' % (TALLEST + MARGIN)
+      end
     else
       puts '  scale    each scene\'s OWN saved zoom — parts are NOT comparable to'
-      puts '           each other or to the Iso30 set. Type a view height in inches'
-      puts '           to pin it.'
+      puts '           each other. Type a view height in inches to pin it;'
+      puts format('           %.0f in clears the tallest part with room to spare.',
+                  TALLEST + MARGIN)
     end
-    # px per inch is the number that has to match, not the view height: the two
-    # exporters do not share a canvas. The Iso30 set is square, this one is not.
-    puts format('           to match an Iso30 run of %d px at view height V, ' \
-                'type V * %d / %d', 2400, height, 2400)
-    puts format('           e.g. Iso30 at 2400 px / 160 in = 15.000 px per inch ' \
-                '-> type %.3f here', 160.0 * height / 2400.0)
+    # Matching the Iso30 set is OPTIONAL and secondary. It is only worth doing if
+    # something downstream shows the two sets at a shared physical scale; if the
+    # viewer scales each image to fit its own box, only consistency WITHIN this
+    # run matters, and fitting the part beats matching a number.
+    puts format('           (to sit at the same physical scale as an Iso30 run of ' \
+                '2400 px / V in, this canvas needs V * %d / 2400 in — only worth', height)
+    puts '           doing if the viewer does not rescale each image to fit.)'
     puts "  scenes   #{plan.size} of #{model.pages.count}"
     puts "  picked   #{pick_note}"
     puts "  style    #{cfg['style']}"
