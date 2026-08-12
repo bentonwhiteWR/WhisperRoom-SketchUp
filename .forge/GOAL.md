@@ -19,8 +19,26 @@ near and far corner seam seals onto the same screen point.
 - Camera NAMES keep their current relative positions. Filenames do not change.
 
 ## Now
-Builder implements the dropdown and derived camera table. No render — SketchUp is
-driven by Benton; the visual check is his.
+SHIPPED in 74abd0f — dropdown and derived camera table are in and pushed.
+Next session is on the LAPTOP: `git pull` first, then render the angled
+component art at azimuth 38.
+
+Before that render, three things are still open:
+1. The script has NEVER been parsed by Ruby (no interpreter on the desktop).
+   First run must be batch 0 with dry run ON — a load-time SyntaxError is the
+   failure DEVLOG already records once.
+2. Look at the CORNER SEAM SEAL before anything else. Its ExtNear/IntFar were
+   rotated rigidly with the rig (A+45 / A+225, so 83°/263° at 38°) on the
+   orchestrator's judgment, NOT confirmed by Benton. One-line change in
+   `build_corner_cams` if it looks wrong.
+3. View height `auto` is fitted per run THROUGH the camera directions, so the
+   extent will differ at 38° from 45°. There is no 160" constant in the code.
+   If downstream ingest needs a fixed 160" extent, TYPE 160 rather than auto.
+
+Also unresolved: whether a model style called "Defined Lines" already exists in
+MASTERCOMPONENTSV1 — if it does it is already in the style dropdown by name.
+Thirty-second check on screen. The camera change shipped without it, per
+Benton's instruction to ship rather than hold.
 
 ## Out of scope
 - The defined-lines restyle (separate delivery decision, see below).
