@@ -1,5 +1,44 @@
 # DEVLOG
 
+## 2026-08-12 — the fabric material was lightened ~1.47x
+
+Benton's call, and the right one. The component library rendered at a mean luma
+of **48.8 / 255** — 19% of full scale — so every downstream use (assembly manual
+covers, proposals, the booth builder) needed a rescue lift, and the flat set
+already carried a hand-applied gamma correction of unknown size.
+
+Lightening the **texture bitmap** fixes every consumer at once, with no post-pass
+and no risk of double correction, and it is visible while working in SketchUp.
+
+Measured before and after, same part, both exporters:
+
+| | before | after |
+|---|---|---|
+| overall mean luma | 48.8 | **72.3** |
+| p99 | 120 | 144 |
+| max | 238 | **216** — nothing clipped |
+| flat shading (`blur_std`) | 7.5 | **14.1** |
+| flat shading ÷ grain | 0.43 | **0.97** |
+
+The lift came out uniform — flat ×1.47, angled ×1.44–1.48 — so the two sets kept
+their relationship. Shading improved *more* than proportionally, because
+multiplying luma multiplies the differences between faces too; that is what the
+jump in legibility actually is.
+
+**Headroom left:** another ×1.25 would still clip nothing. Stopping at 72 is
+deliberate — real charcoal fabric photographed in a lit room sits around 60–90,
+so this is close to accurate, and going further reads as medium grey rather than
+charcoal, which is a product-appearance question rather than a technical one.
+
+**A trap that turned out not to be one**, recorded so nobody re-raises it:
+`fix-angled-alpha.py` only recovers a file whose `rgb_max <= 70`, which looks
+like it could start silently skipping as the material gets brighter. It cannot.
+The composite is `out = 0.25 * src` and `src <= 255`, so `out <= 63.75` no matter
+how bright the source is. The threshold is safe at any material brightness.
+
+**Consequence:** every previously exported image in the library is now out of
+date and reads dark beside a new one. The whole set needs re-shooting.
+
 ## 2026-08-12 — one shading contract for both component-art exporters
 
 The flat walk-around set and the angled Iso30 set are shown side by side in the
