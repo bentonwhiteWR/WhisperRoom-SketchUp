@@ -23,9 +23,20 @@
 # fallback rule that could silently mistag, for a job nobody is going to run
 # again. Recover it from git if that ever changes.
 #
-# BEFORE YOU RUN: size the SketchUp window to the aspect you want. Height comes
-# from the viewport and every image in the run inherits it. The views are all
-# front/side already, so nothing rotates and nothing is re-aimed.
+# SCALE. Set "View height" to a number of inches and every scene is rendered at
+# that vertical extent, in parallel projection — a 22 inch panel and a 46 inch
+# wall then come out at genuinely different sizes, which is the point. Leave it
+# on "scene" to keep each scene's own saved zoom, the old behaviour.
+#
+# What has to match the Iso30 set is PX PER INCH, not the view height, because
+# the two exporters do not share a canvas: the angled one is square and this one
+# takes its aspect from the viewport. The console prints the number to type.
+#
+# BEFORE YOU RUN: size the SketchUp window to the aspect you want. Image height
+# comes from the viewport aspect and every image in the run inherits it — and it
+# also decides the px-per-inch you get from a given view height. The scene
+# directions are all front/side already, so nothing rotates and nothing is
+# re-aimed; only the projection and the zoom are overwritten.
 #
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/export-component-art.rb"
 
@@ -45,6 +56,11 @@ module WR_ComponentArt
     'scenes' => 'all',
     'dir'    => 'C:/Users/bento/Desktop/ProposalFiles/ComponentArt',
     'width'  => '2400',
+    # Vertical extent of the frame, in inches, forced onto every scene's camera.
+    # This is what makes one part comparable to another and to the Iso30 set.
+    # "scene" keeps each scene's own saved zoom, which is what this exporter did
+    # before and is still the right answer for a one-off.
+    'view'   => 'scene',
     'trans'  => 'Yes',
     # Style and Dark are the shading contract. They MUST match whatever the
     # angled run used or the two sets will not sit together in the booth
@@ -62,10 +78,11 @@ module WR_ComponentArt
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys = %w[scenes dir width trans style dark recov over dry man]
+    keys = %w[scenes dir width view trans style dark recov over dry man]
     prompts = ['Scenes — all / current / 1-7,12 / text',
                'Output folder — blank to browse',
                'Image width (px)',
+               'View height — "scene", or inches (pins the scale)',
                'Transparent background',
                'Style — must match the angled run',
                'Shadow Dark (0-100) — raise it to lift oblique faces',
@@ -83,6 +100,7 @@ module WR_ComponentArt
     lists = ['',                                        # scenes
              '',                                        # dir
              '',                                        # width
+             '',                                        # view
              'Yes|No',                                  # trans
              WR_Shading.style_options(Sketchup.active_model).join('|'),
              '',                                        # dark
@@ -205,6 +223,40 @@ module WR_ComponentArt
     out
   end
 
+  # -------------------------------------------------------------------- scale --
+  #
+  # PIN THE SCALE, KEEP THE DIRECTION.
+  #
+  # Selecting a scene restores that scene's whole camera — where it looks from
+  # AND how far in it is zoomed. The direction is the point of the scene and must
+  # survive. The zoom is not: saved per scene by hand, it made a 22 inch panel
+  # and a 46 inch wall come out the same size on screen, so nothing in the flat
+  # library was comparable to anything else, or to the Iso30 set.
+  #
+  # So after the scene is selected, only the projection and the vertical extent
+  # are overwritten. Camera#height is the frame's height in INCHES and only means
+  # anything in parallel projection, so perspective goes off first — the order
+  # matters, and setting height on a perspective camera silently does nothing.
+  #
+  # px per inch = image height in px / view height in inches. That is the number
+  # to match against the angled set, NOT the view height, because the two
+  # exporters do not use the same canvas.
+  def self.view_height(spec)
+    s = spec.to_s.strip
+    return nil if s.empty? || s.downcase == 'scene'
+    v = s.to_f
+    v > 0 ? v : nil
+  end
+
+  def self.pin_camera(view, view_h)
+    return if view_h.nil?
+    cam = view.camera
+    cam.perspective = false if cam.perspective?
+    cam.height = view_h
+  rescue StandardError => e
+    puts "  *** could not pin the camera: #{e.class}: #{e.message}"
+  end
+
   # ------------------------------------------------------------- diagnostics --
   #
   # The angled exporter has written one of these for a while; this one did not,
@@ -234,10 +286,17 @@ module WR_ComponentArt
       # coarser here than in the angled set even when the tone matches.
       f.puts 'CAMERA'
       cam = view.camera
+      vh = view_height(cfg['view'])
       f.puts "  perspective              #{(cam.perspective? rescue 'unreadable')}"
       f.puts "  height (parallel, in)    #{(cam.height rescue 'n/a')}"
-      f.puts '  NOTE scale comes from each scene\'s own camera, not from a fixed'
-      f.puts '       view height. The angled exporter pins one; this one does not.'
+      if vh
+        f.puts format('  view height PINNED       %.3f in -> %.3f px per inch', vh, height / vh)
+        f.puts '  Direction still comes from each scene. Only projection and'
+        f.puts '  vertical extent are overwritten.'
+      else
+        f.puts '  view height              scene (each scene\'s own saved zoom)'
+        f.puts '  NOTE parts are NOT at a common scale in this run.'
+      end
       f.puts ''
       f.puts 'SHADING CONTRACT AS RENDERED — diff this block against the angled run'
       WR_Shading.describe(model).each { |l| f.puts "  #{l}" }
@@ -267,6 +326,8 @@ module WR_ComponentArt
     pages = model.pages
     trans = cfg['trans'] == 'Yes'
     over  = cfg['over'] == 'Yes'
+    view_h = view_height(cfg['view'])
+    prev_cam = (view.camera.clone rescue nil)
 
     page_opts = model.options['PageOptions']
     prev_tt   = page_opts['TransitionTime']
@@ -318,10 +379,12 @@ module WR_ComponentArt
 
         pages.selected_page = p[:page]
 
-        # A scene restores its own style on selection, so the contract goes back
-        # on AFTER the switch — otherwise the sky returns, the alpha channel
-        # goes solid, and face shading reverts to whatever that scene stored.
+        # A scene restores its own style AND its own camera on selection, so
+        # both go back after the switch — otherwise the sky returns, the alpha
+        # channel goes solid, face shading reverts to whatever that scene
+        # stored, and the zoom is whatever it was saved at.
         WR_Shading.apply(model, cfg['dark'])
+        pin_camera(view, view_h)
 
         view.refresh
         Sketchup.status_text = "Exporting #{i + 1} of #{plan.size}: #{p[:scene]}"
@@ -348,7 +411,11 @@ module WR_ComponentArt
     ensure
       WR_Shading.pop(model, saved_shade)
       page_opts['TransitionTime'] = prev_tt
-      pages.selected_page = prev_page if prev_page
+      if prev_page
+        pages.selected_page = prev_page   # restores its own camera with it
+      elsif prev_cam
+        (view.camera = prev_cam) rescue nil
+      end
       Sketchup.status_text = ''
     end
 
@@ -405,6 +472,21 @@ module WR_ComponentArt
     puts "  model    #{model.title}"
     puts "  out      #{cfg['dir']}"
     puts "  size     #{width} x #{height} px, #{cfg['trans'] == 'Yes' ? 'transparent' : 'opaque'}"
+    vh = view_height(cfg['view'])
+    if vh
+      puts format('  scale    view height %.3f in -> %.3f px per inch  (PINNED, ' \
+                  "every scene the same)", vh, height / vh)
+    else
+      puts '  scale    each scene\'s OWN saved zoom — parts are NOT comparable to'
+      puts '           each other or to the Iso30 set. Type a view height in inches'
+      puts '           to pin it.'
+    end
+    # px per inch is the number that has to match, not the view height: the two
+    # exporters do not share a canvas. The Iso30 set is square, this one is not.
+    puts format('           to match an Iso30 run of %d px at view height V, ' \
+                'type V * %d / %d', 2400, height, 2400)
+    puts format('           e.g. Iso30 at 2400 px / 160 in = 15.000 px per inch ' \
+                '-> type %.3f here', 160.0 * height / 2400.0)
     puts "  scenes   #{plan.size} of #{model.pages.count}"
     puts "  picked   #{pick_note}"
     puts "  style    #{cfg['style']}"
