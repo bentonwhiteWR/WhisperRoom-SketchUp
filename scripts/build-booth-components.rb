@@ -62,6 +62,25 @@ module WR_BuildBoothComponents
   SEAL_COMP   = 'MidWallSeamSeal'.freeze
   CORNER_COMP = 'CornerSeamSeal'.freeze
 
+  # How far a mid-wall seam seal stands PROUD of the wall face it sits between,
+  # in inches. Positive is outward, negative is into the booth.
+  #
+  # It is zero, and it is still named. The seal position was tuned live against
+  # a real build: out 1/4", then back in 1/4", and it landed exactly flush. A
+  # bare 0.0 at the call site would read as "nothing to see here" and the next
+  # person would have to re-derive that the flush position was measured rather
+  # than assumed.
+  #
+  # THIS LINE WENT MISSING ONCE, and the way it failed is worth knowing. Ruby
+  # constants live on the MODULE, not the file, so a constant defined by an
+  # earlier `load` survives every later one. The session that tuned the seals
+  # had it in memory and kept working perfectly; the definition never made it
+  # into the committed file. Every fresh SketchUp since then died with
+  # "uninitialized constant SEAL_PROUD" on the first seal of any booth. A green
+  # run right after an edit does not prove the file is complete — only a fresh
+  # SketchUp does.
+  SEAL_PROUD = 0.0
+
   # Per-booth slot assignments. The layout data says a slot is a VNT or a DRFRM;
   # it does not say WHICH vent or WHICH door, and that is a customer choice. This
   # is where a decoded booth-builder link's "a" field will land once that route
