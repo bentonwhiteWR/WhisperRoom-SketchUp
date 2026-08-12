@@ -193,10 +193,11 @@ module WR_AngledArt
     'azim'  => '45',
     'view'  => 'auto',
     'frame' => 'Part centred (fills the frame)',
-    # The model's own style by default. It is what the flat set was shot with,
-    # so the angled set matches it without being told. The two overrides are
-    # there if a style ever renders badly, not as the normal path.
-    'style' => "Leave the style alone (the model's own)",
+    # Interior is the style this component library is shot in, and
+    # export-component-art.rb defaults to the same string. Naming it beats
+    # "leave the style alone": the viewport's style is whatever was last clicked,
+    # so the old default made the two sets match only by luck.
+    'style' => 'Style: Interior',
     # Shadow Dark, shared with export-component-art.rb. Both default to the same
     # value so the two sets start identical; raising it lifts the oblique faces
     # of an Iso30 view toward the flat-on faces of an elevation.
@@ -650,9 +651,6 @@ module WR_AngledArt
       f.puts "view       #{cfg['view']}  -> #{format('%.3f', view_h)} in at #{px} px"
       f.puts "azimuth    #{azim_label} deg (elevation #{format('%g', ELEV)})"
       f.puts "dark       #{dark} (Light #{WR_Shading::DEF_LIGHT})"
-      f.puts ''
-      f.puts 'SHADING CONTRACT AS RENDERED — diff this block against the flat run'
-      WR_Shading.describe(model).each { |l| f.puts "  #{l}" }
       f.puts "cameras    #{cam_labels.join('  ')}"
       f.puts "corner 8c  #{cam_labels(corner_cams).join('  ')}"
       f.puts ''
@@ -682,6 +680,16 @@ module WR_AngledArt
         stuck.each { |s| f.puts "    #{s}" }
         f.puts '  -> these must be turned off in the style itself; the API will not do it.'
       end
+
+      # AFTER the apply above, not before. The first version of this block sat
+      # up with the header and reported DisplayWatermarks and AmbientOcclusion
+      # as true — the state the model was FOUND in, under a heading that said
+      # "as rendered". The readback two lines up proved they had in fact been
+      # turned off. A diagnostic that reports the wrong moment is worse than no
+      # diagnostic, because it gets believed.
+      f.puts ''
+      f.puts 'SHADING CONTRACT AS RENDERED — diff this block against the flat run'
+      WR_Shading.describe(model).each { |l| f.puts "  #{l}" }
       f.puts ''
       f.puts 'RENDERING OPTIONS (blank value = key not present in this SketchUp)'
       RO_PROBE.sort.each do |k|

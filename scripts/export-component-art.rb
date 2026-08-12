@@ -6,27 +6,22 @@
 #
 # Sibling of export-scenes.rb. That one makes PROPOSAL plates: five scenes,
 # opaque, into ProposalFiles. This one makes COMPONENT ART: every scene, real
-# alpha, plus a manifest, and it knows which scenes came from the height
-# extension file so their filenames can be marked.
+# alpha, plus a manifest.
 #
-# ---------------------------------------------------------------------------
-# TELLING THE HX SCENES APART — read this, it is the part that can go wrong
-#
-# merge-scenes.rb only renamed an incoming scene when its name ALREADY EXISTED
-# in the host. So "ends in (2)" is not a reliable marker:
-#
-#   - an HX scene whose name was unique kept its own name, no (2)  -> MISSED
-#   - a scene that was always called "... (2)" in the master       -> WRONGLY TAGGED
-#
-# So the real key is the scene sidecar merge-scenes.rb wrote in pass 1, which
-# lists exactly the scenes that came out of the HX file. Point the dialog at it
-# and the match is exact. Leave it blank and the script falls back to the (2)
-# rule and says so, loudly, every run.
+# SHADING. Style, Shadow Dark and Recover come from wr-shading.rb and MUST match
+# whatever angled-component-art.rb was run with, or the flat set and the Iso30
+# set will not sit together in the booth builder. Both default to the Interior
+# style and Dark 45.
 #
 # The dialog opens on "Dry run = Yes" the first time. That prints the full
-# scene -> filename -> HX table and writes nothing. Check a few names before
+# scene -> filename table and writes nothing. Check a few names before
 # committing 100-odd files to a handoff.
-# ---------------------------------------------------------------------------
+#
+# The HX tagging that used to live here — a sidecar of scene names from the
+# height-extension merge, and an -HX filename suffix — is gone. It was for one
+# merge that has already happened; carrying it meant two dialog fields and a
+# fallback rule that could silently mistag, for a job nobody is going to run
+# again. Recover it from git if that ever changes.
 #
 # BEFORE YOU RUN: size the SketchUp window to the aspect you want. Height comes
 # from the viewport and every image in the run inherits it. The views are all
@@ -49,28 +44,27 @@ module WR_ComponentArt
   DEFAULTS = {
     'scenes' => 'all',
     'dir'    => 'C:/Users/bento/Desktop/ProposalFiles/ComponentArt',
-    'json'   => '',
     'width'  => '2400',
     'trans'  => 'Yes',
     # Style and Dark are the shading contract. They MUST match whatever the
     # angled run used or the two sets will not sit together in the booth
-    # builder — that is the whole reason wr-shading.rb exists.
-    'style'  => WR_Shading::KEEP,
+    # builder — that is the whole reason wr-shading.rb exists. Interior is the
+    # style this library is shot in; angled-component-art.rb defaults to the
+    # same string.
+    'style'  => 'Style: Interior',
     'dark'   => WR_Shading::DEF_DARK.to_s,
     'recov'  => 'Yes',
     'over'   => 'No',
     'dry'    => 'Yes',
-    'suffix' => 'HX',
     'man'    => 'Yes'
   }.freeze
 
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys = %w[scenes dir json width trans style dark recov over dry suffix man]
+    keys = %w[scenes dir width trans style dark recov over dry man]
     prompts = ['Scenes — all / current / 1-7,12 / text',
                'Output folder — blank to browse',
-               'HX scene list (.json) — blank uses the "(n)" rule',
                'Image width (px)',
                'Transparent background',
                'Style — must match the angled run',
@@ -78,18 +72,16 @@ module WR_ComponentArt
                'Recover brightness after export (new graphics engine)',
                'Overwrite files already there',
                'Dry run — list only, write nothing',
-               'Suffix for height-extension files',
                'Write manifest.json']
     defaults = keys.map do |k|
       v = Sketchup.read_default(PREF, k, DEFAULTS[k]).to_s
-      v.empty? && k != 'json' ? DEFAULTS[k] : v
+      v.empty? ? DEFAULTS[k] : v
     end
     # POSITIONAL against prompts — one entry per prompt, in the same order, ''
     # where the field is free text. One missing '' shifts every dropdown below
     # it onto the wrong field, silently. Count them if you edit.
     lists = ['',                                        # scenes
              '',                                        # dir
-             '',                                        # json
              '',                                        # width
              'Yes|No',                                  # trans
              WR_Shading.style_options(Sketchup.active_model).join('|'),
@@ -97,7 +89,6 @@ module WR_ComponentArt
              'Yes|No',                                  # recov
              'Yes|No',                                  # over
              'Yes|No',                                  # dry
-             '',                                        # suffix
              'Yes|No']                                  # man
     res = UI.inputbox(prompts, defaults, lists, 'Export Component Art')
     return nil unless res
@@ -106,12 +97,6 @@ module WR_ComponentArt
 
     cfg['dir'] = browse_dir(cfg['dir'])
     return nil if cfg['dir'].nil?
-
-    unless cfg['json'].empty?
-      found = locate_json(cfg['json'], cfg['dir'])
-      return nil if found.nil?
-      cfg['json'] = found
-    end
 
     keys.each { |k| Sketchup.write_default(PREF, k, cfg[k]) }
     cfg
@@ -126,43 +111,6 @@ module WR_ComponentArt
     return p unless p.empty?
     picked = (UI.select_directory(:title => 'Where should the images go?') rescue nil)
     picked.nil? || picked.to_s.empty? ? nil : norm(picked)
-  end
-
-  # A bare filename typed off Explorer resolves against SketchUp's working
-  # directory, which is never where the file is. Try the likely folders, then
-  # open a real file dialog.
-  def self.locate_json(path, out_dir)
-    p = norm(path)
-    return p if File.exist?(p)
-    model = Sketchup.active_model
-    dirs = [model.path.to_s.empty? ? nil : File.dirname(norm(model.path)), out_dir].compact
-    base = File.basename(p)
-    dirs.each do |d|
-      cand = File.join(norm(d), base)
-      return cand if File.exist?(cand)
-    end
-    picked = (UI.openpanel('Choose the exported scene list (.json)',
-                           dirs.first.to_s, 'JSON Files|*.json||') rescue nil)
-    if picked.nil? || picked.to_s.empty?
-      UI.messagebox("Scene list not found:\n#{p}\n\nLeave the field blank to use " \
-                    "the \"(n)\" rule instead.")
-      return nil
-    end
-    norm(picked)
-  end
-
-  # ------------------------------------------------------------- the HX split --
-
-  def self.hx_names_from(path)
-    return [nil, nil] if path.to_s.empty?
-    unless File.exist?(path)
-      return [nil, "sidecar not found: #{path}"]
-    end
-    data = JSON.parse(File.read(path))
-    names = (data['scenes'] || []).map { |s| s['name'].to_s }.reject(&:empty?)
-    [names, "sidecar: #{File.basename(path)} (#{names.size} scene names)"]
-  rescue StandardError => e
-    [nil, "could not read sidecar (#{e.message})"]
   end
 
   # THE FILE IS NAMED AFTER THE SCENE, verbatim. Only the characters Windows
@@ -224,8 +172,7 @@ module WR_ComponentArt
     [picked, note]
   end
 
-  def self.build_plan(model, cfg, hx_names, chosen)
-    suffix = cfg['suffix'].to_s.strip
+  def self.build_plan(model, cfg, chosen)
     index  = {}
     model.pages.to_a.each_with_index do |p, i|
       key = begin
@@ -239,14 +186,8 @@ module WR_ComponentArt
     out  = []
     chosen.each_with_index do |page, i|
       raw = page.name.to_s
-      hx = if hx_names
-             hx_names.any? { |n| raw == n || raw =~ /\A#{Regexp.escape(n)} \(\d+\)\z/ }
-           else
-             !(raw =~ / \(\d+\)\z/).nil?
-           end
       base = sanitize(raw.sub(/ \(\d+\)\z/, ''))
       base = "scene-#{i + 1}" if base.empty?
-      base = "#{base}-#{suffix}" if hx && !suffix.empty?
       if used.key?(base)             # two names can sanitize to one string
         used[base] += 1
         base = "#{base}-#{used[base]}"
@@ -259,7 +200,7 @@ module WR_ComponentArt
               page.name
             end
       n = index[key] || (i + 1)
-      out << { :page => page, :scene => raw, :base => base, :hx => hx, :n => n }
+      out << { :page => page, :scene => raw, :base => base, :n => n }
     end
     out
   end
@@ -316,7 +257,7 @@ module WR_ComponentArt
           else
             skipped += 1
             puts "  skip  #{p[:base]}.png (already there — Overwrite is No)"
-            records << { 'scene' => p[:scene], 'file' => "#{p[:base]}.png", 'hx' => p[:hx] }
+            records << { 'scene' => p[:scene], 'file' => "#{p[:base]}.png" }
             next
           end
         end
@@ -340,7 +281,7 @@ module WR_ComponentArt
           written += 1
           puts format('  %-9s %-38s -> %s.png',
                       replaced ? 'REPLACED' : 'ok', p[:scene], p[:base])
-          records << { 'scene' => p[:scene], 'file' => "#{p[:base]}.png", 'hx' => p[:hx] }
+          records << { 'scene' => p[:scene], 'file' => "#{p[:base]}.png" }
         else
           failed << p[:scene]
           puts "  FAIL  #{p[:scene]}"
@@ -362,11 +303,11 @@ module WR_ComponentArt
               'model_path' => model.path.to_s,
               'generated' => Time.now.strftime('%Y-%m-%d %H:%M'),
               'width' => width, 'height' => height,
-              'transparent' => trans, 'hx_suffix' => cfg['suffix'],
+              'transparent' => trans,
+              'style' => cfg['style'], 'dark' => WR_Shading.dark_value(cfg['dark']),
               'images' => records }
       File.open(File.join(dir, 'manifest.json'), 'w') { |f| f.write(JSON.pretty_generate(man)) }
-      puts "  manifest.json written — #{records.size} entries, " \
-           "#{records.count { |r| r['hx'] }} tagged #{cfg['suffix']}"
+      puts "  manifest.json written — #{records.size} entries"
     end
 
     [written, skipped, failed]
@@ -384,9 +325,6 @@ module WR_ComponentArt
     cfg = ask
     return unless cfg
 
-    hx_names, hx_note = hx_names_from(cfg['json'])
-    hx_note ||= 'FALLBACK — any scene whose name ends in (n). See the script header.'
-
     view   = model.active_view
     width  = cfg['width'].to_i
     width  = 2400 if width < 200 || width > 6000
@@ -400,8 +338,7 @@ module WR_ComponentArt
       return
     end
 
-    plan = build_plan(model, cfg, hx_names, chosen)
-    n_hx = plan.count { |p| p[:hx] }
+    plan = build_plan(model, cfg, chosen)
     dry  = cfg['dry'] == 'Yes'
 
     puts ''
@@ -410,10 +347,8 @@ module WR_ComponentArt
     puts "  model    #{model.title}"
     puts "  out      #{cfg['dir']}"
     puts "  size     #{width} x #{height} px, #{cfg['trans'] == 'Yes' ? 'transparent' : 'opaque'}"
-    puts "  scenes   #{plan.size} of #{model.pages.count}   " \
-         "(#{n_hx} tagged #{cfg['suffix']}, #{plan.size - n_hx} not)"
+    puts "  scenes   #{plan.size} of #{model.pages.count}"
     puts "  picked   #{pick_note}"
-    puts "  HX key   #{hx_note}"
     puts "  style    #{cfg['style']}"
     puts "  dark     #{WR_Shading.dark_value(cfg['dark'])}  " \
          "(Light #{WR_Shading::DEF_LIGHT}, sun-for-shading off, shadows off)"
@@ -422,29 +357,17 @@ module WR_ComponentArt
     puts '  >> will not sit together in the booth builder.'
     puts ''
     plan.each do |p|
-      puts format('    %3d  %-3s %-38s -> %s.png',
-                  p[:n], p[:hx] ? cfg['suffix'] : '', p[:scene], p[:base])
+      puts format('    %3d  %-38s -> %s.png', p[:n], p[:scene], p[:base])
     end
     puts ''
     puts '  The number on the left is the scene number — use it in the Scenes'
     puts '  field, e.g. "1-7,12". "all", "current" and plain text also work.'
     puts ''
 
-    if n_hx.zero?
-      puts '  *** NOTHING was tagged as height-extension. If that is wrong, point'
-      puts '  *** the HX field at the sidecar merge-scenes.rb wrote in pass 1.'
-      puts ''
-    elsif hx_names.nil?
-      puts '  *** The HX column came from the "(n)" fallback, which misses any HX'
-      puts '  *** scene whose name did not clash and wrongly tags any original that'
-      puts '  *** ends in (n). CHECK IT before turning Dry run off.'
-      puts ''
-    end
-
     if dry
       puts '  DRY RUN — run again with Dry run = No to export.'
       puts ''
-      UI.messagebox("Dry run: #{plan.size} scene(s), #{n_hx} tagged #{cfg['suffix']}.\n\n" \
+      UI.messagebox("Dry run: #{plan.size} scene(s).\n\n" \
                     "Check the console table, then run again with Dry run = No.")
       return
     end
@@ -452,7 +375,7 @@ module WR_ComponentArt
     written, skipped, failed = export(model, cfg, plan, width, height)
 
     msg  = "#{written} written, #{skipped} skipped, #{failed.size} failed\n\n"
-    msg << "#{cfg['dir']}\n#{width} x #{height} px\n#{n_hx} tagged #{cfg['suffix']}"
+    msg << "#{cfg['dir']}\n#{width} x #{height} px"
     msg << "\n\nFailed: #{failed.join(', ')}" unless failed.empty?
     puts ''
     puts msg
