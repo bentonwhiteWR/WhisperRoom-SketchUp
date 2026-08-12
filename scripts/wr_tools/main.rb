@@ -35,8 +35,10 @@ module WhisperRoom
 
     SCRIPTS_DIR = (CANDIDATES.find { |p| File.directory?(p) } || CANDIDATES[1])
 
-    # wr-booth-data.rb is data loaded by build-booth.rb, not a command.
-    SKIP     = ['wr_tools.rb', 'wr-booth-data.rb'].freeze
+    # Libraries other scripts `load`, not commands. wr-booth-data.rb is data for
+    # build-booth.rb; wr-shading.rb is the shading contract both component-art
+    # exporters share.
+    SKIP     = ['wr_tools.rb', 'wr-booth-data.rb', 'wr-shading.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5
     PIN_N    = 8        # favourites the strip holds before it gets crowded

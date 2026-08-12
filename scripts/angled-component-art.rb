@@ -59,6 +59,10 @@
 require 'sketchup.rb'
 require 'fileutils'
 
+# The shading contract, shared with export-component-art.rb. Loaded rather than
+# required so an edit takes effect without restarting SketchUp.
+load File.join(File.dirname(__FILE__), 'wr-shading.rb')
+
 module WR_AngledArt
   PREF = 'WR_AngledArt'.freeze
 
@@ -193,6 +197,10 @@ module WR_AngledArt
     # so the angled set matches it without being told. The two overrides are
     # there if a style ever renders badly, not as the normal path.
     'style' => "Leave the style alone (the model's own)",
+    # Shadow Dark, shared with export-component-art.rb. Both default to the same
+    # value so the two sets start identical; raising it lifts the oblique faces
+    # of an Iso30 view toward the flat-on faces of an elevation.
+    'dark'  => WR_Shading::DEF_DARK.to_s,
     'over'  => 'No',
     'recov' => 'Yes',
     'dry'   => 'Yes'
@@ -201,7 +209,7 @@ module WR_AngledArt
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys = %w[batch pick dir px azim view frame style ao over recov dry]
+    keys = %w[batch pick dir px azim view frame style dark ao over recov dry]
     prompts = ['Batch',
                'Scenes — batch / current / 1-7,12 / text',
                'Output folder',
@@ -210,6 +218,7 @@ module WR_AngledArt
                'View height — auto, or inches',
                'Frame on',
                'Style',
+               'Shadow Dark (0-100) — raise it to lift oblique faces',
                'Viewport shading (AO) — second opaque pass per image',
                'Overwrite files already there',
                'Recover brightness after export (new graphics engine)',
@@ -248,8 +257,12 @@ module WR_AngledArt
              '45|40|38|36|35',                     # azim
              '',                                   # view
              'Part centred (fills the frame)|Insertion point at centre (registration)',
-             style_opts.join('|'),
-             'No|Yes', 'Yes|No', 'Yes|No', 'Yes|No']
+             style_opts.join('|'),                 # style
+             '',                                   # dark
+             'No|Yes',                             # ao
+             'Yes|No',                             # over
+             'Yes|No',                             # recov
+             'Yes|No']                             # dry
     res = UI.inputbox(prompts, defaults, lists, 'Angled Component Art (Iso30)')
     return nil unless res
     cfg = {}
@@ -486,11 +499,11 @@ module WR_AngledArt
   #
   # None of these change the geometry's own appearance, so turning them off
   # still honours "use the model's own style".
-  TRANSPARENCY = { 'DrawGround'        => false,
-                   'DrawHorizon'       => false,
-                   'DisplayFog'        => false,
-                   'DisplayWatermarks' => false,
-                   'AmbientOcclusion'  => false }.freeze
+  #
+  # THE LIST NOW LIVES IN wr-shading.rb, shared with export-component-art.rb.
+  # One definition is the point: the flat set and this set are shown side by
+  # side, and they drifted apart because each script had its own copy.
+  TRANSPARENCY = WR_Shading::TRANSPARENCY
 
   def self.find_style(model, name)
     hit = nil
@@ -498,6 +511,18 @@ module WR_AngledArt
     hit
   rescue StandardError
     nil
+  end
+
+  # The shadow half of the contract is the same object export-component-art.rb
+  # pushes, so the two sets shade identically. It is kept in a module ivar
+  # because apply_style is called from four places and threading one more
+  # argument through all of them is four chances to pass the wrong one.
+  def self.dark
+    @dark ||= WR_Shading::DEF_DARK
+  end
+
+  def self.dark=(v)
+    @dark = WR_Shading.dark_value(v)
   end
 
   def self.push_style(model, mode)
@@ -531,7 +556,14 @@ module WR_AngledArt
     end
 
     want.each_key { |k| saved[:ro][k] = (ro[k] rescue nil) }
-    saved[:shadows] = (model.shadow_info['DisplayShadows'] rescue nil) if shadows
+    # Every shadow key the contract touches is remembered, not just
+    # DisplayShadows — Light, Dark and UseSunForAllShading are now set too, and
+    # a run that changed them without restoring them would leave the model
+    # looking different from how it was opened.
+    saved[:shade] = {}
+    si = model.shadow_info
+    WR_Shading::SHADOW_KEYS.each { |k| saved[:shade][k] = (si[k] rescue nil) }
+    saved[:shadows] = saved[:shade]['DisplayShadows']
     [saved, want, shadows]
   end
 
@@ -552,16 +584,29 @@ module WR_AngledArt
       got = (ro[k] rescue :unreadable)
       @stuck << "#{k}: wanted #{v.inspect}, still #{got.inspect}" unless got == v
     end
-    (model.shadow_info['DisplayShadows'] = false) rescue nil if touch_shadows
+    # The shadow contract goes on EVERY time, not only when the chosen style
+    # mode asked to touch shadows. It is what makes an oblique face in the Iso30
+    # set shade the same way it does in the flat set, and it is the one number
+    # (Dark) that closes the brightness gap between them.
+    si = model.shadow_info
+    WR_Shading.shadow_want(dark).each do |k, v|
+      begin
+        si[k] = v
+      rescue StandardError => e
+        @stuck << "shadow #{k}: write raised #{e.class}"
+        next
+      end
+      got = (si[k] rescue :unreadable)
+      @stuck << "shadow #{k}: wanted #{v.inspect}, still #{got.inspect}" unless got == v
+    end
     @stuck
   end
 
   def self.pop_style(model, saved)
     ro = model.rendering_options
     saved[:ro].each { |k, v| (ro[k] = v) rescue nil unless v.nil? }
-    if saved[:touch] && !saved[:shadows].nil?
-      (model.shadow_info['DisplayShadows'] = saved[:shadows]) rescue nil
-    end
+    si = model.shadow_info
+    (saved[:shade] || {}).each { |k, v| (si[k] = v) rescue nil unless v.nil? }
     if saved[:style]
       st = find_style(model, saved[:style])
       (model.styles.selected_style = st) rescue nil if st
@@ -604,6 +649,10 @@ module WR_AngledArt
       f.puts "style opt  #{cfg['style']}"
       f.puts "view       #{cfg['view']}  -> #{format('%.3f', view_h)} in at #{px} px"
       f.puts "azimuth    #{azim_label} deg (elevation #{format('%g', ELEV)})"
+      f.puts "dark       #{dark} (Light #{WR_Shading::DEF_LIGHT})"
+      f.puts ''
+      f.puts 'SHADING CONTRACT AS RENDERED — diff this block against the flat run'
+      WR_Shading.describe(model).each { |l| f.puts "  #{l}" }
       f.puts "cameras    #{cam_labels.join('  ')}"
       f.puts "corner 8c  #{cam_labels(corner_cams).join('  ')}"
       f.puts ''
@@ -844,6 +893,7 @@ module WR_AngledArt
     px   = 2400 if px < 200 || px > 6000
     # Before anything measures or renders: the whole camera table hangs off this.
     self.azimuth = cfg['azim']
+    self.dark    = cfg['dark']
     dry  = cfg['dry'] == 'Yes'
     over = cfg['over'] == 'Yes'
     ao   = cfg['ao'] == 'Yes'
@@ -915,6 +965,10 @@ module WR_AngledArt
       puts "  picked         #{pick_note}"
       puts "  out            #{cfg['dir']}"
       puts "  style          #{cfg['style']}"
+      puts format('  dark           %d  (Light %d, sun-for-shading off, shadows off)',
+                  dark, WR_Shading::DEF_LIGHT)
+      puts '  >> Style, Dark and Recover must MATCH the flat run in'
+      puts '  >> export-component-art.rb, or the two sets will not sit together.'
       puts format('  canvas         %d x %d px, square, transparent', px, px)
       puts '  projection     PARALLEL — perspective = false, aspect_ratio = 1.0'
       puts format('  azimuth        %s deg  (elevation fixed at %s — z = 0.5, the "Iso30")',

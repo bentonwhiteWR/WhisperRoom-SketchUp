@@ -38,6 +38,11 @@ require 'sketchup.rb'
 require 'fileutils'
 require 'json'
 
+# The shading contract, shared with angled-component-art.rb. Loaded rather than
+# required so an edit takes effect without restarting SketchUp, same as every
+# other script here.
+load File.join(File.dirname(__FILE__), 'wr-shading.rb')
+
 module WR_ComponentArt
   PREF = 'WR_ComponentArt'.freeze
 
@@ -47,6 +52,12 @@ module WR_ComponentArt
     'json'   => '',
     'width'  => '2400',
     'trans'  => 'Yes',
+    # Style and Dark are the shading contract. They MUST match whatever the
+    # angled run used or the two sets will not sit together in the booth
+    # builder — that is the whole reason wr-shading.rb exists.
+    'style'  => WR_Shading::KEEP,
+    'dark'   => WR_Shading::DEF_DARK.to_s,
+    'recov'  => 'Yes',
     'over'   => 'No',
     'dry'    => 'Yes',
     'suffix' => 'HX',
@@ -56,12 +67,15 @@ module WR_ComponentArt
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys = %w[scenes dir json width trans over dry suffix man]
+    keys = %w[scenes dir json width trans style dark recov over dry suffix man]
     prompts = ['Scenes — all / current / 1-7,12 / text',
                'Output folder — blank to browse',
                'HX scene list (.json) — blank uses the "(n)" rule',
                'Image width (px)',
                'Transparent background',
+               'Style — must match the angled run',
+               'Shadow Dark (0-100) — raise it to lift oblique faces',
+               'Recover brightness after export (new graphics engine)',
                'Overwrite files already there',
                'Dry run — list only, write nothing',
                'Suffix for height-extension files',
@@ -70,7 +84,21 @@ module WR_ComponentArt
       v = Sketchup.read_default(PREF, k, DEFAULTS[k]).to_s
       v.empty? && k != 'json' ? DEFAULTS[k] : v
     end
-    lists = ['', '', '', '', 'Yes|No', 'Yes|No', 'Yes|No', '', 'Yes|No']
+    # POSITIONAL against prompts — one entry per prompt, in the same order, ''
+    # where the field is free text. One missing '' shifts every dropdown below
+    # it onto the wrong field, silently. Count them if you edit.
+    lists = ['',                                        # scenes
+             '',                                        # dir
+             '',                                        # json
+             '',                                        # width
+             'Yes|No',                                  # trans
+             WR_Shading.style_options(Sketchup.active_model).join('|'),
+             '',                                        # dark
+             'Yes|No',                                  # recov
+             'Yes|No',                                  # over
+             'Yes|No',                                  # dry
+             '',                                        # suffix
+             'Yes|No']                                  # man
     res = UI.inputbox(prompts, defaults, lists, 'Export Component Art')
     return nil unless res
     cfg = {}
@@ -250,10 +278,15 @@ module WR_ComponentArt
     prev_tt   = page_opts['TransitionTime']
     page_opts['TransitionTime'] = 0
 
-    ro = model.rendering_options
-    prev_ro = trans ? { 'DrawGround'  => ro['DrawGround'],
-                        'DrawHorizon' => ro['DrawHorizon'],
-                        'DisplayFog'  => ro['DisplayFog'] } : {}
+    # THE SHADING CONTRACT. Pushed once, re-applied after every scene switch,
+    # popped in the ensure below. Re-applying is not belt-and-braces: selecting
+    # a page RESTORES THAT SCENE'S OWN STYLE, which is exactly how this exporter
+    # and the angled one drifted apart in the first place.
+    saved_shade = WR_Shading.push(model, cfg['style'], cfg['dark'])
+    puts '  shading contract in force:'
+    WR_Shading.describe(model).each { |l| puts "    #{l}" }
+    puts ''
+
     prev_page = pages.selected_page
 
     written = 0
@@ -290,13 +323,10 @@ module WR_ComponentArt
 
         pages.selected_page = p[:page]
 
-        # A scene can restore its own style, so force these AFTER the switch or
-        # the sky comes back and the alpha channel is solid.
-        if trans
-          ro['DrawGround']  = false
-          ro['DrawHorizon'] = false
-          ro['DisplayFog']  = false
-        end
+        # A scene restores its own style on selection, so the contract goes back
+        # on AFTER the switch — otherwise the sky returns, the alpha channel
+        # goes solid, and face shading reverts to whatever that scene stored.
+        WR_Shading.apply(model, cfg['dark'])
 
         view.refresh
         Sketchup.status_text = "Exporting #{i + 1} of #{plan.size}: #{p[:scene]}"
@@ -317,11 +347,15 @@ module WR_ComponentArt
         end
       end
     ensure
-      prev_ro.each { |k, v| ro[k] = v }
+      WR_Shading.pop(model, saved_shade)
       page_opts['TransitionTime'] = prev_tt
       pages.selected_page = prev_page if prev_page
       Sketchup.status_text = ''
     end
+
+    # The other half of why the two sets did not match: the angled exporter ran
+    # this and the flat one never did. Same fixer, same flag, same folder.
+    WR_Shading.recover(dir) if cfg['recov'] == 'Yes' && written > 0
 
     if cfg['man'] == 'Yes'
       man = { 'format' => 1, 'model' => model.title.to_s,
@@ -380,6 +414,12 @@ module WR_ComponentArt
          "(#{n_hx} tagged #{cfg['suffix']}, #{plan.size - n_hx} not)"
     puts "  picked   #{pick_note}"
     puts "  HX key   #{hx_note}"
+    puts "  style    #{cfg['style']}"
+    puts "  dark     #{WR_Shading.dark_value(cfg['dark'])}  " \
+         "(Light #{WR_Shading::DEF_LIGHT}, sun-for-shading off, shadows off)"
+    puts "  recover  #{cfg['recov']}"
+    puts '  >> Style, Dark and Recover must MATCH the angled run or the two sets'
+    puts '  >> will not sit together in the booth builder.'
     puts ''
     plan.each do |p|
       puts format('    %3d  %-3s %-38s -> %s.png',

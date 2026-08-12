@@ -1,5 +1,36 @@
 # DEVLOG
 
+## 2026-08-12 — one shading contract for both component-art exporters
+
+The flat walk-around set and the angled Iso30 set are shown side by side in the
+booth builder, and the flat set came out visibly lighter. Three causes, two of
+them fixable in code:
+
+1. `export-component-art.rb` **activates** each scene, so each scene's stored
+   style applies; `angled-component-art.rb` never activates a scene, so it
+   renders under whatever style the viewport holds. Same model, two styles, no
+   warning — the same root cause as the missing-edge-lines batch.
+2. The angled exporter ran the brightness recovery pass. The flat one had **no
+   recovery step at all**.
+3. Face-normal shading. A flat elevation puts the face perpendicular to the
+   camera; an Iso30 puts every visible face oblique. That one is geometry, not
+   a bug, and lightening the material would fix the iso and blow out the
+   elevation — the material is shared.
+
+`scripts/wr-shading.rb` is now the single contract both `load`: the
+transparency keys, a named-style selection, and `DisplayShadows` /
+`UseSunForAllShading` / `Light` / `Dark`, every one written and **read back**.
+Both scripts gained a **Style** and a **Shadow Dark** field defaulting to the
+same value, and both print `WR_Shading.describe` so a mismatch is a diff of two
+console blocks rather than a judgement about which image looks lighter. The
+flat exporter now runs `fix-angled-alpha.py` too.
+
+`Dark` is the lever for cause 3: it lifts unlit faces toward lit ones without
+touching the material. Both default to 45 (SketchUp's own), so turning the
+contract on makes the two exporters **identical first**; raise Dark toward 70 in
+both to close the remaining gap. The Light/Dark values are a starting point, not
+a measurement — none of this has been rendered.
+
 ## 2026-08-12 — mappable toolbar slots and a 47-icon library
 
 The toolbar's eight buttons were eight identical numbered stars. They are now
