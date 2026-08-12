@@ -205,6 +205,59 @@ module WR_ComponentArt
     out
   end
 
+  # ------------------------------------------------------------- diagnostics --
+  #
+  # The angled exporter has written one of these for a while; this one did not,
+  # and the cost showed. When the flat set looked wrong beside the angled set
+  # there was no way to tell whether the contract had even been applied to it —
+  # the only evidence was the pixels, and pixels cannot say what the style was.
+  #
+  # The block is deliberately the same shape as the angled exporter's, so the
+  # two can be diffed line for line rather than read and compared by eye.
+  def self.dump_diagnostics(model, cfg, plan, width, height, stuck)
+    path = File.join(cfg['dir'], '_diagnostics.txt')
+    view = model.active_view
+    File.open(path, 'w') do |f|
+      f.puts 'EXPORT COMPONENT ART — diagnostics'
+      f.puts "model      #{model.title}"
+      f.puts "style opt  #{cfg['style']}"
+      f.puts "dark       #{WR_Shading.dark_value(cfg['dark'])} (Light #{WR_Shading::DEF_LIGHT})"
+      f.puts "recover    #{cfg['recov']}"
+      f.puts "canvas     #{width} x #{height} px  (aspect from the viewport, " \
+             "#{view.vpwidth}x#{view.vpheight})"
+      f.puts "scenes     #{plan.size}"
+      f.puts ''
+      # SCALE IS NOT CONTROLLED HERE, and that is worth saying out loud. The
+      # angled exporter fixes a view height in inches so every part is drawn at
+      # one scale. This one uses each scene's STORED camera, so magnification is
+      # whatever the scene was saved at — which is why the fabric texture reads
+      # coarser here than in the angled set even when the tone matches.
+      f.puts 'CAMERA'
+      cam = view.camera
+      f.puts "  perspective              #{(cam.perspective? rescue 'unreadable')}"
+      f.puts "  height (parallel, in)    #{(cam.height rescue 'n/a')}"
+      f.puts '  NOTE scale comes from each scene\'s own camera, not from a fixed'
+      f.puts '       view height. The angled exporter pins one; this one does not.'
+      f.puts ''
+      f.puts 'SHADING CONTRACT AS RENDERED — diff this block against the angled run'
+      WR_Shading.describe(model).each { |l| f.puts "  #{l}" }
+      f.puts ''
+      if stuck.nil? || stuck.empty?
+        f.puts '  all contract keys applied cleanly'
+      else
+        f.puts '  COULD NOT SET:'
+        stuck.each { |s| f.puts "    #{s}" }
+        f.puts '  -> these must be changed in the style itself; the API will not do it.'
+      end
+      f.puts ''
+      f.puts 'SCENE -> FILE'
+      plan.each { |p| f.puts format('  %3d  %-40s -> %s.png', p[:n], p[:scene], p[:base]) }
+    end
+    puts "  diagnostics  #{path}"
+  rescue StandardError => e
+    puts "  diagnostics NOT written: #{e.class}: #{e.message}"
+  end
+
   # ------------------------------------------------------------------ export --
 
   def self.export(model, cfg, plan, width, height)
@@ -224,6 +277,7 @@ module WR_ComponentArt
     # a page RESTORES THAT SCENE'S OWN STYLE, which is exactly how this exporter
     # and the angled one drifted apart in the first place.
     saved_shade = WR_Shading.push(model, cfg['style'], cfg['dark'])
+    stuck = WR_Shading.apply(model, cfg['dark'])
     puts '  shading contract in force:'
     WR_Shading.describe(model).each { |l| puts "    #{l}" }
     puts ''
@@ -287,6 +341,10 @@ module WR_ComponentArt
           puts "  FAIL  #{p[:scene]}"
         end
       end
+      # Written from INSIDE the block, after the last image, so the contract and
+      # the camera it records are the ones that actually rendered — not the
+      # state the model was in before the run, and not the state after pop.
+      dump_diagnostics(model, cfg, plan, width, height, stuck)
     ensure
       WR_Shading.pop(model, saved_shade)
       page_opts['TransitionTime'] = prev_tt
