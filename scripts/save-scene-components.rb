@@ -12,10 +12,6 @@
 #
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/save-scene-components.rb"
 #
-# NOTHING IN THE MODEL IS CHANGED. No scene is activated, no camera moves, no
-# geometry is touched — the run reads page.camera and calls save_as. So there is
-# nothing to undo, and it is safe to run on a file you have unsaved work in.
-#
 # WHAT save_as ACTUALLY WRITES, because this catches people out:
 #
 #   It saves the DEFINITION, in the definition's own axes. An instance's
@@ -24,6 +20,31 @@
 #   the same definition therefore produce two identical files under two names.
 #   The run reports every time that happens rather than letting it look like two
 #   different parts.
+#
+#   It also saves the definition UNDER ITS OWN NAME. Name the file after the
+#   scene and you get LeftWADoor.skp containing a component called
+#   "Component#41", which is useless to anyone who opens it and useless to a
+#   right-click Save As, whose default filename comes from that name. Hence the
+#   Rename option below.
+#
+# THE RENAME OPTION CHANGES YOUR MODEL, and it is the only thing here that does.
+# Everything else reads page.camera and calls save_as; no scene is activated, no
+# camera moves, no geometry is touched. With Rename on, each resolved definition
+# is renamed to match its file, inside one operation, so a single Ctrl+Z puts
+# every name back. It defaults to No.
+#
+# WHAT RENAMING DOES NOT DO, so the expectation is right going in: SketchUp does
+# not keep an external component in sync. Editing the definition in the master
+# does not rewrite the .skp, and editing the .skp does not update the master —
+# there is no API for that and no setting for it. What renaming buys is that
+# right-click > Save As on that instance offers the correct filename instead of
+# "Component#41", so updating one part is a two-click job rather than a re-run of
+# the whole batch.
+#
+# Whether save_as ALSO links the definition to the file it wrote is version
+# dependent, so the run does not claim either way — it reads ComponentDefinition
+# #path back after every save and prints what it got. Believe the column, not
+# the documentation.
 
 require 'sketchup.rb'
 require 'fileutils'
@@ -35,6 +56,8 @@ module WR_SaveSceneComponents
     'scenes' => 'all',
     'dir'    => '',
     'name'   => 'Scene name',
+    # The only option that writes to the model. Off by default for that reason.
+    'ren'    => 'No',
     'over'   => 'No',
     'dry'    => 'Yes'
   }.freeze
@@ -50,17 +73,23 @@ module WR_SaveSceneComponents
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys = %w[scenes dir name over dry]
+    keys = %w[scenes dir name ren over dry]
     prompts = ['Scenes — all / current / 1-7,12 / text',
                'Output folder — blank to browse',
                'Name each file after',
+               'Rename the component in the model to match its file',
                'Overwrite files already there',
                'Dry run — list only, write nothing']
     defaults = keys.map do |k|
       v = read_pref(k)
       v.empty? ? DEFAULTS[k] : v
     end
-    lists = ['', '', 'Scene name|Definition name', 'Yes|No', 'Yes|No']
+    lists = ['',                            # scenes
+             '',                            # dir
+             'Scene name|Definition name',  # name
+             'No|Yes',                      # ren
+             'Yes|No',                      # over
+             'Yes|No']                      # dry
     res = UI.inputbox(prompts, defaults, lists, 'Save Scene Components')
     return nil unless res
 
@@ -212,6 +241,42 @@ module WR_SaveSceneComponents
     n
   end
 
+  # ------------------------------------------------------------------ rename --
+  #
+  # Definition names are UNIQUE per model. Assigning one that is already taken
+  # does not raise — SketchUp quietly makes it unique, typically by appending a
+  # number — so the only way to know what a definition ended up called is to read
+  # the name back afterwards. Which is what this does, and it reports a
+  # difference rather than letting the model and the filename drift apart
+  # silently.
+  #
+  # A definition already carrying the right name is left alone, so re-running is
+  # free and does not churn the model.
+  def self.rename_to(defn, want)
+    was = defn.name.to_s
+    return [was, nil] if was == want
+    begin
+      defn.name = want
+    rescue Exception => e
+      return [was, "rename failed: #{e.class}: #{e.message.to_s.split("\n").first}"]
+    end
+    got = defn.name.to_s
+    return [got, nil] if got == want
+    [got, "wanted \"#{want}\", model gave \"#{got}\" — that name was taken"]
+  end
+
+  # Whether save_as linked the definition to the file it just wrote. This is
+  # version dependent, so it is measured rather than assumed. Returns a short
+  # verdict for the table.
+  def self.link_state(defn, path)
+    p = (defn.path.to_s rescue '')
+    return 'no link' if p.empty?
+    same = p.tr('\\', '/').casecmp(path.tr('\\', '/')).zero?
+    same ? 'linked' : "linked elsewhere: #{File.basename(p)}"
+  rescue Exception
+    'link unreadable'
+  end
+
   # -------------------------------------------------------------------- run --
 
   def self.run
@@ -237,6 +302,7 @@ module WR_SaveSceneComponents
 
     dry  = cfg['dry'].to_s.downcase.start_with?('y')
     over = cfg['over'].to_s.downcase.start_with?('y')
+    ren  = cfg['ren'].to_s.downcase.start_with?('y') && !dry
     by_scene = cfg['name'].to_s.downcase.include?('scene')
 
     unless dry
@@ -255,7 +321,18 @@ module WR_SaveSceneComponents
     puts "  folder   #{cfg['dir']}"
     puts "  scenes   #{pages.length} of #{model.pages.count}  (#{note})"
     puts "  named    after the #{by_scene ? 'scene' : 'definition'}"
+    if ren
+      puts '  RENAME   ON — every resolved component is renamed in the model to'
+      puts '           match its file. One Ctrl+Z undoes the whole batch.'
+    else
+      puts "  rename   off — components keep their current names, so a file named"
+      puts "           after a scene can still contain \"Component#41\""
+    end
     puts '=' * 78
+
+    # One operation for the whole batch, so undo is one keystroke rather than a
+    # hundred. Only opened when something will actually be written to the model.
+    model.start_operation('Rename Scene Components', true) if ren
 
     rows      = []
     used      = {}   # filename -> the scene that claimed it first
@@ -265,7 +342,7 @@ module WR_SaveSceneComponents
 
     pages.each_with_index do |page, i|
       row = { :n => i + 1, :scene => page.name.to_s, :defn => '', :file => '',
-              :how => '', :status => '' }
+              :how => '', :status => '', :link => '' }
       rows << row
 
       subject, how = subject_for(model, page)
@@ -325,6 +402,15 @@ module WR_SaveSceneComponents
         next
       end
 
+      # RENAME BEFORE SAVING, not after. save_as writes the definition's name
+      # into the file, so a rename that happened afterwards would leave the file
+      # still carrying the old one and the two would disagree from birth.
+      if ren
+        got, warn = rename_to(defn, name)
+        row[:defn] = got
+        row[:how] += "; #{warn}" if warn
+      end
+
       begin
         ok = defn.save_as(path)
         if ok == false
@@ -332,6 +418,7 @@ module WR_SaveSceneComponents
           failed += 1
         else
           row[:status] = 'written'
+          row[:link] = link_state(defn, path)
           written += 1
         end
       rescue Exception => e
@@ -342,24 +429,60 @@ module WR_SaveSceneComponents
       end
     end
 
-    report(cfg, rows, written, failed, dry)
+    model.commit_operation if ren
+
+    report(cfg, rows, written, failed, dry, ren)
+  rescue Exception => e
+    # A half-finished rename batch is worse than none, so abort puts every name
+    # back. The files already written stay — they are correct, just incomplete.
+    (Sketchup.active_model.abort_operation if ren) rescue nil
+    raise e
   end
 
   # Every scene against the component it resolved to. This table is the point of
   # a dry run: it is what a scene-label -> component mapping gets written from,
   # and it is far easier to check here than by opening the files.
-  def self.report(cfg, rows, written, failed, dry)
+  def self.report(cfg, rows, written, failed, dry, ren = false)
     wn = [rows.map { |r| r[:scene].length }.max || 5, 5].max
     wd = [rows.map { |r| r[:defn].length }.max  || 9, 9].max
     wf = [rows.map { |r| r[:file].length }.max  || 4, 4].max
 
     puts ''
-    puts format("  %-3s %-#{wn}s  %-#{wd}s  %-#{wf}s  %-22s  %s",
-                '#', 'SCENE', 'COMPONENT', 'FILE', 'STATUS', 'HOW IT RESOLVED')
-    puts '  ' + '-' * (3 + wn + wd + wf + 22 + 24)
+    puts format("  %-3s %-#{wn}s  %-#{wd}s  %-#{wf}s  %-22s  %-10s  %s",
+                '#', 'SCENE', 'COMPONENT', 'FILE', 'STATUS', 'LINK', 'HOW IT RESOLVED')
+    puts '  ' + '-' * (3 + wn + wd + wf + 22 + 36)
     rows.each do |r|
-      puts format("  %-3d %-#{wn}s  %-#{wd}s  %-#{wf}s  %-22s  %s",
-                  r[:n], r[:scene], r[:defn], r[:file], r[:status], r[:how])
+      puts format("  %-3d %-#{wn}s  %-#{wd}s  %-#{wf}s  %-22s  %-10s  %s",
+                  r[:n], r[:scene], r[:defn], r[:file], r[:status],
+                  r[:link].to_s, r[:how])
+    end
+
+    # The LINK column is the answer to "does right-click Save As know where this
+    # came from". It is read back from the model, not assumed, because whether
+    # save_as sets the path varies by SketchUp version.
+    links = rows.map { |r| r[:link].to_s }.reject(&:empty?)
+    unless links.empty?
+      linked = links.count { |l| l == 'linked' }
+      puts ''
+      if linked == links.length
+        puts "  LINK  all #{linked} saved definition(s) now point at their file."
+        puts '        Right-click an instance > Save As offers that file back.'
+      elsif linked.zero?
+        puts "  LINK  none of the #{links.length} saved definition(s) kept a path."
+        puts '        This SketchUp\'s save_as does not link. Right-click > Save As'
+        puts '        will still default to the component NAME, which is why the'
+        puts '        Rename option is worth turning on.'
+      else
+        puts "  LINK  #{linked} of #{links.length} linked. Mixed, which should not happen —"
+        puts '        check the column above for the odd ones out.'
+      end
+    end
+
+    if ren
+      odd = rows.count { |r| r[:how].to_s.include?('that name was taken') }
+      puts ''
+      puts '  RENAME was ON. Ctrl+Z once puts every name back.'
+      puts "  #{odd} definition(s) could not take the name asked for — see HOW." if odd.positive?
     end
 
     unresolved = rows.count { |r| r[:status].to_s.start_with?('UNRESOLVED', 'NO ') }
@@ -389,9 +512,10 @@ module WR_SaveSceneComponents
     FileUtils.mkdir_p(cfg['dir'])
     path = "#{cfg['dir']}/_scene-components#{dry ? '-dryrun' : ''}.tsv"
     File.open(path, 'w') do |f|
-      f.puts %w[n scene component file status how].join("\t")
+      f.puts %w[n scene component file status link how].join("\t")
       rows.each do |r|
-        f.puts [r[:n], r[:scene], r[:defn], r[:file], r[:status], r[:how]].join("\t")
+        f.puts [r[:n], r[:scene], r[:defn], r[:file], r[:status],
+                r[:link].to_s, r[:how]].join("\t")
       end
     end
     puts "  manifest #{path}"
