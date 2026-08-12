@@ -403,16 +403,27 @@ module WhisperRoom
       []
     end
 
-    # The file a slot's button should wear: the chosen library icon, else the
-    # legacy per-script face, else the numbered star.
-    def self.slot_icon_path(i)
+    # The FILE a slot's button wears, resolved from an explicit pair of lists so
+    # the same three-step fallback answers for both the live preferences and
+    # what the toolbar was built with.
+    #
+    #   1. the library icon the user picked
+    #   2. the legacy per-script face, for slots assigned before the library
+    #   3. the numbered star
+    #
+    # THE PANEL MUST USE THIS TOO. It used to draw a bare number whenever no
+    # library icon had been picked, while the toolbar quietly fell through to
+    # step 2 and drew the per-script face. Two rules for one slot, so the row in
+    # the panel did not match the row above the viewport — reported, and fair.
+    # Ruby resolves it once now and ships the answer to the panel.
+    def self.face_path(i, names, icons)
       dir = File.dirname(__FILE__)
-      chosen = slot_icons[i]
+      chosen = icons[i]
       unless blank?(chosen)
         p = File.join(dir, "ico-#{chosen}.svg")
         return p if File.exist?(p)
       end
-      name = slots[i]
+      name = names[i]
       unless blank?(name)
         key = FAV_ICONS[name]
         p = key && File.join(dir, "icon-#{key}.svg")
@@ -423,11 +434,45 @@ module WhisperRoom
       File.join(File.dirname(__FILE__), "icon-fav#{i + 1}.svg")
     end
 
+    def self.slot_icon_path(i)
+      face_path(i, slots, slot_icons)
+    end
+
+    # Basenames, for the panel — it loads them as <img src> relative to itself.
+    def self.faces(names, icons)
+      (0...PIN_N).map { |i| File.basename(face_path(i, names, icons)) }
+    end
+
+    # What the REAL SketchUp toolbar is currently wearing, captured when the
+    # buttons were built. Preferences move the moment you save a slot; the
+    # native toolbar does not. Keeping both lets the panel show the difference
+    # honestly instead of drawing a row that quietly disagrees with the one
+    # above the viewport.
+    def self.bound_slots
+      @bound_slots || Array.new(PIN_N, SLOT_EMPTY)
+    end
+
+    def self.bound_icons
+      @bound_icons || Array.new(PIN_N, SLOT_EMPTY)
+    end
+
+    # Slots whose saved mapping no longer matches the button on screen.
+    def self.pending_slots
+      (0...PIN_N).select { |i|
+        slots[i] != bound_slots[i] || slot_icons[i] != bound_icons[i]
+      }
+    end
+
     # Tooltips ARE settable after the command is created, so a slot can be
-    # re-pointed without rebuilding the toolbar. The action is always current
-    # either way, because it resolves the slot list at click time. The icon is
-    # also re-assigned here on the chance that this SketchUp repaints it; the
-    # panel does not promise that it will.
+    # re-pointed without rebuilding the toolbar, and the ACTION is always
+    # current because it resolves the slot list at click time.
+    #
+    # The ICON is re-assigned here too, and then the toolbar is asked to show
+    # itself again, which on some builds forces a repaint. Neither is promised:
+    # SketchUp offers no API to remove or rebuild a toolbar button, and
+    # small_icon= after add_item is documented nowhere as repainting. So the
+    # attempt is made, and whether it took is reported rather than assumed —
+    # the panel marks a slot as pending until the next launch confirms it.
     def self.refresh_fav_labels
       return if @fav_cmds.nil?
       @fav_cmds.each_with_index do |cmd, i|
@@ -445,6 +490,8 @@ module WhisperRoom
           nil
         end
       end
+      # A nudge, not a rebuild. Harmless if it does nothing.
+      (@toolbar.show if @toolbar && @toolbar.visible?) rescue nil
     rescue StandardError
       nil
     end
@@ -660,7 +707,15 @@ module WhisperRoom
       { 'dir' => SCRIPTS_DIR, 'scripts' => scan, 'abilities' => abilities,
         'recent' => recent, 'pinned' => pinned, 'note' => @note,
         'slots' => slots, 'slot_icons' => slot_icons,
-        'icons' => icon_library, 'pin_n' => PIN_N }
+        'icons' => icon_library, 'pin_n' => PIN_N,
+        # What the slots WILL wear, and what the native toolbar is wearing right
+        # now. They differ between saving a slot and the next launch, and the
+        # panel shows that rather than drawing a row that disagrees with the
+        # real one.
+        'faces' => faces(slots, slot_icons),
+        'bound_faces' => faces(bound_slots, bound_icons),
+        'bound' => bound_slots,
+        'pending' => pending_slots }
     end
 
     def self.push_note(msg)
@@ -805,11 +860,16 @@ module WhisperRoom
       # only moment SketchUp reliably takes it.
       tb.add_separator
       @fav_cmds = []
+      # Snapshot what these buttons are being built with. From here until the
+      # next launch this is the truth about the native toolbar, whatever the
+      # preferences later say.
+      @bound_slots = slots
+      @bound_icons = slot_icons
       PIN_N.times do |i|
         s = favourite_at(i)
         label = s ? s['title'] : "Toolbar slot #{i + 1}"
         cmd = UI::Command.new(label) { run_favourite(i) }
-        icon = slot_icon_path(i)
+        icon = face_path(i, @bound_slots, @bound_icons)
         if File.exist?(icon)
           cmd.small_icon = icon
           cmd.large_icon = icon
@@ -817,6 +877,7 @@ module WhisperRoom
         @fav_cmds << cmd
         tb.add_item(cmd)
       end
+      @toolbar = tb
       refresh_fav_labels
 
       tb.add_separator

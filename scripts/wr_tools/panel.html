@@ -168,6 +168,23 @@
     position: absolute; top: 1px; right: 3px;
     font-size: 8px; line-height: 1; color: var(--faint);
   }
+  /* A slot whose saved mapping no longer matches the button on the real
+     toolbar. SketchUp has no API to repaint one, so it waits for a launch. */
+  .slot.pend { border-color: var(--accent); border-style: dashed; }
+  .slot.pend::after {
+    content: "";
+    position: absolute; bottom: -2px; left: 50%;
+    transform: translateX(-50%);
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .slots .waiting {
+    font-size: 11px;
+    color: var(--accent);
+    white-space: nowrap;
+    margin-left: 2px;
+  }
 
   /* ---------------------------------------------------------- slot editor -- */
 
@@ -617,23 +634,52 @@
 
   function slotAt(i)     { return (DATA.slots || [])[i] || "-"; }
   function slotIconAt(i) { return (DATA.slot_icons || [])[i] || "-"; }
+  function boundAt(i)    { return (DATA.bound || [])[i] || "-"; }
   function filled(v)     { return v && v !== "-"; }
 
-  function iconImg(id, cls) {
-    return '<img class="' + (cls || "") + '" src="ico-' + esc(id) + '.svg" alt="">';
+  // The face FILE is resolved in Ruby, by the same code the toolbar uses, and
+  // shipped here. Never re-derive it in JS — that is exactly how this row came
+  // to disagree with the row above the viewport.
+  function faceImg(file) {
+    return '<img src="' + esc(file) + '" alt="">';
   }
+  // The library grid picks BY ID, before any slot has been saved, so it is the
+  // one place a filename is built here rather than resolved in Ruby.
+  function iconImg(id) {
+    return '<img src="ico-' + esc(id) + '.svg" alt="">';
+  }
+  function isPending(i) { return (DATA.pending || []).indexOf(i) >= 0; }
 
+  // This row is a PICTURE OF THE REAL TOOLBAR, so it draws what the buttons are
+  // actually wearing right now — not what preferences say they should. A slot
+  // changed since launch gets a dot and says so on hover.
   function drawSlots() {
     var n = DATA.pin_n || 8;
+    var bound = DATA.bound_faces || [];
     var h = '<span class="lbl">TOOLBAR</span>';
+    var waiting = 0;
     for (var i = 0; i < n; i++) {
-      var name = slotAt(i), ic = slotIconAt(i), s = filled(name) ? byName(name) : null;
-      var face = filled(ic) ? iconImg(ic) : '<span class="num">' + (i + 1) + "</span>";
-      var tip = s ? s.title + " — click to change"
-                  : "Slot " + (i + 1) + " is empty — click to assign a script and an icon";
-      h += '<button class="slot' + (s ? " set" : "") + '" data-s="' + i +
-           '" title="' + esc(tip) + '">' + face +
+      var live = boundAt(i), s = filled(live) ? byName(live) : null;
+      var pend = isPending(i);
+      if (pend) waiting++;
+      var face = bound[i] ? faceImg(bound[i])
+                          : '<span class="num">' + (i + 1) + "</span>";
+      var tip;
+      if (pend) {
+        var next = slotAt(i), ns = filled(next) ? byName(next) : null;
+        tip = "Changed to " + (ns ? ns.title : "empty") +
+              " — the button changes when SketchUp next starts. Click to edit.";
+      } else {
+        tip = s ? s.title + " — click to change"
+                : "Slot " + (i + 1) + " is empty — click to assign a script and an icon";
+      }
+      h += '<button class="slot' + (s ? " set" : "") + (pend ? " pend" : "") +
+           '" data-s="' + i + '" title="' + esc(tip) + '">' + face +
            (s ? '<span class="cnr">' + (i + 1) + "</span>" : "") + "</button>";
+    }
+    if (waiting) {
+      h += '<span class="waiting">' + waiting +
+           " waiting on restart</span>";
     }
     $slots.innerHTML = h;
     Array.prototype.forEach.call($slots.querySelectorAll(".slot"), function (el) {
@@ -720,16 +766,18 @@
 
   function drawFavs() {
     var n = DATA.pin_n || 8;
+    var want = DATA.faces || [];
     var h = "";
     for (var i = 0; i < n; i++) {
       var name = slotAt(i);
       if (!filled(name)) continue;
       var s = byName(name);
       if (!s) continue;
-      var ic = slotIconAt(i);
-      h += '<button class="fav' + (filled(ic) ? " ic" : "") + '" data-n="' + esc(name) +
+      // These pills run the CURRENT mapping, so they wear the current face —
+      // unlike the tile row above, which mirrors the real toolbar.
+      h += '<button class="fav ic" data-n="' + esc(name) +
            '" title="Run ' + esc(name) + '">' +
-           (filled(ic) ? iconImg(ic) : STAR) + esc(s.title) + "</button>";
+           (want[i] ? faceImg(want[i]) : STAR) + esc(s.title) + "</button>";
     }
     $favs.innerHTML = h;
     Array.prototype.forEach.call($favs.querySelectorAll(".fav"), function (el) {
