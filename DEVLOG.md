@@ -1,5 +1,33 @@
 # DEVLOG
 
+## 2026-08-12 — mappable toolbar slots and a 47-icon library
+
+The toolbar's eight buttons were eight identical numbered stars. They are now
+customisable slots, Word-ribbon style: each holds a script AND an icon, chosen
+independently in the panel's new TOOLBAR row.
+
+**Why the previous attempt failed, which is the useful part.** `FAV_ICONS`
+already mapped five scripts to their own faces, and `refresh_fav_labels`
+assigned `cmd.small_icon` at load — yet every button still showed a star.
+`UI::Command` uploads its bitmap to the native toolbar when the command is
+*created*; assigning `small_icon` after `UI::Toolbar#add_item` does not
+reliably repaint. So the icon is now read from preferences and set **before**
+the command is constructed. The consequence is honest and stated on screen: a
+re-pointed slot runs the new script immediately, but a new *face* appears at
+the next SketchUp launch.
+
+- `scripts/make-icons.py` writes 47 `wr_tools/ico-*.svg` — booth, door, window,
+  vent, wall, floor, ceiling, ramp, seal, link, cube, dimension, elevation,
+  camera, export, gear and so on — from one shared frame, so stroke width and
+  colour cannot drift between them. It also writes `ico-labels.txt`.
+- The plugin **globs** `ico-*.svg`. Adding an icon is dropping a file in; no
+  edit to `main.rb` and none to `panel.html`.
+- Storage: two pipe-joined lists of exactly `PIN_N` entries, `slots` and
+  `slot_icons`, positionally aligned with `-` for an empty slot — `read_list`
+  drops empty strings, so a real blank needs a placeholder or every later slot
+  shifts up one. The old flat `pinned` list migrates on first read.
+- The panel's star still works: it means "first free slot", no icon chosen.
+
 ## 2026-08-11 — booths from real components, booths from links, plugin redesign
 
 **The headline: paste a booth-builder share link, get that customer's exact

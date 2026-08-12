@@ -133,6 +133,122 @@
   .linkgo svg { color: var(--accent); flex: 0 0 auto; }
   .linkgo:hover { background: #fbe2d1; }
 
+  /* ------------------------------------------------------ toolbar slots -- */
+
+  /* The eight buttons on SketchUp's own toolbar, mirrored here so the row you
+     click to customise looks like the row you are customising. */
+  .slots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    margin: 0 12px 6px;
+    flex: 0 0 auto;
+  }
+  .slots .lbl {
+    font-size: 10.5px; font-weight: 650; letter-spacing: .11em;
+    color: var(--faint); margin-right: 3px;
+  }
+  .slot {
+    position: relative;
+    width: 32px; height: 32px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--surface);
+    color: var(--faint);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+  }
+  .slot img { width: 19px; height: 19px; }
+  .slot .num { font-size: 11px; }
+  .slot.set { border-color: #d5dbdf; }
+  .slot:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .slot .cnr {
+    position: absolute; top: 1px; right: 3px;
+    font-size: 8px; line-height: 1; color: var(--faint);
+  }
+
+  /* ---------------------------------------------------------- slot editor -- */
+
+  .ovl {
+    position: absolute; inset: 0;
+    background: rgba(28, 35, 39, .38);
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 12px;
+    z-index: 30;
+  }
+  .ovl.on { display: flex; }
+  .card {
+    display: flex; flex-direction: column;
+    width: 100%; max-height: 100%;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    overflow: hidden;
+  }
+  .card h3 {
+    font-size: 13px; font-weight: 650;
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--line);
+  }
+  .card .bd { padding: 11px 13px 13px; overflow-y: auto; }
+  .card .ft {
+    display: flex; gap: 7px;
+    padding: 10px 13px;
+    border-top: 1px solid var(--line);
+    background: #fafbfb;
+  }
+  .card .ft .sp { margin-left: auto; }
+  .card .fld {
+    font-size: 10.5px; font-weight: 650; letter-spacing: .1em;
+    color: var(--faint);
+    margin: 10px 0 5px;
+  }
+  .card .fld:first-child { margin-top: 0; }
+  .card select {
+    width: 100%; font: inherit;
+    padding: 6px 7px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .card select:focus { outline: none; border-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 11.5px; margin-top: 9px; }
+
+  .icons {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+    gap: 5px;
+  }
+  .ic {
+    height: 38px; padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--surface);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ic img { width: 20px; height: 20px; }
+  .ic .num { font-size: 11px; color: var(--faint); }
+  .ic:hover { border-color: var(--accent); }
+  .ic.on { border-color: var(--accent); background: var(--accent-soft); }
+
+  .btn {
+    font: inherit; font-size: 12.5px;
+    padding: 6px 13px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #d9570f; }
+
   /* --------------------------------------------------------- favourites -- */
 
   .favs {
@@ -163,8 +279,7 @@
     flex: 0 0 auto;
   }
   .fav svg { width: 11px; height: 11px; fill: var(--accent); stroke: none; }
-  .fav.ic svg { width: 13px; height: 13px; fill: none; stroke: var(--muted);
-                stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .fav img { width: 14px; height: 14px; flex: 0 0 auto; }
   .fav:hover { border-color: var(--accent); }
 
   /* --------------------------------------------------------------- list -- */
@@ -361,15 +476,44 @@
     </div>
   </div>
 
+  <div class="slots" id="slots"></div>
   <div class="favs" id="favs"></div>
   <div class="note" id="note"></div>
   <div class="scroll" id="scroll"></div>
+
+  <div class="ovl" id="ovl">
+    <div class="card">
+      <h3 id="edtitle">Toolbar slot</h3>
+      <div class="bd">
+        <div class="fld">RUNS THIS SCRIPT</div>
+        <select id="edscript"></select>
+        <div class="fld">WEARS THIS ICON</div>
+        <div class="icons" id="edicons"></div>
+        <div class="hint">
+          The button runs the new script straight away. A new <b>icon</b> is uploaded
+          to SketchUp&rsquo;s toolbar when the command is created, so it appears the
+          next time SketchUp starts.
+        </div>
+      </div>
+      <div class="ft">
+        <button class="btn" id="edclear">Clear slot</button>
+        <button class="btn sp" id="edcancel">Cancel</button>
+        <button class="btn primary" id="edsave">Save</button>
+      </div>
+    </div>
+  </div>
 
 <script>
 (function () {
   "use strict";
 
-  var DATA = { dir: "", scripts: [], abilities: [], recent: [], pinned: [] };
+  var DATA = { dir: "", scripts: [], abilities: [], recent: [], pinned: [],
+               slots: [], slot_icons: [], icons: [], pin_n: 8 };
+
+  // Category order, shared by the script list and the slot editor's dropdown so
+  // the two never disagree about where a script lives.
+  var ORDER = ["Build a booth", "Export art", "Model tools", "Room tools"];
+  var MORE  = "More scripts";
   var view = [];              // filtered scripts, for keyboard navigation
   var sel = -1;
   var open = {};              // ability id -> settings expanded
@@ -423,31 +567,134 @@
     noteTimer = setTimeout(function () { $note.style.display = "none"; }, 6000);
   }
 
-  // ---------------------------------------------------------- favourites --
+  // ------------------------------------------------------- toolbar slots --
+  //
+  // A mirror of SketchUp's own toolbar row: same count, same order, same
+  // faces. Clicking a tile opens the editor for that slot. Two fields, script
+  // and icon, saved together — see set_slot in main.rb for why.
 
-  // Known scripts wear their own icon instead of the generic star — matches
-  // the toolbar (icon-*.svg in this folder).
-  var FAV_ICONS = {
-    "save-scene-components.rb":
-      '<svg viewBox="0 0 24 24"><path d="M12 3l7 3.5v5L12 15 5 11.5v-5z"/><path d="M12 15v4m0 0l-2.4-2.4M12 19l2.4-2.4" style="stroke:#ee6216"/></svg>',
-    "build-booth-components.rb":
-      '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M9 20l5-5" style="stroke:#ee6216"/></svg>',
-    "booth-from-link.rb":
-      '<svg viewBox="0 0 24 24"><rect x="10" y="10" width="10" height="10" rx="1"/><path d="M9.6 5.2L7.8 3.4a3 3 0 0 0-4.2 4.2l1.8 1.8M5.2 9.6l1.8 1.8" style="stroke:#ee6216"/><path d="M8.5 8.5l3.5 3.5"/></svg>',
-    "elevation-export.rb":
-      '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16"/><rect x="8.2" y="7" width="7.6" height="6"/><path d="M5 2h14" style="stroke:#ee6216"/></svg>',
-    "angled-component-art.rb":
-      '<svg viewBox="0 0 24 24"><path d="M12 4l7 4v8l-7 4-7-4V8z"/><path d="M12 4v8m0 0l7-4m-7 4l-7-4"/><path d="M21 3l-5.5 3.2" style="stroke:#ee6216"/></svg>'
-  };
+  var $slots = document.getElementById("slots");
+  var $ovl   = document.getElementById("ovl");
+  var editing = -1;
+  var editIcon = "";
+
+  function slotAt(i)     { return (DATA.slots || [])[i] || "-"; }
+  function slotIconAt(i) { return (DATA.slot_icons || [])[i] || "-"; }
+  function filled(v)     { return v && v !== "-"; }
+
+  function iconImg(id, cls) {
+    return '<img class="' + (cls || "") + '" src="ico-' + esc(id) + '.svg" alt="">';
+  }
+
+  function drawSlots() {
+    var n = DATA.pin_n || 8;
+    var h = '<span class="lbl">TOOLBAR</span>';
+    for (var i = 0; i < n; i++) {
+      var name = slotAt(i), ic = slotIconAt(i), s = filled(name) ? byName(name) : null;
+      var face = filled(ic) ? iconImg(ic) : '<span class="num">' + (i + 1) + "</span>";
+      var tip = s ? s.title + " — click to change"
+                  : "Slot " + (i + 1) + " is empty — click to assign a script and an icon";
+      h += '<button class="slot' + (s ? " set" : "") + '" data-s="' + i +
+           '" title="' + esc(tip) + '">' + face +
+           (s ? '<span class="cnr">' + (i + 1) + "</span>" : "") + "</button>";
+    }
+    $slots.innerHTML = h;
+    Array.prototype.forEach.call($slots.querySelectorAll(".slot"), function (el) {
+      el.addEventListener("click", function () { openEditor(+el.dataset.s); });
+    });
+  }
+
+  function openEditor(i) {
+    editing = i;
+    editIcon = filled(slotIconAt(i)) ? slotIconAt(i) : "";
+    document.getElementById("edtitle").textContent = "Toolbar slot " + (i + 1);
+
+    // Scripts offered in the panel's own category order, so the dropdown reads
+    // the same way the list below it does.
+    var cur = slotAt(i);
+    var opts = '<option value="">&mdash; empty &mdash;</option>';
+    var groups = {}, order = [];
+    (DATA.scripts || []).forEach(function (s) {
+      var c = s.cat || "More scripts";
+      if (!groups[c]) { groups[c] = []; order.push(c); }
+      groups[c].push(s);
+    });
+    order.sort(function (a, b) {
+      var A = ORDER.indexOf(a), B = ORDER.indexOf(b);
+      if (a === MORE) return 1;
+      if (b === MORE) return -1;
+      if (A < 0 && B < 0) return a < b ? -1 : 1;
+      if (A < 0) return 1;
+      if (B < 0) return -1;
+      return A - B;
+    });
+    order.forEach(function (c) {
+      opts += '<optgroup label="' + esc(c) + '">';
+      groups[c].forEach(function (s) {
+        opts += '<option value="' + esc(s.name) + '"' +
+                (s.name === cur ? " selected" : "") + ">" + esc(s.title) + "</option>";
+      });
+      opts += "</optgroup>";
+    });
+    document.getElementById("edscript").innerHTML = opts;
+
+    drawIconGrid();
+    $ovl.className = "ovl on";
+  }
+
+  function drawIconGrid() {
+    var h = '<button class="ic' + (editIcon ? "" : " on") + '" data-ic="" ' +
+            'title="Numbered — the default face"><span class="num">' +
+            (editing + 1) + "</span></button>";
+    (DATA.icons || []).forEach(function (ic) {
+      h += '<button class="ic' + (ic.id === editIcon ? " on" : "") + '" data-ic="' +
+           esc(ic.id) + '" title="' + esc(ic.label) + '">' + iconImg(ic.id) + "</button>";
+    });
+    var $g = document.getElementById("edicons");
+    $g.innerHTML = h;
+    Array.prototype.forEach.call($g.querySelectorAll(".ic"), function (el) {
+      el.addEventListener("click", function () {
+        editIcon = el.dataset.ic;
+        drawIconGrid();
+      });
+    });
+  }
+
+  function closeEditor() { editing = -1; $ovl.className = "ovl"; }
+
+  document.getElementById("edcancel").addEventListener("click", closeEditor);
+  document.getElementById("edsave").addEventListener("click", function () {
+    if (editing < 0) return;
+    sketchup.setslot(String(editing), document.getElementById("edscript").value, editIcon);
+    closeEditor();
+  });
+  document.getElementById("edclear").addEventListener("click", function () {
+    if (editing < 0) return;
+    sketchup.setslot(String(editing), "", "");
+    closeEditor();
+  });
+  $ovl.addEventListener("click", function (e) { if (e.target === $ovl) closeEditor(); });
+
+  // ---------------------------------------------------------- favourites --
+  //
+  // The same slots again, as named buttons you can read. The tile row above
+  // shows what the toolbar LOOKS like; this row says what each one DOES, in the
+  // same order and wearing the same icon, so the two teach each other.
 
   function drawFavs() {
-    var names = (DATA.pinned || []).filter(byName);
-    $favs.innerHTML = names.map(function (n) {
-      var s = byName(n);
-      var ic = FAV_ICONS[n] || STAR;
-      return '<button class="fav' + (FAV_ICONS[n] ? " ic" : "") + '" data-n="' + esc(n) +
-             '" title="Run ' + esc(n) + '">' + ic + esc(s.title) + "</button>";
-    }).join("");
+    var n = DATA.pin_n || 8;
+    var h = "";
+    for (var i = 0; i < n; i++) {
+      var name = slotAt(i);
+      if (!filled(name)) continue;
+      var s = byName(name);
+      if (!s) continue;
+      var ic = slotIconAt(i);
+      h += '<button class="fav' + (filled(ic) ? " ic" : "") + '" data-n="' + esc(name) +
+           '" title="Run ' + esc(name) + '">' +
+           (filled(ic) ? iconImg(ic) : STAR) + esc(s.title) + "</button>";
+    }
+    $favs.innerHTML = h;
     Array.prototype.forEach.call($favs.querySelectorAll(".fav"), function (el) {
       el.addEventListener("click", function () {
         var s = byName(el.dataset.n);
@@ -537,8 +784,6 @@
       // Scripts grouped by their "@cat" header. Known categories in a fixed
       // order; anything uncategorised — generated booths, one-off layouts —
       // sinks into MORE SCRIPTS at the bottom, where run-once scripts belong.
-      var ORDER = ["Build a booth", "Export art", "Model tools", "Room tools"];
-      var MORE = "More scripts";
       var groups = {};
       view.forEach(function (s) {
         var c = s.cat || MORE;
@@ -636,6 +881,9 @@
     }
     else if (e.key === "Escape") { $q.value = ""; sel = -1; draw(); }
   });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && editing >= 0) { e.preventDefault(); closeEditor(); }
+  });
   $clear.addEventListener("click", function () { $q.value = ""; sel = -1; draw(); $q.focus(); });
 
   function buildLink(link) {
@@ -656,6 +904,7 @@
   window.WR = {
     render: function (payload) {
       DATA = payload || DATA;
+      drawSlots();
       drawFavs();
       draw();
       if (DATA.note) note(DATA.note, /fail|error|could not|no /i.test(DATA.note));

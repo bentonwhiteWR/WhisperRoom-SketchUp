@@ -238,61 +238,36 @@ module WhisperRoom
       write_list('recent', list)
     end
 
-    # -------------------------------------------------------------- favourites --
+    # ------------------------------------------------------- toolbar slots --
     #
-    # Starred scripts pin to the strip across the top of the panel, and they
-    # appear THE INSTANT you star them.
+    # The toolbar carries PIN_N customisable buttons. Each SLOT holds two
+    # independent things — WHICH script it runs, and WHICH icon it wears — the
+    # way a custom button on a Word ribbon does. Both are chosen in the panel's
+    # Toolbar section; neither is hard-coded here.
     #
-    # They used to become toolbar buttons instead, which could only ever appear
-    # at the next launch — UI::Toolbar#add_item works at runtime, but on Windows
-    # it has a known severe slowdown when the toolbar was docked in a previous
-    # session (SketchUp api-issue-tracker #628), so the buttons had to be built
-    # once at load. A star that does nothing until you restart reads as broken,
-    # and it was reported as broken. The panel strip has no such limitation.
+    # WHY THE ICON HAS TO BE BOUND AT LOAD, AND THE ACTION DOES NOT
     #
-    # The toolbar now carries only the three fixed buttons, which never change.
-    # For a keyboard shortcut, bind a key to the script's menu item under
-    # Window > Preferences > Shortcuts — every script has one.
+    # UI::Toolbar#add_item works at runtime, but on Windows it has a known
+    # severe slowdown when the toolbar was docked in a previous session
+    # (SketchUp api-issue-tracker #628), so every button has to be created once
+    # at load. What a button RUNS is looked up at click time, so re-assigning a
+    # slot takes effect immediately. What a button LOOKS LIKE is uploaded to the
+    # native toolbar when the command is created; assigning small_icon later
+    # does not reliably repaint, which is why eight identically-starred buttons
+    # survived the last attempt at per-script faces. So the icon is read from
+    # preferences BEFORE the command is built, and a changed icon appears at the
+    # next SketchUp launch. The panel says so on screen rather than pretending.
+    #
+    # STORAGE. Two pipe-joined lists of exactly PIN_N entries, positionally
+    # aligned, with SLOT_EMPTY for an unused slot — read_list drops empty
+    # strings, so a genuinely empty entry needs a placeholder or every slot
+    # after it shifts up one.
 
-    def self.pinned
-      read_list('pinned')
-    end
+    SLOT_EMPTY = '-'.freeze
 
-    def self.toggle_pin(name)
-      list = pinned
-      list = list.include?(name) ? list.reject { |n| n == name } : (list + [name])
-      write_list('pinned', list.first(PIN_N))
-      refresh_fav_labels
-    rescue StandardError
-      nil
-    end
-
-    # What toolbar slot i currently points at, resolved against what is on disk
-    # so a pin left behind by a deleted script cannot fire a dead button.
-    def self.favourite_at(i)
-      name = pinned[i]
-      return nil if name.nil?
-      scan.find { |s| s['name'] == name }
-    end
-
-    def self.run_favourite(i)
-      s = favourite_at(i)
-      if s.nil?
-        UI.messagebox("Favourite slot #{i + 1} is empty.\n\n" \
-                      "Open the WhisperRoom panel, go to Scripts, and click the " \
-                      "star on any script to put it here.")
-        return
-      end
-      run(s['file'])
-      push
-    end
-
-    # Tooltips are settable after the command is created, so a slot can be
-    # renamed without rebuilding the toolbar. Whether SketchUp repaints the
-    # tooltip immediately is version-dependent; the ACTION is always current
-    # either way, because it resolves the pin list at click time.
-    # The scripts that earn their own toolbar icon. Anything else pinned still
-    # works — it just wears its numbered star.
+    # Fallback faces for slots assigned before the library existed. Not a
+    # registry — anything not listed simply starts on the numbered star and the
+    # picker changes it.
     FAV_ICONS = {
       'save-scene-components.rb'  => 'scenecomps',
       'build-booth-components.rb' => 'boothbuild',
@@ -301,24 +276,169 @@ module WhisperRoom
       'angled-component-art.rb'   => 'angled'
     }.freeze
 
+    def self.pad(list)
+      out = list.first(PIN_N).map { |v| v.to_s.empty? ? SLOT_EMPTY : v.to_s }
+      out + Array.new(PIN_N - out.length, SLOT_EMPTY)
+    end
+
+    def self.blank?(v)
+      v.nil? || v.to_s.empty? || v.to_s == SLOT_EMPTY
+    end
+
+    # Script name per slot. Migrates the old flat 'pinned' list — which had no
+    # slot positions, only an order — into slots the first time it is read, so
+    # an existing set of favourites survives the upgrade.
+    def self.slots
+      raw = read_list('slots')
+      if raw.empty?
+        old = read_list('pinned')
+        return pad(old) unless old.empty?
+      end
+      pad(raw)
+    end
+
+    def self.slot_icons
+      pad(read_list('slot_icons'))
+    end
+
+    def self.write_slots(names, icons)
+      write_list('slots', pad(names))
+      write_list('slot_icons', pad(icons))
+      write_list('pinned', pad(names).reject { |n| blank?(n) })   # panel stars
+      refresh_fav_labels
+    end
+
+    # Assign, in one call, because assigning a script without an icon and then
+    # an icon without a script is two chances to clobber the other field.
+    def self.set_slot(i, name, icon)
+      i = i.to_i
+      return if i < 0 || i >= PIN_N
+      names = slots
+      ics   = slot_icons
+      names[i] = blank?(name) ? SLOT_EMPTY : name.to_s
+      ics[i]   = blank?(icon) ? SLOT_EMPTY : icon.to_s
+      write_slots(names, ics)
+    rescue StandardError
+      nil
+    end
+
+    def self.clear_slot(i)
+      set_slot(i, nil, nil)
+    end
+
+    # The star on a script row. It is a shortcut for "put this in the first free
+    # slot" — no icon chosen, so the slot shows its number until one is picked.
+    def self.toggle_pin(name)
+      names = slots
+      ics   = slot_icons
+      at = names.index(name)
+      if at
+        names[at] = SLOT_EMPTY
+        ics[at]   = SLOT_EMPTY
+      else
+        free = names.index { |n| blank?(n) }
+        return if free.nil?          # every slot taken — the panel says so
+        names[free] = name.to_s
+      end
+      write_slots(names, ics)
+    rescue StandardError
+      nil
+    end
+
+    def self.pinned
+      slots.reject { |n| blank?(n) }
+    end
+
+    # What slot i currently points at, resolved against what is on disk so a
+    # slot left behind by a deleted script cannot fire a dead button.
+    def self.favourite_at(i)
+      name = slots[i]
+      return nil if blank?(name)
+      scan.find { |s| s['name'] == name }
+    end
+
+    def self.run_favourite(i)
+      s = favourite_at(i)
+      if s.nil?
+        UI.messagebox("Toolbar slot #{i + 1} is empty.\n\n" \
+                      "Open the WhisperRoom panel and click slot #{i + 1} in the " \
+                      "Toolbar row to give it a script and an icon.")
+        return
+      end
+      run(s['file'])
+      push
+    end
+
+    # ------------------------------------------------------- icon library --
+    #
+    # Every ico-*.svg in this folder is an offered icon. Adding one to the
+    # library is dropping a file in — no edit here, no edit in the panel. Labels
+    # come from ico-labels.txt (id TAB label) if make-icons.py wrote one;
+    # otherwise the id is prettified, so a hand-added SVG still shows up named.
+
+    def self.icon_labels
+      @icon_labels ||= begin
+        path = File.join(File.dirname(__FILE__), 'ico-labels.txt')
+        out = {}
+        if File.exist?(path)
+          File.foreach(path) do |line|
+            id, label = line.rstrip.split("\t", 2)
+            out[id] = label unless id.nil? || id.empty?
+          end
+        end
+        out
+      end
+    rescue StandardError
+      {}
+    end
+
+    def self.icon_library
+      Dir.glob(File.join(File.dirname(__FILE__), 'ico-*.svg')).sort.map { |p|
+        id = File.basename(p, '.svg').sub(/\Aico-/, '')
+        { 'id' => id, 'label' => icon_labels[id] || pretty(id) }
+      }
+    rescue StandardError
+      []
+    end
+
+    # The file a slot's button should wear: the chosen library icon, else the
+    # legacy per-script face, else the numbered star.
+    def self.slot_icon_path(i)
+      dir = File.dirname(__FILE__)
+      chosen = slot_icons[i]
+      unless blank?(chosen)
+        p = File.join(dir, "ico-#{chosen}.svg")
+        return p if File.exist?(p)
+      end
+      name = slots[i]
+      unless blank?(name)
+        key = FAV_ICONS[name]
+        p = key && File.join(dir, "icon-#{key}.svg")
+        return p if p && File.exist?(p)
+      end
+      File.join(dir, "icon-fav#{i + 1}.svg")
+    rescue StandardError
+      File.join(File.dirname(__FILE__), "icon-fav#{i + 1}.svg")
+    end
+
+    # Tooltips ARE settable after the command is created, so a slot can be
+    # re-pointed without rebuilding the toolbar. The action is always current
+    # either way, because it resolves the slot list at click time. The icon is
+    # also re-assigned here on the chance that this SketchUp repaints it; the
+    # panel does not promise that it will.
     def self.refresh_fav_labels
       return if @fav_cmds.nil?
       @fav_cmds.each_with_index do |cmd, i|
         s = favourite_at(i)
-        text = s ? "#{s['title']}  (favourite #{i + 1})" : "Favourite #{i + 1} — empty"
+        text = s ? "#{s['title']}  (toolbar slot #{i + 1})" : "Toolbar slot #{i + 1} — empty"
         cmd.tooltip = text
-        cmd.status_bar_text = s ? "Run #{s['name']}" : 'Star a script in the WhisperRoom panel'
-        # Give known scripts their own face. Whether SketchUp repaints a live
-        # toolbar icon is version-dependent (same caveat as the tooltip); worst
-        # case the new face appears at the next launch, which still beats eight
-        # identical stars.
+        cmd.status_bar_text = s ? "Run #{s['name']}" : 'Assign it in the WhisperRoom panel'
         begin
-          key = s && FAV_ICONS[s['name']]
-          icon = key ? File.join(File.dirname(__FILE__), "icon-#{key}.svg") : nil
-          icon = nil unless icon && File.exist?(icon)
-          icon ||= File.join(File.dirname(__FILE__), "icon-fav#{i + 1}.svg")
-          cmd.small_icon = icon
-          cmd.large_icon = icon
+          icon = slot_icon_path(i)
+          if File.exist?(icon)
+            cmd.small_icon = icon
+            cmd.large_icon = icon
+          end
         rescue StandardError
           nil
         end
@@ -477,7 +597,9 @@ module WhisperRoom
 
     def self.payload
       { 'dir' => SCRIPTS_DIR, 'scripts' => scan, 'abilities' => abilities,
-        'recent' => recent, 'pinned' => pinned, 'note' => @note }
+        'recent' => recent, 'pinned' => pinned, 'note' => @note,
+        'slots' => slots, 'slot_icons' => slot_icons,
+        'icons' => icon_library, 'pin_n' => PIN_N }
     end
 
     def self.push_note(msg)
@@ -519,6 +641,13 @@ module WhisperRoom
       d.add_action_callback('rescan')  { |_c| push }
       d.add_action_callback('run')     { |_c, file| run(file); push }
       d.add_action_callback('pin')     { |_c, name| toggle_pin(name); push }
+      # Slot editor. Both fields always travel together — see set_slot.
+      d.add_action_callback('setslot') do |_c, i, name, icon|
+        set_slot(i, name, icon)
+        push_note(blank?(name) ? "Slot #{i.to_i + 1} cleared." :
+                  "Slot #{i.to_i + 1} set. A new ICON appears when SketchUp next starts; " \
+                  'the button already runs the new script.')
+      end
       # A booth-builder link pasted into the panel's command bar. The run
       # callback carries no arguments, so the link is handed to
       # booth-from-link.rb through that script's own preference — its dialog
@@ -601,20 +730,24 @@ module WhisperRoom
       tb.add_item(command('WhisperRoom Panel', 'panel',
                           'Browse and run WhisperRoom scripts') { open_panel })
 
-      # ---- favourite slots on the toolbar ----------------------------------
+      # ---- customisable slots on the toolbar -------------------------------
       #
-      # A toolbar cannot GAIN a button at runtime without the Windows docking
-      # slowdown (api-issue-tracker #628), so all eight slots are created here,
-      # once, at load. What each one RUNS is looked up at click time, so
-      # starring a script in the panel rebinds its slot immediately — no
-      # restart. The button face is a numbered star; the tooltip carries the
-      # script name and is refreshed whenever the pin list changes.
+      # All PIN_N buttons are created here, once, at load (api-issue-tracker
+      # #628). What each one RUNS is looked up at click time, so re-assigning a
+      # slot in the panel takes effect immediately. The FACE is read from
+      # preferences right here, before the command exists, because that is the
+      # only moment SketchUp reliably takes it.
       tb.add_separator
       @fav_cmds = []
       PIN_N.times do |i|
-        cmd = UI::Command.new("Favourite #{i + 1}") { run_favourite(i) }
-        cmd.small_icon = icon_for("fav#{i + 1}", 24)
-        cmd.large_icon = icon_for("fav#{i + 1}", 32)
+        s = favourite_at(i)
+        label = s ? s['title'] : "Toolbar slot #{i + 1}"
+        cmd = UI::Command.new(label) { run_favourite(i) }
+        icon = slot_icon_path(i)
+        if File.exist?(icon)
+          cmd.small_icon = icon
+          cmd.large_icon = icon
+        end
         @fav_cmds << cmd
         tb.add_item(cmd)
       end

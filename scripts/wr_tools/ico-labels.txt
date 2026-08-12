@@ -1,0 +1,47 @@
+booth	Booth
+booth-door	Booth with door
+door	Door and swing
+window	Window
+vent	Vent panel
+fan	Fan unit
+wall	Wall panels
+floor	Floor
+ceiling	Ceiling
+ramp	ADA ramp
+seal	Seam seal
+link	Link / share URL
+cube	Isometric part
+blocks	Components
+layers	Layers / tags
+explode	Explode assembly
+swap	Find and replace
+rotate	Rotate / re-run
+ruler	Ruler
+dimension	Dimension string
+plan	Floor plan
+room	Room outline
+grid	Grid
+elevation	Elevation view
+section	Section / cut
+camera	Camera
+photo	Image
+scenes	Scenes
+export	Export files
+import	Import files
+save	Save
+folder	Folder
+printer	Print / PDF
+doc	Document
+list	List
+play	Run
+bolt	Fast action
+wand	Generate
+gear	Settings
+search	Search / probe
+check	Verify
+star	Favourite
+pin	Pin
+clock	Timing
+tag	Tag / rename
+text	Text
+drill	Machining / jig
