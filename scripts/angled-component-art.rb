@@ -62,22 +62,86 @@ require 'fileutils'
 module WR_AngledArt
   PREF = 'WR_AngledArt'.freeze
 
-  # Eye direction FROM the target, elevation 30 deg. Straight from the brief's
-  # table — do not "tidy" these, 0.6124 is cos(30)*cos(45).
-  CAMS = [
-    ['ExtL', [-0.6124,  0.6124, 0.5]],
-    ['ExtR', [ 0.6124,  0.6124, 0.5]],
-    ['IntL', [-0.6124, -0.6124, 0.5]],
-    ['IntR', [ 0.6124, -0.6124, 0.5]]
-  ].freeze
+  # Eye direction FROM the target. ELEVATION IS FIXED AT 30 DEG and must stay
+  # there — z is always 0.5 and the "Iso30" in every filename depends on it.
+  #
+  #     x = cos(elev) * cos(azim)   y = cos(elev) * sin(azim)   z = sin(elev)
+  #
+  # The AZIMUTH used to be frozen at 45, which is where 0.6124 = cos(30)*cos(45)
+  # came from. At 45 the near and far corner seam seals of the SQUARE 7272 booth
+  # project to exactly the same screen point — separation 0.0 in, a flat diamond
+  # with nothing to read. Off 45 they separate (9.1 in at 40, 12.7 in at 38,
+  # 16.4 in at 36). So the azimuth is now a dropdown and the table below is
+  # derived from it at run time. 45 is still the default, so an unchanged run
+  # reproduces the old frozen constants to the digit.
+  ELEV      = 30.0
+  DEF_AZIM  = 45.0
 
-  # The corner seam seal gets four, but not these four (section 8c).
-  CORNER_CAMS = [
-    ['ExtNear', [ 0.0,     0.8660, 0.5]],
-    ['ExtL',    [-0.6124,  0.6124, 0.5]],
-    ['ExtR',    [ 0.6124,  0.6124, 0.5]],
-    ['IntFar',  [ 0.0,    -0.8660, 0.5]]
-  ].freeze
+  # Rounded to 4 places on purpose: that is the precision the frozen table was
+  # written at, so at azimuth 45 these come out bit-identical to what shipped.
+  # (+ 0.0 turns a -0.0 from a rounded-away tiny negative back into 0.0.)
+  def self.cam_vec(azim)
+    e = ELEV * Math::PI / 180.0
+    a = azim  * Math::PI / 180.0
+    [(Math.cos(e) * Math.cos(a)).round(4) + 0.0,
+     (Math.cos(e) * Math.sin(a)).round(4) + 0.0,
+     Math.sin(e).round(4) + 0.0]
+  end
+
+  # A rigid rig: four cameras 90 deg apart, ExtR sitting ON the chosen azimuth
+  # and the rest following. The NAMES keep their relative positions whatever the
+  # azimuth — they are baked into the output filenames and into the importer.
+  def self.build_cams(azim)
+    [['ExtL', cam_vec(azim + 90.0)],
+     ['ExtR', cam_vec(azim)],
+     ['IntL', cam_vec(azim + 180.0)],
+     ['IntR', cam_vec(azim + 270.0)]]
+  end
+
+  # The corner seam seal gets four, but not these four (section 8c). ExtNear and
+  # IntFar sit 45 deg off the rig (azimuth 90 and 270 back when the rig was at
+  # 45). That 45 offset is PRESERVED DELIBERATELY: the whole set rotates rigidly
+  # with the azimuth rather than staying pinned to 90/270, so the corner family
+  # keeps the same relationship to the other three that it had at 45.
+  def self.build_corner_cams(azim)
+    [['ExtNear', cam_vec(azim + 45.0)],
+     ['ExtL',    cam_vec(azim + 90.0)],
+     ['ExtR',    cam_vec(azim)],
+     ['IntFar',  cam_vec(azim + 225.0)]]
+  end
+
+  def self.azimuth
+    @azimuth || DEF_AZIM
+  end
+
+  # Set once per run from the dropdown, before anything measures or renders.
+  def self.azimuth=(deg)
+    a = deg.to_f
+    a = DEF_AZIM unless a.finite? && a > 0.0 && a < 360.0
+    @azimuth     = a
+    @cams        = build_cams(a)
+    @corner_cams = build_corner_cams(a)
+  end
+
+  def self.cams
+    @cams ||= build_cams(azimuth)
+  end
+
+  def self.corner_cams
+    @corner_cams ||= build_corner_cams(azimuth)
+  end
+
+  # "45" not "45.0" when it is a whole number, so the console reads like the
+  # dropdown the number came from.
+  def self.azim_label
+    azimuth == azimuth.round ? azimuth.round.to_s : format('%.1f', azimuth)
+  end
+
+  # Printed, never hard-coded: a report that names a camera the run did not use
+  # is worse than no report at all.
+  def self.cam_labels(table = cams)
+    table.map { |n, d| format('%-7s(%+.4f,%+.4f,%+.4f)', n, d[0], d[1], d[2]) }
+  end
 
   EXT = %w[ExtL ExtR].freeze
   INT = %w[IntL IntR].freeze
@@ -113,7 +177,7 @@ module WR_AngledArt
     (SOLID + CBL + WDO + DOORS + VNT_BASE + MIDSEAL).each { |n| m[n] = ALL }
     (NV + RAMPS + VNT_VAR + VNT_CP).each { |n| m[n] = EXT }
     FURNITURE.each { |n| m[n] = INT }
-    m[CORNER] = CORNER_CAMS.map(&:first)
+    m[CORNER] = corner_cams.map(&:first)
     m
   end
 
@@ -122,6 +186,7 @@ module WR_AngledArt
     'pick'  => 'batch',
     'dir'   => 'C:/Users/bento/Documents/Claude/WhisperRoomQuote/assets/AllBoothComponents/Iso30',
     'px'    => '2400',
+    'azim'  => '45',
     'view'  => 'auto',
     'frame' => 'Part centred (fills the frame)',
     # The model's own style by default. It is what the flat set was shot with,
@@ -136,11 +201,12 @@ module WR_AngledArt
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys = %w[batch pick dir px view frame style ao over recov dry]
+    keys = %w[batch pick dir px azim view frame style ao over recov dry]
     prompts = ['Batch',
                'Scenes — batch / current / 1-7,12 / text',
                'Output folder',
                'Canvas (px, square)',
+               'Azimuth (deg) — 45 stacks the 7272 corners',
                'View height — auto, or inches',
                'Frame on',
                'Style',
@@ -168,12 +234,19 @@ module WR_AngledArt
     rescue StandardError
     end
 
+    # lists is POSITIONAL against prompts — one entry per prompt, in the same
+    # order, '' where the field is free text. One missing '' shifts every
+    # dropdown below it onto the wrong field, silently. Count them if you edit.
     lists = ['0 — one component, four images, STOP|' \
              '1 — exterior: walls, windows, doors, vents, seals|' \
              '2 — exterior: caster-plate vent walls|' \
              '3 — interiors and furniture|' \
-             '4 — every scene, all four images',
-             '', '', '', '',
+             '4 — every scene, all four images',   # batch
+             '',                                   # pick
+             '',                                   # dir
+             '',                                   # px
+             '45|40|38|36|35',                     # azim
+             '',                                   # view
              'Part centred (fills the frame)|Insertion point at centre (registration)',
              style_opts.join('|'),
              'No|Yes', 'Yes|No', 'Yes|No', 'Yes|No']
@@ -253,7 +326,7 @@ module WR_AngledArt
   end
 
   def self.cam_dir(suffix)
-    row = CAMS.find { |s, _d| s == suffix } || CORNER_CAMS.find { |s, _d| s == suffix }
+    row = cams.find { |s, _d| s == suffix } || corner_cams.find { |s, _d| s == suffix }
     row ? row[1] : nil
   end
 
@@ -530,6 +603,9 @@ module WR_AngledArt
       f.puts "frame on   #{cfg['frame']}"
       f.puts "style opt  #{cfg['style']}"
       f.puts "view       #{cfg['view']}  -> #{format('%.3f', view_h)} in at #{px} px"
+      f.puts "azimuth    #{azim_label} deg (elevation #{format('%g', ELEV)})"
+      f.puts "cameras    #{cam_labels.join('  ')}"
+      f.puts "corner 8c  #{cam_labels(corner_cams).join('  ')}"
       f.puts ''
       f.puts 'SCENE -> COMPONENT'
       measured.each_with_index do |m, i|
@@ -766,6 +842,8 @@ module WR_AngledArt
 
     px   = cfg['px'].to_i
     px   = 2400 if px < 200 || px > 6000
+    # Before anything measures or renders: the whole camera table hangs off this.
+    self.azimuth = cfg['azim']
     dry  = cfg['dry'] == 'Yes'
     over = cfg['over'] == 'Yes'
     ao   = cfg['ao'] == 'Yes'
@@ -839,6 +917,12 @@ module WR_AngledArt
       puts "  style          #{cfg['style']}"
       puts format('  canvas         %d x %d px, square, transparent', px, px)
       puts '  projection     PARALLEL — perspective = false, aspect_ratio = 1.0'
+      puts format('  azimuth        %s deg  (elevation fixed at %s — z = 0.5, the "Iso30")',
+                  azim_label, format('%g', ELEV))
+      puts format('  cameras        %s', cam_labels[0, 2].join('  '))
+      puts format('                 %s', cam_labels[2, 2].join('  '))
+      puts format('  corner (8c)    %s', cam_labels(corner_cams)[0, 2].join('  '))
+      puts format('                 %s', cam_labels(corner_cams)[2, 2].join('  '))
       puts format('  view height    %.3f in  (%s)   -> %.6f in/px',
                   view_h, cfg['view'].to_s.strip.downcase == 'auto' ? 'auto-fitted to the union' : 'as typed',
                   1.0 / scale)
@@ -1050,8 +1134,13 @@ module WR_AngledArt
     puts '  ================= HAND THIS BACK WITH THE IMAGES ================='
     puts ''
     puts '  Camera construction, verbatim:'
-    puts '    dir = ExtL(-0.6124, 0.6124, 0.5)   ExtR( 0.6124, 0.6124, 0.5)'
-    puts '          IntL(-0.6124,-0.6124, 0.5)   IntR( 0.6124,-0.6124, 0.5)'
+    puts format('    azimuth %s deg, elevation %s deg  ' \
+                '(x = cos(elev)cos(azim), y = cos(elev)sin(azim), z = sin(elev))',
+                azim_label, format('%g', ELEV))
+    puts format('    dir = %s', cam_labels[0, 2].join('   '))
+    puts format('          %s', cam_labels[2, 2].join('   '))
+    puts format('    corner seam seal (8c) = %s', cam_labels(corner_cams)[0, 2].join('   '))
+    puts format('                            %s', cam_labels(corner_cams)[2, 2].join('   '))
     puts '    target = the component instance\'s transformation.origin'
     puts '    eye    = target + dir * 1000.0        # distance is irrelevant'
     puts '    cam.set(eye, target, Z_AXIS)'
@@ -1077,7 +1166,10 @@ module WR_AngledArt
     puts '  STILL TO CONFIRM BY EYE — I cannot see the output:'
     puts '    - in ExtL the panel runs away to the LEFT, so its RIGHT edge is'
     puts '      nearest and drawn lowest. If backwards, swap the azimuth signs'
-    puts '      in CAMS — do NOT swap the filenames.'
+    puts '      in build_cams — do NOT swap the filenames.'
+    puts '    - the CORNER SEAM SEAL first: at azimuth 45 its near and far seals'
+    puts '      land on the same point on the square 7272 and there is nothing'
+    puts '      to read. Off 45 they must visibly separate.'
     puts '    - line art: white faces, thin dark edges, no shading, no shadow.'
     puts '    - transparency is real alpha, not white.'
     puts ''
