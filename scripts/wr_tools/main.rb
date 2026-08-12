@@ -579,6 +579,65 @@ module WhisperRoom
       [false, "#{e.class}: #{e.message}"]
     end
 
+    # --------------------------------------------------------------- renaming --
+    #
+    # A script's panel label is its "# @title" header line, so renaming one is
+    # rewriting that line in the file. It happens here rather than in an editor
+    # because the name you want is obvious exactly when you are looking at the
+    # list, and never again.
+    #
+    # THE FILENAME IS DELIBERATELY NOT TOUCHED. Scripts reference each other by
+    # filename — booth-from-link.rb loads build-booth-components.rb, both art
+    # exporters load wr-shading.rb — the toolbar slots are stored by filename,
+    # the menu built at load time points at paths, and git tracks the path. A
+    # rename that moved the file would break all four silently, to change a
+    # string that is only ever read by a human. So the label is what changes.
+    #
+    # Trailing "..." is a convention here: it means "this opens a dialog". If
+    # the old title carried it, the new one keeps it, so the convention cannot
+    # be lost by someone who did not know about it.
+
+    def self.rename(name, title)
+      base = File.basename(name.to_s)
+      return [false, 'Not a script in this folder.'] if base != name.to_s || base.empty?
+      return [false, 'That file is not renameable.'] if SKIP.include?(base)
+      path = File.join(SCRIPTS_DIR, base)
+      return [false, "Not found: #{base}"] unless File.exist?(path)
+
+      want = title.to_s.strip.gsub(/\s+/, ' ')
+      old  = meta_of(path)[0]
+      want += '...' if old.to_s.end_with?('...') && !want.empty? && !want.end_with?('...')
+
+      raw = File.open(path, 'rb') { |f| f.read }
+      crlf = raw.include?("\r\n")
+      body = raw.gsub("\r\n", "\n")
+      lines = body.split("\n", -1)
+
+      at = nil
+      lines.each_with_index do |l, i|
+        break if i > 60
+        at = i if at.nil? && l =~ /^\s*#\s*@title\s+/
+      end
+
+      if want.empty?
+        # No title line at all — the panel falls back to the prettified
+        # filename, which is the right "reset to default".
+        return [false, 'That script has no custom name to clear.'] if at.nil?
+        lines.delete_at(at)
+      elsif at
+        lines[at] = "# @title #{want}"
+      else
+        lines.unshift("# @title #{want}")
+      end
+
+      out = lines.join("\n")
+      out = out.gsub("\n", "\r\n") if crlf
+      File.open(path, 'wb') { |f| f.write(out) }
+      [true, want.empty? ? "#{base} reset to its filename." : "Renamed to #{want}"]
+    rescue StandardError => e
+      [false, "#{e.class}: #{e.message}"]
+    end
+
     # ---------------------------------------------------------------- running --
 
     def self.run(path)
@@ -643,6 +702,11 @@ module WhisperRoom
       d.add_action_callback('rescan')  { |_c| push }
       d.add_action_callback('run')     { |_c, file| run(file); push }
       d.add_action_callback('pin')     { |_c, name| toggle_pin(name); push }
+      d.add_action_callback('rename') do |_c, name, title|
+        _ok, msg = rename(name, title)
+        refresh_fav_labels          # a renamed script retitles its toolbar slot
+        push_note(msg)
+      end
       # Slot editor. Both fields always travel together — see set_slot.
       d.add_action_callback('setslot') do |_c, i, name, icon|
         set_slot(i, name, icon)

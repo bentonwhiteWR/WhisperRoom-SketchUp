@@ -216,6 +216,21 @@
     color: var(--ink);
   }
   .card select:focus { outline: none; border-color: var(--accent); }
+  .card input[type="text"] {
+    width: 100%; font: inherit;
+    padding: 7px 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .card input[type="text"]:focus { outline: none; border-color: var(--accent); }
+  .hint code {
+    font-size: 11px;
+    background: var(--bg);
+    border-radius: 3px;
+    padding: 0 3px;
+  }
   .hint { color: var(--muted); font-size: 11.5px; margin-top: 9px; }
 
   .icons {
@@ -481,6 +496,26 @@
   <div class="note" id="note"></div>
   <div class="scroll" id="scroll"></div>
 
+  <div class="ovl" id="rovl">
+    <div class="card">
+      <h3 id="rntitle">Rename script</h3>
+      <div class="bd">
+        <div class="fld">NAME SHOWN IN THE PANEL</div>
+        <input type="text" id="rnname" autocomplete="off" spellcheck="false">
+        <div class="hint">
+          This rewrites the script&rsquo;s <code>@title</code> header line. The
+          <b>filename does not change</b> &mdash; scripts load each other by
+          filename, toolbar slots are stored by filename, and git tracks the path.
+          Clear the box and save to fall back to the filename.
+        </div>
+      </div>
+      <div class="ft">
+        <button class="btn sp" id="rncancel">Cancel</button>
+        <button class="btn primary" id="rnsave">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="ovl" id="ovl">
     <div class="card">
       <h3 id="edtitle">Toolbar slot</h3>
@@ -529,6 +564,8 @@
 
   var STAR = '<svg viewBox="0 0 16 16"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.2L8 11.5 ' +
              '4.2 13.5l.7-4.2-3.1-3 4.3-.6z" stroke-linejoin="round"/></svg>';
+  var PENCIL = '<svg viewBox="0 0 16 16"><path d="M11.2 2.3l2.5 2.5-8 8-3.2.7.7-3.2z"/>' +
+               '<path d="M10 3.5l2.5 2.5"/></svg>';
   var GEAR = '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4"/>' +
              '<path d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4' +
              'M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6L3.3 3.3"/></svg>';
@@ -749,10 +786,47 @@
              "</div>" +
              '<div class="meta">' + esc(s.ago) +
                '<span class="file">' + hl(s.name, term) + "</span></div>" +
+             '<button class="star" data-r="' + esc(s.name) +
+               '" title="Rename — changes the label, not the filename">' + PENCIL + "</button>" +
              '<button class="star' + (p ? " on" : "") + '" data-n="' + esc(s.name) +
                '" title="' + (p ? "Unpin" : "Pin to favourites") + '">' + STAR + "</button>" +
            "</div>";
   }
+
+  // ------------------------------------------------------------- renaming --
+  //
+  // Renaming rewrites the script's @title header. The FILENAME stays, because
+  // scripts load each other by filename and the toolbar slots are stored by it.
+
+  var $rovl = document.getElementById("rovl");
+  var $rn   = document.getElementById("rnname");
+  var renaming = null;
+
+  function openRename(name) {
+    var s = byName(name);
+    if (!s) return;
+    renaming = name;
+    document.getElementById("rntitle").textContent = "Rename " + name;
+    $rn.value = s.title;
+    $rovl.className = "ovl on";
+    $rn.focus();
+    $rn.select();
+  }
+
+  function closeRename() { renaming = null; $rovl.className = "ovl"; }
+
+  function saveRename() {
+    if (!renaming) return;
+    sketchup.rename(renaming, $rn.value);
+    closeRename();
+  }
+
+  document.getElementById("rncancel").addEventListener("click", closeRename);
+  document.getElementById("rnsave").addEventListener("click", saveRename);
+  $rovl.addEventListener("click", function (e) { if (e.target === $rovl) closeRename(); });
+  $rn.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); saveRename(); }
+  });
 
   // ----------------------------------------------------------------- draw --
 
@@ -829,6 +903,12 @@
         sketchup.pin(el.dataset.n);
       });
     });
+    Array.prototype.forEach.call($scroll.querySelectorAll(".star[data-r]"), function (el) {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openRename(el.dataset.r);
+      });
+    });
     Array.prototype.forEach.call($scroll.querySelectorAll(".sw"), function (el) {
       el.addEventListener("click", function (e) {
         e.stopPropagation();
@@ -882,7 +962,9 @@
     else if (e.key === "Escape") { $q.value = ""; sel = -1; draw(); }
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && editing >= 0) { e.preventDefault(); closeEditor(); }
+    if (e.key !== "Escape") return;
+    if (renaming)      { e.preventDefault(); closeRename(); }
+    else if (editing >= 0) { e.preventDefault(); closeEditor(); }
   });
   $clear.addEventListener("click", function () { $q.value = ""; sel = -1; draw(); $q.focus(); });
 
