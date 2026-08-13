@@ -1,5 +1,64 @@
 # DEVLOG
 
+## 2026-08-13 — material merge, script renaming, and where to pick up
+
+**`scripts/merge-materials.rb`** (new). Imported components arrived carrying
+their own copy of the fabric material, so a colour change would have had to be
+made twice. This points every face front, face back, edge, instance and group —
+at any nesting depth — from one material onto another and deletes the emptied
+one, in a single undoable operation, verifying by re-counting afterwards rather
+than trusting its own tally.
+
+It took three passes to get right, and the two failures are the useful part:
+
+1. *"Nothing matches Carpet Plush Charcoal"* while the tray had exactly that
+   selected. A material has **two** names — `Material#name` and
+   `Material#display_name` — and they diverge for imported materials. The tray
+   shows one; the API was matching the other.
+2. *`TypeError: reference to deleted Material`*, which rolled back a merge that
+   had already correctly repainted **39,918** assignments. A `Material` is a
+   live handle, not a copy: the instant `materials.remove` succeeds, every
+   reader on it raises. The removal loop logged `m.name` *after* the remove, the
+   rescue raised again building its own error string, and the outer handler
+   aborted the operation over a bookkeeping message.
+
+Both fixed, and the dialog was then rebuilt around **dropdowns populated from
+the model** — each entry showing its live use count, most-used first — so a name
+can no longer be got wrong in either direction. "Also merge others whose name
+starts the same" replaces the wildcard, which is exactly how SketchUp
+uniquifies an imported duplicate.
+
+**`save-scene-components.rb`** gained an off-by-default, undoable option to
+rename each component in the model to match its saved file, so a file named
+after a scene stops containing "Component#41". Stated plainly in the header:
+SketchUp offers **no two-way sync** for external components in either
+direction. What renaming buys is right-click → Save As offering the correct
+filename.
+
+**The plugin** got mappable toolbar slots (script + icon chosen separately from
+a 47-icon library), in-panel script renaming, and a fix for the panel's slot row
+disagreeing with the real toolbar — two different fallback rules for one slot,
+now resolved once in Ruby and shipped to the panel.
+
+### Where to pick up
+
+1. **Re-shoot the component library.** The material lift means every previously
+   exported image reads dark beside a new one. Settings that worked: scenes
+   `1-5,40`, view height **104**, style **Interior**, Dark **45**, Recover
+   **Yes** — the same style and Dark in *both* exporters.
+2. **`merge-materials.rb` has still never completed a real run.** The dropdown
+   rebuild is unrun; first run should be a dry run.
+3. **`selector2._domainkey.whisperroom.com` has no key.** Microsoft signs with
+   selector1 so mail is fine, but the standby rotation key is missing — Defender
+   portal → Email authentication settings → DKIM, rotate once. Same action
+   upgrades the 1024-bit key to 2048. HubSpot is fully authenticated and
+   verified; nothing to do there.
+4. **DMARC `rua` goes to two personal mailboxes as raw XML.** Point it at a free
+   aggregator, then move `p=quarantine` to `p=reject` once the reports are clean.
+5. Still open from before: floors and ceilings (components not exported yet),
+   Enhanced walls (all 25 E variants skip with "panel lengths unresolved"),
+   furniture, and `.rbz` packaging for the team.
+
 ## 2026-08-12 — the fabric material was lightened ~1.47x
 
 Benton's call, and the right one. The component library rendered at a mean luma
