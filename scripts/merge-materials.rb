@@ -109,12 +109,28 @@ module WR_MergeMaterials
     spec.to_s.split(',').map(&:strip).reject(&:empty?).map { |s| pattern(s) }
   end
 
-  def self.matching(model, spec, exclude_name)
+  # A MATERIAL HAS TWO NAMES AND THEY ARE NOT ALWAYS THE SAME.
+  #
+  #   Material#name          the internal name
+  #   Material#display_name  what the Materials tray shows you
+  #
+  # For a material that came in with an imported component these can differ, and
+  # the tray shows the one you cannot match on. That is why the first version of
+  # this script reported "Nothing matches Carpet Plush Charcoal" while the tray
+  # had a material called exactly that selected. Match on either.
+  def self.names_of(m)
+    [(m.name.to_s rescue ''), (m.display_name.to_s rescue '')].reject(&:empty?).uniq
+  rescue Exception
+    []
+  end
+
+  def self.matching(model, spec, keeper)
     pats = patterns(spec)
     return [] if pats.empty?
-    model.materials.select { |m|
-      n = m.name.to_s
-      n != exclude_name && pats.any? { |p| p =~ n }
+    keep_id = (keeper.entityID rescue nil)
+    model.materials.to_a.select { |m|
+      next false if keep_id && (m.entityID rescue nil) == keep_id
+      names_of(m).any? { |n| pats.any? { |p| p =~ n } }
     }
   end
 
@@ -124,10 +140,12 @@ module WR_MergeMaterials
   # target counts without changing anything, which is what the dry run and the
   # after-the-fact verification both need.
   #
-  # Materials are keyed by NAME. Names are unique per model, and a name survives
-  # the round trip through an entity's material getter, where object identity has
-  # been known not to.
-  def self.walk(model, names, target, tally)
+  # MATCHED BY entityID, NOT BY NAME. Name matching is how the FROM field finds
+  # the materials in the first place, and that is unavoidable because a name is
+  # what you can type. But once they are found, carrying names through the walk
+  # means every comparison is exposed to the same name/display_name mismatch
+  # that broke matching, plus trailing spaces and case. An entityID is exact.
+  def self.walk(model, ids, target, tally)
     lists = [model.entities]
     model.definitions.each { |d| lists << d.entities unless d.image? }
 
@@ -136,7 +154,7 @@ module WR_MergeMaterials
         begin
           if e.respond_to?(:material)
             m = e.material
-            if m && names.include?(m.name.to_s)
+            if m && ids.include?(m.entityID)
               tally[kind_of(e)] = tally.fetch(kind_of(e), 0) + 1
               e.material = target if target
             end
@@ -147,7 +165,7 @@ module WR_MergeMaterials
           # reverses a face.
           if e.is_a?(Sketchup::Face)
             b = e.back_material
-            if b && names.include?(b.name.to_s)
+            if b && ids.include?(b.entityID)
               tally[:back] = tally.fetch(:back, 0) + 1
               e.back_material = target if target
             end
@@ -170,8 +188,9 @@ module WR_MergeMaterials
     end
   end
 
-  # Use count for EVERY material, so the dry run can show what is actually in
-  # the model rather than what someone remembers naming it.
+  # Use count for EVERY material, so the run can show what is actually in the
+  # model rather than what someone remembers naming it. Keyed by entityID for
+  # the same reason the walk is.
   def self.census(model)
     counts = Hash.new(0)
     lists = [model.entities]
@@ -180,10 +199,10 @@ module WR_MergeMaterials
       ents.each do |e|
         begin
           m = (e.material if e.respond_to?(:material))
-          counts[m.name.to_s] += 1 if m
+          counts[m.entityID] += 1 if m
           if e.is_a?(Sketchup::Face)
             b = e.back_material
-            counts[b.name.to_s] += 1 if b
+            counts[b.entityID] += 1 if b
           end
         rescue Exception
           nil
@@ -207,29 +226,38 @@ module WR_MergeMaterials
     dry = cfg['dry'].to_s.downcase.start_with?('y')
     del = cfg['del'].to_s.downcase.start_with?('y')
 
-    keeper  = model.materials.find { |m| m.name.to_s == cfg['to'] }
+    # The keeper is matched the same forgiving way the victims are — on either
+    # name, ignoring case — because typing it exactly is the same problem.
+    kpat   = pattern(cfg['to'])
+    keeper = model.materials.to_a.find { |m| names_of(m).any? { |n| kpat =~ n } }
     counts  = census(model)
-    victims = matching(model, cfg['from'], cfg['to'])
-    doomed  = victims.map { |m| m.name.to_s }
+    victims = matching(model, cfg['from'], keeper)
+    doomed  = victims.map { |m| m.entityID }
 
     puts ''
     puts '=' * 78
     puts "MERGE MATERIALS#{dry ? '  —  DRY RUN, nothing will be changed' : ''}"
     puts "  model    #{model.title.to_s.empty? ? '(unsaved)' : model.title}"
-    puts "  from     #{cfg['from']}"
-    puts "  into     #{cfg['to']}#{keeper ? '' : '   *** NOT IN THIS MODEL'}"
+    puts "  from     #{cfg['from'].inspect}"
+    puts "  into     #{cfg['to'].inspect}#{keeper ? " -> #{keeper.display_name}" : '   *** NOT IN THIS MODEL'}"
     puts '=' * 78
     puts ''
+    # Names are printed with inspect, so a trailing space or an odd character
+    # shows as "Carpet Plush Charcoal " instead of looking identical to what you
+    # typed. display_name is printed separately whenever it differs from name —
+    # the tray shows you one and the API matches the other.
     puts '  EVERY MATERIAL IN THIS MODEL, by how many things use it:'
-    puts format('    %-46s %8s', 'MATERIAL', 'USES')
-    puts '    ' + '-' * 56
-    model.materials.sort_by { |m| [-counts[m.name.to_s], m.name.to_s] }.each do |m|
-      n = m.name.to_s
-      mark = if n == cfg['to'] then ' <- KEEP'
-             elsif doomed.include?(n) then ' <- MERGE'
+    puts format('    %-40s %-24s %6s', 'NAME (as the API sees it)', 'TRAY NAME if different', 'USES')
+    puts '    ' + '-' * 76
+    model.materials.to_a.sort_by { |m| [-counts[m.entityID], m.display_name.to_s] }.each do |m|
+      nm = (m.name.to_s rescue '')
+      dn = (m.display_name.to_s rescue '')
+      mark = if keeper && m.entityID == keeper.entityID then ' <- KEEP'
+             elsif doomed.include?(m.entityID) then ' <- MERGE'
              else ''
              end
-      puts format('    %-46s %8d%s', n, counts[n], mark)
+      puts format('    %-40s %-24s %6d%s',
+                  nm.inspect, (dn == nm ? '' : dn.inspect), counts[m.entityID], mark)
     end
     puts ''
 
@@ -243,22 +271,23 @@ module WR_MergeMaterials
     end
 
     if victims.empty?
-      puts "  Nothing matches \"#{cfg['from']}\". Nothing done."
-      puts '  Check the table above — an imported material is often renamed by'
-      puts '  SketchUp, so the name you expect may carry a suffix.'
+      puts "  Nothing matches #{cfg['from'].inspect}. Nothing done."
+      puts '  The table above prints names with inspect, so a trailing space or'
+      puts '  an odd character is visible rather than invisible. Copy a NAME'
+      puts '  column entry, drop the quotes, and add * if you want the family.'
       puts ''
-      UI.messagebox("Nothing matches \"#{cfg['from']}\".\n\n" \
-                    'See the Ruby Console for every material in this model.')
+      UI.messagebox("Nothing matches #{cfg['from'].inspect}.\n\n" \
+                    "The Ruby Console lists every material with its exact name.\n" \
+                    'Copy from the NAME column, and try adding * on the end.')
       return
     end
 
-    names = doomed
-    puts "  MERGING #{victims.length} material(s) into \"#{cfg['to']}\":"
-    names.each { |n| puts format('    %-46s %d use(s)', n, counts[n]) }
+    puts "  MERGING #{victims.length} material(s) into \"#{keeper.display_name}\":"
+    victims.each { |m| puts format('    %-46s %d use(s)', m.display_name.to_s, counts[m.entityID]) }
     puts ''
 
     if dry
-      tally = walk(model, names, nil, {})
+      tally = walk(model, doomed, nil, {})
       report_tally(tally, 'would change')
       puts ''
       puts '  DRY RUN — nothing was changed. Set Dry run to No to do it.'
@@ -272,13 +301,13 @@ module WR_MergeMaterials
     # single keystroke and cannot leave the model half-merged.
     model.start_operation('Merge Materials', true)
     begin
-      tally = walk(model, names, keeper, {})
+      tally = walk(model, doomed, keeper, {})
 
       # The current paint-bucket material is a reference too, and pointing at a
       # material about to be deleted is a good way to crash a later click.
       begin
         cur = model.materials.current
-        model.materials.current = keeper if cur && names.include?(cur.name.to_s)
+        model.materials.current = keeper if cur && doomed.include?(cur.entityID)
       rescue Exception
         nil
       end
@@ -309,7 +338,7 @@ module WR_MergeMaterials
     # Verify by re-counting rather than trusting the tally. If anything still
     # references an old material, the merge missed a place materials can hide
     # and that is worth knowing immediately, not at the next colour change.
-    left = total(walk(model, names, nil, {}))
+    left = total(walk(model, doomed, nil, {}))
     puts ''
     if left.zero?
       puts '  VERIFIED — nothing in the model still uses the merged material(s).'
