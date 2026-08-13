@@ -315,12 +315,36 @@ module WR_MergeMaterials
       removed = []
       stuck   = []
       if del
+        # READ THE NAME BEFORE REMOVING IT. A Material is a live handle into the
+        # model, not a copy: the instant materials.remove succeeds, every reader
+        # on that object raises "TypeError: reference to deleted Material". The
+        # first version logged `m.name` on the line AFTER the remove, which
+        # raised, and then the rescue raised again reaching for the same name to
+        # build its error message. The exception escaped to the outer handler,
+        # which aborted the operation — throwing away a completed 39,918
+        # assignment merge because of a bookkeeping string.
+        #
+        # So: every label is captured up front, and nothing reads from a Material
+        # once remove has been called on it.
+        labels = {}
         victims.each do |m|
+          labels[m.entityID] = begin
+                                 m.display_name.to_s
+                               rescue Exception
+                                 begin
+                                   m.name.to_s
+                                 rescue Exception
+                                   '(unnamed)'
+                                 end
+                               end
+        end
+        victims.each do |m|
+          label = labels[m.entityID] || '(unnamed)'
           begin
             model.materials.remove(m)
-            removed << m.name.to_s
+            removed << label
           rescue Exception => e
-            stuck << "#{m.name}: #{e.class}: #{e.message.to_s.split("\n").first}"
+            stuck << "#{label}: #{e.class}: #{e.message.to_s.split("\n").first}"
           end
         end
       end
