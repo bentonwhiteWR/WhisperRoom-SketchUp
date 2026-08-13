@@ -14,19 +14,20 @@
 # are two, they look different, and every future colour change has to be made
 # twice — or three times, or five, as more imports land.
 #
-# THE NAME YOU EXPECT IS PROBABLY NOT THE NAME THAT ARRIVED. When SketchUp
-# imports a component whose material shares a name with an existing one but
-# differs in any way, it does NOT reuse yours — it brings its own in under a
-# uniquified name: "Carpet Plush Charcoal 1", "Carpet Plush Charcoal #2",
-# "Carpet Plush Charcoal(2)". Which suffix depends on the version and on how the
-# file was made. So:
+# YOU PICK BOTH MATERIALS FROM A DROPDOWN. Nothing is typed, so nothing can be
+# mistyped — and, more to the point, nothing has to be RETYPED CORRECTLY off a
+# tray that shows a different name from the one the API matches on. Each entry
+# carries its live use count, so the fabric everything shares is obvious: it is
+# the one with tens of thousands of uses.
 #
-#   - the FROM field takes a COMMA-SEPARATED LIST and understands * as a
-#     wildcard, so "Carpet Plush Charcoal*" catches the whole family at once;
-#   - a dry run prints EVERY material in the model with a live use count, which
-#     is the only reliable way to find out what the imports actually brought in.
+# "Also merge others whose name starts the same" covers the import case. When
+# SketchUp imports a component whose material shares a name with an existing one
+# but differs in content, it does NOT reuse yours — it brings its own in under a
+# uniquified name: "Carpet Plush Charcoal 1", "Carpet Plush Charcoal (2)". They
+# all begin with the original, so picking the original and turning that switch on
+# takes the whole family. The dry run lists exactly which ones it caught.
 #
-# Run it dry first and read that table. It is the point of the dry run.
+# Run it dry first and read the table. It is the point of the dry run.
 #
 # WHERE MATERIALS HIDE
 #
@@ -52,9 +53,12 @@ require 'sketchup.rb'
 module WR_MergeMaterials
   PREF = 'WR_MergeMaterials'.freeze
 
+  # from/to are remembered as material NAMES and re-offered next run if those
+  # materials still exist. Everything else is a plain switch.
   DEFAULTS = {
-    'from' => 'Carpet Plush Charcoal*',
-    'to'   => 'Darker Charcoal For Claude',
+    'from' => '',
+    'to'   => '',
+    'fam'  => 'No',
     'del'  => 'Yes',
     'dry'  => 'Yes'
   }.freeze
@@ -75,39 +79,105 @@ module WR_MergeMaterials
     nil
   end
 
-  def self.ask
-    keys = %w[from to del dry]
-    prompts = ['Merge FROM — outdated material(s), comma separated, * allowed',
-               'Merge INTO — the material to keep',
-               'Delete the emptied materials afterwards',
-               'Dry run — count only, change nothing']
-    defaults = keys.map do |k|
-      v = read_pref(k)
-      v.empty? ? DEFAULTS[k] : v
+  # YOU PICK THE MATERIALS, YOU DO NOT TYPE THEM.
+  #
+  # Typing a name was the original design and it cost two failed runs: the tray
+  # shows display_name, the API matched on name, and the two differ for imported
+  # materials — so a name copied correctly off the screen still found nothing.
+  # A dropdown built FROM THE MODEL cannot be wrong about a name, because the
+  # label is only ever a label: it maps straight back to the Material object it
+  # was built from, and nothing is ever parsed out of it again.
+  #
+  # The cost is that a dropdown takes no wildcard. That is what the "starts the
+  # same" switch replaces — SketchUp uniquifies an imported material by
+  # appending to the name ("Carpet Plush Charcoal 1", "... (2)"), so the family
+  # is exactly the set that begins with the one you picked.
+  def self.label_for(m, uses)
+    n = (m.display_name.to_s rescue (m.name.to_s rescue '?'))
+    # UI.inputbox splits its dropdown on "|", so a name containing one would
+    # silently become two entries.
+    "#{n.tr('|', '/')}  —  #{uses} use#{uses == 1 ? '' : 's'}"
+  end
+
+  def self.ask(model, counts)
+    mats = model.materials.to_a
+    if mats.empty?
+      UI.messagebox("This model has no materials.\n\nNothing to merge.")
+      return nil
     end
-    lists = ['', '', 'Yes|No', 'Yes|No']
+
+    # Most-used first: the fabric everything shares is the one you want as the
+    # keeper, and it will be at the top rather than alphabetically buried.
+    ordered = mats.sort_by { |m| [-counts[m.entityID], (m.display_name.to_s rescue '')] }
+    labels  = {}
+    ordered.each do |m|
+      base = label_for(m, counts[m.entityID])
+      # Two materials CAN present the same label — same display name, same use
+      # count — and this model is exactly the case where that happens, since the
+      # duplicates are what we are here to merge. A hash would silently swallow
+      # one of them and it would never appear in the dropdown, so disambiguate.
+      lbl = base
+      k = 2
+      while labels.key?(lbl)
+        lbl = "#{base}  ##{k}"
+        k += 1
+      end
+      labels[lbl] = m
+    end
+    list = labels.keys.join('|')
+
+    # A remembered pick is offered again only if that material is still here.
+    prev_from = labels.keys.find { |l| named?(labels[l], read_pref('from')) }
+    prev_to   = labels.keys.find { |l| named?(labels[l], read_pref('to')) }
+
+    prompts = ['Merge FROM — the outdated material',
+               'Also merge others whose name starts the same',
+               'Merge INTO — the material to keep',
+               'Delete the emptied material(s) afterwards',
+               'Dry run — count only, change nothing']
+    defaults = [prev_from || labels.keys.first,
+                read_pref('fam').empty? ? 'No' : read_pref('fam'),
+                prev_to || labels.keys.first,
+                read_pref('del').empty? ? 'Yes' : read_pref('del'),
+                read_pref('dry').empty? ? 'Yes' : read_pref('dry')]
+    lists = [list,        # from — every material in the model
+             'No|Yes',    # fam
+             list,        # to   — same list
+             'Yes|No',    # del
+             'Yes|No']    # dry
     res = UI.inputbox(prompts, defaults, lists, 'Merge Materials')
     return nil unless res
-    cfg = {}
-    keys.each_with_index { |k, i| cfg[k] = res[i].to_s.strip }
-    return nil if cfg['to'].empty?
-    keys.each { |k| write_pref(k, cfg[k]) }
-    cfg
+
+    from = labels[res[0]]
+    to   = labels[res[2]]
+    if from.nil? || to.nil?
+      UI.messagebox("Could not resolve that pick back to a material.\n\n" \
+                    'Re-run — the material list may have changed underneath the dialog.')
+      return nil
+    end
+    if from.entityID == to.entityID
+      UI.messagebox("FROM and INTO are the same material.\n\nNothing to do.")
+      return nil
+    end
+
+    # Names, not labels, are remembered — a label carries a use count that will
+    # be different next time and would never match again.
+    write_pref('from', (from.display_name.to_s rescue ''))
+    write_pref('to',   (to.display_name.to_s rescue ''))
+    %w[fam del dry].each_with_index { |k, i| write_pref(k, res[[1, 3, 4][i]].to_s) }
+
+    { 'from' => from, 'to' => to,
+      'fam' => res[1].to_s.downcase.start_with?('y'),
+      'del' => res[3].to_s.downcase.start_with?('y'),
+      'dry' => res[4].to_s.downcase.start_with?('y') }
+  end
+
+  def self.named?(m, want)
+    return false if want.to_s.empty?
+    names_of(m).any? { |n| n.casecmp(want.to_s).zero? }
   end
 
   # ----------------------------------------------------------------- matching --
-
-  # "Carpet Plush Charcoal*" -> /\ACarpet\ Plush\ Charcoal.*\z/i
-  # Everything except * is escaped, so brackets and # in a real material name
-  # cannot turn into regex syntax and match something unintended.
-  def self.pattern(spec)
-    parts = spec.to_s.split('*', -1).map { |p| Regexp.escape(p) }
-    Regexp.new('\A' + parts.join('.*') + '\z', Regexp::IGNORECASE)
-  end
-
-  def self.patterns(spec)
-    spec.to_s.split(',').map(&:strip).reject(&:empty?).map { |s| pattern(s) }
-  end
 
   # A MATERIAL HAS TWO NAMES AND THEY ARE NOT ALWAYS THE SAME.
   #
@@ -124,13 +194,19 @@ module WR_MergeMaterials
     []
   end
 
-  def self.matching(model, spec, keeper)
-    pats = patterns(spec)
-    return [] if pats.empty?
+  # The picked material, plus — when the family switch is on — everything whose
+  # name BEGINS with it. That is precisely how SketchUp uniquifies an imported
+  # material it will not merge with an existing one: it appends. "Carpet Plush
+  # Charcoal" therefore catches "Carpet Plush Charcoal 1" and
+  # "Carpet Plush Charcoal (2)" and nothing else, without a wildcard to get
+  # wrong. The keeper is excluded by identity, so it can never eat itself.
+  def self.family_of(model, from, keeper)
     keep_id = (keeper.entityID rescue nil)
+    stems = names_of(from).map(&:downcase)
     model.materials.to_a.select { |m|
-      next false if keep_id && (m.entityID rescue nil) == keep_id
-      names_of(m).any? { |n| pats.any? { |p| p =~ n } }
+      next false if (m.entityID rescue nil) == keep_id
+      next true  if m.entityID == from.entityID
+      names_of(m).any? { |n| stems.any? { |s| n.downcase.start_with?(s) } }
     }
   end
 
@@ -221,38 +297,41 @@ module WR_MergeMaterials
       return
     end
 
-    cfg = ask
-    return if cfg.nil?
-    dry = cfg['dry'].to_s.downcase.start_with?('y')
-    del = cfg['del'].to_s.downcase.start_with?('y')
+    # The census runs BEFORE the dialog, because the dropdown shows a use count
+    # beside every material and that is most of what makes the pick obvious —
+    # the fabric everything shares is the one with tens of thousands of uses.
+    Sketchup.status_text = 'Merge Materials: counting where every material is used...'
+    counts = census(model)
+    Sketchup.status_text = ''
 
-    # The keeper is matched the same forgiving way the victims are — on either
-    # name, ignoring case — because typing it exactly is the same problem.
-    kpat   = pattern(cfg['to'])
-    keeper = model.materials.to_a.find { |m| names_of(m).any? { |n| kpat =~ n } }
-    counts  = census(model)
-    victims = matching(model, cfg['from'], keeper)
+    cfg = ask(model, counts)
+    return if cfg.nil?
+    dry     = cfg['dry']
+    del     = cfg['del']
+    keeper  = cfg['to']
+    victims = cfg['fam'] ? family_of(model, cfg['from'], keeper) : [cfg['from']]
     doomed  = victims.map { |m| m.entityID }
 
     puts ''
     puts '=' * 78
     puts "MERGE MATERIALS#{dry ? '  —  DRY RUN, nothing will be changed' : ''}"
     puts "  model    #{model.title.to_s.empty? ? '(unsaved)' : model.title}"
-    puts "  from     #{cfg['from'].inspect}"
-    puts "  into     #{cfg['to'].inspect}#{keeper ? " -> #{keeper.display_name}" : '   *** NOT IN THIS MODEL'}"
+    puts "  from     #{cfg['from'].display_name}#{cfg['fam'] ? '  + everything whose name starts the same' : ''}"
+    puts "  into     #{keeper.display_name}"
     puts '=' * 78
     puts ''
-    # Names are printed with inspect, so a trailing space or an odd character
-    # shows as "Carpet Plush Charcoal " instead of looking identical to what you
-    # typed. display_name is printed separately whenever it differs from name —
-    # the tray shows you one and the API matches the other.
+    # Names print with inspect, so a trailing space or an odd character shows as
+    # "Carpet Plush Charcoal " instead of looking identical to its neighbour.
+    # display_name gets its own column whenever it differs from name — the tray
+    # shows you one and the API used to match the other, which is what made the
+    # first two runs of this script find nothing.
     puts '  EVERY MATERIAL IN THIS MODEL, by how many things use it:'
     puts format('    %-40s %-24s %6s', 'NAME (as the API sees it)', 'TRAY NAME if different', 'USES')
     puts '    ' + '-' * 76
     model.materials.to_a.sort_by { |m| [-counts[m.entityID], m.display_name.to_s] }.each do |m|
       nm = (m.name.to_s rescue '')
       dn = (m.display_name.to_s rescue '')
-      mark = if keeper && m.entityID == keeper.entityID then ' <- KEEP'
+      mark = if m.entityID == keeper.entityID then ' <- KEEP'
              elsif doomed.include?(m.entityID) then ' <- MERGE'
              else ''
              end
@@ -260,27 +339,6 @@ module WR_MergeMaterials
                   nm.inspect, (dn == nm ? '' : dn.inspect), counts[m.entityID], mark)
     end
     puts ''
-
-    if keeper.nil?
-      puts "  *** \"#{cfg['to']}\" is not a material in this model. Nothing done."
-      puts '  *** Copy the name exactly from the table above.'
-      puts ''
-      UI.messagebox("\"#{cfg['to']}\" is not a material in this model.\n\n" \
-                    'The Ruby Console lists every material there is — copy the name from there.')
-      return
-    end
-
-    if victims.empty?
-      puts "  Nothing matches #{cfg['from'].inspect}. Nothing done."
-      puts '  The table above prints names with inspect, so a trailing space or'
-      puts '  an odd character is visible rather than invisible. Copy a NAME'
-      puts '  column entry, drop the quotes, and add * if you want the family.'
-      puts ''
-      UI.messagebox("Nothing matches #{cfg['from'].inspect}.\n\n" \
-                    "The Ruby Console lists every material with its exact name.\n" \
-                    'Copy from the NAME column, and try adding * on the end.')
-      return
-    end
 
     puts "  MERGING #{victims.length} material(s) into \"#{keeper.display_name}\":"
     victims.each { |m| puts format('    %-46s %d use(s)', m.display_name.to_s, counts[m.entityID]) }
@@ -293,7 +351,7 @@ module WR_MergeMaterials
       puts '  DRY RUN — nothing was changed. Set Dry run to No to do it.'
       puts ''
       UI.messagebox("Dry run: #{victims.length} material(s), #{total(tally)} " \
-                    "assignment(s) would move to \"#{cfg['to']}\".\n\nSee the Ruby Console.")
+                    "assignment(s) would move to \"#{keeper.display_name}\".\n\nSee the Ruby Console.")
       return
     end
 
@@ -384,7 +442,7 @@ module WR_MergeMaterials
     end
 
     puts ''
-    UI.messagebox("Merged into \"#{cfg['to']}\".\n\n" \
+    UI.messagebox("Merged into \"#{keeper.display_name}\".\n\n" \
                   "#{total(tally)} assignment(s) moved" \
                   "#{left.zero? ? ', verified clean' : ", #{left} SURVIVED — see the console"}.\n\n" \
                   'Ctrl+Z undoes the whole thing.')
