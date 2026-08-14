@@ -498,7 +498,15 @@ module WR_Deck
       inst = nil
       begin
         inst = parent.entities.add_instance(defn, tr)
-        inst.name = "#{t[:part][:file]}#{half ? ' (turned)' : ''}#{flip ? ' (flipped)' : ''}" if inst
+        # The part's own name, and nothing else.
+        #
+        # This carried " (turned)" and " (flipped)" while the orientation was
+        # being worked out, so a wrong panel was visible in the Outliner without
+        # measuring. That is diagnostic scaffolding, and it does not belong in a
+        # model that gets exported and read by other people — an instance called
+        # "STD7224FL SIDE R (turned)" invites the question "turned by whom, and
+        # is that a problem". The console line below still reports it.
+        inst.name = t[:part][:file] if inst
         placed += 1
       rescue StandardError => e
         warn << "#{t[:part][:file]}: place failed, #{e.class}: #{e.message}"
