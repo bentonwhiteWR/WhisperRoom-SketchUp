@@ -53,8 +53,13 @@ module WR_Deck
   #
   # remove_const first gets both halves: the value updates on reload AND there is
   # no warning. Anything meant to be TUNED must be in this list.
-  %w[INSET DECK_TOP_Z WALL_H SIDE_R_SMALL_WALL_AT_LOW_END
-     LOW_END_PANEL_IS_TURNED TOL NAME ORIGIN Z_AXIS X_AXIS].each do |c|
+  # The two dead orientation constants stay in this list on purpose: an older
+  # copy of them may still be sitting in a running session's memory, and
+  # removing them here clears it rather than leaving a stale value that nothing
+  # reads but everything remembers.
+  %w[INSET DECK_TOP_Z WALL_H TOL NAME ORIGIN Z_AXIS X_AXIS
+     BIG_GAP SMALL_GAP GAP_TOL
+     SIDE_R_SMALL_WALL_AT_LOW_END LOW_END_PANEL_IS_TURNED].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
 
@@ -82,48 +87,128 @@ module WR_Deck
   # is only the fallback.
   WALL_H = 81.0
 
-  # WHICH END OF ITS OWN RUN A "SIDE R" PANEL PUTS THE SMALL WALL AT.
+  # The two orientation constants that used to live here are GONE, and their
+  # absence is the point.
   #
-  # Not derivable. STD6042FL SIDE L and SIDE R measure identically on every
-  # metric — box, face heights, areas, bracket extent — because they are mirror
-  # images, and a mirror preserves all of those.
+  # LOW_END_PANEL_IS_TURNED and SIDE_R_SMALL_WALL_AT_LOW_END were each flipped
+  # four times across an evening, and every flip fixed one panel and broke
+  # another, because neither was a fact about the world — they were both
+  # stand-ins for a measurement nobody had taken.
   #
-  # So: build one booth and look. Which is what happened — on MDL 7272 S the
-  # LARGE panel came back needing the half turn and the small one not, i.e. the
-  # opposite of what this said. Flipped to false 2026-08-14 on that evidence.
-  # It resolves every model, so one observation settles all of them.
-  SIDE_R_SMALL_WALL_AT_LOW_END = false
-
-  # WHICH END OF THE RUN GETS THE TURNED PANEL.
-  #
-  # Panels at opposite ends of a run necessarily face opposite ways — each puts
-  # its bracket edge outward at its own end — so exactly one of the two is
-  # turned relative to the other. That is inherent to a row of panels, and it is
-  # the thing I kept failing to separate from the handing.
-  #
-  # Measured on MDL 7272 S, which tiles 48 + 24:
-  #
-  #   48 at the LOW end,  turned      -> correct
-  #   24 at the HIGH end, NOT turned  -> correct
-  #
-  # Inverting this rotates EVERY panel by 180 — the turned one becomes unturned
-  # and the unturned one turned — which is what "all four need to rotate 180"
-  # asks for. Set false on that report, 2026-08-14.
-  #
-  # NOTE THE CONTRADICTION, because it matters if this comes back again. With
-  # the 48 turned and the 24 turned, the 48 was called correct. With the 48
-  # turned and the 24 unturned, all four were called wrong — yet nothing about
-  # the 48 changed between those two runs. Either the 48 was misread once, or
-  # something outside this constant moves with it. If a flip does not settle it,
-  # stop flipping: read the per-tile console lines, which name the part, the
-  # turn and the exact extents.
-  #
-  # This replaced a rule that turned a panel only when its wanted HAND was
-  # missing from the folder, which conflated two independent things and is why
-  # fixing the 48 broke the 24 and fixing the 24 broke the 48.
-  LOW_END_PANEL_IS_TURNED = false
+  # The measurement exists: hinge gaps of 24.125 and 21.125 in name the wall
+  # that drops into each slot, so the panel states its own orientation. See
+  # big_wall_fraction and layout_big_on_low? — both sides derived, nothing to
+  # tune, and correct whether or not the layout is fixed.
 
   TOL = 0.35   # a tiling this far off the footprint is wrong
+
+  # ------------------------------------------------------- reading the part --
+  #
+  # THE PANEL SAYS WHICH WAY ROUND IT GOES. No constant, no table.
+  #
+  # Hinges sit either side of each wall along the panel's LONG edge, and the gap
+  # between a pair names the wall that drops into it:
+  #
+  #     2' 1/8   (24.125)  -> the 46 in wall   (40 in on the 60 series)
+  #     1' 9 1/8 (21.125)  -> the 22 in wall   (16 in on the 60 series)
+  #
+  # Measured on STD7248FL SIDE L and STD7224FL SIDE R — identical patterns, both
+  # with the 24.125 gap centred at 33% along and the 21.125 at 67%. So the large
+  # wall belongs on the panel's LOW half.
+  #
+  # Only the four booths with a split wall run have two different walls on one
+  # side and therefore an orientation to get wrong: 6060, 6084, 7272, 7296.
+  # Everything else is symmetric and this returns nil, meaning "no preference".
+  BIG_GAP   = 24.125
+  SMALL_GAP = 21.125
+  GAP_TOL   = 1.0     # the two are 3 in apart, so this cannot match both
+
+  # Fraction along the panel's long axis at which the BIG wall's slot sits.
+  # nil when the panel has no such pair — most of them.
+  def self.big_wall_fraction(defn, rim_z)
+    runs = hinge_runs(defn, rim_z)
+    return nil if runs.length < 2
+    bb = defn.bounds
+    long_y = (bb.max.y - bb.min.y) >= (bb.max.x - bb.min.x)
+    lo  = (long_y ? bb.min.y : bb.min.x).to_f
+    len = ((long_y ? bb.max.y - bb.min.y : bb.max.x - bb.min.x)).to_f
+    return nil if len <= 0
+    runs.each_cons(2) do |a, b|
+      gap = b[0] - a[1]
+      next unless (gap - BIG_GAP).abs < GAP_TOL
+      return (((a[1] + b[0]) / 2.0) - lo) / len
+    end
+    nil
+  end
+
+  # Hinges are the geometry standing proud of the RIM. Measuring from the deck
+  # instead sweeps in the rim itself, which runs the full length of the panel
+  # and merges every hinge into one span — that mistake cost an evening.
+  def self.hinge_runs(defn, rim_z)
+    bb = defn.bounds
+    long_y = (bb.max.y - bb.min.y) >= (bb.max.x - bb.min.x)
+    spans = []
+    walk(defn.entities, Geom::Transformation.new) do |f, tr|
+      begin
+        pts = f.vertices.map { |v| v.position.transform(tr) }
+        next if pts.all? { |p| p.z.to_f <= rim_z + 0.02 }
+        vals = pts.map { |p| (long_y ? p.y : p.x).to_f }
+        spans << [vals.min, vals.max]
+      rescue StandardError
+        next
+      end
+    end
+    return [] if spans.empty?
+    spans.sort!
+    runs = [spans.first.dup]
+    spans.each do |a, b|
+      if a <= runs.last[1] + 0.05
+        runs.last[1] = b if b > runs.last[1]
+      else
+        runs << [a, b]
+      end
+    end
+    runs.reject { |a, b| (b - a) < 0.25 }
+  rescue StandardError
+    []
+  end
+
+  # The rim: the highest flat level holding any real area.
+  def self.rim_z(defn)
+    tally = flat_levels(defn)
+    return nil if tally.empty?
+    peak = tally.values.max.to_f
+    tally.select { |_z, a| a >= peak * 0.05 }.keys.max
+  end
+
+  # Where the layout puts the BIG wall on the cross axis: low half or high half.
+  #
+  # Compared against the panel's own answer, and a disagreement is what the half
+  # turn is for. Deriving BOTH sides means this stays right if the layout is
+  # corrected later — which it needs to be, since on all four affected booths
+  # the layout currently puts the big wall on the HIGH half and every panel
+  # expects it LOW.
+  def self.layout_big_on_low?(spec, along_is_x)
+    span = along_is_x ? spec[:h].to_f : spec[:w].to_f
+    best = nil
+    (spec[:parts] || []).each do |p|
+      next unless p[:k] == 'panel'
+      xs = p[:poly].map { |q| q[0].to_f }
+      ys = p[:poly].map { |q| q[1].to_f }
+      dx = xs.max - xs.min
+      dy = ys.max - ys.min
+      # A wall on the cross axis runs the cross way.
+      cross_run = along_is_x ? dy : dx
+      other     = along_is_x ? dx : dy
+      next unless cross_run > other
+      mid = along_is_x ? (ys.min + ys.max) / 2.0 : (xs.min + xs.max) / 2.0
+      best = [cross_run, mid] if best.nil? || cross_run > best[0]
+    end
+    return nil if best.nil? || span <= 0
+    best[1] < span / 2.0
+  rescue StandardError
+    nil
+  end
 
   # ------------------------------------------------------------- catalogue --
 
@@ -261,22 +346,26 @@ module WR_Deck
   # round" and meant fixing one end broke the other. The turn is decided by
   # POSITION now — see LOW_END_PANEL_IS_TURNED — and this flag is reported so a
   # substitution is visible, nothing more.
-  def self.pick(pool, width, want, at_low_end)
+  # HAND SELECTION NO LONGER DECIDES ANYTHING, AND THAT IS DELIBERATE.
+  #
+  # It used to pick L or R from a constant and then turn the panel when the
+  # wanted hand was absent, which tangled "which file" with "which way round".
+  # Orientation is now measured off the part's own hinges, so whichever hand is
+  # in the folder gets turned to suit.
+  #
+  # The 72 series settles the point: the folder holds exactly ONE hand per size —
+  # 7248 SIDE L and 7224 SIDE R, floors and ceilings alike — so on an
+  # MDL 7272 S there was never a choice to make. `substituted` is reported when
+  # more than one hand exists and the first was taken, purely so the console
+  # says so.
+  def self.pick(pool, width, want, _at_low_end)
     same = pool.select { |c| (c[:along] - width).abs < TOL }
     return [nil, false] if same.empty?
     byrole = same.select { |c| c[:role] == want }
     byrole = same if byrole.empty?
-
     handed = byrole.select { |c| !c[:hand].empty? }
     return [byrole.first, false] if handed.empty?
-
-    want_r = at_low_end == SIDE_R_SMALL_WALL_AT_LOW_END
-    hand   = want_r ? 'R' : 'L'
-    hit    = handed.find { |c| c[:hand] == hand }
-    return [hit, false] if hit
-
-    # The hand we need is not in the folder. Take the other one and reflect it.
-    [handed.first, true]
+    [handed.first, handed.length > 1]
   end
 
   # ----------------------------------------------------------- measurement --
@@ -470,9 +559,20 @@ module WR_Deck
       tr = Geom::Transformation.new
       # Modelled the other way up — turn it over about its own long axis.
       tr = Geom::Transformation.rotation(ORIGIN, X_AXIS, 180.degrees) * tr if flip
-      # Panels at opposite ends of the run face opposite ways, so exactly one end
-      # is turned. Decided by POSITION, never by which hand happened to exist.
-      half = (t[:at_low_end] == LOW_END_PANEL_IS_TURNED)
+      # TURN DECIDED BY THE PART AGAINST THE LAYOUT, not by a constant.
+      #
+      # The panel's hinge gaps say which half wants the big wall; the layout says
+      # which half has it. Disagree, and the panel turns. Both sides measured, so
+      # this stays right if either changes — and the layout on all four affected
+      # booths is currently the one that is wrong.
+      #
+      # Panels with no such pair — every symmetric booth — return nil and are
+      # placed as modelled, which is what LOW_END_PANEL_IS_TURNED was really
+      # doing before, badly, for everything.
+      frac = big_wall_fraction(defn, rim_z(defn) || bb.min.z.to_f)
+      want_low = layout_big_on_low?(spec, t[:along_is_x])
+      half = false
+      half = ((frac < 0.5) != want_low) unless frac.nil? || want_low.nil?
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if half
       # Booth tiles along its own Y rather than X.
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
