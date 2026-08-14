@@ -1,5 +1,45 @@
 # DEVLOG
 
+## 2026-08-14 — the E/W wall order is fixed, in ASSIGN rather than gen-booth.py
+
+The big wall now sits at the door end on all four split-run booths. **7272 is
+confirmed built correctly by Benton**; 6060, 6084 and 7296 are the same change,
+unbuilt.
+
+This closes the open item below, and it was done in `ASSIGN` in
+`build-booth-components.rb` — **not** in `gen-booth.py` as that item proposed.
+Swapping the two component names end-for-end leaves the generated layout
+untouched and lets `rebalance_walls` do the work it already existed for: it
+re-walks each wall from the real part widths, and `short + 2 + big` sums to the
+same interior run as `big + 2 + short`. Simulated against the layout data, all
+eight walls close on their original end with **0.00 in** error and the seam seal
+shifts **+24 in** on every one of them — 46/22 on the 7272 and 7296, 40/16 on
+the 6060 and 6084.
+
+Two things worth keeping:
+
+- **The tag has to follow the component, not the slot's `:sk`.** The swap puts a
+  vent in a slot the layout data calls SOLID, so slot-kind tagging landed the
+  vent on `WR-Booth-Walls` and a plain panel on `WR-Booth-Vent` — hiding the
+  vent tag would have hidden the wrong part. Adding `:sk` as a *fallback* does
+  not help either; it re-tags the very slots the swap emptied. The component
+  name is always informative, because `guess_component` builds `<w>VNT` and
+  `Right<w>Door` from the kind.
+- **An unspecified vent stays unspecified.** 6060's relocated vent is written as
+  `40VNT` — the exact name the guess already produced — not `40VNT_VSS`.
+  Choosing VSS while moving a slot would be inventing a customer's choice.
+
+6060 and 6084 list only their E/W slots; N and S fall through to
+`guess_component`, which resolves to `40VNT`, `Right40Door` and `40PanelSolid`,
+all confirmed present in `P:/Sketchup/NewMasterComponentList`.
+
+### Next
+
+1. Build `MDL 96168 S` — the deck confirmation still owed, and a useful control:
+   its E/W is a symmetric 46+46, so the swap is a no-op there.
+2. Build 6060, 6084 and 7296 to confirm the swap the way 7272 was confirmed.
+3. `MDL 102126 S` is the EFS-vent regression check.
+
 ## 2026-08-14 — floors and ceilings, and a long detour
 
 Floors and ceilings now build. `scripts/wr-deck.rb` reads the catalogue from the
@@ -72,8 +112,10 @@ undid the one already confirmed correct — restored in `b6aa682`.
 ### Next
 
 1. Confirm the restored deck on `MDL 7272 S`, then `MDL 96168 S`.
-2. Reverse the E/W wall run order for the four split-run booths in
-   `gen-booth.py`, so the big wall sits against the door end.
+2. ~~Reverse the E/W wall run order for the four split-run booths in
+   `gen-booth.py`, so the big wall sits against the door end.~~ **Done** in
+   `ASSIGN` instead — see the entry at the top of this file. Do not redo it in
+   `gen-booth.py`, or the two reversals would cancel out.
 3. `DECK_TOP_Z` is 0.0, so the floor hangs below the wall base rather than the
    walls rising to sit on it. Physically the walls should rise — one commit,
    both changes, or they float.

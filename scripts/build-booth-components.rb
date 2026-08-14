@@ -92,26 +92,75 @@ module WR_BuildBoothComponents
   # it does not say WHICH vent or WHICH door, and that is a customer choice. This
   # is where a decoded booth-builder link's "a" field will land once that route
   # is wired up — same shape, slot id to component name.
+  #
+  # A booth may list only the slots that need saying. Anything absent falls to
+  # guess_component and is reported as guessed, which is the honest outcome for a
+  # vent or a door nobody has specified — picking VSS over plain here would be
+  # inventing a customer's choice.
+  #
+  # ============================================================================
+  # THE E/W SWAP, AND WHY IT IS DONE HERE RATHER THAN IN THE LAYOUT
+  #
+  # The generated layout puts the BIG run on the high half of each E and W wall
+  # and the short one on the low half, on all four split-run booths — 6060, 6084,
+  # 7272, 7296. The door is on S at the low end, and the deck panels' own hinge
+  # slots (24.125 in) sit on the LOW half. So the panels have always disagreed
+  # with the layout, and the panels are right: the big wall belongs at the door
+  # end. Benton reported the same thing independently.
+  #
+  # Swapping the two names end-for-end fixes it without touching generated data.
+  # The slot polygons still carry the module widths, so the big part lands in the
+  # short slot and vice versa — which is precisely what rebalance_walls exists
+  # for. It re-walks each wall from the real part widths, and short+2+big sums to
+  # the same interior run as big+2+short, so the wall closes exactly and the seam
+  # seal shifts along by the difference. That shift is 24 in on all four booths:
+  # 46/22 on the 7272 and 7296, 40/16 on the 6060 and 6084.
+  #
+  # All four are swapped below. Every other model is symmetric on E and W — the
+  # 96168 is 46+46, the 102126 is 40+16+40 — so there is nothing to reverse.
+  # ============================================================================
   ASSIGN = {
+    # 6060 — E and W run 40 + seal + 16. E0 is the layout's vent slot, so the
+    # vent moves with the 40 to the door end. '40VNT' is not a choice being made
+    # here: it is the exact name guess_component already produced for that slot,
+    # written out only because the slot is being relocated.
+    'MDL 6060 S' => {
+      'E0' => '16PanelSolid',
+      'E1' => '40VNT',
+      'W0' => '16PanelSolid',
+      'W1' => '40PanelSolid'
+    },
+    # 6084 — same 40 + seal + 16 runs, and both walls are plain solids: this
+    # booth's vents are both on N. The swap moves only the seam.
+    'MDL 6084 S' => {
+      'E0' => '16PanelSolid',
+      'E1' => '40PanelSolid',
+      'W0' => '16PanelSolid',
+      'W1' => '40PanelSolid'
+    },
     'MDL 7272 S' => {
       'N0' => '46VNT_VSS',        # vent wall, VSS
       'N1' => '22PanelSolid',
       'S0' => 'Right46Door',      # right-hand door, at the data's own end of the wall
       'S1' => '22PanelSolid',
-      # E and W are swapped end-for-end against the layout's slot order: the 46 in
-      # part sits in slot 1 (the y 2..24 end) and the 22 in panel in slot 0 (y
-      # 26..72). Benton's call — the window and the vent both move to the other
-      # end of their wall, and they stay opposite each other.
-      #
-      # The slot polygons still carry the module widths, so a 46 in part is in a
-      # 22 in slot and vice versa. That is exactly what rebalance_walls exists
-      # for: it re-walks each wall from real part widths, and 22+2+46 sums to the
-      # same 70 in as 46+2+22, so the wall closes and the seal shifts 24 in.
-      # Nothing here edits the layout data.
+      # E and W swapped: the 46 in part takes slot 1 (y 2..24), the 22 in panel
+      # slot 0 (y 26..72). Window and vent stay opposite each other.
       'E0' => '22PanelSolid',
       'E1' => '46VNT_VSS',        # second vent slot, VSS
       'W0' => '22PanelSolid',
       'W1' => '46Panel3236WDO'    # 32x36 window, opposite the E vent
+    },
+    # 7296 carries the identical 46/22 inversion on E and W. Both walls are plain
+    # solids here — no window or vent has been specified for this booth — so the
+    # swap moves only the seam, from 24 in off the north end to 24 in off the
+    # door end, and puts the 46 in run where the deck hinges expect it. N and S
+    # are deliberately absent: they resolve by guess to 46VNT, Right46Door and
+    # 46PanelSolid, all of which exist in the library.
+    'MDL 7296 S' => {
+      'E0' => '22PanelSolid',
+      'E1' => '46PanelSolid',
+      'W0' => '22PanelSolid',
+      'W1' => '46PanelSolid'
     }
   }.freeze
 
