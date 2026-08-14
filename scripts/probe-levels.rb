@@ -108,6 +108,52 @@ module WR_ProbeLevels
     end
   end
 
+  # ---------------------------------------------------------------- brackets --
+  #
+  # WHERE THE HINGE BRACKETS SIT ALONG THE PANEL, which is what decides SIDE L
+  # from SIDE R.
+  #
+  # A SIDE panel's wall run is one large wall (40 or 46 in) plus one small one
+  # (16 or 22). The brackets land where those walls land, so the pattern is
+  # asymmetric, and which END the small one is at IS the difference between L
+  # and R. Reading it off the geometry means the handing is derived per part
+  # rather than tabulated — and a tabulated one would have to be re-checked
+  # every time a part is re-exported.
+  #
+  # Brackets are the geometry standing proud of the deck, so: every face above
+  # the slab, projected onto the panel's long axis, clustered into runs.
+  def self.brackets(defn, deck_z)
+    long_is_y = (defn.bounds.max.y - defn.bounds.min.y) >=
+                (defn.bounds.max.x - defn.bounds.min.x)
+    spans = []
+    each_face(defn.entities, Geom::Transformation.new) do |f, tr|
+      begin
+        pts = f.vertices.map { |v| v.position.transform(tr) }
+        next if pts.all? { |p| p.z.to_f <= deck_z + 0.02 }
+        vals = pts.map { |p| (long_is_y ? p.y : p.x).to_f }
+        spans << [vals.min, vals.max]
+      rescue StandardError
+        next
+      end
+    end
+    return [long_is_y, []] if spans.empty?
+
+    # Merge overlapping spans into runs. Two faces of the same bracket overlap;
+    # two different brackets do not.
+    spans.sort!
+    runs = [spans.first.dup]
+    spans.each do |a, b|
+      if a <= runs.last[1] + 0.05
+        runs.last[1] = b if b > runs.last[1]
+      else
+        runs << [a, b]
+      end
+    end
+    [long_is_y, runs.reject { |a, b| (b - a) < 0.25 }]
+  rescue StandardError
+    [true, []]
+  end
+
   def self.levels(defn)
     up = Geom::Vector3d.new(0, 0, 1)
     tally = Hash.new(0.0)
@@ -170,8 +216,15 @@ module WR_ProbeLevels
         next if defn.nil?
         tally, total = levels(defn)
         bb = defn.bounds
+        # The deck is the highest level holding a near-full share; brackets are
+        # whatever stands above it.
+        peak = tally.values.max.to_f
+        deck = tally.select { |_z, a| a >= peak * 0.6 }.keys.max
+        deck = bb.min.z.to_f if deck.nil?
+        long_is_y, runs = brackets(defn, deck)
         rows << { :file => File.basename(path, '.skp'), :tally => tally,
-                  :total => total, :bb => bb }
+                  :total => total, :bb => bb, :deck => deck,
+                  :long_is_y => long_is_y, :runs => runs }
       rescue StandardError => e
         puts format('  %-28s FAILED %s: %s', File.basename(path), e.class, e.message)
       end
@@ -206,6 +259,28 @@ module WR_ProbeLevels
       end
       puts format('        (%d level(s) under %d%% of the largest ignored)',
                   small, (MIN_SHARE * 100).round) if small > 0
+
+      # The bracket runs, and the ONE number that decides SIDE L from SIDE R:
+      # whether the biggest gap between brackets sits nearer the low or the high
+      # end of the panel's long axis. That gap is the wall seam, and the short
+      # side of it is where the small wall (16/22) goes.
+      runs = r[:runs] || []
+      unless runs.empty?
+        axis = r[:long_is_y] ? 'Y' : 'X'
+        len  = r[:long_is_y] ? (bb.max.y - bb.min.y).to_f : (bb.max.x - bb.min.x).to_f
+        lo   = r[:long_is_y] ? bb.min.y.to_f : bb.min.x.to_f
+        puts format('        above deck (z > %.4f), along %s over %.2f in:', r[:deck], axis, len)
+        runs.each { |a, b| puts format('           %8.3f .. %-8.3f  (%.3f wide, %.0f%% along)',
+                                       a, b, b - a, 100.0 * ((a + b) / 2.0 - lo) / len) }
+        if runs.length >= 2
+          gaps = []
+          runs.each_cons(2) { |x, y| gaps << [y[0] - x[1], (x[1] + y[0]) / 2.0] }
+          biggest = gaps.max_by { |w, _c| w }
+          at = 100.0 * (biggest[1] - lo) / len
+          puts format('        -> widest gap %.3f in at %.0f%% along  => small wall is on the %s end',
+                      biggest[0], at, at < 50 ? 'LOW' : 'HIGH')
+        end
+      end
       puts ''
     end
 

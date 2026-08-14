@@ -142,11 +142,40 @@ missing. Worth asking before a build depends on it.
 
 ---
 
-## Still unconfirmed
+## What SIDE L and SIDE R actually mean
 
-1. **Panel order across the booth.** SIDE at the ends, CTR in the middle, per
-   Benton — the packing-list counts give how many of each — but the L/R handing
-   has not been checked against a real booth.
+**They are not about the panel. They are about the WALL RUN underneath it.**
+
+Every wall run on a SIDE panel is made of one large wall component (40″ or 46″)
+and one small one (16″ or 22″). The panel carries hinge brackets at the
+positions those two walls land — visible on `STD6042CL SIDE R` as callouts
+reading *16" Wall Placement* and *40" Wall Placement* along one long edge, and
+*40" Wall Placement* along the other.
+
+Because 16 + 40 does not split the run evenly, **the bracket pattern is
+asymmetric**, and which end the small wall sits at is the whole difference
+between L and R. Benton's rule, in his words:
+
+> If the small wall is further away, we use the SIDE R. If the small component
+> was closer to the nearest corner seam seal to us, we would use a SIDE L.
+
+The same applies to the 72 series.
+
+**This does not need a per-model table.** `wr-booth-data.rb` already knows every
+wall run's panel order and lengths, so it already knows which end of each run
+holds the small panel. The handing follows from that.
+
+What it *does* need is one anchor: which end of the panel's own coordinates the
+small-wall bracket sits at, so "small panel at the low end of the run" can be
+turned into "use SIDE L" or "use SIDE R" without guessing. That is measurable —
+the brackets are the geometry standing above the deck — and `probe-levels.rb`
+reports their spans for exactly this purpose. Measure once, write the mapping
+here, and every model follows.
+
+Getting it backwards is not subtle: the brackets miss the wall seams by the
+difference between the large and small panel, so it will be visible immediately.
+
+## Still unconfirmed
 2. **`STDSS FL5` and `STDSS FL8.5` do not exist** although `CL5` and `8.5CL` do.
    Either floors need no seal at those widths, or two parts are missing.
 
