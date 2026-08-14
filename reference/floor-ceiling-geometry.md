@@ -168,7 +168,44 @@ holds the small panel. The handing follows from that.
 What it *does* need is one anchor: which end of the panel's own coordinates the
 small-wall bracket sits at.
 
-### That anchor is NOT measurable. L and R are a mirror pair.
+### The hinge spacing IS the anchor, and it is measurable
+
+Benton, 2026-08-14. On a 72 in panel the hinges sit either side of each wall and
+the gap between a pair says which wall drops into that slot:
+
+| gap | slot |
+|---|---|
+| **2′ 1/8″ (24.125)** | the **46″** wall |
+| **1′ 9 1/8″ (21.125)** | the **22″** wall |
+
+**Read the first figure carefully — it is two FEET and an eighth.** Recorded here
+as 2.125 initially, which is wrong and would match nothing.
+
+Only booths with a split wall run are affected: **6060, 6084, 7272, 7296**.
+
+Customers get this wrong constantly, and the tell is that the hinge pockets do
+not line up. So the panel carries its own orientation and the builder should
+read it rather than be told.
+
+**Both long edges carry the same pattern**, so there is one cue, not two.
+
+### FLOOR AND CEILING HINGES ARE COPLANAR IN PLAN
+
+Also Benton: with the floor directly below the ceiling — as if a wall stood
+between them, floor hinges facing up and ceiling hinges facing down — **the
+hinges land on exactly the same plan positions.**
+
+That is an INVARIANT, and it is worth more than the rule it supports:
+
+- Floor and ceiling of a pair take the **same rotation in plan**. The ceiling is
+  the floor's orientation, turned over vertically. They are never decided
+  independently — which is precisely what was being done, and why the two kept
+  disagreeing with each other.
+- It is a **free correctness check**. After placing a deck, the floor hinges and
+  the ceiling hinges above them must share x and y. If they do not, the
+  orientation is wrong and the model can say so without anyone looking at it.
+
+### The older reading: L and R as an unmeasurable mirror pair
 
 Measured 2026-08-14, `STD6042FL SIDE L` against `STD6042FL SIDE R`:
 

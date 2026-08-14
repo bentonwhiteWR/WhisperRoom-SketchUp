@@ -128,11 +128,18 @@ module WR_ProbeLevels
   #
   # WHAT THE GAPS MEAN, from Benton — this is the whole point of measuring them.
   #
-  # On a 72 in panel the hinges sit at the wall joints, and the SPACING between
-  # them says which wall goes where:
+  # On a 72 in panel the hinges sit either side of each wall, and the SPACING
+  # between a pair says which wall drops into that slot:
   #
-  #     2 1/8 in  (2.125)   -> the slot for the LARGER wall  (46 in)
-  #     1' 9 1/8  (21.125)  -> the slot for the SMALLER wall (22 in)
+  #     2' 1/8   (24.125)  -> the slot for the LARGER wall  (46 in)
+  #     1' 9 1/8 (21.125)  -> the slot for the SMALLER wall (22 in)
+  #
+  # READ THAT FIRST FIGURE CAREFULLY. It is TWO FEET and an eighth, not two and
+  # an eighth. I had it as 2.125 and built the tagging around that, which would
+  # have matched nothing and looked like the gaps were not there.
+  #
+  # The two are only 3 in apart, so the tolerance below has to be tight enough to
+  # tell them apart and no tighter.
   #
   # Customers get this wrong constantly, and the give-away is that the hinge
   # pockets do not line up when the panel is the wrong way round. Which means the
@@ -302,17 +309,17 @@ module WR_ProbeLevels
                                        a, b, b - a, 100.0 * ((a + b) / 2.0 - lo) / len) }
 
         # THE GAPS BETWEEN HINGES ARE THE ANSWER, not the hinges themselves.
-        # 2.125 in marks the 46 in wall's slot, 21.125 in marks the 22 in wall's.
-        # Printed with the named match beside them so the mapping can be
-        # confirmed against the part rather than assumed from a rule of thumb.
+        # 24.125 in is the 46 in wall's slot, 21.125 in the 22 in wall's. Only
+        # 3 in apart, so the tolerance is 1 in — wide enough for bracket
+        # thickness, tight enough that the two cannot both match.
         if runs.length >= 2
           puts '        gaps between them:'
           runs.each_cons(2) do |x, y|
             g  = y[0] - x[1]
             at = 100.0 * ((x[1] + y[0]) / 2.0 - lo) / len
             tag = ''
-            tag = '  <- 2 1/8, the 46 in slot'      if (g - 2.125).abs  < 0.2
-            tag = '  <- 1ft 9 1/8, the 22 in slot'  if (g - 21.125).abs < 0.4
+            tag = "  <- 2'1/8, the 46 in slot"      if (g - 24.125).abs < 1.0
+            tag = "  <- 1'9 1/8, the 22 in slot"    if (g - 21.125).abs < 1.0
             puts format('           %7.3f in at %3.0f%% along%s', g, at, tag)
           end
         end
