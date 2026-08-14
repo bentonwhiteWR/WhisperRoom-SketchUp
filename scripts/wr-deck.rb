@@ -73,6 +73,24 @@ module WR_Deck
   # It resolves every model, so one observation settles all of them.
   SIDE_R_SMALL_WALL_AT_LOW_END = false unless defined?(SIDE_R_SMALL_WALL_AT_LOW_END)
 
+  # A HALF TURN APPLIED TO EVERY DECK PANEL.
+  #
+  # Separate from the handing above, and it exists because the handing could not
+  # explain what came back. On MDL 7272 S the 48 in floor was reported wrong
+  # BOTH ways round: with SIDE R placed unturned, and again with SIDE L placed
+  # unturned after the handing constant was flipped. Two different parts, same
+  # complaint — "the sides are in the center".
+  #
+  # L and R are reflections, so neither is the other turned around. If both are
+  # wrong unturned then the error is not which part was chosen: the whole deck
+  # is seated a half turn off, and my assumption about which way a panel faces
+  # in its own coordinates was simply backwards.
+  #
+  # So this turns every deck panel, and the handing constant continues to decide
+  # WHICH part goes at which end. Two independent things, two independent dials,
+  # which is what the last three rounds were missing.
+  DECK_HALF_TURN = true unless defined?(DECK_HALF_TURN)
+
   TOL = 0.35 unless defined?(TOL)   # a tiling this far off the footprint is wrong
 
   # ------------------------------------------------------------- catalogue --
@@ -421,8 +439,10 @@ module WR_Deck
       tr = Geom::Transformation.new
       # Modelled the other way up — turn it over about its own long axis.
       tr = Geom::Transformation.rotation(ORIGIN, X_AXIS, 180.degrees) * tr if flip
-      # Opposite hand — turn it around, do not reflect it.
-      tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if t[:mirror]
+      # Opposite hand — turn it around, do not reflect it. XOR with the global
+      # half turn, so the two dials compose instead of one cancelling the other.
+      half = t[:mirror] ^ DECK_HALF_TURN
+      tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if half
       # Booth tiles along its own Y rather than X.
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
 
@@ -447,7 +467,7 @@ module WR_Deck
       inst = nil
       begin
         inst = parent.entities.add_instance(defn, tr)
-        inst.name = "#{t[:part][:file]}#{t[:mirror] ? ' (turned)' : ''}#{flip ? ' (flipped)' : ''}" if inst
+        inst.name = "#{t[:part][:file]}#{half ? ' (turned)' : ''}#{flip ? ' (flipped)' : ''}" if inst
         placed += 1
       rescue StandardError => e
         warn << "#{t[:part][:file]}: place failed, #{e.class}: #{e.message}"
@@ -461,7 +481,7 @@ module WR_Deck
       if landed
         puts format('    %-26s%-9s%-9s contact %7.4f  ->  %7.2f %7.2f %7.2f  ' \
                     'to %7.2f %7.2f %7.2f',
-                    t[:part][:file], flip ? ' flipped' : '', t[:mirror] ? ' turned' : '',
+                    t[:part][:file], flip ? ' flipped' : '', half ? ' turned' : '',
                     cz, landed.min.x.to_f, landed.min.y.to_f, landed.min.z.to_f,
                     landed.max.x.to_f, landed.max.y.to_f, landed.max.z.to_f)
       end
