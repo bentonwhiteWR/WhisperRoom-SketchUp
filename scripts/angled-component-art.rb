@@ -473,6 +473,50 @@ module WR_AngledArt
     [wx, wy]
   end
 
+  # ------------------------------------------------------------ file naming --
+  #
+  # A COMPONENT NAME IS NOT A FILENAME, and this exporter used to assume it was.
+  #
+  # `GoPro foam (24"x48")` is a perfectly good component name and an impossible
+  # Windows filename: the inch marks are double quotes, which Windows forbids
+  # outright. view_image just returns false — no exception, no reason — so the
+  # run reported "Written 0, failed 4" with nothing to say why. Every other
+  # exporter here already sanitised; this one never did.
+  #
+  # Same rule as export-component-art.rb and save-scene-components.rb: replace
+  # ONLY what Windows genuinely refuses, and leave spaces, brackets and
+  # ampersands exactly as the component has them, so a file can still be matched
+  # back to its part by eye. Do not "improve" this into slugification — folding
+  # spaces to hyphens once made every file unmatchable against its scene.
+  FORBIDDEN = /[<>:"\/\\|?*\x00-\x1f]/.freeze
+
+  def self.safe_name(name)
+    out = name.to_s.strip.gsub(FORBIDDEN, '-')
+    out = out.sub(/[. ]+\z/, '')      # Windows silently drops a trailing dot or space
+    out.empty? ? 'unnamed' : out
+  end
+
+  def self.renamed?(name)
+    safe_name(name) != name.to_s.strip
+  end
+
+  # write_image returning false says nothing about why. These are the three
+  # reasons it actually happens here, cheapest first.
+  def self.why_failed(path)
+    base = File.basename(path)
+    dir  = File.dirname(path)
+    return "the folder does not exist: #{dir}" unless File.directory?(dir)
+    if base =~ FORBIDDEN
+      return "the filename still contains a character Windows forbids: #{base.inspect}"
+    end
+    if File.exist?(path)
+      return 'the file exists and is open in another program — close it and re-run'
+    end
+    'SketchUp refused the write; check free space and folder permissions'
+  rescue StandardError
+    'reason could not be determined'
+  end
+
   # ------------------------------------------------------------------- style --
 
   LINE_ART = { 'RenderMode' => 1, 'Texture' => false, 'DisplayFog' => false,
@@ -670,9 +714,10 @@ module WR_AngledArt
           f.puts format('  %3d  %-30s  *** %s', i + 1, m[:page].name, m[:bad])
         else
           bb = m[:bounds]
-          f.puts format('  %3d  %-30s -> %-34s %-9s  %.1f x %.1f x %.1f in  [%s]',
+          f.puts format('  %3d  %-30s -> %-34s %-9s  %.1f x %.1f x %.1f in  [%s]%s',
                         i + 1, m[:page].name, m[:name], m[:cams].join(' '),
-                        bb.width.to_f, bb.height.to_f, bb.depth.to_f, m[:how])
+                        bb.width.to_f, bb.height.to_f, bb.depth.to_f, m[:how],
+                        renamed?(m[:name]) ? "  FILE: #{safe_name(m[:name])}" : '')
         end
       end
       f.puts ''
@@ -1014,6 +1059,18 @@ module WR_AngledArt
                       bb.width.to_f, bb.height.to_f, bb.depth.to_f)
         end
       end
+      # A name that cannot be a filename is renamed on the way out, and the
+      # importer matches on FILENAME — so the substitution has to be visible
+      # here, before anything is written, not discovered later in the folder.
+      renamed = measured.reject { |m| m[:bad] }.select { |m| renamed?(m[:name]) }
+      unless renamed.empty?
+        puts ''
+        puts format('  %d component name(s) contain characters Windows forbids in a', renamed.size)
+        puts '  filename. The FILE is renamed; the component is not touched:'
+        renamed.each { |m| puts format('      %-40s ->  %s', m[:name], safe_name(m[:name])) }
+        puts '  Anything matching these by filename downstream needs the new name.'
+      end
+
       unmapped = measured.reject { |m| m[:bad] }.reject { |m| known.key?(m[:name]) }
       unless unmapped.empty?
         puts ''
@@ -1105,7 +1162,7 @@ module WR_AngledArt
           subj.hidden = false
           begin
             m[:cams].each do |c|
-              path = File.join(cfg['dir'], "#{m[:name]}_Iso30_#{c}.png")
+              path = File.join(cfg['dir'], "#{safe_name(m[:name])}_Iso30_#{c}.png")
               if !over && File.exist?(path)
                 puts "  skip  #{File.basename(path)}"
                 next
@@ -1137,6 +1194,7 @@ module WR_AngledArt
               else
                 failed << File.basename(path)
                 puts "  FAIL  #{File.basename(path)}"
+                puts "        #{why_failed(path)}"
               end
             end
           ensure
