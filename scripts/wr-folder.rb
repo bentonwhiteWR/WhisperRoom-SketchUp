@@ -39,10 +39,21 @@
 
 require 'sketchup.rb'
 
+# A LIBRARY THAT IS `load`ed BY ELEVEN SCRIPTS GETS LOADED ELEVEN TIMES.
+#
+# Ruby constants live on the module, so the second `load` re-assigns them and
+# Ruby prints "already initialized constant" for every one. Run two scripts in a
+# session and the console fills with warnings that look like a fault and are
+# not — enough noise to bury a real error underneath it.
+#
+# `unless defined?` makes every load after the first a no-op for constants. The
+# methods are still redefined each time, which is the point of `load`: edit the
+# file and the new code takes effect.
 module WR_Folder
-  PREF   = 'WR_Folders'.freeze
-  BROWSE = 'Browse for a folder...'.freeze
-  MAX    = 8      # more than this and the dropdown is worse than typing
+  PREF   = 'WR_Folders'.freeze unless defined?(PREF)
+  BROWSE = 'Browse for a folder...'.freeze unless defined?(BROWSE)
+  # More than this and the dropdown is worse than typing.
+  MAX    = 8 unless defined?(MAX)
 
   def self.read_list(key)
     Sketchup.read_default(PREF, key.to_s, '').to_s.split('|').reject(&:empty?)

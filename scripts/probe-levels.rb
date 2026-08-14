@@ -49,9 +49,15 @@ module WR_ProbeLevels
   # coplanar halves does not report as two levels 0.0001 apart.
   BIN = 1.0 / 64.0
 
-  # A level holding less area than this is a chamfer or a screw boss, not a
-  # surface anything sits on. Reported separately rather than dropped.
-  MIN_AREA = 4.0     # square inches
+  # A level holding less area than this SHARE of the panel's biggest level is a
+  # chamfer, a screw boss or a bracket, not a surface anything sits on.
+  #
+  # This was an absolute 4 square inches and that was far too generous: on the
+  # 48x96 ceilings it let through levels of 4.6 and 10.3 sq in beside real faces
+  # of 4300, and the "step" it then reported was the gap between two screw
+  # bosses — a confident number describing nothing. A fraction scales with the
+  # panel, which an absolute figure cannot.
+  MIN_SHARE = 0.05
 
   def self.read_pref(k, fallback = '')
     v = Sketchup.read_default(PREF, k, fallback).to_s
@@ -172,22 +178,32 @@ module WR_ProbeLevels
 
     rows.each do |r|
       bb = r[:bb]
-      puts format('  %-30s  box %.3f x %.3f x %.3f in',
+      puts format('  %-30s  box %.3f x %.3f x %.3f in   z %.4f .. %.4f',
                   r[:file], (bb.max.x - bb.min.x).to_f,
-                  (bb.max.y - bb.min.y).to_f, (bb.max.z - bb.min.z).to_f)
-      big = r[:tally].select { |_z, a| a >= MIN_AREA }.sort_by { |z, _a| -z }
+                  (bb.max.y - bb.min.y).to_f, (bb.max.z - bb.min.z).to_f,
+                  bb.min.z.to_f, bb.max.z.to_f)
+      peak = r[:tally].values.max.to_f
+      big = r[:tally].select { |_z, a| a >= peak * MIN_SHARE }.sort_by { |z, _a| -z }
       small = r[:tally].length - big.length
       big.each do |z, a|
-        puts format('        z %8.4f   %9.1f sq in   %s', z, a, bar(a, r[:total]))
+        puts format('        z %8.4f   %9.1f sq in  (%3.0f%%)  %s',
+                    z, a, 100.0 * a / peak, bar(a, peak))
       end
+      # BOTH ENDS get reported, because which one matters depends on which way
+      # up the part is used. A FLOOR is sat on, so its TOP two levels are the
+      # strip and the recess. A CEILING is sat UNDER, so the wall meets its
+      # BOTTOM two. Reporting only the top made the ceiling numbers describe the
+      # wrong face.
       if big.length >= 2
-        drop = big[0][0] - big[1][0]
-        puts format('        -> top level %.4f, next %.4f, STEP %.4f in',
-                    big[0][0], big[1][0], drop)
+        puts format('        -> TOP    %.4f, next down %.4f, step %.4f in',
+                    big[0][0], big[1][0], big[0][0] - big[1][0])
+        puts format('        -> BOTTOM %.4f, next up   %.4f, step %.4f in',
+                    big[-1][0], big[-2][0], big[-2][0] - big[-1][0])
       elsif big.length == 1
         puts '        -> ONE level only: a plain slab, no strip to find.'
       end
-      puts format('        (%d level(s) under %.0f sq in ignored)', small, MIN_AREA) if small > 0
+      puts format('        (%d level(s) under %d%% of the largest ignored)',
+                  small, (MIN_SHARE * 100).round) if small > 0
       puts ''
     end
 
