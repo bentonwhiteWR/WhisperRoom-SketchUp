@@ -93,13 +93,37 @@ up by ~1.36″.
 and −1.0. **Deferred on Benton's instruction** — the 127 LP is out of scope for
 now. Do not let it drive the general rule.
 
-**The unifying rule proposed first**, which works for convention A and not for
-B: find the full-area face pair 1.000″ apart — the slab — and use its **lower**
-face. On A that is 3.1094/2.1094, both 100%, giving contact at **2.1094**. On B
-the only 1.000″-apart pair is 1.0/0.0 at 45%/100%, which is not the same shape,
-so the rule does not transfer. **Which face carries the wall on a convention-B
-ceiling is still open** — see below. Whatever the answer, never use
-`bounds.min.z`.
+### B is A upside down. The heights prove it.
+
+Mirror convention A about its own box centre (1.554) and every level lands on a
+convention-B level, exactly:
+
+| A | mirrored | B |
+|---|---|---|
+| 3.1094 (100%) | 0.0000 | 0.0000 (100%) |
+| 2.1094 (100%) | 1.0000 | 1.0000 (29–45%) |
+| 1.3594 (87–94%) | 1.7500 | 1.7500 (90–94%) |
+
+Three heights, all matching to four decimals. That is not coincidence — the two
+families are **the same part modelled the other way up**. The one difference is
+the middle level's area (100% on A, 29–45% on B), which is a real difference
+between parts in how much of the middle skin is solid, not a difference of
+convention.
+
+### The rule that places both
+
+1. The **slab** is the face pair exactly 1.000″ apart.
+   A: 3.1094 / 2.1094. B: 1.0000 / 0.0000.
+2. The **third, minor level** is always on the ROOM side of the slab —
+   below it on A (1.3594), above it on B (1.7500).
+3. **The wall contacts the slab face nearest that third level.**
+   A → **2.1094**. B → **1.0000**.
+
+One rule, no per-part table, and it self-corrects if a part is re-exported the
+other way up. **Derived, not confirmed** — it will be obvious on the first build
+if it is wrong, because the ceiling will sit a hair over an inch out.
+
+Never use `bounds.min.z`.
 
 ---
 
@@ -120,15 +144,10 @@ missing. Worth asking before a build depends on it.
 
 ## Still unconfirmed
 
-1. **Which ceiling face the wall top meets.** The only open geometry question.
-   Convention A says 2.1094 by the face-pair rule; convention B has no
-   equivalent pair, and its 1.7500 level holds 90–94% of the area where the
-   floors' 1.7500 holds only 9–24%. So the two families are not the same part
-   flipped — B's 1.75 is a real surface, not bracket tops.
-2. **Panel order across the booth.** SIDE at the ends, CTR in the middle, per
+1. **Panel order across the booth.** SIDE at the ends, CTR in the middle, per
    Benton — the packing-list counts give how many of each — but the L/R handing
    has not been checked against a real booth.
-3. **`STDSS FL5` and `STDSS FL8.5` do not exist** although `CL5` and `8.5CL` do.
+2. **`STDSS FL5` and `STDSS FL8.5` do not exist** although `CL5` and `8.5CL` do.
    Either floors need no seal at those widths, or two parts are missing.
 
 ## Settled
