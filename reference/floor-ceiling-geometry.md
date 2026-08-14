@@ -15,9 +15,13 @@ Raw data: `_face-levels.tsv` in that folder.
 different ways, and both lie inconsistently — the same lesson the wall panels
 taught. Placement must come from the measured faces.
 
-- The **name is not the size**. The packing list calls every panel `3.25` thick;
-  they measure **3.108** (and `STD6042FL SIDE L/R` measure **3.500**).
-  `STD9648FL CTR` is 47.938 × 96, not 96 × 48.
+- The **name is not the size**. `STD9648FL CTR` measures 47.938 × 96, not 96 × 48.
+- **The packing list is not the part.** It lists the component *packaged up* —
+  the crate, not the panel. That is why it says `3.25` thick where the geometry
+  measures **3.108**, and it is not an error in either place. Take sizes from the
+  probe; take *which parts a model needs* from the packing list. Never sizes.
+  (`STD6042FL SIDE L/R` measure **3.500**, alone in the set — that one is a real
+  difference in the part, not packaging.)
 - The **origin is not consistent**. Floors all run z 0 → 3.108. Ceilings come in
   **two authoring conventions**, below.
 
@@ -47,7 +51,11 @@ It also settles it by contradiction: if walls sat on a 1.75 strip, a CTR panel
 could not carry a wall at all, and CTR panels do meet end walls.
 
 > **Therefore: the wall's underside sits at the floor's z = 1.0000.**
-> Confirm before building — this is derived from area distribution, not stated.
+> **CONFIRMED by Benton, 2026-08-14.** Derived from the area distribution first,
+> then checked — which is the right order.
+>
+> **The door frame sits on the deck too**, same z. Confirmed at the same time,
+> so there is no threshold step to model: door and wall share a base plane.
 
 Small `0.0312` levels (6–8% area) on some CTR panels are a 1/32″ lip on the
 underside. Not structural.
@@ -82,11 +90,16 @@ Convention B is the same shape as the floors. Convention A is that shape shifted
 up by ~1.36″.
 
 `STD127LPCL` is a third case again: z −2.358 → 1.000, with levels at 1.0, 0.0
-and −1.0.
+and −1.0. **Deferred on Benton's instruction** — the 127 LP is out of scope for
+now. Do not let it drive the general rule.
 
-**How to place a ceiling without caring which convention it is:** find the
-full-area face pair 1.000″ apart — that is the slab — and use its **lower** face
-as the wall contact. Never use `bounds.min.z`.
+**The unifying rule proposed first**, which works for convention A and not for
+B: find the full-area face pair 1.000″ apart — the slab — and use its **lower**
+face. On A that is 3.1094/2.1094, both 100%, giving contact at **2.1094**. On B
+the only 1.000″-apart pair is 1.0/0.0 at 45%/100%, which is not the same shape,
+so the rule does not transfer. **Which face carries the wall on a convention-B
+ceiling is still open** — see below. Whatever the answer, never use
+`bounds.min.z`.
 
 ---
 
@@ -107,11 +120,20 @@ missing. Worth asking before a build depends on it.
 
 ## Still unconfirmed
 
-1. **Wall contact at floor z = 1.0000** — derived above, not stated by anyone.
-2. **Ceiling underside** — which face the wall top meets, in each convention.
-3. **The door threshold.** A 1″ deck means the door frame either sits on the
-   deck or spans to the host floor. Get this wrong and the door floats or
-   buries.
-4. **Panel order across the booth.** SIDE panels go at the ends against the
-   walls, CTR fills the middle — the packing-list counts say how many of each,
-   but the L/R handing has not been checked against a real booth.
+1. **Which ceiling face the wall top meets.** The only open geometry question.
+   Convention A says 2.1094 by the face-pair rule; convention B has no
+   equivalent pair, and its 1.7500 level holds 90–94% of the area where the
+   floors' 1.7500 holds only 9–24%. So the two families are not the same part
+   flipped — B's 1.75 is a real surface, not bracket tops.
+2. **Panel order across the booth.** SIDE at the ends, CTR in the middle, per
+   Benton — the packing-list counts give how many of each — but the L/R handing
+   has not been checked against a real booth.
+3. **`STDSS FL5` and `STDSS FL8.5` do not exist** although `CL5` and `8.5CL` do.
+   Either floors need no seal at those widths, or two parts are missing.
+
+## Settled
+
+- Wall underside at floor **z = 1.0000**. Confirmed.
+- Door frame on the same plane as the wall — no threshold step. Confirmed.
+- Packing-list dimensions are the *packaged* part. Sizes come from the probe.
+- 127 LP deferred.
