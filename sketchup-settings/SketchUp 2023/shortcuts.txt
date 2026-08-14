@@ -1,0 +1,38 @@
+SketchUp 2023 — 35 keyboard shortcuts
+Read-only report. Restoring uses SharedPreferences.json.
+
+  1  0 0 0 I selectImageIglooTool:
+  2  0 0 0 O selectOrbitTool:
+  3  0 0 0 Z selectZoomTool:
+  4  0 0 1 Z viewZoomExtents:
+  5  0 0 0 C selectCircleTool:
+  6  0 0 0 E selectEraseTool:
+  7  0 0 0 B selectPaintTool:
+  8  0 0 0 P selectPushPullTool:
+  9  0 0 0 Space selectSelectionTool:
+ 10  0 0 1 Space selectLassoSelectionTool:
+ 11  0 0 0 L selectLineTool:
+ 12  0 0 0 K View/Edge Style/Back Edges
+ 13  0 0 0 M selectMoveTool:
+ 14  0 0 0 T selectMeasureTool:
+ 15  0 0 0 S selectScaleTool:
+ 16  0 0 1 S Help/Search SketchUp
+ 17  0 0 0 D selectLineTool:
+ 18  0 0 0 R selectRotateTool:
+ 19  0 0 0 F selectExtrudeTool:
+ 20  0 0 0 Q selectOffsetTool:
+ 21  0 0 0 A selectPushPullTool:
+ 22  0 0 0 V Camera/Parallel Projection
+ 23  0 0 1 H Edit/Unhide/All
+ 24  0 0 1 R selectRectangleTool:
+ 25  0 0 1 G Edit/Make Component...
+ 26  0 0 1 X View/Face Style/X-ray
+ 27  0 0 1 C selectArcTool:
+ 28  0 0 0 H editHide:
+ 29  0 0 0 X editDelete:
+ 30  0 0 0 W selectMoveTool:
+ 31  0 0 0 Y pageAdd:
+ 32  0 0 0 G pageUpdate:
+ 33  1 0 0 D selectDimensionTool:
+ 34  0 0 1 T selectTextTool:
+ 35  0 0 1 F selectFlipTool:
