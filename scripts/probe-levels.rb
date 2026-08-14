@@ -126,8 +126,26 @@ module WR_ProbeLevels
   # rather than tabulated — and a tabulated one would have to be re-checked
   # every time a part is re-exported.
   #
-  # Brackets are the geometry standing proud of the deck, so: every face above
-  # the slab, projected onto the panel's long axis, clustered into runs.
+  # WHAT THE GAPS MEAN, from Benton — this is the whole point of measuring them.
+  #
+  # On a 72 in panel the hinges sit at the wall joints, and the SPACING between
+  # them says which wall goes where:
+  #
+  #     2 1/8 in  (2.125)   -> the slot for the LARGER wall  (46 in)
+  #     1' 9 1/8  (21.125)  -> the slot for the SMALLER wall (22 in)
+  #
+  # Customers get this wrong constantly, and the give-away is that the hinge
+  # pockets do not line up when the panel is the wrong way round. Which means the
+  # panel carries its own orientation, and the builder should read it rather than
+  # be told — no handing constant, no per-part table.
+  #
+  # ONLY BOOTHS WITH A SPLIT WALL RUN ARE AFFECTED: 6060, 6084, 7272, 7296.
+  #
+  # MEASURE ABOVE THE RIM, NOT ABOVE THE DECK. The first attempt at this took
+  # every face above the deck and merged the spans, which produced one run
+  # spanning the whole panel — because the perimeter rim at z 1.75 runs the full
+  # length and overlaps every hinge. The hinges stand proud of the RIM, so that
+  # is the floor to measure from.
   def self.brackets(defn, deck_z)
     long_is_y = (defn.bounds.max.y - defn.bounds.min.y) >=
                 (defn.bounds.max.x - defn.bounds.min.x)
@@ -222,12 +240,16 @@ module WR_ProbeLevels
         next if defn.nil?
         tally, total = levels(defn)
         bb = defn.bounds
-        # The deck is the highest level holding a near-full share; brackets are
-        # whatever stands above it.
+        # Measure hinges above the RIM, not above the deck.
+        #
+        # The rim is the highest level with any real area — 5% is enough, it is
+        # a narrow border. Taking the deck instead (the near-full-area level)
+        # left the rim itself in the sample, and since it runs the whole length
+        # of the panel every hinge merged into it and the answer was one span.
         peak = tally.values.max.to_f
-        deck = tally.select { |_z, a| a >= peak * 0.6 }.keys.max
-        deck = bb.min.z.to_f if deck.nil?
-        long_is_y, runs = brackets(defn, deck)
+        rim = tally.select { |_z, a| a >= peak * 0.05 }.keys.max
+        rim = bb.min.z.to_f if rim.nil?
+        long_is_y, runs = brackets(defn, rim)
         rows << { :file => File.basename(path, '.skp'), :tally => tally,
                   :total => total, :bb => bb, :deck => deck,
                   :long_is_y => long_is_y, :runs => runs }
@@ -275,16 +297,25 @@ module WR_ProbeLevels
         axis = r[:long_is_y] ? 'Y' : 'X'
         len  = r[:long_is_y] ? (bb.max.y - bb.min.y).to_f : (bb.max.x - bb.min.x).to_f
         lo   = r[:long_is_y] ? bb.min.y.to_f : bb.min.x.to_f
-        puts format('        above deck (z > %.4f), along %s over %.2f in:', r[:deck], axis, len)
+        puts format('        hinges (z > %.4f), along %s over %.2f in:', r[:deck], axis, len)
         runs.each { |a, b| puts format('           %8.3f .. %-8.3f  (%.3f wide, %.0f%% along)',
                                        a, b, b - a, 100.0 * ((a + b) / 2.0 - lo) / len) }
+
+        # THE GAPS BETWEEN HINGES ARE THE ANSWER, not the hinges themselves.
+        # 2.125 in marks the 46 in wall's slot, 21.125 in marks the 22 in wall's.
+        # Printed with the named match beside them so the mapping can be
+        # confirmed against the part rather than assumed from a rule of thumb.
         if runs.length >= 2
-          gaps = []
-          runs.each_cons(2) { |x, y| gaps << [y[0] - x[1], (x[1] + y[0]) / 2.0] }
-          biggest = gaps.max_by { |w, _c| w }
-          at = 100.0 * (biggest[1] - lo) / len
-          puts format('        -> widest gap %.3f in at %.0f%% along  => small wall is on the %s end',
-                      biggest[0], at, at < 50 ? 'LOW' : 'HIGH')
+          puts '        gaps between them:'
+          runs.each_cons(2) do |x, y|
+            g  = y[0] - x[1]
+            at = 100.0 * ((x[1] + y[0]) / 2.0 - lo) / len
+            tag = if (g - 2.125).abs  < 0.2 then '  <- 2 1/8, the 46 in slot'
+                  elsif (g - 21.125).abs < 0.4 then '  <- 1ft 9 1/8, the 22 in slot'
+                  else ''
+                  end
+            puts format('           %7.3f in at %3.0f%% along%s', g, at, tag)
+          end
         end
       end
       puts ''
