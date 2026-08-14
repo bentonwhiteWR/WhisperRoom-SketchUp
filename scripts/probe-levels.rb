@@ -37,19 +37,25 @@ require 'sketchup.rb'
 load File.join(File.dirname(__FILE__), 'wr-folder.rb')
 
 module WR_ProbeLevels
-  # `unless defined?` on every constant: running this twice in a session re-runs
-  # `load`, which re-assigns them, and Ruby warns once per constant per run.
-  PREF        = 'WR_ProbeLevels'.freeze unless defined?(PREF)
-  DEFAULT_DIR = 'P:/Sketchup/NewMasterComponentList'.freeze unless defined?(DEFAULT_DIR)
+  # remove_const, NOT `unless defined?`. The guard silences the reload warning
+  # and also freezes the value for the session, so editing a threshold and
+  # re-running would quietly do nothing. Same trap that cost four rounds on
+  # wr-deck.rb.
+  %w[PREF DEFAULT_DIR FLAT_DOT BIN MIN_SHARE].each do |c|
+    remove_const(c) if const_defined?(c, false)
+  end
+
+  PREF        = 'WR_ProbeLevels'.freeze
+  DEFAULT_DIR = 'P:/Sketchup/NewMasterComponentList'.freeze
 
   # A face counts as horizontal when its normal is within this of straight up or
   # straight down. Generous, because a panel face modelled a hair off level is
   # still the face a wall sits on.
-  FLAT_DOT = 0.999 unless defined?(FLAT_DOT)
+  FLAT_DOT = 0.999
 
   # Heights are binned to this before grouping, so a face split into two
   # coplanar halves does not report as two levels 0.0001 apart.
-  BIN = 1.0 / 64.0 unless defined?(BIN)
+  BIN = 1.0 / 64.0
 
   # A level holding less area than this SHARE of the panel's biggest level is a
   # chamfer, a screw boss or a bracket, not a surface anything sits on.
@@ -59,7 +65,7 @@ module WR_ProbeLevels
   # of 4300, and the "step" it then reported was the gap between two screw
   # bosses — a confident number describing nothing. A fraction scales with the
   # panel, which an absolute figure cannot.
-  MIN_SHARE = 0.05 unless defined?(MIN_SHARE)
+  MIN_SHARE = 0.05
 
   def self.read_pref(k, fallback = '')
     v = Sketchup.read_default(PREF, k, fallback).to_s

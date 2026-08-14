@@ -46,14 +46,20 @@ require 'sketchup.rb'
 # session and the console fills with warnings that look like a fault and are
 # not — enough noise to bury a real error underneath it.
 #
-# `unless defined?` makes every load after the first a no-op for constants. The
-# methods are still redefined each time, which is the point of `load`: edit the
-# file and the new code takes effect.
+# DO NOT USE `unless defined?` FOR THIS. It silences the warning and it also
+# stops the value ever changing again in that session, because the constant is
+# defined after the first load and the guard skips every assignment after it.
+# That cost four rounds on wr-deck.rb: constants edited, committed, reloaded,
+# and silently without effect until SketchUp was restarted.
+#
+# remove_const first gets both — the value updates on reload AND no warning.
 module WR_Folder
-  PREF   = 'WR_Folders'.freeze unless defined?(PREF)
-  BROWSE = 'Browse for a folder...'.freeze unless defined?(BROWSE)
+  %w[PREF BROWSE MAX].each { |c| remove_const(c) if const_defined?(c, false) }
+
+  PREF   = 'WR_Folders'.freeze
+  BROWSE = 'Browse for a folder...'.freeze
   # More than this and the dropdown is worse than typing.
-  MAX    = 8 unless defined?(MAX)
+  MAX    = 8
 
   def self.read_list(key)
     Sketchup.read_default(PREF, key.to_s, '').to_s.split('|').reject(&:empty?)

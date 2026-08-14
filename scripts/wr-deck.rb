@@ -37,13 +37,34 @@
 require 'sketchup.rb'
 
 module WR_Deck
+  # EVERY CONSTANT HERE IS RE-ASSIGNED ON EVERY LOAD, DELIBERATELY.
+  #
+  # These were written `X = 1 unless defined?(X)` to silence Ruby's "already
+  # initialized constant" warning on reload. That silenced the warning and it
+  # also meant THE VALUE NEVER CHANGED AGAIN for the rest of the session: a
+  # constant is defined after the first load, so the guard skips the assignment
+  # on every load after it.
+  #
+  # The cost was four rounds of "nothing changed". Turn constants were edited,
+  # committed, reloaded, and had no effect whatsoever, because only a SketchUp
+  # restart could have applied them. Worse, the reports that came back were
+  # genuinely contradictory — they were describing a build made with whatever
+  # values happened to be in memory, not the ones in the file.
+  #
+  # remove_const first gets both halves: the value updates on reload AND there is
+  # no warning. Anything meant to be TUNED must be in this list.
+  %w[INSET DECK_TOP_Z WALL_H SIDE_R_SMALL_WALL_AT_LOW_END
+     LOW_END_PANEL_IS_TURNED TOL NAME ORIGIN Z_AXIS X_AXIS].each do |c|
+    remove_const(c) if const_defined?(c, false)
+  end
+
   # ------------------------------------------------------------- the dials --
   #
-  # Four numbers, each named, each with the check that settles it written next
-  # to it. If a booth comes out wrong it is one of these, not the algorithm.
+  # Each named, each with the check that settles it written next to it. If a
+  # booth comes out wrong it is one of these, not the algorithm.
 
   # How far in from the exterior the deck stops, per side.
-  INSET = 1.0 unless defined?(INSET)
+  INSET = 1.0
 
   # Where the floor's deck top lands in BOOTH coordinates.
   #
@@ -55,11 +76,11 @@ module WR_Deck
   # raised to match, so the floor's underside sits on the host floor at zero
   # alongside the fan. Do that only with the wall placement changed in the same
   # commit, or the walls will float.
-  DECK_TOP_Z = 0.0 unless defined?(DECK_TOP_Z)
+  DECK_TOP_Z = 0.0
 
   # Wall height the ceiling sits on top of. The builder passes its own, so this
   # is only the fallback.
-  WALL_H = 81.0 unless defined?(WALL_H)
+  WALL_H = 81.0
 
   # WHICH END OF ITS OWN RUN A "SIDE R" PANEL PUTS THE SMALL WALL AT.
   #
@@ -71,7 +92,7 @@ module WR_Deck
   # LARGE panel came back needing the half turn and the small one not, i.e. the
   # opposite of what this said. Flipped to false 2026-08-14 on that evidence.
   # It resolves every model, so one observation settles all of them.
-  SIDE_R_SMALL_WALL_AT_LOW_END = false unless defined?(SIDE_R_SMALL_WALL_AT_LOW_END)
+  SIDE_R_SMALL_WALL_AT_LOW_END = false
 
   # WHICH END OF THE RUN GETS THE TURNED PANEL.
   #
@@ -100,9 +121,9 @@ module WR_Deck
   # This replaced a rule that turned a panel only when its wanted HAND was
   # missing from the folder, which conflated two independent things and is why
   # fixing the 48 broke the 24 and fixing the 24 broke the 48.
-  LOW_END_PANEL_IS_TURNED = false unless defined?(LOW_END_PANEL_IS_TURNED)
+  LOW_END_PANEL_IS_TURNED = false
 
-  TOL = 0.35 unless defined?(TOL)   # a tiling this far off the footprint is wrong
+  TOL = 0.35   # a tiling this far off the footprint is wrong
 
   # ------------------------------------------------------------- catalogue --
 
@@ -500,7 +521,7 @@ module WR_Deck
     [placed, warn, note]
   end
 
-  ORIGIN = Geom::Point3d.new(0, 0, 0) unless defined?(ORIGIN)
-  Z_AXIS = Geom::Vector3d.new(0, 0, 1) unless defined?(Z_AXIS)
-  X_AXIS = Geom::Vector3d.new(1, 0, 0) unless defined?(X_AXIS)
+  ORIGIN = Geom::Point3d.new(0, 0, 0)
+  Z_AXIS = Geom::Vector3d.new(0, 0, 1)
+  X_AXIS = Geom::Vector3d.new(1, 0, 0)
 end

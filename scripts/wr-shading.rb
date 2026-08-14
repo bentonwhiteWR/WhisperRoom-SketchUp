@@ -54,28 +54,28 @@ module WR_Shading
   # everywhere until these were found. None of them change the geometry's own
   # appearance, so turning them off still honours "use the model's own style".
   #
-  # `unless defined?` on every constant here: this file is `load`ed by both art
-  # exporters, so a second load would re-assign them and Ruby warns once per
-  # constant per load. The console filled with warnings that read as a fault.
-  # Methods are still redefined each load, which is the whole point of `load`.
-  unless defined?(TRANSPARENCY)
-    TRANSPARENCY = { 'DrawGround'        => false,
-                     'DrawHorizon'       => false,
-                     'DisplayFog'        => false,
-                     'DisplayWatermarks' => false,
-                     'AmbientOcclusion'  => false }.freeze
+  # remove_const rather than `unless defined?`. The guard silences the reload
+  # warning and also freezes the value for the session — edit a number, reload,
+  # nothing happens. That cost four rounds on wr-deck.rb before it was spotted.
+  # This way the values update on reload and there is still no warning.
+  %w[TRANSPARENCY DEF_LIGHT DEF_DARK SHADOW_KEYS KEEP].each do |c|
+    remove_const(c) if const_defined?(c, false)
   end
+
+  TRANSPARENCY = { 'DrawGround'        => false,
+                   'DrawHorizon'       => false,
+                   'DisplayFog'        => false,
+                   'DisplayWatermarks' => false,
+                   'AmbientOcclusion'  => false }.freeze
 
   # SketchUp's own default is Light 80 / Dark 45. Starting there means turning
   # this contract on does not silently restyle a library that already looks
   # right — it makes the two exporters IDENTICAL first, which is the actual
   # goal, and leaves the brightness match to one number.
-  DEF_LIGHT = 80 unless defined?(DEF_LIGHT)
-  DEF_DARK  = 45 unless defined?(DEF_DARK)
+  DEF_LIGHT = 80
+  DEF_DARK  = 45
 
-  unless defined?(SHADOW_KEYS)
-    SHADOW_KEYS = %w[DisplayShadows UseSunForAllShading Light Dark].freeze
-  end
+  SHADOW_KEYS = %w[DisplayShadows UseSunForAllShading Light Dark].freeze
 
   def self.dark_value(v)
     n = v.to_s.strip.empty? ? DEF_DARK : v.to_i
@@ -97,7 +97,7 @@ module WR_Shading
 
   # The dropdown both scripts offer, in the same order, so a run of one can be
   # reproduced by the other by picking the same entry.
-  KEEP = "Leave the style alone (the model's own)".freeze unless defined?(KEEP)
+  KEEP = "Leave the style alone (the model's own)".freeze
 
   def self.style_options(model)
     out = [KEEP]
