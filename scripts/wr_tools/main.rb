@@ -20,20 +20,40 @@ require 'json'
 
 module WhisperRoom
   module Tools
-    # Where the repo's scripts/ folder lives. Machines differ — the laptop keeps
-    # Documents local, the desktop has it redirected into OneDrive, and the repo
-    # may sit at Claude/Sketchup or Claude/Sketchup/WhisperRoom-SketchUp. Take the
-    # first candidate that actually exists rather than hard-coding one machine.
-    # Set the WR_SCRIPTS_DIR environment variable to override on a new machine.
+    # Where the scripts live. Machines differ — the laptop keeps Documents local,
+    # the desktop has it redirected into OneDrive, and the repo may sit at
+    # Claude/Sketchup or Claude/Sketchup/WhisperRoom-SketchUp. Take the first
+    # candidate that actually exists rather than hard-coding one machine. Set the
+    # WR_SCRIPTS_DIR environment variable to override.
+    #
+    # THE BUNDLED COPY IS LAST ON PURPOSE, and the order is the whole design.
+    #
+    # install-plugin.py copies scripts/ into the plugin folder as well, so a
+    # machine with no git checkout — a teammate's — still gets every script and
+    # the plugin is self-contained. But on a machine that HAS the repo, the repo
+    # wins, because editing a script there has to take effect on the next run
+    # without a reinstall. Put the bundled copy first and every edit would
+    # silently do nothing until install-plugin.py was run again, which is a
+    # miserable thing to debug.
+    BUNDLED = File.join(File.dirname(__FILE__), 'scripts').tr('\\', '/').freeze
+
     CANDIDATES = [
       ENV['WR_SCRIPTS_DIR'],
       File.join(ENV['USERPROFILE'].to_s, 'Documents/Claude/Sketchup/scripts'),
       File.join(ENV['USERPROFILE'].to_s, 'Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts'),
       File.join(ENV['USERPROFILE'].to_s, 'OneDrive/Documents/Claude/Sketchup/scripts'),
-      File.join(ENV['USERPROFILE'].to_s, 'OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts')
+      File.join(ENV['USERPROFILE'].to_s, 'OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts'),
+      BUNDLED
     ].compact.map { |p| p.tr('\\', '/') }.freeze
 
-    SCRIPTS_DIR = (CANDIDATES.find { |p| File.directory?(p) } || CANDIDATES[1])
+    SCRIPTS_DIR = (CANDIDATES.find { |p| File.directory?(p) } || BUNDLED)
+
+    # True when running off the copy inside the plugin — i.e. a machine with no
+    # repo. The panel says so, because "I edited the script and nothing changed"
+    # is the failure that follows, and it is invisible otherwise.
+    def self.bundled?
+      SCRIPTS_DIR == BUNDLED
+    end
 
     # Libraries other scripts `load`, not commands. wr-booth-data.rb is data for
     # build-booth.rb; wr-shading.rb is the shading contract both component-art
@@ -705,7 +725,8 @@ module WhisperRoom
     # ------------------------------------------------------------------ panel --
 
     def self.payload
-      { 'dir' => SCRIPTS_DIR, 'scripts' => scan, 'abilities' => abilities,
+      { 'dir' => SCRIPTS_DIR, 'bundled' => bundled?,
+        'scripts' => scan, 'abilities' => abilities,
         'recent' => recent, 'pinned' => pinned, 'note' => @note,
         'slots' => slots, 'slot_icons' => slot_icons,
         'icons' => icon_library, 'pin_n' => PIN_N,

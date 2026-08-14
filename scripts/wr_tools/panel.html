@@ -281,39 +281,6 @@
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btn.primary:hover { background: #d9570f; }
 
-  /* --------------------------------------------------------- favourites -- */
-
-  .favs {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    margin: 0 12px 8px;
-    overflow-x: auto;
-    overflow-y: visible;
-    flex: 0 0 auto;        /* the flex column must never squeeze this row */
-    min-height: 32px;
-    padding: 2px 0 4px;
-  }
-  .favs:empty { display: none; }
-  .fav {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 11px 5px 8px;
-    border: 1px solid var(--line);
-    border-radius: 15px;
-    background: var(--surface);
-    font: inherit;
-    font-size: 12.5px;
-    color: var(--ink);
-    cursor: pointer;
-    white-space: nowrap;
-    flex: 0 0 auto;
-  }
-  .fav svg { width: 11px; height: 11px; fill: var(--accent); stroke: none; }
-  .fav img { width: 14px; height: 14px; flex: 0 0 auto; }
-  .fav:hover { border-color: var(--accent); }
-
   /* --------------------------------------------------------------- list -- */
 
   .scroll {
@@ -509,7 +476,6 @@
   </div>
 
   <div class="slots" id="slots"></div>
-  <div class="favs" id="favs"></div>
   <div class="note" id="note"></div>
   <div class="scroll" id="scroll"></div>
 
@@ -573,7 +539,6 @@
   var $q      = document.getElementById("q");
   var $clear  = document.getElementById("clear");
   var $scroll = document.getElementById("scroll");
-  var $favs   = document.getElementById("favs");
   var $note   = document.getElementById("note");
   var $linkgo = document.getElementById("linkgo");
   var $linktext = document.getElementById("linktext");
@@ -650,13 +615,21 @@
   }
   function isPending(i) { return (DATA.pending || []).indexOf(i) >= 0; }
 
-  // This row is a PICTURE OF THE REAL TOOLBAR, so it draws what the buttons are
-  // actually wearing right now — not what preferences say they should. A slot
-  // changed since launch gets a dot and says so on hover.
+  // QUICK COMMANDS LIVE ON SKETCHUP'S OWN TOOLBAR AND NOWHERE ELSE.
+  //
+  // There used to be a second row under this one — the same slots again, as
+  // named pills you could click to run. It read as a rival set of favourites,
+  // and worse: the pills showed the CURRENT mapping while these tiles show what
+  // the toolbar is actually wearing, so the two rows could visibly disagree.
+  // Gone. This row is a picture of the real toolbar and an editor for it, and
+  // nothing here runs a script — use the toolbar button, or the list below.
+  //
+  // A slot changed since launch gets a dashed border and a dot, because
+  // SketchUp cannot repaint a toolbar button and the change waits for a restart.
   function drawSlots() {
     var n = DATA.pin_n || 8;
     var bound = DATA.bound_faces || [];
-    var h = '<span class="lbl">TOOLBAR</span>';
+    var h = '<span class="lbl">SKETCHUP TOOLBAR</span>';
     var waiting = 0;
     for (var i = 0; i < n; i++) {
       var live = boundAt(i), s = filled(live) ? byName(live) : null;
@@ -758,36 +731,6 @@
   });
   $ovl.addEventListener("click", function (e) { if (e.target === $ovl) closeEditor(); });
 
-  // ---------------------------------------------------------- favourites --
-  //
-  // The same slots again, as named buttons you can read. The tile row above
-  // shows what the toolbar LOOKS like; this row says what each one DOES, in the
-  // same order and wearing the same icon, so the two teach each other.
-
-  function drawFavs() {
-    var n = DATA.pin_n || 8;
-    var want = DATA.faces || [];
-    var h = "";
-    for (var i = 0; i < n; i++) {
-      var name = slotAt(i);
-      if (!filled(name)) continue;
-      var s = byName(name);
-      if (!s) continue;
-      // These pills run the CURRENT mapping, so they wear the current face —
-      // unlike the tile row above, which mirrors the real toolbar.
-      h += '<button class="fav ic" data-n="' + esc(name) +
-           '" title="Run ' + esc(name) + '">' +
-           (want[i] ? faceImg(want[i]) : STAR) + esc(s.title) + "</button>";
-    }
-    $favs.innerHTML = h;
-    Array.prototype.forEach.call($favs.querySelectorAll(".fav"), function (el) {
-      el.addEventListener("click", function () {
-        var s = byName(el.dataset.n);
-        if (s) sketchup.run(s.file);
-      });
-    });
-  }
-
   // ----------------------------------------------------------- abilities --
 
   function abilityRows(list, term) {
@@ -837,7 +780,9 @@
              '<button class="star" data-r="' + esc(s.name) +
                '" title="Rename — changes the label, not the filename">' + PENCIL + "</button>" +
              '<button class="star' + (p ? " on" : "") + '" data-n="' + esc(s.name) +
-               '" title="' + (p ? "Unpin" : "Pin to favourites") + '">' + STAR + "</button>" +
+               '" title="' + (p ? "Take off the SketchUp toolbar"
+                                : "Put on the SketchUp toolbar (first free slot)") +
+               '">' + STAR + "</button>" +
            "</div>";
   }
 
@@ -937,6 +882,14 @@
         ? '<div class="empty">Nothing matches &ldquo;' + esc(term) + "&rdquo;</div>"
         : '<div class="empty">No .rb files found in<code>' + esc(DATA.dir) + "</code></div>";
     }
+    // Running off the copy inside the plugin rather than a git checkout. Worth
+    // saying once, quietly: on this machine editing a script in a repo will do
+    // nothing, because there is no repo for it to find.
+    if (DATA.bundled) {
+      h += '<div class="empty" style="padding:14px 12px 4px;font-size:11.5px">' +
+           "Scripts are running from the copy bundled with the plugin." +
+           '<code>' + esc(DATA.dir) + "</code></div>";
+    }
     $scroll.innerHTML = h;
     wire(term);
   }
@@ -1035,7 +988,6 @@
     render: function (payload) {
       DATA = payload || DATA;
       drawSlots();
-      drawFavs();
       draw();
       if (DATA.note) note(DATA.note, /fail|error|could not|no /i.test(DATA.note));
     }
