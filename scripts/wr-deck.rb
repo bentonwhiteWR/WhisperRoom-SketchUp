@@ -237,24 +237,57 @@ module WR_Deck
   # FLOOR: the deck top, the highest face holding most of the panel's area.
   # CEILING: the slab face nearest the third minor level — see fact 4. Both are
   # measured, so a part re-exported the other way up still places correctly.
+  # Returns [contact_z, upside_down?].
+  #
+  # THE HEIGHT AND THE ORIENTATION ARE TWO SEPARATE QUESTIONS, and the first
+  # version only answered the first. It put every ceiling at the right height
+  # and left half of them face-up, which is exactly what came back: "all
+  # ceilings are upside down on MDL 96168 S".
+  #
+  # 96168's ceilings are all convention B, and convention B IS convention A
+  # modelled the other way up — established in
+  # reference/floor-ceiling-geometry.md by mirroring A's levels onto B's to four
+  # decimals. So a rule that only picks a z can never fix them.
+  #
+  # THE TELL IS THE MINOR LEVEL. It is the geometry on the ROOM side of the
+  # slab — trim, light housings, the recess. Installed correctly:
+  #
+  #   FLOOR   room side is UP,   so the minor level sits ABOVE the deck.
+  #   CEILING room side is DOWN, so the minor level sits BELOW the slab.
+  #
+  # Anything that measures the other way round is modelled upside down and gets
+  # turned over. That is one rule for both kinds and it needs no list of which
+  # parts are which.
   def self.contact_z(defn, kind)
     tally = flat_levels(defn)
-    return nil if tally.empty?
+    return [nil, false] if tally.empty?
     peak = tally.values.max.to_f
     big  = tally.select { |_z, a| a >= peak * 0.5 }.keys.sort
     minor = tally.reject { |z, _a| big.include?(z) }
                  .select { |_z, a| a >= peak * 0.05 }.keys.sort
+    return [nil, false] if big.empty?
 
-    return big.last if kind == 'FL'          # deck top
-
-    # Ceiling: the slab is the pair 1.000 apart; contact is whichever of that
-    # pair sits nearer the minor level, which is always on the room side.
+    # The slab: the pair of full faces exactly 1.000 in apart.
     pair = nil
     big.each_cons(2) { |a, b| pair = [a, b] if ((b - a) - 1.0).abs < 0.05 }
     pair ||= [big.first, big.last]
-    return pair.first if minor.empty?
-    m = minor.min_by { |z| [(z - pair[0]).abs, (z - pair[1]).abs].min }
-    (m - pair[0]).abs <= (m - pair[1]).abs ? pair[0] : pair[1]
+
+    if minor.empty?
+      # Nothing to read the orientation from. Assume as-modelled and say so by
+      # taking the face the wall would meet if it were the right way up.
+      return [kind == 'FL' ? pair.last : pair.first, false]
+    end
+
+    m = minor.max_by { |z| tally[z] }          # the most substantial minor face
+    above = m > (pair[0] + pair[1]) / 2.0
+
+    if kind == 'FL'
+      # Deck faces up when the minor geometry is above it.
+      [above ? pair.last : pair.first, !above]
+    else
+      # Slab's room side faces down when the minor geometry is below it.
+      [above ? pair.last : pair.first, above]
+    end
   end
 
   def self.flat_levels(defn)
@@ -308,7 +341,7 @@ module WR_Deck
                warn << "#{t[:part][:file]}: #{e.class}: #{e.message}"
                next
              end
-      cz = contact_z(defn, kind)
+      cz, flip = contact_z(defn, kind)
       if cz.nil?
         warn << "#{t[:part][:file]}: no flat faces to measure"
         next
@@ -329,24 +362,54 @@ module WR_Deck
       x, y = turn ? [cy, ax] : [ax, cy]
 
       # A floor's contact face lands on the deck plane; a ceiling's lands a wall
-      # height above it. Either way the part is shifted so its MEASURED contact
-      # face hits the target, never its origin.
+      # height above it.
       target_z = DECK_TOP_Z
       target_z += wall_h unless kind == 'FL'
-      z = target_z - cz
 
-      # Orientation first, in the part's own space: mirror, then quarter turn.
-      tr = Geom::Transformation.new
-      tr = Geom::Transformation.scaling(ORIGIN, -1, 1, 1) * tr if t[:mirror]
-      tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
-      tr = Geom::Transformation.translation(Geom::Vector3d.new(0, 0, z)) * tr
-
-      # THEN seat it, from the TRANSFORMED corners rather than from bb.min.
+      # ORIENTATION FIRST, THEN READ THE CONTACT PLANE BACK OUT OF IT.
       #
-      # bb.min transformed is not the minimum of the transformed box: a mirror
-      # sends the minimum corner to the maximum, and a quarter turn swaps the
-      # axes. Using it would have put every mirrored panel a full panel-width
-      # off. All eight corners, take the minimum — cheap, and correct under any
+      # The contact z measured above is in the part's UNTURNED coordinates. Turn
+      # the part over and that plane moves — so computing the lift before the
+      # rotation, as this did, puts a flipped part out by its own thickness.
+      # Build the orientation, push the contact point through it, and only then
+      # work out the lift.
+      #
+      # THE OPPOSITE HAND IS A HALF TURN, NOT A MIRROR. This was a negative-X
+      # scaling and it pushed the floor out of shape — visibly splayed, while
+      # the ceiling happened to survive.
+      #
+      # The reason is physical, and it is the better argument anyway: you cannot
+      # mirror a floor panel. It has a top and a bottom. To put the small wall at
+      # the other end of the run you TURN IT AROUND — 180 degrees about the
+      # vertical — which is what a person does with the real part and what keeps
+      # the deck facing up. A reflection would have to flip it over.
+      #
+      # It also keeps the transformation's determinant positive. A negative-scale
+      # instance is a thing SketchUp will accept and then render in ways that are
+      # nobody's idea of a good time.
+      #
+      # L and R still measure identically, because a half turn preserves the
+      # bounding box and every face height and area just as a reflection does.
+      # The measurement could not tell them apart; the physics can.
+      tr = Geom::Transformation.new
+      # Modelled the other way up — turn it over about its own long axis.
+      tr = Geom::Transformation.rotation(ORIGIN, X_AXIS, 180.degrees) * tr if flip
+      # Opposite hand — turn it around, do not reflect it.
+      tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if t[:mirror]
+      # Booth tiles along its own Y rather than X.
+      tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
+
+      # Where the contact plane ended up, after all of that.
+      now_cz = Geom::Point3d.new(0, 0, cz).transform(tr).z.to_f
+      tr = Geom::Transformation.translation(
+        Geom::Vector3d.new(0, 0, target_z - now_cz)) * tr
+
+      # THEN seat it in plan, from the TRANSFORMED corners rather than bb.min.
+      #
+      # bb.min transformed is not the minimum of the transformed box: a half
+      # turn sends the minimum corner to the maximum, and a quarter turn swaps
+      # the axes. Using it would put every turned panel a full panel-width off.
+      # All eight corners, take the minimum — cheap, and right under any
       # transformation.
       got = Geom::BoundingBox.new
       8.times { |k| got.add(bb.corner(k).transform(tr)) }
@@ -362,7 +425,9 @@ module WR_Deck
       end
       warn << format('%s%s: box %.2f x %.2f, contact z %.4f, at %.2f',
                      t[:part][:file], t[:mirror] ? ' (mirrored)' : '',
-                     dx, dy, cz, t[:at]) if $wr_deck_verbose
+      puts format('    %-26s%-9s%-9s contact %7.4f  ->  x %7.2f  y %7.2f  z %7.2f',
+                  t[:part][:file], flip ? ' flipped' : '', t[:mirror] ? ' turned' : '',
+                  cz, got.min.x.to_f, got.min.y.to_f, got.min.z.to_f)
     end
 
     [placed, warn, note]
@@ -370,4 +435,5 @@ module WR_Deck
 
   ORIGIN = Geom::Point3d.new(0, 0, 0) unless defined?(ORIGIN)
   Z_AXIS = Geom::Vector3d.new(0, 0, 1) unless defined?(Z_AXIS)
+  X_AXIS = Geom::Vector3d.new(1, 0, 0) unless defined?(X_AXIS)
 end
