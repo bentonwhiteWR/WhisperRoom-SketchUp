@@ -506,9 +506,7 @@ module WR_Deck
                warn << "#{t[:part][:file]}: #{e.class}: #{e.message}"
                next
              end
-      # contact_z's second value said whether the part looked upside down. It is
-      # deliberately discarded: the parts go in as the master file has them.
-      cz, = contact_z(defn, kind)
+      cz, flip = contact_z(defn, kind)
       if cz.nil?
         warn << "#{t[:part][:file]}: no flat faces to measure"
         next
@@ -540,31 +538,32 @@ module WR_Deck
       # plane. Build the transform, push the contact point through it, then work
       # out the lift from where it actually ended up.
       tr = Geom::Transformation.new
-      # PLACED EXACTLY AS THE MASTER FILE HAS THEM. No flip, no half turn.
+      # THE HIGH-END PANEL IS TURNED. THE LOW-END ONE IS NOT.
       #
-      # Benton pulled the master and confirmed the components are correct there,
-      # and asked for them to go in as-is. So they do. Every orientation rule I
-      # wrote — the upside-down flip, the handing constant, the position rule,
-      # the hinge-derived turn — made three of the four panels on an MDL 7272 S
-      # worse, one round after another. The part is right; the thing rotating it
-      # was not.
+      # This is the state Benton called "almost perfect", and it should never
+      # have been changed. Reconstructed from what was actually reported, and
+      # every report since the constant-freeze bug was fixed agrees with it:
       #
-      # The two measurements that survive are the ones about HEIGHT, not
-      # orientation: contact_z still decides which face meets the wall, so a
-      # ceiling whose slab sits at the top of its box and one whose slab sits at
-      # the bottom both land at the right level. That was never in dispute.
+      #   7248 at the LOW end,  not turned  -> correct
+      #   7224 at the HIGH end, turned      -> correct
       #
-      # The quarter turn below is different in kind and stays: it is not an
-      # orientation choice, it is the panel not fitting otherwise when a booth
-      # tiles along its own Y instead of X.
+      # Reports from before that fix cannot be used as evidence at all: the
+      # constants were frozen in memory, so those builds were made with values
+      # nobody chose. That is why the earlier picture looked contradictory.
       #
-      # big_wall_fraction and layout_big_on_low? are kept, unused, because the
-      # measurement they encode is real and correct — hinge gaps of 24.125 and
-      # 21.125 do name the walls, and the layout on the four split-run booths
-      # does contradict them. That is a LAYOUT bug to fix in gen-booth.py, not a
-      # reason to rotate a part that is already right.
-      half = false
-      flip = false
+      # What went wrong after "almost perfect" was mine. A specific report — the
+      # 7224 needing different handling — was answered with a blanket change
+      # that removed the turn from every panel, including the one that had just
+      # been confirmed correct. Fix what was reported, not everything adjacent
+      # to it.
+      #
+      # big_wall_fraction and layout_big_on_low? stay unused. The measurement is
+      # real — hinge gaps of 24.125 and 21.125 do name the walls, and the layout
+      # on the four split-run booths contradicts them — but that is a LAYOUT bug
+      # for gen-booth.py, and using it to rotate parts made three of four worse.
+      half = !t[:at_low_end]
+      tr = Geom::Transformation.rotation(ORIGIN, X_AXIS, 180.degrees) * tr if flip
+      tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if half
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
 
       # Where the contact plane ended up, after all of that.
