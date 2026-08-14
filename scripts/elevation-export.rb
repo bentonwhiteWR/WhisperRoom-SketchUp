@@ -164,9 +164,6 @@ module WR_Elevation
     nil
   end
 
-    p.sub(%r{/+\z}, '')
-  end
-
   def self.sanitize(s)
     out = s.to_s.strip.gsub(FORBIDDEN, '-')
     out.sub(/[. ]+\z/, '')

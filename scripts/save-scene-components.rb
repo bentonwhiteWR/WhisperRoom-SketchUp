@@ -125,9 +125,6 @@ module WR_SaveSceneComponents
     nil
   end
 
-    p.sub(%r{/+\z}, '')
-  end
-
   def self.sanitize(s)
     out = s.to_s.strip.gsub(FORBIDDEN, '-')
     out.sub(/[. ]+\z/, '')      # Windows silently drops a trailing dot or space

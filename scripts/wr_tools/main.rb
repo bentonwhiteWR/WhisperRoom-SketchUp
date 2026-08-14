@@ -708,6 +708,19 @@ module WhisperRoom
 
     # ---------------------------------------------------------------- running --
 
+    # RESCUE Exception, NOT StandardError, AND THE REASON MATTERS.
+    #
+    # A script with a syntax error raises SyntaxError, which descends from
+    # ScriptError, NOT from StandardError. A `rescue StandardError` therefore
+    # does not catch it: the exception escapes the action callback, SketchUp
+    # swallows it, and clicking the script does NOTHING AT ALL. No dialog, no
+    # console line, no clue. That is exactly how a broken save-scene-components
+    # presented — "I click it but nothing happens" — and it cost a round trip to
+    # work out that a script had been damaged rather than the panel.
+    #
+    # This is the second time this distinction has bitten this plugin; the first
+    # took the whole extension down at load. Anywhere a script's own code runs,
+    # rescue Exception.
     def self.run(path)
       unless File.exist?(path)
         UI.messagebox("Not found:\n#{path}")
@@ -716,9 +729,19 @@ module WhisperRoom
       remember(File.basename(path))
       load path
       true
-    rescue StandardError => e
-      UI.messagebox("#{File.basename(path)} failed:\n\n#{e.class}: #{e.message}\n\n" \
-                    "#{e.backtrace.first(3).join("\n")}")
+    rescue Exception => e
+      name = File.basename(path)
+      puts ''
+      puts "#{name} FAILED TO RUN: #{e.class}: #{e.message}"
+      puts e.backtrace.first(8).map { |l| "  #{l}" }.join("\n") if e.backtrace
+      hint = if e.is_a?(ScriptError)
+               "\n\nThis is a SYNTAX ERROR — the script did not even load. The " \
+               "line number above is where to look."
+             else
+               ''
+             end
+      UI.messagebox("#{name} failed:\n\n#{e.class}: #{e.message}#{hint}\n\n" \
+                    'Full backtrace is in the Ruby Console.')
       false
     end
 
