@@ -1,5 +1,83 @@
 # DEVLOG
 
+## 2026-08-14 — floors and ceilings, and a long detour
+
+Floors and ceilings now build. `scripts/wr-deck.rb` reads the catalogue from the
+folder, tiles each booth's footprint, and places the panels; all 25 Standard
+models plan, and the three the quote repo's golden packing list confirms come
+out identical. `reference/floor-ceiling-geometry.md` holds every measurement.
+
+Getting there took far longer than it should have, and the reasons are worth
+keeping.
+
+### Two bugs that made everything else look inconsistent
+
+**`unless defined?` froze every tuning constant.** Added in the morning to
+silence "already initialized constant" warnings on reload. A constant IS defined
+after the first load, so the guard skipped the assignment on every load after
+it. Four separate constant changes were edited, committed, reloaded and had **no
+effect whatsoever** — only a SketchUp restart would have applied them. Every
+report that came back during those rounds was describing a build made with
+values nobody chose, which is why the picture looked genuinely contradictory:
+the same panel was "correct" and then "wrong" with nothing changing between.
+
+Fixed with `remove_const` before each assignment, which updates on reload and
+still avoids the warning. **`unless defined?` is only for something that must
+never change in a session.**
+
+**A `SyntaxError` made a script do nothing at all.** `Tools.run` rescued
+`StandardError`; `SyntaxError` descends from `ScriptError`, so it escaped the
+action callback, SketchUp swallowed it, and clicking the script was silent. Now
+rescues `Exception` and says plainly when the failure is a syntax error. This is
+the second time that distinction has bitten this plugin.
+
+### Editing Ruby with a script broke three files
+
+Twice by cutting at the wrong `end` — a non-greedy regex stopping at an inner
+`if`'s `end` rather than the method's — and once by matching only the last line
+of a three-line statement. The rule is not "write a better regex". **Do not edit
+Ruby with a script.** Use the editor, one statement at a time, and read it back.
+
+### What is actually measured
+
+- Footprint `(exterior_w - 2) x (exterior_h - 2)`; the deck runs under the walls.
+- Wall and door frame both sit on the floor's deck top, `z = 1.0`.
+- Panel names are not sizes, and the packing list is the **packaged** part —
+  3.25 there against 3.108 measured. Sizes come from the probe, never the list.
+- `STD7224FL SIDE R` has a bounding box **13.938 in wider than its panel**, the
+  only such part. Seating by the box put it 1' 1-15/16" out — the same "find the
+  panel inside the part" lesson the wall builder already learned.
+- Hinge gaps name the walls: **24.125** for the 46 in, **21.125** for the 22 in.
+  Measured above the RIM, not the deck — measuring above the deck sweeps in the
+  rim, which runs the panel's full length and merges every hinge into one span.
+
+### The finding that matters, still unfixed
+
+Every panel's 24.125 slot sits on its **low** half. The layout puts the big wall
+on the **high** half for all four split-run booths — 6060, 6084, 7272, 7296.
+**The panels are right and the layout is backwards**, which is what Benton
+reported independently: the window belongs nearer the door.
+
+That is a `gen-booth.py` fix and it moves walls, so it was left for its own
+change. `big_wall_fraction` and `layout_big_on_low?` are in `wr-deck.rb`,
+deliberately unused, and become the check that proves it once the layout moves.
+
+### Where the deck stands
+
+`7248` at the low end not turned, `7224` at the high end turned, ceilings
+flipped by `contact_z`. That is the state Benton called "almost perfect". I broke
+it by answering a report about three panels with a blanket change that also
+undid the one already confirmed correct — restored in `b6aa682`.
+
+### Next
+
+1. Confirm the restored deck on `MDL 7272 S`, then `MDL 96168 S`.
+2. Reverse the E/W wall run order for the four split-run booths in
+   `gen-booth.py`, so the big wall sits against the door end.
+3. `DECK_TOP_Z` is 0.0, so the floor hangs below the wall base rather than the
+   walls rising to sit on it. Physically the walls should rise — one commit,
+   both changes, or they float.
+
 ## 2026-08-13 — material merge, script renaming, and where to pick up
 
 **`scripts/merge-materials.rb`** (new). Imported components arrived carrying
