@@ -98,10 +98,20 @@ module WR_BuildBoothComponents
       'N1' => '22PanelSolid',
       'S0' => 'Right46Door',      # right-hand door, at the data's own end of the wall
       'S1' => '22PanelSolid',
-      'E0' => '46VNT_VSS',        # second vent slot, VSS
-      'E1' => '22PanelSolid',
-      'W0' => '46Panel3236WDO',   # 32x36 window, on the wall left of the door
-      'W1' => '22PanelSolid'
+      # E and W are swapped end-for-end against the layout's slot order: the 46 in
+      # part sits in slot 1 (the y 2..24 end) and the 22 in panel in slot 0 (y
+      # 26..72). Benton's call — the window and the vent both move to the other
+      # end of their wall, and they stay opposite each other.
+      #
+      # The slot polygons still carry the module widths, so a 46 in part is in a
+      # 22 in slot and vice versa. That is exactly what rebalance_walls exists
+      # for: it re-walks each wall from real part widths, and 22+2+46 sums to the
+      # same 70 in as 46+2+22, so the wall closes and the seal shifts 24 in.
+      # Nothing here edits the layout data.
+      'E0' => '22PanelSolid',
+      'E1' => '46VNT_VSS',        # second vent slot, VSS
+      'W0' => '22PanelSolid',
+      'W1' => '46Panel3236WDO'    # 32x36 window, opposite the E vent
     }
   }.freeze
 
@@ -911,10 +921,22 @@ module WR_BuildBoothComponents
 
         inst = booth.entities.add_instance(r[:defn], tr)
         inst.name = "#{p[:id]}  #{r[:name]}"
+        # The tag follows the COMPONENT NAME, not the slot's :sk.
+        #
+        # :sk is the kind the layout generator expected in that slot. The moment
+        # a booth puts a vent somewhere the data calls SOLID — which the E/W
+        # swap above does — a slot-kind tag lands the vent on WR-Booth-Walls and
+        # a plain panel on WR-Booth-Vent, so hiding the vent tag hides the wrong
+        # part. Adding :sk as a fallback does not help: it would re-tag the very
+        # slots the swap emptied.
+        #
+        # The name is always informative, assigned or not: guess_component
+        # builds "<w>VNT" and "Right<w>Door" from the kind, and the _HX suffix
+        # does not disturb either match.
         inst.layer = if p[:k] == 'corner' then t_corn
                      elsif p[:k] == 'seal' then t_seal
-                     elsif p[:sk] == 'DRFRM' then t_door
-                     elsif p[:sk] == 'VNT' then t_vent
+                     elsif r[:name] =~ /Door/i then t_door
+                     elsif r[:name] =~ /VNT/i then t_vent
                      else t_wall
                      end
         placed += 1
