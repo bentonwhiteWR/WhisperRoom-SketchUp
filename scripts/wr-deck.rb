@@ -67,11 +67,11 @@ module WR_Deck
   # metric — box, face heights, areas, bracket extent — because they are mirror
   # images, and a mirror preserves all of those.
   #
-  # So: build one booth and look. If the brackets miss the wall seams they miss
-  # by the difference between the large and small wall, 24 in on a 40/16 run,
-  # which is unmissable. Flip this and every model is right at once, because
-  # they all resolve through it.
-  SIDE_R_SMALL_WALL_AT_LOW_END = true unless defined?(SIDE_R_SMALL_WALL_AT_LOW_END)
+  # So: build one booth and look. Which is what happened — on MDL 7272 S the
+  # LARGE panel came back needing the half turn and the small one not, i.e. the
+  # opposite of what this said. Flipped to false 2026-08-14 on that evidence.
+  # It resolves every model, so one observation settles all of them.
+  SIDE_R_SMALL_WALL_AT_LOW_END = false unless defined?(SIDE_R_SMALL_WALL_AT_LOW_END)
 
   TOL = 0.35 unless defined?(TOL)   # a tiling this far off the footprint is wrong
 
@@ -258,6 +258,33 @@ module WR_Deck
   # Anything that measures the other way round is modelled upside down and gets
   # turned over. That is one rule for both kinds and it needs no list of which
   # parts are which.
+  # The in-plane extent of the DECK ITSELF, at the contact level.
+  #
+  # SEATING BY THE BOUNDING BOX IS WRONG AND IT COST A ROUND. STD7224FL SIDE R
+  # is a 24 in panel whose bounding box measures 37.938 — something projects
+  # 13.938 in past the deck. Seat by the box and the panel lands 1' 1-15/16"
+  # out of position, which is the number that came back off the screen.
+  #
+  # This is the same lesson build-booth-components.rb already learned about wall
+  # parts: find the PANEL inside the part and place by that, never by the box,
+  # because an EFS silencer or a door leaf or — here — a bracket run will widen
+  # the box without moving the panel.
+  def self.deck_extent(defn, cz)
+    box = Geom::BoundingBox.new
+    walk(defn.entities, Geom::Transformation.new) do |f, tr|
+      begin
+        pts = f.vertices.map { |v| v.position.transform(tr) }
+        next unless pts.all? { |p| (p.z.to_f - cz).abs < 0.02 }
+        pts.each { |p| box.add(p) }
+      rescue StandardError
+        next
+      end
+    end
+    box.valid? ? box : nil
+  rescue StandardError
+    nil
+  end
+
   def self.contact_z(defn, kind)
     tally = flat_levels(defn)
     return [nil, false] if tally.empty?
@@ -411,8 +438,9 @@ module WR_Deck
       # the axes. Using it would put every turned panel a full panel-width off.
       # All eight corners, take the minimum — cheap, and right under any
       # transformation.
+      seat = deck_extent(defn, cz) || bb
       got = Geom::BoundingBox.new
-      8.times { |k| got.add(bb.corner(k).transform(tr)) }
+      8.times { |k| got.add(seat.corner(k).transform(tr)) }
       tr = Geom::Transformation.translation(
         Geom::Vector3d.new(x - got.min.x.to_f, y - got.min.y.to_f, 0)) * tr
 
