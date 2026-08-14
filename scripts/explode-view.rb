@@ -4,7 +4,6 @@
 # @ability-blurb Pull the selected assembly apart; switch off to put it back.
 # @setting mode   choice  Axis|Radial|Vertical  Direction
 # @setting spread number  60                   Spread (%)
-# @setting leads  choice  Yes|No               Leader lines
 # @on  WR_ExplodeView.ability_on(opts)
 # @off WR_ExplodeView.ability_off(opts)
 #
@@ -40,7 +39,6 @@ module WR_ExplodeView
     'action' => 'Explode',
     'mode'   => 'Axis (one axis per part)',
     'spread' => '60',
-    'leads'  => 'Yes',
     'frames' => '0',
     'dir'    => 'C:/Users/bento/Desktop/ProposalFiles/PartArt'
   }.freeze
@@ -48,14 +46,14 @@ module WR_ExplodeView
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys  = %w[action mode spread leads frames dir]
-    prompts = ['Action', 'Direction', 'Spread (%)', 'Leader lines',
+    keys  = %w[action mode spread frames dir]
+    prompts = ['Action', 'Direction', 'Spread (%)',
                'Sweep frames (0 = none)', 'Output folder']
     defaults = keys.map { |k| v = Sketchup.read_default(PREF, k, DEFAULTS[k]).to_s
                               v.empty? ? DEFAULTS[k] : v }
     lists = ['Explode|Reset',
              'Axis (one axis per part)|Radial|Vertical only',
-             '', 'Yes|No', '', '']
+             '', '', '']
     di = keys.index('dir')
     defaults[di], lists[di] = WR_Folder.field('explode', defaults[di])
 
@@ -75,10 +73,45 @@ module WR_ExplodeView
 
   # ------------------------------------------------------------------- parts --
 
-  # The direct children of whatever is selected. Top-level parts are what a
-  # manual shows; nesting deeper just produces confetti.
-  # allow_homed: on a reset, fall back to every part that already carries a home
-  # attribute rather than demanding a selection that no longer exists.
+  # The parts inside a container, whatever KIND of container it is.
+  #
+  # This is where "select the WhisperRoom and nothing useful happens" came from.
+  # A Group answers #entities; a ComponentInstance DOES NOT — its geometry lives
+  # on its definition. The old code tested `respond_to?(:entities)`, so selecting
+  # a booth that happened to be a component fell through to "treat the selection
+  # as the parts", found exactly one part, and moved the whole booth as a lump.
+  # Booths built here are groups, which is why it worked most of the time and
+  # failed on the ones that came in as components.
+  def self.entities_of(e)
+    return e.entities if e.is_a?(Sketchup::Group)
+    return e.definition.entities if e.is_a?(Sketchup::ComponentInstance)
+    nil
+  rescue StandardError
+    nil
+  end
+
+  def self.children_of(e)
+    ents = entities_of(e)
+    return [] if ents.nil?
+    ents.select { |x| x.is_a?(Sketchup::Group) || x.is_a?(Sketchup::ComponentInstance) }
+  rescue StandardError
+    []
+  end
+
+  def self.container?(e)
+    e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+  end
+
+  # EDITING A COMPONENT'S INSIDES MOVES EVERY INSTANCE OF IT. A booth built here
+  # is a group, so this is normally moot — but a booth brought in as a component
+  # and placed twice would explode both copies at once, which is a surprise
+  # worth refusing to spring on someone.
+  def self.multi_instance?(e)
+    e.is_a?(Sketchup::ComponentInstance) && e.definition.instances.length > 1
+  rescue StandardError
+    false
+  end
+
   def self.parts(model, allow_homed = false)
     sel = model.selection
     if sel.empty?
@@ -86,16 +119,41 @@ module WR_ExplodeView
         homed = homed_parts(model)
         return homed unless homed.empty?
       end
-      UI.messagebox("Select the assembly first.\n\n(Or select several parts.)")
+      UI.messagebox("Select the assembly first.\n\n" \
+                    'Select the WhisperRoom itself — the whole booth — and its parts ' \
+                    'are what get pushed out.')
       return nil
     end
-    if sel.count == 1 && sel.first.respond_to?(:entities)
-      kids = sel.first.entities.select { |e|
-        e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
-      }
+
+    if sel.count == 1 && container?(sel.first)
+      subject = sel.first
+      if multi_instance?(subject)
+        n = subject.definition.instances.length
+        go = UI.messagebox("This is a component with #{n} copies in the model.\n\n" \
+                           "Exploding it moves the parts INSIDE the definition, so all " \
+                           "#{n} copies come apart together.\n\nCarry on?", MB_OKCANCEL)
+        return nil if go != IDOK
+      end
+      # Unwrap redundant nesting. A booth is often a group holding one group
+      # holding the parts; stopping at the first level would find a single child
+      # and explode nothing. Descend while there is exactly one child and it is
+      # itself a container.
+      kids = children_of(subject)
+      while kids.length == 1 && container?(kids.first)
+        inner = children_of(kids.first)
+        break if inner.empty?
+        subject = kids.first
+        kids = inner
+      end
       return kids unless kids.empty?
+
+      UI.messagebox("Nothing to explode inside that.\n\n" \
+                    'It holds loose geometry rather than separate parts, so there is ' \
+                    'nothing to pull apart.')
+      return nil
     end
-    sel.to_a.select { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) }
+
+    sel.to_a.select { |e| container?(e) }
   end
 
   # Where a part started. Recorded the first time it moves, so Reset always has
@@ -171,28 +229,9 @@ module WR_ExplodeView
     [plan, centre, size]
   end
 
-  def self.leaders(model, plan)
-    t = model.layers[TAG_LEAD] || model.layers.add(TAG_LEAD)
-    (t.color = Sketchup::Color.new(150, 150, 158)) rescue nil
-    g = model.entities.add_group
-    g.name = 'Explode leaders'
-    g.layer = t
-    n = 0
-    plan.each do |p|
-      a = p[:ent].bounds.center
-      b = a.offset(p[:dir], -p[:dist])
-      next if a.distance(b) < 0.5
-      begin
-        edge = g.entities.add_line(b, a)
-        edge.soft = false if edge
-        n += 1
-      rescue StandardError
-      end
-    end
-    g.erase! if n.zero? && g.valid?
-    n
-  end
-
+  # Leader lines are gone as a feature, but models drawn before they were
+  # removed still carry the group. This sweeps it up so switching Exploded on
+  # once cleans the old ones out for good.
   def self.clear_leaders(model)
     n = 0
     model.entities.to_a.each do |e|
@@ -320,7 +359,6 @@ module WR_ExplodeView
     end
 
     place(plan, 1.0)
-    leads = (cfg['leads'] == 'Yes') ? leaders(model, plan) : 0
     model.commit_operation
 
     swept = nil
@@ -332,7 +370,7 @@ module WR_ExplodeView
     end
 
     model.active_view.zoom_extents
-    report(plan, mode, spread, size, leads, cleared, swept, cfg['dir'])
+    report(plan, mode, spread, size, cleared, swept, cfg['dir'])
     true
   rescue StandardError => e
     model.abort_operation if model
@@ -342,7 +380,7 @@ module WR_ExplodeView
     false
   end
 
-  def self.report(plan, mode, spread, size, leads, cleared, swept, dir)
+  def self.report(plan, mode, spread, size, cleared, swept, dir)
     axes = Hash.new(0)
     plan.each do |p|
       d = p[:dir]
@@ -360,8 +398,7 @@ module WR_ExplodeView
     puts "  #{plan.size} parts moved, #{mode} direction, spread #{(spread * 100).round}%"
     puts format('  assembly is %.1f" across; parts travel %.1f" to %.1f"',
                 size, size * spread * 0.35, size * spread)
-    puts "  #{leads} leader line(s) on #{TAG_LEAD}" if leads > 0
-    puts "  #{cleared} old leader group(s) cleared" if cleared > 0
+    puts "  #{cleared} leftover leader group(s) from an older version cleared" if cleared > 0
     puts ''
     puts '  DIRECTIONS'
     axes.sort.each { |k, v| puts format('    %-7s %d part(s)', k, v) }
