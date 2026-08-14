@@ -258,7 +258,7 @@ module WR_ProbeLevels
         rim = bb.min.z.to_f if rim.nil?
         long_is_y, runs = brackets(defn, rim)
         rows << { :file => File.basename(path, '.skp'), :tally => tally,
-                  :total => total, :bb => bb, :deck => deck,
+                  :total => total, :bb => bb, :rim => rim,
                   :long_is_y => long_is_y, :runs => runs }
       rescue StandardError => e
         puts format('  %-28s FAILED %s: %s', File.basename(path), e.class, e.message)
@@ -304,7 +304,7 @@ module WR_ProbeLevels
         axis = r[:long_is_y] ? 'Y' : 'X'
         len  = r[:long_is_y] ? (bb.max.y - bb.min.y).to_f : (bb.max.x - bb.min.x).to_f
         lo   = r[:long_is_y] ? bb.min.y.to_f : bb.min.x.to_f
-        puts format('        hinges (z > %.4f), along %s over %.2f in:', r[:deck], axis, len)
+        puts format('        hinges (z > %.4f), along %s over %.2f in:', r[:rim], axis, len)
         runs.each { |a, b| puts format('           %8.3f .. %-8.3f  (%.3f wide, %.0f%% along)',
                                        a, b, b - a, 100.0 * ((a + b) / 2.0 - lo) / len) }
 
