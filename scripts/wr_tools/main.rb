@@ -59,7 +59,7 @@ module WhisperRoom
     # build-booth.rb; wr-shading.rb is the shading contract both component-art
     # exporters share.
     SKIP     = ['wr_tools.rb', 'wr-booth-data.rb', 'wr-shading.rb',
-                'wr-folder.rb'].freeze
+                'wr-folder.rb', 'wr-deck.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5
     PIN_N    = 8        # favourites the strip holds before it gets crowded

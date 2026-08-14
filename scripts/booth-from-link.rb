@@ -57,9 +57,10 @@ module WR_BoothLink
     # them is offered by all three.
     dir, list = WR_Folder.field('parts', 'P:/Sketchup/NewMasterComponentList')
 
-    res = UI.inputbox(['Booth-builder link', 'Component folder', 'Dry run — report only'],
-                      [read_pref('link'), dir, 'No'],
-                      ['', list, 'Yes|No'],
+    res = UI.inputbox(['Booth-builder link', 'Component folder',
+                       'Floor and ceiling', 'Dry run — report only'],
+                      [read_pref('link'), dir, read_pref('deck', 'Yes'), 'No'],
+                      ['', list, 'Yes|No', 'Yes|No'],
                       'Build Booth from Link')
     return nil unless res
     link = res[0].to_s.strip
@@ -71,7 +72,9 @@ module WR_BoothLink
     dir = WR_Folder.resolve(res[1], 'parts', 'Folder of component .skp files', false)
     return nil if dir.nil?
     write_pref('link', link)
-    { 'link' => link, 'dir' => dir, 'dry' => res[2] == 'Yes' }
+    write_pref('deck', res[2])
+    { 'link' => link, 'dir' => dir, 'deck' => res[2] == 'Yes',
+      'dry' => res[3] == 'Yes' }
   end
 
   # ------------------------------------------------------------------ decode --
@@ -164,7 +167,8 @@ module WR_BoothLink
       $wr_no_autorun = false
     end
     WR_BuildBoothComponents.build_booth(key, assign,
-                                        'dir' => cfg['dir'], 'hx' => hx, 'dry' => cfg['dry'])
+                                        'dir' => cfg['dir'], 'hx' => hx,
+                                        'deck' => cfg['deck'], 'dry' => cfg['dry'])
   end
 
   # -------------------------------------------------------------------- run --

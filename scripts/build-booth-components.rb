@@ -51,6 +51,10 @@ require 'sketchup.rb'
 
 # The folder field is a dropdown of folders used before, plus a Browse entry.
 load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+# Floor and ceiling placement. Kept separate because its rules are measured
+# and documented in reference/floor-ceiling-geometry.md, with their own
+# constants; inlining them here would bury them in a 900-line file.
+load File.join(File.dirname(__FILE__), 'wr-deck.rb')
 
 module WR_BuildBoothComponents
   DATA = File.join(File.dirname(__FILE__), 'wr-booth-data.rb')
@@ -139,9 +143,11 @@ module WR_BuildBoothComponents
     # them is offered by all three.
     dir, dlist = WR_Folder.field('parts', dir)
 
-    res = UI.inputbox(['Booth', 'Component folder', 'Height', 'Dry run — report only'],
-                      [last, dir, 'Standard (81 in)', 'No'],
-                      [keys.join('|'), dlist, 'Standard (81 in)|HX (91 in)', 'Yes|No'],
+    res = UI.inputbox(['Booth', 'Component folder', 'Height',
+                       'Floor and ceiling', 'Dry run — report only'],
+                      [last, dir, 'Standard (81 in)', read_pref('deck', 'Yes'), 'No'],
+                      [keys.join('|'), dlist, 'Standard (81 in)|HX (91 in)',
+                       'Yes|No', 'Yes|No'],
                       'Build Booth from Components')
     return nil unless res
 
@@ -150,8 +156,9 @@ module WR_BuildBoothComponents
     d = WR_Folder.resolve(res[1], 'parts', 'Folder of component .skp files', false)
     return nil if d.nil?
     write_pref('booth', res[0])
+    write_pref('deck', res[3])
     { 'booth' => res[0], 'dir' => d, 'hx' => res[2].to_s.start_with?('HX'),
-      'dry' => res[3] == 'Yes' }
+      'deck' => res[3] == 'Yes', 'dry' => res[4] == 'Yes' }
   end
 
   # read_default EVALS the stored string and write_default does not escape quotes
@@ -911,6 +918,26 @@ module WR_BuildBoothComponents
                      else t_wall
                      end
         placed += 1
+      end
+
+      # ---- floor and ceiling ------------------------------------------------
+      #
+      # Kept in wr-deck.rb rather than inlined here: the rules behind it are
+      # measured, documented in reference/floor-ceiling-geometry.md, and have
+      # their own four constants. Folding them into this file would bury them.
+      deck_note = nil
+      if cfg['deck'] && !cfg['dry'] && booth
+        t_deck = tag.call('WR-Booth-Deck', [120, 120, 128])
+        wall_h = cfg['hx'] ? 91.0 : 81.0
+        %w[FL CL].each do |kind|
+          before = booth.entities.length
+          n, dwarn, note = WR_Deck.build(model, booth, spec, cfg['dir'], kind, wall_h)
+          booth.entities.to_a[before..-1].to_a.each { |e| (e.layer = t_deck) rescue nil }
+          deck_note = "#{deck_note}#{deck_note ? '; ' : ''}#{kind} #{n}#{note ? " (#{note})" : ''}"
+          placed += n
+          (dwarn || []).each { |w| puts "  DECK #{kind}: #{w}" }
+        end
+        puts "  deck     #{deck_note}"
       end
 
       model.commit_operation unless cfg['dry']
