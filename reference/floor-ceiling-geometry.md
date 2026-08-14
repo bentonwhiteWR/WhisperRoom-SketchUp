@@ -166,14 +166,49 @@ wall run's panel order and lengths, so it already knows which end of each run
 holds the small panel. The handing follows from that.
 
 What it *does* need is one anchor: which end of the panel's own coordinates the
-small-wall bracket sits at, so "small panel at the low end of the run" can be
-turned into "use SIDE L" or "use SIDE R" without guessing. That is measurable —
-the brackets are the geometry standing above the deck — and `probe-levels.rb`
-reports their spans for exactly this purpose. Measure once, write the mapping
-here, and every model follows.
+small-wall bracket sits at.
 
-Getting it backwards is not subtle: the brackets miss the wall seams by the
-difference between the large and small panel, so it will be visible immediately.
+### That anchor is NOT measurable. L and R are a mirror pair.
+
+Measured 2026-08-14, `STD6042FL SIDE L` against `STD6042FL SIDE R`:
+
+| | SIDE L | SIDE R |
+|---|---|---|
+| box | 41.969 × 60.000 × 3.500 | 41.969 × 60.000 × 3.500 |
+| levels | 1.7500 / 1.0000 / 0.0000 | 1.7500 / 1.0000 / 0.0000 |
+| areas | 337.0 / 2545.5 / 2473.1 | 337.0 / 2545.5 / 2473.1 |
+| above-deck span | 0.875 .. 59.108 | 0.875 .. 59.108 |
+
+**Identical to four decimals on every metric.** `STD6042CL SIDE L` and `SIDE R`
+likewise. That is what a mirror image looks like: reflecting a part about the
+midpoint of its long axis preserves the bounding box, every face height, every
+area, and the outer extent of the brackets. Nothing short of comparing
+individual bracket positions can tell them apart, and even that only works if
+the brackets can be separated from the perimeter rim — which they cannot here,
+because the rim runs the full length and merges with them.
+
+So do **not** try to derive the handing from geometry. It is not in there.
+
+### Resolve it with one named constant
+
+    SIDE_R_SMALL_WALL_AT_LOW_END = true   # or false
+
+Pick a value, build one booth, look at it. If the brackets miss the wall seams
+they miss by the difference between the large and small panel — 24″ on the 40/16
+runs — so a wrong guess is unmissable, not subtle. Flip the constant and it is
+right everywhere, because every model resolves through the same rule.
+
+This is the same shape as `FACE_OUT` in `build-booth-components.rb`: one flag,
+named, with the check written next to it.
+
+### Probe limitation, recorded so it is not re-attempted
+
+`probe-levels.rb`'s bracket reporting merged everything into one span because
+the 1.7500 rim face runs the full length of the panel and overlaps every
+bracket. It also prints nothing for ceilings, because their deck is detected at
+the top of the box and nothing sits above it. Neither is evidence about the
+parts — it is the tool's reach. Separating brackets would need clustering by
+connected geometry in 2D rather than merging 1D spans along one axis.
 
 ## Still unconfirmed
 2. **`STDSS FL5` and `STDSS FL8.5` do not exist** although `CL5` and `8.5CL` do.
