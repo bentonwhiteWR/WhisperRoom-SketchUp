@@ -85,13 +85,22 @@ module WR_Deck
   #   48 at the LOW end,  turned      -> correct
   #   24 at the HIGH end, NOT turned  -> correct
   #
-  # Two observations, and between them they pin it: the low-end panel is the
-  # turned one. No third value to try.
+  # Inverting this rotates EVERY panel by 180 — the turned one becomes unturned
+  # and the unturned one turned — which is what "all four need to rotate 180"
+  # asks for. Set false on that report, 2026-08-14.
+  #
+  # NOTE THE CONTRADICTION, because it matters if this comes back again. With
+  # the 48 turned and the 24 turned, the 48 was called correct. With the 48
+  # turned and the 24 unturned, all four were called wrong — yet nothing about
+  # the 48 changed between those two runs. Either the 48 was misread once, or
+  # something outside this constant moves with it. If a flip does not settle it,
+  # stop flipping: read the per-tile console lines, which name the part, the
+  # turn and the exact extents.
   #
   # This replaced a rule that turned a panel only when its wanted HAND was
   # missing from the folder, which conflated two independent things and is why
   # fixing the 48 broke the 24 and fixing the 24 broke the 48.
-  LOW_END_PANEL_IS_TURNED = true unless defined?(LOW_END_PANEL_IS_TURNED)
+  LOW_END_PANEL_IS_TURNED = false unless defined?(LOW_END_PANEL_IS_TURNED)
 
   TOL = 0.35 unless defined?(TOL)   # a tiling this far off the footprint is wrong
 
