@@ -186,9 +186,9 @@ module WR_Deck
     cuts.each_with_index do |width, i|
       end_of_run = (i.zero? || i == cuts.length - 1)
       want = end_of_run ? 'SIDE' : 'CTR'
-      part = pick(pool, width, want, i.zero?)
+      part, mirror = pick(pool, width, want, i.zero?)
       return [nil, format('no %s part %g in wide', kind, width)] if part.nil?
-      tiles << { :part => part, :along => width, :at => pos,
+      tiles << { :part => part, :along => width, :at => pos, :mirror => mirror,
                  :along_is_x => along_is_x, :cross => cross_len }
       pos += width
     end
@@ -198,20 +198,36 @@ module WR_Deck
 
   # Prefer the requested role; fall back rather than fail, because plenty of
   # sizes exist in only one role and a booth should still build.
+  #
+  # Returns [part, mirror?].
+  #
+  # A HAND THAT DOES NOT EXIST AS A FILE IS MADE BY MIRRORING THE ONE THAT DOES.
+  #
+  # 7248 ships both SIDE L and SIDE R; 7224 ships only SIDE R. So on an
+  # MDL 7272 S — which tiles 48 + 24 — the 48 gets a real handed part and the
+  # 24 has nothing to reach for. It used to fall back to SIDE R unmirrored,
+  # which put that panel's wall edge facing the CENTRE of the booth instead of
+  # the wall. Reported, and exactly right.
+  #
+  # Mirroring is legitimate here rather than a bodge: L and R measured
+  # identically on every metric precisely because they ARE reflections of each
+  # other. Reflecting the R part reproduces the L part.
   def self.pick(pool, width, want, at_low_end)
     same = pool.select { |c| (c[:along] - width).abs < TOL }
-    return nil if same.empty?
+    return [nil, false] if same.empty?
     byrole = same.select { |c| c[:role] == want }
     byrole = same if byrole.empty?
 
-    # Handed pairs: SIDE L and SIDE R are mirrors, so the end decides which.
     handed = byrole.select { |c| !c[:hand].empty? }
-    unless handed.empty?
-      want_r = at_low_end == SIDE_R_SMALL_WALL_AT_LOW_END
-      hit = handed.find { |c| c[:hand] == (want_r ? 'R' : 'L') }
-      return hit if hit
-    end
-    byrole.first
+    return [byrole.first, false] if handed.empty?
+
+    want_r = at_low_end == SIDE_R_SMALL_WALL_AT_LOW_END
+    hand   = want_r ? 'R' : 'L'
+    hit    = handed.find { |c| c[:hand] == hand }
+    return [hit, false] if hit
+
+    # The hand we need is not in the folder. Take the other one and reflect it.
+    [handed.first, true]
   end
 
   # ----------------------------------------------------------- measurement --
@@ -319,22 +335,34 @@ module WR_Deck
       target_z += wall_h unless kind == 'FL'
       z = target_z - cz
 
-      tr = Geom::Transformation.translation(Geom::Vector3d.new(x, y, z))
-      tr = tr * Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) if turn
-      # Then shift so the box's own minimum lands on the target, since the
-      # origin is not the corner on most of these parts.
-      corner = bb.min.transform(tr)
+      # Orientation first, in the part's own space: mirror, then quarter turn.
+      tr = Geom::Transformation.new
+      tr = Geom::Transformation.scaling(ORIGIN, -1, 1, 1) * tr if t[:mirror]
+      tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
+      tr = Geom::Transformation.translation(Geom::Vector3d.new(0, 0, z)) * tr
+
+      # THEN seat it, from the TRANSFORMED corners rather than from bb.min.
+      #
+      # bb.min transformed is not the minimum of the transformed box: a mirror
+      # sends the minimum corner to the maximum, and a quarter turn swaps the
+      # axes. Using it would have put every mirrored panel a full panel-width
+      # off. All eight corners, take the minimum — cheap, and correct under any
+      # transformation.
+      got = Geom::BoundingBox.new
+      8.times { |k| got.add(bb.corner(k).transform(tr)) }
       tr = Geom::Transformation.translation(
-        Geom::Vector3d.new(x - corner.x.to_f, y - corner.y.to_f, 0)) * tr
+        Geom::Vector3d.new(x - got.min.x.to_f, y - got.min.y.to_f, 0)) * tr
 
       begin
         inst = parent.entities.add_instance(defn, tr)
-        inst.name = t[:part][:file] if inst
+        inst.name = "#{t[:part][:file]}#{t[:mirror] ? ' (mirrored)' : ''}" if inst
         placed += 1
       rescue StandardError => e
         warn << "#{t[:part][:file]}: place failed, #{e.class}: #{e.message}"
       end
-      warn << format('%s: box %.2f x %.2f, contact z %.4f', t[:part][:file], dx, dy, cz) if $wr_deck_verbose
+      warn << format('%s%s: box %.2f x %.2f, contact z %.4f, at %.2f',
+                     t[:part][:file], t[:mirror] ? ' (mirrored)' : '',
+                     dx, dy, cz, t[:at]) if $wr_deck_verbose
     end
 
     [placed, warn, note]
