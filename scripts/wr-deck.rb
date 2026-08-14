@@ -73,23 +73,25 @@ module WR_Deck
   # It resolves every model, so one observation settles all of them.
   SIDE_R_SMALL_WALL_AT_LOW_END = false unless defined?(SIDE_R_SMALL_WALL_AT_LOW_END)
 
-  # A HALF TURN APPLIED TO EVERY DECK PANEL.
+  # WHICH END OF THE RUN GETS THE TURNED PANEL.
   #
-  # Separate from the handing above, and it exists because the handing could not
-  # explain what came back. On MDL 7272 S the 48 in floor was reported wrong
-  # BOTH ways round: with SIDE R placed unturned, and again with SIDE L placed
-  # unturned after the handing constant was flipped. Two different parts, same
-  # complaint — "the sides are in the center".
+  # Panels at opposite ends of a run necessarily face opposite ways — each puts
+  # its bracket edge outward at its own end — so exactly one of the two is
+  # turned relative to the other. That is inherent to a row of panels, and it is
+  # the thing I kept failing to separate from the handing.
   #
-  # L and R are reflections, so neither is the other turned around. If both are
-  # wrong unturned then the error is not which part was chosen: the whole deck
-  # is seated a half turn off, and my assumption about which way a panel faces
-  # in its own coordinates was simply backwards.
+  # Measured on MDL 7272 S, which tiles 48 + 24:
   #
-  # So this turns every deck panel, and the handing constant continues to decide
-  # WHICH part goes at which end. Two independent things, two independent dials,
-  # which is what the last three rounds were missing.
-  DECK_HALF_TURN = true unless defined?(DECK_HALF_TURN)
+  #   48 at the LOW end,  turned      -> correct
+  #   24 at the HIGH end, NOT turned  -> correct
+  #
+  # Two observations, and between them they pin it: the low-end panel is the
+  # turned one. No third value to try.
+  #
+  # This replaced a rule that turned a panel only when its wanted HAND was
+  # missing from the folder, which conflated two independent things and is why
+  # fixing the 48 broke the 24 and fixing the 24 broke the 48.
+  LOW_END_PANEL_IS_TURNED = true unless defined?(LOW_END_PANEL_IS_TURNED)
 
   TOL = 0.35 unless defined?(TOL)   # a tiling this far off the footprint is wrong
 
@@ -204,9 +206,10 @@ module WR_Deck
     cuts.each_with_index do |width, i|
       end_of_run = (i.zero? || i == cuts.length - 1)
       want = end_of_run ? 'SIDE' : 'CTR'
-      part, mirror = pick(pool, width, want, i.zero?)
+      part, substituted = pick(pool, width, want, i.zero?)
       return [nil, format('no %s part %g in wide', kind, width)] if part.nil?
-      tiles << { :part => part, :along => width, :at => pos, :mirror => mirror,
+      tiles << { :part => part, :along => width, :at => pos,
+                 :at_low_end => i.zero?, :substituted => substituted,
                  :along_is_x => along_is_x, :cross => cross_len }
       pos += width
     end
@@ -217,19 +220,17 @@ module WR_Deck
   # Prefer the requested role; fall back rather than fail, because plenty of
   # sizes exist in only one role and a booth should still build.
   #
-  # Returns [part, mirror?].
+  # Returns [part, substituted?].
   #
-  # A HAND THAT DOES NOT EXIST AS A FILE IS MADE BY MIRRORING THE ONE THAT DOES.
+  # `substituted` means the hand this end wants is not in the folder and the
+  # other one was used instead. 7248 ships both SIDE L and SIDE R; 7224 ships
+  # only SIDE R, so on an MDL 7272 S every 24 in end is a substitution.
   #
-  # 7248 ships both SIDE L and SIDE R; 7224 ships only SIDE R. So on an
-  # MDL 7272 S — which tiles 48 + 24 — the 48 gets a real handed part and the
-  # 24 has nothing to reach for. It used to fall back to SIDE R unmirrored,
-  # which put that panel's wall edge facing the CENTRE of the booth instead of
-  # the wall. Reported, and exactly right.
-  #
-  # Mirroring is legitimate here rather than a bodge: L and R measured
-  # identically on every metric precisely because they ARE reflections of each
-  # other. Reflecting the R part reproduces the L part.
+  # IT DOES NOT AFFECT ORIENTATION. That was the mistake: a missing hand used to
+  # trigger a half turn, which tangled "wrong part" together with "wrong way
+  # round" and meant fixing one end broke the other. The turn is decided by
+  # POSITION now — see LOW_END_PANEL_IS_TURNED — and this flag is reported so a
+  # substitution is visible, nothing more.
   def self.pick(pool, width, want, at_low_end)
     same = pool.select { |c| (c[:along] - width).abs < TOL }
     return [nil, false] if same.empty?
@@ -439,9 +440,9 @@ module WR_Deck
       tr = Geom::Transformation.new
       # Modelled the other way up — turn it over about its own long axis.
       tr = Geom::Transformation.rotation(ORIGIN, X_AXIS, 180.degrees) * tr if flip
-      # Opposite hand — turn it around, do not reflect it. XOR with the global
-      # half turn, so the two dials compose instead of one cancelling the other.
-      half = t[:mirror] ^ DECK_HALF_TURN
+      # Panels at opposite ends of the run face opposite ways, so exactly one end
+      # is turned. Decided by POSITION, never by which hand happened to exist.
+      half = (t[:at_low_end] == LOW_END_PANEL_IS_TURNED)
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if half
       # Booth tiles along its own Y rather than X.
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
