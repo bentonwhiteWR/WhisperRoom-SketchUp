@@ -416,18 +416,27 @@ module WR_Deck
       tr = Geom::Transformation.translation(
         Geom::Vector3d.new(x - got.min.x.to_f, y - got.min.y.to_f, 0)) * tr
 
+      inst = nil
       begin
         inst = parent.entities.add_instance(defn, tr)
-        inst.name = "#{t[:part][:file]}#{t[:mirror] ? ' (mirrored)' : ''}" if inst
+        inst.name = "#{t[:part][:file]}#{t[:mirror] ? ' (turned)' : ''}#{flip ? ' (flipped)' : ''}" if inst
         placed += 1
       rescue StandardError => e
         warn << "#{t[:part][:file]}: place failed, #{e.class}: #{e.message}"
       end
-      warn << format('%s%s: box %.2f x %.2f, contact z %.4f, at %.2f',
-                     t[:part][:file], t[:mirror] ? ' (mirrored)' : '',
-      puts format('    %-26s%-9s%-9s contact %7.4f  ->  x %7.2f  y %7.2f  z %7.2f',
-                  t[:part][:file], flip ? ' flipped' : '', t[:mirror] ? ' turned' : '',
-                  cz, got.min.x.to_f, got.min.y.to_f, got.min.z.to_f)
+
+      # Report from the PLACED INSTANCE, not from `got` — `got` was measured
+      # before the final seating translation, so its x and y are one step stale.
+      # A debug line that is subtly wrong is worse than none, because it gets
+      # believed.
+      landed = (inst && inst.valid? ? inst.bounds : nil)
+      if landed
+        puts format('    %-26s%-9s%-9s contact %7.4f  ->  %7.2f %7.2f %7.2f  ' \
+                    'to %7.2f %7.2f %7.2f',
+                    t[:part][:file], flip ? ' flipped' : '', t[:mirror] ? ' turned' : '',
+                    cz, landed.min.x.to_f, landed.min.y.to_f, landed.min.z.to_f,
+                    landed.max.x.to_f, landed.max.y.to_f, landed.max.z.to_f)
+      end
     end
 
     [placed, warn, note]
