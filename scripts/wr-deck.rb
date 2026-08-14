@@ -506,7 +506,9 @@ module WR_Deck
                warn << "#{t[:part][:file]}: #{e.class}: #{e.message}"
                next
              end
-      cz, flip = contact_z(defn, kind)
+      # contact_z's second value said whether the part looked upside down. It is
+      # deliberately discarded: the parts go in as the master file has them.
+      cz, = contact_z(defn, kind)
       if cz.nil?
         warn << "#{t[:part][:file]}: no flat faces to measure"
         next
@@ -533,48 +535,36 @@ module WR_Deck
 
       # ORIENTATION FIRST, THEN READ THE CONTACT PLANE BACK OUT OF IT.
       #
-      # The contact z measured above is in the part's UNTURNED coordinates. Turn
-      # the part over and that plane moves — so computing the lift before the
-      # rotation, as this did, puts a flipped part out by its own thickness.
-      # Build the orientation, push the contact point through it, and only then
-      # work out the lift.
-      #
-      # THE OPPOSITE HAND IS A HALF TURN, NOT A MIRROR. This was a negative-X
-      # scaling and it pushed the floor out of shape — visibly splayed, while
-      # the ceiling happened to survive.
-      #
-      # The reason is physical, and it is the better argument anyway: you cannot
-      # mirror a floor panel. It has a top and a bottom. To put the small wall at
-      # the other end of the run you TURN IT AROUND — 180 degrees about the
-      # vertical — which is what a person does with the real part and what keeps
-      # the deck facing up. A reflection would have to flip it over.
-      #
-      # It also keeps the transformation's determinant positive. A negative-scale
-      # instance is a thing SketchUp will accept and then render in ways that are
-      # nobody's idea of a good time.
-      #
-      # L and R still measure identically, because a half turn preserves the
-      # bounding box and every face height and area just as a reflection does.
-      # The measurement could not tell them apart; the physics can.
+      # Only the quarter turn remains, but the order still matters: the contact
+      # z was measured in the part's own coordinates, and any rotation moves that
+      # plane. Build the transform, push the contact point through it, then work
+      # out the lift from where it actually ended up.
       tr = Geom::Transformation.new
-      # Modelled the other way up — turn it over about its own long axis.
-      tr = Geom::Transformation.rotation(ORIGIN, X_AXIS, 180.degrees) * tr if flip
-      # TURN DECIDED BY THE PART AGAINST THE LAYOUT, not by a constant.
+      # PLACED EXACTLY AS THE MASTER FILE HAS THEM. No flip, no half turn.
       #
-      # The panel's hinge gaps say which half wants the big wall; the layout says
-      # which half has it. Disagree, and the panel turns. Both sides measured, so
-      # this stays right if either changes — and the layout on all four affected
-      # booths is currently the one that is wrong.
+      # Benton pulled the master and confirmed the components are correct there,
+      # and asked for them to go in as-is. So they do. Every orientation rule I
+      # wrote — the upside-down flip, the handing constant, the position rule,
+      # the hinge-derived turn — made three of the four panels on an MDL 7272 S
+      # worse, one round after another. The part is right; the thing rotating it
+      # was not.
       #
-      # Panels with no such pair — every symmetric booth — return nil and are
-      # placed as modelled, which is what LOW_END_PANEL_IS_TURNED was really
-      # doing before, badly, for everything.
-      frac = big_wall_fraction(defn, rim_z(defn) || bb.min.z.to_f)
-      want_low = layout_big_on_low?(spec, t[:along_is_x])
+      # The two measurements that survive are the ones about HEIGHT, not
+      # orientation: contact_z still decides which face meets the wall, so a
+      # ceiling whose slab sits at the top of its box and one whose slab sits at
+      # the bottom both land at the right level. That was never in dispute.
+      #
+      # The quarter turn below is different in kind and stays: it is not an
+      # orientation choice, it is the panel not fitting otherwise when a booth
+      # tiles along its own Y instead of X.
+      #
+      # big_wall_fraction and layout_big_on_low? are kept, unused, because the
+      # measurement they encode is real and correct — hinge gaps of 24.125 and
+      # 21.125 do name the walls, and the layout on the four split-run booths
+      # does contradict them. That is a LAYOUT bug to fix in gen-booth.py, not a
+      # reason to rotate a part that is already right.
       half = false
-      half = ((frac < 0.5) != want_low) unless frac.nil? || want_low.nil?
-      tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if half
-      # Booth tiles along its own Y rather than X.
+      flip = false
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
 
       # Where the contact plane ended up, after all of that.
