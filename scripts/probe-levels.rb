@@ -310,10 +310,9 @@ module WR_ProbeLevels
           runs.each_cons(2) do |x, y|
             g  = y[0] - x[1]
             at = 100.0 * ((x[1] + y[0]) / 2.0 - lo) / len
-            tag = if (g - 2.125).abs  < 0.2 then '  <- 2 1/8, the 46 in slot'
-                  elsif (g - 21.125).abs < 0.4 then '  <- 1ft 9 1/8, the 22 in slot'
-                  else ''
-                  end
+            tag = ''
+            tag = '  <- 2 1/8, the 46 in slot'      if (g - 2.125).abs  < 0.2
+            tag = '  <- 1ft 9 1/8, the 22 in slot'  if (g - 21.125).abs < 0.4
             puts format('           %7.3f in at %3.0f%% along%s', g, at, tag)
           end
         end
