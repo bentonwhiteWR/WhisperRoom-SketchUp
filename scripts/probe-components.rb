@@ -34,34 +34,25 @@
 
 require 'sketchup.rb'
 
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
 module WR_Probe
   PREF = 'WR_Probe'.freeze
   DEFAULT_DIR = 'P:/Sketchup/NewMasterComponentList'.freeze
 
   def self.ask
-    dir = begin
-      v = Sketchup.read_default(PREF, 'dir', DEFAULT_DIR).to_s
-      v.empty? ? DEFAULT_DIR : v
-    rescue Exception
-      DEFAULT_DIR
-    end
+    dir, list = WR_Folder.field('parts', DEFAULT_DIR)
 
     res = UI.inputbox(['Folder of .skp files', 'Purge the definitions afterwards'],
-                      [dir, 'Yes'], ['', 'Yes|No'], 'Probe Component Files')
+                      [dir, 'Yes'], [list, 'Yes|No'], 'Probe Component Files')
     return nil unless res
 
-    d = res[0].to_s.strip.tr('\\', '/')
-    if d.empty?
-      picked = (UI.select_directory(:title => 'Folder of component .skp files') rescue nil)
-      return nil if picked.nil? || picked.to_s.empty?
-      d = picked.to_s.tr('\\', '/')
-    end
-    d = d.sub(%r{/+\z}, '')
-    unless File.directory?(d)
-      UI.messagebox("Not a folder:\n#{d}")
-      return nil
-    end
-    (Sketchup.write_default(PREF, 'dir', d) rescue nil)
+    # create = false, because this folder is an INPUT. Silently creating an empty
+    # one and then reporting "no .skp files in it" would hide a mistyped drive
+    # letter as an empty-folder problem.
+    d = WR_Folder.resolve(res[0], 'parts', 'Folder of component .skp files', false)
+    return nil if d.nil?
     { 'dir' => d, 'purge' => res[1].to_s }
   end
 

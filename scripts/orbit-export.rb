@@ -28,6 +28,9 @@
 require 'json'
 require 'fileutils'
 
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
 module WR_OrbitExport
   DEG      = Math::PI / 180.0
   PREF     = 'WR_OrbitExport'.freeze
@@ -61,10 +64,15 @@ module WR_OrbitExport
       'One scale for the whole run|Each part fills the frame',
       '', ''
     ]
+    di = keys.index('dir')
+    defaults[di], lists[di] = WR_Folder.field('orbit', defaults[di])
+
     res = UI.inputbox(prompts, defaults, lists, 'Orbit Export')
     return nil unless res
     out = {}
     keys.each_with_index { |k, i| out[k] = res[i].to_s.strip }
+    out['dir'] = WR_Folder.resolve(out['dir'], 'orbit', 'Where should the orbit frames go?')
+    return nil if out['dir'].nil?
     keys.each { |k| Sketchup.write_default(PREF, k, out[k]) }
     out
   end

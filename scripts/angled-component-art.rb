@@ -62,6 +62,8 @@ require 'fileutils'
 # The shading contract, shared with export-component-art.rb. Loaded rather than
 # required so an edit takes effect without restarting SketchUp.
 load File.join(File.dirname(__FILE__), 'wr-shading.rb')
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
 
 module WR_AngledArt
   PREF = 'WR_AngledArt'.freeze
@@ -264,11 +266,19 @@ module WR_AngledArt
              'Yes|No',                             # over
              'Yes|No',                             # recov
              'Yes|No']                             # dry
+    # The folder slot is patched by INDEX rather than position, so reordering
+    # the fields later cannot silently point the dropdown at the wrong one.
+    di = keys.index('dir')
+    defaults[di], lists[di] = WR_Folder.field('angled', DEFAULTS['dir'])
+
     res = UI.inputbox(prompts, defaults, lists, 'Angled Component Art (Iso30)')
     return nil unless res
     cfg = {}
     keys.each_with_index { |k, i| cfg[k] = res[i].to_s.strip }
-    cfg['dir'] = cfg['dir'].tr('\\', '/')
+    # A modal cannot be raised from inside another modal, so the browser opens
+    # only now, after the inputbox is gone.
+    cfg['dir'] = WR_Folder.resolve(cfg['dir'], 'angled', 'Where should the Iso30 images go?')
+    return nil if cfg['dir'].nil?
     keys.each { |k| Sketchup.write_default(PREF, k, cfg[k]) }
     cfg
   end

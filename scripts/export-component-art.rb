@@ -55,6 +55,8 @@ require 'json'
 # required so an edit takes effect without restarting SketchUp, same as every
 # other script here.
 load File.join(File.dirname(__FILE__), 'wr-shading.rb')
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
 
 module WR_ComponentArt
   PREF = 'WR_ComponentArt'.freeze
@@ -87,7 +89,7 @@ module WR_ComponentArt
   def self.ask
     keys = %w[scenes dir width view trans style dark recov over dry man]
     prompts = ['Scenes — all / current / 1-7,12 / text',
-               'Output folder — blank to browse',
+               'Output folder',
                'Image width (px)',
                'View height — "scene", or inches (pins the scale)',
                'Transparent background',
@@ -115,12 +117,15 @@ module WR_ComponentArt
              'Yes|No',                                  # over
              'Yes|No',                                  # dry
              'Yes|No']                                  # man
+    di = keys.index('dir')
+    defaults[di], lists[di] = WR_Folder.field('flatart', DEFAULTS['dir'])
+
     res = UI.inputbox(prompts, defaults, lists, 'Export Component Art')
     return nil unless res
     cfg = {}
     keys.each_with_index { |k, i| cfg[k] = res[i].to_s.strip }
 
-    cfg['dir'] = browse_dir(cfg['dir'])
+    cfg['dir'] = WR_Folder.resolve(cfg['dir'], 'flatart', 'Where should the images go?')
     return nil if cfg['dir'].nil?
 
     keys.each { |k| Sketchup.write_default(PREF, k, cfg[k]) }
@@ -131,12 +136,6 @@ module WR_ComponentArt
     p.to_s.strip.tr('\\', '/')
   end
 
-  def self.browse_dir(path)
-    p = norm(path)
-    return p unless p.empty?
-    picked = (UI.select_directory(:title => 'Where should the images go?') rescue nil)
-    picked.nil? || picked.to_s.empty? ? nil : norm(picked)
-  end
 
   # THE FILE IS NAMED AFTER THE SCENE, verbatim. Only the characters Windows
   # genuinely refuses are replaced; spaces, brackets, ampersands and the rest

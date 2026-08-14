@@ -25,6 +25,9 @@ require 'sketchup.rb'
 require 'fileutils'
 require 'json'
 
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
 module WR_ExportView
   PREF  = 'WR_ExportView'.freeze
   BATCH = 'WR_ComponentArt'.freeze     # seed from the batch exporter's settings
@@ -65,25 +68,23 @@ module WR_ExportView
   def self.ask(model)
     keys = %w[name dir width trans over]
     prompts = ['File name (no .png)',
-               'Output folder — blank to browse',
+               'Output folder',
                'Image width (px)',
                'Transparent background',
                'Overwrite if it already exists']
     defaults = [current_name(model), seed('dir'), seed('width'), seed('trans'),
                 Sketchup.read_default(PREF, 'over', 'Yes').to_s]
     lists = ['', '', '', 'Yes|No', 'Yes|No']
+    di = keys.index('dir')
+    defaults[di], lists[di] = WR_Folder.field('thisview', defaults[di])
+
     res = UI.inputbox(prompts, defaults, lists, 'Export This View')
     return nil unless res
     cfg = {}
     keys.each_with_index { |k, i| cfg[k] = res[i].to_s.strip }
 
-    if cfg['dir'].empty?
-      picked = (UI.select_directory(:title => 'Where should the image go?') rescue nil)
-      return nil if picked.nil? || picked.to_s.empty?
-      cfg['dir'] = norm(picked)
-    else
-      cfg['dir'] = norm(cfg['dir'])
-    end
+    cfg['dir'] = WR_Folder.resolve(cfg['dir'], 'thisview', 'Where should the image go?')
+    return nil if cfg['dir'].nil?
 
     cfg['name'] = sanitize(cfg['name'])
     if cfg['name'].empty?

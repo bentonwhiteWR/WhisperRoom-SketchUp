@@ -28,6 +28,9 @@
 
 require 'fileutils'
 
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
 module WR_ExplodeView
   DICT     = 'WR_Explode'.freeze
   TAG_LEAD = 'WR-Explode-Leaders'.freeze
@@ -53,10 +56,19 @@ module WR_ExplodeView
     lists = ['Explode|Reset',
              'Axis (one axis per part)|Radial|Vertical only',
              '', 'Yes|No', '', '']
+    di = keys.index('dir')
+    defaults[di], lists[di] = WR_Folder.field('explode', defaults[di])
+
     res = UI.inputbox(prompts, defaults, lists, 'Exploded View')
     return nil unless res
     out = {}
     keys.each_with_index { |k, i| out[k] = res[i].to_s.strip }
+    # Only when frames are actually being swept; asking for a folder on a plain
+    # explode would be a dialog for nothing.
+    if out['frames'].to_i > 0
+      out['dir'] = WR_Folder.resolve(out['dir'], 'explode', 'Where should the sweep frames go?')
+      return nil if out['dir'].nil?
+    end
     keys.each { |k| Sketchup.write_default(PREF, k, out[k]) }
     out
   end

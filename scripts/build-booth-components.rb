@@ -49,6 +49,9 @@
 
 require 'sketchup.rb'
 
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
 module WR_BuildBoothComponents
   DATA = File.join(File.dirname(__FILE__), 'wr-booth-data.rb')
   PREF = 'WR_BuildBoothComponents'.freeze
@@ -131,19 +134,22 @@ module WR_BuildBoothComponents
     last = keys.first unless keys.include?(last)
     dir  = read_pref('dir', DEFAULT_DIR)
 
+    # 'parts' is shared with booth-from-link.rb and probe-components.rb — all
+    # three read the same component library, so a folder found once in any of
+    # them is offered by all three.
+    dir, dlist = WR_Folder.field('parts', dir)
+
     res = UI.inputbox(['Booth', 'Component folder', 'Height', 'Dry run — report only'],
                       [last, dir, 'Standard (81 in)', 'No'],
-                      [keys.join('|'), '', 'Standard (81 in)|HX (91 in)', 'Yes|No'],
+                      [keys.join('|'), dlist, 'Standard (81 in)|HX (91 in)', 'Yes|No'],
                       'Build Booth from Components')
     return nil unless res
 
-    d = res[1].to_s.strip.tr('\\', '/').sub(%r{/+\z}, '')
-    unless File.directory?(d)
-      UI.messagebox("Not a folder:\n#{d}")
-      return nil
-    end
+    # create = false: an INPUT folder. Creating an empty one would turn a
+    # mistyped drive letter into "every component missing".
+    d = WR_Folder.resolve(res[1], 'parts', 'Folder of component .skp files', false)
+    return nil if d.nil?
     write_pref('booth', res[0])
-    write_pref('dir', d)
     { 'booth' => res[0], 'dir' => d, 'hx' => res[2].to_s.start_with?('HX'),
       'dry' => res[3] == 'Yes' }
   end

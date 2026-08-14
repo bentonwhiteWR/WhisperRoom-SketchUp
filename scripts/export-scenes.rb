@@ -23,6 +23,9 @@
 require 'sketchup.rb'
 require 'fileutils'
 
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
 module WR_ExportScenes
   PREF = 'WR_ExportScenes'.freeze
 
@@ -43,7 +46,7 @@ module WR_ExportScenes
   def self.ask
     keys = %w[scenes dir width bg over dry]
     prompts = ['Scenes — all / current / 1-7,12 / text',
-               'Output folder — blank to browse',
+               'Output folder',
                'Image width (px)',
                'Background',
                'Overwrite files already there',
@@ -53,27 +56,21 @@ module WR_ExportScenes
       v.empty? ? DEFAULTS[k] : v
     end
     lists = ['', '', '', 'Opaque|Transparent', 'Yes|No', 'Yes|No']
+    di = keys.index('dir')
+    defaults[di], lists[di] = WR_Folder.field('scenes', DEFAULTS['dir'])
+
     res = UI.inputbox(prompts, defaults, lists, 'Export Scenes')
     return nil unless res
     cfg = {}
     keys.each_with_index { |k, i| cfg[k] = res[i].to_s.strip }
 
-    cfg['dir'] = pick_dir(cfg['dir'])
+    cfg['dir'] = WR_Folder.resolve(cfg['dir'], 'scenes', 'Where should the images go?')
     return nil if cfg['dir'].nil?
 
     keys.each { |k| Sketchup.write_default(PREF, k, cfg[k]) }
     cfg
   end
 
-  # Blank opens a real folder browser. A typed path is used as-is and created if
-  # it does not exist yet, so a new client folder needs no ceremony.
-  def self.pick_dir(path)
-    p = path.to_s.strip.tr('\\', '/')
-    return p unless p.empty?
-    picked = (UI.select_directory(:title => 'Where should the images go?') rescue nil)
-    return nil if picked.nil? || picked.to_s.empty?
-    picked.to_s.tr('\\', '/')
-  end
 
   def self.sanitize(s)
     out = s.to_s.strip.gsub(FORBIDDEN, '-')

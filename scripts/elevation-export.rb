@@ -33,6 +33,9 @@
 require 'sketchup.rb'
 require 'fileutils'
 
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
 module WR_Elevation
   PREF = 'WR_Elevation'.freeze
 
@@ -112,7 +115,7 @@ module WR_Elevation
     keys = %w[view pick dir px height frame name style over recov dry]
     prompts = ['View',
                'Scenes — all / current / 1-7,12 / text',
-               'Output folder — blank to browse',
+               'Output folder',
                'Canvas (px, square)',
                'View height — auto, or inches',
                'Frame on',
@@ -131,12 +134,15 @@ module WR_Elevation
              'Definition name|Scene name',
              "Leave the style alone (the model's own)|Shaded, no textures|Line art (hidden line, no shadows)",
              'Yes|No', 'Yes|No', 'Yes|No']
+    di = keys.index('dir')
+    defaults[di], lists[di] = WR_Folder.field('elev', DEFAULTS['dir'])
+
     res = UI.inputbox(prompts, defaults, lists, 'Elevation Export')
     return nil unless res
 
     cfg = {}
     keys.each_with_index { |k, i| cfg[k] = res[i].to_s.strip }
-    cfg['dir'] = pick_dir(cfg['dir'])
+    cfg['dir'] = WR_Folder.resolve(cfg['dir'], 'elev', 'Where should the elevation images go?')
     return nil if cfg['dir'].nil?
     keys.each { |k| write_pref(k, cfg[k]) }
     cfg
@@ -158,13 +164,6 @@ module WR_Elevation
     nil
   end
 
-  def self.pick_dir(path)
-    p = path.to_s.strip.tr('\\', '/')
-    if p.empty?
-      picked = (UI.select_directory(:title => 'Where should the images go?') rescue nil)
-      return nil if picked.nil? || picked.to_s.empty?
-      p = picked.to_s.tr('\\', '/')
-    end
     p.sub(%r{/+\z}, '')
   end
 

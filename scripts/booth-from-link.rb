@@ -29,6 +29,9 @@
 require 'sketchup.rb'
 require 'json'
 
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
 module WR_BoothLink
   PREF = 'WR_BoothLink'.freeze
   BUILDER = File.join(File.dirname(__FILE__), 'build-booth-components.rb')
@@ -49,24 +52,25 @@ module WR_BoothLink
   end
 
   def self.ask
+    # 'parts' is shared with build-booth-components.rb and probe-components.rb —
+    # they all read the same component library, so a folder found once in any of
+    # them is offered by all three.
+    dir, list = WR_Folder.field('parts', 'P:/Sketchup/NewMasterComponentList')
+
     res = UI.inputbox(['Booth-builder link', 'Component folder', 'Dry run — report only'],
-                      [read_pref('link'), read_pref('dir', 'P:/Sketchup/NewMasterComponentList'), 'No'],
-                      ['', '', 'Yes|No'],
+                      [read_pref('link'), dir, 'No'],
+                      ['', list, 'Yes|No'],
                       'Build Booth from Link')
     return nil unless res
     link = res[0].to_s.strip
-    dir  = res[1].to_s.strip.tr('\\', '/').sub(%r{/+\z}, '')
     if link.empty?
       UI.messagebox("Paste the link from the booth builder's " \
                     "\"Copy a link to this design\" button.")
       return nil
     end
-    unless File.directory?(dir)
-      UI.messagebox("Not a folder:\n#{dir}")
-      return nil
-    end
+    dir = WR_Folder.resolve(res[1], 'parts', 'Folder of component .skp files', false)
+    return nil if dir.nil?
     write_pref('link', link)
-    write_pref('dir', dir)
     { 'link' => link, 'dir' => dir, 'dry' => res[2] == 'Yes' }
   end
 

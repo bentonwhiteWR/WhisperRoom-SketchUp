@@ -49,6 +49,9 @@
 require 'sketchup.rb'
 require 'fileutils'
 
+# The folder field is a dropdown of folders used before, plus a Browse entry.
+load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
 module WR_SaveSceneComponents
   PREF = 'WR_SaveSceneComponents'.freeze
 
@@ -75,7 +78,7 @@ module WR_SaveSceneComponents
   def self.ask
     keys = %w[scenes dir name ren over dry]
     prompts = ['Scenes — all / current / 1-7,12 / text',
-               'Output folder — blank to browse',
+               'Output folder',
                'Name each file after',
                'Rename the component in the model to match its file',
                'Overwrite files already there',
@@ -90,13 +93,16 @@ module WR_SaveSceneComponents
              'No|Yes',                      # ren
              'Yes|No',                      # over
              'Yes|No']                      # dry
+    di = keys.index('dir')
+    defaults[di], lists[di] = WR_Folder.field('skpcomp', DEFAULTS['dir'])
+
     res = UI.inputbox(prompts, defaults, lists, 'Save Scene Components')
     return nil unless res
 
     cfg = {}
     keys.each_with_index { |k, i| cfg[k] = res[i].to_s.strip }
 
-    cfg['dir'] = pick_dir(cfg['dir'])
+    cfg['dir'] = WR_Folder.resolve(cfg['dir'], 'skpcomp', 'Where should the .skp files go?')
     return nil if cfg['dir'].nil?
 
     keys.each { |k| write_pref(k, cfg[k]) }
@@ -119,15 +125,6 @@ module WR_SaveSceneComponents
     nil
   end
 
-  # Blank opens a real folder browser. A typed path is used as-is and created if
-  # it is not there yet, so a new folder needs no ceremony.
-  def self.pick_dir(path)
-    p = path.to_s.strip.tr('\\', '/')
-    if p.empty?
-      picked = (UI.select_directory(:title => 'Where should the .skp files go?') rescue nil)
-      return nil if picked.nil? || picked.to_s.empty?
-      p = picked.to_s.tr('\\', '/')
-    end
     p.sub(%r{/+\z}, '')
   end
 
