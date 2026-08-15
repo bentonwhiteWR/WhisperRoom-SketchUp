@@ -1,10 +1,24 @@
 # Builder handoff — dimension-booth.rb label rewrite (2026-08-15)
 
 ## Produced
-- `scripts/dimension-booth.rb` — three/four-line label (`MDL …` / `Ext dims:` /
-  `Int dims:` / optional `incl. vent …`), new `LABEL_RISE = 36.0` constant and
-  matching `rise` setting, one new console line for the catalogue interior.
-  This is the only production file touched.
+- `scripts/dimension-booth.rb` — always-three-line label (`MDL …` / `Ext dims:` /
+  `Int dims:`), new `LABEL_RISE = 36.0` and `INTERIOR_HEIGHT` constants, a `rise`
+  setting, and an expanded console block. Only production file touched.
+
+## Revision, same day
+Benton overruled the fourth `incl. vent …` line — always three lines now — and
+supplied the interior clear height, 6' 8". Consequences:
+- The console is now the ONLY place reconciling the drawn extent with the
+  catalogue box. It prints box, faces, +5 1/2" per face, then extent. Do not
+  thin that print out; the comment above `label_for` says why.
+- `INTERIOR_HEIGHT = { 'Standard' => 80.0 }` — **Enhanced entry deliberately
+  absent**, awaiting Benton. An Enhanced booth shows interior w x d only and the
+  console states that it is not an oversight. Adding Enhanced is one line.
+- The height dimension moved off the near-left corner to the **midpoint of the
+  west face**, same single-axis -X offset. The placement rule for all three
+  dimensions is stated above `draw`. Do not put it back on the corner.
+  `scripts/dimension-selection.rb` has a related problem and belongs to a
+  different builder — not touched here.
 
 ## Read first
 - The long comment above `label_for` in `scripts/dimension-booth.rb`. It records

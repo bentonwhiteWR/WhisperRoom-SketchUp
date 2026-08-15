@@ -86,6 +86,29 @@ module WR_DimensionBooth
 
   HEIGHTS = { 'Standard' => 83.0, 'Enhanced' => 84.3125 }.freeze
 
+  # INTERIOR CLEAR HEIGHT. Keyed exactly like HEIGHTS above, and deliberately
+  # missing its Enhanced entry.
+  #
+  # 6'8" (80 in) is BENTON'S FIGURE, given 2026-08-15 for a Standard booth. It is
+  # not derived from anything and must not be re-derived:
+  #
+  #   * NOT :ph. That is 81.0 for every model in wr-booth-data.rb, hard-coded by
+  #     gen-booth.py as the wall PANEL height — build-booth.rb pushpulls the wall
+  #     face by it. A panel height is not a clear height, and the 1 in difference
+  #     from this figure is exactly the sort of near-miss that reads as a
+  #     rounding error and is not one.
+  #   * NOT in models.json, which carries stdDims / enhDims and no interior at
+  #     all, and NOT in booth-layouts.json, whose "interior" block is width and
+  #     depth only.
+  #
+  # THE ENHANCED FIGURE IS UNKNOWN AND IS BEING ASKED FOR. Do not fill it in by
+  # adding the 1.3125 in exterior difference to 80 — an Enhanced booth has
+  # thicker walls (4.25 in against 2 in) and there is no reason its ceiling
+  # build-up should follow its exterior. Until Benton supplies it, an Enhanced
+  # booth's label shows interior width and depth only and the console says why.
+  # Adding it is one line here and nothing else.
+  INTERIOR_HEIGHT = { 'Standard' => 80.0 }.freeze
+
   # Underside of the floor deck in the builder's coordinates, which is where a
   # booth actually meets the host floor. wr-deck.rb places the deck TOP at
   # DECK_TOP_Z = 0.0 and the slab is 1 in, so the underside is -1.0. If
@@ -316,6 +339,32 @@ module WR_DimensionBooth
   # the ground plane running out from the near corner, and the height standing
   # off the left. Consistent placement beats clever placement — you learn where
   # to look, and two booths side by side read the same way.
+  #
+  # THE PLACEMENT RULE, and it is one sentence so it stays followed: each of the
+  # three dimensions owns a different edge of the drawing, and each is pushed
+  # away from the booth along ONE axis by the standoff.
+  #
+  #     across X   south edge, anchored on the S face, pushed -Y
+  #     across Y   east edge,  anchored on the E face, pushed +X
+  #     height     west edge,  anchored at the MIDDLE of the W face, pushed -X
+  #
+  # THE HEIGHT ONE IS ANCHORED MID-WALL ON PURPOSE — do not move it back to the
+  # corner. It used to start at the near-left corner (x0, y0), which is a single
+  # POINT in plan: two wall faces meet there and neither is behind the dimension,
+  # so the line hung in space off the corner with nothing to relate it to, and in
+  # any three-quarter view it read as a stray diagonal. Benton's words were that
+  # it comes out from the corner and you cannot really move it. Anchoring at the
+  # midpoint of the west face puts it squarely in front of the west elevation,
+  # which is what a height dimension is measuring in the first place, and leaves
+  # the corner to the plan chain.
+  #
+  # The offset stays a single axis — it always was, and that is the half that
+  # makes it draggable. A dimension offset along one axis slides cleanly along
+  # that axis in SketchUp; a diagonal one fights you.
+  #
+  # West is the free side: the plan dimensions have taken south and east, so the
+  # height crosses neither and each string has its own margin. What is measured
+  # is unchanged — BASE_Z to BASE_Z + height, exactly as before.
   def self.draw(model, ext, height, gap, origin, label = nil, rise = LABEL_RISE)
     lay = tag(model)
     ents = model.entities
@@ -350,9 +399,10 @@ module WR_DimensionBooth
     made << dim(ents, pt.call(ext[:x1], ext[:y0], BASE_Z),
                 pt.call(ext[:x1], ext[:y1], BASE_Z),
                 Geom::Vector3d.new(g, 0, 0), lay)
-    # HEIGHT, up the near-left corner, pushed out in -X so it clears both.
-    made << dim(ents, pt.call(ext[:x0], ext[:y0], BASE_Z),
-                pt.call(ext[:x0], ext[:y0], BASE_Z + height),
+    # HEIGHT, up the MIDDLE of the west face, pushed out in -X so it clears both.
+    ymid = (ext[:y0] + ext[:y1]) * 0.5
+    made << dim(ents, pt.call(ext[:x0], ymid, BASE_Z),
+                pt.call(ext[:x0], ymid, BASE_Z + height),
                 Geom::Vector3d.new(-g, 0, 0), lay)
 
     made.compact!
@@ -396,17 +446,17 @@ module WR_DimensionBooth
 
   # ------------------------------------------------------------------ label --
   #
-  # Four lines at most, in Benton's order:
+  # THREE LINES. ALWAYS THREE, vents or no vents:
   #
   #     MDL 96120 S
   #     Ext dims: 10' 7 1/2" x 8' 7 1/2" x 6' 11"
-  #     Int dims: 9' 10" x 7' 10"
-  #     incl. vent E N, +5 1/2" each          <- only when vents contribute
+  #     Int dims: 9' 10" x 7' 10" x 6' 8"
   #
-  # The faces come out alphabetical, so a booth vented north and east reads
-  # "E N". That is the order the console line has always used and the two must
-  # not disagree on the same run; compass order in one place only would be worse
-  # than alphabetical in both.
+  # Benton's call, 2026-08-15, and it overrules an earlier draft of this file
+  # that added a fourth "incl. vent E N, +5 1/2" each" line whenever a vented
+  # face projected. Do not put that line back. If the vent information needs to
+  # be more prominent than the console, that is a conversation to have with him,
+  # not a line to reinstate.
   #
   # "EXT DIMS" IS THE DIMENSIONED EXTENT, NOT THE CATALOGUE BOX, AND THAT IS
   # DELIBERATE. Do not "fix" it to spec[:w] x spec[:h].
@@ -419,42 +469,37 @@ module WR_DimensionBooth
   # and the reader would be right to trust neither. The label must agree with
   # the strings beside it, so it shows the extent.
   #
-  # The honesty comes from the fourth line instead: whenever a face contributes,
-  # the label says so and says by how much, which is the one thing that lets a
-  # reader work back to the catalogue box. Three lines when nothing projects,
-  # four when something does. The console print carries the catalogue exterior
-  # in full either way — see ability_on.
+  # WITH THE FOURTH LINE GONE, THE CONSOLE IS THE ONLY PLACE THAT RECONCILES THE
+  # TWO. ability_on prints the catalogue box, the contributing faces, the 5.5 in
+  # per face and the resulting extent, in that order and on every run, so a
+  # reader can always work back from what is drawn to what is in the catalogue.
+  # That print is load-bearing now, not commentary — do not thin it out.
   #
-  # INTERIOR IS TWO FIGURES, NOT THREE, and that asymmetry is on purpose.
-  # :iw / :ih are catalogue interior dimensions carried per model in
-  # wr-booth-data.rb (gen-booth.py copies them out of booth-layouts.json's
-  # variants -> interior). They are read, never derived — do NOT compute an
-  # interior by subtracting a wall thickness from the exterior.
-  #
-  # There is no interior HEIGHT to read. :ph is 81.0 for every model in the
-  # file, hard-coded by gen-booth.py as the wall PANEL height — build-booth.rb
-  # pushpulls the wall face by it — and a panel height is not a clear height.
-  # It happens to equal floor-top-to-ceiling-underside in the model as built,
-  # but the real ceiling is a lay-in tray and no source in either repo states
-  # the finished interior clear height. So it is left off rather than guessed.
-  # If Benton produces the figure, add :ich to the data and a third term here.
-  def self.label_for(key, spec, dx, dy, height, faces, proud)
+  # INTERIOR IS READ, NEVER DERIVED. :iw / :ih are catalogue interior dimensions
+  # carried per model in wr-booth-data.rb (gen-booth.py copies them out of
+  # booth-layouts.json's variants -> interior). Do NOT compute an interior by
+  # subtracting a wall thickness from the exterior. The clear height comes from
+  # INTERIOR_HEIGHT, which is Benton's figure and is Standard-only — see the
+  # comment there. An Enhanced booth therefore shows two interior figures rather
+  # than a third one nobody can source, and the console says so out loud.
+  def self.label_for(key, spec, dx, dy, height, height_key)
     lines = [key.to_s]
     lines << format('Ext dims: %s x %s x %s', arch(dx), arch(dy), arch(height))
 
     iw = spec[:iw].to_f
     ih = spec[:ih].to_f
     if iw > 0 && ih > 0
-      lines << format('Int dims: %s x %s', arch(iw), arch(ih))
+      ich = INTERIOR_HEIGHT[height_key]
+      if ich
+        lines << format('Int dims: %s x %s x %s', arch(iw), arch(ih), arch(ich))
+      else
+        lines << format('Int dims: %s x %s', arch(iw), arch(ih))
+      end
     else
       # Degrades to a stated absence. A silently missing line reads as a booth
       # with no interior worth quoting; "Int dims: x" reads as a bug. Neither
       # belongs in front of a customer.
       lines << 'Int dims: not in the booth data'
-    end
-
-    unless faces.empty?
-      lines << format('incl. vent %s, +%s each', faces.join(' '), arch(proud))
     end
     lines.join("\n")
   end
@@ -539,7 +584,12 @@ module WR_DimensionBooth
     # Enhanced booths carry an E on the key; everything in the data today is S.
     auto_h = key.to_s =~ /\sE\z/ ? 'Enhanced' : 'Standard'
     height_key = auto_h if height_key.to_s.downcase == 'auto'
-    h = HEIGHTS[height_key] || HEIGHTS['Standard']
+    # Settle on a key that is definitely IN the table rather than falling back on
+    # the value alone, because INTERIOR_HEIGHT is looked up by this same key. A
+    # stale preference resolving to Standard's 83 in while the interior lookup
+    # missed and dropped the clear height would be a silent, invisible split.
+    height_key = 'Standard' unless HEIGHTS.key?(height_key)
+    h = HEIGHTS[height_key]
 
     ext = extent(spec, faces, VENT_PROUD)
     origin = (inst.transformation.origin rescue Geom::Point3d.new(0, 0, 0))
@@ -551,7 +601,7 @@ module WR_DimensionBooth
 
     dx = ext[:x1] - ext[:x0]
     dy = ext[:y1] - ext[:y0]
-    label = label_for(key, spec, dx, dy, h, faces, VENT_PROUD)
+    label = label_for(key, spec, dx, dy, h, height_key)
 
     model.start_operation('Dimension WhisperRoom', true)
     begin
@@ -570,17 +620,30 @@ module WR_DimensionBooth
     puts "  identified by #{how}"
     puts format('  exterior      %s x %s   (catalogue, wr-booth-data.rb)',
                 arch(spec[:w]), arch(spec[:h]))
-    # The label prints the vent-inclusive EXTENT under "Ext dims"; this is the
-    # catalogue box it came from, so both numbers are on the record and the
-    # difference between them is the vent line below.
+    # The label's "Ext dims" is the vent-inclusive EXTENT; the line above is the
+    # catalogue box it was built from. Since the label lost its vent line, THIS
+    # PRINT IS THE ONLY RECONCILIATION between the two — box, then faces, then
+    # the projection, then the extent. Keep all four.
     if spec[:iw].to_f > 0 && spec[:ih].to_f > 0
-      puts format('  interior      %s x %s   (catalogue, wr-booth-data.rb; no ' \
-                  'clear height published)', arch(spec[:iw]), arch(spec[:ih]))
+      ich = INTERIOR_HEIGHT[height_key]
+      if ich
+        puts format('  interior      %s x %s x %s   (w/d catalogue, ' \
+                    'wr-booth-data.rb; clear height Benton 2026-08-15)',
+                    arch(spec[:iw]), arch(spec[:ih]), arch(ich))
+      else
+        puts format('  interior      %s x %s   (catalogue, wr-booth-data.rb)',
+                    arch(spec[:iw]), arch(spec[:ih]))
+        puts format('                NO CLEAR HEIGHT FOR %s — the 6\'8" figure is ' \
+                    'the Standard one and', height_key)
+        puts '                nobody has given the Enhanced equivalent, so the label'
+        puts '                shows width and depth only. Not an oversight.'
+      end
     else
       puts '  interior      NOT IN THE DATA for this model — the label says so too'
     end
     if faces.empty?
-      puts '  ventilation   none counted'
+      puts '  ventilation   none counted — nothing projects, so the drawn extent'
+      puts '                IS the catalogue box above'
     else
       src = if !vents.to_s.strip.empty? && vents.to_s.strip.downcase != 'auto'
               'you asked for these'
@@ -596,6 +659,15 @@ module WR_DimensionBooth
       end
     end
     puts format('  DIMENSIONED   %s across X   x   %s across Y', arch(dx), arch(dy))
+    unless faces.empty?
+      # Spelled out rather than left to be inferred, because the label no longer
+      # carries the vent line and this is where a reader gets the box back.
+      puts format('                this is the EXTENT and it is what the label calls')
+      puts format('                "Ext dims" — the catalogue box %s x %s plus %s on',
+                  arch(spec[:w]), arch(spec[:h]), arch(VENT_PROUD))
+      puts format('                each of %d vented face(s): %s',
+                  faces.length, faces.join(' '))
+    end
     puts format('  HEIGHT        %s   (%s)', arch(h), height_key)
     puts format('  drawn at      %.1f, %.1f  from "%s"',
                 origin.x.to_f, origin.y.to_f, (inst.name.to_s rescue ''))
