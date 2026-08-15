@@ -1,5 +1,61 @@
 # DEVLOG
 
+## 2026-08-14 — the narrow deck panel goes over the short wall, not at the end
+
+Benton on the MDL 96120 S: *"It should have two 9648 side pieces, and then the
+center piece. However, in all situations, the smaller ceiling would crossover in
+one of the middle sections, on top of the 22 in wall."* Both halves of that are
+now implemented, and the second half turned out to be derivable rather than a
+preference.
+
+`tile` is greedy — as many full-width panels as fit, remainder last — so the
+96120 came out `48 + 48 + 24` with the narrow strip standing on the end wall and
+only ONE 9648 SIDE panel in the deck. It should be `48 + 24 + 48`: two SIDE
+panels with the 9624 CTR between them.
+
+### The position is read off the wall layout, not chosen
+
+Every booth in this group has exactly one short run in its long walls, and the
+narrow deck panel bridges it:
+
+```
+96120   walls  46 | 22 | 46          short wall  50..72
+        deck   48 | 24 | 48          odd tile    49..73   covers it
+96168   walls  46 | 46 | 22 | 46     short wall  98..120
+        deck   48 | 48 | 24 | 48     odd tile    97..121   covers it
+```
+
+So `order_cuts` places the odd tile at whichever index centres it on the short
+wall run, and `short_wall_mid` reads that run out of the layout data. One rule,
+nothing to tune.
+
+**It reproduces both decks already confirmed correct.** The MDL 7272 S (48 + 24)
+and MDL 6060 S (42 + 18) have their short wall at the high end, so the odd tile
+stays exactly where greedy tiling already put it. Neither moves. That is the
+check that the rule is right rather than merely convenient.
+
+### Simulated across all 25 models against the real library
+
+Seven reorder, and in every one the odd tile spans the short wall:
+
+| Booth | Was | Now |
+|---|---|---|
+| MDL 96120 S | 48 / 48 / **24** | 48 / **24** / 48 |
+| MDL 96168 S | 48 / 48 / 48 / **24** | 48 / 48 / **24** / 48 |
+| MDL 102102 S | 42 / 42 / **18** | 42 / **18** / 42 |
+| MDL 102144 S | 42 / 42 / 42 / **18** | 42 / 42 / **18** / 42 |
+| MDL 102186 S | 42 / 42 / 42 / 42 / **18** | 42 / 42 / **18** / 42 / 42 |
+| MDL 10284 S | 42 / 42 / **18** | 42 / **18** / 42 |
+| MDL 84102 S | 42 / 42 / **18** | 42 / **18** / 42 |
+
+The other 18 are unchanged — either a single tile, all one width, or the two
+confirmed booths above. The 96120 now plans
+`STD9648FL SIDE | STD9624FL CTR | STD9648FL SIDE`, which is what Benton asked for.
+
+A knock-on worth noting: the end tiles now both ask for SIDE and get it. Before,
+the 24 in end asked for SIDE, found none at that width, and silently fell back to
+CTR — so the deck was short a SIDE panel as well as having it in the wrong place.
+
 ## 2026-08-14 — deck hand selection, and one part that needs exporting
 
 > ### FOR BENTON, MONDAY

@@ -249,6 +249,10 @@ module WR_Deck
   # available width. That is how the real booths are built — MDL 96168 is
   # 48+48+48+24 — and if it does not come out exact the answer is reported
   # rather than fudged, because a fudged floor is a floor with a gap in it.
+  #
+  # THIS RETURNS THE SET OF WIDTHS, NOT THEIR ORDER. Greedy leaves the remainder
+  # last, which is only right when the short wall happens to be at the high end.
+  # order_cuts puts it where the layout says it belongs.
   def self.tile(run, widths)
     widths = widths.sort.reverse
     big = widths.first
@@ -263,6 +267,77 @@ module WR_Deck
       return Array.new(k, big) + [hit] if hit
     end
     nil
+  end
+
+  # ============================================================================
+  # WHERE THE ODD TILE GOES — IT CROSSES THE SHORT WALL, NOT THE END
+  #
+  # tile() is greedy: it takes as many full-width panels as fit and leaves the
+  # remainder LAST. On an MDL 96120 S that gives 48 + 48 + 24 with the 24 at the
+  # high end, so the deck ends up with one SIDE panel, one CTR, and a narrow
+  # strip standing on the end wall. Benton's screenshot of exactly that is what
+  # started this. The booth wants **two 9648 SIDE panels with the 9624 CTR
+  # between them** — 48 + 24 + 48.
+  #
+  # The reason is in the wall layout, not in the deck catalogue. Every one of
+  # these booths has ONE short wall run in its long walls, and the narrow deck
+  # panel bridges it:
+  #
+  #     96120   walls 46 | 22 | 46      short wall at 50..72
+  #             deck   48 | 24 | 48     odd tile spans 49..73   ✔ covers it
+  #     96168   walls 46 | 46 | 22 | 46 short wall at 98..120
+  #             deck   48 | 48 | 24 | 48   odd tile spans 97..121  ✔
+  #
+  # So the odd tile's position is DERIVED from the layout rather than chosen: put
+  # it at whichever index centres it on the short wall. That is one rule, and it
+  # reproduces both decks already confirmed correct — the MDL 7272 S (48 + 24)
+  # and the MDL 6060 S (42 + 18) both have their short wall at the high end, so
+  # the odd tile stays exactly where greedy tiling already put it. Nothing about
+  # those two moves.
+  #
+  # A deck whose tiles are all one width has no odd tile and returns unchanged.
+  # ============================================================================
+
+  # Midpoint of the short wall run, along the tiling axis, in booth coordinates.
+  # nil when the long walls are all one length — then there is nothing to align
+  # to and nothing to reorder.
+  def self.short_wall_mid(spec, along_is_x)
+    runs = []
+    (spec[:parts] || []).each do |p|
+      next unless p[:k] == 'panel'
+      xs = p[:poly].map { |q| q[0].to_f }
+      ys = p[:poly].map { |q| q[1].to_f }
+      dx = xs.max - xs.min
+      dy = ys.max - ys.min
+      along = along_is_x ? dx : dy
+      cross = along_is_x ? dy : dx
+      # Only the walls that RUN ALONG the tiling axis are the ones the deck
+      # tiles across. The walls at right angles to it are a different question.
+      next unless along > cross
+      mid = along_is_x ? (xs.min + xs.max) / 2.0 : (ys.min + ys.max) / 2.0
+      runs << [along, mid]
+    end
+    return nil if runs.empty?
+    shortest = runs.map { |r| r[0] }.min
+    return nil if (runs.map { |r| r[0] }.max - shortest) < TOL
+    # N and S carry the short wall at the same station, so this is normally two
+    # identical values. Taking the median rather than the first keeps it honest
+    # if a booth ever disagrees with itself.
+    mids = runs.select { |r| (r[0] - shortest).abs < TOL }.map { |r| r[1] }.sort
+    mids[mids.length / 2]
+  end
+
+  def self.order_cuts(cuts, spec, along_is_x)
+    return cuts if cuts.uniq.length < 2
+    big = cuts.max
+    odd = cuts.find { |c| (c - big).abs >= TOL }
+    return cuts if odd.nil?
+    target = short_wall_mid(spec, along_is_x)
+    return cuts if target.nil?
+    target -= INSET                      # booth coordinates -> deck coordinates
+    n = cuts.length - 1                  # full-width tiles
+    best = (0..n).min_by { |i| ((i * big + odd / 2.0) - target).abs }
+    Array.new(n, big).insert(best, odd)
   end
 
   # The full tile list for one deck, ends first.
@@ -314,6 +389,8 @@ module WR_Deck
       return [nil, format('no %s tiling for %.0f x %.0f — %s',
                           kind, w, h, tried.join('; '))]
     end
+
+    cuts = order_cuts(cuts, spec, along_is_x)
 
     # Ends get SIDE, middle gets CTR, falling back to whatever exists.
     tiles = []
