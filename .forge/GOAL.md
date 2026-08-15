@@ -1,61 +1,49 @@
 # GOAL
 
 ## Mission
-Make the isometric azimuth a user-selectable dropdown in
-`scripts/angled-component-art.rb`, so the angled booth art can be rendered at
-38° (or any offered angle) instead of the hardcoded 45° that collapses the
-near and far corner seam seals onto the same screen point.
+Redesign the WhisperRoom SketchUp plugin panel so a new user can sit down and use it
+without being taught. The concept is right; the visual design, the grouping of the
+scripts, and the icons are not. Produce an approved design direction and a viewable
+mockup before any plugin code is rewritten.
 
 ## Done means
-- New "Azimuth" dropdown in the `UI.inputbox` (`self.ask`), persisted like every
-  other preference, defaulting to the current 45° so an unchanged run is
-  byte-identical to today's output.
-- `CAMS` and `CORNER_CAMS` derived from the chosen azimuth at runtime, not frozen
-  at 45°. Elevation stays 30° (z = 0.5 always) — `iso30` filenames stay honest.
-- At 45° the derived vectors equal the existing constants exactly; at 38° they
-  equal the vectors in the brief exactly. Both proven by an arithmetic check.
-- The console report block (~line 1053) prints the ACTUAL vectors in use, not the
-  hardcoded 45° text it prints today.
-- Camera NAMES keep their current relative positions. Filenames do not change.
+- A researched, opinionated UI design for `scripts/wr_tools/panel.html`, shown as a
+  self-contained mockup Benton can open and react to.
+- A proposed reorganisation of `scripts/` — every script placed in a category that
+  makes sense to someone who has never seen the plugin, with the dev-only and
+  one-off scripts separated from the daily tools.
+- An icon set that says what each script actually does, replacing the current
+  generic `ico-*.svg` collection.
+- An artifact published to claude.ai showing the proposed design.
 
 ## Now
-SHIPPED in 74abd0f — dropdown and derived camera table are in and pushed.
-Next session is on the LAPTOP: `git pull` first, then render the angled
-component art at azimuth 38.
+Design approved by Benton 2026-08-15. Building it, to the spec at
+`.forge/scoper/panel-redesign.md`, steps 1-5 only. Two sub-agents on a clean file
+split so they cannot collide:
+1. Builder A — `scripts/wr_tools/panel.html` and `scripts/wr_tools/main.rb`. Owns
+   the redesign and the autorun guard fix. Touches no other file.
+2. Builder B — `scripts/wr_tools/wr-ico-*.svg`, `wr-icons.svg`, `icon-map.json`.
+   Owns every icon asset. Touches no other file.
 
-Before that render, three things are still open:
-1. The script has NEVER been parsed by Ruby (no interpreter on the desktop).
-   First run must be batch 0 with dry run ON — a load-time SyntaxError is the
-   failure DEVLOG already records once.
-2. Look at the CORNER SEAM SEAL before anything else. Its ExtNear/IntFar were
-   rotated rigidly with the rig (A+45 / A+225, so 83°/263° at 38°) on the
-   orchestrator's judgment, NOT confirmed by Benton. One-line change in
-   `build_corner_cams` if it looks wrong.
-3. View height `auto` is fitted per run THROUGH the camera directions, so the
-   extent will differ at 38° from 45°. There is no 160" constant in the code.
-   If downstream ingest needs a fixed 160" extent, TYPE 160 rather than auto.
-
-Also unresolved: whether a model style called "Defined Lines" already exists in
-MASTERCOMPONENTSV1 — if it does it is already in the style dropdown by name.
-Thirty-second check on screen. The camera change shipped without it, per
-Benton's instruction to ship rather than hold.
+Decisions taken here so the builders are not blocked (all reversible, flagged to
+Benton in the report):
+- The 14 `@title` renames: ACCEPTED.
+- Fixed pipeline category order rather than newest-first: ACCEPTED.
+- Retiring `booth-4260-s.rb` / `booth-96168-s.rb`: NO. Shelve them behind the dev
+  switch instead. Deleting is the one irreversible call in the set and it is
+  Benton's to make.
+- Moving `csusb-rooms.rb` to `clients/`: NO. `CLAUDE.md` cites it as the worked
+  example; shelve it instead so the reference stays true.
+- The 6 tools still sharing icons: Builder B authors them to the Researcher's
+  written briefs. The system rules are specific enough now that this does not need
+  a separate art pass.
 
 ## Out of scope
-- The defined-lines restyle (separate delivery decision, see below).
-- Any change to which components/scenes are in which batch.
-- Renaming files or cameras.
-- Per-model azimuth (square 7272 vs rectangle 7296) — one global choice for now.
-
-## Carried context
-- Square 7272 at 45°: near and far corner separation is exactly 0.0" — degenerate.
-  Separation is 9.1" at 40°, 12.7" at 38°, 16.4" at 36". Rectangle 7296 already
-  has 17.0" at 45° and was never degenerate. 38° is Benton's pick as the compromise.
-- Convention: x = cos(elev)·cos(az), y = cos(elev)·sin(az), z = sin(elev), elev = 30°.
-- Corner seam seal (§8c) is the highest-risk family: its instance sits ROTATED in
-  the master file and is handled downstream by rotating the standard view map 180°.
-  Check it first at any asymmetric azimuth.
-- Interior scenes `_IntL`/`_IntR`: 25 in current use, they drive the "see inside
-  the booth" feature. Not optional, easy to forget.
-- Preference trap: `Sketchup.read_default` EVALs its stored string and
-  `write_default` does not escape quotes. Follow the existing pipe-joined,
-  quote-stripped, Exception-rescued guard.
+- Spec step 6 (pre-run settings sheet). It changes `meta_of`, which every render
+  runs, and a regression there blanks the whole list. Separate round.
+- Spec step 7 (deleting the generic `ico-*.svg` library). Saved slot prefs still
+  reference those ids; deleting them regresses the toolbar to numbered faces.
+- Rewriting any script's own `UI.inputbox`.
+- Any change to booth geometry, `wr-booth-data.rb`, `wr-deck.rb` or the builders.
+- The `WhisperRoomQuote` repo — read only, never write.
+- Prices. Nothing from `models.json` goes into any artifact.
