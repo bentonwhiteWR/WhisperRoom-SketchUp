@@ -1,0 +1,868 @@
+<title>WhisperRoom Panel Redesign</title>
+<style>
+  /* Page tokens — theme-aware per artifact rules. The two panel frames below
+     are deliberately single-theme each (one light, one dark) and paint
+     themselves fully with their own scoped variables. */
+  :root {
+    --ground: #eef0f1;
+    --surface: #ffffff;
+    --ink: #1d2529;
+    --muted: #64707a;
+    --line: #dfe3e6;
+    --accent: #ee6216;
+    --code-bg: #e7eaec;
+  }
+  :root:not([data-theme="light"]) { }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #191d20;
+      --surface: #22272b;
+      --ink: #e6e9ea;
+      --muted: #97a2aa;
+      --line: #353c41;
+      --code-bg: #2c3237;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #191d20;
+    --surface: #22272b;
+    --ink: #e6e9ea;
+    --muted: #97a2aa;
+    --line: #353c41;
+    --code-bg: #2c3237;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 15px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif;
+    padding: 0 20px 80px;
+  }
+  .wrap { max-width: 1140px; margin: 0 auto; }
+  header.page { padding: 52px 0 8px; max-width: 760px; }
+  .eyebrow {
+    color: var(--accent); font-size: 12px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase;
+  }
+  h1 { font-size: 32px; font-weight: 650; letter-spacing: -.01em; text-wrap: balance; margin: 6px 0 10px; }
+  .lede { color: var(--muted); max-width: 62ch; }
+  h2 { font-size: 20px; font-weight: 650; margin: 56px 0 6px; }
+  h2 + p.sub { color: var(--muted); max-width: 70ch; margin-bottom: 18px; }
+  code { font: 12.5px/1.4 Consolas, ui-monospace, monospace; background: var(--code-bg); border-radius: 4px; padding: 1px 5px; }
+  .rulecard {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px; margin: 18px 0;
+  }
+  .rulecard > div {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; font-size: 13.5px;
+  }
+  .rulecard b { display: block; margin-bottom: 4px; }
+  .rulecard span { color: var(--muted); }
+
+  .panes { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; margin-top: 20px; }
+  .pane-note { flex: 1 1 260px; min-width: 250px; font-size: 13.5px; color: var(--muted); }
+  .pane-note h3 { color: var(--ink); font-size: 13.5px; margin: 14px 0 3px; }
+  .pane-note h3:first-child { margin-top: 0; }
+
+  /* ------------------------------------------------ the panel frames ------ */
+  .frame {
+    width: 348px; flex: 0 0 348px;
+    border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--fr-edge);
+    box-shadow: 0 10px 30px rgba(0,0,0,.16);
+    background: var(--p-bg);
+  }
+  .frame.light {
+    --fr-edge: #b9bfc4; --chrome: #d5d8da; --chrome-ink: #3b4247;
+    --p-bg: #f2f3f4; --p-surface: #ffffff; --p-ink: #20262a; --p-muted: #68737b;
+    --p-faint: #9aa4ab; --p-line: #e0e4e7; --p-line2: #eceef0;
+    --p-accent: #ee6216; --p-accent-soft: #fdeee3; --p-hover: #f7f2ee;
+    --p-rail: #e6e9eb; --p-warn: #9a6b00; --p-warn-bg: #fdf4dd;
+  }
+  .frame.dark {
+    --fr-edge: #0e1113; --chrome: #2a2f33; --chrome-ink: #c7cdd1;
+    --p-bg: #24292d; --p-surface: #2d3338; --p-ink: #e7eaec; --p-muted: #9aa5ad;
+    --p-faint: #6b767e; --p-line: #3b4247; --p-line2: #343b40;
+    --p-accent: #f47b35; --p-accent-soft: #453227;
+    --p-hover: #343a3f; --p-rail: #383f45; --p-warn: #e3b34c; --p-warn-bg: #3a3423;
+  }
+  .chrome {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--chrome); color: var(--chrome-ink);
+    font-size: 12px; font-weight: 600; padding: 6px 10px;
+  }
+  .chrome .x { margin-left: auto; opacity: .55; font-size: 11px; }
+  .panel { height: 640px; display: flex; flex-direction: column; background: var(--p-bg); color: var(--p-ink); font-size: 13px; position: relative; }
+  .panel ::-webkit-scrollbar { width: 8px; }
+  .panel ::-webkit-scrollbar-thumb { background: var(--p-faint); border-radius: 4px; opacity:.4; }
+  .panel ::-webkit-scrollbar-track { background: transparent; }
+
+  /* command bar */
+  .cmd { position: relative; margin: 10px 10px 8px; }
+  .cmd input {
+    width: 100%; font: inherit; color: var(--p-ink);
+    background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 8px;
+    padding: 8px 10px 8px 32px; outline: none;
+  }
+  .cmd input::placeholder { color: var(--p-faint); }
+  .cmd input:focus { border-color: var(--p-accent); }
+  .cmd svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; stroke: var(--p-faint); fill: none; stroke-width: 1.7; stroke-linecap: round; }
+
+  /* model-state strip */
+  .statebar {
+    display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+    margin: 0 10px 8px; min-height: 0;
+  }
+  .statebar .cap { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; color: var(--p-faint); margin-right: 2px; }
+  .chip {
+    display: none; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; color: var(--p-accent);
+    background: var(--p-accent-soft); border: 1px solid var(--p-accent);
+    border-radius: 20px; padding: 1px 9px 1px 7px; cursor: pointer;
+  }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--p-accent); }
+  .chip.on { display: inline-flex; }
+  .statebar .none { font-size: 11.5px; color: var(--p-faint); }
+
+  .scroll { flex: 1 1 auto; overflow-y: auto; padding: 0 10px 12px; }
+
+  .sect {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .12em; color: var(--p-faint);
+    margin: 14px 2px 5px; cursor: pointer; user-select: none;
+  }
+  .sect:first-child { margin-top: 6px; }
+  .sect .n { font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  .sect .cv { margin-left: auto; transition: transform .12s; font-size: 9px; }
+  .sect.closed .cv { transform: rotate(-90deg); }
+  .group { background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 10px; overflow: hidden; }
+  .sect.closed + .group { display: none; }
+
+  .row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 9px; cursor: pointer; position: relative;
+    border-top: 1px solid var(--p-line2);
+  }
+  .row:first-child { border-top: 0; }
+  .row:hover { background: var(--p-hover); }
+  .row .iw {
+    width: 30px; height: 30px; flex: 0 0 auto; border-radius: 7px;
+    background: var(--p-rail); display: flex; align-items: center; justify-content: center;
+  }
+  .row .iw svg { width: 20px; height: 20px; color: var(--p-ink); }
+  .row .body { flex: 1 1 auto; min-width: 0; }
+  .row .t { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .row .b { display: block; color: var(--p-muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .body { display: block; }
+  .dlg { flex: 0 0 auto; color: var(--p-faint); width: 12px; height: 12px; }
+  .run {
+    display: none; font-size: 11px; font-weight: 700; color: var(--p-accent);
+    letter-spacing: .06em;
+  }
+  .row:hover .run { display: block; }
+  .row:hover .dlg { display: none; }
+  .pill-new {
+    font-size: 9px; font-weight: 700; letter-spacing: .08em; color: var(--p-accent);
+    border: 1px solid currentColor; border-radius: 4px; padding: 0 4px;
+  }
+  .star {
+    width: 24px; height: 24px; border: 0; border-radius: 5px; padding: 0;
+    background: transparent; color: var(--p-faint); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; flex: 0 0 auto;
+  }
+  .row:hover .star, .star.on { opacity: 1; }
+  .star.on { color: var(--p-accent); }
+  .star svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+  .star.on svg { fill: currentColor; }
+
+  /* ability rows */
+  .row.ab { padding-left: 6px; }
+  .row.ab::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: transparent;
+  }
+  .row.ab.on::before { background: var(--p-accent); }
+  .row.ab.on .iw { background: var(--p-accent-soft); }
+  .row.ab.on .iw svg { color: var(--p-accent); }
+  .row.ab .stat { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--p-faint); }
+  .row.ab.on .stat { color: var(--p-accent); }
+  .sw {
+    position: relative; width: 32px; height: 18px; flex: 0 0 auto;
+    border: 0; border-radius: 9px; background: var(--p-faint); cursor: pointer;
+    transition: background .12s;
+  }
+  .sw i { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .12s; }
+  .row.ab.on .sw { background: var(--p-accent); }
+  .row.ab.on .sw i { left: 16px; }
+  .gearbtn {
+    width: 24px; height: 24px; border: 0; border-radius: 5px; padding: 0;
+    background: transparent; color: var(--p-faint); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  }
+  .gearbtn:hover { color: var(--p-ink); background: var(--p-rail); }
+  .gearbtn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+  .settings {
+    display: none; padding: 6px 10px 10px 39px; border-top: 1px dashed var(--p-line);
+    background: var(--p-bg);
+  }
+  .settings.open { display: grid; gap: 6px; }
+  .settings label { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--p-muted); }
+  .settings label span { min-width: 92px; flex: 0 0 auto; }
+  .settings input, .settings select {
+    flex: 1 1 auto; font: inherit; font-size: 11.5px; padding: 3px 6px;
+    border: 1px solid var(--p-line); border-radius: 5px;
+    background: var(--p-surface); color: var(--p-ink);
+  }
+
+  /* toolbar mirror */
+  .slots { display: flex; gap: 5px; padding: 9px; flex-wrap: wrap; align-items: center; }
+  .slot {
+    width: 34px; height: 34px; border: 1px solid var(--p-line); border-radius: 7px;
+    background: var(--p-bg); color: var(--p-muted); cursor: pointer; position: relative;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .slot svg { width: 19px; height: 19px; }
+  .slot .num { font-size: 11px; color: var(--p-faint); }
+  .slot:hover { border-color: var(--p-accent); }
+  .slot.pend { border-style: dashed; border-color: var(--p-warn); }
+  .slot.pend::after { content: ""; position: absolute; bottom: -1px; right: -1px; width: 7px; height: 7px; border-radius: 50%; background: var(--p-warn); }
+  .slotnote { font-size: 11px; color: var(--p-warn); background: var(--p-warn-bg); border-radius: 6px; padding: 4px 9px; margin: 0 9px 9px; }
+
+  /* in-panel sheet (pre-run dialog / slot editor) */
+  .sheetovl {
+    position: absolute; inset: 0; background: rgba(15,18,20,.45);
+    display: none; align-items: flex-end; z-index: 20;
+  }
+  .sheetovl.on { display: flex; }
+  .sheet {
+    width: 100%; background: var(--p-surface); color: var(--p-ink);
+    border-top: 1px solid var(--p-line); border-radius: 12px 12px 0 0;
+    padding: 14px 14px 12px; max-height: 78%; overflow-y: auto;
+  }
+  .sheet h4 { font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .sheet h4 svg { width: 18px; height: 18px; }
+  .sheet .sub { font-size: 11.5px; color: var(--p-muted); margin-bottom: 10px; }
+  .sheet .fields { display: grid; gap: 7px; margin-bottom: 12px; }
+  .sheet label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--p-muted); }
+  .sheet label span { min-width: 100px; flex: 0 0 auto; }
+  .sheet input, .sheet select {
+    flex: 1 1 auto; font: inherit; font-size: 12px; padding: 5px 7px;
+    border: 1px solid var(--p-line); border-radius: 6px;
+    background: var(--p-bg); color: var(--p-ink);
+  }
+  .sheet .btns { display: flex; gap: 7px; justify-content: flex-end; }
+  .sheet button {
+    font: inherit; font-size: 12.5px; padding: 6px 14px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--p-line); background: var(--p-surface); color: var(--p-ink);
+  }
+  .sheet button.go { background: var(--p-accent); border-color: var(--p-accent); color: #fff; font-weight: 600; }
+  .sheet .note { font-size: 11px; color: var(--p-faint); margin-top: 8px; }
+
+  /* link paste demo */
+  .linkgo {
+    display: none; margin: 0 10px 8px; padding: 9px 11px; cursor: pointer;
+    border: 1px solid var(--p-accent); border-radius: 8px; background: var(--p-accent-soft);
+    align-items: center; gap: 9px; color: var(--p-ink);
+  }
+  .linkgo.on { display: flex; }
+  .linkgo svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--p-accent);
+    fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .linkgo .t { font-weight: 600; font-size: 12.5px; }
+  .linkgo .s { font-size: 11px; color: var(--p-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ------------------------------------------------ icon sheet ------------ */
+  .sheetgrid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px; margin-top: 16px;
+  }
+  .icard {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px; text-align: center;
+  }
+  .icard .big { color: var(--ink); }
+  .icard .big svg { width: 40px; height: 40px; }
+  .icard .small svg { width: 20px; height: 20px; }
+  .icard .small { color: var(--ink); margin-left: 8px; vertical-align: 10px; display: inline-block; }
+  .icard b { display: block; font-size: 12px; margin-top: 6px; }
+  .icard span { font-size: 11px; color: var(--muted); }
+  .pairtest {
+    display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 18px; margin-top: 14px; font-size: 13px;
+  }
+  .pairtest .p { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+  .pairtest svg { width: 20px; height: 20px; }
+  .pairtest .vs { color: var(--muted); }
+
+  .try {
+    background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 8px; padding: 12px 16px; font-size: 13.5px; margin: 16px 0 6px; max-width: 700px;
+  }
+  .try b { color: var(--accent); }
+  ul.tight { margin: 8px 0 0 18px; font-size: 13.5px; }
+  ul.tight li { margin-bottom: 4px; }
+  /* hidden dev/workshop shelf + footer switch */
+  .foot {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border-top: 1px solid var(--p-line);
+    background: var(--p-bg); font-size: 11.5px; color: var(--p-muted);
+    flex: 0 0 auto; cursor: pointer; user-select: none;
+  }
+  .foot .sw { width: 26px; height: 15px; }
+  .foot .sw i { width: 11px; height: 11px; }
+  .foot.on .sw { background: var(--p-accent); }
+  .foot.on .sw i { left: 13px; }
+  .panel:not(.dev):not(.searching) .shelf { display: none !important; }
+  .badge-dev {
+    font-size: 9px; font-weight: 700; letter-spacing: .08em; color: var(--p-muted);
+    border: 1px solid var(--p-line); background: var(--p-rail);
+    border-radius: 4px; padding: 0 4px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<!-- ============================ WhisperRoom icon system (sprite) ========= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- Base marks inherit currentColor; the orange group marks what the tool
+         creates or changes. 24 grid, 20 live area, 1.8 stroke, round joins. -->
+    <symbol id="i-boothbuild" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 5.5h11.5v13H4z M8.2 5.5v13"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 5.5h1.5v13H19z M18 12h-1.6 M17.4 10.8L16.2 12l1.2 1.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-booth" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 6.5h12.5v12H3.5z M12.2 18.5v-6.2h3.8"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round">
+        <path d="M19.7 4v5 M17.2 6.5h5"/>
+      </g>
+    </symbol>
+    <symbol id="i-boothlink" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 3.5h12v11h-12z M11 14.5v-5h4.5"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16.2 15.6l1.2-1.2a2.2 2.2 0 0 1 3.1 3.1l-1.2 1.2"/>
+        <path d="M18.4 17.8l-1.2 1.2a2.2 2.2 0 0 1-3.1-3.1l1.2-1.2"/>
+        <path d="M15.9 18.1l2.2-2.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-room" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9.5 19.5H4.5V4.5h15v15h-4.5"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round">
+        <path d="M15 19.5V14 M15 14a5.5 5.5 0 0 1-5.5 5.5"/>
+      </g>
+    </symbol>
+    <symbol id="i-autodim" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5.5 4.5h13v8h-13z"/>
+        <path d="M5.5 14v3.2 M12 14v3.2 M18.5 14v3.2" stroke-width="1.2"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round">
+        <path d="M4.5 16.5h15 M4.7 17.6l1.8-2.2 M11.1 17.6l1.8-2.2 M17.5 17.6l1.8-2.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-dimbooth" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 3.5h14v10H5z M15 13.5v-6h4"/>
+        <path d="M5 14.8v2.4 M19 14.8v2.4" stroke-width="1.2"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round">
+        <path d="M4.5 18.5h15 M5.1 19.6l1.8-2.2 M17.1 19.6l1.8-2.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-dimsel" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 3.5h14v10H5z" stroke-dasharray="3 2.4"/>
+        <path d="M5 14.8v2.4 M19 14.8v2.4" stroke-width="1.2"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round">
+        <path d="M4.5 18.5h15 M5.1 19.6l1.8-2.2 M17.1 19.6l1.8-2.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-explode" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 7h4v12h-4z M16.5 7h4v12h-4z"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 4h4v12h-4z"/>
+      </g>
+    </symbol>
+    <symbol id="i-elevation" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 4.5h11v15h-11z M8.2 4.5v15 M11.9 4.5v15"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16.8 12h4.7 M19.3 9.8l2.2 2.2-2.2 2.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-orbit" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8.5 7.5h7v8.5h-7z M13 16v-4h2.5"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.8 11.5C2.8 15.2 7 17.8 12 17.8c5 0 9.2-2.6 9.2-6.3"/>
+        <path d="M21.2 11.5l-1.9.7 M21.2 11.5l-.4 2"/>
+      </g>
+    </symbol>
+    <symbol id="i-scenes" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 4.5h10v8h-10z M9.5 8.5h10v8h-10z"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.5 17.5v3.6 M12.3 19l2.2 2.2 2.2-2.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-thisview" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 5.5h15v10h-15z"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 17v4 M9.8 18.8l2.2 2.2 2.2-2.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-mergemat" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="8.9" cy="12" r="5.4"/><circle cx="15.1" cy="12" r="5.4"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linejoin="round">
+        <path d="M12 7.58A5.4 5.4 0 0 1 12 16.42 5.4 5.4 0 0 1 12 7.58z"/>
+      </g>
+    </symbol>
+    <symbol id="i-mergescenes" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 4.5h10v8h-10z M9.5 8.5h10v8h-10z"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7.5 7.5l3.6 3.6 M11.1 8.6v2.5H8.6"/>
+      </g>
+    </symbol>
+    <symbol id="i-probe" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="10.5" cy="10.5" r="5.8"/><path d="M14.7 14.7l4.6 4.6"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round">
+        <path d="M10.5 7.5v4.8 M8.2 12.3h4.6"/>
+      </g>
+    </symbol>
+    <symbol id="i-findreplace" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4.5h6l7 7-6.5 6.5-7-7z"/><circle cx="7" cy="7.5" r="1.1"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 4.8h5.8 M18.8 2.8l2 2-2 2 M20.8 9.2H15 M17 7.2l-2 2 2 2"/>
+      </g>
+    </symbol>
+    <symbol id="i-proposal" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8.7 5.5V3.2h7.8v13.6h-2.5"/>
+        <path d="M5.5 5.5h9v14h-9z"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 11.5h4.2v5.5H8z M10.9 17v-3.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-scenecomp" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 7.5V4h3.5 M16.5 4H20v3.5 M4 16.5V20h3.5 M16.5 20H20v-3.5"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 7.8l3.6 2.1v4.2L12 16.2l-3.6-2.1V9.9z M8.4 9.9l3.6 2.1 3.6-2.1 M12 12v4.2"/>
+      </g>
+    </symbol>
+    <symbol id="i-ghost" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 6.5h11v11h-11z" stroke-dasharray="2.6 2.2"/>
+      </g>
+      <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round">
+        <path d="M8.5 3.5h11v11" stroke-dasharray="0" opacity=".9"/>
+      </g>
+    </symbol>
+    <!-- small ui glyphs -->
+    <symbol id="g-lens" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+    <symbol id="g-star" viewBox="0 0 16 16"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.2L8 11.5 4.2 13.5l.7-4.2-3.1-3 4.3-.6z"/></symbol>
+    <symbol id="g-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4"/><path d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6L3.3 3.3"/></symbol>
+    <symbol id="g-dialog" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 6h12" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="g-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+<header class="page">
+  <div class="eyebrow">WhisperRoom · SketchUp plugin</div>
+  <h1>The panel, redesigned as a shop drawing</h1>
+  <p class="lede">Same concept — one searchable panel of tools and toggles — redrawn so a
+  new user can tell at a glance what runs once, what stays on in the model, and what each
+  tool actually touches. Both frames below are interactive: search, flip toggles, open
+  settings, star a tool, click a toolbar slot.</p>
+</header>
+
+<h2>Try it</h2>
+<div class="try"><b>Click things.</b> Type <code>dim</code> or <code>probe</code> in the
+  search box · flip <b>Dimension the booth</b> and watch the state strip · click the gear
+  on <b>Explode an assembly</b> · click <b>Orbit a part</b> to see the pre-run sheet ·
+  click a toolbar slot at the bottom · flip the footer switch to reveal the developer and
+  workshop shelves · collapse a category by its header.</div>
+
+<div class="panes">
+  <div class="frame light"><div class="chrome">WhisperRoom<span class="x">✕</span></div><div class="panel" data-panel></div></div>
+  <div class="frame dark"><div class="chrome">WhisperRoom<span class="x">✕</span></div><div class="panel" data-panel></div></div>
+  <div class="pane-note">
+    <h3>What changed, and why</h3>
+    <p><b>Two kinds of thing, two visual grammars, one list.</b> One row per script, in
+    categories ordered the way a job actually runs (room → booth → dimensions → scenes →
+    art → tidy-up, per the Researcher's tree). A script with an on/off carries a switch,
+    an ON/OFF stamp and an orange edge-rail — it reads as state. Actions read as verbs:
+    icon, name, and a <i>RUN</i> affordance on hover. No duplicate "abilities" list.</p>
+    <h3>The state strip</h3>
+    <p>The single biggest new-user confusion with stateful toggles is "what has this plugin
+    already done to my model?" The strip under search answers it: one chip per ability that
+    is on, click to jump to it. Orange = "this has drawn in your model" — the same orange as
+    the dimension tags it draws.</p>
+    <h3>The <code>…</code> convention, made visible</h3>
+    <p>A trailing "…" meant "opens a dialog first" — invisible to anyone not told. It is now
+    a small window glyph on the row, and tools with declared settings get an in-panel
+    pre-run sheet (fields shown are illustrative).</p>
+    <h3>Kept from the current panel</h3>
+    <p>The single list + single search, the pasted-link command, the toolbar mirror with its
+    honest "waiting on restart" state, rename-not-the-filename, and the bundled-copy notice.
+    Those mechanisms are good; they were kept and re-clothed.</p>
+    <h3>Dropped or hidden</h3>
+    <p>Per-row "modified ago" timestamps and filenames (moved to tooltips), newest-first
+    sorting (now a fixed pipeline order), the green ON colour (state is orange — one
+    accent, one meaning), and eight dev/one-off scripts, moved behind the footer switch.
+    Search still finds them — type <code>probe</code> — with a DEV badge.</p>
+  </div>
+</div>
+
+<h2>Icon system</h2>
+<p class="sub">24-unit grid, 20-unit live area, 1.8 centred stroke, round caps and joins.
+Two inks only: graphite (<code>currentColor</code>) draws the context, brand orange
+<code>#ee6216</code> draws exactly one thing — <b>what the tool creates or changes</b>.
+Three house motifs make an icon a WhisperRoom icon: the <b>booth</b> (solid rectangle with
+a door return), the <b>room</b> (open rectangle with a door swing), and the <b>dimension
+string</b> (line with oblique drafting ticks, never arrowheads). No icon is a bare
+abstraction — no gears, stars or wands stand alone.</p>
+
+<div class="pairtest">
+  <span class="p"><svg><use href="#i-dimbooth"/></svg> Dimension the booth</span>
+  <span class="vs">vs</span>
+  <span class="p"><svg><use href="#i-dimsel"/></svg> Measure the selection</span>
+  <span class="vs">— the 20&nbsp;px test: solid booth with a door vs a dashed selection box; the orange dimension string is common to both.</span>
+</div>
+
+<div class="sheetgrid" id="iconsheet"></div>
+
+<h2>Art direction</h2>
+<p class="sub">One direction: <b>the shop drawing</b>. The panel borrows its language from
+the drawings this plugin exists to produce — hairline rules, drafting ticks, a single
+dimension-tag orange on quiet warm-grey surfaces, system type (Segoe UI), tabular numerals.
+It sits beside SketchUp's grey chrome as an instrument, not a web page. Rejected: the dark
+"pro DCC" look as the only mode (SketchUp ships light; dark is offered, not imposed), card
+grids (too wide, too soft for a 340&nbsp;px working panel), and any second accent colour —
+orange keeps one meaning: <i>this touches your model</i>.</p>
+
+<div class="rulecard">
+  <div><b>Orange is a verb</b><span>Accent appears only on things that act on or exist in the model: active toggles, the RUN affordance, the state strip, the icon's subject. Never decorative.</span></div>
+  <div><b>340&nbsp;px is the design width</b><span>Everything is one column; rows are two lines max; meta lives in tooltips. Widening the panel widens the blurbs, nothing reflows into columns.</span></div>
+  <div><b>State is never silent</b><span>An ability that is on shows four concurrent signals: rail, stamp, switch, chip. A toolbar change that waits on restart says so where it waits.</span></div>
+  <div><b>Both themes, same instrument</b><span>Light matches SketchUp's tray; dark lifts the orange one step (#f47b35) to hold contrast. All colour comes from the token sheet.</span></div>
+</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var ICONS = [
+    ["i-boothbuild","Build a booth from real parts","booth panels + one arriving"],
+    ["i-booth","Block-out booth","plain massing, new"],
+    ["i-boothlink","Build the customer's booth","booth + share link"],
+    ["i-room","Build a room from a take-off","walls + door swing"],
+    ["i-autodim","Dimension the room","room + chain string"],
+    ["i-dimbooth","Dimension the booth","booth + dim string"],
+    ["i-dimsel","Measure the selection","dashed box + dim string"],
+    ["i-explode","Explode an assembly","centre panel pulled"],
+    ["i-elevation","Six elevations","seamed face, out right"],
+    ["i-orbit","Orbit a part","subject on a camera path"],
+    ["i-scenes","Export the plates","two frames, out"],
+    ["i-thisview","Export just this view","one frame, out"],
+    ["i-mergemat","Merge two materials","two pools, one lens"],
+    ["i-mergescenes","Import and keep scenes","two frames, folded in"],
+    ["i-probe","Probe (dev)","lens over seams"],
+    ["i-findreplace","Find and replace names","tag + swap"],
+    ["i-proposal","Five proposal plates","plates of the booth"],
+    ["i-scenecomp","Save parts as .skp","component captured"]
+  ];
+
+  var sheet = document.getElementById("iconsheet");
+  sheet.innerHTML = ICONS.map(function (i) {
+    return '<div class="icard"><span class="big"><svg><use href="#' + i[0] + '"/></svg></span>' +
+           '<span class="small"><svg><use href="#' + i[0] + '"/></svg></span>' +
+           '<b>' + i[1] + '</b><span>' + i[2] + '</span></div>';
+  }).join("");
+
+  // ------------------------------------------------------------ panel data --
+  // Real scripts; category tree and titles from the Researcher's proposal
+  // (.forge/researcher/proposed-structure.md). One row per script: a script
+  // that declares @on/@off carries its switch on its own row, in its own
+  // category — no duplicate "abilities" list.
+  var ABILITIES = {
+    dimroom: { ic:"i-autodim", t:"Dimension the room", b:"Chain-dimensions the largest floor face. Off removes what it drew.", on:false, set:[] },
+    dimbooth:{ ic:"i-dimbooth", t:"Dimension the booth (catalogue figures)", b:"Identifies the selected booth, dimensions and labels it. Off removes it.",
+      on:true, set:[["Panel height",["Auto","Standard","Enhanced"]],["Vented faces","auto"],["Standoff (in)","24"]] },
+    dimsel:  { ic:"i-dimsel", t:"Measure whatever is selected", b:"L, W and H of the selection's bounding box. Off removes them.",
+      on:false, set:[["Dimensions sit",["Outside","On the box"]],["Standoff (in)","12"]] },
+    proposal:{ ic:"i-proposal", t:"Set up the five proposal plates", b:"Creates the five proposal scenes. Off removes them.", on:false, set:[] },
+    explode: { ic:"i-explode", t:"Explode an assembly", b:"Pulls the selected assembly apart. Off puts it back.",
+      on:true, set:[["Direction",["Axis","Radial","Vertical"]],["Spread (%)","60"]] },
+    ghost:   { ic:"i-ghost", t:"Reference geometry", b:"Show the ghost parts and leader lines the scripts draw.", on:false, set:[] }
+  };
+  // action item: [icon, title, blurb, hasDialog, pinned, opensPrerunSheet, devBadge]
+  var GROUPS = [
+    ["Pinned", 0, 0, [
+      ["i-boothbuild","Build a booth from real parts","Doors swing, glass, ducts — the one for renders.",1,1,0],
+      ["i-elevation","Component art — six elevations","All six square-on elevation plates.",1,1,0]
+    ]],
+    ["Draw the room", 0, 0, [
+      ["i-room","Build a room from a take-off","Walls, openings and door swings from measured dims.",1,0,0]
+    ]],
+    ["Build the booth", 0, 0, [
+      ["i-boothlink","Build the customer's booth (share link)","Paste a booth-builder link; builds that exact configuration.",1,0,0],
+      ["i-boothbuild","Build a booth from real parts","Doors swing, glass, ducts — the one for renders.",1,1,0],
+      ["i-booth","Block-out booth (plain boxes, fast)","Plain massing for a plan check only.",1,0,0]
+    ]],
+    ["Add dimensions", 0, 0, [
+      { ab:"dimroom" }, { ab:"dimbooth" }, { ab:"dimsel" }, { ab:"ghost" }
+    ]],
+    ["Scenes and images", 0, 0, [
+      { ab:"proposal" },
+      ["i-scenes","List and number the scenes","Inventory every scene in the model.",1,0,0],
+      ["i-scenes","Export the proposal plates","Every proposal scene to PNG in one pass.",1,0,0],
+      ["i-thisview","Export just this view","The current viewport, exactly as framed.",1,0,0]
+    ]],
+    ["Component art (web catalog)", 0, 0, [
+      ["i-scenecomp","Component art — Iso30 angles","Angled per-part art plates.",1,0,0],
+      ["i-scenecomp","Component art — flat views","Flat per-part art plates on alpha.",1,0,0],
+      ["i-elevation","Component art — six elevations","All six square-on elevation plates.",1,1,0],
+      ["i-orbit","Orbit a part for the assembly manual","Frames around a part for a turnaround.",1,0,1],
+      { ab:"explode" },
+      ["i-scenecomp","Save each scene's part as a .skp","Geometry out, not pictures.",1,0,0]
+    ]],
+    ["Tidy up the model", 0, 0, [
+      ["i-findreplace","Find and replace names","Rename components and tags by pattern.",1,0,0],
+      ["i-mergemat","Merge two materials into one","One survives; the other is folded in.",1,0,0],
+      ["i-mergescenes","Import a .skp and keep its scenes","Brings a model in without losing its scenes.",1,0,0]
+    ]],
+    ["Developer probes", 1, 1, [
+      ["i-probe","Probe Component Files","Measures the component library — use a scratch model.",1,0,0,1],
+      ["i-probe","Probe Face Levels","Reports panel face heights for the deck data.",1,0,0,1],
+      ["i-probe","Diag Favourites","Diagnostic for a fixed preferences bug.",0,0,0,1]
+    ]],
+    ["Workshop (3D printing)", 1, 1, [
+      ["i-scenecomp","Pendant Curing Jig","Shop jig model — not a booth tool.",1,0,0,1],
+      ["i-scenecomp","Tube Drying Stand","Shop jig model — not a booth tool.",1,0,0,1]
+    ]]
+  ];
+  var SLOTS = ["i-boothbuild","i-elevation","i-dimbooth","i-scenes",null,null,null,null];
+
+  function star(on) {
+    return '<button class="star' + (on ? " on" : "") + '" title="Pin: shows under Pinned and takes the first free toolbar slot">' +
+           '<svg><use href="#g-star"/></svg></button>';
+  }
+
+  function actionRow(r) {
+    // r = [icon, title, blurb, hasDialog, pinned, opensPrerunSheet, devBadge]
+    var isNew = r[1] === "Export just this view";
+    return '<div class="row act" data-name="' + r[1].toLowerCase() + '"' + (r[5] ? ' data-sheet="prerun"' : '') +
+      ' title="' + r[1] + ' — click to run">' +
+      '<span class="iw"><svg><use href="#' + r[0] + '"/></svg></span>' +
+      '<span class="body"><span class="t">' + r[1] +
+        (isNew ? ' <span class="pill-new">NEW</span>' : "") +
+        (r[6] ? ' <span class="badge-dev">DEV</span>' : "") + '</span>' +
+      '<span class="b">' + r[2] + '</span></span>' +
+      (r[3] ? '<svg class="dlg"><use href="#g-dialog"/></svg>' : '') +
+      '<span class="run">RUN ▸</span>' + star(!!r[4]) +
+      '</div>';
+  }
+
+  function abilityRow(id) {
+    var a = ABILITIES[id];
+    var fields = a.set.map(function (s) {
+      if (Array.isArray(s[1])) {
+        return "<label><span>" + s[0] + "</span><select>" +
+          s[1].map(function (c) { return "<option>" + c + "</option>"; }).join("") + "</select></label>";
+      }
+      return "<label><span>" + s[0] + '</span><input value="' + s[1] + '"></label>';
+    }).join("");
+    return '<div class="row ab' + (a.on ? " on" : "") + '" data-ab="' + id + '" data-name="' + a.t.toLowerCase() + '"' +
+      ' title="' + a.t + ' — stays on in this model until switched off">' +
+      '<span class="iw"><svg><use href="#' + a.ic + '"/></svg></span>' +
+      '<span class="body"><span class="t">' + a.t + '</span><span class="b">' + a.b + '</span></span>' +
+      '<span class="stat">' + (a.on ? "ON" : "OFF") + '</span>' +
+      (a.set.length ? '<button class="gearbtn" title="Settings"><svg><use href="#g-gear"/></svg></button>' : "") +
+      '<button class="sw" role="switch" aria-checked="' + a.on + '"><i></i></button>' +
+      '</div>' +
+      (a.set.length ? '<div class="settings">' + fields + '</div>' : "");
+  }
+
+  function panelHTML() {
+    var h = '<div class="cmd"><svg><use href="#g-lens"/></svg>' +
+      '<input placeholder="Search tools — or paste a booth-builder link" spellcheck="false"></div>';
+    h += '<div class="linkgo"><svg><use href="#g-link"/></svg><span><span class="t">Build this booth design</span>' +
+         '<span class="s">sales.whisperroom.com/booth-builder?d=…</span></span></div>';
+    h += '<div class="statebar"><span class="cap">IN THIS MODEL</span>';
+    Object.keys(ABILITIES).forEach(function (id) {
+      var a = ABILITIES[id];
+      h += '<span class="chip' + (a.on ? " on" : "") + '" data-chip="' + id + '">' + a.t.split(" (")[0] + '</span>';
+    });
+    h += '<span class="none" style="display:none">nothing drawn by the panel</span></div>';
+    h += '<div class="scroll">';
+    GROUPS.forEach(function (g) {
+      var shelf = g[2] ? " shelf" : "";
+      h += '<div class="sect' + (g[1] ? " closed" : "") + shelf + '" data-sec>' + g[0].toUpperCase() +
+           ' <span class="n">' + g[3].length + '</span><span class="cv">▾</span></div>' +
+           '<div class="group' + shelf + '">' +
+           g[3].map(function (it) { return it.ab ? abilityRow(it.ab) : actionRow(it); }).join("") + '</div>';
+    });
+    h += '<div class="sect" data-sec>SKETCHUP TOOLBAR <span class="n">8 slots</span><span class="cv">▾</span></div>' +
+         '<div class="group"><div class="slots">' +
+         SLOTS.map(function (s, i) {
+           return '<button class="slot' + (i === 3 ? " pend" : "") + '" data-slot="' + (i + 1) + '">' +
+             (s ? '<svg><use href="#' + s + '"/></svg>' : '<span class="num">' + (i + 1) + "</span>") + "</button>";
+         }).join("") +
+         '</div><div class="slotnote">Slot 4 changed — SketchUp repaints toolbar icons at next launch. It already runs the new tool.</div></div>';
+    h += '</div>';
+    h += '<div class="foot" data-dev><button class="sw" role="switch" aria-checked="false"><i></i></button>' +
+         '<span>Show developer &amp; workshop tools</span>' +
+         '<span style="margin-left:auto;color:var(--p-faint)">search finds them anyway</span></div>';
+    // pre-run sheet + slot editor sheet
+    h += '<div class="sheetovl" data-ovl="prerun"><div class="sheet">' +
+      '<h4><svg><use href="#i-orbit"/></svg> Orbit a part for the assembly manual</h4>' +
+      '<div class="sub">Settings first, then run — replaces the trailing "…" convention. Fields shown are illustrative.</div>' +
+      '<div class="fields"><label><span>Frames</span><input value="24"></label>' +
+      '<label><span>Output folder</span><input value="…\\exports\\orbit"></label></div>' +
+      '<div class="btns"><button data-close>Cancel</button><button class="go" data-close>Run</button></div>' +
+      '<div class="note">Remembers last-used values per tool.</div></div></div>';
+    h += '<div class="sheetovl" data-ovl="slot"><div class="sheet">' +
+      '<h4>Toolbar slot <span data-slotnum>1</span></h4>' +
+      '<div class="sub">Pick the tool it runs and the icon it wears. The tool changes now; the icon at next launch.</div>' +
+      '<div class="fields"><label><span>Runs</span><select><option>Build a booth from real parts</option>' +
+      '<option>Component art — six elevations</option><option>Dimension the booth</option><option>— empty —</option></select></label></div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' +
+      ["i-boothbuild","i-elevation","i-dimbooth","i-orbit","i-scenes","i-mergemat","i-findreplace","i-probe"].map(function (s, i) {
+        return '<button class="slot' + (i === 0 ? '" style="border-color:var(--p-accent);background:var(--p-accent-soft)' : "") +
+               '"><svg><use href="#' + s + '"/></svg></button>';
+      }).join("") + '</div>' +
+      '<div class="btns"><button data-close>Clear slot</button><button data-close>Cancel</button>' +
+      '<button class="go" data-close>Save</button></div></div></div>';
+    return h;
+  }
+
+  document.querySelectorAll("[data-panel]").forEach(function (p) { p.innerHTML = panelHTML(); });
+
+  // --------------------------------------------------------- interactions --
+  function chipSync(panel) {
+    var any = false;
+    panel.querySelectorAll(".chip").forEach(function (c) {
+      var row = panel.querySelector('.row[data-ab="' + c.dataset.chip + '"]');
+      var on = row && row.classList.contains("on");
+      c.classList.toggle("on", !!on);
+      if (on) any = true;
+    });
+    panel.querySelector(".statebar .none").style.display = any ? "none" : "inline";
+  }
+
+  document.addEventListener("click", function (e) {
+    var panel = e.target.closest("[data-panel]");
+    if (!panel) return;
+
+    var sw = e.target.closest(".sw");
+    var gear = e.target.closest(".gearbtn");
+    var st = e.target.closest(".star");
+    var sec = e.target.closest("[data-sec]");
+    var chip = e.target.closest(".chip");
+    var slot = e.target.closest(".slot[data-slot]");
+    var close = e.target.closest("[data-close]");
+    var ovl = e.target.closest(".sheetovl");
+
+    if (close) { close.closest(".sheetovl").classList.remove("on"); return; }
+    if (ovl && e.target === ovl) { ovl.classList.remove("on"); return; }
+    var foot = e.target.closest("[data-dev]");
+    if (foot) {
+      foot.classList.toggle("on");
+      panel.classList.toggle("dev", foot.classList.contains("on"));
+      foot.querySelector(".sw").setAttribute("aria-checked", foot.classList.contains("on"));
+      return;
+    }
+    if (sw) {
+      var row = sw.closest(".row.ab");
+      row.classList.toggle("on");
+      row.querySelector(".stat").textContent = row.classList.contains("on") ? "ON" : "OFF";
+      sw.setAttribute("aria-checked", row.classList.contains("on"));
+      chipSync(panel);
+      return;
+    }
+    if (gear) {
+      var s = gear.closest(".row").nextElementSibling;
+      if (s && s.classList.contains("settings")) s.classList.toggle("open");
+      return;
+    }
+    if (st) { st.classList.toggle("on"); return; }
+    if (chip) {
+      var target = panel.querySelector('.row[data-ab="' + chip.dataset.chip + '"]');
+      if (target) { target.scrollIntoView({ block: "center", behavior: "smooth" }); }
+      return;
+    }
+    if (slot) {
+      var so = panel.querySelector('[data-ovl="slot"]');
+      so.querySelector("[data-slotnum]").textContent = slot.dataset.slot;
+      so.classList.add("on");
+      return;
+    }
+    if (sec) { sec.classList.toggle("closed"); return; }
+    var act = e.target.closest(".row.act");
+    if (act) {
+      if (act.dataset.sheet) { panel.querySelector('[data-ovl="prerun"]').classList.add("on"); }
+      return;
+    }
+  });
+
+  document.querySelectorAll("[data-panel] .cmd input").forEach(function (inp) {
+    inp.addEventListener("input", function () {
+      var panel = inp.closest("[data-panel]");
+      var t = inp.value.trim().toLowerCase();
+      var isLink = /booth-builder\?d=|#d=/.test(t);
+      panel.classList.toggle("searching", !!t && !isLink);
+      panel.querySelector(".linkgo").classList.toggle("on", isLink);
+      panel.querySelectorAll(".row[data-name]").forEach(function (r) {
+        var hit = !t || isLink || r.dataset.name.indexOf(t) >= 0;
+        r.style.display = hit ? "" : "none";
+        var s = r.nextElementSibling;
+        if (s && s.classList.contains("settings")) s.style.display = hit ? "" : "none";
+      });
+      panel.querySelectorAll(".sect").forEach(function (sc) {
+        var g = sc.nextElementSibling;
+        if (!g || !g.classList.contains("group")) return;
+        if (!g.querySelector(".row")) return;   // toolbar group
+        var any = Array.prototype.some.call(g.querySelectorAll(".row"), function (r) { return r.style.display !== "none"; });
+        sc.style.display = any ? "" : "none";
+        g.style.display = any ? (sc.classList.contains("closed") ? "none" : "") : "none";
+        if (t && any) sc.classList.remove("closed");
+      });
+    });
+  });
+
+  document.querySelectorAll("[data-panel]").forEach(chipSync);
+}());
+</script>
