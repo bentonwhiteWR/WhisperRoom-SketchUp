@@ -1,5 +1,136 @@
 # DEVLOG
 
+## 2026-08-15 — the panel is rebuilt, and flipping a switch no longer opened a dialog
+
+**`scripts/wr_tools/panel.html`** rewritten, **`scripts/wr_tools/main.rb`** extended,
+29 purpose-built icons added, and header lines touched across `scripts/*.rb`.
+Steps 1–5 of `.forge/scoper/panel-redesign.md`; 6 and 7 were deliberately
+left. **Nothing here has been run in SketchUp** — see the last section, which is
+as much of this entry as the wins are.
+
+### The defect that gated the whole thing
+
+`main.rb#toggle` did `load` on the ability's file and then evaluated its `@on`
+expression. Every ability script also ends in a top-level autorun — the line that
+makes `load "…/explode-view.rb"` in the Ruby Console actually do something — and
+`toggle` set **neither** suppression global. So flipping a switch ran the
+script's normal entry point first, modal dialog and all, and then did the work a
+second time with whatever the dialog returned. `explode-view.rb`'s own header
+says the ability path exists precisely so a modal never gets in the way of a
+toggle.
+
+Two of the five ability scripts had no guard at all to set (`explode-view.rb`,
+`proposal-scenes.rb`; they have one now), and the three that did had drifted into
+two spellings — `auto-dimension.rb` reads `$wr_suppress_autorun`, the other four
+read `$wr_no_autorun`.
+
+`load_quietly` sets **both**, so neither script has to change and an ability
+written to either spelling is already covered — and **restores the previous
+values afterwards**, which is the part worth recording. Leaving them set silences
+the autorun for the next script *run* from the list, and a script that loads and
+then does nothing presents as a dead button. `booth-from-link.rb` and
+`build-room.rb` already save-and-restore for the same reason; this is that
+pattern, not a new one.
+
+### Three new header directives, all optional
+
+The property that matters is not what they do, it is that **a script declaring
+none of them renders exactly as it did before**. That was an acceptance
+criterion, not a happy accident — the redesign had to be worth zero edits across
+40 script files, so every one of these is additive and parsed beside `@cat` in
+`meta_of`:
+
+| Directive | Grammar | What it does |
+|---|---|---|
+| `# @icon <id>` | one token | Names a symbol in the sprite. Resolution is `@icon` → `icon-map.json` → `wr-default`. |
+| `# @shelf dev\|workshop\|archive` | one keyword | Keeps the script off the default list, behind the footer switch. |
+| `# @rank <n>` | signed integer only | Sorts within a category; lower first, unranked sinks below every ranked row. |
+
+`@rank` parses integers only and leaves anything else as *no rank* rather than
+letting it become 0, because a typo sorting to the top is worse than a typo doing
+nothing. The icon fallback is deliberately loose at both ends: `wr-icons.svg` and
+`icon-map.json` may both be missing and every row still draws the house glyph,
+because a missing sprite must never blank the list.
+
+### Why two categories are ranked and the rest are not
+
+Alphabetical is right for a set and wrong for a sequence. *Build the booth* is
+three ways in, best first, and by title alphabetical opened with
+**Block-out booth (plain boxes, fast)** and buried
+**Build the customer's booth (share link)** at the bottom. The eye lands on the
+first row, so that order did not merely fail to help — it recommended the fast
+low-detail block-out to someone who had a customer's actual configuration in
+hand. Same class of error in *Scenes and images*: **Set up the five proposal
+plates** sorted last, behind the two exporters that consume the plates it makes.
+
+Everything else is left alphabetical on purpose. *Add dimensions* holds three
+different subjects rather than a sequence, so nothing is misread by sorting them
+by name, and *Pinned* keeps toolbar-slot order because that order is its meaning.
+
+### The icon rules, and what enforces them
+
+24-unit grid with a 20-unit live area, 1.8 centred stroke (1.4 / 1.2 for
+deliberately recessive context marks — extension lines, ghosts, level rules), two
+inks only: graphite for context, and `#ee6216` on **exactly one element, the
+thing the tool creates or changes**. The house motifs are the booth (solid rect +
+door return), the room (open rect + door swing arc), and the dimension string
+(oblique drafting ticks, never arrowheads — Benton's own drawing convention). The
+failure test is the useful half: **an icon serving two tools is rejected**, which
+caught three real collisions in the mockup (`i-scenes` served two scripts,
+`i-scenecomp` four, `i-probe` three).
+
+`.forge/builder-icons/gen-icons.py` is the source of truth — it emits all 29
+standalone `wr-ico-*.svg` files, the sprite, `icon-map.json` and the contact sheet
+in one pass, and exits non-zero on a duplicate id, a wrong `viewBox`, an
+off-contract stroke width or geometry outside the live area. Hand-editing any one
+of the four outputs makes them drift, so don't.
+
+The library glob now takes `wr-ico-*.svg` **beside** `ico-*.svg` and resolves a
+saved slot id through both, so the ids already sitting in preferences keep
+working.
+
+### What was deliberately not done
+
+Both of these are cheap to re-propose and expensive to get wrong, so the reasons
+are here rather than in a commit message.
+
+- **The pre-run settings sheet** (spec step 6) touches `meta_of`, which every
+  panel render runs. A regression there does not degrade the list, it blanks it.
+  It is a separate round on its own.
+- **Deleting the legacy `ico-*.svg` library** (spec step 7). Saved `slot_icons`
+  prefs still reference those ids; deleting them regresses the toolbar to
+  numbered faces.
+- **`booth-4260-s.rb`, `booth-96168-s.rb` and `csusb-rooms.rb` were shelved, not
+  retired.** Deleting them was proposed and refused: it is the one irreversible
+  call in the set and it is Benton's. `csusb-rooms.rb` is additionally cited in
+  `CLAUDE.md` as the worked example, so shelving keeps that reference true. They
+  sit on a third shelf, "One-off & superseded".
+
+### Unverified — the honest half
+
+**Nothing was run in SketchUp.** The checks that exist are headless render
+assertions over a real payload plus desktop Chrome at 330 px and 640 px, and they
+say nothing about the following, all of which need a live session:
+
+- The autorun fix, across all five ability scripts.
+- The toolbar pending state clearing across a SketchUp restart.
+- Whether SketchUp's embedded Chromium honours `prefers-color-scheme` at all. The
+  tokens also answer to `:root[data-theme]`, so if it does not, a manual theme
+  pref is one line of JS and no restyling.
+- Collapse state and the developer-tools switch surviving a panel reopen.
+- **Icon legibility at 20 px was never rendered by anyone.** Every geometric claim
+  about the set is parsed, not seen. `.forge/builder-icons/contact-sheet.html` is
+  the instrument — open it in a browser. The `wr-dim-booth` / `wr-dim-selection`
+  pair and the two `booth-preset-*` icons are the ones to look at first.
+
+### One open question for Benton
+
+Six scripts carry a proposed title in the Researcher's tree that was **not** among
+the 14 approved renames, so their old titles are untouched and the list now reads
+inconsistently against its neighbours: `list-scenes.rb`, `orbit-export.rb`,
+`explode-view.rb`, `save-scene-components.rb`, `find-replace-names.rb`,
+`merge-materials.rb`.
+
 ## 2026-08-14 — a booth-specific dimension tool
 
 **`scripts/dimension-booth.rb`** (new). The three figures that go on a

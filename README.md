@@ -24,8 +24,11 @@ identically on the laptop and the desktop.
 
 ## The scripts
 
-All of these appear in the **WhisperRoom panel** automatically. Newest first,
-type to filter, star one to pin it to the toolbar.
+All of these appear in the **WhisperRoom panel** automatically, grouped into
+task categories in a fixed order — draw the room, build the booth, dimension it,
+scenes and images, component art, tidy up. Type to filter, star one to pin it to
+the toolbar. Anything recently changed carries a NEW pill; developer, workshop
+and one-off scripts sit behind a footer switch and are still found by search.
 
 | Script | What it does |
 |---|---|
@@ -80,7 +83,7 @@ python scripts/install-plugin.py
 
 Restart SketchUp, then use the panel rather than the menu — it rescans
 `scripts/` every time it opens, so a new script needs no restart and no
-reinstall. Newest first, type to filter, Enter to run. The menu is a fallback
+reinstall. Type to filter, Enter to run. The menu is a fallback
 and is frozen at whatever existed when SketchUp launched, because SketchUp has
 no API for rebuilding one.
 
