@@ -1,5 +1,35 @@
 # DEVLOG
 
+## 2026-08-15 — the ability row was dead space; the whole row is the switch now
+
+Clicking **Dimension the room** did nothing at all — no dialog, no error, no
+dimensions. Same for Dimensioned booth, Dimensioned selection, Exploded and
+Proposal scenes. All five are abilities, and the redesign merged each one's
+action row into its ability row without extending the click wiring to it.
+
+Root cause, one line: `abilityRow()` emits `<div class="row ab" data-ab="…">`,
+and `wire()` only ever selected `.row[data-i]`, which is what an *action* row
+carries. An ability row matched nothing, so its body was inert; only the small
+switch at the far right responded, and `.row.ab { cursor: default }` even told
+the user so. The name Benton had been clicking for weeks was decoration.
+
+The fix keeps the design rule the spec set — an ability has exactly one control,
+no separate RUN that could bypass the switch — by making the row body *be* the
+switch. Both entry points call one `flipAbility(sw)`, so the row can never
+disagree with its own switch, and the switch's own handler stops propagation so
+a click on it does not also fire the row (a double flip would toggle on and
+straight back off, which presents as "nothing happened" all over again). Gear,
+star, pencil and settings fields already stopped propagation and keep working
+without toggling anything.
+
+Regression test: `.forge/fixer/panel-abilityrow-uitest.py` builds a standalone
+page from `panel.html` with the SketchUp bridge stubbed and drives it in
+headless Chrome. 33 assertions. Against the pre-fix file it fails 10 of them;
+after, all 33 pass. It also walks every other control the renderers emit —
+action rows, toolbar slots, section headers, state chips, the rename pencil —
+because a control emitted by one function and selected by a mismatched selector
+is the bug class, not a one-off.
+
 ## 2026-08-15 — the panel is rebuilt, and flipping a switch no longer opened a dialog
 
 **`scripts/wr_tools/panel.html`** rewritten, **`scripts/wr_tools/main.rb`** extended,

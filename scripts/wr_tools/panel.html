@@ -360,7 +360,9 @@
      Four concurrent signals when one is on — rail, stamp, switch, chip — and
      all four come off together. State is never silent. */
 
-  .row.ab { cursor: default; padding-left: 6px; }
+  /* The whole ability row is the switch — see wire(). It gets the same pointer
+     and the same hover as an action row, because it is just as clickable. */
+  .row.ab { padding-left: 6px; }
   .row.ab::before {
     content: ""; position: absolute; left: 0; top: 0; bottom: 0;
     width: 3px; background: transparent;
@@ -1086,7 +1088,12 @@
   }
 
   // An ability row has NO run affordance. The switch is the action — which is
-  // also why toggling one can no longer open the script's own dialog.
+  // also why toggling one can no longer open the script's own dialog. The row
+  // BODY is the same action: clicking anywhere on it flips the same switch.
+  //
+  // Note the attribute: an ability row carries data-ab, an action row carries
+  // data-i. Any wiring that means "every row" has to name both. Selecting only
+  // .row[data-i] is exactly what left five live tools inert after the redesign.
   function abilityRow(a, s, term) {
     var sets = a.settings || [];
     var title = s ? s.title : a.label;
@@ -1283,9 +1290,40 @@
     if (window.sketchup && sketchup.collapse) sketchup.collapse(list.join("|"));
   }
 
+  // Flipping an ability. ONE code path, because there are two ways in: the
+  // switch itself and the row body around it. Two handlers would drift, and a
+  // row whose stamp disagreed with its own switch is worse than a dead row.
+  function flipAbility(sw) {
+    if (!sw) return;
+    var on = sw.getAttribute("aria-checked") !== "true";
+    // Optimistic, and applied to EVERY switch carrying this id — a pinned
+    // ability shows up twice, in Pinned and in its own category, and half a
+    // flip looks like a bug. Ruby's render corrects all of them either way.
+    Array.prototype.forEach.call(
+      $scroll.querySelectorAll('.sw[data-id="' + sw.dataset.id + '"]'), function (el) {
+        el.setAttribute("aria-checked", on ? "true" : "false");
+        var row = el.closest(".row");
+        if (row) {
+          row.classList.toggle("on", on);
+          var st = row.querySelector(".stat");
+          if (st) st.textContent = on ? "ON" : "OFF";
+        }
+      });
+    sketchup.ability(sw.dataset.id, on ? "true" : "false");
+  }
+
   function wire() {
     Array.prototype.forEach.call($scroll.querySelectorAll(".row[data-i]"), function (el) {
       el.addEventListener("click", function () { runAt(+el.dataset.i); });
+    });
+    // An ability row carries data-ab, NOT data-i — the selector above will
+    // never match one. The row body is the switch; every in-row control that
+    // means something else (switch, gear, star, settings field) stops the click
+    // from reaching here, so nothing double-fires.
+    Array.prototype.forEach.call($scroll.querySelectorAll(".row[data-ab]"), function (el) {
+      el.addEventListener("click", function () {
+        flipAbility(el.querySelector(".sw"));
+      });
     });
     Array.prototype.forEach.call($scroll.querySelectorAll(".star[data-n]"), function (el) {
       el.addEventListener("click", function (e) {
@@ -1301,22 +1339,10 @@
     });
     Array.prototype.forEach.call($scroll.querySelectorAll(".sw"), function (el) {
       el.addEventListener("click", function (e) {
+        // Stops the row handler above from flipping it straight back. A double
+        // flip presents as "nothing happened", which is the bug we just fixed.
         e.stopPropagation();
-        var on = el.getAttribute("aria-checked") !== "true";
-        // Optimistic, and applied to EVERY switch carrying this id — a pinned
-        // ability shows up twice, in Pinned and in its own category, and half a
-        // flip looks like a bug. Ruby's render corrects all of them either way.
-        Array.prototype.forEach.call(
-          $scroll.querySelectorAll('.sw[data-id="' + el.dataset.id + '"]'), function (sw) {
-            sw.setAttribute("aria-checked", on ? "true" : "false");
-            var row = sw.closest(".row");
-            if (row) {
-              row.classList.toggle("on", on);
-              var st = row.querySelector(".stat");
-              if (st) st.textContent = on ? "ON" : "OFF";
-            }
-          });
-        sketchup.ability(el.dataset.id, on ? "true" : "false");
+        flipAbility(el);
       });
     });
     Array.prototype.forEach.call($scroll.querySelectorAll("[data-g]"), function (el) {
