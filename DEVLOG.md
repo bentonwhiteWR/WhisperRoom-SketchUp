@@ -42,10 +42,39 @@ beside it rather than a constant. It specifically must not be confused with the
 10 in EFS figure in `CLAUDE.md`, which is a *clearance to leave around* the
 booth, not the booth's own projection.
 
-Vented faces are read off the layout by default; `none` or an explicit list
-(`N E`) overrides, and the console says when your list disagrees with the data.
+### It identifies the booth — there is no dropdown, deliberately
+
+A dropdown is a second place for the answer to live, and the two drift apart the
+moment a booth is rebuilt as a different model. Select the booth; it works out
+which one, by two routes, and the console always says which one answered:
+
+1. **The group name.** `build-booth-components.rb` names its group
+   `MDL 96120 S (components)`, so the key is sitting there. Exact, and normal.
+2. **The deck part names.** `wr-deck.rb` names each panel after its file, so
+   `STD9648FL SIDE` + `STD9624FL CTR` + `STD9648FL SIDE` is 96 across by 120
+   along, and the exterior is that plus the 1 in inset per side.
+
+Every model resolves uniquely by route 2 — verified against the deck plan for
+all 25. **`MDL 10284 S` and `MDL 84102 S` are the same 86 × 104 rectangle turned
+90°** and even share a deck (84 × 102), so the tiling *direction* is measured
+from where the panels actually sit to separate them. If it cannot, both
+candidates are reported rather than one being picked.
+
+No route means no answer: it says so and stops, because the alternative is a
+plausible model name on a drawing.
+
+**Vents come off the placed parts, not the layout data** — the layout says what
+kind of slot a wall has, the placed part says what actually went in it, so a
+booth whose vent was moved for a customer dimensions as built. It falls back to
+the layout when parts are not named per slot, and says when the two disagree.
+EFS and HX parts are both detected and reported, never guessed at: the EFS
+projection is unmeasured and there is no agreed drawing height for HX.
+
 Own tag, `WR-Dims-Booth`, separate from `dimension-selection.rb`'s so both can be
-on at once.
+on at once — and it counts that tool's dimensions if they are present, because a
+booth carrying both shows two different footprints with nothing saying which is
+which. That has already happened once: a 96120 reading 10' 8 7/16" x 9' 11 1/2"
+off a bounding box against its catalogue 10' 7 1/2" x 8' 7 1/2".
 
 ## 2026-08-14 — the deck orientation is measured now, and the 96 series is the odd one out
 
