@@ -1,5 +1,57 @@
 # DEVLOG
 
+## 2026-08-14 — the deck orientation is measured now, and the 96 series is the odd one out
+
+Three defects reported on the MDL 96120 S. All three are fixed, and none of them
+needed a constant to be guessed at.
+
+### The 96 series carries its bracket line at the opposite end
+
+The turn was positional — turn the high-end tile, leave the low one. That made
+the MDL 7272 S correct (confirmed by Benton) and the MDL 96120 S wrong at **both**
+ends, which is only possible if the parts differ rather than the rule. The full
+237-part probe says exactly that, measuring the bracket line as a fraction across
+the panel's short axis:
+
+```
+STD7224FL SIDE R   0.218      STD9648FL SIDE   0.737
+STD7248FL SIDE L   0.261      STD9648CL SIDE   0.737
+STD10242FL SIDE    0.240      STD6018FL SIDE R 0.216
+STD8442FL SIDE     0.266      every CTR        0.500
+```
+
+`wr-deck.rb` now turns each SIDE panel so its bracket line faces out. Simulated
+across the decks: the 7272, 6060, 6084 and 102102 are **unchanged**, and only the
+96 series flips — both of its SIDE panels, at once, which is precisely the report.
+
+This retires the `SIDE_R_SMALL_WALL_AT_LOW_END` plan in
+`reference/floor-ceiling-geometry.md`. That was written when the only measurement
+being attempted ran *along* the long axis, where L and R are genuinely
+indistinguishable — the 6042 pair still reads 0.430 for both. Measuring *across*
+the short axis is a different question and it does have an answer.
+
+**Orientation is read off the FL part for both decks.** A convention-A ceiling
+has nothing above its rim to measure and yields no cue; its floor twin always
+does. That is the coplanar-hinges invariant used as a rule rather than a check.
+
+### The other two were already fixed by the contact_z work
+
+Confirmed against the real probe numbers rather than the doc's summary:
+
+- **`STD9624CL CTR`** (1.7500 / 1.0000 / 0.0000, all over half the peak) fell
+  into the `minor.empty?` branch, which returns `flip = false` unconditionally —
+  so the part stayed as modelled, upside down. It now reads minor = 1.7500 above
+  the slab and flips. **Fixed.**
+- **`STD9648CL SIDE`** has its 1.0000 face at 45% of peak, under the old 50%
+  threshold, so the slab came out as 0.0000/1.7500 and contact as 1.7500 instead
+  of 1.0000 — 0.75 in high. **Fixed.**
+- **`STD9624FL CTR`** carries a 6% lip at 0.0312 inside its slab, read as the
+  room-side tell, flipping every floor centre panel. **Fixed.**
+
+Worth noting the two ceiling parts also disagreed with each other: the SIDE
+landed 79.64–82.75 and the CTR 81.00–84.11. That is the mismatch visible in the
+screenshot, and both now land 78.89–82.00.
+
 ## 2026-08-14 — the narrow deck panel goes over the short wall, not at the end
 
 Benton on the MDL 96120 S: *"It should have two 9648 side pieces, and then the

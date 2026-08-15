@@ -226,17 +226,48 @@ because the rim runs the full length and merges with them.
 
 So do **not** try to derive the handing from geometry. It is not in there.
 
-### Resolve it with one named constant
+### RESOLVED — the bracket line is measurable across the SHORT axis
 
-    SIDE_R_SMALL_WALL_AT_LOW_END = true   # or false
+**Superseded: there is no `SIDE_R_SMALL_WALL_AT_LOW_END` constant, and there
+must not be one.** The earlier plan here was to pick a flag, build a booth and
+look. That was written when the only measurement being attempted was *along* the
+panel's long axis, where L and R are genuinely indistinguishable. Measuring
+*across* the short axis — the tiling direction — answers a different question
+and does have an answer.
 
-Pick a value, build one booth, look at it. If the brackets miss the wall seams
-they miss by the difference between the large and small panel — 24″ on the 40/16
-runs — so a wrong guess is unmissable, not subtle. Flip the constant and it is
-right everywhere, because every model resolves through the same rule.
+Measured 2026-08-14 over all 237 parts, area-weighted over everything standing
+proud of the rim, as a fraction of the short axis (0.0 = low edge, 1.0 = high):
 
-This is the same shape as `FACE_OUT` in `build-booth-components.rb`: one flag,
-named, with the check written next to it.
+| part | edge | |
+|---|---|---|
+| `STD7224FL SIDE R` | **0.218** | low |
+| `STD10242FL SIDE` | **0.240** | low |
+| `STD7248FL SIDE L` | **0.261** | low |
+| `STD8442FL SIDE` | **0.266** | low |
+| `STD6018FL SIDE R` | **0.216** | low |
+| `STD9648FL SIDE` | **0.737** | **high** |
+| `STD9648CL SIDE` | **0.737** | **high** |
+| `STD6042FL SIDE L` / `SIDE R` | 0.430 / 0.430 | symmetric, no cue |
+| every CTR panel | 0.500 | symmetric, no cue |
+
+**The 96 series carries its bracket line at the opposite end from every other
+series.** That single fact explains why one positional turn rule made the
+MDL 7272 S correct and the MDL 96120 S wrong at both ends simultaneously — the
+observation that started this. `wr-deck.rb` now turns each SIDE panel so its
+bracket line faces out, measured; the 7272, 6060, 6084 and 102102 decks are
+unchanged by that, and only the 96 series flips.
+
+The 6042 pair still reads identically to three decimals, confirming the mirror
+finding above. They get no cue and fall back to the positional rule, which is
+correct: there is no asymmetry there to point the wrong way.
+
+### The FL part decides the orientation for both decks
+
+A convention-A ceiling has nothing above its rim, so it yields no cue at all —
+`STD7248CL SIDE L` and `STD6042CL SIDE L/R` measure nothing. Convention B does
+(`STD9648CL SIDE` reads 0.737, agreeing exactly with its floor twin). So the turn
+is read off the **floor** part and applied to both, which is the coplanar-hinges
+invariant above used as a rule rather than just a check.
 
 ### Probe limitation, recorded so it is not re-attempted
 

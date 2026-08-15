@@ -173,6 +173,64 @@ module WR_Deck
     []
   end
 
+  # WHERE THE BRACKET LINE SITS ALONG THE PANEL'S SHORT AXIS.
+  #
+  # A fraction: 0.0 hard against the low edge, 1.0 against the high edge. The
+  # short axis is the tiling direction, so this is the number that says which way
+  # a SIDE panel has to be turned for its brackets to face out of the booth.
+  #
+  # Area-weighted over everything standing proud of the rim, which is the same
+  # geometry hinge_runs uses — but measured across the panel rather than along
+  # it, because along-the-panel answers "where do the walls land" and this
+  # answers "which end do they land at".
+  #
+  # Returns nil when the geometry is symmetric across that axis, meaning the part
+  # gives no cue. Every CTR panel reads 0.500, and the 6042 SIDE L/R pair reads
+  # 0.430 for both — the probe shows those two are identical to four decimals, so
+  # no measurement could separate them and pretending otherwise would be a
+  # fiction. nil is the honest answer and the caller falls back.
+  SYMMETRIC = 0.08
+  def self.bracket_edge(defn)
+    rz = rim_z(defn)
+    return nil if rz.nil?
+    bb = defn.bounds
+    short_is_y = (bb.max.y - bb.min.y).to_f < (bb.max.x - bb.min.x).to_f
+    lo  = (short_is_y ? bb.min.y : bb.min.x).to_f
+    len = (short_is_y ? bb.max.y - bb.min.y : bb.max.x - bb.min.x).to_f
+    return nil if len <= 0
+    wsum = 0.0
+    asum = 0.0
+    walk(defn.entities, Geom::Transformation.new) do |f, tr|
+      begin
+        pts = f.vertices.map { |v| v.position.transform(tr) }
+        next if pts.all? { |p| p.z.to_f <= rz + 0.02 }
+        a = f.area.to_f
+        next if a <= 0
+        vals = pts.map { |p| (short_is_y ? p.y : p.x).to_f }
+        wsum += a * ((((vals.min + vals.max) / 2.0) - lo) / len)
+        asum += a
+      rescue StandardError
+        next
+      end
+    end
+    return nil if asum <= 0
+    e = wsum / asum
+    (e - 0.5).abs < SYMMETRIC ? nil : e
+  rescue StandardError
+    nil
+  end
+
+  # The FL part matching this one. Orientation is read off the floor for both
+  # decks — see the invariant quoted at the turn. Returns the part itself when it
+  # is already a floor, or when no twin exists.
+  def self.fl_twin(cat, part)
+    return part if part[:kind] == 'FL'
+    cat.find { |c| c[:kind] == 'FL' &&
+                   (c[:cross] - part[:cross]).abs < TOL &&
+                   (c[:along] - part[:along]).abs < TOL &&
+                   c[:role] == part[:role] && c[:hand] == part[:hand] } || part
+  end
+
   # The rim: the highest flat level holding any real area.
   def self.rim_z(defn)
     tally = flat_levels(defn)
@@ -627,6 +685,18 @@ module WR_Deck
         next
       end
 
+      # Orientation off the FL twin, so floor and ceiling take the same rotation.
+      # On a CL build the twin is already loaded — build-booth-components runs FL
+      # first — so this resolves to the existing definition rather than importing
+      # anything new.
+      twin = fl_twin(cat, t[:part])
+      t[:edge] = if twin[:file] == t[:part][:file]
+                   bracket_edge(defn)
+                 else
+                   td = (model.definitions.load(twin[:path]) rescue nil)
+                   td ? bracket_edge(td) : nil
+                 end
+
       # Say so when an end could not get the hand it wanted. Silence here is how
       # an MDL 7296 S came out with SIDE L at both ends and still read as a
       # clean build in the console.
@@ -664,30 +734,48 @@ module WR_Deck
       # plane. Build the transform, push the contact point through it, then work
       # out the lift from where it actually ended up.
       tr = Geom::Transformation.new
-      # THE HIGH-END PANEL IS TURNED. THE LOW-END ONE IS NOT.
+      # THE PANEL'S BRACKET LINE MUST FACE OUT, AND THE PANEL SAYS WHERE IT IS.
       #
-      # This is the state Benton called "almost perfect", and it should never
-      # have been changed. Reconstructed from what was actually reported, and
-      # every report since the constant-freeze bug was fixed agrees with it:
+      # The old rule was positional — turn the high-end tile, leave the low one —
+      # and it was right for the 72 series and wrong for the 96 series, which is
+      # what made the MDL 96120 S come out with both side panels' hinges facing
+      # the centre while the MDL 7272 S was confirmed correct.
       #
-      #   7248 at the LOW end,  not turned  -> correct
-      #   7224 at the HIGH end, turned      -> correct
+      # The probe over all 237 parts says why. The bracket line does NOT sit at a
+      # consistent end of the part's short axis, reported as a fraction along it:
       #
-      # Reports from before that fix cannot be used as evidence at all: the
-      # constants were frozen in memory, so those builds were made with values
-      # nobody chose. That is why the earlier picture looked contradictory.
+      #     STD7248FL SIDE L   0.261      STD9648FL SIDE   0.737
+      #     STD7224FL SIDE R   0.218      STD9648CL SIDE   0.737
+      #     STD10242FL SIDE    0.240      STD6018FL SIDE R 0.216
+      #     STD8442FL SIDE     0.266      every CTR        0.500
       #
-      # What went wrong after "almost perfect" was mine. A specific report — the
-      # 7224 needing different handling — was answered with a blanket change
-      # that removed the turn from every panel, including the one that had just
-      # been confirmed correct. Fix what was reported, not everything adjacent
-      # to it.
+      # The 72, 102 and 84 series carry it at the LOW edge; the 96 series at the
+      # HIGH edge. One positional rule cannot serve both, so the turn is measured:
+      # turn whenever the bracket line would otherwise end up inboard.
       #
-      # big_wall_fraction and layout_big_on_low? stay unused. The measurement is
-      # real — hinge gaps of 24.125 and 21.125 do name the walls, and the layout
-      # on the four split-run booths contradicts them — but that is a LAYOUT bug
-      # for gen-booth.py, and using it to rotate parts made three of four worse.
-      half = !t[:at_low_end]
+      # This reproduces the confirmed 7272 exactly — at 0.261 the low tile stays
+      # unturned and the high tile still turns — so the booth Benton signed off on
+      # does not move. It is the 96 series that flips, which is the whole point.
+      #
+      # ORIENTATION IS READ OFF THE FLOOR PART, FOR BOTH DECKS.
+      # reference/floor-ceiling-geometry.md records the invariant: floor and
+      # ceiling hinges are coplanar in plan, so the pair take the same rotation
+      # and are never decided independently. It is also the only thing that
+      # works — a convention-A ceiling has nothing above its rim to measure, so
+      # it yields no cue at all, while its floor twin always does.
+      #
+      # A symmetric part (CTR panels, and the 6042 SIDE pair, which the probe
+      # shows are identical to four decimals) yields no cue and keeps the old
+      # positional rule. Nothing there can be got wrong, because there is no
+      # asymmetry to point the wrong way.
+      edge = t[:edge]
+      half = if edge.nil?
+               !t[:at_low_end]
+             elsif t[:at_low_end]
+               edge > 0.5
+             else
+               edge < 0.5
+             end
       tr = Geom::Transformation.rotation(ORIGIN, X_AXIS, 180.degrees) * tr if flip
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if half
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
@@ -734,10 +822,11 @@ module WR_Deck
       landed = (inst && inst.valid? ? inst.bounds : nil)
       if landed
         puts format('    %-26s%-9s%-9s contact %7.4f  ->  %7.2f %7.2f %7.2f  ' \
-                    'to %7.2f %7.2f %7.2f',
+                    'to %7.2f %7.2f %7.2f   %s',
                     t[:part][:file], flip ? ' flipped' : '', half ? ' turned' : '',
                     cz, landed.min.x.to_f, landed.min.y.to_f, landed.min.z.to_f,
-                    landed.max.x.to_f, landed.max.y.to_f, landed.max.z.to_f)
+                    landed.max.x.to_f, landed.max.y.to_f, landed.max.z.to_f,
+                    t[:edge].nil? ? 'edge n/a' : format('edge %.3f', t[:edge]))
       end
     end
 
