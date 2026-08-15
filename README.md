@@ -39,6 +39,14 @@ type to filter, star one to pin it to the toolbar.
 | `pendant-jig.rb`, `tube-drying-stand.rb` | The pendant-side 3D-printed fixtures. See `reference/3d-printing.md`. |
 | `rbcheck.py` | Block-balance check. There is no Ruby outside SketchUp on either machine — run this before handing a script over. |
 
+### Desktop helper
+
+`scripts/quicksnip/` is not a SketchUp script and does not appear in the panel.
+It is an AutoHotkey tool that grabs a fixed screen region — set once over the
+SketchUp viewport — straight to the clipboard on a single keypress, for pasting
+the same view into proposals and messages without re-cropping every time. See
+its own README for hotkeys and setup.
+
 ## The pipeline
 
 ```

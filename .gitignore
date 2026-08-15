@@ -24,6 +24,11 @@ desktop.ini
 # Scratch
 scratch/
 
+# QuickSnip: the ini is screen coordinates for one monitor layout, and the
+# snips themselves are output, not source.
+scripts/quicksnip/quicksnip.ini
+scripts/quicksnip/Snips/
+
 # The bundled copy of scripts/ that install-plugin.py drops inside wr_tools.
 # Generated, never edited, and would be a duplicate of every script in git.
 scripts/wr_tools/scripts/
