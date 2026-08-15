@@ -2,15 +2,19 @@
 #SingleInstance Force
 
 ; ─── QuickSnip ────────────────────────────────────────────────────────────
-;   F5              capture the saved region -> clipboard + PNG in Snips\
-;   F6              open the Snips folder
-;   Shift+F5        redefine the region (drag a box, Esc to cancel)
+;   F5              capture region A -> clipboard + PNG
+;   Shift+F5        redefine region A (drag a box, Esc to cancel)
+;   F6              start / stop recording the record region -> MP4
+;   Shift+F6        redefine the record region
+;   F7              open the snips folder
 ;   Shift+F8        settings window - rebind any of the above
 ;
 ;   Defaults only; every hotkey is rebindable and stored in quicksnip.ini.
 ;
-;   Settings live in quicksnip.ini next to this script, so the region and
-;   the save folder survive restarts. Double-clicking the tray icon snips.
+;   Recording shells out to ffmpeg's gdigrab, because AutoHotkey can capture
+;   a bitmap but cannot encode video. ffmpeg is stopped by writing "q" to its
+;   stdin rather than killing it - a killed encoder leaves a file with no
+;   index, which most players refuse to open.
 ; ──────────────────────────────────────────────────────────────────────────
 
 try DllCall("SetProcessDpiAwarenessContext", "ptr", -4)   ; per-monitor DPI aware
@@ -27,15 +31,34 @@ global SettingsGui := ""   ; built once, then hidden/reshown
 global Keys       := Map() ; action name -> hotkey string
 global Bound      := Map() ; hotkey string -> callback, whatever is live right now
 
+; Resolved once and cached in the ini - the winget path carries a version
+; number, so hunting for it on every start would be wasted work.
+global FfmpegPath := IniRead(ConfigFile, "Settings", "Ffmpeg", "")
+if (FfmpegPath = "") {
+    FfmpegPath := FindFfmpeg()
+    IniWrite(FfmpegPath, ConfigFile, "Settings", "Ffmpeg")
+}
+global RecFps     := Integer(IniRead(ConfigFile, "Settings", "RecFps", "30"))
+global RecActive  := false
+global RecProc    := 0     ; process handle
+global RecThread  := 0     ; thread handle from CreateProcess
+global RecStdIn   := 0     ; write end of the pipe - how we ask ffmpeg to stop
+global RecPath    := ""    ; file being written
+global RecStart   := 0     ; tick count at start
+global RecBadge   := ""    ; the "REC 00:12" readout
+global RecEdges   := []    ; four hairlines drawn just outside the region
+
 Persistent
+OnExit(FinishRecordingOnExit)      ; never leave a half-written MP4 behind
 LoadHotkeys()
 ApplyHotkeys()
 
 A_TrayMenu.Delete()
 A_TrayMenu.Add("Snip now", DoSnip)
 A_TrayMenu.Add("Open snips folder", DoOpenFolder)
-A_TrayMenu.Add("Set region...", DoSetRegion)
-A_TrayMenu.Add("Show current region", (*) => ShowRegionInfo())
+A_TrayMenu.Add("Set region...", (*) => DoSetRegion("Region"))
+A_TrayMenu.Add("Start / stop recording", DoRecordToggle)
+A_TrayMenu.Add("Set record region...", (*) => DoSetRegion("RecRegion"))
 A_TrayMenu.Add()
 A_TrayMenu.Add("Settings...", DoSettings)
 A_TrayMenu.Add("Reload", (*) => Reload())
@@ -55,15 +78,24 @@ else {
 ; window can rewrite it without a restart.
 LoadHotkeys() {
     global Keys, ConfigFile
+
+    ; F6 used to open the snips folder; recording claims it now. Move the old
+    ; binding across once rather than making the user resolve a clash.
+    if (IniRead(ConfigFile, "Hotkeys", "Folder", "") = "F6")
+        IniWrite("F7", ConfigFile, "Hotkeys", "Folder")
+
     Keys := Map(
-        "Snip",     IniRead(ConfigFile, "Hotkeys", "Snip",     "F5"),
-        "Region",   IniRead(ConfigFile, "Hotkeys", "Region",   "+F5"),
-        "Folder",   IniRead(ConfigFile, "Hotkeys", "Folder",   "F6"),
-        "Settings", IniRead(ConfigFile, "Hotkeys", "Settings", "+F8"))
+        "Snip",      IniRead(ConfigFile, "Hotkeys", "Snip",      "F5"),
+        "Region",    IniRead(ConfigFile, "Hotkeys", "Region",    "+F5"),
+        "Record",    IniRead(ConfigFile, "Hotkeys", "Record",    "F6"),
+        "RecRegion", IniRead(ConfigFile, "Hotkeys", "RecRegion", "+F6"),
+        "Folder",    IniRead(ConfigFile, "Hotkeys", "Folder",    "F7"),
+        "Settings",  IniRead(ConfigFile, "Hotkeys", "Settings",  "+F8"))
 }
 
 ActionMap() {
-    return Map("Snip", DoSnip, "Region", DoSetRegion,
+    return Map("Snip", DoSnip, "Region", (*) => DoSetRegion("Region"),
+               "Record", DoRecordToggle, "RecRegion", (*) => DoSetRegion("RecRegion"),
                "Folder", DoOpenFolder, "Settings", DoSettings)
 }
 
@@ -128,19 +160,23 @@ DoOpenFolder(*) {
     Run('explorer.exe "' SaveFolder '"')
 }
 
-DoSetRegion(*) {
+DoSetRegion(section := "Region") {
     global ConfigFile
+    if (section = "RecRegion" && RecActive) {
+        Notify("Stop the recording first.")
+        return
+    }
     KillPreview()
-    r := SelectRegion()
+    r := SelectRegion(section)
     if !IsObject(r) {
         Notify("Region unchanged.")
         return
     }
-    IniWrite(r.x, ConfigFile, "Region", "X")
-    IniWrite(r.y, ConfigFile, "Region", "Y")
-    IniWrite(r.w, ConfigFile, "Region", "W")
-    IniWrite(r.h, ConfigFile, "Region", "H")
-    Notify("Region set: " r.w "x" r.h " at " r.x "," r.y)
+    IniWrite(r.x, ConfigFile, section, "X")
+    IniWrite(r.y, ConfigFile, section, "Y")
+    IniWrite(r.w, ConfigFile, section, "W")
+    IniWrite(r.h, ConfigFile, section, "H")
+    Notify((section = "RecRegion" ? "Record region" : "Region") " set: " r.w "x" r.h)
     FlashRegion(r.x, r.y, r.w, r.h)
 }
 
@@ -156,12 +192,12 @@ ShowRegionInfo() {
 
 ; ─── Region storage ───────────────────────────────────────────────────────
 
-LoadRegion(&x, &y, &w, &h) {
+LoadRegion(&x, &y, &w, &h, section := "Region") {
     global ConfigFile
-    x := IniRead(ConfigFile, "Region", "X", "")
-    y := IniRead(ConfigFile, "Region", "Y", "")
-    w := IniRead(ConfigFile, "Region", "W", "")
-    h := IniRead(ConfigFile, "Region", "H", "")
+    x := IniRead(ConfigFile, section, "X", "")
+    y := IniRead(ConfigFile, section, "Y", "")
+    w := IniRead(ConfigFile, section, "W", "")
+    h := IniRead(ConfigFile, section, "H", "")
     if (x = "" || y = "" || w = "" || h = "")
         return false
     x := Integer(x), y := Integer(y), w := Integer(w), h := Integer(h)
@@ -177,9 +213,10 @@ EnsureFolder() {
 
 ; ─── Drag-to-select overlay ───────────────────────────────────────────────
 
-SelectRegion() {
+SelectRegion(section := "Region") {
     vx := SysGet(76), vy := SysGet(77)          ; virtual screen origin
     vw := SysGet(78), vh := SysGet(79)          ; virtual screen size
+    recording := (section = "RecRegion")
 
     ; Dimmer over every monitor.
     ov := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000")   ; NOACTIVATE
@@ -192,11 +229,19 @@ SelectRegion() {
     tip := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000020")   ; + click-through
     tip.BackColor := "1B1B1B"
     tip.MarginX := 26, tip.MarginY := 18
+    if recording {
+        headline := "Drag a box around the area you want to record"
+        subline  := "This becomes the fixed area " Keys["Record"] " records."
+    } else {
+        headline := "Drag a box around the area you want to snip"
+        subline  := "This becomes the fixed area " Keys["Snip"] " captures."
+    }
+    subline .= "`nPress Esc to keep the current one."
+
     tip.SetFont("s14 bold cWhite", "Segoe UI")
-    tip.AddText("BackgroundTrans Center w440", "Drag a box around the area you want to snip")
+    tip.AddText("BackgroundTrans Center w440", headline)
     tip.SetFont("s10 norm c9AA0A6", "Segoe UI")
-    tip.AddText("BackgroundTrans Center w440 y+10",
-        "This becomes the fixed area F5 captures from now on.`nPress Esc to keep the current one.")
+    tip.AddText("BackgroundTrans Center w440 y+10", subline)
     tip.Show("NoActivate AutoSize x-9000 y-9000")
     tip.GetPos(, , &tipW, &tipH)
     MonitorGetWorkArea(MonitorGetPrimary(), &pl, &pt, &pr, &pb)
@@ -473,6 +518,254 @@ KillToast(*) {
 }
 
 
+; ─── Screen recording ─────────────────────────────────────────────────────
+
+FindFfmpeg() {
+    if (found := FileExist("ffmpeg.exe") ? "ffmpeg.exe" : "")
+        return found
+    for base in [EnvGet("LOCALAPPDATA") "\Microsoft\WinGet\Packages",
+                 EnvGet("ProgramFiles") "\ffmpeg\bin"] {
+        loop files, base "\*ffmpeg.exe", "FR" {
+            return A_LoopFileFullPath
+        }
+    }
+    return "ffmpeg.exe"                        ; fall back to PATH
+}
+
+DoRecordToggle(*) {
+    global RecActive
+    if RecActive
+        StopRecording()
+    else
+        StartRecording()
+}
+
+FinishRecordingOnExit(*) {
+    global RecActive
+    if RecActive
+        StopRecording()
+}
+
+StartRecording() {
+    global RecActive, RecPath, RecStart, FfmpegPath, RecFps
+
+    if !LoadRegion(&x, &y, &w, &h, "RecRegion") {
+        Notify("No record region yet - press " Keys["RecRegion"] " to pick one.")
+        return
+    }
+
+    ; H.264 needs even dimensions. Round down rather than let ffmpeg fail with
+    ; an error the user would have to go looking for.
+    w -= Mod(w, 2), h -= Mod(h, 2)
+    if (w < 2 || h < 2) {
+        Notify("Record region is too small.")
+        return
+    }
+
+    EnsureFolder()
+    RecPath := SaveFolder "\rec-" FormatTime(A_Now, "yyyy-MM-dd_HHmmss") ".mp4"
+
+    cmd := '"' FfmpegPath '" -hide_banner -loglevel error -y'
+         . ' -f gdigrab -framerate ' RecFps
+         . ' -offset_x ' x ' -offset_y ' y ' -video_size ' w 'x' h
+         . ' -draw_mouse 1 -i desktop'
+         . ' -c:v libx264 -preset veryfast -crf 22 -pix_fmt yuv420p'
+         . ' -movflags +faststart "' RecPath '"'
+
+    if !SpawnWithStdin(cmd) {
+        Notify("Could not start ffmpeg - check the path in settings.")
+        return
+    }
+
+    RecActive := true
+    RecStart := A_TickCount
+    ShowRecIndicator(x, y, w, h)
+    SetTimer(TickRecIndicator, 500)
+}
+
+StopRecording() {
+    global RecActive, RecProc, RecThread, RecStdIn, RecPath
+
+    SetTimer(TickRecIndicator, 0)
+    RecActive := false
+
+    ; "q" on stdin is ffmpeg's graceful stop: it flushes and writes the moov
+    ; atom. TerminateProcess would leave an unplayable file.
+    if RecStdIn {
+        q := Buffer(1, 0)
+        NumPut("uchar", 0x71, q, 0)             ; 'q'
+        written := 0
+        DllCall("WriteFile", "ptr", RecStdIn, "ptr", q, "uint", 1,
+                "uint*", &written, "ptr", 0)
+        DllCall("FlushFileBuffers", "ptr", RecStdIn)
+    }
+
+    finished := false
+    if RecProc
+        finished := (DllCall("WaitForSingleObject", "ptr", RecProc, "uint", 6000) = 0)
+
+    if (!finished && RecProc) {
+        DllCall("TerminateProcess", "ptr", RecProc, "uint", 1)
+        DllCall("WaitForSingleObject", "ptr", RecProc, "uint", 2000)
+    }
+
+    if RecStdIn
+        DllCall("CloseHandle", "ptr", RecStdIn)
+    if RecThread
+        DllCall("CloseHandle", "ptr", RecThread)
+    if RecProc
+        DllCall("CloseHandle", "ptr", RecProc)
+    RecStdIn := 0, RecThread := 0, RecProc := 0
+
+    HideRecIndicator()
+
+    secs := Round((A_TickCount - RecStart) / 1000)
+    if (FileExist(RecPath) && FileGetSize(RecPath) > 0) {
+        PutFileOnClipboard(RecPath)             ; Ctrl+V now pastes the video file
+        Notify("Recorded " FormatSecs(secs) " - " RegExReplace(RecPath, ".*\\")
+               . (finished ? " - on clipboard" : " - forced stop, check the file"))
+    } else {
+        Notify("Recording produced no file.")
+    }
+}
+
+; CreateProcess with an inherited pipe on stdin. Run() cannot give us a stdin
+; handle, and WScript.Shell.Exec cannot hide the console window - this does both.
+SpawnWithStdin(cmdLine) {
+    global RecProc, RecThread, RecStdIn
+    static CREATE_NO_WINDOW := 0x08000000, STARTF_USESTDHANDLES := 0x100
+
+    sa := Buffer(24, 0)                         ; SECURITY_ATTRIBUTES
+    NumPut("uint", 24, sa, 0)
+    NumPut("ptr", 0, sa, 8)
+    NumPut("int", 1, sa, 16)                    ; bInheritHandle
+
+    hRead := 0, hWrite := 0
+    if !DllCall("CreatePipe", "ptr*", &hRead, "ptr*", &hWrite, "ptr", sa, "uint", 0)
+        return false
+    DllCall("SetHandleInformation", "ptr", hWrite, "uint", 1, "uint", 0)  ; keep our end private
+
+    ; Send ffmpeg's chatter to NUL; an unread pipe would fill and stall it.
+    hNul := DllCall("CreateFileW", "wstr", "NUL", "uint", 0x40000000, "uint", 3,
+                    "ptr", sa, "uint", 3, "uint", 0, "ptr", 0, "ptr")
+
+    si := Buffer(104, 0)                        ; STARTUPINFOW (x64)
+    NumPut("uint", 104, si, 0)
+    NumPut("uint", STARTF_USESTDHANDLES, si, 60)
+    NumPut("ptr", hRead, si, 80)                ; hStdInput
+    NumPut("ptr", hNul,  si, 88)                ; hStdOutput
+    NumPut("ptr", hNul,  si, 96)                ; hStdError
+
+    pi := Buffer(24, 0)                         ; PROCESS_INFORMATION
+    sz := StrPut(cmdLine, "UTF-16") * 2
+    buf := Buffer(sz, 0)                        ; CreateProcessW may write to this
+    StrPut(cmdLine, buf, "UTF-16")
+
+    ok := DllCall("CreateProcessW", "ptr", 0, "ptr", buf, "ptr", 0, "ptr", 0,
+                  "int", 1, "uint", CREATE_NO_WINDOW, "ptr", 0, "ptr", 0,
+                  "ptr", si, "ptr", pi)
+
+    DllCall("CloseHandle", "ptr", hRead)        ; the child owns its copy now
+    DllCall("CloseHandle", "ptr", hNul)
+
+    if !ok {
+        DllCall("CloseHandle", "ptr", hWrite)
+        return false
+    }
+
+    RecProc   := NumGet(pi, 0, "ptr")
+    RecThread := NumGet(pi, 8, "ptr")
+    RecStdIn  := hWrite
+    return true
+}
+
+; Four hairlines just OUTSIDE the region, so the indicator never lands in the
+; frame, plus a running clock.
+ShowRecIndicator(x, y, w, h) {
+    global RecEdges, RecBadge
+    static T := 3
+
+    HideRecIndicator()
+    for spec in [[x - T, y - T, w + T * 2, T], [x - T, y + h, w + T * 2, T],
+                 [x - T, y, T, h], [x + w, y, T, h]] {
+        e := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000020")
+        e.BackColor := "D6453C"
+        e.Show("NoActivate x" spec[1] " y" spec[2] " w" spec[3] " h" spec[4])
+        WinSetTransparent(220, e)
+        RecEdges.Push(e)
+    }
+
+    b := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000020")
+    b.BackColor := "1B1B1B"
+    b.MarginX := 12, b.MarginY := 7
+    b.SetFont("s10 bold cD6453C", "Consolas")
+    b.txt := b.AddText("BackgroundTrans w120", "REC  00:00")
+    b.Show("NoActivate AutoSize x-9000 y-9000")
+    b.GetPos(, , &bw, &bh)
+    b.Move(x, Max(y - bh - T - 4, 0))
+    WinSetTransparent(235, b)
+    RecBadge := b
+}
+
+TickRecIndicator() {
+    global RecBadge, RecStart
+    if !IsObject(RecBadge)
+        return
+    try RecBadge.txt.Value := "REC  " FormatSecs(Round((A_TickCount - RecStart) / 1000))
+}
+
+HideRecIndicator() {
+    global RecEdges, RecBadge
+    for e in RecEdges
+        try e.Destroy()
+    RecEdges := []
+    if IsObject(RecBadge) {
+        try RecBadge.Destroy()
+        RecBadge := ""
+    }
+    Sleep 30
+}
+
+FormatSecs(s) {
+    return Format("{:02}:{:02}", s // 60, Mod(s, 60))
+}
+
+; Puts the file itself on the clipboard (CF_HDROP), so Ctrl+V in Outlook or
+; Explorer pastes the video rather than its path as text.
+PutFileOnClipboard(path) {
+    static CF_HDROP := 15, DROPFILES := 20
+
+    chars := StrLen(path)
+    total := DROPFILES + (chars + 2) * 2        ; double-null terminated
+    hMem := DllCall("GlobalAlloc", "uint", 0x42, "ptr", total, "ptr")   ; MOVEABLE|ZEROINIT
+    if !hMem
+        return false
+    ptr := DllCall("GlobalLock", "ptr", hMem, "ptr")
+    NumPut("uint", DROPFILES, ptr, 0)           ; offset to the file list
+    NumPut("int", 1, ptr, 16)                   ; fWide = TRUE
+    StrPut(path, ptr + DROPFILES, chars + 1, "UTF-16")
+    DllCall("GlobalUnlock", "ptr", hMem)
+
+    if !OpenClipboardRetry() {
+        DllCall("GlobalFree", "ptr", hMem)
+        return false
+    }
+    DllCall("EmptyClipboard")
+    DllCall("SetClipboardData", "uint", CF_HDROP, "ptr", hMem)
+    DllCall("CloseClipboard")
+    return true
+}
+
+OpenClipboardRetry() {
+    loop 8 {
+        if DllCall("OpenClipboard", "ptr", 0)
+            return true
+        Sleep 40
+    }
+    return false
+}
+
+
 ; ─── Settings window ──────────────────────────────────────────────────────
 
 DoSettings(*) {
@@ -501,6 +794,7 @@ DoSettings(*) {
     g.SetFont("s10 norm c000000", "Segoe UI")
     ctl := Map()
     for row in [["Snip", "Snip the region"], ["Region", "Set the region"],
+                ["Record", "Start / stop recording"], ["RecRegion", "Set the record region"],
                 ["Folder", "Open snips folder"], ["Settings", "Open this window"]] {
         g.AddText("xm y+12 w170 h23 0x200", row[2])              ; 0x200 = vcenter
         ctl[row[1]] := g.AddHotkey("x+10 yp w200", Keys[row[1]])
@@ -523,17 +817,38 @@ DoSettings(*) {
     g.AddText("x+8 yp+4", "milliseconds")
 
     g.SetFont("s12 bold", "Segoe UI")
-    g.AddText("xm y+22", "Capture region")
+    g.AddText("xm y+22", "Recording")
     g.SetFont("s10 norm", "Segoe UI")
-    txtRegion := g.AddText("xm y+12 w240 h25 0x200", RegionSummary())
+
+    g.AddText("xm y+12 w170 h23 0x200", "ffmpeg")
+    edFfmpeg := g.AddEdit("x+10 yp w200", FfmpegPath)
+    btnFfmpeg := g.AddButton("x+8 yp-1 w90", "Browse...")
+
+    g.AddText("xm y+12 w170 h23 0x200", "Frame rate")
+    edFps := g.AddEdit("x+10 yp w80 Number", RecFps)
+    g.SetFont("s9 c606060", "Segoe UI")
+    g.AddText("x+8 yp+4", "fps")
+    g.SetFont("s10 norm c000000", "Segoe UI")
+
+    g.SetFont("s12 bold", "Segoe UI")
+    g.AddText("xm y+22", "Regions")
+    g.SetFont("s10 norm", "Segoe UI")
+    g.AddText("xm y+12 w80 h25 0x200", "Snip")
+    txtRegion := g.AddText("x+6 yp w200 h25 0x200", RegionSummary("Region"))
     btnPick := g.AddButton("x+10 yp-1 w140", "Pick region...")
+
+    g.AddText("xm y+8 w80 h25 0x200", "Record")
+    txtRecRegion := g.AddText("x+6 yp w200 h25 0x200", RegionSummary("RecRegion"))
+    btnPickRec := g.AddButton("x+10 yp-1 w140", "Pick region...")
 
     btnSave := g.AddButton("xm y+26 w120 Default", "Save")
     btnCancel := g.AddButton("x+10 w120", "Cancel")
 
     btnBrowse.OnEvent("Click", (*) => BrowseSnipFolder(edFolder))
-    btnPick.OnEvent("Click", (*) => PickRegionFromSettings(g, txtRegion))
-    btnSave.OnEvent("Click", (*) => SaveSettings(g, ctl, edFolder, cbSave, edAnim))
+    btnFfmpeg.OnEvent("Click", (*) => BrowseFfmpeg(edFfmpeg))
+    btnPick.OnEvent("Click", (*) => PickRegionFromSettings(g, txtRegion, "Region"))
+    btnPickRec.OnEvent("Click", (*) => PickRegionFromSettings(g, txtRecRegion, "RecRegion"))
+    btnSave.OnEvent("Click", (*) => SaveSettings(g, ctl, edFolder, cbSave, edAnim, edFfmpeg, edFps))
     btnCancel.OnEvent("Click", (*) => g.Hide())
     g.OnEvent("Escape", (*) => g.Hide())
     g.OnEvent("Close", (*) => g.Hide())
@@ -542,8 +857,8 @@ DoSettings(*) {
     g.Show("AutoSize Center")
 }
 
-RegionSummary() {
-    if LoadRegion(&x, &y, &w, &h)
+RegionSummary(section := "Region") {
+    if LoadRegion(&x, &y, &w, &h, section)
         return w " x " h " at " x "," y
     return "not set yet"
 }
@@ -554,16 +869,22 @@ BrowseSnipFolder(edFolder) {
         edFolder.Value := picked
 }
 
-PickRegionFromSettings(g, txtRegion) {
+BrowseFfmpeg(edFfmpeg) {
+    picked := FileSelect(1, edFfmpeg.Value, "Where is ffmpeg.exe?", "ffmpeg (ffmpeg.exe)")
+    if picked
+        edFfmpeg.Value := picked
+}
+
+PickRegionFromSettings(g, txtRegion, section) {
     g.Hide()                                    ; the window would land in the shot
     Sleep 150
-    DoSetRegion()
-    txtRegion.Value := RegionSummary()
+    DoSetRegion(section)
+    txtRegion.Value := RegionSummary(section)
     g.Show()
 }
 
-SaveSettings(g, ctl, edFolder, cbSave, edAnim) {
-    global Keys, ConfigFile, SaveFolder, SaveToFile, AnimMs
+SaveSettings(g, ctl, edFolder, cbSave, edAnim, edFfmpeg, edFps) {
+    global Keys, ConfigFile, SaveFolder, SaveToFile, AnimMs, FfmpegPath, RecFps
 
     ; Validate everything before writing anything, so a bad field cannot leave
     ; the script half-rebound.
@@ -602,13 +923,17 @@ SaveSettings(g, ctl, edFolder, cbSave, edAnim) {
     SaveFolder := folder
     SaveToFile := cbSave.Value
     AnimMs     := Max(Integer(edAnim.Value = "" ? 1300 : edAnim.Value), 200)
+    FfmpegPath := Trim(edFfmpeg.Value)
+    RecFps     := Min(Max(Integer(edFps.Value = "" ? 30 : edFps.Value), 5), 60)
     IniWrite(SaveFolder, ConfigFile, "Settings", "SaveFolder")
     IniWrite(SaveToFile, ConfigFile, "Settings", "SaveToFile")
     IniWrite(AnimMs,     ConfigFile, "Settings", "AnimMs")
+    IniWrite(FfmpegPath, ConfigFile, "Settings", "Ffmpeg")
+    IniWrite(RecFps,     ConfigFile, "Settings", "RecFps")
 
     ApplyHotkeys()
     g.Hide()
-    Notify("Saved - " Keys["Snip"] " snips, " Keys["Region"] " sets the region")
+    Notify("Saved - " Keys["Snip"] " snips, " Keys["Record"] " records")
 }
 
 NoOp(*) {
