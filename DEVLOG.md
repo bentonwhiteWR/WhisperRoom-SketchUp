@@ -1,5 +1,52 @@
 # DEVLOG
 
+## 2026-08-14 — a booth-specific dimension tool
+
+**`scripts/dimension-booth.rb`** (new). The three figures that go on a
+WhisperRoom drawing, taken from the catalogue rather than measured.
+
+`dimension-selection.rb` already measures a bounding box, and that is exactly why
+this is a second tool rather than a setting on that one. A built booth's box also
+contains the door leaf modelled standing open, a VSS silencer stack, a
+condensate pan below the floor and any ADA ramp. A 7296 measures over ten feet
+long that way, and the number would go in front of a customer. So the model
+NAMES the booth and the size comes from `wr-booth-data.rb` plus one rule.
+
+### The rule, and why it is not a guess
+
+A vented face adds **5.5 in to the dimension on its own axis** — per FACE, not
+per vent. It reproduces both worked examples exactly:
+
+| booth | vented | dimensioned |
+|---|---|---|
+| MDL 7296 S | N only | **8'2" x 6'7 1/2"** |
+| MDL 96120 S | N and E | **10'7 1/2" x 8'7 1/2"** |
+
+The first is Benton's own worked example; the second is read straight off a
+dimensioned render he made before this script existed. Two independent
+confirmations of one rule.
+
+Per-face is what makes the 7296 work: it carries two vent sets and both sit on
+N, so N projects once and the booth gains 5.5 in, not 11.
+
+Heights are `Standard 6'11"` (83.0000) and `Enhanced 7'-0 5/16"` (84.3125). The
+standard figure is also what the built model comes to — floor underside −1.0,
+wall 0 to 81, ceiling top 82.0 — which is a free check on the deck work above
+rather than a coincidence.
+
+### The one thing deliberately left open
+
+**5.5 in is the NO-EFS figure.** An EFS wall stands further out and that distance
+has never been measured, so `VENT_PROUD` is a dial with the reasoning written
+beside it rather than a constant. It specifically must not be confused with the
+10 in EFS figure in `CLAUDE.md`, which is a *clearance to leave around* the
+booth, not the booth's own projection.
+
+Vented faces are read off the layout by default; `none` or an explicit list
+(`N E`) overrides, and the console says when your list disagrees with the data.
+Own tag, `WR-Dims-Booth`, separate from `dimension-selection.rb`'s so both can be
+on at once.
+
 ## 2026-08-14 — the deck orientation is measured now, and the 96 series is the odd one out
 
 Three defects reported on the MDL 96120 S. All three are fixed, and none of them
