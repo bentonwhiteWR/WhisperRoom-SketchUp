@@ -4,6 +4,7 @@
 # @ability-blurb Pull the selected assembly apart; switch off to put it back.
 # @setting mode   choice  Axis|Radial|Vertical  Direction
 # @setting spread number  60                   Spread (%)
+# @setting fan    number  150                  Fan (%)
 # @on  WR_ExplodeView.ability_on(opts)
 # @off WR_ExplodeView.ability_off(opts)
 #
@@ -16,9 +17,14 @@
 # homes travel with it.
 #
 # AXIS mode is the default and it is the one that reads properly in a manual.
-# Parts move along ONE axis each — whichever they are already furthest along —
-# so a booth's panels come straight off their walls and the ceiling straight up.
+# Parts move along ONE axis each — off the face they are flattest against — so a
+# booth's panels come straight off their walls and the ceiling straight up.
 # Radial drift looks fine in a viewport and awful on a page.
+#
+# On top of that outward move, parts that share a wall FAN apart from each other
+# in the plane of that wall (see fan_in_plane). Without it a wall slides away as
+# one sheet and its own panels never separate, which is the thing that made the
+# first version of this look wrong.
 #
 # Pair with Orbit Export for angles: explode, then orbit, and every frame is of
 # the exploded assembly.
@@ -39,6 +45,7 @@ module WR_ExplodeView
     'action' => 'Explode',
     'mode'   => 'Axis (one axis per part)',
     'spread' => '60',
+    'fan'    => '150',
     'frames' => '0',
     'dir'    => 'C:/Users/bento/Desktop/ProposalFiles/PartArt'
   }.freeze
@@ -46,14 +53,14 @@ module WR_ExplodeView
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys  = %w[action mode spread frames dir]
-    prompts = ['Action', 'Direction', 'Spread (%)',
+    keys  = %w[action mode spread fan frames dir]
+    prompts = ['Action', 'Direction', 'Spread (%)', 'Fan (%)',
                'Sweep frames (0 = none)', 'Output folder']
     defaults = keys.map { |k| v = Sketchup.read_default(PREF, k, DEFAULTS[k]).to_s
                               v.empty? ? DEFAULTS[k] : v }
     lists = ['Explode|Reset',
              'Axis (one axis per part)|Radial|Vertical only',
-             '', '', '']
+             '', '', '', '']
     di = keys.index('dir')
     defaults[di], lists[di] = WR_Folder.field('explode', defaults[di])
 
@@ -174,7 +181,26 @@ module WR_ExplodeView
 
   # ------------------------------------------------------------------ vectors --
 
-  def self.direction(v, mode)
+  # The axis a FLAT part should come off along: its own thinnest one. A wall
+  # panel is 1" thick and 81" tall, so it lifts off its wall face; a floor tile
+  # is thin in Z, so it drops. Nil when the part is not obviously flat — a corner
+  # seal is 4.875" square in plan and has no face to come off — and nil when the
+  # part sits on that axis' centre line, because then the thin axis cannot say
+  # which WAY to go.
+  #
+  # This replaced "whichever axis the part is furthest along". That rule read a
+  # floor tile at the far end of a long booth as an X part and slid it sideways
+  # out of its own deck instead of dropping it.
+  def self.flat_axis(box, v, size)
+    d = [box.width.to_f, box.height.to_f, box.depth.to_f]
+    ord  = (0..2).sort_by { |i| d[i] }
+    thin = ord[0]
+    return nil unless d[thin] < 0.5 * d[ord[1]]
+    return nil unless v.to_a[thin].to_f.abs > 0.01 * size
+    thin
+  end
+
+  def self.direction(v, box, size, mode)
     return nil if v.length < 0.01
     case mode
     when :radial
@@ -182,11 +208,13 @@ module WR_ExplodeView
     when :vertical
       Geom::Vector3d.new(0, 0, v.z < 0 ? -1 : 1)
     else
-      # Whichever axis the part is already furthest along. One axis, not three.
-      cand = [[v.x.abs, Geom::Vector3d.new(v.x < 0 ? -1 : 1, 0, 0)],
-              [v.y.abs, Geom::Vector3d.new(0, v.y < 0 ? -1 : 1, 0)],
-              [v.z.abs, Geom::Vector3d.new(0, 0, v.z < 0 ? -1 : 1)]]
-      cand.max_by { |m, _| m }[1]
+      # One axis, not three: the part's flat axis, or failing that whichever axis
+      # it is already furthest along.
+      i = flat_axis(box, v, size)
+      i ||= (0..2).max_by { |k| v.to_a[k].to_f.abs }
+      a = [0.0, 0.0, 0.0]
+      a[i] = v.to_a[i].to_f < 0 ? -1.0 : 1.0
+      Geom::Vector3d.new(a[0], a[1], a[2])
     end
   end
 
@@ -194,38 +222,132 @@ module WR_ExplodeView
 
   # Place every part at home + offset*factor. factor 0 is fully assembled, 1 is
   # fully exploded, so a sweep is just this called in a loop.
+  #
+  # The offset is a whole vector rather than direction-and-distance because a
+  # part's travel is now two components added together (outward, plus the
+  # in-plane fan). Written out component-wise so that factor 0.0 lands on home
+  # EXACTLY — x + 0.0 * anything is x — which is what makes Reset exact.
   def self.place(plan, factor)
     plan.each do |p|
-      target = p[:home].offset(p[:dir], p[:dist] * factor)
+      o = p[:off]
+      target = Geom::Point3d.new(p[:home].x.to_f + o.x.to_f * factor,
+                                 p[:home].y.to_f + o.y.to_f * factor,
+                                 p[:home].z.to_f + o.z.to_f * factor)
       move_to(p[:ent], target)
     end
   end
 
-  def self.plan_for(parts, mode, spread)
+  # Where a part's bounding box SITS AT HOME. Parts are only ever translated by
+  # this script, never rotated or scaled, so the home box is simply the current
+  # box shifted by (home - where it is now).
+  def self.home_bounds(e, home)
+    b = e.bounds
+    d = home - e.transformation.origin
+    return b if d.length < 0.0001
+    hb = Geom::BoundingBox.new
+    hb.add(b.min.offset(d))
+    hb.add(b.max.offset(d))
+    hb
+  end
+
+  # A wall is not one part. It is three or four panels with a seal between each
+  # pair, and every one of them is the same distance along the same axis from the
+  # booth centre — so the outward vector alone moves the whole wall away as a
+  # single sheet and never separates the panels IN it. That is exactly what "the
+  # exploded view doesn't separate parallel walls" meant: opposite walls did come
+  # apart (their vectors point opposite ways), co-planar neighbours did not.
+  #
+  # So after the outward vector is worked out, parts are grouped by (direction,
+  # which plane they sit in) and each group is spread about its own centre in the
+  # two axes it is NOT travelling along. The panel at the left end of the north
+  # wall drifts further left as the wall moves north; the seal near the middle
+  # barely drifts; the wall opens out like a fan. A floor deck is the same thing
+  # lying down — three tiles that would otherwise drop as one slab.
+  #
+  # This is NOT redundant with the outward vector and collapsing the two would
+  # bring the sheet back. Scaling about the group centre also means the parts keep
+  # their order and the gaps only ever grow, so it cannot introduce a new overlap
+  # inside a group.
+  #
+  # `amount` is a fraction of each part's own offset from its group centre, so the
+  # spread is proportional: big panels move far, small seals stay near the middle
+  # where a reader expects to find them.
+  def self.fan_in_plane(plan, size, amount)
+    return if amount <= 0.0
+    # Same plane means "same coordinate along the travel axis, near enough".
+    # 2% of the assembly diagonal keeps a corner seal, which stands about an inch
+    # proud of the panels it joins, in with the wall it belongs to.
+    tol = 0.02 * size
+
+    plan.group_by { |p| [p[:dir].x.to_f, p[:dir].y.to_f, p[:dir].z.to_f] }.each do |key, mem|
+      ax = (0..2).find { |i| key[i] != 0.0 }
+      next if ax.nil?                       # radial parts have no single axis
+      mem = mem.sort_by { |p| p[:box].center.to_a[ax].to_f }
+      runs = [[mem.first]]
+      mem.each_cons(2) do |a, b|
+        if b[:box].center.to_a[ax].to_f - a[:box].center.to_a[ax].to_f <= tol
+          runs.last << b
+        else
+          runs << [b]
+        end
+      end
+
+      runs.each do |run|
+        next if run.length < 2
+        cs = run.map { |p| p[:box].center }
+        mid = (0..2).map { |i| cs.map { |c| c.to_a[i].to_f }.inject(:+) / run.length }
+        run.each_with_index do |p, i|
+          d = (0..2).map do |j|
+            j == ax ? 0.0 : (cs[i].to_a[j].to_f - mid[j]) * amount
+          end
+          p[:off] = Geom::Vector3d.new(p[:off].x.to_f + d[0],
+                                       p[:off].y.to_f + d[1],
+                                       p[:off].z.to_f + d[2])
+        end
+      end
+    end
+  end
+
+  def self.plan_for(parts, mode, spread, fan = 0.0)
     homes = parts.map { |e| [e, home_of(e)] }
 
-    # Centre and size from HOME positions, so a re-explode is not measured off
-    # an already-exploded model.
+    # EVERY measurement below is taken from HOME, never from where a part happens
+    # to be sitting. The header promises you can re-run at a different spread
+    # without resetting first; that promise used to be half true. `centre` and
+    # `size` came off `e.bounds` — the CURRENT bounds — so a second explode
+    # measured itself against the already-exploded model, `size` grew by better
+    # than a factor of two, and everything flew twice as far again. Only the home
+    # POSITION was being handled properly. Hence home_bounds.
+    boxes = homes.map { |e, h| home_bounds(e, h) }
+
     bb = Geom::BoundingBox.new
-    parts.each { |e| bb.add(e.bounds) }
+    boxes.each { |b| bb.add(b) }
     centre = bb.center
     size   = bb.diagonal.to_f
 
-    vecs = homes.map { |e, h| e.bounds.center - centre }
+    vecs = boxes.map { |b| b.center - centre }
     far  = vecs.map { |v| v.length.to_f }.max
     far  = 1.0 if far < 0.01
 
     plan = []
     homes.each_with_index do |(e, h), i|
-      dir = direction(vecs[i], mode)
+      dir = direction(vecs[i], boxes[i], size, mode)
       next if dir.nil?
       # Parts already further out travel further, which keeps the layers from
       # bunching. The 0.35 floor stops near-centre parts sitting on top of
       # everything else.
       reach = 0.35 + 0.65 * (vecs[i].length.to_f / far)
-      plan << { :ent => e, :home => h, :dir => dir,
-                :dist => size * spread * reach, :vec => vecs[i] }
+      dist  = size * spread * reach
+      off   = Geom::Vector3d.new(dir.x.to_f * dist, dir.y.to_f * dist, dir.z.to_f * dist)
+      plan << { :ent => e, :home => h, :dir => dir, :dist => dist,
+                :off => off, :box => boxes[i], :vec => vecs[i] }
     end
+
+    # Axis mode only. Radial already separates co-planar neighbours, because no
+    # two of them share a direction, and Vertical only means vertical only —
+    # sliding panels sideways there would be answering a question nobody asked.
+    fan_in_plane(plan, size, spread * fan) if mode == :axis
+
     [plan, centre, size]
   end
 
@@ -340,13 +462,17 @@ module WR_ExplodeView
              end
     spread = cfg['spread'].to_f / 100.0
     spread = 0.6 if spread <= 0 || spread > 5
+    # 0 is a legitimate fan — it is the old sheet-of-panels behaviour — so only
+    # a negative or a silly number falls back to the default.
+    fan    = cfg['fan'].to_f / 100.0
+    fan    = 1.5 if fan < 0 || fan > 10
     frames = cfg['frames'].to_i
     frames = 0 if frames < 0 || frames > 60
 
     model.start_operation(reset ? 'Reset assembly' : 'Exploded view', true)
     cleared = clear_leaders(model)
 
-    plan, centre, size = plan_for(ps, mode, spread)
+    plan, centre, size = plan_for(ps, mode, spread, fan)
 
     if reset
       place(plan, 0.0)
@@ -370,7 +496,7 @@ module WR_ExplodeView
     end
 
     model.active_view.zoom_extents
-    report(plan, mode, spread, size, cleared, swept, cfg['dir'])
+    report(plan, mode, spread, fan, size, cleared, swept, cfg['dir'])
     true
   rescue StandardError => e
     model.abort_operation if model
@@ -380,7 +506,7 @@ module WR_ExplodeView
     false
   end
 
-  def self.report(plan, mode, spread, size, cleared, swept, dir)
+  def self.report(plan, mode, spread, fan, size, cleared, swept, dir)
     axes = Hash.new(0)
     plan.each do |p|
       d = p[:dir]
@@ -398,6 +524,16 @@ module WR_ExplodeView
     puts "  #{plan.size} parts moved, #{mode} direction, spread #{(spread * 100).round}%"
     puts format('  assembly is %.1f" across; parts travel %.1f" to %.1f"',
                 size, size * spread * 0.35, size * spread)
+    if mode == :axis
+      # The outward component is exactly p[:dist] along an axis, so whatever is
+      # left of the offset once that is taken out is the in-plane fan.
+      biggest = plan.map do |p|
+        sq = (p[:off].length.to_f**2) - (p[:dist]**2)
+        sq > 0 ? Math.sqrt(sq) : 0.0
+      end.max.to_f
+      puts format('  fan %d%%: parts sharing a wall also spread within it, up to %.1f"',
+                  (fan * 100).round, biggest)
+    end
     puts "  #{cleared} leftover leader group(s) from an older version cleared" if cleared > 0
     puts ''
     puts '  DIRECTIONS'
