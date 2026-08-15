@@ -1,5 +1,73 @@
 # DEVLOG
 
+## 2026-08-14 — deck hand selection, and one part that needs exporting
+
+> ### FOR BENTON, MONDAY
+>
+> **Export `STD7248FL SIDE R.skp` and `STD7248CL SIDE R.skp` into
+> `P:\Sketchup\NewMasterComponentList`.** They are the only two files missing,
+> and the MDL 7296 S is the only booth that needs them.
+>
+> A right-hand 7248 floor already exists in the old library —
+> `P:\Sketchup\MasterComponentFolder\History\Floor component (7248 side right) as shipped.skp`
+> and `…(7248 side right)  all hinges.skp` — so this is probably a re-export
+> under the STD naming scheme rather than new modelling. There is no equivalent
+> right-hand ceiling in History; that one may need making.
+>
+> Nothing else is needed. The code side is done and pushed.
+
+**The bug Benton reported: the 7296 pulls SIDE L at both ends.** Confirmed, and
+the cause is not what it looked like.
+
+`WR_Deck.pick` took `handed.first` and ignored which end the tile was at — the
+`at_low_end` argument was literally named `_at_low_end` and unused. The comment
+justified it: the 72 series ships one hand per size, so there is no choice to
+make. That is true of an **MDL 7272 S**, which tiles 48 + 24 and therefore draws
+`STD7248 SIDE L` low and `STD7224 SIDE R` high no matter what `pick` does. It is
+why the 7272 has always looked right, and it is why the dead code went unnoticed.
+
+It is false for the **MDL 7296 S**, which tiles **48 + 48**. Both ends ask for a
+7248, and only `STD7248 SIDE L` exists — so both ends got a left-hand panel, and
+`substituted` was reported as `false` because there was only one hand to choose
+from. A silently wrong deck that read as a clean build.
+
+### The fix, and what it does and does not touch
+
+`pick` now chooses **L at the low end, R at the high end**. That rule is read off
+the two booths already confirmed correct, not chosen: the 7272 has SIDE L low and
+SIDE R high, and the 6060 does the same with `STD6042 SIDE L` and
+`STD6018 SIDE R`. Where only one hand exists, nothing changes.
+
+**Orientation is untouched.** The half turn on the high-end panel stays exactly
+as it was — that is the state confirmed on the 7272, and picking the file by end
+and turning the panel by end are two independent rules that both happen to key
+off position. Tangling them is the mistake that cost an evening; this does not
+re-tangle them.
+
+`substituted` now means what its name says — this end wanted a hand the folder
+does not have — and it is pushed to the deck warnings so it prints.
+
+### Simulated across all 25 models against the real library
+
+| Booth | Was | Now |
+|---|---|---|
+| MDL 6084 S | `6042 SIDE L` \| `6042 SIDE L` | `6042 SIDE L` \| **`6042 SIDE R`** ✅ fixed |
+| MDL 7296 S | `7248 SIDE L` \| `7248 SIDE L` | unchanged, now **reported** as a substitution ⚠ needs the file |
+| MDL 7272 S | `7248 SIDE L` \| `7224 SIDE R` | identical — the confirmed booth does not move |
+| MDL 6060 S | `6042 SIDE L` \| `6018 SIDE R` | identical |
+| all other 21 | — | identical; their SIDE parts are unhanded |
+
+So **6084 was the same bug but not the same fix**: `STD6042` ships both hands, so
+the code change alone corrects it. **7296 is the only booth in the catalogue that
+needs a part that does not exist.**
+
+### Next
+
+1. Benton: export the two `STD7248 … SIDE R` files (top of this entry).
+2. Build `MDL 6084 S` — it should now come out with a genuine right-hand panel at
+   the high end, and it is the check that the L-low/R-high rule is right.
+3. Then 6060, 7296 and 96168 as already planned.
+
 ## 2026-08-14 — the E/W wall order is fixed, in ASSIGN rather than gen-booth.py
 
 The big wall now sits at the door end on all four split-run booths. **7272 is

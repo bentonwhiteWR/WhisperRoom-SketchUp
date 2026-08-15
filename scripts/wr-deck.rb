@@ -337,35 +337,46 @@ module WR_Deck
   #
   # Returns [part, substituted?].
   #
-  # `substituted` means the hand this end wants is not in the folder and the
-  # other one was used instead. 7248 ships both SIDE L and SIDE R; 7224 ships
-  # only SIDE R, so on an MDL 7272 S every 24 in end is a substitution.
+  # THE HAND IS CHOSEN BY WHICH END THE TILE SITS AT: L at the low end, R at the
+  # high end.
   #
-  # IT DOES NOT AFFECT ORIENTATION. That was the mistake: a missing hand used to
-  # trigger a half turn, which tangled "wrong part" together with "wrong way
-  # round" and meant fixing one end broke the other. The turn is decided by
-  # POSITION now — see LOW_END_PANEL_IS_TURNED — and this flag is reported so a
-  # substitution is visible, nothing more.
-  # HAND SELECTION NO LONGER DECIDES ANYTHING, AND THAT IS DELIBERATE.
+  # This used to be dead — it took `handed.first` and ignored the end entirely,
+  # on the stated grounds that the 72 series ships exactly one hand per size so
+  # there was never a choice. That is true of an MDL 7272 S, which tiles 48 + 24
+  # and therefore draws STD7248 SIDE L at the low end and STD7224 SIDE R at the
+  # high end whatever this method does. It is why the 7272 looks right.
   #
-  # It used to pick L or R from a constant and then turn the panel when the
-  # wanted hand was absent, which tangled "which file" with "which way round".
-  # Orientation is now measured off the part's own hinges, so whichever hand is
-  # in the folder gets turned to suit.
+  # It is NOT true in general, and the counter-example is the MDL 7296 S: it
+  # tiles 48 + 48, so BOTH ends ask for a 7248 and both got SIDE L. Benton saw
+  # exactly that. The MDL 6084 S is the same shape of bug — it tiles 42 + 42, and
+  # STD6042 ships both hands, so it was silently taking SIDE L twice.
   #
-  # The 72 series settles the point: the folder holds exactly ONE hand per size —
-  # 7248 SIDE L and 7224 SIDE R, floors and ceilings alike — so on an
-  # MDL 7272 S there was never a choice to make. `substituted` is reported when
-  # more than one hand exists and the first was taken, purely so the console
-  # says so.
-  def self.pick(pool, width, want, _at_low_end)
+  # L-low / R-high is read off the two confirmed booths, not chosen: the 7272's
+  # SIDE L is at its low end and its SIDE R at its high end, and the 6060 does
+  # the same with STD6042 SIDE L low and STD6018 SIDE R high. Where only one hand
+  # exists this changes nothing, so neither of those booths moves.
+  #
+  # ORIENTATION IS STILL DECIDED BY POSITION, NOT BY HAND. The half turn on the
+  # high-end panel stays exactly as it is — that is the state confirmed on the
+  # 7272 and it is not what this method is for. Tangling "which file" together
+  # with "which way round" is the mistake that cost an evening; picking the file
+  # by end and turning by end are two independent, both-positional rules.
+  #
+  # Returns [part, substituted?]. `substituted` now means what it says: this end
+  # wanted a hand the folder does not have and the other one was used instead.
+  # It is reported, because a deck built from two left-hand panels should not be
+  # able to look like a clean build in the console.
+  def self.pick(pool, width, want, at_low_end)
     same = pool.select { |c| (c[:along] - width).abs < TOL }
     return [nil, false] if same.empty?
     byrole = same.select { |c| c[:role] == want }
     byrole = same if byrole.empty?
     handed = byrole.select { |c| !c[:hand].empty? }
     return [byrole.first, false] if handed.empty?
-    [handed.first, handed.length > 1]
+    wanted = at_low_end ? 'L' : 'R'
+    hit = handed.find { |c| c[:hand] == wanted }
+    return [hit, false] if hit
+    [handed.first, true]
   end
 
   # ----------------------------------------------------------- measurement --
@@ -510,6 +521,17 @@ module WR_Deck
       if cz.nil?
         warn << "#{t[:part][:file]}: no flat faces to measure"
         next
+      end
+
+      # Say so when an end could not get the hand it wanted. Silence here is how
+      # an MDL 7296 S came out with SIDE L at both ends and still read as a
+      # clean build in the console.
+      if t[:substituted]
+        warn << format('%s used at the %s end — no SIDE %s of that size in the ' \
+                       'folder, so the %s-hand part was placed instead.',
+                       t[:part][:file], t[:at_low_end] ? 'low' : 'high',
+                       t[:at_low_end] ? 'L' : 'R',
+                       t[:part][:hand] == 'L' ? 'left' : 'right')
       end
       bb = defn.bounds
 
