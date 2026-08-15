@@ -189,7 +189,23 @@ module WR_Elevation
               a = Regexp.last_match(1).to_i
               b = Regexp.last_match(2).to_i
               a, b = b, a if a > b
-              (a..b).map { |n| pages[n - 1] }.compact
+              # Scene numbers are 1-indexed here, exactly as printed in the
+              # table — but `pages` is a 0-indexed Ruby array, and Ruby's
+              # pages[-1] is the LAST scene rather than an error. So an
+              # unclamped 0 in a range ("0-5", an easy slip in a 1-based list)
+              # used to quietly append the final scene of the model to the
+              # export. Clamp to the real bounds first, and report whatever
+              # fell off either end instead of dropping it silently — the user
+              # asked for those numbers and is owed a word about them.
+              lo = a < 1 ? 1 : a
+              hi = b > pages.size ? pages.size : b
+              if lo > hi
+                []  # wholly outside the list — the empty-hit branch reports tok
+              else
+                misses << "#{a}-#{lo - 1}" if a < lo
+                misses << "#{hi + 1}-#{b}" if b > hi
+                (lo..hi).map { |n| pages[n - 1] }.compact
+              end
             elsif tok =~ /\A\d+\z/
               n = tok.to_i
               [n >= 1 ? pages[n - 1] : nil].compact

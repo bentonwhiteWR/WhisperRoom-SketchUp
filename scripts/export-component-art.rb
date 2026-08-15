@@ -177,8 +177,22 @@ module WR_ComponentArt
         a = Regexp.last_match(1).to_i
         b = Regexp.last_match(2).to_i
         a, b = b, a if a > b
-        hit = (a..b).map { |n| pages[n - 1] }.compact
-        misses << tok if hit.empty?
+        # Scene numbers are 1-indexed here, exactly as printed in the table —
+        # but `pages` is a 0-indexed Ruby array, and Ruby's pages[-1] is the
+        # LAST scene rather than an error. So an unclamped 0 in a range ("0-5",
+        # an easy slip in a 1-based list) used to quietly append the final scene
+        # of the model to the export. Clamp to the real bounds first, and report
+        # whatever fell off either end instead of dropping it silently — the
+        # user asked for those numbers and is owed a word about them.
+        lo = a < 1 ? 1 : a
+        hi = b > pages.size ? pages.size : b
+        hit = lo > hi ? [] : (lo..hi).map { |n| pages[n - 1] }.compact
+        if hit.empty?
+          misses << tok
+        else
+          misses << "#{a}-#{lo - 1}" if a < lo
+          misses << "#{hi + 1}-#{b}" if b > hi
+        end
         picked.concat(hit)
       elsif tok =~ /\A\d+\z/
         n = tok.to_i
