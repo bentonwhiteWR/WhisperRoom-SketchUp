@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Build Room</title>
+<title>Draw floor plan</title>
 <style>
   :root{--bg:#f2f3f5;--card:#fff;--ink:#14181c;--ink-2:#626c75;--ink-3:#949ea6;
     --rule:#dfe3e7;--accent:#ee6216;--ok:#2c6e49;--bad:#b03027;--solid:#e3e8ec;--field:#fff;}
@@ -10,11 +10,12 @@
     --ink-2:#98a2aa;--ink-3:#6d777e;--rule:#32383d;--accent:#ff7a33;--ok:#63b98a;
     --bad:#e8705f;--solid:#2c3237;--field:#191c1f;}}
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,sans-serif;
     font-size:13px;line-height:1.45;display:flex;flex-direction:column;overflow:hidden;
     -webkit-font-smoothing:antialiased;user-select:none}
-  .mono,.lab,.arch,.tag,td,th{font-family:Consolas,ui-monospace,monospace}
+  .mono,.lab,.arch,.tag,.echo,td,th{font-family:Consolas,ui-monospace,monospace}
 
   header{flex:0 0 auto;padding:14px 18px 12px;border-bottom:1px solid var(--rule)}
   header b{font-size:15px;font-weight:650}
@@ -26,6 +27,7 @@
     display:grid;place-items:center}
   .plan svg{width:100%;height:auto;max-height:100%}
   .side{overflow-y:auto;padding:14px 16px;display:grid;align-content:start;gap:14px}
+  .pane{display:grid;align-content:start;gap:14px}
 
   .lab{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
     display:block;margin-bottom:5px}
@@ -35,13 +37,20 @@
     border-radius:4px;font:inherit;font-size:12.5px;font-family:Consolas,monospace;outline:none;width:100%}
   input:focus,select:focus{border-color:var(--accent)}
   input[type=number]{font-variant-numeric:tabular-nums}
+  input.bad{border-color:var(--bad)}
   .arch{font-size:11px;color:var(--ink-3);white-space:nowrap;text-align:right;padding-left:6px}
+  .echo{display:block;margin-top:3px;font-size:10.5px;color:var(--ink-3)}
+  .echo.bad{color:var(--bad)}
+  .note{margin:5px 0 0;font-size:11px;color:var(--ink-3)}
   .x{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:15px;
     width:20px;padding:0;border-radius:3px}
   .x:hover{color:var(--bad)}
   .add{padding:4px 9px;border-radius:4px;cursor:pointer;background:transparent;
     border:1px dashed var(--rule);color:var(--ink-2);font:inherit;font-size:11.5px;width:100%}
   .add:hover{border-color:var(--accent);color:var(--accent);border-style:solid}
+  .add:disabled{opacity:.45;cursor:not-allowed;border-style:dashed;
+    border-color:var(--rule);color:var(--ink-3)}
+  .mode{margin-top:2px}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
   .cl{border:1px solid var(--rule);border-radius:5px;padding:10px 12px;background:var(--card)}
@@ -63,30 +72,68 @@
 </head>
 <body>
 
-<header><b>Build Room</b><span>runs in inches, read straight off the plan</span></header>
+<header><b>Draw floor plan</b><span id="sub"></span></header>
 
 <main>
   <div class="plan"><svg id="sv" viewBox="-80 -80 400 320"></svg></div>
   <div class="side">
-    <div>
-      <span class="lab">Room name</span>
-      <input id="nm" type="text" value="Room" spellcheck="false">
+
+    <!-- SIMPLE — the case that is nearly always the case. -->
+    <div class="pane" id="simple">
+      <div class="two">
+        <div>
+          <span class="lab">Length (east&ndash;west)</span>
+          <input id="slen" type="text" spellcheck="false" autocomplete="off" value="12'-0&quot;">
+          <span class="echo" id="slen-e"></span>
+        </div>
+        <div>
+          <span class="lab">Width (north&ndash;south)</span>
+          <input id="swid" type="text" spellcheck="false" autocomplete="off" value="10'-0&quot;">
+          <span class="echo" id="swid-e"></span>
+        </div>
+      </div>
+      <div>
+        <span class="lab">Ceiling height</span>
+        <input id="sceil" type="text" spellcheck="false" autocomplete="off" value="8'-0&quot;">
+        <span class="echo" id="sceil-e"></span>
+        <p class="note">8'-0" is the house default, not a measurement. It is the
+          constraint that disqualifies a booth fastest &mdash; get the real number.</p>
+      </div>
+      <button class="add mode" id="tomore">More detail &mdash; take-off, doors, wall thickness&hellip;</button>
     </div>
-    <div>
-      <span class="lab">Wall runs</span>
-      <table><tbody id="runs"></tbody></table>
-      <button class="add" id="addrun">+ run</button>
+
+    <!-- DETAIL — the take-off, unchanged. -->
+    <div class="pane" id="detail" hidden>
+      <div>
+        <span class="lab">Room name</span>
+        <input id="nm" type="text" value="Room" spellcheck="false">
+      </div>
+      <div>
+        <span class="lab">Wall runs</span>
+        <table><tbody id="runs"></tbody></table>
+        <button class="add" id="addrun">+ run</button>
+      </div>
+      <div>
+        <span class="lab">Doors &mdash; run #, from that run's start corner</span>
+        <table><tbody id="doors"></tbody></table>
+        <button class="add" id="adddoor">+ door</button>
+      </div>
+      <div class="two">
+        <div>
+          <span class="lab">Wall thick</span>
+          <input id="thick" type="text" spellcheck="false" autocomplete="off" value="4&quot;">
+          <span class="echo" id="thick-e"></span>
+        </div>
+        <div>
+          <span class="lab">Ceiling</span>
+          <input id="ceil" type="text" spellcheck="false" autocomplete="off" value="8'-0&quot;">
+          <span class="echo" id="ceil-e"></span>
+        </div>
+      </div>
+      <div class="cl" id="cl"></div>
+      <button class="add mode" id="toless">&larr; Back to length &amp; width</button>
     </div>
-    <div>
-      <span class="lab">Doors — run #, from that run's start corner</span>
-      <table><tbody id="doors"></tbody></table>
-      <button class="add" id="adddoor">+ door</button>
-    </div>
-    <div class="two">
-      <div><span class="lab">Wall thick</span><input id="thick" type="number" value="4" step="0.5"></div>
-      <div><span class="lab">Ceiling</span><input id="ceil" type="number" value="96" step="1"></div>
-    </div>
-    <div class="cl" id="cl"></div>
+
   </div>
 </main>
 
@@ -101,12 +148,52 @@
   "use strict";
   var DIRS=["E","S","W","N"];
   var VEC={E:[1,0],S:[0,1],W:[-1,0],N:[0,-1]};   // screen y is down
-  var runs=[{d:"E",v:216},{d:"S",v:96},{d:"W",v:84},{d:"S",v:60},{d:"W",v:132},{d:"N",v:156}];
-  var doors=[{run:0,at:60,w:36,hinge:"near"}];
+
+  // Everything the dialog knows, in inches. The two modes are two views of this
+  // one state — there is no second set of numbers to fall out of step.
+  var mode="simple";
+  // Wall thickness is cosmetic: walls grow OUTWARD from the interior polygon,
+  // so the 4" default never moves a dimension already given to a client. That
+  // is why it is safe to default and safe to override in detail mode.
+  var S={len:144,wid:120,ceil:96,thick:4,name:"Room"};
+  var runs=rect(S.len,S.wid);
+  var doors=[];
 
   var $sv=document.getElementById("sv"), $runs=document.getElementById("runs"),
       $doors=document.getElementById("doors"), $cl=document.getElementById("cl"),
-      $go=document.getElementById("go"), $hint=document.getElementById("hint");
+      $go=document.getElementById("go"), $hint=document.getElementById("hint"),
+      $sub=document.getElementById("sub"),
+      $simple=document.getElementById("simple"), $detail=document.getElementById("detail"),
+      $toless=document.getElementById("toless");
+
+  // ------------------------------------------------------------------ units --
+
+  // A dimension gets typed the way it gets read: 150, 150", 12'6", 12'-6",
+  // 12' 6 1/2", 12.5', 12 1/2. A BARE NUMBER IS INCHES — that is what the
+  // take-off has always meant, and both modes have to agree on it or the same
+  // keystrokes would build two different rooms.
+  function parseLen(s){
+    if(typeof s==="number")return isFinite(s)?s:NaN;
+    var t=String(s).trim().toLowerCase()
+      .replace(/[′’]/g,"'").replace(/[″“”]/g,'"')
+      .replace(/\s*(?:ft|feet|foot)\b/g,"'")
+      .replace(/\s*(?:in|inch|inches)\b/g,'"')
+      .replace(/'\s*-\s*/g,"' ")
+      .trim();
+    if(!t)return NaN;
+    var feet=0,inch=0,seen=false,m;
+    m=t.match(/^([0-9]*\.?[0-9]+)\s*'/);
+    if(m){feet=parseFloat(m[1]);seen=true;t=t.slice(m[0].length).trim();}
+    if(t){
+      m=t.match(/^([0-9]*\.?[0-9]+)?\s*(?:([0-9]+)\s*\/\s*([0-9]+))?\s*"?$/);
+      if(!m||(m[1]===undefined&&m[2]===undefined))return NaN;
+      inch=(m[1]?parseFloat(m[1]):0)+(m[2]?parseFloat(m[2])/parseFloat(m[3]):0);
+      seen=true;
+    }
+    if(!seen)return NaN;
+    var v=feet*12+inch;
+    return isFinite(v)?v:NaN;
+  }
 
   function arch(n){
     var neg=n<0; n=Math.abs(n);
@@ -114,13 +201,43 @@
     if(i>=12){f+=1;i-=12;}
     return (neg?"-":"")+f+"'-"+(i%1===0?i:i.toFixed(1))+'"';
   }
-  function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  // The quote matters: these strings go into HTML attributes and a dimension
+  // written the way it reads (12'-6") carries one.
+  function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
   function el(t,a,x){var e=document.createElementNS("http://www.w3.org/2000/svg",t);
     for(var k in a)e.setAttribute(k,a[k]); if(x!=null)e.textContent=x; return e;}
 
+  // -------------------------------------------------------------- rectangle --
+
+  // Length and width become the four runs the take-off would have produced, and
+  // go down the same build path. No second geometry routine to drift.
+  function rect(l,w){
+    return [{d:"E",v:l},{d:"S",v:w},{d:"W",v:l},{d:"N",v:w}];
+  }
+
+  // Is the take-off still a plain rectangle? Only then may it collapse back to
+  // length and width — otherwise collapsing would silently drop geometry.
+  function asRect(){
+    if(runs.length!==4)return null;
+    var h=[],v=[];
+    for(var i=0;i<4;i++){
+      var u=VEC[runs[i].d]; if(!u)return null;
+      (u[0]?h:v).push(runs[i].v);
+      var w=VEC[runs[(i+1)%4].d]; if(!w)return null;
+      if(!!u[0]===!!w[0])return null;            // must alternate H,V,H,V
+    }
+    if(h.length!==2||v.length!==2)return null;
+    if(Math.abs(h[0]-h[1])>0.02||Math.abs(v[0]-v[1])>0.02)return null;
+    if(h[0]<=0||v[0]<=0)return null;
+    return {len:h[0],wid:v[0]};
+  }
+
+  // ------------------------------------------------------------------- plan --
+
   function pts(){
     var p=[[0,0]],x=0,y=0;
-    runs.forEach(function(r){var v=VEC[r.d]||[0,0];x+=v[0]*r.v;y+=v[1]*r.v;p.push([x,y]);});
+    runs.forEach(function(r){var u=VEC[r.d]||[0,0];x+=u[0]*r.v;y+=u[1]*r.v;p.push([x,y]);});
     return p;
   }
 
@@ -147,9 +264,9 @@
     var off=Math.max(16,(x1-x0)*0.055), fs=Math.max(7,(x1-x0)/38);
     runs.forEach(function(r,i){
       if(r.v<=0)return;
-      var a=p[i],b=p[i+1],v=VEC[r.d]||[0,0];
+      var a=p[i],b=p[i+1],u=VEC[r.d]||[0,0];
       var mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;
-      var nx=-v[1],ny=v[0];
+      var nx=-u[1],ny=u[0];
       if((mx-cx)*nx+(my-cy)*ny<0){nx=-nx;ny=-ny;}
       $sv.appendChild(el("path",{d:"M"+(a[0]+nx*off)+","+(a[1]+ny*off)+
         " L"+(b[0]+nx*off)+","+(b[1]+ny*off),stroke:"var(--accent)",
@@ -157,36 +274,92 @@
       var tx=mx+nx*(off+fs*.9),ty=my+ny*(off+fs*.9)+fs*.35;
       var t=el("text",{x:tx,y:ty,"text-anchor":"middle",fill:"var(--accent)",
         "font-size":fs,"font-family":"Consolas, monospace"},arch(r.v));
-      if(Math.abs(v[1])>0)t.setAttribute("transform","rotate(-90 "+tx+" "+ty+")");
+      if(Math.abs(u[1])>0)t.setAttribute("transform","rotate(-90 "+tx+" "+ty+")");
       $sv.appendChild(t);
-      var lb=el("text",{x:mx,y:my+fs*.35,"text-anchor":"middle",fill:"var(--ink-3)",
-        "font-size":fs*.85,"font-family":"Consolas, monospace"},String(i));
-      $sv.appendChild(lb);
+      // Run numbers only matter when you are addressing runs by number.
+      if(mode==="detail"){
+        $sv.appendChild(el("text",{x:mx,y:my+fs*.35,"text-anchor":"middle",fill:"var(--ink-3)",
+          "font-size":fs*.85,"font-family":"Consolas, monospace"},String(i)));
+      }
     });
 
     // doors, drawn as a gap marker on their run
     doors.forEach(function(dr){
       var i=dr.run|0; if(i<0||i>=runs.length)return;
-      var a=p[i],b=p[i+1],v=VEC[runs[i].d]||[0,0];
-      var j0=[a[0]+v[0]*dr.at,a[1]+v[1]*dr.at];
-      var j1=[a[0]+v[0]*(dr.at+dr.w),a[1]+v[1]*(dr.at+dr.w)];
+      var a=p[i],u=VEC[runs[i].d]||[0,0];
+      var j0=[a[0]+u[0]*dr.at,a[1]+u[1]*dr.at];
+      var j1=[a[0]+u[0]*(dr.at+dr.w),a[1]+u[1]*(dr.at+dr.w)];
       $sv.appendChild(el("path",{d:"M"+j0[0]+","+j0[1]+" L"+j1[0]+","+j1[1],
         stroke:"var(--accent)","stroke-width":Math.max(3,(x1-x0)/90),
         "stroke-linecap":"butt",fill:"none",opacity:".85"}));
     });
 
     var sumH=0,sumV=0;
-    runs.forEach(function(r){var v=VEC[r.d]||[0,0];sumH+=v[0]*r.v;sumV+=v[1]*r.v;});
+    runs.forEach(function(r){var u=VEC[r.d]||[0,0];sumH+=u[0]*r.v;sumV+=u[1]*r.v;});
     $cl.className="cl "+(closed?"good":"bad");
     $cl.innerHTML='<span class="tag">'+(closed?"CHAIN CLOSES":"DOES NOT CLOSE")+"</span>"+
       (closed
-        ? "<p>Overall "+arch(x1-x0)+" &times; "+arch(y1-y0)+". Every chain agrees with its overall.</p>"
-        : "<p>Out by "+arch(Math.abs(sumH))+" east&ndash;west and "+arch(Math.abs(sumV))+
+        ? "<p>Overall "+esc(arch(x1-x0))+" &times; "+esc(arch(y1-y0))+". Every chain agrees with its overall.</p>"
+        : "<p>Out by "+esc(arch(Math.abs(sumH)))+" east&ndash;west and "+esc(arch(Math.abs(sumV)))+
           " north&ndash;south. A chain that doesn't close means a wall face was misread &mdash; " +
           "fix the take-off before building.</p>");
-    $go.disabled=!closed;
-    $hint.textContent=closed?(runs.length+" runs, "+doors.length+" door(s)"):"fix the closure to build";
+
+    var r=asRect();
+    $toless.disabled=!r||doors.length>0;
+    $toless.textContent=!r
+      ? "← Back to length & width (take-off is no longer a rectangle)"
+      : doors.length>0
+        ? "← Back to length & width (remove the door" + (doors.length>1?"s":"") + " first)"
+        : "← Back to length & width";
+
+    $go.disabled=!closed||document.querySelectorAll("input.bad").length>0;
+    $hint.textContent = !closed ? "fix the closure to build"
+      : mode==="simple"
+        ? arch(x1-x0)+" × "+arch(y1-y0)+", ceiling "+arch(S.ceil)
+        : runs.length+" runs, "+doors.length+" door(s), ceiling "+arch(S.ceil);
   }
+
+  // ----------------------------------------------------------------- fields --
+
+  // One wiring for every dimension field, so the take-off and the simple boxes
+  // read a typed dimension identically. A field that can't be parsed keeps the
+  // last good value, goes red, and blocks the build rather than quietly
+  // becoming a zero.
+  function lenField(input, echo, get, set){
+    function sync(){
+      input.value=fmtField(get());
+      if(echo){echo.textContent=arch(get());echo.classList.remove("bad");}
+      input.classList.remove("bad");
+    }
+    input.addEventListener("input",function(){
+      var v=parseLen(input.value), ok=isFinite(v)&&v>0;
+      input.classList.toggle("bad",!ok);
+      if(echo){echo.textContent=ok?arch(v):"can't read that";echo.classList.toggle("bad",!ok);}
+      if(ok)set(v);
+      draw();
+    });
+    input.addEventListener("blur",function(){ if(!input.classList.contains("bad"))sync(); });
+    sync();
+    return sync;
+  }
+
+  // Write a value back the way it reads best: feet-inches over 12", plain inches under.
+  function fmtField(n){ return n>=12?arch(n):(Math.round(n*100)/100)+'"'; }
+
+  var syncSimple=[], syncDetail=[];
+  syncSimple.push(lenField(document.getElementById("slen"),document.getElementById("slen-e"),
+    function(){return S.len;},function(v){S.len=v;runs=rect(S.len,S.wid);}));
+  syncSimple.push(lenField(document.getElementById("swid"),document.getElementById("swid-e"),
+    function(){return S.wid;},function(v){S.wid=v;runs=rect(S.len,S.wid);}));
+  syncSimple.push(lenField(document.getElementById("sceil"),document.getElementById("sceil-e"),
+    function(){return S.ceil;},function(v){S.ceil=v;}));
+  syncDetail.push(lenField(document.getElementById("thick"),document.getElementById("thick-e"),
+    function(){return S.thick;},function(v){S.thick=v;}));
+  syncDetail.push(lenField(document.getElementById("ceil"),document.getElementById("ceil-e"),
+    function(){return S.ceil;},function(v){S.ceil=v;}));
+  document.getElementById("nm").addEventListener("input",function(){S.name=this.value;});
+
+  // ------------------------------------------------------------------- rows --
 
   function runRows(){
     $runs.innerHTML="";
@@ -196,7 +369,7 @@
         '<td style="width:58px"><select data-i="'+i+'" data-k="d">'+
           DIRS.map(function(d){return '<option'+(d===r.d?" selected":"")+'>'+d+"</option>";}).join("")+
         "</select></td>"+
-        '<td><input type="number" step="1" min="0" data-i="'+i+'" data-k="v" value="'+r.v+'"></td>'+
+        '<td><input type="text" spellcheck="false" autocomplete="off" data-i="'+i+'" data-k="v" data-len="1" value="'+esc(fmtField(r.v))+'"></td>'+
         '<td class="arch">'+esc(arch(r.v))+"</td>"+
         '<td style="width:22px"><button class="x" data-del="'+i+'">&times;</button></td>';
       $runs.appendChild(tr);
@@ -208,10 +381,10 @@
     $doors.innerHTML="";
     doors.forEach(function(d,i){
       var tr=document.createElement("tr");
-      tr.innerHTML='<td style="width:52px"><input type="number" min="0" data-i="'+i+'" data-k="run" data-t="d" value="'+d.run+'" title="run #"></td>'+
-        '<td><input type="number" min="0" data-i="'+i+'" data-k="at" data-t="d" value="'+d.at+'" title="from corner"></td>'+
-        '<td><input type="number" min="1" data-i="'+i+'" data-k="w" data-t="d" value="'+d.w+'" title="width"></td>'+
-        '<td style="width:62px"><select data-i="'+i+'" data-k="hinge" data-t="d">'+
+      tr.innerHTML='<td style="width:44px"><input type="number" min="0" step="1" data-i="'+i+'" data-k="run" value="'+(d.run|0)+'" title="run #"></td>'+
+        '<td><input type="text" spellcheck="false" autocomplete="off" data-i="'+i+'" data-k="at" data-len="1" value="'+esc(fmtField(d.at))+'" title="from corner"></td>'+
+        '<td><input type="text" spellcheck="false" autocomplete="off" data-i="'+i+'" data-k="w" data-len="1" value="'+esc(fmtField(d.w))+'" title="width"></td>'+
+        '<td style="width:62px"><select data-i="'+i+'" data-k="hinge">'+
           ['near','far'].map(function(h){return '<option'+(h===d.hinge?" selected":"")+'>'+h+"</option>";}).join("")+
         "</select></td>"+
         '<td style="width:22px"><button class="x" data-deld="'+i+'">&times;</button></td>';
@@ -224,8 +397,17 @@
     Array.prototype.forEach.call(root.querySelectorAll("input,select"),function(f){
       f.addEventListener(f.tagName==="SELECT"?"change":"input",function(){
         var i=+f.dataset.i,k=f.dataset.k;
-        arr[i][k]=(f.type==="number")?(parseFloat(f.value)||0):f.value;
-        if(k==="v"){ f.closest("tr").querySelector(".arch").textContent=arch(arr[i][k]); }
+        if(f.dataset.len){
+          var v=parseLen(f.value), ok=isFinite(v)&&v>=0;
+          f.classList.toggle("bad",!ok);
+          if(ok)arr[i][k]=v;
+          var cell=f.parentNode.parentNode.querySelector("td.arch");
+          if(cell&&k==="v")cell.textContent=ok?arch(v):"?";
+        }else if(f.type==="number"){
+          arr[i][k]=parseFloat(f.value)||0;
+        }else{
+          arr[i][k]=f.value;
+        }
         draw();
       });
     });
@@ -237,27 +419,65 @@
     });
   }
 
+  // ------------------------------------------------------------------- mode --
+
+  function setMode(m){
+    mode=(m==="detail")?"detail":"simple";
+    if(mode==="simple"){
+      // Collapsing is only ever offered on a take-off that still IS a
+      // rectangle, so this reads the runs back rather than assuming them.
+      var q=asRect();
+      if(q){S.len=q.len;S.wid=q.wid;}
+      runs=rect(S.len,S.wid);
+    }
+    // Expanding needs no carry-over step: simple mode keeps `runs` as the four
+    // runs it would have produced at every keystroke, so they are already there.
+    runRows();doorRows();
+    document.getElementById("nm").value=S.name;
+    // Re-seed every dimension field from state. This is also what clears a red
+    // field left behind in the pane being hidden.
+    syncSimple.forEach(function(f){f();});
+    syncDetail.forEach(function(f){f();});
+    $simple.hidden=(mode!=="simple");
+    $detail.hidden=(mode!=="detail");
+    $sub.textContent=(mode==="simple")
+      ? "length and width — type 12'6\", 150\", or 12.5 (bare numbers are inches)"
+      : "runs read straight off the plan — 12'6\", 150\", or 12.5 (bare numbers are inches)";
+    draw();
+  }
+
+  document.getElementById("tomore").addEventListener("click",function(){setMode("detail");});
+  $toless.addEventListener("click",function(){ if(!$toless.disabled)setMode("simple"); });
+
   document.getElementById("addrun").addEventListener("click",function(){
     runs.push({d:"E",v:48});runRows();draw();});
   document.getElementById("adddoor").addEventListener("click",function(){
     doors.push({run:0,at:36,w:36,hinge:"near"});doorRows();draw();});
   document.getElementById("cancel").addEventListener("click",function(){sketchup.cancel();});
+
   document.getElementById("go").addEventListener("click",function(){
+    if($go.disabled)return;
     // SketchUp's y is up; the editor's is down. Flip N/S on the way out so the
-    // room is built the way it was drawn.
+    // room is built the way it was drawn. Simple mode goes out as the same four
+    // runs the take-off would have produced — one build path, both modes.
     var out=runs.map(function(r){
       return {d:(r.d==="N"?"S":(r.d==="S"?"N":r.d)),v:r.v};
     });
     sketchup.build(JSON.stringify({
-      name:document.getElementById("nm").value,
-      runs:out, doors:doors,
-      thick:parseFloat(document.getElementById("thick").value)||4,
-      ceil:parseFloat(document.getElementById("ceil").value)||96,
+      mode:mode,
+      name:(mode==="simple"?"Room":S.name),
+      runs:out,
+      doors:(mode==="simple"?[]:doors),
+      thick:(mode==="simple"?4:S.thick),
+      ceil:S.ceil,
       door_h:80
     }));
   });
 
-  runRows();doorRows();draw();
+  // Ruby restores the mode last used; until it says otherwise we open simple.
+  window.WR_setMode=function(m){setMode(m);};
+  setMode("simple");
+  try{ if(window.sketchup&&sketchup.ready)sketchup.ready(); }catch(e){}
 }());
 </script>
 </body>

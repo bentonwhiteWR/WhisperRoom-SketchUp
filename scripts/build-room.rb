@@ -1,15 +1,37 @@
-# @title Build a room from a take-off...
+# @title Draw floor plan...
 # @cat Draw the room
 #
-# Type a take-off, get a built and dimensioned room.
+# Type a room, get it built and dimensioned.
 #
-# Runs are entered the way you read them off a plan — a direction and a length
-# each — and the dialog previews the polygon and tells you whether it CLOSES
-# before anything is built. A take-off that does not close is the normal case,
-# not the exception, and the gap is where the misread wall is.
+# It opens on the case that is nearly always the case — a plain rectangle — so
+# it asks for a length and a width and nothing else, with a Build button that
+# works immediately. "More detail..." expands into the take-off: runs entered
+# the way you read them off a plan, a direction and a length each, with the
+# doors, the wall thickness and the room name. The dialog previews the polygon
+# and tells you whether it CLOSES before anything is built. A take-off that
+# does not close is the normal case, not the exception, and the gap is where
+# the misread wall is.
+#
+# Simple mode is not a second geometry routine. Length and width become the
+# four runs the take-off would have produced and go down the same build path,
+# because a parallel path is how two modes silently stop agreeing. Expanding
+# therefore costs nothing — the runs are already the ones being previewed.
+# Collapsing back is offered only while the take-off is still a rectangle with
+# no doors on it; otherwise the button says why it is off rather than dropping
+# geometry quietly.
+#
+# Ceiling height stays on screen in both modes, pre-filled at the 8'-0" house
+# default, because it is the constraint that disqualifies a booth fastest and
+# the one clients forget.
+#
+# Dimensions are typed the way they are read — 150, 150", 12'6", 12'-6",
+# 12' 6 1/2", 12.5' all parse, and a BARE NUMBER IS INCHES, which is what the
+# take-off has always meant.
 #
 # Walls are built OUTWARD from the interior polygon, so wall thickness stays
 # cosmetic and changing it never moves a dimension already reported to a client.
+# That property is why the 4" default is safe to leave and safe to override in
+# detail mode: the interior polygon is the measured truth and it does not move.
 # Outer corners are mitred by intersecting adjacent offset edges — extending
 # each wall by its thickness at both ends makes them cross into an X.
 #
@@ -25,6 +47,7 @@ require 'json'
 module WR_BuildRoom
   DIR = { 'E' => [1, 0], 'W' => [-1, 0], 'N' => [0, 1], 'S' => [0, -1] }.freeze
   TOL = 0.02
+  PREF = 'com.whisperroom.buildroom'.freeze
 
   MAT_FLOOR = '0128_White'.freeze
   MAT_WALL  = '0099_LightSteelBlue'.freeze
@@ -245,7 +268,7 @@ module WR_BuildRoom
     runs  = cfg['runs'] || []
     doors = cfg['doors'] || []
     thick = cfg['thick'].to_f
-    thick = 4.0 if thick <= 0
+    thick = 4.0 if thick <= 0          # cosmetic — walls grow outward, dimensions don't move
     ceil  = cfg['ceil'].to_f
     ceil  = 96.0 if ceil <= 0
     door_h = cfg['door_h'].to_f
@@ -365,6 +388,19 @@ module WR_BuildRoom
 
   # ------------------------------------------------------------------- dialog --
 
+  def self.last_mode
+    m = Sketchup.read_default(PREF, 'mode', 'simple').to_s
+    m == 'detail' ? 'detail' : 'simple'
+  rescue StandardError
+    'simple'
+  end
+
+  def self.remember_mode(mode)
+    Sketchup.write_default(PREF, 'mode', mode.to_s == 'detail' ? 'detail' : 'simple')
+  rescue StandardError
+    nil
+  end
+
   def self.open
     html = File.join(File.dirname(__FILE__), 'build-room.html')
     unless File.exist?(html)
@@ -372,16 +408,26 @@ module WR_BuildRoom
       return
     end
     d = UI::HtmlDialog.new(
-      :dialog_title    => 'Build Room',
-      :preferences_key => 'com.whisperroom.buildroom',
+      :dialog_title    => 'Draw floor plan',
+      :preferences_key => PREF,
       :scrollable      => true, :resizable => true,
       :width => 860, :height => 640, :min_width => 520, :min_height => 420,
       :style => UI::HtmlDialog::STYLE_DIALOG
     )
     d.set_file(html)
+    # Someone who lives in the take-off should not be re-simplified every time
+    # they open it. The dialog opens simple and is told otherwise once it is up.
+    d.add_action_callback('ready') do |_c|
+      begin
+        d.execute_script("WR_setMode(#{last_mode.to_json})")
+      rescue StandardError
+      end
+    end
     d.add_action_callback('build') do |_c, payload|
       begin
-        build(JSON.parse(payload))
+        cfg = JSON.parse(payload)
+        remember_mode(cfg['mode'])
+        build(cfg)
       rescue StandardError => e
         UI.messagebox("Bad payload:\n#{e.message}")
       end
