@@ -1,5 +1,5 @@
-# @title Angled Component Art...
-# @cat Export art
+# @title Component art — Iso30 angles...
+# @cat Component art (web catalog)
 #
 # The Iso30 component library: every part shot at four fixed angled cameras on
 # one shared canvas, so a web page can composite a whole booth by translation

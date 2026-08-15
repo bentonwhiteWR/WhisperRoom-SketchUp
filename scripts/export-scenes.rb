@@ -1,5 +1,5 @@
-# @title Export Scenes...
-# @cat Export art
+# @title Export the proposal plates...
+# @cat Scenes and images
 #
 # Batch-export scenes to PNG. The proposal-plate exporter: opaque backgrounds,
 # into ProposalFiles, named for the plate order that proposal-v2.json expects.

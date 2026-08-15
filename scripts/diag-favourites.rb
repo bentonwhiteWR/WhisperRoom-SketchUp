@@ -1,3 +1,5 @@
+# @title Favourites diagnostic (dev)
+# @shelf dev
 # diag-favourites.rb — why does starring a script not stick?
 #
 # Run in the Ruby Console:

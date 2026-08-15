@@ -1,5 +1,5 @@
 # @title Probe Component Files...
-# @cat Model tools
+# @shelf dev
 #
 # Loads every .skp in a folder, measures it, and writes a table. This is the
 # step that has to happen BEFORE a booth can be assembled from real components

@@ -1,3 +1,5 @@
+# @title CSUSB rooms (one-off, delivered)
+# @shelf archive
 # csusb-rooms.rb — build CSUSB Chaparral 117 + University Hall 056 in SketchUp
 #
 #   Extensions > Developer > Ruby Console, then:

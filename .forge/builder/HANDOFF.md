@@ -1,36 +1,75 @@
-# HANDOFF — selectable isometric azimuth
+# Builder A handoff — panel redesign, spec steps 1-5
 
 ## Produced
-- `scripts/angled-component-art.rb` — only file changed.
-  - `CAMS` / `CORNER_CAMS` frozen constants replaced by `ELEV` (30.0),
-    `DEF_AZIM` (45.0), `cam_vec`, `build_cams`, `build_corner_cams`,
-    `azimuth` / `azimuth=`, memoised `cams` / `corner_cams`, plus the
-    reporting helpers `azim_label` and `cam_labels`.
-  - New `azim` field in `DEFAULTS` (`'45'`) and in `self.ask` — keys, prompts
-    and lists all 12 entries, positionally aligned, with the list column
-    commented per field.
-  - `self.azimuth = cfg['azim']` set in `run` immediately after `ask`, before
-    any measuring or rendering.
-  - Azimuth + the live camera vectors now printed in the run settings dump,
-    in `report`, and in `_diagnostics.txt`.
 
-## Read-first
-- The `lists` array in `self.ask` is positional against `prompts`. It is now
-  commented field-by-field. One missing `''` silently shifts every dropdown.
-- Elevation must stay 30. `z = 0.5` is what makes the `Iso30` filenames honest.
-- `build_cams` puts `ExtR` on the chosen azimuth A; `ExtL` = A+90,
-  `IntL` = A+180, `IntR` = A+270. `ExtNear` = A+45, `IntFar` = A+225.
+- `scripts/wr_tools/panel.html` — rewritten. Token sheet (light + dark), one row
+  per script, action/ability row renderers, state strip, collapsible categories
+  with persisted state, Pinned group, dev/workshop/archive shelves behind a
+  footer switch, toolbar mirror moved to the bottom, slot editor and rename as
+  bottom sheets. Every existing callback name kept; two new ones added
+  (`collapse`, `devtools`).
+- `scripts/wr_tools/main.rb` — `@icon` and `@shelf` parsing, per-script `icon` /
+  `shelf` / `dialog` in the payload, the icon sprite and icon map seam, the
+  `wr-ico-*.svg` glob beside `ico-*.svg`, `ui_collapsed` / `ui_dev` prefs, and
+  the autorun guard fix in `toggle` (`load_quietly`).
+- `scripts/*.rb` header lines only — the 14 approved `@title` renames, the new
+  six-category `@cat` tree, `@shelf` on the eight shelved scripts, and a first
+  header for `csusb-rooms.rb` and `diag-favourites.rb`.
+- `scripts/explode-view.rb`, `scripts/proposal-scenes.rb` — one line each: the
+  missing `unless $wr_no_autorun` guard on their top-level autorun.
+
+## Read first
+
+1. `.forge/scoper/panel-redesign.md` — the spec. Steps 1-5 are done; 6 and 7 are
+   out of scope this round and untouched.
+2. The **icon seam** section below — it is the contract Builder B's files have to
+   meet, and nothing in this repo enforces it.
+3. `main.rb`'s comment above `load_quietly` — it records why both autorun globals
+   are set and why they are restored.
+
+## The icon seam, as implemented (Builder A's side)
+
+| File | Shape | Consumed by |
+|---|---|---|
+| `scripts/wr_tools/wr-icons.svg` | one `<svg>` containing `<symbol id="wr-…" viewBox="0 0 24 24">` blocks | read raw by `main.rb#sprite`, shipped as `payload['sprite']`, injected into `#sprite` in the panel; rows draw `<use href="#wr-…">` |
+| `scripts/wr_tools/icon-map.json` | flat object, `{"build-room.rb": "wr-room", …}` — script filename to symbol id | `main.rb#icon_map`; ids may be written with or without the `wr-` prefix, `wr_id` normalises |
+| `scripts/wr_tools/wr-ico-<id>.svg` | standalone face for a toolbar slot, `<id>` **without** the `wr-` prefix (symbol `wr-room` ⇒ file `wr-ico-room.svg`) | `icon_library` (offered in the picker, id `wr-room`) and `icon_file` |
+
+Resolution per script: its own `# @icon` line → `icon-map.json` → `wr-default`.
+`wr-default` is defined inside `panel.html` itself and is the safety net: a
+missing or unreadable sprite degrades every row to that glyph and **never**
+blanks the list (verified headlessly). The map is re-read on every render, so
+dropping the file in and hitting Rescan is enough — no SketchUp restart.
 
 ## Assumptions
-- Rotating `ExtNear`/`IntFar` rigidly with the rig (A+45 / A+225) rather than
-  leaving them pinned at 90/270 was the orchestrator's call, not Benton's.
-- Vectors are rounded to 4 dp so azimuth 45 reproduces the old frozen table
-  digit for digit. Length is therefore 1.00003 rather than exactly 1.
-- Azimuth choices offered: 45 (default), 40, 38, 36, 35.
+
+- **`prefers-color-scheme` inside SketchUp's Chromium is assumed, not verified.**
+  It works in desktop Chrome (observed). The tokens are also driven by
+  `:root[data-theme="dark"|"light"]`, so if the OS query turns out to do nothing
+  in the HtmlDialog, a manual theme pref is one line of JS and no restyling.
+- The sprite symbols hard-code `#ee6216` for the orange subject element (that is
+  the icon system's own rule). On the dark theme the surrounding tokens lift to
+  `#f47b35` but the icon orange does not. Assumed acceptable; the mockup does the
+  same.
+- `# @shelf archive` is used for the three files GOAL.md said to shelve rather
+  than delete (`booth-4260-s.rb`, `booth-96168-s.rb`, `csusb-rooms.rb`). The
+  Researcher's grammar allowed `dev|workshop|archive`; the mockup only drew two
+  shelves. Third shelf reads "One-off & superseded".
 
 ## Open questions
-- Is the A+45 corner-camera offset what Benton wants, or should `ExtNear`
-  stay at a true 90 so it keeps facing the seam square-on?
-- Per-model azimuth (square 7272 vs rectangle 7296) is still one global value.
-- Nothing resembling a "defined lines" style exists in this script or anywhere
-  in this repo; the model's own style list is only readable inside SketchUp.
+
+1. **Intra-category order contradicts the Researcher on one category.** The spec
+   says "category order, then alphabetical", which is what shipped. In *Build the
+   booth* that sorts the ladder backwards — Block-out (least capable) first,
+   share-link (the right answer on a real job) last — which is exactly what
+   `proposed-structure.md` warned against. Fixing it needs either an additive
+   `# @rank` header or a per-category rung table. Neither is in this round's
+   scope. Flagged, not silently resolved.
+2. Six scripts have a proposed title in the Researcher's category tree but are
+   **not** in the approved 14 renames (`list-scenes.rb`, `orbit-export.rb`,
+   `explode-view.rb`, `save-scene-components.rb`, `find-replace-names.rb`,
+   `merge-materials.rb`). Their old titles are untouched. Benton's call.
+3. `diag-favourites.rb` — the Researcher asked whether it is now dead. It is
+   shelved under `dev` with a real title; still unanswered.
+4. Ability rows are not reachable by the arrow-key/Enter navigation, which walks
+   runnable rows only. Deliberate, but worth a second opinion.

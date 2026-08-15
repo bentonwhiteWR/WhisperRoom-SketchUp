@@ -94,11 +94,18 @@ module WhisperRoom
     # @setting is WHITESPACE-DELIMITED, so a choice value cannot contain a space:
     # write Axis|Radial|Vertical, not Axis|Radial|Vertical only. Everything after
     # the default is the human label and may contain spaces.
+    #
+    # "# @icon <id>" is OPTIONAL and ADDITIVE. It names a symbol in the panel's
+    # icon sprite. A script that does not declare one is resolved through
+    # icon-map.json instead, so the icon rollout costs one JSON file rather than
+    # an edit to every script — see icon_of.
     def self.meta_of(path)
       title = nil
       blurb = []
       started = false
       abil = nil
+      icon = nil
+      dialog = false
       File.foreach(path).with_index do |line, i|
         break if i > 60
         unless line =~ /^\s*#/
@@ -107,7 +114,17 @@ module WhisperRoom
         end
         text = line.sub(/^\s*#\s?/, '').rstrip
         if text =~ /^@title\s+(.+)$/
-          title = Regexp.last_match(1).strip.sub(/\.\.\.\z/, '')
+          raw = Regexp.last_match(1).strip
+          # The trailing "..." means "this one opens a dialog first". It is
+          # stripped from the label — the panel draws a window glyph instead —
+          # but the fact has to survive the strip or the glyph has nothing to
+          # go on. rename() still round-trips the dots in the file itself.
+          dialog = !(raw =~ /(\.\.\.|…)\z/).nil?
+          title = raw.sub(/(\.\.\.|…)\z/, '').strip
+          next
+        end
+        if text =~ /^@icon\s+(\S+)/
+          icon = Regexp.last_match(1).strip
           next
         end
         if text =~ /^@ability\s+(.+)$/
@@ -145,9 +162,9 @@ module WhisperRoom
         break if blurb.join(' ').length > 200
       end
       abil = nil unless abil && abil['label'] && abil['on'] && abil['off']
-      [title, blurb.join(' '), abil]
+      [title, blurb.join(' '), abil, icon, dialog]
     rescue StandardError
-      [nil, '', nil]
+      [nil, '', nil, nil, false]
     end
 
     def self.pretty(basename)
@@ -183,22 +200,113 @@ module WhisperRoom
       nil
     end
 
+    # A script that is not a daily tool says so itself, the same way an ability
+    # does — "# @shelf dev", "# @shelf workshop", "# @shelf archive". The panel
+    # keeps those off the default list behind a footer switch, but search still
+    # finds them, so hiding never means losing. Parsed beside @cat rather than
+    # kept in a list here, for the same reason abilities are: a list here would
+    # drift away from the files it describes.
+    SHELVES = %w[dev workshop archive].freeze
+
+    def self.shelf_of(path)
+      File.foreach(path).with_index do |line, i|
+        break if i > 60
+        next unless line =~ /^\s*#/
+        m = line.match(/^\s*#\s*@shelf\s+(\S+)/)
+        next unless m
+        s = m[1].strip.downcase
+        return SHELVES.include?(s) ? s : nil
+      end
+      nil
+    rescue StandardError
+      nil
+    end
+
     def self.scan
       script_files.map { |path|
-        title, blurb, abil = meta_of(path)
+        title, blurb, abil, icon, dialog = meta_of(path)
         mtime = File.mtime(path)
+        name  = File.basename(path)
         {
           'file'    => path,
-          'name'    => File.basename(path),
-          'title'   => title || pretty(File.basename(path)),
+          'name'    => name,
+          'title'   => title || pretty(name),
           'cat'     => cat_of(path),
+          'shelf'   => shelf_of(path),
+          'icon'    => icon_of(name, icon),
+          'dialog'  => dialog,
           'blurb'   => blurb,
+          # ago and name stay in the payload even though no row prints them any
+          # more — the redesigned rows carry both in their tooltip.
           'ago'     => ago(mtime),
           'fresh'   => (Time.now - mtime) < FRESH_H * 3600,
           'stamp'   => mtime.to_i,
           'ability' => abil
         }
       }.sort_by { |s| -s['stamp'] }
+    end
+
+    # ------------------------------------------------------------ list icons --
+    #
+    # THE SEAM WITH THE ICON SET, and it is deliberately loose at both ends.
+    #
+    # Two files, neither of which this plugin can require to exist:
+    #
+    #   wr-icons.svg   one <svg> holding <symbol id="wr-..."> blocks. Shipped to
+    #                  the panel verbatim as payload['sprite'] and injected
+    #                  there; rows reference symbols with <use href="#wr-...">.
+    #   icon-map.json  { "build-room.rb": "wr-room", ... } — filename to symbol
+    #                  id, so the rollout costs one file instead of 40 header
+    #                  edits.
+    #
+    # Resolution per script: its own "# @icon" line, then the map, then
+    # DEFAULT_ICON. Ids are normalised to the "wr-" prefix so the map may be
+    # written either way round without breaking.
+    #
+    # If EITHER file is missing every script still resolves to DEFAULT_ICON and
+    # the panel still draws every row — a missing sprite must degrade to a plain
+    # glyph, never to a blank list, because the list is the whole panel.
+
+    DEFAULT_ICON = 'wr-default'.freeze
+
+    def self.wr_id(id)
+      s = id.to_s.strip
+      return nil if s.empty?
+      s.start_with?('wr-') ? s : "wr-#{s}"
+    end
+
+    def self.icon_map
+      @icon_map ||= begin
+        path = File.join(File.dirname(__FILE__), 'icon-map.json')
+        out = {}
+        if File.exist?(path)
+          begin
+            parsed = JSON.parse(File.read(path))
+            out = parsed if parsed.is_a?(Hash)
+          rescue StandardError
+            out = {}
+          end
+        end
+        out
+      end
+    rescue StandardError
+      {}
+    end
+
+    def self.icon_of(name, declared)
+      wr_id(declared) || wr_id(icon_map[name]) || DEFAULT_ICON
+    rescue StandardError
+      DEFAULT_ICON
+    end
+
+    # The sprite, read fresh on every render so dropping in a new wr-icons.svg
+    # shows up on Rescan rather than at the next SketchUp launch — the same
+    # promise the script folder makes.
+    def self.sprite
+      path = File.join(File.dirname(__FILE__), 'wr-icons.svg')
+      File.exist?(path) ? File.read(path) : ''
+    rescue StandardError
+      ''
     end
 
     # ------------------------------------------------------------ preferences --
@@ -415,13 +523,46 @@ module WhisperRoom
       {}
     end
 
+    # Two prefixes now. wr-ico-*.svg is the purpose-built WhisperRoom set and it
+    # is offered FIRST, because it is the one that says what a tool does; the
+    # generic ico-*.svg library stays because saved slot preferences still point
+    # at those ids and a slot that stopped resolving would drop back to a
+    # numbered face. Ids are kept distinct by the prefix — a wr- id can never
+    # collide with a legacy one.
+    #
+    # 'file' is resolved here rather than rebuilt in the panel. The panel used
+    # to build "ico-<id>.svg" itself, which was one more place for the two to
+    # disagree about the same slot.
     def self.icon_library
-      Dir.glob(File.join(File.dirname(__FILE__), 'ico-*.svg')).sort.map { |p|
-        id = File.basename(p, '.svg').sub(/\Aico-/, '')
-        { 'id' => id, 'label' => icon_labels[id] || pretty(id) }
+      dir = File.dirname(__FILE__)
+      wr = Dir.glob(File.join(dir, 'wr-ico-*.svg')).sort.map { |p|
+        id = "wr-#{File.basename(p, '.svg').sub(/\Awr-ico-/, '')}"
+        { 'id' => id, 'label' => icon_labels[id] || pretty(id.sub(/\Awr-/, '')),
+          'file' => File.basename(p), 'wr' => true }
       }
+      old = Dir.glob(File.join(dir, 'ico-*.svg')).sort.map { |p|
+        id = File.basename(p, '.svg').sub(/\Aico-/, '')
+        { 'id' => id, 'label' => icon_labels[id] || pretty(id),
+          'file' => File.basename(p), 'wr' => false }
+      }
+      wr + old
     rescue StandardError
       []
+    end
+
+    # An icon id from preferences, resolved to a file on disk. Saved prefs
+    # predate the wr- set and hold bare ids like "ruler", so the legacy name is
+    # tried first and both spellings of a wr- id resolve. Returns nil when
+    # nothing matches, so the caller can fall through to its own default.
+    def self.icon_file(id)
+      return nil if blank?(id)
+      dir = File.dirname(__FILE__)
+      bare = id.to_s.sub(/\Awr-/, '')
+      [File.join(dir, "ico-#{id}.svg"),
+       File.join(dir, "wr-ico-#{bare}.svg"),
+       File.join(dir, "icon-#{id}.svg")].find { |p| File.exist?(p) }
+    rescue StandardError
+      nil
     end
 
     # The FILE a slot's button wears, resolved from an explicit pair of lists so
@@ -441,8 +582,8 @@ module WhisperRoom
       dir = File.dirname(__FILE__)
       chosen = icons[i]
       unless blank?(chosen)
-        p = File.join(dir, "ico-#{chosen}.svg")
-        return p if File.exist?(p)
+        p = icon_file(chosen)
+        return p if p
       end
       name = names[i]
       unless blank?(name)
@@ -551,7 +692,12 @@ module WhisperRoom
         'blurb'    => 'Show the ghost parts and leader lines every script draws for ' \
                       'reference — tubes, housings, explode leaders, notes.',
         'settings' => [],
-        'builtin'  => true
+        'builtin'  => true,
+        # Every other ability rides in on its script's own @cat and @icon. This
+        # one has no script, so it declares both here — next to the definition,
+        # which is the same rule.
+        'cat'      => 'Add dimensions',
+        'icon'     => 'wr-ghost'
       }]
     end
 
@@ -560,8 +706,14 @@ module WhisperRoom
       scan.each do |s|
         a = s['ability']
         next unless a
+        # cat and icon travel with the ability so the panel can draw it as ONE
+        # row inside its own category — the script and its switch are the same
+        # tool, and drawing them twice under two names is what the redesign
+        # removed.
         out << a.merge('id' => s['name'], 'file' => s['file'],
-                       'script' => s['title'], 'builtin' => false)
+                       'script' => s['title'], 'builtin' => false,
+                       'cat' => s['cat'], 'icon' => s['icon'],
+                       'shelf' => s['shelf'])
       end
       out.each { |a| a['on_now'] = state(a['id']); a['values'] = values_for(a) }
       out
@@ -619,6 +771,36 @@ module WhisperRoom
     # The @on / @off directives are Ruby, evaluated with `opts` bound to the
     # ability's saved settings. That is not a new risk: `load` already runs every
     # line of these files, and they are this repo's own scripts.
+    #
+    # THE LOAD MUST BE GUARDED, and this was a real defect until 2026-08-15.
+    #
+    # Every ability script ends with a top-level autorun — the line that makes
+    # `load "…/explode-view.rb"` in the Ruby Console actually do something. This
+    # method loads the file to pick up edits, so without a guard flipping a
+    # switch ALSO ran the script's normal entry point: a modal dialog appeared,
+    # then the ability did the work a second time with different settings.
+    # explode-view.rb's own header says the ability path exists precisely so a
+    # modal never gets in the way of a toggle.
+    #
+    # BOTH globals are set because the scripts disagree about the name —
+    # auto-dimension.rb reads $wr_suppress_autorun, the other four read
+    # $wr_no_autorun. Setting both means neither script has to change and a new
+    # ability written to either spelling is already covered. Restored after,
+    # the way booth-from-link.rb and build-room.rb do it, because leaving them
+    # set would silence the autorun for the next script RUN from the list —
+    # which would look exactly like a dead button.
+    def self.load_quietly(file)
+      was_no, was_sup = $wr_no_autorun, $wr_suppress_autorun
+      $wr_no_autorun = true
+      $wr_suppress_autorun = true
+      begin
+        load file
+      ensure
+        $wr_no_autorun = was_no
+        $wr_suppress_autorun = was_sup
+      end
+    end
+
     def self.toggle(id, on)
       a = abilities.find { |x| x['id'] == id }
       return [false, "No such ability: #{id}"] unless a
@@ -632,7 +814,7 @@ module WhisperRoom
       unless File.exist?(a['file'].to_s)
         return [false, "Script is gone: #{a['file']}"]
       end
-      load a['file']                     # re-read every time, so edits take effect
+      load_quietly(a['file'])            # re-read every time, so edits take effect
       opts = values_for(a)
       expr = on ? a['on'] : a['off']
       result = eval(expr, binding, a['file'])   # rubocop:disable Security/Eval
@@ -747,8 +929,42 @@ module WhisperRoom
 
     # ------------------------------------------------------------------ panel --
 
+    # ---------------------------------------------------------- panel state --
+    #
+    # Which categories are collapsed and whether the shelved tools are showing
+    # are the panel's own furniture, not facts about the model, so they live in
+    # preferences and survive a reopen. Pipe-joined for the reason every list
+    # here is pipe-joined — read_default EVALS what it stored, so a quote in the
+    # value takes the extension down at load. A category name cannot contain a
+    # pipe.
+    def self.collapsed
+      read_list('ui_collapsed')
+    end
+
+    def self.set_collapsed(list)
+      write_list('ui_collapsed', list.to_s.split(LIST_SEP).reject(&:empty?))
+    end
+
+    def self.dev_shown?
+      read_pref('ui_dev', 'false') == 'true'
+    end
+
+    def self.set_dev_shown(on)
+      write_pref('ui_dev', on ? 'true' : 'false')
+    end
+
     def self.payload
+      # Read the map once per render, not once per launch. Dropping a new
+      # icon-map.json in and hitting Rescan has to work, the same way dropping
+      # in a new script does — the memo is there to stop 28 reads inside one
+      # render, not to freeze the file until the next launch.
+      @icon_map = nil
       { 'dir' => SCRIPTS_DIR, 'bundled' => bundled?,
+        # The icon sprite travels with the payload rather than being fetched by
+        # the page: an HtmlDialog has no network guarantee and a file:// fetch
+        # out of the dialog is not reliably permitted.
+        'sprite' => sprite,
+        'collapsed' => collapsed, 'dev' => dev_shown?,
         'scripts' => scan, 'abilities' => abilities,
         'recent' => recent, 'pinned' => pinned, 'note' => @note,
         'slots' => slots, 'slot_icons' => slot_icons,
@@ -840,6 +1056,11 @@ module WhisperRoom
         save_setting(id, key, value)
         push
       end
+      # Panel furniture. Neither pushes a re-render: the page already knows what
+      # it just did, and a full render would scroll the list out from under the
+      # click that caused it.
+      d.add_action_callback('collapse')  { |_c, list| set_collapsed(list) }
+      d.add_action_callback('devtools')  { |_c, on| set_dev_shown(on.to_s == 'true') }
       d.add_action_callback('folder')  { |_c| UI.openURL('file:///' + SCRIPTS_DIR) }
       d.add_action_callback('console') { |_c| Sketchup.send_action('showRubyPanel:') }
       d.set_on_closed { @dlg = nil }

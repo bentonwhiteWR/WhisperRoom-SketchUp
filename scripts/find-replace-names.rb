@@ -1,5 +1,5 @@
 # @title Find and Replace Names...
-# @cat Model tools
+# @cat Tidy up the model
 #
 # Find-and-replace across scene names, component definition names, tag names or
 # material names. Built for the job of cleaning up a naming scheme after the

@@ -1,4 +1,5 @@
 # @title Tube Drying Stand...
+# @shelf workshop
 #
 # A 3D-printable rack that stands polycarbonate tubes upright while the epoxy
 # cures, sized to drop into a 92 x 135 mm silicone tray. Open diamond-lattice

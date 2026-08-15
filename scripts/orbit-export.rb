@@ -1,5 +1,5 @@
 # @title Orbit Export...
-# @cat Export art
+# @cat Component art (web catalog)
 #
 # Photograph a part — or every part of an assembly — from every angle, in one
 # run, and write a manifest describing what came out.

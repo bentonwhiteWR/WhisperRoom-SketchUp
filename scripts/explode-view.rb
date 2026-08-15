@@ -1,5 +1,5 @@
 # @title Exploded View...
-# @cat Room tools
+# @cat Component art (web catalog)
 # @ability Exploded
 # @ability-blurb Pull the selected assembly apart; switch off to put it back.
 # @setting mode   choice  Axis|Radial|Vertical  Direction
@@ -418,4 +418,4 @@ module WR_ExplodeView
   end
 end
 
-WR_ExplodeView.run
+WR_ExplodeView.run unless $wr_no_autorun

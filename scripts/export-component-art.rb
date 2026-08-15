@@ -1,5 +1,5 @@
-# @title Export Component Art...
-# @cat Export art
+# @title Component art — flat views...
+# @cat Component art (web catalog)
 #
 # One transparent PNG per scene, for the whole model, in one pass — the art
 # handoff for the orchestrator's new component style.

@@ -1,5 +1,5 @@
-# @title Dimension Selection...
-# @cat Room tools
+# @title Measure whatever is selected...
+# @cat Add dimensions
 # @ability Dimensioned selection
 # @ability-blurb Length, width and height of whatever is selected. Switch off to remove them.
 # @setting where  choice  Outside|On the box  Where the dimensions sit

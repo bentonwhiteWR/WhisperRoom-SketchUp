@@ -4,22 +4,104 @@
 <meta charset="utf-8">
 <title>WhisperRoom</title>
 <style>
-  /* One surface, one search, no tabs. The old panel split abilities and
-     scripts across two tabs with search on only one of them, stacked four
-     header bands, and made every script a fat card. This one is a single
-     scrolling list under a single command bar that filters everything —
-     and understands a pasted booth-builder link. */
+  /* One surface, one search, no tabs, and ONE ROW PER SCRIPT.
+     The panel before this one drew every ability twice — once in an ABILITIES
+     band under its @ability label, once again in its category under its @title
+     — so five files looked like ten tools with ten names. A script that
+     declares @on/@off now carries its switch on its own row, inside its own
+     task category. Actions read as verbs; abilities read as state.
+
+     ART DIRECTION: the shop drawing. Hairline rules, drafting ticks, warm-grey
+     surfaces, and ONE accent — dimension-tag orange. The rule that keeps it
+     honest: ORANGE IS A VERB. It appears only on things that act on or exist in
+     the model (a live toggle, the state strip, RUN, the subject of an icon).
+     Never decoration. There is deliberately no second accent: the old green ON
+     meant the same thing orange already meant. */
+
+  /* ------------------------------------------------------------- tokens --
+     Every colour in this file comes from here, so a theme is a token swap and
+     nothing else. Light is the base because SketchUp ships light.
+
+     Dark is offered twice on purpose. The @media block follows the OS through
+     prefers-color-scheme, which is ASSUMED to work in SketchUp's embedded
+     Chromium and is NOT verified on a machine. The [data-theme] block is the
+     escape hatch: if the OS query turns out to do nothing here, one line of JS
+     setting documentElement.dataset.theme (driven by a pref) lights the whole
+     panel with no other change to this file. */
 
   :root {
-    --bg:      #f4f5f6;
-    --surface: #ffffff;
-    --ink:     #1c2327;
-    --muted:   #66727a;
-    --faint:   #9aa4ab;
-    --line:    #e2e6e9;
-    --accent:  #ee6216;
-    --accent-soft: #fdeee4;
-    --on:      #1d8a4b;
+    --bg:          #f2f3f4;
+    --surface:     #ffffff;
+    --ink:         #20262a;
+    --muted:       #68737b;
+    --faint:       #9aa4ab;
+    --line:        #e0e4e7;
+    --line2:       #eceef0;
+    --rail:        #e6e9eb;
+    --hover:       #f7f2ee;
+    --accent:      #ee6216;
+    --accent-soft: #fdeee3;
+    --accent-ink:  #ffffff;
+    --accent-hot:  #d9570f;
+    --warn:        #9a6b00;
+    --warn-bg:     #fdf4dd;
+    --bad:         #93382a;
+    --bad-bg:      #fbeeec;
+    --bad-line:    #efd2cc;
+    --swoff:       #ccd3d8;
+    --knob:        #ffffff;
+    --mark:        #ffe3a8;
+    --scrim:       rgba(15, 18, 20, .45);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:          #24292d;
+      --surface:     #2d3338;
+      --ink:         #e7eaec;
+      --muted:       #9aa5ad;
+      --faint:       #6b767e;
+      --line:        #3b4247;
+      --line2:       #343b40;
+      --rail:        #383f45;
+      --hover:       #343a3f;
+      --accent:      #f47b35;   /* lifted one step to hold contrast on dark */
+      --accent-soft: #453227;
+      --accent-ink:  #1b1e21;
+      --accent-hot:  #ff9153;
+      --warn:        #e3b34c;
+      --warn-bg:     #3a3423;
+      --bad:         #f0a396;
+      --bad-bg:      #3a2723;
+      --bad-line:    #5a3830;
+      --swoff:       #4a5359;
+      --mark:        #6a5320;
+      --scrim:       rgba(0, 0, 0, .55);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:          #24292d;
+    --surface:     #2d3338;
+    --ink:         #e7eaec;
+    --muted:       #9aa5ad;
+    --faint:       #6b767e;
+    --line:        #3b4247;
+    --line2:       #343b40;
+    --rail:        #383f45;
+    --hover:       #343a3f;
+    --accent:      #f47b35;
+    --accent-soft: #453227;
+    --accent-ink:  #1b1e21;
+    --accent-hot:  #ff9153;
+    --warn:        #e3b34c;
+    --warn-bg:     #3a3423;
+    --bad:         #f0a396;
+    --bad-bg:      #3a2723;
+    --bad-line:    #5a3830;
+    --swoff:       #4a5359;
+    --mark:        #6a5320;
+    --scrim:       rgba(0, 0, 0, .55);
   }
 
   * { box-sizing: border-box; margin: 0; }
@@ -35,10 +117,14 @@
   }
 
   ::-webkit-scrollbar { width: 9px; height: 9px; }
-  ::-webkit-scrollbar-thumb { background: #c9d0d5; border-radius: 5px; }
+  ::-webkit-scrollbar-thumb { background: var(--swoff); border-radius: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
 
-  svg { width: 14px; height: 14px; fill: none; stroke: currentColor;
+  /* The icon sprite Ruby ships in the payload lands here. Out of flow and out
+     of the way; the symbols inside are only ever drawn through <use>. */
+  #sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+  .gl { width: 14px; height: 14px; fill: none; stroke: currentColor;
         stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
   /* ------------------------------------------------------------ top bar -- */
@@ -46,8 +132,9 @@
   .top {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 12px 8px;
+    gap: 6px;
+    padding: 9px 10px 7px;
+    flex: 0 0 auto;
   }
   .brand {
     font-weight: 650;
@@ -57,12 +144,17 @@
     display: flex;
     align-items: center;
     gap: 7px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .brand::before {
     content: "";
     width: 9px; height: 9px;
     border-radius: 50%;
     background: var(--accent);
+    flex: 0 0 auto;
   }
   .iconbtn {
     display: flex;
@@ -74,16 +166,14 @@
     background: transparent;
     color: var(--muted);
     cursor: pointer;
+    flex: 0 0 auto;
   }
   .iconbtn:hover { background: var(--surface); border-color: var(--line); color: var(--ink); }
   .iconbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   /* -------------------------------------------------------- command bar -- */
 
-  .cmd {
-    margin: 0 12px 8px;
-    position: relative;
-  }
+  .cmd { margin: 0 10px 8px; position: relative; flex: 0 0 auto; }
   .cmd input {
     width: 100%;
     padding: 8px 30px 8px 32px;
@@ -94,6 +184,7 @@
     border-radius: 8px;
     outline: none;
   }
+  .cmd input::placeholder { color: var(--faint); }
   .cmd input:focus { border-color: var(--accent); }
   .cmd .lens {
     position: absolute; left: 10px; top: 50%;
@@ -115,151 +206,347 @@
   }
   .cmd .clear:hover { color: var(--ink); background: var(--bg); }
 
-  /* A pasted booth-builder link turns the command bar into an action. */
+  /* A pasted booth-builder link is a command, not a search term. */
   .linkgo {
     display: none;
-    margin: 0 12px 8px;
-    padding: 10px 12px;
+    margin: 0 10px 8px;
+    padding: 9px 11px;
     border: 1px solid var(--accent);
     border-radius: 8px;
     background: var(--accent-soft);
     cursor: pointer;
     align-items: center;
-    gap: 10px;
-  }
-  .linkgo .t  { font-weight: 600; }
-  .linkgo .s  { color: var(--muted); font-size: 12px; overflow: hidden;
-                text-overflow: ellipsis; white-space: nowrap; }
-  .linkgo svg { color: var(--accent); flex: 0 0 auto; }
-  .linkgo:hover { background: #fbe2d1; }
-
-  /* ------------------------------------------------------ toolbar slots -- */
-
-  /* The eight buttons on SketchUp's own toolbar, mirrored here so the row you
-     click to customise looks like the row you are customising. */
-  .slots {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-    margin: 0 12px 6px;
+    gap: 9px;
     flex: 0 0 auto;
   }
-  .slots .lbl {
-    font-size: 10.5px; font-weight: 650; letter-spacing: .11em;
-    color: var(--faint); margin-right: 3px;
+  .linkgo .t  { font-weight: 600; font-size: 12.5px; }
+  .linkgo .s  { color: var(--muted); font-size: 11px; overflow: hidden;
+                text-overflow: ellipsis; white-space: nowrap; }
+  .linkgo .gl { color: var(--accent); flex: 0 0 auto; width: 16px; height: 16px; }
+
+  /* ------------------------------------------------------- state strip --
+     "What has this plugin already done to my model?" is the question stateful
+     toggles always raise and never answer. One chip per ability that is on;
+     click it to jump to the row that turns it off. */
+
+  .statebar {
+    display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+    margin: 0 10px 8px;
+    flex: 0 0 auto;
   }
-  .slot {
-    position: relative;
-    width: 32px; height: 32px;
-    padding: 0;
-    border: 1px solid var(--line);
-    border-radius: 7px;
+  .statebar .cap {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+    color: var(--faint); margin-right: 2px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font: inherit; font-size: 11.5px; font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 1px 9px 1px 7px;
+    cursor: pointer;
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .chip::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); flex: 0 0 auto;
+  }
+  .statebar .none { font-size: 11.5px; color: var(--faint); }
+
+  /* --------------------------------------------------------------- list -- */
+
+  .scroll { flex: 1 1 auto; overflow-y: auto; padding: 0 10px 12px; }
+
+  .sect {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .12em;
+    color: var(--faint);
+    margin: 14px 2px 5px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .sect:first-child { margin-top: 6px; }
+  .sect .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sect .n  { font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  .sect .cv { margin-left: auto; font-size: 9px; transition: transform .12s; }
+  .sect.closed .cv { transform: rotate(-90deg); }
+  .sect.closed + .group { display: none; }
+
+  .group {
     background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 9px;
+    cursor: pointer;
+    position: relative;
+    border-top: 1px solid var(--line2);
+  }
+  .row:first-child { border-top: 0; }
+  .row:hover, .row.sel { background: var(--hover); }
+
+  .row .iw {
+    width: 30px; height: 30px; flex: 0 0 auto;
+    border-radius: 7px;
+    background: var(--rail);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .row .iw .ico { width: 20px; height: 20px; color: var(--ink); }
+
+  /* display:block on both is load-bearing, not tidiness. The row is built from
+     <span>s, and overflow/text-overflow do nothing on an inline box — leave
+     them inline and the blurb runs straight out through the switch and off the
+     right edge at 330 px instead of ellipsizing. Observed, at 330. */
+  .row .body  { flex: 1 1 auto; min-width: 0; display: block; }
+  .row .t {
+    font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+    min-width: 0;
+  }
+  .row .t .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .b {
+    display: block;
+    color: var(--muted);
+    font-size: 11.5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* The trailing "..." convention, made visible. It meant "opens a dialog
+     first" and was invisible to anyone who had not been told. */
+  .dlg { flex: 0 0 auto; color: var(--faint); width: 12px; height: 12px;
+         fill: none; stroke: currentColor; stroke-width: 1.5; }
+  .run {
+    display: none; flex: 0 0 auto;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    color: var(--accent);
+  }
+  .row:hover .run { display: block; }
+  .row:hover .dlg { display: none; }
+
+  .pill-new, .badge-dev {
+    flex: 0 0 auto;
+    font-size: 9px; font-weight: 700; letter-spacing: .08em;
+    border-radius: 4px; padding: 0 4px;
+  }
+  .pill-new { color: var(--accent); border: 1px solid currentColor; }
+  .badge-dev { color: var(--muted); border: 1px solid var(--line); background: var(--rail); }
+
+  .star {
+    display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px;
+    border: 0; border-radius: 5px; padding: 0;
+    background: transparent;
+    color: var(--faint);
+    cursor: pointer;
+    opacity: 0;
+    flex: 0 0 auto;
+  }
+  .row:hover .star, .star.on { opacity: 1; }
+  .star .gl { width: 13px; height: 13px; }
+  .star.on { color: var(--accent); }
+  .star.on .gl { fill: currentColor; }
+  .star:hover { background: var(--rail); color: var(--accent); }
+
+  /* ---------------------------------------------------------- abilities --
+     Four concurrent signals when one is on — rail, stamp, switch, chip — and
+     all four come off together. State is never silent. */
+
+  .row.ab { cursor: default; padding-left: 6px; }
+  .row.ab::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: transparent;
+  }
+  .row.ab.on::before { background: var(--accent); }
+  .row.ab.on .iw { background: var(--accent-soft); }
+  .row.ab.on .iw .ico { color: var(--accent); }
+  .row.ab .stat {
+    flex: 0 0 auto;
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    color: var(--faint);
+  }
+  .row.ab.on .stat { color: var(--accent); }
+
+  .sw {
+    position: relative;
+    width: 32px; height: 18px;
+    border: 0; border-radius: 9px;
+    background: var(--swoff);
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: background .12s;
+  }
+  .sw i {
+    position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--knob);
+    transition: left .12s;
+  }
+  .sw[aria-checked="true"] { background: var(--accent); }
+  .sw[aria-checked="true"] i { left: 16px; }
+
+  .gearbtn {
+    width: 24px; height: 24px; padding: 0;
+    border: 0; border-radius: 5px;
+    background: transparent;
     color: var(--faint);
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     flex: 0 0 auto;
   }
+  .gearbtn:hover { color: var(--ink); background: var(--rail); }
+  .gearbtn .gl { width: 13px; height: 13px; stroke-width: 1.5; }
+
+  .settings {
+    padding: 6px 10px 10px 39px;
+    display: grid;
+    gap: 6px;
+    border-top: 1px dashed var(--line);
+    background: var(--bg);
+  }
+  .settings label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .settings label span { flex: 0 0 auto; min-width: 92px; }
+  .settings input, .settings select {
+    flex: 1 1 auto; min-width: 0;
+    font: inherit; font-size: 11.5px;
+    padding: 3px 6px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .settings input:focus, .settings select:focus { outline: none; border-color: var(--accent); }
+
+  mark { background: var(--mark); color: inherit; border-radius: 2px; }
+
+  /* ------------------------------------------------------ toolbar slots --
+     Last section, not first. This is plumbing, not work — it used to be the
+     first thing a new user met. It stays a picture of SketchUp's own toolbar
+     row, and nothing in it runs a script: use the toolbar button, or the list. */
+
+  .slots { display: flex; gap: 5px; padding: 9px; flex-wrap: wrap; align-items: center; }
+  .slot {
+    position: relative;
+    width: 34px; height: 34px; padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+  }
   .slot img { width: 19px; height: 19px; }
-  .slot .num { font-size: 11px; }
-  .slot.set { border-color: #d5dbdf; }
-  .slot:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .slot .num { font-size: 11px; color: var(--faint); }
+  .slot:hover { border-color: var(--accent); }
   .slot .cnr {
     position: absolute; top: 1px; right: 3px;
     font-size: 8px; line-height: 1; color: var(--faint);
   }
   /* A slot whose saved mapping no longer matches the button on the real
-     toolbar. SketchUp has no API to repaint one, so it waits for a launch. */
-  .slot.pend { border-color: var(--accent); border-style: dashed; }
+     toolbar. SketchUp has no API to repaint one, so it waits for a launch —
+     amber, because it is a wait, not an error and not an action. */
+  .slot.pend { border-style: dashed; border-color: var(--warn); }
   .slot.pend::after {
-    content: "";
-    position: absolute; bottom: -2px; left: 50%;
-    transform: translateX(-50%);
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--accent);
+    content: ""; position: absolute; bottom: -1px; right: -1px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--warn);
   }
-  .slots .waiting {
-    font-size: 11px;
-    color: var(--accent);
-    white-space: nowrap;
-    margin-left: 2px;
+  .slotnote {
+    font-size: 11px; color: var(--warn); background: var(--warn-bg);
+    border-radius: 6px; padding: 4px 9px; margin: 0 9px 9px;
   }
 
-  /* ---------------------------------------------------------- slot editor -- */
+  /* ------------------------------------------------------------- footer -- */
 
-  .ovl {
+  .foot {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    font-size: 11.5px;
+    color: var(--muted);
+    flex: 0 0 auto;
+    cursor: pointer;
+    user-select: none;
+  }
+  .foot .sw { width: 26px; height: 15px; }
+  .foot .sw i { width: 11px; height: 11px; }
+  .foot .sw[aria-checked="true"] i { left: 13px; }
+  .foot .hint { margin-left: auto; color: var(--faint); white-space: nowrap; }
+
+  /* -------------------------------------------------------------- sheets --
+     Both editors are bottom sheets rather than centred modals: at 330 px a
+     centred card is the whole panel anyway, and a sheet keeps the list visible
+     behind it so you can see what you are editing. */
+
+  .sheetovl {
     position: absolute; inset: 0;
-    background: rgba(28, 35, 39, .38);
+    background: var(--scrim);
     display: none;
-    align-items: center; justify-content: center;
-    padding: 12px;
+    align-items: flex-end;
     z-index: 30;
   }
-  .ovl.on { display: flex; }
-  .card {
-    display: flex; flex-direction: column;
-    width: 100%; max-height: 100%;
+  .sheetovl.on { display: flex; }
+  .sheet {
+    width: 100%;
     background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 11px;
-    overflow: hidden;
-  }
-  .card h3 {
-    font-size: 13px; font-weight: 650;
-    padding: 11px 13px;
-    border-bottom: 1px solid var(--line);
-  }
-  .card .bd { padding: 11px 13px 13px; overflow-y: auto; }
-  .card .ft {
-    display: flex; gap: 7px;
-    padding: 10px 13px;
+    color: var(--ink);
     border-top: 1px solid var(--line);
-    background: #fafbfb;
+    border-radius: 12px 12px 0 0;
+    padding: 14px 14px 12px;
+    max-height: 82%;
+    overflow-y: auto;
   }
-  .card .ft .sp { margin-left: auto; }
-  .card .fld {
-    font-size: 10.5px; font-weight: 650; letter-spacing: .1em;
+  .sheet h4 { font-size: 13px; font-weight: 650; margin-bottom: 2px; }
+  .sheet .sub { font-size: 11.5px; color: var(--muted); margin-bottom: 10px; }
+  .sheet .fld {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
     color: var(--faint);
     margin: 10px 0 5px;
   }
-  .card .fld:first-child { margin-top: 0; }
-  .card select {
-    width: 100%; font: inherit;
+  .sheet .fld:first-child { margin-top: 0; }
+  .sheet select, .sheet input[type="text"] {
+    width: 100%; font: inherit; font-size: 12px;
     padding: 6px 7px;
     border: 1px solid var(--line);
     border-radius: 6px;
-    background: var(--surface);
-    color: var(--ink);
-  }
-  .card select:focus { outline: none; border-color: var(--accent); }
-  .card input[type="text"] {
-    width: 100%; font: inherit;
-    padding: 7px 8px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--surface);
-    color: var(--ink);
-  }
-  .card input[type="text"]:focus { outline: none; border-color: var(--accent); }
-  .hint code {
-    font-size: 11px;
     background: var(--bg);
-    border-radius: 3px;
-    padding: 0 3px;
+    color: var(--ink);
   }
-  .hint { color: var(--muted); font-size: 11.5px; margin-top: 9px; }
+  .sheet select:focus, .sheet input[type="text"]:focus { outline: none; border-color: var(--accent); }
+  .sheet .hint { color: var(--muted); font-size: 11.5px; margin-top: 9px; }
+  .sheet .hint code {
+    font-size: 11px; background: var(--bg); border-radius: 3px; padding: 0 3px;
+  }
+  .sheet .btns { display: flex; gap: 7px; margin-top: 12px; }
+  .sheet .btns .sp { margin-left: auto; }
 
   .icons {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
     gap: 5px;
+    max-height: 210px;
+    overflow-y: auto;
   }
   .ic {
     height: 38px; padding: 0;
     border: 1px solid var(--line);
     border-radius: 7px;
-    background: var(--surface);
+    background: var(--bg);
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
@@ -278,242 +565,135 @@
     cursor: pointer;
   }
   .btn:hover { border-color: var(--accent); }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .btn.primary:hover { background: #d9570f; }
+  .btn.primary {
+    background: var(--accent); border-color: var(--accent);
+    color: var(--accent-ink); font-weight: 600;
+  }
+  .btn.primary:hover { background: var(--accent-hot); border-color: var(--accent-hot); }
 
-  /* --------------------------------------------------------------- list -- */
+  /* --------------------------------------------------------------- misc -- */
 
-  .scroll {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    padding: 0 12px 12px;
-  }
-
-  .sect {
-    font-size: 10.5px;
-    font-weight: 650;
-    letter-spacing: .12em;
-    color: var(--faint);
-    margin: 14px 2px 6px;
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
-  .sect .n { font-weight: 400; letter-spacing: 0; }
-
-  .group {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 9px;
-    overflow: hidden;
-  }
-  .row {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 8px 10px;
-    cursor: pointer;
-    border-top: 1px solid var(--line);
-  }
-  .row:first-child { border-top: 0; }
-  .row:hover, .row.sel { background: #f8f4f1; }
-
-  .row .body   { flex: 1 1 auto; min-width: 0; }
-  .row .title  { font-weight: 550; }
-  .row .blurb  {
-    color: var(--muted);
-    font-size: 12px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .row .meta {
-    color: var(--faint);
-    font-size: 11px;
-    white-space: nowrap;
-    text-align: right;
-    flex: 0 0 auto;
-  }
-  .row .meta .file { display: block; }
-  mark { background: #ffe3a8; color: inherit; border-radius: 2px; }
-
-  .tag {
-    font-size: 9.5px;
-    font-weight: 650;
-    letter-spacing: .07em;
-    color: var(--accent);
-    border: 1px solid currentColor;
-    border-radius: 4px;
-    padding: 0 4px;
-    flex: 0 0 auto;
-  }
-
-  .star {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px; height: 24px;
-    border: 0;
-    border-radius: 5px;
-    background: transparent;
-    color: var(--faint);
-    cursor: pointer;
-    opacity: 0;
-    flex: 0 0 auto;
-  }
-  .row:hover .star, .star.on { opacity: 1; }
-  .star svg { width: 13px; height: 13px; }
-  .star.on  { color: var(--accent); }
-  .star.on svg { fill: currentColor; }
-  .star:hover { background: var(--bg); color: var(--accent); }
-
-  /* ---------------------------------------------------------- abilities -- */
-
-  .sw {
-    position: relative;
-    width: 32px; height: 18px;
-    border: 0;
-    border-radius: 9px;
-    background: #ccd3d8;
-    cursor: pointer;
-    flex: 0 0 auto;
-    transition: background .12s;
-  }
-  .sw i {
-    position: absolute;
-    top: 2px; left: 2px;
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: #fff;
-    transition: left .12s;
-  }
-  .sw[aria-checked="true"] { background: var(--on); }
-  .sw[aria-checked="true"] i { left: 16px; }
-
-  .gear { composes: none; }
-  .settings {
-    padding: 4px 10px 10px 51px;
-    display: grid;
-    gap: 6px;
-    border-top: 1px dashed var(--line);
-    background: #fbfcfc;
-  }
-  .settings label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--muted);
-  }
-  .settings label span { flex: 0 0 auto; min-width: 90px; }
-  .settings input, .settings select {
-    flex: 1 1 auto;
-    font: inherit;
-    padding: 3px 6px;
-    border: 1px solid var(--line);
-    border-radius: 5px;
-    background: var(--surface);
-    color: var(--ink);
-  }
-  .settings input:focus, .settings select:focus { outline: none; border-color: var(--accent); }
-
-  .empty {
-    color: var(--muted);
-    text-align: center;
-    padding: 26px 12px;
-  }
+  .empty { color: var(--muted); text-align: center; padding: 26px 12px; }
   .empty code {
-    display: block;
-    margin-top: 8px;
-    font-size: 11px;
-    color: var(--faint);
+    display: block; margin-top: 8px;
+    font-size: 11px; color: var(--faint);
     word-break: break-all;
   }
 
-  /* --------------------------------------------------------------- note -- */
-
   .note {
     display: none;
-    margin: 0 12px 10px;
+    margin: 0 10px 8px;
     padding: 7px 11px;
     border-radius: 7px;
-    background: #eef6ef;
-    border: 1px solid #cfe6d4;
-    color: #22572f;
+    /* Deliberately NOT orange. Orange means "this is in your model"; a status
+       line is neither an action nor state, so it stays neutral. */
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
     font-size: 12px;
+    flex: 0 0 auto;
   }
-  .note.bad { background: #fbeeec; border-color: #efd2cc; color: #93382a; }
+  .note.bad { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 
+<!-- The WhisperRoom icon sprite is written here by render(), from the payload.
+     These few symbols are the panel's own furniture and its safety net: if
+     wr-icons.svg is missing or unreadable, every row still draws wr-default
+     rather than a hole. A missing sprite must never blank the list. -->
+<svg id="sprite" aria-hidden="true">
+  <symbol id="wr-default" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 5.5h13v13h-13z M13.5 18.5v-6h4"/>
+    </g>
+  </symbol>
+  <symbol id="g-lens" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+  <symbol id="g-rescan" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></symbol>
+  <symbol id="g-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="g-console" viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></symbol>
+  <symbol id="g-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="g-star" viewBox="0 0 16 16"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.2L8 11.5 4.2 13.5l.7-4.2-3.1-3 4.3-.6z"/></symbol>
+  <symbol id="g-pencil" viewBox="0 0 16 16"><path d="M11.2 2.3l2.5 2.5-8 8-3.2.7.7-3.2z"/><path d="M10 3.5l2.5 2.5"/></symbol>
+  <symbol id="g-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4"/><path d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6L3.3 3.3"/></symbol>
+  <symbol id="g-dialog" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12"/></symbol>
+</svg>
+
   <div class="top">
     <span class="brand">WhisperRoom</span>
     <button class="iconbtn" id="rescan" title="Rescan the scripts folder">
-      <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></svg>
+      <svg class="gl"><use href="#g-rescan" xlink:href="#g-rescan"/></svg>
     </button>
     <button class="iconbtn" id="folder" title="Open the scripts folder">
-      <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <svg class="gl"><use href="#g-folder" xlink:href="#g-folder"/></svg>
     </button>
     <button class="iconbtn" id="console" title="Ruby Console">
-      <svg viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></svg>
+      <svg class="gl"><use href="#g-console" xlink:href="#g-console"/></svg>
     </button>
   </div>
 
   <div class="cmd">
-    <svg class="lens" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-    <input id="q" placeholder="Search — or paste a booth-builder link" autofocus
+    <svg class="gl lens"><use href="#g-lens" xlink:href="#g-lens"/></svg>
+    <input id="q" placeholder="Search tools — or paste a booth-builder link" autofocus
            autocomplete="off" spellcheck="false">
     <button class="clear" id="clear" title="Clear">&#10005;</button>
   </div>
 
   <div class="linkgo" id="linkgo">
-    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+    <svg class="gl"><use href="#g-link" xlink:href="#g-link"/></svg>
     <div style="min-width:0">
       <div class="t">Build this booth design</div>
       <div class="s" id="linktext"></div>
     </div>
   </div>
 
-  <div class="slots" id="slots"></div>
+  <div class="statebar" id="statebar"></div>
   <div class="note" id="note"></div>
   <div class="scroll" id="scroll"></div>
 
-  <div class="ovl" id="rovl">
-    <div class="card">
-      <h3 id="rntitle">Rename script</h3>
-      <div class="bd">
-        <div class="fld">NAME SHOWN IN THE PANEL</div>
-        <input type="text" id="rnname" autocomplete="off" spellcheck="false">
-        <div class="hint">
-          This rewrites the script&rsquo;s <code>@title</code> header line. The
-          <b>filename does not change</b> &mdash; scripts load each other by
-          filename, toolbar slots are stored by filename, and git tracks the path.
-          Clear the box and save to fall back to the filename.
-        </div>
+  <div class="foot" id="foot">
+    <button class="sw" role="switch" aria-checked="false" id="devsw"><i></i></button>
+    <span>Show developer &amp; workshop tools</span>
+    <span class="hint">search finds them anyway</span>
+  </div>
+
+  <!-- rename sheet -->
+  <div class="sheetovl" id="rovl">
+    <div class="sheet">
+      <h4 id="rntitle">Rename script</h4>
+      <div class="sub">The label only — the file stays where it is.</div>
+      <div class="fld">NAME SHOWN IN THE PANEL</div>
+      <input type="text" id="rnname" autocomplete="off" spellcheck="false">
+      <div class="hint">
+        This rewrites the script&rsquo;s <code>@title</code> header line. The
+        <b>filename does not change</b> &mdash; scripts load each other by
+        filename, toolbar slots are stored by filename, and git tracks the path.
+        Clear the box and save to fall back to the filename.
       </div>
-      <div class="ft">
+      <div class="btns">
         <button class="btn sp" id="rncancel">Cancel</button>
         <button class="btn primary" id="rnsave">Save</button>
       </div>
     </div>
   </div>
 
-  <div class="ovl" id="ovl">
-    <div class="card">
-      <h3 id="edtitle">Toolbar slot</h3>
-      <div class="bd">
-        <div class="fld">RUNS THIS SCRIPT</div>
-        <select id="edscript"></select>
-        <div class="fld">WEARS THIS ICON</div>
-        <div class="icons" id="edicons"></div>
-        <div class="hint">
-          The button runs the new script straight away. A new <b>icon</b> is uploaded
-          to SketchUp&rsquo;s toolbar when the command is created, so it appears the
-          next time SketchUp starts.
-        </div>
+  <!-- toolbar slot sheet -->
+  <div class="sheetovl" id="ovl">
+    <div class="sheet">
+      <h4 id="edtitle">Toolbar slot</h4>
+      <div class="sub">Pick the tool it runs and the icon it wears.</div>
+      <div class="fld">RUNS THIS SCRIPT</div>
+      <select id="edscript"></select>
+      <div class="fld">WEARS THIS ICON</div>
+      <div class="icons" id="edicons"></div>
+      <div class="hint">
+        The button runs the new script straight away. A new <b>icon</b> is uploaded
+        to SketchUp&rsquo;s toolbar when the command is created, so it appears the
+        next time SketchUp starts.
       </div>
-      <div class="ft">
+      <div class="btns">
         <button class="btn" id="edclear">Clear slot</button>
         <button class="btn sp" id="edcancel">Cancel</button>
         <button class="btn primary" id="edsave">Save</button>
@@ -526,31 +706,48 @@
   "use strict";
 
   var DATA = { dir: "", scripts: [], abilities: [], recent: [], pinned: [],
-               slots: [], slot_icons: [], icons: [], pin_n: 8 };
+               slots: [], slot_icons: [], icons: [], pin_n: 8,
+               sprite: "", collapsed: [], dev: false };
 
-  // Category order, shared by the script list and the slot editor's dropdown so
-  // the two never disagree about where a script lives.
-  var ORDER = ["Build a booth", "Export art", "Model tools", "Room tools"];
-  var MORE  = "More scripts";
-  var view = [];              // filtered scripts, for keyboard navigation
-  var sel = -1;
+  // THE CATEGORY ORDER IS THE ORDER A JOB HAPPENS IN, and it is fixed rather
+  // than alphabetical or newest-first. Read top to bottom it is the pipeline:
+  // room, booth, dimensions, scenes, art, tidy-up. Newest-first was worse than
+  // it looked — editing any script silently re-ordered the category it sat in,
+  // and re-running install-plugin.py re-ordered everything at once. Recency is
+  // the NEW pill's job now.
+  var ORDER = ["Draw the room", "Build the booth", "Add dimensions",
+               "Scenes and images", "Component art (web catalog)",
+               "Tidy up the model"];
+  var PINNED  = "Pinned";
+  var MORE    = "More scripts";
+  var TOOLBAR = "SketchUp toolbar";
+  // A script says which shelf it is on with "# @shelf dev|workshop|archive".
+  // Shelves sit below everything, off by default, and search still finds them.
+  var SHELF = { dev:      "Developer probes",
+                workshop: "Workshop (3D printing)",
+                archive:  "One-off & superseded" };
+  var SHELF_ORDER = ["dev", "workshop", "archive"];
+
+  var view = [];              // runnable rows in display order, for the keyboard
+  var sel  = -1;
   var open = {};              // ability id -> settings expanded
+  var collapsed = {};         // section name -> true, mirrored into a pref
+  var lastSprite = null;
+  var BASE_SPRITE = null;     // the built-in glyphs, kept so a re-injected
+                              // sprite replaces the shipped one instead of
+                              // stacking a second copy of every symbol id
 
-  var $q      = document.getElementById("q");
-  var $clear  = document.getElementById("clear");
-  var $scroll = document.getElementById("scroll");
-  var $note   = document.getElementById("note");
-  var $linkgo = document.getElementById("linkgo");
+  var $q        = document.getElementById("q");
+  var $clear    = document.getElementById("clear");
+  var $scroll   = document.getElementById("scroll");
+  var $note     = document.getElementById("note");
+  var $linkgo   = document.getElementById("linkgo");
   var $linktext = document.getElementById("linktext");
+  var $statebar = document.getElementById("statebar");
+  var $sprite   = document.getElementById("sprite");
+  var $foot     = document.getElementById("foot");
+  var $devsw    = document.getElementById("devsw");
   var noteTimer = null;
-
-  var STAR = '<svg viewBox="0 0 16 16"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.2L8 11.5 ' +
-             '4.2 13.5l.7-4.2-3.1-3 4.3-.6z" stroke-linejoin="round"/></svg>';
-  var PENCIL = '<svg viewBox="0 0 16 16"><path d="M11.2 2.3l2.5 2.5-8 8-3.2.7.7-3.2z"/>' +
-               '<path d="M10 3.5l2.5 2.5"/></svg>';
-  var GEAR = '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4"/>' +
-             '<path d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4' +
-             'M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6L3.3 3.3"/></svg>';
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -565,6 +762,22 @@
     if (i < 0) return safe;
     var n = esc(term).length;
     return safe.slice(0, i) + "<mark>" + safe.slice(i, i + n) + "</mark>" + safe.slice(i + n);
+  }
+
+  // Both spellings of the reference, because <use href> is SVG2 and
+  // xlink:href is what every older engine understands. Cheap insurance in an
+  // embedded browser whose version is whatever SketchUp shipped with.
+  function useSvg(cls, id) {
+    return '<svg class="' + cls + '"><use href="#' + id + '" xlink:href="#' + id + '"/></svg>';
+  }
+
+  // An icon id resolves against the sprite that is actually loaded. An id with
+  // no symbol behind it — a typo in @icon, a map entry ahead of the art, a
+  // missing wr-icons.svg — falls back to the house glyph instead of drawing
+  // nothing at all.
+  function icon(id) {
+    var have = id && document.getElementById(id);
+    return useSvg("ico", have ? id : "wr-default");
   }
 
   function byName(name) {
@@ -586,14 +799,27 @@
     noteTimer = setTimeout(function () { $note.style.display = "none"; }, 6000);
   }
 
+  // ------------------------------------------------------------ abilities --
+  //
+  // One row per script. An ability is looked up by the script's FILENAME,
+  // which is the id Ruby gives it, so the switch and the tool are the same row
+  // and can never carry two different names. The one ability with no script
+  // behind it (reference geometry) declares its own category in main.rb.
+
+  function abilityFor(name) {
+    return (DATA.abilities || []).filter(function (a) { return a.id === name; })[0];
+  }
+  function orphanAbilities() {
+    return (DATA.abilities || []).filter(function (a) { return !a.file; });
+  }
+
   // ------------------------------------------------------- toolbar slots --
   //
   // A mirror of SketchUp's own toolbar row: same count, same order, same
   // faces. Clicking a tile opens the editor for that slot. Two fields, script
   // and icon, saved together — see set_slot in main.rb for why.
 
-  var $slots = document.getElementById("slots");
-  var $ovl   = document.getElementById("ovl");
+  var $ovl = document.getElementById("ovl");
   var editing = -1;
   var editIcon = "";
 
@@ -601,19 +827,13 @@
   function slotIconAt(i) { return (DATA.slot_icons || [])[i] || "-"; }
   function boundAt(i)    { return (DATA.bound || [])[i] || "-"; }
   function filled(v)     { return v && v !== "-"; }
+  function isPending(i)  { return (DATA.pending || []).indexOf(i) >= 0; }
 
   // The face FILE is resolved in Ruby, by the same code the toolbar uses, and
   // shipped here. Never re-derive it in JS — that is exactly how this row came
-  // to disagree with the row above the viewport.
-  function faceImg(file) {
-    return '<img src="' + esc(file) + '" alt="">';
-  }
-  // The library grid picks BY ID, before any slot has been saved, so it is the
-  // one place a filename is built here rather than resolved in Ruby.
-  function iconImg(id) {
-    return '<img src="ico-' + esc(id) + '.svg" alt="">';
-  }
-  function isPending(i) { return (DATA.pending || []).indexOf(i) >= 0; }
+  // to disagree with the row above the viewport. The library grid ships a file
+  // per entry for the same reason.
+  function faceImg(file) { return '<img src="' + esc(file) + '" alt="">'; }
 
   // QUICK COMMANDS LIVE ON SKETCHUP'S OWN TOOLBAR AND NOWHERE ELSE.
   //
@@ -621,15 +841,13 @@
   // named pills you could click to run. It read as a rival set of favourites,
   // and worse: the pills showed the CURRENT mapping while these tiles show what
   // the toolbar is actually wearing, so the two rows could visibly disagree.
-  // Gone. This row is a picture of the real toolbar and an editor for it, and
-  // nothing here runs a script — use the toolbar button, or the list below.
-  //
-  // A slot changed since launch gets a dashed border and a dot, because
-  // SketchUp cannot repaint a toolbar button and the change waits for a restart.
-  function drawSlots() {
+  // Gone. This row is a picture of the real toolbar and an editor for it.
+  // (The Pinned group at the top of the list is NOT that mistake coming back:
+  // it shows the tools themselves, canonical rows, not toolbar faces.)
+  function slotsHTML() {
     var n = DATA.pin_n || 8;
     var bound = DATA.bound_faces || [];
-    var h = '<span class="lbl">SKETCHUP TOOLBAR</span>';
+    var h = '<div class="slots">';
     var waiting = 0;
     for (var i = 0; i < n; i++) {
       var live = boundAt(i), s = filled(live) ? byName(live) : null;
@@ -646,18 +864,19 @@
         tip = s ? s.title + " — click to change"
                 : "Slot " + (i + 1) + " is empty — click to assign a script and an icon";
       }
-      h += '<button class="slot' + (s ? " set" : "") + (pend ? " pend" : "") +
-           '" data-s="' + i + '" title="' + esc(tip) + '">' + face +
+      h += '<button class="slot' + (pend ? " pend" : "") + '" data-s="' + i +
+           '" title="' + esc(tip) + '">' + face +
            (s ? '<span class="cnr">' + (i + 1) + "</span>" : "") + "</button>";
     }
+    h += "</div>";
     if (waiting) {
-      h += '<span class="waiting">' + waiting +
-           " waiting on restart</span>";
+      h += '<div class="slotnote">' +
+           (waiting === 1 ? "A slot changed" : waiting + " slots changed") +
+           " — SketchUp repaints toolbar icons at next launch. " +
+           (waiting === 1 ? "It already runs" : "They already run") +
+           " the new tool.</div>";
     }
-    $slots.innerHTML = h;
-    Array.prototype.forEach.call($slots.querySelectorAll(".slot"), function (el) {
-      el.addEventListener("click", function () { openEditor(+el.dataset.s); });
-    });
+    return h;
   }
 
   function openEditor(i) {
@@ -669,24 +888,16 @@
     // the same way the list below it does.
     var cur = slotAt(i);
     var opts = '<option value="">&mdash; empty &mdash;</option>';
-    var groups = {}, order = [];
+    var groups = {}, names = [];
     (DATA.scripts || []).forEach(function (s) {
-      var c = s.cat || "More scripts";
-      if (!groups[c]) { groups[c] = []; order.push(c); }
+      var c = sectionOf(s);
+      if (!groups[c]) { groups[c] = []; names.push(c); }
       groups[c].push(s);
     });
-    order.sort(function (a, b) {
-      var A = ORDER.indexOf(a), B = ORDER.indexOf(b);
-      if (a === MORE) return 1;
-      if (b === MORE) return -1;
-      if (A < 0 && B < 0) return a < b ? -1 : 1;
-      if (A < 0) return 1;
-      if (B < 0) return -1;
-      return A - B;
-    });
-    order.forEach(function (c) {
+    names.sort(cmpSection);
+    names.forEach(function (c) {
       opts += '<optgroup label="' + esc(c) + '">';
-      groups[c].forEach(function (s) {
+      groups[c].sort(cmpTitle).forEach(function (s) {
         opts += '<option value="' + esc(s.name) + '"' +
                 (s.name === cur ? " selected" : "") + ">" + esc(s.title) + "</option>";
       });
@@ -695,7 +906,7 @@
     document.getElementById("edscript").innerHTML = opts;
 
     drawIconGrid();
-    $ovl.className = "ovl on";
+    $ovl.className = "sheetovl on";
   }
 
   function drawIconGrid() {
@@ -703,8 +914,12 @@
             'title="Numbered — the default face"><span class="num">' +
             (editing + 1) + "</span></button>";
     (DATA.icons || []).forEach(function (ic) {
+      // ic.file is resolved in Ruby. Older payloads did not carry it, so the
+      // legacy filename is still derivable here as a fallback.
+      var file = ic.file || ("ico-" + ic.id + ".svg");
       h += '<button class="ic' + (ic.id === editIcon ? " on" : "") + '" data-ic="' +
-           esc(ic.id) + '" title="' + esc(ic.label) + '">' + iconImg(ic.id) + "</button>";
+           esc(ic.id) + '" title="' + esc(ic.label) + '">' +
+           '<img src="' + esc(file) + '" alt=""></button>';
     });
     var $g = document.getElementById("edicons");
     $g.innerHTML = h;
@@ -716,7 +931,7 @@
     });
   }
 
-  function closeEditor() { editing = -1; $ovl.className = "ovl"; }
+  function closeEditor() { editing = -1; $ovl.className = "sheetovl"; }
 
   document.getElementById("edcancel").addEventListener("click", closeEditor);
   document.getElementById("edsave").addEventListener("click", function () {
@@ -730,61 +945,6 @@
     closeEditor();
   });
   $ovl.addEventListener("click", function (e) { if (e.target === $ovl) closeEditor(); });
-
-  // ----------------------------------------------------------- abilities --
-
-  function abilityRows(list, term) {
-    return list.map(function (a) {
-      var sets = a.settings || [];
-      var fields = sets.map(function (s) {
-        var v = (a.values || {})[s.key];
-        var input;
-        if (s.kind === "choice") {
-          input = '<select data-id="' + esc(a.id) + '" data-k="' + esc(s.key) + '">' +
-            (s.choices || []).map(function (c) {
-              return '<option' + (c === v ? " selected" : "") + ">" + esc(c) + "</option>";
-            }).join("") + "</select>";
-        } else {
-          input = '<input type="text" value="' + esc(v) + '" data-id="' + esc(a.id) +
-                  '" data-k="' + esc(s.key) + '">';
-        }
-        return "<label><span>" + esc(s.label) + "</span>" + input + "</label>";
-      }).join("");
-
-      return '<div class="row" data-ab="' + esc(a.id) + '">' +
-               '<button class="sw" role="switch" aria-checked="' + (a.on_now ? "true" : "false") +
-                 '" data-id="' + esc(a.id) + '"><i></i></button>' +
-               '<div class="body">' +
-                 '<div class="title">' + hl(a.label, term) + "</div>" +
-                 (a.blurb ? '<div class="blurb">' + hl(a.blurb, term) + "</div>" : "") +
-               "</div>" +
-               (sets.length ? '<button class="star on gear" style="opacity:1" data-g="' +
-                              esc(a.id) + '" title="Settings">' + GEAR + "</button>" : "") +
-             "</div>" +
-             (open[a.id] && sets.length ? '<div class="settings">' + fields + "</div>" : "");
-    }).join("");
-  }
-
-  // ------------------------------------------------------------- scripts --
-
-  function scriptRow(s, i, term) {
-    var p = isPinned(s.name);
-    return '<div class="row' + (i === sel ? " sel" : "") + '" data-i="' + i + '">' +
-             '<div class="body">' +
-               '<div class="title">' + hl(s.title, term) +
-                 (s.fresh ? ' <span class="tag">NEW</span>' : "") + "</div>" +
-               (s.blurb ? '<div class="blurb">' + hl(s.blurb, term) + "</div>" : "") +
-             "</div>" +
-             '<div class="meta">' + esc(s.ago) +
-               '<span class="file">' + hl(s.name, term) + "</span></div>" +
-             '<button class="star" data-r="' + esc(s.name) +
-               '" title="Rename — changes the label, not the filename">' + PENCIL + "</button>" +
-             '<button class="star' + (p ? " on" : "") + '" data-n="' + esc(s.name) +
-               '" title="' + (p ? "Take off the SketchUp toolbar"
-                                : "Put on the SketchUp toolbar (first free slot)") +
-               '">' + STAR + "</button>" +
-           "</div>";
-  }
 
   // ------------------------------------------------------------- renaming --
   //
@@ -801,12 +961,12 @@
     renaming = name;
     document.getElementById("rntitle").textContent = "Rename " + name;
     $rn.value = s.title;
-    $rovl.className = "ovl on";
+    $rovl.className = "sheetovl on";
     $rn.focus();
     $rn.select();
   }
 
-  function closeRename() { renaming = null; $rovl.className = "ovl"; }
+  function closeRename() { renaming = null; $rovl.className = "sheetovl"; }
 
   function saveRename() {
     if (!renaming) return;
@@ -821,6 +981,163 @@
     if (e.key === "Enter") { e.preventDefault(); saveRename(); }
   });
 
+  // ------------------------------------------------------------ sectioning --
+
+  function sectionOf(s) {
+    if (s.shelf && SHELF[s.shelf]) return SHELF[s.shelf];
+    return s.cat || MORE;
+  }
+
+  function shelfRank(name) {
+    for (var i = 0; i < SHELF_ORDER.length; i++) {
+      if (SHELF[SHELF_ORDER[i]] === name) return i;
+    }
+    return -1;
+  }
+
+  // Fixed pipeline order, then anything uncategorised, then MORE, then the
+  // shelves, then the toolbar. Every comparison is on the name, so the same
+  // function orders the list and the slot editor's dropdown.
+  function rank(name) {
+    if (name === PINNED) return -1;
+    var i = ORDER.indexOf(name);
+    if (i >= 0) return i;
+    if (name === TOOLBAR) return 900;
+    var sh = shelfRank(name);
+    if (sh >= 0) return 800 + sh;
+    if (name === MORE) return 700;
+    return 600;
+  }
+
+  function cmpSection(a, b) {
+    var ra = rank(a), rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    return a < b ? -1 : (a > b ? 1 : 0);
+  }
+
+  // Alphabetical inside a category, so a row does not move because a file was
+  // touched. Predictability beats recency once the list has categories.
+  function cmpTitle(a, b) {
+    var A = (a.title || "").toLowerCase(), B = (b.title || "").toLowerCase();
+    return A < B ? -1 : (A > B ? 1 : 0);
+  }
+
+  // -------------------------------------------------------------- rows --
+
+  function star(name) {
+    var p = isPinned(name);
+    return '<button class="star' + (p ? " on" : "") + '" data-n="' + esc(name) +
+           '" title="' + (p ? "Take off the SketchUp toolbar"
+                            : "Put on the SketchUp toolbar (first free slot)") +
+           '">' + useSvg("gl", "g-star") + "</button>";
+  }
+
+  function pencil(name) {
+    return '<button class="star" data-r="' + esc(name) +
+           '" title="Rename — changes the label, not the filename">' +
+           useSvg("gl", "g-pencil") + "</button>";
+  }
+
+  // The "ago" stamp and the filename used to have their own column on every
+  // row. They are metadata about the FILE, not about the tool, and they cost
+  // the blurb its width — so they moved into the tooltip, where they are still
+  // one hover away.
+  function tip(s, extra) {
+    return s.name + " · modified " + s.ago + (extra ? " · " + extra : "");
+  }
+
+  function actionRow(s, i, term) {
+    return '<div class="row' + (i === sel ? " sel" : "") + '" data-i="' + i +
+             '" title="' + esc(tip(s, "click to run")) + '">' +
+             '<span class="iw">' + icon(s.icon) + "</span>" +
+             '<span class="body">' +
+               '<span class="t"><span class="nm">' + hl(s.title, term) + "</span>" +
+                 (s.fresh ? '<span class="pill-new">NEW</span>' : "") +
+                 (s.shelf ? '<span class="badge-dev">DEV</span>' : "") + "</span>" +
+               '<span class="b">' + (s.blurb ? hl(s.blurb, term) : "") + "</span>" +
+             "</span>" +
+             (s.dialog ? '<svg class="dlg"><use href="#g-dialog" xlink:href="#g-dialog"/></svg>' : "") +
+             '<span class="run">RUN &#9656;</span>' +
+             pencil(s.name) + star(s.name) +
+           "</div>";
+  }
+
+  // An ability row has NO run affordance. The switch is the action — which is
+  // also why toggling one can no longer open the script's own dialog.
+  function abilityRow(a, s, term) {
+    var sets = a.settings || [];
+    var title = s ? s.title : a.label;
+    var blurb = a.blurb || (s ? s.blurb : "");
+    var fields = sets.map(function (st) {
+      var v = (a.values || {})[st.key];
+      var input;
+      if (st.kind === "choice") {
+        input = '<select data-id="' + esc(a.id) + '" data-k="' + esc(st.key) + '">' +
+          (st.choices || []).map(function (c) {
+            return '<option' + (c === v ? " selected" : "") + ">" + esc(c) + "</option>";
+          }).join("") + "</select>";
+      } else {
+        input = '<input type="text" value="' + esc(v) + '" data-id="' + esc(a.id) +
+                '" data-k="' + esc(st.key) + '">';
+      }
+      return "<label><span>" + esc(st.label) + "</span>" + input + "</label>";
+    }).join("");
+
+    var t = s ? tip(s, "stays on in this model until switched off")
+              : a.label + " — stays on in this model until switched off";
+    return '<div class="row ab' + (a.on_now ? " on" : "") + '" data-ab="' + esc(a.id) +
+             '" title="' + esc(t) + '">' +
+             '<span class="iw">' + icon(a.icon || (s ? s.icon : null)) + "</span>" +
+             '<span class="body">' +
+               '<span class="t"><span class="nm">' + hl(title, term) + "</span>" +
+                 (s && s.shelf ? '<span class="badge-dev">DEV</span>' : "") + "</span>" +
+               '<span class="b">' + (blurb ? hl(blurb, term) : "") + "</span>" +
+             "</span>" +
+             '<span class="stat">' + (a.on_now ? "ON" : "OFF") + "</span>" +
+             (sets.length ? '<button class="gearbtn" data-g="' + esc(a.id) +
+                            '" title="Settings">' + useSvg("gl", "g-gear") + "</button>" : "") +
+             '<button class="sw" role="switch" aria-checked="' + (a.on_now ? "true" : "false") +
+               '" data-id="' + esc(a.id) + '"><i></i></button>' +
+             (s ? star(s.name) : "") +
+           "</div>" +
+           (open[a.id] && sets.length ? '<div class="settings">' + fields + "</div>" : "");
+  }
+
+  // --------------------------------------------------------- state strip --
+
+  function drawState() {
+    var on = (DATA.abilities || []).filter(function (a) { return a.on_now; });
+    var h = '<span class="cap">IN THIS MODEL</span>';
+    if (!on.length) {
+      h += '<span class="none">nothing drawn by the panel</span>';
+    } else {
+      on.forEach(function (a) {
+        var s = byName(a.id);
+        h += '<button class="chip" data-chip="' + esc(a.id) + '" title="' +
+             esc((s ? s.title : a.label) + " — click to jump to its switch") + '">' +
+             esc(a.label) + "</button>";
+      });
+    }
+    $statebar.innerHTML = h;
+    Array.prototype.forEach.call($statebar.querySelectorAll(".chip"), function (el) {
+      el.addEventListener("click", function () {
+        var row = $scroll.querySelector('.row[data-ab="' + el.dataset.chip + '"]');
+        if (!row) return;
+        var sect = sectionFor(row);
+        if (sect && sect.classList.contains("closed")) toggleSection(sect);
+        row = $scroll.querySelector('.row[data-ab="' + el.dataset.chip + '"]');
+        if (row) row.scrollIntoView({ block: "center" });
+      });
+    });
+  }
+
+  function sectionFor(row) {
+    var g = row.parentNode;
+    return g && g.previousElementSibling &&
+           g.previousElementSibling.classList.contains("sect")
+      ? g.previousElementSibling : null;
+  }
+
   // ----------------------------------------------------------------- draw --
 
   function draw() {
@@ -832,66 +1149,111 @@
     if (link) { $linktext.textContent = term; }
 
     var t = term.toLowerCase();
-    var abs = (DATA.abilities || []).filter(function (a) {
-      return !t || (a.label + " " + (a.blurb || "")).toLowerCase().indexOf(t) >= 0;
+    function hit(s, a) {
+      if (!t) return true;
+      var hay = s ? (s.title + " " + s.name + " " + (s.blurb || "")) : "";
+      if (a) hay += " " + a.label + " " + (a.blurb || "");
+      return hay.toLowerCase().indexOf(t) >= 0;
+    }
+
+    // A shelved script is out of the default list but never out of reach:
+    // typing its name finds it whatever the footer switch says. That is the
+    // half that matters — a name you already know is the fastest route there
+    // is, and hiding must not mean removing.
+    var groups = {}, names = [];
+    function push(sect, item) {
+      if (!groups[sect]) { groups[sect] = []; names.push(sect); }
+      groups[sect].push(item);
+    }
+
+    (DATA.scripts || []).forEach(function (s) {
+      if (link) return;
+      var a = abilityFor(s.name);
+      if (!hit(s, a)) return;
+      if (s.shelf && !DATA.dev && !t) return;
+      push(sectionOf(s), { s: s, a: a });
     });
-    view = (DATA.scripts || []).filter(function (s) {
-      return !t || (s.title + " " + s.name + " " + (s.blurb || "")).toLowerCase().indexOf(t) >= 0;
+    orphanAbilities().forEach(function (a) {
+      if (link || !hit(null, a)) return;
+      push(a.cat || MORE, { s: null, a: a });
     });
-    if (link) { abs = []; view = []; }
-    if (sel >= view.length) sel = view.length - 1;
+
+    // Pinned: the starred tools, as their own canonical rows, in slot order.
+    if (!link) {
+      (DATA.pinned || []).forEach(function (n) {
+        var s = byName(n);
+        if (!s) return;
+        var a = abilityFor(n);
+        if (!hit(s, a)) return;
+        push(PINNED, { s: s, a: a });
+      });
+    }
+
+    names.sort(cmpSection);
 
     var h = "";
-    if (abs.length) {
-      h += '<div class="sect">ABILITIES <span class="n">' +
-           abs.filter(function (a) { return a.on_now; }).length + " on</span></div>" +
-           '<div class="group">' + abilityRows(abs, term) + "</div>";
-    }
-    if (view.length) {
-      // Scripts grouped by their "@cat" header. Known categories in a fixed
-      // order; anything uncategorised — generated booths, one-off layouts —
-      // sinks into MORE SCRIPTS at the bottom, where run-once scripts belong.
-      var groups = {};
-      view.forEach(function (s) {
-        var c = s.cat || MORE;
-        (groups[c] = groups[c] || []).push(s);
+    var idx = 0;
+    view = [];
+    names.forEach(function (c) {
+      var items = groups[c];
+      if (c !== PINNED) items.sort(function (x, y) {
+        return cmpTitle(x.s || { title: x.a.label }, y.s || { title: y.a.label });
       });
-      var names = Object.keys(groups).sort(function (a, b) {
-        if (a === MORE) return 1;
-        if (b === MORE) return -1;
-        var ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
-        if (ia < 0 && ib < 0) return a < b ? -1 : 1;
-        if (ia < 0) return 1;
-        if (ib < 0) return -1;
-        return ia - ib;
-      });
-      var flat = [];
-      names.forEach(function (c) { groups[c].forEach(function (s) { flat.push(s); }); });
-      view = flat;                       // keyboard order follows display order
-      var idx = 0;
-      names.forEach(function (c) {
-        h += '<div class="sect">' + esc(c).toUpperCase() + ' <span class="n">' +
-             groups[c].length + "</span></div>" +
-             '<div class="group">' + groups[c].map(function (s) {
-               return scriptRow(s, idx++, term);
-             }).join("") + "</div>";
-      });
-    }
+      // A search opens everything it matched; the saved collapse state comes
+      // back when the search is cleared.
+      var shut = !t && collapsed[c];
+      h += '<div class="sect' + (shut ? " closed" : "") + '" data-sec="' + esc(c) + '">' +
+             '<span class="nm">' + esc(c).toUpperCase() + "</span>" +
+             '<span class="n">' + items.length + "</span>" +
+             '<span class="cv">&#9662;</span>' +
+           "</div>" +
+           '<div class="group">' +
+           items.map(function (it) {
+             if (it.a) return abilityRow(it.a, it.s, term);
+             view.push(it.s);
+             return actionRow(it.s, idx++, term);
+           }).join("") +
+           "</div>";
+    });
+
     if (!h && !link) {
       h = DATA.scripts.length
         ? '<div class="empty">Nothing matches &ldquo;' + esc(term) + "&rdquo;</div>"
         : '<div class="empty">No .rb files found in<code>' + esc(DATA.dir) + "</code></div>";
     }
+
+    // The toolbar mirror is the LAST section, not the first. It is plumbing,
+    // and plumbing does not go where the work should be.
+    if (!link) {
+      var tshut = collapsed[TOOLBAR];
+      h += '<div class="sect' + (tshut ? " closed" : "") + '" data-sec="' + esc(TOOLBAR) + '">' +
+             '<span class="nm">SKETCHUP TOOLBAR</span>' +
+             '<span class="n">' + (DATA.pin_n || 8) + " slots</span>" +
+             '<span class="cv">&#9662;</span>' +
+           "</div>" +
+           '<div class="group">' + slotsHTML() + "</div>";
+    }
+
     // Running off the copy inside the plugin rather than a git checkout. Worth
     // saying once, quietly: on this machine editing a script in a repo will do
     // nothing, because there is no repo for it to find.
     if (DATA.bundled) {
       h += '<div class="empty" style="padding:14px 12px 4px;font-size:11.5px">' +
            "Scripts are running from the copy bundled with the plugin." +
-           '<code>' + esc(DATA.dir) + "</code></div>";
+           "<code>" + esc(DATA.dir) + "</code></div>";
     }
+
+    if (sel >= view.length) sel = view.length - 1;
     $scroll.innerHTML = h;
-    wire(term);
+    wire();
+  }
+
+  function toggleSection(el) {
+    var name = el.dataset.sec;
+    collapsed[name] = !collapsed[name];
+    el.classList.toggle("closed", !!collapsed[name]);
+    var list = Object.keys(collapsed).filter(function (k) { return collapsed[k]; });
+    if (window.sketchup && sketchup.collapse) sketchup.collapse(list.join("|"));
   }
 
   function wire() {
@@ -914,7 +1276,19 @@
       el.addEventListener("click", function (e) {
         e.stopPropagation();
         var on = el.getAttribute("aria-checked") !== "true";
-        el.setAttribute("aria-checked", on ? "true" : "false");   // optimistic
+        // Optimistic, and applied to EVERY switch carrying this id — a pinned
+        // ability shows up twice, in Pinned and in its own category, and half a
+        // flip looks like a bug. Ruby's render corrects all of them either way.
+        Array.prototype.forEach.call(
+          $scroll.querySelectorAll('.sw[data-id="' + el.dataset.id + '"]'), function (sw) {
+            sw.setAttribute("aria-checked", on ? "true" : "false");
+            var row = sw.closest(".row");
+            if (row) {
+              row.classList.toggle("on", on);
+              var st = row.querySelector(".stat");
+              if (st) st.textContent = on ? "ON" : "OFF";
+            }
+          });
         sketchup.ability(el.dataset.id, on ? "true" : "false");
       });
     });
@@ -932,6 +1306,15 @@
         });
         el.addEventListener("click", function (e) { e.stopPropagation(); });
       });
+    Array.prototype.forEach.call($scroll.querySelectorAll(".sect[data-sec]"), function (el) {
+      el.addEventListener("click", function () { toggleSection(el); });
+    });
+    Array.prototype.forEach.call($scroll.querySelectorAll(".slot[data-s]"), function (el) {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openEditor(+el.dataset.s);
+      });
+    });
   }
 
   function runAt(i) {
@@ -964,7 +1347,7 @@
   });
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
-    if (renaming)      { e.preventDefault(); closeRename(); }
+    if (renaming)          { e.preventDefault(); closeRename(); }
     else if (editing >= 0) { e.preventDefault(); closeEditor(); }
   });
   $clear.addEventListener("click", function () { $q.value = ""; sel = -1; draw(); $q.focus(); });
@@ -982,12 +1365,37 @@
   document.getElementById("folder").addEventListener("click", function () { sketchup.folder(); });
   document.getElementById("console").addEventListener("click", function () { sketchup.console(); });
 
+  // The dev/workshop switch is panel furniture, so it is stored in preferences
+  // and redrawn here rather than round-tripping through a Ruby render — the
+  // list would scroll out from under the click that caused it.
+  $foot.addEventListener("click", function () {
+    DATA.dev = !DATA.dev;
+    $devsw.setAttribute("aria-checked", DATA.dev ? "true" : "false");
+    $foot.classList.toggle("on", DATA.dev);
+    if (window.sketchup && sketchup.devtools) sketchup.devtools(DATA.dev ? "true" : "false");
+    draw();
+  });
+
   // Ruby is the source of truth for every switch position; the optimistic flip
   // on click only makes the switch feel immediate, and this render corrects it.
   window.WR = {
     render: function (payload) {
       DATA = payload || DATA;
-      drawSlots();
+
+      // The sprite is replaced only when it actually changed. Rewriting it on
+      // every render would re-resolve every <use> in the list for nothing.
+      if (BASE_SPRITE === null) BASE_SPRITE = $sprite.innerHTML;
+      if (typeof DATA.sprite === "string" && DATA.sprite !== lastSprite) {
+        lastSprite = DATA.sprite;
+        $sprite.innerHTML = BASE_SPRITE + DATA.sprite;
+      }
+
+      collapsed = {};
+      (DATA.collapsed || []).forEach(function (c) { collapsed[c] = true; });
+      $devsw.setAttribute("aria-checked", DATA.dev ? "true" : "false");
+      $foot.classList.toggle("on", !!DATA.dev);
+
+      drawState();
       draw();
       if (DATA.note) note(DATA.note, /fail|error|could not|no /i.test(DATA.note));
     }

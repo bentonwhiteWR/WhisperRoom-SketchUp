@@ -1,5 +1,5 @@
-# @title Elevation Export...
-# @cat Export art
+# @title Component art — six elevations...
+# @cat Component art (web catalog)
 #
 # Straight-on orthographic views of every scene's component — front, back, left,
 # right, top, bottom — at ONE shared scale across the whole run.

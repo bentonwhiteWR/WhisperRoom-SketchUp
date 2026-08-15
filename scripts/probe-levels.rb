@@ -1,5 +1,5 @@
 # @title Probe Face Levels...
-# @cat Model tools
+# @shelf dev
 #
 # For each part, the HEIGHTS OF ITS HORIZONTAL FACES and how much area sits at
 # each one. That is how a floor panel's perimeter strip gets measured, and a

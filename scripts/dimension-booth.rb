@@ -1,5 +1,5 @@
-# @title Dimension WhisperRoom...
-# @cat Room tools
+# @title Dimension the booth (catalogue figures)...
+# @cat Add dimensions
 # @ability Dimensioned booth
 # @ability-blurb Select a booth: it works out which model, dimensions it and labels it. Switch off to remove.
 # @setting height  choice  Auto|Standard|Enhanced  Panel height

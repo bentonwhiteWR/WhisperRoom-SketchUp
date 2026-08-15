@@ -1,5 +1,5 @@
 # @title Merge Materials...
-# @cat Model tools
+# @cat Tidy up the model
 #
 # Point every face, edge, group and instance that uses one material at another
 # one, then delete the emptied material. One material to edit instead of five.

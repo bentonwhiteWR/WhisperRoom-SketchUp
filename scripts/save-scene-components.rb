@@ -1,5 +1,5 @@
 # @title Save Scene Components...
-# @cat Model tools
+# @cat Component art (web catalog)
 #
 # One .skp per scene. Each scene is aimed at a component; this walks the scene
 # list, works out which component each one is looking at, and saves that

@@ -1,5 +1,5 @@
 # @title List Scenes...
-# @cat Model tools
+# @cat Scenes and images
 #
 # Every scene with its NUMBER, in a window you can search, sort and tick — so
 # "scenes 1-40" can be typed into the exporters knowing what it covers. Two

@@ -1,5 +1,5 @@
-# @title Proposal Scenes...
-# @cat Room tools
+# @title Set up the five proposal plates...
+# @cat Scenes and images
 # @ability Proposal scenes
 # @ability-blurb Create the five proposal plates; switch off to remove them.
 # @on  WR_ProposalScenes.ability_on(opts)
@@ -248,4 +248,4 @@ module WR_ProposalScenes
   end
 end
 
-WR_ProposalScenes.run
+WR_ProposalScenes.run unless $wr_no_autorun

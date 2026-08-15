@@ -1,4 +1,5 @@
 # @title Pendant Curing Jig...
+# @shelf workshop
 #
 # A 3D-printable jig that holds a pendant's metal housing square and centres the
 # polycarbonate tube in it while the adhesive cures.
