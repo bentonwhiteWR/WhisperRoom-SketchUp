@@ -897,7 +897,7 @@
     names.sort(cmpSection);
     names.forEach(function (c) {
       opts += '<optgroup label="' + esc(c) + '">';
-      groups[c].sort(cmpTitle).forEach(function (s) {
+      groups[c].sort(cmpRow).forEach(function (s) {
         opts += '<option value="' + esc(s.name) + '"' +
                 (s.name === cur ? " selected" : "") + ">" + esc(s.title) + "</option>";
       });
@@ -1020,6 +1020,29 @@
   function cmpTitle(a, b) {
     var A = (a.title || "").toLowerCase(), B = (b.title || "").toLowerCase();
     return A < B ? -1 : (A > B ? 1 : 0);
+  }
+
+  // EXCEPT where the category is a ladder rather than a set. "Build the booth"
+  // is three ways in, best first: alphabetical opens it with the fast, least
+  // capable block-out and hides the tool that builds the customer's actual
+  // configuration at the bottom. The eye lands on the first row, so the wrong
+  // order does not merely fail to help — it recommends the wrong tool.
+  //
+  // A script opts in with "# @rank <n>" in its own header (parsed in main.rb's
+  // meta_of, same place as @cat and @icon, so the order cannot drift away from
+  // the files it describes). Lower first; anything unranked follows, still
+  // alphabetically. Ranking nothing leaves the list exactly as it was.
+  function rankOf(s) {
+    var r = s && s.rank;
+    return (typeof r === "number" && isFinite(r)) ? r : null;
+  }
+
+  function cmpRow(a, b) {
+    var ra = rankOf(a), rb = rankOf(b);
+    if (ra !== null && rb !== null && ra !== rb) return ra - rb;
+    if (ra !== null && rb === null) return -1;
+    if (ra === null && rb !== null) return 1;
+    return cmpTitle(a, b);
   }
 
   // -------------------------------------------------------------- rows --
@@ -1196,8 +1219,12 @@
     view = [];
     names.forEach(function (c) {
       var items = groups[c];
+      // Pinned keeps slot order — that IS its meaning. An ability's row sorts
+      // on its script, so a ranked category orders switches and actions
+      // together; the one built-in ability has no script and no rank, so it
+      // falls in with the alphabetical tail.
       if (c !== PINNED) items.sort(function (x, y) {
-        return cmpTitle(x.s || { title: x.a.label }, y.s || { title: y.a.label });
+        return cmpRow(x.s || { title: x.a.label }, y.s || { title: y.a.label });
       });
       // A search opens everything it matched; the saved collapse state comes
       // back when the search is cleared.

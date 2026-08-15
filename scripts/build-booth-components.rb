@@ -1,5 +1,6 @@
 # @title Build a booth from real parts...
 # @cat Build the booth
+# @rank 2
 #
 # Builds a booth out of the REAL component .skp files instead of extruded boxes.
 #

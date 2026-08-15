@@ -1,5 +1,6 @@
 # @title Build the customer's booth (share link)...
 # @cat Build the booth
+# @rank 1
 #
 # Paste a booth-builder share link, get that exact booth built from the real
 # components. The customer's own arrangement — model, door hand, windows,

@@ -13,8 +13,9 @@
   `wr-ico-*.svg` glob beside `ico-*.svg`, `ui_collapsed` / `ui_dev` prefs, and
   the autorun guard fix in `toggle` (`load_quietly`).
 - `scripts/*.rb` header lines only — the 14 approved `@title` renames, the new
-  six-category `@cat` tree, `@shelf` on the eight shelved scripts, and a first
-  header for `csusb-rooms.rb` and `diag-favourites.rb`.
+  six-category `@cat` tree, `@shelf` on the eight shelved scripts, `@rank` on
+  the seven scripts in the two ordered categories, and a first header for
+  `csusb-rooms.rb` and `diag-favourites.rb`.
 - `scripts/explode-view.rb`, `scripts/proposal-scenes.rb` — one line each: the
   missing `unless $wr_no_autorun` guard on their top-level autorun.
 
@@ -56,20 +57,41 @@ dropping the file in and hitting Rescan is enough — no SketchUp restart.
   Researcher's grammar allowed `dev|workshop|archive`; the mockup only drew two
   shelves. Third shelf reads "One-off & superseded".
 
+## Ordering: `# @rank <n>`, and where it is used
+
+Sorting is category order, then `@rank` ascending, then alphabetical. `@rank` is
+optional and additive, parsed in `meta_of` beside `@cat` and `@icon`; a script
+without one sorts after every ranked script in its category, alphabetically
+among its peers. Ranking nothing anywhere leaves the list exactly as
+alphabetical, so the "zero edits required for the panel to render" property is
+intact.
+
+Ranked, because these two categories are sequences and the first row is what the
+eye lands on:
+
+- **Build the booth** — `booth-from-link.rb` 1, `build-booth-components.rb` 2,
+  `build-booth.rb` 3. The Researcher's ladder, best first. Alphabetical put the
+  fast low-detail block-out at the top and buried the tool that builds the
+  customer's actual configuration.
+- **Scenes and images** — `proposal-scenes.rb` 1, `list-scenes.rb` 2,
+  `export-scenes.rb` 3, `export-this-view.rb` 4. "Set the plates up, then write
+  the PNGs." Alphabetical put the setup step last, which is the same class of
+  error.
+
+Left alphabetical, deliberately: *Add dimensions* (the Researcher is explicit
+that these are three different subjects, not a sequence — nothing is misread by
+sorting them by name), *Component art (web catalog)* (alphabetical already files
+the three "Component art —" siblings together), *Tidy up the model*, *Draw the
+room* (one entry), the shelves, and *Pinned*, which keeps toolbar-slot order
+because that order is its meaning.
+
 ## Open questions
 
-1. **Intra-category order contradicts the Researcher on one category.** The spec
-   says "category order, then alphabetical", which is what shipped. In *Build the
-   booth* that sorts the ladder backwards — Block-out (least capable) first,
-   share-link (the right answer on a real job) last — which is exactly what
-   `proposed-structure.md` warned against. Fixing it needs either an additive
-   `# @rank` header or a per-category rung table. Neither is in this round's
-   scope. Flagged, not silently resolved.
-2. Six scripts have a proposed title in the Researcher's category tree but are
+1. Six scripts have a proposed title in the Researcher's category tree but are
    **not** in the approved 14 renames (`list-scenes.rb`, `orbit-export.rb`,
    `explode-view.rb`, `save-scene-components.rb`, `find-replace-names.rb`,
    `merge-materials.rb`). Their old titles are untouched. Benton's call.
-3. `diag-favourites.rb` — the Researcher asked whether it is now dead. It is
+2. `diag-favourites.rb` — the Researcher asked whether it is now dead. It is
    shelved under `dev` with a real title; still unanswered.
-4. Ability rows are not reachable by the arrow-key/Enter navigation, which walks
+3. Ability rows are not reachable by the arrow-key/Enter navigation, which walks
    runnable rows only. Deliberate, but worth a second opinion.

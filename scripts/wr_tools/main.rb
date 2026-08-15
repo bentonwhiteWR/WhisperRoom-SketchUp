@@ -99,12 +99,23 @@ module WhisperRoom
     # icon sprite. A script that does not declare one is resolved through
     # icon-map.json instead, so the icon rollout costs one JSON file rather than
     # an edit to every script — see icon_of.
+    #
+    # "# @rank <n>" is OPTIONAL and ADDITIVE, and it exists for one reason: a
+    # few categories are LADDERS, not sets. Sorted alphabetically, "Build the
+    # booth" opens with the fast low-detail block-out and buries the tool that
+    # builds the customer's actual configuration — the eye lands on the first
+    # row, so alphabetical there does not merely fail to help, it points at the
+    # wrong tool. Lower ranks sort first; a script with no @rank sorts after
+    # every ranked one, alphabetically among its peers. So ranking is opt-in per
+    # script, costs nothing on the thirty that ignore it, and no script has to
+    # be edited for the panel to render.
     def self.meta_of(path)
       title = nil
       blurb = []
       started = false
       abil = nil
       icon = nil
+      rank = nil
       dialog = false
       File.foreach(path).with_index do |line, i|
         break if i > 60
@@ -125,6 +136,12 @@ module WhisperRoom
         end
         if text =~ /^@icon\s+(\S+)/
           icon = Regexp.last_match(1).strip
+          next
+        end
+        # Integers only, and anything else is left as no rank at all rather
+        # than silently becoming 0 — which would sort a typo to the top.
+        if text =~ /^@rank\s+(-?\d+)\s*$/
+          rank = Regexp.last_match(1).to_i
           next
         end
         if text =~ /^@ability\s+(.+)$/
@@ -162,9 +179,9 @@ module WhisperRoom
         break if blurb.join(' ').length > 200
       end
       abil = nil unless abil && abil['label'] && abil['on'] && abil['off']
-      [title, blurb.join(' '), abil, icon, dialog]
+      [title, blurb.join(' '), abil, icon, dialog, rank]
     rescue StandardError
-      [nil, '', nil, nil, false]
+      [nil, '', nil, nil, false, nil]
     end
 
     def self.pretty(basename)
@@ -224,7 +241,7 @@ module WhisperRoom
 
     def self.scan
       script_files.map { |path|
-        title, blurb, abil, icon, dialog = meta_of(path)
+        title, blurb, abil, icon, dialog, rank = meta_of(path)
         mtime = File.mtime(path)
         name  = File.basename(path)
         {
@@ -235,6 +252,7 @@ module WhisperRoom
           'shelf'   => shelf_of(path),
           'icon'    => icon_of(name, icon),
           'dialog'  => dialog,
+          'rank'    => rank,
           'blurb'   => blurb,
           # ago and name stay in the payload even though no row prints them any
           # more — the redesigned rows carry both in their tooltip.

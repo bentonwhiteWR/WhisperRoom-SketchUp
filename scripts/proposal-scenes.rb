@@ -1,5 +1,6 @@
 # @title Set up the five proposal plates...
 # @cat Scenes and images
+# @rank 1
 # @ability Proposal scenes
 # @ability-blurb Create the five proposal plates; switch off to remove them.
 # @on  WR_ProposalScenes.ability_on(opts)
