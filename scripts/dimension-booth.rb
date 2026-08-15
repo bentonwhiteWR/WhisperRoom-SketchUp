@@ -189,7 +189,7 @@ module WR_DimensionBooth
   # the ground plane running out from the near corner, and the height standing
   # off the left. Consistent placement beats clever placement — you learn where
   # to look, and two booths side by side read the same way.
-  def self.draw(model, ext, height, gap, origin)
+  def self.draw(model, ext, height, gap, origin, label = nil)
     lay = tag(model)
     ents = model.entities
     g = gap.to_f.abs
@@ -199,6 +199,17 @@ module WR_DimensionBooth
     pt = lambda { |x, y, z| Geom::Point3d.new(ox + x, oy + y, oz + z) }
 
     made = []
+    # THE DRAWING SAYS WHICH BOOTH IT IS. Three numbers with no model name on
+    # them is how a 96120's dimensions end up quoted for a 96144 — and it is the
+    # difference between a drawing and a screenshot. Sits above the booth, clear
+    # of all three dimensions.
+    unless label.nil? || label.empty?
+      t = (ents.add_text(label, pt.call(ext[:x0], ext[:y0], BASE_Z + height + g * 0.5)) rescue nil)
+      if t
+        (t.layer = lay) rescue nil
+        made << t
+      end
+    end
     # ACROSS X, on the near edge, pushed toward the viewer.
     made << dim(ents, pt.call(ext[:x0], ext[:y0], BASE_Z),
                 pt.call(ext[:x1], ext[:y0], BASE_Z),
@@ -222,7 +233,10 @@ module WR_DimensionBooth
   def self.clear(model)
     doomed = model.entities.to_a.select do |e|
       next false unless e.valid?
-      next false unless e.is_a?(Sketchup::Dimension)
+      # Text as well as Dimension — the model label is part of what this drew,
+      # and switching the ability off has to take the whole drawing with it or
+      # the next booth inherits the last one's name.
+      next false unless e.is_a?(Sketchup::Dimension) || e.is_a?(Sketchup::Text)
       (e.layer && e.layer.name == TAG) || e.get_attribute(DICT, 'own', false)
     end
     n = doomed.length
@@ -237,6 +251,25 @@ module WR_DimensionBooth
     Sketchup.format_length(inches.to_f).to_s
   rescue StandardError
     format('%.4f in', inches.to_f)
+  end
+
+  # Dimension Selection's tag. Not ours to erase — it is a different tool
+  # answering a different question and Benton may want both — but its numbers
+  # are a bounding box, so a booth carrying both sets shows two DIFFERENT
+  # footprints at once and nothing on screen says which is which.
+  #
+  # That has already happened: a build came back reading 10' 8 7/16" x 9' 11 1/2"
+  # on a booth whose catalogue size is 10' 7 1/2" x 8' 7 1/2", because the open
+  # door leaf and a vent housing are in the box. So this counts them and says so.
+  OTHER_TAG = 'WR-Dims-Selection'.freeze
+
+  def self.other_dims(model)
+    model.entities.to_a.count do |e|
+      e.valid? && e.is_a?(Sketchup::Dimension) &&
+        e.layer && e.layer.name == OTHER_TAG
+    end
+  rescue StandardError
+    0
   end
 
   # ------------------------------------------------------------------ input --
@@ -304,19 +337,22 @@ module WR_DimensionBooth
     rescue StandardError
     end
 
+    dx = ext[:x1] - ext[:x0]
+    dy = ext[:y1] - ext[:y0]
+    label = format("%s\n%s x %s x %s%s", booth, arch(dx), arch(dy), arch(h),
+                   faces.empty? ? '' : format("\nvent %s, +%s each", faces.join(' '), arch(VENT_PROUD)))
+
     model.start_operation('Dimension WhisperRoom', true)
     begin
       clear(model)                        # never stack two sets on one booth
-      made = draw(model, ext, h, gap, origin)
+      made = draw(model, ext, h, gap, origin, label)
       model.commit_operation
     rescue StandardError => e
       model.abort_operation
       UI.messagebox("Dimension WhisperRoom failed:\n\n#{e.class}: #{e.message}")
       return false
     end
-
-    dx = ext[:x1] - ext[:x0]
-    dy = ext[:y1] - ext[:y0]
+    dims = made.count { |e| e.is_a?(Sketchup::Dimension) }
     puts ''
     puts "DIMENSION WHISPERROOM — #{booth}   #{spec[:label]}"
     puts format('  exterior      %s x %s   (catalogue, wr-booth-data.rb)',
@@ -331,7 +367,18 @@ module WR_DimensionBooth
     puts format('  HEIGHT        %s   (%s panels)', arch(h), height_key)
     puts format('  drawn at      %.1f, %.1f%s', origin.x.to_f, origin.y.to_f,
                 sel_name.nil? ? ' (model origin — nothing selected)' : " (from \"#{sel_name}\")")
-    puts "  #{made.length} dimension(s) on #{TAG}"
+    puts "  #{dims} dimension(s) and a model label on #{TAG}"
+
+    # Two tools, two answers, nothing on screen to say which is which.
+    n = other_dims(model)
+    if n > 0
+      puts ''
+      puts format('  *** %d dimension(s) from Dimension Selection are also in this', n)
+      puts format('      model, on %s. Those are a BOUNDING BOX — on a built booth', OTHER_TAG)
+      puts '      that box holds the open door leaf, a vent housing and any ramp, so'
+      puts '      it reads bigger than the booth and disagrees with these. Switch'
+      puts '      that ability off before anyone reads the drawing.'
+    end
     puts ''
     puts '  These are CATALOGUE figures plus the vent rule — nothing was measured'
     puts '  off the model, deliberately, because a built booth\'s bounding box also'
@@ -340,7 +387,7 @@ module WR_DimensionBooth
     puts '  further out and that distance has never been measured — do not quote'
     puts '  one of these on an EFS booth without checking.'
     puts ''
-    made.length == 3
+    dims == 3
   end
 
   def self.ability_off(_opts = {})
