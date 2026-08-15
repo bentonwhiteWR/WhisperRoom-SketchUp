@@ -4,14 +4,22 @@
     python rbcheck.py              # every .rb here and in wr_tools/
     python rbcheck.py foo.rb       # just these
 
-There is no Ruby interpreter on either machine outside SketchUp, so nothing in
-scripts/ can be syntax-checked before it reaches the Ruby Console. This is not
-a parser and will not catch a typo — it strips strings, heredocs and comments,
-then matches block openers against `end`. That catches the one class of error
-that actually happens when hand-editing a long file: a missing or extra `end`,
-which otherwise surfaces as an unhelpful error at load time.
+USE rbparse.py INSTEAD. It is a REAL parser and this one is not.
 
-A clean run means the blocks balance. It does not mean the script works.
+rbparse.py drives the CRuby 3.2 shared library that ships inside SketchUp, so
+it gives a genuine parse — the same one SketchUp performs at load. This file
+predates the discovery that that library could be driven from here, and it is
+kept only because it needs nothing but Python and runs anywhere.
+
+THIS IS NOT A PARSER AND WILL NOT CATCH A TYPO. It strips strings, heredocs and
+comments, then matches block openers against `end`. That catches the one class
+of error that actually happens when hand-editing a long file: a missing or
+extra `end`. It cannot see a syntax error that happens to balance, and
+`a = 1 +` followed by `end` balances perfectly.
+
+A clean run means the blocks balance. It does not mean the script parses, and
+it certainly does not mean the script works. Never report a clean run here as
+evidence that a file is syntactically valid — run rbparse.py for that.
 """
 import os
 import re

@@ -144,9 +144,34 @@ module WR_AutoDimension
 
   # ------------------------------------------------------------------- output --
 
+  # A tag this script is ABOUT TO DRAW ON IS FORCED VISIBLE, and that is not a
+  # nicety — it is the difference between working and appearing not to.
+  #
+  # A SketchUp scene stores tag visibility, and proposal-scenes.rb deliberately
+  # hides WR-Dims and WR-Dims-Doors on four of its five customer plates. So
+  # selecting any plate but 02-dimensioned leaves both tags hidden MODEL-WIDE.
+  # Drawing onto a hidden tag then produces the worst outcome available: every
+  # dimension is created correctly, the console prints a clean report, the
+  # panel says the switch is on — and the viewport shows nothing whatsoever.
+  # "I clicked it and nothing happened", with no error anywhere to find.
+  #
+  # Unhiding is also the honest thing to do: the tag is hidden because a scene
+  # said so, not because anyone asked for these dimensions to be invisible. It
+  # is said out loud on the console so the scene's own state is not changed
+  # behind anyone's back without a trace.
   def self.tag(model, name, rgb)
     l = model.layers[name] || model.layers.add(name)
     (l.color = Sketchup::Color.new(*rgb)) rescue nil
+    begin
+      unless l.visible?
+        l.visible = true
+        puts "AUTO DIMENSION — tag #{name} was HIDDEN (a proposal scene hides it on " \
+             'four of five plates). Switched back on, or the dimensions would have ' \
+             'been drawn invisibly.'
+      end
+    rescue StandardError
+      nil
+    end
     l
   end
 

@@ -248,9 +248,14 @@ ramps to the clearance rules above, tags, materials, and dimension entities.
 - Imperial / Architectural units, 8'-0" default ceilings, walls built outward and mitred at
   the corners, floor `0128_White`, walls `0099_LightSteelBlue`, doors `0043_SaddleBrown`.
 - Dimension **all four sides** plus every door off its wall corner.
-- **I can't execute Ruby here** — no interpreter on this machine outside SketchUp. Say plainly
-  that a script is unrun, wrap the build so it fails loudly, and list everything in the model
-  that isn't measured.
+- **I can't RUN a script here, but I can now PARSE one.** There is still no `ruby.exe` on
+  this machine, so nothing gets executed outside SketchUp — say plainly that a script is
+  unrun, wrap the build so it fails loudly, and list everything in the model that isn't
+  measured. But `scripts/rbparse.py` drives the CRuby 3.2 library SketchUp ships
+  (`x64-ucrt-ruby320.dll`) and gives a **real syntax check** of every `.rb` in `scripts/`.
+  Run it before committing any Ruby change. `scripts/rbcheck.py` is a bracket-and-`end`
+  counter, not a parser — a clean run there is not evidence a file is valid, and reporting
+  it as such is how a syntax error once shipped and made a tool silently do nothing.
 
 ## Working conventions
 

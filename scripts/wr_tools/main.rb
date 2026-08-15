@@ -819,9 +819,27 @@ module WhisperRoom
       end
     end
 
+    # RESCUE Exception HERE TOO, FOR THE REASON SPELLED OUT ABOVE run().
+    #
+    # This path `load`s a script and then `eval`s its @on/@off expression, so it
+    # is a place a script's own code runs — and it used to rescue StandardError.
+    # A SyntaxError in the loaded file descends from ScriptError, NOT
+    # StandardError, so it sailed straight past that handler, out of the
+    # action callback, and into SketchUp, which swallows it. Flipping a switch
+    # would then do NOTHING AT ALL: no dimensions, no message box, not even the
+    # "ABILITY FAILED" console line that was supposed to be the safety net. The
+    # one failure mode this plugin cannot afford, in the one path whose whole
+    # job is to re-read a file that is edited live from the repo.
+    #
+    # The console breadcrumb below exists for the same reason. It is printed
+    # BEFORE anything can go wrong, so "did the click even reach Ruby?" — the
+    # first question every one of these reports raises — is answerable by
+    # looking at the Ruby Console instead of by guessing.
     def self.toggle(id, on)
       a = abilities.find { |x| x['id'] == id }
       return [false, "No such ability: #{id}"] unless a
+
+      puts "ABILITY #{id} — switching #{on ? 'ON' : 'OFF'}"
 
       if a['builtin']
         ok, msg = toggle_ghost(on)
@@ -841,9 +859,19 @@ module WhisperRoom
       end
       set_state(id, on)
       [true, "#{a['label']} #{on ? 'on' : 'off'}"]
-    rescue StandardError => e
+    rescue Exception => e
+      script = File.basename(a && a['file'] ? a['file'].to_s : id.to_s)
+      puts ''
       puts "ABILITY FAILED (#{id}, #{on ? 'on' : 'off'}): #{e.class}: #{e.message}"
-      puts e.backtrace.first(5)
+      puts e.backtrace.first(8).map { |l| "  #{l}" }.join("\n") if e.backtrace
+      # A broken script is not a "the switch did not take" note — it is a
+      # damaged file, and it gets a box, the same as the run path gives one.
+      if e.is_a?(ScriptError)
+        UI.messagebox("#{script} failed to load:\n\n#{e.class}: #{e.message}\n\n" \
+                      'This is a SYNTAX ERROR — the script did not even load, so the ' \
+                      "switch could not do anything. The line number above is where " \
+                      "to look.\n\nFull backtrace is in the Ruby Console.")
+      end
       [false, "#{e.class}: #{e.message}"]
     end
 
