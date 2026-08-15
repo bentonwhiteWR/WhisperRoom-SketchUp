@@ -185,6 +185,51 @@ module WR_ProbeLevels
     [true, []]
   end
 
+  # WHICH EDGE OF THE SHORT AXIS CARRIES THE BRACKETS.
+  #
+  # `brackets` above measures along the LONG axis and answers "where do the walls
+  # land on this panel". This answers a different question, which nothing has
+  # measured until now and which the deck builder needs.
+  #
+  # A SIDE panel's bracket line sits at ONE end of its SHORT axis — the tiling
+  # direction — and that end has to face OUT of the booth. Which end it is turns
+  # out NOT to be consistent between parts: wr-deck.rb turns the high-end tile
+  # and leaves the low one, and by that one rule an MDL 7272 S (STD7248 SIDE L +
+  # STD7224 SIDE R) comes out with both bracket lines facing outward — confirmed
+  # by Benton — while an MDL 96120 S (STD9648 SIDE at both ends) comes out with
+  # both facing the centre. Same rule, opposite results, so the difference is in
+  # how the parts are authored and the turn has to be measured rather than
+  # positional.
+  #
+  # Reported as a fraction along the short axis: 0.0 is hard against the low
+  # edge, 1.0 hard against the high edge, and about 0.5 means the above-deck
+  # geometry is symmetric and gives no cue.
+  def self.bracket_edge(defn, deck_z)
+    bb = defn.bounds
+    short_is_y = (bb.max.y - bb.min.y).to_f < (bb.max.x - bb.min.x).to_f
+    lo  = (short_is_y ? bb.min.y : bb.min.x).to_f
+    len = (short_is_y ? bb.max.y - bb.min.y : bb.max.x - bb.min.x).to_f
+    return [short_is_y, nil] if len <= 0
+    wsum = 0.0
+    asum = 0.0
+    each_face(defn.entities, Geom::Transformation.new) do |f, tr|
+      begin
+        pts = f.vertices.map { |v| v.position.transform(tr) }
+        next if pts.all? { |p| p.z.to_f <= deck_z + 0.02 }
+        a = f.area.to_f
+        next if a <= 0
+        vals = pts.map { |p| (short_is_y ? p.y : p.x).to_f }
+        wsum += a * ((((vals.min + vals.max) / 2.0) - lo) / len)
+        asum += a
+      rescue StandardError
+        next
+      end
+    end
+    [short_is_y, asum > 0 ? wsum / asum : nil]
+  rescue StandardError
+    [false, nil]
+  end
+
   def self.levels(defn)
     up = Geom::Vector3d.new(0, 0, 1)
     tally = Hash.new(0.0)
@@ -257,9 +302,11 @@ module WR_ProbeLevels
         rim = tally.select { |_z, a| a >= peak * 0.05 }.keys.max
         rim = bb.min.z.to_f if rim.nil?
         long_is_y, runs = brackets(defn, rim)
+        short_is_y, edge = bracket_edge(defn, rim)
         rows << { :file => File.basename(path, '.skp'), :tally => tally,
                   :total => total, :bb => bb, :rim => rim,
-                  :long_is_y => long_is_y, :runs => runs }
+                  :long_is_y => long_is_y, :runs => runs,
+                  :short_is_y => short_is_y, :edge => edge }
       rescue StandardError => e
         puts format('  %-28s FAILED %s: %s', File.basename(path), e.class, e.message)
       end
@@ -299,6 +346,19 @@ module WR_ProbeLevels
       # whether the biggest gap between brackets sits nearer the low or the high
       # end of the panel's long axis. That gap is the wall seam, and the short
       # side of it is where the small wall (16/22) goes.
+      # Which end of the SHORT axis the above-deck geometry favours. This is the
+      # number that settles which way a SIDE panel has to be turned, and it is
+      # the one thing wr-deck.rb currently guesses positionally.
+      unless r[:edge].nil?
+        e = r[:edge]
+        where = if e < 0.42 then 'LOW edge'
+                elsif e > 0.58 then 'HIGH edge'
+                else 'symmetric — no cue'
+                end
+        puts format('        bracket line on %s: %.3f along  ->  %s',
+                    r[:short_is_y] ? 'Y' : 'X', e, where)
+      end
+
       runs = r[:runs] || []
       unless runs.empty?
         axis = r[:long_is_y] ? 'Y' : 'X'
@@ -351,7 +411,10 @@ module WR_ProbeLevels
   def self.write_tsv(cfg, rows)
     path = File.join(cfg['dir'], '_face-levels.tsv')
     File.open(path, 'w') do |f|
-      f.puts %w[file box_x box_y box_z z area_sq_in].join("\t")
+      # bracket_edge repeats per row. It is a per-PART figure, not a per-level
+      # one, but repeating it keeps the file one flat table that anything can
+      # read without a join.
+      f.puts %w[file box_x box_y box_z z area_sq_in short_axis bracket_edge].join("\t")
       rows.each do |r|
         bb = r[:bb]
         r[:tally].sort_by { |z, _a| -z }.each do |z, a|
@@ -359,7 +422,9 @@ module WR_ProbeLevels
                   format('%.4f', (bb.max.x - bb.min.x).to_f),
                   format('%.4f', (bb.max.y - bb.min.y).to_f),
                   format('%.4f', (bb.max.z - bb.min.z).to_f),
-                  format('%.4f', z), format('%.2f', a)].join("\t")
+                  format('%.4f', z), format('%.2f', a),
+                  r[:short_is_y] ? 'Y' : 'X',
+                  r[:edge].nil? ? '' : format('%.4f', r[:edge])].join("\t")
         end
       end
     end
