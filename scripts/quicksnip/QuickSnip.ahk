@@ -6,7 +6,9 @@
 ;   Shift+F5        redefine region A (drag a box, Esc to cancel)
 ;   F6              start / stop recording the record region -> MP4
 ;   Shift+F6        redefine the record region
-;   F7              open the snips folder
+;   F7              add a frame to a burst (starts one if none is running)
+;   Shift+F7        finish the burst -> contact sheet + full-size frames
+;   F8              open the snips folder
 ;   Shift+F8        settings window - rebind any of the above
 ;
 ;   Defaults only; every hotkey is rebindable and stored in quicksnip.ini.
@@ -48,6 +50,14 @@ global RecStart   := 0     ; tick count at start
 global RecBadge   := ""    ; the "REC 00:12" readout
 global RecEdges   := []    ; four hairlines drawn just outside the region
 
+global BurstMax      := Integer(IniRead(ConfigFile, "Settings", "BurstMax", "12"))
+global BurstInterval := Integer(IniRead(ConfigFile, "Settings", "BurstInterval", "0"))
+global BurstActive   := false
+global BurstFrames   := []   ; captured bitmaps, held until the sheet is built
+global BurstTimes    := []   ; seconds since the burst started, per frame
+global BurstStart    := 0
+global BurstBadge    := ""
+
 Persistent
 OnExit(FinishRecordingOnExit)      ; never leave a half-written MP4 behind
 LoadHotkeys()
@@ -59,6 +69,8 @@ A_TrayMenu.Add("Open snips folder", DoOpenFolder)
 A_TrayMenu.Add("Set region...", (*) => DoSetRegion("Region"))
 A_TrayMenu.Add("Start / stop recording", DoRecordToggle)
 A_TrayMenu.Add("Set record region...", (*) => DoSetRegion("RecRegion"))
+A_TrayMenu.Add("Add burst frame", DoBurstFrame)
+A_TrayMenu.Add("Finish burst", DoBurstFinish)
 A_TrayMenu.Add()
 A_TrayMenu.Add("Settings...", DoSettings)
 A_TrayMenu.Add("Reload", (*) => Reload())
@@ -79,23 +91,28 @@ else {
 LoadHotkeys() {
     global Keys, ConfigFile
 
-    ; F6 used to open the snips folder; recording claims it now. Move the old
-    ; binding across once rather than making the user resolve a clash.
+    ; The snips folder has been pushed along twice as capture keys claimed F6
+    ; and then F7. Migrate rather than making the user resolve a clash.
     if (IniRead(ConfigFile, "Hotkeys", "Folder", "") = "F6")
         IniWrite("F7", ConfigFile, "Hotkeys", "Folder")
+    if (IniRead(ConfigFile, "Hotkeys", "Folder", "") = "F7")
+        IniWrite("F8", ConfigFile, "Hotkeys", "Folder")
 
     Keys := Map(
         "Snip",      IniRead(ConfigFile, "Hotkeys", "Snip",      "F5"),
         "Region",    IniRead(ConfigFile, "Hotkeys", "Region",    "+F5"),
         "Record",    IniRead(ConfigFile, "Hotkeys", "Record",    "F6"),
         "RecRegion", IniRead(ConfigFile, "Hotkeys", "RecRegion", "+F6"),
-        "Folder",    IniRead(ConfigFile, "Hotkeys", "Folder",    "F7"),
+        "Burst",     IniRead(ConfigFile, "Hotkeys", "Burst",     "F7"),
+        "BurstEnd",  IniRead(ConfigFile, "Hotkeys", "BurstEnd",  "+F7"),
+        "Folder",    IniRead(ConfigFile, "Hotkeys", "Folder",    "F8"),
         "Settings",  IniRead(ConfigFile, "Hotkeys", "Settings",  "+F8"))
 }
 
 ActionMap() {
     return Map("Snip", DoSnip, "Region", (*) => DoSetRegion("Region"),
                "Record", DoRecordToggle, "RecRegion", (*) => DoSetRegion("RecRegion"),
+               "Burst", DoBurstFrame, "BurstEnd", DoBurstFinish,
                "Folder", DoOpenFolder, "Settings", DoSettings)
 }
 
@@ -368,11 +385,15 @@ SaveSnipToDisk(hbm, w, h) {
         path := SaveFolder "\snip-" FormatTime(A_Now, "yyyy-MM-dd_HHmmss")
                  . "-" A_MSec ".png"
 
+    return SaveBitmapPng(hbm, path) ? path : ""
+}
+
+SaveBitmapPng(hbm, path) {
     GdipStartup()
     pBitmap := 0
     DllCall("gdiplus\GdipCreateBitmapFromHBITMAP", "ptr", hbm, "ptr", 0, "ptr*", &pBitmap)
     if !pBitmap
-        return ""
+        return false
 
     clsid := Buffer(16, 0)                     ; PNG encoder
     DllCall("ole32\CLSIDFromString", "wstr", "{557CF406-1A04-11D3-9A73-0000F81EF32E}",
@@ -380,7 +401,7 @@ SaveSnipToDisk(hbm, w, h) {
     status := DllCall("gdiplus\GdipSaveImageToFile", "ptr", pBitmap, "wstr", path,
                       "ptr", clsid, "ptr", 0)
     DllCall("gdiplus\GdipDisposeImage", "ptr", pBitmap)
-    return (status = 0) ? path : ""
+    return (status = 0)
 }
 
 
@@ -518,6 +539,232 @@ KillToast(*) {
 }
 
 
+; ─── Burst -> contact sheet ───────────────────────────────────────────────
+;
+; Frames are taken by hand rather than on a timer, because the thing worth
+; capturing is usually a sequence of UI steps, and those happen when you do
+; them. Set BurstInterval above zero in the ini for a timed burst instead.
+;
+; Both outputs are kept: the stitched sheet is what you paste, and the
+; full-size frames survive alongside it, because tiling six frames into one
+; image leaves each of them too small to read.
+
+DoBurstFrame(*) {
+    global BurstActive
+    if !BurstActive
+        StartBurst()
+    AddBurstFrame()
+}
+
+StartBurst() {
+    global BurstActive, BurstFrames, BurstTimes, BurstStart, BurstInterval
+
+    if !LoadRegion(&x, &y, &w, &h) {
+        Notify("No region set - press " Keys["Region"] " to pick one.")
+        return
+    }
+    BurstActive := true
+    BurstFrames := [], BurstTimes := []
+    BurstStart := A_TickCount
+
+    ShowBurstBadge(x, y)
+    Hotkey("~Escape", BurstEscape, "On")        ; ~ so Esc still reaches the app
+    if (BurstInterval > 0)
+        SetTimer(BurstTick, BurstInterval * 1000)
+    SetTimer(BurstIdleCheck, 5000)
+}
+
+AddBurstFrame() {
+    global BurstFrames, BurstTimes, BurstStart, BurstMax
+
+    if !LoadRegion(&x, &y, &w, &h)
+        return
+    KillPreview(), KillToast()
+
+    hbm := CaptureRegion(x, y, w, h)
+    if !hbm
+        return
+    BurstFrames.Push(hbm)
+    BurstTimes.Push(Round((A_TickCount - BurstStart) / 1000))
+    UpdateBurstBadge()
+    FlashRegion(x, y, w, h)                     ; a beat of feedback per frame
+
+    if (BurstFrames.Length >= BurstMax)
+        DoBurstFinish()
+}
+
+BurstTick() {
+    global BurstActive
+    if BurstActive
+        AddBurstFrame()
+}
+
+BurstEscape(*) {
+    global BurstActive
+    if BurstActive
+        DoBurstFinish()
+}
+
+; Safety net: a burst you walked away from finishes itself rather than holding
+; a pile of bitmaps open forever.
+BurstIdleCheck() {
+    global BurstActive, BurstTimes, BurstStart
+    if !BurstActive
+        return
+    last := BurstTimes.Length ? BurstTimes[BurstTimes.Length] : 0
+    if ((A_TickCount - BurstStart) / 1000 - last > 90)
+        DoBurstFinish()
+}
+
+DoBurstFinish(*) {
+    global BurstActive, BurstFrames, BurstTimes, SaveFolder
+
+    if !BurstActive
+        return
+    BurstActive := false
+    SetTimer(BurstTick, 0)
+    SetTimer(BurstIdleCheck, 0)
+    try Hotkey("~Escape", BurstEscape, "Off")
+    HideBurstBadge()
+
+    n := BurstFrames.Length
+    if !n {
+        Notify("Burst cancelled - no frames.")
+        return
+    }
+
+    LoadRegion(&rx, &ry, &rw, &rh)
+    stamp := FormatTime(A_Now, "yyyy-MM-dd_HHmmss")
+
+    ; Full-size originals first, so nothing is lost if the stitch fails.
+    EnsureFolder()
+    dir := SaveFolder "\burst-" stamp
+    try DirCreate(dir)
+    saved := 0
+    for i, hbm in BurstFrames {
+        if SaveBitmapPng(hbm, Format("{1}\frame-{2:02}.png", dir, i))
+            saved++
+    }
+
+    sheet := MakeContactSheet(BurstFrames, BurstTimes, rw, rh)
+    for hbm in BurstFrames
+        DllCall("DeleteObject", "ptr", hbm)
+    BurstFrames := [], BurstTimes := []
+
+    if !sheet {
+        Notify("Saved " saved " frames, but the sheet could not be built.")
+        return
+    }
+
+    sheetPath := SaveFolder "\burst-" stamp ".png"
+    PutBitmapOnClipboard(sheet)                 ; takes its own copy
+    SaveBitmapPng(sheet, sheetPath)
+    Notify(n " frames - sheet on clipboard, originals in burst-" stamp)
+    ShowFlyAway(sheet, rx, ry, rw, rh)          ; consumes sheet
+}
+
+; Tiles the frames into one image with a numbered, time-stamped caption above
+; each. Never upscales - a small region stays small rather than going soft.
+MakeContactSheet(frames, times, srcW, srcH) {
+    static SRCCOPY := 0x00CC0020, HALFTONE := 4, TARGET_W := 1600
+    static PAD := 14, LABEL_H := 26
+
+    n := frames.Length
+    if (!n || srcW < 1 || srcH < 1)
+        return 0
+
+    cols := Min(Ceil(Sqrt(n)), 4)
+    rows := Ceil(n / cols)
+
+    cellW := Floor((TARGET_W - PAD * (cols + 1)) / cols)
+    cellW := Max(Min(cellW, srcW), 80)
+    cellH := Max(Floor(cellW * srcH / srcW), 40)
+
+    sheetW := cellW * cols + PAD * (cols + 1)
+    sheetH := (cellH + LABEL_H) * rows + PAD * (rows + 1)
+
+    hdcScreen := DllCall("GetDC", "ptr", 0, "ptr")
+    hdcSheet  := DllCall("CreateCompatibleDC", "ptr", hdcScreen, "ptr")
+    hbmSheet  := DllCall("CreateCompatibleBitmap", "ptr", hdcScreen,
+                         "int", sheetW, "int", sheetH, "ptr")
+    oldSheet  := DllCall("SelectObject", "ptr", hdcSheet, "ptr", hbmSheet, "ptr")
+
+    rc := Buffer(16, 0)
+    NumPut("int", 0, "int", 0, "int", sheetW, "int", sheetH, rc)
+    brush := DllCall("CreateSolidBrush", "uint", 0x1E1E1E, "ptr")   ; BGR
+    DllCall("FillRect", "ptr", hdcSheet, "ptr", rc, "ptr", brush)
+    DllCall("DeleteObject", "ptr", brush)
+
+    font := DllCall("CreateFontW", "int", -15, "int", 0, "int", 0, "int", 0,
+                    "int", 600, "uint", 0, "uint", 0, "uint", 0, "uint", 1,
+                    "uint", 0, "uint", 0, "uint", 4, "uint", 0,
+                    "wstr", "Segoe UI", "ptr")
+    oldFont := DllCall("SelectObject", "ptr", hdcSheet, "ptr", font, "ptr")
+    DllCall("SetBkMode", "ptr", hdcSheet, "int", 1)                 ; TRANSPARENT
+    DllCall("SetTextColor", "ptr", hdcSheet, "uint", 0xC9C9C9)
+
+    hdcSrc := DllCall("CreateCompatibleDC", "ptr", hdcScreen, "ptr")
+    DllCall("SetStretchBltMode", "ptr", hdcSheet, "int", HALFTONE)
+    DllCall("SetBrushOrgEx", "ptr", hdcSheet, "int", 0, "int", 0, "ptr", 0)
+
+    for i, hbm in frames {
+        col := Mod(i - 1, cols), row := (i - 1) // cols
+        cx := PAD + col * (cellW + PAD)
+        cy := PAD + row * (cellH + LABEL_H + PAD)
+
+        label := Format("{1}  ·  +{2}s", i, times.Has(i) ? times[i] : 0)
+        DllCall("TextOutW", "ptr", hdcSheet, "int", cx + 2, "int", cy + 4,
+                "wstr", label, "int", StrLen(label))
+
+        oldSrc := DllCall("SelectObject", "ptr", hdcSrc, "ptr", hbm, "ptr")
+        DllCall("StretchBlt", "ptr", hdcSheet, "int", cx, "int", cy + LABEL_H,
+                              "int", cellW, "int", cellH,
+                              "ptr", hdcSrc, "int", 0, "int", 0,
+                              "int", srcW, "int", srcH, "uint", SRCCOPY)
+        DllCall("SelectObject", "ptr", hdcSrc, "ptr", oldSrc)
+    }
+
+    DllCall("DeleteDC", "ptr", hdcSrc)
+    DllCall("SelectObject", "ptr", hdcSheet, "ptr", oldFont)
+    DllCall("DeleteObject", "ptr", font)
+    DllCall("SelectObject", "ptr", hdcSheet, "ptr", oldSheet)
+    DllCall("DeleteDC", "ptr", hdcSheet)
+    DllCall("ReleaseDC", "ptr", 0, "ptr", hdcScreen)
+    return hbmSheet
+}
+
+ShowBurstBadge(x, y) {
+    global BurstBadge
+    HideBurstBadge()
+    b := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000020")
+    b.BackColor := "1B1B1B"
+    b.MarginX := 12, b.MarginY := 7
+    b.SetFont("s10 bold c4DA3FF", "Consolas")
+    b.txt := b.AddText("BackgroundTrans w150", "BURST  0/" BurstMax)
+    b.Show("NoActivate AutoSize x-9000 y-9000")
+    b.GetPos(, , &bw, &bh)
+    b.Move(x, Max(y - bh - 6, 0))
+    WinSetTransparent(235, b)
+    BurstBadge := b
+}
+
+UpdateBurstBadge() {
+    global BurstBadge, BurstFrames, BurstMax
+    if !IsObject(BurstBadge)
+        return
+    try BurstBadge.txt.Value := "BURST  " BurstFrames.Length "/" BurstMax
+}
+
+HideBurstBadge() {
+    global BurstBadge
+    if IsObject(BurstBadge) {
+        try BurstBadge.Destroy()
+        BurstBadge := ""
+        Sleep 30
+    }
+}
+
+
 ; ─── Screen recording ─────────────────────────────────────────────────────
 
 FindFfmpeg() {
@@ -541,9 +788,11 @@ DoRecordToggle(*) {
 }
 
 FinishRecordingOnExit(*) {
-    global RecActive
+    global RecActive, BurstActive
     if RecActive
         StopRecording()
+    if BurstActive
+        DoBurstFinish()
 }
 
 StartRecording() {
@@ -795,6 +1044,7 @@ DoSettings(*) {
     ctl := Map()
     for row in [["Snip", "Snip the region"], ["Region", "Set the region"],
                 ["Record", "Start / stop recording"], ["RecRegion", "Set the record region"],
+                ["Burst", "Add a burst frame"], ["BurstEnd", "Finish the burst"],
                 ["Folder", "Open snips folder"], ["Settings", "Open this window"]] {
         g.AddText("xm y+12 w170 h23 0x200", row[2])              ; 0x200 = vcenter
         ctl[row[1]] := g.AddHotkey("x+10 yp w200", Keys[row[1]])
@@ -831,6 +1081,19 @@ DoSettings(*) {
     g.SetFont("s10 norm c000000", "Segoe UI")
 
     g.SetFont("s12 bold", "Segoe UI")
+    g.AddText("xm y+22", "Burst")
+    g.SetFont("s10 norm", "Segoe UI")
+
+    g.AddText("xm y+12 w170 h23 0x200", "Max frames")
+    edBurstMax := g.AddEdit("x+10 yp w80 Number", BurstMax)
+
+    g.AddText("xm y+12 w170 h23 0x200", "Auto interval")
+    edBurstInt := g.AddEdit("x+10 yp w80 Number", BurstInterval)
+    g.SetFont("s9 c606060", "Segoe UI")
+    g.AddText("x+8 yp+4", "seconds - 0 means capture by hand")
+    g.SetFont("s10 norm c000000", "Segoe UI")
+
+    g.SetFont("s12 bold", "Segoe UI")
     g.AddText("xm y+22", "Regions")
     g.SetFont("s10 norm", "Segoe UI")
     g.AddText("xm y+12 w80 h25 0x200", "Snip")
@@ -848,7 +1111,8 @@ DoSettings(*) {
     btnFfmpeg.OnEvent("Click", (*) => BrowseFfmpeg(edFfmpeg))
     btnPick.OnEvent("Click", (*) => PickRegionFromSettings(g, txtRegion, "Region"))
     btnPickRec.OnEvent("Click", (*) => PickRegionFromSettings(g, txtRecRegion, "RecRegion"))
-    btnSave.OnEvent("Click", (*) => SaveSettings(g, ctl, edFolder, cbSave, edAnim, edFfmpeg, edFps))
+    btnSave.OnEvent("Click", (*) => SaveSettings(g, ctl, edFolder, cbSave, edAnim,
+                                                 edFfmpeg, edFps, edBurstMax, edBurstInt))
     btnCancel.OnEvent("Click", (*) => g.Hide())
     g.OnEvent("Escape", (*) => g.Hide())
     g.OnEvent("Close", (*) => g.Hide())
@@ -883,8 +1147,9 @@ PickRegionFromSettings(g, txtRegion, section) {
     g.Show()
 }
 
-SaveSettings(g, ctl, edFolder, cbSave, edAnim, edFfmpeg, edFps) {
+SaveSettings(g, ctl, edFolder, cbSave, edAnim, edFfmpeg, edFps, edBurstMax, edBurstInt) {
     global Keys, ConfigFile, SaveFolder, SaveToFile, AnimMs, FfmpegPath, RecFps
+    global BurstMax, BurstInterval
 
     ; Validate everything before writing anything, so a bad field cannot leave
     ; the script half-rebound.
@@ -928,8 +1193,12 @@ SaveSettings(g, ctl, edFolder, cbSave, edAnim, edFfmpeg, edFps) {
     IniWrite(SaveFolder, ConfigFile, "Settings", "SaveFolder")
     IniWrite(SaveToFile, ConfigFile, "Settings", "SaveToFile")
     IniWrite(AnimMs,     ConfigFile, "Settings", "AnimMs")
-    IniWrite(FfmpegPath, ConfigFile, "Settings", "Ffmpeg")
-    IniWrite(RecFps,     ConfigFile, "Settings", "RecFps")
+    BurstMax      := Min(Max(Integer(edBurstMax.Value = "" ? 12 : edBurstMax.Value), 2), 24)
+    BurstInterval := Min(Max(Integer(edBurstInt.Value = "" ? 0 : edBurstInt.Value), 0), 60)
+    IniWrite(FfmpegPath,    ConfigFile, "Settings", "Ffmpeg")
+    IniWrite(RecFps,        ConfigFile, "Settings", "RecFps")
+    IniWrite(BurstMax,      ConfigFile, "Settings", "BurstMax")
+    IniWrite(BurstInterval, ConfigFile, "Settings", "BurstInterval")
 
     ApplyHotkeys()
     g.Hide()

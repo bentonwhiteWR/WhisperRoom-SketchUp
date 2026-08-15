@@ -15,7 +15,9 @@ proposal, a message, or a Claude session.
 | `Shift+F5` | Set the snip region (drag a box, `Esc` keeps the current one) |
 | `F6` | Start / stop recording the record region → MP4 |
 | `Shift+F6` | Set the record region |
-| `F7` | Open the snips folder |
+| `F7` | Add a frame to a burst (starts one if none is running) |
+| `Shift+F7` | Finish the burst → contact sheet + full-size frames |
+| `F8` | Open the snips folder |
 | `Shift+F8` | Settings — rebind any of the above |
 
 All of them are rebindable from the settings window; changes apply on Save with
@@ -66,6 +68,27 @@ To have it always available, put a shortcut to `start-quicksnip.cmd` in
 
 Feedback is drawn by the script rather than using Windows tray balloons, which
 play a notification sound that cannot be muted per-app.
+
+## What happens on a burst
+
+Burst exists for showing an assistant a *sequence* — Claude reads images but
+not video, so an MP4 cannot make that trip. A contact sheet can.
+
+Frames are taken **by hand**, not on a timer, because the thing worth capturing
+is usually a run of UI steps and those happen when you do them. `F7` takes a
+frame and starts a session if none is running; `Shift+F7` or `Esc` finishes it.
+A `BURST 3/12` counter sits above the region while it runs. Set
+`BurstInterval` above zero for a timed burst instead.
+
+It writes **both** outputs, because tiling frames into one image is a trade:
+
+- `burst-<timestamp>.png` — the stitched sheet, numbered and time-stamped,
+  capped at 1600px wide and never upscaled. This is what lands on the clipboard.
+- `burst-<timestamp>/frame-01.png…` — every frame at full resolution, because
+  six frames tiled into one sheet leaves each too small to read UI text in.
+
+Guards: 12 frames maximum, and a burst left running finishes itself after 90
+seconds rather than holding bitmaps open indefinitely.
 
 ## Configuration
 
