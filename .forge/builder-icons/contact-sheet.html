@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WhisperRoom icon contact sheet</title>
+<style>
+  :root{ --bg:#f2f3f4; --sur:#fff; --ink:#20262a; --mut:#68737b; --line:#dfe3e6; }
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--ink);
+    font:13px/1.45 "Segoe UI",system-ui,sans-serif}
+  h1{font-size:19px;margin:0 0 4px} h2{font-size:12px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--mut);margin:26px 0 10px;
+    border-bottom:1px solid var(--line);padding-bottom:5px}
+  .lede{color:var(--mut);max-width:70ch;margin:0 0 8px}
+  .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .c{margin:0;background:var(--sur);border:1px solid var(--line);border-radius:6px;
+    padding:10px;display:flex;gap:10px;align-items:flex-start}
+  .sizes{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .s40{width:40px;height:40px;color:var(--ink)} .s20{width:20px;height:20px;color:var(--ink)}
+  figcaption{display:flex;flex-direction:column;gap:1px;min-width:0}
+  figcaption b{font-size:11.5px;font-family:Consolas,monospace}
+  .t{color:var(--ink);font-size:11.5px} .f{color:var(--mut);font-size:10.5px;
+    font-family:Consolas,monospace;word-break:break-all}
+  .p{font-size:9px;letter-spacing:.08em;text-transform:uppercase;align-self:flex-start;
+    border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-top:3px;color:var(--mut)}
+  .p.authored{border-color:#ee6216;color:#ee6216}
+  .p.revised{border-color:#b0771f;color:#b0771f}
+  .pair{background:var(--sur);border:1px solid var(--line);border-radius:6px;padding:14px}
+  .pair h2{margin-top:0} .pair p{color:var(--mut);max-width:66ch}
+  .prow{display:flex;gap:34px;align-items:flex-end;margin-top:10px}
+  .prow div{display:flex;flex-direction:column;gap:6px} .prow small{color:var(--mut)}
+  .themes{display:flex;gap:0;margin-top:24px;border:1px solid var(--line);border-radius:6px;
+    overflow:hidden}
+  .themes>div{flex:1;padding:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .lt{background:#f2f3f4;color:#20262a} .dk{background:#24292d;color:#e7eaec}
+</style></head><body>
+<h1>WhisperRoom icon system &mdash; contact sheet</h1>
+<p class="lede">Every icon at 40&nbsp;px and 20&nbsp;px, grouped by the category it serves,
+labelled with its id, its tool, and whether it was extracted from the approved mockup,
+revised against the Researcher's brief, or newly authored. Graphite is
+<code>currentColor</code>; the single orange element is what the tool creates or changes.
+Nothing here has been eyeballed by a human yet &mdash; that is what this page is for.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute;width:0;height:0" aria-hidden="true">
+<!-- WhisperRoom icon system. 24 grid, 20 live area, 1.8 centred stroke,
+     round caps/joins. Graphite = currentColor; #ee6216 marks the one
+     element the tool creates or changes. Generated - see
+     .forge/builder-icons/HANDOFF.md -->
+  <defs>
+    <symbol id="wr-room-takeoff" viewBox="0 0 24 24"><title>Build a room from a take-off</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9.5 19.5H4.5V4.5h15v15h-4.5"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 19.5V14 M15 14a5.5 5.5 0 0 1-5.5 5.5"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-link" viewBox="0 0 24 24"><title>Build the customer's booth (share link)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 3.5h12v11h-12z M11 14.5v-5h4.5"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16.2 15.6l1.2-1.2a2.2 2.2 0 0 1 3.1 3.1l-1.2 1.2"/>
+      <path d="M18.4 17.8l-1.2 1.2a2.2 2.2 0 0 1-3.1-3.1l1.2-1.2"/>
+      <path d="M15.9 18.1l2.2-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-parts" viewBox="0 0 24 24"><title>Build a booth from real parts</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 5.5h11.5v13H4z M8.2 5.5v13"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 5.5h1.5v13H19z M18 12h-1.6 M17.4 10.8L16.2 12l1.2 1.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-blockout" viewBox="0 0 24 24"><title>Block-out booth (plain boxes, fast)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 6.5h12.5v12H3.5z M12.2 18.5v-6.2h3.8"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19.3 4v5 M16.8 6.5h5" stroke-linejoin="round"/>
+    </g>
+    </symbol>
+    <symbol id="wr-dim-room" viewBox="0 0 24 24"><title>Dimension the room</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 3.4h15v8.6h-15z"/>
+      <path d="M9.5 3.4v8.6 M14.5 3.4v8.6" stroke-width="1.2"/>
+      <path d="M4.5 12.6v1.6 M9.5 12.6v1.6 M14.5 12.6v1.6 M19.5 12.6v1.6" stroke-width="1.2"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 15.8h15 M4.9 16.9l1.7-2.2 M9.9 16.9l1.7-2.2 M14.9 16.9l1.7-2.2 M4.5 19.6h15 M4.9 20.7l1.7-2.2 M18.5 20.7l1.7-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-dim-booth" viewBox="0 0 24 24"><title>Dimension the booth (catalogue figures)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 3.4h11.5v9.2h-11.5z M12.4 12.6v-5.4h3.6"/>
+      <path d="M17.6 4.4h3.6v3.6h-3.6z" stroke-width="1.4"/>
+      <path d="M18.5 6.2h1.8" stroke-width="1.2"/>
+      <path d="M4.5 14v2.1 M16 14v2.1" stroke-width="1.2"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 17.6h12.5 M4.6 18.7l1.8-2.2 M14.1 18.7l1.8-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-dim-selection" viewBox="0 0 24 24"><title>Measure whatever is selected</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.4 3.4h13.8v13.8H3.4z" stroke-dasharray="2.8 2.4"/>
+      <path d="M7.4 6.2l4.2-1 2.6 3.2-1 4.4-4.6.6-2.4-3.4z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.6 19.2h13.4 M5.2 20.3l1.8-2.2 M15.6 20.3l1.8-2.2 M20.4 4.4v11.6 M19.3 5.4l2.2-1.6 M19.3 15l2.2-1.6"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scenes-proposal" viewBox="0 0 24 24"><title>Set up the five proposal plates</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5.15 7.6h11.4v10.2 M6.4 6.35h11.4v8.9 M7.65 5.1h11.4v7.6 M8.9 3.85h11.4v6.3"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 9h11.4v11.2H4z M6.4 12.8h6.6v5.2h-6.6z M11.3 18v-3h1.7"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scenes-list" viewBox="0 0 24 24"><title>List and number the scenes</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.2 6.5h1.8 M4.2 12h1.8 M4.2 17.5h1.8"/>
+      <path d="M8.4 6.5h7.6 M8.4 12h7.6 M8.4 17.5h7.6" stroke-width="1.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18.2 4.6h2.4v14.8h-2.4"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scenes-export" viewBox="0 0 24 24"><title>Export the proposal plates</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 4.5h10v8h-10z M9.5 8.5h10v8h-10z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.5 17.5v3.6 M12.3 19l2.2 2.2 2.2-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-view-export" viewBox="0 0 24 24"><title>Export just this view</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 5.5h15v10h-15z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 17v4 M9.8 18.8l2.2 2.2 2.2-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-art-angled" viewBox="0 0 24 24"><title>Component art - Iso30 angles</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.4 8.6l6.6 3.8v7.2" stroke-width="1.4"/>
+      <path d="M7.7 7.6l6.6 3.8v7.2" stroke-width="1.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 6.6l7 4v7.4l-7-4z"/>
+    </g>
+    </symbol>
+    <symbol id="wr-art-flat" viewBox="0 0 24 24"><title>Component art - flat views</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 4.5h15v15h-15z"/>
+    </g>
+    <path d="M4.5 4.5h7.5v7.5h-7.5z M12 12h7.5v7.5h-7.5z" fill="currentColor" stroke="none" opacity=".22"/>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 6.5h6v11h-6z"/>
+    </g>
+    </symbol>
+    <symbol id="wr-art-elevations" viewBox="0 0 24 24"><title>Component art - six elevations</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 4.5h11v15h-11z M8.2 4.5v15 M11.9 4.5v15"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16.8 12h4.7 M19.3 9.8l2.2 2.2-2.2 2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-art-orbit" viewBox="0 0 24 24"><title>Orbit a part for the assembly manual</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.5 7.5h7v8.5h-7z M13 16v-4h2.5"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.8 11.5C2.8 15.2 7 17.8 12 17.8c5 0 9.2-2.6 9.2-6.3"/>
+      <path d="M21.2 11.5l-1.9.7 M21.2 11.5l-.4 2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-explode" viewBox="0 0 24 24"><title>Explode an assembly</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 7h4v12h-4z M16.5 7h4v12h-4z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 4h4v12h-4z"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scene-parts" viewBox="0 0 24 24"><title>Save each scene's part as a .skp</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 7.5V4h3.5 M16.5 4H20v3.5 M4 16.5V20h3.5 M16.5 20H20v-3.5"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 7.8l3.6 2.1v4.2L12 16.2l-3.6-2.1V9.9z M8.4 9.9l3.6 2.1 3.6-2.1 M12 12v4.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-names-replace" viewBox="0 0 24 24"><title>Find and replace names</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 4.5h6l7 7-6.5 6.5-7-7z"/>
+      <path d="M7 7.5m-1.1 0a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0-2.2 0"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 4.8h5.8 M18.8 2.8l2 2-2 2 M20.8 9.2H15 M17 7.2l-2 2 2 2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-materials-merge" viewBox="0 0 24 24"><title>Merge two materials into one</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.9 12m-5.4 0a5.4 5.4 0 1 0 10.8 0a5.4 5.4 0 1 0-10.8 0"/>
+      <path d="M15.1 12m-5.4 0a5.4 5.4 0 1 0 10.8 0a5.4 5.4 0 1 0-10.8 0"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 7.58A5.4 5.4 0 0 1 12 16.42 5.4 5.4 0 0 1 12 7.58z"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scenes-import" viewBox="0 0 24 24"><title>Import a .skp and keep its scenes</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.4 3.4h6.6v8.8H3.4z"/>
+      <path d="M9.6 10h11v10.6h-11z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.2 10V7.6h2.7V10 M13.5 10V7.6h2.7V10 M16.8 10V7.6h2.7V10"/>
+    </g>
+    </symbol>
+    <symbol id="wr-probe-components" viewBox="0 0 24 24"><title>Probe Component Files</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.5 10.5m-5.8 0a5.8 5.8 0 1 0 11.6 0a5.8 5.8 0 1 0-11.6 0"/>
+      <path d="M14.7 14.7l4.6 4.6"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.5 7.5v4.8 M8.2 12.3h4.6"/>
+    </g>
+    </symbol>
+    <symbol id="wr-probe-levels" viewBox="0 0 24 24"><title>Probe Face Levels</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5.5 3.5h8v17h-8z"/>
+      <path d="M5.5 8h8 M5.5 12.5h8 M5.5 17h8" stroke-width="1.2"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15.6 8h4.6 M18.4 6.4l1.8 1.6-1.8 1.6"/>
+    </g>
+    </symbol>
+    <symbol id="wr-diag-favourites" viewBox="0 0 24 24"><title>Diag Favourites</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.8 8.5h5v7h-5z M8.6 8.5h5v7h-5z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.4 8.5h5v7h-5z M15.7 12l1.4 1.5 2.7-3.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-rooms-csusb" viewBox="0 0 24 24"><title>CSUSB rooms (one-off job)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 4.5h9v6.6h-9z M3.5 12.9h9v6.6h-9z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.6 8.4h6.2v7.2h-6.2z M16.2 10.8h3 M16.2 13.2h3"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-preset-small" viewBox="0 0 24 24"><title>Build Booth MDL 4260 S</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.4 3.4h17.2v17.2H3.4z" stroke-dasharray="2.6 2.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6.6 10.6h6.4v7.4H6.6z M10.8 18v-3.6h2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-preset-large" viewBox="0 0 24 24"><title>Build Booth MDL 96168 S</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.4 3.4h17.2v17.2H3.4z" stroke-dasharray="2.6 2.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 6.4h12v11.6H6z M13.6 18v-5.6h4.4"/>
+    </g>
+    </symbol>
+    <symbol id="wr-jig-pendant" viewBox="0 0 24 24"><title>Pendant Curing Jig</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 18.6h18"/>
+      <path d="M5 18.6l1.6-2.2h10.8l1.6 2.2" stroke-width="1.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7.6 16.4h8.8 M10 16.4V11a2 2 0 0 1 4 0v5.4"/>
+    </g>
+    </symbol>
+    <symbol id="wr-jig-tube-stand" viewBox="0 0 24 24"><title>Tube Drying Stand</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 18.6h18"/>
+      <path d="M5 18.6l1.6-2.2h10.8l1.6 2.2" stroke-width="1.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 16.4h10 M9 16.4V7.8 M12 16.4V7.8 M15 16.4V7.8"/>
+    </g>
+    </symbol>
+    <symbol id="wr-ghost" viewBox="0 0 24 24"><title>(reserve - ghost/reference geometry)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 6.5h11v11h-11z" stroke-dasharray="2.6 2.2"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.5 3.5h11v11"/>
+    </g>
+    </symbol>
+  </defs>
+</svg>
+
+  <section><h2>Draw the room</h2><div class="grid">
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-room-takeoff"/></svg>
+        <svg class="s20"><use href="#wr-room-takeoff"/></svg></div>
+      <figcaption><b>room-takeoff</b><span class="t">Build a room from a take-off</span>
+        <span class="f">build-room.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+  </div></section>
+  <section><h2>Build the booth</h2><div class="grid">
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-booth-link"/></svg>
+        <svg class="s20"><use href="#wr-booth-link"/></svg></div>
+      <figcaption><b>booth-link</b><span class="t">Build the customer's booth (share link)</span>
+        <span class="f">booth-from-link.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-booth-parts"/></svg>
+        <svg class="s20"><use href="#wr-booth-parts"/></svg></div>
+      <figcaption><b>booth-parts</b><span class="t">Build a booth from real parts</span>
+        <span class="f">build-booth-components.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-booth-blockout"/></svg>
+        <svg class="s20"><use href="#wr-booth-blockout"/></svg></div>
+      <figcaption><b>booth-blockout</b><span class="t">Block-out booth (plain boxes, fast)</span>
+        <span class="f">build-booth.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+  </div></section>
+  <section><h2>Add dimensions</h2><div class="grid">
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-dim-room"/></svg>
+        <svg class="s20"><use href="#wr-dim-room"/></svg></div>
+      <figcaption><b>dim-room</b><span class="t">Dimension the room</span>
+        <span class="f">auto-dimension.rb</span><span class="p revised">revised</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-dim-booth"/></svg>
+        <svg class="s20"><use href="#wr-dim-booth"/></svg></div>
+      <figcaption><b>dim-booth</b><span class="t">Dimension the booth (catalogue figures)</span>
+        <span class="f">dimension-booth.rb</span><span class="p revised">revised</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-dim-selection"/></svg>
+        <svg class="s20"><use href="#wr-dim-selection"/></svg></div>
+      <figcaption><b>dim-selection</b><span class="t">Measure whatever is selected</span>
+        <span class="f">dimension-selection.rb</span><span class="p revised">revised</span></figcaption>
+    </figure>
+  </div></section>
+  <section><h2>Scenes and images</h2><div class="grid">
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-scenes-proposal"/></svg>
+        <svg class="s20"><use href="#wr-scenes-proposal"/></svg></div>
+      <figcaption><b>scenes-proposal</b><span class="t">Set up the five proposal plates</span>
+        <span class="f">proposal-scenes.rb</span><span class="p revised">revised</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-scenes-list"/></svg>
+        <svg class="s20"><use href="#wr-scenes-list"/></svg></div>
+      <figcaption><b>scenes-list</b><span class="t">List and number the scenes</span>
+        <span class="f">list-scenes.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-scenes-export"/></svg>
+        <svg class="s20"><use href="#wr-scenes-export"/></svg></div>
+      <figcaption><b>scenes-export</b><span class="t">Export the proposal plates</span>
+        <span class="f">export-scenes.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-view-export"/></svg>
+        <svg class="s20"><use href="#wr-view-export"/></svg></div>
+      <figcaption><b>view-export</b><span class="t">Export just this view</span>
+        <span class="f">export-this-view.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+  </div></section>
+  <section><h2>Component art (web catalog)</h2><div class="grid">
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-art-angled"/></svg>
+        <svg class="s20"><use href="#wr-art-angled"/></svg></div>
+      <figcaption><b>art-angled</b><span class="t">Component art - Iso30 angles</span>
+        <span class="f">angled-component-art.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-art-flat"/></svg>
+        <svg class="s20"><use href="#wr-art-flat"/></svg></div>
+      <figcaption><b>art-flat</b><span class="t">Component art - flat views</span>
+        <span class="f">export-component-art.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-art-elevations"/></svg>
+        <svg class="s20"><use href="#wr-art-elevations"/></svg></div>
+      <figcaption><b>art-elevations</b><span class="t">Component art - six elevations</span>
+        <span class="f">elevation-export.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-art-orbit"/></svg>
+        <svg class="s20"><use href="#wr-art-orbit"/></svg></div>
+      <figcaption><b>art-orbit</b><span class="t">Orbit a part for the assembly manual</span>
+        <span class="f">orbit-export.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-explode"/></svg>
+        <svg class="s20"><use href="#wr-explode"/></svg></div>
+      <figcaption><b>explode</b><span class="t">Explode an assembly</span>
+        <span class="f">explode-view.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-scene-parts"/></svg>
+        <svg class="s20"><use href="#wr-scene-parts"/></svg></div>
+      <figcaption><b>scene-parts</b><span class="t">Save each scene's part as a .skp</span>
+        <span class="f">save-scene-components.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+  </div></section>
+  <section><h2>Tidy up the model</h2><div class="grid">
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-names-replace"/></svg>
+        <svg class="s20"><use href="#wr-names-replace"/></svg></div>
+      <figcaption><b>names-replace</b><span class="t">Find and replace names</span>
+        <span class="f">find-replace-names.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-materials-merge"/></svg>
+        <svg class="s20"><use href="#wr-materials-merge"/></svg></div>
+      <figcaption><b>materials-merge</b><span class="t">Merge two materials into one</span>
+        <span class="f">merge-materials.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-scenes-import"/></svg>
+        <svg class="s20"><use href="#wr-scenes-import"/></svg></div>
+      <figcaption><b>scenes-import</b><span class="t">Import a .skp and keep its scenes</span>
+        <span class="f">merge-scenes.rb</span><span class="p revised">revised</span></figcaption>
+    </figure>
+  </div></section>
+  <section><h2>Developer probes</h2><div class="grid">
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-probe-components"/></svg>
+        <svg class="s20"><use href="#wr-probe-components"/></svg></div>
+      <figcaption><b>probe-components</b><span class="t">Probe Component Files</span>
+        <span class="f">probe-components.rb</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-probe-levels"/></svg>
+        <svg class="s20"><use href="#wr-probe-levels"/></svg></div>
+      <figcaption><b>probe-levels</b><span class="t">Probe Face Levels</span>
+        <span class="f">probe-levels.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-diag-favourites"/></svg>
+        <svg class="s20"><use href="#wr-diag-favourites"/></svg></div>
+      <figcaption><b>diag-favourites</b><span class="t">Diag Favourites</span>
+        <span class="f">diag-favourites.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-rooms-csusb"/></svg>
+        <svg class="s20"><use href="#wr-rooms-csusb"/></svg></div>
+      <figcaption><b>rooms-csusb</b><span class="t">CSUSB rooms (one-off job)</span>
+        <span class="f">csusb-rooms.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-booth-preset-small"/></svg>
+        <svg class="s20"><use href="#wr-booth-preset-small"/></svg></div>
+      <figcaption><b>booth-preset-small</b><span class="t">Build Booth MDL 4260 S</span>
+        <span class="f">booth-4260-s.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-booth-preset-large"/></svg>
+        <svg class="s20"><use href="#wr-booth-preset-large"/></svg></div>
+      <figcaption><b>booth-preset-large</b><span class="t">Build Booth MDL 96168 S</span>
+        <span class="f">booth-96168-s.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+  </div></section>
+  <section><h2>Workshop (3D printing)</h2><div class="grid">
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-jig-pendant"/></svg>
+        <svg class="s20"><use href="#wr-jig-pendant"/></svg></div>
+      <figcaption><b>jig-pendant</b><span class="t">Pendant Curing Jig</span>
+        <span class="f">pendant-jig.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-jig-tube-stand"/></svg>
+        <svg class="s20"><use href="#wr-jig-tube-stand"/></svg></div>
+      <figcaption><b>jig-tube-stand</b><span class="t">Tube Drying Stand</span>
+        <span class="f">tube-drying-stand.rb</span><span class="p authored">authored</span></figcaption>
+    </figure>
+  </div></section>
+  <section><h2>Reserve</h2><div class="grid">
+    <figure class="c">
+      <div class="sizes"><svg class="s40"><use href="#wr-ghost"/></svg>
+        <svg class="s20"><use href="#wr-ghost"/></svg></div>
+      <figcaption><b>ghost</b><span class="t">(reserve - ghost/reference geometry)</span>
+        <span class="f">-</span><span class="p extracted">extracted</span></figcaption>
+    </figure>
+  </div></section>
+  <section class="pair"><h2>Hard case &mdash; the dimension pair at 20&nbsp;px</h2>
+    <p>Benton has run the wrong one of these by mistake. Solid booth + door return + name
+    badge + one string, against dashed marquee + irregular blob + two-axis string.</p>
+    <div class="prow">
+      <div><svg class="s20"><use href="#wr-dim-booth"/></svg>
+        <svg class="s20"><use href="#wr-dim-selection"/></svg>
+        <svg class="s20"><use href="#wr-dim-room"/></svg><br><small>20 px</small></div>
+      <div><svg class="s40"><use href="#wr-dim-booth"/></svg>
+        <svg class="s40"><use href="#wr-dim-selection"/></svg>
+        <svg class="s40"><use href="#wr-dim-room"/></svg><br><small>40 px</small></div>
+    </div>
+    <div class="prow"><div><svg class="s20"><use href="#wr-scenes-export"/></svg>
+      <svg class="s20"><use href="#wr-view-export"/></svg><br>
+      <small>sanctioned plural/singular pair: export the plates vs export this view</small></div></div>
+  </section>
+<h2>Light and dark, every icon at 20&nbsp;px</h2>
+<div class="themes">
+  <div class="lt"><svg class="s20"><use href="#wr-room-takeoff"/></svg><svg class="s20"><use href="#wr-booth-link"/></svg><svg class="s20"><use href="#wr-booth-parts"/></svg><svg class="s20"><use href="#wr-booth-blockout"/></svg><svg class="s20"><use href="#wr-dim-room"/></svg><svg class="s20"><use href="#wr-dim-booth"/></svg><svg class="s20"><use href="#wr-dim-selection"/></svg><svg class="s20"><use href="#wr-scenes-proposal"/></svg><svg class="s20"><use href="#wr-scenes-list"/></svg><svg class="s20"><use href="#wr-scenes-export"/></svg><svg class="s20"><use href="#wr-view-export"/></svg><svg class="s20"><use href="#wr-art-angled"/></svg><svg class="s20"><use href="#wr-art-flat"/></svg><svg class="s20"><use href="#wr-art-elevations"/></svg><svg class="s20"><use href="#wr-art-orbit"/></svg><svg class="s20"><use href="#wr-explode"/></svg><svg class="s20"><use href="#wr-scene-parts"/></svg><svg class="s20"><use href="#wr-names-replace"/></svg><svg class="s20"><use href="#wr-materials-merge"/></svg><svg class="s20"><use href="#wr-scenes-import"/></svg><svg class="s20"><use href="#wr-probe-components"/></svg><svg class="s20"><use href="#wr-probe-levels"/></svg><svg class="s20"><use href="#wr-diag-favourites"/></svg><svg class="s20"><use href="#wr-rooms-csusb"/></svg><svg class="s20"><use href="#wr-booth-preset-small"/></svg><svg class="s20"><use href="#wr-booth-preset-large"/></svg><svg class="s20"><use href="#wr-jig-pendant"/></svg><svg class="s20"><use href="#wr-jig-tube-stand"/></svg><svg class="s20"><use href="#wr-ghost"/></svg></div>
+  <div class="dk"><svg class="s20"><use href="#wr-room-takeoff"/></svg><svg class="s20"><use href="#wr-booth-link"/></svg><svg class="s20"><use href="#wr-booth-parts"/></svg><svg class="s20"><use href="#wr-booth-blockout"/></svg><svg class="s20"><use href="#wr-dim-room"/></svg><svg class="s20"><use href="#wr-dim-booth"/></svg><svg class="s20"><use href="#wr-dim-selection"/></svg><svg class="s20"><use href="#wr-scenes-proposal"/></svg><svg class="s20"><use href="#wr-scenes-list"/></svg><svg class="s20"><use href="#wr-scenes-export"/></svg><svg class="s20"><use href="#wr-view-export"/></svg><svg class="s20"><use href="#wr-art-angled"/></svg><svg class="s20"><use href="#wr-art-flat"/></svg><svg class="s20"><use href="#wr-art-elevations"/></svg><svg class="s20"><use href="#wr-art-orbit"/></svg><svg class="s20"><use href="#wr-explode"/></svg><svg class="s20"><use href="#wr-scene-parts"/></svg><svg class="s20"><use href="#wr-names-replace"/></svg><svg class="s20"><use href="#wr-materials-merge"/></svg><svg class="s20"><use href="#wr-scenes-import"/></svg><svg class="s20"><use href="#wr-probe-components"/></svg><svg class="s20"><use href="#wr-probe-levels"/></svg><svg class="s20"><use href="#wr-diag-favourites"/></svg><svg class="s20"><use href="#wr-rooms-csusb"/></svg><svg class="s20"><use href="#wr-booth-preset-small"/></svg><svg class="s20"><use href="#wr-booth-preset-large"/></svg><svg class="s20"><use href="#wr-jig-pendant"/></svg><svg class="s20"><use href="#wr-jig-tube-stand"/></svg><svg class="s20"><use href="#wr-ghost"/></svg></div>
+</div>
+</body></html>

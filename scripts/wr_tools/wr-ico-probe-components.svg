@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Probe Component Files">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.5 10.5m-5.8 0a5.8 5.8 0 1 0 11.6 0a5.8 5.8 0 1 0-11.6 0"/>
+    <path d="M14.7 14.7l4.6 4.6"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.5 7.5v4.8 M8.2 12.3h4.6"/>
+  </g>
+</svg>

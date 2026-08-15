@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Component art - six elevations">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 4.5h11v15h-11z M8.2 4.5v15 M11.9 4.5v15"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16.8 12h4.7 M19.3 9.8l2.2 2.2-2.2 2.2"/>
+  </g>
+</svg>

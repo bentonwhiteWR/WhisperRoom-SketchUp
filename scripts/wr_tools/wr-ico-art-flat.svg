@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Component art - flat views">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 4.5h15v15h-15z"/>
+  </g>
+  <path d="M4.5 4.5h7.5v7.5h-7.5z M12 12h7.5v7.5h-7.5z" fill="#20262a" stroke="none" opacity=".22"/>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 6.5h6v11h-6z"/>
+  </g>
+</svg>

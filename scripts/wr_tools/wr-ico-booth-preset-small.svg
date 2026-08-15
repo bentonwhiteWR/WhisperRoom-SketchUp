@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Build Booth MDL 4260 S">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.4 3.4h17.2v17.2H3.4z" stroke-dasharray="2.6 2.4"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6.6 10.6h6.4v7.4H6.6z M10.8 18v-3.6h2.2"/>
+  </g>
+</svg>

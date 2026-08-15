@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Dimension the booth (catalogue figures)">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 3.4h11.5v9.2h-11.5z M12.4 12.6v-5.4h3.6"/>
+    <path d="M17.6 4.4h3.6v3.6h-3.6z" stroke-width="1.4"/>
+    <path d="M18.5 6.2h1.8" stroke-width="1.2"/>
+    <path d="M4.5 14v2.1 M16 14v2.1" stroke-width="1.2"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 17.6h12.5 M4.6 18.7l1.8-2.2 M14.1 18.7l1.8-2.2"/>
+  </g>
+</svg>

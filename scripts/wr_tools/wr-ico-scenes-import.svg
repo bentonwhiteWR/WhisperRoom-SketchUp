@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Import a .skp and keep its scenes">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.4 3.4h6.6v8.8H3.4z"/>
+    <path d="M9.6 10h11v10.6h-11z"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.2 10V7.6h2.7V10 M13.5 10V7.6h2.7V10 M16.8 10V7.6h2.7V10"/>
+  </g>
+</svg>

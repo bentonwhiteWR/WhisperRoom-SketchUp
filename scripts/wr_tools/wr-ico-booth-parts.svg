@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Build a booth from real parts">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 5.5h11.5v13H4z M8.2 5.5v13"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 5.5h1.5v13H19z M18 12h-1.6 M17.4 10.8L16.2 12l1.2 1.2"/>
+  </g>
+</svg>

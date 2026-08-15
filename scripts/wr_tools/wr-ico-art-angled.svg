@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Component art - Iso30 angles">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.4 8.6l6.6 3.8v7.2" stroke-width="1.4"/>
+    <path d="M7.7 7.6l6.6 3.8v7.2" stroke-width="1.4"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 6.6l7 4v7.4l-7-4z"/>
+  </g>
+</svg>

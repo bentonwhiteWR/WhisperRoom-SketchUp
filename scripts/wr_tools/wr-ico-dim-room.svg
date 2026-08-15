@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Dimension the room">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 3.4h15v8.6h-15z"/>
+    <path d="M9.5 3.4v8.6 M14.5 3.4v8.6" stroke-width="1.2"/>
+    <path d="M4.5 12.6v1.6 M9.5 12.6v1.6 M14.5 12.6v1.6 M19.5 12.6v1.6" stroke-width="1.2"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 15.8h15 M4.9 16.9l1.7-2.2 M9.9 16.9l1.7-2.2 M14.9 16.9l1.7-2.2 M4.5 19.6h15 M4.9 20.7l1.7-2.2 M18.5 20.7l1.7-2.2"/>
+  </g>
+</svg>
