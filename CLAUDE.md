@@ -227,7 +227,9 @@ The `whisperroom-proposal` skill covers the generator mechanics and the verifica
 - **Square the wall corners.** Mitre the outside face where two walls meet — never let wall
   solids cross and overshoot each other into an X.
 - Wall thickness is cosmetic: build outward from the measured interior face so it never moves
-  a dimension. The drawings read ~5" for these rooms; Benton usually draws 4". Either is fine.
+  a dimension. **Default to 4"** (Benton, Aug 2026). Historical drawings read ~5"; that is
+  fine on existing work and does not need correcting, because the thickness never moved a
+  dimension in the first place.
 
 ## SketchUp itself
 
