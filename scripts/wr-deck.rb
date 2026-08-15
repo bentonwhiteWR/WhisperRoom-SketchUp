@@ -515,15 +515,42 @@ module WR_Deck
     tally = flat_levels(defn)
     return [nil, false] if tally.empty?
     peak = tally.values.max.to_f
-    big  = tally.select { |_z, a| a >= peak * 0.5 }.keys.sort
-    minor = tally.reject { |z, _a| big.include?(z) }
-                 .select { |_z, a| a >= peak * 0.05 }.keys.sort
-    return [nil, false] if big.empty?
+    levels = tally.select { |_z, a| a >= peak * 0.05 }.keys.sort
+    return [nil, false] if levels.empty?
 
-    # The slab: the pair of full faces exactly 1.000 in apart.
-    pair = nil
-    big.each_cons(2) { |a, b| pair = [a, b] if ((b - a) - 1.0).abs < 0.05 }
-    pair ||= [big.first, big.last]
+    # THE SLAB IS THE FACE PAIR 1.000 IN APART, SEARCHED ACROSS EVERY LEVEL
+    # CARRYING REAL AREA — not only the ones above half the peak.
+    #
+    # Restricting the search to the >=50% levels is what put the ceilings three
+    # quarters of an inch high. A convention-B ceiling measures 1.7500 (90-94%),
+    # 1.0000 (29-45%) and 0.0000 (100%), and its slab is 1.0000/0.0000 — but the
+    # 1.0000 face carries under half the peak area, so it was filed as a MINOR
+    # level and never offered to the pair search. The fallback then took
+    # [first, last] = 0.0000/1.7500, contact came out at 1.7500 instead of
+    # 1.0000, and every convention-B ceiling sat 0.75 in high. That is what
+    # Benton saw as "nearly an inch too high", and
+    # reference/floor-ceiling-geometry.md predicted this exact failure when it
+    # marked the ceiling rule "derived, not confirmed — it will be obvious on
+    # the first build, because the ceiling will sit a hair over an inch out".
+    #
+    # Ties are broken by area, so a genuine slab beats a coincidence. On a floor
+    # CTR panel the 1/32 in underside lip makes 0.0312/1.0000 a near-miss
+    # candidate at 0.9688; the real 0.0000/1.0000 pair carries far more area and
+    # wins.
+    cands = levels.combination(2).select { |a, b| ((b - a) - 1.0).abs < 0.05 }
+    pair = cands.max_by { |a, b| tally[a].to_f + tally[b].to_f }
+    pair ||= [levels.first, levels.last]
+
+    # THE ROOM-SIDE TELL MUST LIE OUTSIDE THE SLAB, NOT INSIDE IT.
+    #
+    # Anything between the two slab faces is internal to the slab and says
+    # nothing about which way up the part is. The 1/32 in lip on the underside of
+    # the floor CTR panels sits at 0.0312, inside the 0.0000..1.0000 slab, and
+    # reference/floor-ceiling-geometry.md calls it out as "not structural" — but
+    # it was the only minor level those parts have, so it was read as the tell,
+    # came out BELOW the deck, and every floor CTR panel was turned upside down.
+    # That is the second half of what Benton reported.
+    minor = levels.reject { |z| z >= pair.first - 0.02 && z <= pair.last + 0.02 }
 
     if minor.empty?
       # Nothing to read the orientation from. Assume as-modelled and say so by
