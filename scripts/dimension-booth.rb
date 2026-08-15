@@ -5,6 +5,7 @@
 # @setting height  choice  Auto|Standard|Enhanced  Panel height
 # @setting vents   text    auto         Vented faces: auto, none, or e.g. "N E"
 # @setting gap     number  24           Standoff (in)
+# @setting rise    number  36           Label above booth (in)
 # @on  WR_DimensionBooth.ability_on(opts)
 # @off WR_DimensionBooth.ability_off(opts)
 #
@@ -93,13 +94,27 @@ module WR_DimensionBooth
   # float an inch off the floor.
   BASE_Z = -1.0
 
+  # How far above the TOP of the booth the model label floats, in inches.
+  #
+  # It used to be half the standoff — 12 in at the default 24 in gap — which sat
+  # the text right down on the ceiling, so the first line of the label overlapped
+  # the roof edge in any three-quarter view and had to be dragged by hand every
+  # time. 36 in is three lines of clear air at SketchUp's default screen text
+  # size and reads as a title over the booth rather than a sticker on it.
+  #
+  # A default rather than a constant: it is exposed as the "rise" setting so a
+  # tight ceiling or a tall camera can pull it back without editing this file.
+  # Benton gets the higher placement without configuring anything.
+  LABEL_RISE = 36.0
+
   # Dimension Selection's tag. Not ours to erase — it is a different tool
   # answering a different question — but its numbers are a bounding box, so a
   # booth carrying both sets shows two different footprints at once with nothing
   # on screen to say which is which. Counted and called out.
   OTHER_TAG = 'WR-Dims-Selection'.freeze
 
-  DEFAULTS = { 'height' => 'Auto', 'vents' => 'auto', 'gap' => '24' }.freeze
+  DEFAULTS = { 'height' => 'Auto', 'vents' => 'auto', 'gap' => '24',
+               'rise' => LABEL_RISE.round.to_s }.freeze
 
   def self.read_pref(k)
     v = Sketchup.read_default(PREF, k, DEFAULTS[k].to_s).to_s
@@ -301,10 +316,11 @@ module WR_DimensionBooth
   # the ground plane running out from the near corner, and the height standing
   # off the left. Consistent placement beats clever placement — you learn where
   # to look, and two booths side by side read the same way.
-  def self.draw(model, ext, height, gap, origin, label = nil)
+  def self.draw(model, ext, height, gap, origin, label = nil, rise = LABEL_RISE)
     lay = tag(model)
     ents = model.entities
     g = gap.to_f.abs
+    r = rise.to_f.abs
     ox = origin.x.to_f
     oy = origin.y.to_f
     oz = origin.z.to_f
@@ -314,8 +330,13 @@ module WR_DimensionBooth
     # THE DRAWING SAYS WHICH BOOTH IT IS. Three numbers with no model name on
     # them is how a 96120's dimensions end up quoted for a 96144 — and it is the
     # difference between a drawing and a screenshot.
+    #
+    # Measured from the TOP of the booth, not from the standoff, so the label
+    # keeps the same clear air whether the dimensions are pushed 12 in out or
+    # 60 in out. Those are two different questions and tying them together is
+    # what put the text on the roof in the first place.
     unless label.nil? || label.empty?
-      t = (ents.add_text(label, pt.call(ext[:x0], ext[:y0], BASE_Z + height + g * 0.5)) rescue nil)
+      t = (ents.add_text(label, pt.call(ext[:x0], ext[:y0], BASE_Z + height + r)) rescue nil)
       if t
         (t.layer = lay) rescue nil
         made << t
@@ -373,15 +394,82 @@ module WR_DimensionBooth
     format('%.4f in', inches.to_f)
   end
 
+  # ------------------------------------------------------------------ label --
+  #
+  # Four lines at most, in Benton's order:
+  #
+  #     MDL 96120 S
+  #     Ext dims: 10' 7 1/2" x 8' 7 1/2" x 6' 11"
+  #     Int dims: 9' 10" x 7' 10"
+  #     incl. vent E N, +5 1/2" each          <- only when vents contribute
+  #
+  # The faces come out alphabetical, so a booth vented north and east reads
+  # "E N". That is the order the console line has always used and the two must
+  # not disagree on the same run; compass order in one place only would be worse
+  # than alphabetical in both.
+  #
+  # "EXT DIMS" IS THE DIMENSIONED EXTENT, NOT THE CATALOGUE BOX, AND THAT IS
+  # DELIBERATE. Do not "fix" it to spec[:w] x spec[:h].
+  #
+  # A vented face stands 5.5 in proud, so the extent this tool dimensions is
+  # bigger than the catalogue exterior — a 7296 is a 8'2" x 6'2" box but gets
+  # dimensioned 8'2" x 6'7 1/2". The label sits inches away from those very
+  # dimension strings. If it printed the box figure the drawing would carry two
+  # different footprints for one booth with nothing on it saying which is which,
+  # and the reader would be right to trust neither. The label must agree with
+  # the strings beside it, so it shows the extent.
+  #
+  # The honesty comes from the fourth line instead: whenever a face contributes,
+  # the label says so and says by how much, which is the one thing that lets a
+  # reader work back to the catalogue box. Three lines when nothing projects,
+  # four when something does. The console print carries the catalogue exterior
+  # in full either way — see ability_on.
+  #
+  # INTERIOR IS TWO FIGURES, NOT THREE, and that asymmetry is on purpose.
+  # :iw / :ih are catalogue interior dimensions carried per model in
+  # wr-booth-data.rb (gen-booth.py copies them out of booth-layouts.json's
+  # variants -> interior). They are read, never derived — do NOT compute an
+  # interior by subtracting a wall thickness from the exterior.
+  #
+  # There is no interior HEIGHT to read. :ph is 81.0 for every model in the
+  # file, hard-coded by gen-booth.py as the wall PANEL height — build-booth.rb
+  # pushpulls the wall face by it — and a panel height is not a clear height.
+  # It happens to equal floor-top-to-ceiling-underside in the model as built,
+  # but the real ceiling is a lay-in tray and no source in either repo states
+  # the finished interior clear height. So it is left off rather than guessed.
+  # If Benton produces the figure, add :ich to the data and a third term here.
+  def self.label_for(key, spec, dx, dy, height, faces, proud)
+    lines = [key.to_s]
+    lines << format('Ext dims: %s x %s x %s', arch(dx), arch(dy), arch(height))
+
+    iw = spec[:iw].to_f
+    ih = spec[:ih].to_f
+    if iw > 0 && ih > 0
+      lines << format('Int dims: %s x %s', arch(iw), arch(ih))
+    else
+      # Degrades to a stated absence. A silently missing line reads as a booth
+      # with no interior worth quoting; "Int dims: x" reads as a bug. Neither
+      # belongs in front of a customer.
+      lines << 'Int dims: not in the booth data'
+    end
+
+    unless faces.empty?
+      lines << format('incl. vent %s, +%s each', faces.join(' '), arch(proud))
+    end
+    lines.join("\n")
+  end
+
   # ------------------------------------------------------------------ input --
 
   def self.ask
-    res = UI.inputbox(['Panel height', 'Vented faces', 'Standoff (in)'],
-                      [read_pref('height'), read_pref('vents'), read_pref('gap')],
-                      ['Auto|Standard|Enhanced', '', ''],
+    res = UI.inputbox(['Panel height', 'Vented faces', 'Standoff (in)',
+                       'Label above booth (in)'],
+                      [read_pref('height'), read_pref('vents'), read_pref('gap'),
+                       read_pref('rise')],
+                      ['Auto|Standard|Enhanced', '', '', ''],
                       'Dimension WhisperRoom')
     return nil unless res
-    { 'height' => res[0], 'vents' => res[1], 'gap' => res[2] }
+    { 'height' => res[0], 'vents' => res[1], 'gap' => res[2], 'rise' => res[3] }
   end
 
   def self.faces_from(setting, model_faces, data_faces)
@@ -398,10 +486,15 @@ module WR_DimensionBooth
     vents  = (opts['vents']  || opts[:vents]  || read_pref('vents')).to_s
     gap    = (opts['gap']    || opts[:gap]    || read_pref('gap')).to_f
     gap = 24.0 if gap <= 0 || gap > 240
+    # 0 is allowed here and 0 means "sitting on the roof" — someone who types it
+    # meant it. Only nonsense is corrected back to the default.
+    rise = (opts['rise'] || opts[:rise] || read_pref('rise')).to_f
+    rise = LABEL_RISE if rise < 0 || rise > 600
     write_pref('height', height)
     write_pref('vents', vents)
     write_pref('gap', gap.round.to_s)
-    [height, vents, gap]
+    write_pref('rise', rise.round.to_s)
+    [height, vents, gap, rise]
   end
 
   def self.ability_on(opts = {})
@@ -437,7 +530,7 @@ module WR_DimensionBooth
     end
     spec = specs[key]
 
-    height_key, vents, gap = settings(opts)
+    height_key, vents, gap, rise = settings(opts)
     kids = named_children(inner(inst))
     model_faces, efs, hx = vents_from_model(kids)
     data_faces = vents_from_data(spec)
@@ -458,14 +551,12 @@ module WR_DimensionBooth
 
     dx = ext[:x1] - ext[:x0]
     dy = ext[:y1] - ext[:y0]
-    label = format("%s\n%s x %s x %s%s", key, arch(dx), arch(dy), arch(h),
-                   faces.empty? ? '' : format("\nvent %s, +%s each",
-                                              faces.join(' '), arch(VENT_PROUD)))
+    label = label_for(key, spec, dx, dy, h, faces, VENT_PROUD)
 
     model.start_operation('Dimension WhisperRoom', true)
     begin
       clear(model)                        # never stack two sets on one booth
-      made = draw(model, ext, h, gap, origin, label)
+      made = draw(model, ext, h, gap, origin, label, rise)
       model.commit_operation
     rescue StandardError => e
       model.abort_operation
@@ -479,6 +570,15 @@ module WR_DimensionBooth
     puts "  identified by #{how}"
     puts format('  exterior      %s x %s   (catalogue, wr-booth-data.rb)',
                 arch(spec[:w]), arch(spec[:h]))
+    # The label prints the vent-inclusive EXTENT under "Ext dims"; this is the
+    # catalogue box it came from, so both numbers are on the record and the
+    # difference between them is the vent line below.
+    if spec[:iw].to_f > 0 && spec[:ih].to_f > 0
+      puts format('  interior      %s x %s   (catalogue, wr-booth-data.rb; no ' \
+                  'clear height published)', arch(spec[:iw]), arch(spec[:ih]))
+    else
+      puts '  interior      NOT IN THE DATA for this model — the label says so too'
+    end
     if faces.empty?
       puts '  ventilation   none counted'
     else
