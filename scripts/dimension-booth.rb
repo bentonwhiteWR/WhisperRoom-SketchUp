@@ -340,31 +340,36 @@ module WR_DimensionBooth
   # off the left. Consistent placement beats clever placement — you learn where
   # to look, and two booths side by side read the same way.
   #
-  # THE PLACEMENT RULE, and it is one sentence so it stays followed: each of the
-  # three dimensions owns a different edge of the drawing, and each is pushed
+  # THE PLACEMENT RULE, and it is one sentence so it stays followed: all three
+  # dimensions hang off the NEAR-LEFT CORNER of the extent, and each is pushed
   # away from the booth along ONE axis by the standoff.
   #
-  #     across X   south edge, anchored on the S face, pushed -Y
-  #     across Y   east edge,  anchored on the E face, pushed +X
-  #     height     west edge,  anchored at the MIDDLE of the W face, pushed -X
+  #     across X   anchored (x0, y0) -> (x1, y0), pushed -Y
+  #     across Y   anchored (x1, y0) -> (x1, y1), pushed +X
+  #     height     anchored (x0, y0) -> (x0, y0) + height, pushed -X
   #
-  # THE HEIGHT ONE IS ANCHORED MID-WALL ON PURPOSE — do not move it back to the
-  # corner. It used to start at the near-left corner (x0, y0), which is a single
-  # POINT in plan: two wall faces meet there and neither is behind the dimension,
-  # so the line hung in space off the corner with nothing to relate it to, and in
-  # any three-quarter view it read as a stray diagonal. Benton's words were that
-  # it comes out from the corner and you cannot really move it. Anchoring at the
-  # midpoint of the west face puts it squarely in front of the west elevation,
-  # which is what a height dimension is measuring in the first place, and leaves
-  # the corner to the plan chain.
+  # THE HEIGHT ONE IS ANCHORED AT THE CORNER ON PURPOSE. Benton chose it
+  # explicitly on 2026-08-15, over a mid-west-face anchor that had been built and
+  # was on the table. Do not re-derive the mid-wall version — it looks better on
+  # paper and it is wrong here, for a reason that only shows up in the camera:
   #
-  # The offset stays a single axis — it always was, and that is the half that
-  # makes it draggable. A dimension offset along one axis slides cleanly along
-  # that axis in SketchUp; a diagonal one fights you.
+  #   A three-quarter view projects screen-across as roughly 0.707 * (x + y), so
+  #   sliding the anchor north in +Y slides the string EAST across the screen,
+  #   into the booth. On a 96120 the silhouette spans 0 to 163 screen-across; a
+  #   mid-face anchor at y = 51.75 lands at +20, which is drawn over the booth
+  #   face. The corner at y = 0 lands at -17, clear of it. Benton works in
+  #   three-quarter views constantly and the proposal plates lead with one, so
+  #   overlaying the booth is the worse failure by some distance.
   #
-  # West is the free side: the plan dimensions have taken south and east, so the
-  # height crosses neither and each string has its own margin. What is measured
-  # is unchanged — BASE_Z to BASE_Z + height, exactly as before.
+  # The offset is a single axis and always was; that is the half that makes it
+  # draggable. A dimension offset along one axis slides cleanly along that axis
+  # in SketchUp, a diagonal one fights you — and the diagonal offset Benton
+  # complained about was dimension-selection.rb's, not this file's.
+  #
+  # THIS ALSO KEEPS THE TWO DIMENSION TOOLS AGREEING. dimension-selection.rb
+  # places its height the same way. Benton runs both on one model, and two
+  # conventions for the same measurement would be a bug in its own right —
+  # which is why this is not a free choice to revisit file by file.
   def self.draw(model, ext, height, gap, origin, label = nil, rise = LABEL_RISE)
     lay = tag(model)
     ents = model.entities
@@ -399,10 +404,9 @@ module WR_DimensionBooth
     made << dim(ents, pt.call(ext[:x1], ext[:y0], BASE_Z),
                 pt.call(ext[:x1], ext[:y1], BASE_Z),
                 Geom::Vector3d.new(g, 0, 0), lay)
-    # HEIGHT, up the MIDDLE of the west face, pushed out in -X so it clears both.
-    ymid = (ext[:y0] + ext[:y1]) * 0.5
-    made << dim(ents, pt.call(ext[:x0], ymid, BASE_Z),
-                pt.call(ext[:x0], ymid, BASE_Z + height),
+    # HEIGHT, up the near-left corner, pushed straight out in -X.
+    made << dim(ents, pt.call(ext[:x0], ext[:y0], BASE_Z),
+                pt.call(ext[:x0], ext[:y0], BASE_Z + height),
                 Geom::Vector3d.new(-g, 0, 0), lay)
 
     made.compact!
