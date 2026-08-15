@@ -40,6 +40,24 @@ module WR_AutoDimension
   TAG_DOOR  = 'WR-Dims-Doors'.freeze
   SRC_DOOR  = 'WR-Doors'.freeze   # what the script reads doors from
 
+  # The two tags THIS script draws on, and the only two it may ever erase.
+  #
+  # This list exists because a PREFIX TEST ON A SHARED NAMESPACE is what broke:
+  # ownership used to be `name.start_with?('WR-Dims')`, which was true when this
+  # was the only dimension tool. It is not any more — dimension-booth.rb draws on
+  # WR-Dims-Booth and dimension-selection.rb on WR-Dims-Selection — so toggling
+  # this ability off silently erased both of their work, and left behind
+  # dimension-booth.rb's Sketchup::Text label still asserting figures whose
+  # strings were gone. A wrong-looking drawing, which is the expensive kind.
+  #
+  # So: exact membership, never a prefix. When a fifth WR-Dims-* tag turns up it
+  # belongs to whoever draws it, and this list should not change.
+  OWN_TAGS  = [TAG_DIM, TAG_DOOR].freeze
+
+  def self.own_tag?(name)
+    OWN_TAGS.include?(name.to_s)
+  end
+
   # ------------------------------------------------------------------ finding --
 
   # The floor face: the largest horizontal face at the lowest level in whatever
@@ -282,11 +300,20 @@ module WR_AutoDimension
 
   # ------------------------------------------------------------------- entry --
 
-  # Everything this script has ever drawn lives on a WR-Dims* tag, so it can
-  # always find and remove exactly its own work and nothing a person drew.
+  # Everything this script has ever drawn lives on one of OWN_TAGS, so it can
+  # always find and remove exactly its own work — nothing a person drew, and
+  # nothing another WR-Dims-* tool drew. Exact match, never a prefix.
   def self.own_dims(model)
     model.entities.grep(Sketchup::DimensionLinear)
-         .select { |d| d.layer && d.layer.name.start_with?(TAG_DIM) }
+         .select { |d| d.layer && own_tag?(d.layer.name) }
+  end
+
+  # Dimensions on some OTHER WhisperRoom dimension tag. Never touched — only
+  # counted, so the person can be told they are there before this script adds
+  # a second set of numbers on top of them.
+  def self.other_wr_dims(model)
+    model.entities.grep(Sketchup::DimensionLinear)
+         .select { |d| d.layer && d.layer.name.start_with?('WR-Dims') && !own_tag?(d.layer.name) }
   end
 
   def self.clear_dims(model)
@@ -339,11 +366,25 @@ module WR_AutoDimension
       return
     end
 
-    existing = model.entities.grep(Sketchup::DimensionLinear)
-                    .select { |d| d.layer && d.layer.name.start_with?('WR-Dims') }
+    # Only this script's own work is offered for erasure. Other WhisperRoom
+    # dimension tools are counted and named so you know they are on the drawing,
+    # then left exactly as they are — they are not this script's to remove.
+    existing = own_dims(model)
+    others   = other_wr_dims(model)
+    other_tags = others.map { |d| d.layer.name }.uniq.sort.join(', ')
+    note = ''
+    unless others.empty?
+      note = "\n\n#{others.size} dimension(s) on #{other_tags} belong to another " \
+             'WhisperRoom tool and will NOT be touched either way.'
+      puts ''
+      puts "AUTO DIMENSION — #{others.size} dimension(s) from another WhisperRoom tool " \
+           "(#{other_tags}) are in this model. Left untouched."
+      puts ''
+    end
     unless existing.empty?
-      ans = UI.messagebox("#{existing.size} WR-Dims dimension(s) already in this model.\n\n" \
-                          "Erase them first? (No = add alongside, which will double up.)",
+      ans = UI.messagebox("#{existing.size} dimension(s) from this script " \
+                          "(#{OWN_TAGS.join(' / ')}) are already in this model.\n\n" \
+                          "Erase them first? (No = add alongside, which will double up.)#{note}",
                           MB_YESNOCANCEL)
       return if ans == IDCANCEL
       model.start_operation('Clear dimensions', true)

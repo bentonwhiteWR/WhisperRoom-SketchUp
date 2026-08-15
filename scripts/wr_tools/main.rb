@@ -864,6 +864,13 @@ module WhisperRoom
     # Trailing "..." is a convention here: it means "this opens a dialog". If
     # the old title carried it, the new one keeps it, so the convention cannot
     # be lost by someone who did not know about it.
+    #
+    # Read that fact off meta_of's DIALOG FLAG, not off the title it returns.
+    # meta_of strips the dots before handing the title back — the panel draws a
+    # glyph instead — so testing `title.end_with?('...')` was always false and
+    # the dots could never be re-appended. Every rename of a dialog tool quietly
+    # demoted it to a run-immediately one, permanently, because the fact was
+    # then gone from the file. The flag is the only copy that survives the strip.
 
     def self.rename(name, title)
       base = File.basename(name.to_s)
@@ -872,9 +879,11 @@ module WhisperRoom
       path = File.join(SCRIPTS_DIR, base)
       return [false, "Not found: #{base}"] unless File.exist?(path)
 
-      want = title.to_s.strip.gsub(/\s+/, ' ')
-      old  = meta_of(path)[0]
-      want += '...' if old.to_s.end_with?('...') && !want.empty? && !want.end_with?('...')
+      want   = title.to_s.strip.gsub(/\s+/, ' ')
+      dialog = meta_of(path)[4]
+      # Accept either spelling on the way in, so a person who typed the dots
+      # themselves does not end up with six of them.
+      want += '...' if dialog && !want.empty? && !(want =~ /(\.\.\.|…)\z/)
 
       raw = File.open(path, 'rb') { |f| f.read }
       crlf = raw.include?("\r\n")

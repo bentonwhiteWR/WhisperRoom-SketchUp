@@ -11,7 +11,9 @@
 # correctly-named PNGs and the filenames drop straight into proposal-v2.json.
 #
 #   01-exterior     the booth in the finished room. Lead with this, always.
-#   02-dimensioned  same three-quarter view with WR-Dims switched ON
+#   02-dimensioned  same three-quarter view with the ROOM dimensions switched ON
+#                   (WR-Dims + WR-Dims-Doors). The booth and selection dimension
+#                   tags are hidden on all five plates — see SHOWN_ON_DIMENSIONED.
 #   03-side         side elevation, parallel projection
 #   04-ventilation  rear three-quarter, aimed at the vented wall
 #   05-plan         top-down with the door swing visible. Always close with this.
@@ -38,7 +40,25 @@ module WR_ProposalScenes
     { :name => '05-plan',        :kind => :plan,          :az => 0.0,   :el => 89.0, :persp => false }
   ].freeze
 
-  DIM_TAGS = %w[WR-Dims WR-Dims-Doors].freeze
+  # Every WhisperRoom dimension tag, because a plate must not inherit whatever
+  # visibility a tag happened to have when the scenes were made. This list was
+  # two tags long and predated dimension-booth.rb (WR-Dims-Booth) and
+  # dimension-selection.rb (WR-Dims-Selection), so those two froze at whatever
+  # state they were in — booth catalogue numbers could land on the clean
+  # exterior plate, or vanish from the dimensioned one. These are customer
+  # plates; nothing on them gets to be accidental.
+  DIM_TAGS = %w[WR-Dims WR-Dims-Doors WR-Dims-Booth WR-Dims-Selection].freeze
+
+  # What 02-dimensioned actually shows: the ROOM dimensions and its doors. The
+  # other four plates show none of them.
+  #
+  # WR-Dims-Booth and WR-Dims-Selection are deliberately hidden on all five.
+  # They are working dimensions, not proposal ones — Dimension Selection draws a
+  # bounding box, and a booth carrying both sets shows two different footprints
+  # with nothing on the page to say which is which. Deliberately off is the
+  # conservative call, not a claim they never belong: if Benton wants booth
+  # dimensions on plate 02, switch WR-Dims-Booth on and re-save that scene.
+  SHOWN_ON_DIMENSIONED = %w[WR-Dims WR-Dims-Doors].freeze
 
   # ------------------------------------------------------------------ finding --
 
@@ -84,10 +104,12 @@ module WR_ProposalScenes
 
   # -------------------------------------------------------------------- tags --
 
+  # `on` means "this is the dimensioned plate". Every tag in DIM_TAGS is set
+  # either way, so none of the four is ever left to whatever it was.
   def self.set_dims(model, on)
     DIM_TAGS.each do |n|
       l = model.layers[n]
-      (l.visible = on) if l
+      (l.visible = (on && SHOWN_ON_DIMENSIONED.include?(n))) if l
     end
   end
 
@@ -237,7 +259,10 @@ module WR_ProposalScenes
     end
     puts ''
     puts '  Each scene stores its own camera, TAG VISIBILITY and style, so'
-    puts '  02-dimensioned shows WR-Dims and the other four hide it.'
+    puts "  02-dimensioned shows #{SHOWN_ON_DIMENSIONED.join(' + ')} and the other four hide them."
+    puts '  WR-Dims-Booth and WR-Dims-Selection are hidden on ALL FIVE — working'
+    puts '  dimensions, not proposal ones. Want booth dimensions on plate 02?'
+    puts '  Switch WR-Dims-Booth on and re-save that scene.'
     puts ''
     puts '  THE ANGLES ARE DEFAULTS, NOT DECISIONS. Nudge any view you do not'
     puts '  like and re-save that scene — the ordering and the tag state are the'
