@@ -1,49 +1,38 @@
 # GOAL
 
 ## Mission
-Redesign the WhisperRoom SketchUp plugin panel so a new user can sit down and use it
-without being taught. The concept is right; the visual design, the grouping of the
-scripts, and the icons are not. Produce an approved design direction and a viewable
-mockup before any plugin code is rewritten.
+Make `auto-dimension.rb` dimension a room correctly no matter where that room's group or
+component sits in the model. Today it only works when the containing group has an identity
+transform, which happens to be the common case, so the failure is silent rather than loud.
 
 ## Done means
-- A researched, opinionated UI design for `scripts/wr_tools/panel.html`, shown as a
-  self-contained mockup Benton can open and react to.
-- A proposed reorganisation of `scripts/` — every script placed in a category that
-  makes sense to someone who has never seen the plugin, with the dev-only and
-  one-off scripts separated from the daily tools.
-- An icon set that says what each script actually does, replacing the current
-  generic `ico-*.svg` collection.
-- An artifact published to claude.ai showing the proposed design.
+- `collect` (scripts/auto-dimension.rb:76-84) carries a transformation down the recursion, so
+  every face's geometry is expressed in world coordinates by the time a caller uses it.
+- Every consumer of that pool — `floor_face`, the wall-run tracer, the door finder, the
+  bounding box that positions the chains — reads world coordinates.
+- Demonstrated on a room group that is moved AND rotated, not just moved.
+- Behaviour on an untransformed room (today's working case) is provably unchanged.
 
 ## Now
-Design approved by Benton 2026-08-15. Building it, to the spec at
-`.forge/scoper/panel-redesign.md`, steps 1-5 only. Two sub-agents on a clean file
-split so they cannot collide:
-1. Builder A — `scripts/wr_tools/panel.html` and `scripts/wr_tools/main.rb`. Owns
-   the redesign and the autorun guard fix. Touches no other file.
-2. Builder B — `scripts/wr_tools/wr-ico-*.svg`, `wr-icons.svg`, `icon-map.json`.
-   Owns every icon asset. Touches no other file.
+One Fixer on `scripts/auto-dimension.rb`. Nothing else in the tree is in scope.
 
-Decisions taken here so the builders are not blocked (all reversible, flagged to
-Benton in the report):
-- The 14 `@title` renames: ACCEPTED.
-- Fixed pipeline category order rather than newest-first: ACCEPTED.
-- Retiring `booth-4260-s.rb` / `booth-96168-s.rb`: NO. Shelve them behind the dev
-  switch instead. Deleting is the one irreversible call in the set and it is
-  Benton's to make.
-- Moving `csusb-rooms.rb` to `clients/`: NO. `CLAUDE.md` cites it as the worked
-  example; shelve it instead so the reference stays true.
-- The 6 tools still sharing icons: Builder B authors them to the Researcher's
-  written briefs. The system rules are specific enough now that this does not need
-  a separate art pass.
+Confirmed before delegating (observed in source, 2026-08-16): `collect` recurses into
+`Sketchup::Group#entities` and `ComponentInstance#definition.entities` and appends the faces
+raw. No `e.transformation` is applied anywhere on that path.
 
 ## Out of scope
-- Spec step 6 (pre-run settings sheet). It changes `meta_of`, which every render
-  runs, and a regression there blanks the whole list. Separate round.
-- Spec step 7 (deleting the generic `ico-*.svg` library). Saved slot prefs still
-  reference those ids; deleting them regresses the toolbar to numbered faces.
-- Rewriting any script's own `UI.inputbox`.
-- Any change to booth geometry, `wr-booth-data.rb`, `wr-deck.rb` or the builders.
+- The five low-severity findings still open in `.forge/auditor/script-audit.md` (the
+  `11'-12"` console rounding, the `to_f` standoff fields, the `list-scenes` escaping gaps,
+  the two workshop scripts advertising dialogs, the dedupe-by-name in angled-component-art).
+- `dimension-booth.rb` and `dimension-selection.rb` — they read a selection, not a traced
+  floor face, and are not implicated.
+- Spec steps 6 and 7 from the panel redesign (pre-run settings sheet; deleting the legacy
+  `ico-*.svg` library).
 - The `WhisperRoomQuote` repo — read only, never write.
 - Prices. Nothing from `models.json` goes into any artifact.
+
+## History
+2026-08-15/16 — Panel redesign shipped: new `panel.html`, 29 icons, `@icon`/`@shelf`/`@rank`
+headers, 14 renames, the autorun guard, the four-tag ownership fix, the three-line booth
+label, the corner-anchored height dimensions, the exploded-view fan, and the scene-range
+guard. Closed out by Benton confirming "Dimension the room" works after restart.

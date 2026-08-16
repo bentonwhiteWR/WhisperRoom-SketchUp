@@ -1,37 +1,45 @@
-﻿# Fixer handoff — the dead ability row
+# Fixer handoff — auto-dimension container transforms
 
 ## Produced
-
-- `scripts/wr_tools/panel.html` — the fix. `flipAbility(sw)` is now the single
-  toggle path; `wire()` gained a `.row[data-ab]` handler that calls it, the
-  `.sw` handler calls the same function behind `e.stopPropagation()`, and
-  `.row.ab` no longer forces `cursor: default`.
-- `.forge/fixer/panel-abilityrow-uitest.py` — regenerable repro/regression page.
-  `python .forge/fixer/panel-abilityrow-uitest.py` prints a path; run
-  `chrome --headless=new --disable-gpu --dump-dom file:///<path>` and read
-  `<pre id="OUT">`. 33 assertions, all passing. Point its `src` at a copy of the
-  pre-fix `panel.html` to watch 10 of them fail.
-- `DEVLOG.md` — entry at the top.
+- `scripts/auto-dimension.rb` — fixed. `collect` threads a `Geom::Transformation` down the
+  recursion and stores `[face, tr]` pairs; `floor_face` returns a pair and filters on world
+  normal/area/z; new `world_z` and `bounds_of` helpers; `runs_of(face, tr)` transforms each
+  vertex; `dimension_face(face, opts)` reads `opts[:transform]` (default identity) and takes
+  the overall from `bounds_of(runs)` instead of `face.bounds`; both entry points destructure
+  the pair.
+- `.forge/fixer/root-cause-transform.md` — the confirmation, the API citations, the
+  derivation, the residual limitations, and the verification status.
+- `.forge/fixer/transform_repro.py` — re-runnable proof. `python .forge/fixer/transform_repro.py`,
+  exit 0 = pass. Fails loudly if the identity case ever stops being a no-op.
+- `DEVLOG.md` — entry dated 2026-08-16.
 
 ## Read first
-
-- `.forge/scoper/panel-redesign.md` step 3 — "an ability row has no RUN
-  affordance, the switch is the action". That rule is intact: the row body does
-  not bypass the switch, it *is* the switch.
-- The comment above `abilityRow()` in `scripts/wr_tools/panel.html`, which now
-  records the trap: ability rows carry `data-ab`, action rows carry `data-i`.
+`.forge/fixer/root-cause-transform.md`. It carries the two residual limitations, which are
+the only live decisions left here.
 
 ## Assumptions
+- `Sketchup::Face#area(transform)` is accepted by every SketchUp version Benton runs
+  (documented in the official API; unexercised on this machine). If it were not, it would
+  raise inside `floor_face` and surface as a visible "Auto dimension failed" dialog, not a
+  silent wrong drawing.
+- `Geom::Transformation#*` composes parent-then-child in the conventional column-vector
+  order. Derived from the documented `transformation * point` behaviour and corroborated by
+  three sibling scripts in `scripts/` that already rely on it.
+- `normal.transform(tr)` is used to test horizontality. Exact for rotation, translation and
+  axis-aligned scale; it would misjudge only under a shear, which the SketchUp UI cannot
+  produce.
+- Nothing in this change has been executed in SketchUp. The arithmetic is proven in Python;
+  the Ruby is unrun.
 
-- Real payloads give every script-backed ability a `file` key (read from
-  `abilities()` in `scripts/wr_tools/main.rb`); only the built-in `ghost` lacks
-  one and renders as an orphan row. The test payload mirrors that.
-- Not verified inside SketchUp. Everything here is headless Chrome against the
-  real `panel.html` with the `sketchup` bridge stubbed; Benton runs
-  `install-plugin.py` himself.
-
-## Open questions
-
-- Nothing blocking. The one judgement worth a second opinion is whether a click
-  anywhere on an ability row is *too* easy to trigger — there is no undo prompt,
-  though toggling back off undoes the work by design.
+## Open questions (for Benton, via the orchestrator)
+1. **A rotated room's overalls.** Right now the two overall dimensions are the world
+   axis-aligned extent of the rotated room (a 12' × 14' room at 30° reads 17'-4.7" ×
+   15'-1.5"), which is geometrically true but is not the room's own length and width. The
+   segment chain is correct either way and `closure` correctly reports the runs as skew and
+   refuses to certify closure. Should a rotated room instead be dimensioned in its own axes?
+   That changes what the plate shows, so it is not a call to make silently.
+2. **Doors inside the room group are never dimensioned.** `doors_on` scans only top-level
+   `model.entities`, and `build-room.rb` puts its doors in a `Doors` group inside the room
+   group — so the door dimensions have never appeared on a build-room room, before or after
+   this fix. Worth a follow-up pass; it needs a decision on whether a door nested anywhere in
+   the model counts, or only one nested under the room being dimensioned.

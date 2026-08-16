@@ -1,5 +1,55 @@
 # DEVLOG
 
+## 2026-08-16 — auto-dimension read the room in one coordinate space and drew in another
+
+Dimensioning a room that had been **moved, rotated or scaled after it was drawn** put the
+whole chain somewhere else in the model — 54 feet away for a plain translation, in the
+reproduction — or reported "No floor face found" and did nothing at all.
+
+Root cause, one sentence: a face that lives inside a group stores its vertices in that
+group's own coordinate system, and `collect` (`scripts/auto-dimension.rb`) descended into
+groups and component definitions and appended the faces raw, never applying
+`e.transformation` — while the dimensions it drew went into `model.entities`, which is
+world space. SketchUp says as much in its own API: `Face#area` takes an optional
+transformation "to correct for a parent group's transformation", an argument that would
+mean nothing if the geometry were already world.
+
+Five consumers were reading those local numbers as world: `floor_face`'s horizontal test
+(so a rotated room hid its floor entirely), its area test, its lowest-level test,
+`runs_of`'s perimeter walk, and the `face.bounds` the two overalls are hung off. The door
+finder was the mirror image — doors are top-level so *their* bounds were already world,
+mixed against local runs, so no door could ever match the 24" proximity test.
+
+The fix threads a `Geom::Transformation` down the recursion, composing `tr *
+e.transformation` on each descent — the same idiom `probe-levels.rb`, `wr-deck.rb` and
+`build-booth-components.rb` already use — and stores `[face, transform]` pairs.
+`floor_face` returns that pair, `runs_of(face, tr)` transforms each vertex as it reads it,
+and the overall now comes off a world bounding box of the traced perimeter instead of the
+local `face.bounds`.
+
+`dimension_face`'s new `opts[:transform]` defaults to identity, so **`build-room.rb`'s call
+is untouched**: it hands over a face in a group it created moments earlier, whose transform
+genuinely is identity. That identity case is a proven no-op, not an assumed one — the
+reproduction reports the new code producing the byte-identical list of dimension triples.
+
+A scaled room group now dimensions to its **scaled, real size** (144" × 168" at 1.5×/0.75×
+reads 216" × 126"). That is deliberate: the drawing must state what the model measures.
+
+Two things deliberately left, both written up in
+`.forge/fixer/root-cause-transform.md`: a *rotated* room's two overalls are world axis
+extents rather than the room's own length and width (the segment chain is right, and
+closure correctly refuses to claim it closes — dimensioning a rotated room in its own axes
+is a design call, not a bug fix); and `doors_on` scans only top-level `model.entities`, so
+the doors `build-room.rb` puts inside the room group have never been reachable at all. That
+second one is a separate pre-existing defect worth its own pass.
+
+Proof, since there is still no `ruby.exe` here: `.forge/fixer/transform_repro.py` is a
+line-faithful Python reimplementation of the coordinate math run on an L-shaped room under
+identity, translation, rotation, non-uniform scale and a three-deep nested transform,
+checked against ground truth defined independently. Old fails four of five, new passes all
+five, identity byte-identical. `python scripts/rbparse.py` still reports 34 files parsing.
+**None of this has been run in SketchUp.**
+
 ## 2026-08-15 — the ability row was dead space; the whole row is the switch now
 
 Clicking **Dimension the room** did nothing at all — no dialog, no error, no

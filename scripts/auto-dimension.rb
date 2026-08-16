@@ -21,6 +21,12 @@
 #      than to publish a plausible wrong number.
 #   3. A CHAIN LINE CARRIES SEGMENT LENGTHS, never running totals. Mixing the
 #      two is a real drafting error and gets read as fact.
+#   4. ONE COORDINATE SPACE, and it is the world. A face inside a group stores
+#      its vertices in that group's own space; the dimensions are drawn into
+#      model.entities, which is world. Reading one and drawing in the other put
+#      the dimensions somewhere else entirely on any room that had been moved
+#      or rotated after it was drawn, and found no floor at all on a rotated
+#      one. Every face now travels with the transform that makes it world.
 #
 # Also callable from another script — build-room.rb finishes by using it:
 #
@@ -62,24 +68,65 @@ module WR_AutoDimension
 
   # The floor face: the largest horizontal face at the lowest level in whatever
   # was handed to us. Lowest, so a ceiling can never win.
+  #
+  # Returns [face, transform], NOT a bare face. The transform carries that
+  # face's own geometry into WORLD coordinates, and it is the whole reason this
+  # returns a pair.
+  #
+  # WHY: a face that lives inside a group or component stores its vertices in
+  # that container's OWN coordinate system, not the model's. SketchUp says so
+  # by giving Face#area an optional transformation argument "to correct for a
+  # parent group's transformation" — an argument that would be meaningless if
+  # the geometry were already world. So for a room group that has been moved,
+  # rotated or scaled since it was drawn, every vertex, normal and bounding box
+  # read off its faces is in a space that is NOT the space model.entities draws
+  # dimensions in. The dimensions then land somewhere else entirely, or the
+  # floor is not recognised as horizontal at all and nothing is found.
+  #
+  # It is silent rather than loud because a freshly drawn group has an identity
+  # transformation — build-room.rb dimensions its room microseconds after
+  # creating it, so the two spaces coincide and everything looks correct.
   def self.floor_face(model)
     pool = []
     sel = model.selection
     src = sel.empty? ? model.entities : sel.to_a
-    collect(src, pool, 0)
-    flat = pool.select { |f| f.normal.parallel?(Z_AXIS) && f.area > 100.0 }
+    collect(src, pool, 0, Geom::Transformation.new)
+    flat = pool.select do |f, tr|
+      f.normal.transform(tr).parallel?(Z_AXIS) && f.area(tr) > 100.0
+    end
     return nil if flat.empty?
-    lowest = flat.map { |f| f.bounds.min.z }.min
-    flat.select { |f| (f.bounds.min.z - lowest).abs < 1.0 }.max_by(&:area)
+    lowest = flat.map { |f, tr| world_z(f, tr) }.min
+    flat.select { |f, tr| (world_z(f, tr) - lowest).abs < 1.0 }
+        .max_by { |f, tr| f.area(tr) }
   end
 
-  def self.collect(ents, pool, depth)
+  # Plan height of a face already known to be horizontal in world space: every
+  # vertex of it shares that height, so one transformed vertex is the whole
+  # answer. Reading f.bounds.min.z would be wrong twice over — the bounds are
+  # in the face's own local space, and under a rotated container a bounding
+  # box's min corner is no longer the min corner of anything.
+  def self.world_z(face, tr)
+    v = face.outer_loop.vertices.first
+    return 0.0 unless v
+    v.position.transform(tr).z.to_f
+  end
+
+  # `tr` accumulates every container transform from the root down, so the pair
+  # pushed at depth N carries the full local -> world product. Composition is
+  # parent * child because SketchUp applies `t * point` to the point, so in
+  # (parent * child) * point the child's transform is applied first — which is
+  # the order the nesting means. The same idiom is used by probe-levels.rb,
+  # wr-deck.rb and build-booth-components.rb in this same folder.
+  def self.collect(ents, pool, depth, tr = Geom::Transformation.new)
     return if depth > 4
     ents.each do |e|
       case e
-      when Sketchup::Face then pool << e
-      when Sketchup::Group then collect(e.entities, pool, depth + 1)
-      when Sketchup::ComponentInstance then collect(e.definition.entities, pool, depth + 1)
+      when Sketchup::Face
+        pool << [e, tr]
+      when Sketchup::Group
+        collect(e.entities, pool, depth + 1, tr * e.transformation)
+      when Sketchup::ComponentInstance
+        collect(e.definition.entities, pool, depth + 1, tr * e.transformation)
       end
     end
   end
@@ -88,8 +135,11 @@ module WR_AutoDimension
 
   # Outer loop -> a list of runs, with collinear edges merged so an in-line wall
   # reads as one dimension rather than however many edges SketchUp split it into.
-  def self.runs_of(face)
-    pts = face.outer_loop.vertices.map { |v| v.position }
+  # `tr` is the face's local -> world transform (identity for a face drawn
+  # straight into model.entities). Applying it HERE is what puts every run, and
+  # therefore every dimension, door hit and overall, into one single space.
+  def self.runs_of(face, tr = Geom::Transformation.new)
+    pts = face.outer_loop.vertices.map { |v| v.position.transform(tr) }
     pts = dedupe(pts)
     return [] if pts.size < 3
 
@@ -248,16 +298,32 @@ module WR_AutoDimension
     }
   end
 
+  # World-space bounding box of the traced perimeter. For a floor face the
+  # outer loop IS the extent, so this equals face.bounds under an identity
+  # transform and stays correct under any other.
+  def self.bounds_of(runs)
+    bb = Geom::BoundingBox.new
+    runs.each { |r| bb.add(r[:a]); bb.add(r[:b]) }
+    bb
+  end
+
   # ---------------------------------------------------------------- the work --
 
   # Public: dimension one floor face. build-room.rb calls this directly.
+  #
+  # opts[:transform] is the face's local -> world transform. It defaults to
+  # identity, which is exactly right for build-room.rb: it hands over a face in
+  # a group it created moments earlier, whose transformation is still identity.
   def self.dimension_face(face, opts = {})
     model = face.model
-    runs  = runs_of(face)
+    tr    = opts[:transform] || Geom::Transformation.new
+    runs  = runs_of(face, tr)
     raise 'could not read a closed outer loop off that face' if runs.size < 3
 
     ccw = signed_area(runs) > 0
-    bb  = face.bounds
+    # The overall must be measured in the same space the chain was, so it comes
+    # off the transformed runs and not off face.bounds, which is local.
+    bb  = bounds_of(runs)
     ents = model.entities
 
     t_dim  = tag(model, TAG_DIM,  [40, 40, 40])
@@ -357,14 +423,15 @@ module WR_AutoDimension
 
   def self.ability_on(_opts = {})
     model = Sketchup.active_model
-    face  = floor_face(model)
-    if face.nil?
+    hit   = floor_face(model)
+    if hit.nil?
       UI.messagebox("No floor face found.\n\nSelect the room (or its floor) and try again.")
       return false
     end
+    face, tr = hit
     clear_dims(model)
     model.start_operation('Auto dimension', true)
-    res = dimension_face(face)
+    res = dimension_face(face, :transform => tr)
     model.commit_operation
     report(res)
     true
@@ -385,11 +452,12 @@ module WR_AutoDimension
 
   def self.run
     model = Sketchup.active_model
-    face = floor_face(model)
-    if face.nil?
+    hit = floor_face(model)
+    if hit.nil?
       UI.messagebox("No floor face found.\n\nSelect the room (or its floor) and try again.")
       return
     end
+    face, tr = hit
 
     # Only this script's own work is offered for erasure. Other WhisperRoom
     # dimension tools are counted and named so you know they are on the drawing,
@@ -419,7 +487,7 @@ module WR_AutoDimension
     end
 
     model.start_operation('Auto dimension', true)
-    res = dimension_face(face)
+    res = dimension_face(face, :transform => tr)
     model.commit_operation
     report(res)
   rescue StandardError => e
