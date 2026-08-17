@@ -59,6 +59,7 @@ module WR_Deck
   # reads but everything remembers.
   %w[INSET DECK_TOP_Z WALL_H TOL NAME ORIGIN Z_AXIS X_AXIS
      BIG_GAP SMALL_GAP GAP_TOL
+     SEAL_NAME SEAL_DATUM_LIFT SEAL_LEN_TOL
      SIDE_R_SMALL_WALL_AT_LOW_END LOW_END_PANEL_IS_TURNED].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
@@ -831,6 +832,245 @@ module WR_Deck
     end
 
     [placed, warn, note]
+  end
+
+  # ------------------------------------------------- ceiling seam seals --
+  #
+  # A ceiling seam seal drops into the joint between two ceiling panels and
+  # registers into a slot cut in each of them. `build` leaves those joints bare.
+  # This is a SEPARATE PASS on purpose: the FL/CL path was confirmed correct on
+  # 2026-08-17 and re-running `plan` here costs one folder glob to leave `build`
+  # byte-identical. `plan` is pure, so the joints computed here are the joints
+  # the panels were actually seated at.
+  #
+  # WHAT IS MEASURED (probe-seam-seal.rb, run by Benton on a built MDL 7272 S):
+  #
+  #   Seals are all 6.500 across the joint and — since Benton re-cut all four CL
+  #   seals on 2026-08-17 — 1.750 tall, and their length is exactly
+  #   feet x 12 - 2: CL5 58, CL6 70, CL7 82, CL8 94, 8.5CL 100.
+  #
+  #   Levels, from the datum (the largest flat face) upward:
+  #
+  #     CL5 / CL6 / CL7    datum  0.000   mid 1.000   top 1.750
+  #     CL8 / 8.5CL        datum -0.750   mid 0.250   top 1.000
+  #
+  #   Gap signature +1.000 / +0.750 on every one of them, so CL8 and 8.5CL are
+  #   CL5/6/7 TRANSLATED DOWN 0.750, not flipped. NOTHING IN THIS PATH MAY FLIP A
+  #   SEAL, and no contact_z-style up/down detection belongs here — that rule is
+  #   for the panels. The 0.750 top section is what drops into the panel slot.
+  #
+  #   Registration is symmetric and unhanded. STDSS CL8's ribs sit at part x
+  #   0.6875..0.9375 and 5.5625..5.8125 on a 6.500 part, i.e. +/-2.4375 from its
+  #   own centreline. The slot in STD7248CL SIDE L is centred 2.4378 from the
+  #   joint edge and in STD7224CL SIDE R 2.4368 from its own — two panels,
+  #   independently, agreeing with the seal to three decimals. So: centre the
+  #   seal on the joint station and the ribs land in the slots. There is no
+  #   handing and no front/back.
+  SEAL_NAME = /\ASTDSS\s*(?:CL\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*CL)\z/i.freeze
+
+  # THE RULE: THE SEAL'S TOP FACE LANDS ON THE PANELS' CONTACT PLANE.
+  #
+  # This constant is that rule expressed as the one number the placement uses, so
+  # if a seal ever sits at the wrong HEIGHT it is the only constant to change.
+  # Nothing else compensates for it and nothing that does should ever be added.
+  #
+  # Inches to lift the seal's DATUM FACE — its largest-area flat level — above the
+  # ceiling panels' contact plane, which is DECK_TOP_Z + wall_h (81.000 on a
+  # standard booth). The datum sits 1.750 BELOW the seal's top face on every
+  # ceiling seal in the library, so -1.75 is "top flush with the contact plane".
+  #
+  # MEASURED, BY FIT TEST, NOT DERIVED. Benton built an MDL 7272 S with this pass
+  # on 2026-08-17, moved the placed STDSS CL6 by hand until it seated, and it
+  # needed to come DOWN 1 3/4. The geometry says that is exact rather than an
+  # eyeball figure:
+  #
+  #   datum 0.000 -> top 1.750 on CL5/6/7, datum -0.750 -> top 1.000 on CL8 and
+  #   8.5CL. Datum-to-top is 1.750 on BOTH families, because CL8's datum and its
+  #   top are each 0.750 lower. So ONE value serves all five and the 0.750 family
+  #   shift needs no special case — proved in .forge/builder/seal_placement_proof.py.
+  #
+  #   At -1.75 the datum lands at booth z 79.250 and the top at exactly 81.000,
+  #   and the seal's top section (part z 1.000 -> 1.750, 0.750 tall) drops exactly
+  #   into the panel slot, which runs booth z 80.249 -> 81.000 and is 0.750 deep.
+  #
+  # THE PARTS CHANGED ON 2026-08-17 AND THIS NUMBER IS TIED TO THAT. The seals
+  # used to be 2.000 tall with an extra 0.250 step at z 1.250; Benton re-cut all
+  # four CL seals to 1.750 overall with that step removed, so the seal now suits
+  # the slot instead of the code compensating for a part that did not fit. A
+  # library still holding the old 2.000-tall seals would want -2.00 here, and
+  # would be the thing to check first if a seal ever lands 1/4 in proud.
+  SEAL_DATUM_LIFT = -1.75
+
+  # How far the measured seal length may differ from cross - 2 before it is
+  # called out. The name-to-cross mapping and the measured length are two
+  # independent checks on the same claim, and finding them in disagreement means
+  # the feet x 12 - 2 rule met a part it does not cover.
+  SEAL_LEN_TOL = 0.05
+
+  # Every ceiling seam seal in the folder.
+  #
+  # Globbed as STDSS*, which is disjoint from the panel catalogue's STD* + a
+  # regex demanding STD followed by DIGITS (`NAME`, above). That disjointness is
+  # the whole reason seals need their own path, and it must not be "fixed" by
+  # loosening NAME — that would drop seals into the panel pool and let one get
+  # tiled into a deck.
+  #
+  # Both spellings are matched (CL8 and 8.5CL) because the digit changes sides at
+  # 8.5 and the naming gives no reason for it, so trusting whoever names the next
+  # one to pick a side is not a plan.
+  def self.seal_catalogue(dir)
+    out = []
+    Dir.glob(File.join(dir, 'STDSS*.skp')).each do |path|
+      base = File.basename(path, '.skp')
+      m = SEAL_NAME.match(base.strip)
+      next if m.nil?
+      ft = (m[1] || m[2]).to_f
+      out << { :file => base, :path => path, :feet => ft, :cross => ft * 12.0 }
+    end
+    out
+  rescue StandardError => e
+    puts "  seal catalogue failed: #{e.class}: #{e.message}"
+    []
+  end
+
+  # The seal for a deck of this cross dimension, by the name's feet x 12 mapping.
+  # nil when the library has none — a normal answer for a single-tile cross,
+  # which never gets here, and an error for a real joint, which is reported.
+  #
+  # No per-model table, and no name-based exception: the crosses are 42, 48, 60,
+  # 72, 84, 96, 102, and the library carries CL5/6/7/8 and 8.5CL, which is
+  # exactly the crosses that tile into more than one panel.
+  def self.pick_seal(seals, cross)
+    seals.find { |s| (s[:cross] - cross.to_f).abs < TOL }
+  end
+
+  # Where the joints fall along the tiling axis, in DECK coordinates (0 at the
+  # deck's low edge). One per interior joint: an MDL 7272 S tiles 48 + 24 and has
+  # one at 48; an MDL 96168 S tiles 48 + 48 + 24 + 48 and has three, at 48, 96
+  # and 120.
+  #
+  # Taken from the cut list, not from the placed panels. `build` seats each
+  # panel's measured deck_extent at INSET + the running sum, so these ARE the
+  # stations the deck edges landed on; re-measuring the instances would be a
+  # second source of truth free to disagree with the first.
+  def self.joint_stations(tiles)
+    return [] if tiles.nil? || tiles.length < 2
+    pos = 0.0
+    tiles[0..-2].map { |t| pos += t[:along].to_f; pos }
+  end
+
+  # Places the ceiling seam seals. Returns [placed, [warnings], note] — the same
+  # shape as `build`, so the caller treats them alike.
+  def self.seals(model, parent, spec, dir, wall_h = WALL_H)
+    cat = catalogue(dir)
+    return [0, [], 'no CL parts'] if cat.empty?
+
+    tiles, = plan(spec, cat, 'CL')
+    # The CL pass already reported why there is no plan. A second copy of the
+    # same complaint is noise.
+    return [0, [], 'no CL plan'] if tiles.nil?
+
+    stations = joint_stations(tiles)
+    # A one-tile ceiling has no joint and therefore no seal. That is a correct
+    # build, so it gets a note and NOT a warning.
+    return [0, [], 'single tile — no joint'] if stations.empty?
+
+    cross      = tiles.first[:cross].to_f
+    along_is_x = tiles.first[:along_is_x]
+
+    seal = pick_seal(seal_catalogue(dir), cross)
+    if seal.nil?
+      return [0, [format('no ceiling seam seal for a %g in cross — %d joint(s) ' \
+                         'left bare. Nothing was substituted: a seal of the ' \
+                         'wrong length would not reach its slots.',
+                         cross, stations.length)], nil]
+    end
+
+    defn = begin
+             model.definitions.load(seal[:path])
+           rescue StandardError => e
+             return [0, ["#{seal[:file]}: #{e.class}: #{e.message}"], nil]
+           end
+
+    tally = flat_levels(defn)
+    if tally.empty?
+      return [0, ["#{seal[:file]}: no flat faces to measure"], nil]
+    end
+    # The datum: the largest-area flat level. Measured, never the origin — the
+    # CL5/6/7 family puts it at 0.0000 and the CL8 family at -0.7500, and the
+    # part is the same way up in both.
+    datum = tally.max_by { |_z, a| a }[0].to_f
+
+    bb   = defn.bounds
+    dx   = (bb.max.x - bb.min.x).to_f
+    dy   = (bb.max.y - bb.min.y).to_f
+    len  = [dx, dy].max
+    warn = []
+    # The finding-1 tripwire: the NAME said this seal fits and the GEOMETRY is
+    # asked whether it agrees. Placed anyway — the name mapping is right on five
+    # parts and a warned placement is more useful than a bare joint — but never
+    # silently.
+    if (len - (cross - 2.0)).abs > SEAL_LEN_TOL
+      warn << format('%s measures %.4f but a %g in cross wants %g — the ' \
+                     'feet x 12 - 2 rule met a part it does not describe. ' \
+                     'Placed anyway; check the joint.',
+                     seal[:file], len, cross, cross - 2.0)
+    end
+
+    target_z = DECK_TOP_Z + wall_h + SEAL_DATUM_LIFT
+
+    placed = 0
+    stations.each do |station|
+      # Same quarter turn as the panels and NOTHING ELSE. The seal's own X runs
+      # across the joint and its Y along it, the identical convention the panels
+      # use, so it takes `turn` and no flip and no half turn.
+      tr = Geom::Transformation.new
+      tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr unless along_is_x
+
+      # Read the datum plane back out of the transform rather than assuming the
+      # rotation left it alone — same discipline as the panel path.
+      now = Geom::Point3d.new(0, 0, datum).transform(tr).z.to_f
+      tr = Geom::Transformation.translation(
+        Geom::Vector3d.new(0, 0, target_z - now)) * tr
+
+      # Seat in plan from ALL EIGHT transformed corners, not bb.min: a quarter
+      # turn swaps the axes and bb.min transformed is not the transformed
+      # minimum.
+      got = Geom::BoundingBox.new
+      8.times { |k| got.add(bb.corner(k).transform(tr)) }
+
+      # Centre across the joint ON THE JOINT STATION — that is what puts the ribs
+      # in the slots — and centre along the joint on the deck's cross span.
+      want_a = INSET + station
+      want_c = INSET + cross / 2.0
+      wx, wy = along_is_x ? [want_a, want_c] : [want_c, want_a]
+      cx = (got.min.x.to_f + got.max.x.to_f) / 2.0
+      cy = (got.min.y.to_f + got.max.y.to_f) / 2.0
+      tr = Geom::Transformation.translation(
+        Geom::Vector3d.new(wx - cx, wy - cy, 0)) * tr
+
+      inst = nil
+      begin
+        inst = parent.entities.add_instance(defn, tr)
+        # The part's own name and nothing else — the panel path learned that
+        # diagnostic suffixes end up in exported models.
+        inst.name = seal[:file] if inst
+        placed += 1
+      rescue StandardError => e
+        warn << "#{seal[:file]}: place failed at station #{station}, #{e.class}: #{e.message}"
+        next
+      end
+
+      landed = (inst && inst.valid? ? inst.bounds : nil)
+      next unless landed
+      puts format('    %-26s joint %7.2f  datum %7.4f  ->  %7.2f %7.2f %7.2f  ' \
+                  'to %7.2f %7.2f %7.2f',
+                  seal[:file], want_a, datum,
+                  landed.min.x.to_f, landed.min.y.to_f, landed.min.z.to_f,
+                  landed.max.x.to_f, landed.max.y.to_f, landed.max.z.to_f)
+    end
+
+    [placed, warn, format('%s x%d', seal[:file], placed)]
   end
 
   ORIGIN = Geom::Point3d.new(0, 0, 0)

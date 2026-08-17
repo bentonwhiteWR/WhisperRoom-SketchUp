@@ -1,5 +1,78 @@
 # DEVLOG
 
+## 2026-08-17 — the ceiling joints get their seals, and the seal got re-cut rather than the code
+
+`WR_Deck` tiled the ceiling and left the joint between the panels bare. It places the
+seam seal now — `WR_Deck.seals`, a separate pass wired in after the `%w[FL CL]` loop in
+`build-booth-components.rb`, riding on the existing **Floor and ceiling: Yes/No** control
+and the same `WR-Booth-Deck` tag.
+
+Separate on purpose. `git diff scripts/wr-deck.rb` is **240 added lines and not one
+deleted** — `build`, `plan`, `pick`, `tile`, `order_cuts`, `contact_z` and `deck_extent`
+are byte-identical, which is the out-of-scope fence written as code rather than as an
+intention. `seals` re-runs `catalogue` and `plan(spec, cat, 'CL')` itself; `plan` is pure,
+so the joints it computes are the joints the panels were seated at, and the cost is one
+folder glob.
+
+Selection is general, not tabulated. Benton ran `probe-seam-seal.rb` on a built MDL 7272 S
+and the numbers came back: every ceiling seal is 6.5 across and 2.0 tall, and its length is
+exactly `feet × 12 − 2` — 58 / 70 / 82 / 94 / 100 for CL5 / CL6 / CL7 / CL8 / 8.5CL. So the
+seal a booth takes is the one whose `feet × 12` equals the deck's cross, the measured length
+is then re-checked against `cross − 2` as an independent tripwire, and a mismatch is warned
+rather than swallowed. No per-model table, no name-based exception — this file's header
+already records what four rounds of per-part constants cost.
+
+The registration is the good part, because two parts measured separately agree. `STDSS CL8`
+carries its ribs at part x 0.6875–0.9375 and 5.5625–5.8125 on a 6.500 part, a pair **±2.4375
+from its own centreline**. The slot in `STD7248CL SIDE L` sits centred 2.4378 from its joint
+edge and in `STD7224CL SIDE R` 2.4368 from its own. **Centre the seal on the joint station
+and the ribs land in the slots** — one rule, no handing, no front and back. And the seals are
+*shifted, never flipped*: the gap signature above the datum face is `+1.000, +0.250, +0.750`
+on all of them, so CL8 is CL5/6/7 translated down 0.75, not turned over. Nothing in the seal
+path flips a part.
+
+The MDL 7272 S is the flagship because its joint is at 48 from the low end, not at the
+midpoint. It gets one `STDSS CL6` centred at booth **x 49.000**, not at 37.000. A bug that
+defaults to the deck midpoint is visible there and invisible on the 7296.
+
+**The vertical was the one number nobody had measured, and it is measured now.** It shipped
+as a single constant, `SEAL_DATUM_LIFT`, defaulted to a stated guess, and Benton built the
+7272 and dragged the placed `STDSS CL6` by hand until it seated: down 1 3/4. So it is
+**−1.75**, and the rule it expresses is **the seal's top face lands on the panels' contact
+plane** — datum at booth z 79.250, top at exactly 81.000.
+
+1 3/4 is not an eyeball figure and the reason matters. Datum-to-top is **1.750 on both seal
+families** — CL8's datum sits 0.750 lower and so does its top — so one constant places all
+five sizes with no special case for the family shift, and at −1.75 the seal's 0.750 top
+section drops into the panel's 0.750 slot at booth z 80.249 → 81.000. The proof asserts
+`SEAL_DATUM_LIFT == −(datum-to-top)` for every seal and fails loudly if a later edit breaks it.
+
+**And here is the durable part: the mismatch got fixed in the part, not in the code.** The
+old seals were 2.000 tall with an extra 0.250 step at z 1.250, and the section that met the
+slot was 1.000 against a 0.750 slot — a part that could not seat. The tempting fix is a
+compensating offset in the placement, and that is how a file grows a second vertical constant
+that nobody can later explain. Benton re-cut all four CL seals to 1.750 with the step removed
+instead. **The part now suits the slot, and there is still exactly one vertical number in
+`wr-deck.rb`.** The corollary is written next to it: that number is tied to the parts it was
+measured against, and a library still holding the old 2.000-tall seals would want −2.00.
+
+Proof, since there is still no `ruby.exe` here: `.forge/builder/seal_placement_proof.py`
+re-implements `joint_stations`, `pick_seal` and the `seals` transform in Python and checks
+them against the probe's numbers held as independent ground truth — the 7272's single
+`STDSS CL6` at x 49.000 with ribs at 46.5625 and 51.4375, the 96168's **three** CL8s at 49 /
+97 / 121, the 10284's quarter turn (two CL7s along booth Y at y 43 and 85, 6.5 across in Y),
+zero seals and zero warnings on the single-tile 4872 and 4230, every seal landing its top face
+on 81.000 despite the 0.75 family shift, and the two catalogues staying disjoint so a seal can
+never enter the panel pool. It passes, and it was checked to fail on both 0.0 and −1.0.
+`python scripts/rbparse.py` reports 35 files parsing. **The 7272 has been built in SketchUp
+with this code and the seal seats; nothing else in the acceptance set has been built.**
+
+`probe-seam-seal.rb` now clears the Ruby Console before it prints its banner, so where a run
+begins is unmistakable. `SKETCHUP_CONSOLE.clear` — the name checked against
+`ruby.sketchup.com/Sketchup/Console.html`, SketchUp 2014 and later — guarded behind
+`defined?` and `respond_to?` and rescued, because a probe that raises because it could not
+tidy the screen is a worse outcome than a messy screen.
+
 ## 2026-08-16 — auto-dimension read the room in one coordinate space and drew in another
 
 Dimensioning a room that had been **moved, rotated or scaled after it was drawn** put the

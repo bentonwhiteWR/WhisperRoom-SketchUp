@@ -1009,6 +1009,19 @@ module WR_BuildBoothComponents
           placed += n
           (dwarn || []).each { |w| puts "  DECK #{kind}: #{w}" }
         end
+
+        # Ceiling seam seals ride on the SAME "Floor and ceiling: Yes/No"
+        # control, and on the same WR-Booth-Deck tag: a seal is part of the deck,
+        # and a deck without its seam seals is not a state anyone has asked for.
+        # Splitting it later is one inputbox row, one write_pref key and one
+        # boolean threaded into this call — the placement code does not move.
+        before = booth.entities.length
+        sn, swarn, snote = WR_Deck.seals(model, booth, spec, cfg['dir'], wall_h)
+        booth.entities.to_a[before..-1].to_a.each { |e| (e.layer = t_deck) rescue nil }
+        deck_note = "#{deck_note}; seals #{sn}#{snote ? " (#{snote})" : ''}"
+        placed += sn
+        (swarn || []).each { |w| puts "  DECK SEAL: #{w}" }
+
         puts "  deck     #{deck_note}"
       end
 

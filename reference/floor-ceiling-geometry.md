@@ -133,12 +133,71 @@ Floor seals `STDSS FL6/7/8` — box 7.190 × (72/84/96) × 1.691, z **−1.0031 
 0.6875**. Levels at 0.6875, 0.4375, 0.0625, 0.0000, −0.9375, −1.0000. Note the
 negative origin: these hang **below** their insertion point.
 
-Ceiling seals split the same two ways as the ceilings: `CL5/6/7` run z 0 → 2.0;
-`CL8` and `8.5CL` run z −0.75 → 1.25. Same shape, shifted.
+Ceiling seals split the same two ways as the ceilings: `CL5/6/7` run z 0 → 1.75;
+`CL8` and `8.5CL` run z −0.75 → 1.00. Same shape, shifted 0.75.
+
+> **The four CL seals were re-cut on 2026-08-17.** They were 2.000 tall with an
+> extra 0.250 step at z 1.250; they are now **1.750 tall** with that step gone.
+> The 2.000 figures recorded here from the 2026-08-14 probe are **stale** and any
+> number derived from them is out by 0.250.
 
 `STDSS FL5` and `STDSS FL8.5` **do not exist** in the folder, though `CL5` and
 `8.5CL` do. Either floors do not need a seal at those widths, or two parts are
 missing. Worth asking before a build depends on it.
+
+### Ceiling seals — the placement rule (`WR_Deck.seals`)
+
+As re-cut 2026-08-17. All 6.500 across the joint and **1.750 tall**.
+
+| part | across | length | height | datum | mid | top |
+|---|---|---|---|---|---|---|
+| `STDSS CL5` | 6.500 | 58.000 | 1.750 | 0.0000 | 1.0000 | 1.7500 |
+| `STDSS CL6` | 6.500 | 70.000 | 1.750 | 0.0000 | 1.0000 | 1.7500 |
+| `STDSS CL7` | 6.500 | 82.000 | 1.750 | 0.0000 | 1.0000 | 1.7500 |
+| `STDSS CL8` | 6.500 | 94.000 | 1.750 | −0.7500 | 0.2500 | 1.0000 |
+| `STDSS 8.5CL` | 6.500 | 100.000 | 1.750 | −0.7500 | 0.2500 | 1.0000 |
+
+Gap signature **+1.000, +0.750** on every one. **Datum-to-top is 1.750 on both
+families** — CL8's datum and its top are each 0.750 lower — which is why a single
+constant places all five with no special case for the shift.
+
+**Length is `feet × 12 − 2`**, where `feet × 12` is the booth's **cross**
+dimension. Five for five, exact. **The floor seals map differently** — `FL6/7/8`
+measure the full 72/84/96 — so one rule does **not** cover both decks, and that
+asymmetry is real and unexplained. Do not generalise across it.
+
+**Shifted, never flipped.** `CL8` and `8.5CL` are `CL5/6/7` translated down
+0.75 in — a pure translation. The *ceilings* split into two
+genuine mirror conventions; the *seals* do not. Nothing in the seal path may
+flip a part and no `contact_z`-style up/down detection belongs there.
+
+**Registration is symmetric and unhanded.** `STDSS CL8`'s ribs sit at part x
+0.6875–0.9375 and 5.5625–5.8125 on a 6.500 part — a pair **±2.4375 from the
+seal's own centreline**. The slot in `STD7248CL SIDE L` is centred 2.4378 from
+its joint edge and in `STD7224CL SIDE R` 2.4368 from its own. Two panels,
+independently, agreeing with the seal to three decimals: **centre the seal on
+the joint station and the ribs land in the slots**. Outer deck edges carry no
+such profile — the slot exists only at the joint.
+
+**The panels' slot** runs part z 1.3580 → 2.1080 against a contact face at
+2.1094, i.e. its top *is* the contact face and it cuts **0.75 in down** from it —
+booth z 80.249 → 81.000 on a standard booth.
+
+**Height: the seal's TOP FACE lands on the panels' contact plane.**
+`WR_Deck::SEAL_DATUM_LIFT` is that rule as a number — it lifts the seal's datum
+face relative to the contact plane (`DECK_TOP_Z + wall_h`, 81.000 standard) and
+is **−1.75**, which is exactly −(datum-to-top). Datum lands at booth z 79.250,
+top at 81.000, and the seal's 0.750 top section drops into the 0.750 slot.
+
+**That number is measured, by fit test.** Benton built an MDL 7272 S on
+2026-08-17 and moved the placed `STDSS CL6` by hand until it seated: down
+1 3/4. It is tied to the re-cut parts — a library still holding the old
+2.000-tall seals would want −2.00.
+
+**The mismatch was fixed in the part, not in the code.** The old seal met a
+0.750 slot with a 1.000 section, and rather than the placement growing a
+compensating offset, the seal was re-cut to suit the slot. That is the reason
+there is still exactly one vertical constant here.
 
 ---
 
