@@ -527,10 +527,15 @@ def main():
           'HEIGHT all match.')
     print('        SEAL_DATUM_LIFT = %+.3f is measured by fit test, not '
           'derived.' % SEAL_DATUM_LIFT)
-    print('NOTE -- this is the arithmetic, checked against the probe. The '
-          'PLACEMENT ITSELF has')
-    print('        been run in SketchUp once (MDL 7272 S, 2026-08-17); this '
-          'script has not.')
+    print('NOTE -- this is the arithmetic, checked against the probe; this '
+          'script itself has not')
+    print('        been run in SketchUp. The PLACEMENT has: 7272 S (CL6), '
+          '9696 S and 96120 S (CL8,')
+    print('        and the 96120 is multi-joint), 102186 S (8.5CL) -- all '
+          'confirmed 2026-08-17.')
+    print('        UNBUILT: CL5 (6084-class), CL7 (10284-class, the only '
+          'quarter-turn booth),')
+    print('        and the zero-seal case (4872 / 4230).')
 
 
 if __name__ == '__main__':

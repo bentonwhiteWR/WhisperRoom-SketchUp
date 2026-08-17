@@ -1,5 +1,93 @@
 # DEVLOG
 
+## 2026-08-17 — session handoff: two dialogs that have never been opened
+
+End of day, switching machines. Three pieces of work landed today and **the riskiest thing in
+the repo right now is the one that parses cleanly.**
+
+**1. Ceiling seam seals — committed, `c9ed74e`.** Selection off the booth's cross dimension
+(`seal length = feet × 12 − 2`), one seal per ceiling joint, centred on the joint station, no
+handing. `SEAL_DATUM_LIFT = -1.75` is measured by fit test, not derived, and puts the seal's
+top face on the panels' contact plane. Built and confirmed in SketchUp on **MDL 7272 S, 9696 S,
+96120 S and 102186 S** — the commit message says only the 7272 because the other three were
+built after it. `STDSS CL5` and `STDSS CL7` are still unbuilt, the 10284-class **quarter turn
+has never run**, and neither has the zero-seal case (4872 / 4230).
+
+**2. The floor/ceiling toggle removal — NOT committed, and NOT run.** The row is out of
+`scripts\build-booth-components.rb` and `scripts\booth-from-link.rb`; deck and seals are
+unconditional. `rbparse.py` is green and that proves nothing that matters here: both dialogs
+pass **three parallel arrays to `UI.inputbox`, matched by index**, and a length or index
+mismatch is silent — SketchUp reads the wrong field into the wrong variable and says so
+nowhere. A parse cannot catch it. **Opening each dialog once is the first job of the next
+session.**
+
+**3. `reference\seam-seal-attachment.md` — new, uncommitted, not yet handed over.** Plan-view
+spec of the corner and mid-wall seam seals for the `WhisperRoomQuote` agent building top-down
+art: exact vertex lists, joint-centre stations, the closure rule worked on the 4872 S and
+checked on the 96120 S. Written to be read cold, with no access to this repo.
+
+Three smaller things, all Benton's hands rather than the code's: the `STD7224 CL/FL SIDE R`
+flip was **the master component files saved out of alignment, not a code defect** — re-saved
+and confirmed. `STD7248CL/FL SIDE R` did not exist in the library; he authored them and
+`wr-deck.rb` picked them up with **no code change**. And the four CL seals plus `STDSS 8.5CL`
+were **re-cut to 1.750 tall so the seal suits the slot**, rather than the code growing a
+constant to compensate for the mismatch.
+
+### Next session, in order
+
+1. **Open both booth tools in SketchUp** and confirm each dialog reads correctly now the toggle
+   row is gone. Nothing else should be trusted until this is done.
+2. Build a **6084-class** booth (exercises `STDSS CL5`) and a **10284-class** booth (exercises
+   `STDSS CL7` *and* the quarter turn — the largest untested branch in the seal work).
+3. Hand `reference\seam-seal-attachment.md` to the `WhisperRoomQuote` agent.
+4. `auto-dimension.rb`'s container-transform fix (`e90321d`, 2026-08-16) is **still unrun in
+   SketchUp**, with two open questions in `.forge\fixer\root-cause-transform.md`: a rotated
+   room's overall dimensions, and doors nested inside the room group never getting dimensioned.
+
+### Waiting on Benton
+
+- **Door leaf thickness and swing geometry are undimensioned anywhere in this repo.** This
+  blocks the quote-tool agent's top-down views — no swing arc is drawable without it.
+- **Vent duct and silencer box dimensions**, same situation, and the vent projects past the
+  booth footprint, so a plan that stops at the exterior rectangle is incomplete.
+- The two `auto-dimension` questions above.
+- `scripts\export-component-art.rb` carries an **uncommitted one-line `@title` change** to
+  `Scene PIctures...` — capital I mid-word, which reads as a typo. Not our edit; left
+  uncommitted deliberately. Fix and commit it, or revert it.
+
+## 2026-08-17 — the floor/ceiling toggle is gone from both builders
+
+"Floor and ceiling: Yes/No" is removed from **Build Booth from Components** and from
+**Build Booth from Link**. The deck pass and the seam-seal pass now always run.
+
+**This is a behaviour change and it costs something.** A user who previously answered No to
+build the walls without a floor and ceiling has no way to do that any more. Benton asked for
+it and accepted that tradeoff — a booth without its deck is not a thing anyone was actually
+producing, and the row had to be answered on every single build to get the answer it already
+had. Restoring it is one dialog row in each tool plus one guard; nothing about the placement
+moved.
+
+What made it clean: `build_booth`'s third argument is a **config hash**, not a positional
+parameter list, so `'deck'` simply stops being a key. No signature change, and — the thing
+worth avoiding — **no dead always-true boolean left threaded through the call** pretending a
+decision is still being made. Grepped for other callers before touching it: there are exactly
+two, `booth-from-link.rb:170` and `build-booth-components.rb`'s own `run`. `csusb-rooms.rb`
+has a `build_booth` of its own, in a different module, unrelated.
+
+Both dialogs pass **three parallel arrays** to `UI.inputbox` — prompts, defaults, dropdown
+lists — matched by index, and a mismatch there is silent: SketchUp does not complain, it just
+reads the wrong field into the wrong variable. So the row came out of all three arrays
+together in both files and the remaining `res[i]` indices were re-walked. Checked
+mechanically afterwards rather than by eye: every literal-array `UI.inputbox` in `scripts\`
+has three arrays of equal length, `build-booth-components.rb` at 4/4/4 and
+`booth-from-link.rb` at 3/3/3.
+
+The stored `deck` preference is **left in the registry**, unread and unwritten. Migration
+code for a preference nobody will ever see again is more risk than the tidiness is worth.
+
+Unrun in SketchUp — `python scripts/rbparse.py` reports 35 files parsing, which is a real
+CRuby parse and not a claim that either dialog was opened.
+
 ## 2026-08-17 — the ceiling joints get their seals, and the seal got re-cut rather than the code
 
 `WR_Deck` tiled the ceiling and left the joint between the panels bare. It places the
@@ -64,8 +152,28 @@ them against the probe's numbers held as independent ground truth — the 7272's
 zero seals and zero warnings on the single-tile 4872 and 4230, every seal landing its top face
 on 81.000 despite the 0.75 family shift, and the two catalogues staying disjoint so a seal can
 never enter the panel pool. It passes, and it was checked to fail on both 0.0 and −1.0.
-`python scripts/rbparse.py` reports 35 files parsing. **The 7272 has been built in SketchUp
-with this code and the seal seats; nothing else in the acceptance set has been built.**
+`python scripts/rbparse.py` reports 35 files parsing.
+
+**Built in SketchUp and confirmed correct, four booths, three of the five seal sizes:**
+
+| booth | cross | seal | what it exercises |
+|---|---|---|---|
+| MDL 7272 S | 72 | `STDSS CL6` | the off-centre single joint, at 48 from the low end |
+| MDL 9696 S | 96 | `STDSS CL8` | the CL8 family — the −0.750 datum, placing to the same plane |
+| MDL 96120 S | 96 | `STDSS CL8` | **the first multi-joint booth built** — three tiles, two seals |
+| MDL 102186 S | 102 | `STDSS 8.5CL` | the 8.5 spelling, where the digit changes sides in the name |
+
+Benton: *"I tested a bunch and they all look great."* The 102186 S matters more than it
+looks. `STDSS 8.5CL` was **still the old 2.000-tall part when this feature was first
+built** — he re-cut it at 13:45 on 2026-08-17, after the other four — so that booth is the
+proof the re-cut part places correctly and not just the ones that were current on the day.
+That closes the gap the first draft of this entry flagged.
+
+**Still unbuilt, and worth saying rather than implying it is all covered:** `STDSS CL5`
+(a 6084-class booth) and `STDSS CL7` (a 10284-class booth, which is also the only booth in
+the set that tiles along booth **Y** and so is the only real test of the quarter turn), and
+the zero-seal case — a single-tile ceiling on an MDL 4872 S or 4230 S, which must place
+nothing and warn about nothing. All four are proven in arithmetic only.
 
 `probe-seam-seal.rb` now clears the Ruby Console before it prints its banner, so where a run
 begins is unmistakable. `SKETCHUP_CONSOLE.clear` — the name checked against

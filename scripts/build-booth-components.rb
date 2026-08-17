@@ -203,11 +203,16 @@ module WR_BuildBoothComponents
     # them is offered by all three.
     dir, dlist = WR_Folder.field('parts', dir)
 
+    # THE THREE ARRAYS ARE POSITIONAL AND MUST STAY THE SAME LENGTH. UI.inputbox
+    # matches prompt[i] to default[i] to list[i] by index and says nothing when
+    # they disagree — it just reads the wrong field into the wrong variable. The
+    # 'Floor and ceiling' row was removed from all three together for that
+    # reason; res is now 0 booth, 1 folder, 2 height, 3 dry run.
     res = UI.inputbox(['Booth', 'Component folder', 'Height',
-                       'Floor and ceiling', 'Dry run — report only'],
-                      [last, dir, 'Standard (81 in)', read_pref('deck', 'Yes'), 'No'],
+                       'Dry run — report only'],
+                      [last, dir, 'Standard (81 in)', 'No'],
                       [keys.join('|'), dlist, 'Standard (81 in)|HX (91 in)',
-                       'Yes|No', 'Yes|No'],
+                       'Yes|No'],
                       'Build Booth from Components')
     return nil unless res
 
@@ -216,9 +221,12 @@ module WR_BuildBoothComponents
     d = WR_Folder.resolve(res[1], 'parts', 'Folder of component .skp files', false)
     return nil if d.nil?
     write_pref('booth', res[0])
-    write_pref('deck', res[3])
+    # The stored 'deck' preference is deliberately left where it is rather than
+    # deleted. Nothing reads or writes it any more, it is a few bytes in the
+    # registry, and migration code for a preference no user will ever see again
+    # is more risk than the tidiness is worth.
     { 'booth' => res[0], 'dir' => d, 'hx' => res[2].to_s.start_with?('HX'),
-      'deck' => res[3] == 'Yes', 'dry' => res[4] == 'Yes' }
+      'dry' => res[3] == 'Yes' }
   end
 
   # read_default EVALS the stored string and write_default does not escape quotes
@@ -997,8 +1005,18 @@ module WR_BuildBoothComponents
       # Kept in wr-deck.rb rather than inlined here: the rules behind it are
       # measured, documented in reference/floor-ceiling-geometry.md, and have
       # their own four constants. Folding them into this file would bury them.
+      #
+      # UNCONDITIONAL SINCE 2026-08-17. There was a "Floor and ceiling: Yes/No"
+      # row in the dialog and a cfg['deck'] boolean behind it; both are gone at
+      # Benton's request. A booth without its floor, ceiling and seam seals is
+      # not a state anyone was asking for, and the toggle was one more row to
+      # answer on every single build. The tradeoff is real and accepted: there
+      # is now no way to skip the deck. Restoring it is one dialog row in each
+      # of the two tools plus this guard.
+      #
+      # Still skipped on a dry run — a dry run places nothing, deck included.
       deck_note = nil
-      if cfg['deck'] && !cfg['dry'] && booth
+      if !cfg['dry'] && booth
         t_deck = tag.call('WR-Booth-Deck', [120, 120, 128])
         wall_h = cfg['hx'] ? 91.0 : 81.0
         %w[FL CL].each do |kind|
@@ -1010,11 +1028,10 @@ module WR_BuildBoothComponents
           (dwarn || []).each { |w| puts "  DECK #{kind}: #{w}" }
         end
 
-        # Ceiling seam seals ride on the SAME "Floor and ceiling: Yes/No"
-        # control, and on the same WR-Booth-Deck tag: a seal is part of the deck,
-        # and a deck without its seam seals is not a state anyone has asked for.
-        # Splitting it later is one inputbox row, one write_pref key and one
-        # boolean threaded into this call — the placement code does not move.
+        # Ceiling seam seals run with the deck and carry the same WR-Booth-Deck
+        # tag: a seal is part of the deck, and a deck without its seam seals is
+        # not a state anyone has asked for. They were never given their own
+        # control, and now neither has one — the whole deck is unconditional.
         before = booth.entities.length
         sn, swarn, snote = WR_Deck.seals(model, booth, spec, cfg['dir'], wall_h)
         booth.entities.to_a[before..-1].to_a.each { |e| (e.layer = t_deck) rescue nil }
