@@ -926,10 +926,23 @@ module WR_BuildBoothComponents
         nominal = cfg['hx'] ? 91.0 : 81.0
         rev = REVERSED.include?(r[:name])
         proud = p[:k] == 'seal' ? SEAL_PROUD : 0.0
+        # A door's bulk is its swung leaf and belongs on the ROOM side, the
+        # opposite of a vent housing. Which parts are doors is read from the
+        # COMPONENT THAT WAS ASSIGNED, never from p[:sk].
+        #
+        # p[:sk] is the layout's static slot kind, fixed when the data was
+        # generated. It says where the door sits on the CATALOGUE arrangement.
+        # A customer moving the door in the booth builder does not change it, so
+        # on the 96120 the door landed in E1 — a slot the layout calls SOLID —
+        # and took the vent rule: bulk out, leaf pointing away from the room. It
+        # was the only part in the whole booth facing opposite to its neighbours.
+        # The standalone path never showed this because ASSIGN only ever puts a
+        # door in a DRFRM slot.
+        is_door = !(r[:name].to_s =~ /Door/i).nil?
         tr, slot_len, thickness, part_h, facing = place(r[:cls], p[:poly], centre,
                                                         rev, nominal, r[:slab], proud,
                                                         p[:k] == 'panel',
-                                                        p[:sk] != 'DRFRM')
+                                                        !is_door)
         drop = part_h - nominal
 
         if p[:k] == 'corner'

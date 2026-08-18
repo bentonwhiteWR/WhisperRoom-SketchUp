@@ -70,6 +70,12 @@ module WR_Elevation
     'Bottom'                => %w[Bottom],
     'Front + Back'          => %w[Front Back],
     'Left + Right'          => %w[Left Right],
+    # One side plus the plan, the pair the booth builder's plan view needs: a
+    # part's flat elevation for the walk-around and its top-down for the plan,
+    # both shot in ONE run so they cannot drift apart on scale or style the way
+    # two separate runs did.
+    'Left + Top'            => %w[Left Top],
+    'Left + Right + Top'    => %w[Left Right Top],
     'All four sides'        => %w[Front Back Left Right],
     'All six'               => %w[Front Back Left Right Top Bottom]
   }.freeze

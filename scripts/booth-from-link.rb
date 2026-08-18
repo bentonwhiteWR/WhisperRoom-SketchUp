@@ -133,6 +133,33 @@ module WR_BoothLink
     end
   end
 
+  # ---------------------------------------------------------- cross-check --
+  #
+  # The portal's own words for each wall, from booth-layouts.json — identical on
+  # all 25 catalogue layouts (checked, not assumed). Printing the build in the
+  # SAME vocabulary the booth builder's "YOUR BOOTH" panel uses turns a
+  # what-did-it-do question into a two-line text comparison, instead of two
+  # people squinting at renders from different camera angles and disagreeing
+  # about which wall is on the right.
+  WALL_WORD = { 'N' => 'Back', 'S' => 'Front', 'E' => 'Right', 'W' => 'Left' }.freeze
+
+  def self.summarise_placement(assign)
+    kinds = { 'Door' => [], 'Window' => [], 'Ventilation' => [] }
+    assign.sort.each do |slot, name|
+      k = if name =~ /Door/i then 'Door'
+          elsif name =~ /WDO/i then 'Window'
+          elsif name =~ /VNT/i then 'Ventilation'
+          end
+      next if k.nil?
+      kinds[k] << "#{WALL_WORD[slot[0, 1]] || slot[0, 1]} (#{slot})"
+    end
+    puts ''
+    puts "  COMPARE THESE AGAINST THE BUILDER'S \"YOUR BOOTH\" PANEL:"
+    kinds.each do |k, v|
+      puts format('    %-12s %s', k, v.empty? ? '(none)' : v.join(', '))
+    end
+  end
+
   def self.build_from_payload(payload, cfg)
     unless payload.is_a?(Hash) && payload['m'].is_a?(String)
       UI.messagebox("That link does not carry a booth design.\n\n" \
@@ -146,9 +173,11 @@ module WR_BoothLink
     hx = payload['hx'].to_i == 1
 
     assign = {}
+    packs = {}
     odd = []
     (payload['a'] || {}).each do |slot, pack|
       name = component_for(pack, opts)
+      packs[slot] = pack.to_s
       name.nil? ? odd << "#{slot}: #{pack.inspect}" : assign[slot] = name
     end
 
@@ -157,7 +186,14 @@ module WR_BoothLink
     puts "BOOTH FROM LINK — #{key}#{hx ? '  + height extension' : ''}"
     puts "  options  #{opts.select { |_k, v| v }.keys.join(', ')}" unless opts.values.none?
     puts "  slots    #{assign.length} translated from the design"
-    assign.sort.each { |s, n| puts format('    %-6s %s', s, n) }
+    assign.sort.each do |s, n|
+      # The RAW pack is printed beside the translated name. Without it a
+      # mistranslation is invisible: a wrong component name looks exactly like a
+      # correctly translated slot, and the only way to tell them apart was to
+      # go and decode the link by hand.
+      puts format('    %-6s %-24s  <- %s', s, n, packs[s])
+    end
+    summarise_placement(assign)
     unless odd.empty?
       puts "  #{odd.length} pack(s) not translatable — those slots fall back to the layout default:"
       odd.each { |x| puts "    #{x}" }

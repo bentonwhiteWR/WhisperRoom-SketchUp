@@ -1,5 +1,83 @@
 # DEVLOG
 
+## 2026-08-18
+
+### Done
+
+- **Booth-from-link door bug, found and fixed.** The placer decided "is this a
+  door?" from `p[:sk]`, the layout's STATIC slot kind, so a customer who moved
+  the door in the booth builder got a door that took the vent rule — bulk out,
+  leaf pointing away from the room. On the 96120 the door landed in E1, a slot
+  the layout calls SOLID, and built inside-out. It now reads the component that
+  was actually assigned (`/Door/i` on the resolved name). Verified against a
+  real link: the door went from `X+ OUT` to `X- IN`, matching all 19 other
+  parts. The standalone path never showed this because ASSIGN only ever puts a
+  door in a DRFRM slot.
+- **booth-from-link now prints the RAW PACK** beside each translated component
+  and a placement summary in the portal's own words (Front/Back/Left/Right), so
+  a build can be diffed against the builder's "YOUR BOOTH" panel as text
+  instead of by comparing renders. That is what proved the translation correct.
+- **elevation-export**: added `Left + Top` and `Left + Right + Top` view sets.
+- **reorient-model.rb** (new): rotates geometry, EVERY scene camera and the
+  north angle together, so SketchUp's Front view can be made to mean front
+  without re-aiming a single scene and without shifting the shading. Unrun.
+- **csusb-106.rb** (new): CSUSB Chaparral room 106, 575 sq ft. Read from the
+  A-1 vector pdf at an exact 5.000 in/pt scale, cross-checked by a 1200 dpi
+  flood fill. Ceiling is the 8'-0" house default and is NOT measured.
+- **smith-studio.rb** (new): David Smith's studio from a hand sketch.
+- **fvrl-podcast-alcove.rb** (new): Fort Vancouver library alcove fit study.
+- **PeoplesSpace proposal shipped** — 6 pages to
+  `Desktop\ProposalFiles\PeoplesSpace\PeoplesSpace-Booth-Renderings.pdf`.
+  Config kept at `WhisperRoom Proposals\examples\peoplespace\`.
+
+### Settled this session
+
+- **Carpet texture tile: 9 inches.** Measured against a flat-on photo of a real
+  booth by comparing matched 6in x 6in patches at the same scale. 2 ft is about
+  four times too coarse; 6 in matches the fleck size but repeats 7.2 x 13.5
+  times across a 43 x 81 panel, which reads as a pattern. 9 in halves the
+  repeat for 0.02 in of extra fleck. NOTE: standard deviation measures speckle
+  AMPLITUDE, not SIZE — using it to pick a tile is what gave two wrong answers
+  before the matched-patch test settled it.
+- **Component art view height: 128 at a 2400 canvas = 18.75 px/in.** One scale
+  for all 208 components across Iso30, elevations and top-downs. 104 clips 62
+  parts; the binding constraint is `RampSideView_HX` at 118.1 in projected at
+  azimuth 38. The 8 `RM*` room mockups need 188 and should be a SEPARATE run —
+  folding them in costs every wall panel 32% of its resolution.
+- **Style must be pinned by name.** `export-component-art.rb` activates each
+  scene, and a scene restores its own saved style, so "leave the style alone"
+  gives a MIX in that exporter even if nobody touches anything. The Iso30 and
+  elevation exporters do not activate scenes, so they are safe either way.
+
+### Next steps
+
+1. **Re-run the top-down set at view height 128** (was 108) so all three
+   exporters share 18.75 px/in. `elevation-export.rb`, View = `Top`, canvas
+   2400, Frame on = Part centred, scenes:
+   `1-55,70-85,185,187,189,191,193,195,197,199,202,204,206,208,210,212,214,216,218,220,222,224,226,228,231,233,235,237-239`
+   (99 scenes, HX/CL/CP/RM dropped). Dry run first.
+2. **Iso30 chunks**: azimuth 38, view height 128, canvas 2400, Dark 45, AO Yes.
+   Pin the Style by name and use the SAME one for every chunk.
+3. **Confirm `Frame on` for the Iso30 set.** `angled-component-art.rb`'s header
+   says the web page's contract is "insertion point at centre"; the dialog is
+   currently on "Part centred". One of those is wrong and 200 scenes ride on it.
+4. **Run `reorient-model.rb`** with Dry run = Yes first. The scene-camera write
+   is the one call that could not be tested outside SketchUp — it reads every
+   camera back and names any that did not take.
+5. **Ask Peter (PeopleSpace) the alcove WIDTH.** It has never been supplied and
+   it blocks a real fit answer. Also reconcile 10'-8 3/4" on the architect's
+   plan against 10'-7 1/2" in his email.
+
+### Open decisions
+
+- Angled set: frame on the part or on the insertion point? Still unresolved,
+  now with 200 scenes waiting on it.
+- 108 doorway recess in room 106 is flattened to a plain 41 in opening.
+- David Smith: north wall chain is 10 in short of the stated 7'-4", and the
+  ceiling at 7'-0 3/4" clears Standard by 1 3/4 in but is 1/4 in SHORT of
+  Enhanced. Both need David to answer before anything is quoted.
+
+
 ## 2026-08-17 — session handoff: two dialogs that have never been opened
 
 End of day, switching machines. Three pieces of work landed today and **the riskiest thing in
