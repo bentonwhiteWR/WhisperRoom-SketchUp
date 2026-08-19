@@ -233,7 +233,19 @@ module WhisperRoom
     # itself, which two (a constant here and a file in the repo) certainly
     # would.
     VERSION_FILE = File.join(File.dirname(__FILE__), 'VERSION').freeze
-    VERSION_URL  = 'https://raw.githubusercontent.com/bentonwhiteWR/'                    'WhisperRoom-SketchUp/main/scripts/wr_tools/VERSION'.freeze
+    # THE API, NOT raw.githubusercontent.com.
+    #
+    # raw sits behind a CDN that served a FIVE MINUTE STALE version in testing:
+    # the API returned 1.2.9 while raw was still handing out 1.2.8, and a
+    # cache-busting query string did not shift it. A push followed by "check
+    # for the update" would show nothing -- exactly the moment the check has to
+    # be right.
+    #
+    # The API with Accept: application/vnd.github.raw returns the file body
+    # directly, no JSON to parse. Rate limited to 60/hour unauthenticated; this
+    # asks once per panel open, so nobody will meet it.
+    VERSION_URL  = 'https://api.github.com/repos/bentonwhiteWR/' \
+                   'WhisperRoom-SketchUp/contents/scripts/wr_tools/VERSION'.freeze
 
     def self.version
       @version ||= (File.read(VERSION_FILE).strip rescue '0.0.0')
@@ -267,6 +279,10 @@ module WhisperRoom
       return if @checked
       @checked = true
       req = Sketchup::Http::Request.new(VERSION_URL, Sketchup::Http::GET)
+      # Without the Accept header the API answers with JSON and the version
+      # regex below rejects it, which would look exactly like 'no update'.
+      (req.headers = { 'Accept' => 'application/vnd.github.raw',
+                       'User-Agent' => 'WhisperRoom-Tools' }) rescue nil
       @upd = req
       req.start do |_r, res|
         begin
