@@ -225,6 +225,99 @@ module WhisperRoom
     # drift away from the files it describes.
     SHELVES = %w[dev workshop archive].freeze
 
+    # ------------------------------------------------------------- version --
+    #
+    # ONE file holds the version: wr_tools/VERSION. install-plugin.py copies
+    # every file in wr_tools/, so it ships with the plugin, and the update
+    # check fetches THAT SAME PATH from GitHub. One file cannot drift against
+    # itself, which two (a constant here and a file in the repo) certainly
+    # would.
+    VERSION_FILE = File.join(File.dirname(__FILE__), 'VERSION').freeze
+    VERSION_URL  = 'https://raw.githubusercontent.com/bentonwhiteWR/'                    'WhisperRoom-SketchUp/main/scripts/wr_tools/VERSION'.freeze
+
+    def self.version
+      @version ||= (File.read(VERSION_FILE).strip rescue '0.0.0')
+    end
+
+    # "1.10.0" is NEWER than "1.9.0". String compare gets that backwards, so
+    # compare the numbers as numbers. Anything unparseable sorts as 0 rather
+    # than raising — a malformed VERSION should mean "no banner", never a
+    # broken panel.
+    def self.newer?(remote, local)
+      r = remote.to_s.strip.split('.').map(&:to_i)
+      l = local.to_s.strip.split('.').map(&:to_i)
+      3.times do |i|
+        a = r[i] || 0
+        b = l[i] || 0
+        return true  if a > b
+        return false if a < b
+      end
+      false
+    end
+
+    # Asks GitHub once per session, in the background, and NEVER blocks the
+    # panel. No network, no GitHub, a 404, junk in the file — all of them just
+    # leave @remote nil and the banner never appears. An update notice is a
+    # nicety; it must not be able to take the tool down.
+    #
+    # The request object is retained in @upd for the same reason booth-from-
+    # link.rb retains its own: SketchUp garbage-collects a local one before the
+    # response lands and the callback silently never runs.
+    def self.check_update(&done)
+      return if @checked
+      @checked = true
+      req = Sketchup::Http::Request.new(VERSION_URL, Sketchup::Http::GET)
+      @upd = req
+      req.start do |_r, res|
+        begin
+          if res.status_code == 200
+            v = res.body.to_s.strip[0, 20]
+            @remote = v if v =~ /\A\d+\.\d+(\.\d+)?\z/
+          end
+        rescue Exception
+          @remote = nil
+        end
+        done.call if done
+      end
+    rescue Exception
+      nil
+    end
+
+    def self.update_ready?
+      !@remote.nil? && newer?(@remote, version)
+    end
+
+    def self.remote_version
+      @remote
+    end
+
+    # --------------------------------------------------------------- tabs --
+    #
+    # Two tabs, because a one-off client drawing is not a tool. The everyday
+    # kit is what the panel is for; "CSUSB room 106" is a thing that was drawn
+    # once for one customer and will never be run again, and it should not sit
+    # between the booth builder and the exporters.
+    #
+    # "# @tab client" puts a script on the second tab. Anything without the
+    # header stays on the first, so no existing script had to be edited to keep
+    # working, and a typo lands a script on the DEFAULT tab rather than
+    # vanishing into a tab nobody looks at.
+    TABS = %w[tools client].freeze
+
+    def self.tab_of(path)
+      File.foreach(path).with_index do |line, i|
+        break if i > 60
+        next unless line =~ /^\s*#/
+        m = line.match(/^\s*#\s*@tab\s+(\S+)/)
+        next unless m
+        t = m[1].strip.downcase
+        return TABS.include?(t) ? t : 'tools'
+      end
+      'tools'
+    rescue StandardError
+      'tools'
+    end
+
     def self.shelf_of(path)
       File.foreach(path).with_index do |line, i|
         break if i > 60
@@ -250,6 +343,7 @@ module WhisperRoom
           'title'   => title || pretty(name),
           'cat'     => cat_of(path),
           'shelf'   => shelf_of(path),
+          'tab'     => tab_of(path),
           'icon'    => icon_of(name, icon),
           'dialog'  => dialog,
           'rank'    => rank,
@@ -1015,6 +1109,10 @@ module WhisperRoom
       # render, not to freeze the file until the next launch.
       @icon_map = nil
       { 'dir' => SCRIPTS_DIR, 'bundled' => bundled?,
+        # Version and the update banner. `update` is nil until GitHub has
+        # answered, which is the whole point — the panel renders immediately
+        # and the banner appears later if there is one, or never.
+        'version' => version, 'update' => (update_ready? ? remote_version : nil),
         # The icon sprite travels with the payload rather than being fetched by
         # the page: an HtmlDialog has no network guarantee and a file:// fetch
         # out of the dialog is not reliably permitted.
@@ -1069,7 +1167,13 @@ module WhisperRoom
         :style           => UI::HtmlDialog::STYLE_DIALOG
       )
       d.set_file(html)
-      d.add_action_callback('ready')   { |_c| push }
+      d.add_action_callback('ready') do |_c|
+        push
+        # Ask GitHub AFTER the first render, never before. The panel must open
+        # at the same speed with the network down as with it up; the banner
+        # arrives on a second push whenever the answer does, or not at all.
+        check_update { push }
+      end
       d.add_action_callback('rescan')  { |_c| push }
       d.add_action_callback('run')     { |_c, file| run(file); push }
       d.add_action_callback('pin')     { |_c, name| toggle_pin(name); push }

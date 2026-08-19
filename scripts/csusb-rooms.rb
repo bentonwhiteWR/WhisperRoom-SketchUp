@@ -1,4 +1,5 @@
 # @title CSUSB rooms (one-off, delivered)
+# @tab client
 # @shelf archive
 # csusb-rooms.rb — build CSUSB Chaparral 117 + University Hall 056 in SketchUp
 #

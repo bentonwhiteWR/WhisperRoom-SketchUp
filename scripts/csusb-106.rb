@@ -1,4 +1,5 @@
 # @title CSUSB Chaparral 106...
+# @tab client
 # @cat Draw the room
 #
 # csusb-106.rb — build CSUSB Chaparral Hall room 106 in SketchUp

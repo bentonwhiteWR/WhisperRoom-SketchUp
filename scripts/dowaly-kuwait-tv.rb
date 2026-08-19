@@ -1,4 +1,5 @@
 # @title Dowaly / Kuwait TV — three 4872 E...
+# @tab client
 # @cat Draw the room
 #
 # dowaly-kuwait-tv.rb — the Kuwait Television commentary room with three

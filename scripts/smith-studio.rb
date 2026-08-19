@@ -1,4 +1,5 @@
 # @title David Smith — studio room...
+# @tab client
 # @cat Draw the room
 #
 # smith-studio.rb — build David Smith's studio room in SketchUp

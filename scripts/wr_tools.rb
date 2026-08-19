@@ -20,7 +20,7 @@ module WhisperRoom
     unless file_loaded?(__FILE__)
       ext = SketchupExtension.new('WhisperRoom Tools', File.join(PLUGIN_DIR, 'main.rb'))
       ext.description = 'Room builds, booth assembly and scene export, on a menu and toolbar.'
-      ext.version     = '1.0.0'
+      ext.version     = File.read(File.join(PLUGIN_DIR, 'VERSION')).strip rescue '0.0.0'
       ext.creator     = 'WhisperRoom'
       Sketchup.register_extension(ext, true)
       file_loaded(__FILE__)

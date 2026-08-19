@@ -1,4 +1,5 @@
 # @title FVRL podcast booth — alcove fit plan...
+# @tab client
 # @cat Draw the room
 #
 # fvrl-podcast-alcove.rb — the Fort Vancouver Regional Library podcast booth

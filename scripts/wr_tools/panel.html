@@ -229,6 +229,48 @@
      toggles always raise and never answer. One chip per ability that is on;
      click it to jump to the row that turns it off. */
 
+  /* ---------------------------------------------------------------- tabs --
+     Two tabs, because a one-off client drawing is not a tool. TOOLS is the
+     everyday kit; CLIENT DRAWINGS is where a job that was drawn once for one
+     customer lives, so it stops sitting between the booth builder and the
+     exporters. Searching looks in BOTH and says which tab a hit is on — a name
+     you already know must stay the fastest route there is, and a tab you are
+     not looking at must not be able to hide a result. */
+
+  .tabs {
+    display: flex; gap: 2px; margin: 0 10px 8px; flex: 0 0 auto;
+    border-bottom: 1px solid var(--line);
+  }
+  .tabs button {
+    appearance: none; border: 0; background: none; cursor: pointer;
+    font: inherit; font-size: 11.5px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--faint); padding: 7px 10px 6px;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button[aria-selected="true"] {
+    color: var(--ink); border-bottom-color: var(--accent);
+  }
+  .tabs button .n {
+    display: inline-block; margin-left: 5px; font-size: 10px;
+    font-weight: 700; color: var(--faint);
+  }
+
+  /* The update banner. Quiet by design: an update is worth telling you about
+     once, not shouting about every time the panel opens. */
+  .upd {
+    display: none; margin: 0 10px 8px; padding: 7px 10px;
+    border: 1px solid var(--accent); border-radius: 6px;
+    font-size: 11.5px; line-height: 1.45; flex: 0 0 auto;
+  }
+  .upd.on { display: block; }
+  .upd b { color: var(--accent); }
+  .upd code {
+    font-size: 11px; opacity: .85;
+    display: block; margin-top: 3px; word-break: break-all;
+  }
+
   .statebar {
     display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
     margin: 0 10px 8px;
@@ -651,6 +693,8 @@
     </div>
   </div>
 
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="upd" id="upd"></div>
   <div class="statebar" id="statebar"></div>
   <div class="note" id="note"></div>
   <div class="scroll" id="scroll"></div>
@@ -720,6 +764,15 @@
   var ORDER = ["Draw the room", "Build the booth", "Add dimensions",
                "Scenes and images", "Component art (web catalog)",
                "Tidy up the model"];
+  // Two tabs. A script declares "# @tab client" to sit on the second one;
+  // everything else defaults to "tools", so no existing script needed editing
+  // and a typo lands on the DEFAULT tab rather than vanishing into one nobody
+  // looks at. Shelves (dev/workshop/archive) are orthogonal — they still work
+  // inside whichever tab their script is on.
+  var TABS = [{ id: "tools",  label: "Tools" },
+              { id: "client", label: "Client drawings" }];
+  var tab = "tools";
+
   var PINNED  = "Pinned";
   var MORE    = "More scripts";
   var TOOLBAR = "SketchUp toolbar";
@@ -746,6 +799,8 @@
   var $linkgo   = document.getElementById("linkgo");
   var $linktext = document.getElementById("linktext");
   var $statebar = document.getElementById("statebar");
+  var $tabs     = document.getElementById("tabs");
+  var $upd      = document.getElementById("upd");
   var $sprite   = document.getElementById("sprite");
   var $foot     = document.getElementById("foot");
   var $devsw    = document.getElementById("devsw");
@@ -990,6 +1045,43 @@
     return s.cat || MORE;
   }
 
+  function tabOf(s) { return (s && s.tab) === "client" ? "client" : "tools"; }
+
+  function tabCount(id) {
+    return (DATA.scripts || []).filter(function (s) {
+      if (s.shelf && !DATA.dev) return false;
+      return tabOf(s) === id;
+    }).length;
+  }
+
+  // Pinned and the toolbar mirror are TOOLS-tab furniture. A starred client
+  // one-off would otherwise appear on a tab whose whole point is that you are
+  // not looking at it.
+  function drawTabs() {
+    $tabs.innerHTML = TABS.map(function (t) {
+      return '<button role="tab" data-tab="' + t.id + '" aria-selected="' +
+             (tab === t.id) + '">' + esc(t.label) +
+             '<span class="n">' + tabCount(t.id) + "</span></button>";
+    }).join("");
+    Array.prototype.forEach.call($tabs.querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () {
+        if (tab === b.dataset.tab) return;
+        tab = b.dataset.tab;
+        drawTabs();
+        draw();
+      });
+    });
+  }
+
+  function drawUpdate() {
+    if (!DATA.update) { $upd.className = "upd"; $upd.innerHTML = ""; return; }
+    $upd.className = "upd on";
+    $upd.innerHTML = "<b>Update available — v" + esc(DATA.update) + "</b> " +
+      "(you have v" + esc(DATA.version || "?") + "). Pull the repo and re-run " +
+      "install-plugin.py, then restart SketchUp." +
+      "<code>git pull &amp;&amp; python scripts/install-plugin.py</code>";
+  }
+
   function shelfRank(name) {
     for (var i = 0; i < SHELF_ORDER.length; i++) {
       if (SHELF[SHELF_ORDER[i]] === name) return i;
@@ -1201,6 +1293,11 @@
       var a = abilityFor(s.name);
       if (!hit(s, a)) return;
       if (s.shelf && !DATA.dev && !t) return;
+      // A SEARCH IGNORES THE TAB. Typing a name you already know is the fastest
+      // route to a script, and the tab you happen to be looking at must not be
+      // able to swallow the answer. Off-tab hits are labelled so the result
+      // never looks like it lives here.
+      if (!t && tabOf(s) !== tab) return;
       push(sectionOf(s), { s: s, a: a });
     });
     orphanAbilities().forEach(function (a) {
@@ -1209,7 +1306,7 @@
     });
 
     // Pinned: the starred tools, as their own canonical rows, in slot order.
-    if (!link) {
+    if (!link && (tab === "tools" || t)) {
       (DATA.pinned || []).forEach(function (n) {
         var s = byName(n);
         if (!s) return;
@@ -1252,13 +1349,16 @@
 
     if (!h && !link) {
       h = DATA.scripts.length
-        ? '<div class="empty">Nothing matches &ldquo;' + esc(term) + "&rdquo;</div>"
+        ? (t ? '<div class="empty">Nothing matches &ldquo;' + esc(term) + "&rdquo;</div>"
+             : '<div class="empty">Nothing on this tab yet.<code>' +
+               "Add “# @tab client” to a script's header to file it here." +
+               "</code></div>")
         : '<div class="empty">No .rb files found in<code>' + esc(DATA.dir) + "</code></div>";
     }
 
     // The toolbar mirror is the LAST section, not the first. It is plumbing,
     // and plumbing does not go where the work should be.
-    if (!link) {
+    if (!link && tab === "tools" && !t) {
       var tshut = collapsed[TOOLBAR];
       h += '<div class="sect' + (tshut ? " closed" : "") + '" data-sec="' + esc(TOOLBAR) + '">' +
              '<span class="nm">SKETCHUP TOOLBAR</span>' +
@@ -1448,6 +1548,8 @@
       $devsw.setAttribute("aria-checked", DATA.dev ? "true" : "false");
       $foot.classList.toggle("on", !!DATA.dev);
 
+      drawTabs();
+      drawUpdate();
       drawState();
       draw();
       if (DATA.note) note(DATA.note, /fail|error|could not|no /i.test(DATA.note));
