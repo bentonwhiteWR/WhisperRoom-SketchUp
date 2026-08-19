@@ -26,12 +26,25 @@ polish**. A caption that contradicts the drawing is worse than no caption.
 
 ## 1. The standard is a file, not a document
 
-> **The newest shipped pack under `C:\Users\bento\Desktop\ProposalFiles\<Client>\`
-> is the standard. Open it before every build.**
+> **The newest shipped pack is the standard. Open it before every build.**
 
-As of August 2026 that is `ProposalFiles\PeoplesSpace\PeoplesSpace-Booth-Renderings.pdf`
-(6 pages), which supersedes `ProposalFiles\David Smith\David-Smith-Booth-Renderings.pdf`
-(5 pages).
+**On Benton's machine** that is the newest PDF under
+`C:\Users\bento\Desktop\ProposalFiles\<Client>\`. As of August 2026:
+`ProposalFiles\PeoplesSpace\PeoplesSpace-Booth-Renderings.pdf` (6 pages),
+superseding `ProposalFiles\David Smith\David-Smith-Booth-Renderings.pdf` (5 pages).
+
+**On any other machine** that Desktop folder does not exist, and you do not need
+it. Build the newest example from the generator repo and read the output — it *is*
+the reference pack, byte for byte:
+
+```bash
+cd <whisperroom-proposals clone>
+node build-v2.js examples/peoplespace/proposal-v2.json ./reference-pack.html
+# then print it (section 7) and look at all six pages
+```
+
+Verified: a clean clone of both repos reproduces the shipped PeoplesSpace PDF
+pixel-for-pixel on every page.
 
 Two documents describe the format. Only one is current:
 
@@ -47,8 +60,17 @@ Two documents describe the format. Only one is current:
 
 The pack is generated. There is one generator and one config shape.
 
-- **Generator:** `C:\Users\bento\Documents\Claude\WhisperRoom Proposals\build-v2.js`
-- **Configs:** `...\WhisperRoom Proposals\examples\<client-slug>\proposal-v2.json`
+- **Repo:** `https://github.com/bentonwhiteWR/whisperroom-proposals` — **PRIVATE**,
+  branch **`master`** (not `main`). Ask Benton for access if you don't have it.
+  On his machine it is checked out at
+  `C:\Users\bento\Documents\Claude\WhisperRoom Proposals\`.
+- **Generator:** `build-v2.js` at the repo root. Needs Node. No `npm install` —
+  it only uses `fs` and `path`.
+- **Configs:** `examples/<client-slug>/proposal-v2.json`, each beside the
+  `renders-web/` JPGs it was built from.
+
+Client renders and configs live in that **private** repo and nowhere else. The
+SketchUp repo is public and deliberately carries no client material — procedure only.
 
 Copy the **newest** example and edit it. Do not hand-author HTML, do not restyle,
 do not add a page type the generator doesn't have.
@@ -202,8 +224,8 @@ These sentences go to a customer under WhisperRoom's name.
 ## 7. Build and print
 
 ```bash
-cd "C:/Users/bento/Documents/Claude/WhisperRoom Proposals"
-node build-v2.js examples/<slug>/proposal-v2.json "<scratchpad>/<slug>.html"
+cd <whisperroom-proposals clone>
+node build-v2.js examples/<slug>/proposal-v2.json <work-dir>/<slug>.html
 ```
 
 The generator prints a plate-fit table — image, aspect ratio, fitted size and free
@@ -216,9 +238,12 @@ clone), so use headless Chrome:
 ```bash
 "/c/Program Files/Google/Chrome/Application/chrome.exe" \
   --headless --disable-gpu --no-pdf-header-footer \
-  --print-to-pdf="<scratchpad>\<slug>.pdf" \
-  "file:///<scratchpad>/<slug>.html"
+  --print-to-pdf="<work-dir>\<slug>.pdf" \
+  "file:///<work-dir>/<slug>.html"
 ```
+
+`--print-to-pdf` wants a Windows path; the `file:///` URL wants forward slashes.
+Chrome must be installed — Edge (`msedge.exe`) takes the same flags if it isn't.
 
 Chrome defaults to US Letter portrait with backgrounds on, which is what the CSS
 expects. `--no-pdf-header-footer` suppresses the browser's own page furniture.
