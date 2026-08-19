@@ -34,8 +34,7 @@ polish**. A caption that contradicts the drawing is worse than no caption.
 superseding `ProposalFiles\David Smith\David-Smith-Booth-Renderings.pdf` (5 pages).
 
 **On any other machine** that Desktop folder does not exist, and you do not need
-it. Build the newest example from the generator repo and read the output — it *is*
-the reference pack, byte for byte:
+it. Build the worked example in this repo and read the output — that IS the format:
 
 ```bash
 cd <this repo>/proposals
