@@ -1,8 +1,13 @@
 # Proposal brand — quick reference
 
+> **Quick card.** The full end-to-end procedure — image prep, caption discipline,
+> build and print commands, the verification pass and a worked example — is
+> [`proposal-playbook.md`](proposal-playbook.md). Hand an agent the playbook, not this.
+
 **The newest shipped pack in `C:\Users\bento\Desktop\ProposalFiles\<Client>\` is the standard.**
 Read it before every build. As of August 2026 that is
-`ProposalFiles\David Smith\David-Smith-Booth-Renderings.pdf`.
+`ProposalFiles\PeoplesSpace\PeoplesSpace-Booth-Renderings.pdf` (6 pages), which
+supersedes `ProposalFiles\David Smith\David-Smith-Booth-Renderings.pdf`.
 
 > ⚠️ `WhisperRoom Proposals\docs\PROPOSAL-GUIDELINES.md` describes the **original landscape
 > v1 format** and has been superseded. It still says "US Letter landscape, centered orange

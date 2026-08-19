@@ -171,11 +171,12 @@ polished-brand treatment belongs in the proposal, not the scratch layout.
 
 **The newest shipped pack under `C:\Users\bento\Desktop\ProposalFiles\<Client>\` is the
 standard.** Open it before every build. As of Aug 2026 that is
-`ProposalFiles\David Smith\David-Smith-Booth-Renderings.pdf`.
+`ProposalFiles\PeoplesSpace\PeoplesSpace-Booth-Renderings.pdf`.
 
 > `WhisperRoom Proposals\docs\PROPOSAL-GUIDELINES.md` is **superseded** — it documents the
 > original landscape v1 format. Do not build from it. Full current spec:
-> `reference/proposal-brand.md`.
+> `reference/proposal-playbook.md` — the end-to-end procedure, and the file to
+> hand an agent. `reference/proposal-brand.md` is the one-page card.
 
 Non-negotiables:
 
