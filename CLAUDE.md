@@ -299,9 +299,19 @@ ramps to the clearance rules above, tags, materials, and dimension entities.
   work — not batched for later. Gabe works from a clone of the same repo, and the
   plugin's update check compares the installed `VERSION` against the copy on `main`, so
   an unpushed change puts two people on different code and makes the banner lie.
-- **Pushing is not installing.** A change under `scripts/wr_tools/` only reaches SketchUp
-  when `python scripts/install-plugin.py` runs. Bump `scripts/wr_tools/VERSION` too, or
-  nobody gets an update notification.
+- **Pushing is not installing, and nothing pulls by itself.** Reaching someone else's
+  SketchUp takes three steps on their machine: `git pull`, `install-plugin.py`, restart.
+  The panel's **Update now** button does the first two.
+- **Bump `scripts/wr_tools/VERSION` for ANY change under `scripts/` — a new tool script
+  counts.** The update banner is the only signal anyone gets that there is something
+  new; ship a script without bumping and it sits on GitHub unnoticed. This is the whole
+  mechanism by which a button made here becomes a button on Gabe's panel.
+- What needs a reinstall, and what does not: `scripts/wr_tools/` (panel, main.rb) is
+  read from the INSTALLED plugin folder, so it always needs `install-plugin.py` and a
+  restart. The tool scripts in `scripts/` are read live from a repo checkout when one
+  sits at a path in `CANDIDATES` (see `main.rb`), so on such a machine a `git pull`
+  alone is enough for those. Anywhere else they come from the bundled copy and need
+  the installer.
 - **Client material stays out of this repo — it is public.** Renders, proposal PDFs and
   per-client configs live in the private `whisperroom-proposals` repo.
 
