@@ -294,6 +294,17 @@ ramps to the clearance rules above, tags, materials, and dimension entities.
 
 ## Working conventions
 
+- **This folder is always in sync with GitHub.** Anything created or changed here is
+  committed and pushed to `bentonwhiteWR/WhisperRoom-SketchUp` as part of finishing the
+  work — not batched for later. Gabe works from a clone of the same repo, and the
+  plugin's update check compares the installed `VERSION` against the copy on `main`, so
+  an unpushed change puts two people on different code and makes the banner lie.
+- **Pushing is not installing.** A change under `scripts/wr_tools/` only reaches SketchUp
+  when `python scripts/install-plugin.py` runs. Bump `scripts/wr_tools/VERSION` too, or
+  nobody gets an update notification.
+- **Client material stays out of this repo — it is public.** Renders, proposal PDFs and
+  per-client configs live in the private `whisperroom-proposals` repo.
+
 - **Prices in `models.json` are internal.** Never put a price in a client-facing artifact
   unless Benton explicitly asks for that pack.
 - **Never touch the `WhisperRoomQuote` repo from here** — read it, don't write it.
