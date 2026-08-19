@@ -1,0 +1,198 @@
+
+SCENES IN Master Component List for Assembly Manuals REFINEMENT
+  189 scenes, in scene-tab order.
+
+  #    SCENE                    COMPONENT IT LOOKS AT         SIZE in (w x h x d)
+  ---------------------------------------------------------------------------------
+  1    LeftWADoor               LeftWADoor                    49.0 x 29.5 x 81.0
+  2    LeftWADoorWithRamp       LeftWADoorWithRamp            49.0 x 61.9 x 82.1
+  3    Left46Door               Left46Door                    46.0 x 32.0 x 81.0
+  4    Left40Door               Left40Door                    40.0 x 6.9 x 81.0
+  5    Right40Door              Right40Door                   40.0 x 6.9 x 81.0
+  6    RightWADoorWithRamp      RightWADoorWithRamp           49.0 x 61.9 x 82.1
+  7    Right46Door              Right46Door                   46.0 x 32.0 x 81.0
+  8    RightWADoor              RightWADoor                   49.0 x 29.5 x 81.0
+  9    40Panel2630WDO           40Panel2630WDO                40.0 x 1.8 x 81.0
+  10   40Panel2636WDO           40Panel2636WDO                40.0 x 1.8 x 81.0
+  11   40Panel2642WDO           40Panel2642WDO                40.0 x 1.8 x 81.0
+  12   40Panel2648WDO           40Panel2648WDO                40.0 x 1.8 x 81.0
+  13   46Panel3230WDO           46Panel3230WDO                46.0 x 1.8 x 81.0
+  14   46Panel3236WDO           46Panel3236WDO                46.0 x 1.8 x 81.0
+  15   46Panel3242WDO           46Panel3242WDO                46.0 x 1.8 x 81.0
+  16   46Panel3248WDO           46Panel3248WDO                46.0 x 1.8 x 81.0
+  17   43Panel2636WDO           43Panel2636WDO                43.0 x 1.8 x 81.0
+  18   43Panel2648WDO           43Panel2648WDO                43.0 x 1.8 x 81.0
+  19   31Panel1648WDO           31Panel1648WDO                31.0 x 1.8 x 81.0
+  20   46PanelCBL               46PanelCBL                    46.0 x 1.0 x 81.0
+  21   40PanelCBL               40PanelCBL                    40.0 x 1.0 x 81.0
+  22   46PanelSolid             46PanelSolid                  46.0 x 1.0 x 81.0
+  23   22PanelSolid             22PanelSolid                  22.0 x 1.0 x 81.0
+  24   40PanelSolid             40PanelSolid                  40.0 x 1.0 x 81.0
+  25   16PanelSolid             16PanelSolid                  16.0 x 1.0 x 81.0
+  26   CornerSeamSeal           CornerSeamSeal                4.9 x 4.9 x 81.0
+  27   MidWallSeamSeal          MidWallSeamSeal               7.8 x 2.0 x 81.0
+  28   46VNT                    46VNT                         46.0 x 8.5 x 81.9
+  29   46VNT_EFS                46VNT_EFS                     51.9 x 12.1 x 82.3
+  30   46VNT_VSS_EFS            46VNT_VSS_EFS                 58.6 x 12.1 x 82.3
+  31   46VNT_VSS                46VNT_VSS                     46.0 x 8.6 x 82.2
+  32   40VNT                    40VNT                         40.0 x 8.5 x 82.0
+  33   40VNT_EFS                40Vnt_EFS_CP                  48.9 x 12.1 x 87.2
+  34   40VNT_VSS                40VNT_VSS                     41.7 x 8.6 x 82.3
+  35   40VNT_VSS_EFS            40VNT_VSS_EFS                 56.2 x 12.3 x 82.0
+  36   StepFront                StepFront                     44.0 x 12.0 x 5.0
+  37   19Panel                  19Panel                       19.0 x 1.0 x 81.0
+  38   7Panel                   7Panel_HX                     7.0 x 1.0 x 81.0
+  39   CP30                     CP30                          32.0 x 44.0 x 5.4
+  40   CP42                     CP42                          44.0 x 44.0 x 5.4
+  41   CP48                     CP48                          50.0 x 50.0 x 5.4
+  42   CP60                     CP60                          62.0 x 19.0 x 1.8
+  43   CP72                     CP72                          74.0 x 50.0 x 5.4
+  44   CP84                     CP84                          86.0 x 45.0 x 5.5
+  45   CP96                     CP96                          98.0 x 49.0 x 5.4
+  46   CP120                    CP120                         24.0 x 98.0 x 5.4
+  47   CP144                    CP192                         48.0 x 98.0 x 5.4
+  48   CP168                    CP192                         48.0 x 98.0 x 5.4
+  49   CP192                    CP192                         48.0 x 98.0 x 5.4
+  50   CP102                    CP102                         18.0 x 104.0 x 5.6
+  51   CP126                    CP186                         42.0 x 104.0 x 5.4
+  52   CP186                    CP186                         42.0 x 104.0 x 5.4
+  53   MJP                      MJP                           8.8 x 4.0 x 18.4
+  54   DeskSmall                DeskSmall                     30.0 x 14.8 x 12.2
+  55   DeskLarge                DeskLarge                     42.0 x 16.8 x 12.2
+  56   43Panel                  43Panel                       43.0 x 1.0 x 81.0
+  57   31Panel                  31Panel                       31.0 x 1.0 x 81.0
+  58   28Panel                  28Panel                       28.0 x 1.0 x 81.0
+  59   46NV                     46NV                          46.0 x 2.1 x 81.0
+  60   40NV                     40NV                          40.0 x 2.1 x 81.0
+  61   46VntCP                  46VntCP                       46.0 x 8.5 x 86.6
+  62   46Vnt_EFS_CP             46Vnt_EFS_CP                  51.9 x 12.1 x 86.1
+  63   46Vnt_VSS_EFS_CP         46Vnt_VSS_EFS_CP              58.6 x 12.1 x 87.1
+  64   46vnt_VSS_CP             46vnt_VSS_CP                  46.0 x 8.6 x 86.9
+  65   40Vnt_CP                 40Vnt_CP                      40.0 x 8.5 x 86.6
+  66   40Vnt_EFS_CP             40Vnt_EFS_CP                  48.9 x 12.1 x 87.2
+  67   40Vnt_VSS_CP             40Vnt_VSS_CP                  41.7 x 8.6 x 87.1
+  68   40Vnt_VSS_EFS_CP         40Vnt_VSS_EFS_CP              55.6 x 12.1 x 87.2
+  69   RMVentilationExhaustBox  RMVentilationVSSLeftSideView  159.9 x 30.0 x 10.3
+  70   RMVentilationIntakeBox   RMVentilationVSSLeftSideView  30.0 x 159.9 x 10.3
+  71   RM60                     RM72_VSS                      53.5 x 30.0 x 16.8
+  72   RM60_VSS                 RM72_VSS                      53.5 x 30.0 x 16.8
+  73   RM72                     RM72                          62.0 x 30.0 x 10.3
+  74   RM72_VSS                 RM72_VSS                      53.5 x 30.0 x 16.8
+  75   RM84                     RM84_BACK                     78.9 x 31.1 x 10.3
+  76   RM96                     RM96                          87.0 x 31.1 x 10.3
+  77   RM120                    RM120                         110.0 x 31.1 x 10.3
+  78   RM144                    RM144_BACK                    134.0 x 31.1 x 10.3
+  79   RM168                    RM168                         158.0 x 31.1 x 10.3
+  80   RM192                    RM192                         182.0 x 31.1 x 10.3
+  81   RM102                    RM102                         92.0 x 31.1 x 10.3
+  82   RM126                    RM126                         116.0 x 31.1 x 10.3
+  83   RM186                    RM186                         176.5 x 31.1 x 10.3
+  84   LeftWADoor_HX            LeftWADoor_HX                 49.0 x 29.5 x 91.0
+  85   LeftWADoorWithRamp_HX    LeftWADoorWithRamp_HX         49.0 x 61.9 x 92.1
+  86   Left46Door_HX            Left46Door_HX                 46.0 x 32.0 x 91.0
+  87   Left40Door_HX            Left40Door_HX                 40.0 x 6.9 x 91.0
+  88   Right40Door_HX           Right40Door_HX                40.0 x 6.9 x 91.0
+  89   RightWADoorWithRamp_HX   RightWADoorWithRamp_HX        49.0 x 61.9 x 92.1
+  90   Right46Door_HX           Right46Door_HX                46.0 x 32.0 x 91.0
+  91   RightWADoor_HX           RightWADoor_HX                49.0 x 29.5 x 91.0
+  92   40Panel2630WDO_HX        40Panel2630WDO_HX             40.0 x 1.8 x 91.0
+  93   40Panel2636WDO_HX        40Panel2636WDO_HX             40.0 x 1.8 x 91.0
+  94   40Panel2642WDO_HX        40Panel2642WDO_HX             40.0 x 1.8 x 91.0
+  95   40Panel2648WDO_HX        40Panel2648WDO_HX             40.0 x 1.8 x 91.0
+  96   46Panel3230WDO_HX        46Panel3230WDO_HX             46.0 x 1.8 x 91.0
+  97   46Panel3236WDO_HX        46Panel3236WDO_HX             46.0 x 1.8 x 91.0
+  98   46Panel3242WDO_HX        46Panel3242WDO_HX             46.0 x 1.8 x 91.0
+  99   46Panel3248WDO_HX        46Panel3248WDO_HX             46.0 x 1.8 x 91.0
+  100  43Panel2636WDO_HX        43Panel2636WDO_HX             43.0 x 1.8 x 91.0
+  101  43Panel2648WDO_HX        43Panel2648WDO_HX             43.0 x 1.8 x 91.0
+  102  31Panel1648WDO_HX        31Panel1648WDO_HX             31.0 x 1.8 x 91.0
+  103  46PanelCBL_HX            46PanelCBL_HX                 46.0 x 1.1 x 91.0
+  104  40PanelCBL_HX            40PanelCBL_HX                 40.0 x 1.1 x 91.0
+  105  46PanelSolid_HX          46PanelSolid_HX               46.0 x 1.1 x 91.0
+  106  22PanelSolid_HX          22PanelSolid_HX               22.0 x 1.1 x 91.0
+  107  40PanelSolid_HX          40PanelSolid_HX               40.0 x 1.1 x 91.0
+  108  16PanelSolid_HX          16PanelSolid_HX               16.0 x 1.1 x 91.0
+  109  CornerSeamSeal_HX        CornerSeamSeal_HX             4.9 x 4.9 x 91.0
+  110  MidWallSeamSeal_HX       MidWallSeamSeal_HX            7.8 x 2.0 x 91.0
+  111  46VNT_HX                 46VNT_HX                      46.0 x 8.5 x 91.9
+  112  46VNT_EFS_HX             46VNT_EFS_HX                  51.9 x 12.1 x 92.3
+  113  46VNT_VSS_EFS_HX         46VNT_VSS_EFS_HX              58.6 x 12.1 x 92.3
+  114  46VNT_VSS_HX             46VNT_VSS_HX                  46.0 x 8.6 x 92.2
+  115  40VNT_HX                 40VNT_HX                      40.0 x 8.5 x 92.0
+  116  40VNT_EFS_HX             40VNT_EFS_HX                  48.9 x 12.1 x 97.2
+  117  40VNT_VSS_HX             40VNT_VSS_HX                  41.7 x 8.6 x 92.3
+  118  40VNT_VSS_EFS_HX         40VNT_VSS_EFS_HX              56.2 x 12.3 x 92.0
+  119  19Panel_HX               19Panel_HX                    19.0 x 1.1 x 91.0
+  120  7Panel_HX                (unnamed)                     7.0 x 1.1 x 91.0
+  121  43Panel_HX               43Panel_HX                    43.0 x 1.1 x 91.0
+  122  31Panel_HX               31Panel_HX                    31.0 x 1.1 x 91.0
+  123  28Panel_HX               28Panel_HX                    28.0 x 1.1 x 91.0
+  124  46NV_HX                  46NV_HX                       46.0 x 2.1 x 91.0
+  125  40NV_HX                  40NV_HX                       40.0 x 2.1 x 91.0
+  126  46VntCP_HX               46VntCP_HX                    46.0 x 8.5 x 96.6
+  127  46Vnt_EFS_CP_HX          46Vnt_EFS_CP_HX               51.9 x 12.1 x 96.1
+  128  46Vnt_VSS_EFS_CP_HX      46Vnt_VSS_EFS_CP_HX           58.6 x 12.1 x 97.1
+  129  46vnt_VSS_CP_HX          46vnt_VSS_CP_HX               46.0 x 8.6 x 96.9
+  130  40Vnt_CP_HX              40Vnt_CP_HX                   40.0 x 8.5 x 96.6
+  131  40Vnt_EFS_CP_HX          40Vnt_EFS_CP_HX               48.9 x 12.1 x 97.2
+  132  40Vnt_VSS_CP_HX          40Vnt_VSS_CP_HX               41.7 x 8.6 x 97.1
+  133  40Vnt_VSS_EFS_CP_HX      40Vnt_VSS_EFS_CP_HX           55.6 x 12.1 x 97.2
+  134  STD4230CL                STD4230CL                     42.0 x 30.0 x 3.1
+  135  STD4230FL                STD4230FL                     42.0 x 30.0 x 3.1
+  136  STD4242CL                STD4242CL                     42.0 x 42.0 x 3.1
+  137  STD4242FL                STD4242FL                     42.0 x 42.0 x 3.1
+  138  STD4260CL                STD4260CL                     60.0 x 42.0 x 3.1
+  139  STD4260FL                STD4260FL                     60.0 x 42.0 x 3.1
+  140  STD4284CL                STD4284CL                     84.0 x 42.0 x 3.1
+  141  STD4284FL                STD4284FL                     84.0 x 42.0 x 3.1
+  142  STD4848CL                STD4848CL                     48.0 x 48.0 x 3.1
+  143  STD4848FL                STD4848FL                     48.0 x 48.0 x 3.1
+  144  STD4872CL                STD4872CL                     72.0 x 48.0 x 3.1
+  145  STD4872FL                STD4872FL                     72.0 x 48.0 x 3.1
+  146  STD4896CL                STD4896CL                     96.0 x 48.0 x 3.1
+  147  STD4896FL                STD4896FL                     96.0 x 48.0 x 3.1
+  148  STD6042CL SIDE L         STD6042CL SIDE R              42.0 x 60.0 x 3.1
+  149  STD6042FL SIDE L         STD6042FL SIDE R              42.0 x 60.0 x 3.5
+  150  STDSS CL5                STDSS CL5                     6.5 x 58.0 x 1.8
+  151  STD6018CL SIDE R         STD6018CL SIDE R              18.0 x 60.0 x 3.1
+  152  STD6018FL SIDE R         STD6018FL SIDE R              18.0 x 60.0 x 3.1
+  153  STD6042CL SIDE R         STD6042CL SIDE R              42.0 x 60.0 x 3.1
+  154  STD6042FL SIDE R         STD6042FL SIDE R              42.0 x 60.0 x 3.5
+  155  STD7248CL SIDE L         STD7248CL SIDE L              48.0 x 72.0 x 3.1
+  156  STD7248FL SIDE L         STD7248FL SIDE L              48.0 x 72.0 x 3.1
+  157  STDSS CL6                STDSS CL6                     6.5 x 70.0 x 1.8
+  158  STDSS FL6                STDSS FL6                     7.2 x 72.0 x 1.7
+  159  STD7224CL SIDE R         STD7224CL SIDE R              24.0 x 72.0 x 3.1
+  160  STD7224FL SIDE R         STD7224FL SIDE R              37.9 x 72.0 x 3.1
+  161  STD7248CL SIDE R         STD7248CL SIDE R              48.0 x 72.0 x 3.1
+  162  STD7248FL SIDE R         STD7248FL SIDE R              48.0 x 72.0 x 3.1
+  163  STD8442CL SIDE           STD8442CL SIDE                42.0 x 84.0 x 3.1
+  164  STD8442FL SIDE           STD8442FL SIDE                42.0 x 84.0 x 3.1
+  165  STD8442CL CTR            STD8442CL CTR                 42.0 x 84.0 x 3.1
+  166  STD8442FL CTR            STD8442FL CTR                 41.9 x 84.0 x 3.1
+  167  STDSS CL7                STDSS CL7                     6.5 x 82.0 x 1.8
+  168  STDSS FL7                STDSS FL7                     7.2 x 84.0 x 1.7
+  169  STD8418 CL               STD8418 CL                    18.0 x 84.0 x 3.1
+  170  STD8418 FL               STD8418 FL                    17.9 x 84.0 x 3.1
+  171  STDSS CL8                STDSS CL8                     6.5 x 94.0 x 1.8
+  172  STDSS FL8                STDSS FL8                     7.2 x 96.0 x 1.7
+  173  STD9648CL CTR            STD9648CL CTR                 48.0 x 96.0 x 3.1
+  174  STD9648FL CTR            STD9648FL CTR                 47.9 x 96.0 x 3.1
+  175  STD9624CL CTR            STD9624CL CTR                 24.0 x 96.0 x 3.1
+  176  STD9624FL CTR            STD9624FL CTR                 23.9 x 96.0 x 3.1
+  177  STD9648CL SIDE           STD9648CL SIDE                48.0 x 96.0 x 3.1
+  178  STD9648FL SIDE           STD9648FL SIDE                48.0 x 96.0 x 3.1
+  179  STDSS 8.5CL              STDSS 8.5CL                   6.5 x 100.0 x 1.8
+  180  STD10218CL CTR           STD10218CL CTR                18.0 x 102.0 x 3.1
+  181  STD10218FL CTR           STD10218FL CTR                17.9 x 102.0 x 3.1
+  182  STD10242CL CTR           STD10242CL CTR                42.0 x 102.0 x 3.1
+  183  STD10242FL CTR           STD10242FL CTR                41.9 x 102.0 x 3.1
+  184  STD10242CL SIDE          STD10242CL SIDE               42.0 x 102.0 x 3.1
+  185  STD10242FL SIDE          STD10242FL SIDE               42.0 x 102.0 x 3.1
+  186  STD127LPCL               STD127LPCL                    73.4 x 73.4 x 3.4
+  187  STD127LPFL               STD127LPFL                    61.8 x 50.7 x 3.4
+  188  Foam                     Foam                          24.0 x 2.0 x 48.0
+  189  Duct Cover               Duct Cover                    23.8 x 3.1 x 80.3
+  ---------------------------------------------------------------------------------
+  189 scenes, 0 of which resolve to no component.
+

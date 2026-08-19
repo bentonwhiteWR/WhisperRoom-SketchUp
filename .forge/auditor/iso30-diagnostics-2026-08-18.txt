@@ -1,0 +1,306 @@
+ANGLED COMPONENT ART — diagnostics
+model      Master Component List for Assembly Manuals REFINEMENT
+style      Interior
+batch      4 — every scene, all four images
+frame on   Part centred (fills the frame)
+style opt  Style: Interior
+view       128  -> 128.000 in at 2400 px
+azimuth    38 deg (elevation 30)
+dark       45 (Light 80)
+cameras    ExtL   (-0.5332,+0.6824,+0.5000)  ExtR   (+0.6824,+0.5332,+0.5000)  IntL   (-0.6824,-0.5332,+0.5000)  IntR   (+0.5332,-0.6824,+0.5000)
+corner 8c  ExtNear(+0.1055,+0.8596,+0.5000)  ExtL   (-0.5332,+0.6824,+0.5000)  ExtR   (+0.6824,+0.5332,+0.5000)  IntFar (-0.1055,-0.8596,+0.5000)
+
+SCENE -> COMPONENT
+    1  LeftWADoor                     -> LeftWADoor                         ExtL ExtR IntL IntR  49.0 x 29.5 x 81.0 in  [46 in from the camera target, bounds centre]
+    2  LeftWADoorWithRamp             -> LeftWADoorWithRamp                 ExtL ExtR IntL IntR  49.0 x 61.9 x 82.1 in  [61 in from the camera target, bounds centre]
+    3  Left46Door                     -> Left46Door                         ExtL ExtR IntL IntR  46.0 x 32.0 x 81.0 in  [46 in from the camera target, bounds centre]
+    4  Left40Door                     -> Left40Door                         ExtL ExtR IntL IntR  40.0 x 6.9 x 81.0 in  [45 in from the camera target, bounds centre]
+    5  Right40Door                    -> Right40Door                        ExtL ExtR IntL IntR  40.0 x 6.9 x 81.0 in  [46 in from the camera target, bounds centre]
+    6  RightWADoorWithRamp            -> RightWADoorWithRamp                ExtL ExtR IntL IntR  49.0 x 61.9 x 82.1 in  [62 in from the camera target, bounds centre]
+    7  Right46Door                    -> Right46Door                        ExtL ExtR IntL IntR  46.0 x 32.0 x 81.0 in  [48 in from the camera target, bounds centre]
+    8  RightWADoor                    -> RightWADoor                        ExtL ExtR IntL IntR  49.0 x 29.5 x 81.0 in  [46 in from the camera target, bounds centre]
+    9  40Panel2630WDO                 -> 40Panel2630WDO                     ExtL ExtR IntL IntR  40.0 x 1.8 x 81.0 in  [46 in from the camera target, bounds centre]
+   10  40Panel2636WDO                 -> 40Panel2636WDO                     ExtL ExtR IntL IntR  40.0 x 1.8 x 81.0 in  [46 in from the camera target, bounds centre]
+   11  40Panel2642WDO                 -> 40Panel2642WDO                     ExtL ExtR IntL IntR  40.0 x 1.8 x 81.0 in  [47 in from the camera target, bounds centre]
+   12  40Panel2648WDO                 -> 40Panel2648WDO                     ExtL ExtR IntL IntR  40.0 x 1.8 x 81.0 in  [46 in from the camera target, bounds centre]
+   13  46Panel3230WDO                 -> 46Panel3230WDO                     ExtL ExtR IntL IntR  46.0 x 1.8 x 81.0 in  [47 in from the camera target, bounds centre]
+   14  46Panel3236WDO                 -> 46Panel3236WDO                     ExtL ExtR IntL IntR  46.0 x 1.8 x 81.0 in  [46 in from the camera target, bounds centre]
+   15  46Panel3242WDO                 -> 46Panel3242WDO                     ExtL ExtR IntL IntR  46.0 x 1.8 x 81.0 in  [46 in from the camera target, bounds centre]
+   16  46Panel3248WDO                 -> 46Panel3248WDO                     ExtL ExtR IntL IntR  46.0 x 1.8 x 81.0 in  [46 in from the camera target, bounds centre]
+   17  43Panel2636WDO                 -> 43Panel2636WDO                     ExtL ExtR IntL IntR  43.0 x 1.8 x 81.0 in  [47 in from the camera target, bounds centre]
+   18  43Panel2648WDO                 -> 43Panel2648WDO                     ExtL ExtR IntL IntR  43.0 x 1.8 x 81.0 in  [47 in from the camera target, bounds centre]
+   19  31Panel1648WDO                 -> 31Panel1648WDO                     ExtL ExtR IntL IntR  31.0 x 1.8 x 81.0 in  [46 in from the camera target, bounds centre]
+   20  46PanelCBL                     -> 46PanelCBL                         ExtL ExtR IntL IntR  46.0 x 1.0 x 81.0 in  [46 in from the camera target, bounds centre]
+   21  40PanelCBL                     -> 40PanelCBL                         ExtL ExtR IntL IntR  40.0 x 1.0 x 81.0 in  [45 in from the camera target, bounds centre]
+   22  46PanelSolid                   -> 46PanelSolid                       ExtL ExtR IntL IntR  46.0 x 1.0 x 81.0 in  [45 in from the camera target, bounds centre]
+   23  22PanelSolid                   -> 22PanelSolid                       ExtL ExtR IntL IntR  22.0 x 1.0 x 81.0 in  [45 in from the camera target, bounds centre]
+   24  40PanelSolid                   -> 40PanelSolid                       ExtL ExtR IntL IntR  40.0 x 1.0 x 81.0 in  [45 in from the camera target, bounds centre]
+   25  16PanelSolid                   -> 16PanelSolid                       ExtL ExtR IntL IntR  16.0 x 1.0 x 81.0 in  [45 in from the camera target, bounds centre]
+   26  CornerSeamSeal                 -> CornerSeamSeal                     ExtL ExtR IntL IntR  4.9 x 4.9 x 81.0 in  [44 in from the camera target, bounds centre]
+   27  MidWallSeamSeal                -> MidWallSeamSeal                    ExtL ExtR IntL IntR  7.8 x 2.0 x 81.0 in  [46 in from the camera target, bounds centre]
+   28  46VNT                          -> 46VNT                              ExtL ExtR IntL IntR  46.0 x 8.5 x 81.9 in  [50 in from the camera target, bounds centre]
+   29  46VNT_EFS                      -> 46VNT_EFS                          ExtL ExtR IntL IntR  51.9 x 12.1 x 82.3 in  [54 in from the camera target, bounds centre]
+   30  46VNT_VSS_EFS                  -> 46VNT_VSS_EFS                      ExtL ExtR IntL IntR  58.6 x 12.1 x 82.3 in  [52 in from the camera target, bounds centre]
+   31  46VNT_VSS                      -> 46VNT_VSS                          ExtL ExtR IntL IntR  46.0 x 8.6 x 82.2 in  [50 in from the camera target, bounds centre]
+   32  40VNT                          -> 40VNT                              ExtL ExtR IntL IntR  40.0 x 8.5 x 82.0 in  [50 in from the camera target, bounds centre]
+   33  40VNT_EFS                      -> 40Vnt_EFS_CP                       ExtL ExtR IntL IntR  48.9 x 12.1 x 87.2 in  [55 in from the camera target, bounds centre]
+   34  40VNT_VSS                      -> 40VNT_VSS                          ExtL ExtR IntL IntR  41.7 x 8.6 x 82.3 in  [49 in from the camera target, bounds centre]
+   35  40VNT_VSS_EFS                  -> 40VNT_VSS_EFS                      ExtL ExtR IntL IntR  56.2 x 12.3 x 82.0 in  [53 in from the camera target, bounds centre]
+   36  StepFront                      -> StepFront                          ExtL ExtR IntL IntR  44.0 x 12.0 x 5.0 in  [camera inside it, bounds centre]
+   37  19Panel                        -> 19Panel                            ExtL ExtR IntL IntR  19.0 x 1.0 x 81.0 in  [6 in from the camera target, bounds centre]
+   38  7Panel                         -> 7Panel_HX                          ExtL ExtR IntL IntR  7.0 x 1.0 x 81.0 in  [4 in from the camera target, bounds centre]
+   39  CP30                           -> CP30                               ExtL ExtR IntL IntR  32.0 x 44.0 x 5.4 in  [42 in from the camera target, bounds centre]
+   40  CP42                           -> CP42                               ExtL ExtR IntL IntR  44.0 x 44.0 x 5.4 in  [40 in from the camera target, bounds centre]
+   41  CP48                           -> CP48                               ExtL ExtR IntL IntR  50.0 x 50.0 x 5.4 in  [37 in from the camera target, bounds centre]
+   42  CP60                           -> CP60                               ExtL ExtR IntL IntR  62.0 x 19.0 x 1.8 in  [11 in from the camera target, bounds centre]
+   43  CP72                           -> CP72                               ExtL ExtR IntL IntR  74.0 x 50.0 x 5.4 in  [38 in from the camera target, bounds centre]
+   44  CP84                           -> CP84                               ExtL ExtR IntL IntR  86.0 x 45.0 x 5.5 in  [41 in from the camera target, bounds centre]
+   45  CP96                           -> CP96                               ExtL ExtR IntL IntR  98.0 x 49.0 x 5.4 in  [39 in from the camera target, bounds centre]
+   46  CP120                          -> CP120                              ExtL ExtR IntL IntR  24.0 x 98.0 x 5.4 in  [15 in from the camera target, bounds centre]
+   47  CP144                          -> CP192                              ExtL ExtR IntL IntR  48.0 x 98.0 x 5.4 in  [14 in from the camera target, bounds centre]
+   48  CP168                          -> CP192                              ExtL ExtR IntL IntR  48.0 x 98.0 x 5.4 in  [19 in from the camera target, bounds centre]
+   49  CP192                          -> CP192                              ExtL ExtR IntL IntR  48.0 x 98.0 x 5.4 in  [28 in from the camera target, bounds centre]
+   50  CP102                          -> CP102                              ExtL ExtR IntL IntR  18.0 x 104.0 x 5.6 in  [11 in from the camera target, bounds centre]
+   51  CP126                          -> CP186                              ExtL ExtR IntL IntR  42.0 x 104.0 x 5.4 in  [12 in from the camera target, bounds centre]
+   52  CP186                          -> CP186                              ExtL ExtR IntL IntR  42.0 x 104.0 x 5.4 in  [19 in from the camera target, bounds centre]
+   53  MJP                            -> MJP                                ExtL ExtR IntL IntR  8.8 x 4.0 x 18.4 in  [42 in from the camera target, bounds centre]
+   54  DeskSmall                      -> DeskSmall                          ExtL ExtR IntL IntR  30.0 x 14.8 x 12.2 in  [35 in from the camera target, bounds centre]
+   55  DeskLarge                      -> DeskLarge                          ExtL ExtR IntL IntR  42.0 x 16.8 x 12.2 in  [36 in from the camera target, bounds centre]
+   56  43Panel                        -> 43Panel                            ExtL ExtR IntL IntR  43.0 x 1.0 x 81.0 in  [11 in from the camera target, bounds centre]
+   57  31Panel                        -> 31Panel                            ExtL ExtR IntL IntR  31.0 x 1.0 x 81.0 in  [12 in from the camera target, bounds centre]
+   58  28Panel                        -> 28Panel                            ExtL ExtR IntL IntR  28.0 x 1.0 x 81.0 in  [12 in from the camera target, bounds centre]
+   59  46NV                           -> 46NV                               ExtL ExtR IntL IntR  46.0 x 2.1 x 81.0 in  [13 in from the camera target, bounds centre]
+   60  40NV                           -> 40NV                               ExtL ExtR IntL IntR  40.0 x 2.1 x 81.0 in  [20 in from the camera target, bounds centre]
+   61  46VntCP                        -> 46VntCP                            ExtL ExtR IntL IntR  46.0 x 8.5 x 86.6 in  [50 in from the camera target, bounds centre]
+   62  46Vnt_EFS_CP                   -> 46Vnt_EFS_CP                       ExtL ExtR IntL IntR  51.9 x 12.1 x 86.1 in  [51 in from the camera target, bounds centre]
+   63  46Vnt_VSS_EFS_CP               -> 46Vnt_VSS_EFS_CP                   ExtL ExtR IntL IntR  58.6 x 12.1 x 87.1 in  [52 in from the camera target, bounds centre]
+   64  46vnt_VSS_CP                   -> 46vnt_VSS_CP                       ExtL ExtR IntL IntR  46.0 x 8.6 x 86.9 in  [49 in from the camera target, bounds centre]
+   65  40Vnt_CP                       -> 40Vnt_CP                           ExtL ExtR IntL IntR  40.0 x 8.5 x 86.6 in  [49 in from the camera target, bounds centre]
+   66  40Vnt_EFS_CP                   -> 40Vnt_EFS_CP                       ExtL ExtR IntL IntR  48.9 x 12.1 x 87.2 in  [51 in from the camera target, bounds centre]
+   67  40Vnt_VSS_CP                   -> 40Vnt_VSS_CP                       ExtL ExtR IntL IntR  41.7 x 8.6 x 87.1 in  [52 in from the camera target, bounds centre]
+   68  40Vnt_VSS_EFS_CP               -> 40Vnt_VSS_EFS_CP                   ExtL ExtR IntL IntR  55.6 x 12.1 x 87.2 in  [51 in from the camera target, bounds centre]
+   69  RMVentilationExhaustBox        -> RMVentilationVSSLeftSideView       ExtL ExtR IntL IntR  159.9 x 30.0 x 10.3 in  [42 in from the camera target, bounds centre]
+   70  RMVentilationIntakeBox         -> RMVentilationVSSLeftSideView       ExtL ExtR IntL IntR  30.0 x 159.9 x 10.3 in  [camera inside it, bounds centre]
+   71  RM60                           -> RM72_VSS                           ExtL ExtR IntL IntR  53.5 x 30.0 x 16.8 in  [270 in from the camera target, bounds centre]
+   72  RM60_VSS                       -> RM72_VSS                           ExtL ExtR IntL IntR  53.5 x 30.0 x 16.8 in  [29 in from the camera target, bounds centre]
+   73  RM72                           -> RM72                               ExtL ExtR IntL IntR  62.0 x 30.0 x 10.3 in  [10 in from the camera target, bounds centre]
+   74  RM72_VSS                       -> RM72_VSS                           ExtL ExtR IntL IntR  53.5 x 30.0 x 16.8 in  [camera inside it, bounds centre]
+   75  RM84                           -> RM84_BACK                          ExtL ExtR IntL IntR  78.9 x 31.1 x 10.3 in  [10 in from the camera target, bounds centre]
+   76  RM96                           -> RM96                               ExtL ExtR IntL IntR  87.0 x 31.1 x 10.3 in  [9 in from the camera target, bounds centre]
+   77  RM120                          -> RM120                              ExtL ExtR IntL IntR  110.0 x 31.1 x 10.3 in  [camera inside it, bounds centre]
+   78  RM144                          -> RM144_BACK                         ExtL ExtR IntL IntR  134.0 x 31.1 x 10.3 in  [9 in from the camera target, bounds centre]
+   79  RM168                          -> RM168                              ExtL ExtR IntL IntR  158.0 x 31.1 x 10.3 in  [9 in from the camera target, bounds centre]
+   80  RM192                          -> RM192                              ExtL ExtR IntL IntR  182.0 x 31.1 x 10.3 in  [camera inside it, bounds centre]
+   81  RM102                          -> RM102                              ExtL ExtR IntL IntR  92.0 x 31.1 x 10.3 in  [camera inside it, bounds centre]
+   82  RM126                          -> RM126                              ExtL ExtR IntL IntR  116.0 x 31.1 x 10.3 in  [camera inside it, bounds centre]
+   83  RM186                          -> RM186                              ExtL ExtR IntL IntR  176.5 x 31.1 x 10.3 in  [8 in from the camera target, bounds centre]
+   84  LeftWADoor_HX                  -> LeftWADoor_HX                      ExtL ExtR IntL IntR  49.0 x 29.5 x 91.0 in  [47 in from the camera target, bounds centre]
+   85  LeftWADoorWithRamp_HX          -> LeftWADoorWithRamp_HX              ExtL ExtR IntL IntR  49.0 x 61.9 x 92.1 in  [62 in from the camera target, bounds centre]
+   86  Left46Door_HX                  -> Left46Door_HX                      ExtL ExtR IntL IntR  46.0 x 32.0 x 91.0 in  [46 in from the camera target, bounds centre]
+   87  Left40Door_HX                  -> Left40Door_HX                      ExtL ExtR IntL IntR  40.0 x 6.9 x 91.0 in  [46 in from the camera target, bounds centre]
+   88  Right40Door_HX                 -> Right40Door_HX                     ExtL ExtR IntL IntR  40.0 x 6.9 x 91.0 in  [47 in from the camera target, bounds centre]
+   89  RightWADoorWithRamp_HX         -> RightWADoorWithRamp_HX             ExtL ExtR IntL IntR  49.0 x 61.9 x 92.1 in  [63 in from the camera target, bounds centre]
+   90  Right46Door_HX                 -> Right46Door_HX                     ExtL ExtR IntL IntR  46.0 x 32.0 x 91.0 in  [49 in from the camera target, bounds centre]
+   91  RightWADoor_HX                 -> RightWADoor_HX                     ExtL ExtR IntL IntR  49.0 x 29.5 x 91.0 in  [47 in from the camera target, bounds centre]
+   92  40Panel2630WDO_HX              -> 40Panel2630WDO_HX                  ExtL ExtR IntL IntR  40.0 x 1.8 x 91.0 in  [45 in from the camera target, bounds centre]
+   93  40Panel2636WDO_HX              -> 40Panel2636WDO_HX                  ExtL ExtR IntL IntR  40.0 x 1.8 x 91.0 in  [46 in from the camera target, bounds centre]
+   94  40Panel2642WDO_HX              -> 40Panel2642WDO_HX                  ExtL ExtR IntL IntR  40.0 x 1.8 x 91.0 in  [47 in from the camera target, bounds centre]
+   95  40Panel2648WDO_HX              -> 40Panel2648WDO_HX                  ExtL ExtR IntL IntR  40.0 x 1.8 x 91.0 in  [47 in from the camera target, bounds centre]
+   96  46Panel3230WDO_HX              -> 46Panel3230WDO_HX                  ExtL ExtR IntL IntR  46.0 x 1.8 x 91.0 in  [48 in from the camera target, bounds centre]
+   97  46Panel3236WDO_HX              -> 46Panel3236WDO_HX                  ExtL ExtR IntL IntR  46.0 x 1.8 x 91.0 in  [46 in from the camera target, bounds centre]
+   98  46Panel3242WDO_HX              -> 46Panel3242WDO_HX                  ExtL ExtR IntL IntR  46.0 x 1.8 x 91.0 in  [47 in from the camera target, bounds centre]
+   99  46Panel3248WDO_HX              -> 46Panel3248WDO_HX                  ExtL ExtR IntL IntR  46.0 x 1.8 x 91.0 in  [47 in from the camera target, bounds centre]
+  100  43Panel2636WDO_HX              -> 43Panel2636WDO_HX                  ExtL ExtR IntL IntR  43.0 x 1.8 x 91.0 in  [48 in from the camera target, bounds centre]
+  101  43Panel2648WDO_HX              -> 43Panel2648WDO_HX                  ExtL ExtR IntL IntR  43.0 x 1.8 x 91.0 in  [48 in from the camera target, bounds centre]
+  102  31Panel1648WDO_HX              -> 31Panel1648WDO_HX                  ExtL ExtR IntL IntR  31.0 x 1.8 x 91.0 in  [47 in from the camera target, bounds centre]
+  103  46PanelCBL_HX                  -> 46PanelCBL_HX                      ExtL ExtR IntL IntR  46.0 x 1.1 x 91.0 in  [47 in from the camera target, bounds centre]
+  104  40PanelCBL_HX                  -> 40PanelCBL_HX                      ExtL ExtR IntL IntR  40.0 x 1.1 x 91.0 in  [46 in from the camera target, bounds centre]
+  105  46PanelSolid_HX                -> 46PanelSolid_HX                    ExtL ExtR IntL IntR  46.0 x 1.1 x 91.0 in  [46 in from the camera target, bounds centre]
+  106  22PanelSolid_HX                -> 22PanelSolid_HX                    ExtL ExtR IntL IntR  22.0 x 1.1 x 91.0 in  [46 in from the camera target, bounds centre]
+  107  40PanelSolid_HX                -> 40PanelSolid_HX                    ExtL ExtR IntL IntR  40.0 x 1.1 x 91.0 in  [45 in from the camera target, bounds centre]
+  108  16PanelSolid_HX                -> 16PanelSolid_HX                    ExtL ExtR IntL IntR  16.0 x 1.1 x 91.0 in  [45 in from the camera target, bounds centre]
+  109  CornerSeamSeal_HX              -> CornerSeamSeal_HX                  ExtL ExtR IntL IntR  4.9 x 4.9 x 91.0 in  [45 in from the camera target, bounds centre]
+  110  MidWallSeamSeal_HX             -> MidWallSeamSeal_HX                 ExtL ExtR IntL IntR  7.8 x 2.0 x 91.0 in  [46 in from the camera target, bounds centre]
+  111  46VNT_HX                       -> 46VNT_HX                           ExtL ExtR IntL IntR  46.0 x 8.5 x 91.9 in  [50 in from the camera target, bounds centre]
+  112  46VNT_EFS_HX                   -> 46VNT_EFS_HX                       ExtL ExtR IntL IntR  51.9 x 12.1 x 92.3 in  [54 in from the camera target, bounds centre]
+  113  46VNT_VSS_EFS_HX               -> 46VNT_VSS_EFS_HX                   ExtL ExtR IntL IntR  58.6 x 12.1 x 92.3 in  [53 in from the camera target, bounds centre]
+  114  46VNT_VSS_HX                   -> 46VNT_VSS_HX                       ExtL ExtR IntL IntR  46.0 x 8.6 x 92.2 in  [51 in from the camera target, bounds centre]
+  115  40VNT_HX                       -> 40VNT_HX                           ExtL ExtR IntL IntR  40.0 x 8.5 x 92.0 in  [51 in from the camera target, bounds centre]
+  116  40VNT_EFS_HX                   -> 40VNT_EFS_HX                       ExtL ExtR IntL IntR  48.9 x 12.1 x 97.2 in  [57 in from the camera target, bounds centre]
+  117  40VNT_VSS_HX                   -> 40VNT_VSS_HX                       ExtL ExtR IntL IntR  41.7 x 8.6 x 92.3 in  [50 in from the camera target, bounds centre]
+  118  40VNT_VSS_EFS_HX               -> 40VNT_VSS_EFS_HX                   ExtL ExtR IntL IntR  56.2 x 12.3 x 92.0 in  [54 in from the camera target, bounds centre]
+  119  19Panel_HX                     -> 19Panel_HX                         ExtL ExtR IntL IntR  19.0 x 1.1 x 91.0 in  [7 in from the camera target, bounds centre]
+  120  7Panel_HX                      -> 7Panel_HX                          ExtL ExtR IntL IntR  7.0 x 1.1 x 91.0 in  [5 in from the camera target, bounds centre]
+  121  43Panel_HX                     -> 43Panel_HX                         ExtL ExtR IntL IntR  43.0 x 1.1 x 91.0 in  [14 in from the camera target, bounds centre]
+  122  31Panel_HX                     -> 31Panel_HX                         ExtL ExtR IntL IntR  31.0 x 1.1 x 91.0 in  [15 in from the camera target, bounds centre]
+  123  28Panel_HX                     -> 28Panel_HX                         ExtL ExtR IntL IntR  28.0 x 1.1 x 91.0 in  [15 in from the camera target, bounds centre]
+  124  46NV_HX                        -> 46NV_HX                            ExtL ExtR IntL IntR  46.0 x 2.1 x 91.0 in  [15 in from the camera target, bounds centre]
+  125  40NV_HX                        -> 40NV_HX                            ExtL ExtR IntL IntR  40.0 x 2.1 x 91.0 in  [23 in from the camera target, bounds centre]
+  126  46VntCP_HX                     -> 46VntCP_HX                         ExtL ExtR IntL IntR  46.0 x 8.5 x 96.6 in  [51 in from the camera target, bounds centre]
+  127  46Vnt_EFS_CP_HX                -> 46Vnt_EFS_CP_HX                    ExtL ExtR IntL IntR  51.9 x 12.1 x 96.1 in  [52 in from the camera target, bounds centre]
+  128  46Vnt_VSS_EFS_CP_HX            -> 46Vnt_VSS_EFS_CP_HX                ExtL ExtR IntL IntR  58.6 x 12.1 x 97.1 in  [52 in from the camera target, bounds centre]
+  129  46vnt_VSS_CP_HX                -> 46vnt_VSS_CP_HX                    ExtL ExtR IntL IntR  46.0 x 8.6 x 96.9 in  [50 in from the camera target, bounds centre]
+  130  40Vnt_CP_HX                    -> 40Vnt_CP_HX                        ExtL ExtR IntL IntR  40.0 x 8.5 x 96.6 in  [50 in from the camera target, bounds centre]
+  131  40Vnt_EFS_CP_HX                -> 40Vnt_EFS_CP_HX                    ExtL ExtR IntL IntR  48.9 x 12.1 x 97.2 in  [52 in from the camera target, bounds centre]
+  132  40Vnt_VSS_CP_HX                -> 40Vnt_VSS_CP_HX                    ExtL ExtR IntL IntR  41.7 x 8.6 x 97.1 in  [53 in from the camera target, bounds centre]
+  133  40Vnt_VSS_EFS_CP_HX            -> 40Vnt_VSS_EFS_CP_HX                ExtL ExtR IntL IntR  55.6 x 12.1 x 97.2 in  [52 in from the camera target, bounds centre]
+  134  STD4230CL                      -> STD4230CL                          ExtL ExtR IntL IntR  42.0 x 30.0 x 3.1 in  [231 in from the camera target, bounds centre]
+  135  STD4230FL                      -> STD4230FL                          ExtL ExtR IntL IntR  42.0 x 30.0 x 3.1 in  [231 in from the camera target, bounds centre]
+  136  STD4242CL                      -> STD4242CL                          ExtL ExtR IntL IntR  42.0 x 42.0 x 3.1 in  [228 in from the camera target, bounds centre]
+  137  STD4242FL                      -> STD4242FL                          ExtL ExtR IntL IntR  42.0 x 42.0 x 3.1 in  [228 in from the camera target, bounds centre]
+  138  STD4260CL                      -> STD4260CL                          ExtL ExtR IntL IntR  60.0 x 42.0 x 3.1 in  [165 in from the camera target, bounds centre]
+  139  STD4260FL                      -> STD4260FL                          ExtL ExtR IntL IntR  60.0 x 42.0 x 3.1 in  [165 in from the camera target, bounds centre]
+  140  STD4284CL                      -> STD4284CL                          ExtL ExtR IntL IntR  84.0 x 42.0 x 3.1 in  [78 in from the camera target, bounds centre]
+  141  STD4284FL                      -> STD4284FL                          ExtL ExtR IntL IntR  84.0 x 42.0 x 3.1 in  [78 in from the camera target, bounds centre]
+  142  STD4848CL                      -> STD4848CL                          ExtL ExtR IntL IntR  48.0 x 48.0 x 3.1 in  [138 in from the camera target, bounds centre]
+  143  STD4848FL                      -> STD4848FL                          ExtL ExtR IntL IntR  48.0 x 48.0 x 3.1 in  [138 in from the camera target, bounds centre]
+  144  STD4872CL                      -> STD4872CL                          ExtL ExtR IntL IntR  72.0 x 48.0 x 3.1 in  [182 in from the camera target, bounds centre]
+  145  STD4872FL                      -> STD4872FL                          ExtL ExtR IntL IntR  72.0 x 48.0 x 3.1 in  [182 in from the camera target, bounds centre]
+  146  STD4896CL                      -> STD4896CL                          ExtL ExtR IntL IntR  96.0 x 48.0 x 3.1 in  [129 in from the camera target, bounds centre]
+  147  STD4896FL                      -> STD4896FL                          ExtL ExtR IntL IntR  96.0 x 48.0 x 3.1 in  [130 in from the camera target, bounds centre]
+  148  STD6042CL SIDE L               -> STD6042CL SIDE R                   ExtL ExtR IntL IntR  42.0 x 60.0 x 3.1 in  [158 in from the camera target, bounds centre]
+  149  STD6042FL SIDE L               -> STD6042FL SIDE R                   ExtL ExtR IntL IntR  42.0 x 60.0 x 3.5 in  [158 in from the camera target, bounds centre]
+  150  STDSS CL5                      -> STDSS CL5                          ExtL ExtR IntL IntR  6.5 x 58.0 x 1.8 in  [158 in from the camera target, bounds centre]
+  151  STD6018CL SIDE R               -> STD6018CL SIDE R                   ExtL ExtR IntL IntR  18.0 x 60.0 x 3.1 in  [158 in from the camera target, bounds centre]
+  152  STD6018FL SIDE R               -> STD6018FL SIDE R                   ExtL ExtR IntL IntR  18.0 x 60.0 x 3.1 in  [158 in from the camera target, bounds centre]
+  153  STD6042CL SIDE R               -> STD6042CL SIDE R                   ExtL ExtR IntL IntR  42.0 x 60.0 x 3.1 in  [136 in from the camera target, bounds centre]
+  154  STD6042FL SIDE R               -> STD6042FL SIDE R                   ExtL ExtR IntL IntR  42.0 x 60.0 x 3.5 in  [137 in from the camera target, bounds centre]
+  155  STD7248CL SIDE L               -> STD7248CL SIDE L                   ExtL ExtR IntL IntR  48.0 x 72.0 x 3.1 in  [137 in from the camera target, bounds centre]
+  156  STD7248FL SIDE L               -> STD7248FL SIDE L                   ExtL ExtR IntL IntR  48.0 x 72.0 x 3.1 in  [137 in from the camera target, bounds centre]
+  157  STDSS CL6                      -> STDSS CL6                          ExtL ExtR IntL IntR  6.5 x 70.0 x 1.8 in  [137 in from the camera target, bounds centre]
+  158  STDSS FL6                      -> STDSS FL6                          ExtL ExtR IntL IntR  7.2 x 72.0 x 1.7 in  [137 in from the camera target, bounds centre]
+  159  STD7224CL SIDE R               -> STD7224CL SIDE R                   ExtL ExtR IntL IntR  24.0 x 72.0 x 3.1 in  [134 in from the camera target, bounds centre]
+  160  STD7224FL SIDE R               -> STD7224FL SIDE R                   ExtL ExtR IntL IntR  37.9 x 72.0 x 3.1 in  [137 in from the camera target, bounds centre]
+  161  STD7248CL SIDE R               -> STD7248CL SIDE R                   ExtL ExtR IntL IntR  48.0 x 72.0 x 3.1 in  [133 in from the camera target, bounds centre]
+  162  STD7248FL SIDE R               -> STD7248FL SIDE R                   ExtL ExtR IntL IntR  48.0 x 72.0 x 3.1 in  [133 in from the camera target, bounds centre]
+  163  STD8442CL SIDE                 -> STD8442CL SIDE                     ExtL ExtR IntL IntR  42.0 x 84.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  164  STD8442FL SIDE                 -> STD8442FL SIDE                     ExtL ExtR IntL IntR  42.0 x 84.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  165  STD8442CL CTR                  -> STD8442CL CTR                      ExtL ExtR IntL IntR  42.0 x 84.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  166  STD8442FL CTR                  -> STD8442FL CTR                      ExtL ExtR IntL IntR  41.9 x 84.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  167  STDSS CL7                      -> STDSS CL7                          ExtL ExtR IntL IntR  6.5 x 82.0 x 1.8 in  [212 in from the camera target, bounds centre]
+  168  STDSS FL7                      -> STDSS FL7                          ExtL ExtR IntL IntR  7.2 x 84.0 x 1.7 in  [212 in from the camera target, bounds centre]
+  169  STD8418 CL                     -> STD8418 CL                         ExtL ExtR IntL IntR  18.0 x 84.0 x 3.1 in  [231 in from the camera target, bounds centre]
+  170  STD8418 FL                     -> STD8418 FL                         ExtL ExtR IntL IntR  17.9 x 84.0 x 3.1 in  [231 in from the camera target, bounds centre]
+  171  STDSS CL8                      -> STDSS CL8                          ExtL ExtR IntL IntR  6.5 x 94.0 x 1.8 in  [212 in from the camera target, bounds centre]
+  172  STDSS FL8                      -> STDSS FL8                          ExtL ExtR IntL IntR  7.2 x 96.0 x 1.7 in  [212 in from the camera target, bounds centre]
+  173  STD9648CL CTR                  -> STD9648CL CTR                      ExtL ExtR IntL IntR  48.0 x 96.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  174  STD9648FL CTR                  -> STD9648FL CTR                      ExtL ExtR IntL IntR  47.9 x 96.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  175  STD9624CL CTR                  -> STD9624CL CTR                      ExtL ExtR IntL IntR  24.0 x 96.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  176  STD9624FL CTR                  -> STD9624FL CTR                      ExtL ExtR IntL IntR  23.9 x 96.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  177  STD9648CL SIDE                 -> STD9648CL SIDE                     ExtL ExtR IntL IntR  48.0 x 96.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  178  STD9648FL SIDE                 -> STD9648FL SIDE                     ExtL ExtR IntL IntR  48.0 x 96.0 x 3.1 in  [212 in from the camera target, bounds centre]
+  179  STDSS 8.5CL                    -> STDSS 8.5CL                        ExtL ExtR IntL IntR  6.5 x 100.0 x 1.8 in  [214 in from the camera target, bounds centre]
+  180  STD10218CL CTR                 -> STD10218CL CTR                     ExtL ExtR IntL IntR  18.0 x 102.0 x 3.1 in  [214 in from the camera target, bounds centre]
+  181  STD10218FL CTR                 -> STD10218FL CTR                     ExtL ExtR IntL IntR  17.9 x 102.0 x 3.1 in  [214 in from the camera target, bounds centre]
+  182  STD10242CL CTR                 -> STD10242CL CTR                     ExtL ExtR IntL IntR  42.0 x 102.0 x 3.1 in  [215 in from the camera target, bounds centre]
+  183  STD10242FL CTR                 -> STD10242FL CTR                     ExtL ExtR IntL IntR  41.9 x 102.0 x 3.1 in  [214 in from the camera target, bounds centre]
+  184  STD10242CL SIDE                -> STD10242CL SIDE                    ExtL ExtR IntL IntR  42.0 x 102.0 x 3.1 in  [214 in from the camera target, bounds centre]
+  185  STD10242FL SIDE                -> STD10242FL SIDE                    ExtL ExtR IntL IntR  42.0 x 102.0 x 3.1 in  [214 in from the camera target, bounds centre]
+  186  STD127LPCL                     -> STD127LPCL                         ExtL ExtR IntL IntR  73.4 x 73.4 x 3.4 in  [242 in from the camera target, bounds centre]
+  187  STD127LPFL                     -> STD127LPFL                         ExtL ExtR IntL IntR  61.8 x 50.7 x 3.4 in  [231 in from the camera target, bounds centre]
+  188  Foam                           -> Foam                               ExtL ExtR IntL IntR  24.0 x 2.0 x 48.0 in  [227 in from the camera target, bounds centre]
+  189  Duct Cover                     -> Duct Cover                         ExtL ExtR IntL IntR  23.8 x 3.1 x 80.3 in  [276 in from the camera target, bounds centre]
+
+TRANSPARENCY KEYS — applied, then read back
+  ok  DrawGround                 wanted false  now false
+  ok  DrawHorizon                wanted false  now false
+  ok  DisplayFog                 wanted false  now false
+  ok  DisplayWatermarks          wanted false  now false
+  ok  AmbientOcclusion           wanted false  now false
+  all applied cleanly
+
+SHADING CONTRACT AS RENDERED — diff this block against the flat run
+  style              Interior
+    DrawGround           false
+    DrawHorizon          false
+    DisplayFog           false
+    DisplayWatermarks    false
+    AmbientOcclusion     false
+    DisplayShadows       false
+    UseSunForAllShading  false
+    Light                80
+    Dark                 45
+
+RENDERING OPTIONS (blank value = key not present in this SketchUp)
+  AmbientOcclusion                 false
+  AmbientOcclusionDistance         5.0
+  AmbientOcclusionIntensity        0.4099999964237213
+  BackgroundColor                  Color(255, 255, 255, 255)
+  BandColor                        Color(  0, 0, 0, 127)
+  ConstructionColor                Color(  0, 0, 0, 255)
+  DepthQueWidth                    4
+  DisplayAmbientOcclusion          
+  DisplayColorByLayer              false
+  DisplayDims                      true
+  DisplayFog                       false
+  DisplayInstanceAxes              false
+  DisplaySectionCuts               true
+  DisplaySketchAxes                false
+  DisplayText                      true
+  DisplayWatermarks                false
+  DrawBackEdges                    false
+  DrawGround                       false
+  DrawHidden                       false
+  DrawHorizon                      false
+  DrawLineEnds                     false
+  DrawProfilesOnly                 false
+  DrawSilhouettes                  false
+  DrawUnderside                    
+  EdgeColorMode                    1
+  EdgeDisplayMode                  1
+  EdgeType                         0
+  ExtendLines                      false
+  FaceBackColor                    Color(103, 148, 176, 255)
+  FaceColorMode                    
+  FaceFrontColor                   Color(236, 233, 233, 255)
+  FogColor                         Color(255, 255, 255, 255)
+  FogEndDist                       -1.0
+  FogStartDist                     -1.0
+  FogUseBkColor                    true
+  ForegroundColor                  Color(  0, 0, 0, 255)
+  GroundColor                      Color( 91, 91, 91, 255)
+  GroundTransparency               18
+  HideConstructionGeometry         false
+  HorizonColor                     Color(  0, 0, 0, 0)
+  InactiveFade                     0.25
+  InactiveHidden                   false
+  InstanceFade                     0.5
+  InstanceHidden                   false
+  JitterEdges                      false
+  LineEndWidth                     9
+  LineExtension                    3
+  MaterialTransparency             true
+  ModelTransparency                false
+  RenderMode                       2
+  SectionActiveColor               Color(255, 135, 0, 255)
+  SectionCutFilled                 true
+  SectionCutWidth                  3
+  SectionDefaultCutColor           Color(  0, 0, 0, 255)
+  SectionInactiveColor             Color(112, 105, 97, 255)
+  ShowViewName                     true
+  SilhouetteWidth                  3
+  SkyColor                         Color(189, 209, 208, 255)
+  Texture                          true
+  TransparencySort                 0
+  UseSunForAllShading              
+
+SHADOW INFO
+  DisplayShadows                   false
+  UseSunForAllShading              false
+  Light                            80
+  Dark                             45
+  SunRise                          2026-11-08 01:43:14 -0500
+  SunSet                           2026-11-08 11:45:57 -0500
+  EdgesCastShadows                 false
+  DisplayOnGroundPlane             true
+
+EDITING CONTEXT
+  active_path              nil (top level - correct)
+  contexts closed on entry 0
+  InactiveFade             0.25
+  InstanceFade             0.5
+  If active_path is not nil, everything outside it renders at
+  InactiveFade brightness and transparency comes back wrong.
+
+SKETCHUP
+  version   24.0.594
