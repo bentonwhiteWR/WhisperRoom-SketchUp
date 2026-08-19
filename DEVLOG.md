@@ -1,5 +1,72 @@
 # DEVLOG
 
+## 2026-08-19
+
+### Done
+
+- **Plugin versioning and one-click update, working end to end.** `VERSION` is
+  one file, shipped by `install-plugin.py` and compared against GitHub. Now at
+  1.3.1. The Update button works; Benton confirmed it.
+- **Two tabs in the panel** — TOOLS and CLIENT DRAWINGS. `# @tab client` files a
+  script on the second one; no header means TOOLS. Search spans both.
+- **The installer was deleting people's own scripts.** `copy_scripts()` opened
+  with `shutil.rmtree()` on the plugin's scripts folder, so anything a teammate
+  had written there was destroyed, permanently and silently. Gabe lost a script
+  to it. It now keeps a manifest and removes only what it installed; anything
+  else is left alone and named in the output.
+- **Panel always opens on-screen.** `open_panel` sets the position before
+  showing. An off-screen HtmlDialog still reports `visible?` true, so the old
+  code raised a window nobody could see and the toolbar button looked dead.
+- **Proposal system consolidated into this repo** under `proposals/`, with the
+  playbook at `reference/proposal-playbook.md`. A clean clone builds a correct
+  pack with no other input — verified.
+
+### Three bugs worth remembering
+
+- **Backticks return "" in SketchUp's Ruby on Windows.** `git --version` -> "".
+  The process spawns; the PIPE does not work. Output has to go to a file.
+- **`system('cmd /c cd /d "..." && git pull')` runs git in the WRONG DIRECTORY.**
+  Ruby sees the metacharacters and wraps the string in a second cmd; the nesting
+  rebinds the `&&` so the cd happens in a child that exits. A batch file has
+  neither problem and is what the update uses now.
+- **`raw.githubusercontent.com` served a five-minute-stale file.** The version
+  check now reads the GitHub API with `Accept: application/vnd.github.raw`.
+
+### Next steps — V-RAY IS SCRIPTABLE, and that is tomorrow's job
+
+V-Ray for SketchUp ships a full YARD-documented Ruby API and the docs are
+already on the machine at
+`C:\Program Files\Chaos\V-Ray\V-Ray for SketchUp\extension\documentation\index.html`.
+Findings written up in `reference/vray-ruby-api.md`.
+
+`VRayRenderer` exposes 61 methods including `start`, `stop`, `wait`, `export`,
+`save_vfb_image`, `denoise` and the VFB settings. `Scene` manages materials and
+lights as plugins. `ModelExporter#subscribe` hooks the moment after the model is
+exported and before the render starts.
+
+1. **Run `probe-vray.rb`** (dev shelf, Tidy up the model). Read-only, renders
+   nothing. It answers the question everything else depends on: is
+   `VRay::Context.active` non-nil COLD, or only after someone has rendered once
+   by hand in that session?
+2. Take the probe output and settle the other four questions listed at the
+   bottom of `reference/vray-ruby-api.md` — is `start` blocking or async, what
+   `save_vfb_image` actually takes, whether a render can run with the VFB
+   hidden, and whether a scripted render consumes a licence seat.
+3. Then scope the real prize: **batch the proposal renders.** Walk the proposal
+   scene list, render each at one pinned resolution, `save_vfb_image` straight
+   into `ProposalFiles\<Client>\` with the names the proposal config expects.
+   That closes the last manual step in the proposal pipeline.
+
+### Open decisions
+
+- Iso30 `Frame on`: part-centred or insertion point? Still unresolved, and 200
+  scenes ride on it.
+- PeopleSpace: the alcove WIDTH has never been supplied and blocks a real fit
+  answer. Also 10'-8 3/4" on the architect's plan vs 10'-7 1/2" in Peter's email.
+- Kuwait TV: booth-to-booth acoustic spacing is not a number WhisperRoom
+  publishes. The 12" drawn is a working aisle only. Engineering has to answer it.
+
+
 ## 2026-08-18
 
 ### Done
