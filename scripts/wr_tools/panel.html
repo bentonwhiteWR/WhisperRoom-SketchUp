@@ -266,6 +266,13 @@
   }
   .upd.on { display: block; }
   .upd b { color: var(--accent); }
+  .upd .go {
+    appearance: none; border: 0; cursor: pointer; font: inherit;
+    font-size: 11px; font-weight: 700; letter-spacing: .04em;
+    background: var(--accent); color: #fff;
+    border-radius: 5px; padding: 4px 10px; margin-top: 6px;
+  }
+  .upd .go[disabled] { opacity: .5; cursor: default; }
   .upd code {
     font-size: 11px; opacity: .85;
     display: block; margin-top: 3px; word-break: break-all;
@@ -1076,10 +1083,25 @@
   function drawUpdate() {
     if (!DATA.update) { $upd.className = "upd"; $upd.innerHTML = ""; return; }
     $upd.className = "upd on";
+    // One button, and it runs the two commands you would type anyway. Where
+    // there is no git checkout to pull into there is nothing to press, so the
+    // banner says so rather than offering a button that cannot work.
     $upd.innerHTML = "<b>Update available — v" + esc(DATA.update) + "</b> " +
-      "(you have v" + esc(DATA.version || "?") + "). Pull the repo and re-run " +
-      "install-plugin.py, then restart SketchUp." +
-      "<code>git pull &amp;&amp; python scripts/install-plugin.py</code>";
+      "(you have v" + esc(DATA.version || "?") + "). " +
+      (DATA.can_update
+        ? "<button class=\"go\" id=\"updgo\">Update now</button>" +
+          "<code>git pull &amp;&amp; python scripts/install-plugin.py</code>"
+        : "No git checkout here, so run this where the repo is cloned:" +
+          "<code>git pull &amp;&amp; python scripts/install-plugin.py</code>");
+    var b = document.getElementById("updgo");
+    if (!b) return;
+    b.addEventListener("click", function () {
+      // Disable on the way in. The update takes a few seconds and a second
+      // click would start a second git pull on top of the first.
+      b.disabled = true;
+      b.textContent = "Updating…";
+      if (window.sketchup && sketchup.update) sketchup.update();
+    });
   }
 
   function shelfRank(name) {

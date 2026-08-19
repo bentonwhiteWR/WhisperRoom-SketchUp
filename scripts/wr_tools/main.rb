@@ -283,6 +283,71 @@ module WhisperRoom
       nil
     end
 
+    # The repo this plugin's scripts came from, or nil when running off the
+    # bundled copy. SCRIPTS_DIR is <repo>/scripts, so the repo is its parent —
+    # and it only counts if it really is a git checkout.
+    def self.repo_dir
+      return nil if bundled?
+      root = File.dirname(SCRIPTS_DIR)
+      File.directory?(File.join(root, '.git')) ? root : nil
+    end
+
+    # ONE-CLICK UPDATE, and deliberately the boring version of it.
+    #
+    # It runs the two commands you would type: `git pull`, then the installer.
+    # It does NOT download files itself and write them over the running plugin.
+    # That version has to be all-or-nothing — a half-finished download leaves
+    # the plugin broken and the panel you would fix it with is the thing that
+    # broke. Git already solves that: a failed pull changes nothing, and the
+    # installer is a script that has been run a hundred times.
+    #
+    # Overwriting the .rb files while SketchUp holds them is safe. They are
+    # already parsed and in memory; the new ones are picked up at restart,
+    # which is exactly what the manual route does today.
+    def self.update_now
+      root = repo_dir
+      unless root
+        push_note('No git checkout found - this is the bundled copy. ' \
+                  'Clone the repo and run install-plugin.py to update.')
+        return
+      end
+      push_note('Updating...')
+      out = ''
+      ok  = false
+      begin
+        # Dir.chdir rather than building a `cd /d "..."` string: the repo path
+        # can contain spaces, and quoting a Windows path inside a Ruby backtick
+        # is a knot that does not need tying.
+        Dir.chdir(root) do
+          out << `git pull 2>&1`.to_s
+          pulled = $?.nil? || $?.success?
+          # Only install if the pull WORKED. Installing on top of a failed pull
+          # copies the old files back over themselves and reports success,
+          # which is worse than doing nothing.
+          if pulled
+            out << `python scripts/install-plugin.py 2>&1`.to_s
+            ok = !(out =~ /installed ->/).nil?
+          end
+        end
+      rescue Exception => e
+        push_note("Update failed: #{e.class}: #{e.message}")
+        puts out
+        return
+      end
+      puts ''
+      puts out
+      if ok
+        # Let the next panel open ask GitHub again, so the banner clears once
+        # the new version is actually in place.
+        @checked = false
+        @remote  = nil
+        push_note('Updated. RESTART SKETCHUP for it to take effect. ' \
+                  'Full output is in the Ruby Console.')
+      else
+        push_note('Update did not complete - see the Ruby Console.')
+      end
+    end
+
     def self.update_ready?
       !@remote.nil? && newer?(@remote, version)
     end
@@ -1113,6 +1178,7 @@ module WhisperRoom
         # answered, which is the whole point — the panel renders immediately
         # and the banner appears later if there is one, or never.
         'version' => version, 'update' => (update_ready? ? remote_version : nil),
+        'can_update' => !repo_dir.nil?,
         # The icon sprite travels with the payload rather than being fetched by
         # the page: an HtmlDialog has no network guarantee and a file:// fetch
         # out of the dialog is not reliably permitted.
@@ -1175,6 +1241,7 @@ module WhisperRoom
         check_update { push }
       end
       d.add_action_callback('rescan')  { |_c| push }
+      d.add_action_callback('update')  { |_c| update_now }
       d.add_action_callback('run')     { |_c, file| run(file); push }
       d.add_action_callback('pin')     { |_c, name| toggle_pin(name); push }
       d.add_action_callback('rename') do |_c, name, title|
