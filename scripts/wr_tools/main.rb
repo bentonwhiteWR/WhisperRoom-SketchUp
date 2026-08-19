@@ -313,32 +313,37 @@ module WhisperRoom
       end
       push_note('Updating...')
 
-      # BACKTICKS RETURN AN EMPTY STRING IN SKETCHUP'S RUBY ON WINDOWS.
+      # THIS RUNS FROM A BATCH FILE, AND BOTH OF THE OBVIOUS SHORTCUTS FAILED.
       #
-      # The first version of this used `git pull` and read the result. It came
-      # back "" every time -- no error, no exit status, nothing in the console
-      # -- so the update reported failure and gave the user nothing to go on.
-      # Measured directly in the Ruby Console: `git --version` and
-      # `python --version` both returned "". system() on the same machine
-      # returns true and really runs the command.
+      # 1. Backticks return "" in SketchUp's Ruby on Windows. Measured:
+      #    `git --version` -> "". The process spawns; it is the PIPE that does
+      #    not work. So output has to go to a file and be read back.
       #
-      # So: spawn with system(), which needs no pipe, and redirect the output to
-      # a LOG FILE that Ruby reads afterwards. Same information, no pipe.
+      # 2. system('cmd /c cd /d "..." && git pull ...') reported
+      #    "fatal: not a git repository". Ruby sees the shell metacharacters and
+      #    wraps the whole string in ANOTHER cmd, and the nesting rebinds the
+      #    && : the cd runs in a child process that then exits, and git runs in
+      #    SketchUp's own directory. The same string spawned directly works
+      #    fine, which is what made it confusing.
       #
-      # cmd's && does the sequencing for free: if git pull fails, install never
-      # runs. Installing on top of a failed pull would copy the old files back
-      # over themselves and report success.
-      #
-      # cmd accepts forward slashes inside a quoted path, so no backslash
-      # conversion is needed anywhere in here. An earlier attempt to build
-      # `cd /d "..."` with escaped backslashes did not even parse.
+      # A batch file has none of that. Ruby launches one quoted path with no
+      # metacharacters in it, so there is no second shell and nothing to
+      # re-parse. cmd reads the file line by line exactly as written, and
+      # `if errorlevel 1 exit /b 1` gives the "do not install on top of a failed
+      # pull" rule without relying on && surviving anything.
       log = File.join(ENV['TEMP'].to_s, 'wr_update.log')
+      bat = File.join(ENV['TEMP'].to_s, 'wr_update.bat')
       (File.delete(log) rescue nil)
-      cmd = 'cmd /c cd /d "' + root + '" && git pull > "' + log + '" 2>&1'             ' && python scripts/install-plugin.py >> "' + log + '" 2>&1'
-
-      ran = false
+      inst = File.join(root, 'scripts', 'install-plugin.py')
       begin
-        ran = system(cmd)
+        File.open(bat, 'w') do |f|
+          f.puts '@echo off'
+          f.puts 'cd /d "' + root + '"'
+          f.puts 'git pull > "' + log + '" 2>&1'
+          f.puts 'if errorlevel 1 exit /b 1'
+          f.puts 'python "' + inst + '" >> "' + log + '" 2>&1'
+        end
+        system('"' + bat + '"')
       rescue Exception => e
         push_note("Update failed to start: #{e.class}: #{e.message}")
         return
@@ -352,7 +357,7 @@ module WhisperRoom
       puts(out.to_s.empty? ? '  (no output - is git or python missing from PATH?)' : out)
       puts '=' * 66
 
-      if ran && out =~ /installed ->/
+      if out =~ /installed ->/
         # Let the next open ask GitHub again, so the banner clears once the new
         # version is really in place.
         @checked = false
