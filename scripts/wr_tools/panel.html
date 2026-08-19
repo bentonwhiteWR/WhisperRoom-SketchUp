@@ -136,6 +136,20 @@
     padding: 9px 10px 7px;
     flex: 0 0 auto;
   }
+  /* The version, in the top bar beside the icon buttons. Quiet by default;
+     it turns orange and becomes a button when an update is waiting, so the
+     one place you look to ask "what am I running" is also the place that
+     tells you there is something newer. */
+  .ver {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+    color: var(--faint); white-space: nowrap;
+    padding: 3px 6px; border-radius: 4px;
+    border: 1px solid transparent; background: none;
+    font-family: inherit; cursor: default;
+  }
+  .ver.new {
+    color: var(--accent); border-color: var(--accent); cursor: pointer;
+  }
   .brand {
     font-weight: 650;
     font-size: 13.5px;
@@ -674,6 +688,7 @@
 
   <div class="top">
     <span class="brand">WhisperRoom</span>
+    <button class="ver" id="ver" title="Version"></button>
     <button class="iconbtn" id="rescan" title="Rescan the scripts folder">
       <svg class="gl"><use href="#g-rescan" xlink:href="#g-rescan"/></svg>
     </button>
@@ -808,6 +823,7 @@
   var $statebar = document.getElementById("statebar");
   var $tabs     = document.getElementById("tabs");
   var $upd      = document.getElementById("upd");
+  var $ver      = document.getElementById("ver");
   var $sprite   = document.getElementById("sprite");
   var $foot     = document.getElementById("foot");
   var $devsw    = document.getElementById("devsw");
@@ -1081,6 +1097,14 @@
   }
 
   function drawUpdate() {
+    // The pill and the banner are drawn together on purpose: a version that
+    // said "up to date" beside a banner that said otherwise would be worse
+    // than either alone.
+    $ver.textContent = "v" + (DATA.version || "?");
+    $ver.className = DATA.update ? "ver new" : "ver";
+    $ver.title = DATA.update
+      ? "v" + DATA.update + " is available - click for details"
+      : "WhisperRoom Tools v" + (DATA.version || "?");
     if (!DATA.update) { $upd.className = "upd"; $upd.innerHTML = ""; return; }
     $upd.className = "upd on";
     // One button, and it runs the two commands you would type anyway. Where
@@ -1093,6 +1117,9 @@
           "<code>git pull &amp;&amp; python scripts/install-plugin.py</code>"
         : "No git checkout here, so run this where the repo is cloned:" +
           "<code>git pull &amp;&amp; python scripts/install-plugin.py</code>");
+    $ver.onclick = function () {
+      if (DATA.update) $upd.scrollIntoView({ block: "nearest" });
+    };
     var b = document.getElementById("updgo");
     if (!b) return;
     b.addEventListener("click", function () {
