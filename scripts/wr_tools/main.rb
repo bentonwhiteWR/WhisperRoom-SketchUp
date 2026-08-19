@@ -312,39 +312,57 @@ module WhisperRoom
         return
       end
       push_note('Updating...')
-      out = ''
-      ok  = false
+
+      # BACKTICKS RETURN AN EMPTY STRING IN SKETCHUP'S RUBY ON WINDOWS.
+      #
+      # The first version of this used `git pull` and read the result. It came
+      # back "" every time -- no error, no exit status, nothing in the console
+      # -- so the update reported failure and gave the user nothing to go on.
+      # Measured directly in the Ruby Console: `git --version` and
+      # `python --version` both returned "". system() on the same machine
+      # returns true and really runs the command.
+      #
+      # So: spawn with system(), which needs no pipe, and redirect the output to
+      # a LOG FILE that Ruby reads afterwards. Same information, no pipe.
+      #
+      # cmd's && does the sequencing for free: if git pull fails, install never
+      # runs. Installing on top of a failed pull would copy the old files back
+      # over themselves and report success.
+      #
+      # cmd accepts forward slashes inside a quoted path, so no backslash
+      # conversion is needed anywhere in here. An earlier attempt to build
+      # `cd /d "..."` with escaped backslashes did not even parse.
+      log = File.join(ENV['TEMP'].to_s, 'wr_update.log')
+      (File.delete(log) rescue nil)
+      cmd = 'cmd /c cd /d "' + root + '" && git pull > "' + log + '" 2>&1'             ' && python scripts/install-plugin.py >> "' + log + '" 2>&1'
+
+      ran = false
       begin
-        # Dir.chdir rather than building a `cd /d "..."` string: the repo path
-        # can contain spaces, and quoting a Windows path inside a Ruby backtick
-        # is a knot that does not need tying.
-        Dir.chdir(root) do
-          out << `git pull 2>&1`.to_s
-          pulled = $?.nil? || $?.success?
-          # Only install if the pull WORKED. Installing on top of a failed pull
-          # copies the old files back over themselves and reports success,
-          # which is worse than doing nothing.
-          if pulled
-            out << `python scripts/install-plugin.py 2>&1`.to_s
-            ok = !(out =~ /installed ->/).nil?
-          end
-        end
+        ran = system(cmd)
       rescue Exception => e
-        push_note("Update failed: #{e.class}: #{e.message}")
-        puts out
+        push_note("Update failed to start: #{e.class}: #{e.message}")
         return
       end
+
+      out = (File.read(log) rescue '')
       puts ''
-      puts out
-      if ok
-        # Let the next panel open ask GitHub again, so the banner clears once
-        # the new version is actually in place.
+      puts '=' * 66
+      puts 'WHISPERROOM UPDATE'
+      puts '=' * 66
+      puts(out.to_s.empty? ? '  (no output - is git or python missing from PATH?)' : out)
+      puts '=' * 66
+
+      if ran && out =~ /installed ->/
+        # Let the next open ask GitHub again, so the banner clears once the new
+        # version is really in place.
         @checked = false
         @remote  = nil
-        push_note('Updated. RESTART SKETCHUP for it to take effect. ' \
-                  'Full output is in the Ruby Console.')
+        push_note('Updated. RESTART SKETCHUP for it to take effect.')
+      elsif out.to_s.empty?
+        push_note('Update produced no output - git or python may not be on ' \
+                  "SketchUp's PATH. See the Ruby Console.")
       else
-        push_note('Update did not complete - see the Ruby Console.')
+        push_note("Update did not complete: #{out.to_s.lines.last.to_s.strip}")
       end
     end
 
