@@ -1,0 +1,147 @@
+/* ============================================================
+   WhisperRoom Proposal — v2 design system
+   ------------------------------------------------------------
+   Transplanted from the in-app Client Proposal document
+   (WhisperRoomQuote/proposal.html, the "ent-mvp" system) so a
+   render pack looks like it came out of the same studio as the
+   quote proposal the customer gets from the app.
+
+   What is carried over verbatim: the :root token palette, the
+   Helvetica Neue/Arial stack (no webfonts — the app's PDF
+   renderer blocks the font resource type), the portrait
+   US-Letter .sheet, the .rh running header, the .ft footer,
+   the numbered .sec section header, .eyebrow/.cover-h/.hero/
+   .cards/.callout on the cover, figcaption + orange .fig-n,
+   and the dark full-bleed .band-cta closing band.
+
+   What is NEW for v2: .fig-img holds a RASTER render instead of
+   a generated SVG, so the frame HUGS the image (width set per
+   plate by build-v2.js from the real JPEG dimensions) rather
+   than letterboxing it inside a fixed-height box. Nothing is
+   ever stretched — img is always width:100%;height:auto.
+   ============================================================ */
+
+:root{
+  --orange:#ee6216; --ink:#23262b; --char:#3a3d42; --body:#54585c;
+  --muted:#8a8f94; --line:#e4e2de; --cream:#f7f5f2; --sheet:#ffffff; --app:#e9e7e2;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--app);
+  background-image:radial-gradient(circle at 50% 0,#f1efea,#e4e2dc);
+  min-height:100vh; padding:40px 16px 64px;
+  display:flex; flex-direction:column; align-items:center; gap:26px;
+  font-family:"Helvetica Neue",Arial,sans-serif; color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+@page{size:letter;margin:0}
+.sheet{
+  width:816px; max-width:100%; min-height:1056px; background:var(--sheet);
+  box-shadow:0 1px 2px rgba(0,0,0,.12),0 18px 44px -18px rgba(0,0,0,.28);
+  padding:52px 60px 40px; display:flex; flex-direction:column; position:relative;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+/* The sheet is a fixed-height flex column in print; without this, an over-full
+   sheet silently SHRINKS its blocks (the hero and the .cards strip get squashed
+   and clipped) instead of overflowing where you can see it. build-v2.js sizes
+   the hero and every plate so nothing overflows in the first place. */
+.sheet > *{flex:none}
+
+/* ── running header ─────────────────────────────────────── */
+.rh{display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom:3px solid var(--char); padding-bottom:16px}
+.rh-brand{display:flex; flex-direction:column; gap:6px}
+/* The wordmark is a background-image so build-v2.js can inline the 39 KB SVG
+   ONCE in the stylesheet instead of once per <img> on every sheet. */
+.wm{display:block; background-repeat:no-repeat; background-position:left center; background-size:contain}
+.rh-brand .wm{height:30px; width:145px}
+.rh-tag{font-size:9px; letter-spacing:.22em; text-transform:uppercase; color:var(--char); font-weight:700; padding-left:2px}
+.rh-meta{font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); text-align:right; font-weight:700; line-height:1.5}
+.pnum{color:var(--orange); font-weight:800}
+/* the cover carries the same header, one size up on the wordmark */
+.cover .rh-brand .wm{height:38px; width:184px}
+
+/* ── footer ─────────────────────────────────────────────── */
+.ft{margin-top:auto; padding-top:16px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:flex-end; font-size:9.5px; color:var(--muted); line-height:1.55}
+.ft-org{text-align:right; color:var(--body)}
+.ft-org strong{display:block; color:var(--ink); font-size:12px; margin-bottom:3px}
+.ft-orange{color:var(--orange); font-weight:700}
+.ft-note{max-width:380px}
+
+/* ── numbered section header (the booth chapters) ───────── */
+.sec{display:flex; align-items:center; gap:11px; margin:26px 0 15px}
+.sec-bar{width:5px; height:19px; background:var(--orange); border-radius:1px}
+.sec-num{font-size:12px; font-weight:800; color:var(--orange)}
+.sec-h{font-size:14px; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--ink); margin:0}
+.sec-extra{margin-left:auto; font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); font-weight:700}
+
+/* ── cover ──────────────────────────────────────────────── */
+.eyebrow{font-size:11px; letter-spacing:.34em; text-transform:uppercase; color:var(--orange); font-weight:800; margin:14px 0 10px}
+.cover-h{font-size:37px; line-height:1.1; font-weight:800; letter-spacing:-.015em; margin:0; max-width:16ch}
+.cover-h .o{color:var(--orange)}
+.cover-sub{font-size:14px; color:var(--body); line-height:1.6; margin:14px 0 0; max-width:62ch}
+.hero{margin:14px auto 8px; border:1px solid var(--line); border-radius:3px; overflow:hidden;
+      box-shadow:0 12px 30px -14px rgba(0,0,0,.4); background:#fbfaf8}
+.hero img{display:block; width:100%; height:auto}
+.hero-cap{font-size:10px; color:var(--muted); letter-spacing:.04em; margin:0 auto 12px}
+.hero-cap b{color:var(--orange); font-weight:700}
+.cards{display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid var(--line); border-radius:4px; overflow:hidden}
+.card{padding:13px 17px; border-left:1px solid var(--line)}
+.card:first-child{border-left:none}
+.card-l{font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); font-weight:800; margin-bottom:7px}
+.card-b{font-size:12.5px; color:var(--ink); line-height:1.5}
+.card-b .sm{color:var(--body); font-size:11.5px}
+.callout{background:var(--cream); border-left:4px solid var(--orange); border-radius:0 4px 4px 0;
+         padding:15px 22px; font-size:12.5px; line-height:1.65; color:var(--body); margin-top:16px}
+.callout p{margin:0 0 10px} .callout p:last-child{margin:0} .callout strong{color:var(--ink)}
+
+/* ── render plates ──────────────────────────────────────── */
+.lead{font-size:12.5px; color:var(--body); line-height:1.7; margin:0 0 18px; max-width:70ch}
+.lead b{color:var(--ink); font-weight:700}
+figure.plate{margin:0}
+/* width is set per plate by build-v2.js so the frame hugs the render
+   (never letterboxed, never cropped) and the sheet can never overflow */
+.fig-img{margin:0 auto; border:1px solid var(--line); border-radius:3px; overflow:hidden;
+         background:#fbfaf8; box-shadow:0 8px 22px -12px rgba(0,0,0,.38)}
+.fig-img img{display:block; width:100%; height:auto}
+figcaption{font-size:11px; color:var(--body); line-height:1.5; margin:10px auto 0}
+.fig-n{color:var(--orange); font-weight:800; margin-right:6px}
+
+/* ── closing band ───────────────────────────────────────────
+   Full-bleed to the sheet's left/right/bottom edges via negative
+   margins that equal the sheet padding (they flip to inch units
+   in @media print). It REPLACES the .ft footer on the closing
+   sheet and carries the contact block itself, so the last plate
+   keeps almost the full content width. The preceding figure gets
+   margin-bottom:auto (below), which pins the band to the edge. */
+.band-cta{margin:26px -60px -40px; background:var(--char); color:#fff; padding:22px 60px 26px;
+          display:flex; justify-content:space-between; align-items:flex-end; gap:24px}
+.closing figure.plate{margin-bottom:auto}
+.band-cta h3{font-size:18px; font-weight:800; margin:0 0 6px; letter-spacing:-.01em}
+.band-cta p{font-size:11.5px; color:#c8ccd0; margin:0; line-height:1.6; max-width:78ch}
+.band-cta .o{color:var(--orange)}
+.band-cta .band-contact{margin-top:13px; font-size:11.5px; color:#e4e2de; letter-spacing:.02em; line-height:1.6}
+.band-cta .band-contact b{color:var(--orange); font-weight:700}
+/* the wordmark SVG is dark ink (#262626), so it is inverted to read on --char */
+.band-logo{text-align:right; flex:none}
+.band-logo .wm{height:26px; width:126px; margin-left:auto; background-position:right center;
+               filter:brightness(0) invert(1)}
+.band-logo .c{display:block; font-size:9px; letter-spacing:.13em; text-transform:uppercase; color:#9aa0a6; font-weight:700; margin-top:8px}
+
+/* ── screen-only print affordance ───────────────────────── */
+.print-bar{position:fixed; top:14px; right:14px; display:flex; gap:8px; z-index:10}
+.print-bar button{padding:8px 14px; background:#1a1a1a; color:#fff; border:none; border-radius:7px;
+  font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; font-family:inherit}
+.print-bar button:hover{background:#333}
+
+@media print{
+  body{background:#fff; padding:0; gap:0}
+  /* 10.98in (not 11) so sub-pixel rounding can never spill a blank page.
+     Fixed height + overflow:hidden keeps every sheet exactly one page. */
+  .sheet{box-shadow:none; width:8.5in; min-height:0; height:10.98in; overflow:hidden;
+         padding:.5in .6in .45in; page-break-after:always; margin:0}
+  .sheet:last-child{page-break-after:auto}
+  .band-cta{margin:26px -.6in -.45in}
+  .print-bar,.no-print{display:none !important}
+}

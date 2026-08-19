@@ -38,13 +38,12 @@ it. Build the newest example from the generator repo and read the output — it 
 the reference pack, byte for byte:
 
 ```bash
-cd <whisperroom-proposals clone>
-node build-v2.js examples/peoplespace/proposal-v2.json ./reference-pack.html
-# then print it (section 7) and look at all six pages
+cd <this repo>/proposals
+node build-v2.js examples/example-client/proposal-v2.json ./reference-pack.html
+# then print it (section 7) and look at every page
 ```
 
-Verified: a clean clone of both repos reproduces the shipped PeoplesSpace PDF
-pixel-for-pixel on every page.
+Verified: a clean clone of this repo builds that example with no other input.
 
 Two documents describe the format. Only one is current:
 
@@ -60,17 +59,16 @@ Two documents describe the format. Only one is current:
 
 The pack is generated. There is one generator and one config shape.
 
-- **Repo:** `https://github.com/bentonwhiteWR/whisperroom-proposals` — **PRIVATE**,
-  branch **`master`** (not `main`). Ask Benton for access if you don't have it.
-  On his machine it is checked out at
-  `C:\Users\bento\Documents\Claude\WhisperRoom Proposals\`.
-- **Generator:** `build-v2.js` at the repo root. Needs Node. No `npm install` —
-  it only uses `fs` and `path`.
-- **Configs:** `examples/<client-slug>/proposal-v2.json`, each beside the
-  `renders-web/` JPGs it was built from.
-
-Client renders and configs live in that **private** repo and nowhere else. The
-SketchUp repo is public and deliberately carries no client material — procedure only.
+- **Generator:** `proposals/build-v2.js` **in this repo**. Needs Node. No
+  `npm install` — it only uses `fs` and `path`. It reads its CSS and wordmark
+  from `proposals/assets/`, so keep the folder together.
+- **Worked example:** `proposals/examples/example-client/` — a real two-booth,
+  nine-plate pack with the client name replaced. Build it, print it, look at it.
+  That output IS the format.
+- **Shipped client packs** live in the PRIVATE `whisperroom-proposals` repo
+  (branch `master`) under `examples/<client-slug>/`, because this repo is public
+  and real customers' rooms, names and dimensions do not belong in it. You do not
+  need them to build correctly — the example above is enough.
 
 Copy the **newest** example and edit it. Do not hand-author HTML, do not restyle,
 do not add a page type the generator doesn't have.
@@ -224,7 +222,7 @@ These sentences go to a customer under WhisperRoom's name.
 ## 7. Build and print
 
 ```bash
-cd <whisperroom-proposals clone>
+cd <this repo>/proposals
 node build-v2.js examples/<slug>/proposal-v2.json <work-dir>/<slug>.html
 ```
 

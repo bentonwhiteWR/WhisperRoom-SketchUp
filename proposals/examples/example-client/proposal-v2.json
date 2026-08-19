@@ -1,0 +1,106 @@
+{
+ "client": "Example Client",
+ "docType": "Booth Renderings",
+ "date": "July 2026",
+ "contact": {
+  "phone": "(865) 558-5364",
+  "email": "info@whisperroom.com",
+  "web": "www.whisperroom.com"
+ },
+ "cover": {
+  "eyebrow": "Booth Renderings",
+  "headlineLead": "Sound isolation for",
+  "sub": "",
+  "image": "renders-web/01-mdl-9696-e-main-render.jpg",
+  "captionLead": "MDL 9696 E.",
+  "caption": "Exterior render with the door open — 9' × 9' footprint, 8' 7 13/16\" overall height.",
+  "cards": [
+   {
+    "label": "Booths",
+    "value": "2 models",
+    "sub": "MDL 9696 E · MDL 7296 E"
+   },
+   {
+    "label": "Footprints",
+    "value": "9' × 9'",
+    "sub": "8' 2\" × 7'"
+   },
+   {
+    "label": "In this pack",
+    "value": "10 renderings",
+    "sub": "5 views per booth"
+   }
+  ],
+  "calloutLead": "About these renderings.",
+  "callout": "Each booth is shown five ways — an exterior render, a dimensioned exterior, a front elevation with the door open, a rear view of the ventilation package, and a top-down floor plan."
+ },
+ "sections": [
+  {
+   "num": "01",
+   "model": "MDL 9696 E",
+   "boothOf": "1 of 2",
+   "extra": "Enhanced · double-wall",
+   "lead": "<b>MDL 9696 E</b> — a 9' × 9' Enhanced double-wall enclosure standing 8' 7 13/16\" overall. The five views that follow show it from every side, with the door open to the interior acoustic treatment.",
+   "plates": [
+    {
+     "image": "renders-web/02-mdl-9696-e-dimensioned.jpg",
+     "view": "Dimensioned View",
+     "caption": "Dimensioned exterior — 9' × 9' footprint, 8' 7 13/16\" overall height, 3' 9 5/8\" of door swing and ramp clearance off the front wall."
+    },
+    {
+     "image": "renders-web/03-mdl-9696-e-front.jpg",
+     "view": "Front Elevation",
+     "caption": "Front elevation with the door open — ramp threshold, window in the door, and the interior acoustic treatment."
+    },
+    {
+     "image": "renders-web/04-mdl-9696-e-rear.jpg",
+     "view": "Rear View & Ventilation",
+     "caption": "Rear three-quarter view — exterior ventilation ducting."
+    },
+    {
+     "image": "renders-web/05-mdl-9696-e-top-down.jpg",
+     "view": "Top-Down Floor Plan",
+     "caption": "Top-down plan — 9' × 9' footprint, with the door swing and ramp projecting 3' 9 5/8\" beyond the front wall."
+    }
+   ]
+  },
+  {
+   "num": "02",
+   "model": "MDL 7296 E",
+   "boothOf": "2 of 2",
+   "extra": "Enhanced · double-wall",
+   "lead": "<b>MDL 7296 E</b> — an 8' 2\" × 7' Enhanced double-wall enclosure standing 9' 9/16\" overall. The same five views, rendered from the same model.",
+   "plates": [
+    {
+     "image": "renders-web/06-mdl-7296-e-main-render.jpg",
+     "view": "Main Render",
+     "caption": "Exterior render with the door open — 8' 2\" × 7' footprint, step threshold, and the interior acoustic treatment."
+    },
+    {
+     "image": "renders-web/07-mdl-7296-e-dimensioned.jpg",
+     "view": "Dimensioned View",
+     "caption": "Dimensioned exterior — 8' 2\" × 7' footprint, 9' 9/16\" overall height."
+    },
+    {
+     "image": "renders-web/08-mdl-7296-e-front.jpg",
+     "view": "Front Elevation",
+     "caption": "Front elevation with the door open — step threshold, window in the door, and the interior acoustic treatment."
+    },
+    {
+     "image": "renders-web/09-mdl-7296-e-rear.jpg",
+     "view": "Rear View & Ventilation",
+     "caption": "Rear three-quarter view — exterior ventilation ducting."
+    },
+    {
+     "image": "renders-web/10-mdl-7296-e-top-down.jpg",
+     "view": "Top-Down Floor Plan",
+     "caption": "Top-down plan — 8' 2\" × 7' footprint, with the door swing projecting beyond the front wall."
+    }
+   ]
+  }
+ ],
+ "closing": {
+  "heading": "Questions about this configuration",
+  "body": "Every WhisperRoom enclosure is built from interchangeable wall components — the door, window, and ventilation can move to a different wall to suit your space."
+ }
+}
