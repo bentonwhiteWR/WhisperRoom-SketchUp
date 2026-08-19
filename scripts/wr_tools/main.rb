@@ -1293,9 +1293,32 @@ module WhisperRoom
       @dlg = d
     end
 
+    # Where the panel lands every time it is opened. Left side, clear of the
+    # top of the screen. Small enough that it is on-screen on any monitor
+    # anyone here actually uses.
+    HOME_X = 60
+    HOME_Y = 120
+
+    # OPENING THE PANEL ALWAYS PUTS IT BACK. That is not a convenience, it is
+    # the fix for a real trap.
+    #
+    # HtmlDialog remembers its last position under its preferences_key and
+    # restores it on open. Move machines, undock a laptop, change a monitor
+    # layout, and that saved position can be off the visible desktop. The
+    # dialog then opens exactly where it was told to -- somewhere you cannot
+    # see -- and, worse, it reports visible? == true, so the old
+    # `visible? ? bring_to_front : show` faithfully raised a window that was
+    # not on any screen. Clicking the toolbar button did nothing, repeatedly,
+    # with no error anywhere. It cost a session to find.
+    #
+    # So position first, every time, then show. The cost is that a panel you
+    # dragged somewhere you liked snaps back on the next open; that is the
+    # trade Benton asked for, and it is the right one -- a window that is
+    # always somewhere beats a window that is sometimes nowhere.
     def self.open_panel
       d = panel
       return unless d
+      (d.set_position(HOME_X, HOME_Y) rescue nil)
       d.visible? ? d.bring_to_front : d.show
     end
 
