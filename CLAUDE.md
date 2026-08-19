@@ -271,6 +271,13 @@ to the measured interior dimensions, doors as real openings with swings, booth s
 ramps to the clearance rules above, tags, materials, and dimension entities.
 
 - Scripts live in `scripts/`. `scripts/csusb-rooms.rb` is the working example.
+- **The panel has two tabs.** TOOLS is the everyday kit. CLIENT DRAWINGS is for a job
+  drawn once for one customer. A one-off gets `# @tab client` in its header, right
+  under `@title`; no header means TOOLS. Search looks in both tabs, so filing a
+  script away never makes it harder to find by name.
+- **Bump `scripts/wr_tools/VERSION` when you change the plugin.** It is the only
+  place the version lives; the panel compares it against the same file on GitHub
+  and shows an update banner to anyone running an older copy.
 - Run via **Extensions → Developer → Ruby Console** (not Window), then
   `load "C:/.../scripts/<name>.rb"` — forward slashes, and Ctrl+Z before re-running.
 - Imperial / Architectural units, 8'-0" default ceilings, walls built outward and mitred at
