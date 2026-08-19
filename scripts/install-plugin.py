@@ -58,25 +58,69 @@ def installed_versions():
     return out
 
 
+MANIFEST = '.installed-by-wr.txt'
+
+
 def copy_scripts(dst):
     """Every .rb in scripts/ into <plugin>/wr_tools/scripts/.
 
-    Stale files are cleared first. A script deleted from the repo but left in
-    the bundle would keep appearing in a teammate's panel and keep working,
-    which is how two people end up running different code from the same button.
+    THIS FUNCTION USED TO rmtree(dst) AND IT ATE PEOPLE'S WORK.
+
+    The intent was right: a script deleted from the repo but left in the bundle
+    keeps appearing in a teammate's panel and keeps working, which is how two
+    people end up running different code from the same button. The method was
+    not. Anything a teammate had written into their own plugin folder went with
+    it, permanently -- rmtree does not use the recycle bin -- and the installer
+    said nothing about it.
+
+    So the installer now keeps a MANIFEST of the files it put there. On the next
+    run it removes only files IT installed that the repo no longer has. Anything
+    it did not put there is somebody's own work and is left alone and reported.
+
+    First run on a machine with no manifest deletes NOTHING. There is no way to
+    tell an old bundled script from a hand-written one without a record, so the
+    only safe answer is to keep both and say so.
     """
-    if os.path.isdir(dst):
-        shutil.rmtree(dst, ignore_errors=True)
     os.makedirs(dst, exist_ok=True)
-    n = 0
+    mf = os.path.join(dst, MANIFEST)
+
+    previously = set()
+    if os.path.isfile(mf):
+        try:
+            with open(mf, encoding='utf-8') as fh:
+                previously = {ln.strip() for ln in fh if ln.strip()}
+        except OSError:
+            previously = set()
+
+    shipping = set()
     for f in sorted(os.listdir(SRC)):
         if f in SKIP_COPY or not f.lower().endswith('.rb'):
             continue
-        if not os.path.isfile(os.path.join(SRC, f)):
-            continue
+        if os.path.isfile(os.path.join(SRC, f)):
+            shipping.add(f)
+
+    # Files WE installed that the repo has dropped. Nothing else is touched.
+    stale = sorted(previously - shipping)
+    for f in stale:
+        try:
+            os.remove(os.path.join(dst, f))
+        except OSError:
+            pass
+
+    # Anything in the folder that neither the repo nor our manifest knows about
+    # belongs to whoever is sitting at this machine.
+    foreign = sorted(
+        f for f in os.listdir(dst)
+        if f.lower().endswith('.rb') and f not in shipping and f not in previously
+    )
+
+    for f in sorted(shipping):
         shutil.copy2(os.path.join(SRC, f), dst)
-        n += 1
-    return n
+
+    with open(mf, 'w', encoding='utf-8') as fh:
+        fh.write(chr(10).join(sorted(shipping)) + chr(10))
+
+    return len(shipping), stale, foreign
 
 
 def main():
@@ -106,8 +150,18 @@ def main():
             src_f = os.path.join(SRC, 'wr_tools', f)
             if os.path.isfile(src_f):
                 shutil.copy2(src_f, dst)
-        n = copy_scripts(os.path.join(dst, 'scripts'))
+        n, stale, foreign = copy_scripts(os.path.join(dst, 'scripts'))
         print('installed -> %-40s  %d scripts bundled' % (name, n))
+        if stale:
+            print('     removed %d script(s) no longer in the repo: %s'
+                  % (len(stale), ', '.join(stale)))
+        if foreign:
+            print('     KEPT %d script(s) that are not from the repo:' % len(foreign))
+            for f in foreign:
+                print('       %s' % f)
+            print('     Those are yours. They were NOT touched. If you want them to')
+            print('     survive every install and reach anyone else, put them in the')
+            print('     repo scripts/ folder and commit them.')
 
     print('')
     print('Restart SketchUp. Menu: Extensions > WhisperRoom')
