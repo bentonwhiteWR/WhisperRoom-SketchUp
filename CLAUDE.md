@@ -167,52 +167,79 @@ polished-brand treatment belongs in the proposal, not the scratch layout.
 
 ---
 
-## Proposals — the brand rules
+## Proposals — how we build them
 
-**The newest shipped pack under `C:\Users\bento\Desktop\ProposalFiles\<Client>\` is the
-standard.** Open it before every build. As of Aug 2026 that is
-`ProposalFiles\PeoplesSpace\PeoplesSpace-Booth-Renderings.pdf`.
+**Everything needed is in this repo. Read `reference/proposal-playbook.md` before
+building — it is the full procedure and it is self-contained.** This section is the
+summary; `reference/proposal-brand.md` is the one-page brand card.
 
-> `WhisperRoom Proposals\docs\PROPOSAL-GUIDELINES.md` is **superseded** — it documents the
-> original landscape v1 format. Do not build from it. Full current spec:
-> `reference/proposal-playbook.md` — the end-to-end procedure, and the file to
-> hand an agent. `reference/proposal-brand.md` is the one-page card.
+The operator gives me **a folder of renders and a client name**. I read the renders
+from whatever folder they name. The deliverable is a print-ready PDF they forward to a
+real customer, so accuracy beats speed: a caption that contradicts the drawing is worse
+than no caption. No prices, lead times or freight — sales owns those.
+
+Needs on the machine: **Node, Google Chrome, and Python with PyMuPDF**. The generator
+needs no `npm install`.
+
+### The generator — never invent a layout
+
+- `proposals/build-v2.js` in this repo. It reads its CSS and wordmark from
+  `proposals/assets/`, so keep that folder together.
+- Copy `proposals/examples/example-client/proposal-v2.json` and edit it. Build and print
+  that example once and look at every page — **that output IS the format.**
+- `WhisperRoom Proposals\docs\PROPOSAL-GUIDELINES.md` is **superseded** (original landscape
+  v1). Do not build from it.
 
 Non-negotiables:
 
-- **US Letter portrait**, one render per page. Cover = logo top-left + meta top-right + orange
-  eyebrow + two-tone left-aligned headline + hero + caption + three-card spec strip + callout.
-  Content pages = same header with `PAGE 0n / N`, orange section number + title, one render in
-  a bordered box, `Image 0n` caption.
+- **US Letter portrait**, one render per page. Cover = logo top-left + meta top-right +
+  orange eyebrow + two-tone left-aligned headline + hero + caption + three-card spec
+  strip + callout. Content pages = same header with `PAGE 0n / N`, orange section number
+  + title, one render in a bordered box, `Image 0n` caption. Last page ends in the dark
+  closing band.
 - **Brand orange `#ee6216`.** No second accent color without a branding decision.
-- **Footer both sides:** orange `Phone:`/`Email:` labels left —
+- **Footer both sides, every page:** orange `Phone:`/`Email:` labels left —
   `Phone: (865) 558-5364 · Email: info@whisperroom.com · www.whisperroom.com` —
   and `WhisperRoom, Inc.™` plus the Knoxville address right.
-- **Render order:** exterior in the finished room → dimensioned three-quarter view → side
-  elevation → rear/ventilation → top-down plan with the door swing. Lead with the exterior,
-  always include a dimensioned view, always close with the plan.
-- Use the generator (`build-v2.js`) and copy the newest `examples\<client>\proposal-v2.json`.
-  **Never invent a layout.**
+- **Render order:** hero exterior in the finished room → dimensioned view → side
+  elevation → rear/ventilation → top-down plan with the door swing. Lead with the
+  exterior, always include a dimensioned view, always close with the plan, and
+  **never repeat the hero on page 2.**
+- **SketchUp exports are transparent PNGs.** Flatten onto white and trim dead margins
+  before use — playbook §5. Never drop a transparent PNG into the pack.
+- **Print with headless Chrome** (Puppeteer is not installed). Chrome sometimes does not
+  exit after writing the PDF; check whether the file appeared before assuming failure.
 
 ### Caption discipline — this is where the real risk is
 
-These go out under WhisperRoom's name to real customers. A caption that contradicts the
-drawing is worse than no caption.
+These go out under WhisperRoom's name to real customers.
 
 - Write only what the image shows. **Avoid left/right spatial claims** — renders get
   mirrored, and a draft once told a client their work surface was on the wrong wall.
-- **Transcribe dimension callouts exactly.** Never round, guess, or infer what an
-  unreadable number measures.
+- **Transcribe dimension callouts exactly.** Crop and zoom to 300–700 dpi to read them.
+  Never round, guess, or infer what an unreadable number measures.
 - On acoustics the only defensible customer-facing figure is the website's
   **ASTM E336 dB range — never STC, never the word "soundproof."**
 - Cross-check the product name against the renders; if the renders disagree with what
-  Benton said, trust the renders and flag it.
-- **Report every line I invented** — anything not readable from a render or lifted verbatim
-  from the boilerplate goes in an explicit list before it ships, including what I chose
-  *not* to caption because I couldn't identify it.
+  the operator said, trust the renders and flag it.
+- **Report every line I invented** — anything not readable from a render or lifted
+  verbatim from the boilerplate goes in an explicit list before it ships, including what
+  I chose *not* to caption because I couldn't identify it.
 
-The `whisperroom-proposal` skill covers the generator mechanics and the verification pass
-(rasterize every page back to PNG, check every bottom edge). Invoke it for actual builds.
+### Verify before saying done
+
+Rasterize the finished PDF back to PNG with **PyMuPDF** (no poppler here) and look at
+**every page**, plus a separate crop of **every bottom edge** — a headline that wraps
+silently pushes the footer off the page. Confirm the page count, the hero, and that
+nothing overflows.
+
+Output: on Benton's machine the PDF goes to
+`C:\Users\bento\Desktop\ProposalFiles\<Client>\<Client>-Booth-Renderings.pdf`; on any other
+machine, a `ProposalFiles/<Client>/` folder wherever the operator says. Never overwrite
+anything already in that folder unless told to. Working files stay in the scratchpad.
+
+The `whisperroom-proposal` skill (`skills/whisperroom-proposal/SKILL.md` in this repo,
+copy it into `~/.claude/skills/`) is the same material in short form.
 
 ---
 
