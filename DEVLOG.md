@@ -73,6 +73,42 @@ Benton loaded 1.4.0 in SketchUp. Two things came back, both now fixed:
 - **`rbcheck.py` is not a parser.** Only `scripts/rbparse.py` is. This is now load-bearing
   for a seven-script batch that nobody can run.
 
+### Next steps - START HERE on the next machine
+
+Everything below is pushed to `main` at 1.4.1. Nothing is uncommitted.
+
+**Nothing in the render-prep chain has run clean yet.** 1.4.0 crashed on the first
+button pressed; 1.4.1 fixes that one bug. Expect to find more the same way - a parse
+check cannot catch a wrong API call, only a live session can. Work down the chain in
+order and fix what surfaces.
+
+1. **Get the plugin current.** On the desktop the repo is at
+   `C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/`.
+   `git pull`, then `python scripts/install-plugin.py`, then restart SketchUp. (Tool
+   scripts read live from a checkout, but `wr_tools/` does not, so the installer is
+   needed after a VERSION bump.)
+2. **Press Toggle Draft / Render** on a real room. That is the one that crashed with
+   `NoMethodError` on 1.4.0. Confirm it gets past that, then confirm flipping BACK
+   restores the drawing exactly - the whole design rests on both snapshots
+   round-tripping.
+3. **Light It From Here.** Orbit to a three-quarter view and press it. If the lit face
+   is the wrong one, flip `SUN_BEHIND_CAMERA` at `scripts/wr-sun-aim.rb:141` - one line,
+   nothing else changes. Watch for a red LOW CONFIDENCE flag in the dialog; that means
+   the NorthAngle calibration did not come back linear and the result is not trustworthy.
+4. **Swap draft / render materials.** Fill the `WR-Floor-Render` slot with a real
+   imported V-Ray floor and check the unmapped-surface report actually names things.
+5. **Pre-render checklist**, then **Export the client pack** (viewport lane only - the
+   V-Ray lane is a deliberate stub and will say so).
+6. **Build a room and check the two-band walls.** Confirm the room comes out
+   dimensionally identical to before, the mitred corners are clean, and hiding tag
+   `WR-Room-Upper` lowers the walls. Sill defaults to 48" at `scripts/build-room.rb:95`.
+7. **Run `probe-vray.rb`** (dev shelf - switch on "Show developer & workshop tools"). It
+   is read-only and renders nothing. It still gates the export's V-Ray lane and the
+   question of whether V-Ray's sun follows SketchUp's `shadow_info`.
+
+The scoping artifact shared with Gabe, if it needs updating:
+https://claude.ai/code/artifact/6109a445-02b9-4bc9-bf9b-068ac0ab75a3
+
 ### Open decisions
 
 - **Sill height defaults to 48"** (`scripts/build-room.rb:95`) and is a guess. Benton said
