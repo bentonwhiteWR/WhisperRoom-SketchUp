@@ -47,6 +47,22 @@ those states was done by hand from memory. That is where the mistakes came from.
   reimplementing it, plus the `$wr_no_autorun` guard every other loadable script had.
   Pure extraction; the moved block is byte-identical.
 
+### 1.4.1 — first real load, first real bug
+
+Benton loaded 1.4.0 in SketchUp. Two things came back, both now fixed:
+
+- **`Sketchup::AttributeDictionaries` has no `#add`.** Both `wr-mode.rb` and
+  `wr-materials-swap.rb` did `attribute_dictionaries[D] || attribute_dictionaries.add(D)`,
+  which raised `NoMethodError` the moment you pressed Toggle Draft / Render. The
+  dictionary is created on demand by `model.set_attribute(dict, key, value)`, which is
+  what every other script in this toolset already used — `wr-pack-export.rb` had it
+  right on a Page three files away. A parse check cannot catch this; only running it can.
+- **The seven new tools were scattered across four categories** — "Tidy up the model",
+  "Scenes and images", "Draw the room" and a one-script "Render prep" — so the panel
+  looked like only a couple had arrived. They are now all under **V-Ray renders**,
+  `@rank`ed in workflow order: mode toggle, sun aim, material swap, preflight, pack
+  export, wall splitter, then the V-Ray probe on the dev shelf.
+
 ### Two corrections worth remembering
 
 - **The sill/door-head rule runs the opposite way to intuition.** A header spans

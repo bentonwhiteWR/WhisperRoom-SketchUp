@@ -1,5 +1,6 @@
 # @title Pre-render checklist...
-# @cat Scenes and images
+# @cat V-Ray renders
+# @rank 4
 #
 # READ-ONLY until you press something. Five checks that catch the mistakes
 # that come from switching draft <-> render by hand and from memory: a

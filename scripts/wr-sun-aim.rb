@@ -1,5 +1,6 @@
 # @title Light It From Here...
-# @cat Render prep
+# @cat V-Ray renders
+# @rank 2
 #
 # wr-sun-aim.rb — snap the SUN to the camera's current view. THE MODEL NEVER
 # MOVES.

@@ -1,5 +1,6 @@
 # @title Split existing walls at sill (EDITS MODEL)...
-# @cat Draw the room
+# @cat V-Ray renders
+# @rank 6
 #
 # ONE-TIME RETROFIT. Existing rooms — anything drawn before two-band walls
 # existed, including current output of build-room.rb before this change —

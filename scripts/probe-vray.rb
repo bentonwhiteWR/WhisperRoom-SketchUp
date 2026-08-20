@@ -1,6 +1,7 @@
 # @title Probe V-Ray API...
 # @shelf dev
-# @cat Tidy up the model
+# @cat V-Ray renders
+# @rank 7
 #
 # probe-vray.rb — find out what the V-Ray Ruby API actually offers in THIS
 # SketchUp, in this session, on this licence.

@@ -1,5 +1,6 @@
 # @title Export the client pack...
-# @cat Scenes and images
+# @cat V-Ray renders
+# @rank 5
 #
 # The one-button export. A ROUTER, not a renderer: it walks the five proposal
 # plates in order and sends each one down the lane it is marked for.

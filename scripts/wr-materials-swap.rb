@@ -1,5 +1,6 @@
 # @title Swap draft / render materials...
-# @cat Tidy up the model
+# @cat V-Ray renders
+# @rank 3
 #
 # The ONE place that knows how a drafting material and a render material trade
 # places. wr-mode.rb calls this for the materials half of Draft <-> Render; it
@@ -120,8 +121,9 @@ module WR_MaterialsSwap
   end
 
   def self.set_fill(model, slot, name)
-    d = model.attribute_dictionaries[DICT] || model.attribute_dictionaries.add(DICT)
-    d[slot] = name.to_s.strip
+    # Sketchup::AttributeDictionaries has NO #add — set_attribute creates the
+    # dictionary on demand and is what the rest of this toolset uses.
+    model.set_attribute(DICT, slot, name.to_s.strip)
   end
 
   def self.fills(model)

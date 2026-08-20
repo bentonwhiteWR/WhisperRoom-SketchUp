@@ -1,5 +1,6 @@
 # @title Toggle Draft / Render mode...
-# @cat Tidy up the model
+# @cat V-Ray renders
+# @rank 1
 #
 # Draft <-> Render, one press. "Draft" is the model built to be measured:
 # drafting materials, every WhisperRoom dimension tag visible. "Render" is the
@@ -98,9 +99,10 @@ module WR_Mode
   end
 
   def self.save(model, mode, snap, current)
-    d = model.attribute_dictionaries[DICT] || model.attribute_dictionaries.add(DICT)
-    d[mode] = snap.to_json
-    d['current'] = current
+    # Sketchup::AttributeDictionaries has NO #add — set_attribute creates the
+    # dictionary on demand and is what the rest of this toolset uses.
+    model.set_attribute(DICT, mode, snap.to_json)
+    model.set_attribute(DICT, 'current', current)
   end
 
   # ---------------------------------------------------------------- reading --
