@@ -10,6 +10,11 @@
 # Core logic came from WhisperRoomQuote\tools\sketchup-scene-export\quick-export.rb.
 # That original is untouched.
 #
+# The write_image loop itself lives in self.export_pages(model, plan, cfg) —
+# pulled out of run() so wr-pack-export.rb can drive an exact set of scenes
+# straight through the same code path without going through run()'s own
+# interactive folder/width/background prompt.
+#
 # THE FILE IS NAMED AFTER THE SCENE, VERBATIM. Only the characters Windows
 # genuinely refuses are replaced. Spaces, brackets and ampersands are kept as
 # the scene has them. This script used to fold spaces into hyphens and strip
@@ -135,6 +140,90 @@ module WR_ExportScenes
     [picked, note]
   end
 
+  # ------------------------------------------------------------ export_pages --
+  #
+  # The write_image loop itself, pulled out of run() so a caller that already
+  # knows exactly which scenes it wants — wr-pack-export.rb — can drive it
+  # without going through the interactive ask() dialog. run() calls this too,
+  # so there is exactly one place in the whole toolset that calls
+  # view.write_image for a scene export.
+  #
+  # `plan` is the same shape select_pages()/run() already build: an array of
+  # { :page => Sketchup::Page, :n => Integer, :base => String }. `cfg` needs
+  # 'dir', 'width', 'bg' ('Opaque'/'Transparent') and 'over' ('Yes'/'No').
+  #
+  # Camera, rendering options and the selected page are all restored in an
+  # ensure block exactly as before, so a caller that only wants one scene
+  # exported does not leave the viewport looking at it afterward.
+  def self.export_pages(model, plan, cfg)
+    view  = model.active_view
+    pages = model.pages
+
+    width  = cfg['width'].to_i
+    width  = 2400 if width < 200 || width > 6000
+    height = (width * view.vpheight.to_f / view.vpwidth.to_f).round
+    trans  = cfg['bg'] == 'Transparent'
+    over   = cfg['over'] == 'Yes'
+
+    page_opts = model.options['PageOptions']
+    prev_tt   = page_opts['TransitionTime']
+    page_opts['TransitionTime'] = 0        # else write_image can catch a tween
+
+    ro = model.rendering_options
+    prev_ro = trans ? { 'DrawGround'  => ro['DrawGround'],
+                        'DrawHorizon' => ro['DrawHorizon'],
+                        'DisplayFog'  => ro['DisplayFog'] } : {}
+    prev_page = pages.selected_page
+
+    written = 0
+    skipped = 0
+    failed  = []
+
+    begin
+      plan.each_with_index do |p, i|
+        path = File.join(cfg['dir'], "#{p[:base]}.png")
+        if !over && File.exist?(path)
+          skipped += 1
+          puts "  skip  #{p[:base]}.png (already there)"
+          next
+        end
+
+        pages.selected_page = p[:page]
+
+        # A scene can restore its own style, so force these AFTER the switch.
+        if trans
+          ro['DrawGround']  = false
+          ro['DrawHorizon'] = false
+          ro['DisplayFog']  = false
+        end
+
+        view.refresh
+        Sketchup.status_text = "Exporting #{i + 1} of #{plan.size}: #{p[:page].name}"
+
+        ok = view.write_image(:filename    => path,
+                              :width       => width,
+                              :height      => height,
+                              :antialias   => true,
+                              :transparent => trans)
+        if ok
+          written += 1
+          puts format('  ok    %-40s -> %s.png', p[:page].name, p[:base])
+        else
+          failed << p[:page].name
+          puts "  FAIL  #{p[:page].name}"
+        end
+      end
+    ensure
+      prev_ro.each { |k, v| ro[k] = v }
+      page_opts['TransitionTime'] = prev_tt
+      pages.selected_page = prev_page if prev_page
+      Sketchup.status_text = ''
+    end
+
+    { :written => written, :skipped => skipped, :failed => failed,
+      :width => width, :height => height, :transparent => trans }
+  end
+
   # -------------------------------------------------------------------- run --
 
   def self.run
@@ -204,64 +293,12 @@ module WR_ExportScenes
 
     FileUtils.mkdir_p(cfg['dir'])
 
-    page_opts = model.options['PageOptions']
-    prev_tt   = page_opts['TransitionTime']
-    page_opts['TransitionTime'] = 0        # else write_image can catch a tween
+    result = export_pages(model, plan, cfg)
 
-    ro = model.rendering_options
-    prev_ro = trans ? { 'DrawGround'  => ro['DrawGround'],
-                        'DrawHorizon' => ro['DrawHorizon'],
-                        'DisplayFog'  => ro['DisplayFog'] } : {}
-    prev_page = pages.selected_page
-
-    written = 0
-    skipped = 0
-    failed  = []
-
-    begin
-      plan.each_with_index do |p, i|
-        path = File.join(cfg['dir'], "#{p[:base]}.png")
-        if !over && File.exist?(path)
-          skipped += 1
-          puts "  skip  #{p[:base]}.png (already there)"
-          next
-        end
-
-        pages.selected_page = p[:page]
-
-        # A scene can restore its own style, so force these AFTER the switch.
-        if trans
-          ro['DrawGround']  = false
-          ro['DrawHorizon'] = false
-          ro['DisplayFog']  = false
-        end
-
-        view.refresh
-        Sketchup.status_text = "Exporting #{i + 1} of #{plan.size}: #{p[:page].name}"
-
-        ok = view.write_image(:filename    => path,
-                              :width       => width,
-                              :height      => height,
-                              :antialias   => true,
-                              :transparent => trans)
-        if ok
-          written += 1
-          puts format('  ok    %-40s -> %s.png', p[:page].name, p[:base])
-        else
-          failed << p[:page].name
-          puts "  FAIL  #{p[:page].name}"
-        end
-      end
-    ensure
-      prev_ro.each { |k, v| ro[k] = v }
-      page_opts['TransitionTime'] = prev_tt
-      pages.selected_page = prev_page if prev_page
-      Sketchup.status_text = ''
-    end
-
-    msg  = "#{written} written, #{skipped} skipped, #{failed.size} failed\n\n"
-    msg << "#{cfg['dir']}\n#{width} x #{height} px, #{trans ? 'transparent' : 'opaque'}"
-    msg << "\n\nFailed: #{failed.join(', ')}" unless failed.empty?
+    msg  = "#{result[:written]} written, #{result[:skipped]} skipped, #{result[:failed].size} failed\n\n"
+    msg << "#{cfg['dir']}\n#{result[:width]} x #{result[:height]} px, " \
+           "#{result[:transparent] ? 'transparent' : 'opaque'}"
+    msg << "\n\nFailed: #{result[:failed].join(', ')}" unless result[:failed].empty?
     puts ''
     puts msg
     UI.messagebox(msg)
@@ -272,4 +309,6 @@ module WR_ExportScenes
   end
 end
 
-WR_ExportScenes.run
+# $wr_no_autorun lets wr-pack-export.rb load this file for its export_pages
+# method without popping the interactive ask() dialog on top of its own.
+WR_ExportScenes.run unless $wr_no_autorun

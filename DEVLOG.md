@@ -1,5 +1,83 @@
 # DEVLOG
 
+## 2026-08-20
+
+### Done — the render-prep toolkit, built but NOT YET RUN
+
+Seven new scripts and two changed files. **None of this has executed.** There is no
+`ruby.exe` on this machine, so every file was syntax-checked with `scripts/rbparse.py`
+(the real CRuby 3.2 parser) and nothing more. First load in the Ruby Console is what
+turns "parses" into "works".
+
+The premise: a model has two jobs — being MEASURED (white floor, dimensions on) and
+being PHOTOGRAPHED (imported floor, lit, dimensions off) — and every change between
+those states was done by hand from memory. That is where the mistakes came from.
+
+- **`scripts/wr-materials-swap.rb`** — the primitive. Maps drafting -> render materials
+  BY NAME, never by material object, so it survives saves and merges. Ships empty named
+  slots (`WR-Floor-Render`, `WR-Wall-Render`) filled per job with whatever V-Ray material
+  was imported, so the script never has to know what the floor *is*. Atomic apply/revert.
+  **Names every surface it could not map** — that reporting is the reason it exists.
+- **`scripts/wr-mode.rb`** — Draft <-> Render toggle. Calls the swap for materials and
+  nothing else, then flips proposal-scenes' DIM_TAGS, the style and the shadow settings.
+  Stores both states in the model. The layering is deliberate: an exporter that swapped
+  materials directly would produce a render-material model with dimensions still on.
+- **`scripts/wr-preflight.rb`** — read-only checklist in an HtmlDialog, every failing row
+  carrying the fix that clears it. No "lighting rig present" row: rig placement was
+  deferred and a checklist must not claim to verify something nothing maintains.
+- **`scripts/wr-pack-export.rb`** — the one-button export. Marks scenes for V-Ray on the
+  Page itself, routes each scene to the right lane, switches mode per scene (02-dimensioned
+  wants DRAFTING, the other four want RENDER). **Viewport lane live, V-Ray lane a stub that
+  calls nothing under `VRay::`.** Never overwrites the client folder without asking.
+- **`scripts/wr-flatten-trim.py`** — flatten-onto-white and trim, because SketchUp exports
+  transparent PNGs and a transparent PNG must never reach a pack. Needs Pillow (11.3.0
+  present here).
+- **`scripts/wr-sun-aim.rb`** — "Light it from here". Sun snaps to the camera azimuth plus
+  a ~30 deg offset; the model never moves. The offset is deliberate — dead-behind-camera
+  light is flat and the booth reads as a panel.
+- **`scripts/wr-split-walls.rb`** — one-time retrofit for existing one-piece-wall models.
+  The only script here that edits geometry: loud title, dry-run default, second
+  confirmation naming the count, skips-and-names anything it cannot positively identify.
+- **`scripts/build-room.rb` + `.html`** — walls and door headers now build in two bands
+  split at a configurable sill (default 48"), upper band on tag `WR-Room-Upper`. Hiding
+  that tag lowers the walls for a ventilation shot. Scenes already save tag visibility,
+  so putting them back is not a step — nothing was ever changed.
+- **`scripts/export-scenes.rb`** — the write_image loop extracted as
+  `export_pages(model, plan, cfg)` so the new exporter reuses it instead of
+  reimplementing it, plus the `$wr_no_autorun` guard every other loadable script had.
+  Pure extraction; the moved block is byte-identical.
+
+### Two corrections worth remembering
+
+- **The sill/door-head rule runs the opposite way to intuition.** A header spans
+  `door_h..ceil`. So a sill BELOW the door head puts the whole header on the upper band
+  and it vanishes cleanly; a sill AT OR ABOVE the door head splits the header and leaves
+  a shard permanently visible. The build brief stated it backwards and the geometry
+  settled it.
+- **`rbcheck.py` is not a parser.** Only `scripts/rbparse.py` is. This is now load-bearing
+  for a seven-script batch that nobody can run.
+
+### Open decisions
+
+- **Sill height defaults to 48"** (`scripts/build-room.rb:95`) and is a guess. Benton said
+  "lower the walls like 8ft or so", which in an 8'-0" room removes them entirely — so it is
+  unclear whether 8'-0" is the height walls are lowered TO and these are taller commercial
+  rooms.
+- **`SUN_BEHIND_CAMERA = true`** (`scripts/wr-sun-aim.rb:141`) — whether "from here" means
+  the sun stands where you stand or over what you are looking at. One line to flip once a
+  real render shows which.
+- **Preflight's ceiling check** leans on `model.raytest`, whose signature is from the docs
+  and never exercised. It degrades to a skip row rather than a false pass.
+- **`probe-vray.rb` still has not been run.** It gates the export's V-Ray lane and the
+  question of whether V-Ray's sun follows SketchUp's `shadow_info`.
+
+### Deliberately not built
+
+Light rig placement (`wr-lightrig.rb`), pinned render settings, `.vrscene` archive,
+lighting contact sheet, rig presets. Rig placement was deferred by Benton on 20 Aug 2026;
+the geometry is easy but the ratios that make it worth having come from use, not guesswork.
+
+
 ## 2026-08-19
 
 ### Done

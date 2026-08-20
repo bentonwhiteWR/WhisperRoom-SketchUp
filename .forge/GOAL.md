@@ -1,51 +1,48 @@
 # GOAL
 
 ## Mission
-Add ceiling seam seals to the deck build. A ceiling seam seal lands directly in the joint
-between two ceiling panels and registers into a slot in them. Today `wr-deck.rb` places the
-CL and FL panels and nothing else — the joint is left bare.
+
+Add the render-prep toolkit to the WhisperRoom SketchUp plugin: make the switch between
+"model built to be measured" and "model built to be photographed" a scripted, reversible
+operation, and make exporting a full client pack a single press.
+
+The whole point is that today every one of those changes is done by hand from memory, which
+is where the mistakes come from — a dimension string left on in a hero render, a wall still
+wearing a flat drafting material.
 
 ## Done means
-- A spec that states, from measured geometry rather than inference, where a ceiling seam seal
-  sits in the joint, how it registers into the slot, which seal part a given booth takes, and
-  how it is oriented. Guessing any of those is what the placement code's own history warns
-  against.
-- The seal-selection rule is general, driven by the booth's cross dimension and the seal
-  library, not a per-model table.
-- A first build on the **MDL 7272 S**, chosen because it tiles 48 + 24 so its ceiling joint is
-  off-centre at 48" from the low end. A placement bug that defaults to the midpoint is visible
-  there and invisible on the 7296, whose joint is the midpoint.
-- The 7296 and 6084 named as the second and third tests, since both tile evenly.
-- No regression: every deck panel that places correctly today still does. Seals are additive.
+
+Six things exist, each with a `@title` header so the panel picks them up, each passing
+`python scripts/rbparse.py`:
+
+1. `scripts/wr-materials-swap.rb` — drafting <-> render materials, mapped BY NAME, with
+   named slots. Names every surface it could not map.
+2. `scripts/wr-mode.rb` — Draft <-> Render toggle. Calls #1, plus dimension tags, style,
+   shadow settings. Stores both states in the model so flipping back restores exactly.
+3. `scripts/wr-sun-aim.rb` — "Light it from here": sun snaps to the current camera azimuth
+   plus a ~30 degree offset. Moves no geometry.
+4. Two-band walls in `scripts/build-room.rb` — walls built in a lower and an upper band,
+   upper on tag `WR-Room-Upper`, so a scene can hide it. Plus a one-time splitter for
+   models already drawn with one-piece walls.
+5. `scripts/wr-preflight.rb` — pre-render checklist in an HtmlDialog where every failing
+   row carries the fix that clears it.
+6. `scripts/wr-pack-export.rb` — mark scenes for V-Ray, one press exports everything into
+   ProposalFiles\<Client>\ under the names proposal-v2.json expects. VIEWPORT LANE LIVE,
+   V-RAY LANE STUBBED behind a finished interface.
 
 ## Now
-One Scoper. It cannot open the binary `.skp` files — there is no Ruby outside SketchUp on
-this machine — so its first deliverable is a probe Benton runs in SketchUp to return the slot
-and seal geometry, and the spec is written against what comes back. Marking an unmeasured
-number as measured is the failure mode to avoid.
 
-Established already (observed 2026-08-17): ceiling seals in the library are `STDSS CL5`,
-`STDSS CL6`, `STDSS CL7`, `STDSS CL8` and `STDSS 8.5CL`. The deck catalogue's `NAME` regex
-requires `STD` + digits, so `STDSS …` never enters the parts pool — seals need their own
-selection and placement path, unlike the 7248 SIDE R parts which the existing glob picked up
-for free.
+Three Builders running in parallel:
+- Builder A: items 1, 2, 5, 6 (a dependency chain — one context)
+- Builder B: item 3
+- Builder C: item 4
 
 ## Out of scope
-- Floor seam seals. `STDSS FL5` and `STDSS FL8.5` are missing from the library and whether
-  floors need seals at those widths is an open question — do not fold it into this.
-- Wall seam seals (`MidWallSeamSeal`, `CornerSeamSeal`). Those belong to
-  `build-booth-components.rb`, which is not in scope.
-- Changing how CL and FL panels are picked or oriented. That path is confirmed working as of
-  today and is not to be touched.
-- The `WhisperRoomQuote` repo — read only, never write.
-- Prices. Nothing from `models.json` goes into any artifact.
 
-## History
-2026-08-17 — `STD7248CL SIDE R` and `STD7248FL SIDE R` did not exist in the library, so the
-7296 fell back to two left-hand panels. Benton authored both; `wr-deck.rb` picked them up with
-no code change, verified by replaying its `catalogue` and `pick` logic against the real
-folder. Earlier the same day, `STD7224CL/FL SIDE R` came out flipped — root cause was the
-master files saved out of alignment, not the script. Benton re-saved both; confirmed correct.
-
-2026-08-16 — `auto-dimension.rb` container-transform fix shipped (`e90321d`). Still unrun in
-SketchUp; two open questions in `.forge/fixer/root-cause-transform.md`.
+- Light rig placement (`wr-lightrig.rb`) — deliberately deferred, Benton's call 20 Aug 2026.
+- Pinned render settings, .vrscene archive, lighting contact sheet, rig presets.
+- ANY live V-Ray API call. `probe-vray.rb` has not been run; nothing about V-Ray's Ruby API
+  is confirmed. The V-Ray lane of the exporter is a stub only.
+- Bumping `scripts/wr_tools/VERSION` — the orchestrator owns that file to avoid three
+  agents colliding on it.
+- Committing or pushing. The orchestrator does that after review.
