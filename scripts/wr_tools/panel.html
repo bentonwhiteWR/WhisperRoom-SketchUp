@@ -530,6 +530,18 @@
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--warn);
   }
+  /* One label per bar. The toolbar's real name sits alongside in grey, because
+     that is the string to look for in View > Toolbars when a row goes missing. */
+  .barlab {
+    display: flex; align-items: baseline; gap: 7px;
+    padding: 8px 10px 0; font-size: 10px; font-weight: 700;
+    letter-spacing: .09em; text-transform: uppercase; color: var(--accent);
+  }
+  .barlab .barname {
+    font-weight: 400; letter-spacing: .02em; text-transform: none;
+    color: var(--faint); font-size: 10.5px;
+  }
+  .slots + .barlab { border-top: 1px solid var(--line); margin-top: 4px; }
   .slotnote {
     font-size: 11px; color: var(--warn); background: var(--warn-bg);
     border-radius: 6px; padding: 4px 9px; margin: 0 9px 9px;
@@ -774,7 +786,7 @@
   "use strict";
 
   var DATA = { dir: "", scripts: [], abilities: [], recent: [], pinned: [],
-               slots: [], slot_icons: [], icons: [], pin_n: 8,
+               slots: [], slot_icons: [], icons: [], pin_n: 6, slot_n: 18,
                sprite: "", collapsed: [], dev: false };
 
   // THE CATEGORY ORDER IS THE ORDER A JOB HAPPENS IN, and it is fixed rather
@@ -924,31 +936,54 @@
   // Gone. This row is a picture of the real toolbar and an editor for it.
   // (The Pinned group at the top of the list is NOT that mistake coming back:
   // it shows the tools themselves, canonical rows, not toolbar faces.)
+  // THREE BARS, THREE ROWS. Each row is one real UI::Toolbar, and the row
+  // label is that toolbar's name in View > Toolbars — so a row that is missing
+  // on screen can be found by the name printed right here.
+  function bars() {
+    return DATA.bars ||
+           [{ name: "WhisperRoom", label: "WhisperRoom" }];
+  }
+
+  function slotLabel(i) {
+    var n = DATA.pin_n || 6, bs = bars();
+    var b = bs[Math.floor(i / n)] || bs[0];
+    return b.label + " " + ((i % n) + 1);
+  }
+
   function slotsHTML() {
-    var n = DATA.pin_n || 8;
+    var n = DATA.pin_n || 6;
     var bound = DATA.bound_faces || [];
-    var h = '<div class="slots">';
+    var bs = bars();
+    var h = "";
     var waiting = 0;
-    for (var i = 0; i < n; i++) {
-      var live = boundAt(i), s = filled(live) ? byName(live) : null;
-      var pend = isPending(i);
-      if (pend) waiting++;
-      var face = bound[i] ? faceImg(bound[i])
-                          : '<span class="num">' + (i + 1) + "</span>";
-      var tip;
-      if (pend) {
-        var next = slotAt(i), ns = filled(next) ? byName(next) : null;
-        tip = "Changed to " + (ns ? ns.title : "empty") +
-              " — the button changes when SketchUp next starts. Click to edit.";
-      } else {
-        tip = s ? s.title + " — click to change"
-                : "Slot " + (i + 1) + " is empty — click to assign a script and an icon";
+
+    bs.forEach(function (bar, b) {
+      h += '<div class="barlab">' + esc(bar.label) +
+           '<span class="barname">' + esc(bar.name) + "</span></div>";
+      h += '<div class="slots">';
+      for (var seat = 0; seat < n; seat++) {
+        var i = b * n + seat;
+        var live = boundAt(i), s = filled(live) ? byName(live) : null;
+        var pend = isPending(i);
+        if (pend) waiting++;
+        var face = bound[i] ? faceImg(bound[i])
+                            : '<span class="num">' + (seat + 1) + "</span>";
+        var tip;
+        if (pend) {
+          var next = slotAt(i), ns = filled(next) ? byName(next) : null;
+          tip = "Changed to " + (ns ? ns.title : "empty") +
+                " — the button changes when SketchUp next starts. Click to edit.";
+        } else {
+          tip = s ? s.title + " — click to change"
+                  : slotLabel(i) + " is empty — click to assign a script and an icon";
+        }
+        h += '<button class="slot' + (pend ? " pend" : "") + '" data-s="' + i +
+             '" title="' + esc(tip) + '">' + face +
+             (s ? '<span class="cnr">' + (seat + 1) + "</span>" : "") + "</button>";
       }
-      h += '<button class="slot' + (pend ? " pend" : "") + '" data-s="' + i +
-           '" title="' + esc(tip) + '">' + face +
-           (s ? '<span class="cnr">' + (i + 1) + "</span>" : "") + "</button>";
-    }
-    h += "</div>";
+      h += "</div>";
+    });
+
     if (waiting) {
       h += '<div class="slotnote">' +
            (waiting === 1 ? "A slot changed" : waiting + " slots changed") +
@@ -956,13 +991,15 @@
            (waiting === 1 ? "It already runs" : "They already run") +
            " the new tool.</div>";
     }
+    h += '<div class="slotnote">Each row is its own toolbar. Missing one? ' +
+         "View &rsaquo; Toolbars, and tick it by name.</div>";
     return h;
   }
 
   function openEditor(i) {
     editing = i;
     editIcon = filled(slotIconAt(i)) ? slotIconAt(i) : "";
-    document.getElementById("edtitle").textContent = "Toolbar slot " + (i + 1);
+    document.getElementById("edtitle").textContent = "Toolbar slot " + slotLabel(i);
 
     // Scripts offered in the panel's own category order, so the dropdown reads
     // the same way the list below it does.
@@ -992,7 +1029,7 @@
   function drawIconGrid() {
     var h = '<button class="ic' + (editIcon ? "" : " on") + '" data-ic="" ' +
             'title="Numbered — the default face"><span class="num">' +
-            (editing + 1) + "</span></button>";
+            ((editing % (DATA.pin_n || 6)) + 1) + "</span></button>";
     (DATA.icons || []).forEach(function (ic) {
       // ic.file is resolved in Ruby. Older payloads did not carry it, so the
       // legacy filename is still derivable here as a fallback.
@@ -1194,7 +1231,7 @@
     var p = isPinned(name);
     return '<button class="star' + (p ? " on" : "") + '" data-n="' + esc(name) +
            '" title="' + (p ? "Take off the SketchUp toolbar"
-                            : "Put on the SketchUp toolbar (first free slot)") +
+                            : "Put on a WhisperRoom toolbar (first free slot)") +
            '">' + useSvg("gl", "g-star") + "</button>";
   }
 
@@ -1410,8 +1447,8 @@
     if (!link && tab === "tools" && !t) {
       var tshut = collapsed[TOOLBAR];
       h += '<div class="sect' + (tshut ? " closed" : "") + '" data-sec="' + esc(TOOLBAR) + '">' +
-             '<span class="nm">SKETCHUP TOOLBAR</span>' +
-             '<span class="n">' + (DATA.pin_n || 8) + " slots</span>" +
+             '<span class="nm">SKETCHUP TOOLBARS</span>' +
+             '<span class="n">' + (DATA.slot_n || 18) + " slots</span>" +
              '<span class="cv">&#9662;</span>' +
            "</div>" +
            '<div class="group">' + slotsHTML() + "</div>";

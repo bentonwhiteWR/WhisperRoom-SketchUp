@@ -62,7 +62,24 @@ module WhisperRoom
                 'wr-folder.rb', 'wr-deck.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5
-    PIN_N    = 8        # favourites the strip holds before it gets crowded
+
+    # THREE TOOLBARS, NOT THREE ROWS. SketchUp gives no control over how a
+    # single toolbar wraps — the user drags it and it wraps where it wraps.
+    # What it does allow is several named toolbars, each docked, positioned and
+    # shown independently from View > Toolbars. So "another row of favourites"
+    # is three UI::Toolbar objects, which is better than a row: the V-Ray bar
+    # can be hidden outright on a day that has no rendering in it.
+    #
+    # Bar 1 keeps the name 'WhisperRoom' so its saved screen position, and the
+    # Panel / Folder / Console buttons that live on it, survive the upgrade.
+    BARS = [
+      { :key => 'w', :name => 'WhisperRoom',       :label => 'WhisperRoom' },
+      { :key => 'v', :name => 'WhisperRoom V-Ray', :label => 'V-Ray' },
+      { :key => 't', :name => 'WhisperRoom Tech',  :label => 'Tech' }
+    ].freeze
+
+    PIN_N    = 6                    # slots per bar
+    SLOT_N   = BARS.length * PIN_N  # 18 across all three
     FRESH_H  = 24        # a script touched this recently gets a NEW pill
 
     # ---------------------------------------------------------------- scanning --
@@ -587,7 +604,8 @@ module WhisperRoom
 
     # ------------------------------------------------------- toolbar slots --
     #
-    # The toolbar carries PIN_N customisable buttons. Each SLOT holds two
+    # The three toolbars carry SLOT_N customisable buttons between them, PIN_N
+    # on each. Each SLOT holds two
     # independent things — WHICH script it runs, and WHICH icon it wears — the
     # way a custom button on a Word ribbon does. Both are chosen in the panel's
     # Toolbar section; neither is hard-coded here.
@@ -605,10 +623,15 @@ module WhisperRoom
     # preferences BEFORE the command is built, and a changed icon appears at the
     # next SketchUp launch. The panel says so on screen rather than pretending.
     #
-    # STORAGE. Two pipe-joined lists of exactly PIN_N entries, positionally
+    # STORAGE. Two pipe-joined lists of exactly SLOT_N entries, positionally
     # aligned, with SLOT_EMPTY for an unused slot — read_list drops empty
     # strings, so a genuinely empty entry needs a placeholder or every slot
     # after it shifts up one.
+    #
+    # The list is FLAT across all three bars: index b * PIN_N + i is slot i of
+    # bar b. That is what makes the upgrade from one 8-slot bar free — padding
+    # an old 8-entry list out to 18 lands entries 7 and 8 on bar 2, which is
+    # exactly where they belong. No migration branch, and nothing to get wrong.
 
     SLOT_EMPTY = '-'.freeze
 
@@ -624,8 +647,22 @@ module WhisperRoom
     }.freeze
 
     def self.pad(list)
-      out = list.first(PIN_N).map { |v| v.to_s.empty? ? SLOT_EMPTY : v.to_s }
-      out + Array.new(PIN_N - out.length, SLOT_EMPTY)
+      out = list.first(SLOT_N).map { |v| v.to_s.empty? ? SLOT_EMPTY : v.to_s }
+      out + Array.new(SLOT_N - out.length, SLOT_EMPTY)
+    end
+
+    # Which bar a flat slot index belongs to, and its seat on that bar.
+    def self.bar_of(i)
+      BARS[i.to_i / PIN_N] || BARS[0]
+    end
+
+    def self.seat_of(i)
+      (i.to_i % PIN_N) + 1
+    end
+
+    # "V-Ray 3" — how a slot is named everywhere a human reads it.
+    def self.slot_label(i)
+      "#{bar_of(i)[:label]} #{seat_of(i)}"
     end
 
     def self.blank?(v)
@@ -659,7 +696,7 @@ module WhisperRoom
     # an icon without a script is two chances to clobber the other field.
     def self.set_slot(i, name, icon)
       i = i.to_i
-      return if i < 0 || i >= PIN_N
+      return if i < 0 || i >= SLOT_N
       names = slots
       ics   = slot_icons
       names[i] = blank?(name) ? SLOT_EMPTY : name.to_s
@@ -707,9 +744,9 @@ module WhisperRoom
     def self.run_favourite(i)
       s = favourite_at(i)
       if s.nil?
-        UI.messagebox("Toolbar slot #{i + 1} is empty.\n\n" \
-                      "Open the WhisperRoom panel and click slot #{i + 1} in the " \
-                      "Toolbar row to give it a script and an icon.")
+        UI.messagebox("Toolbar slot #{slot_label(i)} is empty.\n\n" \
+                      "Open the WhisperRoom panel and click #{slot_label(i)} in " \
+                      "the Toolbars section to give it a script and an icon.")
         return
       end
       run(s['file'])
@@ -807,9 +844,9 @@ module WhisperRoom
         p = key && File.join(dir, "icon-#{key}.svg")
         return p if p && File.exist?(p)
       end
-      File.join(dir, "icon-fav#{i + 1}.svg")
+      File.join(dir, "icon-fav-#{bar_of(i)[:key]}#{seat_of(i)}.svg")
     rescue StandardError
-      File.join(File.dirname(__FILE__), "icon-fav#{i + 1}.svg")
+      File.join(File.dirname(__FILE__), 'icon-fav1.svg')
     end
 
     def self.slot_icon_path(i)
@@ -818,7 +855,7 @@ module WhisperRoom
 
     # Basenames, for the panel — it loads them as <img src> relative to itself.
     def self.faces(names, icons)
-      (0...PIN_N).map { |i| File.basename(face_path(i, names, icons)) }
+      (0...SLOT_N).map { |i| File.basename(face_path(i, names, icons)) }
     end
 
     # What the REAL SketchUp toolbar is currently wearing, captured when the
@@ -827,16 +864,16 @@ module WhisperRoom
     # honestly instead of drawing a row that quietly disagrees with the one
     # above the viewport.
     def self.bound_slots
-      @bound_slots || Array.new(PIN_N, SLOT_EMPTY)
+      @bound_slots || Array.new(SLOT_N, SLOT_EMPTY)
     end
 
     def self.bound_icons
-      @bound_icons || Array.new(PIN_N, SLOT_EMPTY)
+      @bound_icons || Array.new(SLOT_N, SLOT_EMPTY)
     end
 
     # Slots whose saved mapping no longer matches the button on screen.
     def self.pending_slots
-      (0...PIN_N).select { |i|
+      (0...SLOT_N).select { |i|
         slots[i] != bound_slots[i] || slot_icons[i] != bound_icons[i]
       }
     end
@@ -855,7 +892,7 @@ module WhisperRoom
       return if @fav_cmds.nil?
       @fav_cmds.each_with_index do |cmd, i|
         s = favourite_at(i)
-        text = s ? "#{s['title']}  (toolbar slot #{i + 1})" : "Toolbar slot #{i + 1} — empty"
+        text = s ? "#{s['title']}  (#{slot_label(i)})" : "#{slot_label(i)} — empty"
         cmd.tooltip = text
         cmd.status_bar_text = s ? "Run #{s['name']}" : 'Assign it in the WhisperRoom panel'
         begin
@@ -869,7 +906,7 @@ module WhisperRoom
         end
       end
       # A nudge, not a rebuild. Harmless if it does nothing.
-      (@toolbar.show if @toolbar && @toolbar.visible?) rescue nil
+      (@toolbars || []).each { |tb| (tb.show if tb.visible?) rescue nil }
     rescue StandardError
       nil
     end
@@ -1227,6 +1264,10 @@ module WhisperRoom
         'recent' => recent, 'pinned' => pinned, 'note' => @note,
         'slots' => slots, 'slot_icons' => slot_icons,
         'icons' => icon_library, 'pin_n' => PIN_N,
+        # Three bars, so the panel draws three labelled rows and names a slot
+        # the same way the tooltip above the viewport does.
+        'bars' => BARS.map { |b| { 'name' => b[:name], 'label' => b[:label] } },
+        'slot_n' => SLOT_N,
         # What the slots WILL wear, and what the native toolbar is wearing right
         # now. They differ between saving a slot and the next launch, and the
         # panel shows that rather than drawing a row that disagrees with the
@@ -1401,45 +1442,71 @@ module WhisperRoom
       menu.add_item('Open Scripts Folder') { UI.openURL('file:///' + SCRIPTS_DIR) }
       menu.add_item('Ruby Console')        { Sketchup.send_action('showRubyPanel:') }
 
-      tb = UI::Toolbar.new('WhisperRoom')
-      tb.add_item(command('WhisperRoom Panel', 'panel',
-                          'Browse and run WhisperRoom scripts') { open_panel })
-
-      # ---- customisable slots on the toolbar -------------------------------
+      # ---- customisable slots, across three toolbars ------------------------
       #
-      # All PIN_N buttons are created here, once, at load (api-issue-tracker
+      # All SLOT_N buttons are created here, once, at load (api-issue-tracker
       # #628). What each one RUNS is looked up at click time, so re-assigning a
       # slot in the panel takes effect immediately. The FACE is read from
       # preferences right here, before the command exists, because that is the
       # only moment SketchUp reliably takes it.
-      tb.add_separator
+      #
+      # Three toolbars rather than three rows, because SketchUp has no notion of
+      # a row inside a toolbar — it wraps wherever the user drags it to. Three
+      # named bars each get their own position, their own dock, and their own
+      # entry in View > Toolbars, which is the thing actually wanted: the V-Ray
+      # bar can be switched off entirely on a day with no rendering in it.
+      #
+      # A NEW BAR APPEARS ONLY AFTER A RESTART, and where SketchUp decides to
+      # put it the first time is out of our hands. If V-Ray or Tech is nowhere
+      # to be seen after the upgrade, it is in View > Toolbars, unticked or
+      # parked off-screen — the same trap the panel window has hit before.
       @fav_cmds = []
+      @toolbars = []
       # Snapshot what these buttons are being built with. From here until the
-      # next launch this is the truth about the native toolbar, whatever the
+      # next launch this is the truth about the native toolbars, whatever the
       # preferences later say.
       @bound_slots = slots
       @bound_icons = slot_icons
-      PIN_N.times do |i|
-        s = favourite_at(i)
-        label = s ? s['title'] : "Toolbar slot #{i + 1}"
-        cmd = UI::Command.new(label) { run_favourite(i) }
-        icon = face_path(i, @bound_slots, @bound_icons)
-        if File.exist?(icon)
-          cmd.small_icon = icon
-          cmd.large_icon = icon
-        end
-        @fav_cmds << cmd
-        tb.add_item(cmd)
-      end
-      @toolbar = tb
-      refresh_fav_labels
 
-      tb.add_separator
-      tb.add_item(command('Scripts Folder', 'folder',
-                          'Open the scripts folder') { UI.openURL('file:///' + SCRIPTS_DIR) })
-      tb.add_item(command('Ruby Console', 'console',
-                          'Open the Ruby Console') { Sketchup.send_action('showRubyPanel:') })
-      tb.show
+      BARS.each_with_index do |bar, b|
+        tb = UI::Toolbar.new(bar[:name])
+
+        # The panel, the scripts folder and the console live on bar 1 only.
+        # Repeating them on every bar would be three buttons doing one job.
+        if b.zero?
+          tb.add_item(command('WhisperRoom Panel', 'panel',
+                              'Browse and run WhisperRoom scripts') { open_panel })
+          tb.add_separator
+        end
+
+        PIN_N.times do |seat|
+          i = (b * PIN_N) + seat
+          s = favourite_at(i)
+          label = s ? s['title'] : "Toolbar slot #{slot_label(i)}"
+          cmd = UI::Command.new(label) { run_favourite(i) }
+          icon = face_path(i, @bound_slots, @bound_icons)
+          if File.exist?(icon)
+            cmd.small_icon = icon
+            cmd.large_icon = icon
+          end
+          @fav_cmds << cmd
+          tb.add_item(cmd)
+        end
+
+        if b.zero?
+          tb.add_separator
+          tb.add_item(command('Scripts Folder', 'folder',
+                              'Open the scripts folder') { UI.openURL('file:///' + SCRIPTS_DIR) })
+          tb.add_item(command('Ruby Console', 'console',
+                              'Open the Ruby Console') { Sketchup.send_action('showRubyPanel:') })
+        end
+
+        @toolbars << tb
+        tb.show
+      end
+
+      @toolbar = @toolbars.first   # kept: older code paths still reach for it
+      refresh_fav_labels
     end
 
     unless file_loaded?(__FILE__)

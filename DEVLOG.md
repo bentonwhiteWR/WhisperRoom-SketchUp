@@ -1,5 +1,46 @@
 # DEVLOG
 
+## 2026-08-21 (later)
+
+### Done — three toolbars instead of one, 18 slots
+
+Benton asked for "another row of favourites", V-Ray buttons separate from the rest.
+**SketchUp has no notion of a row inside a toolbar** — it wraps wherever you drag it,
+and there is no API for it. What it does allow is several named `UI::Toolbar` objects,
+each docked, positioned and shown independently from View > Toolbars. So the answer is
+three toolbars, which is better than a row: the V-Ray bar can be switched off outright
+on a day with no rendering in it.
+
+- **WhisperRoom** — keeps its name, so its saved screen position survives, and it keeps
+  the Panel / Scripts Folder / Ruby Console buttons. Those are not repeated on the other
+  two bars; three buttons doing one job is clutter.
+- **WhisperRoom V-Ray**
+- **WhisperRoom Tech**
+
+Six slots each, 18 total, up from 8.
+
+**The migration is free, and that is a design choice not a coincidence.** Slots are one
+flat pipe-joined list where index `b * PIN_N + i` is slot i of bar b. Padding an old
+8-entry list out to 18 therefore lands entries 7 and 8 on bar 2 — exactly where they
+belong — with no migration branch to get wrong. Verified against a simulated upgrade:
+all 8 existing favourites survive, six on WhisperRoom and two on V-Ray.
+
+Eighteen new fallback faces, `icon-fav-w1..w6`, `v1..v6`, `t1..t6`, so no two slots wear
+the same star. A slot is named "V-Ray 3" everywhere a human reads it — the toolbar
+tooltip, the empty-slot messagebox, and the panel editor all call `slot_label`.
+
+**Verified before shipping:** `rbparse.py` parses all 47 scripts including `main.rb`;
+`node --check` on the panel's script block; and the panel rendered in headless Chrome
+against a simulated 18-slot payload — three labelled rows, correct per-bar seat numbers,
+distinct faces, pending-state dashes landing on the right tiles.
+
+**Not verified:** none of this has run in SketchUp. Three toolbars is the documented API
+and other extensions do it, but that it works on Benton's build is reported, not observed.
+A new bar appears only after a restart, and where SketchUp first parks it is out of our
+hands — the panel now says so, and names each bar so a missing one can be found in
+View > Toolbars.
+
+
 ## 2026-08-21
 
 ### Done — Studio Light spray guide, STL cut and audited
