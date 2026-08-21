@@ -1,5 +1,45 @@
 # DEVLOG
 
+## 2026-08-21
+
+### Done — Studio Light spray guide, STL cut and audited
+
+A mask that keeps spray adhesive off the parts of a Studio Light that must stay clean.
+Benton sent eight caliper photos of the existing hand-made one; the deliverable is a
+printable replacement at 150 mm instead of 126.8.
+
+- **`docs/spray-guide.html`** — the design sheet, Rev C. Plan, centreline section, live
+  WebGL view, printability audit, full provenance.
+- **`scripts/spray-guide-stl.py`** — the generator. Writes
+  `exports/spray-guide-revC.stl`, 200 triangles, binary, millimetres.
+
+**The part is a pure height field**, so the generator describes it as `h(x, y)` over a
+rectangular partition of the plan rather than unioning overlapping boxes. That is the
+whole reason the mesh comes out exactly watertight: no coincident faces to reconcile,
+no overlap fudge to pick. The house 0.50 overlap rule does not apply here and the
+sheet says so.
+
+**The self-audit earned its keep on the first run.** It refused to write the file over
+12 unpaired edges — T-junctions where the plate's 5.00 side wall butts into the foot's
+12.00 side wall partway up. The part looked closed and was not. Fix is to split every
+wall at the union of all column heights, so two walls meeting on one vertical line get
+cut identically. Second run: 0 duplicate edges, 0 unpaired, mesh volume by the
+divergence theorem matching the analytic column sum at 59 038.1 mm³.
+
+**Rev A got the part wrong in a way a photo could not settle.** The frosted rectangle
+was drawn as a through slot; it is a piece of acrylic sitting on the plate, making a
+step. Benton corrected it and it became solid, 6.00 proud. That correction is on the
+sheet as its own block rather than quietly folded in — the sheet is meant to carry why
+a number is what it is, and "we thought this was a hole" is exactly that.
+
+Three figures are still assumed, and the sheet says which: the step's 6.00 datum, its
+photo-scaled 82.40 × 22.20 footprint (±1.5), and whether the feet are 12.00 total or
+12.00 proud. They are constants at the top of the generator; if any moves, it re-cuts
+in a second.
+
+**Unprinted.** Nothing here has touched a printer, so nothing is fit-tested.
+
+
 ## 2026-08-20
 
 ### Done — the render-prep toolkit, built but NOT YET RUN

@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio Light Spray Guide — Rev C</title>
+<style>
+  :root {
+    --paper:  #e6e9ec;  --sheet:  #f6f7f8;  --ink:    #14181c;
+    --ink-2:  #5b656e;  --ink-3:  #8b959d;  --rule:   #c3cad0;
+    --rule-2: #dde2e6;  --accent: #c44f16;  --tube:   #1f6f6d;
+    --tube-f: rgba(31,111,109,.16);
+    --solid:  #cfd5da;  --step:   #b7bfc6;  --ok:     #2c6e49;
+    --shadow: 0 1px 2px rgba(20,24,28,.06), 0 8px 28px rgba(20,24,28,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:  #0e1114;  --sheet:  #171b1f;  --ink:    #e3e7ea;
+      --ink-2:  #949ea6;  --ink-3:  #6c767e;  --rule:   #303840;
+      --rule-2: #232a30;  --accent: #f07a3e;  --tube:   #59b8b4;
+      --tube-f: rgba(89,184,180,.14);
+      --solid:  #39424a;  --step:   #4c5760;  --ok:     #63b98a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.34);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:  #0e1114;  --sheet:  #171b1f;  --ink:    #e3e7ea;
+    --ink-2:  #949ea6;  --ink-3:  #6c767e;  --rule:   #303840;
+    --rule-2: #232a30;  --accent: #f07a3e;  --tube:   #59b8b4;
+    --tube-f: rgba(89,184,180,.14);
+    --solid:  #39424a;  --step:   #4c5760;  --ok:     #63b98a;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.34);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0; padding: clamp(14px, 3vw, 40px);
+    background: var(--paper); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 1180px; margin: 0 auto;
+    background: var(--sheet); border: 1px solid var(--rule); box-shadow: var(--shadow);
+  }
+
+  .titlebar {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px;
+    padding: 22px clamp(16px, 3vw, 34px) 18px; border-bottom: 2px solid var(--ink);
+  }
+  .titlebar h1 {
+    margin: 0; flex: 1 1 320px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: clamp(19px, 2.6vw, 27px); font-weight: 600;
+    letter-spacing: .09em; text-transform: uppercase; text-wrap: balance;
+  }
+  .titlebar h1 span { color: var(--accent); }
+  .sub { flex: 0 1 auto; max-width: 46ch; color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+  .rev {
+    flex: 0 0 auto; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+  }
+
+  .strip {
+    display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    background: var(--rule-2); border-bottom: 1px solid var(--rule);
+  }
+  .strip div { background: var(--sheet); padding: 13px clamp(14px, 2vw, 20px); }
+  .strip dt {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 3px;
+  }
+  .strip dd {
+    margin: 0; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 19px; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+  }
+  .strip dd em { font-style: normal; font-size: 12px; color: var(--ink-2); }
+  .strip dd s { color: var(--ink-3); text-decoration-thickness: 1px; font-size: 13px; }
+
+  .body { padding: clamp(16px, 3vw, 34px); display: grid; gap: 34px; }
+  .cols { display: grid; gap: 34px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { .cols { grid-template-columns: 1.32fr 1fr; } }
+
+  h2 {
+    margin: 0 0 4px; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 12px; letter-spacing: .15em; text-transform: uppercase;
+    font-weight: 600; color: var(--ink);
+  }
+  .note { color: var(--ink-2); font-size: 14.5px; max-width: 68ch; margin: 0 0 14px; }
+  .note strong { color: var(--ink); font-weight: 600; }
+
+  figure { margin: 0; }
+  .frame { border: 1px solid var(--rule); background: var(--sheet); padding: 10px; overflow-x: auto; }
+  .frame svg { display: block; width: 100%; height: auto; min-width: 300px; }
+  figcaption {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); padding-top: 8px;
+  }
+
+  .thin  { stroke: var(--rule); stroke-width: .25; fill: none; }
+  .fill  { fill: var(--solid); stroke: var(--ink); stroke-width: .35; }
+  .dim   { stroke: var(--accent); stroke-width: .28; fill: none; }
+  .ext   { stroke: var(--accent); stroke-width: .18; fill: none; opacity: .75; }
+  .phant { stroke: var(--ink-3); stroke-width: .5; fill: none; stroke-dasharray: 6 2 1 2; }
+  text  { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; fill: var(--ink-2); }
+  .dt   { fill: var(--accent); font-size: 3.1px; }
+  .dt-s { fill: var(--accent); font-size: 2.6px; }
+  .lb   { fill: var(--ink-2); font-size: 2.9px; }
+  .lb-p { fill: var(--ink-3); font-size: 3.1px; letter-spacing: .1em; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  caption {
+    text-align: left; padding-bottom: 8px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3);
+  }
+  th, td { padding: 7px 12px 7px 0; text-align: left; border-bottom: 1px solid var(--rule-2); vertical-align: top; }
+  thead th {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; border-bottom: 1px solid var(--rule);
+  }
+  td.n, th.n { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+               font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tw { overflow-x: auto; }
+  .pass { color: var(--ok); font-weight: 600; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 12.5px; }
+  .fail { color: var(--accent); font-weight: 600; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 12.5px; }
+
+  code {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: .88em; background: var(--rule-2); padding: 1px 5px; border-radius: 2px;
+  }
+
+  .callout { border-left: 3px solid var(--accent); padding: 12px 0 12px 16px; font-size: 14.5px; color: var(--ink-2); }
+  .callout b { color: var(--ink); font-weight: 600; }
+
+  .tag {
+    display: inline-block; padding: 1px 7px; border-radius: 2px;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+  }
+  .tag.m { background: var(--accent); color: var(--sheet); }
+  .tag.c { border: 1px solid var(--rule); color: var(--ink-3); }
+  .tag.d { border: 1px solid var(--ok); color: var(--ok); }
+  .tag.r { border: 1px dashed var(--ink-3); color: var(--ink-3); }
+
+  ol.steps { margin: 0; padding-left: 1.15em; display: grid; gap: 9px; font-size: 14.5px; }
+
+  .view { position: relative; border: 1px solid var(--rule); background: var(--sheet); }
+  .view canvas { display: block; width: 100%; height: clamp(320px, 52vw, 500px); touch-action: none; cursor: grab; }
+  .view canvas:active { cursor: grabbing; }
+  .view canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .ctl {
+    display: flex; flex-wrap: wrap; gap: 1px; background: var(--rule);
+    border-top: 1px solid var(--rule);
+  }
+  .ctl button {
+    flex: 1 1 auto; min-width: 96px; background: var(--sheet); color: var(--ink-2);
+    border: 0; padding: 9px 12px; cursor: pointer;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+  }
+  .ctl button:hover { color: var(--ink); }
+  .ctl button[aria-pressed="true"] { background: var(--accent); color: var(--sheet); }
+  .ctl button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+  .readout {
+    position: absolute; left: 10px; bottom: 10px; pointer-events: none;
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10.5px; letter-spacing: .09em; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .block {
+    display: grid; gap: 1px; background: var(--rule);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border-top: 2px solid var(--ink);
+  }
+  .block div { background: var(--sheet); padding: 11px clamp(14px, 2vw, 20px); }
+  .block dt {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .block dd { margin: 2px 0 0; font-size: 13.5px; }
+  a { color: var(--accent); }
+
+  /* ---- page-specific ---- */
+  .hole { fill: var(--paper); stroke: var(--ink); stroke-width: .35; }
+  .boss { fill: var(--step); stroke: var(--ink); stroke-width: .45; }
+  .hatch { fill: url(#hx); stroke: var(--ink); stroke-width: .35; }
+  .warn { border-left: 3px solid var(--accent); background: var(--rule-2);
+          padding: 14px 16px; font-size: 14.5px; color: var(--ink-2); }
+  .warn b { color: var(--ink); font-weight: 600; }
+  .warn .hd { display: block; font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+              font-size: 11px; letter-spacing: .13em; text-transform: uppercase;
+              color: var(--accent); margin-bottom: 6px; }
+  ol.qs { margin: 10px 0 0; padding-left: 1.15em; display: grid; gap: 10px; font-size: 14.5px; color: var(--ink-2); }
+  ol.qs b { color: var(--ink); font-weight: 600; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 22px; padding-top: 10px;
+            font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+            font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .legend i { display: inline-block; width: 16px; height: 9px; margin-right: 6px;
+              vertical-align: -1px; border: 1px solid var(--ink); }
+  .legend .sw-solid { background: var(--solid); }
+  .legend .sw-step  { background: var(--step); }
+  .legend .sw-hole  { background: var(--paper); }
+  .legend .sw-dim   { border: 0; height: 2px; background: var(--accent); margin-bottom: 3px; }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="titlebar">
+    <h1>Studio Light <span>Spray Guide</span></h1>
+    <p class="sub">Masks a Studio&nbsp;Light part so adhesive lands only where it should. One printed
+      solid replacing what is currently a plate with pieces glued to it. <strong>Rev&nbsp;C widens the two feet to 26.00</strong>, flush with the
+      edge of the spray opening, so each foot sits directly under its side leg.</p>
+    <p class="rev">Rev C &middot; STL cut &middot; unprinted</p>
+  </header>
+
+  <dl class="strip">
+    <div><dt>Overall length</dt><dd>150.00 <s>126.80</s></dd></div>
+    <div><dt>Overall depth</dt><dd>85.10</dd></div>
+    <div><dt>Plate thickness</dt><dd>5.00</dd></div>
+    <div><dt>Raised step</dt><dd>6.00 <em>proud, solid</em></dd></div>
+    <div><dt>Spray opening</dt><dd>98.00 <s>115.80</s> &times; 27.00</dd></div>
+    <div><dt>Foot</dt><dd>26.0 <s>18.0</s> &times; 20.1 &times; 12.0</dd></div>
+  </dl>
+
+  <div class="body">
+
+    <!-- ------------------------------------------------------ what changed -- -->
+    <section>
+      <p class="warn">
+        <span class="hd">What changed from Rev A, and why it mattered</span>
+        <b>Rev&nbsp;A drew the frosted rectangle as a through slot. It is not one.</b> It is a piece
+        of acrylic sitting on the main plate, making a step &mdash; so on this revision that whole
+        rectangle is <b>solid material standing 6.00 above the plate face</b>, not a hole. Nothing
+        sprays through it. The one opening in the part is the window below it, and you have set that
+        to <b>98.00</b> wide, which pushed each side leg out from 17.10 to <b>26.00</b>.
+        <br><br>
+        Worth saying plainly: I could not tell a step from a hole in photographs of a clear part, and
+        I guessed the wrong one. The fix is cheap here because it happened on a sheet. Had it gone
+        straight to an STL you would have printed a mask with a hole where the standoff belongs.
+      </p>
+    </section>
+
+    <!-- ---------------------------------------------------------- questions -- -->
+    <section>
+      <h2>Open questions</h2>
+      <ol class="qs">
+        <li><b>&ldquo;An additional 6&nbsp;mm&rdquo; &mdash; from what datum?</b> Drawn as
+          <b>6.00 proud of the plate face</b>, so 11.00 from the underside. The other reading is
+          6.00 <em>more than the acrylic strip already there</em>, which would make it taller by
+          whatever that strip measures. If it is the second, caliper the existing strip and I will
+          add to it.</li>
+        <li><b>Caliper the step for me.</b> Its 82.40 &times; 22.20 footprint is scaled off a photo
+          against the 126.80, so &plusmn;1.5&nbsp;mm. Every other figure on this sheet is either
+          yours or off your calipers.</li>
+        <li><b>Going 126.8 &rarr; 150, does the step stay centred?</b> I have centred it, 33.80 each
+          end. On the original it sat roughly 17 one side and 21 the other. Same question for its
+          2.40 margin from the front edge &mdash; that is a thin rim and I would rather know it than
+          scale it.</li>
+        <li><b>Does the window stay 27.00 deep?</b> You gave me 98.00 across; the 27.00 is still the
+          caliper reading off the original.</li>
+        <li><b>The feet: 12.00 total, or 12.00 proud?</b> Drawn as 12.00 overall, standing on the
+          same face as the step. If they instead hang below to hook the far edge of the Studio Light
+          part, that flips the print orientation and I need to know before the STL.</li>
+        <li><b>What is the step for?</b> If it is a standoff that holds the mask off the surface, its
+          height is functional and wants a tolerance. If it just stiffens the plate, 6.00 is free to
+          move.</li>
+      </ol>
+    </section>
+
+    <!-- ------------------------------------------------------------------ plan -- -->
+    <section>
+      <h2>Plan &mdash; as drawn at 150.00</h2>
+      <p class="note">Step face up, spray opening below it, feet at the back. Every in-line run is
+        chain-dimensioned and <strong>all four chains close</strong>: 33.8 + 82.4 + 33.8 = 150.00;
+        26.0 + 98.0 + 26.0 = 150.00, which the feet now repeat; 30.1 + 27.0 + 7.9 = 65.00,
+        + 20.1 = 85.10; and on the right, 2.4 + 22.2 + 5.5 = 30.10. Chain lines carry segment lengths, never running totals.</p>
+      <figure>
+        <div class="frame">
+          <svg viewBox="-56 -26 232 142" role="img" aria-label="Plan view of the spray guide, dimensioned">
+            <defs>
+              <marker id="ja" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M0,2 L10,5 L0,8 z" fill="var(--accent)"/>
+              </marker>
+            </defs>
+
+            <!-- part -->
+            <rect class="fill" x="0" y="0" width="150" height="65"/>
+            <rect class="hole" x="26" y="30.1" width="98" height="27"/>
+            <rect class="boss" x="33.8" y="2.4" width="82.4" height="22.2"/>
+            <rect class="thin" x="34.8" y="3.4" width="80.4" height="20.2"/>
+            <rect class="boss" x="0" y="64.5" width="26" height="20.6"/>
+            <rect class="boss" x="124" y="64.5" width="26" height="20.6"/>
+
+            <!-- section cut line A-A, on the centreline -->
+            <path class="phant" d="M75,-8 L75,93"/>
+            <text class="lb-p" x="75" y="-9.6" text-anchor="middle">A</text>
+            <text class="lb-p" x="75" y="96.4" text-anchor="middle">A</text>
+
+            <!-- X chain, top: step -->
+            <line class="ext" x1="0"     y1="0"   x2="0"     y2="-15"/>
+            <line class="ext" x1="33.8"  y1="2.4" x2="33.8"  y2="-15"/>
+            <line class="ext" x1="116.2" y1="2.4" x2="116.2" y2="-15"/>
+            <line class="ext" x1="150"   y1="0"   x2="150"   y2="-15"/>
+            <line class="dim" x1="0"     y1="-11" x2="33.8"  y2="-11" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="33.8"  y1="-11" x2="116.2" y2="-11" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="116.2" y1="-11" x2="150"   y2="-11" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="16.9"  y="-12.2" text-anchor="middle">33.80</text>
+            <text class="dt" x="75"    y="-12.2" text-anchor="middle">82.40 step</text>
+            <text class="dt" x="133.1" y="-12.2" text-anchor="middle">33.80</text>
+            <line class="dim" x1="0" y1="-19.5" x2="150" y2="-19.5" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="75" y="-20.7" text-anchor="middle">150.00 overall</text>
+
+            <!-- X chain, bottom: legs / window -->
+            <line class="ext" x1="0"   y1="65"   x2="0"   y2="76"/>
+            <line class="ext" x1="26"  y1="57.1" x2="26"  y2="76"/>
+            <line class="ext" x1="124" y1="57.1" x2="124" y2="76"/>
+            <line class="ext" x1="150" y1="65"   x2="150" y2="76"/>
+            <line class="dim" x1="0"   y1="73" x2="26"  y2="73" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="26"  y1="73" x2="124" y2="73" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="124" y1="73" x2="150" y2="73" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="13"  y="71.7" text-anchor="middle">26.00</text>
+            <text class="dt" x="75"  y="71.7" text-anchor="middle">98.00 opening</text>
+            <text class="dt" x="137" y="71.7" text-anchor="middle">26.00</text>
+
+            <!-- X chain, feet -->
+            <line class="ext" x1="0"   y1="85.1" x2="0"   y2="90"/>
+            <line class="ext" x1="26"  y1="85.1" x2="26"  y2="90"/>
+            <line class="ext" x1="124" y1="85.1" x2="124" y2="90"/>
+            <line class="ext" x1="150" y1="85.1" x2="150" y2="90"/>
+            <line class="dim" x1="0"   y1="88" x2="26"  y2="88" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="124" y1="88" x2="150" y2="88" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="13"  y="86.7" text-anchor="middle">26.00</text>
+            <text class="dt" x="137" y="86.7" text-anchor="middle">26.00</text>
+            <text class="lb"   x="75"  y="87.3" text-anchor="middle">feet flush with the opening edge &mdash; each sits under its own leg</text>
+
+            <!-- Y chain, left -->
+            <line class="ext" x1="0" y1="0"    x2="-48" y2="0"/>
+            <line class="ext" x1="0" y1="30.1" x2="-24" y2="30.1"/>
+            <line class="ext" x1="0" y1="57.1" x2="-24" y2="57.1"/>
+            <line class="ext" x1="0" y1="65"   x2="-40" y2="65"/>
+            <line class="ext" x1="0" y1="85.1" x2="-48" y2="85.1"/>
+            <line class="dim" x1="-20" y1="0"    x2="-20" y2="30.1" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="-20" y1="30.1" x2="-20" y2="57.1" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="-20" y1="57.1" x2="-20" y2="65"   marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="-21.6" y="15"    text-anchor="middle" transform="rotate(-90 -21.6 15)">30.10</text>
+            <text class="dt" x="-21.6" y="43.6"  text-anchor="middle" transform="rotate(-90 -21.6 43.6)">27.00</text>
+            <text class="dt-s" x="-25.6" y="61"  text-anchor="middle" transform="rotate(-90 -25.6 61)">7.90</text>
+            <line class="dim" x1="-36" y1="0" x2="-36" y2="65" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="-37.6" y="32.5" text-anchor="middle" transform="rotate(-90 -37.6 32.5)">65.00 plate</text>
+            <line class="dim" x1="-44" y1="0" x2="-44" y2="85.1" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="-45.6" y="42.5" text-anchor="middle" transform="rotate(-90 -45.6 42.5)">85.10 overall</text>
+
+            <!-- Y chain, right: step detail -->
+            <line class="ext" x1="150"   y1="0"    x2="170" y2="0"/>
+            <line class="ext" x1="116.2" y1="2.4"  x2="170" y2="2.4"/>
+            <line class="ext" x1="116.2" y1="24.6" x2="170" y2="24.6"/>
+            <line class="ext" x1="150"   y1="30.1" x2="170" y2="30.1"/>
+            <line class="dim" x1="166" y1="0"    x2="166" y2="2.4"  marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="166" y1="2.4"  x2="166" y2="24.6" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <line class="dim" x1="166" y1="24.6" x2="166" y2="30.1" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt-s" x="171" y="1.6">2.40 rim</text>
+            <text class="dt"   x="167.6" y="13.5" text-anchor="middle" transform="rotate(-90 167.6 13.5)">22.20</text>
+            <text class="dt-s" x="171" y="28.4">5.50</text>
+
+            <!-- Y chain, feet projection -->
+            <line class="ext" x1="26" y1="65"   x2="36" y2="65"/>
+            <line class="ext" x1="26" y1="85.1" x2="36" y2="85.1"/>
+            <line class="dim" x1="33" y1="65" x2="33" y2="85.1" marker-start="url(#ja)" marker-end="url(#ja)"/>
+            <text class="dt" x="34.6" y="75" transform="rotate(-90 34.6 75)" text-anchor="middle">20.10</text>
+
+            <!-- labels -->
+            <text class="lb" x="75" y="14.5" text-anchor="middle">RAISED STEP &mdash; SOLID, 6.00 PROUD</text>
+            <text class="lb" x="75" y="45.5" text-anchor="middle">SPRAY OPENING &mdash; THE ONLY HOLE IN THE PART</text>
+          </svg>
+        </div>
+        <figcaption>Plan, 1&nbsp;:&nbsp;1 in millimetres &middot; chains close as stated &middot; the 82.4&nbsp;&times;&nbsp;22.2 step footprint is &plusmn;1.5, everything else is a caliper figure or yours</figcaption>
+        <div class="legend">
+          <span><i class="sw-solid"></i>plate, 5.00 thick</span>
+          <span><i class="sw-step"></i>raised, 6.00 proud</span>
+          <span><i class="sw-hole"></i>through opening</span>
+          <span><i class="sw-dim"></i>dimension &amp; extension lines</span>
+          <span>&mdash;&nbsp;&middot;&nbsp;&mdash;&nbsp;section cut A&ndash;A</span>
+        </div>
+      </figure>
+    </section>
+
+    <!-- ------------------------------------------------------------- section -- -->
+    <section>
+      <h2>Section A&ndash;A &mdash; on the centreline</h2>
+      <p class="note">Cut at X&nbsp;=&nbsp;75, looking right. Cut material is hatched. This is the
+        view that carries the correction: <strong>the step is solid material, 6.00 above a solid
+        5.00 plate</strong> &mdash; 11.00 from the underside &mdash; and the only gap in the section
+        is the 27.00 spray opening. The feet are past the ends of this cut and shown phantom.</p>
+      <figure>
+        <div class="frame">
+          <svg viewBox="-14 -30 118 58" role="img" aria-label="Section A-A on the centreline">
+            <defs>
+              <pattern id="hx" patternUnits="userSpaceOnUse" width="2.2" height="2.2" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="2.2" stroke="var(--ink-3)" stroke-width=".28"/>
+              </pattern>
+              <marker id="jb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M0,2 L10,5 L0,8 z" fill="var(--accent)"/>
+              </marker>
+            </defs>
+
+            <!-- workpiece, reference only -->
+            <path class="phant" d="M-6,0 L96,0"/>
+            <text class="lb-p" x="-6" y="4.4">STUDIO LIGHT PART (REF)</text>
+
+            <!-- cut material; z up is negative y here -->
+            <rect class="hatch" x="0"    y="-5" width="30.1" height="5"/>
+            <rect class="hatch" x="57.1" y="-5" width="7.9"  height="5"/>
+            <rect class="hatch" x="2.4"  y="-11" width="22.2" height="6"/>
+
+            <!-- foot, beyond the cut -->
+            <path class="phant" d="M64.5,-12 L85.1,-12 L85.1,0 L64.5,0"/>
+            <text class="lb" x="74.8" y="-13.4" text-anchor="middle">foot beyond</text>
+
+            <text class="lb" x="43.6" y="-1.6" text-anchor="middle">spray opening</text>
+
+            <!-- dims -->
+            <line class="ext" x1="0" y1="-5" x2="-11" y2="-5"/>
+            <line class="ext" x1="0" y1="0"  x2="-11" y2="0"/>
+            <line class="dim" x1="-8" y1="-5" x2="-8" y2="0" marker-start="url(#jb)" marker-end="url(#jb)"/>
+            <text class="dt" x="-9.4" y="-2.5" text-anchor="middle" transform="rotate(-90 -9.4 -2.5)">5.00</text>
+
+            <line class="ext" x1="2.4" y1="-11" x2="-11" y2="-11"/>
+            <line class="dim" x1="-8" y1="-11" x2="-8" y2="-5" marker-start="url(#jb)" marker-end="url(#jb)"/>
+            <text class="dt" x="-9.4" y="-8" text-anchor="middle" transform="rotate(-90 -9.4 -8)">6.00</text>
+            <line class="dim" x1="-16" y1="-11" x2="-16" y2="0" marker-start="url(#jb)" marker-end="url(#jb)"/>
+            <text class="dt" x="-17.4" y="-5.5" text-anchor="middle" transform="rotate(-90 -17.4 -5.5)">11.00</text>
+
+            <line class="ext" x1="85.1" y1="-12" x2="96" y2="-12"/>
+            <line class="ext" x1="85.1" y1="0"   x2="96" y2="0"/>
+            <line class="dim" x1="93" y1="-12" x2="93" y2="0" marker-start="url(#jb)" marker-end="url(#jb)"/>
+            <text class="dt" x="91.6" y="-6" text-anchor="middle" transform="rotate(-90 91.6 -6)">12.00</text>
+
+            <line class="ext" x1="24.6" y1="-11" x2="24.6" y2="-19"/>
+            <line class="ext" x1="2.4"  y1="-11" x2="2.4"  y2="-19"/>
+            <line class="dim" x1="2.4" y1="-17" x2="24.6" y2="-17" marker-start="url(#jb)" marker-end="url(#jb)"/>
+            <text class="dt" x="13.5" y="-18.2" text-anchor="middle">22.20 step</text>
+
+            <line class="ext" x1="30.1" y1="-5" x2="30.1" y2="-19"/>
+            <line class="ext" x1="57.1" y1="-5" x2="57.1" y2="-19"/>
+            <line class="dim" x1="30.1" y1="-17" x2="57.1" y2="-17" marker-start="url(#jb)" marker-end="url(#jb)"/>
+            <text class="dt" x="43.6" y="-18.2" text-anchor="middle">27.00</text>
+
+            <text class="lb-p" x="43.6" y="-25">SECTION A&ndash;A &nbsp; SCALE 1:1</text>
+          </svg>
+        </div>
+        <figcaption>Section A&ndash;A &middot; cut material hatched &middot; the foot and the Studio Light part are phantom references, neither drawn to a measured profile</figcaption>
+      </figure>
+    </section>
+
+    <!-- ------------------------------------------------------------------- 3D -- -->
+    <section>
+      <h2>The part, live</h2>
+      <p class="note">Built at run time from the same constants as the drawings, with a real depth
+        buffer, so the spray opening shows its 5.00 reveal instead of reading as foil. <strong>The
+        orientation it opens in is the orientation it prints in</strong> &mdash; flat face on the
+        glass, step and feet growing upward. <strong>Flip over</strong> shows the underside, which
+        is the face that beds against the part.</p>
+      <figure>
+        <div class="view">
+          <canvas id="gl" tabindex="0" aria-label="Orbitable 3D view of the spray guide"></canvas>
+          <div class="readout" id="ro">AZ 32&deg; &nbsp; EL 26&deg;</div>
+        </div>
+        <div class="ctl">
+          <button id="b-flip" aria-pressed="false">Flip over</button>
+          <button id="b-edge" aria-pressed="true">Edges</button>
+          <button id="b-reset">Reset view</button>
+        </div>
+        <figcaption>Drag to orbit &middot; wheel to zoom &middot; edges are depth-tested against the solid and come from real boundaries only</figcaption>
+      </figure>
+    </section>
+
+    <div class="cols">
+      <!-- ------------------------------------------------------- provenance -- -->
+      <section>
+        <h2>Where every number came from</h2>
+        <p class="note">Three figures are yours, six came off your calipers, and the rest were scaled
+          off the photographs against the 126.80. <strong>Nothing here has been fit-tested, because
+          nothing has been printed</strong> &mdash; and Rev&nbsp;A is the reminder that a
+          photo-derived figure can be wrong about more than its value.</p>
+        <div class="tw">
+          <table>
+            <caption>Provenance</caption>
+            <thead><tr><th>Dimension</th><th class="n">Value</th><th>Source</th></tr></thead>
+            <tbody>
+              <tr><td>Overall length</td><td class="n">150.00</td><td><span class="tag m">specified</span> your figure, replacing 126.80</td></tr>
+              <tr><td>Opening width</td><td class="n">98.00</td><td><span class="tag m">specified</span> your figure, replacing 115.80</td></tr>
+              <tr><td>Step height</td><td class="n">6.00</td><td><span class="tag m">specified</span> your figure &mdash; datum is question 1</td></tr>
+              <tr><td>Step is solid</td><td class="n">&mdash;</td><td><span class="tag m">specified</span> you corrected Rev&nbsp;A on this</td></tr>
+              <tr><td>Original length</td><td class="n">126.80</td><td><span class="tag d">measured</span> caliper, photo 08:48:36</td></tr>
+              <tr><td>Overall depth</td><td class="n">85.10</td><td><span class="tag d">measured</span> caliper, photo 08:48:57</td></tr>
+              <tr><td>Opening depth</td><td class="n">27.00</td><td><span class="tag d">measured</span> caliper, photo 08:49:14</td></tr>
+              <tr><td>Plate thickness</td><td class="n">5.00</td><td><span class="tag d">measured</span> caliper on edge, photo 08:49:50</td></tr>
+              <tr><td>Foot height</td><td class="n">12.00</td><td><span class="tag d">measured</span> caliper on edge, photo 08:50:00</td></tr>
+              <tr><td>Original foot width</td><td class="n">18.00</td><td><span class="tag d">measured</span> caliper, photo 08:50:10 &mdash; superseded</td></tr>
+              <tr><td>Original leg width</td><td class="n">17.10</td><td><span class="tag d">measured</span> caliper, photo 08:50:58 &mdash; superseded by the 98.00</td></tr>
+              <tr><td>Step length</td><td class="n">82.40</td><td><span class="tag r">derived</span> photo, scaled on the 126.80 &mdash; &plusmn;1.5</td></tr>
+              <tr><td>Step width</td><td class="n">22.20</td><td><span class="tag r">derived</span> same scaling &mdash; &plusmn;1.5</td></tr>
+              <tr><td>Front rim</td><td class="n">2.40</td><td><span class="tag r">derived</span> same scaling &mdash; thin, worth checking</td></tr>
+              <tr><td>Head depth</td><td class="n">30.10</td><td><span class="tag r">derived</span> 65.00 &minus; 27.00 &minus; 7.90</td></tr>
+              <tr><td>Bar depth</td><td class="n">7.90</td><td><span class="tag r">derived</span> photo, scaled</td></tr>
+              <tr><td>Foot projection</td><td class="n">20.10</td><td><span class="tag r">derived</span> 85.10 &minus; 65.00</td></tr>
+              <tr><td>Leg width</td><td class="n">26.00</td><td><span class="tag r">derived</span> (150.00 &minus; 98.00) / 2</td></tr>
+              <tr><td>Foot width along X</td><td class="n">26.00</td><td><span class="tag r">derived</span> your call &mdash; flush with the opening edge, so it equals the leg</td></tr>
+              <tr><td>Step centred</td><td class="n">33.80 ea</td><td><span class="tag c">chosen</span> the original was ~17 / ~21, not centred</td></tr>
+              <tr><td>Body overlap</td><td class="n">none</td><td><span class="tag r">derived</span> not needed &mdash; the STL is built as one height field, so nothing is unioned</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------ printability -- -->
+      <section>
+        <h2>Printability</h2>
+        <p class="note">Against the Dremel&nbsp;3D45 limits in <code>reference/3d-printing.md</code>.
+          Filling the step in made this an easier print than Rev&nbsp;A, not a harder one:
+          <strong>flat face down, everything grows upward, no overhang anywhere on the part.</strong></p>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Check</th><th class="n">This part</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>Bed fit</td><td class="n">150.0 &times; 85.1</td><td class="pass">PASS <small>254 &times; 152</small></td></tr>
+              <tr><td>Steepest overhang</td><td class="n">0&deg;</td><td class="pass">PASS</td></tr>
+              <tr><td>Longest bridge</td><td class="n">none</td><td class="pass">PASS</td></tr>
+              <tr><td>Bed contact</td><td class="n">8&nbsp;175&nbsp;mm&sup2;</td><td class="pass">NO BRIM</td></tr>
+              <tr><td>Narrowest run</td><td class="n">7.90 bar</td><td class="pass">17&times; line width</td></tr>
+              <tr><td>Tallest feature</td><td class="n">12.00 foot</td><td class="pass">on solid</td></tr>
+              <tr><td>Solid volume</td><td class="n">~59.2&nbsp;cm&sup3;</td><td class="pass">~73.4&nbsp;g PLA</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="callout" style="margin-top:14px"><b>The one thing to watch is the underside.</b>
+          That face is both the first layer and the face that beds against the Studio Light part, so
+          elephant&rsquo;s foot lands exactly where flatness matters. A 0.40 chamfer around the
+          outline and the opening puts the squeeze outside the sealing face &mdash; say the word and
+          I will draw it in. It is not on the sheet yet because it changes the 98.00 you just gave me
+          by 0.40 at the very bottom edge.</p>
+        <p class="callout"><b>PLA is fine unless the glue is hot.</b> If the adhesive is a solvent
+          cement rather than a spray contact adhesive, PLA will craze &mdash; PETG instead, same
+          printer. Either way treat it as a consumable: cured adhesive bonds to both.</p>
+      </section>
+    </div>
+
+    <!-- ------------------------------------------------------------ next -- -->
+    <section>
+      <h2>What happens next</h2>
+      <ol class="steps">
+<li><strong>The STL is cut and audited</strong> &mdash; <code>exports/spray-guide-revC.stl</code>, 200 triangles, closed and orientable with zero unpaired edges, mesh volume agreeing with the analytic column sum to the last decimal. It was generated straight from the constants by <code>scripts/spray-guide-stl.py</code>, not modelled by hand in SketchUp.</li>
+        <li><strong>Slice it flat side down and print it.</strong> No supports, no brim.</li>
+        <li><strong>Questions 1, 2 and 5 are still open</strong> and the STL answers them by assumption, not by knowledge: the step is 6.00 proud of the plate face, its footprint is the photo-scaled 82.40 &times; 22.20, and the feet stand 12.00 total on the same face as the step. If any of those is wrong, the constants at the top of the script change and it re-cuts in a second.</li>
+        <li>Print one, mask a real part, and whatever the spray pattern says beats every number on this sheet.</li>
+      </ol>
+    </section>
+
+  </div>
+
+  <dl class="block">
+    <div><dt>Part</dt><dd>Studio Light spray guide</dd></div>
+    <div><dt>Revision</dt><dd>C &mdash; feet 26.00, STL cut</dd></div>
+    <div><dt>Units</dt><dd>Millimetres</dd></div>
+    <div><dt>Script</dt><dd>scripts/spray-guide-stl.py</dd></div>
+    <div><dt>Build</dt><dd>PLA, flat face down, no supports</dd></div>
+    <div><dt>Status</dt><dd>STL cut &amp; audited watertight &middot; unprinted</dd></div>
+  </dl>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------------------------------------------------- constants -- */
+  var L = 150.0, D = 65.0, T = 5.0;                 // plate
+  var STEP_L = 82.4, STEP_W = 22.2, STEP_H = 6.0, RIM = 2.4;
+  var WIN_L = 98.0, WIN_Y0 = 30.1, WIN_H = 27.0;
+  var FOOT_X = 26.0, FOOT_Y0 = 64.5, FOOT_Y1 = 85.1, FOOT_Z = 12.0;
+  var LAP = 0.5;                                    // union overlap
+
+  var ex0 = (L - STEP_L) / 2, ex1 = ex0 + STEP_L;
+  var ey0 = RIM, ey1 = RIM + STEP_W;
+  var wx0 = (L - WIN_L) / 2, wx1 = wx0 + WIN_L;
+  var wy0 = WIN_Y0, wy1 = WIN_Y0 + WIN_H;
+  var TOP = T + STEP_H;                             // 11.00
+
+  /* ------------------------------------------------------------- mesh -- */
+  var pos = [], nrm = [], seg = [];
+
+  function tri(a, b, c) {
+    var ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2];
+    var vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2];
+    var nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
+    var m = Math.hypot(nx, ny, nz) || 1;
+    nx /= m; ny /= m; nz /= m;
+    [a, b, c].forEach(function (p) { pos.push(p[0], p[1], p[2]); nrm.push(nx, ny, nz); });
+  }
+  function quad(a, b, c, d) { tri(a, b, c); tri(a, c, d); }
+  function line(a, b) { seg.push(a[0], a[1], a[2], b[0], b[1], b[2]); }
+
+  function faceRects(rects, z, up) {
+    rects.forEach(function (r) {
+      var a = [r[0], r[1], z], b = [r[2], r[1], z], c = [r[2], r[3], z], d = [r[0], r[3], z];
+      if (up) quad(a, b, c, d); else quad(d, c, b, a);
+    });
+  }
+  function walls(loop, z0, z1, outward) {
+    for (var i = 0; i < loop.length; i++) {
+      var p = loop[i], q = loop[(i + 1) % loop.length];
+      var a = [p[0], p[1], z0], b = [q[0], q[1], z0];
+      var c = [q[0], q[1], z1], d = [p[0], p[1], z1];
+      if (outward) quad(a, b, c, d); else quad(d, c, b, a);
+    }
+  }
+  // real boundary edges only: the loop at both heights plus the verticals
+  function loopEdges(loop, z0, z1) {
+    for (var i = 0; i < loop.length; i++) {
+      var p = loop[i], q = loop[(i + 1) % loop.length];
+      line([p[0], p[1], z0], [q[0], q[1], z0]);
+      line([p[0], p[1], z1], [q[0], q[1], z1]);
+      line([p[0], p[1], z0], [p[0], p[1], z1]);
+    }
+  }
+
+  // --- plate: outer rectangle with one rectangular opening
+  var outer = [[0,0],[L,0],[L,D],[0,D]];
+  var win   = [[wx0,wy0],[wx1,wy0],[wx1,wy1],[wx0,wy1]];
+  // decomposition fills the faces only; no edge is ever drawn from it
+  var plateRects = [
+    [0, 0, L, wy0],
+    [0, wy0, wx0, wy1], [wx1, wy0, L, wy1],
+    [0, wy1, L, D]
+  ];
+  faceRects(plateRects, T, true);
+  faceRects(plateRects, 0, false);
+  walls(outer, 0, T, true);
+  walls(win, 0, T, false);
+  loopEdges(outer, 0, T);
+  loopEdges(win, 0, T);
+
+  // --- the raised step, solid, overlapping the plate by 0.50
+  var step = [[ex0,ey0],[ex1,ey0],[ex1,ey1],[ex0,ey1]];
+  faceRects([[ex0, ey0, ex1, ey1]], TOP, true);
+  walls(step, T - LAP, TOP, true);
+  loopEdges(step, T, TOP);          // drawn from the plate face up, not from inside it
+
+  // --- two feet, overlapping the plate by 0.50 in Y
+  [[0, FOOT_X], [L - FOOT_X, L]].forEach(function (f) {
+    var lp = [[f[0], FOOT_Y0], [f[1], FOOT_Y0], [f[1], FOOT_Y1], [f[0], FOOT_Y1]];
+    faceRects([[f[0], FOOT_Y0, f[1], FOOT_Y1]], FOOT_Z, true);
+    faceRects([[f[0], FOOT_Y0, f[1], FOOT_Y1]], 0, false);
+    walls(lp, 0, FOOT_Z, true);
+    loopEdges(lp, 0, FOOT_Z);
+  });
+
+  /* --------------------------------------------------------------- gl -- */
+  var cv = document.getElementById("gl");
+  var ro = document.getElementById("ro");
+  var gl = cv.getContext("webgl", { antialias: true, alpha: false });
+
+  if (!gl) {
+    cv.parentNode.innerHTML =
+      '<p style="padding:24px;margin:0;font-size:14.5px;color:var(--ink-2)">' +
+      'WebGL is off in this browser, so the live view cannot draw. ' +
+      'The plan and Section A&ndash;A above carry every dimension.</p>';
+    return;
+  }
+
+  function css(v, fb) {
+    var s = getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    return s || fb;
+  }
+  function rgb(hex) {
+    var h = hex.replace("#", "");
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    var n = parseInt(h, 16);
+    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+  }
+
+  function sh(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    return s;
+  }
+  function prog(vs, fs) {
+    var p = gl.createProgram();
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    return p;
+  }
+
+  var pSolid = prog(
+    "attribute vec3 aP; attribute vec3 aN; uniform mat4 uM;" +
+    "varying vec3 vN; void main(){ vN = aN; gl_Position = uM * vec4(aP,1.0); }",
+    "precision mediump float; varying vec3 vN;" +
+    "uniform vec3 uC; uniform vec3 uL;" +
+    "void main(){ vec3 n = normalize(vN); if(!gl_FrontFacing) n = -n;" +
+    "  float d = max(dot(n, normalize(uL)), 0.0);" +
+    "  vec3 c = uC * (0.42 + 0.58 * d);" +
+    "  gl_FragColor = vec4(c, 1.0); }");
+
+  var pLine = prog(
+    "attribute vec3 aP; uniform mat4 uM;" +
+    "void main(){ gl_Position = uM * vec4(aP,1.0); }",
+    "precision mediump float; uniform vec3 uC;" +
+    "void main(){ gl_FragColor = vec4(uC, 1.0); }");
+
+  function buf(arr) {
+    var b = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.STATIC_DRAW);
+    return b;
+  }
+  var bP = buf(pos), bN = buf(nrm), bS = buf(seg);
+  var nTri = pos.length / 3, nSeg = seg.length / 3;
+
+  /* ------------------------------------------------------------ matrix -- */
+  function mul(a, b) {
+    var o = new Float32Array(16);
+    for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) {
+      var s = 0;
+      for (var k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k];
+      o[i * 4 + j] = s;
+    }
+    return o;
+  }
+  function persp(fov, asp, n, f) {
+    var t = 1 / Math.tan(fov / 2);
+    return new Float32Array([t/asp,0,0,0, 0,t,0,0, 0,0,(f+n)/(n-f),-1, 0,0,2*f*n/(n-f),0]);
+  }
+  function rotX(a) { var c=Math.cos(a), s=Math.sin(a);
+    return new Float32Array([1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]); }
+  function rotZ(a) { var c=Math.cos(a), s=Math.sin(a);
+    return new Float32Array([c,s,0,0, -s,c,0,0, 0,0,1,0, 0,0,0,1]); }
+  function trans(x, y, z) {
+    return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]); }
+
+  var az = 0.56, el = 0.45, dist = 210, flip = false, showEdges = true;
+
+  function draw() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== w * dpr || cv.height !== h * dpr) {
+      cv.width = w * dpr; cv.height = h * dpr;
+    }
+    gl.viewport(0, 0, cv.width, cv.height);
+
+    var bg = rgb(css("--sheet", "#f6f7f8"));
+    gl.clearColor(bg[0], bg[1], bg[2], 1);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    var m = trans(-L / 2, -D / 2, -TOP / 2);
+    if (flip) m = mul(rotX(Math.PI), m);
+    m = mul(rotZ(az), m);
+    m = mul(rotX(-Math.PI / 2 + el), m);
+    m = mul(trans(0, 0, -dist), m);
+    m = mul(persp(0.62, w / h, 10, 900), m);
+
+    gl.useProgram(pSolid);
+    gl.uniformMatrix4fv(gl.getUniformLocation(pSolid, "uM"), false, m);
+    var sc = rgb(css("--solid", "#cfd5da"));
+    gl.uniform3f(gl.getUniformLocation(pSolid, "uC"), sc[0], sc[1], sc[2]);
+    gl.uniform3f(gl.getUniformLocation(pSolid, "uL"), 0.42, -0.55, 0.72);
+    var aP = gl.getAttribLocation(pSolid, "aP"), aN = gl.getAttribLocation(pSolid, "aN");
+    gl.bindBuffer(gl.ARRAY_BUFFER, bP);
+    gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bN);
+    gl.enableVertexAttribArray(aN); gl.vertexAttribPointer(aN, 3, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, nTri);
+
+    if (showEdges) {
+      gl.useProgram(pLine);
+      gl.uniformMatrix4fv(gl.getUniformLocation(pLine, "uM"), false, m);
+      var ec = rgb(css("--ink", "#14181c"));
+      gl.uniform3f(gl.getUniformLocation(pLine, "uC"), ec[0], ec[1], ec[2]);
+      var lP = gl.getAttribLocation(pLine, "aP");
+      gl.bindBuffer(gl.ARRAY_BUFFER, bS);
+      gl.enableVertexAttribArray(lP); gl.vertexAttribPointer(lP, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.LINES, 0, nSeg);
+    }
+
+    ro.textContent = "AZ " + Math.round(az * 180 / Math.PI) + "°   EL " +
+                     Math.round(el * 180 / Math.PI) + "°" + (flip ? "   UNDERSIDE" : "");
+  }
+
+  /* ------------------------------------------------------------ input -- */
+  var down = false, lx = 0, ly = 0;
+  cv.addEventListener("pointerdown", function (e) {
+    down = true; lx = e.clientX; ly = e.clientY; cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener("pointermove", function (e) {
+    if (!down) return;
+    az += (e.clientX - lx) * 0.008;
+    el = Math.max(-1.45, Math.min(1.45, el + (e.clientY - ly) * 0.008));
+    lx = e.clientX; ly = e.clientY; draw();
+  });
+  cv.addEventListener("pointerup", function (e) { down = false; cv.releasePointerCapture(e.pointerId); });
+  cv.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    dist = Math.max(90, Math.min(520, dist + e.deltaY * 0.35));
+    draw();
+  }, { passive: false });
+
+  document.getElementById("b-flip").addEventListener("click", function () {
+    flip = !flip; this.setAttribute("aria-pressed", String(flip)); draw();
+  });
+  document.getElementById("b-edge").addEventListener("click", function () {
+    showEdges = !showEdges; this.setAttribute("aria-pressed", String(showEdges)); draw();
+  });
+  document.getElementById("b-reset").addEventListener("click", function () {
+    az = 0.56; el = 0.45; dist = 210; draw();
+  });
+
+  window.addEventListener("resize", draw);
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
