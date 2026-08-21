@@ -8,7 +8,7 @@ partition of the plan. Building it that way instead of unioning overlapping
 boxes is what makes the mesh exactly watertight — there are no coincident
 faces to reconcile and no overlap fudge to choose.
 
-Every dimension here matches docs/spray-guide.html Rev C. If the two disagree,
+Every dimension here matches docs/spray-guide.html Rev D. If the two disagree,
 this file is right and the sheet is stale.
 
     python scripts/spray-guide-stl.py [-o out.stl]
@@ -40,7 +40,7 @@ WIN_H    =  27.0   # measured   spray opening depth
 WIN_Y0   =  30.1   # derived    front edge to the opening
 
 FOOT_Y1  =  85.1   # measured   overall depth, front edge to foot outer face
-FOOT_Z   =  12.0   # measured   foot height, total
+FOOT_Z   =  19.5   # specified  foot height, total (was 12.0, too low)
 
 # Derived positions.
 LEG      = (L - WIN_L) / 2.0          # 26.00 side leg, and the foot width
@@ -212,7 +212,7 @@ def write_binary_stl(path, tris, header):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-o", "--out", default="exports/spray-guide-revC.stl")
+    ap.add_argument("-o", "--out", default="exports/spray-guide-revD.stl")
     args = ap.parse_args()
 
     m, grid = build()
@@ -226,7 +226,7 @@ def main():
     ys = [p[1] for t in tris for p in t]
     zs = [p[2] for t in tris for p in t]
 
-    print("Studio Light spray guide — Rev C")
+    print("Studio Light spray guide — Rev D")
     print("  triangles          %d" % len(tris))
     print("  bounding box       %.2f x %.2f x %.2f mm"
           % (max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)))
@@ -245,7 +245,7 @@ def main():
             print("  edges with no reverse:     %r" % unpaired[:5], file=sys.stderr)
         return 1
 
-    write_binary_stl(args.out, tris, "WhisperRoom Studio Light spray guide Rev C - mm")
+    write_binary_stl(args.out, tris, "WhisperRoom Studio Light spray guide Rev D - mm")
     print("\n  AUDIT PASSED — closed, orientable, watertight.")
     print("  wrote %s" % args.out)
     return 0

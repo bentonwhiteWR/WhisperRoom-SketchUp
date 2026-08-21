@@ -11,7 +11,7 @@ screenshot, because the demo is usually the argument.
 | [`assembly-manual-plan.html`](assembly-manual-plan.html) | The plan for the per-customer assembly manual. Drag the pendant jig; the filename underneath changes as it turns, which is what `orbit-export.rb` writes. |
 | [`tube-drying-stand.html`](tube-drying-stand.html) | **Design sheet.** The 60-up drying stand, now two 5 × 6 parts sized to a 92 × 135 silicone tray — tray-fit plan, live three-quarter view, section, lean trade-off, printability audit. |
 | [`pendant-jig.html`](pendant-jig.html) | **Design sheet.** Rev B of the curing jig — section on the axis, live cutaway, and the two fit-tested changes that came off the printed Rev A. |
-| [`spray-guide.html`](spray-guide.html) | **Design sheet.** Rev C of the Studio Light spray guide — plan, centreline section, live view, and the Rev A correction that turned a "slot" back into the raised step it always was. |
+| [`spray-guide.html`](spray-guide.html) | **Design sheet.** Rev D of the Studio Light spray guide — plan, centreline section, live view, and the Rev A correction that turned a "slot" back into the raised step it always was. |
 
 These are also published as Artifacts on claude.ai. **The copies here are the
 ones under version control**, so if the two disagree, this folder is the record.

@@ -1,5 +1,43 @@
 # DEVLOG
 
+## 2026-08-21 (Rev D)
+
+### Done — spray guide feet raised to 19.50, STL cut
+
+Benton: "the feet are too low, they need to be 19.5mm deep total." One constant.
+`FOOT_Z` 12.0 -> 19.5 in `scripts/spray-guide-stl.py`, sheet regenerated, file cut to
+`exports/spray-guide-revD.stl`.
+
+**The reading was the only real decision.** "Deep total" is ambiguous on its face, but
+"too LOW" settles it: it is the vertical extent, and "total" means from the underside
+rather than what stands proud. The other reading — front-to-back depth — is already
+20.10, and a 0.60 change is not something anyone describes as too low. The sheet states
+that reasoning at the top rather than burying the assumption, and the section dimensions
+the foot twice, 19.50 total and 14.50 proud, so neither reading can be misread off it.
+
+Plate is 5.00, so the foot stands 14.50 proud and 19.50 is now the whole part's height.
+**The foot is now the tallest feature**, where the step used to be.
+
+Printability is untouched, and that is worth stating because it is mildly
+counter-intuitive: taller feet are prismatic columns standing ON the bed, not features
+hanging off it. Flat face down, zero overhang, no supports, no brim, bed contact
+unchanged at 8 149 mm2. (That figure corrects the 8 175 quoted at Rev C — plate underside
+7 104 plus two 522.6 pads. Nothing depended on the old number.)
+
+**Verified against the written file, not the in-memory mesh:** 200 triangles, 10 084 bytes
+= 84 + 50 x 200, bbox 150.00 x 85.10 x 19.50, zero edges used twice, zero without a
+reverse, volume by the divergence theorem 66 877.1 mm3 matching the analytic column sum.
+Every X, Y and Z level in the file is a dimension off the drawing and there are no others
+— Z is exactly {0, 5.0, 11.0, 19.5}. Rendered from the parsed STL through a z-buffer
+rasteriser and eyeballed against the plan.
+
+Still assumed and named on the sheet: the step's 6.00 proud, and its photo-scaled
+82.40 x 22.20 footprint (+/-1.5). Unprinted, so nothing is fit-tested.
+
+The Rev A-C artifact was deleted, so the sheet is republished at a new URL:
+https://claude.ai/code/artifact/4dc3300f-5ff6-41ec-ad7c-701f575df903
+
+
 ## 2026-08-21 (later still)
 
 ### Done — prefix-scenes.rb, "ENH" on the front of every scene name
