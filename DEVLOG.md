@@ -1,5 +1,45 @@
 # DEVLOG
 
+## 2026-08-21 (later still)
+
+### Done — prefix-scenes.rb, "ENH" on the front of every scene name
+
+Benton wanted ENH prefixed onto literally every scene. `find-replace-names.rb` could
+technically do it with a regex `^`, but a job asked for by name deserves a button.
+
+`scripts/prefix-scenes.rb` — Tidy up the model. Opens a window listing every scene and
+what it would become, with the prefix as an editable field defaulted to `ENH `. Nothing
+changes until Apply, and Apply is one undo step.
+
+**The trap this exists to avoid is the second press.** Run a naive prefixer twice and
+every scene reads "ENH ENH 01". A scene whose name already starts with the prefix is
+skipped, and the window shows it on its own SKIP row rather than dropping it from the
+list — the difference between a button you can press without remembering its state and
+one you cannot. The check is case-sensitive on purpose: "ENH " and "enh " are different
+prefixes and picking one is not the tool's decision to make.
+
+**Collisions refuse the whole run**, same rule as find-replace: if "04 Rear" would become
+"ENH 04 Rear" and a scene by that name already exists, SketchUp would quietly append
+" (2)". Apply greys out until the collision is gone.
+
+**The preview is computed in Ruby, not JavaScript.** The window could derive it in one
+line of JS from the name list; it does not, because that would be two implementations of
+"what does this prefix do" and they drift. The panel already learned this with toolbar
+slot faces. Every keystroke calls back into Ruby and Ruby answers with the same method
+Apply uses.
+
+**Verified:** `rbparse.py` parses it. The heredoc's escaping was extracted and checked
+with `node --check`, because `\u00b7` and `\\"` inside an interpolating Ruby heredoc
+are exactly the kind of thing that silently produces broken JS. Both dialog states
+rendered in headless Chrome — the clean case with Apply live, and the collision case with
+Apply greyed and the warning banner up. The plan/skip/collide algorithm was ported to
+Python and run against six edge cases including the double-press, which is a test of the
+algorithm and not of the Ruby.
+
+**Not verified:** it has not run in SketchUp. No Ruby outside SketchUp on this machine, so
+every `Sketchup::Page` call in it is unrun.
+
+
 ## 2026-08-21 (later)
 
 ### Done — three toolbars instead of one, 18 slots
