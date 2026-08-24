@@ -2,47 +2,39 @@
 
 ## Mission
 
-Add the render-prep toolkit to the WhisperRoom SketchUp plugin: make the switch between
-"model built to be measured" and "model built to be photographed" a scripted, reversible
-operation, and make exporting a full client pack a single press.
-
-The whole point is that today every one of those changes is done by hand from memory, which
-is where the mistakes come from — a dimension string left on in a hero render, a wall still
-wearing a flat drafting material.
+Produce a printable STL of the TMG pottery stamp at the 14 mm mark size, matching the
+approved design artifact exactly (artifact f1b6983f "TMG Pottery Stamp"). The artifact
+carries the full parametric model but has no STL export, so the geometry has to be
+reproduced from its own data and written out as a watertight binary STL.
 
 ## Done means
 
-Six things exist, each with a `@title` header so the panel picks them up, each passing
-`python scripts/rbparse.py`:
-
-1. `scripts/wr-materials-swap.rb` — drafting <-> render materials, mapped BY NAME, with
-   named slots. Names every surface it could not map.
-2. `scripts/wr-mode.rb` — Draft <-> Render toggle. Calls #1, plus dimension tags, style,
-   shadow settings. Stores both states in the model so flipping back restores exactly.
-3. `scripts/wr-sun-aim.rb` — "Light it from here": sun snaps to the current camera azimuth
-   plus a ~30 degree offset. Moves no geometry.
-4. Two-band walls in `scripts/build-room.rb` — walls built in a lower and an upper band,
-   upper on tag `WR-Room-Upper`, so a scene can hide it. Plus a one-time splitter for
-   models already drawn with one-piece walls.
-5. `scripts/wr-preflight.rb` — pre-render checklist in an HtmlDialog where every failing
-   row carries the fix that clears it.
-6. `scripts/wr-pack-export.rb` — mark scenes for V-Ray, one press exports everything into
-   ProposalFiles\<Client>\ under the names proposal-v2.json expects. VIEWPORT LANE LIVE,
-   V-RAY LANE STUBBED behind a finished interface.
+- `exports/tmg-stamp-14mm.stl` exists, binary STL, millimetre units.
+- Geometry matches the artifact at SIZE=14: lathed body from the `PROF` profile
+  (11 points, revolved about the vertical axis, top face at y=15.5), plus the artwork
+  from `LOGO["14"].polys` extruded 1.2 mm of relief on top, overall height 16.7 mm,
+  head diameter 16 mm, base 15 mm, waist 9.2 mm.
+- Artwork sits on the top face, standing proud (raised relief), oriented so the mark
+  reads correctly when pressed — i.e. MIRRORED on the stamp if the artifact's 3D view
+  shows it un-mirrored; state which was done and why.
+- Handle-down orientation: the wide flat base sits at z=0 on the printer bed.
+- Watertight and manifold, verified numerically — every edge used exactly twice,
+  consistent winding, positive enclosed volume that matches the artifact's own volume
+  figure within a couple percent.
 
 ## Now
 
-Three Builders running in parallel:
-- Builder A: items 1, 2, 5, 6 (a dependency chain — one context)
-- Builder B: item 3
-- Builder C: item 4
+One Builder: extract the geometry data out of the saved artifact HTML and write the STL,
+with a verification pass on manifoldness and volume.
 
 ## Out of scope
 
-- Light rig placement (`wr-lightrig.rb`) — deliberately deferred, Benton's call 20 Aug 2026.
-- Pinned render settings, .vrscene archive, lighting contact sheet, rig presets.
-- ANY live V-Ray API call. `probe-vray.rb` has not been run; nothing about V-Ray's Ruby API
-  is confirmed. The V-Ray lane of the exporter is a stub only.
-- Bumping `scripts/wr_tools/VERSION` — the orchestrator owns that file to avoid three
-  agents colliding on it.
-- Committing or pushing. The orchestrator does that after review.
+- Changing the design. The artwork, profile, relief height and line dilation are settled
+  in the artifact — reproduce, do not redesign.
+- The other mark sizes (16 / 18 / 22 mm). 14 mm only unless asked.
+- Slicing, or any claim about how it prints. No printer here.
+
+## History
+
+- Render-prep toolkit for the SketchUp plugin (mode switch, sun aim, two-band walls,
+  preflight, pack export) — shipped, commits 306a467 / 66a6384.
