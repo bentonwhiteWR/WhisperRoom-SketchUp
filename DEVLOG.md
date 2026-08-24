@@ -1,5 +1,95 @@
 # DEVLOG
 
+## 2026-08-24
+
+### Done — TMG pottery stamp, 14mm and 16mm STLs cut from the design artifact
+
+Benton asked for "the STL for the 3d printed 14mm diameter stamp for pottery" and pointed
+at artifact `f1b6983f` ("TMG Pottery Stamp"). **There was no STL** — not in the repo, not
+in the full git history across all branches. The artifact is a design-review page: it
+carries the complete parametric model in JavaScript but has no export, no download button,
+no facet writer. So the geometry had to be reproduced and written out.
+
+**The generator reads the artifact rather than reimplementing it.** `scripts/tmg-stamp-stl.js`
+extracts `LOGO`, `PROF`, `Y_FACE`, `RELIEF`, `BASE_D` and evaluates the page's own
+`ringArea()` and `faceQuads()` verbatim. Nothing is retyped. That is the whole reason it is
+Node and not Python like `spray-guide-stl.py` and `pendant-jig-stl.py` — the design data IS
+JavaScript, and there are thousands of traced coordinates where a transcription typo would
+be silent. House style lost to transcription risk, deliberately; the file otherwise matches
+the Python two (same docstring shape, provenance comments, refuse-to-write self-audit).
+
+Solid = lathe of `PROF` (256 segments) about Z, face at z=15.5 tessellated as disc-minus-
+artwork, relief extruded 1.2mm to z=16.7 with side walls on outer and hole rings. Handle
+down, wide base flat on z=0, which is the bed.
+
+**Mirroring was the one irreversible decision.** The relief is mirrored, `X = -u`, so the
+impression pressed into clay reads TMG the right way round. Three independent sources in
+the artifact agree: `paintBoth()` passes `mirror=true` for the face and `false` for the
+clay; `buildMesh()` maps artwork through `toXZ = (u,v) => [-u,-v]`, which under the page's
+face camera negates x; and the rendered check shows a reversed G on the face, correct in
+the impression. Check images are in `.forge/builder/` for both sizes — **look at one before
+committing a print**, a backwards maker's mark is unfixable after the fact.
+
+**Two defects in the artifact's own tessellation had to be repaired** to make it printable,
+and both are worth knowing if that page is ever used as a mesh source again:
+
+- `faceQuads` conserves area but not topology. At every band boundary where the crossing
+  set changes, the quad below spans a horizontal edge the quads above split in two — 195
+  unpaired directed edges at 14mm. Fixed by re-fanning affected triangles from their own
+  centroid (an apex corner gives collinear slivers). The surface does not move, only its
+  subdivision.
+- Lathe ring y-values come out of `Math.sin`, so mirror-image angles land ~1e-16 apart.
+  `faceQuads` skips sub-1e-7 bands and orphans those vertices — 102 collisions. Fixed by
+  clustering y within a micron, preferring an artwork y so the mark's coordinates never move.
+
+**Verified against the written files, not the in-memory mesh.** 14mm: 26 582 tris,
+1 329 184 bytes = 84 + 50 x 26 582, bbox 16.000 x 16.000 x 16.700, 79 746 directed edges,
+zero used twice, zero without a reverse, zero degenerate, volume 2262.79 mm3 against the
+artifact's own 2263.01 (-0.010%). Re-read at float32 to confirm no vertex collapse. Two
+runs byte-identical, md5 `b104323dcdae4339ddd293f07e4c4432`. 16mm: 28 936 tris, 86 808
+edges, same zero/zero/zero, volume 3370.79 against 3371.12 (-0.010%).
+
+**"16mm" is the mark, and the whole stamp scales with it** — k=1.1429, so the body comes out
+18.29 across the head and 19.09 tall, not 16. Worth saying out loud because the filename
+implies otherwise. The upside is line weight: dilation drops from 0.0835mm per side at 14mm
+to 0.0522mm at 16mm, so the mark is closer to Terry's drawing. The artifact says 22mm
+removes the fattening entirely.
+
+`--size 18` and `--size 22` work off the same code and come out manifold at the identical
+-0.010% volume error — structural evidence the pipeline is right rather than accidentally
+passing at one size. Only 14 and 16 were written.
+
+**Not checked by anyone: how these actually print.** No printer, no slicer on this machine.
+Nothing about supports, overhangs, or the artifact's reported 38 degree steepest overhang
+has been recomputed. The manifold verdict is our own audit code run twice on two
+representations — strong, but not a third-party opinion from PrusaSlicer or Meshmixer.
+
+`scripts/wr_tools/VERSION` deliberately NOT bumped. CLAUDE.md says any change under
+`scripts/` warrants it, but precedent is against it — 38dca08 and 30dc5bc both added and
+changed `scripts/spray-guide-stl.py` without a bump — and a Node STL generator never appears
+on the panel, so bumping would make the update banner lie in the other direction. Flagged
+for Benton; reversible in one commit if he wants the letter of the rule.
+
+`.forge/GOAL.md` was still carrying the finished render-prep toolkit mission (shipped,
+306a467 / 66a6384). Replaced with the stamp mission, old one summarized under History.
+
+### Next steps
+
+1. Load `exports/tmg-stamp-14mm.stl` in a slicer and confirm it reads as watertight there —
+   that is the one check no tool on this machine can do.
+2. Look at `.forge/builder/tmg-stamp-14mm-check.png` and confirm the mirroring is what you
+   want before anything goes on a bed.
+3. Print one at each size before printing four, and compare the mark against Terry's logo.
+   Fit-tested beats measured; if the lines come out too fine at 14mm, 18 or 22 are one
+   command away: `node scripts/tmg-stamp-stl.js --size 22 --svg`.
+
+### Open decisions
+
+- Whether to bump `scripts/wr_tools/VERSION` for non-plugin scripts under `scripts/`. Current
+  call follows precedent and does not bump. CLAUDE.md's letter says otherwise.
+- Whether 18mm and 22mm files are wanted in `exports/`. Both generate clean; neither written.
+
+
 ## 2026-08-21 (Rev D)
 
 ### Done — spray guide feet raised to 19.50, STL cut
