@@ -107,6 +107,36 @@ band profile through the thickness — but that is one wall's internal construct
   adjacent fill layer into the shell. Treat the `_HX` figure as the true one for that family, or
   tighten the detector before relying on those two rows.
 
+### THE COMPONENT LIBRARY IS CLOSED — verified clean 2026-08-24 23:34
+
+**All 112 `ENH` parts measured correct. This work is done.** Observed, from
+`P:\Sketchup\NewMasterComponentList\_enhanced-probe.tsv`:
+
+- **112 of 112 are single-shell.** Zero combined parts remain.
+- **Every `FL` part measures 0.3125 thick.** No exceptions.
+- Every `CL` part sits at 1.7500–1.8217, the expected range.
+- 112 files on disk, one per scene, names matching components one-for-one.
+- Zero scene collisions, zero model gaps.
+
+**How it was fixed, because the route matters more than the result.** The exporter resolved a
+scene's subject by geometry — nearest component to the camera target. On this model that was
+hopeless: the cameras are parallel-projection with the eye ~1,800 inches out, so 13 scenes
+collided and wrote wrong geometry into right filenames (`ENH 10242FL CTR` held a ceiling; the
+`4896` pair held `4872` geometry). A raycast rewrite (v1.5.5) **failed** — 14 collisions, no
+improvement. What worked was abandoning geometry entirely: `save-scene-components.rb` v1.5.6
+resolves by **exact definition-name match**, and Benton named the definitions after the scenes
+using the new `name-selection-after-scene.rb` tool (v1.5.7). Geometry survives only as a fallback.
+
+**The lesson worth keeping:** a heuristic that infers which component a scene means was wrong
+twice and corrupted files both times. Naming the thing explicitly and matching on the name was
+right the first time. Prefer the explicit link over the clever inference.
+
+**A false lead, corrected before it misled anyone:** an intermediate probe run reported 5 parts
+with 2 shells and a **24.4375 gap**, and the probe's own output called that "the number the
+Enhanced build has been waiting for." **It was not.** Those 5 files were the corrupted ones,
+holding a whole booth assembly. The real inner/outer air gap is still **unknown** and still gates
+the layout work.
+
 ### DEFECT — FIXED AND VERIFIED BY MEASUREMENT 2026-08-24
 **The library is clean. A Builder can rely on it.** Benton re-authored the bad files and a fresh
 probe run confirms the fix (observed, from `_enhanced-probe.tsv`):
