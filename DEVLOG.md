@@ -2,6 +2,32 @@
 
 ## 2026-08-25
 
+### Done - inner corners placed directly, trimmed boxes centred (v1.6.10)
+
+Third probe of the same wall. The seal fix landed exactly (y0 2.8750 = the hand assembly).
+Two residuals were left, and this round takes both because the probe tells them apart - the
+corner shows on the corner rows, the vent on its own row.
+
+**Inner corners are now placed with no heuristic at all.** `corner_yaw` aims the L's mass at
+the booth middle and the IEP quarter turn went on top of that; on the probed 4872 E each
+corner still sat 0.25 outboard on one axis. The cause was underneath both: the slab search
+finds a 4.875 leg inside the 5.375 part and `place()` centred the LEG in the slot, so the part
+was a quarter inch off its own footprint before any rotation happened. `ENH CornerSeamSeal`
+is authored AS the SW corner - its box is 1.7500..7.1250 on both axes, which is exactly the SW
+polygon in booth coordinates - so SW is the identity and SE / NE / NW are 90 / 180 / 270 about
+the polygon's centre. The box is square, so the turn keeps it on its footprint. Those yaws are
+the ones the hand assembly left in place (NW 270, NE 180). `IEP_CORNER_YAW` is deleted.
+
+**A bounding box wider than its slot is centred, not flushed.** `ENH 41.5VNT` measures
+41.7337 on a 41.5 slot with no findable slab; flushing the BOX to the corner put the PANEL
+0.1169 short. The hand assembly has the panel edge on the slot edge, so the trim is symmetric
+and centring lands it. Anything whose box measures its slot flushes exactly as before.
+
+Prediction for the next probe, so it can be checked without me: corners at x0 0.0000 / y0
+0.0000 and x0 65.1250, vent at x0 2.3831, seal at 41.1250 / 2.8750 - the hand assembly to
+four places. If the corners are on their footprint but turned wrong, the part is not authored
+as the SW corner and the yaw table shifts by one quarter; that is a four-number change.
+
 ### Done - the inner seal plate laps outboard, not into the room (v1.6.9)
 
 Second measurement of the same N wall, this time comparing the BUILD against the hand

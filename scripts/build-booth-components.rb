@@ -128,7 +128,9 @@ module WR_BuildBoothComponents
   # after the normal placement. They are ONE NUMBER EACH on purpose - if a build
   # shows them still off, change the number here rather than reasoning about
   # where a part's origin sits.
-  IEP_CORNER_YAW = 90.0    # counter-clockwise in plan
+  # IEP_CORNER_YAW is gone. Inner corners are placed directly from the part's
+  # authored frame (see the corner block in build_booth); no heuristic, no
+  # correction on top of one.
   IEP_SEAL_YAW   = 180.0   # the mid-wall seal, end for end
   IEP_DOOR_YAW   = 180.0   # the inner door - see below
 
@@ -766,7 +768,15 @@ module WR_BuildBoothComponents
     # terminate against anything, and they are symmetric.
     slot_c = (slot[0] + slot[1]) / 2.0
     booth_c = run_sym == :x ? centre[0] : centre[1]
-    d_run = if !flush
+    # ...unless the only width there is to flush is a BOUNDING BOX that is
+    # wider than the slot. With no slab the box includes trim standing proud
+    # of the panel at both ends - ENH 41.5VNT is 41.7337 on a 41.5 slot - and
+    # flushing the box to the corner puts the PANEL 0.1169 short of it.
+    # Measured on Benton's hand-assembled 4872 E wall: the panel edge sits at
+    # the slot edge, so the trim is symmetric and centring the box lands the
+    # panel exactly. A box that measures its slot flushes as before.
+    box_trim = slab.nil? && ((r[1] - r[0]) - (slot[1] - slot[0])).abs > 0.02
+    d_run = if !flush || box_trim
               slot_c - ((r[0] + r[1]) / 2.0)
             elsif slot_c < booth_c
               slot[0] - r[0]
@@ -1049,7 +1059,7 @@ module WR_BuildBoothComponents
       inner_n = spec[:parts].count { |q| inner?(q) }
       puts "  ENHANCED - a second (IEP) shell inside it: #{inner_n} parts, room #{spec[:eiw]}\" x #{spec[:eih]}\""
       puts "  inner walls #{cfg['hx'] ? ENH_WALL_H_HX : ENH_WALL_H}\" tall, underside lifted #{IEP_WALL_LIFT}\" - THE LIFT IS UNMEASURED, see IEP_WALL_LIFT"
-      puts "  inner rotations: corner #{IEP_CORNER_YAW}deg, mid-wall seal #{IEP_SEAL_YAW}deg, door #{IEP_DOOR_YAW}deg - one number each if still off"
+      puts "  inner rotations: corners placed directly (SW 0 / SE 90 / NE 180 / NW 270), mid-wall seal #{IEP_SEAL_YAW}deg, door #{IEP_DOOR_YAW}deg"
     end
     puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"
     puts "  parts    #{cfg['dir']}"
@@ -1200,11 +1210,31 @@ module WR_BuildBoothComponents
           # same orientation. Aiming at the booth's middle is the direction that
           # is genuinely opposite, and it is the 180 the corners needed.
           target = [centre[0], centre[1]]
-          yaw = corner_yaw(r[:defn], tr, pivot, target)
-          tr = Geom::Transformation.rotation(pivot, VZ, yaw) * tr
-          # ...then the inner shell's own quarter turn, on top of that.
-          if inner?(p) && IEP_CORNER_YAW != 0.0
-            tr = Geom::Transformation.rotation(pivot, VZ, IEP_CORNER_YAW.degrees) * tr
+          if inner?(p)
+            # THE INNER CORNER IS PLACED DIRECTLY, WITH NO HEURISTIC.
+            #
+            # corner_yaw aims the L's mass at the booth middle, then the IEP
+            # quarter turn went on top. On Benton's probed 4872 E that left
+            # each corner 0.25 outboard on one axis - the slab search finds a
+            # 4.875 leg inside the 5.375 part and place() centred THAT, so the
+            # part sat a quarter inch off its own footprint before any turn.
+            #
+            # ENH CornerSeamSeal is authored AS the SW corner: its box is
+            # 1.7500..7.1250 on both axes, which is exactly the SW polygon in
+            # booth coordinates, so SW is the identity and the others are
+            # quarter turns about the polygon's own centre. The box is square,
+            # so a turn about its centre keeps it on its footprint. Yaws match
+            # the ones the hand assembly left in place: NW 270, NE 180.
+            bb = r[:cls][:bb]
+            dz = nominal - bb.max.z.to_f
+            tr = Geom::Transformation.translation(
+              Geom::Vector3d.new(xs.min - bb.min.x.to_f, ys.min - bb.min.y.to_f, dz))
+            # The layout names the corner in the id: 'SW corner seal i'.
+            yaw = { 'SW' => 0.0, 'SE' => 90.0, 'NE' => 180.0, 'NW' => 270.0 }[p[:id].to_s[0, 2]] || 0.0
+            tr = Geom::Transformation.rotation(pivot, VZ, yaw.degrees) * tr if yaw != 0.0
+          else
+            yaw = corner_yaw(r[:defn], tr, pivot, target)
+            tr = Geom::Transformation.rotation(pivot, VZ, yaw) * tr
           end
         end
 
