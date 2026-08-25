@@ -71,7 +71,38 @@ module WR_ProbePlacement
     det < 0
   end
 
+  # The console fills up fast when this is run several times in a row, and the
+  # numbers are the whole point of it - Benton asked for a clean slate each run.
+  def self.clear_console
+    SKETCHUP_CONSOLE.clear
+  rescue StandardError
+    nil
+  end
+
+  # WHICH COORDINATE SYSTEM THE NUMBERS ARE IN, said out loud.
+  #
+  # Sketchup::ComponentInstance#bounds is in the coordinate system of the
+  # instance's PARENT, so selecting parts from inside a booth group gives booth
+  # coordinates and selecting a loose assembly gives model coordinates. Those
+  # two are not comparable, and reading a table without knowing which one it is
+  # was how an entire round got spent chasing a 20 in offset that was never
+  # there. The parent is named on the report.
+  def self.parent_of(list)
+    parents = list.map { |i| i.parent }.uniq
+    return ['the model (loose in the drawing)', nil] if parents.length != 1
+    par = parents.first
+    if par.is_a?(Sketchup::ComponentDefinition) && par.group?
+      inst = par.instances.first
+      ["inside the group \"#{inst ? inst.name : par.name}\"", par]
+    elsif par.is_a?(Sketchup::ComponentDefinition)
+      ["inside the component \"#{par.name}\"", par]
+    else
+      ['the model (loose in the drawing)', nil]
+    end
+  end
+
   def self.run
+    clear_console
     model = Sketchup.active_model
     sel = model.selection
     list = instances(sel)
@@ -108,6 +139,10 @@ module WR_ProbePlacement
     puts "PLACEMENT PROBE — #{rows.length} instance(s)"
     puts format('  selection spans %s x %s x %s in, measured from its own low corner',
                 f(span_x), f(span_y), f(all.max.z.to_f - oz))
+    where, = parent_of(list)
+    puts "  coordinates are #{where}"
+    puts format('  its own low corner is at %s, %s, %s in that space',
+                f(ox), f(oy), f(oz))
     puts format('  walking the %s axis, which is the longer one', run_x ? 'X' : 'Y')
     puts '=' * 100
     puts format('  %-22s %-26s %8s %8s %8s %8s %7s %5s',
