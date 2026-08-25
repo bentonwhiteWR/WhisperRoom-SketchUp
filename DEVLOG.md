@@ -2,6 +2,35 @@
 
 ## 2026-08-25
 
+### Done - the standalone "Build a booth from real parts" path, same day (v1.6.1)
+
+Benton: *"This should also work for build booth with real components."* It picks the booth
+from a dropdown fed by `BOOTHS.keys`, so all 25 Enhanced keys appeared there the moment the
+data file was regenerated - but two things behind that dropdown were still Standard-only,
+and one of them would have corrupted geometry rather than failing.
+
+**`rebalance_walls` was keyed on the wall, not the wall and the shell.** It groups parts by
+the first character of the slot id, so an Enhanced booth's `N0` and `N0i` landed in the same
+list. Sorted along the wall the two shells interleave, the re-walk sums both shells' panel
+widths into one run, and the joint was a hardcoded 2.0 where an inner joint is 6.5. It only
+fires when a part differs from its slot by more than 0.1 in - a wide-access door is the
+normal trigger - so a plain Enhanced build would have passed straight over it and a WA
+Enhanced build would have rewritten both shells from a nonsense cursor. Now keyed on
+`[wall, inner?]`, with the joint taken per shell.
+
+**`ASSIGN` had no Enhanced rows,** so the E/W reversal the 6060/6084/7272/7296 need was
+silently skipped on their Enhanced twins. The swap is a property of the layout, not the
+variant - the generated data puts the big run on the high half of E and W on both shells -
+so those four booths would have had their walls disagreeing with the deck hinges exactly as
+the Standard ones once did. Four ` E` rows added, each naming both shells; the inner names
+are written out rather than derived, so there is no second copy of the Standard-to-ENH rule
+drifting away from the one in `booth-from-link.rb`. Checked: all 8 ASSIGN rows, every slot
+id exists in the layout data and every component name exists on `P:`.
+
+**The IEP inner floor and ceiling are still not placed, and the build now says so** on every
+Enhanced run rather than leaving a silent hole. `ENH <size>FL` / `ENH <size>CL` exist in the
+library; their z datum does not, and guessing it puts a floor through a wall.
+
 ### Done - Enhanced is unblocked: the inner shell has a rule, and both shells now build
 
 The blocker at the bottom of yesterday's entry - *"the air gap between the outer and inner

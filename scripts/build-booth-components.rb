@@ -210,6 +210,53 @@ module WR_BuildBoothComponents
       'E1' => '46PanelSolid',
       'W0' => '22PanelSolid',
       'W1' => '46PanelSolid'
+    },
+
+    # ------------------------------------------------------------- ENHANCED --
+    #
+    # The same four booths in Enhanced. The E/W swap is a property of the
+    # LAYOUT, not of the variant - the generated data puts the big run on the
+    # high half of E and W on every 6060/6084/7272/7296 whichever shell you are
+    # looking at - so an Enhanced build needs the identical reversal or its
+    # walls disagree with the deck hinges exactly as the Standard ones did.
+    #
+    # Each entry names BOTH shells: the outer slot keeps its Standard part and
+    # the '<slot>i' inner slot takes the ENH twin. Written out rather than
+    # derived from the ' S' rows at load time, because deriving means a second
+    # implementation of the Standard-to-ENH name rule living here, drifting from
+    # the one in booth-from-link.rb. Every name below was checked against the
+    # real folder.
+    #
+    # Note '46VNT_VSS' has no '_VSS' on its inner twin: Enhanced takes no vent
+    # option variants - Benton, 2026-08-24, 'the 35.5 VNT wall fits them all for
+    # the inner walls'.
+    'MDL 6060 E' => {
+      'E0' => '16PanelSolid',   'E0i' => 'ENH 11.5PanelSolid',
+      'E1' => '40VNT',          'E1i' => 'ENH 35.5VNT',
+      'W0' => '16PanelSolid',   'W0i' => 'ENH 11.5PanelSolid',
+      'W1' => '40PanelSolid',   'W1i' => 'ENH 35.5PanelSolid'
+    },
+    'MDL 6084 E' => {
+      'E0' => '16PanelSolid',   'E0i' => 'ENH 11.5PanelSolid',
+      'E1' => '40PanelSolid',   'E1i' => 'ENH 35.5PanelSolid',
+      'W0' => '16PanelSolid',   'W0i' => 'ENH 11.5PanelSolid',
+      'W1' => '40PanelSolid',   'W1i' => 'ENH 35.5PanelSolid'
+    },
+    'MDL 7272 E' => {
+      'N0' => '46VNT_VSS',      'N0i' => 'ENH 41.5VNT',
+      'N1' => '22PanelSolid',   'N1i' => 'ENH 17.5PanelSolid',
+      'S0' => 'Right46Door',    'S0i' => 'ENH Right41.5Door',
+      'S1' => '22PanelSolid',   'S1i' => 'ENH 17.5PanelSolid',
+      'E0' => '22PanelSolid',   'E0i' => 'ENH 17.5PanelSolid',
+      'E1' => '46VNT_VSS',      'E1i' => 'ENH 41.5VNT',
+      'W0' => '22PanelSolid',   'W0i' => 'ENH 17.5PanelSolid',
+      'W1' => '46Panel3236WDO', 'W1i' => 'ENH 41.5Panel3236WDO'
+    },
+    'MDL 7296 E' => {
+      'E0' => '22PanelSolid',   'E0i' => 'ENH 17.5PanelSolid',
+      'E1' => '46PanelSolid',   'E1i' => 'ENH 41.5PanelSolid',
+      'W0' => '22PanelSolid',   'W0i' => 'ENH 17.5PanelSolid',
+      'W1' => '46PanelSolid',   'W1i' => 'ENH 41.5PanelSolid'
     }
   }.freeze
 
@@ -826,7 +873,9 @@ module WR_BuildBoothComponents
       end
 
       if (pos - last).abs > 0.15
-        puts format('  *** %s wall does not close after rebalancing to real widths '                     '(off %+.3f in) — leaving it as generated.', w, pos - last)
+        puts format('  *** %s %s wall does not close after rebalancing to real ' \
+                    'widths (off %+.3f in) - leaving it as generated.',
+                    w, inn ? 'inner' : 'outer', pos - last)
         next
       end
 
@@ -1145,6 +1194,15 @@ module WR_BuildBoothComponents
         (swarn || []).each { |w| puts "  DECK SEAL: #{w}" }
 
         puts "  deck     #{deck_note}"
+        if spec[:eiw]
+          # SAID OUT LOUD RATHER THAN LEFT MISSING. The deck placed above is
+          # the STANDARD floor and ceiling. The IEP inner floor and ceiling
+          # (ENH <size>FL / ENH <size>CL, which do exist in the library) are
+          # NOT placed - their z datum has not been measured, and guessing
+          # it would put a floor through a wall. A render of an Enhanced
+          # booth interior is missing its inner deck until that is done.
+          puts "  deck     IEP INNER FLOOR AND CEILING NOT PLACED - outer deck only"
+        end
       end
 
       model.commit_operation unless cfg['dry']
