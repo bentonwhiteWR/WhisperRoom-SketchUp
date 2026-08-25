@@ -65,7 +65,17 @@ band profile through the thickness — but that is one wall's internal construct
   +1.0625), but Enhanced **vents and doors are much thinner** (`ENH 35.5VNT` 2.3750 vs `40VNT`
   8.5468; `ENH Left35.5Door` 2.3750 vs `Left40Door` 6.3750). Do not assume a uniform offset.
 
-### DEFECT FOUND — two files hold the wrong geometry, Benton must re-author
+### DEFECT — RE-AUTHORED BY BENTON 2026-08-24 21:07, GEOMETRY NOT YET RE-VERIFIED
+Benton replaced the two bad files. Observed from the folder listing: both `11.548WDO` files are
+**deleted** (not renamed), and `ENH 26.5Panel1648WDO.skp` / `ENH 26.5Panel1648WDO_HX.skp` were
+re-saved at 21:07. The `ENH` count went 116 → 114. **This settles the window-code question: `1648`
+is canonical and `11.548` is gone.**
+
+A listing proves the files changed; it does not prove the geometry is right. The `_HX` must be
+re-measured at **26.5000 wide × 89.5000 tall**, not the 31.0000 × 91.0000 it held before. Re-run
+`scripts/probe-enhanced.rb` and confirm before any Builder relies on it.
+
+The original finding, kept for the record:
 `ENH 26.5Panel1648WDO_HX` and `ENH 26.5Panel11.548WDO_HX` both measure **31.0000 wide × 91.0000
 tall × 1.8125 thick with 61 faces**. That is not an Enhanced part — it is the Standard
 `31Panel1648WDO_HX`, which measures identically (observed, from `_component-probe.tsv`). The
