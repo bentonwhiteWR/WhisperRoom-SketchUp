@@ -2,6 +2,46 @@
 
 ## 2026-08-25
 
+### Session close - 4872 E is complete; 6060 E is next
+
+Benton: *"I'd say the 4872 E is complete."* Every part of an Enhanced 4872 - both shells, both
+decks, the door - is placed from a measured number, and the last full-booth probe agreed with
+the builder to 0.0001 on every inner part. Plugin is at **1.6.18**.
+
+**Next: MDL 6060 E, which Benton says is "still pretty botched".** What is different about it
+from the 4872, and therefore what to expect:
+
+- **Panel widths 11.5 and 35.5** on every wall (35.5 + 6.5 + 11.5 = 53.5 both axes). Neither
+  width has a measured room-proud; both take the 41.5's 1/16 by default and the build warns
+  about it. Expect a 1/32-ish across-wall correction on each - `IEP_ROOM_PROUD` in
+  `build-booth-components.rb`, keyed on the width string.
+- **Split runs on E and W as well as N and S**, so all four walls carry a mid-wall seal and the
+  E/W seals run at yaws the 4872 never exercised. The `ASSIGN` row `'MDL 6060 E'` also carries
+  the E/W big-wall reversal (16/40 outer, 11.5/35.5 inner) and has never been built.
+- **The ENH 11.5PanelSolid is one of the four thin-box parts** (1.125 thick where its siblings
+  are 2.0625), so its box may sit differently across the wall than the family rule assumes.
+- **Its deck is `ENH 6060FL` / `ENH 6060CL`, which do NOT exist.** The library has 6018 and
+  6042 SIDE L / SIDE R pieces for both floor and ceiling. The builder refuses by name and skips
+  the IEP deck, so the 6060 is the first booth that needs the tiling rule for CTR/SIDE pieces.
+
+**Next steps, in order:**
+
+1. `git pull` on whichever machine. Nothing under `wr_tools/` changed this session, so no
+   reinstall; Rescan the panel.
+2. Build **MDL 6060 E, Shell = Inner (IEP) only**. Read the warning block: it will name the
+   two unmeasured widths.
+3. Correct it by hand - the whole inner shell, as Benton did for the 4872 - and probe it. The
+   probe on `P:` plus "X needs to go Y" is what closes it; screenshots do not.
+4. Ask Benton how the 6042 / 6018 SIDE L / SIDE R deck pieces lay out against the standard
+   6060 deck. That is the only piece of the 6060 with no rule at all.
+
+**Open decisions:**
+
+- `ENH CornerSeamSeal` is placed with a direct 0/90/180/270 on the assumption it is authored
+  as the SW corner. The 4872 confirmed all four; nothing further to decide unless a booth shows
+  otherwise.
+- HX Enhanced is untested; 89.5 wall height and the 0.75 lift are assumed to carry.
+
 ### Done - the deck contact face is the true face, not its 1/64 bucket (v1.6.18)
 
 Benton: *"the standard ceiling is just SLIGHTLY too low. Like maybe 1/128."* He is right, and
