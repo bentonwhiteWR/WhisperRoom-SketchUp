@@ -105,15 +105,15 @@ band profile through the thickness — but that is one wall's internal construct
   adjacent fill layer into the shell. Treat the `_HX` figure as the true one for that family, or
   tighten the detector before relying on those two rows.
 
-### DEFECT — RE-AUTHORED BY BENTON 2026-08-24 21:07, GEOMETRY NOT YET RE-VERIFIED
-Benton replaced the two bad files. Observed from the folder listing: both `11.548WDO` files are
-**deleted** (not renamed), and `ENH 26.5Panel1648WDO.skp` / `ENH 26.5Panel1648WDO_HX.skp` were
-re-saved at 21:07. The `ENH` count went 116 → 114. **This settles the window-code question: `1648`
-is canonical and `11.548` is gone.**
+### DEFECT — FIXED AND VERIFIED BY MEASUREMENT 2026-08-24
+**The library is clean. A Builder can rely on it.** Benton re-authored the bad files and a fresh
+probe run confirms the fix (observed, from `_enhanced-probe.tsv`):
 
-A listing proves the files changed; it does not prove the geometry is right. The `_HX` must be
-re-measured at **26.5000 wide × 89.5000 tall**, not the 31.0000 × 91.0000 it held before. Re-run
-`scripts/probe-enhanced.rb` and confirm before any Builder relies on it.
+- `ENH 26.5Panel1648WDO_HX` now measures **26.5000 × 89.5000, 1.8125 thick, 449 faces** — correct,
+  and consistent with its siblings. It was 31.0000 × 91.0000 with 61 faces.
+- **Zero parts** remain at height 91.0000, and the part has dropped off the name-mismatch list.
+- Both `11.548WDO` files are **deleted**, not renamed. **`1648` is the canonical window code.**
+- Final state: **114 parts, 114 single-shell, 0 failed.**
 
 The original finding, kept for the record:
 `ENH 26.5Panel1648WDO_HX` and `ENH 26.5Panel11.548WDO_HX` both measure **31.0000 wide × 91.0000
