@@ -31,7 +31,9 @@ silently get a Standard one.
 - No regression: every Standard booth that builds correctly today still does. Enhanced is additive.
 
 ## Now
-**The probe has been RUN. The gating question is answered, and it went the harder way.**
+**GATING WORK: the Enhanced layout data.** `wr-booth-data.rb` has 25 layouts, all Standard, zero
+Enhanced. Until Enhanced layouts exist, no Enhanced link can complete. `booth-from-link.rb` is
+done (v1.5.3); the probe has been run and its verdict is below.
 
 Benton ran `scripts/probe-enhanced.rb` in SketchUp on 2026-08-24: **116 measured, 0 failed.**
 Results in `P:\Sketchup\NewMasterComponentList\_enhanced-probe.tsv` and `_enhanced-nesting.tsv`.
@@ -124,11 +126,29 @@ the two `_HX` files. This is the same failure mode the DEVLOG records for `STD72
 master files saved out of alignment, not a script bug.
 
 ### Established already (observed 2026-08-24)
-- **`booth-from-link.rb` reads the variant but never uses it for parts.** Line 170 builds the
-  layout key from `payload['v']` (`'S'`/`'E'`), so the *layout* resolves for Enhanced — but
-  `component_for(pack, o)` at line 111 never receives the variant, and every branch emits a
-  Standard name. An Enhanced link therefore builds Standard parts with no warning. This is the
-  core defect and it is silent.
+- **`booth-from-link.rb` — FIXED 2026-08-24, commit `1c84103`, shipped as v1.5.3.**
+  `component_for` now takes the variant and emits `ENH ` names, drops the vent option suffixes on
+  the Enhanced path per Benton's ruling, checks every composed name against the real folder
+  *before* building, and refuses by name rather than substituting. `ENH_MISSING_ABORTS = true`.
+
+  **CORRECTION — an earlier claim in this file was wrong.** It said the Enhanced *layout*
+  resolves and only the parts came out Standard. **It does not resolve.** `scripts/wr-booth-data.rb`
+  holds 25 layout keys and **every one ends `' S'`; there are zero `' E'` keys** (observed — I
+  counted them directly). So an Enhanced link stops at `build_booth`'s "panel lengths are
+  unresolved" messagebox and never reaches part placement at all.
+
+  Fixing `component_for` first was still the right order — it would have become a silently wrong
+  *build* the moment layout data landed — but **`booth-from-link.rb` alone cannot satisfy this
+  mission's "Done means"**. The gating work is now the Enhanced layout data.
+
+  A second, subtler reason abort was the right default: dropping a slot is not neutral, because
+  `build_booth` fills any unassigned slot via `guess_component`, which composes **Standard**
+  names. "Leave it out" on the Enhanced path silently becomes "put a Standard part there" one
+  function later. Vanishing was never actually on the menu.
+- **A live Standard bug was fixed in the same commit.** `46VntCP.skp` has no underscore, so the
+  composed `46VNT_CP` never resolved — casters-only 46-inch vents failed for real customers on
+  Standard. Name matching now ignores case *and* separators; verified safe, as all 353 `.skp`
+  files still produce 353 distinct normalised keys with no collisions (reported by the Builder).
 - **The portal always sends `STDWL<n>` pack strings**, whatever the variant (see the payload
   contract at line 22). So the Enhanced translation is a mapping problem inside `component_for`,
   not a portal change.
