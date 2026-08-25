@@ -132,6 +132,19 @@ module WR_BuildBoothComponents
   # authored frame (see the corner block in build_booth); no heuristic, no
   # correction on top of one.
   IEP_SEAL_YAW   = 180.0   # the mid-wall seal, end for end
+
+  # ACROSS THE WALL, an inner panel whose slab cannot be found stands its
+  # bounding box this far into the room past the panel band's room face.
+  #
+  # place() centres such a box in its 2.0 band, and the boxes are not
+  # symmetric about the panel: ENH 41.5VNT is 2.375 thick with 0.125 of trim
+  # on the room side and 0.25 behind. Benton's hand-assembled 4872 E wall has
+  # the vent box at 2.7500 against a band at 2.8750 - 0.125 proud, exactly -
+  # and the 17.5 at 2.7812, which he called "about a sixteenth in, not
+  # exact". One rule, 1/8, lands the vent to four places and the 17.5 to a
+  # thirty-second. Parts with a findable slab (the door) are placed off the
+  # slab and never touch this.
+  IEP_ROOM_PROUD = 0.125
   IEP_DOOR_YAW   = 180.0   # the inner door - see below
 
   # The inner door was the one part in the whole booth facing opposite to its
@@ -1254,6 +1267,34 @@ module WR_BuildBoothComponents
           spiv = Geom::Point3d.new((sxs.min + sxs.max) / 2.0,
                                    (sys.min + sys.max) / 2.0, 0)
           tr = Geom::Transformation.rotation(spiv, VZ, IEP_SEAL_YAW.degrees) * tr
+        end
+
+        # Across the wall, for an inner panel with no slab - AFTER the yaw
+        # blocks above, because a half turn about the polygon centre swaps
+        # which box face is the room face.
+        if inner?(p) && p[:k] == 'panel' && r[:slab].nil?
+          bb = r[:cls][:bb]
+          wx = []
+          wy = []
+          8.times do |i|
+            q = bb.corner(i).transform(tr)
+            wx << q.x.to_f
+            wy << q.y.to_f
+          end
+          pxs = p[:poly].map { |q| q[0].to_f }
+          pys = p[:poly].map { |q| q[1].to_f }
+          wall = p[:id].to_s[0, 1]
+          shift = case wall
+                  when 'N' then (pys.min - IEP_ROOM_PROUD) - wy.min
+                  when 'S' then (pys.max + IEP_ROOM_PROUD) - wy.max
+                  when 'E' then (pxs.min - IEP_ROOM_PROUD) - wx.min
+                  else          (pxs.max + IEP_ROOM_PROUD) - wx.max
+                  end
+          if shift.abs > 0.0001
+            vec = %w[N S].include?(wall) ? Geom::Vector3d.new(0, shift, 0)
+                                         : Geom::Vector3d.new(shift, 0, 0)
+            tr = Geom::Transformation.translation(vec) * tr
+          end
         end
 
         # The exact difference, not a pass mark. A part 0.01 under its slot is

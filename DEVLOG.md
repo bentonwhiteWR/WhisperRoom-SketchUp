@@ -2,6 +2,28 @@
 
 ## 2026-08-25
 
+### Done - inner panels stand 1/8 proud of the band's room face (v1.6.11)
+
+Fourth probe. **Every along-wall prediction from the last entry hit to four places**: corners
+0.0000 and 65.1250, vent 2.3831, seal 41.1250, 17.5 at 50.4999. The direct corner transform
+and the box-centring are both right.
+
+What was left is across the wall, and it is the two Benton called out: *"the [vent] needs to
+push out 1/16"* - probe y0 2.6875 against his 2.7500 - and *"the 17.5 needs to push inwards
+1/16~, not exact"* - 2.8281 against his 2.7812.
+
+`place()` centres a slab-less box in its 2.0 band, and these boxes are not symmetric about
+the panel: `ENH 41.5VNT` is 2.375 thick with 0.125 of trim on the room side and 0.25 behind.
+**One rule - the box's room face sits 1/8 into the room past the band's room face** - lands
+the vent at 2.7500 exactly and the 17.5 at 2.7500 against his approximate 2.7812. `IEP_ROOM_PROUD
+= 0.125`, applied only to inner panels whose slab was not found, and applied AFTER the door
+and seal half-turns because a turn about the polygon centre swaps which box face is the room
+face. The door has a slab and is untouched.
+
+Prediction for the next probe: vent y0 2.7500, 17.5 y0 2.7500, everything else unchanged. If
+the 17.5 wants 2.7812 rather than 2.7500 the rule is per-family, not one number, and that is
+the next measurement to take.
+
 ### Done - inner corners placed directly, trimmed boxes centred (v1.6.10)
 
 Third probe of the same wall. The seal fix landed exactly (y0 2.8750 = the hand assembly).
