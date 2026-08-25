@@ -92,12 +92,17 @@ module WR_BuildBoothComponents
   # is the whole of the assumption. It is how far the inner wall's underside
   # sits ABOVE the outer wall's; the rest of the 1.5 falls at the top.
   #
-  # 0.3125 is the measured thickness of every ENH floor part in the library (23
-  # of them, all exactly 0.3125) on the reading that the inner wall stands on
-  # that sheet. That is a derivation from a related part, NOT a dimensioned
-  # detail, so it is named here, printed in the build report, and changed in one
-  # place when somebody measures the real lip. Do not scatter it.
-  IEP_WALL_LIFT = 0.3125
+  # IT WAS 0.3125 AND THAT REASONING IS DEAD. The 0.3125 came from the measured
+  # thickness of every ENH floor part, on the reading that the inner wall stands
+  # on that sheet. Benton, 2026-08-25, looking at a real build: the ENH floor
+  # part is "the 5/16 black rubber mat that sits UNDER the standard floor". The
+  # inner wall does not stand on it, so the number had no reason left.
+  #
+  # 0.0 is now the assumption: the inner wall's underside is flush with the
+  # outer wall's and the whole 1.5 falls at the top. That is still a guess, but
+  # it is a guess you can check by eye - the two wall bottoms either line up or
+  # they do not - which 0.3125 was not.
+  IEP_WALL_LIFT = 0.0
 
   # The IEP mid-wall seam seal's stem - the joint between two inner panels.
   # 6.5 where the Standard seal is 2. Needed here because rebalance_walls
@@ -110,6 +115,21 @@ module WR_BuildBoothComponents
   # and void proud of the panel, worth an eighth to a quarter inch, while the
   # substitution this exists to catch - a wide-access door - is three inches.
   SLAB_NOISE = 1.0
+
+  # ---- INNER-SHELL ORIENTATION, both from Benton looking at a real build ----
+  #
+  # The IEP seam seals are not the Standard ones turned around. A Standard seal
+  # wraps a CONVEX corner from outside the booth; an IEP seal sits in a CONCAVE
+  # corner and is fitted from inside the room. corner_yaw aims the L's centre of
+  # mass at the booth's middle, which is right for the outer shell and a quarter
+  # turn short for the inner one.
+  #
+  # Both are degrees about the vertical, applied only to inner parts and only
+  # after the normal placement. They are ONE NUMBER EACH on purpose - if a build
+  # shows them still off, change the number here rather than reasoning about
+  # where a part's origin sits.
+  IEP_CORNER_YAW = 90.0    # counter-clockwise in plan
+  IEP_SEAL_YAW   = 180.0   # the mid-wall seal, end for end
 
   def self.inner?(part)
     part[:sh].to_s == 'in'
@@ -998,6 +1018,7 @@ module WR_BuildBoothComponents
       inner_n = spec[:parts].count { |q| inner?(q) }
       puts "  ENHANCED - a second (IEP) shell inside it: #{inner_n} parts, room #{spec[:eiw]}\" x #{spec[:eih]}\""
       puts "  inner walls #{cfg['hx'] ? ENH_WALL_H_HX : ENH_WALL_H}\" tall, underside lifted #{IEP_WALL_LIFT}\" - THE LIFT IS UNMEASURED, see IEP_WALL_LIFT"
+      puts "  inner seals rotated #{IEP_CORNER_YAW}deg (corner) / #{IEP_SEAL_YAW}deg (mid-wall) - one number each if still off"
     end
     puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"
     puts "  parts    #{cfg['dir']}"
@@ -1147,6 +1168,19 @@ module WR_BuildBoothComponents
           target = [centre[0], centre[1]]
           yaw = corner_yaw(r[:defn], tr, pivot, target)
           tr = Geom::Transformation.rotation(pivot, VZ, yaw) * tr
+          # ...then the inner shell's own quarter turn, on top of that.
+          if inner?(p) && IEP_CORNER_YAW != 0.0
+            tr = Geom::Transformation.rotation(pivot, VZ, IEP_CORNER_YAW.degrees) * tr
+          end
+        end
+
+        # The IEP mid-wall seal goes in end for end against the Standard one.
+        if p[:k] == 'seal' && inner?(p) && IEP_SEAL_YAW != 0.0
+          sxs = p[:poly].map { |q| q[0].to_f }
+          sys = p[:poly].map { |q| q[1].to_f }
+          spiv = Geom::Point3d.new((sxs.min + sxs.max) / 2.0,
+                                   (sys.min + sys.max) / 2.0, 0)
+          tr = Geom::Transformation.rotation(spiv, VZ, IEP_SEAL_YAW.degrees) * tr
         end
 
         # The exact difference, not a pass mark. A part 0.01 under its slot is

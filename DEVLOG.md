@@ -2,6 +2,55 @@
 
 ## 2026-08-25
 
+### Done - four fixes off the first real Enhanced build (v1.6.4)
+
+Benton built a 4872 E and sent screenshots. Four things, one of which is a regression I
+introduced and would not have found without the picture.
+
+**THE FLOOR FLIP IS THE ONE WORTH READING.** `wr-deck.rb` answers two questions by walking
+`spec[:parts]` - which end of the booth the big wall run sits at (`layout_big_on_low?`) and
+where the short wall's midpoint is (`short_wall_mid`). Nothing in wr-deck changed. **The list
+it reads got longer.** An Enhanced layout carries the twelve IEP inner panels as well as the
+twelve outer ones, at different lengths and different positions, and they changed both
+answers - so the deck came in mirrored. The deck belongs to the outer shell, so it now walks
+`outer_parts(spec)`, which rejects `:sh=>'in'`. `:sh` is `'out'` on every part of a Standard
+layout, so the Standard deck is bit-for-bit untouched.
+
+**The lesson, and it generalises:** adding rows to a shared data structure is not additive.
+Anything downstream that *aggregates* over that structure silently changes its answer.
+`dimension-booth.rb` walks the same list to find the vent walls; it de-duplicates by wall
+letter so the answer happens to be the same, and it is filtered anyway, because a label
+derived from both shells is a label waiting to disagree with itself.
+
+**Inner seam seals are not the Standard ones turned around.** A Standard seal wraps a CONVEX
+corner from outside the booth; an IEP seal sits in a CONCAVE corner and is fitted from inside
+the room. `corner_yaw` aims the L at the booth's middle, which is right outside and a quarter
+turn short inside. Two named constants, applied to inner parts only and printed in the build
+report: `IEP_CORNER_YAW = 90.0` (Benton chose counter-clockwise from a plan sketch) and
+`IEP_SEAL_YAW = 180.0` for the mid-wall seal end for end. One number each, deliberately - if a
+build shows them still off, change the number rather than reasoning about part origins.
+
+**`IEP_WALL_LIFT` is 0.0 now, and the old reasoning is dead.** It was 0.3125, taken from the
+measured thickness of every ENH floor part on the reading that the inner wall stands on that
+sheet. Benton: the ENH floor part is *"the 5/16 black rubber mat that sits UNDER the standard
+floor."* The inner wall does not stand on it, so the number had no reason left. 0.0 puts the
+inner wall's underside flush with the outer wall's and drops the whole 1.5 at the top. Still a
+guess - but one that can be checked by eye, which 0.3125 could not.
+
+#### Still open, and blocked on one number
+
+**The IEP floor and ceiling are still not placed.** The floor is now understood: `ENH <n>FL` is
+a 5/16 rubber mat under the standard floor, and the ENH parts measure 48 x 72 on a 4872 whose
+exterior is 74 x 50 - an inch inset all round, which fits a mat under the deck. **The ceiling
+datum is what is missing.** `ENH 4872CL` measures 1.75 thick and 50 x 74, exactly the booth
+exterior, but nothing says where its underside sits relative to the standard ceiling. Not
+inventing it.
+
+**The corner gap may already be fixed.** Benton's close-up shows an open inner corner, and the
+inner corner polygons butt exactly in plan - the N wall's run starts at x = 4.25, which is the
+W wall's panel room face. A corner seal rotated a quarter turn away leaves exactly that
+appearance. If the 90 degree fix closes it, the two reports were one bug.
+
 ### Done - the first Enhanced booth resolved 24 parts, and the width bug it exposed (v1.6.3)
 
 `MDL 4872 E` ran end to end in SketchUp for the first time. **24 parts, every name resolved,

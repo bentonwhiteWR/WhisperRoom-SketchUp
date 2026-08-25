@@ -247,10 +247,25 @@ module WR_Deck
   # corrected later — which it needs to be, since on all four affected booths
   # the layout currently puts the big wall on the HIGH half and every panel
   # expects it LOW.
+  # THE DECK BELONGS TO THE OUTER SHELL, so it must only ever see outer parts.
+  #
+  # Both of the questions below - which end the big wall run sits at, and where
+  # the short wall's midpoint is - are answered by walking spec[:parts]. On an
+  # Enhanced booth that list carries the IEP inner shell as well, twelve more
+  # panels at different lengths and different positions, and they change both
+  # answers. That is what flipped the floor on the first real 4872 E: nothing in
+  # wr-deck changed, the list it reads got longer.
+  #
+  # :sh is 'out' on every part of a Standard layout, so this filter is a no-op
+  # there and the Standard deck is untouched.
+  def self.outer_parts(spec)
+    (spec[:parts] || []).reject { |p| p[:sh].to_s == 'in' }
+  end
+
   def self.layout_big_on_low?(spec, along_is_x)
     span = along_is_x ? spec[:h].to_f : spec[:w].to_f
     best = nil
-    (spec[:parts] || []).each do |p|
+    outer_parts(spec).each do |p|
       next unless p[:k] == 'panel'
       xs = p[:poly].map { |q| q[0].to_f }
       ys = p[:poly].map { |q| q[1].to_f }
@@ -362,7 +377,7 @@ module WR_Deck
   # to and nothing to reorder.
   def self.short_wall_mid(spec, along_is_x)
     runs = []
-    (spec[:parts] || []).each do |p|
+    outer_parts(spec).each do |p|
       next unless p[:k] == 'panel'
       xs = p[:poly].map { |q| q[0].to_f }
       ys = p[:poly].map { |q| q[1].to_f }

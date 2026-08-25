@@ -299,7 +299,10 @@ module WR_DimensionBooth
   # Fallback when the parts are not named per slot: the layout's own VNT slots.
   def self.vents_from_data(spec)
     out = []
-    (spec[:parts] || []).each do |p|
+    # Outer shell only. An Enhanced layout also carries the IEP inner panels;
+    # they sit on the same walls, so today this changes nothing - but a label
+    # derived from both shells is a label waiting to disagree with itself.
+    (spec[:parts] || []).reject { |q| q[:sh].to_s == 'in' }.each do |p|
       next unless p[:k] == 'panel' && p[:sk] == 'VNT'
       w = p[:id].to_s[0, 1]
       out << w if %w[N S E W].include?(w) && !out.include?(w)
