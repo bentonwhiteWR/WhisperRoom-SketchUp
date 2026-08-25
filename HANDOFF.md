@@ -1,76 +1,29 @@
-# HANDOFF — 2026-08-06, end of day
+# HANDOFF — 2026-08-25, end of day
 
 ## Read this first
 
-**Fourteen Ruby scripts were written today and none of them has been run.**
-`rbcheck.py` says every one balances and both HtmlDialogs' JavaScript parses.
-That is the whole of what is verified — no SketchUp API call in any of it has
-executed. Treat all of it as unproven until the checks below pass.
+**The Enhanced 4872 is complete** — both shells, both decks, door — every part placed from a
+measured number, verified against Benton's hand-corrected full-booth probe to 0.0001. Plugin
+**1.6.18**. The full story is the 2026-08-25 block of `DEVLOG.md`; the durable lessons are
+the two-shell model, the 6.5 inner run rule, and *measure with `probe-placement.rb`, never
+infer from a screenshot*.
 
-## Tomorrow, in this order
+## Next: MDL 6060 E — "still pretty botched"
 
-Cheapest and most load-bearing first, so a failure stops you early rather than
-after an hour.
+1. `git pull`. Rescan the panel. No reinstall needed — `wr_tools/` is unchanged.
+2. **Build a booth from real parts → MDL 6060 E → Shell: Inner (IEP) only.** Read the warning
+   block; it names the two panel widths (11.5, 35.5) whose room-proud is a default.
+3. Correct the inner shell by hand, select it, run **Probe placement of what's selected**.
+   The TSV lands at `P:/Sketchup/NewMasterComponentList/_placement-probe.tsv`.
+4. Hand over the probe plus "X needs to go Y" for anything the probe cannot express.
+5. The 6060's IEP deck is refused by name — `ENH 6060FL/CL` do not exist; the library has
+   6042 + 6018 SIDE L/R pieces. Benton needs to say how those lay out. That is the only part
+   of the 6060 with no rule at all.
 
-1. **Open SketchUp 2024.** The WhisperRoom panel should already be there from
-   today. If a script is missing from it, hit **Rescan** — the panel rereads
-   `scripts/` every time, no restart needed.
+What is different from the 4872, and therefore where to expect trouble: split runs on ALL
+four walls (seals at E/W yaws never exercised), the untested `ASSIGN['MDL 6060 E']` E/W
+reversal, and `ENH 11.5PanelSolid` being one of the four thin-box parts.
 
-2. **Run `Pendant Curing Jig`.** Console should end with `0 naked edges`.
-   Tests the panel's run path and a fixture in one go.
+## Everything is on GitHub
 
-3. **Run `Build Room`.** The dialog opens seeded with an L-shaped room that
-   already closes; just press **Build room**. This is the best single test —
-   it exercises `build-room.rb` *and* `auto-dimension.rb`, and the console
-   prints the run table plus a per-axis chain closure. Expect `-> CLOSES`.
-
-4. **Run `Orbit Export`** on the jig with azimuth step 90 and elevations `30`.
-   Four images. Confirms the framing before committing to a real run.
-
-5. **Run `Exploded View`** on a built booth, then **Reset**, and check every
-   part lands back exactly where it started.
-
-Paste the console output — good or bad. A `FAILED:` line carries the class,
-message and backtrace, which is usually enough to fix it outright.
-
-## On the laptop
-
-```
-git pull
-python scripts/install-plugin.py     # wr_tools changed today — this is required
-```
-
-The plugin and both Python generators now resolve their own paths, so the
-laptop's `Documents\Claude\...` and the desktop's OneDrive-redirected copy both
-work with no edits. That was previously broken on the desktop.
-
-## What is blocked, and on what
-
-- **25 Enhanced booth variants do not build.** All of them are skipped in
-  `wr-booth-data.rb` for unresolved panel lengths, so half the catalogue cannot
-  be modelled at all. Everything on the assembly-manual track sits behind this.
-  It starts as an investigation of how `gen-booth.py` solves Standard runs and
-  where that rule fails for Enhanced — not yet scoped, because I have not
-  looked.
-
-- **Assembly step order is unknown and is not mine to invent.** The manifest
-  `orbit-export.rb` writes has a null `step` per part. Somebody who actually
-  assembles a booth needs to say the sequence — floor, corner seals, wall
-  panels in what order, mid-wall seals, door, ceiling. Without it the manual
-  has pictures and no sequence.
-
-- **`build-v2.js` and `tools/sketchup-scene-export/` exist only on the laptop.**
-  Neither is in any branch of any repo on GitHub, so proposals cannot be built
-  on the desktop. Push them from the laptop when convenient.
-
-## Where things stand
-
-- The **manual pipeline** is: `booth-builder #d=` link → `gen-booth.py --design`
-  → `wr-booth-data.rb` → `build-booth.rb` → `orbit-export.rb` → `manifest.json`
-  → the manual. Everything up to and including the manifest exists. The manual
-  generator does not.
-- `docs/` holds four self-contained pages with working demos. Open them in a
-  browser — they carry the reasoning behind the fixtures and the room tools.
-- Nothing has been printed either. Every clearance in `reference/3d-printing.md`
-  is still built on the 0.25 mm allowance and unconfirmed. Print the jig before
-  the drying stand — an hour and 18 g calibrates the figure before 94 g.
+`main`, clean tree. Tool scripts are read live from the repo.
