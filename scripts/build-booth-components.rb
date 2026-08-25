@@ -70,6 +70,54 @@ module WR_BuildBoothComponents
   SEAL_COMP   = 'MidWallSeamSeal'.freeze
   CORNER_COMP = 'CornerSeamSeal'.freeze
 
+  # ---------------------------------------------------------------- ENHANCED --
+  #
+  # An Enhanced booth is TWO shells: the Standard one, and the IEP inner shell
+  # standing 2.25 in inboard of it. The layout data tags every part :sh=>'out'
+  # or :sh=>'in' and this file switches component family on that tag alone. An
+  # inner part NEVER takes a Standard name and an outer part never takes an ENH
+  # one - substituting either way builds a booth that renders perfectly and is
+  # the wrong product.
+  ENH_SEAL_COMP   = 'ENH MidWallSeamSeal'.freeze
+  ENH_CORNER_COMP = 'ENH CornerSeamSeal'.freeze
+
+  # Every ENH wall part measures 79.5 tall against a Standard 81 - 89.5 against
+  # 91 on HX (observed, P: library probe, no exceptions in 112 parts). The 1.5
+  # is not a discrepancy: an Enhanced wall is CAPTURED between the floor lip and
+  # the ceiling lip rather than stood on the deck the way a Standard wall is.
+  ENH_WALL_H    = 79.5
+  ENH_WALL_H_HX = 89.5
+
+  # HOW THAT 1.5 SPLITS BETWEEN THE TWO LIPS IS NOT MEASURED, and this constant
+  # is the whole of the assumption. It is how far the inner wall's underside
+  # sits ABOVE the outer wall's; the rest of the 1.5 falls at the top.
+  #
+  # 0.3125 is the measured thickness of every ENH floor part in the library (23
+  # of them, all exactly 0.3125) on the reading that the inner wall stands on
+  # that sheet. That is a derivation from a related part, NOT a dimensioned
+  # detail, so it is named here, printed in the build report, and changed in one
+  # place when somebody measures the real lip. Do not scatter it.
+  IEP_WALL_LIFT = 0.3125
+
+  def self.inner?(part)
+    part[:sh].to_s == 'in'
+  end
+
+  # The nominal the part is MEASURED against - which axis is its height.
+  def self.part_height(part, hx)
+    if inner?(part)
+      hx ? ENH_WALL_H_HX : ENH_WALL_H
+    else
+      hx ? 91.0 : 81.0
+    end
+  end
+
+  # The z the part's TOP is placed at. Same figure for an outer part; lifted by
+  # IEP_WALL_LIFT for an inner one, which puts its underside on the lip.
+  def self.part_top_z(part, hx)
+    part_height(part, hx) + (inner?(part) ? IEP_WALL_LIFT : 0.0)
+  end
+
   # How far a mid-wall seam seal stands PROUD of the wall face it sits between,
   # in inches. Positive is outward, negative is into the booth.
   #
@@ -168,7 +216,30 @@ module WR_BuildBoothComponents
   # Fallback when a slot has no explicit assignment: build a name from the slot's
   # kind and its measured run length. Reported whenever it is used, because a
   # guessed component is not the same as a specified one.
-  def self.guess_component(kind, run)
+  #
+  # ON THE INNER SHELL the widths are the IEP ones and they are not whole
+  # inches, so the Standard round-to-inch would compose "42VNT" for a 41.5 wall
+  # and find nothing. Inner runs are formatted to the half inch instead, and the
+  # Panel / PanelSolid split is carried over from the Standard twin: the -4.5
+  # shift preserves it, so ENH 14.5/23.5/26.5/38.5 are Panel and ENH
+  # 11.5/17.5/35.5/41.5 are PanelSolid (checked against the real filenames).
+  ENH_PLAIN_PANEL = %w[14.5 23.5 26.5 38.5].freeze
+
+  def self.guess_component(kind, run, inner = false)
+    if inner
+      w = (run * 2).round / 2.0
+      ws = format('%g', w)
+      return case kind
+             when 'VNT'    then "ENH #{ws}VNT"
+             when 'NV'     then "ENH #{ws}NV"
+             when 'DRFRM'  then "ENH Right#{ws}Door"
+             when 'CBL'    then "ENH #{ws}PanelCBL"
+             when 'SEAL'   then ENH_SEAL_COMP
+             when 'CORNER' then ENH_CORNER_COMP
+             else
+               ENH_PLAIN_PANEL.include?(ws) ? "ENH #{ws}Panel" : "ENH #{ws}PanelSolid"
+             end
+    end
     w = run.round
     case kind
     when 'VNT'   then "#{w}VNT"
@@ -268,13 +339,17 @@ module WR_BuildBoothComponents
   # coin-flip anyone reading the code has to look up, and getting it backwards
   # swaps a part's height with its width — which is exactly what laid the window
   # panel flat on the floor in the first build. max-min needs no lookup.
-  def self.classify(defn, hx)
+  # want is the height the part is EXPECTED to measure - 81/91 on the Standard
+  # shell, 79.5/89.5 on the IEP inner one. It was a hardcoded 81/91 until the
+  # inner shell existed; a 79.5 part still passed the +/-6 test, but every
+  # downstream figure that leans on :want was then 1.5 out.
+  def self.classify(defn, hx, want = nil)
     bb = defn.bounds
     return nil unless bb.valid?
     mn = bb.min
     mx = bb.max
     e = [mx.x.to_f - mn.x.to_f, mx.y.to_f - mn.y.to_f, mx.z.to_f - mn.z.to_f]
-    want = hx ? 91.0 : 81.0
+    want ||= hx ? 91.0 : 81.0
     hi = (0..2).min_by { |i| (e[i] - want).abs }
     # A vent housing stands a little proud of 81; anything within 6 in is still
     # the height axis. Beyond that the part is not a wall part and is reported.
@@ -803,9 +878,8 @@ module WR_BuildBoothComponents
     load DATA   # every build: rebalance_walls edits the loaded polygons in place
     spec = WR_BOOTH_DATA::BOOTHS[key]
     if spec.nil?
-      UI.messagebox("#{key} is not in the data file." +
-                    (key.end_with?(' E') ? "\n\nEnhanced variants are not buildable yet — " \
-                    'their panel lengths are unresolved in the layout data.' : ''))
+      UI.messagebox("#{key} is not in the data file. " +
+                    "Regenerate it with:  python scripts/gen-booth.py --all")
       return
     end
 
@@ -826,22 +900,36 @@ module WR_BuildBoothComponents
     puts '=' * 78
     puts "BUILD FROM COMPONENTS — #{key}   #{spec[:label]}"
     puts "  exterior #{spec[:w]}\" x #{spec[:h]}\"   interior #{spec[:iw]}\" x #{spec[:ih]}\""
+    if spec[:eiw]
+      inner_n = spec[:parts].count { |q| inner?(q) }
+      puts "  ENHANCED - a second (IEP) shell inside it: #{inner_n} parts, room #{spec[:eiw]}\" x #{spec[:eih]}\""
+      puts "  inner walls #{cfg['hx'] ? ENH_WALL_H_HX : ENH_WALL_H}\" tall, underside lifted #{IEP_WALL_LIFT}\" - THE LIFT IS UNMEASURED, see IEP_WALL_LIFT"
+    end
     puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"
     puts "  parts    #{cfg['dir']}"
     puts '=' * 78
 
     # ---- pass 1: resolve and measure everything before touching the model.
     spec[:parts].each do |p|
-      name = if p[:k] == 'corner' then CORNER_COMP
-             elsif p[:k] == 'seal' then SEAL_COMP
+      inn  = inner?(p)
+      name = if p[:k] == 'corner' then (inn ? ENH_CORNER_COMP : CORNER_COMP)
+             elsif p[:k] == 'seal' then (inn ? ENH_SEAL_COMP : SEAL_COMP)
              else assign[p[:id]]
              end
       if name.nil?
         xs = p[:poly].map { |q| q[0].to_f }
         ys = p[:poly].map { |q| q[1].to_f }
         run = [xs.max - xs.min, ys.max - ys.min].max
-        name = guess_component(p[:sk], run)
-        guessed << "#{p[:id]} (#{p[:sk]}) -> #{name}"
+        name = guess_component(p[:sk], run, inn)
+        guessed << "#{p[:id]} (#{p[:sk]}#{inn ? ', inner' : ''}) -> #{name}"
+      end
+      # A Standard name in an inner slot is the one substitution that must never
+      # happen silently: it builds, it renders, and it is the wrong booth. It is
+      # caught here rather than trusted upstream, because assign arrives from a
+      # customer link.
+      if inn && !name.to_s.start_with?('ENH ')
+        missing << "#{p[:id]}  #{name} - inner shell slot was handed a STANDARD part"
+        next
       end
       name = "#{name}_HX" if cfg['hx'] && !name.end_with?('_HX')
 
@@ -850,7 +938,8 @@ module WR_BuildBoothComponents
         missing << "#{p[:id]}  #{name}.skp"
         next
       end
-      cls = classify(defn, cfg['hx'])
+      want_h = part_height(p, cfg['hx'])
+      cls = classify(defn, cfg['hx'], want_h)
       if cls.nil?
         missing << "#{p[:id]}  #{name} — no axis measures #{cfg['hx'] ? 91 : 81} in, not a wall part"
         next
@@ -923,7 +1012,10 @@ module WR_BuildBoothComponents
       warn = []
       rows.each do |r|
         p = r[:part]
-        nominal = cfg['hx'] ? 91.0 : 81.0
+        # Per PART, not per booth. An inner wall is 1.5 shorter than an outer
+        # one and its top sits IEP_WALL_LIFT higher; one booth-wide nominal put
+        # every IEP wall 1.5 too low, which looks almost right.
+        nominal = part_top_z(p, cfg['hx'])
         rev = REVERSED.include?(r[:name])
         proud = p[:k] == 'seal' ? SEAL_PROUD : 0.0
         # A door's bulk is its swung leaf and belongs on the ROOM side, the

@@ -1,5 +1,105 @@
 # DEVLOG
 
+## 2026-08-25
+
+### Done - Enhanced is unblocked: the inner shell has a rule, and both shells now build
+
+The blocker at the bottom of yesterday's entry - *"the air gap between the outer and inner
+shell is unknown, and no Enhanced layout work can proceed without it"* - is closed. All 25
+Enhanced booths are in `scripts/wr-booth-data.rb` for the first time; the file went from 25
+layouts to 50 and the skip list is empty.
+
+**The premise that blocked it was wrong, and that is the whole entry if you read one
+paragraph.** Every attempt so far treated an Enhanced booth as a Standard booth whose walls
+had been swapped for narrower ones. It is not. `base-bom.json` settles it outright:
+`MDL 4872 E` ships the entire Standard wall set (C101/C102/C111/C114) **and** a full IEP
+inner set (K101/K102/K112/K116), with IEP corner and mid-wall seam seals (N01/O01) beside
+the Standard ones (D01/D02). **An Enhanced booth is two shells.** The 4.5 in every E
+interior was never a per-panel shrink - it is one whole inner shell standing 2.25 in inboard
+of the Standard interior face on all four sides.
+
+#### The inner run rule
+
+    inner run = sum(IEP panel widths) + 6.5" per joint
+
+6.5, where Standard is 2. Derived twice, independently, and the two agree:
+
+* **All 25 Enhanced BOMs close on it exactly.** Sum the IEP walls a model ships and it equals
+  that model's E interior perimeter less 6.5 per joint. 25 of 25, no residue (observed,
+  computed from `base-bom.json` + `components-master.json` + `booth-layouts.json`).
+* **ENH MidWallSeamSeal measures 12.25 across the wall** against the Standard seal's 7.75
+  (observed, `_enhanced-probe.tsv` / `_component-probe.tsv`). The Standard plate laps 2.875
+  past its 2 in stem on each side; 12.25 - 2 x 2.875 = **6.5** - the same flange on a wider
+  stem.
+
+**This also dissolves the contradiction recorded yesterday** ("a constant gap and a
+one-for-one -4.5 substitution are mutually exclusive"). They are not, because the seal grew
+too: a run of n panels shrinks by 4.5n - 4.5(n-1) = **4.5, for every n**. The wider stem
+absorbs the excess exactly. Checked directly: for all 25 models, on every wall, the widths
+that `booth-from-link`'s -4.5 name rule composes are **identical** to the widths solved
+independently from the BOM. Zero disagreements. The link path and the layout data cannot
+drift apart.
+
+#### Which panel goes where is solved, not guessed
+
+The BOM fixes the multiset of IEP widths a model ships. `solve_inner` enumerates the
+partitions of that multiset across the four walls and keeps only those satisfying every
+wall's run equation. **For all 25 models exactly one partition survives** - no ties, no
+fallback, no scaling. Within a wall the widest inner panel takes the widest Standard slot,
+which is what keeps the inner door and vent on the same wall as the outer ones.
+
+#### What changed
+
+* `scripts/gen-booth.py` - the outer shell of an E booth now reads the **S** variant's
+  thickness and interior. Feeding E's own 4.25 wall and 65.5 run into a solver holding
+  Standard 46/22/16 stock is precisely what produced "panel lengths unresolved" on all 25.
+  Adds `IEP_*` constants, `iep_widths`, `solve_inner`, `inner_parts`.
+* `scripts/wr-booth-data.rb` - regenerated. Every part now carries `:sh`, `out` or `in`; an
+  E key also carries `:eiw`/`:eih` (the room inside the inner shell) and `:phi` (79.5).
+  **The 25 Standard layouts are byte-identical to the previous file** apart from the added
+  `:sh` tag - verified by parsing both and diffing entry by entry.
+* `scripts/booth-from-link.rb` - **the real correction on the customer path.** It was
+  translating an Enhanced link into ENH parts and handing them to the OUTER slots, which
+  builds a single shell of inner parts: a booth that exists in no catalogue. Every slot is
+  now translated twice, Standard for `<slot>` and ENH for `<slot>i`.
+* `scripts/build-booth-components.rb` - switches component family on `:sh` alone, refuses by
+  name if an inner slot is ever handed a Standard part, and takes the height nominal **per
+  part** (79.5/89.5 inner, 81/91 outer) instead of one per booth. `classify` takes the
+  expected height as an argument; it was a hardcoded 81/91, and a 79.5 part passed the +/-6
+  test while every figure leaning on `:want` came out 1.5 wrong.
+* `scripts/build-booth.rb` - the block-out extrudes the inner shell at its own height.
+* `scripts/wr_tools/VERSION` -> **1.6.0**.
+
+#### Replayed, in full
+
+Every catalogue Enhanced slot, x5 option sets, x HX and non-HX, x both shells: **4,520
+component-name lookups, 0 unresolved** against the real `P:` folder. Plus a geometry pass
+over the generated data: all 25 E booths have their inner panels in the 2.25-4.25 depth
+band, every wall run closes on the 6.5 rule, and every inner panel maps to a file that
+exists. All 49 Ruby files pass `rbparse.py`.
+
+#### The one number still assumed - and it wants a one-line answer
+
+**How the 1.5 an Enhanced wall gives up splits between the floor lip and the ceiling lip is
+still not measured.** It lives in exactly one named constant, `IEP_WALL_LIFT` in
+`build-booth-components.rb` (mirrored as `IEP_LIFT` in `build-booth.rb`), it is printed in
+the build report, and it currently reads **0.3125** - the measured thickness of every ENH
+floor part in the library, on the reading that the inner wall stands on that sheet. That is
+a derivation from a related part, **not a dimensioned detail**. If the real lip is something
+else, it is a two-file, one-value change.
+
+Also still open, and unrelated to the above: **four ENH panel definitions measure 1.125
+thick where their siblings measure 2.0625** - `ENH 11.5PanelSolid`, `ENH 14.5Panel`,
+`ENH 23.5Panel`, `ENH 26.5Panel`. Their band profiles are missing the 0.9375 outboard layer
+every other ENH panel has (observed, `_enhanced-probe.tsv`). They share the inboard face at
+4.3125 with the rest, so placement still lands them correctly, but they look under-built.
+Worth a look in SketchUp before a render goes out on a 35.5-module booth.
+
+**Nothing here has been run in SketchUp.** The Ruby is syntax-checked with `rbparse.py` and
+nothing more; every geometry and BOM figure above is computed from the data files and the
+library probe on this machine. The first thing to do is open a booth-builder link for an
+Enhanced model and press build.
+
 ## 2026-08-24
 
 ### Done — TMG pottery stamp, 14mm and 16mm STLs cut from the design artifact

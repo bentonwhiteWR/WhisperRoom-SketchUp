@@ -15,6 +15,14 @@ module WR_BuildBooth
 
   # Booth panels and seam seals are finished in this. Loads the real .skm from
   # SketchUp's own library; falls back to a same-named colour if it isn't found.
+  # How far the IEP inner shell's underside sits above the outer shell's. The
+  # 1.5 an Enhanced wall gives up splits between the floor lip and the ceiling
+  # lip and THAT SPLIT IS NOT MEASURED. 0.3125 is the measured thickness of
+  # every ENH floor part in the library, on the reading that the inner wall
+  # stands on that sheet. Kept in step with IEP_WALL_LIFT in
+  # build-booth-components.rb - change both together.
+  IEP_LIFT = 0.3125
+
   PANEL_MATERIAL = 'Carpet Plush Charcoal'
   MAT_COLLECTION = 'Carpet, Fabrics, Leathers, Textiles and Wallpaper'
 
@@ -116,6 +124,7 @@ module WR_BuildBooth
     walls = 0
     seal_n = 0
     corner_n = 0
+    inner_n = 0
     spec[:parts].each do |p|
       g = booth.entities.add_group
       # Every part is a plan polygon — panels are rectangles, the mid-wall seal is
@@ -123,8 +132,19 @@ module WR_BuildBooth
       face = g.entities.add_face(p[:poly].map { |q| pt(q[0], q[1]) })
       next if face.nil?
       face.reverse! if face.normal.z < 0
-      face.pushpull(spec[:ph])
-      g.name  = "#{p[:id]}  #{p[:sk]}"
+      # An Enhanced booth's inner (IEP) shell is 1.5 shorter than its outer
+      # one and its underside sits on the floor lip, so it is extruded from
+      # its own height, not the booth's. Extruding both at :ph puts the
+      # inner shell 1.5 too tall and standing on the deck - which looks
+      # almost right, and is the dangerous kind of wrong.
+      inner = p[:sh].to_s == 'in'
+      ph = (inner && spec[:phi]) ? spec[:phi].to_f : spec[:ph].to_f
+      face.pushpull(ph)
+      if inner
+        inner_n += 1
+        g.transform!(Geom::Transformation.translation([0, 0, IEP_LIFT]))
+      end
+      g.name  = "#{p[:id]}  #{p[:sk]}" + (inner ? "  (IEP inner shell)" : "")
       g.layer = if p[:k] == 'corner' then (corner_n += 1; t_corn)
                 elsif p[:k] == 'seal' then (seal_n += 1; t_seal)
                 elsif p[:sk] == 'DRFRM' then (walls += 1; t_door)
@@ -142,6 +162,10 @@ module WR_BuildBooth
     puts "  exterior #{spec[:w]}\" x #{spec[:h]}\"   interior #{spec[:iw]}\" x #{spec[:ih]}\""
     puts "  #{walls} wall panels, #{seal_n} mid-wall seam seals, #{corner_n} corner seam seals"
     puts "  panels 1\" thick, #{spec[:ph]}\" tall, finished in #{PANEL_MATERIAL}"
+    if inner_n > 0
+      puts "  #{inner_n} of those parts are the IEP inner shell - room #{spec[:eiw]}\" x #{spec[:eih]}\""
+      puts "  inner walls #{spec[:phi]}\" tall, lifted #{IEP_LIFT}\" - THAT LIFT IS UNMEASURED"
+    end
     puts ''
   rescue StandardError => e
     model.abort_operation if model

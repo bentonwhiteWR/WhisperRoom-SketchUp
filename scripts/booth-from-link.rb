@@ -29,13 +29,17 @@
 # STANDARD: anything unrecognised is reported and falls back to the slot's
 # default part rather than silently vanishing.
 #
-# ENHANCED (payload v == 'E'): that fallback is WORSE than vanishing, because
-# the slot's default is composed by build-booth-components' guess_component,
-# which emits STANDARD names — so an Enhanced booth would quietly be built out
-# of Standard parts and nobody would find out until it was manufactured. On the
-# Enhanced path every part is therefore checked against the real folder BEFORE
-# anything is built, every missing file is named, and the build refuses (see
-# ENH_MISSING_ABORTS). No Standard part is ever substituted for an Enhanced one.
+# ENHANCED (payload v == 'E') IS TWO SHELLS. The Standard shell is built
+# exactly as it always was, and a second IEP shell goes inside it: every slot is
+# translated twice, once to its Standard part for the outer slot and once to its
+# ENH part for the inner slot the layout calls '<slot>i'. An Enhanced booth is
+# not a Standard booth with different walls - base-bom.json ships both sets.
+#
+# On that path the unassigned-slot fallback is WORSE than vanishing, because the
+# default is composed by build-booth-components' guess_component; hand an inner
+# slot a Standard name and the booth builds, renders, and is the wrong product.
+# So every ENH part is checked against the real folder BEFORE anything is built,
+# every missing file is named, and the build refuses (see ENH_MISSING_ABORTS).
 
 require 'sketchup.rb'
 require 'json'
@@ -260,6 +264,7 @@ module WR_BoothLink
   def self.summarise_placement(assign)
     kinds = { 'Door' => [], 'Window' => [], 'Ventilation' => [] }
     assign.sort.each do |slot, name|
+      next if slot.end_with?('i')     # the inner shell mirrors the outer one
       k = if name =~ /Door/i then 'Door'
           elsif name =~ /WDO/i then 'Window'
           elsif name =~ /VNT/i then 'Ventilation'
@@ -289,12 +294,10 @@ module WR_BoothLink
     # for an Enhanced design without a word of complaint. Nothing errored. That
     # silence was the defect.
     #
-    # A SEPARATE, STILL-OPEN BLOCKER, so nobody reads a clean printout as a
-    # working build: wr-booth-data.rb carries 25 layouts and EVERY key ends
-    # ' S'. There is no Enhanced layout data at all, so build_booth still stops
-    # with its 'panel lengths are unresolved' messagebox on any Enhanced key.
-    # This file's job is to hand it correct Enhanced part names; making the
-    # layout exist is build-booth-components' / wr-booth-data's job.
+    # THAT BLOCKER IS GONE. wr-booth-data.rb now carries all 50 keys - 25 ' S'
+    # and 25 ' E' - and an ' E' layout holds both shells, the Standard outer one
+    # and the IEP inner one, every part tagged :sh. This file's job is to name
+    # the parts for both.
     enh  = variant.upcase == 'E'
     opts = { :vss => payload['vs'].to_i == 1, :efs => payload['ef'].to_i == 1,
              :casters => payload['cs'].to_i == 1, :ramp => payload['rp'].to_i == 1 }
@@ -305,24 +308,36 @@ module WR_BoothLink
     odd = []
     gaps = []
     no_opts = []
+    # AN ENHANCED BOOTH IS BOTH SHELLS, NOT A SWAPPED ONE.
+    #
+    # This used to translate an Enhanced design into ENH parts and hand them to
+    # the OUTER slots, which builds a single shell of inner parts - a booth that
+    # exists in no catalogue. base-bom.json settles it: 'MDL 4872 E' ships the
+    # whole Standard wall set AND a full IEP set. So every slot is translated
+    # TWICE on the Enhanced path: the Standard name for the outer slot, and the
+    # ENH name for the matching inner slot, which the layout data calls
+    # '<slot>i'.
     (payload['a'] || {}).each do |slot, pack|
       packs[slot] = pack.to_s
-      base = component_for(pack, opts, enh)
-      if base.nil?
-        odd << "#{slot}: #{pack.inspect}"
-        next
-      end
-      no_opts << "#{slot}  #{base}" if enh && base.end_with?('VNT') &&
-                                       (opts[:vss] || opts[:efs] || opts[:casters])
-      name, gone = resolve_part(cfg['dir'], base, hx)
-      if gone
-        gaps << format('%-6s %-26s wanted  %s', slot, packs[slot], gone)
-        # Standard keeps today's behaviour EXACTLY: hand the composed name over
-        # and let the builder's own missing-parts report catch it. Enhanced
-        # assigns nothing, so no Standard name can reach the model.
-        assign[slot] = base unless enh
-      else
-        assign[slot] = name
+      variants = enh ? [[slot, false], ["#{slot}i", true]] : [[slot, false]]
+      variants.each do |sid, want_enh|
+        base = component_for(pack, opts, want_enh)
+        if base.nil?
+          odd << "#{sid}: #{pack.inspect}"
+          next
+        end
+        no_opts << "#{sid}  #{base}" if want_enh && base.end_with?('VNT') &&
+                                        (opts[:vss] || opts[:efs] || opts[:casters])
+        name, gone = resolve_part(cfg['dir'], base, hx)
+        if gone
+          gaps << format('%-6s %-26s wanted  %s', sid, packs[slot], gone)
+          # Standard keeps today's behaviour EXACTLY: hand the composed name
+          # over and let the builder's own missing-parts report catch it. An
+          # inner slot assigns nothing, so no Standard name can reach it.
+          assign[sid] = base unless want_enh
+        else
+          assign[sid] = name
+        end
       end
     end
 
@@ -330,7 +345,9 @@ module WR_BoothLink
     puts '=' * 74
     puts "BOOTH FROM LINK — #{key}#{hx ? '  + height extension' : ''}"
     puts "  options  #{opts.select { |_k, v| v }.keys.join(', ')}" unless opts.values.none?
-    puts "  slots    #{assign.length} translated from the design"
+    outer_n = assign.keys.count { |k| !k.end_with?('i') }
+    inner_n = assign.length - outer_n
+    puts "  slots    #{outer_n} outer" + (enh ? " + #{inner_n} inner (IEP) translated from the design" : ' translated from the design')
     assign.sort.each do |s, n|
       # The RAW pack is printed beside the translated name. Without it a
       # mistranslation is invisible: a wrong component name looks exactly like a
