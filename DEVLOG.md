@@ -2,6 +2,14 @@
 
 ## 2026-08-25
 
+### Done - room-proud is per panel width: 17.5 at 3/32, 41.5 at 1/16 (v1.6.15)
+
+The test from the last entry came back: *"both the 17.5 panels need to go inwards 1/32"*. So
+the 17.5 really is 3/32 and the 41.5 really is 1/16 - same 2.0625 box, different room-side
+trim. `IEP_ROOM_PROUD` is now keyed on the width in the part name, with the vent family at
+1/8. The six IEP widths not yet measured (11.5, 14.5, 23.5, 26.5, 35.5, 38.5) take the 41.5's
+1/16 and are named in the build's warning list so a default never passes as a measurement.
+
 ### Done - the E and W walls: one-ended box trim, and the panel family at 1/16 (v1.6.13)
 
 First measurement of an E/W wall, given as instructions rather than a probe: *"East wall

@@ -155,7 +155,14 @@ module WR_BuildBoothComponents
   # exactly the 1/32 Benton's first hand placement of the 17.5 was "not exact"
   # by. One number for the family, and the next N-wall probe decides it: the
   # 17.5 should read 2.8125, and if it truly wants 2.7812 this splits by width.
-  IEP_ROOM_PROUD = { :vent => 0.125, :panel => 0.0625 }.freeze
+  #
+  # THE TEST CAME BACK: "both the 17.5 panels need to go inwards 1/32". So the
+  # 17.5 really is 3/32 and the 41.5 really is 1/16 - the same 2.0625 box
+  # thickness, different trim on the room side. Measured per width, and
+  # anything not yet measured takes the 41.5's figure and is named in the
+  # build report so it does not pass as measured.
+  IEP_ROOM_PROUD = { :vent => 0.125, '17.5' => 0.09375, '41.5' => 0.0625 }.freeze
+  IEP_ROOM_PROUD_DEFAULT = 0.0625
 
   # ALONG THE WALL, the panel family's bounding box overshoots the panel by
   # 0.125 - and all of it is at ONE end, the definition's low-width end.
@@ -173,7 +180,16 @@ module WR_BuildBoothComponents
   end
 
   def self.iep_room_proud(name)
-    name.to_s =~ /VNT|NV/i ? IEP_ROOM_PROUD[:vent] : IEP_ROOM_PROUD[:panel]
+    n = name.to_s
+    return IEP_ROOM_PROUD[:vent] if n =~ /VNT|NV/i
+    w = n[/ENH\s+([\d.]+)/, 1]
+    IEP_ROOM_PROUD[w] || IEP_ROOM_PROUD_DEFAULT
+  end
+
+  def self.iep_room_proud_measured?(name)
+    n = name.to_s
+    return true if n =~ /VNT|NV/i
+    IEP_ROOM_PROUD.key?(n[/ENH\s+([\d.]+)/, 1])
   end
   IEP_DOOR_YAW   = 180.0   # the inner door - see below
   # And the door moves INTO THE ROOM by this much after its half turn. The
@@ -1328,6 +1344,9 @@ module WR_BuildBoothComponents
           pys = p[:poly].map { |q| q[1].to_f }
           wall = p[:id].to_s[0, 1]
           proud = iep_room_proud(r[:name])
+          unless iep_room_proud_measured?(r[:name])
+            warn << "#{p[:id]} #{r[:name]}: room-proud #{proud} is the 41.5's figure, not measured for this width"
+          end
           shift = case wall
                   when 'N' then (pys.min - proud) - wy.min
                   when 'S' then (pys.max + proud) - wy.max
