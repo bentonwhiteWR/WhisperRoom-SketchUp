@@ -474,3 +474,73 @@ Untouched: naming, rename path, file writing, scene selection, collision report
 - `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\scripts\save-scene-components.rb`
 - `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\scripts\wr_tools\VERSION` (1.5.5 -> 1.5.6)
 - `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\.forge\builder\replay-name-match.py`
+
+---
+
+# Name Selection After Scene — 2026-08-24
+
+New everyday panel tool: `scripts/name-selection-after-scene.rb`. Plugin
+`VERSION` 1.5.6 -> **1.5.7**. Pushed as `78dc2ff`.
+
+## What it does
+
+Renames the **selected** entity's definition to the **active scene's** name.
+Activate scene, click part, click the button. That is the whole tool — no
+raycast, no bounds, no nearest-component tier. It clears the 17 MODEL GAP
+scenes `save-scene-components.rb` v1.5.6 reports, one click at a time.
+
+## Decisions worth knowing
+
+- **Name read back, and a uniquified name is ROLLED BACK.** `rename_to` is
+  lifted from `save-scene-components.rb` — assign, read back, compare. Where the
+  exporter merely *reports* a `#n` suffix, this **aborts the operation** and
+  leaves the model untouched, then names the wanted string in the dialog. A
+  `#3` suffix is not a rename; it is a second copy of the problem this tool
+  exists to clear.
+- **Groups: both names get set.** The definition name is what the exporter
+  matches (and `top_level_index` does index groups), but a group's definition
+  name is not what Entity Info shows — that is the *instance* name. So a group
+  gets both, same string: definition because the exporter reads it, instance so
+  the change is visible where Benton looks. Component instances are left alone;
+  an instance name on a component is a separate meaningful field.
+- **Nothing selected => the gap list, read-only.** That is the batch mode, and
+  it is the only one. No multi-rename, no inference about which component
+  belongs to which scene.
+- **Not-top-level is warned, not acted on.** `model.entities.include?(ent)`.
+  A part renamed while still nested keeps its new name but stays invisible to
+  the exporter — worth one line rather than a confusing round trip. (Prompted
+  by the floor component Benton had to explode out of a group.)
+- **Quiet on success**, because this gets clicked ~17 times in a row: one
+  console line + `Sketchup.status_text`. Dialogs only for refusals, taken
+  names, and warnings.
+- **Same `scene_label` unwrapping rule** as the exporter (`(X)` -> `X` only when
+  the whole name is wrapped). If the two rules drift, this tool writes names the
+  exporter cannot match.
+- Panel: TOOLS tab (no `@tab client`), `@cat Tidy up the model`, `@rank 1`,
+  icon `names-replace` via `icon-map.json` — an existing icon, no new art.
+
+## Verified
+
+- `python scripts/rbparse.py` — **50/50 files parse**, including the new one.
+- API checked against ruby.sketchup.com, not memory: `Group#definition` exists
+  **since SU2015**; `Group#name=` sets the **instance** name; the
+  `ComponentDefinition#name=` doc says outright *"The name should be unique to
+  the model, if it's not the name will automatically be made unique"* — no
+  exception raised, which is the whole premise of the read-back;
+  `Pages#selected_page` and `Pages` including `Enumerable` confirmed;
+  `Selection#empty?` / `#count` / `#first` confirmed.
+- 17 MODEL GAP rows confirmed in `P:\Sketchup\NewMasterComponentList\_scene-components.tsv`.
+
+## Unproven — say it plainly
+
+- **The script is UNRUN.** No `ruby.exe` on this machine; nothing executed
+  outside SketchUp. **Benton's run is the test.**
+- Untested in particular: that `abort_operation` fully reverses a definition
+  rename (it should — renames are undoable — but it is unobserved here), and
+  the group instance-name path.
+
+## Files (this task)
+
+- `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\scripts\name-selection-after-scene.rb` (new)
+- `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\scripts\wr_tools\icon-map.json`
+- `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\scripts\wr_tools\VERSION` (1.5.6 -> 1.5.7)
