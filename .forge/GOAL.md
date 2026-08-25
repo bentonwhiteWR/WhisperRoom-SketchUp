@@ -57,8 +57,27 @@ band profile through the thickness — but that is one wall's internal construct
 ### Measured facts that supersede earlier guesses
 - **Enhanced wall height is 79.5000, and 89.5000 for `_HX`** (30 and 24 parts respectively; the
   `NV`/`CBL`/`VNT` family sits at 79.4375 / 89.4375). Standard measures **81.0000 / 91.0000**.
-  So Enhanced walls are **1.5000 SHORTER** than Standard. Where that 1.5 goes — deck lift, or a
-  genuine height difference — is not yet established and must not be assumed.
+  So Enhanced walls are **1.5000 SHORTER** than Standard.
+
+  **THE VERTICAL DATUM RULE — Benton ruled this on 2026-08-24.** The 1.5 is not a height
+  discrepancy to reconcile; it is consumed by the deck lips, and it tells the builder exactly
+  where an Enhanced wall goes:
+
+  > *The Enhanced walls sit on the floor panel lip. They also squeeze under the ceiling lip.*
+
+  So an Enhanced wall is **captured between the two lips**, not stood on the deck surface the way
+  a Standard wall is. Its z-base is the **top of the floor panel's lip**, and its top meets the
+  **underside of the ceiling lip**. The 79.5000 (89.5000 HX) is the clear dimension between those
+  two faces, which is why it is 1.5 short of Standard's 81.0000 / 91.0000.
+
+  Two consequences for the placement code:
+  - **Do not reuse the Standard wall's z-datum for Enhanced.** A Standard wall seats on the deck;
+    an Enhanced wall seats on the lip above it. Reusing the Standard rule drops every Enhanced
+    wall 1.5 too low and it will look almost right, which is the dangerous kind of wrong.
+  - The lip heights themselves are **not yet measured**. The 1.5 total is derived from the wall
+    heights (81.0000 − 79.5000), not from the deck geometry, so how the 1.5 splits between floor
+    lip and ceiling lip is still unknown. Measure it off the `CL` and `FL` parts before writing
+    the datum constant — do not assume 0.75/0.75.
 - The DEVLOG's `83.0000` / `84.3125` panel heights are **wrong**; neither appears in any
   measurement. `84.3125` shows up only on `ENH 127LPCL` / `127LPFL`, which are a different animal.
 - **THICKNESS: USE THE `shell` BAND, NEVER THE BOUNDING BOX.** Benton ruled on 2026-08-24, and
