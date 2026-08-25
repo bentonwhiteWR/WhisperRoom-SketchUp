@@ -161,10 +161,13 @@ module WR_BoothLink
     case s
     when /\AWA\s+STDDRFRM\s+([RL])\b/i
       hand = Regexp.last_match(1).upcase == 'L' ? 'Left' : 'Right'
-      # ENH LeftWADoorWithRamp / ENH RightWADoorWithRamp DO NOT EXIST. The ideal
-      # name is composed anyway so that resolve_part reports the exact file it
-      # looked for, instead of this quietly handing back a ramp-less door.
-      o[:ramp] ? "#{p}#{hand}WADoorWithRamp" : "#{p}#{hand}WADoor"
+      # THE RAMP IS STANDARD-ONLY - Benton, 2026-08-24: "All of the ENH with WA
+      # door with ramp can be ignored. Ramp only attached to standard. There's
+      # not a separate one that uses it for enhanced." So ENH ...WADoorWithRamp
+      # is not a missing file; it is a part that will never exist. The Enhanced
+      # path ignores o[:ramp] and emits the plain ENH door. The ramp still
+      # reaches the model on the Standard OUTER shell, which is where it belongs.
+      o[:ramp] && !enh ? "#{hand}WADoorWithRamp" : "#{p}#{hand}WADoor"
     when /\ASTDWL(\d+)\s+DRFRM\s+([RL])\b/i
       hand = Regexp.last_match(2).upcase == 'L' ? 'Left' : 'Right'
       w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)

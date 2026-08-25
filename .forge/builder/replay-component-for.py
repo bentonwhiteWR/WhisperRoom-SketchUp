@@ -43,7 +43,9 @@ def component_for(pack, o, enh=False):
     m = re.match(r'\AWA\s+STDDRFRM\s+([RL])\b', s, re.I)
     if m:
         hand = 'Left' if m.group(1).upper() == 'L' else 'Right'
-        return '%s%sWADoor%s' % (p, hand, 'WithRamp' if o['ramp'] else '')
+        if o['ramp'] and not enh:
+            return '%sWADoorWithRamp' % hand
+        return '%s%sWADoor' % (p, hand)
 
     m = re.match(r'\ASTDWL(\d+)\s+DRFRM\s+([RL])\b', s, re.I)
     if m:
