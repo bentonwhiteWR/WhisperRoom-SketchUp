@@ -24,8 +24,18 @@
 #
 # What does NOT come through (yet): furniture and accessories — desk, MJP jack
 # panel, step, bass traps, studio light — and the roof-mounted vent. Walls,
-# doors, windows, vents and seals only. Anything unrecognised is reported and
-# falls back to the slot's default part rather than silently vanishing.
+# doors, windows, vents and seals only.
+#
+# STANDARD: anything unrecognised is reported and falls back to the slot's
+# default part rather than silently vanishing.
+#
+# ENHANCED (payload v == 'E'): that fallback is WORSE than vanishing, because
+# the slot's default is composed by build-booth-components' guess_component,
+# which emits STANDARD names — so an Enhanced booth would quietly be built out
+# of Standard parts and nobody would find out until it was manufactured. On the
+# Enhanced path every part is therefore checked against the real folder BEFORE
+# anything is built, every missing file is named, and the build refuses (see
+# ENH_MISSING_ABORTS). No Standard part is ever substituted for an Enhanced one.
 
 require 'sketchup.rb'
 require 'json'
@@ -36,6 +46,22 @@ load File.join(File.dirname(__FILE__), 'wr-folder.rb')
 module WR_BoothLink
   PREF = 'WR_BoothLink'.freeze
   BUILDER = File.join(File.dirname(__FILE__), 'build-booth-components.rb')
+
+  # What to do when an ENHANCED booth needs a part the library does not have.
+  #
+  # true  — refuse the build and name every missing file. Chosen because the
+  #         failure this tool exists to remove is a wrong booth that LOOKS
+  #         right. Leaving a slot unassigned is not neutral: downstream,
+  #         build-booth-components fills an unassigned slot with
+  #         guess_component, which composes STANDARD names — so "leave it out"
+  #         on the Enhanced path becomes "put a Standard part there" one
+  #         function later. Refusing is also the precedent the chain already
+  #         sets for "we cannot build this": build_booth itself messageboxes
+  #         and returns on a layout key it does not have.
+  # false — build anyway, still naming every missing file, and still never
+  #         emitting a Standard name in place of an Enhanced one. Flip this if
+  #         a partial Enhanced booth is wanted to look at.
+  ENH_MISSING_ABORTS = true
 
   # ------------------------------------------------------------------- input --
 
@@ -108,29 +134,114 @@ module WR_BoothLink
   # Portal pack string -> component file base name. The option flags fold in
   # here: VSS/EFS/casters extend a vent's name, the height extension is applied
   # by the builder itself (it appends _HX to every wall part).
-  def self.component_for(pack, o)
+  #
+  # ENHANCED. The portal emits STDWL<n> packs whatever the variant - the
+  # variant travels only in payload['v'] - so Enhanced is a mapping problem
+  # inside this one function, not a portal change. Every Enhanced wall part is
+  # its Standard twin's width MINUS 4.5 in, and carries an 'ENH ' prefix WITH
+  # THE SPACE (observed 2026-08-24, by listing the component folder).
+  ENH_WIDTH = { '7' => '2.5', '16' => '11.5', '19' => '14.5', '22' => '17.5',
+                '28' => '23.5', '31' => '26.5', '40' => '35.5', '43' => '38.5',
+                '46' => '41.5' }.freeze
+
+  # Widths whose plain wall part is 'Panel' rather than 'PanelSolid'. Keyed on
+  # the STANDARD width and used for both variants, because the split survives
+  # the -4.5 shift intact: ENH 14.5/23.5/26.5/38.5 are Panel and
+  # ENH 11.5/17.5/35.5/41.5 are PanelSolid. Checked against the real filenames
+  # rather than trusting the arithmetic.
+  PANEL_WIDTHS = %w[7 19 28 31 43].freeze
+
+  def self.enh_width(w)
+    ENH_WIDTH[w.to_s]
+  end
+
+  def self.component_for(pack, o, enh = false)
     s = pack.to_s.strip
+    p = enh ? 'ENH ' : ''
     case s
     when /\AWA\s+STDDRFRM\s+([RL])\b/i
       hand = Regexp.last_match(1).upcase == 'L' ? 'Left' : 'Right'
-      o[:ramp] ? "#{hand}WADoorWithRamp" : "#{hand}WADoor"
+      # ENH LeftWADoorWithRamp / ENH RightWADoorWithRamp DO NOT EXIST. The ideal
+      # name is composed anyway so that resolve_part reports the exact file it
+      # looked for, instead of this quietly handing back a ramp-less door.
+      o[:ramp] ? "#{p}#{hand}WADoorWithRamp" : "#{p}#{hand}WADoor"
     when /\ASTDWL(\d+)\s+DRFRM\s+([RL])\b/i
       hand = Regexp.last_match(2).upcase == 'L' ? 'Left' : 'Right'
-      "#{hand}#{Regexp.last_match(1)}Door"
+      w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
+      w && "#{p}#{hand}#{w}Door"
     when /\ASTDWL(\d+)\s+WDO(\d{4})\b/i
-      "#{Regexp.last_match(1)}Panel#{Regexp.last_match(2)}WDO"
+      # The window opening code does NOT take the -4.5; only the panel width
+      # does. ENH 26.5Panel1648WDO, ENH 35.5Panel2648WDO (observed).
+      w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
+      w && "#{p}#{w}Panel#{Regexp.last_match(2)}WDO"
     when /\ASTDWL(\d+)\s+VNT\b/i
-      n = "#{Regexp.last_match(1)}VNT"
+      w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
+      return nil if w.nil?
+      n = "#{p}#{w}VNT"
+      # ENHANCED TAKES NO VENT OPTION VARIANTS - Benton, 2026-08-24: "the 35.5
+      # VNT wall fits them all for the inner walls." _VSS / _EFS / _CP are
+      # strictly Standard. Appending them here would compose a filename that
+      # will never exist, whatever gets authored later. The caller notices the
+      # dropped flags and prints them, so this is stated, not silent.
+      return n if enh
       n += '_VSS' if o[:vss]
       n += '_EFS' if o[:efs]
       n += '_CP'  if o[:casters]
       n
     when /\ASTDWL(\d+)\s+NV\b/i
-      "#{Regexp.last_match(1)}NV"
+      w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
+      w && "#{p}#{w}NV"
     when /\ASTDWL(\d+)\z/i
-      w = Regexp.last_match(1)
-      %w[7 19 28 31 43].include?(w) ? "#{w}Panel" : "#{w}PanelSolid"
+      std = Regexp.last_match(1)
+      w = enh ? enh_width(std) : std
+      w && "#{p}#{w}#{PANEL_WIDTHS.include?(std) ? 'Panel' : 'PanelSolid'}"
     end
+  end
+
+  # ------------------------------------------------------------ resolution --
+  #
+  # The library's real filenames are inconsistent about BOTH case and separator
+  # inside a single family: 40VNT_VSS, 40Vnt_CP, 46vnt_VSS_CP and 46VntCP all
+  # name the same kind of thing (observed, by listing the folder).
+  # build-booth-components' load_def already forgives the case; it does not
+  # forgive the missing underscore, so a 46 in vent with the caster package and
+  # nothing else composes 46VNT_CP and finds nothing. That is a LIVE Standard
+  # defect reachable from the portal today, not a theoretical one.
+  #
+  # Comparing names with case and separators removed covers every form in the
+  # folder without hand-listing the exceptions. It is safe to do that here:
+  # across all 353 .skp files the normalisation produces 353 distinct keys, so
+  # no two different parts collapse onto each other (checked 2026-08-24).
+  def self.norm_name(n)
+    n.to_s.downcase.delete('_ ')
+  end
+
+  def self.library_index(dir)
+    @lib ||= {}
+    @lib[dir] ||= begin
+      h = {}
+      Dir.glob(File.join(dir.to_s, '*.skp')).each do |f|
+        b = File.basename(f, '.skp')
+        h[norm_name(b)] = b
+      end
+      h
+    rescue StandardError
+      {}
+    end
+  end
+
+  # Returns [name to hand the builder, missing filename or nil].
+  #
+  # The _HX suffix is applied HERE rather than left to the builder, so what gets
+  # checked against the disk is the exact file the builder will open. A resolved
+  # name that already ends in _HX makes the builder's own append a no-op, so
+  # this does not double up.
+  def self.resolve_part(dir, base, hx)
+    want = hx ? "#{base}_HX" : base
+    idx = library_index(dir)
+    return [want, nil] if idx.empty?   # unreadable folder: behave exactly as before
+    hit = idx[norm_name(want)]
+    hit ? [hit, nil] : [nil, "#{want}.skp"]
   end
 
   # ---------------------------------------------------------- cross-check --
@@ -167,7 +278,21 @@ module WR_BoothLink
       return
     end
 
-    key  = "#{payload['m']} #{(payload['v'] || 'S').to_s.strip}"
+    variant = (payload['v'] || 'S').to_s.strip
+    key  = "#{payload['m']} #{variant}"
+    # THE VARIANT NOW REACHES THE PART NAMES. It used to reach only the layout
+    # key on the line above; component_for never saw it, so every branch emitted
+    # a Standard name and the RAW PACK printout below reported Standard parts
+    # for an Enhanced design without a word of complaint. Nothing errored. That
+    # silence was the defect.
+    #
+    # A SEPARATE, STILL-OPEN BLOCKER, so nobody reads a clean printout as a
+    # working build: wr-booth-data.rb carries 25 layouts and EVERY key ends
+    # ' S'. There is no Enhanced layout data at all, so build_booth still stops
+    # with its 'panel lengths are unresolved' messagebox on any Enhanced key.
+    # This file's job is to hand it correct Enhanced part names; making the
+    # layout exist is build-booth-components' / wr-booth-data's job.
+    enh  = variant.upcase == 'E'
     opts = { :vss => payload['vs'].to_i == 1, :efs => payload['ef'].to_i == 1,
              :casters => payload['cs'].to_i == 1, :ramp => payload['rp'].to_i == 1 }
     hx = payload['hx'].to_i == 1
@@ -175,10 +300,27 @@ module WR_BoothLink
     assign = {}
     packs = {}
     odd = []
+    gaps = []
+    no_opts = []
     (payload['a'] || {}).each do |slot, pack|
-      name = component_for(pack, opts)
       packs[slot] = pack.to_s
-      name.nil? ? odd << "#{slot}: #{pack.inspect}" : assign[slot] = name
+      base = component_for(pack, opts, enh)
+      if base.nil?
+        odd << "#{slot}: #{pack.inspect}"
+        next
+      end
+      no_opts << "#{slot}  #{base}" if enh && base.end_with?('VNT') &&
+                                       (opts[:vss] || opts[:efs] || opts[:casters])
+      name, gone = resolve_part(cfg['dir'], base, hx)
+      if gone
+        gaps << format('%-6s %-26s wanted  %s', slot, packs[slot], gone)
+        # Standard keeps today's behaviour EXACTLY: hand the composed name over
+        # and let the builder's own missing-parts report catch it. Enhanced
+        # assigns nothing, so no Standard name can reach the model.
+        assign[slot] = base unless enh
+      else
+        assign[slot] = name
+      end
     end
 
     puts ''
@@ -194,13 +336,47 @@ module WR_BoothLink
       puts format('    %-6s %-24s  <- %s', s, n, packs[s])
     end
     summarise_placement(assign)
+    unless no_opts.empty?
+      puts ''
+      puts "  VSS/EFS/caster options NOT appended to #{no_opts.length} Enhanced vent(s) — by design."
+      puts '  Enhanced has no vent option variants; the plain ENH vent fits them all.'
+      no_opts.each { |x| puts "    #{x}" }
+    end
     unless odd.empty?
       puts "  #{odd.length} pack(s) not translatable — those slots fall back to the layout default:"
       odd.each { |x| puts "    #{x}" }
+      puts '    WARNING: on an ENHANCED booth the layout default is a STANDARD part.' if enh
+    end
+    unless gaps.empty?
+      puts ''
+      puts '!' * 74
+      puts "  #{gaps.length} component file(s) DO NOT EXIST in #{cfg['dir']}:"
+      gaps.each { |g| puts "    #{g}" }
+      if enh
+        puts ''
+        puts '  THIS IS AN ENHANCED BOOTH. Nothing Standard has been put in their place.'
+        puts '  Those files have to be authored before this booth can be built.'
+      end
+      puts '!' * 74
     end
     ignored = %w[dk sp jp bt sl rv].select { |k| payload[k].to_i == 1 }
     puts "  NOT built (out of scope for now): #{ignored.join(', ')}" unless ignored.empty?
     puts '=' * 74
+
+    # THE REFUSAL. An Enhanced booth that is missing parts is not built at all.
+    # See ENH_MISSING_ABORTS at the top of the module for why, and for how to
+    # turn this into a build-anyway.
+    if enh && ENH_MISSING_ABORTS && !(gaps.empty? && odd.empty?)
+      lines = gaps + odd.map { |x| "untranslatable pack  #{x}" }
+      UI.messagebox("This ENHANCED booth needs #{lines.length} component(s) that could not " \
+                    "be resolved:\n\n" + lines.join("\n") +
+                    "\n\nNOTHING WAS BUILT. Building without them would put Standard parts " \
+                    "in an Enhanced booth, which is the failure this tool exists to stop.\n\n" \
+                    'Full detail is in the Ruby Console. To build anyway, leaving those slots ' \
+                    'empty, set ENH_MISSING_ABORTS = false in booth-from-link.rb.')
+      puts '  ENHANCED BUILD REFUSED - see the list above. Nothing was placed.'
+      return
+    end
 
     $wr_no_autorun = true
     begin
