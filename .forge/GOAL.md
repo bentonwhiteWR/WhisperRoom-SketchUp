@@ -70,6 +70,12 @@ the gap, and the panel finder depends on which. Settle it before anything else.
   `booth-from-link.rb` (lines 122–127) appends `_VSS`/`_EFS`/`_CP` unconditionally. For Enhanced
   it must **stop appending them** and emit the plain `ENH <w>VNT`. Appending on the Enhanced path
   composes a filename that will never exist, whatever Benton authors.
+- **SIDE VENTS ARE NOT BUILD COMPONENTS — Benton ruled this on 2026-08-24.** The
+  `LeftSideVent` / `RightSideVent` families and their `_VSS`/`_EFS`/`_CP`/`_HX` matrices exist
+  strictly for **front-view art**, not for assembly. They are to be **completely ignored** by
+  every booth-building script, and no Enhanced counterpart is to be authored. Corroborated
+  independently (observed 2026-08-24): `grep -rn "SideVent" scripts/*.rb scripts/*.py` returns
+  zero hits outside the probe — no builder has ever referenced them.
 - **Known library gaps** (to be confirmed precisely by the Scoper, not taken from this list):
   no Enhanced counterpart to any of the eight `STDSS` ceiling/floor seam seals; and
   `ENH 423.54CL` / `ENH 423.54FL` have no Standard counterpart and do not parse like the other
