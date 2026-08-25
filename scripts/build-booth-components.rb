@@ -144,7 +144,16 @@ module WR_BuildBoothComponents
   # exact". One rule, 1/8, lands the vent to four places and the 17.5 to a
   # thirty-second. Parts with a findable slab (the door) are placed off the
   # slab and never touch this.
-  IEP_ROOM_PROUD = 0.125
+  #
+  # TWO NUMBERS, NOT ONE. Benton, next probe: the 17.5 at 2.7500 is "exactly
+  # 1/32 too far in". His hand assembly had it at 2.7812, and that is the
+  # figure - so the 2.0625-thick panel family stands 3/32 proud where the
+  # 2.375-thick vent family stands 1/8. Both measured, neither derived.
+  IEP_ROOM_PROUD = { :vent => 0.125, :panel => 0.09375 }.freeze
+
+  def self.iep_room_proud(name)
+    name.to_s =~ /VNT|NV/i ? IEP_ROOM_PROUD[:vent] : IEP_ROOM_PROUD[:panel]
+  end
   IEP_DOOR_YAW   = 180.0   # the inner door - see below
 
   # The inner door was the one part in the whole booth facing opposite to its
@@ -1284,11 +1293,12 @@ module WR_BuildBoothComponents
           pxs = p[:poly].map { |q| q[0].to_f }
           pys = p[:poly].map { |q| q[1].to_f }
           wall = p[:id].to_s[0, 1]
+          proud = iep_room_proud(r[:name])
           shift = case wall
-                  when 'N' then (pys.min - IEP_ROOM_PROUD) - wy.min
-                  when 'S' then (pys.max + IEP_ROOM_PROUD) - wy.max
-                  when 'E' then (pxs.min - IEP_ROOM_PROUD) - wx.min
-                  else          (pxs.max + IEP_ROOM_PROUD) - wx.max
+                  when 'N' then (pys.min - proud) - wy.min
+                  when 'S' then (pys.max + proud) - wy.max
+                  when 'E' then (pxs.min - proud) - wx.min
+                  else          (pxs.max + proud) - wx.max
                   end
           if shift.abs > 0.0001
             vec = %w[N S].include?(wall) ? Geom::Vector3d.new(0, shift, 0)

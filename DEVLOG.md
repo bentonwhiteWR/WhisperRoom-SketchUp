@@ -2,6 +2,19 @@
 
 ## 2026-08-25
 
+### Done - the room-proud figure is per family: vent 1/8, panel 3/32 (v1.6.12)
+
+Fifth probe. The vent landed at 2.7500 as predicted. The 17.5 landed at 2.7500 and Benton:
+*"exactly 1/32 too far in"* - which puts it at 2.7812, the figure his hand assembly had all
+along and the one the last entry flagged as the test of whether one number was enough. It was
+not. `IEP_ROOM_PROUD` is now `{ :vent => 0.125, :panel => 0.09375 }`, keyed on the part name
+(`VNT` / `NV` against everything else). The 2.375-thick vent family stands 1/8 proud of the
+band's room face, the 2.0625-thick panel family 3/32. Both measured, neither derived.
+
+Benton also reports the E and W walls are still well off. Those are a single 41.5 between two
+corners at yaws 0 and 90 - the two the N wall cannot exercise - and no measurement of them
+exists yet. Asked for one.
+
 ### Done - inner panels stand 1/8 proud of the band's room face (v1.6.11)
 
 Fourth probe. **Every along-wall prediction from the last entry hit to four places**: corners
