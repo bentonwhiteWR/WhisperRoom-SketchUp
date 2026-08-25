@@ -130,6 +130,19 @@ module WR_BuildBoothComponents
   # where a part's origin sits.
   IEP_CORNER_YAW = 90.0    # counter-clockwise in plan
   IEP_SEAL_YAW   = 180.0   # the mid-wall seal, end for end
+  IEP_DOOR_YAW   = 180.0   # the inner door - see below
+
+  # The inner door was the one part in the whole booth facing opposite to its
+  # neighbours: the dry run reported S0i ENH Right41.5Door as Y- OUT where the
+  # outer S0 Right46Door of the same hand came out Y+ IN, and every other inner
+  # part came out IN. Both were oriented by measured bulk, so the two
+  # definitions carry their leaf on opposite sides. Benton confirmed it off a
+  # real build.
+  #
+  # A HALF TURN, NOT A MIRROR. The REVERSED list would also flip it, but a
+  # mirror turns a right-hand door into a left-hand one, and the hand is a
+  # customer choice that arrives from the quote. A rotation moves the leaf to
+  # the room side without touching which way the part is handed.
 
   def self.inner?(part)
     part[:sh].to_s == 'in'
@@ -358,10 +371,15 @@ module WR_BuildBoothComponents
     # they disagree — it just reads the wrong field into the wrong variable. The
     # 'Floor and ceiling' row was removed from all three together for that
     # reason; res is now 0 booth, 1 folder, 2 height, 3 dry run.
-    res = UI.inputbox(['Booth', 'Component folder', 'Height',
+    # FOUR ROWS SINCE 2026-08-25. Adding one means editing all THREE arrays and
+    # every res[] index below - UI.inputbox matches them by position and says
+    # nothing when they disagree, it just reads the wrong field into the wrong
+    # variable. res is now 0 booth, 1 folder, 2 height, 3 shell, 4 dry run.
+    res = UI.inputbox(['Booth', 'Component folder', 'Height', 'Shell',
                        'Dry run — report only'],
-                      [last, dir, 'Standard (81 in)', 'No'],
+                      [last, dir, 'Standard (81 in)', 'Both', 'No'],
                       [keys.join('|'), dlist, 'Standard (81 in)|HX (91 in)',
+                       'Both|Inner (IEP) only|Outer (Standard) only',
                        'Yes|No'],
                       'Build Booth from Components')
     return nil unless res
@@ -375,8 +393,12 @@ module WR_BuildBoothComponents
     # deleted. Nothing reads or writes it any more, it is a few bytes in the
     # registry, and migration code for a preference no user will ever see again
     # is more risk than the tidiness is worth.
+    shell = if res[3].to_s.start_with?('Inner') then 'inner'
+            elsif res[3].to_s.start_with?('Outer') then 'outer'
+            else 'all'
+            end
     { 'booth' => res[0], 'dir' => d, 'hx' => res[2].to_s.start_with?('HX'),
-      'dry' => res[3] == 'Yes' }
+      'shell' => shell, 'dry' => res[4] == 'Yes' }
   end
 
   # read_default EVALS the stored string and write_default does not escape quotes
@@ -1004,6 +1026,15 @@ module WR_BuildBoothComponents
     end
 
     assign ||= {}
+    # BUILD ONE SHELL AT A TIME. An Enhanced booth is 24 parts in two
+    # interleaved shells, and looking at a wrong inner corner through a
+    # complete outer shell is most of the difficulty. 'inner' places the IEP
+    # parts and nothing else - no outer walls, no deck - so what is left in the
+    # model is exactly the thing being fixed.
+    #
+    # Defaults to 'all', so booth-from-link and every existing caller that
+    # passes no 'shell' key behave exactly as before.
+    shell = (cfg['shell'] || 'all').to_s.downcase
     centre = [spec[:w] / 2.0, spec[:h] / 2.0]
     cache  = {}
     rows   = []
@@ -1018,14 +1049,17 @@ module WR_BuildBoothComponents
       inner_n = spec[:parts].count { |q| inner?(q) }
       puts "  ENHANCED - a second (IEP) shell inside it: #{inner_n} parts, room #{spec[:eiw]}\" x #{spec[:eih]}\""
       puts "  inner walls #{cfg['hx'] ? ENH_WALL_H_HX : ENH_WALL_H}\" tall, underside lifted #{IEP_WALL_LIFT}\" - THE LIFT IS UNMEASURED, see IEP_WALL_LIFT"
-      puts "  inner seals rotated #{IEP_CORNER_YAW}deg (corner) / #{IEP_SEAL_YAW}deg (mid-wall) - one number each if still off"
+      puts "  inner rotations: corner #{IEP_CORNER_YAW}deg, mid-wall seal #{IEP_SEAL_YAW}deg, door #{IEP_DOOR_YAW}deg - one number each if still off"
     end
     puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"
     puts "  parts    #{cfg['dir']}"
+    puts "  SHELL    #{shell.upcase} ONLY - the other shell and the deck are not placed" unless shell == 'all'
     puts '=' * 78
 
     # ---- pass 1: resolve and measure everything before touching the model.
     spec[:parts].each do |p|
+      next if shell == 'inner' && !inner?(p)
+      next if shell == 'outer' && inner?(p)
       inn  = inner?(p)
       name = if p[:k] == 'corner' then (inn ? ENH_CORNER_COMP : CORNER_COMP)
              elsif p[:k] == 'seal' then (inn ? ENH_SEAL_COMP : SEAL_COMP)
@@ -1174,6 +1208,15 @@ module WR_BuildBoothComponents
           end
         end
 
+        # The inner door turns the same way, for its own reason (above).
+        if inner?(p) && is_door && IEP_DOOR_YAW != 0.0
+          dxs = p[:poly].map { |q| q[0].to_f }
+          dys = p[:poly].map { |q| q[1].to_f }
+          dpiv = Geom::Point3d.new((dxs.min + dxs.max) / 2.0,
+                                   (dys.min + dys.max) / 2.0, 0)
+          tr = Geom::Transformation.rotation(dpiv, VZ, IEP_DOOR_YAW.degrees) * tr
+        end
+
         # The IEP mid-wall seal goes in end for end against the Standard one.
         if p[:k] == 'seal' && inner?(p) && IEP_SEAL_YAW != 0.0
           sxs = p[:poly].map { |q| q[0].to_f }
@@ -1249,7 +1292,7 @@ module WR_BuildBoothComponents
       #
       # Still skipped on a dry run — a dry run places nothing, deck included.
       deck_note = nil
-      if !cfg['dry'] && booth
+      if !cfg['dry'] && booth && shell != 'inner'
         t_deck = tag.call('WR-Booth-Deck', [120, 120, 128])
         wall_h = cfg['hx'] ? 91.0 : 81.0
         %w[FL CL].each do |kind|

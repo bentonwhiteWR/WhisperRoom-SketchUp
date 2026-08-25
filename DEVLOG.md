@@ -2,6 +2,53 @@
 
 ## 2026-08-25
 
+### Done - build one shell at a time, and the inner door turns (v1.6.5)
+
+Benton, off the build: *"wall placement and mid wall seam seal and corners are still wildly
+off. Start by just placing the IEP wall sections, so add a filter or something for this until
+we get this cleaned up."* Right call - an Enhanced booth is 24 parts in two interleaved
+shells, and looking at a wrong inner corner through a complete outer shell is most of the
+difficulty.
+
+**A Shell row on the dialog: Both / Inner (IEP) only / Outer (Standard) only.** Inner places
+the IEP parts and nothing else - no outer walls, no deck - so what is left in the model is
+exactly the thing being fixed. It defaults to Both and `build_booth` defaults `cfg['shell']`
+to `'all'`, so `booth-from-link` and every existing caller behave exactly as before.
+
+The dialog is now FOUR rows. `UI.inputbox` matches its three arrays by position and says
+nothing when they disagree - it reads the wrong field into the wrong variable - so the count
+was checked by parsing the call back out of the file: 5, 5, 5.
+
+**`IEP_DOOR_YAW = 180.0`.** The dry run had already flagged it: `S0i ENH Right41.5Door` came
+out `Y- OUT` where the outer `S0 Right46Door` of the same hand came out `Y+ IN`, and every
+other inner part came out IN. Benton confirmed it off the build. **A half turn, not a mirror** -
+the `REVERSED` list would also flip it, but a mirror turns a right-hand door into a left-hand
+one, and the hand is a customer choice that arrives from the quote.
+
+#### The assembly rule Benton gave, which is what the walls have to satisfy
+
+> Corner seam seal first. Then 17.5" IEP wall, right into its corner so it's flush. Then
+> mid wall seam seal - this will go snugly and flush into the bottom of the "T". 6.5" later
+> (since that's the dimension of the bottom of the mid wall seam seal "T"), put the 41.5"
+> wall. It will fit snugly in the same spot. Then corner.
+
+**The 6.5 is confirmed from the part itself** - it is the bottom of the T - which is the third
+independent confirmation of the inner run rule, after the BOM closure on all 25 models and the
+12.25 plate less the Standard 2.875 flange each side.
+
+What this says that the current data does not is about **flush**: each piece butts hard into
+the one before it, and the wall panel seats into the T's bottom rather than merely stopping
+2.25 in short of it. The generated polygons put the panels in the right places to a hundredth;
+what is off is placement against those polygons.
+
+#### Held back deliberately
+
+The IEP deck pass is written and NOT committed. Benton has now given its rule - the floor is a
+5/16 mat under the standard floor, the ceiling is a tray facing down that sits on top of the
+standard ceiling and engulfs it, and both are placed off the standard deck's own placed bounds
+rather than a z constant - but adding untested deck code while the walls are being isolated is
+the opposite of what the filter is for. It goes in once the inner walls are clean.
+
 ### Done - four fixes off the first real Enhanced build (v1.6.4)
 
 Benton built a 4872 E and sent screenshots. Four things, one of which is a regression I
