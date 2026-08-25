@@ -153,7 +153,11 @@ const sections = cfg.sections || [];
 if (!sections.length) die("config has no sections[]");
 
 const plateCount = sections.reduce((n, s) => n + (s.plates || []).length, 0);
-const totalPages = 1 + plateCount;
+// An optional pricing sheet is the LAST page when present, so it - not the last
+// plate - carries the closing band. Added August 2026; a config without a
+// `pricing` block builds exactly as it always did.
+const pricing = cfg.pricing || null;
+const totalPages = 1 + plateCount + (pricing ? 1 : 0);
 const pad2 = n => String(n).padStart(2, "0");
 
 /* ── page furniture ── */
@@ -269,14 +273,54 @@ function plateSheet(section, plate, plateIdxInSection, isLastPage){
     + `</section>`;
 }
 
+/* ── pricing sheet ──
+   Quoted figures, laid out in the same page furniture as every other sheet.
+   The generator does no arithmetic: every number here comes from the config,
+   which comes from a real quote. A total this file computed itself would be a
+   total nobody had checked against the quote it claims to reproduce. */
+function money(v){
+  return v === null || v === undefined || v === "" ? "&mdash;" : esc(String(v));
+}
+function pricingSheet(pr){
+  pageNo++;
+  const cols = pr.columns || [];
+  const head = `<tr><th>${esc(pr.itemHead || "Item")}</th>`
+    + cols.map(c => `<th>${esc(c.name)}`
+        + (c.sub ? `<span class="pq">${esc(c.sub)}</span>` : "")
+        + (c.quote ? `<span class="pq">${esc(c.quote)}</span>` : "")
+        + `</th>`).join("") + `</tr>`;
+  const body = (pr.rows || []).map(r =>
+      `<tr><td><span class="pit">${esc(r.item)}</span>`
+    + (r.desc ? `<span class="pds">${esc(r.desc)}</span>` : "")
+    + `</td>`
+    + (r.values || []).map(v => `<td>${money(v)}</td>`).join("")
+    + `</tr>`).join("");
+  const foot = (pr.summary || []).map(r =>
+      `<tr class="${r.total ? "ptot" : "psum"}"><td>${esc(r.label)}</td>`
+    + (r.values || []).map(v => `<td>${money(v)}</td>`).join("")
+    + `</tr>`).join("");
+  return `<section class="sheet closing">`
+    + rh([esc(pr.boothOf || "Pricing"), esc(pr.model || ""),
+          `Page <span class="pnum">${pad2(pageNo)}</span> / ${totalPages}`])
+    + sec(pr.num, esc(pr.title || "Pricing"), pr.extra || "")
+    + (pr.lead ? `<p class="lead">${pr.lead}</p>` : "")
+    + `<table class="ptab"><thead>${head}</thead><tbody>${body}</tbody>`
+    +   `<tfoot>${foot}</tfoot></table>`
+    + (pr.note ? `<div class="pnote">${pr.note}</div>` : "")
+    + band()
+    + `</section>`;
+}
+
 /* ── assemble ── */
 const sheets = [coverSheet()];
 sections.forEach((s, si) => {
   (s.plates || []).forEach((p, pi) => {
-    const isLastPage = si === sections.length - 1 && pi === s.plates.length - 1;
+    const isLastPage = !pricing
+      && si === sections.length - 1 && pi === s.plates.length - 1;
     sheets.push(plateSheet(s, p, pi, isLastPage));
   });
 });
+if (pricing) sheets.push(pricingSheet(pricing));
 
 const html =
 `<!doctype html>

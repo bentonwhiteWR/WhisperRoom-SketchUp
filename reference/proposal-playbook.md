@@ -137,6 +137,48 @@ the footer contact line, and the wordmark with the address.
 
 ---
 
+## 3b. The pricing page — new, and normally OFF
+
+`proposals/build-v2.js` grew an optional **pricing sheet** in August 2026. A config
+with no `pricing` block builds exactly as it always did: verified by rebuilding
+the worked example before and after and diffing the HTML — the only difference in
+the whole 10-page pack is the appended CSS block, zero markup changes.
+
+**A pack carries no prices unless Benton explicitly asks for that pack.** That rule
+has not moved. Sales owns pricing, and a stale figure in a forwarded PDF is worse
+than no figure. When he does ask, this is the page type to use rather than
+inventing one.
+
+When present it is the **last page** and it carries the closing band, so the last
+plate reverts to an ordinary footer. Shape:
+
+```json
+"pricing": {
+  "num": "04", "title": "Pricing", "extra": "Quoted 25 August 2026",
+  "model": "Three configurations", "boothOf": "Pricing",
+  "itemHead": "Line item", "lead": "<b>…</b> …", "note": "… <a href=…>…</a>",
+  "columns": [{ "name": "…", "sub": "…", "quote": "Quote W-…" }],
+  "rows":    [{ "item": "…", "desc": "…", "values": ["$1.00", "$2.00"] }],
+  "summary": [{ "label": "Subtotal", "values": [...] },
+              { "label": "Total", "total": true, "values": [...] }]
+}
+```
+
+**The generator does no arithmetic, on purpose.** Every figure comes from the
+config, which comes from a real quote. A subtotal this file computed itself would
+be a number nobody had checked against the quote it claims to reproduce. Check the
+columns yourself before building — line items must sum to the subtotal, and
+subtotal + discount + delivery must equal the total — and say in your report that
+you did.
+
+**Quote pages are readable without auth.** `https://sales.whisperroom.com/q/W-…?t=…`
+is server-rendered, so `curl` plus a tag strip gives the full line-item table,
+totals and the prepared-for block. The `/api/quote/…` endpoints are 401. Read the
+quote rather than retyping figures from a screenshot, and let the line items
+identify which quote goes with which configuration.
+
+---
+
 ## 4. Render order
 
 The established slot order, and the reason for it — the pack should read as a walk

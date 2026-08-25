@@ -145,3 +145,29 @@ figcaption{font-size:11px; color:var(--body); line-height:1.5; margin:10px auto 
   .band-cta{margin:26px -.6in -.45in}
   .print-bar,.no-print{display:none !important}
 }
+
+/* ── pricing table ───────────────────────────────────────
+   A page type the pack did not have until August 2026. Everything around it
+   is the same furniture as a plate page - same header, same section line,
+   same closing band - so a pricing sheet cannot drift away from the rest of
+   the pack. Only the table body is new. */
+.ptab{width:100%; border-collapse:collapse; margin-top:14px; font-size:10.5px}
+.ptab th,.ptab td{padding:7px 8px; text-align:right; vertical-align:top;
+                  border-bottom:1px solid #eceded}
+.ptab th:first-child,.ptab td:first-child{text-align:left}
+.ptab thead th{font-size:8.5px; letter-spacing:.11em; text-transform:uppercase;
+               color:#6b7075; font-weight:700; border-bottom:1.5px solid #1a1a1a;
+               padding-bottom:9px; line-height:1.5}
+.ptab thead th .pq{display:block; font-size:7.5px; letter-spacing:.06em;
+                   text-transform:none; color:#9aa0a6; font-weight:600; margin-top:3px}
+.ptab .pit{font-weight:700; color:#1a1a1a}
+.ptab .pds{display:block; font-size:9px; color:#6b7075; font-weight:400;
+           letter-spacing:0; margin-top:2px; line-height:1.45}
+.ptab tbody tr:last-child td{border-bottom:1.5px solid #1a1a1a}
+.ptab tfoot td{border-bottom:none; padding:5px 8px}
+.ptab tfoot tr.psum td{font-weight:700}
+.ptab tfoot tr.ptot td{font-size:13px; font-weight:800; color:#1a1a1a;
+                       padding-top:10px; border-top:1px solid #d8dadc}
+.ptab tfoot tr.ptot td:first-child{color:#ee6216}
+.pnote{margin-top:12px; font-size:9px; line-height:1.65; color:#6b7075}
+.pnote a{color:#ee6216; font-weight:700; text-decoration:none}
