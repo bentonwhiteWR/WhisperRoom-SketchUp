@@ -20,6 +20,7 @@
   "list-scenes.rb": "scenes-list",
   "merge-materials.rb": "materials-merge",
   "merge-scenes.rb": "scenes-import",
+  "name-selection-after-scene.rb": "names-replace",
   "orbit-export.rb": "art-orbit",
   "pendant-jig.rb": "jig-pendant",
   "probe-components.rb": "probe-components",
