@@ -301,8 +301,26 @@ def inner_parts(L, W, H, inner, assign=None):
     # long and 0.5 proud. The step where the panel ends tuck behind it is not
     # modelled, exactly as on the Standard corner — there is no dimensioned
     # corner detail for either.
-    for cx, cy, sx, sy, name in ((f, f, 1, 1, 'SW'), (W - f, f, -1, 1, 'SE'),
-                                 (f, H - f, 1, -1, 'NW'), (W - f, H - f, -1, -1, 'NE')):
+    #
+    # THE CORNER SEAL'S OUTER FACE IS 2.5 BEHIND THE ROOM FACE, not on it.
+    #
+    # Measured, not reasoned: Benton assembled one N wall of a 4872 E by hand on
+    # 2026-08-25 and probed it. The panel run starts exactly 2.5000 inside the
+    # corner seal's outer end and finishes exactly 2.4999 inside the other, the
+    # panels butt the 6.5 stem to 0.0000 at both ends, and the run measures
+    # 65.5001 - the inner interior width. Put the run back at its known 4.25 and
+    # the corner seal lands at 1.7500 .. 7.1250, which is EXACTLY where the ENH
+    # CornerSeamSeal sits in the library's own authored frame. Two independent
+    # sources, the same two numbers.
+    #
+    # 1.75 also falls out of the build-up: the panel's back face is at 2.25 and
+    # the seal stands 0.5 proud of it. This corner was at 4.25 - a full 2.5 into
+    # the room, in front of the panels instead of lapping behind them - which is
+    # what "the corners are wildly off" and "the walls should be touching" both
+    # were.
+    c = f - IEP_PANEL_T - IEP_SEAL_D
+    for cx, cy, sx, sy, name in ((c, c, 1, 1, 'SW'), (W - c, c, -1, 1, 'SE'),
+                                 (c, H - c, 1, -1, 'NW'), (W - c, H - c, -1, -1, 'NE')):
         poly = [(cx, cy),
                 (cx + sx * IEP_CORNER, cy),
                 (cx + sx * IEP_CORNER, cy + sy * IEP_SEAL_D),

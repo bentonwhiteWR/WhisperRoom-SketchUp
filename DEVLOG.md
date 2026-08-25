@@ -2,6 +2,51 @@
 
 ## 2026-08-25
 
+### Done - the corner seal was 2.5 in into the room, and a measurement settled it (v1.6.8)
+
+Four rounds of nudging constants off screenshots got nowhere. Benton exploded the built booth,
+deleted everything but one N wall, moved the five parts into their correct positions by hand
+and ran `probe-placement.rb`. That one measurement ended it.
+
+**What his wall says, and every one of these closes exactly:**
+
+* the vent panel butts the mid-wall seal's 6.5 stem to **0.0000**
+* the 17.5 panel leaves the other side of that stem to **0.0000**
+* the panel run measures **65.5001** - the inner interior width
+* the run starts **2.5000** inside one corner seal and ends **2.4999** inside the other
+
+Put the run back where it is known to be, 4.25 to 69.75 in booth coordinates, and the corner
+seal lands at **1.7500 .. 7.1250**. That is EXACTLY where `ENH CornerSeamSeal` sits in the
+component library's own authored frame, read off `_enhanced-probe.tsv` weeks ago and never
+used. Two completely independent sources, the same two numbers.
+
+**The corner seal was being drawn at 4.25** - its outer face on the room face, a full 2.5 in
+into the room, standing in front of the panels instead of lapping behind them. That single
+error is what "the corners are wildly off" and "the walls should be touching each other" both
+were. 1.75 also falls straight out of the build-up: the panel's back face is at 2.25 and the
+seal stands 0.5 proud of it.
+
+**The panels and the mid-wall seal were already right.** Nothing else moved.
+
+**Verified part by part against the hand assembly**, not asserted: regenerated the layout,
+converted every inner N-wall part into the same datum his probe used, and compared. All five
+match to better than two thousandths of an inch, the vent compared panel-to-panel after
+subtracting its 0.1169 bounding-box overshoot per side. All 25 Enhanced booths still close on
+the 6.5 rule and all 100 inner corner seals now sit at 1.75 from their booth face. The 25
+Standard layouts are unchanged.
+
+**The lesson is about method, not geometry.** A screenshot shows that something is wrong and
+never by how much; I changed constants four times off pictures and it did not converge once.
+Fifteen minutes of Benton's time with a probe produced a number that closed to the
+ten-thousandth on the first try. When a thing can be measured, measure it - and build the tool
+that measures it before the fourth guess, not after.
+
+Also worth recording, because it cost a round: the first probe he ran WAS already the correct
+hand assembly, and it was read as "the numbers are identical, nothing moved". They were
+identical to the previous run because he had assembled it before the first probe too. The tell
+was there to be seen - my polygons could not have produced a panel starting 2.3831 into a
+corner seal - and it was not looked for.
+
 ### Done - build one shell at a time, and the inner door turns (v1.6.5)
 
 Benton, off the build: *"wall placement and mid wall seam seal and corners are still wildly
