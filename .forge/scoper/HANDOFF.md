@@ -84,6 +84,28 @@ are measuring something other than the panel — panel plus rail, or an assembly
 probe's height tally settles the real Enhanced number; whichever source carries 83.0/84.3125
 should then be corrected or re-labelled. **Nothing should encode 84.3125 in the meantime.**
 
+## Cross-check against the Researcher's inventory
+
+`.forge/researcher/enh-inventory.md` was produced independently and by a different method
+(filename set arithmetic). **It agrees with my coverage table on every point**, arrived at
+separately: 4 ramp doors, 28 vent option variants, 32 side vents, 8 `STDSS` seam seals, the
+`423.54` typo, and the `26.5Panel11.548WDO` window-code duality. Two independent derivations
+landing on the same 74 files is the strongest evidence available short of the probe.
+
+**One disagreement, and I think the Researcher is wrong.** It records the missing 2.5" panel
+as *"missing — believed intentional"*. It is not safely omittable: the 7" panel is the
+wide-access door's shrunken companion wall, and `WhisperRoomQuote/booth-builder.html`'s
+`shrinkPack` (line ~1980) emits `'STDWL7 / WL16'` for it on any WA-door layout. So the same
+customer configuration that needs the P1 ramp doors *also* needs a 2.5" Enhanced panel.
+Authoring the ramp doors alone will not make an Enhanced WA-door booth build. Evidence is
+the portal source; I did not verify it against an Enhanced layout in `booth-layouts.json`,
+so treat the coupling as **derived**, not observed.
+
+The Researcher also raises a naming decision I did not: Standard's caster-package vent files
+are inconsistently cased (`40Vnt_CP`, `46VntCP`, `46vnt_VSS_CP`). If the 28 Enhanced vent
+variants get authored, Benton should pick one form — the composing code in
+`booth-from-link.rb` emits `VNT` + `_VSS` + `_EFS` + `_CP` in that fixed order.
+
 ## Next action
 
 Benton runs, on an empty scratch model:
