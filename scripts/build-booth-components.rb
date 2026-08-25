@@ -99,6 +99,11 @@ module WR_BuildBoothComponents
   # place when somebody measures the real lip. Do not scatter it.
   IEP_WALL_LIFT = 0.3125
 
+  # The IEP mid-wall seam seal's stem - the joint between two inner panels.
+  # 6.5 where the Standard seal is 2. Needed here because rebalance_walls
+  # re-walks a run from real part widths and has to use the right joint.
+  IEP_SEAL_W = 6.5
+
   def self.inner?(part)
     part[:sh].to_s == 'in'
   end
@@ -831,11 +836,20 @@ module WR_BuildBoothComponents
       next if p[:k] == 'corner'
       w = p[:id].to_s[0, 1]
       next unless %w[N S E W].include?(w)
-      (by_wall[w] ||= []) << r
+      # KEYED ON THE WALL AND THE SHELL, not the wall alone. An Enhanced booth
+      # has two runs on every wall - the Standard one and the IEP one 2.25 in
+      # inboard of it - and their slot ids differ only by a trailing 'i'.
+      # Keyed on the wall alone the two interleave when the list is sorted
+      # along the wall, the re-walk sums both shells' panel widths into a
+      # single run, and the wall cannot close. That either bails out for the
+      # wrong reason or rewrites both shells from a nonsense cursor.
+      (by_wall[[w, inner?(p)]] ||= []) << r
     end
 
-    by_wall.each do |w, list|
+    by_wall.each do |key, list|
+      w, inn = key
       run_x = %w[N S].include?(w)
+      joint = inn ? IEP_SEAL_W : 2.0
       ext = lambda do |poly|
         vs = poly.map { |q| (run_x ? q[0] : q[1]).to_f }
         [vs.min, vs.max]
@@ -868,7 +882,7 @@ module WR_BuildBoothComponents
           old_end = s[1]
         else
           plan << [r, pos - old_end, nil, s]   # joint start moves by this much
-          pos += 2.0
+          pos += joint
         end
       end
 

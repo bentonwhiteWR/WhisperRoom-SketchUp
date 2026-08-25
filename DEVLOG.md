@@ -2,6 +2,52 @@
 
 ## 2026-08-25
 
+### Fixed - the NameError that stopped the first Enhanced build (v1.6.2)
+
+First run of `MDL 4872 E` in SketchUp got all the way through resolution - correct ENH names
+on all 12 inner slots, no missing parts - and then died in `rebalance_walls` with
+`undefined local variable or method 'inn'`.
+
+**The cause was mine and it is worth recording, because it is a process failure rather than
+a coding one.** The edit that keyed `rebalance_walls` on `[wall, shell]` was applied by a
+script that asserted its way through four replacements and **aborted on the fourth**, before
+writing. Three of them had already printed OK, so the transcript read as though they had
+landed. They had not. A separate follow-up edit then added the `inn ? 'inner' : 'outer'`
+message on its own - so the file ended up referencing `inn` without ever binding it. The
+lesson: **after an aborted edit, read the file back. Do not trust the log of what was
+attempted.**
+
+The fix is the change that was meant to land the first time: group by `[w, inner?(p)]`,
+destructure it, and take the joint per shell.
+
+#### `scripts/rbtest.py` - and this is the durable part
+
+`rbparse.py` proves a file PARSES. It cannot prove a method RUNS, and Ruby resolves a bare
+identifier to a method call when no local of that name is in scope - so an unbound local is
+a clean parse and a crash on the first real booth. That is precisely the gap this bug fell
+through.
+
+`rbtest.py` boots the same CRuby 3.2 VM out of SketchUp 2024, **lifts the method verbatim
+out of the .rb file by text**, drops it into a stub module and executes it. The source is
+not copied into the test, so the test cannot drift from the code.
+
+The fixture is one wall of a 4872 E with a wide-access door on both shells - the only
+condition under which `rebalance_walls` does anything at all. The inner run closes **only**
+on a 6.5 joint (4.25 + 44.5 + 6.5 + 14.5 = 69.75); re-walk it with the Standard 2.0 and it
+lands 3.5 in short and bails.
+
+**Mutation-checked, so it is not a test that cannot fail.** Reintroduce either bug and it
+reports FAIL - `w, inn = key` -> `w = key[0]` gives back the exact NameError from the
+SketchUp console, and hardcoding the joint to 2.0 leaves the inner run short. Both were run.
+
+The VM comes up minimal and lacks a few core methods; `Float#to_f` and `Integer#to_f` are
+shimmed in the harness rather than worked around in the fixture, so the method under test
+still runs exactly as written.
+
+**This is the first Ruby in this repo that has been executed outside SketchUp.** Only
+data-in/data-out methods can go through it - `place`, `load_def` and the deck pass all need
+a real model.
+
 ### Done - the standalone "Build a booth from real parts" path, same day (v1.6.1)
 
 Benton: *"This should also work for build booth with real components."* It picks the booth
