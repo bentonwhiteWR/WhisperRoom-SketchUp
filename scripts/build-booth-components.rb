@@ -176,6 +176,11 @@ module WR_BuildBoothComponents
     name.to_s =~ /VNT|NV/i ? IEP_ROOM_PROUD[:vent] : IEP_ROOM_PROUD[:panel]
   end
   IEP_DOOR_YAW   = 180.0   # the inner door - see below
+  # And the door moves INTO THE ROOM by this much after its half turn. The
+  # door is the one inner part with a findable slab, so place() puts that
+  # 1.0-thick slab on the band's centreline; Benton, off the built S wall:
+  # "the door should push inwards 1/2". Measured, not derived.
+  IEP_DOOR_IN    = 0.5
 
   # The inner door was the one part in the whole booth facing opposite to its
   # neighbours: the dry run reported S0i ENH Right41.5Door as Y- OUT where the
@@ -1288,6 +1293,14 @@ module WR_BuildBoothComponents
           dpiv = Geom::Point3d.new((dxs.min + dxs.max) / 2.0,
                                    (dys.min + dys.max) / 2.0, 0)
           tr = Geom::Transformation.rotation(dpiv, VZ, IEP_DOOR_YAW.degrees) * tr
+          # ...then 1/2 in toward the room, on the axis across its wall.
+          din = case p[:id].to_s[0, 1]
+                when 'N' then Geom::Vector3d.new(0, -IEP_DOOR_IN, 0)
+                when 'S' then Geom::Vector3d.new(0,  IEP_DOOR_IN, 0)
+                when 'E' then Geom::Vector3d.new(-IEP_DOOR_IN, 0, 0)
+                else          Geom::Vector3d.new( IEP_DOOR_IN, 0, 0)
+                end
+          tr = Geom::Transformation.translation(din) * tr if IEP_DOOR_IN != 0.0
         end
 
         # The IEP mid-wall seal goes in end for end against the Standard one.

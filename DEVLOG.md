@@ -22,7 +22,8 @@ width axis in world.
 of that panel was "not exact" by. One number for the family and a test: the next N probe
 should read the 17.5 at 2.8125. If it truly wants 2.7812, the figure splits by panel width.
 
-Still unmeasured: the S wall (the door - the only inner part placed off a real slab), and the
+Then Benton, off the S wall: *"the door should push inwards 1/2"*. `IEP_DOOR_IN = 0.5`, applied
+toward the room after the door's half turn (v1.6.14). Still unmeasured: the rest of the S wall, and the
 ceiling and floor datums for the inner deck.
 
 ### Done - the room-proud figure is per family: vent 1/8, panel 3/32 (v1.6.12)
