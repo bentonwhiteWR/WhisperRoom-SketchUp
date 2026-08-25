@@ -90,6 +90,162 @@ for Benton; reversible in one commit if he wants the letter of the rule.
 - Whether 18mm and 22mm files are wanted in `exports/`. Both generate clean; neither written.
 
 
+### Done — Enhanced booth on the share-link path, and the exporter stops guessing
+
+Benton authored and loaded the `ENH` component library into
+`P:\Sketchup\NewMasterComponentList`, which unblocked work that had been stalled on missing
+parts. Two threads ran together all evening: teaching the customer path to build Enhanced, and
+fixing an exporter that had been writing **wrong geometry into right filenames**. The second
+thread is the one with the durable lesson in it.
+
+**THE LESSON, because it will save someone a night: a heuristic that infers which component a
+scene means was wrong twice and corrupted files both times. Naming the thing explicitly and
+matching on the name was right immediately.** Prefer the explicit link over the clever
+inference. That is the whole entry if you only read one paragraph of it.
+
+#### The exporter resolved scenes by geometry, and geometry was hopeless on this model
+
+`scripts/save-scene-components.rb` picked a scene's subject by taking the top-level instance
+whose bounding-box centre sat nearest `cam.target`. A 112-scene dry run showed what that
+actually bought: every scene resolving by distance alone, deck scenes landing 137–236 in from
+the component they were assigned, and **13 scenes colliding** onto a component another scene had
+already claimed — mostly `CL`/`FL` twins stacked in Z, whose centres are near-equidistant from a
+single target point. The damage had already shipped: `ENH 10242FL CTR` held ceiling geometry, and
+the `4896` pair held `4872` geometry.
+
+**The raycast rewrite FAILED, and it stays in the record so nobody re-explores it.** v1.5.5
+(`8ea6a7d`) cast a ray from `cam.eye` along the view direction through `Sketchup::Model#raytest`
+and took the first top-level instance in the returned path — sound reasoning, since two parts
+stacked in Z cannot both be the first face a ray strikes. Over the same 112 scenes it gave 45 ray
+hits, 67 fallbacks and **14 collisions — one worse than the 13 it replaced.** The run's own
+numbers explain why: every ray hit reports ~21,500 in, because these scenes are **parallel
+projection with the eye effectively at infinity**. At an 1,800-foot lever arm a fractional angular
+error becomes inches of positional error, and these parts sit inches apart. Geometry cannot be
+made reliable at that distance — and better geometry would not have helped anyway, because 15 of
+the 112 wanted definitions were not in the model at all.
+
+What worked was abandoning geometry. v1.5.6 (`72b84ab`) resolves by **exact definition-name
+match** — a name index built once per run, multiple instances of a name reported and picked
+deterministically rather than silently first-in-order, and a `#N` suffix **refused by name**,
+because a uniquified duplicate is precisely how a wrong part gets a right filename. Unmatched
+scenes are reported as MODEL GAP and **skipped rather than written**. The raycast and its
+fallback tiers survive verbatim as `geometry_subject_for` and run only when no component carries
+the name, so a model whose definitions are not named after its scenes still resolves as it always
+did.
+
+That left 17 scenes with no matching definition, so Benton got a tool for it:
+`scripts/name-selection-after-scene.rb` (v1.5.7, `78dc2ff`) names the selected definition after
+the active scene, one click at a time. **It reads the name back after assignment and aborts if
+the model hands back a `#n` suffix** — `ComponentDefinition#name=` uniquifies silently instead of
+raising, so trusting the setter is how you end up with `Foo#2` and never know. No bulk rename, and
+no inference about which component belongs to which scene; that inference is the thing that had
+just failed twice.
+
+**Final state, measured** (observed, from `P:\Sketchup\NewMasterComponentList\_enhanced-probe.tsv`,
+re-counted directly for this entry): **112 of 112 parts single-shell**, every `FL` part at
+**0.3125** (23 of them, no exceptions), names matching components one-for-one, **zero collisions,
+zero model gaps.** Benton ran the probe and both exporter passes himself in SketchUp.
+
+#### Enhanced on the share-link path
+
+`scripts/booth-from-link.rb` was resolving an Enhanced link to **Standard** component names and
+saying nothing about it. `component_for` never received the payload's variant flag, so every
+branch composed a Standard name — names that all exist and all load. Nothing errored. **The
+silence was the defect.** It now maps Standard widths to Standard − 4.5, prefixes `ENH ` (with the
+space), checks every composed name against the real folder *before* building, and **refuses by
+name** rather than substituting. `ENH_MISSING_ABORTS = true`. Aborting is not paranoia:
+`build_booth` fills any unassigned slot via `guess_component`, which composes **Standard** names —
+so "leave it out" silently becomes "put a Standard part there" one function later. Vanishing was
+never on the menu.
+
+**A live Standard bug went out in the same commit** (`1c84103`), and that one was hurting real
+customers: `46VntCP.skp` has **no underscore**, so the composed `46VNT_CP` never resolved and
+casters-only 46-inch vents failed. Confirmed on disk — the CP family is inconsistently cased and
+separated (`46VntCP`, `46Vnt_EFS_CP`, `46vnt_VSS_CP`). Name matching now ignores case *and*
+separators; safe here, checked: all 353 `.skp` files still produce 353 distinct normalised keys.
+
+`scripts/probe-enhanced.rb` is new, and it settled the gating question. **`ENH` parts are single
+shells, not the combined exterior+interior+foam parts this DEVLOG had planned for.** They are
+internally nested — 4 to 15 containers each, with a `fill / shell / trim / void` band profile
+through the thickness — but that is one wall's internal construction, not two shells. **So the
+inner/outer gap lives in the LAYOUT, not in the part**, and the assembler has to place both shells
+and solve the offset itself. One piece of good news out of it: `wall_slab`'s single-tall-slab
+premise holds, because every part really does contain exactly one slab.
+
+#### Two corrections to the earlier record
+
+**`24.4375` IS NOT THE GAP.** An intermediate probe run reported 5 parts with 2 shells and a
+24.4375 gap, and the probe's own output announced it as *"the number the Enhanced build has been
+waiting for."* It was wrong. Those 5 files were the corrupted ones, each holding a whole booth
+assembly — the exporter bug above, measured back as if it were a design fact. The current TSV
+contains no `24.4375` anywhere and no part with 2 shells. **The real inner/outer air gap remains
+unknown.**
+
+**The `83.0000` / `84.3125` panel heights carried elsewhere in this DEVLOG are wrong.**
+Measurement says **Standard 81.0000 / 91.0000 `HX`** and **Enhanced 79.5000 / 89.5000 `HX`** —
+Enhanced is 1.5000 SHORTER. Neither 83.0000 nor 84.3125 appears anywhere in the 182-part Standard
+measurement; both counts are literally zero (observed, `_component-probe.tsv`). `84.3125` shows up
+only on `ENH 127LPCL` / `127LPFL`, which are a different animal. Recorded here as a correction
+rather than edited into the old entry, so the mistake stays findable.
+
+The 1.5 is not a discrepancy to reconcile — Benton ruled where it goes: **Enhanced walls sit on
+the floor panel lip and squeeze under the ceiling lip.** An Enhanced wall is *captured between the
+two lips*, not stood on the deck surface the way a Standard wall is. **Do not reuse the Standard
+wall's z-datum for Enhanced** — it drops every Enhanced wall 1.5 too low, and it will look almost
+right, which is the dangerous kind of wrong.
+
+#### Benton's rulings, which no measurement can recover
+
+- **Enhanced vents need no `_VSS`/`_EFS`/`_CP` variants.** *"The 35.5 VNT wall fits them all for
+  the inner walls."* The 28 composed combination files earlier listed as missing are **not to be
+  authored**, and the code must stop appending those suffixes on the Enhanced path.
+- **Side vents are front-view art only**, not build components. The `LeftSideVent` /
+  `RightSideVent` families are to be ignored by every booth-building script. No builder has ever
+  referenced them.
+- **Ramp doors are Standard-only.** *"Ramp only attached to standard."* No `ENH …WADoorWithRamp` is
+  to be authored, and `component_for` ignores `o[:ramp]` on the Enhanced path. That removed 32
+  Enhanced coverage misses outright — Standard and Enhanced now both replay at **928/960**,
+  identical, and the only remaining miss on either path is the deliberate skip below.
+- **The 7-inch wall is skipped deliberately.** It is *"actually a modified mid wall seam seal but I
+  don't have that item created… it's kinda rare."* No 2.5" Enhanced panel is to be created; a booth
+  needing it aborts by name, which is the correct outcome for a rare unbuilt part.
+- **Abort-on-missing is the right default.** `ENH_MISSING_ABORTS` stays true.
+
+Plugin is at **VERSION 1.5.7**. Getting `wr_tools/` changes onto another machine still takes all
+three steps — `git pull`, `python scripts/install-plugin.py`, restart SketchUp. The tool scripts in
+`scripts/` are read live from a repo checkout, so a `git pull` alone covers those.
+
+**Provenance, precisely.** Every geometry figure above is **observed**, from `_enhanced-probe.tsv`
+and `_component-probe.tsv`, re-counted directly for this entry. The scripts were **syntax-checked
+only** with `scripts/rbparse.py` and never executed outside SketchUp — *except* the probe and both
+exporter passes, which Benton ran himself. Nothing here is called "verified" that was only parsed.
+
+### Still blocked — the Enhanced layout, and it gates everything downstream
+
+**The air gap between the outer and inner shell is unknown, and no Enhanced layout work can
+proceed without it.** The −4.5 rule names the right parts but cannot *locate* the inner shell.
+Measured from the 25 Standard layouts (`.forge/builder/analyse-layouts.py`): panel counts per wall
+run **1 to 5**, and differ between the two axes of the same booth. A one-for-one −4.5 substitution
+therefore shrinks a wall by 4.5n and forces a gap of 2.25n per side — **2.25 to 11.25 in across the
+set, and different on each axis of one booth.** A constant gap needs each panel to narrow by
+(2+2G)/n, which cannot be 4.5 for every n. **A constant gap and a one-for-one −4.5 substitution are
+mutually exclusive.** Independently, a concentric inner shell puts 10 of 25 inner doors partly
+outside their outer door opening.
+
+Also open:
+
+- **How the 1.5 splits between floor lip and ceiling lip is unmeasured.** The total is derived from
+  wall heights (81.0000 − 79.5000), not from deck geometry. Measure it off the `CL` and `FL` parts
+  before writing a datum constant — **do not assume 0.75/0.75.**
+- **`scripts/angled-component-art.rb` still carries the old nearest-to-target resolution** (its
+  own header, line 24: *"the scene's CAMERA TARGET → nearest component instance = the subject"*).
+  That is the exact rule that mixed up 13 scenes in the exporter, so the PNG component art may
+  carry the same mix-ups. Unchecked.
+- **The 8 `STDSS` ceiling/floor seam seals are the only components still genuinely absent.** The
+  ramp doors, the 2.5" panel and the vent option variants were all cancelled by ruling — the
+  authoring queue is down from 74 to 8.
+
+
 ## 2026-08-21 (Rev D)
 
 ### Done — spray guide feet raised to 19.50, STL cut
