@@ -31,15 +31,47 @@ silently get a Standard one.
 - No regression: every Standard booth that builds correctly today still does. Enhanced is additive.
 
 ## Now
-One Scoper. It cannot open the binary `.skp` files — there is no Ruby outside SketchUp on this
-machine — so its **first deliverable is a probe Benton runs in SketchUp**, extending the pattern of
-`scripts/probe-components.rb`, and the spec is written against the numbers that come back.
-Marking an unmeasured number as measured is the failure mode to avoid.
+**The probe has been RUN. The gating question is answered, and it went the harder way.**
 
-**The single assumption that invalidates the most downstream work:** whether an `ENH` file is a
-*combined* part (outer shell + inner shell + foam, grouped, relationship baked in — what the
-DEVLOG said Benton would author) or just a *narrower single slab*. Everything about placement,
-the gap, and the panel finder depends on which. Settle it before anything else.
+Benton ran `scripts/probe-enhanced.rb` in SketchUp on 2026-08-24: **116 measured, 0 failed.**
+Results in `P:\Sketchup\NewMasterComponentList\_enhanced-probe.tsv` and `_enhanced-nesting.tsv`.
+
+### THE VERDICT: ENH parts are SINGLE SHELLS, not combined double-wall components
+
+Every one of the 116 parts reports `shells = 1` and an **empty gap** — no exceptions (observed:
+`awk` over column 9 of `_enhanced-probe.tsv` returns `116  1`, and column 10 is empty for all 116).
+The DEVLOG's expectation that Benton would author *combined* parts (exterior + interior + foam
+grouped, relationship baked in) **did not happen.** The shipped `ENH` files are narrower single
+inner-wall panels.
+
+They *are* internally nested — 4 to 15 nested containers each, with a `fill / shell / trim / void`
+band profile through the thickness — but that is one wall's internal construction, not two shells.
+
+**What this means for the build:**
+- **Combining is still to be done, and the gap lives in the LAYOUT, not in the part.** The
+  assembler has to place an outer shell and an inner shell and solve the offset itself. This is
+  the "very different piece of work" branch the spec named — Steps 5+ fork here.
+- **Blocker 5 does NOT fire.** `wall_slab`'s single-tall-slab premise holds, because every part
+  really does contain exactly one slab. That is the one piece of good news in this verdict.
+
+### Measured facts that supersede earlier guesses
+- **Enhanced wall height is 79.5000, and 89.5000 for `_HX`** (30 and 24 parts respectively; the
+  `NV`/`CBL`/`VNT` family sits at 79.4375 / 89.4375). Standard measures **81.0000 / 91.0000**.
+  So Enhanced walls are **1.5000 SHORTER** than Standard. Where that 1.5 goes — deck lift, or a
+  genuine height difference — is not yet established and must not be assumed.
+- The DEVLOG's `83.0000` / `84.3125` panel heights are **wrong**; neither appears in any
+  measurement. `84.3125` shows up only on `ENH 127LPCL` / `127LPFL`, which are a different animal.
+- Enhanced panels are mostly **thicker** than their Standard counterparts (commonly +0.9375 to
+  +1.0625), but Enhanced **vents and doors are much thinner** (`ENH 35.5VNT` 2.3750 vs `40VNT`
+  8.5468; `ENH Left35.5Door` 2.3750 vs `Left40Door` 6.3750). Do not assume a uniform offset.
+
+### DEFECT FOUND — two files hold the wrong geometry, Benton must re-author
+`ENH 26.5Panel1648WDO_HX` and `ENH 26.5Panel11.548WDO_HX` both measure **31.0000 wide × 91.0000
+tall × 1.8125 thick with 61 faces**. That is not an Enhanced part — it is the Standard
+`31Panel1648WDO_HX`, which measures identically (observed, from `_component-probe.tsv`). The
+correct non-HX siblings measure 26.5000 × 79.5000 with 333 faces, so the mistake is isolated to
+the two `_HX` files. This is the same failure mode the DEVLOG records for `STD7224CL/FL SIDE R` —
+master files saved out of alignment, not a script bug.
 
 ### Established already (observed 2026-08-24)
 - **`booth-from-link.rb` reads the variant but never uses it for parts.** Line 170 builds the
