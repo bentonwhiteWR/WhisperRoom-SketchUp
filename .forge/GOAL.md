@@ -61,9 +61,30 @@ band profile through the thickness — but that is one wall's internal construct
   genuine height difference — is not yet established and must not be assumed.
 - The DEVLOG's `83.0000` / `84.3125` panel heights are **wrong**; neither appears in any
   measurement. `84.3125` shows up only on `ENH 127LPCL` / `127LPFL`, which are a different animal.
-- Enhanced panels are mostly **thicker** than their Standard counterparts (commonly +0.9375 to
-  +1.0625), but Enhanced **vents and doors are much thinner** (`ENH 35.5VNT` 2.3750 vs `40VNT`
-  8.5468; `ENH Left35.5Door` 2.3750 vs `Left40Door` 6.3750). Do not assume a uniform offset.
+- **THICKNESS: USE THE `shell` BAND, NEVER THE BOUNDING BOX.** Benton ruled on 2026-08-24, and
+  the probe's own band data confirms it: *the bulk of the wall is still 1 inch. There may be foam
+  on one side that protrudes it out a bit. The Standards are so "big" because they have the vent
+  boxes connected to them.*
+
+  Measured (observed, from the `bands` column of `_enhanced-probe.tsv`): **every** Enhanced wall
+  panel's `shell` band is **1.0000–1.1250**, clustering hard at 1.0000 (37 parts) with the rest at
+  1.0625 or 1.1250. The bounding-box thickness is fill, trim and void on top of that.
+  `ENH 35.5VNT` is the clearest case — bbox 2.3750, bands
+  `fill 0.7438-0.8063 / shell 0.8063-1.9313 / fill 1.9313-3.1188 / void 3.1188-3.1813`. The wall
+  is the 1.1250 shell; the rest is not wall. Standard `40VNT`'s bbox of 8.5468 is its **vent box**.
+
+  **A superseded earlier claim, corrected:** this file previously said Enhanced panels are
+  "mostly thicker than Standard, +0.9375 to +1.0625, but vents and doors are much thinner." That
+  was a bounding-box comparison and it is misleading. Standard and Enhanced walls carry the same
+  ~1 inch of actual wall; the deltas were attached hardware and foam.
+
+  This is the same trap the DEVLOG already records in capitals — *"SEATING BY THE BOUNDING BOX IS
+  WRONG AND IT COST A ROUND."* The builder seats on the shell band.
+
+  One probe artifact to be aware of, not a geometry defect: `ENH 41.5NV` and `ENH 41.5VNT` report
+  a 2.0625 shell where their `_HX` siblings report 1.1250, because the band detector merged an
+  adjacent fill layer into the shell. Treat the `_HX` figure as the true one for that family, or
+  tighten the detector before relying on those two rows.
 
 ### DEFECT — RE-AUTHORED BY BENTON 2026-08-24 21:07, GEOMETRY NOT YET RE-VERIFIED
 Benton replaced the two bad files. Observed from the folder listing: both `11.548WDO` files are
