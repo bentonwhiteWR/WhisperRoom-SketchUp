@@ -385,3 +385,92 @@ scope this pass; flagged for a decision.
 
 - `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\scripts\save-scene-components.rb`
 - `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\scripts\wr_tools\VERSION`
+
+---
+
+# Task — save-scene-components.rb: resolve scenes by NAME, not geometry (v1.5.6)
+
+## Why the previous fix failed (observed)
+
+Read `P:\Sketchup\NewMasterComponentList\_scene-components-dryrun.tsv`, 112 rows,
+produced by v1.5.5 (`8ea6a7d`, raycast-first):
+
+- **observed** — every `ray hit` row reports ~21,500 in (~1,800 ft). Parallel
+  projection puts the eye effectively at infinity, so a fractional angular error
+  becomes inches of positional error out at parts that sit inches apart.
+  Geometry cannot be made reliable at that lever arm.
+- **observed** — 45 ray hits, 67 fallbacks, 14 filename collisions (one *more*
+  than the 13 the old nearest-to-target rule produced).
+- **observed** — 97 of 112 rows already have `component` exactly equal to
+  `scene`. For the other 15, the wanted name appears nowhere in the manifest's
+  component column, not even claimed by a neighbour.
+
+## What changed
+
+`scripts/save-scene-components.rb` only.
+
+1. `subject_for(model, page, index = nil)` now resolves by **exact definition
+   name** against `scene_label(page)`, using the existing `scene_label` and
+   `definition_name` unchanged.
+2. New `top_level_index(model)` builds `name -> [instances]` **once per run**
+   (the old code walked `model.entities` once per scene).
+3. Ambiguity is reported, never guessed. `pick_instance` sorts by bounds
+   min x, then y, then z, then entityID, and the row reads
+   `name match (3 instances - took the leftmost at x=…)`.
+4. **Exact match only.** `near_misses` finds names differing only by SketchUp's
+   `#N` uniquing suffix and *names* them in the output
+   (`no name match; model has "ENH 26.5Panel1648WDO_HX#2"`) without ever using
+   one. **Defence:** a `#N` suffix means SketchUp had to make a *second,
+   different* definition unique — accepting it silently is precisely how a wrong
+   part gets written under a right filename.
+5. Geometry is **kept, demoted**. `geometry_subject_for` is the old raycast +
+   fallback tiers verbatim; it runs only when no component carries the name, so
+   a model whose definitions are not named after its scenes still works.
+6. `HOW IT RESOLVED` / TSV `how` now distinguishes: `name match`,
+   `name match (N instances - …)`, `no name match; ray hit at 212 in`,
+   `no name match; model has "…#2"; fallback: …`.
+7. AIM tally counts name matches, ray hits and fallbacks separately, and prints
+   a `MODEL GAP` block listing every scene by number and name.
+8. **New dialog option, last field: "Only write scenes matched by component
+   NAME" — default Yes.** A scene naming a component the model does not contain
+   is `MODEL GAP - no component named after this scene`, and **nothing is
+   written for it**. A file built from the wrong component is worse than no
+   file. Set it to **No** to restore geometry-fallback writing (required on a
+   model whose definitions are not named after its scenes).
+
+Untouched: naming, rename path, file writing, scene selection, collision report
+(consistent by construction — see below).
+
+## Verification
+
+- **Syntax** — `python scripts/rbparse.py`: `ok save-scene-components.rb`,
+  49/49 files parse. It caught one real error (an unescaped apostrophe in a
+  single-quoted string) before commit.
+- **Offline replay** — `.forge/builder/replay-name-match.py` reproduces the new
+  resolution order in Python over the real 112-row manifest:
+  **97 name matches / 0 geometry / 15 model gaps.** That is exactly the
+  predicted 97 / 0 / 15.
+- **derived** — the 97 matched scene labels are all distinct, so with the
+  default strict setting there are **0 filename collisions** and 0
+  `same component as scene #N` notes (was 14).
+- The 15 gaps, all `ENH`: `26.5Panel1648WDO_HX` (near-miss `#2` in model),
+  `4260FL`, `4284FL`, `4872FL`, `6042CL SIDE L`, `6042FL SIDE L`,
+  `7248CL SIDE L`, `7248FL SIDE L`, `8442FL SIDE`, `9648FL CTR`,
+  `10218CL CTR`, `10242CL CTR`, `10242FL CTR`, `10242CL SIDE`, `127LPCL`.
+
+## Unproven — say it plainly
+
+- **The script is UNRUN.** No `ruby.exe` on this machine; nothing executed
+  outside SketchUp. Benton's dry run is the test.
+- The replay's "does this name exist" set is the manifest's *component* column —
+  the definitions the previous run resolved to. It is a **subset** of the
+  model's definitions. A scene the replay calls a gap could in principle match a
+  definition no scene ever resolved to. The real run will say.
+- `pick_instance`'s ambiguity branch is exercised by no row in this manifest —
+  it is untested against real data.
+
+## Files (this task)
+
+- `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\scripts\save-scene-components.rb`
+- `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\scripts\wr_tools\VERSION` (1.5.5 -> 1.5.6)
+- `C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp\.forge\builder\replay-name-match.py`

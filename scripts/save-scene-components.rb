@@ -6,11 +6,17 @@
 # component's definition to its own file named after the SCENE.
 #
 # The scene->component resolution WAS lifted from angled-component-art.rb. As
-# of Aug 2026 it no longer is: this script casts a ray along the scene camera's
-# view direction and takes the first component it strikes, because the shared
-# nearest-to-target-point rule put ceiling geometry into four shipped floor
-# files. See the comment above subject_for for the evidence. angled-component-art
-# .rb still uses the old rule, so the two can now disagree.
+# of Aug 2026 it no longer is, and as of the second pass it is not geometric at
+# all: a scene is matched to the component whose DEFINITION NAME is exactly the
+# scene's label. Geometry (raycast, then bounds/off-axis tiers) is kept but runs
+# only when no component carries that name. Two measured dry runs over the same
+# 112 scenes are why — see the long comment above subject_for.
+# angled-component-art.rb still uses the old nearest-to-target-point rule, so
+# the two can now disagree.
+#
+# A scene naming a component the model does not contain is reported as a MODEL
+# GAP and, by default, NOT written. A file built from the wrong component is
+# worse than a missing file. The last dialog option turns that off.
 #
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/save-scene-components.rb"
 #
@@ -64,7 +70,12 @@ module WR_SaveSceneComponents
     # The only option that writes to the model. Off by default for that reason.
     'ren'    => 'No',
     'over'   => 'No',
-    'dry'    => 'Yes'
+    'dry'    => 'Yes',
+    # Write ONLY scenes resolved by name. A file written from the wrong
+    # component is worse than no file, so this is on by default. Set it to No
+    # on a model whose definitions are NOT named after its scenes — that is the
+    # historical behaviour and the geometry fallback still exists for it.
+    'strict' => 'Yes'
   }.freeze
 
   # Only what Windows actually forbids in a filename. Everything else — spaces,
@@ -78,13 +89,14 @@ module WR_SaveSceneComponents
   # ------------------------------------------------------------------- input --
 
   def self.ask
-    keys = %w[scenes dir name ren over dry]
+    keys = %w[scenes dir name ren over dry strict]
     prompts = ['Scenes — all / current / 1-7,12 / text',
                'Output folder',
                'Name each file after',
                'Rename the component in the model to match its file',
                'Overwrite files already there',
-               'Dry run — list only, write nothing']
+               'Dry run — list only, write nothing',
+               'Only write scenes matched by component NAME']
     defaults = keys.map do |k|
       v = read_pref(k)
       v.empty? ? DEFAULTS[k] : v
@@ -94,7 +106,8 @@ module WR_SaveSceneComponents
              'Scene name|Definition name',  # name
              'No|Yes',                      # ren
              'Yes|No',                      # over
-             'Yes|No']                      # dry
+             'Yes|No',                      # dry
+             'Yes|No']                      # strict
     di = keys.index('dir')
     defaults[di], lists[di] = WR_Folder.field('skpcomp', DEFAULTS['dir'])
 
@@ -231,7 +244,103 @@ module WR_SaveSceneComponents
   # TOP LEVEL ONLY, deliberately, in both the ray path and the fallback. In this
   # file the parts are laid out at the top level and descending would resolve to
   # some sub-part of the right component instead of the component itself.
-  def self.subject_for(model, page)
+  # WHY GEOMETRY IS NO LONGER FIRST (Aug 2026, second pass). The ray version
+  # above shipped as v1.5.5 and Benton ran it over the same 112 scenes. It was
+  # not an improvement: 45 resolved by ray, 67 fell back, and collisions went
+  # from 13 to 14. The reason is in the numbers the run itself printed — EVERY
+  # ray hit reported a distance around 21,500 in (~1,800 ft). These scenes are
+  # parallel projection with the eye effectively at infinity, so a fractional
+  # difference in camera direction becomes inches of positional error out at the
+  # part, and the parts are inches apart. Geometry cannot be made reliable at
+  # that lever arm.
+  #
+  # It also does not need to be. Benton has since renamed the definitions to
+  # match the scenes: in that same run 97 of 112 rows already had component ==
+  # scene, and for the other 15 the wanted name is not in the model AT ALL. So
+  # the name is the answer for every scene that has an answer, and no geometric
+  # rule could ever have found the remaining 15.
+  #
+  # Resolution order is therefore:
+  #   1. Exact definition-name match against the scene label. Authoritative.
+  #   2. No match -> report it, name any "#N" near-miss, and only then fall
+  #      through to the ray/fallback tiers, which are kept because a model whose
+  #      definitions are not named after its scenes is how this script behaved
+  #      historically and still has to work.
+  #
+  # EXACT MATCH ONLY, deliberately. A "#2" suffix means SketchUp had to make a
+  # SECOND, DIFFERENT definition unique — accepting it silently is how a wrong
+  # part gets written under a right name, so the near-miss is named in the
+  # output and the scene is treated as unmatched.
+  def self.subject_for(model, page, index = nil)
+    index ||= top_level_index(model)
+    want = scene_label(page)
+
+    unless want.empty?
+      hits = index[want]
+      if hits && !hits.empty?
+        subj = pick_instance(hits)
+        if hits.length == 1
+          return [subj, 'name match']
+        end
+        # Never silently take the first in entity order — that ambiguity is the
+        # exact failure this whole rewrite exists to remove. Order by position
+        # so the choice is reproducible, and say what was chosen.
+        x = (subj.bounds.min.x.to_f rescue 0.0)
+        return [subj, format('name match (%d instances - took the leftmost at x=%.0f in)',
+                             hits.length, x)]
+      end
+    end
+
+    lead = want.empty? ? 'no scene label' : 'no name match'
+    near = near_misses(index, want)
+    unless near.empty?
+      lead += '; model has ' + near.map { |n| n.inspect }.join(', ')
+    end
+
+    subj, how = geometry_subject_for(model, page)
+    [subj, "#{lead}; #{how}"]
+  end
+
+  # Top-level instances and groups by definition name. Built once per run — the
+  # old code walked model.entities once PER SCENE.
+  def self.top_level_index(model)
+    idx = {}
+    model.entities.each do |e|
+      next unless e.is_a?(Sketchup::ComponentInstance) || e.is_a?(Sketchup::Group)
+      defn = definition_of(e)
+      next if defn.nil?
+      n = definition_name(defn)
+      next if n.empty?
+      (idx[n] ||= []) << e
+    end
+    idx
+  end
+
+  # Deterministic pick among instances sharing one definition name: leftmost,
+  # then front, then lowest, then entityID so the order never depends on the
+  # order model.entities happens to yield.
+  def self.pick_instance(list)
+    list.min_by do |e|
+      b = (e.bounds rescue nil)
+      if b && b.valid?
+        [b.min.x.to_f, b.min.y.to_f, b.min.z.to_f, e.entityID.to_i]
+      else
+        [1.0e18, 1.0e18, 1.0e18, e.entityID.to_i]
+      end
+    end
+  end
+
+  # Definition names that differ from the wanted one only by SketchUp's own
+  # uniquing suffix, e.g. wanted "ENH 26.5Panel1648WDO_HX", model has
+  # "ENH 26.5Panel1648WDO_HX#2". Named, never used.
+  def self.near_misses(index, want)
+    return [] if want.to_s.empty?
+    re = /\A#{Regexp.escape(want)}#\d+\z/
+    index.keys.select { |k| k =~ re }.sort
+  end
+
+  # The pre-name geometry path, unchanged, now second in line.
+  def self.geometry_subject_for(model, page)
     cam = (page.camera rescue nil)
     return [nil, 'scene has no camera'] if cam.nil?
 
@@ -472,6 +581,7 @@ module WR_SaveSceneComponents
     over = cfg['over'].to_s.downcase.start_with?('y')
     ren  = cfg['ren'].to_s.downcase.start_with?('y') && !dry
     by_scene = cfg['name'].to_s.downcase.include?('scene')
+    strict = cfg['strict'].to_s.downcase.start_with?('y')
 
     unless dry
       begin
@@ -496,12 +606,23 @@ module WR_SaveSceneComponents
       puts "  rename   off — components keep their current names, so a file named"
       puts "           after a scene can still contain \"Component#41\""
     end
+    if strict
+      puts '  STRICT  on — only scenes whose label matches a component NAME are'
+      puts '          written. A scene with no such component is reported as a'
+      puts '          MODEL GAP and skipped. Set the last option to No to write'
+      puts '          those from the geometry fallback instead.'
+    else
+      puts '  strict  OFF — scenes with no name match are written from the'
+      puts '          geometry fallback, which on a long-range parallel camera'
+      puts '          is a guess. Check the HOW column on every one.'
+    end
     puts '=' * 78
 
     # One operation for the whole batch, so undo is one keystroke rather than a
     # hundred. Only opened when something will actually be written to the model.
     model.start_operation('Rename Scene Components', true) if ren
 
+    index     = top_level_index(model)
     rows      = []
     used      = {}   # filename -> the scene that claimed it first
     seen_defn = {}   # definition name -> first scene that resolved to it
@@ -513,8 +634,22 @@ module WR_SaveSceneComponents
               :how => '', :status => '', :link => '' }
       rows << row
 
-      subject, how = subject_for(model, page)
+      subject, how = subject_for(model, page, index)
       row[:how] = how
+      matched = how.to_s.start_with?('name match')
+
+      # A scene naming a component the model does not contain is a MODEL GAP,
+      # not a resolution failure: the part has to be authored. Writing it from
+      # whatever the camera happened to graze is how the wrong geometry ends up
+      # under a right filename, so by default it is skipped, loudly.
+      if strict && !matched
+        gd = subject.nil? ? nil : definition_of(subject)
+        row[:defn] = gd.nil? ? '' : definition_name(gd).to_s
+        row[:status] = 'MODEL GAP - no component named after this scene'
+        failed += 1
+        next
+      end
+
       if subject.nil?
         row[:status] = 'UNRESOLVED'
         failed += 1
@@ -628,16 +763,24 @@ module WR_SaveSceneComponents
     # HOW IT RESOLVED, tallied. A scene that says "ray hit" was genuinely aimed
     # at the part it got; anything saying "fallback" is still a guess and is
     # worth an eye before its file is trusted.
-    rayed = rows.count { |r| r[:how].to_s.start_with?('ray hit') }
-    fell  = rows.count { |r| r[:how].to_s.start_with?('fallback') }
+    named = rows.count { |r| r[:how].to_s.start_with?('name match') }
+    rayed = rows.count { |r| r[:how].to_s.include?('; ray hit') }
+    fell  = rows.count { |r| r[:how].to_s.include?('; fallback') }
+    gaps  = rows.select { |r| r[:status].to_s.start_with?('MODEL GAP') }
+    puts ''
+    puts "  AIM   #{named} of #{rows.length} scene(s) resolved BY NAME — the model holds a"
+    puts '        component whose definition name is exactly the scene label.'
+    puts '        That is exact, not inferred, and needs no checking.'
     if (rayed + fell).positive?
+      puts "        #{rayed} resolved by ray and #{fell} by fallback, both only because no"
+      puts "        component carries that scene's name. Those are guesses."
+    end
+    unless gaps.empty?
       puts ''
-      puts "  AIM   #{rayed} of #{rows.length} scene(s) resolved by ray hit — the camera is"
-      puts '        actually pointing at the component it was given.'
-      if fell.positive?
-        puts "        #{fell} fell back (ray hit nothing). Those are guesses; check the"
-        puts '        HOW column for each before trusting its file.'
-      end
+      puts "  MODEL GAP  #{gaps.length} scene(s) name a component that is NOT in this model."
+      puts '             Nothing was written for them. Author the part (or rename an'
+      puts '             existing definition to match) and run again:'
+      gaps.each { |r| puts "               ##{r[:n]}  #{r[:scene]}" }
     end
 
     # The LINK column is the answer to "does right-click Save As know where this
