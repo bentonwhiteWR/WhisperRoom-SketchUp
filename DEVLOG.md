@@ -2,6 +2,29 @@
 
 ## 2026-08-25
 
+### Done - the E and W walls: one-ended box trim, and the panel family at 1/16 (v1.6.13)
+
+First measurement of an E/W wall, given as instructions rather than a probe: *"East wall
+needs to go north 1/16, east 1/32. West wall needs to go south 1/16, west 1/32."*
+
+**Along the wall, north-on-E and south-on-W are the same move.** Both walls hold a
+41.5PanelSolid turned 180 in plan, and working it through `place()` and `rotation()` - out
+sign, FACE_OUT, the EVEN parity - the part's +width axis points south on E and north on W.
+So both walls want 1/16 toward the part's LOW-width end. That is the signature of a bounding
+box whose 0.125 overshoot sits entirely at one end: centring the box puts the panel 1/16 off,
+toward the other end. `iep_trim_end` returns `:lo` for the panel family and `:sym` for the
+vent family (its centring landed to four places, so its trim is symmetric), and a slab-less
+panel with a one-ended trim is shifted half its overshoot toward that end along the part's own
+width axis in world.
+
+**Across the wall, both want 1/32 outboard**, so the panel family's room-proud is 1/16, not
+3/32. That contradicts the 17.5 measurement by exactly the 1/32 Benton's first hand placement
+of that panel was "not exact" by. One number for the family and a test: the next N probe
+should read the 17.5 at 2.8125. If it truly wants 2.7812, the figure splits by panel width.
+
+Still unmeasured: the S wall (the door - the only inner part placed off a real slab), and the
+ceiling and floor datums for the inner deck.
+
 ### Done - the room-proud figure is per family: vent 1/8, panel 3/32 (v1.6.12)
 
 Fifth probe. The vent landed at 2.7500 as predicted. The 17.5 landed at 2.7500 and Benton:

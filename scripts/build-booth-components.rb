@@ -149,7 +149,28 @@ module WR_BuildBoothComponents
   # 1/32 too far in". His hand assembly had it at 2.7812, and that is the
   # figure - so the 2.0625-thick panel family stands 3/32 proud where the
   # 2.375-thick vent family stands 1/8. Both measured, neither derived.
-  IEP_ROOM_PROUD = { :vent => 0.125, :panel => 0.09375 }.freeze
+  #
+  # Then the E and W walls: 41.5PanelSolid at 3/32 was "1/32 too far in" on
+  # both, so the panel family is 1/16. That contradicts the 17.5 at 3/32 by
+  # exactly the 1/32 Benton's first hand placement of the 17.5 was "not exact"
+  # by. One number for the family, and the next N-wall probe decides it: the
+  # 17.5 should read 2.8125, and if it truly wants 2.7812 this splits by width.
+  IEP_ROOM_PROUD = { :vent => 0.125, :panel => 0.0625 }.freeze
+
+  # ALONG THE WALL, the panel family's bounding box overshoots the panel by
+  # 0.125 - and all of it is at ONE end, the definition's low-width end.
+  #
+  # Benton, E and W walls of the probed 4872 E, both carrying a centred
+  # 41.5PanelSolid: "E needs to go north 1/16, W needs to go south 1/16".
+  # Opposite world directions, but the two walls hold the same part turned
+  # 180 in plan - on E its +width axis points south, on W north (worked
+  # through place() and rotation(), not assumed) - so both are the SAME move
+  # in the part's own frame: 1/16 toward its low end. A symmetric trim would
+  # need no move at all; the vent's is symmetric and centring landed it
+  # exactly, so the vent family is :sym and the panel family is :lo.
+  def self.iep_trim_end(name)
+    name.to_s =~ /VNT|NV/i ? :sym : :lo
+  end
 
   def self.iep_room_proud(name)
     name.to_s =~ /VNT|NV/i ? IEP_ROOM_PROUD[:vent] : IEP_ROOM_PROUD[:panel]
@@ -1304,6 +1325,14 @@ module WR_BuildBoothComponents
             vec = %w[N S].include?(wall) ? Geom::Vector3d.new(0, shift, 0)
                                          : Geom::Vector3d.new(shift, 0, 0)
             tr = Geom::Transformation.translation(vec) * tr
+          end
+
+          # ...and along it, if the box's overshoot is all at one end.
+          over = r[:cls][:w] - slot_len
+          if iep_trim_end(r[:name]) == :lo && over > 0.02
+            wdir = [tr.xaxis, tr.yaxis, tr.zaxis][r[:cls][:wi]]
+            v = Geom::Vector3d.new(wdir.x * -over / 2.0, wdir.y * -over / 2.0, 0)
+            tr = Geom::Transformation.translation(v) * tr
           end
         end
 
