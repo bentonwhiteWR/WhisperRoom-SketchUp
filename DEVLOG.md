@@ -2,6 +2,34 @@
 
 ## 2026-08-25
 
+### Done - the whole inner shell verified against a corrected full-booth probe (v1.6.17)
+
+Benton built the complete 4872 E - both shells, both decks - corrected it by hand, and probed
+all 28 instances. Converted to builder coordinates (y less 15.0831 for the door's swung leaf,
+z less 1.3125 for the mat) and compared part by part against what v1.6.16 produces:
+
+| part | worst axis |
+|---|---|
+| W0i, E0i, N0i, N1i, S1i | 0.0001 |
+| N-seal0i, S-seal0i | 0.0000 |
+| all four inner corners | 0.0000 |
+| FLi mat | 0.0000 |
+| **CLi tray** | **z +2.3580** |
+
+**Every inner wall part, every seal, every corner and the floor mat are right to four places.**
+That is the room-proud table, the one-ended trim, the direct corner transform, the seal plate
+outboard, the 0.75 lift and the mat-under-the-floor rule, all confirmed at once against an
+assembly Benton seated himself.
+
+**The tray was the one miss, and it is a rule, not a nudge.** Its bottom had been put at the
+standard ceiling's underside; Benton has it at the standard ceiling's TOP less 0.7500 - to four
+places - so it caps the ceiling rather than hanging under it. `IEP_TRAY_DROP = 0.75`.
+
+The door is the one part this comparison cannot check: it is placed off its internal slab and
+the slab's position inside the door's box is not recorded anywhere, so a box-to-box comparison
+says nothing. Benton's probe has the door box at booth y 2.7253..5.2656 on the S wall. Whether
+the builder lands there is a question for the next build, not this table.
+
 ### Done - IEP shell up 0.75, and the IEP floor and ceiling are placed (v1.6.16)
 
 Benton: *"all of the IEP components need to go up .75. You still haven't listed the IEP

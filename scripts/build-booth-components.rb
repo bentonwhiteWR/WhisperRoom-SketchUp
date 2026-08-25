@@ -253,6 +253,14 @@ module WR_BuildBoothComponents
   IEP_CL_UPSIDE_DOWN = false   # flip the tray if it comes in opening upward
   IEP_FL_UPSIDE_DOWN = false
 
+  # HOW FAR THE TRAY DROPS OVER THE STANDARD CEILING. Its bottom edge sits
+  # this far below the standard ceiling's TOP face - so it caps the ceiling
+  # rather than hanging under it. MEASURED: Benton probed a fully corrected
+  # 4872 E on 2026-08-25 and the tray's bottom was 0.7500 below the standard
+  # ceiling's top, to four places. The first placement had it at the
+  # ceiling's underside, 2.358 too low.
+  IEP_TRAY_DROP = 0.75
+
   # Union of the bounding boxes of everything the deck pass just added.
   def self.union_bounds(list)
     bb = Geom::BoundingBox.new
@@ -326,10 +334,11 @@ module WR_BuildBoothComponents
                  'tiling is not solved.'
         next
       end
-      # FL: the mat's TOP meets the standard floor's underside.
-      # CL: the tray's BOTTOM meets the standard ceiling's underside, so it
-      #     comes down over it.
-      z_target = host.min.z.to_f
+      # FL: the mat's TOP meets the standard floor's underside (measured:
+      #     the mat landed to four places on the first try).
+      # CL: the tray's BOTTOM sits IEP_TRAY_DROP below the standard
+      #     ceiling's TOP, capping it.
+      z_target = kind == 'FL' ? host.min.z.to_f : host.max.z.to_f - IEP_TRAY_DROP
       tr, tnote = flat_placement(defn, bw, bh, flip, mode, z_target)
       if tr.nil?
         warns << "#{name}: #{tnote}"
