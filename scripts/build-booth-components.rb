@@ -98,11 +98,11 @@ module WR_BuildBoothComponents
   # part is "the 5/16 black rubber mat that sits UNDER the standard floor". The
   # inner wall does not stand on it, so the number had no reason left.
   #
-  # 0.0 is now the assumption: the inner wall's underside is flush with the
-  # outer wall's and the whole 1.5 falls at the top. That is still a guess, but
-  # it is a guess you can check by eye - the two wall bottoms either line up or
-  # they do not - which 0.3125 was not.
-  IEP_WALL_LIFT = 0.0
+  # 0.0 was tried next, and checked by eye. Benton, off that build: "all of
+  # the IEP components need to go up .75". So 0.75 up, 0.75 short at the top -
+  # the 1.5 splits evenly. MEASURED, by the only method that has worked on
+  # this shell: build it, look, say the number.
+  IEP_WALL_LIFT = 0.75
 
   # The IEP mid-wall seam seal's stem - the joint between two inner panels.
   # 6.5 where the Standard seal is 2. Needed here because rebalance_walls
@@ -227,6 +227,120 @@ module WR_BuildBoothComponents
   # IEP_WALL_LIFT for an inner one, which puts its underside on the lip.
   def self.part_top_z(part, hx)
     part_height(part, hx) + (inner?(part) ? IEP_WALL_LIFT : 0.0)
+  end
+
+  # ------------------------------------------------------------ IEP DECK --
+  #
+  # The inner shell's own floor and ceiling. Benton, 2026-08-25, off a real
+  # build, and these two sentences are the whole specification:
+  #
+  #   FLOOR    "the 5/16 black rubber mat that sits UNDER the standard floor"
+  #   CEILING  "the tray faces downwards, and it sits on top of the standard
+  #             ceiling, completely engulfing it"
+  #
+  # BOTH ARE PLACED RELATIVE TO THE STANDARD DECK THAT WAS JUST PLACED, not to
+  # a z constant of their own. wr-deck.rb's vertical datums are measured, fit
+  # tested and documented in reference/floor-ceiling-geometry.md; re-deriving
+  # them here would be a second copy to keep in step. Reading the placed
+  # instance's own bounding box also means the one figure nobody has measured -
+  # exactly where the standard ceiling's underside lands - is never needed.
+  #
+  # ONE PIECE PER DECK, and the rest are refused by name. The 4230 through 4896
+  # ship a single ENH <n>FL and ENH <n>CL. Everything larger tiles - CTR, SIDE,
+  # SIDE L / SIDE R - and how those tile is a layout question this file has no
+  # answer for. Guessing it would put a ceiling panel through a wall, so a booth
+  # whose single-piece parts are not in the library is reported and skipped.
+  IEP_CL_UPSIDE_DOWN = false   # flip the tray if it comes in opening upward
+  IEP_FL_UPSIDE_DOWN = false
+
+  # Union of the bounding boxes of everything the deck pass just added.
+  def self.union_bounds(list)
+    bb = Geom::BoundingBox.new
+    (list || []).each { |e| bb.add(e.bounds) rescue nil }
+    bb.valid? ? bb : nil
+  end
+
+  # Lay a flat part in the booth's plan: turn it a quarter if its footprint is
+  # the other way round, flip it if asked, then sit it where the caller wants.
+  #
+  # Returns [transform, note] or [nil, why].
+  def self.flat_placement(defn, bw, bh, flip, z_mode, z_target)
+    bb = defn.bounds
+    return [nil, 'no valid bounds'] unless bb.valid?
+    px = bb.max.x.to_f - bb.min.x.to_f
+    py = bb.max.y.to_f - bb.min.y.to_f
+    note = nil
+
+    # Which way round is its footprint? Compare both readings against the booth
+    # and keep the better one rather than assuming the parts are authored to a
+    # convention - ENH 4872CL measures 50 x 74 against a booth that is 74 x 50.
+    as_is   = (px - bw).abs + (py - bh).abs
+    turned  = (py - bw).abs + (px - bh).abs
+    quarter = turned < as_is - 0.001
+    tr = Geom::Transformation.new
+    if quarter
+      tr = Geom::Transformation.rotation(ORIGIN, VZ, 90.degrees) * tr
+      note = 'turned a quarter'
+    end
+    tr = Geom::Transformation.rotation(ORIGIN, VX, 180.degrees) * tr if flip
+
+    # Where the part's own box lands once rotated.
+    xs = []
+    ys = []
+    zs = []
+    8.times do |i|
+      q = bb.corner(i).transform(tr)
+      xs << q.x.to_f
+      ys << q.y.to_f
+      zs << q.z.to_f
+    end
+    dx = bw / 2.0 - (xs.min + xs.max) / 2.0
+    dy = bh / 2.0 - (ys.min + ys.max) / 2.0
+    dz = z_mode == :top ? z_target - zs.max : z_target - zs.min
+    [Geom::Transformation.translation(Geom::Vector3d.new(dx, dy, dz)) * tr, note]
+  end
+
+  # Places the pair and returns [count, notes, warnings].
+  def self.iep_deck(model, booth, key, spec, dir, cache, host_bounds)
+    digits = key[/MDL\s+(\d+)/, 1]
+    return [0, [], ["cannot read a model number out of #{key}"]] if digits.nil?
+    bw = spec[:w].to_f
+    bh = spec[:h].to_f
+    count = 0
+    notes = []
+    warns = []
+
+    [['FL', "ENH #{digits}FL", IEP_FL_UPSIDE_DOWN, :top,
+      'the mat goes under the standard floor'],
+     ['CL', "ENH #{digits}CL", IEP_CL_UPSIDE_DOWN, :bottom,
+      'the tray drops over the standard ceiling']].each do |kind, name, flip, mode, why|
+      host = host_bounds[kind]
+      if host.nil?
+        warns << "#{name}: no standard #{kind} was placed, so there is nothing to sit against"
+        next
+      end
+      defn = load_def(model, dir, name, cache)
+      if defn.nil?
+        warns << "#{name}.skp not in the library - #{kind} skipped. Booths above " \
+                 '4896 tile their inner deck across CTR / SIDE pieces and that ' \
+                 'tiling is not solved.'
+        next
+      end
+      # FL: the mat's TOP meets the standard floor's underside.
+      # CL: the tray's BOTTOM meets the standard ceiling's underside, so it
+      #     comes down over it.
+      z_target = host.min.z.to_f
+      tr, tnote = flat_placement(defn, bw, bh, flip, mode, z_target)
+      if tr.nil?
+        warns << "#{name}: #{tnote}"
+        next
+      end
+      inst = booth.entities.add_instance(defn, tr)
+      inst.name = "#{kind}i  #{name}"
+      count += 1
+      notes << "#{name}#{tnote ? " (#{tnote})" : ''} - #{why}, z #{format('%.4f', z_target)}"
+    end
+    [count, notes, warns]
   end
 
   # How far a mid-wall seam seal stands PROUD of the wall face it sits between,
@@ -1434,13 +1548,19 @@ module WR_BuildBoothComponents
       #
       # Still skipped on a dry run — a dry run places nothing, deck included.
       deck_note = nil
-      if !cfg['dry'] && booth && shell != 'inner'
+      # The standard deck is placed even on an inner-only build, because the
+      # IEP deck sits against it and needs its bounds - and then erased again,
+      # so what is left is still only the inner shell.
+      if !cfg['dry'] && booth
         t_deck = tag.call('WR-Booth-Deck', [120, 120, 128])
         wall_h = cfg['hx'] ? 91.0 : 81.0
+        deck_added = {}
         %w[FL CL].each do |kind|
           before = booth.entities.length
           n, dwarn, note = WR_Deck.build(model, booth, spec, cfg['dir'], kind, wall_h)
-          booth.entities.to_a[before..-1].to_a.each { |e| (e.layer = t_deck) rescue nil }
+          added = booth.entities.to_a[before..-1].to_a
+          added.each { |e| (e.layer = t_deck) rescue nil }
+          deck_added[kind] = added
           deck_note = "#{deck_note}#{deck_note ? '; ' : ''}#{kind} #{n}#{note ? " (#{note})" : ''}"
           placed += n
           (dwarn || []).each { |w| puts "  DECK #{kind}: #{w}" }
@@ -1452,20 +1572,33 @@ module WR_BuildBoothComponents
         # control, and now neither has one — the whole deck is unconditional.
         before = booth.entities.length
         sn, swarn, snote = WR_Deck.seals(model, booth, spec, cfg['dir'], wall_h)
-        booth.entities.to_a[before..-1].to_a.each { |e| (e.layer = t_deck) rescue nil }
+        seal_added = booth.entities.to_a[before..-1].to_a
+        seal_added.each { |e| (e.layer = t_deck) rescue nil }
         deck_note = "#{deck_note}; seals #{sn}#{snote ? " (#{snote})" : ''}"
         placed += sn
         (swarn || []).each { |w| puts "  DECK SEAL: #{w}" }
 
+        # Where the standard deck landed, per kind, read off the placed parts.
+        host = { 'FL' => union_bounds(deck_added['FL']),
+                 'CL' => union_bounds(deck_added['CL']) }
+
+        if shell == 'inner'
+          gone = deck_added.values.flatten + seal_added
+          booth.entities.erase_entities(gone) unless gone.empty?
+          placed -= gone.length
+          deck_note = "standard deck measured and removed (inner-only build)"
+        end
         puts "  deck     #{deck_note}"
-        if spec[:eiw]
-          # SAID OUT LOUD RATHER THAN LEFT MISSING. The deck placed above is
-          # the STANDARD floor and ceiling. The IEP inner floor and ceiling
-          # (ENH <size>FL / ENH <size>CL, which do exist in the library) are
-          # NOT placed - their z datum has not been measured, and guessing
-          # it would put a floor through a wall. A render of an Enhanced
-          # booth interior is missing its inner deck until that is done.
-          puts "  deck     IEP INNER FLOOR AND CEILING NOT PLACED - outer deck only"
+
+        # THE IEP DECK, against the standard one.
+        if spec[:eiw] && shell != 'outer'
+          before = booth.entities.length
+          n, dnotes, dwarns = iep_deck(model, booth, key, spec, cfg['dir'], cache, host)
+          booth.entities.to_a[before..-1].to_a.each { |e| (e.layer = t_deck) rescue nil }
+          placed += n
+          dnotes.each { |x| puts "  IEP deck #{x}" }
+          dwarns.each { |x| puts "  IEP DECK: #{x}" }
+          puts '  IEP deck NOT PLACED - see above' if n.zero?
         end
       end
 

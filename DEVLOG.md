@@ -2,6 +2,35 @@
 
 ## 2026-08-25
 
+### Done - IEP shell up 0.75, and the IEP floor and ceiling are placed (v1.6.16)
+
+Benton: *"all of the IEP components need to go up .75. You still haven't listed the IEP
+ceiling. So go ahead and add it to the builder now. Same with IEP floor."*
+
+**`IEP_WALL_LIFT = 0.75`.** 0.3125 was a derivation, 0.0 was a guess checked by eye, 0.75 is
+what the eye said. The 1.5 an Enhanced wall gives up splits evenly.
+
+**The IEP deck is in**, on the rule Benton gave two rounds ago: the floor is *"the 5/16 black
+rubber mat that sits under the standard floor"*, the ceiling *"the tray faces downwards, and it
+sits on top of the standard ceiling, completely engulfing it"*. Both are placed AGAINST THE
+STANDARD DECK THAT WAS JUST PLACED - the mat's top at the standard floor's underside, the
+tray's bottom at the standard ceiling's underside - read off the placed instances' own bounds,
+so no z constant and no re-derivation of wr-deck's fit-tested datums. Each part is turned a
+quarter if its footprint is the other way round (`ENH 4872CL` is 50 x 74 on a 74 x 50 booth)
+and centred on the booth. `IEP_CL_UPSIDE_DOWN` / `IEP_FL_UPSIDE_DOWN` flip a part that comes
+in the wrong way up; both default false and are one word to change.
+
+**One piece per deck, the rest refused by name.** 4230 through 4896 ship a single `ENH <n>FL`
+and `ENH <n>CL`. Everything larger tiles across CTR / SIDE pieces and that tiling is not
+solved; a booth whose single-piece parts are not in the library says so and skips its inner
+deck rather than guessing where a ceiling panel goes.
+
+**Inner-only builds now place the standard deck, measure it, and erase it**, so the IEP deck
+has something to sit against and the model still ends up holding only the inner shell.
+
+Unrun. `rbparse` only - the deck placement uses the SketchUp API end to end and the harness
+cannot reach it. The build report prints each IEP deck part's z so the first run is checkable.
+
 ### Done - room-proud is per panel width: 17.5 at 3/32, 41.5 at 1/16 (v1.6.15)
 
 The test from the last entry came back: *"both the 17.5 panels need to go inwards 1/32"*. So
