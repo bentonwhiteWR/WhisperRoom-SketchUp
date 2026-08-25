@@ -60,11 +60,20 @@ the gap, and the panel finder depends on which. Settle it before anything else.
   Any widening must still keep `STDSS`/`…SeamSeal` parts out of the deck pool, which the current
   anchored pattern achieves for free.
 - **`gen-booth.py` skips every `E` variant** at lines 367–373 with `'panel lengths unresolved'`.
+- **VENT OPTION COMBINATIONS ARE NOT MISSING — Benton ruled this on 2026-08-24.** The
+  `_VSS`, `_EFS` and `_CP` variants are **strictly for Standard walls**. Enhanced needs only the
+  plain vent panel: `ENH 35.5VNT` / `ENH 41.5VNT` (plus `_HX`), which already exist. In Benton's
+  words, *"the 35.5 VNT wall fits them all for the inner walls."* The 28 composed combination
+  files earlier listed as missing are **not to be authored**.
+
+  The consequence is a code requirement, not an authoring one: `component_for` in
+  `booth-from-link.rb` (lines 122–127) appends `_VSS`/`_EFS`/`_CP` unconditionally. For Enhanced
+  it must **stop appending them** and emit the plain `ENH <w>VNT`. Appending on the Enhanced path
+  composes a filename that will never exist, whatever Benton authors.
 - **Known library gaps** (to be confirmed precisely by the Scoper, not taken from this list):
-  no Enhanced counterpart to any of the eight `STDSS` ceiling/floor seam seals; Enhanced vent
-  coverage looks thin against Standard's `_EFS`/`_VSS`/`_CP` matrix; and `ENH 423.54CL` /
-  `ENH 423.54FL` have no Standard counterpart and do not parse like the other deck names —
-  suspected typo, to be flagged rather than silently normalised.
+  no Enhanced counterpart to any of the eight `STDSS` ceiling/floor seam seals; and
+  `ENH 423.54CL` / `ENH 423.54FL` have no Standard counterpart and do not parse like the other
+  deck names — suspected typo, to be flagged rather than silently normalised.
 - **The DEVLOG's standing warning is now live, not future:** the panel finder "needs a
   prefer-outermost-slab tweak once two same-width tall slabs exist in one part." If the probe
   confirms combined components, that condition is met and it is a present bug.
