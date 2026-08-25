@@ -104,6 +104,13 @@ module WR_BuildBoothComponents
   # re-walks a run from real part widths and has to use the right joint.
   IEP_SEAL_W = 6.5
 
+  # How far a part's bounding box may disagree with its slot, when wall_slab
+  # found no panel inside it, before rebalance_walls believes the part really
+  # is a different size. See the note in rebalance_walls: ENH parts carry trim
+  # and void proud of the panel, worth an eighth to a quarter inch, while the
+  # substitution this exists to catch - a wide-access door - is three inches.
+  SLAB_NOISE = 1.0
+
   def self.inner?(part)
     part[:sh].to_s == 'in'
   end
@@ -854,8 +861,32 @@ module WR_BuildBoothComponents
         vs = poly.map { |q| (run_x ? q[0] : q[1]).to_f }
         [vs.min, vs.max]
       end
+      # WITHOUT A SLAB, THE PART'S WIDTH IS AN ESTIMATE, NOT A MEASUREMENT -
+      # and an estimate must not be allowed to move a wall.
+      #
+      # wall_slab finds the actual wall panel inside a definition. It succeeds on
+      # every Standard part and fails on most ENH ones: an IEP panel is 4 to 15
+      # nested containers with a fill / shell / trim / void band profile, and the
+      # search does not recognise it. The old fallback then used the whole
+      # definition's bounding box, which on an ENH part includes trim and void
+      # standing proud of the panel - measured on a real 4872 E, 41.625 against a
+      # 41.500 slot on ENH 41.5PanelSolid and 41.734 on ENH 41.5VNT.
+      #
+      # That is 1/8 to 1/4 in of packaging, and it was enough to make one wall
+      # fail to close and silently stretch two others by 0.125. Meanwhile the
+      # thing rebalance_walls exists for - a wide-access door - changes a panel by
+      # THREE INCHES or more. The two are nowhere near each other, so when there
+      # is no slab, a discrepancy under an inch is read as measurement noise and
+      # the slot is trusted. Anything larger is still a real substitution and
+      # still rebalances.
+      #
+      # The FIT column in the main table keeps reporting the raw difference, so
+      # the discrepancy stays visible - it just stops moving geometry.
       pw_of = lambda do |r|
-        r[:slab] ? (r[:slab][:w1] - r[:slab][:w0]) : r[:cls][:w]
+        next (r[:slab][:w1] - r[:slab][:w0]) if r[:slab]
+        slot = ext.call(r[:part][:poly])
+        want = slot[1] - slot[0]
+        (r[:cls][:w] - want).abs <= SLAB_NOISE ? want : r[:cls][:w]
       end
       list.sort_by! { |r| ext.call(r[:part][:poly])[0] }
 

@@ -39,6 +39,7 @@ was written. Reintroduce either bug it exists to catch and it reports FAIL:
 
     w, inn = key      -> w = key[0]          FAIL undefined local variable `inn'
     joint = inn ? IEP_SEAL_W : 2.0 -> 2.0    inner run lands 3.5 in short
+    pw_of slot fallback -> r[:cls][:w]       bbox noise stretches the N wall
 
 Do that again if you ever doubt it.
 """
@@ -105,6 +106,7 @@ end
 FIXTURE = r'''
 module WR_BuildBoothComponents
   IEP_SEAL_W = 6.5
+  SLAB_NOISE = 1.0
 
   def self.inner?(part)
     part[:sh].to_s == 'in'
@@ -139,6 +141,33 @@ module WR_BuildBoothComponents
      mk.call('S1i',      'panel', 'in',  52.25, 69.75, 14.5)]
   end
 
+  # A SINGLE-PANEL inner wall, which is the case that actually corrupted
+  # geometry on the first real 4872 E. wall_slab found no panel inside
+  # ENH 41.5PanelSolid, so its width came out as the bounding box, 41.625
+  # against a 41.500 slot. On a wall with a joint that 1/8 fails the closure
+  # test and the wall is left alone with a warning - loud, harmless. On a wall
+  # with NO joint there is nothing to fail: the re-walk lands 0.125 long, which
+  # is inside the 0.15 closure tolerance, so it passed and silently stretched
+  # both E and W inner walls by an eighth of an inch.
+  #
+  # Nothing has been substituted here. That eighth is trim standing proud of the
+  # panel, and the wall must come out exactly as generated.
+  def self.fixture_noise
+    [{ :part => { :k => 'panel', :id => 'N0i', :sh => 'in',
+                  :poly => [[4.25, 0.0], [45.75, 0.0], [45.75, 1.0], [4.25, 1.0]] },
+       :cls => { :w => 41.625 }, :slab => nil, :name => 'ENH 41.5PanelSolid' }]
+  end
+
+  def self.check_noise
+    rows = fixture_noise
+    rebalance_walls(rows)
+    rows.map do |r|
+      p = r[:part]
+      xs = p[:poly].map { |q| q[0].to_f }
+      format('%%s %%.3f..%%.3f', p[:id], xs.min, xs.max)
+    end.join(' | ')
+  end
+
   def self.check
     rows = fixture
     rebalance_walls(rows)
@@ -152,7 +181,7 @@ module WR_BuildBoothComponents
 end
 
 (begin
-  WR_BuildBoothComponents.check
+  WR_BuildBoothComponents.check + '  ||  ' + WR_BuildBoothComponents.check_noise
 rescue Exception => e
   'FAIL ' + e.message
 end).dup
@@ -165,7 +194,10 @@ end).dup
 #   inner  4.25 + 44.5 = 48.75, seal shifts 3 in to 48.75..55.25, 14.5 in
 #          panel 55.25..69.75          <- only reachable on a 6.5 joint
 EXPECT = ('S0 2.000..51.000 | S-seal0 51.000..53.000 | S1 53.000..72.000 | '
-          'S0i 4.250..48.750 | S-seal0i 48.750..55.250 | S1i 55.250..69.750')
+          'S0i 4.250..48.750 | S-seal0i 48.750..55.250 | S1i 55.250..69.750'
+          '  ||  '
+          # second case: bounding-box noise on a jointless wall, nothing moves
+          'N0i 4.250..45.750')
 
 
 def main():
@@ -173,10 +205,10 @@ def main():
     prog = SHIMS + FIXTURE % {'rebalance': method_source(src, 'rebalance_walls')}
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
-    print('rebalance_walls, Enhanced S wall, wide-access door on both shells')
+    print('rebalance_walls: wide-access door on both shells, then bbox noise')
     print('  got      %s' % got)
     if got == EXPECT:
-        print('  PASS - both shells re-walked independently, each on its own joint')
+        print('  PASS - real substitution re-walks, bbox noise leaves the wall alone')
         return 0
     print('  expected %s' % EXPECT)
     print('  FAIL')

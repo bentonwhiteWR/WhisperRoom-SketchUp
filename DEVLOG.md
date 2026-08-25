@@ -2,6 +2,61 @@
 
 ## 2026-08-25
 
+### Done - the first Enhanced booth resolved 24 parts, and the width bug it exposed (v1.6.3)
+
+`MDL 4872 E` ran end to end in SketchUp for the first time. **24 parts, every name resolved,
+zero missing components** - 12 Standard outer, 12 IEP inner, the ENH door and vent and seals
+all found on `P:`. The two-shell layout and the double translation are sound.
+
+The dry run also showed a real defect, and it is a good one to keep on the record because the
+symptom was invisible on three walls out of four.
+
+**`wall_slab` finds no panel inside most ENH parts.** An IEP panel is 4 to 15 nested
+containers with a fill / shell / trim / void band profile, and the search does not recognise
+it. The fallback then used the whole definition's bounding box as the part's width - which on
+an ENH part includes trim and void standing proud of the panel. Measured on this run:
+**41.625 against a 41.500 slot** on `ENH 41.5PanelSolid`, **41.734** on `ENH 41.5VNT`.
+
+An eighth to a quarter inch of packaging, and here is what it did:
+
+* On the **N wall**, which has a joint, the re-walk landed 0.234 long, failed the 0.15 closure
+  test, and the wall was left alone with a warning. Loud and harmless.
+* On the **E and W walls, which have no joint, there was nothing to fail.** The re-walk landed
+  0.125 long - inside the closure tolerance - so it passed and **silently stretched both inner
+  walls by an eighth of an inch.** `rebalanced E0i ... 4.250..45.875 (slot was 4.250..45.750)`.
+
+**The fix is a rule about evidence, not a tolerance bump.** Without a slab, a part's width is
+an *estimate*, and an estimate must not be allowed to move a wall. The substitution
+`rebalance_walls` exists to catch - a wide-access door - changes a panel by **three inches or
+more**; ENH trim noise is a quarter inch. They are nowhere near each other, so with no slab a
+discrepancy under `SLAB_NOISE` (1.0 in) is read as measurement noise and the slot is trusted.
+The FIT column still prints the raw difference, so nothing is hidden - it just stops moving
+geometry.
+
+**Mutation-checked against the real numbers.** `scripts/rbtest.py` grew a second case: a
+jointless inner wall with a 41.625 bounding box on a 41.500 slot. Put the raw bbox fallback
+back and it reproduces `4.250..45.875` exactly - the stretch from the console - and the fix
+gives `4.250..45.750`. Both were run. The first case (wide-access door on both shells,
+inner run closing only on a 6.5 joint) still passes, so a real substitution still rebalances.
+
+#### Two things the run flagged that are NOT fixed, because they want eyes on a real build
+
+* **The inner door may be back to front.** `S0i ENH Right41.5Door` reported `Y- OUT`, where the
+  outer `S0 Right46Door` of the same hand reported `Y+ IN`. Every other inner part reported IN.
+  Both were oriented by measured bulk, so the two definitions appear to carry their leaf on
+  opposite sides - which would swing the inner door into the wall cavity instead of the room.
+  There is already a mechanism for a part authored the other way round, the `REVERSED` list,
+  and this is one line in it. **Not added blind:** it was a dry run, nothing was placed, and
+  flipping a part that is actually correct is the same class of error in the other direction.
+  Build one for real and look at the inner door.
+* **The ENH corner seal's drawn leg is 5.375 where the part's own leg is 4.875.** `IEP_CORNER`
+  took the bounding box; the slab search reports the leg as 2.250..7.125. Cosmetic - corners
+  fit `n/a` and place by `corner_yaw` off their own geometry - but the generated polygon should
+  match the part. Regenerating `wr-booth-data.rb` is the whole change.
+
+Unchanged and pre-existing: the outer `46VNT` still reports `floor hangs 0.863`, which is the
+Standard vent housing and nothing to do with Enhanced.
+
 ### Fixed - the NameError that stopped the first Enhanced build (v1.6.2)
 
 First run of `MDL 4872 E` in SketchUp got all the way through resolution - correct ENH names
