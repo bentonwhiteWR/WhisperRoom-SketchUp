@@ -270,25 +270,39 @@ def inner_parts(L, W, H, inner, assign=None):
                 h = IEP_SEAL_PLATE / 2.0
                 s = IEP_SEAL_W / 2.0
                 # A T on its side: the 6.5 stem fills the joint through the
-                # full 2" panel depth, the 12.25 plate laps 0.5 into the room.
+                # full 2" panel depth, and the 12.25 plate laps 0.5 OUTBOARD of
+                # the panel's back face - away from the room, into the gap.
+                #
+                # It was drawn lapping INTO the room, which is 0.5 the wrong
+                # way. Measured off Benton's hand-assembled N wall on a 4872 E,
+                # 2026-08-25: the seal spans booth y 45.75 to 48.25 while the
+                # panel spans 45.75 to 47.75, so the seal starts flush with the
+                # room face and finishes half an inch past the panel's back.
+                # That is the opposite face from where this had it.
+                #
+                # p is the panel's BACK face and o is the plate's outer face.
                 if side == 'N':
-                    o, p = H - f - IEP_SEAL_D, H - f
-                    poly = [(mid - s, p + IEP_PANEL_T), (mid + s, p + IEP_PANEL_T),
+                    p = H - f + IEP_PANEL_T
+                    o = p + IEP_SEAL_D
+                    poly = [(mid - s, p - IEP_PANEL_T), (mid + s, p - IEP_PANEL_T),
                             (mid + s, p), (mid + h, p), (mid + h, o), (mid - h, o),
                             (mid - h, p), (mid - s, p)]
                 elif side == 'S':
-                    o, p = f + IEP_SEAL_D, f
-                    poly = [(mid - s, p - IEP_PANEL_T), (mid - s, p), (mid - h, p),
+                    p = f - IEP_PANEL_T
+                    o = p - IEP_SEAL_D
+                    poly = [(mid - s, p + IEP_PANEL_T), (mid - s, p), (mid - h, p),
                             (mid - h, o), (mid + h, o), (mid + h, p), (mid + s, p),
-                            (mid + s, p - IEP_PANEL_T)]
+                            (mid + s, p + IEP_PANEL_T)]
                 elif side == 'E':
-                    o, p = W - f - IEP_SEAL_D, W - f
-                    poly = [(p + IEP_PANEL_T, mid - s), (p, mid - s), (p, mid - h),
+                    p = W - f + IEP_PANEL_T
+                    o = p + IEP_SEAL_D
+                    poly = [(p - IEP_PANEL_T, mid - s), (p, mid - s), (p, mid - h),
                             (o, mid - h), (o, mid + h), (p, mid + h), (p, mid + s),
-                            (p + IEP_PANEL_T, mid + s)]
+                            (p - IEP_PANEL_T, mid + s)]
                 else:
-                    o, p = f + IEP_SEAL_D, f
-                    poly = [(p - IEP_PANEL_T, mid - s), (p - IEP_PANEL_T, mid + s),
+                    p = f - IEP_PANEL_T
+                    o = p - IEP_SEAL_D
+                    poly = [(p + IEP_PANEL_T, mid - s), (p + IEP_PANEL_T, mid + s),
                             (p, mid + s), (p, mid + h), (o, mid + h), (o, mid - h),
                             (p, mid - h), (p, mid - s)]
                 parts.append(dict(kind='seal', id='%s-seal%di' % (side, i), side=side,

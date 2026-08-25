@@ -2,6 +2,47 @@
 
 ## 2026-08-25
 
+### Done - the inner seal plate laps outboard, not into the room (v1.6.9)
+
+Second measurement of the same N wall, this time comparing the BUILD against the hand
+assembly part by part in both axes. The 2.5 corner error is gone. Three residuals remain and
+each has a cause rather than a fudge:
+
+| part | dx | dy | cause |
+|---|---|---|---|
+| N-seal0i | 0.0000 | **-0.5000** | the plate was lapping the wrong face |
+| N0i vent | +0.1169 | -0.0625 | bounding box aligned to the slot instead of the panel |
+| corner seals | +0.2500 on one axis each | | the corner rotation, still open |
+
+**The seal is fixed and it was a sign, not a guess.** Benton's wall has the seal spanning
+booth y **45.75 to 48.25** while the panel spans 45.75 to 47.75 - so the seal starts flush
+with the room face and finishes half an inch PAST the panel's back, out into the gap toward
+the Standard shell. It was being drawn 45.25 to 47.75, lapping half an inch into the room.
+The generated N seal now reads 45.7500..48.2500, which is the measurement exactly. All 126
+inner seals across the 25 Enhanced booths check out; the Standard layouts are untouched.
+
+**Worth recording: the first validation of that fix FAILED, and the check was wrong, not the
+data.** The expected span had been written as (H-6.75, H-4.25) - the old inboard position -
+so 63 of 126 seals were reported off while the S and W ones, whose formula happened to be
+right, passed. A check that disagrees with a measurement you trust is a check to re-read
+first.
+
+#### Still open, with the numbers
+
+**The vent sits 0.1169 too far along the wall.** `ENH 41.5VNT`'s bounding box is 41.7337
+against a 41.5 panel, 0.1169 proud each side, and the placement puts the BOX at the slot edge
+where the hand assembly puts the PANEL there. `wall_slab` cannot find the panel inside an ENH
+part, so there is nothing to align to today. Centring the box in the slot would land it right
+whenever the trim is symmetric, which it is on this part.
+
+**Each corner seal is 0.25 outboard on one of its two axes** - NW in y, NE in x, both away from
+the room - while the other axis is exact. The polygons are right; `corner_yaw`'s aim-at-the-
+middle heuristic plus the added quarter turn is not landing the L on its own footprint. The
+real fix is to stop guessing the yaw: the part is authored AS the SW corner, its L corner at
+(1.75, 1.75) opening toward +x +y, so the four corners want a deterministic 0 / 90 / 180 / 270
+and a direct transform rather than a heuristic. Written up, not written - one change per round
+while there is a measurement to check against.
+
 ### Done - the corner seal was 2.5 in into the room, and a measurement settled it (v1.6.8)
 
 Four rounds of nudging constants off screenshots got nowhere. Benton exploded the built booth,
