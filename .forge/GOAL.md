@@ -186,6 +186,55 @@ master files saved out of alignment, not a script bug.
   prefer-outermost-slab tweak once two same-width tall slabs exist in one part." If the probe
   confirms combined components, that condition is met and it is a present bug.
 
+## BENTON'S RULINGS — 2026-08-24, all four open questions answered
+
+**1. The Enhanced layout rule — layouts are DERIVED, not authored.** In Benton's words:
+
+> *The enhanced layouts are the same as standard, just smaller. They would use an enhanced mid
+> wall for every standard mid wall, and then each standard wall would have its counterpart,
+> 4.5" smaller in width to use. Should be easy to follow.*
+
+So `wr-booth-data.rb` does not need 25 hand-authored Enhanced layouts. Each Standard layout maps
+part-for-part: every wall takes its counterpart 4.5 narrower, and every `MidWallSeamSeal` takes
+`ENH MidWallSeamSeal`. Same for the corner seals.
+
+**The footprint fact that constrains this (observed, from `models.json` via `tupleFormat`
+`stdDims`/`enhDims`): Enhanced and Standard have IDENTICAL exterior footprints.** The 9696 is
+8'2" × 8'2" in both; the 7272 is 6'2" × 6'2" in both; only the height differs (6'11" Standard vs
+7'1" Enhanced). Enhanced is not a smaller booth — the outer shell is unchanged and the *interior*
+shrinks.
+
+**Therefore (derived, and the one assumption a Builder must not silently invert): an Enhanced
+booth carries BOTH the Standard outer walls AND the Enhanced inner walls.** If the Enhanced walls
+merely *replaced* the Standard ones, the exterior footprint would shrink by 4.5 per wall, and
+`models.json` says it does not. This also matches the DEVLOG's long-standing "booth inside a
+booth with a gap" description, and it is consistent with the probe verdict that `ENH` parts are
+single shells — the second shell is the Standard one, placed by the same layout.
+
+Flagged for Benton to confirm rather than assumed silently. Structure the code so this is cheap
+to flip.
+
+**2. `STDWL7` — skip it, deliberately.** In Benton's words: *"the 16 wl should have an 11.5" one
+for enhanced. The 7", it's actually a modified mid wall seam seal but I don't have that item
+created. We can skip that component for now, it's kinda rare."* So `STDWL16` → `ENH 11.5PanelSolid`
+(exists). The 7-inch has **no Enhanced part and none is to be authored** — it is a modified mid
+wall seam seal that does not exist yet. A 2.5" panel is NOT to be created. An Enhanced booth
+needing it aborts by name, which is the correct outcome for a rare unbuilt part.
+
+**3. Ramp doors — ignore them entirely on the Enhanced path.** In Benton's words: *"All of the
+ENH with WA door with ramp can be ignored. Ramp only attached to standard. There's not a separate
+one that uses it for enhanced."* So the four `ENH ...WADoorWithRamp` files are **not missing and
+are not to be authored.** `component_for`'s `o[:ramp]` branch must be ignored on the Enhanced path
+and emit the plain `ENH LeftWADoor` / `ENH RightWADoor`. This removes 16+16 of the 64 Enhanced
+coverage misses outright.
+
+**4. Abort is the right default.** `ENH_MISSING_ABORTS = true` stays.
+
+### What the authoring queue is now
+Only the **8 `STDSS` ceiling/floor seam seals** remain genuinely missing. The ramp doors are
+cancelled, the 2.5" panel is cancelled, and the vent option variants were cancelled earlier.
+Down from 74.
+
 ## Out of scope
 - **Furniture and accessories** — desk, MJP jack panel, step, bass traps, studio light — and the
   roof-mounted vent. `booth-from-link.rb` already documents these as not coming through; Enhanced
