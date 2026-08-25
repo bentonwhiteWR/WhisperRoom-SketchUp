@@ -2,6 +2,22 @@
 
 ## 2026-08-25
 
+### Done - the deck contact face is the true face, not its 1/64 bucket (v1.6.18)
+
+Benton: *"the standard ceiling is just SLIGHTLY too low. Like maybe 1/128."* He is right, and
+it has a mechanism. `wr-deck.rb` rounds every horizontal face's z to the nearest 1/64 so that
+the faces of one plane land in one bucket - necessary for grouping - and then placed the deck
+AT THE BUCKET KEY. A contact face at 2.1016 is filed under 2.1094 and the ceiling sits 1/128
+low. `flat_levels_with_exact` now keeps the area-weighted mean of the true z in each bucket and
+`contact_z` hands back that, on every path. Grouping still rounds; placement no longer does.
+
+The build report's `contact` column will show the change - it read 2.1094 for `STD4872CL` and
+should now read the face's real height. The IEP tray is placed off the ceiling's placed bounds,
+so it follows without a change.
+
+Benton also reports the inner door was untouched in his corrected probe - the builder's
+placement stood. That closes the last unverified part of the inner shell.
+
 ### Done - the whole inner shell verified against a corrected full-booth probe (v1.6.17)
 
 Benton built the complete 4872 E - both shells, both decks - corrected it by hand, and probed

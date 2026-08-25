@@ -586,8 +586,11 @@ module WR_Deck
   end
 
   def self.contact_z(defn, kind)
-    tally = flat_levels(defn)
+    tally, exact = flat_levels_with_exact(defn)
     return [nil, false] if tally.empty?
+    # Every return below goes through this so the contact is the true face,
+    # not its 1/64 bucket.
+    ex = lambda { |z| exact[z] || z }
     peak = tally.values.max.to_f
     levels = tally.select { |_z, a| a >= peak * 0.05 }.keys.sort
     return [nil, false] if levels.empty?
@@ -629,7 +632,7 @@ module WR_Deck
     if minor.empty?
       # Nothing to read the orientation from. Assume as-modelled and say so by
       # taking the face the wall would meet if it were the right way up.
-      return [kind == 'FL' ? pair.last : pair.first, false]
+      return [ex.call(kind == 'FL' ? pair.last : pair.first), false]
     end
 
     m = minor.max_by { |z| tally[z] }          # the most substantial minor face
@@ -637,28 +640,47 @@ module WR_Deck
 
     if kind == 'FL'
       # Deck faces up when the minor geometry is above it.
-      [above ? pair.last : pair.first, !above]
+      [ex.call(above ? pair.last : pair.first), !above]
     else
       # Slab's room side faces down when the minor geometry is below it.
-      [above ? pair.last : pair.first, above]
+      [ex.call(above ? pair.last : pair.first), above]
     end
   end
 
+  # Area per horizontal level, keyed on z ROUNDED TO 1/64 so that faces of one
+  # plane land in one bucket. The rounding is for grouping only - see
+  # exact_level for why the placement must not use these keys.
   def self.flat_levels(defn)
+    tally, = flat_levels_with_exact(defn)
+    tally
+  end
+
+  # THE ROUNDED KEY IS NOT THE FACE. A face at 2.1016 is filed under 2.1094,
+  # and a ceiling placed at the key instead of the face sits 1/128 low. Benton,
+  # 2026-08-25, off a corrected full build: "the standard ceiling is just
+  # SLIGHTLY too low, like maybe 1/128". So the bucket keeps the area-weighted
+  # mean of the true z of every face in it, and contact_z hands back THAT.
+  def self.flat_levels_with_exact(defn)
     up = Geom::Vector3d.new(0, 0, 1)
     tally = Hash.new(0.0)
+    zsum  = Hash.new(0.0)
     walk(defn.entities, Geom::Transformation.new) do |f, tr|
       begin
         n = f.normal.transform(tr)
         n.normalize!
         next if n.dot(up).abs < 0.999
-        z = (f.vertices.first.position.transform(tr).z.to_f * 64).round / 64.0
-        tally[z] += f.area.to_f
+        zt = f.vertices.first.position.transform(tr).z.to_f
+        z = (zt * 64).round / 64.0
+        a = f.area.to_f
+        tally[z] += a
+        zsum[z]  += a * zt
       rescue StandardError
         next
       end
     end
-    tally
+    exact = {}
+    tally.each { |z, a| exact[z] = a > 0 ? zsum[z] / a : z }
+    [tally, exact]
   end
 
   def self.walk(ents, tr, depth = 0, &blk)
