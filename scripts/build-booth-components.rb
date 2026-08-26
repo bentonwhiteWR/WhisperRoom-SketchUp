@@ -103,36 +103,62 @@ module WR_BuildBoothComponents
   # the 1.5 splits evenly. MEASURED, by the only method that has worked on
   # this shell: build it, look, say the number.
   #
-  # THEN THE 6060 E SAID 0.6875, AND THE TWO MEASUREMENTS ARE NOT RECONCILED.
-  # Benton, 2026-08-26, looking at a built and hand-corrected MDL 6060 E inner
-  # shell: "the IEP inner shell just needs to drop 1/16 and its perfect." So
-  # this is 0.75 - 0.0625 = 0.6875, and BOTH readings are recorded here because
-  # only one of them can be the general rule:
+  # THEN THE 6060 E SAID 0.6875, AND A THIRD BOOTH BROKE THE TIE THE OTHER WAY.
+  # THE LIFT IS PER BOOTH. Three booths have been measured, they do not agree,
+  # and a single constant is therefore the wrong shape. This is a table.
   #
-  #   0.7500  MDL 4872 E, 2026-08-25. Benton's eye, then confirmed by a probe
-  #           of his corrected full booth that agreed with the build to 0.0001
-  #           (v1.6.17). That probe measured the CORRECTED model, so it proves
-  #           the code matched his hand placement - not that his hand placement
-  #           was 1/16 from the truth rather than 2/16.
-  #   0.6875  MDL 6060 E, 2026-08-26. Benton's eye on a corrected inner shell.
-  #           No probe yet.
+  #   0.7500  MDL 4872 E, 2026-08-25. Benton's eye first - "all of the IEP
+  #           components need to go up .75" - then a probe of his corrected full
+  #           booth that agreed with the build to 0.0001 (v1.6.17). The only
+  #           probe-backed figure in the set, and the strongest evidence here.
+  #   0.6875  MDL 6060 E, 2026-08-26. Benton's eye on a corrected inner shell:
+  #           "the IEP inner shell just needs to drop 1/16 and its perfect."
+  #           No probe.
+  #   0.7500  MDL 102144 E, 2026-08-26. Built at 0.6875. Benton, asked which
+  #           booth the 1/16 report was about: "This was only for the 102144 E.
+  #           Im not sure about any others. But the IEP shell was 1/16 too low."
+  #           0.6875 + 0.0625 = 0.7500. Eye only, no probe.
   #
-  # Three readings fit both facts and nothing here can separate them:
-  #   (a) 0.6875 is right for every booth and the 4872 E has been 1/16 high
-  #       since it was closed - most likely, since two eyes on two booths beat
-  #       one, and the probe cannot tell.
-  #   (b) the lift is per booth or per family, in which case this constant is
-  #       the wrong shape and a table is needed. NO TABLE HAS BEEN INVENTED
-  #       HERE: one is only worth building off two probes that disagree.
-  #   (c) something 6060-specific is absorbing 1/16 elsewhere and moving the
-  #       lift hides it. Nobody has found such a thing.
+  # A TABLE, NOT A RULE. Three points and two values do not make a rule, and
+  # Benton's own words on scope are "Im not sure about any others" - so nothing
+  # is extrapolated here. 0.7500 is the DEFAULT because two of the three measure
+  # it and one of those two is the probe-backed one. But a booth that is not
+  # named below has not been LOOKED at, and the build says so by name in its
+  # warning block, exactly the way IEP_ROOM_PROUD warns for a width it has no
+  # figure for. An unmeasured booth is a guess wearing a number.
   #
-  # NOTE WHAT THIS COSTS: the even 0.75/0.75 split of the 1.5 is gone. An inner
-  # wall now runs 0.6875 to 80.1875 in an 81 nominal, so 0.8125 falls at the
-  # top. The "splits evenly" reading above was the reasoning, not the
-  # measurement, and it does not survive this. RE-CHECK THE 4872 E's VERTICAL -
-  # that is the open item, and it is one number and one word to put back.
-  IEP_WALL_LIFT = 0.6875
+  # WHAT THE DEFAULT COSTS on a booth nobody has checked: an inner wall runs
+  # 0.75 to 80.25 in an 81 nominal, so 0.75 falls at the top and the 1.5 splits
+  # evenly. On the 6060 E it splits 0.6875 / 0.8125 instead. THE EVEN SPLIT IS A
+  # CONSEQUENCE, NEVER THE REASON - it is what the 4872 E measured, not what any
+  # of this was derived from, and the 6060 E is the standing proof that "it
+  # splits evenly" is not a law.
+  #
+  # IEP_TRAY_DROP WAS NOT MOVED for any of this. A booth whose lift is below the
+  # 4872's has its wall-top-to-tray gap wider by exactly that difference.
+  #
+  # AND THE LESSON AT IEP_VENT_YAW APPLIES TO EVERY ROW ADDED HERE: a Ruby
+  # module keeps its constants until SketchUp restarts. Before a report of "the
+  # shell is 1/16 off" becomes a row in this table, establish that the process
+  # was restarted after the figure it was built at shipped.
+  IEP_WALL_LIFT_DEFAULT = 0.7500
+  IEP_WALL_LIFT = {
+    'MDL 4872 E'   => 0.7500,   # eye, then a full-booth probe   2026-08-25
+    'MDL 6060 E'   => 0.6875,   # eye only                       2026-08-26
+    'MDL 102144 E' => 0.7500,   # eye only, 0.6875 built + 1/16  2026-08-26
+  }.freeze
+
+  # This booth's lift, and whether that figure was measured ON THIS BOOTH or
+  # fell through to the default. Keyed on the full layout key - 'MDL 4872 E' -
+  # which is what build_booth is handed and what wr-booth-data.rb names its
+  # layouts. An outer wall's lift is 0.0 and never comes through here.
+  def self.iep_wall_lift(key)
+    IEP_WALL_LIFT[key.to_s] || IEP_WALL_LIFT_DEFAULT
+  end
+
+  def self.iep_wall_lift_measured?(key)
+    IEP_WALL_LIFT.key?(key.to_s)
+  end
 
   # The IEP mid-wall seam seal's stem - the joint between two inner panels.
   # 6.5 where the Standard seal is 2. Needed here because rebalance_walls
@@ -310,9 +336,16 @@ module WR_BuildBoothComponents
   end
 
   # The z the part's TOP is placed at. Same figure for an outer part; lifted by
-  # IEP_WALL_LIFT for an inner one, which puts its underside on the lip.
-  def self.part_top_z(part, hx)
-    part_height(part, hx) + (inner?(part) ? IEP_WALL_LIFT : 0.0)
+  # this booth's IEP wall lift for an inner one, which puts its underside on the
+  # lip.
+  #
+  # THE LIFT ARRIVES AS A NUMBER, resolved once per build by build_booth and
+  # passed down. It is deliberately NOT read from a module-level "current booth":
+  # SketchUp is long-lived, this module survives a build, and anything stashed on
+  # it would be silently inherited by the next build in the same session. A
+  # required argument cannot go stale, and there is exactly one call site.
+  def self.part_top_z(part, hx, lift)
+    part_height(part, hx) + (inner?(part) ? lift : 0.0)
   end
 
   # ------------------------------------------------------------ IEP DECK --
@@ -1794,6 +1827,11 @@ module WR_BuildBoothComponents
     # Defaults to 'all', so booth-from-link and every existing caller that
     # passes no 'shell' key behave exactly as before.
     shell = (cfg['shell'] || 'all').to_s.downcase
+    # ONCE PER BUILD, not once per part and not on the module. part_top_z takes
+    # this as an argument so a second build in the same SketchUp session cannot
+    # inherit it. Outer-only builds resolve it too and simply never use it.
+    lift = iep_wall_lift(key)
+    lift_measured = iep_wall_lift_measured?(key)
     centre = [spec[:w] / 2.0, spec[:h] / 2.0]
     cache  = {}
     rows   = []
@@ -1807,7 +1845,8 @@ module WR_BuildBoothComponents
     if spec[:eiw]
       inner_n = spec[:parts].count { |q| inner?(q) }
       puts "  ENHANCED - a second (IEP) shell inside it: #{inner_n} parts, room #{spec[:eiw]}\" x #{spec[:eih]}\""
-      puts "  inner walls #{cfg['hx'] ? ENH_WALL_H_HX : ENH_WALL_H}\" tall, underside lifted #{IEP_WALL_LIFT}\" - MEASURED ON THE 6060 E, and the 4872 E measured 0.75. See IEP_WALL_LIFT"
+      lift_src = lift_measured ? "MEASURED ON THIS BOOTH" : "DEFAULT - NOT MEASURED ON THIS BOOTH (measured: #{IEP_WALL_LIFT.keys.join(', ')})"
+      puts "  inner walls #{cfg['hx'] ? ENH_WALL_H_HX : ENH_WALL_H}\" tall, underside lifted #{lift}\" - #{lift_src}. See IEP_WALL_LIFT"
       puts "  inner rotations: corners placed directly (SW 0 / SE 90 / NE 180 / NW 270), mid-wall seal #{IEP_SEAL_YAW}deg, door #{IEP_DOOR_YAW}deg"
     end
     puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"
@@ -1918,12 +1957,19 @@ module WR_BuildBoothComponents
 
       placed = 0
       warn = []
+      # Same idiom as the room-proud warning below: a figure this booth has not
+      # been measured for is used, and is NAMED so it cannot pass as measured.
+      if spec[:eiw] && shell != 'outer' && !lift_measured
+        warn << "#{key}: IEP wall lift #{lift} is IEP_WALL_LIFT_DEFAULT - this booth "  \
+                "has never been measured. Measured booths: "  \
+                "#{IEP_WALL_LIFT.map { |k, v| "#{k} #{v}" }.join(', ')}"
+      end
       rows.each do |r|
         p = r[:part]
         # Per PART, not per booth. An inner wall is 1.5 shorter than an outer
         # one and its top sits IEP_WALL_LIFT higher; one booth-wide nominal put
         # every IEP wall 1.5 too low, which looks almost right.
-        nominal = part_top_z(p, cfg['hx'])
+        nominal = part_top_z(p, cfg['hx'], lift)
         rev = REVERSED.include?(r[:name])
         proud = p[:k] == 'seal' ? SEAL_PROUD : 0.0
         # A door's bulk is its swung leaf and belongs on the ROOM side, the
@@ -2210,7 +2256,7 @@ module WR_BuildBoothComponents
         # A dry run whose whole result is console text is invisible if the
         # console happens to be closed, so say it in a dialog too.
         UI.messagebox("DRY RUN — nothing built.\n\n#{rows.length} parts resolved" \
-                      "#{warn.empty? ? ' and every panel matches its slot.' : ", #{warn.length} do NOT match their slot."}" \
+                      "#{warn.empty? ? ' and every panel matches its slot.' : ", #{warn.length} item(s) flagged."}" \
                       "\n\nThe full table is in the Ruby Console:\n" \
                       'Extensions > Developer > Ruby Console.')
       else
@@ -2223,7 +2269,8 @@ module WR_BuildBoothComponents
       puts '  faces the wrong way, the part itself points its bulk into the booth.'
       unless warn.empty?
         puts ''
-        puts "  *** #{warn.length} part(s) do not measure their slot:"
+        puts "  *** #{warn.length} item(s) flagged - a part that does not measure its"
+        puts '      slot, or a figure used that was not measured for this booth:'
         warn.each { |w| puts "      #{w}" }
       end
       puts '  ' + '-' * 60

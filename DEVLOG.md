@@ -2,6 +2,53 @@
 
 ## 2026-08-26
 
+### Changed - `IEP_WALL_LIFT` is a per-booth table, and an unmeasured booth says so (v1.6.28)
+
+Three booths have now had their inner-shell vertical looked at and they do not agree, so the
+single global constant was the wrong shape:
+
+| booth | lift | how |
+|---|---|---|
+| **MDL 4872 E** | **0.7500** | Benton's eye 2026-08-25 - *"all of the IEP components need to go up .75"* - then a probe of his corrected full booth agreeing with the build to 0.0001 (v1.6.17). The only probe-backed figure here. |
+| **MDL 6060 E** | **0.6875** | Benton's eye 2026-08-26 - *"The IEP inner shell just needs to drop 1/16" and its perfect."* No probe. |
+| **MDL 102144 E** | **0.7500** | Benton 2026-08-26, asked which booth the 1/16 report was about: *"This was only for the 102144 E. Im not sure about any others. But the IEP shell was 1/16" too low."* Built at 0.6875, so 0.6875 + 1/16. No probe. |
+
+**UNRUN IN SKETCHUP.** No Ruby on this machine outside it. What WAS run: `scripts/rbparse.py`
+(52 files, real CRuby 3.2 - all parse), `.forge/builder/replay-iep-deck.py` (still passes, 31
+assertions, unchanged), and a new `.forge/builder/replay-iep-wall-lift.py` (**105 checks**)
+which parses the table out of the real `.rb` rather than restating it.
+
+**NO RULE WAS DERIVED.** Three points and two values are not a rule, and Benton's own words on
+scope are *"Im not sure about any others."* `IEP_WALL_LIFT_DEFAULT = 0.7500` because two of the
+three measure it and one of those two is the probe-backed one - but the other **22** Enhanced
+layouts have never been looked at, and the build now names the booth in its warning block when
+it uses the default. That is the `IEP_ROOM_PROUD` idiom, copied deliberately: a figure that was
+not measured for the thing being built must not be able to pass as one that was.
+
+**The plumbing: an argument, not module state.** `part_top_z(part, hx)` did not know which booth
+it was building. It now takes the lift as a third **required** argument; `build_booth` resolves
+it once from the layout key it is already handed (`lift = iep_wall_lift(key)`) and passes it to
+the one call site. It is not stashed on the module, and that is the whole reason for the shape -
+SketchUp is long-lived, this module outlives a build, and a "current booth" left on it would be
+silently inherited by the next build in the same session. A required argument cannot go stale.
+
+**Also.** The build-report line no longer claims one global figure measured on the 6060 E; it
+prints this booth's number and whether it was measured or defaulted. The warning-block header
+now says *"item(s) flagged"* rather than *"part(s) do not measure their slot"*, which was already
+untrue of the room-proud lines living there. `build-booth.rb`'s `IEP_LIFT = 0.3125` was **not**
+changed - only its comment, which claimed to be kept in step with a constant that no longer
+exists in that form.
+
+**What is still a guess:** the 0.7500 default on 22 booths, and the 6060 E / 102144 E figures,
+which are an eye and not a probe. **The booth that would falsify the default is any Enhanced
+booth other than those three** - build one on a restarted SketchUp and read the inner shell. A
+fourth reading of 0.6875 would say the 4872 E's probe measured a hand placement that was itself
+1/16 out, and the default belongs at 0.6875 instead.
+
+Nothing else moved: `IEP_VENT_YAW` (180.0), `IEP_TRAY_DROP`, `SEAL_FL_DATUM_LIFT` (-1.1250),
+`IEP_CL_UPSIDE_DOWN` / `iep_upside_down?`, the tray-lip seat rule and the room-proud figures are
+all untouched, and an outer wall's lift is still 0.0 on every path.
+
 ### Fixed - the inner tray's orientation is now MEASURED per part, not declared (v1.6.25)
 
 Benton, off a freshly built **MDL 102144 E**: *"the IEP ceiling needs to be flipped upside down.

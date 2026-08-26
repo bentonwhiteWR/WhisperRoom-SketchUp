@@ -19,8 +19,11 @@ module WR_BuildBooth
   # 1.5 an Enhanced wall gives up splits between the floor lip and the ceiling
   # lip and THAT SPLIT IS NOT MEASURED. 0.3125 is the measured thickness of
   # every ENH floor part in the library, on the reading that the inner wall
-  # stands on that sheet. Kept in step with IEP_WALL_LIFT in
-  # build-booth-components.rb - change both together.
+  # stands on that sheet - a reading build-booth-components.rb abandoned in
+  # v1.6.16 when Benton called the ENH floor part a mat that sits UNDER the
+  # standard floor. THIS IS NO LONGER IN STEP WITH ANYTHING: the component
+  # builder's lift is now the per-booth IEP_WALL_LIFT table (0.6875-0.75), and
+  # this figure has never been re-measured for the path that uses it.
   IEP_LIFT = 0.3125
 
   PANEL_MATERIAL = 'Carpet Plush Charcoal'
