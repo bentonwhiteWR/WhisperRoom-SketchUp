@@ -59,3 +59,28 @@ path is live and real customer drawings depend on it.
 
 The two share links, and the portal's `booth-layouts.json` entry for `102144` read directly
 rather than through the harness's parse.
+
+---
+
+## ANSWERED 2026-08-26 — STANDARD IS BROKEN TOO
+
+Benton built a **Standard** 102144 from the same link and reported:
+
+> *"Standard also places it in the same location as enhanced, so standard is also broken."*
+
+**This is not an Enhanced regression.** The Enhanced path inherited a defect that was already
+in the Standard path, and the Enhanced work merely put a second observer on it. Consequences:
+
+- **The fix is in shared code by necessity**, not by choice. There is no Enhanced-only version of
+  it, because the outer shell is placed by the same code from the same parts.
+- **Every Standard booth with a window on a side wall has been built with that window at the
+  wrong end** — for as long as this code has run. Drawings already sent to customers are in
+  scope. That is Benton's call to make, not mine, but the fix should be treated as correcting a
+  long-standing defect rather than as a new feature.
+- The "stop and report before changing shared Standard code" gate is now **cleared for
+  diagnosis and for a proposed change**, but the change still gets reviewed against a Standard
+  build before it is trusted, because Standard is the path real customer drawings come from.
+
+**A regression check now exists that did not before:** whatever the fix is, a Standard 102144 and
+a Standard 96144 must both put the window adjacent to the door corner afterwards, and every
+booth WITHOUT a side-wall window must be unchanged. Name the booths you check.
