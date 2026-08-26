@@ -8,37 +8,126 @@ Benton, 2026-08-26, after building both booths from real share links on v1.6.23/
 necessarily the only affected panel — read it as "the side wall's panel run is mirrored, and
 the window is where you can see it."
 
-## What is evidence and what is not
+---
 
-Benton supplied two screenshots: the **portal's** 3D view of the configured booth (which is
-authoritative — it is what the customer bought) and his **SketchUp** build. They are at
-different camera angles.
+## STATUS 2026-08-26, second pass (fixer) — NOT FIXED, root cause NOT established offline
 
-**`CLAUDE.md` warns in as many words: avoid left/right spatial claims, because renders get
-mirrored and a draft once told a client their work surface was on the wrong wall.** Do not
-resolve this by eyeballing two photos taken from different viewpoints. The method that has
-worked on this project twice is the **text comparison**: diff the builder's own RAW PACK /
-placement printout against the portal's "YOUR BOOTH" panel, which is how the door-hand
-translation was proved correct on 2026-08-18 and is named in `.forge/GOAL.md` under Done-means.
-Ask Benton for the two share links and the printouts rather than inferring from pixels.
+Nothing was changed. `scripts/wr_tools/VERSION` stays **1.6.26**. Everything below is
+either read off the two layout files or read off the builder's own source; nothing was
+inferred from a screenshot, and no left/right claim is made anywhere in it.
 
-## Where to look — leads, not conclusions
+### What is now RULED OUT — observed
 
-- `REVERSED` (`scripts/build-booth-components.rb:1110`) is `%w[MidWallSeamSeal
-  MidWallSeamSeal_HX]` — parts whose thickness axis is authored opposite to everything else.
-  `FACE_OUT = false` sits just above it at line 1105, with a comment warning to get the global
-  right *before* adding names to `REVERSED`.
-- `rev = REVERSED.include?(r[:name])` at line ~1738, feeding `place()` / `rotation()`.
-- Both booths have **split runs on E and W**. The 6060's `ASSIGN` E/W reversal was untested
-  until this week; 96144 E has **no `ASSIGN` row at all**, so its components come from
-  `guess_component`.
-- Whether the affected panels are **outer (Standard) or inner (IEP)** is the first thing to
-  establish. A window is visible from outside, which points at the outer shell — and the outer
-  shell is the live, fit-tested Standard path. **If the root cause lands in shared Standard
-  code, stop and report before changing it.**
+**The slot mapping is not mirrored.** `.forge/fixer/replay-side-wall-order.py` diffs
+`scripts/wr-booth-data.rb` (what the builder places from) against
+`WhisperRoomQuote/lib/pl-data/booth-layouts.json` (what the portal draws from), per wall,
+per shell, for all **25 Enhanced layouts**. Result:
 
-## Open question for Benton
+- **0 mirrored walls out of 25 models × 4 walls × 2 shells.** On every wall, slot `n0`
+  sits on the same physical end in both files. On an E/W wall that end is the **N end**;
+  the portal's own convention is fixed in `assets/layout-render.js` `wallPanelRun()`
+  ("aIn grows DOWNWARD → high aIn is the S end").
+- Slot **kinds** agree with the portal row on every wall of both of Benton's booths.
+- `MDL 96144 E` E/W are **46 + 46** and `MDL 102144 E` E/W are **40 + 16 + 40** — both
+  symmetric, and the portal's own big-run-at-the-door-end flip explicitly does not fire on
+  either (it needs exactly two pieces of unequal real width).
 
-Does a **Standard** 96144 / 102144 build the side walls correctly today? If yes, the fault is
-in the Enhanced path and the Standard path must not be touched. If no, this is a long-standing
-Standard bug that these two booths merely exposed, and that is a much larger blast radius.
+`booth-from-link.rb` translates pack → component keyed on the slot id and never reorders
+(observed, `build_from_payload`). With the slot ids landing on the same ends in both files,
+**that path cannot mirror a side-wall run on these two booths.** The `ASSIGN` E/W swap and
+`guess_component` are both irrelevant here as well — see the separate finding below.
+
+### What is therefore LEFT — derived, and NOT proven
+
+The only remaining mechanism in the code that can mirror a panel along its wall is the
+**180° yaw that follows the thickness sense**. `rotation()` pins height→up and
+thickness→outward-normal and *derives* the width direction from right-handedness, so
+flipping which way a part's thickness axis points also turns the part end for end. An
+asymmetric part — a window, a vent — visibly mirrors; a plain solid panel does not.
+
+Two candidate root causes, both consistent with everything observed, with **opposite fixes**:
+
+**(A) The window panel is missing the half turn its own authoring family gets.**
+`build-booth-components.rb` header, measured across the library:
+
+> *"WIDTH is on Z for solid panels, doors and both seam seals, and on X for the **WDO window
+> panels and the vents**. Two families, no flag to tell them apart."*
+
+Those two families land on **opposite** handedness signs in `rotation()`
+(`s = EVEN.include?([hi, ti, wi])`: height=Y, width=Z → `[1,0,2]`, odd, `s=-1`;
+height=Y, width=X → `[1,2,0]`, even, `s=+1`), so their width axes point opposite ways
+along the same wall. `IEP_VENT_YAW = 180` is the patch for one member of the X-width
+family and is confirmed by Benton's eye on a restarted SketchUp. **The WDO window panel is
+in that same family and gets no half turn** — the harness prints `NONE` on it. If the turn
+is a property of the family, the window is short one.
+
+**(B) The half turn belongs to the whole ENH family / the global convention is wrong.**
+`FACE_OUT = false` with `REVERSED = %w[MidWallSeamSeal MidWallSeamSeal_HX]`. Its own
+comment warns: *"Do not add per-part exceptions to compensate — a mix of a global flag and a
+list of exceptions is how this ended up flipping back and forth."* `IEP_VENT_YAW` is
+already one such exception. If the real fault is family-wide, adding a second per-kind
+exception for windows makes the tangle worse and papers over it.
+
+**These cannot be told apart from here.** Which branch of `place()` sets `sense` for a
+given part depends on `wall_slab()`, which measures the real `.skp` geometry. There is no
+Ruby and no SketchUp on this machine.
+
+### Blast radius — the question that was asked first
+
+**Unresolved, and it is the reason nothing was changed.** `place()`, `rotation()`,
+`wall_slab()`, `FACE_OUT` and `REVERSED` are all **shared Standard code**. The outer shell
+of an Enhanced booth is built by exactly the same code, from exactly the same Standard
+parts, as a Standard booth — so if the flip is on the outer shell, a Standard 96144 /
+102144 flips identically today and the blast radius is the live customer path.
+The only Enhanced-only orientation code is `IEP_VENT_YAW` / `IEP_DOOR_YAW` /
+`IEP_SEAL_YAW`, all gated on `inner?(p)`.
+
+Per the standing instruction: **if it lands in shared Standard code, stop and report.**
+It might. So: reported, not touched.
+
+---
+
+## A SEPARATE, REAL, OFFLINE-PROVABLE DEFECT found on the way — not this symptom
+
+**The `ASSIGN` E/W big-run swap never fires on the customer (share-link) path.**
+
+- `ASSIGN` is read in exactly one place: `self.run` — the standalone dialog
+  (`scripts/build-booth-components.rb:1765`, `ASSIGN[cfg['booth']] || {}`).
+- `booth-from-link.rb` calls `WR_BuildBoothComponents.build_booth(key, assign, ...)` with
+  the **link's** assign (`scripts/booth-from-link.rb:411`). `ASSIGN` is never consulted.
+
+So on a booth built **from a link**, the E/W swap that `ASSIGN` documents at length is
+absent, and the side walls come out mirrored against what the portal draws. The harness
+reports which models this hits, and it is exactly the four the portal's own comment names:
+
+    MDL 6060 E, MDL 6084 E, MDL 7272 E, MDL 7296 E   (and their ' S' twins)
+
+This is **not** Benton's two booths — neither of them qualifies. But it is a live mirror on
+the customer path for those four, on **both** Standard and Enhanced, and it is the same
+sentence he used ("the side walls panels were flipped"). Flagged, not fixed: the fix lands
+in the shared Standard path.
+
+---
+
+## What is needed from Benton — one pass in SketchUp, and one paste
+
+1. **The two share links** (`sales.whisperroom.com/booth-builder?d=…`) for the 96144 E and
+   the 102144 E he built. Without them nobody knows which slot the window was in, and the
+   whole report turns on the window.
+
+2. **The Ruby Console output of one rebuild**, restarted SketchUp, plugin 1.6.26. The
+   builder already prints the table this needs — `SLOT · COMPONENT · SLOT in · PART in ·
+   FIT · PANEL · FACING · BELOW WALL` — plus booth-from-link's `RAW PACK` block and its
+   `COMPARE THESE AGAINST THE BUILDER'S "YOUR BOOTH" PANEL` summary. The whole console,
+   pasted, settles (A) vs (B): the **FACING** column shows whether the window panel faces
+   the same way as its neighbours on the same wall, and the **PANEL** column shows whether
+   `wall_slab` found a slab on it (which decides which branch of `place()` chose the sense).
+
+3. **`Probe Component Files` run once on `P:/Sketchup/NewMasterComponentList`** (scratch
+   model — it loads every definition). Its X/Y/Z extent table gives the authoring family of
+   every part, ENH included, which is what tells us whether the window panel really is in
+   the vent's family. That measurement has never been recorded for the ENH library; the
+   "two families" note in the header predates it.
+
+4. **Does a Standard 96144 or 102144 build its side walls correctly today?** Still open.
+   It bounds the whole problem and only he can see it.

@@ -1,0 +1,1884 @@
+====================================================================================================
+MDL 102102 E     exterior 104 x 104
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      N2       VNT       62.000  102.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1 N2
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      S2       SOLID     62.000  102.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2
+      portal, index 0 -> n         : S0 S1 S2   kinds: DRFRM SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       62.000  102.000  40.000  40VNT                      -
+      E1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      E2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E2 E1 E0
+      portal, index 0 -> n         : E0 E1 E2   kinds: VNT SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     62.000  102.000  40.000  40PanelSolid               -
+      W1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      W2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W2 W1 W0
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      N2i      VNT       64.250   99.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      S2i      SOLID     64.250   99.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i
+      portal, index 0 -> n         : S0 S1 S2   kinds: DRFRM SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       64.250   99.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      E2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E2i E1i E0i
+      portal, index 0 -> n         : E0 E1 E2   kinds: VNT SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     64.250   99.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      W2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W2i W1i W0i
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 102126 E     exterior 128 x 104
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       VNT       44.000   84.000  40.000  40VNT                      -
+      N2       VNT       86.000  126.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1 N2
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      S2       SOLID     86.000  126.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2
+      portal, index 0 -> n         : S0 S1 S2   kinds: DRFRM SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       62.000  102.000  40.000  40VNT                      -
+      E1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      E2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E2 E1 E0
+      portal, index 0 -> n         : E0 E1 E2   kinds: VNT SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     62.000  102.000  40.000  40PanelSolid               -
+      W1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      W2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W2 W1 W0
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N2i      VNT       88.250  123.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      S2i      SOLID     88.250  123.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i
+      portal, index 0 -> n         : S0 S1 S2   kinds: DRFRM SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       64.250   99.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      E2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E2i E1i E0i
+      portal, index 0 -> n         : E0 E1 E2   kinds: VNT SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     64.250   99.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      W2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W2i W1i W0i
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 102144 E     exterior 146 x 104
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       VNT       44.000   84.000  40.000  40VNT                      -
+      N2       SOLID     86.000  102.000  16.000  16PanelSolid               -
+      N3       VNT      104.000  144.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1 N2 N3
+      portal, index 0 -> n         : N0 N1 N2 N3   kinds: VNT VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      S2       SOLID     86.000  102.000  16.000  16PanelSolid               -
+      S3       SOLID    104.000  144.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2 S3
+      portal, index 0 -> n         : S0 S1 S2 S3   kinds: DRFRM SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       62.000  102.000  40.000  40VNT                      -
+      E1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      E2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E2 E1 E0
+      portal, index 0 -> n         : E0 E1 E2   kinds: VNT SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     62.000  102.000  40.000  40PanelSolid               -
+      W1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      W2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W2 W1 W0
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N2i      SOLID     88.250   99.750  11.500  ENH 11.5PanelSolid         NONE
+      N3i      VNT      106.250  141.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i N3i
+      portal, index 0 -> n         : N0 N1 N2 N3   kinds: VNT VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      S2i      SOLID     88.250   99.750  11.500  ENH 11.5PanelSolid         NONE
+      S3i      SOLID    106.250  141.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i S3i
+      portal, index 0 -> n         : S0 S1 S2 S3   kinds: DRFRM SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       64.250   99.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      E2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E2i E1i E0i
+      portal, index 0 -> n         : E0 E1 E2   kinds: VNT SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     64.250   99.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      W2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W2i W1i W0i
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 102168 E     exterior 170 x 104
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       VNT       44.000   84.000  40.000  40VNT                      -
+      N2       VNT       86.000  126.000  40.000  40VNT                      -
+      N3       VNT      128.000  168.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1 N2 N3
+      portal, index 0 -> n         : N0 N1 N2 N3   kinds: VNT VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      S2       SOLID     86.000  126.000  40.000  40PanelSolid               -
+      S3       SOLID    128.000  168.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2 S3
+      portal, index 0 -> n         : S0 S1 S2 S3   kinds: DRFRM SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID     62.000  102.000  40.000  40PanelSolid               -
+      E1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      E2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E2 E1 E0
+      portal, index 0 -> n         : E0 E1 E2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     62.000  102.000  40.000  40PanelSolid               -
+      W1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      W2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W2 W1 W0
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N2i      VNT       88.250  123.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N3i      VNT      130.250  165.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i N3i
+      portal, index 0 -> n         : N0 N1 N2 N3   kinds: VNT VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      S2i      SOLID     88.250  123.750  35.500  ENH 35.5PanelSolid         NONE
+      S3i      SOLID    130.250  165.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i S3i
+      portal, index 0 -> n         : S0 S1 S2 S3   kinds: DRFRM SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID     64.250   99.750  35.500  ENH 35.5PanelSolid         NONE
+      E1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      E2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E2i E1i E0i
+      portal, index 0 -> n         : E0 E1 E2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     64.250   99.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      W2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W2i W1i W0i
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 102186 E     exterior 188 x 104
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       VNT       44.000   84.000  40.000  40VNT                      -
+      N2       SOLID     86.000  102.000  16.000  16PanelSolid               -
+      N3       VNT      104.000  144.000  40.000  40VNT                      -
+      N4       VNT      146.000  186.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1 N2 N3 N4
+      portal, index 0 -> n         : N0 N1 N2 N3 N4   kinds: VNT VNT SOLID VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      S2       SOLID     86.000  102.000  16.000  16PanelSolid               -
+      S3       SOLID    104.000  144.000  40.000  40PanelSolid               -
+      S4       SOLID    146.000  186.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2 S3 S4
+      portal, index 0 -> n         : S0 S1 S2 S3 S4   kinds: DRFRM SOLID SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID     62.000  102.000  40.000  40PanelSolid               -
+      E1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      E2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E2 E1 E0
+      portal, index 0 -> n         : E0 E1 E2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     62.000  102.000  40.000  40PanelSolid               -
+      W1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      W2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W2 W1 W0
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N2i      SOLID     88.250   99.750  11.500  ENH 11.5PanelSolid         NONE
+      N3i      VNT      106.250  141.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N4i      VNT      148.250  183.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i N3i N4i
+      portal, index 0 -> n         : N0 N1 N2 N3 N4   kinds: VNT VNT SOLID VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      S2i      SOLID     88.250   99.750  11.500  ENH 11.5PanelSolid         NONE
+      S3i      SOLID    106.250  141.750  35.500  ENH 35.5PanelSolid         NONE
+      S4i      SOLID    148.250  183.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i S3i S4i
+      portal, index 0 -> n         : S0 S1 S2 S3 S4   kinds: DRFRM SOLID SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID     64.250   99.750  35.500  ENH 35.5PanelSolid         NONE
+      E1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      E2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E2i E1i E0i
+      portal, index 0 -> n         : E0 E1 E2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     64.250   99.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      W2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W2i W1i W0i
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 10284 E     exterior 86 x 104
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       VNT       44.000   84.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       62.000  102.000  40.000  40VNT                      -
+      E1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      E2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E2 E1 E0
+      portal, index 0 -> n         : E0 E1 E2   kinds: VNT SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     62.000  102.000  40.000  40PanelSolid               -
+      W1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      W2       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W2 W1 W0
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       64.250   99.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      E2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E2i E1i E0i
+      portal, index 0 -> n         : E0 E1 E2   kinds: VNT SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     64.250   99.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      W2i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W2i W1i W0i
+      portal, index 0 -> n         : W0 W1 W2   kinds: SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 4230 E     exterior 44 x 32
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0
+      portal, index 0 -> n         : N0   kinds: VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      layout, low->high coordinate : S0
+      portal, index 0 -> n         : S0   kinds: DRFRM
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID      2.000   30.000  28.000  28Panel                    -
+      layout, low->high coordinate : E0
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID      2.000   30.000  28.000  28Panel                    -
+      layout, low->high coordinate : W0
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i
+      portal, index 0 -> n         : N0   kinds: VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      layout, low->high coordinate : S0i
+      portal, index 0 -> n         : S0   kinds: DRFRM
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID      4.250   27.750  23.500  ENH 23.5Panel              NONE
+      layout, low->high coordinate : E0i
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID      4.250   27.750  23.500  ENH 23.5Panel              NONE
+      layout, low->high coordinate : W0i
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 4242 E     exterior 44 x 44
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0
+      portal, index 0 -> n         : N0   kinds: VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      layout, low->high coordinate : S0
+      portal, index 0 -> n         : S0   kinds: DRFRM
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E0
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W0
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i
+      portal, index 0 -> n         : N0   kinds: VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      layout, low->high coordinate : S0i
+      portal, index 0 -> n         : S0   kinds: DRFRM
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E0i
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W0i
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 4260 E     exterior 62 x 44
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E0
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W0
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E0i
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W0i
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 4284 E     exterior 86 x 44
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       VNT       44.000   84.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E0
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W0
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E0i
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W0i
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 4848 E     exterior 50 x 50
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      layout, low->high coordinate : N0
+      portal, index 0 -> n         : N0   kinds: VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      layout, low->high coordinate : S0
+      portal, index 0 -> n         : S0   kinds: DRFRM
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : E0
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : W0
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i
+      portal, index 0 -> n         : N0   kinds: VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      layout, low->high coordinate : S0i
+      portal, index 0 -> n         : S0   kinds: DRFRM
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : E0i
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : W0i
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 4872 E     exterior 74 x 50
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      N1       SOLID     50.000   72.000  22.000  22PanelSolid               -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      S1       SOLID     50.000   72.000  22.000  22PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : E0
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : W0
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N1i      SOLID     52.250   69.750  17.500  ENH 17.5PanelSolid         NONE
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     52.250   69.750  17.500  ENH 17.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : E0i
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : W0i
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 4896 E     exterior 98 x 50
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      N1       VNT       50.000   96.000  46.000  46VNT                      -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      S1       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : E0
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : W0
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : E0i
+      portal, index 0 -> n         : E0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : W0i
+      portal, index 0 -> n         : W0   kinds: SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 6060 E     exterior 62 x 62
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       20.000   60.000  40.000  40VNT                      -
+      E1       SOLID      2.000   18.000  16.000  16PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     20.000   60.000  40.000  40PanelSolid               -
+      W1       SOLID      2.000   18.000  16.000  16PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       22.250   57.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID      4.250   15.750  11.500  ENH 11.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     22.250   57.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID      4.250   15.750  11.500  ENH 11.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+====================================================================================================
+MDL 6084 E     exterior 86 x 62
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       VNT       44.000   84.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID     20.000   60.000  40.000  40PanelSolid               -
+      E1       SOLID      2.000   18.000  16.000  16PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     20.000   60.000  40.000  40PanelSolid               -
+      W1       SOLID      2.000   18.000  16.000  16PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID     22.250   57.750  35.500  ENH 35.5PanelSolid         NONE
+      E1i      SOLID      4.250   15.750  11.500  ENH 11.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     22.250   57.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID      4.250   15.750  11.500  ENH 11.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+====================================================================================================
+MDL 7272 E     exterior 74 x 74
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      N1       SOLID     50.000   72.000  22.000  22PanelSolid               -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      S1       SOLID     50.000   72.000  22.000  22PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       26.000   72.000  46.000  46VNT                      -
+      E1       SOLID      2.000   24.000  22.000  22PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     26.000   72.000  46.000  46PanelSolid               -
+      W1       SOLID      2.000   24.000  22.000  22PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N1i      SOLID     52.250   69.750  17.500  ENH 17.5PanelSolid         NONE
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     52.250   69.750  17.500  ENH 17.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       28.250   69.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID      4.250   21.750  17.500  ENH 17.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     28.250   69.750  41.500  ENH 41.5PanelSolid         NONE
+      W1i      SOLID      4.250   21.750  17.500  ENH 17.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+====================================================================================================
+MDL 7296 E     exterior 98 x 74
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      N1       VNT       50.000   96.000  46.000  46VNT                      -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      S1       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID     26.000   72.000  46.000  46PanelSolid               -
+      E1       SOLID      2.000   24.000  22.000  22PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     26.000   72.000  46.000  46PanelSolid               -
+      W1       SOLID      2.000   24.000  22.000  22PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID     28.250   69.750  41.500  ENH 41.5PanelSolid         NONE
+      E1i      SOLID      4.250   21.750  17.500  ENH 17.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     28.250   69.750  41.500  ENH 41.5PanelSolid         NONE
+      W1i      SOLID      4.250   21.750  17.500  ENH 17.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the BIG run at the S (door) end;
+                          this layout puts it at the N end.  *** the builder needs the ASSIGN swap here - and ASSIGN is NOT read on the booth-from-link path
+
+====================================================================================================
+MDL 84102 E     exterior 104 x 86
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      N2       VNT       62.000  102.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1 N2
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      S1       SOLID     44.000   60.000  16.000  16PanelSolid               -
+      S2       DRFRM     62.000  102.000  40.000  Right40Door                -
+      layout, low->high coordinate : S0 S1 S2
+      portal, index 0 -> n         : S0 S1 S2   kinds: SOLID SOLID DRFRM
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       44.000   84.000  40.000  40VNT                      -
+      E1       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      W1       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      N2i      VNT       64.250   99.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      S1i      SOLID     46.250   57.750  11.500  ENH 11.5PanelSolid         NONE
+      S2i      DRFRM     64.250   99.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      layout, low->high coordinate : S0i S1i S2i
+      portal, index 0 -> n         : S0 S1 S2   kinds: SOLID SOLID DRFRM
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 84126 E     exterior 128 x 86
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       VNT       44.000   84.000  40.000  40VNT                      -
+      N2       VNT       86.000  126.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1 N2
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      S1       DRFRM     44.000   84.000  40.000  Right40Door                -
+      S2       SOLID     86.000  126.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2
+      portal, index 0 -> n         : S0 S1 S2   kinds: SOLID DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       44.000   84.000  40.000  40VNT                      -
+      E1       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      W1       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N2i      VNT       88.250  123.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      S1i      DRFRM     46.250   81.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S2i      SOLID     88.250  123.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i
+      portal, index 0 -> n         : S0 S1 S2   kinds: SOLID DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 8484 E     exterior 86 x 86
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   42.000  40.000  40VNT                      -
+      N1       VNT       44.000   84.000  40.000  40VNT                      -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   42.000  40.000  Right40Door                -
+      S1       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       44.000   84.000  40.000  40VNT                      -
+      E1       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     44.000   84.000  40.000  40PanelSolid               -
+      W1       SOLID      2.000   42.000  40.000  40PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   39.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   39.750  35.500  ENH Right35.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       46.250   81.750  35.500  ENH 35.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     46.250   81.750  35.500  ENH 35.5PanelSolid         NONE
+      W1i      SOLID      4.250   39.750  35.500  ENH 35.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 96120 E     exterior 122 x 98
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      N1       SOLID     50.000   72.000  22.000  22PanelSolid               -
+      N2       VNT       74.000  120.000  46.000  46VNT                      -
+      layout, low->high coordinate : N0 N1 N2
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      S1       SOLID     50.000   72.000  22.000  22PanelSolid               -
+      S2       SOLID     74.000  120.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2
+      portal, index 0 -> n         : S0 S1 S2   kinds: DRFRM SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       50.000   96.000  46.000  46VNT                      -
+      E1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      W1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N1i      SOLID     52.250   69.750  17.500  ENH 17.5PanelSolid         NONE
+      N2i      VNT       76.250  117.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     52.250   69.750  17.500  ENH 17.5PanelSolid         NONE
+      S2i      SOLID     76.250  117.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i
+      portal, index 0 -> n         : S0 S1 S2   kinds: DRFRM SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      W1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 96144 E     exterior 146 x 98
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      N1       VNT       50.000   96.000  46.000  46VNT                      -
+      N2       VNT       98.000  144.000  46.000  46VNT                      -
+      layout, low->high coordinate : N0 N1 N2
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      S1       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      S2       SOLID     98.000  144.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2
+      portal, index 0 -> n         : S0 S1 S2   kinds: DRFRM SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       50.000   96.000  46.000  46VNT                      -
+      E1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      W1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N2i      VNT      100.250  141.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i
+      portal, index 0 -> n         : N0 N1 N2   kinds: VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      S2i      SOLID    100.250  141.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i
+      portal, index 0 -> n         : S0 S1 S2   kinds: DRFRM SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      W1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 96168 E     exterior 170 x 98
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      N1       VNT       50.000   96.000  46.000  46VNT                      -
+      N2       SOLID     98.000  120.000  22.000  22PanelSolid               -
+      N3       VNT      122.000  168.000  46.000  46VNT                      -
+      layout, low->high coordinate : N0 N1 N2 N3
+      portal, index 0 -> n         : N0 N1 N2 N3   kinds: VNT VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      S1       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      S2       SOLID     98.000  120.000  22.000  22PanelSolid               -
+      S3       SOLID    122.000  168.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2 S3
+      portal, index 0 -> n         : S0 S1 S2 S3   kinds: DRFRM SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       50.000   96.000  46.000  46VNT                      -
+      E1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      W1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N2i      SOLID    100.250  117.750  17.500  ENH 17.5PanelSolid         NONE
+      N3i      VNT      124.250  165.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i N3i
+      portal, index 0 -> n         : N0 N1 N2 N3   kinds: VNT VNT SOLID VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      S2i      SOLID    100.250  117.750  17.500  ENH 17.5PanelSolid         NONE
+      S3i      SOLID    124.250  165.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i S3i
+      portal, index 0 -> n         : S0 S1 S2 S3   kinds: DRFRM SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      W1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 96192 E     exterior 194 x 98
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      N1       VNT       50.000   96.000  46.000  46VNT                      -
+      N2       VNT       98.000  144.000  46.000  46VNT                      -
+      N3       VNT      146.000  192.000  46.000  46VNT                      -
+      layout, low->high coordinate : N0 N1 N2 N3
+      portal, index 0 -> n         : N0 N1 N2 N3   kinds: VNT VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      S1       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      S2       SOLID     98.000  144.000  46.000  46PanelSolid               -
+      S3       SOLID    146.000  192.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : S0 S1 S2 S3
+      portal, index 0 -> n         : S0 S1 S2 S3   kinds: DRFRM SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      E1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      W1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N2i      VNT      100.250  141.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N3i      VNT      148.250  189.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i N2i N3i
+      portal, index 0 -> n         : N0 N1 N2 N3   kinds: VNT VNT VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      S2i      SOLID    100.250  141.750  41.500  ENH 41.5PanelSolid         NONE
+      S3i      SOLID    148.250  189.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i S2i S3i
+      portal, index 0 -> n         : S0 S1 S2 S3   kinds: DRFRM SOLID SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      E1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      W1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+====================================================================================================
+MDL 9696 E     exterior 98 x 98
+====================================================================================================
+
+  ---- OUTER (Standard shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0       VNT        2.000   48.000  46.000  46VNT                      -
+      N1       VNT       50.000   96.000  46.000  46VNT                      -
+      layout, low->high coordinate : N0 N1
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0       DRFRM      2.000   48.000  46.000  Right46Door                -
+      S1       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : S0 S1
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0       VNT       50.000   96.000  46.000  46VNT                      -
+      E1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : E1 E0
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0       SOLID     50.000   96.000  46.000  46PanelSolid               -
+      W1       SOLID      2.000   48.000  46.000  46PanelSolid               -
+      layout, low->high coordinate : W1 W0
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+  ---- INNER (IEP shell) ----
+
+    wall N   (Back)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      N0i      VNT        4.250   45.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      N1i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      layout, low->high coordinate : N0i N1i
+      portal, index 0 -> n         : N0 N1   kinds: VNT VNT
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall S   (Front)   run along x
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      S0i      DRFRM      4.250   45.750  41.500  ENH Right41.5Door          IEP_DOOR_YAW 180 (+0.5 in)
+      S1i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : S0i S1i
+      portal, index 0 -> n         : S0 S1   kinds: DRFRM SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall E   (Right)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      E0i      VNT       52.250   93.750  41.500  ENH 41.5VNT                IEP_VENT_YAW 180
+      E1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : E1i E0i
+      portal, index 0 -> n         : E0 E1   kinds: VNT SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
+    wall W   (Left)   run along y
+      SLOT     KIND        from       to   width  DEFAULT COMPONENT          ENHANCED HALF TURN
+      W0i      SOLID     52.250   93.750  41.500  ENH 41.5PanelSolid         NONE
+      W1i      SOLID      4.250   45.750  41.500  ENH 41.5PanelSolid         NONE
+      layout, low->high coordinate : W1i W0i
+      portal, index 0 -> n         : W0 W1   kinds: SOLID SOLID
+      => AGREE - slot 0 sits on the same physical end in both
+
