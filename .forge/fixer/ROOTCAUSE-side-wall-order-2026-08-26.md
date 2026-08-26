@@ -1,230 +1,225 @@
-# ROOT CAUSE — the E/W wall run is walked from the wrong end (SketchUp side)
+# Side-wall panel ORDER — diagnosis, v3 (2026-08-26)
 
-Diagnosed 2026-08-26 on `main` @ v1.6.29. **Nothing was shipped.** The only file changed is the
-harness, `.forge/fixer/replay-side-wall-order.py`.
+**Supersedes the v2 of this file entirely. v2's proposed four-line `gen-booth.py` revert was
+WRONG and is retracted below.** Nothing has been shipped. The only changes on disk are in
+`.forge/fixer/`.
 
-## Which of the two defects this is
-
-This is the **ORDER** defect — which END of a side wall a slot id lands on.
-
-It is **NOT** the width-axis family split (`40Panel2636WDO` runs X while `16PanelSolid` /
-`40PanelSolid` run Y). That one turns a panel end-for-end **in place** and is still open and
-untouched. `FACING` is the thickness sense and `RUNS` is the width axis; neither is order.
-
-## One sentence
-
-`scripts/gen-booth.py` was changed on 2026-08-11 to walk every **E/W** wall **N→S** to match
-`layout-render.js`'s *drawing* order, which put **slot 0 at the N end instead of the door end**
-on all 18 multi-slot-side-wall models; the regenerated `scripts/wr-booth-data.rb` landed on
-`main` in commit **`92dc59b`**, and the builder places every part at its `:poly` from that file,
-so the window panel (`W0`) is built at the far end of the wall from the door.
-
-## The evidence, in order
-
-**1. The layout data was reversed by a specific commit.** (observed)
-
-    git show 4c0cf38:scripts/wr-booth-data.rb   'MDL 102144 S'  W0 -> poly y 2.0 .. 42.0
-    git show 92dc59b:scripts/wr-booth-data.rb   'MDL 102144 S'  W0 -> poly y 62.0 .. 102.0
-
-A full diff of every panel origin between `4c0cf38` and `HEAD`: **152 unchanged, 74 changed —
-36 on `E`, 36 on `W`, and exactly 2 on `N`/`S`.** The two N/S ones are `MDL 96168 N3` and `S3`
-moving 128→122, which is the documented 96168 `N2` digitisation correction and unrelated.
-So the change is a clean, catalogue-wide reversal of the E/W runs and nothing else.
-
-**2. The generator says so in its own comment.** (observed) `scripts/gen-booth.py:407-412`
-
-    # E/W slot lists run NORTH -> SOUTH. That is the booth builder's own
-    # convention (layout-render.js top-down: ay = runY(aIn), y-down from
-    # the N wall), and this walked them south->north until 2026-08-11 —
-    # which put every E/W wall's panels at the mirrored end. N/S run
-    # west->east in both, so only these two flip.
-    x, y = (W - t if side == 'E' else t - PANEL_T), H - cursor - ln
-
-The justification is a **drawing** convention, not a measurement.
-
-**3. That drawing convention is one the portal itself patches.** (observed)
-`assets/layout-render.js:1003-1004` `runY = inches => y0 + inches * PX`, and `:1562-1565` draws
-`N` at `y0 + t` (top) and `S` at `y0 + H - t` (bottom). So `aIn = 0` **is** the N end — but
-`wallPanelRun()` then flips the run back to the door end:
-
-    if ((side === 'E' || side === 'W') && n === 2 && skuRaw[0] !== skuRaw[1]) { … }
-
-with the cited source being `reference/seam-seal-attachment.md:317`:
-
-> On the four split-run booths — 6060, 6084, 7272, 7296 — WhisperRoom's own build puts the
-> **big** run on each E/W wall at the **door end**, which is the reverse of what the generated
-> layout data says. **The floor and ceiling panels' hinge slots confirm it.**
-
-That is **physical** evidence (hinge slots) that E/W slot 0 belongs at the door end. The portal
-only applies it where it can *detect* it — a 2-piece wall with unequal real widths — and its own
-comment writes off the larger models because "nothing on them can flip." That is true of the
-**joint positions** and false of the **slot→part mapping**: `MDL 102144`'s W wall is 40/16/40,
-perfectly symmetric in widths, so a reversal moves no joint by a thousandth and still swings the
-window from one end of the wall to the other. **That is exactly why this went unseen.**
-
-**4. An independent witness on disk agrees with the pre-flip order.** (observed)
-`WhisperRoomQuote/lib/pl-data/booth-iso-geometry.json` is a straight extract of
-`wr-booth-data.rb` stamped `2026-08-07T22:57:11.420Z` — four days before the flip. It carries
-all 25 Standard layouts and puts `MDL 102144 W0` at **y 2..42**, the door end. It is the file
-the portal's **angled ("YOUR BOOTH") view** renders from, so the portal's angled view still
-draws the pre-flip order, and that matches Benton's portal render exactly: window adjacent to
-the door corner.
-
-**5. All 25 doors are on `S`.** (observed, `booth-layouts.json`) So for this catalogue,
-"walk E/W from low y" and "slot 0 at the door end" are the same rule. A future N-door model
-would need the door-anchored form.
-
-## Why the old harness could not see it
-
-`.forge/fixer/replay-side-wall-order.py` decided AGREE/MIRRORED with
-
-    want  = ids  (N/S)  |  list(reversed(ids))  (E/W)
-    agree = (geo_order == want)
-
-`ids` is `wr-booth-data.rb`'s own slot ids in slot-number order; `geo_order` is
-`wr-booth-data.rb`'s own parts in coordinate order. The portal's slot list was read, printed,
-and **never used in the verdict.** The verdict was one file against a hard-coded assumption —
-and the assumption ("portal slot 0 is at the N end of a side wall") is *precisely the rule the
-2026-08-11 generator change adopted.* The harness asserted the change under test. 200/200 was
-guaranteed before it opened a portal file. It could only have failed on a layout whose own slot
-numbering was non-monotonic.
-
-Its secondary "PORTAL FLIP FIRES" note was scoped to 2-piece unequal walls, so it could not see
-`102144` either.
-
-## The harness is fixed — this is the deliverable that shipped
-
-`.forge/fixer/replay-side-wall-order.py` now compares per-slot along-wall extents against
-`booth-iso-geometry.json`, the independent pre-flip witness, prints an `END` and a
-`vs WITNESS` column per slot, and exits non-zero on any mismatch. `booth-layouts.json` is still
-printed but explicitly labelled **context only, not a verdict**, with the reason.
-
-    python .forge/fixer/replay-side-wall-order.py "MDL 102144 S"
-      W0  SOLID  62.000 102.000  40.000  40PanelSolid  HIGH  MOVED  witness 2.000..42.000 (LOW end)
-      => *** REVERSED - the whole run is walked end for end.
-         Slot W0 sits at the HIGH end here, at the LOW end in the witness.
-      EXIT 1
-
-    python .forge/fixer/replay-side-wall-order.py --all --summary
-      300 wall(s) checked against the witness: 108 REVERSED, 0 DIFFER, 0 with no witness
-
-**108 = 18 models × 2 walls × 3 shells** (`S out`, `E out`, `E in`). The seven models absent
-from the list — **4230, 4242, 4260, 4284, 4848, 4872, 4896** — have a single panel per side
-wall, so there is nothing to reverse. That is why the completed **MDL 4872 E** is unaffected.
+Diagnosed on `main` @ v1.6.29. `VERSION` untouched. No `.rb` touched. `WhisperRoomQuote` was
+read and `require`d, never written.
 
 ---
 
-# THE FIX I WOULD MAKE — NOT SHIPPED
+## RETRACTIONS — read these first
 
-Four lines in `scripts/gen-booth.py`, then a regenerate. **No change to any `.rb` by hand;
-`wr-booth-data.rb` is generated.**
+1. **`lib/pl-data/booth-iso-geometry.json` is NOT an independent witness. Retracted.**
+   Its generator header (`lib/pl-data/extract-booth-iso-geometry.js:5`) says it is *parsed from*
+   `scripts/wr-booth-data.rb`. It is a **stale copy of the file under test**, stamped
+   `2026-08-07T22:57:11.420Z` — four days before `gen-booth.py` changed the E/W walk. Comparing
+   a file to an old copy of itself measures drift, not truth. The v2 harness built on it has
+   been **deleted**, not patched.
 
-### `scripts/gen-booth.py:411` — outer shell panel walk
+2. **"The portal has the same bug on 14 models." Retracted — it was wrong.**
+   `wallPanelRun()` implements the documented convention *exactly*.
+   `reference/seam-seal-attachment.md:317-322` scopes the measured hinge-slot convention to the
+   four split-run booths and then says, in the same paragraph: *"Every other model is symmetric
+   on E and W — the 96168 is 46+46, the 102126 is 40+16+40 — so nothing reverses."* The portal's
+   gate `n === 2 && skuRaw[0] !== skuRaw[1]` is that sentence in code. It is correct.
+
+3. **The four-line `gen-booth.py` revert. Retracted.** It would have moved 108 walls to match a
+   stale file, and would have *broken* the 14 models where the builder currently matches the
+   plan the customer is actually shown.
+
+4. **The "door end" framing. Retracted as a rule.** Benton: *"The door should go wherever the
+   customer selects the door to go."* He is right. `layout-render.js:268` reads
+   `layout.door.wall`, and the v2.417.1 note at `:249-256` is explicit that the anchor must be
+   **the model's own fixed property, not the live placement** — dragging the frame from S0 to N0
+   used to flip both side walls, and that was logged as a bug. All 25 catalogue models happen to
+   have `door.wall === 'S'` (observed), which made "low-y end" and "door end" look like the same
+   statement. They are not, and only the first is safe to code against.
+
+---
+
+## Which view disagrees with the builder — file and line
+
+There are **three** sources, not two, and they do not all agree.
+
+| source | code path | what it is |
+|---|---|---|
+| **layout** | `scripts/wr-booth-data.rb` → `build-booth-components.rb:1988` (`place(… p[:poly] …)`) | what SketchUp builds |
+| **portal 2D** | `assets/layout-render.js:156` `wallPanelRun()` → `:1562-1565` | the top-down plan |
+| **angled 3D** | `assets/iso-render.js:1464-1475` (parts by `p.id` / `p.poly`) + `:1731-1752` `kindsFrom()` (pack painted onto the matching **slot id**), reading `lib/pl-data/booth-iso-geometry.json` | the "YOUR BOOTH" view |
+
+**Measured by executing the portal's own function** (`.forge/fixer/replay-portal-wallrun.js`,
+which `require`s `layout-render.js` rather than paraphrasing it):
+
+- **`MDL 102144`: the builder and the portal 2D plan AGREE.** Both put `W0` — the window — at
+  builder y **62.00 .. 102.00**, the high-y end. `E0` likewise. Verdict `same` on every slot.
+- **`MDL 102144`: the ANGLED view is the lone dissenter**, putting `W0` at y **2.00 .. 42.00**.
+- Across all 25 models × both variants: **300 walls, 24 disagree** between layout and portal 2D,
+  and they are *exactly* the four split-run booths.
+- The angled view disagrees with the portal 2D plan on **56 outer walls / 14 models** — every
+  multi-slot side wall **except** the four, where the portal's flip happens to reproduce the old
+  order.
+
+### So Benton's picture is explained, and it does not convict the builder
+
+The angled view paints the customer's window pack onto **the part whose id is `W0`**, and takes
+that part's polygon from a 2026-08-07 snapshot of `wr-booth-data.rb`. The builder takes the same
+slot's polygon from today's `wr-booth-data.rb`. The two copies of that one field differ because
+of the 2026-08-11 walk change. **The portal render and the SketchUp render differ by exactly one
+stale file, on a wall where nothing geometric distinguishes the two options.**
+
+`MDL 102144`'s W wall is **40 / 16 / 40** — symmetric. Reversing it moves no joint, no seal and
+no corner by a thousandth. Only which slot id owns which end changes. That is why nothing caught
+it and why no closure or geometry argument can settle it.
+
+**This is the ORDER question.** It is not the width-axis family split (`40Panel2636WDO` runs X,
+`16PanelSolid`/`40PanelSolid` run Y) — that turns a panel end-for-end *in place* and is still
+open, untouched, and unaddressed by anything here.
+
+---
+
+## Is the 102144 window at the low-y or the high-y end? — **UNRESOLVED, and it cannot be
+resolved from anything on disk**
+
+Stated without reference to the door, as asked:
+
+- **No geometric evidence exists.** The wall is width-symmetric; both orders close identically.
+- **No measurement covers it.** `reference/seam-seal-attachment.md:317` measures hinge slots on
+  6060 / 6084 / 7272 / 7296 only, and explicitly says symmetric walls do not reverse.
+- **The two portal views contradict each other on this model**, and the one that matches
+  Benton's reading is the stale one.
+- The portal 2D plan and the builder agree — but they agree on a *drawing convention*
+  (`aIn` grows from the N end), not on a measurement.
+
+**I will not propose a geometry change for the 102144. The honest answer is that it needs a
+measurement from Benton.**
+
+### What to measure, and how to state it door-free
+
+On a real `MDL 102144` — or on WhisperRoom's own assembly drawing for it — orient the booth by a
+datum that does **not** move when the door moves. Use the same datum the reference already uses:
+the **floor and ceiling panels' hinge slots**.
+
+1. **Which end of the side wall does the window panel occupy — the same end as the hinge slots,
+   or the opposite end?** That is the whole question, and it is one sentence of answer.
+2. **Is it fixed by the model at all, or does the assembler put the window where the customer
+   asks?** Benton's own pushback about the door points straight at this. If the window is
+   customer-placed, then **there is no rule to code**, the slot index is only a label, and the
+   real defect is different: `booth-from-link.rb` would need to honour a chosen window position
+   rather than inherit a hard-coded polygon. That would be a change on the customer path with a
+   different blast radius again.
+3. **Same two questions for `MDL 96144`** (46 + 46, also symmetric) — Benton named it alongside
+   the 102144.
+
+Until 1 and 2 are answered, changing the 102144 would be swapping one unevidenced convention for
+another.
+
+---
+
+## What IS evidenced, and IS worth fixing — a different, smaller defect
+
+**The builder never implements the big-run convention at all.** On the four split-run booths the
+layout puts the big run at the high-y end; the portal 2D plan, the angled view, and the hinge
+slots all put it at the low-y end.
+
+    node .forge/fixer/replay-portal-wallrun.js "MDL 6060 S"
+      W0  SOLID   layout 20.00..60.00  HIGH    portal  2.00..42.00  LOW   MOVED    angled 2.00..42.00
+      W1  SOLID   layout  2.00..18.00  LOW     portal 44.00..60.00  HIGH  MOVED    angled 44.00..60.00
+      => *** DISAGREES on 2 slot(s)
+
+Four independent things agree against the builder here:
+
+- the **hinge slots** — a measurement on a real booth (`seam-seal-attachment.md:317-320`);
+- the portal **2D plan** (the flip fires);
+- the portal **angled view**;
+- **Benton, this session: the portal's top-down for a 6060 S looks correct to him.**
+
+**24 walls: `MDL 6060 / 6084 / 7272 / 7296`, both side walls, `S out` + `E out` + `E in`.**
+Every other wall in the catalogue already agrees with the plan.
+
+### The change I would make — NOT shipped, and gated
+
+The flip is exactly "walk this wall the other way", so it is a walk-direction conditional, not a
+mirror pass.
+
+**`scripts/gen-booth.py`, outer shell** — before the `for i, (slot, ln) …` loop at line 402 add:
+
+    # The big-run convention, matching layout-render.js wallPanelRun():266-277.
+    # A 2-panel E/W wall whose REAL parts differ is walked the other way, so the
+    # big run lands at the low-y end. Detected structurally, exactly as the portal
+    # detects it - this picks out 6060/6084/7272/7296 and nothing else. Evidence
+    # is the floor and ceiling HINGE SLOTS (reference/seam-seal-attachment.md
+    # "Two things that move a seal along a wall"), which do not move when the
+    # door moves. It is a build convention: verify against the job.
+    flip = side in ('E', 'W') and len(lengths) == 2 and lengths[0] != lengths[1]
+
+then at line 411:
 
     -                x, y = (W - t if side == 'E' else t - PANEL_T), H - cursor - ln
-    +                x, y = (W - t if side == 'E' else t - PANEL_T), cursor
+    +                x, y = (W - t if side == 'E' else t - PANEL_T), (cursor if flip else H - cursor - ln)
 
-and replace the 2026-08-11 comment above it (lines 408-412) with:
+and at lines 422-424:
 
-    # E/W slot lists run SOUTH -> NORTH: slot 0 sits at the DOOR end.
-    # Physical evidence, reference/seam-seal-attachment.md §"Two things that
-    # move a seal along a wall": the floor and ceiling panels' HINGE SLOTS put
-    # the big run at the door end on the 6060/6084/7272/7296. The N->S walk
-    # taken on 2026-08-11 copied layout-render.js's DRAWING order (aIn from the
-    # N wall) - which is the very order wallPanelRun() patches back with its
-    # big-run-at-the-door-end flip. Do not re-adopt it. All 25 doors are on S.
-
-### `scripts/gen-booth.py:423-424` — outer mid-wall seal
-
+    -                mid = cursor + SEAL_W / 2.0
     -                if side in ('E', 'W'):
     -                    mid = H - cursor - SEAL_W / 2.0   # same N->S flip as the panels
+    +                mid = cursor + SEAL_W / 2.0
+    +                if side in ('E', 'W') and not flip:
+    +                    mid = H - cursor - SEAL_W / 2.0
 
-(delete both lines; `mid = cursor + SEAL_W / 2.0` on line 422 then stands for all four sides)
+**Inner (IEP) shell, lines 253-269** — the same conditional, but ⚠ **the predicate must be
+computed from the OUTER lengths, not `inner[side]`.** If the two shells decide independently
+they can disagree with each other and the inner shell will sit inside a mirrored outer one. That
+is the one place this change can go quietly wrong, and it is why I am not writing the inner-shell
+lines blind: `iep_parts()` does not currently have the outer `lengths` in scope and the fix must
+thread it in, not re-derive it.
 
-### `scripts/gen-booth.py:259` — inner (IEP) shell panel walk
+Then:
 
-    -                y, dy = H - cursor - ln, ln
-    +                y, dy = cursor, ln
+    python scripts/gen-booth.py --all
+    python scripts/rbparse.py                                  # real syntax check
+    node .forge/fixer/replay-portal-wallrun.js --all            # must read 0 DISAGREE, exit 0
+    python .forge/builder/replay-iep-deck.py                    # 31 assertions
+    python .forge/builder/replay-iep-wall-lift.py               # 105 checks
 
-with its comment on line 258 changed from `# Same N->S walk as the outer shell, for the same
-reason.` to `# Same S->N walk as the outer shell, for the same reason.`
+Bump `scripts/wr_tools/VERSION` 1.6.29 → 1.6.30 (`wr-booth-data.rb` is under `scripts/`).
 
-### `scripts/gen-booth.py:268-269` — inner mid-wall seal
+### What it moves on the Standard path
 
-    -                if side in ('E', 'W'):
-    -                    mid = H - cursor - IEP_SEAL_W / 2.0
+- **Only 6060, 6084, 7272, 7296.** Both side walls, Standard and Enhanced. The seal moves 24 in
+  on all four — into the position the hinge slots already say.
+- **All 21 other models: byte-identical.** Including `MDL 102144` and `MDL 96144` — so **this
+  change does NOT address Benton's window complaint.** Saying otherwise would be the whole
+  mistake repeating.
+- **`MDL 4872 E` (signed off): unchanged** — single panel per side wall.
+- ⚠ **`MDL 6060 E` IS one of the four, and it is the current `.forge/GOAL.md` "Now".** Its E and
+  W panels and seals move on both shells. Any inner-deck or wall-lift measurement Benton takes on
+  a 6060 E built *before* this change is taken against the old order. **Sequence this against his
+  6060 work deliberately; do not land it underneath him.**
 
-(delete both lines)
+---
 
-### Then
+## A `WhisperRoomQuote` issue to report, not to fix (read-only from here)
 
-    python scripts/gen-booth.py --all          # rewrites scripts/wr-booth-data.rb
-    python scripts/rbparse.py                  # real syntax check of every .rb
-    python .forge/fixer/replay-side-wall-order.py --all --summary   # must read 0 REVERSED, exit 0
-    python .forge/builder/replay-iep-deck.py         # 31 assertions
-    python .forge/builder/replay-iep-wall-lift.py    # 105 checks
+The portal's **angled view is stale** — 56 outer walls across 14 models where it contradicts the
+portal's own 2D plan. Re-running `node lib/pl-data/extract-booth-iso-geometry.js` would refresh
+it, **but a naive refresh would break the four split-run booths' angled view**, because the
+extract carries no flip logic and today's `wr-booth-data.rb` has the big run at the wrong end.
+The correct sequence is: fix `gen-booth.py` first, regenerate `wr-booth-data.rb`, *then* re-run
+the extract. I have not touched that repo.
 
-Bump `scripts/wr_tools/VERSION` (1.6.29 → 1.6.30) — `wr-booth-data.rb` is under `scripts/`.
-
-**No change to `booth-from-link.rb`.** Its slot assignment is not the defect: the RAW PACK maps
-`W0 = 40Panel2636WDO` and the portal's own summary says `Window Left (W0)`. Both agree on the
-slot. Only the slot's *position* is wrong, and that lives in the layout data.
-
-## What this moves on the Standard path
-
-- **18 models × 2 side walls.** Every `E` and `W` panel and mid-wall seal on 102102, 102126,
-  102144, 102168, 102186, 10284, 6060, 6084, 7272, 7296, 84102, 84126, 8484, 96120, 96144,
-  96168, 96192, 9696 — Standard and Enhanced alike — moves to the mirrored position on its wall.
-- **Corner seals, N/S walls, floors, ceilings, decks: untouched.** The change is confined to the
-  E/W cursor.
-- **On symmetric-width side walls (most of them) no joint moves at all** — only which slot id
-  owns which end. The visible change is where the window / vent / cable panel sits.
-- **On 6060, 6084, 7272, 7296 the joint moves 24 in**, into the position the hinge slots and
-  the portal's angled view already say it belongs.
-- **Unaffected: 4230, 4242, 4260, 4284, 4848, 4872, 4896** — one panel per side wall. The
-  finished **MDL 4872 E** does not move.
-- **`build-booth-components.rb`'s WA-door rebalance** (`:1720-1776`) walks a wall by coordinate,
-  so on an E/W wall carrying a wide-access door the rebalance would shift to the other end. No
-  catalogue model has a side-wall door frame (all 25 doors are on `S`), so this is dormant — but
-  it is the one place the change could reach beyond the E/W panel positions.
-
-## Regression check to run after the fix
-
-| booth | expect |
-|---|---|
-| **Standard MDL 102144** from the link | window **adjacent to the door corner** |
-| **Standard MDL 96144** from the link | window **adjacent to the door corner** |
-| **Enhanced MDL 102144** from the same link | same, both shells |
-| **MDL 6060 S** | the 40 run at the door end, the 16 at the back; seal moves 24 in |
-| **MDL 4872 E** (already signed off) | **byte-identical — nothing moves** |
-| **MDL 4260 S / 4848 S** (no side-wall window) | **unchanged** |
-
-Offline, `replay-side-wall-order.py --all --summary` must read `0 REVERSED` and exit 0.
-
-## A separate defect I am NOT fixing, reported for Benton
-
-**The portal's own top-down plan has the same bug**, and it disagrees with the portal's own
-angled view. `wallPanelRun()`'s door-end flip is gated on `n === 2 && skuRaw[0] !== skuRaw[1]`,
-so it cannot fire on a 3-slot wall (102144) or an equal-width pair (96144's 46+46). For those
-14 models the 2D plan, the elevations, the walk-around and the proposal PDF still draw
-`aIn = 0` at the **N** end — the window at the far end from the door. The general rule is "E/W
-run starts at the door wall", not "a 2-piece unequal wall flips."
-
-`WhisperRoomQuote` is **read-only from here** and I have not touched it. Flagging it because
-after the SketchUp fix, SketchUp and the portal's angled view will agree with each other and
-both will disagree with the portal's 2D plan on those 14 models.
+---
 
 ## Confidence, at the weakest link
 
-- The reversal, its commit, and its 108 affected walls: **observed**, from git and the two data
-  files.
-- That the **pre-flip** order is the correct one: **derived** from three agreeing sources — the
-  hinge-slot evidence in `reference/seam-seal-attachment.md` (physical, but attested only for
-  4 models), the pre-flip iso extract the portal's angled view still draws, and Benton's own
-  side-by-side render comparison (**reported**).
-- **The weakest link is the generalisation from 4 models to 18.** The hinge-slot measurement
-  covers 6060 / 6084 / 7272 / 7296. For the other 14 the door-end rule rests on the portal's
-  angled view and on Benton's 102144 picture. It is the same rule and it is the only rule that
-  fits both, but it has not been measured on a 3-slot wall.
-- I could not run any Ruby and did not build anything. **No claim here has been checked in
-  SketchUp.**
+- The three sources, their code paths, and the 300/24 and 56/14 counts: **observed**, by
+  executing `wallPanelRun()` against parsed `wr-booth-data.rb`, not by reasoning about either.
+- The angled view being a stale copy of `wr-booth-data.rb`: **observed** (generator header +
+  `generated` timestamp + a byte-level match to the pre-`92dc59b` data).
+- The four-booth flip being the right fix: **derived** from a measurement (hinge slots) plus
+  three agreeing renderings plus Benton's confirmation on the 6060. Strong, but the reference
+  itself says "verify against the job."
+- **The 102144 window: unresolved. No evidence either way exists on disk.** This is the weakest
+  link and it is the thing Benton actually asked about.
+- Nothing here ran in SketchUp. No Ruby was executed. No claim is confirmed against a build.
