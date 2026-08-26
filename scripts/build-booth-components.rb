@@ -163,33 +163,36 @@ module WR_BuildBoothComponents
   # correction on top of one.
   IEP_SEAL_YAW   = 180.0   # the mid-wall seal, end for end
 
-  # THE INNER VENT WALL, end for end. ZERO, AND THE ZERO IS THE MEASUREMENT.
+  # THE INNER VENT WALL, end for end. 180, AND IT HAS NOW BEEN CONFIRMED TWICE
+  # ON A RESTARTED SKETCHUP.
   #
-  # This was 180.0 for exactly one version and it was an over-correction.
-  # The route matters, because it is the classic two-changes-in-one-version
-  # trap and it cost a round:
+  # This flipped to 0.0 for one version (v1.6.24) on a false premise, and the
+  # false premise is the thing worth remembering, not the number.
   #
-  # Benton, on a 6060 E built with v1.6.20, said "the vent walls need to
-  # rotate 180 degrees". v1.6.21 shipped that flip AND the rebalance fix that
-  # stopped ENH 35.5VNT being placed at booth y -7.875, outside the booth. The
-  # vents almost certainly looked wrong because one of them was in the wrong
-  # PLACE, not because it was facing the wrong way - and the placement fix
-  # alone would have settled it. Two variables moved at once, so neither was
-  # tested.
+  # Benton reported the vents wrong on a 6060 E, so v1.6.21 set 180. He then
+  # reported them wrong AGAIN on a 96144 E, and the reasoning was: the 180 is
+  # live, this block keys off the assigned component name, that booth's vents
+  # all resolve to ENH ...VNT, so it must be firing - and a half turn is its
+  # own inverse, so asking for another 180 means the answer is 0. Every step of
+  # that was sound EXCEPT the first. SketchUp had not been restarted, so the
+  # 180 was NOT in memory; he was looking at pre-v1.6.21 code. The premise was
+  # about the STATE OF THE RUNNING PROCESS and it was never checked.
   #
-  # The evidence for zero: Benton pulled an MDL 96144 E on v1.6.23 - with the
-  # 180 live and firing, since this block keys off the assigned component name
-  # and that booth's N0i/N1i/N2i/E0i all resolve to ENH ...VNT - and reported
-  # "the IEP vent walls need to all be flipped 180 degrees". ALL of them,
-  # uniformly. A half turn is its own inverse, so asking for another 180 on top
-  # of a live 180 is asking for none.
+  # With 0.0 genuinely live on a restarted SketchUp, Benton on a 102144 E:
+  # "now all the IEP vent walls are flipped backwards." That is the first
+  # observation of this constant that is known to have been made against the
+  # code it names. 180 is correct.
   #
-  # It is a FACING change and nothing else: the turn is about the slot
-  # polygon's own centre and the room-proud block below re-seats the box
-  # afterwards, so the bounding box is identical either way. No probe can see
-  # it. Benton's eye is the only instrument, which is why this constant records
-  # which booth was looked at and on which version.
-  IEP_VENT_YAW   = 0.0
+  # THE LESSON, because it will recur: a Ruby module keeps its constants until
+  # SketchUp restarts. "The file on disk says X" is not evidence that the
+  # running build does. Before treating a report as evidence about a constant,
+  # establish that the process was restarted after that constant shipped.
+  #
+  # No probe can check this either way: the turn is about the slot polygon's
+  # own centre and the room-proud block below re-seats the box afterwards, so
+  # the bounding box is identical at 0 and at 180. Benton's eye is the only
+  # instrument.
+  IEP_VENT_YAW   = 180.0
 
   # ACROSS THE WALL, an inner panel whose slab cannot be found stands its
   # bounding box this far into the room past the panel band's room face.
