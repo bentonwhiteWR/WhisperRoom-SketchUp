@@ -1,69 +1,105 @@
-# HANDOFF — v1.6.23, the IEP tray lip and the floor seam seals
+# HANDOFF — `IEP_WALL_LIFT` becomes per-booth (v1.6.28)
 
-**UNRUN IN SKETCHUP.** There is no `ruby.exe` on this machine. Everything below was verified by
-a real CRuby 3.2 syntax parse and by a Python replay against the real component folder, the real
-probes and the real generated layouts. **Nothing has been built.**
+**UNRUN IN SKETCHUP.** There is no Ruby on this machine outside SketchUp, so no line of this
+has been executed against real geometry. Everything below that is evidence is named as such.
 
 ## Produced
 
-| File | What changed |
+| file | what changed |
 |---|---|
-| `scripts/build-booth-components.rb` | `flat_placement` takes a per-axis seat (`:centre` / `:min` / `:max`); new `WR_BuildBoothComponents.seat`; `iep_deck` seats each tile's OUTER edge on its slot's outer edge, with a >2.5 in overhang tripwire and a `lip … pushed … out onto it` console note; the deck-seal caller now runs `%w[CL FL]` |
-| `scripts/wr-deck.rb` | `SEAL_FL_NAME`, `SEAL_LEN_INSET`, `SEAL_FL_DATUM_LIFT` (nil = unmeasured); `seal_catalogue(dir, kind)`; `seals(..., kind)` places the floor family too |
-| `scripts/wr_tools/VERSION` | 1.6.22 → 1.6.23 |
-| `DEVLOG.md` | 2026-08-26 entry |
-| `.forge/builder/replay-iep-deck.py` | 8 assertions → **25**; new sections 6 (the lip, measured, before/after) and 7 (seal selection) |
+| `scripts/build-booth-components.rb` | `IEP_WALL_LIFT` is now a frozen per-booth hash + `IEP_WALL_LIFT_DEFAULT = 0.7500`; new `iep_wall_lift(key)` / `iep_wall_lift_measured?(key)`; `part_top_z(part, hx, lift)` takes the lift as a required third argument; `build_booth` resolves it once from `key`; the build-report line and the warning block both name the figure and whether it was measured. |
+| `scripts/build-booth.rb` | **comment only.** `IEP_LIFT = 0.3125` is unchanged; its "kept in step with IEP_WALL_LIFT" note was a lie once the other file grew a table, so the note now says it is in step with nothing. |
+| `scripts/wr_tools/VERSION` | 1.6.27 → 1.6.28 |
+| `DEVLOG.md` | new top entry under 2026-08-26 |
+| `.forge/builder/replay-iep-wall-lift.py` | **new**, 105 checks. Parses the table out of the real `.rb` rather than restating it. |
 
-Not committed, not pushed — the tree is deliberately dirty for review.
+Nothing is committed. The tree is dirty on purpose.
 
-## Read first
+## The table, and where each row came from
 
-- `scripts/build-booth-components.rb`, the `iep_deck` tile loop — the whole lip derivation is in
-  the comment block there.
-- `scripts/wr-deck.rb`, `SEAL_FL_DATUM_LIFT` — the one unmeasured number, and why the ceiling's
-  `-1.75` must not be borrowed.
-- `python .forge/builder/replay-iep-deck.py` — section 6c prints the 6060 E's real edges before
-  and after.
+```
+MDL 4872 E    0.7500   Benton's eye 2026-08-25, then a probe of his corrected
+                       full booth agreeing to 0.0001 (v1.6.17). PROBE-BACKED.
+MDL 6060 E    0.6875   Benton's eye 2026-08-26. No probe.
+MDL 102144 E  0.7500   Benton 2026-08-26, built at 0.6875, "1/16 too low". No probe.
+              -------
+default       0.7500   two of three, and one of those two is the probed one.
+```
 
-## Assumptions
+**No rule was derived from three points.** Benton's own scope sentence is *"Im not sure about
+any others."* The other 22 Enhanced layouts take the default and the build names the booth by
+key in its warning block when it does — the `IEP_ROOM_PROUD` idiom, copied on purpose.
 
-- **The +1-per-outer-edge overhang IS the tray lip.** The measurement is unambiguous across all
-  44 ENH deck parts; that it is the *engulfing* overhang rather than something else is read off
-  Benton's own sentence about the tray, not off the geometry. *(derived / reported)*
-- **The floor seal's seating height.** Placed with its top face flush to the floor deck's
-  contact plane — the ceiling rule's own sentence applied to the floor. **Assumed**, warned by
-  name on every build, one constant to correct.
-- **`STDSS FL5` and `STDSS 8.5FL` follow the FL length rule** (full cross). Measured on FL6, FL7
-  and FL8 only; those two are absent from `_face-levels.tsv`. *(assumed, tripwired)*
-- **`_face-levels.tsv` is dated 2026-08-14** and its CL rows are provably stale (they show the
-  pre-re-cut 2.000-tall seals). The FL rows carry the same date with no known event against them.
-  *(reported)*
-- ENH deck parts still yield no answer on the end-for-end turn — `bracket_edge` needs SketchUp.
-  Unchanged from v1.6.22.
+## Read-first, if you pick this up
 
-## Open questions — for Benton
+1. The `IEP_WALL_LIFT` comment block in `scripts/build-booth-components.rb` (~line 90–160). It
+   carries all three quotes and why 0.7500 is the default rather than a law.
+2. `IEP_VENT_YAW`'s comment in the same file. **A Ruby module keeps its constants until
+   SketchUp restarts.** Before any report of "the shell is 1/16 off" becomes a fourth row here,
+   establish that SketchUp was restarted after the figure it was built at shipped. A constant
+   was moved on exactly that false premise earlier today and had to be reverted.
+3. `.forge/GOAL.md` — its "THE ONE OPEN QUESTION: is the wall lift global or per-booth?" section
+   is now **stale**. It says "No per-booth table was invented. One constant, one word to
+   revert." That is no longer true. I did not edit GOAL.md; it is Benton's file.
 
-1. **What height does the floor seam seal actually want?** Build any booth with a jointed deck
-   (the 6060 is the smallest: one joint, `STDSS FL5`), find the placed seal, move it by hand
-   until it seats, and report the delta. Then `WR_Deck::SEAL_FL_DATUM_LIFT` gets that number and
-   the warning stops. The three candidates are written out at the constant.
-2. **Should the Enhanced inner deck have seam seals at all?** There is no `ENH` deck seam seal in
-   the library — only the two `ENH` *wall* seals. Parts question, not a code one.
-3. **`ENH 8418 FL` measures 17.9375, 1/16 under its name** (as does `STD8418 FL`). It is a middle
-   tile on the 10284 and 84102, so it leaves 1/32 at each side. Intentional joint allowance or a
-   part to re-cut?
-4. Still open from v1.6.22, untouched here: `IEP_WALL_LIFT` global vs per-booth (the 4872 E
-   re-check), and the 11.5 / 35.5 room-prouds.
+## Why the lift is an argument and not module state
 
-## What to build and probe to close this
+`part_top_z` did not know which booth it was building. Two shapes were available: pass the key
+and look it up per part, or resolve the number once and pass it. I passed the **number**,
+resolved once in `build_booth` from the layout key it is already handed, because the warning
+about an unmeasured booth then fires once per build rather than once per inner part, and the
+lookup does not run 40 times for an answer that cannot change mid-build.
 
-1. `git pull` → `install-plugin.py` → **restart SketchUp** (VERSION lives under `wr_tools/`).
-2. Build **MDL 6060 E, Shell = Both**. The two tray tiles should now meet flush at booth station
-   43.000 and the tray should run 0.000 → 62.000 along the run, 1 in proud of the standard
-   ceiling on all four sides. The mat should be exactly where it was.
-3. Watch the console for `DECK SEAL FL:` — it will name `STDSS FL5` and say its datum is
-   unmeasured. Look at where that seal landed against the floor joint and report the correction.
-4. Select the inner deck → **Probe placement of what's selected** → hand back the TSV. That is
-   what closes the lip claim with a measurement rather than a screenshot.
-5. Re-open the **4872 E** and check its inner shell vertical at 0.6875 — still the observation
-   that settles `IEP_WALL_LIFT`.
+The third argument is **required**, no default. A module-level "current booth" would be
+inherited by the next build in the same SketchUp session — this process is long-lived and the
+module outlives a build. A required argument cannot go stale. There is exactly one call site
+(`nominal = part_top_z(p, cfg['hx'], lift)`), asserted by the harness.
+
+## Assumptions — flagged, not hidden
+
+- **`assumed`** — 0.7500 is right for the 22 booths nobody has looked at. This is the whole
+  residual risk of the change and it is why the build warns by name.
+- **`reported`** — the 6060 E and 102144 E figures are Benton's eye on a built shell. Only the
+  4872 E has a probe behind it, and that probe measured his *corrected* model, so it proves the
+  code matches his hand placement, not that his hand placement was right.
+- **`derived`** — 102144 E = 0.6875 built + 1/16 reported low = 0.7500.
+- **`observed`** — all 25 `E` layouts exist in `wr-booth-data.rb`; the harness enumerates them
+  off the real file, not a list I typed.
+
+## Open questions
+
+1. **Which booth falsifies the default?** Any Enhanced booth other than those three. A fourth
+   reading of **0.6875** would say the 4872 E's probe measured a hand placement that was itself
+   1/16 out, and the default belongs at 0.6875. A fourth reading of 0.7500 leaves the 6060 E as
+   the lone outlier and worth re-checking on a restarted SketchUp.
+2. **Is the 6060 E's 0.6875 real, or is it the v1.6.21 restart problem again?** It has never
+   been probed and it is the only row that disagrees with the default.
+3. `build-booth.rb`'s `IEP_LIFT = 0.3125` has never been re-measured for the path that uses it.
+   Out of scope here; flagged in its comment.
+4. Room-proud for the **11.5** and **35.5** widths is still unmeasured and still warns by name
+   (unchanged, pre-existing).
+
+## Verification actually performed
+
+- `python scripts/rbparse.py` → **52 files parse**, real CRuby 3.2 DLL. (`rbcheck.py` was not
+  used and is not evidence.)
+- `python .forge/builder/replay-iep-deck.py` → **ALL CHECKS PASS** (31 assertions), observed
+  once early in the session. It was re-run at the end and reported *"cannot reach
+  P:\Sketchup\NewMasterComponentList"* — **the mapped network drive dropped mid-session, it is
+  not a regression.** That harness reads only `wr-deck.rb` and `wr-booth-data.rb`, neither of
+  which this change touches. Re-run it once P: is back.
+- `python .forge/builder/replay-iep-wall-lift.py` → **ALL 105 CHECKS PASS**.
+- Not verified: anything requiring SketchUp. No booth was built.
+
+## What Benton should build to confirm
+
+1. `git pull`, `install-plugin.py`, **restart SketchUp** — VERSION lives under `wr_tools/`, so a
+   rescan is not enough, and the restart is what makes the next report evidence.
+2. Build **MDL 4872 E, Shell = Both**. The console should read
+   `underside lifted 0.75" - MEASURED ON THIS BOOTH`. Confirm the inner shell still looks right —
+   this is the regression check on the booth that was already closed.
+3. Build any booth **not** in the table — **MDL 9696 E** or **MDL 7272 E** is a good pick, mid
+   size, nothing unusual. The console should read `underside lifted 0.75" - DEFAULT - NOT
+   MEASURED ON THIS BOOTH` and the warning block at the end should name the booth by key. Look
+   at the inner shell and say the number. **That is the reading that falsifies or confirms the
+   0.7500 default**, and it is the one measurement this change is asking for.

@@ -33,21 +33,25 @@ I cannot drive SketchUp. Plugin **1.6.23** — VERSION is under `wr_tools/`, so 
 4. **Re-open the 4872 E and check its inner shell vertical at 0.6875.** See the open
    question below — this is the observation that decides it.
 
-### THE ONE OPEN QUESTION — is the wall lift global or per-booth?
-`IEP_WALL_LIFT` is a single global constant. **0.7500** was measured on the corrected
-**4872 E** (2026-08-25, Benton's eye then a probe agreeing to 0.0001). **0.6875** was measured
-on the **6060 E** (2026-08-26, Benton's eye, no probe yet). Both cannot be right for one
-constant. Three readings fit the facts and nobody has ruled any out:
+### THE WALL LIFT IS A PER-BOOTH TABLE NOW (v1.6.28), and its default is a guess
+`IEP_WALL_LIFT` is no longer one constant. Three measurements exist and they disagree:
 
-- the lift is global and the 4872 was 1/16 high all along (the v1.6.17 probe measured Benton's
-  *corrected* model, so it proved the code matched his hand placement — not that his hand
-  placement was right);
-- the lift is per-booth;
-- something is 6060-specific that nobody has found.
+| booth | lift | provenance |
+|---|---|---|
+| MDL 4872 E | 0.7500 | Benton's eye 2026-08-25, then a full-booth probe agreeing to 0.0001 |
+| MDL 6060 E | 0.6875 | Benton's eye 2026-08-26, **no probe** |
+| MDL 102144 E | 0.7500 | Benton's eye 2026-08-26, **no probe** |
+| **default** | **0.7500** | a GUESS covering the other 22 layouts, and the build names each one |
 
-**No per-booth table was invented.** One constant, one word to revert. Step 4 above settles it.
-Consequence already banked: the even 0.75/0.75 split of the 1.5 between the deck lips is dead,
-and `IEP_TRAY_DROP` was not moved, so the wall-top-to-tray gap widened by the same 1/16.
+**No rule was derived** — Benton's words were *"Im not sure about any others."* The lift reaches
+`part_top_z` as a required third argument resolved once per build, never module state, so it
+cannot go stale between builds in one SketchUp session.
+
+**What falsifies the default:** any Enhanced booth outside those three. A fourth reading of
+**0.6875** means the 4872 E's probe measured a hand placement that was itself 1/16 out — that
+probe measured Benton's *corrected* model, so it only proved the code matched his hand, not that
+his hand was right — and the default belongs at 0.6875. A fourth reading of **0.7500** leaves
+the 6060 E as the lone outlier, and it is the one row that has never been probed.
 
 ### Residual on the 6060, expected and not a defect
 The room-proud figures for the **11.5** and **35.5** widths are still unmeasured and fall
