@@ -1,112 +1,80 @@
-# Builder HANDOFF — Bulk Name After Scenes
+# HANDOFF — List Scenes search box
 
-2026-08-25. Scope: one new script, `scripts/bulk-name-after-scenes.rb`, plus a VERSION bump.
-The previous handoff (booth-from-link) is preserved at
-`.forge/builder/HANDOFF-booth-from-link.md`.
+Task: fix the search box in `scripts/list-scenes.rb`. Benton reported he could not
+search the middle of a component name.
 
-**The script is UNRUN.** There is no `ruby.exe` on this machine and I cannot drive SketchUp.
-Nothing in it has been observed executing against a real model. What HAS been executed is
-listed under "Read-first".
-
----
+**This is NOT the Enhanced-booth mission in `.forge/GOAL.md`.** Nothing here touches
+`booth-from-link.rb`, `wr-booth-data.rb`, `wr-deck.rb` or `gen-booth.py`. The previous
+handoff (bulk scene naming) is preserved at `.forge/builder/HANDOFF-bulk-name.md`.
 
 ## Produced
 
-- `scripts/bulk-name-after-scenes.rb` — new. Resolves every gap scene to a proposed
-  component, shows a `UI::HtmlDialog` review table, applies only ticked rows inside one
-  `model.start_operation`. Panel header: `@title Bulk Name After Scenes...`,
-  `@cat Tidy up the model`, `@rank 2` (directly under the single-item tool at rank 1),
-  `@icon names-replace`.
-- `scripts/wr_tools/VERSION` — `1.6.18` -> `1.6.19`. Required by CLAUDE.md for any change
-  under `scripts/`; the update banner is the only signal Gabe gets.
-- `.forge/builder/HANDOFF-booth-from-link.md` — copy of the handoff this file replaced.
+| File | What |
+|---|---|
+| `scripts/list-scenes.rb` | The fix. Header doc, `placeholder`, `hl()`, new `terms()`/`textHit()`, `parseNums()`, `draw()`. |
+| `scripts/wr_tools/VERSION` | 1.6.19 → 1.6.20 (required for any change under `scripts/`). |
+| `.forge/builder/emit.py` | Reproduces the `<<-HTML` heredoc's OUTPUT (Ruby escape processing + `#{}` substitution) so the emitted JavaScript can be checked and run. |
+| `.forge/builder/emitted-list-scenes.html` | The emitted page, with fixture rows. Scratch — regenerate, do not edit. |
+| `.forge/builder/emitted-filter.js` | The `<script>` block lifted out of the above. Scratch. |
+| `.forge/builder/filter-test.js` | 21 Node assertions driven through the REAL emitted `draw()`. |
 
-Not modified: `scripts/save-scene-components.rb`, `scripts/name-selection-after-scene.rb`,
-`scripts/wr_tools/main.rb`, `scripts/wr_tools/icon-map.json`. The panel discovers scripts by
-scanning the folder, so no registration was needed; the icon is declared inline with `@icon`
-rather than by editing the shared map.
+Re-run the whole check with:
 
-Incidental and NOT mine to commit deliberately: `scripts/__pycache__/*.pyc` churn from
-running `rbparse.py`. Those `.pyc` files are tracked in git and are not covered by
-`.gitignore`. Worth a separate decision.
+```
+python .forge/builder/emit.py && node .forge/builder/filter-test.js
+```
 
-## Read-first
+## What was actually wrong
 
-1. **The resolver is a VERBATIM COPY, not a reference.** `subject_for`,
-   `geometry_subject_for`, `view_direction`, `fallback_for`, `ray_box_entry`, `ray_offsets`,
-   `top_level_index`, `pick_instance`, `near_misses`, `scene_label`, `AUTONAME`,
-   `definition_of`, `definition_name` are copied byte-for-byte out of
-   `save-scene-components.rb`, between the two marker comments in the file. `rename_to` and
-   `top_level_names` / `top_level?` / `gaps` are copied from
-   `name-selection-after-scene.rb`. **Two files now hold one rule and they can drift.**
-   The copy was taken because `save-scene-components.rb` ends by calling
-   `WR_SaveSceneComponents.run` — `load`ing it to borrow a method would open its export
-   dialog. If that ever stops being true, delete the copies and require the file.
+Not the text filter — that was already `indexOf(...) >= 0`, a substring match.
+The bug was `parseNums(q)`: `/^[\d\s,\-]+$/` matched any all-digits query and
+`draw()` then filtered by SCENE NUMBER only, discarding the text search. Benton's
+component names are heavily numeric (`ENH 10242FL SIDE`, `4896`, `1648`), so
+typing `1648` meant "scene 1648" and matched nothing. `26.5` contains a period,
+fell through to text search, and worked — which is why the failure looked random.
 
-2. **Collision policy deliberately differs from the single-item tool.**
-   `name-selection-after-scene.rb` ABORTS the whole operation on a taken name. This one
-   SKIPS the row, restores it, keeps the rest, and reports the skips. A uniquified `#2`
-   name is still refused — only the blast radius changed. The one case that does abort the
-   whole batch is a failure to restore a refused rename, because a definition left holding
-   a name nobody asked for is worse than doing nothing.
+## The rule now
 
-3. **What was actually executed here, and what was not.**
-   - `python scripts/rbcheck.py bulk-name-after-scenes.rb` -> `balanced`. (Heuristic only.
-     It first reported an unclosed `module`; the cause was a real thing worth fixing — a
-     trailing `unless` modifier on a backslash-continued line — and it was rewritten as an
-     explicit block.)
-   - `python scripts/rbparse.py` -> all 52 `.rb` files parse, mine included. This is a
-     genuine parse by SketchUp's own CRuby 3.2.
-   - **The pure-logic methods were RUN**, in the same embedded VM, via a harness modelled
-     on `scripts/rbtest.py` that lifts the methods verbatim from the file:
-     `scene_label`, `tier_of`, `flag_batch_collisions`, `problem?`, `approvable?`,
-     `preticked?`, `defn_id`, `to_json_plan`, and the sort key `plan` uses. All behaved as
-     designed on a six-row fixture with a duplicate name, a shared part and an unresolved
-     row. Harness at
-     `%LOCALAPPDATA%\Temp\claude\...\b089a409-...\scratchpad\bulktest.py` (scratch, not in
-     the repo — recreate it rather than trusting the path).
-   - **The dialog JavaScript was RUN**, headless in Node against a stub DOM: `render`,
-     `tally`, the three tick buttons, the collision warning, HTML escaping, the Show link,
-     and the Apply-disabled path. `node --check` passes on the extracted script.
-   - **NOT executed, and unverified until SketchUp:** every SketchUp API call.
-     `model.raytest`, `model.definitions[name]`, `page.camera`, `Pages#selected_page=`,
-     `Selection#add`, `Entity#valid?`, `ComponentDefinition#name=`, `start_operation` /
-     `commit_operation` / `abort_operation`, `UI::HtmlDialog` construction and callback
-     wiring. These were verified by READING the API and by matching the patterns in
-     `prefix-scenes.rb` and `name-selection-after-scene.rb`, not by observation.
+- `parseNums` returns `{ want: …, only: … }`. `only` is true only when the query
+  carries a comma or a hyphen — an unambiguous list/range like `1-40` or `3,7,12`.
+  That case still filters by scene number alone, unchanged.
+- A **bare** number is the **union**: scene-number match OR text match. `12` returns
+  scene 12 *and* `ENH 1264CL`. `48` returns everything containing "48" even though
+  no scene is numbered 48.
+- Search terms are whitespace-split and **ANDed, order-independent**.
+  `wdo panel` = `panel wdo` = `ENH 26.5Panel1648WDO_HX`.
 
-4. **First run procedure — do it in this order.**
-   1. Open the master model. Extensions -> Developer -> Ruby Console.
-   2. `load "C:/.../scripts/bulk-name-after-scenes.rb"`.
-   3. The table opens and the same table prints to the Console. **Approve nothing.** Press
-      Close. Confirm the model is untouched and the Console says
-      `NOTHING HAS CHANGED`. That proves the read-only path.
-   4. Run it again. Use Show on two or three rows to check the proposed part is the right
-      one. Untick everything, tick ONE row you are sure of, Apply. Check the name in the
-      Outliner, then Ctrl+Z and check it went back.
-   5. Then do the rest. Weak rows are at the top of the table on purpose — look at those
-      before ticking them.
+## Highlighting — what I chose
+
+**Every matching term is highlighted, every occurrence**, not degraded. `hl()` now
+takes the term array, collects match spans on the RAW string, merges overlaps, and
+escapes each slice as it is emitted (escaping first then slicing would cut `&amp;`
+in half — that was a real hazard in the old code, which escaped then `indexOf`'d).
+When the query is a pure range (`only`), `draw()` passes `[]` and nothing is marked,
+matching the old `var term = nums ? "" : q` behaviour for that case.
 
 ## Assumptions
 
-- `Sketchup::DefinitionList#[]` accepts a String name and returns nil when absent. Used for
-  the pre-flight collision check. Read from the API docs, not observed.
-- `page.name` for a scene never contains a newline, so the console table's column widths
-  hold. Untested against the real 25 scenes.
-- Only RAY-tier rows arrive pre-ticked, and only when they carry no warning. On this model's
-  parallel projections rays reported ~21,500 in lever arms in the exporter's own dry runs, so
-  even RAY may deserve a look. If Benton disagrees, `preticked?` is one line.
-- The panel picks the script up on Rescan without a reinstall, because this checkout sits at
-  a path in `main.rb`'s `CANDIDATES`. Assumed from CLAUDE.md, not confirmed on this machine.
+- `<<-HTML` at line 177 is an **interpolating** heredoc, so `\\d` in the Ruby source
+  becomes `\d` in the emitted JavaScript. Verified against the emitted file, not
+  assumed: every regex in the emitted HTML is single-backslash and no `\\` survives.
+- Fixture scene numbers are invented; the component/scene NAMES are real ones from
+  this project's `ENH` library.
+- A whitespace-split AND search means a query containing a literal space inside one
+  token (`"ENH 10242FL SIDE"` typed whole) still matches, because each word is
+  present — but as separate terms, so word order in the name no longer matters.
+  Judged a feature, not a regression.
 
 ## Open questions
 
-- Should a hand-made collision (two rows ticked that want one name) DISABLE Apply rather
-  than being dropped as a group at Apply? Current behaviour warns in the window and drops
-  the whole colliding group, keeping every other row. That reading of "do not abort the
-  batch for one collision" is mine.
-- The verbatim resolver copy is a standing drift risk. Worth a follow-up that splits the
-  resolver into a `require`-able file both scripts use.
-- `scripts/__pycache__/*.pyc` are tracked and get dirtied by any `rbparse.py` run. Add to
-  `.gitignore` and `git rm --cached`?
-- Not committed — per the assignment, the orchestrator handles that.
+- **Unrun in SketchUp.** There is no Ruby interpreter on this machine outside
+  SketchUp. The Ruby parses (`rbparse.py`) and the emitted JavaScript passes 21 Node
+  assertions, but nobody has opened the actual dialog. Benton should run
+  `load ".../scripts/list-scenes.rb"` once and try `1648`, `wdo panel`, and `1-40`.
+- The `RANGE` / tick-to-build-a-spec feature was not touched and was not exercised by
+  the Node harness (row click handlers are stubbed out) — it is untouched code, but
+  it is untested here too.
+- Not committed, per instruction. `scripts/wr_tools/` was not changed, so no
+  `install-plugin.py` reinstall is needed for the panel itself; `list-scenes.rb`
+  is a tool script, so a `git pull` reaches repo-checkout machines and everyone
+  else needs the installer.

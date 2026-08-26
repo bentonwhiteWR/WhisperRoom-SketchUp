@@ -18,6 +18,15 @@
 # order. Sorting by scene name or component in the window is a VIEW — the number
 # column travels with each row and does not change.
 #
+# SEARCHING. Type words and every one of them has to appear somewhere in the
+# scene name or the component name, in any order and anywhere inside a word:
+# "wdo panel" and "panel wdo" both land on ENH 26.5Panel1648WDO_HX. Typing a
+# range instead -- "1-40" or "3,7,12" -- filters to those SCENE NUMBERS, so an
+# existing range can be checked before it is used. A bare number is both at
+# once: these components are full of digits, so "1648" shows scene 1648 AND
+# everything whose name contains 1648, rather than silently throwing the text
+# search away.
+#
 # It is a snapshot, not an identifier. Drag a scene tab to a new position and
 # every number after it shifts. Re-run after reordering.
 #
@@ -240,7 +249,7 @@ module WR_ListScenes
 </div>
 
 <div class="cmd">
-  <input id="q" placeholder="Search scene or component — or type numbers like 1-40" autofocus
+  <input id="q" placeholder="Search scene or component — several words, any order — or a range like 1-40" autofocus
          autocomplete="off" spellcheck="false">
 </div>
 
@@ -283,10 +292,39 @@ module WR_ListScenes
     return String(s == null ? "" : s).replace(/&/g, "&amp;")
       .replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-  function hl(t, q) {
-    var s = esc(t); if (!q) return s;
-    var i = s.toLowerCase().indexOf(q.toLowerCase()); if (i < 0) return s;
-    return s.slice(0, i) + "<mark>" + s.slice(i, i + q.length) + "</mark>" + s.slice(i + q.length);
+  // Marks EVERY occurrence of EVERY search term. Spans are collected on the raw
+  // text and each piece is escaped as it is emitted — escaping first and then
+  // slicing would cut an entity like &amp; in half.
+  function hl(t, ts) {
+    var s = String(t == null ? "" : t);
+    if (!ts || !ts.length) return esc(s);
+    var lo = s.toLowerCase(), spans = [];
+    ts.forEach(function (term) {
+      if (!term) return;
+      var i = lo.indexOf(term);
+      while (i >= 0) { spans.push([i, i + term.length]); i = lo.indexOf(term, i + term.length); }
+    });
+    if (!spans.length) return esc(s);
+    spans.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+    var out = "", at = 0;
+    spans.forEach(function (sp) {
+      if (sp[1] <= at) return;                       // wholly inside one already marked
+      var a = sp[0] > at ? sp[0] : at;               // overlap: start where the last one ended
+      out += esc(s.slice(at, a)) + "<mark>" + esc(s.slice(a, sp[1])) + "</mark>";
+      at = sp[1];
+    });
+    return out + esc(s.slice(at));
+  }
+
+  // Every whitespace-separated term must appear somewhere in scene + component,
+  // in any order: "wdo panel" and "panel wdo" both find ENH 26.5Panel1648WDO_HX.
+  function terms(q) {
+    return q.toLowerCase().split(/\\s+/).filter(function (t) { return t.length > 0; });
+  }
+  function textHit(r, ts) {
+    var s = (r.scene + " " + r.comp).toLowerCase();
+    for (var i = 0; i < ts.length; i++) { if (s.indexOf(ts[i]) < 0) return false; }
+    return ts.length > 0;
   }
 
   // "1-3,5,9-10" out of [1,2,3,5,9,10]. Consecutive runs collapse, which is what
@@ -305,9 +343,16 @@ module WR_ListScenes
 
   // A search box that also takes "1-40" or "3,7,12": typing numbers filters to
   // those scenes, so an existing range can be checked before it is used.
+  //
+  // But component names here are heavily numeric — ENH 10242FL SIDE, 4896,
+  // ENH 26.5Panel1648WDO_HX — so a BARE number is ambiguous. Reading "1648" as
+  // "scene 1648" and dropping the text search is what made mid-name search look
+  // broken. So `.only` is true, meaning scene numbers alone, ONLY when the query
+  // is unambiguously a list or a range (it carries a comma or a hyphen). A bare
+  // number stays a text search too, and draw() takes the union.
   function parseNums(q) {
     if (!/^[\\d\\s,\\-]+$/.test(q)) return null;
-    var want = {};
+    var want = {}, only = /[,\\-]/.test(q);
     q.split(",").forEach(function (tok) {
       tok = tok.trim(); if (!tok) return;
       var m = tok.match(/^(\\d+)\\s*-\\s*(\\d+)$/);
@@ -315,16 +360,16 @@ module WR_ListScenes
                for (var k = a; k <= b; k++) want[k] = 1; }
       else if (/^\\d+$/.test(tok)) want[+tok] = 1;
     });
-    return Object.keys(want).length ? want : null;
+    return Object.keys(want).length ? { want: want, only: only } : null;
   }
 
   function draw() {
-    var q = $q.value.trim(), nums = parseNums(q);
+    var q = $q.value.trim(), nums = parseNums(q), ts = terms(q);
     view = ROWS.filter(function (r) {
       if (!q) return true;
-      if (nums) return !!nums[r.n];
-      var t = q.toLowerCase();
-      return (r.scene + " " + r.comp).toLowerCase().indexOf(t) >= 0;
+      if (nums && nums.only) return !!nums.want[r.n];   // "1-40" / "3,7,12"
+      if (nums && nums.want[r.n]) return true;          // bare "12" keeps scene 12
+      return textHit(r, ts);
     });
     view.sort(function (a, b) {
       var x = a[sortK], y = b[sortK];
@@ -334,12 +379,12 @@ module WR_ListScenes
       return a.n - b.n;
     });
 
-    var term = nums ? "" : q;
+    var hi = (nums && nums.only) ? [] : ts;
     $b.innerHTML = view.map(function (r) {
       return '<tr class="' + (sel[r.n] ? "sel" : "") + '" data-n="' + r.n + '">' +
         '<td class="n">' + r.n + "</td>" +
-        "<td>" + hl(r.scene, term) + "</td>" +
-        '<td class="' + (r.comp === "(unresolved)" ? "un" : "") + '">' + hl(r.comp, term) + "</td>" +
+        "<td>" + hl(r.scene, hi) + "</td>" +
+        '<td class="' + (r.comp === "(unresolved)" ? "un" : "") + '">' + hl(r.comp, hi) + "</td>" +
         '<td class="sz">' + esc(r.size) + "</td>" +
         '<td class="go"><button data-go="' + r.n + '" title="Go to this scene">&#8594;</button></td>' +
         "</tr>";
