@@ -133,6 +133,19 @@ module WR_BuildBoothComponents
   # correction on top of one.
   IEP_SEAL_YAW   = 180.0   # the mid-wall seal, end for end
 
+  # THE INNER VENT WALL, end for end. Benton, looking at a built 6060 E inner
+  # shell, 2026-08-26: "the vent walls need to rotate 180 degrees."
+  #
+  # This is a FACING change and nothing else. The turn is about the slot
+  # polygon's own centre, and the room-proud block below re-seats the box
+  # against the band's room face afterwards, so the part's bounding box comes
+  # out where it already was on every axis. That is why the 4872 E's 0.0001
+  # agreement is not evidence the vent was facing the right way there - a probe
+  # compares boxes and a box cannot see a half turn. The same flip therefore
+  # applies to the 4872 E's N0i, and Benton's eye is the only instrument that
+  # can confirm it. One number, one word to put back.
+  IEP_VENT_YAW   = 180.0
+
   # ACROSS THE WALL, an inner panel whose slab cannot be found stands its
   # bounding box this far into the room past the panel band's room face.
   #
@@ -190,6 +203,31 @@ module WR_BuildBoothComponents
     n = name.to_s
     return true if n =~ /VNT|NV/i
     IEP_ROOM_PROUD.key?(n[/ENH\s+([\d.]+)/, 1])
+  end
+
+  # THE MODULE WIDTH AN ENH PART'S NAME DECLARES, or nil for a part whose name
+  # carries no width ('ENH Right41.5Door' deliberately does not match - a door
+  # has a findable slab and never needs this).
+  #
+  # Why this exists: rebalance_walls has to know how wide a part really is, and
+  # for an ENH part wall_slab finds nothing, so the only measurement left was
+  # the whole definition's bounding box. That box includes trim and void
+  # standing proud of the panel - ENH 35.5VNT measures 35.750 and
+  # ENH 35.5PanelSolid 35.625, both on a 35.5 module - and re-walking a wall
+  # from those packaged figures overruns the run by the sum of the packaging.
+  # On the 6060 E's E inner wall that overrun is 0.250, past the 0.15 closure
+  # tolerance, so the whole wall bailed out and kept its stale slot polygons;
+  # place() then centred a 35.75 part on an 11.5 slot and put it at booth
+  # y -7.875, outside the booth. The W wall of the same booth overran only
+  # 0.125, squeaked under the tolerance, and rebalanced 1/8 long instead.
+  #
+  # The name's number is the module width. It is what the layout polygons are
+  # cut to and what the Standard slab measures on the same wall, so using it
+  # here makes the inner shell rebalance exactly as well as the outer one
+  # already does. Packaging is still reported in the FIT column, untouched.
+  def self.iep_nominal_width(name)
+    w = name.to_s[/ENH\s+([\d.]+)/, 1]
+    w && w.to_f
   end
   IEP_DOOR_YAW   = 180.0   # the inner door - see below
   # And the door moves INTO THE ROOM by this much after its half turn. The
@@ -1121,11 +1159,17 @@ module WR_BuildBoothComponents
       #
       # The FIT column in the main table keeps reporting the raw difference, so
       # the discrepancy stays visible - it just stops moving geometry.
+      #
+      # AND WHEN THERE IS NO SLAB BUT THE NAME DECLARES A MODULE WIDTH, that
+      # number is the measurement - see iep_nominal_width. The bounding box is
+      # the part plus its packaging, and re-walking a wall from packaging is
+      # what put the 6060 E's E inner wall 0.25 out of closure.
       pw_of = lambda do |r|
         next (r[:slab][:w1] - r[:slab][:w0]) if r[:slab]
         slot = ext.call(r[:part][:poly])
         want = slot[1] - slot[0]
-        (r[:cls][:w] - want).abs <= SLAB_NOISE ? want : r[:cls][:w]
+        have = iep_nominal_width(r[:name]) || r[:cls][:w]
+        (have - want).abs <= SLAB_NOISE ? want : have
       end
       list.sort_by! { |r| ext.call(r[:part][:poly])[0] }
 
@@ -1449,6 +1493,19 @@ module WR_BuildBoothComponents
           spiv = Geom::Point3d.new((sxs.min + sxs.max) / 2.0,
                                    (sys.min + sys.max) / 2.0, 0)
           tr = Geom::Transformation.rotation(spiv, VZ, IEP_SEAL_YAW.degrees) * tr
+        end
+
+        # The IEP vent wall goes in end for end too (see IEP_VENT_YAW). Read
+        # off the COMPONENT THAT WAS ASSIGNED, never p[:sk] - the same reason
+        # is_door is: a customer can move a vent into a slot the layout calls
+        # SOLID, and the slot kind would not know.
+        is_vent = !(r[:name].to_s =~ /VNT|NV/i).nil?
+        if inner?(p) && p[:k] == 'panel' && is_vent && IEP_VENT_YAW != 0.0
+          vxs = p[:poly].map { |q| q[0].to_f }
+          vys = p[:poly].map { |q| q[1].to_f }
+          vpiv = Geom::Point3d.new((vxs.min + vxs.max) / 2.0,
+                                   (vys.min + vys.max) / 2.0, 0)
+          tr = Geom::Transformation.rotation(vpiv, VZ, IEP_VENT_YAW.degrees) * tr
         end
 
         # Across the wall, for an inner panel with no slab - AFTER the yaw

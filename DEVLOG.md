@@ -1,5 +1,58 @@
 # DEVLOG
 
+## 2026-08-26
+
+### Fixed - the 6060 E's floating panel: rebalance was re-walking walls from PACKAGING (v1.6.21)
+
+Benton built MDL 6060 E, inner shell only, and probed it: *"Its quite broken. Easy fixes, the
+vent walls need to rotate 180 degrees."* One panel was outside the booth entirely, at booth
+y **-7.875**.
+
+**Root cause, and it is one line.** `rebalance_walls` re-walks a wall from each part's real
+width. For an `ENH` part `wall_slab` finds no panel inside the definition, so the only width
+left was the whole definition's bounding box - and that box is the part PLUS its trim and
+void: `ENH 35.5VNT` measures 35.750 on a 35.5 module, `ENH 35.5PanelSolid` 35.625. Re-walking
+the 6060 E's E inner wall from those gives 4.25 + 35.750 + 6.5 + 11.5 = 58.000 against a wall
+that ends at 57.75. That is 0.250 out, past the 0.15 closure tolerance, so the wall bailed out
+and kept its stale slot polygons. `place()` then centred the 35.75-long vent on the 11.5 slot -
+10.0 - 17.875 = **-7.875**, the probe's number exactly. The W wall overran only 0.125, squeaked
+under the tolerance, and rebalanced an eighth long instead, which is the whole of why
+`W-seal0i` sat at 37.0 rather than 36.875.
+
+**The outer shell of the same booth was never affected**, and that is the tell: a Standard part
+has a findable slab, so the re-walk uses the exact panel widths 40 + 2 + 16 and closes to
++0.0000. The inner shell was the only one working from packaging.
+
+**`iep_nominal_width` is the fix** - the module width the part's name declares, on the same
+regex `iep_room_proud` already uses - and `pw_of` prefers it over the bounding box when there
+is no slab. The FIT column still reports the raw packaging, so nothing is hidden.
+
+**Not in the generated data, and not in `ASSIGN`.** `wr-booth-data.rb` is generated and a hand
+edit dies at the next `gen-booth.py --all`; `ASSIGN` carries Benton's intent (the 40/35.5 part
+and the vent both at the door end) and is right. The code's own design already names
+`rebalance_walls` as the thing that makes the geometry follow `ASSIGN`. It worked on the outer
+shell. Now it works on the inner one.
+
+**`IEP_VENT_YAW = 180.0`** - Benton's second instruction, an inner vent turned end for end,
+about its slot polygon's centre like the seal and the door before it. It is a FACING change and
+nothing else: the room-proud block re-seats the box afterwards, so the bounding box lands
+exactly where it already did. That means the 4872 E's `N0i` gets the same flip, and it means
+the 4872's 0.0001 probe agreement was never evidence about facing in the first place - a probe
+compares boxes and a box cannot see a half turn. Benton's eye is the only instrument for it.
+
+**Two of the five reported defects were re-derived and are not defects.** `W-seal0i` at 37.0 is
+the 0.125 stretch above and goes to 36.875 on its own. The thin-box `ENH 11.5PanelSolid` is
+seated IDENTICALLY on N and S once its real 1.1563 box thickness is used instead of the nominal
+1.125 - both 1/16 into the room, both landing on the probe to four places. Whether 1/16 is the
+right figure for a thin box in a 2.0 band is Defect 5's missing measurement, not a sign error.
+
+**Unrun in SketchUp.** Verified by `.forge/fixer/replay-rebalance.py`, a Python replay of
+`rebalance_walls` + `place()`'s along-wall arithmetic against the real layout data. It
+reproduces all 16 of Benton's probed inner positions exactly under the old rule, including the
+-7.875; under the new rule the 6060/6084/7272/7296 E inner walls all close +0.0000 and **the
+4872 E and the Standard path come out byte-identical**. `python scripts/rbparse.py`: 52 files
+parse. Full write-up in `.forge/fixer/ROOTCAUSE-6060E-2026-08-26.md`.
+
 ## 2026-08-25
 
 ### Session close - 4872 E is complete; 6060 E is next
