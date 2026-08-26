@@ -429,17 +429,34 @@ module WR_BuildBoothComponents
   # coin flip, so this stays a declared false.
   IEP_FL_UPSIDE_DOWN = false
 
-  # A level carrying less than this share of the part's biggest flat face is a
-  # chamfer or a screw boss, not a surface. Same figure and same reasoning as
-  # WR_ProbeLevels::MIN_SHARE and WR_Deck.contact_z's own 0.05 filter.
-  IEP_LEVEL_MIN_SHARE = 0.05
+  # ===== THE THREE FIGURES THE MOUTH TELL TURNS ON (v1.6.30) =====
+  #
+  # These REPLACE IEP_LEVEL_MIN_SHARE (0.05) and IEP_MOUTH_RATIO (2.0). The old
+  # pair could not answer, because the 5% share filter deleted the very level the
+  # ratio needed - the rim - on 11 of the 23 ENH CL parts. Every figure below is
+  # set off the real spread in _face-levels.tsv (2026-08-26, all 370 parts), with
+  # the gap between the two populations stated so a future part can be judged
+  # against it rather than against a taste.
+  #
+  # A tray PLATE is its whole footprint. Measured, ENH CL plates run 64% to 100%
+  # of the part's biggest level (the 64% is ENH 127LPCL, which is not
+  # rectangular). Nothing else in the library sits between 25% and 50%, so the
+  # threshold has a wide moat on both sides.
+  IEP_PLATE_MIN_SHARE = 0.50
 
-  # The mouth tell has to be decisive to be used at all. A tray plate is its
-  # whole footprint and a tray rim is a thin ring around it - on ENH 10242CL
-  # SIDE that is 43 x 104 against a perimeter ring, tens of times smaller - so a
-  # real tray clears this by an order of magnitude and anything that does not is
-  # not a tray and gets left as authored.
-  IEP_MOUTH_RATIO = 2.0
+  # A tray RIM is a 1 in ring on the outer edges. Measured, ENH CL rims run 1.9%
+  # to 6.6% of the plate - the widest is the single-piece ENH 4872CL, which has a
+  # ring on all four sides. Nothing measured is anywhere near 25%.
+  IEP_RIM_MAX_SHARE = 0.25
+
+  # AND IT HAS TO BE A REAL FACE. This is the guard that keeps the rule
+  # ENHANCED-ONLY in effect as well as in name. A Standard ceiling carries a
+  # chamfer of 1 to 3 sq in at each end of its box, which is a tiny share of its
+  # plate and would read as a mouth on share alone; the smallest genuine ENH rim
+  # is 36 sq in (ENH 10218CL CTR, ENH 8418 CL). 10 sq in sits in that gap with an
+  # order of magnitude either side, and with it the rule abstains on all 23
+  # Standard ceilings - the property .forge/builder/replay-iep-deck.py asserts.
+  IEP_RIM_MIN_AREA = 10.0
 
   # HOW FAR THE TRAY DROPS OVER THE STANDARD CEILING. Its bottom edge sits
   # this far below the standard ceiling's TOP face - so it caps the ceiling
@@ -643,10 +660,73 @@ module WR_BuildBoothComponents
   # inside the slab - cannot arise: there is no slab here and nothing interior
   # is consulted.
   #
-  # UNRUN. No ENH deck part has ever been face-level probed - _face-levels.tsv
-  # contains ZERO ENH rows, checked over all 4544 of them - so which families
-  # this turns over is NOT KNOWN HERE and only a build can say. That is exactly
-  # why it is measured at build time and printed per tile.
+  # ============ MEASURED 2026-08-26. THE ABSTENTION IS LIFTED. =============
+  #
+  # The note that stood here said "UNRUN - _face-levels.tsv contains ZERO ENH
+  # rows". That is no longer true. Benton re-ran scripts/probe-levels.rb over
+  # the WHOLE parts folder with a blank filter on 2026-08-26 19:38, and
+  # P:\Sketchup\NewMasterComponentList\_face-levels.tsv now carries 1761 ENH
+  # rows across 6625 lines. Every ENH CL part in the library has been read
+  # (observed, straight off the TSV; see
+  # .forge/fixer/TRAY-ORIENTATION-2026-08-26.md for the full table).
+  #
+  # WHAT THE MEASUREMENT SAYS. An ENH CL tray has exactly THREE flat levels and
+  # no others - no chamfers, no screw bosses - and they are always the same
+  # three things:
+  #
+  #   PLATE   the closed end, area == box_x * box_y, the whole footprint
+  #   FIELD   the plate's underside, the footprint less the lip inset
+  #   RIM     the open mouth, a 1 in ring on the OUTER edges only
+  #
+  # ENH 4872CL   box 50 x 74   z 1.7500 -> 3700 (plate)  0.7500 -> 3456  0.0000 -> 244 (rim)
+  # ENH 10242CL CTR  box 42 x 104  z 1.7500 -> 84 (rim)  1.0000 -> 4284  0.0000 -> 4368 (plate)
+  #
+  # Those two are MIRROR IMAGES IN Z. The library is authored to two
+  # conventions, which is exactly what this function was written to survive,
+  # and FOUR parts of the 23 carry the plate at the LOW end:
+  #
+  #   ENH 10218CL CTR   ENH 10242CL CTR   ENH 10242CL SIDE   ENH 8442CL SIDE
+  #
+  # Note that ENH 8442CL CTR is authored the RIGHT way up while ENH 8442CL SIDE
+  # is not, so this is per-part authoring drift and no family rule would catch
+  # it. Nine of the 25 E layouts tile at least one of the four: 8484, 10284,
+  # 84102, 84126, 102102, 102126, 102144, 102168, 102186. MDL 6060 E and
+  # MDL 4872 E tile NONE of them and do not move.
+  #
+  # ===== WHY THE OLD RULE ABSTAINED, WHICH IS THE ROOT CAUSE =====
+  #
+  # IEP_LEVEL_MIN_SHARE (0.05) DELETED THE RIM BEFORE THE RATIO COULD SEE IT.
+  # The rim of a CTR or a long tile is 2 x cross x 1 in against a plate of
+  # cross x run: 84 against 4368 on ENH 10242CL CTR, 1.9% of peak. Under a 5%
+  # filter the rim is dropped as a chamfer, the rule is left comparing the PLATE
+  # against the plate's own UNDERSIDE - 4368 and 4284, two near-equal areas -
+  # and it returns NO ORIENTATION CUE. It did that on 11 of the 23 ENH CL parts,
+  # including all four that actually needed turning over. The threshold sat
+  # right on top of the answer: the rims that survived 5% (ENH 4872CL at 6.6%,
+  # ENH 6042CL SIDE at 5.5%) are the single-piece and short tiles, which is why
+  # the closed MDL 4872 E read correctly and the MDL 102144 E did not.
+  #
+  # ===== THE RULE NOW: WHICH BOX END HOLDS THE PLATE =====
+  #
+  # Compare the levels at the two ENDS OF THE BOX - the lowest and highest flat
+  # faces, with NO share filter, because the filter was the bug. One end must
+  # hold a plate (>= IEP_PLATE_MIN_SHARE of the biggest level) and the other a
+  # rim (<= IEP_RIM_MAX_SHARE of it, AND at least IEP_RIM_MIN_AREA square
+  # inches so a chamfer cannot pose as a mouth). Plate high = mouth down = as
+  # authored. Plate low = mouth up = FLIPPED.
+  #
+  # Checked against the fresh TSV, offline, in .forge/fixer/verify-tray.py:
+  # it decides all 23 ENH CL parts (19 down, 4 flipped) and STILL ABSTAINS ON
+  # ALL 23 STANDARD CEILINGS, which is the safety property the replay harness
+  # asserts. The absolute area floor is what preserves it - a Standard ceiling's
+  # extreme levels carry 1 to 3 sq in of chamfer where the smallest real ENH rim
+  # is 36 sq in.
+  #
+  # UNRUN IN SKETCHUP. Every number above is off the TSV, which is what
+  # WR_Deck.flat_levels would build from the same geometry (derived: probe-
+  # levels.rb's `levels` and wr-deck.rb's `flat_levels_with_exact` use the same
+  # 0.999 flat test, the same 1/64 bin and the same face walk). A build is still
+  # the proof, and every tile prints its verdict and its reason.
   def self.iep_upside_down?(defn, kind, forced)
     unless forced.nil?
       return [forced ? true : false,
@@ -654,19 +734,34 @@ module WR_BuildBoothComponents
                      forced ? 'forced flipped' : 'left as authored', kind)]
     end
 
-    std = begin
-            _cz, ud = WR_Deck.contact_z(defn, kind)
-            ud
-          rescue StandardError
-            nil
-          end
-    # contact_z's TRUE wins outright; the mouth tell is only consulted when
-    # contact_z has said false, which is also how it says nothing. The two
-    # cannot fight: "the room-side minor sits below the slab" and "the closed
-    # plate is at the high end" are the same physical statement about a ceiling,
-    # so a conflict needs a minor level carrying twice the plate's area, which
-    # is not a minor level.
-    return [true, 'wr-deck contact_z reads it upside down'] if std
+    # ===== THE PRECEDENCE IS REVERSED AS OF v1.6.30, AND HERE IS WHY =====
+    #
+    # It used to read "contact_z's TRUE wins outright ... the two cannot fight".
+    # THEY DO FIGHT, on exactly one part, and contact_z is the one that is wrong.
+    #
+    # ENH 127LPCL measures z 1.7500 -> 2196.47 (the plate), 1.0000 -> 2017.09
+    # (its underside) and 0.0000 -> 179.38 (the rim). contact_z hunts for a face
+    # pair 1.0000 apart, finds RIM-to-UNDERSIDE at 0.0000/1.0000, calls that the
+    # slab, and is then left with the PLATE at 1.7500 as a "minor level above the
+    # slab" - which for a ceiling is its upside-down verdict. So it turns over
+    # the one ENH tray whose plate-to-underside happens to measure 0.7500 instead
+    # of 1.0000. Confirmed by re-running contact_z offline over the fresh TSV:
+    # ENH 127LPCL is the ONLY one of the 23 ENH CL parts it answers true on.
+    #
+    # contact_z is a STANDARD-SLAB detector and an ENH tray has no Standard slab;
+    # the comment above already warned its false could not be trusted here, and
+    # this is the same defect in the other direction. The mouth tell reads the
+    # part's actual shape - a closed plate at one end, an open ring at the other -
+    # and needs no slab, so where the two disagree the mouth tell is the better
+    # evidence and now goes FIRST. contact_z is kept as the fallback for a future
+    # part that shows no plate/rim at all.
+    #
+    # WHAT THIS CHANGES ON A REAL BUILD TODAY: nothing. ENH 127LPCL is an orphan -
+    # no E layout tiles it (all 25 enumerated, .forge/fixer/TRAY-ORIENTATION-
+    # 2026-08-26.md). It is fixed because it is wrong, not because a booth needs it.
+    #
+    # wr-deck.rb is still called READ-ONLY and still not edited. The Standard
+    # path cannot see any of this.
 
     # ======== THE MOUTH TELL IS A CEILING RULE. THIS GATE IS LOAD-BEARING.
     #
@@ -689,22 +784,51 @@ module WR_BuildBoothComponents
       return [false, 'no flat faces to measure - left as authored']
     end
 
-    peak = tally.values.max.to_f
-    levels = tally.select { |_z, a| a >= peak * IEP_LEVEL_MIN_SHARE }.keys.sort
+    # NO SHARE FILTER ON THE LEVEL LIST. Filtering it is what deleted the rim
+    # and caused the abstention; see the header. The two ends of the box are
+    # taken raw and the plate/rim test below does the discriminating.
+    levels = tally.keys.sort
     return [false, 'one flat level only - left as authored'] if levels.length < 2
 
-    alo = tally[levels.first].to_f
-    ahi = tally[levels.last].to_f
-    if ahi >= alo * IEP_MOUTH_RATIO
-      [false, format('tray mouth reads DOWN (plate %.0f sq in high, rim %.0f low)',
-                     ahi, alo)]
-    elsif alo >= ahi * IEP_MOUTH_RATIO
-      [true, format('tray mouth reads UP (plate %.0f sq in low, rim %.0f high) - FLIPPED',
-                    alo, ahi)]
-    else
-      [false, format('NO ORIENTATION CUE: both ends carry similar area (%.0f low, ' \
-                     '%.0f high) - left as authored, CHECK IT', alo, ahi)]
+    peak = tally.values.max.to_f
+    zlo = levels.first
+    zhi = levels.last
+    alo = tally[zlo].to_f
+    ahi = tally[zhi].to_f
+
+    plate_hi = ahi >= peak * IEP_PLATE_MIN_SHARE
+    plate_lo = alo >= peak * IEP_PLATE_MIN_SHARE
+    # A rim must be BOTH a small share of the plate AND a real face. The second
+    # half is what keeps a Standard ceiling's 1-3 sq in chamfer from posing as a
+    # tray mouth, and it is the reason this rule still abstains on all 23 of them.
+    rim_lo = alo <= peak * IEP_RIM_MAX_SHARE && alo >= IEP_RIM_MIN_AREA
+    rim_hi = ahi <= peak * IEP_RIM_MAX_SHARE && ahi >= IEP_RIM_MIN_AREA
+
+    if plate_hi && rim_lo
+      return [false, format('tray mouth reads DOWN (plate %.0f sq in at z %.4f, ' \
+                            'rim %.0f at z %.4f)', ahi, zhi, alo, zlo)]
+    elsif plate_lo && rim_hi
+      return [true, format('tray mouth reads UP (plate %.0f sq in at z %.4f, ' \
+                           'rim %.0f at z %.4f) - FLIPPED', alo, zlo, ahi, zhi)]
     end
+
+    # No plate/rim reading. NOW ask wr-deck, which is the fallback rather than
+    # the first word - see the note above. Its false is also how it says nothing,
+    # so either way this ends up as "left as authored", but a true here is worth
+    # taking because nothing else has an opinion.
+    std = begin
+            _cz, ud = WR_Deck.contact_z(defn, kind)
+            ud
+          rescue StandardError
+            nil
+          end
+    if std
+      return [true, 'no plate/rim cue - wr-deck contact_z reads it upside down']
+    end
+
+    [false, format('NO ORIENTATION CUE: box ends carry %.0f sq in low and %.0f ' \
+                   'high against a biggest level of %.0f, and contact_z has ' \
+                   'nothing either - left as authored, CHECK IT', alo, ahi, peak)]
   end
 
   # Places both inner decks and returns [count, notes, warnings].

@@ -2,6 +2,72 @@
 
 ## 2026-08-26
 
+### 1.6.30 - THE IEP TRAY ORIENTATION ABSTENTION IS LIFTED. It was a threshold, not a mystery.
+
+Benton re-ran `scripts/probe-levels.rb` over the whole parts folder with a **blank filter**, all
+370 parts. `P:\Sketchup\NewMasterComponentList\_face-levels.tsv` is now 380,767 bytes / 6,625
+lines with **1,761 `ENH` rows**, replacing a 2026-08-14 file that had none. That measurement is
+what `build-booth-components.rb` had been abstaining for since 1.6.25.
+
+**Root cause.** `IEP_LEVEL_MIN_SHARE = 0.05` **deleted the tray's rim before the mouth ratio could
+see it.** An `ENH` tray has three levels - plate (the whole footprint), field (the plate's
+underside), rim (a 1 in ring on the OUTER edges only) - and on a CTR or a long tile the rim is
+`2 x cross x 1 in` against a plate of `cross x run`: **84 sq in against 4,368 on ENH 10242CL CTR,
+1.9% of peak.** Filtered out, the rule compared the plate against its own underside, got two
+near-equal areas, and said NO ORIENTATION CUE. It did that on **11 of the 23** ENH ceiling parts.
+The threshold sat right on top of the answer - measured rim shares run 1.9% to 6.6% - which is
+exactly why the closed **4872 E** (rim 6.6%) read correctly and the **102144 E** did not.
+
+**Four of the 23 ENH ceiling parts are authored upside down**, plate at the LOW end:
+`ENH 10218CL CTR`, `ENH 10242CL CTR`, `ENH 10242CL SIDE`, `ENH 8442CL SIDE`. Note that
+**`ENH 8442CL CTR` is authored the right way up and `ENH 8442CL SIDE` is not** - same family, same
+cross, opposite convention. No name rule catches that; it has to be measured per part.
+
+**The rule now** compares the two ENDS OF THE BOX with **no share filter**, because the filter was
+the bug. One end must hold a plate (>= 50% of the biggest level), the other a rim (<= 25% of it
+**and** >= 10 sq in). `IEP_LEVEL_MIN_SHARE` and `IEP_MOUTH_RATIO` are gone; `IEP_PLATE_MIN_SHARE`,
+`IEP_RIM_MAX_SHARE` and `IEP_RIM_MIN_AREA` replace them, each set off a measured moat.
+
+**The absolute area floor is what keeps the rule Enhanced-only in effect and not just in name.** A
+Standard ceiling carries a 1-3 sq in chamfer at each end of its box, which on share alone reads as a
+tray mouth; the smallest real ENH rim is 36 sq in. With the floor in place the rule still **abstains
+on all 23 Standard ceilings** - the property the replay harness asserts.
+
+**`contact_z` is now the FALLBACK, not the first word, and that is a real reversal.** The old
+comment said the two "cannot fight". They fight on `ENH 127LPCL`: `contact_z` finds a face pair
+1.0000 apart, but it is **rim-to-underside**, not a slab, and it then reads the plate itself as a
+"minor level above the slab" and turns the part over. It is the only one of the 23 it answers true
+on. `contact_z` is a Standard-slab detector and an ENH tray has no Standard slab. **This moves no
+booth today** - `ENH 127LPCL` is an orphan no `E` layout tiles. **`wr-deck.rb` was not edited** and
+is still called read-only.
+
+**Nine of the 25 `E` layouts have a tile that moves:** 8484, 10284, 84102, 84126, 102102, 102126,
+102144, 102168, 102186. **The other 16 do not - including `MDL 6060 E` (the current GOAL "Now") and
+the closed, probe-verified `MDL 4872 E`.** That the signed-off 4872 E does not move is the best
+regression check available without SketchUp.
+
+**BUILD `MDL 84126 E`, Shell = Both, to check it.** It is the one booth showing both halves of the
+rule in one deck: its two `ENH 8442CL SIDE` end tiles flip and its `ENH 8442CL CTR` middle tile does
+not, so **before this change that ceiling had two trays opening up and one opening down.** Look at
+the inner ceiling from below - all three plates should face down - and at the three
+`tray mouth reads ...` console lines. **Full restart required**, not a rescan: new constants, and a
+Ruby module keeps its constants until SketchUp restarts.
+
+UNRUN IN SKETCHUP. Verified offline in `.forge/fixer/verify-tray.py`, whose sole input is the TSV
+and whose header names it - **not** checked against any copy of itself. `rbparse.py`: 52 files parse.
+Full write-up: `.forge/fixer/TRAY-ORIENTATION-2026-08-26.md`.
+
+**`SEAL_FL_DATUM_LIFT` - a correction.** It is **not `nil`**. It has been **`-1.1250` since
+v1.6.27** (`wr-deck.rb:1073`), measured off a built 102144 E. `.forge/GOAL.md` step 3b asking Benton
+to hand-measure the `STDSS FL5` seal was stale and has been struck. The fresh TSV **cannot** settle
+that constant and does not need to: it confirms the seal's own geometry (`TOP 0.6875`,
+`BOTTOM -1.0000`, datum at the largest face, `-1.0000`, across the whole family including the
+previously unmeasured `STDSS 8.5FL`) but carries nothing about the slot the seal engages. Tested:
+under `-1.1250` not one seal face coincides with a floor-panel face, and coincidence would have
+picked one of the two candidates Benton's hand ruled out. **Leave it alone. A Standard booth sees
+nothing different from this session.**
+
+
 ### SESSION CLOSE - plugin 1.6.29, and four things wait on a measurement
 
 **Done this session (1.6.21 -> 1.6.29), all pushed to `main`:**
