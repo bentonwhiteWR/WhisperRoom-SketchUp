@@ -2,6 +2,109 @@
 
 ## 2026-08-26
 
+### Fixed - the IEP tray tiles overlapped by 1 in, and the floor seam seals now get placed (v1.6.23)
+
+Two reports off Benton's built **MDL 6060 E**. **Neither has been run in SketchUp** - there is
+still no Ruby on this machine outside it. What WAS run: `scripts/rbparse.py` (52 files, real
+CRuby 3.2) and `.forge/builder/replay-iep-deck.py`, now **25 assertions** against the real
+370-file component folder, the real generated layouts and the real part probes, up from 8.
+
+**1. The tray lip. Each CL tile pushes out 1/2 - and the 1/2 is derived, not dialled in.**
+
+Benton: *"the 6042 ceiling needs to push out 1/2", and the 6018 needs to push out as well ...
+same 1/2"."* The floor was NOT reported wrong, and that turns out to be the tell.
+
+**Every ENH ceiling part is bigger than its name and every ENH floor part is not.** Measured off
+`P:\Sketchup\NewMasterComponentList\_enhanced-probe.tsv`:
+
+```
+ENH 6042FL SIDE L   42.0000 x 60.0000   nominal
+ENH 6042CL SIDE L   43.0000 x 62.0000   +1 along the run, +2 across it
+ENH 6018CL SIDE R   19.0000 x 62.0000   +1 / +2
+ENH 10242CL CTR     42.0000 x 104.000   +0 / +2
+ENH 10242CL SIDE    43.0000 x 104.000   +1 / +2
+ENH 8418  CL        18.0000 x  86.000   +0 / +2   (a middle tile, despite the name)
+ENH 4230CL          32.0000 x  44.000   +2 / +2   (a whole deck)
+```
+
+**ONE RULE COVERS ALL 44 PARTS: the tray carries a 1 in lip on every edge that faces OUT of the
+booth**, because it "sits on top of the standard ceiling, completely engulfing it". A SIDE tile
+has one outer edge along the run, a CTR tile none, a single-piece tray two; across the run every
+tile has two. Asserted part by part in the harness.
+
+The old code centred each tile on its NOMINAL slot, so a 43 in part on a 42 in slot hung 1/2 off
+**each** end - half a lip outward and half an inch **on top of its neighbour**. Seating the outer
+edge on the slot's outer edge instead gives the outer end its full inch and leaves the inner face
+flush. On the 6060 E, in real edges:
+
+```
+                     was                     now              moved
+ENH 6042CL SIDE L    0.500 .. 43.500    0.000 .. 43.000       -0.500
+ENH 6018CL SIDE R   42.500 .. 61.500   43.000 .. 62.000       +0.500
+joint                overlap 1.000      flush 0.000
+run                  61.000             62.000  = 60 + 1 lip each end
+```
+
+Benton's 1/2 exactly, in both directions, from the parts' own measurements.
+
+- **Not a 6060 constant.** It is `flat_placement` taking a per-axis seat (`:centre` / `:min` /
+  `:max`) and `iep_deck` choosing `:max` at the low end, `:min` at the high end and `:centre`
+  everywhere else. It covers all 18 tiled booths at once.
+- **Across the run stays centred and that is correct** - both cross edges are outer, so splitting
+  the +2 gives each its inch.
+- **A single-tile deck is centred on both axes**, which is why the closed **MDL 4872 E cannot
+  move**. 14 of them asserted unmoved.
+- **The floor does not move at all**, on any of the 25 layouts, because ENH FL parts carry no
+  lip. That is why Benton saw the ceiling and not the mat.
+
+**THE STANDARD DECK WAS CHECKED FIRST AND HAS NO LIP.** If `WR_Deck.build` already solved this,
+the fix would have been to call it rather than write a second rule. It does not: all 21 STD
+ceiling parts measure their nominal name to 0.0001. The source is `_face-levels.tsv`, **not**
+`_component-probe.tsv` - the component probe carries the 183 wall panels and not one deck part,
+which is why an earlier attempt to read Standard deck widths out of it found nothing. **The
+Standard path is untouched.**
+
+Two things the parts made us say out loud rather than assume: `ENH 8418 FL` measures 17.9375,
+1/16 UNDER its name (its Standard twin does the same), and it is a middle tile on both booths
+that use it, so it is centred either way and leaves a 1/32 gap that this change neither causes
+nor fixes; and the single-piece 42xx / 48xx trays are authored with X ACROSS the run while the
+tiled parts have X along it, so nothing reads a span off a named axis.
+
+**2. Floor seam seals.** Benton: *"We also need to start pulling in the floor seam seal."*
+
+`STDSS FL5 / FL6 / FL7 / FL8 / STDSS 8.5FL` have been in the library all along and were never
+placed - `SEAL_NAME` matched `STDSS CL<n>` and nothing else. `WR_Deck.seals` now takes a `kind`
+and both decks get their seals.
+
+- **A second pattern, `SEAL_FL_NAME`, not a loosened first one.** `SEAL_NAME` and `NAME` both
+  carry capitalised comments about keeping the seals out of the panel pool; two named patterns
+  cost one line and cannot drift. Asserted disjoint, and asserted that no seal of either family
+  reaches either deck pool.
+- **The two families are NOT the same length.** `SEAL_LEN_INSET`: a ceiling seal is cross - 2
+  (CL5 58, CL6 70, CL7 82, CL8 94, 8.5CL 100) and **a floor seal is the full cross** (FL6 72,
+  FL7 84, FL8 96). Two inches is not a rounding difference and one shared rule would have called
+  every floor seal wrong by exactly that. `STDSS FL5` and `STDSS 8.5FL` are not in the probe, so
+  the FL figure is measured on three of five and assumed for two; the length tripwire catches it.
+- **THE FLOOR SEAL'S VERTICAL DATUM IS NOT MEASURED, and `SEAL_FL_DATUM_LIFT` is `nil` to say
+  so.** While it is nil the build derives the ceiling rule's own sentence - top face flush with
+  the deck's contact plane - from the part's own geometry, places the seals, and **warns by name
+  on every build**. Set it from a fit test and the warning stops.
+  **The ceiling's `-1.75` was NOT reused and must not be**: that is Benton's 2026-08-17 hand fit,
+  tied to the re-cut that made the CL seals 1.750 tall, and the floor part is a different
+  profile - 7.1897 across the joint against 6.500, 1.6906 tall, largest face at its BOTTOM
+  (-1.0000) where the ceiling's is at its datum. The three candidate datums are written out at
+  the constant so the fit test is a one-line edit.
+- **Deck seam seals are a Standard-deck feature.** The only `ENH` seals in the folder are
+  `ENH MidWallSeamSeal` and `ENH CornerSeamSeal`, which are WALL seals. Observed off the real
+  listing. The inner deck's joints get nothing, and whether they should is Benton's call.
+- Every jointed deck on all 50 layouts finds both its seals; FL and CL joint stations agree on
+  all 50, so one implementation serves both.
+
+**Still not established, and named rather than papered over:** whether ENH deck parts carry a
+bracket line at all (the end-for-end turn); the floor seal's seating height; the 11.5 and 35.5
+room-prouds; and the global-vs-per-booth `IEP_WALL_LIFT` question, which is still Benton's 4872 E
+re-check.
+
 ### Added - the IEP deck tiles, and the inner shell drops 1/16 (v1.6.22)
 
 Two reports off Benton's built and hand-corrected **MDL 6060 E inner shell**, both closed here.

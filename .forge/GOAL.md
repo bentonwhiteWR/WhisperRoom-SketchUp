@@ -16,7 +16,7 @@ probe rather than a screenshot.
 
 ## Now
 **MDL 6060 E — build Shell = Both and probe the inner deck.** Steps below are Benton's;
-I cannot drive SketchUp. Plugin **1.6.22** — VERSION is under `wr_tools/`, so this needs
+I cannot drive SketchUp. Plugin **1.6.23** — VERSION is under `wr_tools/`, so this needs
 `git pull` → `install-plugin.py` → restart, not just a rescan.
 
 1. Build **MDL 6060 E, Shell = Both**. The inner shell vertical should now read perfect
@@ -27,6 +27,9 @@ I cannot drive SketchUp. Plugin **1.6.22** — VERSION is under `wr_tools/`, so 
    caps the standard ceiling while the mat tucks under the standard floor.
 3. Select the inner deck → **Probe placement of what's selected** → hand back the TSV.
    That closes the end-for-end turn question, which no harness can answer.
+3b. **Watch the console for `DECK SEAL FL:`** naming `STDSS FL5` as unmeasured. Move that
+   seal by hand until it seats and report the delta — that number becomes
+   `WR_Deck::SEAL_FL_DATUM_LIFT`, which is `nil` today.
 4. **Re-open the 4872 E and check its inner shell vertical at 0.6875.** See the open
    question below — this is the observation that decides it.
 
@@ -73,6 +76,15 @@ That residual **is** the next measurement Benton owes.
   refused by name and the tiling has no rule" entry was wrong — `wr-deck.rb` already solved
   the tiling and it is fit-tested; `iep_deck` simply was not reaching it. It now reuses
   `WR_Deck.plan` with an `ENH ` catalogue.
+- **The lip is Enhanced-only.** Every `ENH` ceiling part is nominal **+1 in per OUTER edge**
+  (SIDE +1 along the run, CTR +0, single-piece +2, every CL +2 across); `ENH` floor parts are
+  nominal. All 21 **Standard** ceiling parts measure their nominal name, so `WR_Deck.build`
+  never had a lip to handle and there is none of its handling to reuse. Tray tiles therefore
+  seat outward-edge-first, not centred (v1.6.23).
+- **Deck seam seals are Standard-only.** The only `ENH` seals are `ENH MidWallSeamSeal` and
+  `ENH CornerSeamSeal`, both wall seals. Whether the inner deck should have any is Benton's call.
+- **The floor seal family is NOT the ceiling family's twin.** Ceiling seals are cross − 2;
+  floor seals are the full cross. A shared length rule calls every floor seal wrong by 2 in.
 - Rebalance an `ENH` wall from its **module width off the name**, never its packaged bounding
   box — the box is part + trim + void, and re-walking a wall from it pushed the 6060 E's
   E inner wall 0.250 past the 0.15 closure tolerance (v1.6.21).

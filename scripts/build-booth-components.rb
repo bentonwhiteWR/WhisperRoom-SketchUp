@@ -374,8 +374,21 @@ module WR_BuildBoothComponents
   # keep two conventions for the same operation, and wr-deck's is the fit-tested
   # one.
   #
+  # HOW IT SITS IN THE RECTANGLE IS THE CALLER'S CHOICE, PER AXIS.
+  #
+  # :centre splits any difference between the part and the rectangle, which is
+  # what this always did and what every FL tile and every single-piece deck still
+  # wants. :min seats the part's low edge on the rectangle's low edge and :max
+  # its high edge on the rectangle's high edge, so anything the part carries
+  # BEYOND the rectangle hangs off the far side.
+  #
+  # That is the whole of the ENH ceiling tray's lip. See iep_deck for the
+  # measurements and why centring an ENH CL tile overlapped its neighbour by
+  # exactly half an inch.
+  #
   # Returns [transform, note] or [nil, why].
-  def self.flat_placement(defn, rx, ry, rw, rh, flip, half, z_mode, z_target)
+  def self.flat_placement(defn, rx, ry, rw, rh, flip, half, z_mode, z_target,
+                          seat_x = :centre, seat_y = :centre)
     bb = defn.bounds
     return [nil, 'no valid bounds'] unless bb.valid?
     px = bb.max.x.to_f - bb.min.x.to_f
@@ -411,11 +424,29 @@ module WR_BuildBoothComponents
       ys << q.y.to_f
       zs << q.z.to_f
     end
-    dx = rx + rw / 2.0 - (xs.min + xs.max) / 2.0
-    dy = ry + rh / 2.0 - (ys.min + ys.max) / 2.0
+    dx = seat(seat_x, rx, rw, xs.min, xs.max)
+    dy = seat(seat_y, ry, rh, ys.min, ys.max)
     dz = z_mode == :top ? z_target - zs.max : z_target - zs.min
     [Geom::Transformation.translation(Geom::Vector3d.new(dx, dy, dz)) * tr,
      notes.empty? ? nil : notes.join(', ')]
+  end
+
+  # One axis of that choice. Returns the translation that puts the part's
+  # measured span [lo, hi] where `mode` says it belongs in [r0, r0 + rlen].
+  #
+  #   :centre  split the difference        - the old and still-default behaviour
+  #   :min     part's low edge  on r0      - overhang hangs off the HIGH side
+  #   :max     part's high edge on r0+rlen - overhang hangs off the LOW side
+  #
+  # A part that measures exactly rlen lands identically under all three, which is
+  # why every FL tile is unmoved by any of this: the ENH floor mats measure their
+  # nominal name to four places.
+  def self.seat(mode, r0, rlen, lo, hi)
+    case mode
+    when :min then r0 - lo
+    when :max then (r0 + rlen) - hi
+    else           r0 + rlen / 2.0 - (lo + hi) / 2.0
+    end
   end
 
   # The booth-plan rectangle one tile owns: [rx, ry, rw, rh].
@@ -513,7 +544,7 @@ module WR_BuildBoothComponents
       z_target = kind == 'FL' ? host.min.z.to_f : host.max.z.to_f - IEP_TRAY_DROP
       notes << "#{kind}i #{plan_note}, z #{format('%.4f', z_target)} - #{why}"
 
-      tiles.each do |t|
+      tiles.each_with_index do |t, ti|
         file = t[:part][:file]
         defn = load_def(model, dir, file, cache)
         if defn.nil?
@@ -535,11 +566,141 @@ module WR_BuildBoothComponents
 
         half = tiles.length > 1 && iep_half_turn?(model, cat, t, defn)
         rx, ry, rw, rh = tile_rect(t)
-        tr, tnote = flat_placement(defn, rx, ry, rw, rh, flip, half, mode, z_target)
+
+        # ====================================================================
+        # THE TRAY'S LIP HANGS OUTWARD, SO SEAT THE TILE ON ITS OUTER EDGE.
+        # ====================================================================
+        #
+        # Benton, 2026-08-26, off a built MDL 6060 E: the two IEP ceiling tiles
+        # overlap, and each needs to push OUT half an inch. That is not a 6060
+        # number and it is not a nudge; it is a property of every ENH CL part in
+        # the library, and this is the measurement.
+        #
+        # An ENH FL part measures its nominal name - exactly, on 21 of the 22,
+        # and 1/16 UNDER on ENH 8418 FL (17.9375, the same figure its Standard
+        # twin STD8418 FL carries). An ENH CL part is BIGGER, by an amount that
+        # depends on how many OUTER edges it has
+        # (P:\Sketchup\NewMasterComponentList\_enhanced-probe.tsv, observed):
+        #
+        #   ENH 6042FL SIDE L   42.0000 x 60.0000   nominal
+        #   ENH 6018FL SIDE R   18.0000 x 60.0000   nominal
+        #   ENH 6042CL SIDE L   43.0000 x 62.0000   +1 along, +2 across
+        #   ENH 6018CL SIDE R   19.0000 x 62.0000   +1 along, +2 across
+        #   ENH 10242CL CTR     42.0000 x 104.000   +0 along, +2 across
+        #   ENH 10242CL SIDE    43.0000 x 104.000   +1 along, +2 across
+        #   ENH 9648CL CTR/SIDE 48 / 49 x 98.0000   +0 / +1 along, +2 across
+        #   ENH 8418 CL         18.0000 x 86.0000   +0 along, +2 across
+        #   ENH 4230CL (single) 32.0000 x 44.0000   +2 along, +2 across
+        #
+        # 'ENH 8418 CL' IS A MIDDLE TILE despite carrying neither a CTR nor a
+        # SIDE token - it is the odd 18 in strip in the 84 series - and it
+        # measures +0 along exactly like every other CTR. What separates a whole
+        # deck from a middle tile is whether the library has a SIDE part at that
+        # cross at all: crosses 42 and 48 have none, so those are whole decks.
+        # This code never has to make that call - `tiles.length` already answers
+        # it - but the rule check in the replay harness does.
+        #
+        # THE PARTS DO NOT AGREE ON WHICH AXIS IS THE RUN. ENH 6042CL SIDE L is
+        # 43 x 62 with definition X along the run; ENH 4230CL and every other
+        # single-piece 42xx / 48xx tray is authored the other way round. That is
+        # the same disagreement wr-deck.rb's `plan` records about STD4230FL, and
+        # it is why nothing below reads a span off a named axis.
+        #
+        # ONE RULE COVERS ALL OF IT: the tray carries a 1 in lip on each edge
+        # that faces OUT of the booth, because it "sits on top of the standard
+        # ceiling, completely engulfing it". A SIDE tile has one outer edge along
+        # the run and a CTR tile has none; across the run every tile has two; a
+        # single-piece tray has two on both axes. Every measured figure above is
+        # that rule and nothing else.
+        #
+        # THE STANDARD DECK HAS NO LIP AT ALL, so WR_Deck.build never had this
+        # problem to solve and there is NO EXISTING HANDLING TO REUSE - which
+        # was the first thing checked, because if the Standard path already
+        # solved it then the right fix would have been to call that rather than
+        # write a second rule. It does not. All 21 STD ceiling parts measure
+        # their nominal name to 0.0001: STD6042CL SIDE L is 42.0000 x 60.0000
+        # and STD10242CL SIDE 42.0000 x 102.0000, dead nominal, exactly like
+        # their FL twins.
+        #
+        # THE SOURCE FOR THAT IS _face-levels.tsv, NOT _component-probe.tsv.
+        # The component probe carries the 183 WALL panels and not one deck part,
+        # which is why an earlier attempt to read Standard deck widths out of it
+        # found nothing at all. _face-levels.tsv carries box_x / box_y / box_z
+        # for every part in the folder, decks and seam seals included.
+        #
+        # So the lip is an Enhanced-only feature, the fix belongs here in the
+        # Enhanced path, and the live fit-tested Standard path is not touched.
+        #
+        # WHY CENTRING WAS WRONG BY EXACTLY 1/2. tile_rect hands back the tile's
+        # NOMINAL slot, and centring a 43 in part on a 42 in slot hangs 1/2 off
+        # each end. The outer 1/2 is half the lip it should have; the inner 1/2
+        # is on top of the neighbouring tile. Seating the outer edge instead
+        # gives the outer end its full 1 in and leaves the inner face flush at
+        # the joint - the two tiles now meet, and each moved out 1/2. That is
+        # Benton's number, derived rather than dialled in.
+        #
+        # ACROSS THE RUN STAYS CENTRED and that is correct, not an oversight:
+        # both cross edges are outer, so splitting the +2 gives each the 1 in it
+        # wants. A single-tile deck is centred on BOTH axes for the same reason,
+        # which is why the closed MDL 4872 E cannot move.
+        #
+        # THE FLOOR IS UNMOVED BY ANY OF THIS. An ENH FL part measures its slot,
+        # so :max, :min and :centre all put it in the same place - and the floor
+        # is the deck Benton did NOT report as wrong.
+        seat_along = if tiles.length < 2 then :centre        # both ends outer
+                     elsif t[:at_low_end] then :max          # outer edge is LOW
+                     elsif ti == tiles.length - 1 then :min  # outer edge is HIGH
+                     else :centre                            # interior, no outer edge
+                     end
+        seat_x, seat_y = t[:along_is_x] ? [seat_along, :centre] : [:centre, seat_along]
+
+        # The tripwire. The lip is at most 2 in on the along axis (a single-piece
+        # tray) and 1 in on a SIDE tile, so anything larger is not a lip - it is a
+        # bracket or a silencer widening the box, and seating a box like that on
+        # its outer edge would throw the tile by whatever that overhang measures.
+        # wr-deck.rb learned this the hard way on STD7224FL SIDE R, whose box is
+        # 37.938 on a 24 in panel. No ENH deck part in the library does it today
+        # (checked, all 44), so this should never fire; if it does, the tile
+        # falls back to centring and says so.
+        #
+        # WHICH OF THE PART'S TWO FOOTPRINT SPANS IS THE RUN is decided the same
+        # way flat_placement decides its quarter turn - by which reading fits the
+        # rectangle - rather than by assuming definition X is the run. It cannot
+        # simply take the booth-x span, because a booth that tiles along its own
+        # Y gets a quarter turn and the definition's X lands on booth Y. Taking
+        # whichever span is nearer the slot width is the same question with the
+        # rotation already answered.
+        bb_t = defn.bounds
+        along_span = [(bb_t.max.x - bb_t.min.x).to_f,
+                      (bb_t.max.y - bb_t.min.y).to_f].min_by { |v| (v - t[:along].to_f).abs }
+        overhang = along_span - t[:along].to_f
+        if seat_along != :centre && overhang.abs > 2.5
+          warns << format('%s measures %.4f along a %g in slot - %.4f of ' \
+                          'overhang is too much to be the tray lip, so it was ' \
+                          'CENTRED rather than seated on its outer edge. ' \
+                          'Something in that part is standing proud of the ' \
+                          'tray; measure it before trusting this tile.',
+                          file, along_span, t[:along].to_f, overhang)
+          seat_x = seat_y = :centre
+          seat_along = :centre
+        end
+
+        tr, tnote = flat_placement(defn, rx, ry, rw, rh, flip, half, mode, z_target,
+                                   seat_x, seat_y)
         if tr.nil?
           warns << "#{file}: #{tnote}"
           next
         end
+        # Say when a tile was pushed out onto its lip, and by how much. A
+        # silent half inch is exactly the kind of move that gets re-derived from
+        # scratch in six months.
+        marks = [tnote]
+        unless seat_along == :centre || overhang.abs < 0.0005
+          marks << format('lip %.4f, pushed %.4f out onto it', overhang,
+                          overhang / 2.0)
+        end
+        marks.compact!
+
         inst = booth.entities.add_instance(defn, tr)
         inst.name = "#{kind}i  #{file}"
         count += 1
@@ -552,7 +713,7 @@ module WR_BuildBoothComponents
                         landed ? landed.max.x.to_f : 0.0,
                         landed ? landed.max.y.to_f : 0.0,
                         landed ? landed.max.z.to_f : 0.0,
-                        tnote ? "   (#{tnote})" : '')
+                        marks.empty? ? '' : "   (#{marks.join(', ')})")
       end
     end
     [count, notes, warns]
@@ -1800,17 +1961,30 @@ module WR_BuildBoothComponents
           (dwarn || []).each { |w| puts "  DECK #{kind}: #{w}" }
         end
 
-        # Ceiling seam seals run with the deck and carry the same WR-Booth-Deck
-        # tag: a seal is part of the deck, and a deck without its seam seals is
-        # not a state anyone has asked for. They were never given their own
-        # control, and now neither has one — the whole deck is unconditional.
-        before = booth.entities.length
-        sn, swarn, snote = WR_Deck.seals(model, booth, spec, cfg['dir'], wall_h)
-        seal_added = booth.entities.to_a[before..-1].to_a
-        seal_added.each { |e| (e.layer = t_deck) rescue nil }
-        deck_note = "#{deck_note}; seals #{sn}#{snote ? " (#{snote})" : ''}"
-        placed += sn
-        (swarn || []).each { |w| puts "  DECK SEAL: #{w}" }
+        # Seam seals run with the deck and carry the same WR-Booth-Deck tag: a
+        # seal is part of the deck, and a deck without its seam seals is not a
+        # state anyone has asked for. They were never given their own control,
+        # and now neither has one — the whole deck is unconditional.
+        #
+        # BOTH DECKS GET THEM AS OF 2026-08-26. The ceiling five were placed
+        # from the start; the floor five (STDSS FL5/FL6/FL7/FL8, STDSS 8.5FL)
+        # existed in the library all along and had never been placed. Benton:
+        # "We also need to start pulling in the floor seam seal."
+        #
+        # THE FLOOR SEAL'S HEIGHT IS NOT FIT TESTED and WR_Deck warns by name on
+        # every build until WR_Deck::SEAL_FL_DATUM_LIFT is set from a real one.
+        # The ceiling's -1.75 was NOT reused — see the constant's comment.
+        seal_added = []
+        %w[CL FL].each do |skind|
+          before = booth.entities.length
+          sn, swarn, snote = WR_Deck.seals(model, booth, spec, cfg['dir'], wall_h, skind)
+          added = booth.entities.to_a[before..-1].to_a
+          added.each { |e| (e.layer = t_deck) rescue nil }
+          seal_added.concat(added)
+          deck_note = "#{deck_note}; #{skind} seals #{sn}#{snote ? " (#{snote})" : ''}"
+          placed += sn
+          (swarn || []).each { |w| puts "  DECK SEAL #{skind}: #{w}" }
+        end
 
         # Where the standard deck landed, per kind, read off the placed parts.
         host = { 'FL' => union_bounds(deck_added['FL']),

@@ -59,7 +59,8 @@ module WR_Deck
   # reads but everything remembers.
   %w[INSET DECK_TOP_Z WALL_H TOL NAME ENH_NAME ORIGIN Z_AXIS X_AXIS
      BIG_GAP SMALL_GAP GAP_TOL
-     SEAL_NAME SEAL_DATUM_LIFT SEAL_LEN_TOL
+     SEAL_NAME SEAL_FL_NAME SEAL_DATUM_LIFT SEAL_FL_DATUM_LIFT
+     SEAL_LEN_TOL SEAL_LEN_INSET
      SIDE_R_SMALL_WALL_AT_LOW_END LOW_END_PANEL_IS_TURNED].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
@@ -904,10 +905,21 @@ module WR_Deck
     [placed, warn, note]
   end
 
-  # ------------------------------------------------- ceiling seam seals --
+  # --------------------------------------------------------- seam seals --
   #
-  # A ceiling seam seal drops into the joint between two ceiling panels and
-  # registers into a slot cut in each of them. `build` leaves those joints bare.
+  # A seam seal drops into the joint between two deck panels and registers into
+  # a slot cut in each of them. `build` leaves those joints bare.
+  #
+  # THERE ARE TWO FAMILIES AND THEY ARE NOT THE SAME PART. The library carries
+  # STDSS CL5/CL6/CL7/CL8 and STDSS 8.5CL for the ceiling, and an exact mirror
+  # STDSS FL5/FL6/FL7/FL8 and STDSS 8.5FL for the floor. Only the ceiling five
+  # were ever placed; the floor five went in on 2026-08-26.
+  #
+  # THEY ARE A STANDARD-DECK FEATURE. The only 'ENH' seals in the folder are
+  # 'ENH MidWallSeamSeal' and 'ENH CornerSeamSeal', which are WALL seals - there
+  # is no ENH deck seam seal of either kind. Observed off the real listing on
+  # 2026-08-26. So the inner deck's joints get nothing, and that is not an
+  # omission here; if the IEP tray and mat want seals it is a parts question.
   # This is a SEPARATE PASS on purpose: the FL/CL path was confirmed correct on
   # 2026-08-17 and re-running `plan` here costs one folder glob to leave `build`
   # byte-identical. `plan` is pure, so the joints computed here are the joints
@@ -937,6 +949,36 @@ module WR_Deck
   #   seal on the joint station and the ribs land in the slots. There is no
   #   handing and no front/back.
   SEAL_NAME = /\ASTDSS\s*(?:CL\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*CL)\z/i.freeze
+
+  # THE FLOOR FAMILY, AND IT IS A SECOND PATTERN RATHER THAN A LOOSENED FIRST
+  # ONE. Writing `(CL|FL)` into SEAL_NAME would work and it would also mean one
+  # regex standing between the seals and the panel pool; the comment above and
+  # the one on `NAME` both say in capitals that keeping those pools disjoint has
+  # already cost a round. Two named patterns cost one line and cannot drift into
+  # each other.
+  #
+  # Same two spellings for the same reason: the digit changes sides at 8.5
+  # ('STDSS FL8' but 'STDSS 8.5FL'), exactly as it does on the ceiling.
+  SEAL_FL_NAME = /\ASTDSS\s*(?:FL\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*FL)\z/i.freeze
+
+  # HOW LONG A SEAL OF EACH KIND IS, AS AN INSET OFF THE DECK'S CROSS SPAN.
+  #
+  # The two families do NOT follow one rule and this is the number that says so.
+  # Measured off P:\Sketchup\NewMasterComponentList\_face-levels.tsv, which
+  # carries the real bounding box of every part in the folder:
+  #
+  #   STDSS CL5 58, CL6 70, CL7 82, CL8 94, 8.5CL 100   -> cross - 2
+  #   STDSS FL6 72, FL7 84, FL8 96                      -> cross exactly
+  #
+  # So a floor seal runs the FULL width of the deck and a ceiling seal stops an
+  # inch short at each end. Two inches is not a rounding difference, and one
+  # shared rule would have called every floor seal wrong by exactly that.
+  #
+  # STDSS FL5 AND STDSS 8.5FL ARE NOT IN THAT PROBE - it was written on
+  # 2026-08-14 and does not carry them - so the FL figure is MEASURED on three
+  # of the five parts and ASSUMED for the other two. The length tripwire in
+  # `seals` is what catches it if either turns out to be a 2 in part.
+  SEAL_LEN_INSET = { 'CL' => 2.0, 'FL' => 0.0 }.freeze
 
   # THE RULE: THE SEAL'S TOP FACE LANDS ON THE PANELS' CONTACT PLANE.
   #
@@ -971,28 +1013,80 @@ module WR_Deck
   # would be the thing to check first if a seal ever lands 1/4 in proud.
   SEAL_DATUM_LIFT = -1.75
 
+  # ==========================================================================
+  # THE FLOOR SEAL'S VERTICAL DATUM IS NOT MEASURED. THIS IS THAT ADMISSION.
+  # ==========================================================================
+  #
+  # nil means "nobody has fit-tested this", and while it is nil the build DERIVES
+  # a datum, PLACES the seals anyway, and WARNS BY NAME every time. Set it to a
+  # number after a fit test and the warning goes away - that is the whole
+  # protocol, and it is deliberately the same shape as SEAL_DATUM_LIFT above so
+  # the two read alike once both are real.
+  #
+  # WHAT IT MEANS WHEN SET: inches to lift the floor seal's DATUM FACE - its
+  # largest-area flat level - above the FLOOR deck's contact plane, which is
+  # DECK_TOP_Z (0.000). Exactly the ceiling constant's definition with the
+  # ceiling's contact plane swapped for the floor's.
+  #
+  # WHAT IT DERIVES WHILE NIL: the ceiling rule's own sentence, applied to the
+  # floor - "the seal's TOP face lands on the panels' contact plane". Computed
+  # per part from its own geometry (bounds.max.z - datum) rather than written
+  # out as a number, so a re-cut part moves with it instead of silently
+  # inheriting a figure measured on the old one. On the 2026-08-14 probe that
+  # comes to -1.6906 for STDSS FL6 / FL7 / FL8 (datum -1.0000, top +0.6906).
+  #
+  # WHY THE CEILING'S -1.75 IS NOT REUSED, AND MUST NOT BE. That number is a FIT
+  # TEST: Benton moved a placed STDSS CL6 by hand on 2026-08-17 until it seated,
+  # and it is tied to the re-cut that made the ceiling seals 1.750 tall the same
+  # week. The floor seals are a different profile entirely - 7.1897 across the
+  # joint against the ceiling's 6.500, 1.6906 tall against 1.750, and their
+  # largest face is at the BOTTOM (-1.0000) where the ceiling's is at the datum
+  # 0.0000. Nothing about the ceiling's number transfers.
+  #
+  # THE THREE CANDIDATES, so the fit test is a one-line edit rather than a
+  # re-derivation. Floor deck top (the walking surface) is booth z 0.000 and a
+  # standard floor panel runs booth z -1.000 to +2.108 around it:
+  #
+  #   top flush with the deck top   SEAL_FL_DATUM_LIFT = -1.6906  (the default)
+  #     -> seal spans -1.6906 .. 0.0000, i.e. 0.69 below the panel underside
+  #   datum flush with the deck top SEAL_FL_DATUM_LIFT =  0.0000
+  #     -> seal spans  0.0000 .. 1.6906, entirely above the walking surface
+  #   bottom flush with the panel underside      = -1.0000
+  #     -> seal spans -1.0000 .. 0.6906, 0.69 proud of the walking surface
+  #
+  # None of the three is obviously right and this file cannot open the part to
+  # find out, which is precisely why it is nil and warns instead of choosing
+  # quietly. The first is the default only because it is the ceiling rule's own
+  # words, not because it has been seen.
+  SEAL_FL_DATUM_LIFT = nil
+
   # How far the measured seal length may differ from cross - 2 before it is
   # called out. The name-to-cross mapping and the measured length are two
   # independent checks on the same claim, and finding them in disagreement means
   # the feet x 12 - 2 rule met a part it does not cover.
   SEAL_LEN_TOL = 0.05
 
-  # Every ceiling seam seal in the folder.
+  # Every seam seal of one kind in the folder. `kind` is 'CL' or 'FL'.
   #
   # Globbed as STDSS*, which is disjoint from the panel catalogue's STD* + a
   # regex demanding STD followed by DIGITS (`NAME`, above). That disjointness is
   # the whole reason seals need their own path, and it must not be "fixed" by
-  # loosening NAME — that would drop seals into the panel pool and let one get
-  # tiled into a deck.
+  # loosening NAME - that would drop seals into the panel pool and let one get
+  # tiled into a deck. Adding the floor family does not widen the glob by one
+  # character: 'STDSS FL6' was already swept up and already thrown away by
+  # SEAL_NAME. All that changes is which of the two patterns judges it.
   #
-  # Both spellings are matched (CL8 and 8.5CL) because the digit changes sides at
-  # 8.5 and the naming gives no reason for it, so trusting whoever names the next
-  # one to pick a side is not a plan.
-  def self.seal_catalogue(dir)
+  # Both spellings are matched (CL8 and 8.5CL, FL8 and 8.5FL) because the digit
+  # changes sides at 8.5 and the naming gives no reason for it, so trusting
+  # whoever names the next one to pick a side is not a plan.
+  #
+  # `kind` DEFAULTS TO 'CL' so the ceiling call site is unchanged.
+  def self.seal_catalogue(dir, kind = 'CL')
+    re = kind.to_s.upcase == 'FL' ? SEAL_FL_NAME : SEAL_NAME
     out = []
     Dir.glob(File.join(dir, 'STDSS*.skp')).each do |path|
       base = File.basename(path, '.skp')
-      m = SEAL_NAME.match(base.strip)
+      m = re.match(base.strip)
       next if m.nil?
       ft = (m[1] || m[2]).to_f
       out << { :file => base, :path => path, :feet => ft, :cross => ft * 12.0 }
@@ -1008,8 +1102,10 @@ module WR_Deck
   # which never gets here, and an error for a real joint, which is reported.
   #
   # No per-model table, and no name-based exception: the crosses are 42, 48, 60,
-  # 72, 84, 96, 102, and the library carries CL5/6/7/8 and 8.5CL, which is
-  # exactly the crosses that tile into more than one panel.
+  # 72, 84, 96, 102, and the library carries CL5/6/7/8 and 8.5CL - and, since
+  # 2026-08-26, FL5/6/7/8 and 8.5FL - which is exactly the crosses that tile
+  # into more than one panel. The two families map identically, so this method
+  # does not need to know which one it was handed.
   def self.pick_seal(seals, cross)
     seals.find { |s| (s[:cross] - cross.to_f).abs < TOL }
   end
@@ -1029,30 +1125,50 @@ module WR_Deck
     tiles[0..-2].map { |t| pos += t[:along].to_f; pos }
   end
 
-  # Places the ceiling seam seals. Returns [placed, [warnings], note] — the same
-  # shape as `build`, so the caller treats them alike.
-  def self.seals(model, parent, spec, dir, wall_h = WALL_H)
+  # Places the seam seals of one deck. `kind` is 'CL' (the ceiling, the original
+  # and only caller until 2026-08-26) or 'FL' (the floor). Returns
+  # [placed, [warnings], note] - the same shape as `build`, so the caller treats
+  # them alike.
+  #
+  # THE TWO KINDS SHARE EVERYTHING EXCEPT THREE THINGS, and they are all named
+  # here rather than spread through the body:
+  #
+  #   which catalogue   SEAL_NAME vs SEAL_FL_NAME
+  #   how long a seal   SEAL_LEN_INSET - cross - 2 on the ceiling, cross on the
+  #                     floor. MEASURED, and they really do differ.
+  #   where it sits     the ceiling's is a FIT TEST (SEAL_DATUM_LIFT, -1.75);
+  #                     the floor's is NOT MEASURED (SEAL_FL_DATUM_LIFT, nil)
+  #                     and every floor seal placed while it is nil is warned
+  #                     about by name.
+  #
+  # The stations, the quarter turn, the centring on the joint and the plan-seat
+  # discipline are one implementation for both, because the joints are the same
+  # joints: `plan` is pure and resolves the SAME cut list for FL and CL on all
+  # 25 layouts (asserted in .forge/builder/replay-iep-deck.py).
+  def self.seals(model, parent, spec, dir, wall_h = WALL_H, kind = 'CL')
+    kind = kind.to_s.upcase
     cat = catalogue(dir)
-    return [0, [], 'no CL parts'] if cat.empty?
+    return [0, [], "no #{kind} parts"] if cat.empty?
 
-    tiles, = plan(spec, cat, 'CL')
-    # The CL pass already reported why there is no plan. A second copy of the
+    tiles, = plan(spec, cat, kind)
+    # The deck pass already reported why there is no plan. A second copy of the
     # same complaint is noise.
-    return [0, [], 'no CL plan'] if tiles.nil?
+    return [0, [], "no #{kind} plan"] if tiles.nil?
 
     stations = joint_stations(tiles)
-    # A one-tile ceiling has no joint and therefore no seal. That is a correct
+    # A one-tile deck has no joint and therefore no seal. That is a correct
     # build, so it gets a note and NOT a warning.
     return [0, [], 'single tile — no joint'] if stations.empty?
 
     cross      = tiles.first[:cross].to_f
     along_is_x = tiles.first[:along_is_x]
 
-    seal = pick_seal(seal_catalogue(dir), cross)
+    seal = pick_seal(seal_catalogue(dir, kind), cross)
     if seal.nil?
-      return [0, [format('no ceiling seam seal for a %g in cross — %d joint(s) ' \
+      return [0, [format('no %s seam seal for a %g in cross — %d joint(s) ' \
                          'left bare. Nothing was substituted: a seal of the ' \
                          'wrong length would not reach its slots.',
+                         kind == 'FL' ? 'floor' : 'ceiling',
                          cross, stations.length)], nil]
     end
 
@@ -1068,7 +1184,9 @@ module WR_Deck
     end
     # The datum: the largest-area flat level. Measured, never the origin — the
     # CL5/6/7 family puts it at 0.0000 and the CL8 family at -0.7500, and the
-    # part is the same way up in both.
+    # part is the same way up in both. The floor family's largest face is at its
+    # BOTTOM (-1.0000 on the 2026-08-14 probe of FL6/7/8), which is one more
+    # reason the ceiling's lift cannot be borrowed.
     datum = tally.max_by { |_z, a| a }[0].to_f
 
     bb   = defn.bounds
@@ -1079,15 +1197,35 @@ module WR_Deck
     # The finding-1 tripwire: the NAME said this seal fits and the GEOMETRY is
     # asked whether it agrees. Placed anyway — the name mapping is right on five
     # parts and a warned placement is more useful than a bare joint — but never
-    # silently.
-    if (len - (cross - 2.0)).abs > SEAL_LEN_TOL
-      warn << format('%s measures %.4f but a %g in cross wants %g — the ' \
-                     'feet x 12 - 2 rule met a part it does not describe. ' \
+    # silently. The expected length is per kind: see SEAL_LEN_INSET.
+    inset = (SEAL_LEN_INSET[kind] || 0.0).to_f
+    if (len - (cross - inset)).abs > SEAL_LEN_TOL
+      warn << format('%s measures %.4f but a %g in %s cross wants %g — the ' \
+                     'length rule met a part it does not describe. ' \
                      'Placed anyway; check the joint.',
-                     seal[:file], len, cross, cross - 2.0)
+                     seal[:file], len, cross, kind, cross - inset)
     end
 
-    target_z = DECK_TOP_Z + wall_h + SEAL_DATUM_LIFT
+    if kind == 'FL'
+      # THE FLOOR SEAL'S HEIGHT IS THE ONE UNMEASURED NUMBER IN THIS FILE.
+      # While SEAL_FL_DATUM_LIFT is nil, derive the ceiling rule's own sentence
+      # — top face flush with the deck's contact plane — from THIS part's
+      # geometry, place it, and say so by name on every single build.
+      lift = SEAL_FL_DATUM_LIFT
+      if lift.nil?
+        lift = datum - bb.max.z.to_f      # negative: the datum sits below the top
+        warn << format('%s: its vertical datum is UNMEASURED. Placed with its ' \
+                       'TOP face flush to the floor deck at z %.4f (datum ' \
+                       'lift %.4f, derived from the part itself, NOT fit ' \
+                       'tested). Check it against the real joint and set ' \
+                       'WR_Deck::SEAL_FL_DATUM_LIFT. The ceiling seal%s -1.75 ' \
+                       'is a different profile and does NOT transfer.',
+                       seal[:file], DECK_TOP_Z, lift, "'s")
+      end
+      target_z = DECK_TOP_Z + lift
+    else
+      target_z = DECK_TOP_Z + wall_h + SEAL_DATUM_LIFT
+    end
 
     placed = 0
     stations.each do |station|
@@ -1142,7 +1280,6 @@ module WR_Deck
 
     [placed, warn, format('%s x%d', seal[:file], placed)]
   end
-
   ORIGIN = Geom::Point3d.new(0, 0, 0)
   Z_AXIS = Geom::Vector3d.new(0, 0, 1)
   X_AXIS = Geom::Vector3d.new(1, 0, 0)
