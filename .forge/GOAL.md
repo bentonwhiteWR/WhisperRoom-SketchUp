@@ -276,6 +276,12 @@ Down from 74.
 - Changing how Standard booths resolve or place. That path works and is not to be touched.
 
 ## History
+2026-08-25 — **Bulk scene naming: built, unrun.** `scripts/bulk-name-after-scenes.rb` collapses
+the 25-round `name-selection-after-scene.rb` loop into one reviewed batch: the exporter's own
+resolver proposes a component per gap scene, a review table shows the tier per row, and only
+ticked rows apply, in one undo step. Separate from the Enhanced mission above; does not touch it.
+Awaiting Benton's first run in SketchUp.
+
 2026-08-24 — **Ceiling seam seals: done.** Built and verified; the mission that previously
 occupied this file is closed.
 
