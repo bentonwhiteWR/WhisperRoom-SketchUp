@@ -1058,7 +1058,19 @@ module WR_Deck
   # find out, which is precisely why it is nil and warns instead of choosing
   # quietly. The first is the default only because it is the ceiling rule's own
   # words, not because it has been seen.
-  SEAL_FL_DATUM_LIFT = nil
+  # MEASURED 2026-08-26. Benton, off a built MDL 102144 E whose floor seals were
+  # placed at the derived -1.6875: "all of the floor seam seals need to go up
+  # 9/16"." So -1.6875 + 0.5625 = -1.1250, and it is a measurement now, not one
+  # of the three guesses above.
+  #
+  # None of the three candidates was right, which is the useful part. The seal
+  # spans booth z -1.1250 .. 0.5625: it starts 0.125 below the floor panel's
+  # underside (-1.000) and stands 0.5625 proud of the walking surface (0.000).
+  # "Top flush with the deck top" - the ceiling rule's own sentence, and the
+  # default this shipped with - was wrong by exactly the 9/16 Benton moved it.
+  # The ceiling's -1.75 does not transfer and never did; the two seals are
+  # different profiles, 6.500 across against 7.1897.
+  SEAL_FL_DATUM_LIFT = -1.1250
 
   # How far the measured seal length may differ from cross - 2 before it is
   # called out. The name-to-cross mapping and the measured length are two
