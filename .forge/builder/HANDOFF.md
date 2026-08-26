@@ -1,80 +1,42 @@
-# HANDOFF — List Scenes search box
+# HANDOFF — IEP wall lift 1/16, and the IEP deck tiles (v1.6.22)
 
-Task: fix the search box in `scripts/list-scenes.rb`. Benton reported he could not
-search the middle of a component name.
-
-**This is NOT the Enhanced-booth mission in `.forge/GOAL.md`.** Nothing here touches
-`booth-from-link.rb`, `wr-booth-data.rb`, `wr-deck.rb` or `gen-booth.py`. The previous
-handoff (bulk scene naming) is preserved at `.forge/builder/HANDOFF-bulk-name.md`.
+Tree left dirty on `main`, uncommitted, as instructed.
 
 ## Produced
 
-| File | What |
+| Path | What |
 |---|---|
-| `scripts/list-scenes.rb` | The fix. Header doc, `placeholder`, `hl()`, new `terms()`/`textHit()`, `parseNums()`, `draw()`. |
-| `scripts/wr_tools/VERSION` | 1.6.19 → 1.6.20 (required for any change under `scripts/`). |
-| `.forge/builder/emit.py` | Reproduces the `<<-HTML` heredoc's OUTPUT (Ruby escape processing + `#{}` substitution) so the emitted JavaScript can be checked and run. |
-| `.forge/builder/emitted-list-scenes.html` | The emitted page, with fixture rows. Scratch — regenerate, do not edit. |
-| `.forge/builder/emitted-filter.js` | The `<script>` block lifted out of the above. Scratch. |
-| `.forge/builder/filter-test.js` | 21 Node assertions driven through the REAL emitted `draw()`. |
+| `scripts/build-booth-components.rb` | `IEP_WALL_LIFT` 0.75 -> 0.6875 with both measurements and the open tension in the comment; `iep_deck` rewritten to reuse `WR_Deck.plan`; `flat_placement` now takes a tile rectangle + a half-turn flag; new `tile_rect` and `iep_half_turn?`; the build-report line no longer calls the lift unmeasured; the stale "tiling is a layout question this file has no answer for" comment replaced |
+| `scripts/wr-deck.rb` | `ENH_NAME` regex added (and added to the `remove_const` reload list); `catalogue(dir, family = 'STD')`. **`build`, `seals`, `plan`, `tile`, `pick`, `order_cuts` untouched.** |
+| `scripts/wr_tools/VERSION` | 1.6.21 -> 1.6.22 |
+| `DEVLOG.md` | 2026-08-26 entry at the top |
+| `.forge/builder/replay-iep-deck.py` | Python replay of the catalogue + tiling solver against the real folder and the real layouts; 8 assertions, all pass |
+| `.forge/builder/library-listing.txt` | The folder listing the verification was done against (370 `.skp`) |
 
-Re-run the whole check with:
-
-```
-python .forge/builder/emit.py && node .forge/builder/filter-test.js
-```
-
-## What was actually wrong
-
-Not the text filter — that was already `indexOf(...) >= 0`, a substring match.
-The bug was `parseNums(q)`: `/^[\d\s,\-]+$/` matched any all-digits query and
-`draw()` then filtered by SCENE NUMBER only, discarding the text search. Benton's
-component names are heavily numeric (`ENH 10242FL SIDE`, `4896`, `1648`), so
-typing `1648` meant "scene 1648" and matched nothing. `26.5` contains a period,
-fell through to text search, and worked — which is why the failure looked random.
-
-## The rule now
-
-- `parseNums` returns `{ want: …, only: … }`. `only` is true only when the query
-  carries a comma or a hyphen — an unambiguous list/range like `1-40` or `3,7,12`.
-  That case still filters by scene number alone, unchanged.
-- A **bare** number is the **union**: scene-number match OR text match. `12` returns
-  scene 12 *and* `ENH 1264CL`. `48` returns everything containing "48" even though
-  no scene is numbered 48.
-- Search terms are whitespace-split and **ANDed, order-independent**.
-  `wdo panel` = `panel wdo` = `ENH 26.5Panel1648WDO_HX`.
-
-## Highlighting — what I chose
-
-**Every matching term is highlighted, every occurrence**, not degraded. `hl()` now
-takes the term array, collects match spans on the RAW string, merges overlaps, and
-escapes each slice as it is emitted (escaping first then slicing would cut `&amp;`
-in half — that was a real hazard in the old code, which escaped then `indexOf`'d).
-When the query is a pure range (`only`), `draw()` passes `[]` and nothing is marked,
-matching the old `var term = nums ? "" : q` behaviour for that case.
+## Read-first
+- `scripts/wr-deck.rb` — the comment above `ENH_NAME` says why the anchored digits must not be
+  loosened. It is the only thing keeping `STDSS` and the 68 `ENH` wall panels out of the deck pool.
+- `scripts/build-booth-components.rb` `IEP_WALL_LIFT` — records BOTH measurements (4872 E 0.75,
+  6060 E 0.6875) and the three readings that fit them. Do not resolve it from the code.
+- `.forge/builder/replay-iep-deck.py` section 5 — what the harness cannot see.
 
 ## Assumptions
-
-- `<<-HTML` at line 177 is an **interpolating** heredoc, so `\\d` in the Ruby source
-  becomes `\d` in the emitted JavaScript. Verified against the emitted file, not
-  assumed: every regex in the emitted HTML is single-backslash and no `\\` survives.
-- Fixture scene numbers are invented; the component/scene NAMES are real ones from
-  this project's `ENH` library.
-- A whitespace-split AND search means a query containing a literal space inside one
-  token (`"ENH 10242FL SIDE"` typed whole) still matches, because each word is
-  present — but as separate terms, so word order in the name no longer matters.
-  Judged a feature, not a regression.
+1. **The `pick` hand rule (SIDE L low / SIDE R high) transfers to `ENH` parts.** Derived from
+   name parity only: the `ENH` files carry the identical `SIDE L` / `SIDE R` suffixes and the
+   identical size codes. Nobody has opened an `ENH` deck part.
+2. **`bracket_edge` is meaningful on `ENH` deck parts.** The call measures the ENH part itself,
+   so nothing is transferred — but if `ENH` trays carry no bracket line it returns nil and the
+   positional fallback applies, which is the Standard behaviour for symmetric panels. Unverified.
+3. **All tiles of one inner deck share a thickness**, so one z serves the deck. True of one
+   sheet cut up; would show as a step in the build if ever false.
+4. `IEP_TRAY_DROP` stays 0.75. Benton's "drop 1/16" was about the inner shell (walls); the tray
+   is measured against the standard ceiling, not the walls.
 
 ## Open questions
-
-- **Unrun in SketchUp.** There is no Ruby interpreter on this machine outside
-  SketchUp. The Ruby parses (`rbparse.py`) and the emitted JavaScript passes 21 Node
-  assertions, but nobody has opened the actual dialog. Benton should run
-  `load ".../scripts/list-scenes.rb"` once and try `1648`, `wdo panel`, and `1-40`.
-- The `RANGE` / tick-to-build-a-spec feature was not touched and was not exercised by
-  the Node harness (row click handlers are stubbed out) — it is untouched code, but
-  it is untested here too.
-- Not committed, per instruction. `scripts/wr_tools/` was not changed, so no
-  `install-plugin.py` reinstall is needed for the panel itself; `list-scenes.rb`
-  is a tool script, so a `git pull` reaches repo-checkout machines and everyone
-  else needs the installer.
+1. **Is the 4872 E 1/16 high?** The only way to know is to re-probe it at 0.6875.
+2. **Does the inner deck clear the inner walls,** now that the walls dropped 1/16 and the tray
+   did not? Nobody has seen the two together on a tiled booth.
+3. **Do the tiled inner deck panels need the end-for-end turn?** (assumption 2).
+4. `.forge/GOAL.md` line 32–34 still says the IEP deck is refused and its tiling is
+   "the only open question with no rule at all". That is now stale — left for the reviewer.
+5. The 11.5 and 35.5 room-prouds are still unmeasured (deliberately untouched).

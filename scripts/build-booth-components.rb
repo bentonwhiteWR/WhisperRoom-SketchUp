@@ -102,7 +102,37 @@ module WR_BuildBoothComponents
   # the IEP components need to go up .75". So 0.75 up, 0.75 short at the top -
   # the 1.5 splits evenly. MEASURED, by the only method that has worked on
   # this shell: build it, look, say the number.
-  IEP_WALL_LIFT = 0.75
+  #
+  # THEN THE 6060 E SAID 0.6875, AND THE TWO MEASUREMENTS ARE NOT RECONCILED.
+  # Benton, 2026-08-26, looking at a built and hand-corrected MDL 6060 E inner
+  # shell: "the IEP inner shell just needs to drop 1/16 and its perfect." So
+  # this is 0.75 - 0.0625 = 0.6875, and BOTH readings are recorded here because
+  # only one of them can be the general rule:
+  #
+  #   0.7500  MDL 4872 E, 2026-08-25. Benton's eye, then confirmed by a probe
+  #           of his corrected full booth that agreed with the build to 0.0001
+  #           (v1.6.17). That probe measured the CORRECTED model, so it proves
+  #           the code matched his hand placement - not that his hand placement
+  #           was 1/16 from the truth rather than 2/16.
+  #   0.6875  MDL 6060 E, 2026-08-26. Benton's eye on a corrected inner shell.
+  #           No probe yet.
+  #
+  # Three readings fit both facts and nothing here can separate them:
+  #   (a) 0.6875 is right for every booth and the 4872 E has been 1/16 high
+  #       since it was closed - most likely, since two eyes on two booths beat
+  #       one, and the probe cannot tell.
+  #   (b) the lift is per booth or per family, in which case this constant is
+  #       the wrong shape and a table is needed. NO TABLE HAS BEEN INVENTED
+  #       HERE: one is only worth building off two probes that disagree.
+  #   (c) something 6060-specific is absorbing 1/16 elsewhere and moving the
+  #       lift hides it. Nobody has found such a thing.
+  #
+  # NOTE WHAT THIS COSTS: the even 0.75/0.75 split of the 1.5 is gone. An inner
+  # wall now runs 0.6875 to 80.1875 in an 81 nominal, so 0.8125 falls at the
+  # top. The "splits evenly" reading above was the reasoning, not the
+  # measurement, and it does not survive this. RE-CHECK THE 4872 E's VERTICAL -
+  # that is the open item, and it is one number and one word to put back.
+  IEP_WALL_LIFT = 0.6875
 
   # The IEP mid-wall seam seal's stem - the joint between two inner panels.
   # 6.5 where the Standard seal is 2. Needed here because rebalance_walls
@@ -283,11 +313,29 @@ module WR_BuildBoothComponents
   # instance's own bounding box also means the one figure nobody has measured -
   # exactly where the standard ceiling's underside lands - is never needed.
   #
-  # ONE PIECE PER DECK, and the rest are refused by name. The 4230 through 4896
-  # ship a single ENH <n>FL and ENH <n>CL. Everything larger tiles - CTR, SIDE,
-  # SIDE L / SIDE R - and how those tile is a layout question this file has no
-  # answer for. Guessing it would put a ceiling panel through a wall, so a booth
-  # whose single-piece parts are not in the library is reported and skipped.
+  # THE TILING IS NOT THIS FILE'S QUESTION EITHER, AND THAT IS THE POINT.
+  #
+  # This used to compose one name, 'ENH <digits>FL' / 'ENH <digits>CL', and
+  # refuse anything else - the 4230 through 4896 ship a single piece, everything
+  # larger tiles across CTR / SIDE / SIDE L / SIDE R, and the comment here said
+  # that tiling was "a layout question this file has no answer for".
+  #
+  # IT HAD AN ANSWER ALL ALONG, IN wr-deck.rb. The ENH deck library has exact
+  # parity with the Standard one - 42 codes each, identical sets, verified off
+  # the real folder listing on 2026-08-26 (see the note on WR_Deck::ENH_NAME).
+  # So the arrangement an inner deck needs is the arrangement wr-deck already
+  # solves, fit-tested, for the outer one: which widths tile the run, where the
+  # odd tile goes, which hand sits at which end. It is read from the same
+  # catalogue with 'ENH ' in front of it, and NOTHING about the tiling is
+  # decided here.
+  #
+  # WHAT STAYS HERE IS THE VERTICAL, because that is the part the IEP does
+  # differently: wr-deck seats a deck on its own measured datums, and the inner
+  # deck is seated against the STANDARD DECK THAT WAS JUST PLACED. See below.
+  #
+  # STILL REFUSED BY NAME. If wr-deck cannot tile the inner deck, the reason it
+  # gives is reported along with the single-piece name that would have covered
+  # it, and nothing is substituted - no Standard part, no near-miss size.
   IEP_CL_UPSIDE_DOWN = false   # flip the tray if it comes in opening upward
   IEP_FL_UPSIDE_DOWN = false
 
@@ -306,29 +354,52 @@ module WR_BuildBoothComponents
     bb.valid? ? bb : nil
   end
 
-  # Lay a flat part in the booth's plan: turn it a quarter if its footprint is
-  # the other way round, flip it if asked, then sit it where the caller wants.
+  # Lay a flat part into a RECTANGLE OF THE BOOTH'S PLAN: turn it a quarter if
+  # its footprint is the other way round, turn it end for end if asked, flip it
+  # if asked, then sit it where the caller wants.
+  #
+  # rx, ry is the rectangle's low corner in booth coordinates and rw, rh its
+  # size. It used to take the booth's own bw, bh and centre in that, which is
+  # the one-tile case written out: a single-piece deck's rectangle is
+  # [INSET, INSET + along] x [INSET, INSET + cross], and since along = w - 2 and
+  # cross = h - 2 on every single-tile part in the library, its centre is
+  # (w/2, h/2) - exactly where the old call put it. THAT IS WHY THE CLOSED
+  # MDL 4872 E DOES NOT MOVE, and .forge/builder/replay-iep-deck.py asserts it
+  # over all 25 E layouts rather than leaving it as a claim.
+  #
+  # THE ROTATION ORDER IS wr-deck's, not the old one here. wr-deck applies flip,
+  # then the half turn, then the quarter; this applied the quarter then the
+  # flip. The two differ only when a part is both flipped and turned, and both
+  # flip constants are false, so nothing moves today - but there is no reason to
+  # keep two conventions for the same operation, and wr-deck's is the fit-tested
+  # one.
   #
   # Returns [transform, note] or [nil, why].
-  def self.flat_placement(defn, bw, bh, flip, z_mode, z_target)
+  def self.flat_placement(defn, rx, ry, rw, rh, flip, half, z_mode, z_target)
     bb = defn.bounds
     return [nil, 'no valid bounds'] unless bb.valid?
     px = bb.max.x.to_f - bb.min.x.to_f
     py = bb.max.y.to_f - bb.min.y.to_f
-    note = nil
+    notes = []
 
-    # Which way round is its footprint? Compare both readings against the booth
-    # and keep the better one rather than assuming the parts are authored to a
-    # convention - ENH 4872CL measures 50 x 74 against a booth that is 74 x 50.
-    as_is   = (px - bw).abs + (py - bh).abs
-    turned  = (py - bw).abs + (px - bh).abs
+    # Which way round is its footprint? Compare both readings against the
+    # rectangle and keep the better one rather than assuming the parts are
+    # authored to a convention - ENH 4872CL measures 50 x 74 against a booth
+    # that is 74 x 50.
+    as_is   = (px - rw).abs + (py - rh).abs
+    turned  = (py - rw).abs + (px - rh).abs
     quarter = turned < as_is - 0.001
+
     tr = Geom::Transformation.new
+    tr = Geom::Transformation.rotation(ORIGIN, VX, 180.degrees) * tr if flip
+    if half
+      tr = Geom::Transformation.rotation(ORIGIN, VZ, 180.degrees) * tr
+      notes << 'end for end'
+    end
     if quarter
       tr = Geom::Transformation.rotation(ORIGIN, VZ, 90.degrees) * tr
-      note = 'turned a quarter'
+      notes << 'turned a quarter'
     end
-    tr = Geom::Transformation.rotation(ORIGIN, VX, 180.degrees) * tr if flip
 
     # Where the part's own box lands once rotated.
     xs = []
@@ -340,52 +411,149 @@ module WR_BuildBoothComponents
       ys << q.y.to_f
       zs << q.z.to_f
     end
-    dx = bw / 2.0 - (xs.min + xs.max) / 2.0
-    dy = bh / 2.0 - (ys.min + ys.max) / 2.0
+    dx = rx + rw / 2.0 - (xs.min + xs.max) / 2.0
+    dy = ry + rh / 2.0 - (ys.min + ys.max) / 2.0
     dz = z_mode == :top ? z_target - zs.max : z_target - zs.min
-    [Geom::Transformation.translation(Geom::Vector3d.new(dx, dy, dz)) * tr, note]
+    [Geom::Transformation.translation(Geom::Vector3d.new(dx, dy, dz)) * tr,
+     notes.empty? ? nil : notes.join(', ')]
   end
 
-  # Places the pair and returns [count, notes, warnings].
+  # The booth-plan rectangle one tile owns: [rx, ry, rw, rh].
+  #
+  # wr-deck's plan hands back :at (the running position along the tiling axis,
+  # measured from the deck's low edge), :along, :cross and :along_is_x. INSET is
+  # wr-deck's own - the deck stops 1 in short of the exterior per side - and it
+  # is read from there rather than copied, so the two can never drift apart.
+  def self.tile_rect(t)
+    a     = WR_Deck::INSET + t[:at].to_f
+    along = t[:along].to_f
+    cross = t[:cross].to_f
+    t[:along_is_x] ? [a, WR_Deck::INSET, along, cross] : [WR_Deck::INSET, a, cross, along]
+  end
+
+  # Does this inner tile need turning end for end?
+  #
+  # THIS IS A DELIBERATE SECOND COPY OF A THREE-LINE RULE, and the alternative
+  # was worse. The rule lives inside WR_Deck.build - measure the bracket line on
+  # the FL twin, turn whenever it would otherwise end up inboard, fall back to
+  # the positional "turn the high-end tile" when the part is symmetric and
+  # yields no cue. Extracting it would mean editing a path that is live,
+  # fit-tested on real booths, and IMPOSSIBLE TO RUN ON THIS MACHINE. Copying
+  # three lines is the smaller risk; if the rule ever changes, both copies do.
+  #
+  # THE MEASUREMENT IS OF THE ENH PART ITSELF, not the STD one. bracket_edge
+  # walks the geometry standing proud of the given definition's rim, so nothing
+  # is transferred from the Standard twin - which matters, because whether ENH
+  # deck parts even carry a bracket line is NOT KNOWN HERE and cannot be known
+  # without opening them in SketchUp. If they do not, bracket_edge returns nil
+  # and this falls back to the positional rule, which is what the Standard deck
+  # does for every CTR panel and for the 6042 SIDE pair.
+  #
+  # ONE TILE NEVER TURNS. The caller gates on tiles.length > 1: a single-piece
+  # deck has no end to sit at, and the MDL 4872 E was closed with no turn.
+  def self.iep_half_turn?(model, cat, t, defn)
+    twin = WR_Deck.fl_twin(cat, t[:part])
+    td = if twin[:file] == t[:part][:file]
+           defn
+         else
+           (model.definitions.load(twin[:path]) rescue nil)
+         end
+    edge = td ? WR_Deck.bracket_edge(td) : nil
+    return !t[:at_low_end] if edge.nil?
+    t[:at_low_end] ? edge > 0.5 : edge < 0.5
+  end
+
+  # Places both inner decks and returns [count, notes, warnings].
   def self.iep_deck(model, booth, key, spec, dir, cache, host_bounds)
     digits = key[/MDL\s+(\d+)/, 1]
     return [0, [], ["cannot read a model number out of #{key}"]] if digits.nil?
-    bw = spec[:w].to_f
-    bh = spec[:h].to_f
     count = 0
     notes = []
     warns = []
 
-    [['FL', "ENH #{digits}FL", IEP_FL_UPSIDE_DOWN, :top,
+    # The ENH half of the deck library, read through wr-deck's own parser.
+    cat = WR_Deck.catalogue(dir, 'ENH')
+    if cat.empty?
+      return [0, notes,
+              ["no 'ENH <digits>FL/CL' parts in #{dir} - the whole inner deck is " \
+               'skipped. Nothing was substituted from the Standard library.']]
+    end
+
+    [['FL', IEP_FL_UPSIDE_DOWN, :top,
       'the mat goes under the standard floor'],
-     ['CL', "ENH #{digits}CL", IEP_CL_UPSIDE_DOWN, :bottom,
-      'the tray drops over the standard ceiling']].each do |kind, name, flip, mode, why|
+     ['CL', IEP_CL_UPSIDE_DOWN, :bottom,
+      'the tray drops over the standard ceiling']].each do |kind, flip, mode, why|
       host = host_bounds[kind]
       if host.nil?
-        warns << "#{name}: no standard #{kind} was placed, so there is nothing to sit against"
+        warns << "inner #{kind}: no standard #{kind} was placed, so there is " \
+                 'nothing to sit against'
         next
       end
-      defn = load_def(model, dir, name, cache)
-      if defn.nil?
-        warns << "#{name}.skp not in the library - #{kind} skipped. Booths above " \
-                 '4896 tile their inner deck across CTR / SIDE pieces and that ' \
-                 'tiling is not solved.'
+
+      # THE TILING, FROM wr-deck. Same solver, same catalogue shape, same
+      # odd-tile and hand rules the outer deck uses.
+      tiles, plan_note = WR_Deck.plan(spec, cat, kind)
+      if tiles.nil?
+        warns << "inner #{kind} REFUSED BY NAME: #{plan_note}. A single-piece " \
+                 "deck would be 'ENH #{digits}#{kind}.skp'; it is not in the " \
+                 'library and nothing was substituted.'
         next
       end
+
       # FL: the mat's TOP meets the standard floor's underside (measured:
       #     the mat landed to four places on the first try).
       # CL: the tray's BOTTOM sits IEP_TRAY_DROP below the standard
       #     ceiling's TOP, capping it.
+      #
+      # ONE z FOR EVERY TILE OF A DECK, and it is read off the standard deck's
+      # placed bounding box rather than a constant. The tiles of one deck are
+      # one sheet cut up, so they share a thickness and therefore a face; if a
+      # library ever ships tiles of differing thickness this is the line that
+      # would have to become per-tile, and a build would show it as a step.
       z_target = kind == 'FL' ? host.min.z.to_f : host.max.z.to_f - IEP_TRAY_DROP
-      tr, tnote = flat_placement(defn, bw, bh, flip, mode, z_target)
-      if tr.nil?
-        warns << "#{name}: #{tnote}"
-        next
+      notes << "#{kind}i #{plan_note}, z #{format('%.4f', z_target)} - #{why}"
+
+      tiles.each do |t|
+        file = t[:part][:file]
+        defn = load_def(model, dir, file, cache)
+        if defn.nil?
+          warns << "#{file}.skp would not load - the inner #{kind} tile at " \
+                   "#{format('%g', t[:at])} is EMPTY, nothing substituted"
+          next
+        end
+
+        # Say so when an end could not get the hand it wanted - the same
+        # silence on the Standard path once let an MDL 7296 S come out with
+        # SIDE L at both ends and still read as a clean build.
+        if t[:substituted]
+          warns << format('%s used at the %s end of the inner %s - the library ' \
+                          'has no SIDE %s of that size, so the other hand went ' \
+                          'in. Check the joint.',
+                          file, t[:at_low_end] ? 'low' : 'high', kind,
+                          t[:at_low_end] ? 'L' : 'R')
+        end
+
+        half = tiles.length > 1 && iep_half_turn?(model, cat, t, defn)
+        rx, ry, rw, rh = tile_rect(t)
+        tr, tnote = flat_placement(defn, rx, ry, rw, rh, flip, half, mode, z_target)
+        if tr.nil?
+          warns << "#{file}: #{tnote}"
+          next
+        end
+        inst = booth.entities.add_instance(defn, tr)
+        inst.name = "#{kind}i  #{file}"
+        count += 1
+        landed = (inst.valid? ? inst.bounds : nil)
+        notes << format('  %-24s %-4s at %6.2f  ->  %7.2f %7.2f %7.2f to %7.2f %7.2f %7.2f%s',
+                        file, t[:at_low_end] ? 'low' : 'high', t[:at].to_f,
+                        landed ? landed.min.x.to_f : 0.0,
+                        landed ? landed.min.y.to_f : 0.0,
+                        landed ? landed.min.z.to_f : 0.0,
+                        landed ? landed.max.x.to_f : 0.0,
+                        landed ? landed.max.y.to_f : 0.0,
+                        landed ? landed.max.z.to_f : 0.0,
+                        tnote ? "   (#{tnote})" : '')
       end
-      inst = booth.entities.add_instance(defn, tr)
-      inst.name = "#{kind}i  #{name}"
-      count += 1
-      notes << "#{name}#{tnote ? " (#{tnote})" : ''} - #{why}, z #{format('%.4f', z_target)}"
     end
     [count, notes, warns]
   end
@@ -1289,7 +1457,7 @@ module WR_BuildBoothComponents
     if spec[:eiw]
       inner_n = spec[:parts].count { |q| inner?(q) }
       puts "  ENHANCED - a second (IEP) shell inside it: #{inner_n} parts, room #{spec[:eiw]}\" x #{spec[:eih]}\""
-      puts "  inner walls #{cfg['hx'] ? ENH_WALL_H_HX : ENH_WALL_H}\" tall, underside lifted #{IEP_WALL_LIFT}\" - THE LIFT IS UNMEASURED, see IEP_WALL_LIFT"
+      puts "  inner walls #{cfg['hx'] ? ENH_WALL_H_HX : ENH_WALL_H}\" tall, underside lifted #{IEP_WALL_LIFT}\" - MEASURED ON THE 6060 E, and the 4872 E measured 0.75. See IEP_WALL_LIFT"
       puts "  inner rotations: corners placed directly (SW 0 / SE 90 / NE 180 / NW 270), mid-wall seal #{IEP_SEAL_YAW}deg, door #{IEP_DOOR_YAW}deg"
     end
     puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"

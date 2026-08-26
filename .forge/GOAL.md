@@ -15,26 +15,45 @@ probe rather than a screenshot.
 - No regression on the Standard path.
 
 ## Now
-**MDL 6060 E.** Benton: *"still pretty botched."* Steps 1–4 of `HANDOFF.md` are his to run —
-I cannot drive SketchUp.
+**MDL 6060 E — build Shell = Both and probe the inner deck.** Steps below are Benton's;
+I cannot drive SketchUp. Plugin **1.6.22** — VERSION is under `wr_tools/`, so this needs
+`git pull` → `install-plugin.py` → restart, not just a rescan.
 
-1. Build **MDL 6060 E, Shell = Inner (IEP) only**; read the warning block naming the two
-   unmeasured widths (11.5, 35.5).
-2. Correct the inner shell by hand, select it, run **Probe placement of what's selected**
-   → `P:/Sketchup/NewMasterComponentList/_placement-probe.tsv`.
-3. Hand the probe back, plus "X needs to go Y" for anything the probe cannot express.
+1. Build **MDL 6060 E, Shell = Both**. The inner shell vertical should now read perfect
+   (`IEP_WALL_LIFT` dropped 0.75 → 0.6875 on Benton's 2026-08-26 eye).
+2. Look at the **inner floor mat and ceiling tray** — two tiles each on this booth
+   (`ENH 6042* SIDE L` low, `ENH 6018* SIDE R` high). Check the seam sits where the standard
+   deck's seam sits, that neither tile is turned end for end wrongly, and that the tray still
+   caps the standard ceiling while the mat tucks under the standard floor.
+3. Select the inner deck → **Probe placement of what's selected** → hand back the TSV.
+   That closes the end-for-end turn question, which no harness can answer.
+4. **Re-open the 4872 E and check its inner shell vertical at 0.6875.** See the open
+   question below — this is the observation that decides it.
 
-Where to expect trouble, and why the 6060 is harder than the 4872:
-- **Two unmeasured room-prouds** (11.5, 35.5); both default to the 41.5's 1/16.
-- **Split runs on all four walls** — E/W mid-wall seals run at yaws never exercised.
-- **`ASSIGN['MDL 6060 E']`** carries an untested E/W reversal (16/40 outer, 11.5/35.5 inner).
-- **`ENH 11.5PanelSolid` is a thin-box part** (1.125 vs the family's 2.0625).
-- **The IEP deck is refused by name.** `ENH 6060FL/CL` do not exist; the library ships
-  6042 + 6018 SIDE L/R. **Only open question with no rule at all: how do those tile against
-  the standard 6060 deck?** Benton's answer, not mine to invent.
+### THE ONE OPEN QUESTION — is the wall lift global or per-booth?
+`IEP_WALL_LIFT` is a single global constant. **0.7500** was measured on the corrected
+**4872 E** (2026-08-25, Benton's eye then a probe agreeing to 0.0001). **0.6875** was measured
+on the **6060 E** (2026-08-26, Benton's eye, no probe yet). Both cannot be right for one
+constant. Three readings fit the facts and nobody has ruled any out:
+
+- the lift is global and the 4872 was 1/16 high all along (the v1.6.17 probe measured Benton's
+  *corrected* model, so it proved the code matched his hand placement — not that his hand
+  placement was right);
+- the lift is per-booth;
+- something is 6060-specific that nobody has found.
+
+**No per-booth table was invented.** One constant, one word to revert. Step 4 above settles it.
+Consequence already banked: the even 0.75/0.75 split of the 1.5 between the deck lips is dead,
+and `IEP_TRAY_DROP` was not moved, so the wall-top-to-tray gap widened by the same 1/16.
+
+### Residual on the 6060, expected and not a defect
+The room-proud figures for the **11.5** and **35.5** widths are still unmeasured and fall
+through to `IEP_ROOM_PROUD_DEFAULT`; the build warns by name. Expect ~1/8" on `N0i`/`E1i`.
+That residual **is** the next measurement Benton owes.
+
 
 ## Settled — do not re-derive
-- Two-shell model; inner run rule 6.5; `IEP_WALL_LIFT = 0.75`; `IEP_TRAY_DROP = 0.75`;
+- Two-shell model; inner run rule 6.5; `IEP_TRAY_DROP = 0.75`;
   `IEP_DOOR_IN = 0.5`; room-proud per family/width in `IEP_ROOM_PROUD`.
 - All 25 `E` layouts exist in `wr-booth-data.rb` (generated, do not hand-edit).
 - Deck contact is the true face, not its 1/64 bucket (v1.6.18).
@@ -47,6 +66,16 @@ Where to expect trouble, and why the 6060 is harder than the 4872:
 - Authoring new `.skp` components — I report what is missing; Benton authors it.
 - `WhisperRoomQuote` repo: read only. No prices in any artifact.
 - Changing how Standard booths resolve or place.
+
+- **The `ENH` deck library is COMPLETE. Nothing needs authoring.** 44 Standard deck codes,
+  44 Enhanced, identical sets, nothing missing either direction (observed off the real folder).
+  **All 25 `E` layouts resolve a full inner deck; none refuse.** The earlier "the IEP deck is
+  refused by name and the tiling has no rule" entry was wrong — `wr-deck.rb` already solved
+  the tiling and it is fit-tested; `iep_deck` simply was not reaching it. It now reuses
+  `WR_Deck.plan` with an `ENH ` catalogue.
+- Rebalance an `ENH` wall from its **module width off the name**, never its packaged bounding
+  box — the box is part + trim + void, and re-walking a wall from it pushed the 6060 E's
+  E inner wall 0.250 past the 0.15 closure tolerance (v1.6.21).
 
 ## History
 2026-08-25 — **MDL 4872 E complete.** Both shells, both decks, door; every part from a

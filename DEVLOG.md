@@ -2,6 +2,75 @@
 
 ## 2026-08-26
 
+### Added - the IEP deck tiles, and the inner shell drops 1/16 (v1.6.22)
+
+Two reports off Benton's built and hand-corrected **MDL 6060 E inner shell**, both closed here.
+**Neither has been run in SketchUp** - there is no Ruby on this machine outside it. What was
+run is `scripts/rbparse.py` (52 files parse, real CRuby 3.2) and a Python replay of the
+catalogue and tiling solver against the real component folder and the real generated layouts,
+`.forge/builder/replay-iep-deck.py`.
+
+**1. `IEP_WALL_LIFT` 0.75 -> 0.6875.** Benton: *"The IEP inner shell just needs to drop 1/16
+and its perfect."* One constant, one word to revert.
+
+The tension is recorded in the comment rather than resolved, because nothing here can resolve
+it. `IEP_WALL_LIFT` is global, and 0.75 was itself measured - off the corrected **4872 E** on
+2026-08-25 (*"all of the IEP components need to go up .75"*), with the v1.6.17 probe agreeing
+to 0.0001. But that probe measured Benton's CORRECTED model, so it proves the code matched his
+hand placement, not that his hand placement was right. So either 0.6875 is right for every
+booth and the 4872 E has been 1/16 high since it was closed, or the lift is per booth, or
+something 6060-specific is absorbing a sixteenth elsewhere. **No per-booth table was invented.**
+**The 4872 E's vertical needs a re-check** - that is the open item.
+
+What it costs: the even 0.75/0.75 split of the 1.5 between the two lips is gone. An inner wall
+now runs 0.6875 to 80.1875 in an 81 nominal, leaving 0.8125 at the top. `IEP_TRAY_DROP` is
+unchanged at 0.75 - it is measured against the standard ceiling, not the walls - so the gap
+between the inner wall top and the tray widens by the same sixteenth.
+
+**2. The IEP floor and ceiling now tile.** `iep_deck` composed one name, `ENH <digits>FL/CL`,
+and refused everything else because *"how those tile is a layout question this file has no
+answer for."* It had an answer all along, in `wr-deck.rb`.
+
+- **The `ENH` deck library has exact parity with Standard.** Re-verified off the real folder:
+  **44 STD deck codes, 44 ENH deck codes, identical sets, nothing in either direction.**
+  (A pre-brief count said 42 each; the two extra are the space-form `8418 FL` / `8418 CL`.
+  Parity holds either way.)
+- So the job was reuse, not invention. `WR_Deck.catalogue` takes a `family` argument
+  (`'STD'` default, `'ENH'`), and `iep_deck` calls `WR_Deck.plan` with the ENH catalogue.
+  Which widths tile the run, where the odd tile goes, which hand sits at which end - all of it
+  is the fit-tested Standard solver, unchanged.
+- **`WR_Deck.build` was not touched.** The Standard deck path resolves and places exactly as
+  before: same glob, same regex, same defaults. The replay asserts the STD pool is
+  byte-identical to the pre-change pattern, and that STD and ENH resolve the same arrangement
+  on all 25 E layouts.
+- **All 25 Enhanced layouts now resolve a full inner deck. None refuse.** The 6060 comes out
+  `ENH 6042FL/CL SIDE L` low and `ENH 6018FL/CL SIDE R` high, which is what `wr-deck.rb`'s own
+  comment says the Standard 6060 does. Asserted in the harness.
+- **The vertical rules are untouched**, and they stay in `build-booth-components.rb` because
+  they are the part the IEP does differently: the FL mat's TOP meets the standard floor's
+  underside, the CL tray's BOTTOM sits `IEP_TRAY_DROP` below the standard ceiling's TOP. Both
+  read off the placed standard deck's own bounding box, so no z constant is re-derived. One z
+  per deck, shared by its tiles.
+- **Refuse-by-name survives.** A tiling wr-deck cannot solve is reported with its reason and
+  with the single-piece name that would have covered it; a part that will not load leaves its
+  tile EMPTY and says so; a hand substitution is warned. Nothing falls back to a Standard part.
+- **The widened pattern still refuses what it must.** The anchored `\d{2,3}\d{2}` is what keeps
+  the 18 `STDSS` / SeamSeal parts out of the deck pool - and, on the ENH side, the 68 wall
+  panels, whose names carry a decimal point (`ENH 41.5VNT`, `ENH 17.5PanelSolid`) that the
+  pattern cannot cross. `127LP` is excluded from both families, in step. All verified against
+  the real listing.
+
+**What is NOT established:** whether the end-for-end turn transfers to `ENH` deck parts. The
+rule is a measurement - `bracket_edge` walks the geometry proud of the part's own rim - so it
+measures the ENH part, not the Standard twin, and where an ENH part is symmetric it returns nil
+and the positional fallback applies. But nobody has opened an ENH deck part to see whether it
+carries a bracket line at all. **A single-tile deck never turns**, so the closed 4872 E cannot
+move; the harness proves every single-tile inner deck still centres on the booth centre exactly
+as the old code put it.
+
+**Not done:** the 11.5 and 35.5 room-prouds are still unmeasured and still fall through to
+`IEP_ROOM_PROUD_DEFAULT` with a warning. That is the next measurement.
+
 ### Fixed - the 6060 E's floating panel: rebalance was re-walking walls from PACKAGING (v1.6.21)
 
 Benton built MDL 6060 E, inner shell only, and probed it: *"Its quite broken. Easy fixes, the

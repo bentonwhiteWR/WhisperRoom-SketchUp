@@ -57,7 +57,7 @@ module WR_Deck
   # copy of them may still be sitting in a running session's memory, and
   # removing them here clears it rather than leaving a stale value that nothing
   # reads but everything remembers.
-  %w[INSET DECK_TOP_Z WALL_H TOL NAME ORIGIN Z_AXIS X_AXIS
+  %w[INSET DECK_TOP_Z WALL_H TOL NAME ENH_NAME ORIGIN Z_AXIS X_AXIS
      BIG_GAP SMALL_GAP GAP_TOL
      SEAL_NAME SEAL_DATUM_LIFT SEAL_LEN_TOL
      SIDE_R_SMALL_WALL_AT_LOW_END LOW_END_PANEL_IS_TURNED].each do |c|
@@ -297,11 +297,44 @@ module WR_Deck
   # measures 47.938, not 48.
   NAME = /\ASTD(\d{2,3})(\d{2})\s*(FL|CL)\s*(CTR|SIDE)?\s*([LR])?\z/i.freeze
 
-  def self.catalogue(dir)
+  # THE ENHANCED DECK IS THE SAME CATALOGUE WITH A DIFFERENT PREFIX.
+  #
+  # The IEP inner shell has its own floor mat and ceiling tray, and they tile
+  # exactly the way the Standard deck does. Verified by listing
+  # P:\Sketchup\NewMasterComponentList\ on 2026-08-26 and extracting every code
+  # matching each pattern: 42 STD codes, 42 ENH codes, and the two sets are
+  # IDENTICAL — every arrangement the Standard deck can build has an exact ENH
+  # twin, including 'ENH 6042CL SIDE L' / 'ENH 6018CL SIDE R', which is how the
+  # MDL 6060 tiles. So the tiling question the IEP deck used to refuse is not a
+  # new question; it is this one, already solved and fit-tested.
+  #
+  # TWO DIFFERENCES FROM `NAME`, AND ONLY TWO: the prefix, and the space after
+  # it ('ENH 6042CL SIDE L', not 'ENH6042CL SIDE L'). Everything after the
+  # digits is byte-for-byte the same pattern.
+  #
+  # THE ANCHORED DIGITS ARE LOAD-BEARING AND MUST STAY. They are what keeps the
+  # seam seals out of the panel pool — see the note on seal_catalogue. 'STDSS
+  # CL8' fails because SS is not two digits, and the ENH pattern is anchored the
+  # same way, so 'ENH MidWallSeamSeal' and 'ENH CornerSeamSeal' fail too. It is
+  # also what keeps the ENH WALL PANELS out: those are named 'ENH 41.5VNT',
+  # 'ENH 17.5PanelSolid', 'ENH 26.5Panel1648WDO' — digits, then a DECIMAL POINT,
+  # which \d{2,3}\d{2} cannot cross. A pattern loosened to \d+ would sweep every
+  # one of them into the deck pool. Do not loosen it.
+  #
+  # 'ENH 127LPFL' is excluded, exactly as 'STD127LPFL' is — LP is not two
+  # digits. Both families lose the same two parts, so the sets stay in step.
+  ENH_NAME = /\AENH\s+(\d{2,3})(\d{2})\s*(FL|CL)\s*(CTR|SIDE)?\s*([LR])?\z/i.freeze
+
+  # `family` is 'STD' or 'ENH'. It defaults to STD so every existing caller —
+  # build, seals — reads the Standard library unchanged.
+  def self.catalogue(dir, family = 'STD')
+    enh = family.to_s.upcase == 'ENH'
+    re   = enh ? ENH_NAME : NAME
+    glob = enh ? 'ENH *.skp' : 'STD*.skp'
     out = []
-    Dir.glob(File.join(dir, 'STD*.skp')).each do |path|
+    Dir.glob(File.join(dir, glob)).each do |path|
       base = File.basename(path, '.skp')
-      m = NAME.match(base.strip)
+      m = re.match(base.strip)
       next if m.nil?
       out << { :file => base, :path => path,
                :cross => m[1].to_f, :along => m[2].to_f,
