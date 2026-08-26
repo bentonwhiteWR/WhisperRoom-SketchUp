@@ -1,57 +1,45 @@
-# FIXER HANDOFF — side-wall flip, 96144 E / 102144 E — 2026-08-26
+# FIXER HANDOFF — side-wall panel ORDER, 2026-08-26
 
 ## Produced
+- `.forge/fixer/ROOTCAUSE-side-wall-order-2026-08-26.md` — the full diagnosis, the exact
+  four-line fix, blast radius, and the regression table. **Read this one.**
+- `.forge/fixer/replay-side-wall-order.py` — **rewritten.** The old verdict was circular and
+  reported 200/200 clean on a broken model. It now compares against an independent witness
+  (`booth-iso-geometry.json`, the pre-flip extract) and fails loudly:
+  `--all --summary` → `300 walls checked: 108 REVERSED`, exit 1.
 
-- `.forge/fixer/replay-side-wall-order.py` — offline harness. Diffs
-  `scripts/wr-booth-data.rb` against `WhisperRoomQuote/lib/pl-data/booth-layouts.json`
-  per model / per shell / per wall: slot ids, along-wall extents, default component,
-  which Enhanced half-turn rule fires, AGREE/MIRRORED, and whether the portal's own
-  big-run-at-the-door-end flip fires. Takes model keys as argv; defaults to the four
-  `96144`/`102144` S+E keys.
-- `.forge/fixer/side-wall-order-all-E.txt` — its output over all 25 `E` layouts.
-- `.forge/fixer/DEFECT-side-wall-flip-2026-08-26.md` — rewritten with the findings,
-  the two surviving hypotheses, the blast-radius answer, and the exact ask for Benton.
-
-## No code changed
-
-`scripts/wr_tools/VERSION` stays **1.6.26**. No `.rb` edited, no `DEVLOG.md` entry (the
-DEVLOG records shipped changes; nothing shipped). `python scripts/rbparse.py` — **52/52
-parse** (run 2026-08-26; the tree is as it was).
+**Nothing under `scripts/` was changed. `VERSION` is untouched at 1.6.29. Nothing committed.**
 
 ## Read first
+1. `.forge/fixer/ROOTCAUSE-side-wall-order-2026-08-26.md`
+2. `scripts/gen-booth.py` lines **259, 268-269, 411, 423-424** — the four flip sites.
+3. `reference/seam-seal-attachment.md:317` — the hinge-slot evidence that E/W slot 0 belongs
+   at the door end.
+4. `WhisperRoomQuote/assets/layout-render.js:156-278` (`wallPanelRun`) — **read only.**
 
-1. `.forge/fixer/DEFECT-side-wall-flip-2026-08-26.md` — the whole finding.
-2. `scripts/build-booth-components.rb` lines **19-40** (the "two families, no flag to tell
-   them apart" measurement — this is the load-bearing quote), **1224-1245** (`rotation`,
-   where the family handedness turns into an along-wall direction), **1272-1284**
-   (`FACE_OUT` / `REVERSED` and their warning), **166-195** (`IEP_VENT_YAW` and the
-   unrestarted-SketchUp lesson), **2016-2027** (where the vent half turn is applied and
-   the window is not).
-3. `WhisperRoomQuote/assets/layout-render.js` `wallPanelRun()` — the portal's slot-order
-   and big-run-flip conventions, in its own words.
+## The answer in one line
+`scripts/gen-booth.py` was changed on 2026-08-11 to walk E/W walls N→S to match the portal's
+*drawing* order; the regenerated `scripts/wr-booth-data.rb` landed in commit `92dc59b`, and it
+puts slot 0 (the window) at the far end of the side wall from the door on 18 of the 25 models.
 
 ## Assumptions
+- The **pre-flip** order is the correct one. Rests on the hinge-slot evidence (measured on
+  4 models only), the portal's angled view, and Benton's render comparison. **Derived, not
+  measured, on the other 14 models.**
+- All 25 doors are on `S` (observed), so "walk E/W from low y" == "slot 0 at the door end".
+  A future N-door model would need the door-anchored form instead.
+- `booth-iso-geometry.json` has not been regenerated since 2026-08-07 (its own `generated`
+  stamp says so), so it is a genuine independent snapshot and not a copy of today's data.
 
-- **assumed** — that Benton's "flipped" is a 180° yaw of individual panels, not a swap of
-  which wall is which. Rests on: the slot mapping being provably un-mirrored, and no other
-  mechanism in the code being able to mirror a run. Not proven against a build.
-- **assumed** — that the portal's SVG plan order is what Benton compared against. He
-  supplied a portal 3D view; the two are drawn from the same `booth-layouts.json` slots.
-- **derived** — the `EVEN`/handedness arithmetic putting the WDO+VNT family and the
-  panel/door/seal family on opposite along-wall width directions. Derived from the source,
-  using the header's own measurement of which axis is width per family. The ENH library's
-  axes have **never been measured**; the header's figure covers 182 Standard parts only.
-
-## Open questions
-
-1. Which shell's window is flipped — outer (Standard, shared code, big blast radius) or
-   inner (IEP, safe to fix)? **Decides whether anything may be touched at all.**
-2. Is the half turn a property of the X-width authoring family (→ windows need it too), or
-   of the ENH family / the global convention (→ `IEP_VENT_YAW` is itself the wrong shape of
-   fix)? A `Probe Component Files` run answers it.
-3. Does a **Standard** 96144 / 102144 build its side walls correctly today? Still unasked-
-   and-unanswered from the first pass.
-4. Should the `ASSIGN` E/W swap be applied on the share-link path for
-   6060/6084/7272/7296? It is a real live mirror on the customer path — Standard and
-   Enhanced both — and the fix lands in shared Standard code, so it is a decision, not a
-   patch.
+## Open questions for Benton
+1. **Confirm the door-end rule on a 3-slot side wall.** The hinge-slot evidence covers only
+   6060/6084/7272/7296. On a real 102144 or 102186, is slot 0 at the door end?
+2. **The portal's own 2D top-down plan is wrong the same way** on the 14 models the
+   `wallPanelRun()` flip cannot detect. After the SketchUp fix, SketchUp and the portal's
+   angled view will agree and the portal's 2D plan will be the odd one out. That is a
+   `WhisperRoomQuote` change and I did not touch that repo.
+3. **Drawings already sent to customers.** Every Standard booth with a side-wall window built
+   since 2026-08-11 has it at the wrong end. Whether any go back out is Benton's call.
+4. **The width-axis family split is still open and untouched** — `40Panel2636WDO` runs X while
+   `16PanelSolid` / `40PanelSolid` run Y. Separate defect, turns a panel end-for-end in place.
+   Do not let the order fix be read as closing it.

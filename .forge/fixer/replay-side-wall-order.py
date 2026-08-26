@@ -1,33 +1,55 @@
 #!/usr/bin/env python3
 """
-replay-side-wall-order.py  --  make a side-wall mirror visible in TEXT.
+replay-side-wall-order.py  --  make a side-wall slot REVERSAL visible in TEXT.
 
-Reads, offline, with no SketchUp:
-  * scripts/wr-booth-data.rb                           the layout the BUILDER places from
-  * WhisperRoomQuote/lib/pl-data/booth-layouts.json    the layout the PORTAL draws from
+=============================================================================
+WHY THIS FILE WAS REWRITTEN (2026-08-26).  READ THIS BEFORE TRUSTING IT.
+=============================================================================
+The previous version of this harness printed "200 walls, 0 mirrored" while the
+model was visibly wrong in SketchUp.  It lied, and it lied in the worst
+possible way: its verdict was CIRCULAR.
 
-and prints, per model / per shell / per wall:
+It computed
 
-  - every slot in SLOT-ID order, with its along-wall extents taken from the
-    layout polygon, and the default component the builder would resolve
-  - the portal's own slot order for the same wall
-  - AGREE / MIRRORED, decided on which physical end slot 0 sits at. That is the
-    only thing that can mirror a run when the customer's packs arrive keyed by
-    slot id, which is what booth-from-link.rb does.
-  - which of the builder's Enhanced-only half-turn rules would fire on each
-    inner slot (IEP_VENT_YAW / IEP_DOOR_YAW / IEP_SEAL_YAW), and which inner
-    parts get NO half turn at all.
+    want  = ids                       for an N/S wall
+    want  = list(reversed(ids))       for an E/W wall
+    agree = (geo_order == want)
 
-This does NOT and CANNOT report per-part FACING. Facing comes out of
-wall_slab(), which measures the real .skp geometry, and there is no Ruby and no
-SketchUp here. The builder itself prints a FACING column; that is the reading
-this harness deliberately leaves to a real build.
+where `ids` was wr-booth-data.rb's OWN slot ids in slot-number order and
+`geo_order` was wr-booth-data.rb's OWN parts in coordinate order.  The portal's
+slot list (`pids`) was read, printed, and then never used in the comparison.
 
-Convention taken from the portal's own source (assets/layout-render.js,
-wallPanelRun): pieces are laid out with aIn growing from startIn, and for an
-E/W wall the comment reads "aIn grows DOWNWARD -> high aIn is the S end".
-So the portal's slot index 0 is at the N end of a side wall, and at the low-x
-end of an N/S wall.
+So the verdict tested one file against a HARD-CODED ASSUMPTION about the other
+("portal slot 0 sits at the N end of a side wall").  That assumption is the very
+rule gen-booth.py adopted on 2026-08-11 when it flipped the E/W walk.  The
+harness therefore asserted the change under test, and could only have failed if
+wr-booth-data.rb's own slot numbering were non-monotonic.  200/200 was
+guaranteed before it read a single byte of portal data.
+
+WHAT IT COMPARES NOW
+--------------------
+An INDEPENDENT witness that this repo did not derive:
+
+    WhisperRoomQuote/lib/pl-data/booth-iso-geometry.json
+
+That file is a straight extract of wr-booth-data.rb taken 2026-08-07T22:57Z,
+i.e. BEFORE gen-booth.py's 2026-08-11 E/W walk flip.  It is what the portal's
+ANGLED ("YOUR BOOTH") view still renders from today, and it is the order in
+Benton's portal render: on MDL 102144 the window slot W0 sits at the DOOR end.
+Comparing per-SLOT-ID along-wall extents against it is falsifiable, and it fails
+loudly on exactly the walls Benton can see are wrong.
+
+It carries all 25 Standard layouts, so an " E" key is checked shell by shell:
+the outer (:sh=>'out') parts against the iso entry for the same model, and the
+inner (:sh=>'in') parts against the DIRECTION the outer run walks.
+
+WHAT IT STILL CANNOT SEE
+------------------------
+Per-part FACING and the width-axis family split (40Panel2636WDO runs X while
+16PanelSolid / 40PanelSolid run Y).  Those come out of wall_slab(), which
+measures real .skp geometry; there is no Ruby and no SketchUp here.  That is a
+SEPARATE defect - it turns a panel end-for-end IN PLACE.  This harness reports
+only ORDER: which END of the wall a slot id lands on.
 """
 import json
 import os
@@ -36,8 +58,9 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA = os.path.join(ROOT, 'scripts', 'wr-booth-data.rb')
-PORTAL = os.path.join(os.path.dirname(ROOT),
-                      'WhisperRoomQuote', 'lib', 'pl-data', 'booth-layouts.json')
+QUOTE = os.path.join(os.path.dirname(ROOT), 'WhisperRoomQuote', 'lib', 'pl-data')
+PORTAL = os.path.join(QUOTE, 'booth-layouts.json')
+ISO = os.path.join(QUOTE, 'booth-iso-geometry.json')
 
 PART_RE = re.compile(
     r":k=>'(?P<k>[a-z]+)',\s*:id=>'(?P<id>[^']+)',\s*:sk=>'(?P<sk>[^']+)',"
@@ -45,13 +68,16 @@ PART_RE = re.compile(
 PT_RE = re.compile(r"\[\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\]")
 
 WALL_WORD = {'N': 'Back', 'S': 'Front', 'E': 'Right', 'W': 'Left'}
+TOL = 0.01
+
+
+def run_axis(wall):
+    return 0 if wall in ('N', 'S') else 1
 
 
 def load_booths(path):
-    """{key: {'w':,'h':,'parts':[...]}} - parsed straight off the generated file."""
     src = open(path, encoding='utf-8', errors='replace').read()
-    booths = {}
-    cur = None
+    booths, cur = {}, None
     for line in src.splitlines():
         m = re.match(r"\s*'(MDL [^']+)' => \{.*?:w=>([\d.]+), :h=>([\d.]+)", line)
         if m:
@@ -69,47 +95,40 @@ def load_booths(path):
     return booths
 
 
-# --- the builder's own rules, transcribed from build-booth-components.rb -----
+def load_iso(path):
+    """{'MDL 102144 S': {'W0': (lo, hi) along its own run axis, ...}}"""
+    doc = json.load(open(path, encoding='utf-8'))
+    out = {}
+    for e in doc['booths']:
+        d = {}
+        for p in e['parts']:
+            if p['k'] != 'panel':
+                continue
+            ax = run_axis(p['id'][0])
+            v = [q[ax] for q in p['poly']]
+            d[p['id']] = (min(v), max(v))
+        out[e['key']] = d
+    return out, doc.get('generated', '?'), doc.get('source', '?')
+
+
 ENH_PLAIN_PANEL = {'14.5', '23.5', '26.5', '38.5'}
 STD_PLAIN_PANEL = {'7', '19', '28', '31', '43'}
 
 
 def guess_component(kind, run, inner):
-    """build-booth-components.rb self.guess_component, transcribed."""
     if inner:
-        w = round(run * 2) / 2.0
-        ws = ('%g' % w)
+        ws = '%g' % (round(run * 2) / 2.0)
         return {'VNT': 'ENH %sVNT' % ws, 'NV': 'ENH %sNV' % ws,
                 'DRFRM': 'ENH Right%sDoor' % ws, 'CBL': 'ENH %sPanelCBL' % ws,
                 'SEAL': 'ENH MidWallSeamSeal', 'CORNER': 'ENH CornerSeamSeal'
-                }.get(kind,
-                      'ENH %sPanel' % ws if ws in ENH_PLAIN_PANEL
+                }.get(kind, 'ENH %sPanel' % ws if ws in ENH_PLAIN_PANEL
                       else 'ENH %sPanelSolid' % ws)
     w = int(round(run))
     return {'VNT': '%dVNT' % w, 'DRFRM': 'Right%dDoor' % w,
             'CBL': '%dPanelCBL' % w, 'SEAL': 'MidWallSeamSeal',
             'CORNER': 'CornerSeamSeal'
-            }.get(kind,
-                  '%dPanel' % w if str(w) in STD_PLAIN_PANEL else '%dPanelSolid' % w)
-
-
-def half_turn(part, name):
-    """Which Enhanced-only half turn the builder applies (lines ~1991-2027)."""
-    if part['sh'] != 'in':
-        return '-'
-    if part['k'] == 'seal':
-        return 'IEP_SEAL_YAW 180'
-    if re.search(r'Door', name, re.I):
-        return 'IEP_DOOR_YAW 180 (+0.5 in)'
-    if part['k'] == 'panel' and re.search(r'VNT|NV', name, re.I):
-        return 'IEP_VENT_YAW 180'
-    if part['k'] == 'corner':
-        return 'placed direct (SW0/SE90/NE180/NW270)'
-    return 'NONE'
-
-
-def run_axis(wall):
-    return 0 if wall in ('N', 'S') else 1     # 0 = along x, 1 = along y
+            }.get(kind, '%dPanel' % w if str(w) in STD_PLAIN_PANEL
+                  else '%dPanelSolid' % w)
 
 
 def extents(poly, axis):
@@ -121,11 +140,21 @@ def slot_num(sid):
     return int(re.sub(r'\D', '', sid) or 0)
 
 
-def report(key, spec, portal, out):
+def report(key, spec, portal, iso, out, tally):
     p = out.append
+    base = key.rsplit(' ', 1)[0]
+    iso_key = base + ' S'
+    iso_walls = iso.get(iso_key)
     p('=' * 100)
-    p('%s     exterior %g x %g' % (key, spec['w'], spec['h']))
+    p('%s     exterior %g x %g     witness: %s'
+      % (key, spec['w'], spec['h'],
+         iso_key if iso_walls else '!! NO ISO ENTRY - order NOT checked'))
     p('=' * 100)
+
+    door_wall = ((portal or {}).get('door') or {}).get('wall', '?')
+    p('  door wall: %s   (on an E/W run the door end is the %s end of the y axis)'
+      % (door_wall, 'LOW' if door_wall == 'S' else 'HIGH' if door_wall == 'N' else '?'))
+
     for shell, shell_word in (('out', 'OUTER (Standard shell)'),
                               ('in', 'INNER (IEP shell)')):
         parts = [x for x in spec['parts'] if x['sh'] == shell]
@@ -139,75 +168,129 @@ def report(key, spec, portal, out):
             if not wp:
                 continue
             ax = run_axis(wall)
-            rows = [(x,) + extents(x['poly'], ax) for x in wp]
-            rows_id = sorted(rows, key=lambda r: slot_num(r[0]['id']))
+            rows = sorted([(x,) + extents(x['poly'], ax) for x in wp],
+                          key=lambda r: slot_num(r[0]['id']))
+            lo_all = min(r[1] for r in rows)
+            hi_all = max(r[2] for r in rows)
             p('')
             p('    wall %s   (%s)   run along %s'
               % (wall, WALL_WORD[wall], 'x' if ax == 0 else 'y'))
-            p('      %-8s %-7s %8s %8s %7s  %-26s %s'
+            p('      %-8s %-7s %8s %8s %7s  %-26s %-5s %s'
               % ('SLOT', 'KIND', 'from', 'to', 'width', 'DEFAULT COMPONENT',
-                 'ENHANCED HALF TURN'))
-            for x, lo, hi in rows_id:
+                 'END', 'vs WITNESS'))
+
+            # The witness row for this wall.
+            #   outer shell : the iso file's own extents for the same slot id.
+            #   inner shell : the outer shell's iso extents mapped onto the
+            #                 inner ids and compared by END only - the inner run
+            #                 is inset, so its numbers are not the outer's.
+            wit = {}
+            if iso_walls:
+                for x, lo, hi in rows:
+                    oid = x['id'][:-1] if shell == 'in' else x['id']
+                    if oid in iso_walls:
+                        wit[x['id']] = iso_walls[oid]
+            wlo_all = min((v[0] for v in wit.values()), default=0.0)
+            whi_all = max((v[1] for v in wit.values()), default=0.0)
+
+            n_bad = 0
+            for x, lo, hi in rows:
                 nm = guess_component(x['sk'], hi - lo, shell == 'in')
-                p('      %-8s %-7s %8.3f %8.3f %7.3f  %-26s %s'
-                  % (x['id'], x['sk'], lo, hi, hi - lo, nm, half_turn(x, nm)))
+                end = ('LOW' if abs(lo - lo_all) < TOL else
+                       'HIGH' if abs(hi - hi_all) < TOL else 'mid')
+                verdict = '(no witness)'
+                if x['id'] in wit:
+                    wa, wb = wit[x['id']]
+                    wend = ('LOW' if abs(wa - wlo_all) < TOL else
+                            'HIGH' if abs(wb - whi_all) < TOL else 'mid')
+                    if shell == 'out':
+                        verdict = ('same' if abs(wa - lo) < TOL and abs(wb - hi) < TOL
+                                   else 'MOVED  witness %.3f..%.3f (%s end)'
+                                   % (wa, wb, wend))
+                    else:
+                        verdict = ('same end (%s)' % wend if wend == end
+                                   else 'MOVED  witness end %s' % wend)
+                    if verdict.startswith('MOVED'):
+                        n_bad += 1
+                p('      %-8s %-7s %8.3f %8.3f %7.3f  %-26s %-5s %s'
+                  % (x['id'], x['sk'], lo, hi, hi - lo, nm, end, verdict))
+
+            ids = [r[0]['id'] for r in rows]
             geo_order = [r[0]['id'] for r in sorted(rows, key=lambda r: r[1])]
-            ids = [r[0]['id'] for r in rows_id]
-            pw = (portal or {}).get('walls', {}).get(wall, {}).get('slots', [])
-            pids = [s['id'] for s in pw]
-            pkinds = [s['kind'] for s in pw]
-            # Portal index 0 sits at the low-x end of N/S and at the N (high-y)
-            # end of E/W. Express the portal order as ascending coordinate order
-            # so it can be compared with the layout's own.
-            want = ids if wall in ('N', 'S') else list(reversed(ids))
-            agree = (geo_order == want)
             p('      layout, low->high coordinate : %s' % ' '.join(geo_order))
-            p('      portal, index 0 -> n         : %s   kinds: %s'
-              % (' '.join(pids) or '(no portal row)', ' '.join(pkinds)))
-            p('      => %s' % ('AGREE - slot 0 sits on the same physical end in both'
-                               if agree else
-                               '*** MIRRORED - the portal and the layout put slot 0 at opposite ends'))
-            lk = [x[0]['sk'] for x in rows_id]
-            if pids and lk != list(pkinds):
-                p('      note: slot KINDS differ from the portal row - layout %s'
-                  % ' '.join(lk))
-            # --- the portal's OWN big-run-at-the-door-end flip -----------------
-            # assets/layout-render.js wallPanelRun(): on an E/W wall of exactly
-            # two pieces whose REAL widths differ, the portal swaps the two
-            # pieces' along-wall extents so the big run sits at the door end.
-            # The builder has no equivalent; build-booth-components' ASSIGN
-            # table hard-codes the same swap, but ASSIGN is read ONLY by
-            # self.run (the standalone dialog). booth-from-link.rb calls
-            # build_booth with the LINK's assign, so the swap never fires on
-            # the customer path.
-            if wall in ('E', 'W') and len(rows_id) == 2:
-                w0 = rows_id[0][2] - rows_id[0][1]
-                w1 = rows_id[1][2] - rows_id[1][1]
-                if abs(w0 - w1) > 0.01:
-                    big_end = 'N' if w0 > w1 else 'S'
-                    p('      PORTAL FLIP FIRES (2 unequal pieces): the portal draws the '
-                      'BIG run at the S (door) end;')
-                    p('                          this layout puts it at the %s end.  %s'
-                      % (big_end,
-                         'AGREE' if big_end == 'S' else
-                         '*** the builder needs the ASSIGN swap here - and ASSIGN is '
-                         'NOT read on the booth-from-link path'))
+            if wit:
+                wit_order = sorted(wit, key=lambda i: wit[i][0])
+                p('      WITNESS, low->high           : %s' % ' '.join(wit_order))
+                tally['walls'] += 1
+                if n_bad == 0:
+                    p('      => AGREE - every slot lands on the end the witness puts it on')
+                elif geo_order == list(reversed(wit_order)):
+                    tally['reversed'] += 1
+                    tally['bad_walls'].append('%s %s %s' % (key, shell, wall))
+                    p('      => *** REVERSED - the whole run is walked end for end.')
+                    p('         Slot %s sits at the %s end here, at the %s end in the witness.'
+                      % (ids[0],
+                         'HIGH' if geo_order[-1] == ids[0] else 'LOW',
+                         'HIGH' if wit_order[-1] == ids[0] else 'LOW'))
+                else:
+                    tally['differ'] += 1
+                    tally['bad_walls'].append('%s %s %s' % (key, shell, wall))
+                    p('      => *** DIFFERS on %d slot(s), and not as a clean reversal'
+                      % n_bad)
+            else:
+                tally['nowitness'] += 1
+                p('      => no witness for this wall - NOT checked')
+
+            pw = (portal or {}).get('walls', {}).get(wall, {}).get('slots', [])
+            if pw:
+                p('      context only, booth-layouts.json slot row: %s   kinds: %s'
+                  % (' '.join(s['id'] for s in pw),
+                     ' '.join(s['kind'] for s in pw)))
+                p('      (NOT a verdict.  That file carries slot ORDER and SIZE and no')
+                p('       end-of-wall geometry; wallPanelRun() lays it out from aIn=0,')
+                p('       which IS the assumption under test.  The old harness compared')
+                p('       against it and therefore could not fail.)')
 
 
 def main():
     booths = load_booths(DATA)
     portal = json.load(open(PORTAL, encoding='utf-8'))['layouts']
-    keys = sys.argv[1:] or ['MDL 96144 S', 'MDL 96144 E',
-                            'MDL 102144 S', 'MDL 102144 E']
-    out = []
+    iso, gen, src = load_iso(ISO)
+    argv = sys.argv[1:]
+    args = [a for a in argv if not a.startswith('--')]
+    if '--all' in argv:
+        keys = sorted(booths)
+    else:
+        keys = args or ['MDL 96144 S', 'MDL 96144 E',
+                        'MDL 102144 S', 'MDL 102144 E']
+    quiet = '--summary' in argv
+    tally = {'walls': 0, 'reversed': 0, 'differ': 0, 'nowitness': 0,
+             'bad_walls': []}
+    out = ['witness  : %s' % ISO,
+           '           extracted %s from %s' % (gen, src),
+           '           i.e. wr-booth-data.rb BEFORE gen-booth.py flipped the E/W',
+           '           walk on 2026-08-11, and the order the portal angled view',
+           '           still draws today.',
+           '']
     for k in keys:
         if k not in booths:
             out.append('!! %s not in wr-booth-data.rb' % k)
             continue
-        report(k, booths[k], portal.get(k.rsplit(' ', 1)[0]), out)
+        report(k, booths[k], portal.get(k.rsplit(' ', 1)[0]), iso, out, tally)
         out.append('')
-    print('\n'.join(out))
+    out.append('=' * 100)
+    out.append('%d wall(s) checked against the witness: %d REVERSED, %d DIFFER, '
+               '%d with no witness'
+               % (tally['walls'], tally['reversed'], tally['differ'],
+                  tally['nowitness']))
+    for w in tally['bad_walls']:
+        out.append('    %s' % w)
+    if quiet:
+        print('\n'.join(out[:5] + out[-(len(tally['bad_walls']) + 2):]))
+    else:
+        print('\n'.join(out))
+    return 1 if (tally['reversed'] or tally['differ']) else 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
