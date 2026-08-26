@@ -753,6 +753,195 @@ def main():
     print('    The FL rows have no such known event but carry the same date, so')
     print('    the FL datum above is a 2026-08-14 reading, not a fit test.')
 
+    # =================================================================
+    print('\n=== 9. WHICH WAY UP DOES EACH DECK PART READ? =====================')
+    print('  The 2026-08-26 report: MDL 102144 E came in with its IEP tray')
+    print('  "pointing up". IEP_CL_UPSIDE_DOWN was a GLOBAL boolean, so the')
+    print('  question this section exists to answer is whether the three CL')
+    print('  families that have been in front of Benton agree with each other.')
+    print('')
+
+    # ---- the two rules, transcribed -------------------------------------
+    #
+    # contact_z: WR_Deck.contact_z's orientation half (wr-deck.rb ~622-680).
+    # mouth:     the tray tell added to build-booth-components.rb in v1.6.25.
+    #
+    # Both are run over the SAME table, so where they disagree it is visible.
+    MIN_SHARE = 0.05
+    MOUTH_RATIO = 2.0
+
+    def contact_z_reads(lv, kind):
+        """[upside_down, why] off [(z, area)], transcribing wr-deck.contact_z."""
+        if not lv:
+            return None, 'no flat faces'
+        peak = max(a for _z, a in lv)
+        keep = sorted(z for z, a in lv if a >= peak * MIN_SHARE)
+        area = dict(lv)
+        if not keep:
+            return None, 'no level carries area'
+        cands = [(a, b) for i, a in enumerate(keep) for b in keep[i + 1:]
+                 if abs((b - a) - 1.0) < 0.05]
+        if cands:
+            pair = max(cands, key=lambda ab: area[ab[0]] + area[ab[1]])
+        else:
+            pair = (keep[0], keep[-1])
+        minor = [z for z in keep
+                 if not (pair[0] - 0.02 <= z <= pair[1] + 0.02)]
+        if not minor:
+            return False, 'no minor outside the slab - NO CUE, reads false'
+        m = max(minor, key=lambda z: area[z])
+        above = m > (pair[0] + pair[1]) / 2.0
+        if kind == 'FL':
+            return (not above), 'minor %g %s slab %g..%g' % (
+                m, 'above' if above else 'below', pair[0], pair[1])
+        return above, 'minor %g %s slab %g..%g' % (
+            m, 'above' if above else 'below', pair[0], pair[1])
+
+    def mouth_reads(lv):
+        """[upside_down, why] off the two EXTREME significant levels."""
+        if not lv:
+            return None, 'no flat faces'
+        peak = max(a for _z, a in lv)
+        keep = sorted((z, a) for z, a in lv if a >= peak * MIN_SHARE)
+        if len(keep) < 2:
+            return None, 'one level only'
+        alo, ahi = keep[0][1], keep[-1][1]
+        if ahi >= alo * MOUTH_RATIO:
+            return False, 'plate HIGH %.0f / rim %.0f -> mouth down' % (ahi, alo)
+        if alo >= ahi * MOUTH_RATIO:
+            return True, 'plate LOW %.0f / rim %.0f -> mouth UP' % (alo, ahi)
+        return None, 'both ends %.0f / %.0f - NO CUE' % (alo, ahi)
+
+    # ---- the Standard deck, where the rule is fit-tested -----------------
+    print('  --- STANDARD deck parts, off _face-levels.tsv (the fit-tested path)')
+    print('      %-22s %-11s %-34s %s' % ('part', 'contact_z', 'why', 'mouth tell'))
+    std_names = sorted(n for n in stdbox
+                       if n.startswith('STD') and 'SS' not in n)
+    mouth_fired = []
+    conv_b = []
+    conv_a = []
+    for n in std_names:
+        kind = 'CL' if 'CL' in n else 'FL'
+        lv = levels(n)
+        ud, why = contact_z_reads(lv, kind)
+        mu, mwhy = mouth_reads(lv)
+        if kind == 'CL':
+            (conv_b if ud else conv_a).append(n)
+        if mu is not None:
+            mouth_fired.append('%s (%s)' % (n, mwhy))
+        print('      %-22s %-11s %-34s %s'
+              % (n, 'UPSIDE DN' if ud else ('as authored' if ud is not None
+                                            else 'n/a'),
+                 why, mwhy))
+
+    # THE MOUTH TELL IS A CEILING RULE AND THE HARNESS FOUND OUT WHY.
+    #
+    # First cut of this section asserted the tell abstains on EVERY Standard
+    # deck part. It does not: it fires 'mouth UP' on 17 of the 22 STD FLOOR
+    # panels, because a floor panel is a big field face at the bottom with a
+    # thin perimeter STRIP on top - the exact area shape of an upside-down tray,
+    # and nothing to do with orientation. Turning those over would stand every
+    # Standard floor on its head.
+    #
+    # That is why build-booth-components.rb gates the tell on kind == 'CL' and
+    # returns 'flat sheet, no mouth to point' for FL, and it is why the ENH
+    # floor mat keeps a declared IEP_FL_UPSIDE_DOWN = false. Both halves are
+    # asserted below rather than described.
+    cl_fired = [m for m in mouth_fired if 'CL' in m.split(' (')[0]]
+    fl_fired = [m for m in mouth_fired if 'CL' not in m.split(' (')[0]]
+    check(not cl_fired,
+          'the tray mouth tell ABSTAINS on every Standard CEILING part',
+          '; '.join(cl_fired) if cl_fired
+          else 'all 16 STD CL parts read NO CUE, so the v1.6.25 fallback could '
+               'not contradict the fit-tested Standard ceiling rule even if it '
+               'were reached there - and it is not')
+    check(len(fl_fired) > 10,
+          'and it MISFIRES on Standard FLOOR panels, which is why it is gated '
+          'to CL only',
+          '%d of the STD FL panels read "mouth UP" - a field face low and a '
+          'perimeter strip high, not a tray. Gating on kind is load-bearing, '
+          'not tidiness.' % len(fl_fired))
+
+    check(any('9648CL' in n for n in conv_b) and any('9624CL' in n for n in conv_b),
+          'contact_z still calls the 96-series ceilings upside down '
+          '(convention B, the MDL 96168 S report)',
+          'convention B: %s' % ', '.join(sorted(conv_b)))
+    check(any('6042CL' in n for n in conv_a) and any('10242CL' in n for n in conv_a),
+          'and still calls the 60/72/84/102-series ceilings as-authored '
+          '(convention A)',
+          'convention A: %s' % ', '.join(sorted(conv_a)))
+
+    # ---- the Enhanced deck, where there is NO DATA -----------------------
+    print('')
+    print('  --- ENHANCED deck parts: THE TABLE BENTON ASKED FOR, AND IT IS EMPTY')
+    enh_rows = [n for n in stdbox if n.upper().startswith('ENH')]
+    check(not enh_rows,
+          '_face-levels.tsv carries ZERO ENH rows - no ENH deck part has ever '
+          'been face-level probed',
+          'so which way up each ENH tray reads CANNOT be answered on this '
+          'machine; only a build can')
+
+    # The other probe cannot answer it either, and that is a property of how it
+    # classifies: profile() bins by EXTENT, not by area, so a tray reads as one
+    # solid "shell" band whichever way up it is.
+    enhbands = {}
+    with open(ENH_PROBE, encoding='utf-8', errors='replace') as fh:
+        head = fh.readline().rstrip('\n').split('\t')
+        ib, it = head.index('bands'), head.index('thickness')
+        for line in fh:
+            c = line.rstrip('\n').split('\t')
+            if len(c) <= ib:
+                continue
+            enhbands[c[0].strip()] = (c[it], c[ib])
+
+    fams = [
+        ('MDL 4872 E    tray ACCEPTED, must not move',
+         ['ENH 4872CL']),
+        ('MDL 96144 E   scrutinised 2026-08-26, tray NOT reported',
+         ['ENH 9648CL SIDE', 'ENH 9648CL CTR', 'ENH 9624CL CTR']),
+        ('MDL 102144 E  tray REPORTED opening upward',
+         ['ENH 10242CL SIDE', 'ENH 10242CL CTR', 'ENH 10218CL CTR']),
+        ('MDL 6060 E    lip reported, orientation NOT reported',
+         ['ENH 6042CL SIDE L', 'ENH 6018CL SIDE R']),
+    ]
+    for label, parts in fams:
+        print('      %s' % label)
+        for n in parts:
+            th, bands = enhbands.get(n, ('?', 'NOT IN THE PROBE'))
+            lv = levels(n)
+            print('        %-20s thick %-8s bands %-30s face levels: %s'
+                  % (n, th, bands, ('%d' % len(lv)) if lv else 'NONE - NO DATA'))
+
+    # ONE SHELL BAND EACH, so the band profile is flat information: a tray
+    # spans its whole footprint at every depth whichever way up it is, because
+    # probe-enhanced.rb's profile() classifies a bin by EXTENT and not by area.
+    # ENH 7224CL SIDE R carries a trailing 0.0625 VOID band on top of its shell
+    # - a bin-edge artefact of a part measuring 1.7592 rather than 1.7500 - and
+    # a void is not a face, so it says nothing about which end is closed.
+    multishell = []
+    for n, (_t, b) in enhbands.items():
+        if 'CL' not in n and 'FL' not in n:
+            continue
+        if len([x for x in b.split() if x.startswith('shell:')]) > 1:
+            multishell.append(n)
+    check(not multishell,
+          'every ENH deck part carries exactly ONE shell band in '
+          '_enhanced-probe.tsv, so that probe cannot discriminate orientation',
+          '; '.join(sorted(multishell)) if multishell
+          else 'profile() bins by EXTENT not area - a tray spans its full '
+               'footprint at every depth whichever way up it is')
+
+    print('')
+    print('  ==> CONCLUSION. Nothing on this machine can say which ENH tray')
+    print('      families are authored which way up. A global boolean therefore')
+    print('      cannot be set from evidence, and setting it true would trade')
+    print('      the closed 4872 for the 102144. v1.6.25 measures each part at')
+    print('      BUILD time instead and prints the reason per tile.')
+    print('  ==> TO FILL THIS TABLE IN: run scripts/probe-levels.rb on')
+    print('      P:/Sketchup/NewMasterComponentList with an EMPTY filter (it')
+    print('      OVERWRITES _face-levels.tsv, so a "CL" filter would throw the')
+    print('      wall panels and the FL rows away), then re-run this harness.')
+
     print('\n=== 8. what this harness CANNOT see ===============================')
     print('  - bracket_edge / the end-for-end turn: needs the part geometry, so')
     print('    only SketchUp can answer whether ENH deck parts carry a bracket')

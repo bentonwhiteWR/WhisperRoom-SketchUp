@@ -2,6 +2,98 @@
 
 ## 2026-08-26
 
+### Fixed - the inner tray's orientation is now MEASURED per part, not declared (v1.6.25)
+
+Benton, off a freshly built **MDL 102144 E**: *"the IEP ceiling needs to be flipped upside down.
+The tray part was pointing up, it needs to point down."*
+
+**UNRUN IN SKETCHUP.** There is still no Ruby on this machine outside it, so nothing below has
+been executed against real geometry. What WAS run: `scripts/rbparse.py` (52 files, real CRuby
+3.2) and `.forge/builder/replay-iep-deck.py`, now **31 assertions** against the real 370-file
+component folder, up from 25. All pass.
+
+**Root cause, one line.** `iep_deck` passed a global boolean - `IEP_CL_UPSIDE_DOWN = false` -
+straight into `flat_placement` as its `flip` argument. Every inner tray therefore went in
+exactly as authored, and the code had no per-part opinion at all. The Standard deck has never
+had this bug: `WR_Deck.build` calls `contact_z(defn, kind)` and takes the orientation from its
+second return value, which exists because *"all ceilings are upside down on MDL 96168 S"*.
+The IEP path was the last deck path still placing parts on faith.
+
+**SETTING THE GLOBAL TO TRUE WOULD HAVE BEEN WRONG, and the reason is three part families.**
+
+```
+ENH 4872CL                            MDL 4872 E    closed, tray ACCEPTED
+ENH 9648CL SIDE / CTR, 9624CL CTR     MDL 96144 E   scrutinised, tray NOT reported
+ENH 10242CL SIDE / CTR, 10218CL CTR   MDL 102144 E  tray REPORTED opening upward
+```
+
+At least one of those is authored right and at least one is not. A single boolean cannot say
+so, and flipping it trades the closed 4872 for the 102144.
+
+**THE TABLE THAT WOULD SETTLE IT DOES NOT EXIST, and that is the honest finding.** Harness
+section 9 goes looking for the face-level profile of every `ENH` CL part and comes back empty:
+
+- **`_face-levels.tsv` carries ZERO `ENH` rows.** Checked over all 4544 of them and asserted.
+  It is dated 2026-08-14 and holds the 183 wall panels plus the 44 STD deck parts and the
+  seam seals - not one Enhanced part of any kind. No ENH deck part has ever been face-level
+  probed. (This is a second trap in the same area as the `_component-probe.tsv` one: that file
+  has no deck parts, this one has no Enhanced parts.)
+- **`_enhanced-probe.tsv` cannot answer it either, by construction.** Every ENH deck part
+  reads as exactly ONE shell band - asserted - because `probe-enhanced.rb`'s `profile()`
+  classifies a depth bin by EXTENT, not by area, and a tray spans its whole footprint at
+  every depth whichever way up it is. Ten faces and 34 top entities on every tiled CL part is
+  four walls inside and out plus one plate; the probe just cannot see which end the plate is
+  at.
+
+So the orientation is measured **at build time**, where the geometry actually is.
+
+**`IEP_CL_UPSIDE_DOWN` is now `nil` = MEASURE.** `true` and `false` still force, so the
+pre-v1.6.25 behaviour is one word away. New `iep_upside_down?(defn, kind, forced)` asks two
+questions in order:
+
+1. **`WR_Deck.contact_z(defn, 'CL')` first** - the fit-tested Standard rule, called read-only.
+   **`wr-deck.rb` is NOT edited**; that path is live and cannot be run here.
+2. **Then a tray's own tell, when contact_z has nothing to say.** contact_z hunts a face pair
+   1.0000 apart - the Standard slab - and a minor level outside it. An ENH deck part is built
+   nothing like a Standard one (`box_z` 3.1080 STD against 1.7500 ENH CL and 0.3125 ENH FL),
+   so when there is no such pair contact_z falls back to [lowest, highest], finds nothing
+   outside it and returns **false - which is its NO-CUE answer, not a measurement.** A tray is
+   closed at one end and open at the other, so the end holding the big PLATE face is which way
+   the mouth points; the rim end is a thin ring. Plate high is right, plate low is upside down,
+   per Benton's own sentence: *"the tray faces downwards, and it sits on top of the standard
+   ceiling, completely engulfing it."* Levels come from `WR_Deck.flat_levels`, not a second
+   face walker, and only the two EXTREME levels are compared - so the trap that turned every
+   floor CTR panel over, a 1/32 lip read as the room-side tell because it sat INSIDE the slab,
+   cannot arise here.
+
+**THE HARNESS CAUGHT THE MOUTH TELL MISFIRING AND THE GATE IS LOAD-BEARING.** Run over the real
+`_face-levels.tsv`, the tell fires *"mouth UP"* on **17 of the 22 Standard FLOOR panels** -
+`STD4896FL` reads 4608 sq in low against 632 high - because a floor panel is a field face at the
+bottom with a thin perimeter strip on top, the same area shape as an upside-down tray and nothing
+to do with orientation. Ungated it would stand every floor on its head. It is gated to `CL`, and
+the harness asserts **both** halves: it abstains on all 16 Standard ceilings, and it misfires on
+the floors. That is also why **`IEP_FL_UPSIDE_DOWN` stays a declared `false`** - an ENH FL part
+is a 0.3125 flat sheet with no mouth to point, and no floor mat has ever been reported wrong.
+
+**Nothing moves that was not already wrong.** The flip is a 180 about X, so a tile's vertical
+ENVELOPE is unchanged and `IEP_TRAY_DROP`, the tray-lip seat rule, `IEP_WALL_LIFT`,
+`IEP_VENT_YAW` and the room-proud figures are all untouched. A part the detector reads as
+right-way-up is placed exactly where v1.6.24 placed it.
+
+**Every tile now prints which way it went in and on what evidence** - `FLIPPED - tray mouth
+reads UP (plate 4472 sq in low, rim 147 high)`, or `as authored - tray mouth reads DOWN`, or
+`NO ORIENTATION CUE ... CHECK IT`. The old code printed nothing because it had nothing per-part
+to print, which is the whole of why this shipped unnoticed.
+
+**Residual risk, named.** If `ENH 4872CL` turns out to be authored mouth-up, the detector will
+flip the closed 4872 E. Nothing on this machine can rule that out. The console line says what it
+decided; `IEP_CL_UPSIDE_DOWN = false` reverts.
+
+**To fill the empty table in:** run `scripts/probe-levels.rb` on
+`P:/Sketchup/NewMasterComponentList` with an **EMPTY filter** - it OVERWRITES `_face-levels.tsv`,
+so a `CL` filter would throw the wall panels and the FL rows away - then re-run the harness and
+section 9 prints the real per-family answer.
+
 ### Fixed - the IEP tray tiles overlapped by 1 in, and the floor seam seals now get placed (v1.6.23)
 
 Two reports off Benton's built **MDL 6060 E**. **Neither has been run in SketchUp** - there is

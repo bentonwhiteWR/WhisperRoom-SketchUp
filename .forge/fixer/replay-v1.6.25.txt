@@ -1,0 +1,283 @@
+370 .skp in P:\Sketchup\NewMasterComponentList
+
+=== 1. the two catalogues =========================================
+  STD deck codes: 44   ENH deck codes: 44
+PASS  STD and ENH deck sets are identical  -- only in STD: none | only in ENH: none
+PASS  the STD pool is byte-identical to the pre-change pattern  -- 44 parts
+
+=== 2. what the widened pattern must still refuse =================
+PASS  18 STDSS / SeamSeal part(s) stay OUT of both pools  -- leaked: none
+PASS  68 non-deck ENH part(s) stay OUT of the ENH pool  -- leaked: none
+PASS  ENH 127LPCL, ENH 127LPFL, STD127LPCL, STD127LPFL excluded from both, in step
+
+=== 3. per-booth ENH deck resolution ==============================
+  25 Enhanced layouts read from wr-booth-data.rb
+
+  BOOTH            FOOTPRNT  DECK     TILES (low end first)
+  -----------------------------------------------------------------------------------------
+  MDL 4230 E       42x30     FL       ENH 4230FL @0
+  MDL 4230 E       42x30     CL       ENH 4230CL @0
+  MDL 4242 E       42x42     FL       ENH 4242FL @0
+  MDL 4242 E       42x42     CL       ENH 4242CL @0
+  MDL 4260 E       60x42     FL       ENH 4260FL @0
+  MDL 4260 E       60x42     CL       ENH 4260CL @0
+  MDL 4284 E       84x42     FL       ENH 4284FL @0
+  MDL 4284 E       84x42     CL       ENH 4284CL @0
+  MDL 4848 E       48x48     FL       ENH 4848FL @0
+  MDL 4848 E       48x48     CL       ENH 4848CL @0
+  MDL 4872 E       72x48     FL       ENH 4872FL @0
+  MDL 4872 E       72x48     CL       ENH 4872CL @0
+  MDL 4896 E       96x48     FL       ENH 4896FL @0
+  MDL 4896 E       96x48     CL       ENH 4896CL @0
+  MDL 6060 E       60x60     FL       ENH 6042FL SIDE L @0, ENH 6018FL SIDE R @42
+  MDL 6060 E       60x60     CL       ENH 6042CL SIDE L @0, ENH 6018CL SIDE R @42
+  MDL 6084 E       84x60     FL       ENH 6042FL SIDE L @0, ENH 6042FL SIDE R @42
+  MDL 6084 E       84x60     CL       ENH 6042CL SIDE L @0, ENH 6042CL SIDE R @42
+  MDL 7272 E       72x72     FL       ENH 7248FL SIDE L @0, ENH 7224FL SIDE R @48
+  MDL 7272 E       72x72     CL       ENH 7248CL SIDE L @0, ENH 7224CL SIDE R @48
+  MDL 7296 E       96x72     FL       ENH 7248FL SIDE L @0, ENH 7248FL SIDE R @48
+  MDL 7296 E       96x72     CL       ENH 7248CL SIDE L @0, ENH 7248CL SIDE R @48
+  MDL 8484 E       84x84     FL       ENH 8442FL SIDE @0, ENH 8442FL SIDE @42
+  MDL 8484 E       84x84     CL       ENH 8442CL SIDE @0, ENH 8442CL SIDE @42
+  MDL 9696 E       96x96     FL       ENH 9648FL SIDE @0, ENH 9648FL SIDE @48
+  MDL 9696 E       96x96     CL       ENH 9648CL SIDE @0, ENH 9648CL SIDE @48
+  MDL 10284 E      84x102    FL       ENH 8442FL SIDE @0, ENH 8418 FL @42, ENH 8442FL SIDE @60
+  MDL 10284 E      84x102    CL       ENH 8442CL SIDE @0, ENH 8418 CL @42, ENH 8442CL SIDE @60
+  MDL 84102 E      102x84    FL       ENH 8442FL SIDE @0, ENH 8418 FL @42, ENH 8442FL SIDE @60
+  MDL 84102 E      102x84    CL       ENH 8442CL SIDE @0, ENH 8418 CL @42, ENH 8442CL SIDE @60
+  MDL 84126 E      126x84    FL       ENH 8442FL SIDE @0, ENH 8442FL CTR @42, ENH 8442FL SIDE @84
+  MDL 84126 E      126x84    CL       ENH 8442CL SIDE @0, ENH 8442CL CTR @42, ENH 8442CL SIDE @84
+  MDL 96120 E      120x96    FL       ENH 9648FL SIDE @0, ENH 9624FL CTR @48, ENH 9648FL SIDE @72
+  MDL 96120 E      120x96    CL       ENH 9648CL SIDE @0, ENH 9624CL CTR @48, ENH 9648CL SIDE @72
+  MDL 96144 E      144x96    FL       ENH 9648FL SIDE @0, ENH 9648FL CTR @48, ENH 9648FL SIDE @96
+  MDL 96144 E      144x96    CL       ENH 9648CL SIDE @0, ENH 9648CL CTR @48, ENH 9648CL SIDE @96
+  MDL 96168 E      168x96    FL       ENH 9648FL SIDE @0, ENH 9648FL CTR @48, ENH 9624FL CTR @96, ENH 9648FL SIDE @120
+  MDL 96168 E      168x96    CL       ENH 9648CL SIDE @0, ENH 9648CL CTR @48, ENH 9624CL CTR @96, ENH 9648CL SIDE @120
+  MDL 96192 E      192x96    FL       ENH 9648FL SIDE @0, ENH 9648FL CTR @48, ENH 9648FL CTR @96, ENH 9648FL SIDE @144
+  MDL 96192 E      192x96    CL       ENH 9648CL SIDE @0, ENH 9648CL CTR @48, ENH 9648CL CTR @96, ENH 9648CL SIDE @144
+  MDL 102102 E     102x102   FL       ENH 10242FL SIDE @0, ENH 10218FL CTR @42, ENH 10242FL SIDE @60
+  MDL 102102 E     102x102   CL       ENH 10242CL SIDE @0, ENH 10218CL CTR @42, ENH 10242CL SIDE @60
+  MDL 102126 E     126x102   FL       ENH 10242FL SIDE @0, ENH 10242FL CTR @42, ENH 10242FL SIDE @84
+  MDL 102126 E     126x102   CL       ENH 10242CL SIDE @0, ENH 10242CL CTR @42, ENH 10242CL SIDE @84
+  MDL 102144 E     144x102   FL       ENH 10242FL SIDE @0, ENH 10242FL CTR @42, ENH 10218FL CTR @84, ENH 10242FL SIDE @102
+  MDL 102144 E     144x102   CL       ENH 10242CL SIDE @0, ENH 10242CL CTR @42, ENH 10218CL CTR @84, ENH 10242CL SIDE @102
+  MDL 102168 E     168x102   FL       ENH 10242FL SIDE @0, ENH 10242FL CTR @42, ENH 10242FL CTR @84, ENH 10242FL SIDE @126
+  MDL 102168 E     168x102   CL       ENH 10242CL SIDE @0, ENH 10242CL CTR @42, ENH 10242CL CTR @84, ENH 10242CL SIDE @126
+  MDL 102186 E     186x102   FL       ENH 10242FL SIDE @0, ENH 10242FL CTR @42, ENH 10218FL CTR @84, ENH 10242FL CTR @102, ENH 10242FL SIDE @144
+  MDL 102186 E     186x102   CL       ENH 10242CL SIDE @0, ENH 10242CL CTR @42, ENH 10218CL CTR @84, ENH 10242CL CTR @102, ENH 10242CL SIDE @144
+
+  resolved a full inner deck: 25/25
+  still refused:              none
+
+=== 4. the assertions =============================================
+PASS  MDL 6060 E inner FL tiles as the Standard does  -- [('ENH 6042FL SIDE L', 'low'), ('ENH 6018FL SIDE R', 'high')]
+PASS  MDL 6060 E inner CL tiles as the Standard does  -- [('ENH 6042CL SIDE L', 'low'), ('ENH 6018CL SIDE R', 'high')]
+PASS  every single-tile inner deck lands on the booth centre, as before  -- MDL 4872 E included
+PASS  STD and ENH resolve the SAME arrangement on all 25 layouts
+
+=== 6. the tray lip: where the ENH deck parts really measure =====
+PASS  all 44 ENH deck parts follow "+1 per outer edge"  -- CL SIDE +1 along, CL CTR +0 along, single-piece CL +2, every CL +2 across; FL nominal
+    FL parts under nominal (centred tiles, so unaffected): ENH 8418 FL 17.9375 (-0.0625)
+PASS  no STD CEILING part is bigger than its nominal name (21 measured)  -- so the Standard deck never had a lip to solve, and WR_Deck.build has no handling of one to reuse
+
+  MDL 6060 E, real part edges along the run (deck runs 1.00 .. 61.00):
+    CL
+      ENH 6042CL SIDE L    was   0.500 ..  43.500   now   0.000 ..  43.000   moved -0.500
+      ENH 6018CL SIDE R    was  42.500 ..  61.500   now  43.000 ..  62.000   moved +0.500
+      joint: overlap was +1.000, now +0.000   span was 61.000, now 62.000
+    FL
+      ENH 6042FL SIDE L    was   1.000 ..  43.000   now   1.000 ..  43.000   moved +0.000
+      ENH 6018FL SIDE R    was  43.000 ..  61.000   now  43.000 ..  61.000   moved +0.000
+      joint: overlap was +0.000, now +0.000   span was 60.000, now 60.000
+PASS  the OLD centring really did overlap the 6060 E tray by 1.000  -- 0.5000 .. 43.5000 against 42.5000 .. 61.5000
+PASS  the 6060 E tray tiles now meet FLUSH, no overlap and no gap  -- both faces at 43.0000
+PASS  the 6060 E tray run totals 62.000 - 60 nominal plus 1 in lip each end  -- 0.0000 .. 62.0000
+PASS  each 6060 E tray tile moved OUT by exactly 0.500 - Benton's figure  -- -0.5000 and +0.5000
+PASS  no FL tile moves on any of the 25 layouts  -- ENH FL parts carry no lip, so :max and :centre agree
+PASS  14 single-tile inner decks stay exactly centred  -- MDL 4872 E included
+PASS  no inner deck joint overlaps on any of the 25 layouts  -- floor and ceiling both
+PASS  every multi-tile inner CEILING joint closes to 0.0000
+    floor joints left open by the part itself, unchanged by this fix:
+      MDL 10284 E ENH 8418 FL|ENH 8442FL SIDE gap 0.0312; MDL 10284 E ENH 8442FL SIDE|ENH 8418 FL gap 0.0312; MDL 84102 E ENH 8418 FL|ENH 8442FL SIDE gap 0.0312; MDL 84102 E ENH 8442FL SIDE|ENH 8418 FL gap 0.0312
+
+=== 7. seam seals: the floor family ==============================
+  CL seals: STDSS 8.5CL, STDSS CL5, STDSS CL6, STDSS CL7, STDSS CL8
+  FL seals: STDSS 8.5FL, STDSS FL5, STDSS FL6, STDSS FL7, STDSS FL8
+PASS  the floor family mirrors the ceiling family exactly  -- 5 each, feet [5.0, 6.0, 7.0, 8.0, 8.5]
+PASS  no seam seal of either family reaches the deck/panel pool  -- leaked: none
+PASS  SEAL_NAME and SEAL_FL_NAME are disjoint  -- both matched: none
+
+  which seal each booth picks, and how many joints:
+  BOOTH            CROSS   JOINTS  CEILING          FLOOR           
+  MDL 4230 E       42      0       single tile      single tile     
+  MDL 4230 S       42      0       single tile      single tile     
+  MDL 4242 E       42      0       single tile      single tile     
+  MDL 4242 S       42      0       single tile      single tile     
+  MDL 4260 E       42      0       single tile      single tile     
+  MDL 4260 S       42      0       single tile      single tile     
+  MDL 4284 E       42      0       single tile      single tile     
+  MDL 4284 S       42      0       single tile      single tile     
+  MDL 4848 E       48      0       single tile      single tile     
+  MDL 4848 S       48      0       single tile      single tile     
+  MDL 4872 E       48      0       single tile      single tile     
+  MDL 4872 S       48      0       single tile      single tile     
+  MDL 4896 E       48      0       single tile      single tile     
+  MDL 4896 S       48      0       single tile      single tile     
+  MDL 6060 E       60      1       STDSS CL5        STDSS FL5       
+  MDL 6060 S       60      1       STDSS CL5        STDSS FL5       
+  MDL 6084 E       60      1       STDSS CL5        STDSS FL5       
+  MDL 6084 S       60      1       STDSS CL5        STDSS FL5       
+  MDL 7272 E       72      1       STDSS CL6        STDSS FL6       
+  MDL 7272 S       72      1       STDSS CL6        STDSS FL6       
+  MDL 7296 E       72      1       STDSS CL6        STDSS FL6       
+  MDL 7296 S       72      1       STDSS CL6        STDSS FL6       
+  MDL 8484 E       84      1       STDSS CL7        STDSS FL7       
+  MDL 8484 S       84      1       STDSS CL7        STDSS FL7       
+  MDL 9696 E       96      1       STDSS CL8        STDSS FL8       
+  MDL 9696 S       96      1       STDSS CL8        STDSS FL8       
+  MDL 10284 E      84      2       STDSS CL7        STDSS FL7       
+  MDL 10284 S      84      2       STDSS CL7        STDSS FL7       
+  MDL 84102 E      84      2       STDSS CL7        STDSS FL7       
+  MDL 84102 S      84      2       STDSS CL7        STDSS FL7       
+  MDL 84126 E      84      2       STDSS CL7        STDSS FL7       
+  MDL 84126 S      84      2       STDSS CL7        STDSS FL7       
+  MDL 96120 E      96      2       STDSS CL8        STDSS FL8       
+  MDL 96120 S      96      2       STDSS CL8        STDSS FL8       
+  MDL 96144 E      96      2       STDSS CL8        STDSS FL8       
+  MDL 96144 S      96      2       STDSS CL8        STDSS FL8       
+  MDL 96168 E      96      3       STDSS CL8        STDSS FL8       
+  MDL 96168 S      96      3       STDSS CL8        STDSS FL8       
+  MDL 96192 E      96      3       STDSS CL8        STDSS FL8       
+  MDL 96192 S      96      3       STDSS CL8        STDSS FL8       
+  MDL 102102 E     102     2       STDSS 8.5CL      STDSS 8.5FL     
+  MDL 102102 S     102     2       STDSS 8.5CL      STDSS 8.5FL     
+  MDL 102126 E     102     2       STDSS 8.5CL      STDSS 8.5FL     
+  MDL 102126 S     102     2       STDSS 8.5CL      STDSS 8.5FL     
+  MDL 102144 E     102     3       STDSS 8.5CL      STDSS 8.5FL     
+  MDL 102144 S     102     3       STDSS 8.5CL      STDSS 8.5FL     
+  MDL 102168 E     102     3       STDSS 8.5CL      STDSS 8.5FL     
+  MDL 102168 S     102     3       STDSS 8.5CL      STDSS 8.5FL     
+  MDL 102186 E     102     4       STDSS 8.5CL      STDSS 8.5FL     
+  MDL 102186 S     102     4       STDSS 8.5CL      STDSS 8.5FL     
+PASS  every jointed deck, floor and ceiling, finds its seal
+PASS  FL and CL joint stations agree on all 50 layouts  -- so one seal implementation serves both
+
+  seal geometry, off _face-levels.tsv (2026-08-14):
+    STDSS CL5      across 6.5000  len   58.0 (rule   58.0)  tall 2.0000  datum  0.0000  levels 0 1 1.25 2
+    STDSS CL6      across 6.5000  len   70.0 (rule   70.0)  tall 2.0000  datum  0.0000  levels 0 1 1.25 2
+    STDSS CL7      across 6.5000  len   82.0 (rule   82.0)  tall 2.0000  datum  0.0000  levels 0 1 1.25 2
+    STDSS CL8      across 6.5000  len   94.0 (rule   94.0)  tall 2.0000  datum -0.7500  levels -0.75 0.25 0.5 1.25
+    STDSS 8.5CL    across 6.5000  len  100.0 (rule  100.0)  tall 2.0000  datum -0.7500  levels -0.75 0.25 0.5 1.25
+    STDSS FL6      across 7.1897  len   72.0 (rule   72.0)  tall 1.6906  datum -1.0000  levels -1 -0.9375 0 0.0625 0.4375 0.6875
+    STDSS FL7      across 7.1897  len   84.0 (rule   84.0)  tall 1.6906  datum -1.0000  levels -1 -0.9375 0 0.0625 0.4375 0.6875
+    STDSS FL8      across 7.1897  len   96.0 (rule   96.0)  tall 1.6906  datum -1.0000  levels -1 -0.9375 0 0.0625 0.4375 0.6875
+PASS  every probed seal matches its family length rule (CL cross-2, FL cross)
+    NOT IN THAT PROBE, so unverified here: STDSS 8.5FL, STDSS FL5
+    NOTE the CL boxes above read 2.0000 tall - that probe predates
+    Benton's 2026-08-17 re-cut to 1.750, so the CL rows are STALE.
+    The FL rows have no such known event but carry the same date, so
+    the FL datum above is a 2026-08-14 reading, not a fit test.
+
+=== 9. WHICH WAY UP DOES EACH DECK PART READ? =====================
+  The 2026-08-26 report: MDL 102144 E came in with its IEP tray
+  "pointing up". IEP_CL_UPSIDE_DOWN was a GLOBAL boolean, so the
+  question this section exists to answer is whether the three CL
+  families that have been in front of Benton agree with each other.
+
+  --- STANDARD deck parts, off _face-levels.tsv (the fit-tested path)
+      part                   contact_z   why                                mouth tell
+      STD10218CL CTR         as authored minor 1.3594 below slab 2.1094..3.1094 both ends 1600 / 1836 - NO CUE
+      STD10218FL CTR         as authored no minor outside the slab - NO CUE, reads false both ends 1677 / 1884 - NO CUE
+      STD10242CL CTR         as authored minor 1.3594 below slab 2.1094..3.1094 both ends 4004 / 4284 - NO CUE
+      STD10242CL SIDE        as authored minor 1.3594 below slab 2.1094..3.1094 both ends 4015 / 4284 - NO CUE
+      STD10242FL CTR         as authored no minor outside the slab - NO CUE, reads false both ends 4125 / 4332 - NO CUE
+      STD10242FL SIDE        as authored minor 1.75 above slab 0..1         plate LOW 4204 / rim 408 -> mouth UP
+      STD127LPCL             as authored minor -1 below slab 0..1           both ends 1856 / 2017 - NO CUE
+      STD127LPFL             as authored minor 1.25 above slab 0..1         plate LOW 2017 / rim 371 -> mouth UP
+      STD4230CL              as authored minor 1.3594 below slab 2.1094..3.1094 both ends 1135 / 1260 - NO CUE
+      STD4230FL              as authored minor 1.75 above slab 0..1         plate LOW 1260 / rim 301 -> mouth UP
+      STD4242CL              UPSIDE DN   minor 1.75 above slab 0..1         both ends 1764 / 1615 - NO CUE
+      STD4242FL              as authored minor 1.75 above slab 0..1         plate LOW 1764 / rim 355 -> mouth UP
+      STD4260CL              as authored minor 1.3594 below slab 2.1094..3.1094 both ends 2339 / 2520 - NO CUE
+      STD4260FL              as authored minor 1.75 above slab 0..1         plate LOW 2520 / rim 439 -> mouth UP
+      STD4284CL              as authored minor 1.3594 below slab 2.1094..3.1094 both ends 3302 / 3528 - NO CUE
+      STD4284FL              as authored minor 1.75 above slab 0..1         plate LOW 3528 / rim 551 -> mouth UP
+      STD4848CL              UPSIDE DN   minor 1.75 above slab 0..1         both ends 2304 / 2131 - NO CUE
+      STD4848FL              as authored minor 1.75 above slab 0..1         plate LOW 2304 / rim 409 -> mouth UP
+      STD4872CL              as authored minor 1.3594 below slab 2.1094..3.1094 both ends 3239 / 3456 - NO CUE
+      STD4872FL              as authored minor 1.75 above slab 0..1         plate LOW 3456 / rim 520 -> mouth UP
+      STD4896CL              UPSIDE DN   minor 1.75 above slab 0..1         both ends 4608 / 4346 - NO CUE
+      STD4896FL              as authored minor 1.75 above slab 0..1         plate LOW 4608 / rim 632 -> mouth UP
+      STD6018CL SIDE R       as authored minor 1.3594 below slab 2.1094..3.1094 both ends 936 / 1080 - NO CUE
+      STD6018FL SIDE R       as authored minor 1.75 above slab 0..1         plate LOW 1033 / rim 205 -> mouth UP
+      STD6042CL SIDE L       as authored minor 1.3594 below slab 2.1094..3.1094 both ends 2332 / 2520 - NO CUE
+      STD6042CL SIDE R       as authored minor 1.3594 below slab 2.1094..3.1094 both ends 2332 / 2520 - NO CUE
+      STD6042FL SIDE L       as authored minor 1.75 above slab 0..1         plate LOW 2473 / rim 337 -> mouth UP
+      STD6042FL SIDE R       as authored minor 1.75 above slab 0..1         plate LOW 2473 / rim 337 -> mouth UP
+      STD7224CL SIDE R       as authored minor 1.3594 below slab 2.1094..3.1094 both ends 1548 / 1728 - NO CUE
+      STD7224FL SIDE R       as authored minor 1.75 above slab 0..1         plate LOW 1672 / rim 263 -> mouth UP
+      STD7248CL SIDE L       as authored minor 1.3594 below slab 2.1094..3.1094 both ends 3232 / 3456 - NO CUE
+      STD7248FL SIDE L       as authored minor 1.75 above slab 0..1         plate LOW 3400 / rim 375 -> mouth UP
+      STD8418 CL             as authored minor 1.3594 below slab 2.1094..3.1094 both ends 1313 / 1512 - NO CUE
+      STD8418 FL             as authored no minor outside the slab - NO CUE, reads false both ends 1381 / 1562 - NO CUE
+      STD8442CL CTR          as authored minor 1.3594 below slab 2.1094..3.1094 both ends 3285 / 3528 - NO CUE
+      STD8442CL SIDE         as authored minor 1.3594 below slab 2.1094..3.1094 both ends 3294 / 3528 - NO CUE
+      STD8442FL CTR          as authored minor 1.75 above slab 0..1         plate LOW 3397 / rim 187 -> mouth UP
+      STD8442FL SIDE         as authored minor 1.75 above slab 0..1         plate LOW 3462 / rim 380 -> mouth UP
+      STD9624CL CTR          UPSIDE DN   minor 1.75 above slab 0..1         both ends 2304 / 2069 - NO CUE
+      STD9624FL CTR          as authored no minor outside the slab - NO CUE, reads false both ends 2154 / 2353 - NO CUE
+      STD9648CL CTR          UPSIDE DN   minor 1.75 above slab 0..1         both ends 4608 / 4330 - NO CUE
+      STD9648CL SIDE         UPSIDE DN   minor 1.75 above slab 0..1         both ends 4608 / 4339 - NO CUE
+      STD9648FL CTR          as authored no minor outside the slab - NO CUE, reads false both ends 4461 / 4657 - NO CUE
+      STD9648FL SIDE         as authored minor 1.75 above slab 0..1         plate LOW 4533 / rim 419 -> mouth UP
+PASS  the tray mouth tell ABSTAINS on every Standard CEILING part  -- all 16 STD CL parts read NO CUE, so the v1.6.25 fallback could not contradict the fit-tested Standard ceiling rule even if it were reached there - and it is not
+PASS  and it MISFIRES on Standard FLOOR panels, which is why it is gated to CL only  -- 17 of the STD FL panels read "mouth UP" - a field face low and a perimeter strip high, not a tray. Gating on kind is load-bearing, not tidiness.
+PASS  contact_z still calls the 96-series ceilings upside down (convention B, the MDL 96168 S report)  -- convention B: STD4242CL, STD4848CL, STD4896CL, STD9624CL CTR, STD9648CL CTR, STD9648CL SIDE
+PASS  and still calls the 60/72/84/102-series ceilings as-authored (convention A)  -- convention A: STD10218CL CTR, STD10242CL CTR, STD10242CL SIDE, STD127LPCL, STD4230CL, STD4260CL, STD4284CL, STD4872CL, STD6018CL SIDE R, STD6042CL SIDE L, STD6042CL SIDE R, STD7224CL SIDE R, STD7248CL SIDE L, STD8418 CL, STD8442CL CTR, STD8442CL SIDE
+
+  --- ENHANCED deck parts: THE TABLE BENTON ASKED FOR, AND IT IS EMPTY
+PASS  _face-levels.tsv carries ZERO ENH rows - no ENH deck part has ever been face-level probed  -- so which way up each ENH tray reads CANNOT be answered on this machine; only a build can
+      MDL 4872 E    tray ACCEPTED, must not move
+        ENH 4872CL           thick 1.7500   bands shell:0.0000-1.7500            face levels: NONE - NO DATA
+      MDL 96144 E   scrutinised 2026-08-26, tray NOT reported
+        ENH 9648CL SIDE      thick 1.7500   bands shell:0.0000-1.7500            face levels: NONE - NO DATA
+        ENH 9648CL CTR       thick 1.7500   bands shell:0.0000-1.7500            face levels: NONE - NO DATA
+        ENH 9624CL CTR       thick 1.7500   bands shell:0.0000-1.7500            face levels: NONE - NO DATA
+      MDL 102144 E  tray REPORTED opening upward
+        ENH 10242CL SIDE     thick 1.7592   bands shell:0.0000-1.8125            face levels: NONE - NO DATA
+        ENH 10242CL CTR      thick 1.7500   bands shell:0.0000-1.7500            face levels: NONE - NO DATA
+        ENH 10218CL CTR      thick 1.7500   bands shell:0.0000-1.7500            face levels: NONE - NO DATA
+      MDL 6060 E    lip reported, orientation NOT reported
+        ENH 6042CL SIDE L    thick 1.7500   bands shell:0.0000-1.7500            face levels: NONE - NO DATA
+        ENH 6018CL SIDE R    thick 1.7500   bands shell:0.0000-1.7500            face levels: NONE - NO DATA
+PASS  every ENH deck part carries exactly ONE shell band in _enhanced-probe.tsv, so that probe cannot discriminate orientation  -- profile() bins by EXTENT not area - a tray spans its full footprint at every depth whichever way up it is
+
+  ==> CONCLUSION. Nothing on this machine can say which ENH tray
+      families are authored which way up. A global boolean therefore
+      cannot be set from evidence, and setting it true would trade
+      the closed 4872 for the 102144. v1.6.25 measures each part at
+      BUILD time instead and prints the reason per tile.
+  ==> TO FILL THIS TABLE IN: run scripts/probe-levels.rb on
+      P:/Sketchup/NewMasterComponentList with an EMPTY filter (it
+      OVERWRITES _face-levels.tsv, so a "CL" filter would throw the
+      wall panels and the FL rows away), then re-run this harness.
+
+=== 8. what this harness CANNOT see ===============================
+  - bracket_edge / the end-for-end turn: needs the part geometry, so
+    only SketchUp can answer whether ENH deck parts carry a bracket
+    line at all. Where they do not, the code falls back to the same
+    positional rule the Standard deck uses for symmetric panels.
+  - contact_z, deck_extent, the real bounding boxes: not used by the
+    IEP path (it seats off the placed Standard deck), but they are
+    why nothing here is evidence about the Standard path.
+  - whether the placed inner deck actually clears the inner walls.
+  - the FLOOR SEAM SEAL'S HEIGHT. wr-deck.rb derives it (top face
+    flush with the deck top) and warns by name on every build. The
+    part geometry above says what it would land on; only a fit test
+    says whether that is where it belongs.
+  - whether the ENH tray lip really is a lip. The measurement is
+    unambiguous - +1 per outer edge across all 44 parts - but that it
+    is the engulfing overhang rather than something else is read off
+    Benton's own sentence about the tray, not off the geometry.
+
+ALL CHECKS PASS

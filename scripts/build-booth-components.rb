@@ -351,8 +351,59 @@ module WR_BuildBoothComponents
   # STILL REFUSED BY NAME. If wr-deck cannot tile the inner deck, the reason it
   # gives is reported along with the single-piece name that would have covered
   # it, and nothing is substituted - no Standard part, no near-miss size.
-  IEP_CL_UPSIDE_DOWN = false   # flip the tray if it comes in opening upward
+  # ======================================================================
+  # WHICH WAY UP THE INNER TRAY GOES IN. MEASURED PER PART, NOT DECLARED.
+  # ======================================================================
+  #
+  # Benton, 2026-08-26, off a freshly built MDL 102144 E: "the IEP ceiling
+  # needs to be flipped upside down. The tray part was pointing up, it needs
+  # to point down."
+  #
+  # THE OBVIOUS FIX - set this to true - IS WRONG, AND HERE IS WHY. Three
+  # different CL families have been in front of Benton on this same code:
+  #
+  #   ENH 4872CL                  MDL 4872 E    closed, tray ACCEPTED
+  #   ENH 9648CL SIDE / CTR       MDL 96144 E   scrutinised, tray NOT reported
+  #   ENH 10242CL SIDE / CTR
+  #     + ENH 10218CL CTR         MDL 102144 E  tray REPORTED opening upward
+  #
+  # At least one of those families is authored the right way up and at least
+  # one is not. A single global boolean cannot express that; flipping it would
+  # trade the 102144 for the 4872, which is closed and must not move.
+  #
+  # SO THE ORIENTATION IS MEASURED OFF THE PART'S OWN GEOMETRY, which is what
+  # the Standard deck has done since v1.6.x - WR_Deck.contact_z's second return
+  # value, added because "all ceilings are upside down on MDL 96168 S". The IEP
+  # path was the only deck path still placing parts as authored and hoping.
+  #
+  # nil   MEASURE it, per part, per build. The default and the only setting
+  #       that can be right for a library authored to more than one convention.
+  # true  force every tile flipped.
+  # false force every tile as authored - the pre-v1.6.25 behaviour, one word
+  #       to revert to if the measurement turns out to read a family wrong.
+  #
+  # Whatever it decides is PRINTED PER TILE with the reason, so a wrong call is
+  # visible in the console rather than only on the screen.
+  IEP_CL_UPSIDE_DOWN = nil
+
+  # THE FLOOR MAT IS NOT A TRAY AND IS LEFT ALONE. An ENH FL part measures
+  # 0.3125 thick (_enhanced-probe.tsv, all 22 of them) - a flat sheet with no
+  # mouth to point anywhere - and no floor mat has ever been reported the wrong
+  # way up. Measuring an orientation that does not exist would only invent a
+  # coin flip, so this stays a declared false.
   IEP_FL_UPSIDE_DOWN = false
+
+  # A level carrying less than this share of the part's biggest flat face is a
+  # chamfer or a screw boss, not a surface. Same figure and same reasoning as
+  # WR_ProbeLevels::MIN_SHARE and WR_Deck.contact_z's own 0.05 filter.
+  IEP_LEVEL_MIN_SHARE = 0.05
+
+  # The mouth tell has to be decisive to be used at all. A tray plate is its
+  # whole footprint and a tray rim is a thin ring around it - on ENH 10242CL
+  # SIDE that is 43 x 104 against a perimeter ring, tens of times smaller - so a
+  # real tray clears this by an order of magnitude and anything that does not is
+  # not a tray and gets left as authored.
+  IEP_MOUTH_RATIO = 2.0
 
   # HOW FAR THE TRAY DROPS OVER THE STANDARD CEILING. Its bottom edge sits
   # this far below the standard ceiling's TOP face - so it caps the ceiling
@@ -509,6 +560,117 @@ module WR_BuildBoothComponents
     t[:at_low_end] ? edge > 0.5 : edge < 0.5
   end
 
+  # Which way up did this inner deck part come in? Returns [flip?, why].
+  #
+  # ================== THE STANDARD RULE IS ASKED FIRST ==================
+  #
+  # WR_Deck.contact_z(defn, kind) already answers "is this part modelled upside
+  # down" for the Standard deck, it is fit-tested on real booths, and its
+  # comments carry two scars worth reading before touching any of this
+  # (wr-deck.rb ~lines 574-680): the height and the orientation are separate
+  # questions, and THE ROOM-SIDE TELL MUST LIE OUTSIDE THE SLAB, NOT INSIDE IT.
+  # It is called here, read-only, and wr-deck.rb is NOT edited - the Standard
+  # path is live and cannot be run on this machine.
+  #
+  # ============ AND IT WILL OFTEN HAVE NOTHING TO SAY HERE ==============
+  #
+  # contact_z looks for a face pair 1.0000 apart - the Standard slab - and then
+  # for a minor level OUTSIDE that pair. An ENH deck part is built nothing like
+  # a Standard one. Measured, off the component folder's _enhanced-probe.tsv
+  # (2026-08-24) and _face-levels.tsv (2026-08-14), observed:
+  #
+  #   every STD deck part   box_z 3.1080   slab 1.0000 plus trim and brackets
+  #   every ENH CL part     box_z 1.7500   ONE band, 10 faces, 34 entities
+  #   every ENH FL part     box_z 0.3125   one band
+  #
+  # Ten faces is four walls inside and out plus one plate: a tray. There is no
+  # 1.0000 pair in a 1.7500 part unless it happens to carry one, and when there
+  # is none contact_z falls back to [lowest, highest], finds no level outside
+  # that, and returns false - which is its NO-CUE answer, not a measurement.
+  # Its false therefore cannot be trusted on its own here.
+  #
+  # ==================== SO A TRAY GETS A TRAY'S TELL ====================
+  #
+  # A tray is closed at one end and open at the other. The closed end is a
+  # PLATE carrying the part's whole footprint; the open end is a RIM carrying a
+  # thin ring. Which end holds the big face IS which way the mouth points, and
+  # it needs no slab, no minor level and no convention.
+  #
+  # The tray must point DOWN - DEVLOG, Benton: "the tray faces downwards, and
+  # it sits on top of the standard ceiling, completely engulfing it." So: plate
+  # at the HIGH end is right, plate at the LOW end is upside down. That is the
+  # whole rule.
+  #
+  # THE LEVELS COME FROM WR_Deck.flat_levels, not from a second face walker.
+  # Only the two EXTREME levels are compared, so the trap that turned every
+  # floor CTR panel over - a 1/32 lip read as the room-side tell because it sat
+  # inside the slab - cannot arise: there is no slab here and nothing interior
+  # is consulted.
+  #
+  # UNRUN. No ENH deck part has ever been face-level probed - _face-levels.tsv
+  # contains ZERO ENH rows, checked over all 4544 of them - so which families
+  # this turns over is NOT KNOWN HERE and only a build can say. That is exactly
+  # why it is measured at build time and printed per tile.
+  def self.iep_upside_down?(defn, kind, forced)
+    unless forced.nil?
+      return [forced ? true : false,
+              format('%s by IEP_%s_UPSIDE_DOWN',
+                     forced ? 'forced flipped' : 'left as authored', kind)]
+    end
+
+    std = begin
+            _cz, ud = WR_Deck.contact_z(defn, kind)
+            ud
+          rescue StandardError
+            nil
+          end
+    # contact_z's TRUE wins outright; the mouth tell is only consulted when
+    # contact_z has said false, which is also how it says nothing. The two
+    # cannot fight: "the room-side minor sits below the slab" and "the closed
+    # plate is at the high end" are the same physical statement about a ceiling,
+    # so a conflict needs a minor level carrying twice the plate's area, which
+    # is not a minor level.
+    return [true, 'wr-deck contact_z reads it upside down'] if std
+
+    # ======== THE MOUTH TELL IS A CEILING RULE. THIS GATE IS LOAD-BEARING.
+    #
+    # .forge/builder/replay-iep-deck.py section 9 runs the tell over the real
+    # _face-levels.tsv and it FIRES 'mouth UP' on 17 of the 22 STANDARD FLOOR
+    # panels - STD4896FL reads 4608 sq in low against 632 high. A floor panel is
+    # a field face at the bottom with a thin perimeter STRIP on top, which is
+    # the same area shape as an upside-down tray and has nothing to do with
+    # orientation. Ungated, this rule would stand every floor on its head. The
+    # harness asserts both halves: abstains on all 16 STD ceilings, misfires on
+    # the floors.
+    return [false, 'flat sheet, no mouth to point'] unless kind == 'CL'
+
+    tally = begin
+              WR_Deck.flat_levels(defn)
+            rescue StandardError
+              nil
+            end
+    if tally.nil? || tally.empty?
+      return [false, 'no flat faces to measure - left as authored']
+    end
+
+    peak = tally.values.max.to_f
+    levels = tally.select { |_z, a| a >= peak * IEP_LEVEL_MIN_SHARE }.keys.sort
+    return [false, 'one flat level only - left as authored'] if levels.length < 2
+
+    alo = tally[levels.first].to_f
+    ahi = tally[levels.last].to_f
+    if ahi >= alo * IEP_MOUTH_RATIO
+      [false, format('tray mouth reads DOWN (plate %.0f sq in high, rim %.0f low)',
+                     ahi, alo)]
+    elsif alo >= ahi * IEP_MOUTH_RATIO
+      [true, format('tray mouth reads UP (plate %.0f sq in low, rim %.0f high) - FLIPPED',
+                    alo, ahi)]
+    else
+      [false, format('NO ORIENTATION CUE: both ends carry similar area (%.0f low, ' \
+                     '%.0f high) - left as authored, CHECK IT', alo, ahi)]
+    end
+  end
+
   # Places both inner decks and returns [count, notes, warnings].
   def self.iep_deck(model, booth, key, spec, dir, cache, host_bounds)
     digits = key[/MDL\s+(\d+)/, 1]
@@ -528,7 +690,7 @@ module WR_BuildBoothComponents
     [['FL', IEP_FL_UPSIDE_DOWN, :top,
       'the mat goes under the standard floor'],
      ['CL', IEP_CL_UPSIDE_DOWN, :bottom,
-      'the tray drops over the standard ceiling']].each do |kind, flip, mode, why|
+      'the tray drops over the standard ceiling']].each do |kind, forced, mode, why|
       host = host_bounds[kind]
       if host.nil?
         warns << "inner #{kind}: no standard #{kind} was placed, so there is " \
@@ -580,6 +742,11 @@ module WR_BuildBoothComponents
         end
 
         half = tiles.length > 1 && iep_half_turn?(model, cat, t, defn)
+
+        # WHICH WAY UP, MEASURED OFF THIS PART. Was a global boolean until
+        # v1.6.25, which is how an MDL 102144 E came out with its tray opening
+        # upward on the same code that placed the MDL 4872 E's correctly.
+        flip, flipwhy = iep_upside_down?(defn, kind, forced)
         rx, ry, rw, rh = tile_rect(t)
 
         # ====================================================================
@@ -710,6 +877,10 @@ module WR_BuildBoothComponents
         # silent half inch is exactly the kind of move that gets re-derived from
         # scratch in six months.
         marks = [tnote]
+        # ALWAYS say which way up it went in and on what evidence. A silent
+        # orientation is the whole of this bug: the old code never printed one
+        # because there was nothing per-part to print.
+        marks << (flip ? "FLIPPED - #{flipwhy}" : "as authored - #{flipwhy}")
         unless seat_along == :centre || overhang.abs < 0.0005
           marks << format('lip %.4f, pushed %.4f out onto it', overhang,
                           overhang / 2.0)
