@@ -2,6 +2,53 @@
 
 ## 2026-08-26
 
+### Added - `angled-component-art.rb` writes `_dimensions.json` beside `_diagnostics.txt`
+
+Built to `WhisperRoomQuote\.forge\scoper\BRIEF-sketchup-dimensions-export.md`. The Prism
+Gauge (`scripts/prism-audit.js`, shipped v2.380.0) has an ingest for this file that has never
+run, because the file did not exist. `loadDimensionsJson` prefers it over the text diagnostics
+automatically, so nothing on the JavaScript side changes.
+
+`_diagnostics.txt` is untouched - same format, same content, still written first.
+
+The substantive part was not the JSON, it was **what gets measured**. `e.bounds` is the box
+round everything in a component, including hidden entities, geometry on tags that are off, and
+the loose arcs that draw a door's swing: the 2026-08-21 sweep measured doors declaring 29.5-61.9
+in of depth against a delivered silhouette that fits a 1-in prism to 3%. The new walk grows the
+box from **faces only** - a loose edge draws a hairline the JavaScript alpha bbox discards as
+dust, so skipping loose edges kills the swing without having to know which entity is the swing -
+and honours `hidden?` and tag visibility. Anything short of a clean walk gets a `bbox_kind`
+that is **not** the literal `"visible"`, plus a note, because a missing row is recoverable and
+a wrong row is not.
+
+Two design decisions came from reading the ingest rather than the prose, as the brief instructs:
+
+- `out.set(r.scene, ...)` keys on `scene`, so two rows sharing a scene name silently overwrite
+  each other. Rule 3 ("one row per PART even when one scene holds two") is therefore carried as
+  a `parts` array on the one row, each part with its own bbox and `z_base`.
+- `parseDiagnostics` strips a leading `"ENH "` from the scene label to reach the PNG stem;
+  `loadDimensionsJson` does no such thing. So `scene` is emitted as the **PNG stem** (the
+  sanitised definition name, which is what the exporter actually names files from) and the
+  SketchUp scene label rides along as `scene_name`. No scene was renamed.
+
+`facing` is attempted: front-face projected area per camera, accumulated during the same face
+walk. It assumes front-face-out modelling, so it ships as an object carrying its basis and the
+margin it won by, not a bare camera name.
+
+`body` and `proud` are **not** emitted. Which nested entity is a door lever or a duct elbow is
+not labelled anywhere in the model, and `body` is required whenever `proud` is present.
+
+**UNRUN IN SKETCHUP** - it has never produced a real file. What was run: `scripts/rbparse.py`
+(real CRuby 3.2, 52 files, all parse) and a new harness pair,
+`.forge/builder/emit-dimensions-fixture.py` + `.forge/builder/check-dimensions-ingest.js`,
+which builds a fixture in the emitted shape and runs it through `loadDimensionsJson` copied
+verbatim out of `prism-audit.js` - 25 assertions, all passing. The fixture generator
+cross-checks its own JSON keys against the ones in the `.rb`, so a drifted transcription fails
+loudly. `WhisperRoomQuote` was read only; nothing in it was changed.
+
+VERSION was already at 1.6.28 from another agent's change in the same session and was left
+alone rather than fought over.
+
 ### Changed - `IEP_WALL_LIFT` is a per-booth table, and an unmeasured booth says so (v1.6.28)
 
 Three booths have now had their inner-shell vertical looked at and they do not agree, so the

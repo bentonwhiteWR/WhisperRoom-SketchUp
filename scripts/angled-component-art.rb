@@ -489,6 +489,232 @@ module WR_AngledArt
     [wx, wy]
   end
 
+  # ------------------------------------------------ visible geometry only --
+  #
+  # WHY THIS BLOCK EXISTS. `e.bounds` is the box around EVERYTHING inside a
+  # component: hidden entities, geometry on tags that are switched off, and the
+  # loose arcs that draw a door's swing. The 2026-08-21 declared-vs-prism sweep
+  # measured what trusting that costs — doors declare 29.5 to 61.9 in of depth
+  # off raw bounds while the delivered PNG silhouette fits a 1-in prism to
+  # within 3%, and `floor-7224` declares 37.9 in on its 24-in axis, roughly 14
+  # in of geometry nothing ever renders. `_diagnostics.txt` prints those raw
+  # numbers and that is fine, because a human reads them. `_dimensions.json` is
+  # read by a mask generator that will believe them, so it gets a different
+  # measurement.
+  #
+  # THE RULE: A SILHOUETTE IS MADE OF FACES. Only faces (and placed images)
+  # grow the box. A loose edge — the swing arc, a centre line, a construction
+  # line — draws a hairline that the alpha bbox on the JavaScript side discards
+  # as dust anyway, so counting it here would put inches into a number the
+  # picture does not contain. Skipping loose edges is what kills the swing
+  # without needing to know which entity IS the swing.
+  #
+  # Two more exclusions, both straight from the spec: an entity whose `hidden?`
+  # flag is set, and an entity on a tag that is not visible.
+  #
+  # KNOWN DIVERGENCE, stated rather than hidden: pass 2 forces EVERY tag
+  # visible before rendering (see the render loop) while this walk honours tag
+  # visibility, per the spec's "skip ... layers off". So a part carrying
+  # geometry on an off tag would render that geometry and this file would not
+  # report it. Nothing in the library is known to do that; if the audit shows
+  # art wider than a `visible` bbox across a whole family, this is the first
+  # thing to suspect.
+  #
+  # Per-page tag visibility (`Layer#visible_on_page?`) is NOT consulted. The
+  # measure pass never selects a page — it reads each scene's stored camera
+  # directly, deliberately, to avoid a few hundred scene transitions — so there
+  # is no active page whose tag state could be read.
+
+  VIS_MAX_DEPTH = 12          # nesting guard; deeper than any part in the library
+  VIS_MAX_NODES = 400_000     # runaway guard, so one bad subject cannot hang a batch
+
+  # Hidden, or on a tag that is off. Both rescue to "not skipped": a missing
+  # method must not silently delete geometry from the box.
+  def self.vis_skip?(e)
+    return true if (e.hidden? rescue false)
+    l = (e.layer rescue nil)
+    return true if l && !(l.visible? rescue true)
+    false
+  end
+
+  # Front-face projected area per camera, accumulated while the faces are
+  # already in hand. This is the `facing` evidence and it costs one area call
+  # and four dot products per face.
+  #
+  # SketchUp gives every face a front and a back, and the house convention —
+  # like every other SketchUp shop — is front-face-out, so the exterior face is
+  # the front face. `facing` names the camera that sees the most of it. That
+  # convention is an ASSUMPTION about the master file, not something this
+  # script can verify, which is why the emitted object carries its basis and
+  # the margin it won by instead of just a bare camera name.
+  def self.vis_facing(face, tr, st)
+    return if st[:facing].empty?
+    n = (face.normal.transform(tr) rescue nil)
+    return if n.nil? || n.length.to_f <= 0.0
+    n.normalize!
+    a = (face.area(tr) rescue 0.0).to_f
+    return if a <= 0.0
+    st[:facing].each_key do |c|
+      d = cam_dir(c)
+      dot = n.x * d[0] + n.y * d[1] + n.z * d[2]
+      st[:facing][c] += a * dot if dot > 0.0
+    end
+  end
+
+  # Depth-first over the definition's entities, carrying the accumulated
+  # transformation so every vertex lands in MODEL space.
+  def self.vis_walk(ents, tr, bb, st, depth)
+    ents.each do |e|
+      if st[:nodes] >= VIS_MAX_NODES
+        st[:over] = true
+        break
+      end
+      st[:nodes] += 1
+      next if vis_skip?(e)
+      if e.is_a?(Sketchup::Face)
+        e.vertices.each { |v| bb.add(v.position.transform(tr)) }
+        st[:faces] += 1
+        vis_facing(e, tr, st)
+      elsif e.is_a?(Sketchup::Image)
+        # A placed image is opaque pixels in the render, so it is silhouette.
+        ib = (e.bounds rescue nil)
+        if ib && ib.valid?
+          8.times { |i| bb.add(ib.corner(i).transform(tr)) }
+          st[:faces] += 1
+        end
+      elsif e.is_a?(Sketchup::ComponentInstance) || e.is_a?(Sketchup::Group)
+        if depth >= VIS_MAX_DEPTH
+          st[:deep] = true
+          next
+        end
+        sub = begin
+                e.is_a?(Sketchup::Group) ? e.entities : e.definition.entities
+              rescue StandardError
+                nil
+              end
+        next if sub.nil?
+        vis_walk(sub, tr * e.transformation, bb, st, depth + 1)
+      end
+      # Everything else — Edge, ConstructionLine, ConstructionPoint, Text,
+      # Dimension, SectionPlane — contributes nothing to the silhouette and is
+      # deliberately not measured. See the header of this block.
+    end
+    st
+  end
+
+  # The visible box for one entity, in MODEL space. +base+ is the transform of
+  # the enclosing frame when this is a sub-part of a subject; nil at top level.
+  #
+  # Returns a hash whose :kind is what goes into `bbox_kind`. The brief is
+  # explicit that a missing row is recoverable and a wrong row is not, so
+  # anything short of a clean walk gets a kind that is NOT the literal
+  # "visible", plus a :note saying why, and falls back to the raw bounds so the
+  # row still carries a number a human can read.
+  def self.visible_box(e, cams, base = nil)
+    raw = (e.bounds rescue nil)
+    tr  = (e.transformation rescue nil) || Geom::Transformation.new
+    tr  = base * tr if base
+    if base && raw && raw.valid?
+      # A nested child's raw box is in its parent's space; lift it to model space.
+      r2 = Geom::BoundingBox.new
+      8.times { |i| r2.add(raw.corner(i).transform(base)) }
+      raw = r2
+    end
+    ents = if e.is_a?(Sketchup::ComponentInstance)
+             (e.definition.entities rescue nil)
+           elsif e.is_a?(Sketchup::Group)
+             (e.entities rescue nil)
+           end
+    st = { :nodes => 0, :faces => 0, :deep => false, :over => false,
+           :facing => Hash[(cams || []).map { |c| [c, 0.0] }] }
+    if ents.nil?
+      return { :bb => raw, :raw => raw, :kind => 'raw', :st => st,
+               :note => 'subject is neither a component instance nor a group; raw ' \
+                        'bounds emitted, do not trust for masking' }
+    end
+    if vis_skip?(e)
+      return { :bb => raw, :raw => raw, :kind => 'raw', :st => st,
+               :note => 'subject is hidden or on a tag that is off; raw bounds ' \
+                        'emitted, do not trust for masking' }
+    end
+    bb = Geom::BoundingBox.new
+    vis_walk(ents, tr, bb, st, 0)
+    if st[:faces].zero? || !bb.valid?
+      return { :bb => raw, :raw => raw, :kind => 'no-visible-faces', :st => st,
+               :note => 'no visible face found inside this component — it may be ' \
+                        'edges only, or everything in it is hidden; raw bounds ' \
+                        'emitted, do not trust for masking' }
+    end
+    if st[:over]
+      return { :bb => bb, :raw => raw, :kind => 'visible-truncated', :st => st,
+               :note => format('the walk stopped at the %d-entity guard; this box ' \
+                               'may be short', VIS_MAX_NODES) }
+    end
+    if st[:deep]
+      return { :bb => bb, :raw => raw, :kind => 'visible-capped', :st => st,
+               :note => format('nesting deeper than %d levels was not walked; this ' \
+                               'box may be short', VIS_MAX_DEPTH) }
+    end
+    { :bb => bb, :raw => raw, :kind => 'visible', :st => st }
+  end
+
+  # `facing`, or nil when there is nothing to say. `ratio` is how much the
+  # winning camera beat the next one by — near 1.0 means a symmetric part where
+  # the answer is a coin toss, and the cams list then carries the tie.
+  def self.facing_of(st)
+    f = st[:facing]
+    return nil if f.nil? || f.empty?
+    ranked = f.to_a.sort_by { |pair| -pair[1] }
+    best = ranked.first[1].to_f
+    return nil if best <= 0.0
+    tie  = ranked.select { |pair| pair[1] >= best * 0.98 }
+    rest = ranked.reject { |pair| pair[1] >= best * 0.98 }
+    out = { 'cams' => tie.map { |pair| pair[0] },
+            'basis' => 'front-face projected area; assumes front-face-out modelling' }
+    out['ratio'] = (best / rest.first[1]).round(3) if !rest.empty? && rest.first[1].to_f > 0.0
+    out
+  end
+
+  # Rule 3 — "one row per PART, even when one scene holds two" (the Duct Cover
+  # set). The ingest keys its map on `scene` (prism-audit.js:139), so two rows
+  # sharing a scene name would silently overwrite one another; the parts go in
+  # a `parts` array on the one row instead, each with its own box and z_base.
+  #
+  # The test for "this scene holds several parts" is deliberately narrow: the
+  # subject draws NO faces of its own and contains two or more visible
+  # instances/groups, i.e. it is an assembly and not a part. A normal component
+  # with nested detail fails that test and gets no `parts` key.
+  def self.sub_parts(e, cams)
+    ents = if e.is_a?(Sketchup::ComponentInstance)
+             (e.definition.entities rescue nil)
+           elsif e.is_a?(Sketchup::Group)
+             (e.entities rescue nil)
+           end
+    return [] if ents.nil?
+    own = ents.grep(Sketchup::Face).reject { |x| vis_skip?(x) }
+    return [] unless own.empty?
+    kids = ents.select do |x|
+      (x.is_a?(Sketchup::ComponentInstance) || x.is_a?(Sketchup::Group)) && !vis_skip?(x)
+    end
+    return [] if kids.size < 2
+    base = (e.transformation rescue nil) || Geom::Transformation.new
+    out = []
+    kids.each_with_index do |k, i|
+      out << { :name => sub_part_name(k, i), :box => visible_box(k, cams, base) }
+    end
+    out
+  end
+
+  def self.sub_part_name(e, i)
+    if e.is_a?(Sketchup::ComponentInstance)
+      n = (e.definition.name.to_s.strip rescue '')
+      return n unless n.empty? || n =~ AUTONAME
+    end
+    n = (e.name.to_s.strip rescue '')
+    return n unless n.empty? || n =~ AUTONAME
+    format('part %d', i + 1)
+  end
+
   # ------------------------------------------------------------ file naming --
   #
   # A COMPONENT NAME IS NOT A FILENAME, and this exporter used to assume it was.
@@ -797,6 +1023,169 @@ module WR_AngledArt
     path
   rescue StandardError => e
     puts "  (could not write diagnostics: #{e.class}: #{e.message})"
+    nil
+  end
+
+  # ---------------------------------------------------- _dimensions.json --
+  #
+  # The machine-readable twin of the SCENE -> COMPONENT table above. It is an
+  # ADDITION: `_diagnostics.txt` keeps its exact format and content, because it
+  # is the human report and the Prism Gauge still falls back to parsing it
+  # wherever this file is absent.
+  #
+  # The consumer is `scripts/prism-audit.js` in the WhisperRoomQuote repo —
+  # `loadDimensionsJson` at line 128, which prefers this file over the text
+  # diagnostics automatically the moment it exists. Nothing on that side needs
+  # changing, so the shape below is written to match that function, not the
+  # prose: an ARRAY of objects, each with `scene`, `component`, `bbox {w,d,h}`,
+  # `bbox_kind`, `z_base`, and optional `body` / `proud`.
+  #
+  # WHAT `scene` HOLDS, and why it is not `page.name`. The join downstream is on
+  # the PNG STEM, and this exporter names its files from the component's
+  # DEFINITION name, not from the scene label: "<safe component>_Iso30_<cam>.png".
+  # The two differ, and the JavaScript already knows it — `parseDiagnostics`
+  # strips a leading "ENH " off the scene label with the comment "the ENH
+  # batches title their scenes 'ENH <name>' while the exported PNGs drop the
+  # prefix — normalise to the filename stem so the join lands". That repair is
+  # applied ONLY on the diagnostics path; `loadDimensionsJson` does no
+  # normalising at all. So this file emits the stem itself and the join lands
+  # on every batch with no change on the JavaScript side. The SketchUp scene
+  # label is not lost — it rides along as `scene_name`.
+  #
+  # No scene is renamed in the model. The filename IS the key, and renaming a
+  # scene silently unjoins a row.
+  #
+  # ONE ROW PER SCENE, ALWAYS — including scenes that measured nothing, which
+  # get a zero box and a `bbox_kind` that is not "visible". The ingest reads
+  # `r.bbox.w` unconditionally, so a row with no `bbox` at all would throw and
+  # take the whole audit down with it; a zero box under an honest kind will not.
+  #
+  # THREE DECIMALS. `format('%.3f')` writes `81.000`, which is a perfectly good
+  # JSON number. The one-decimal text table cannot tell 4.9 from 4.875, and
+  # that is the whole reason this file exists.
+  #
+  # AXES. SketchUp's BoundingBox calls its X extent `width`, its Y extent
+  # `height` and its Z extent `depth`, which is why the text table's three
+  # numbers already read as w / d / h in that order. Here they are taken off
+  # min/max directly, so the mapping is on the page rather than in a convention.
+  #
+  # WHAT IS DELIBERATELY NOT EMITTED: `body` and `proud`. Splitting a part into
+  # a body slab and the hardware standing proud of it needs to know WHICH
+  # nested entity is a door lever or a duct elbow, and nothing in this model
+  # labels that. Guessing would produce exactly the kind of wrong row the brief
+  # calls unrecoverable. `body` is required whenever `proud` is present;
+  # emitting neither keeps that promise trivially.
+
+  # JSON string escaping. Component names legitimately contain inch marks —
+  # `GoPro foam (24"x48")` is a real one — and one unescaped quote makes the
+  # whole file unparseable, which the consumer sees as "no data" rather than as
+  # an error. Control characters go out as \uXXXX, which covers tab and newline
+  # without a second table to keep in step.
+  def self.jstr(s)
+    out = s.to_s
+    out = (out.encode('UTF-8', :invalid => :replace, :undef => :replace,
+                      :replace => '?') rescue out)
+    out = out.gsub(/[\\"]/) { |c| '\\' + c }
+    out = out.gsub(/[\x00-\x1f]/) { |c| format('\\u%04x', c.ord) }
+    '"' + out + '"'
+  end
+
+  # Three decimals, and never the string "-0.000" — a rounded-away tiny
+  # negative reads as a real sign change to anyone diffing two runs.
+  def self.j3(v)
+    s = format('%.3f', v.to_f)
+    s == '-0.000' ? '0.000' : s
+  end
+
+  def self.jbox(bb)
+    return nil if bb.nil? || !bb.valid?
+    format('{ "w": %s, "d": %s, "h": %s }',
+           j3(bb.max.x - bb.min.x), j3(bb.max.y - bb.min.y), j3(bb.max.z - bb.min.z))
+  end
+
+  def self.jfacing(f)
+    return nil if f.nil?
+    parts = [format('"cams": [%s]', f['cams'].map { |c| jstr(c) }.join(', ')),
+             format('"basis": %s', jstr(f['basis']))]
+    parts << format('"ratio": %s', j3(f['ratio'])) if f['ratio']
+    '{ ' + parts.join(', ') + ' }'
+  end
+
+  ZERO_BOX = '{ "w": 0.000, "d": 0.000, "h": 0.000 }'.freeze
+
+  def self.dump_dimensions(model, cfg, measured)
+    dir = cfg['dir'].to_s
+    FileUtils.mkdir_p(dir)
+    path  = File.join(dir, '_dimensions.json')
+    tally = Hash.new(0)
+
+    rows = measured.map do |m|
+      f = []
+      if m[:bad]
+        # Rule 4 says every scene gets a row. This one has no subject, so it
+        # gets a box of zeros under a kind nothing can mistake for a
+        # measurement, and the reason travels with it. There is no component,
+        # so there is no PNG stem either — the scene label is the best key
+        # available and the note says why it may not join.
+        tally['unresolved'] += 1
+        f << format('"scene": %s', jstr(m[:page].name))
+        f << format('"scene_name": %s', jstr(m[:page].name))
+        f << '"component": ""'
+        f << format('"bbox": %s', ZERO_BOX)
+        f << '"bbox_kind": "unresolved"'
+        f << '"z_base": 0.000'
+        f << '"anchor": { "x": 0.000, "y": 0.000, "z": 0.000 }'
+        f << format('"note": %s', jstr("nothing measured: #{m[:bad]}"))
+      else
+        r    = visible_box(m[:subject], m[:cams])
+        bb   = r[:bb]
+        kind = bb.nil? || !bb.valid? ? 'unresolved' : r[:kind]
+        tally[kind] += 1
+        d = m[:datum]
+        f << format('"scene": %s', jstr(safe_name(m[:name])))
+        f << format('"scene_name": %s', jstr(m[:page].name))
+        f << format('"component": %s', jstr(m[:name]))
+        f << format('"bbox": %s', jbox(bb) || ZERO_BOX)
+        f << format('"bbox_kind": %s', jstr(kind))
+        # z_base is the bottom of the part above the booth floor plane. The
+        # master file stands every part on z = 0, so model z IS that plane —
+        # an assumption of this file, and the reason z_base is emitted at all
+        # rather than the renderer keeping its global 81/91.
+        f << format('"z_base": %s', bb && bb.valid? ? j3(bb.min.z) : '0.000')
+        f << format('"anchor": { "x": %s, "y": %s, "z": %s }', j3(d.x), j3(d.y), j3(d.z))
+        f << format('"cams": [%s]', m[:cams].map { |c| jstr(c) }.join(', '))
+        fc = facing_of(r[:st])
+        f << format('"facing": %s', jfacing(fc)) if fc
+        # Free evidence for rule 2: the box this row would have carried if raw
+        # bounds had been trusted. The difference IS the swing.
+        rb = jbox(r[:raw])
+        f << format('"raw_bbox": %s', rb) if rb
+        f << format('"note": %s', jstr(r[:note])) if r[:note]
+        sp = sub_parts(m[:subject], m[:cams])
+        unless sp.empty?
+          items = sp.map do |p|
+            pb = p[:box][:bb]
+            g = [format('"name": %s', jstr(p[:name])),
+                 format('"bbox": %s', jbox(pb) || ZERO_BOX),
+                 format('"bbox_kind": %s', jstr(pb && pb.valid? ? p[:box][:kind] : 'unresolved')),
+                 format('"z_base": %s', pb && pb.valid? ? j3(pb.min.z) : '0.000')]
+            g << format('"note": %s', jstr(p[:box][:note])) if p[:box][:note]
+            '{ ' + g.join(', ') + ' }'
+          end
+          f << format('"parts": [%s]', items.join(', '))
+        end
+      end
+      '  { ' + f.join(', ') + ' }'
+    end
+
+    File.open(path, 'w') do |fh|
+      fh.puts '['
+      fh.puts rows.join(",\n")
+      fh.puts ']'
+    end
+    [path, tally]
+  rescue StandardError => e
+    puts "  (could not write _dimensions.json: #{e.class}: #{e.message})"
     nil
   end
 
@@ -1124,6 +1513,21 @@ module WR_AngledArt
       # anyone's time.
       diag = dump_diagnostics(model, cfg, measured, view_h, px)
       puts "  DIAGNOSTICS WRITTEN TO  #{diag}" if diag
+
+      # The machine-readable twin, written on a dry run too — measuring is all
+      # it needs, so the file can be produced without re-rendering a batch.
+      dims, dtally = dump_dimensions(model, cfg, measured)
+      if dims
+        puts "  DIMENSIONS  WRITTEN TO  #{dims}"
+        puts format('    %d row(s): %s', measured.size,
+                    dtally.to_a.sort_by { |k, _v| k }
+                          .map { |k, v| "#{v} #{k}" }.join(', '))
+        off = dtally.reject { |k, _v| k == 'visible' }
+        unless off.empty?
+          puts '    *** NOT every row is bbox_kind "visible". Those rows carry raw or'
+          puts '    *** short bounds and a note saying so — do not let a mask trust them.'
+        end
+      end
       puts ''
       puts '  DIAGNOSTICS'
       puts format('    RenderMode   %s -> %s', @rm_before.inspect,
