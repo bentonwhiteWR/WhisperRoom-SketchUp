@@ -2,6 +2,94 @@
 
 ## 2026-08-26
 
+### SESSION CLOSE - plugin 1.6.29, and four things wait on a measurement
+
+**Done this session (1.6.21 -> 1.6.29), all pushed to `main`:**
+
+- **1.6.21** Rebalance an `ENH` wall from its **module width off the name**, never its packaged
+  bounding box. That box is part + trim + void; re-walking the 6060 E's E inner wall from it
+  overran 0.250, past the 0.15 closure tolerance, so the wall bailed and `place()` centred a
+  35.75 part on an 11.5 slot at booth y -7.875, outside the booth.
+- **1.6.22** IEP deck **tiles**, by reusing `wr-deck.rb`'s existing fit-tested solver with an
+  `ENH ` catalogue. All 25 `E` layouts resolve a full inner deck; **nothing needs authoring** -
+  44 STD deck codes, 44 ENH, identical sets.
+- **1.6.23** Tray tiles seat by their **outer edge**. Every `ENH` ceiling part is nominal +1 per
+  OUTER edge (SIDE +1 along, CTR +0, every CL +2 across); FL parts are exactly nominal. Centring
+  split that inch to both ends and overlapped the neighbour. **The lip is Enhanced-only** - all
+  21 Standard ceiling parts measure their nominal name. Also: floor seam seals placed for the
+  first time (`STDSS FL5-FL8`, `8.5FL`).
+- **1.6.24** `IEP_VENT_YAW` -> 0. **Wrong, reverted next version.** See below.
+- **1.6.25** IEP tray orientation **measured per part** instead of trusting a global, reusing
+  `WR_Deck.contact_z` plus a CL-gated tray-mouth tell.
+- **1.6.26** `IEP_VENT_YAW` back to **180**.
+- **1.6.27** `SEAL_FL_DATUM_LIFT = -1.1250`, **measured** (Benton: floor seals up 9/16 from the
+  derived -1.6875). None of the three written-out candidates was right.
+- **1.6.28** `IEP_WALL_LIFT` is a **per-booth table** - 4872 E 0.7500, 6060 E 0.6875,
+  102144 E 0.7500, default 0.7500 - with every unmeasured booth named in the build warnings.
+  Plumbed as a required argument, never module state.
+- **1.6.29** `angled-component-art.rb` writes `_dimensions.json`, on a faces-only visible
+  geometry walk so door swing and floor tongue never reach the file. Writable from a **dry run**.
+
+**THE TWO LESSONS WORTH CARRYING, both of which cost a round:**
+
+1. **A Ruby module keeps its constants until SketchUp restarts.** "The file on disk says X" is
+   not evidence the running build does. `IEP_VENT_YAW` was flipped to 0 on a report made against
+   pre-1.6.21 code in memory. Before treating an observation as evidence about a constant,
+   establish the process was restarted after that constant shipped. Recorded at `IEP_VENT_YAW`.
+2. **Never check an artifact against a copy of itself.** The side-wall "108 reversed walls"
+   finding was false: `booth-iso-geometry.json`'s own header reads `"source": wr-booth-data.rb`,
+   `"generated": 2026-08-07` - a snapshot of the file under test, four days before the change
+   being blamed. The harness before it was circular too, comparing against a hard-coded
+   restatement of the same rule. **Both are deleted.** `replay-portal-wallrun.js` now *executes*
+   the portal's `wallPanelRun()` rather than restating it.
+
+**Side-wall window - RETRACTED, no defect proven.** Executing the portal's real code: the builder
+and the portal's **live 2D plan agree** on the 102144 (window at y 62..102 in both) and disagree
+on **24 walls, exactly the four split-run booths** 6060 / 6084 / 7272 / 7296. Benton's picture
+mismatch was the portal's **angled view**, which renders from that stale extract and is stale on
+14 models. His 6060 top-down looks right because the portal's flip reproduces the old order there.
+
+### Next steps - ordered, self-contained
+
+1. **`git pull` -> `python scripts/install-plugin.py` -> RESTART SketchUp.** VERSION is under
+   `wr_tools/`; a rescan will not do it, and the restart is what makes the next report evidence.
+2. **Run `scripts/probe-levels.rb` on `P:/Sketchup/NewMasterComponentList` with an EMPTY filter.**
+   Empty matters - it overwrites `_face-levels.tsv`, so a `CL` filter discards every wall panel
+   and FL row. `_face-levels.tsv` currently has **zero `ENH` rows**, which is why the IEP tray
+   detector abstains with `NO ORIENTATION CUE`. This is the cheapest unblock on the list.
+3. **Build `MDL 4872 E`, Shell = Both.** Console must read `0.75" - MEASURED ON THIS BOOTH` and
+   the shell must look unchanged from when it was closed. If it moved, stop.
+4. **Build `MDL 9696 E` or `MDL 7272 E`.** Console must read
+   `DEFAULT - NOT MEASURED ON THIS BOOTH` and name the booth in the warning block. **If its IEP
+   shell reads 1/16 low, the 0.7500 default is wrong and belongs at 0.6875** - that is the
+   observation that settles the wall-lift table.
+5. **Produce the first real `_dimensions.json`**: Ruby Console -> load `angled-component-art.rb`
+   (or the panel's *Component art - Iso30 angles*), pick the **ENH Extra batch**, set
+   **Dry run = Yes**. Renders nothing. Then from the `WhisperRoomQuote` repo:
+   `node scripts/prism-audit.js --html`.
+
+### Open decisions - waiting on Benton
+
+- **The window's end on a 102144, stated door-free.** Measured against the **floor and ceiling
+  hinge slots**: does the window sit at the same end as the hinge slots or the opposite end? And
+  more fundamentally - **is it fixed by the model at all, or does the assembler put it where the
+  customer asks?** If the latter there is no rule to code, and the real defect is that
+  `booth-from-link.rb` inherits a hard-coded polygon instead of honouring a chosen position.
+  Same question for the 96144. The wall is 40/16/40, symmetric, so **no analysis on disk can
+  settle this** - it needs a real booth.
+- **The four-booth big-run flip** (6060 / 6084 / 7272 / 7296). Evidenced by the hinge slots,
+  both portal views and Benton; written up in
+  `.forge/fixer/ROOTCAUSE-side-wall-order-2026-08-26.md`, **unshipped**. It moves `MDL 6060 E`,
+  the current live work, so it needs a green light and deliberate sequencing.
+  Also: **do not re-extract the portal's `booth-iso-geometry.json` until this is settled**, or
+  the staleness gets baked in as truth.
+- **Room-proud for the 11.5 / 26.5 / 35.5 widths** is still unmeasured and still warns by name.
+- **The width-axis family split** - `40Panel2636WDO` runs X while `16PanelSolid` and
+  `40PanelSolid` run Y - is real, measured, untouched, and a **different defect** from the
+  window position. It turns a panel end for end in place; it does not move it along the wall.
+
+## 2026-08-26
+
 ### Added - `angled-component-art.rb` writes `_dimensions.json` beside `_diagnostics.txt`
 
 Built to `WhisperRoomQuote\.forge\scoper\BRIEF-sketchup-dimensions-export.md`. The Prism
