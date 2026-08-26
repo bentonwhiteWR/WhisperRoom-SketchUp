@@ -163,18 +163,33 @@ module WR_BuildBoothComponents
   # correction on top of one.
   IEP_SEAL_YAW   = 180.0   # the mid-wall seal, end for end
 
-  # THE INNER VENT WALL, end for end. Benton, looking at a built 6060 E inner
-  # shell, 2026-08-26: "the vent walls need to rotate 180 degrees."
+  # THE INNER VENT WALL, end for end. ZERO, AND THE ZERO IS THE MEASUREMENT.
   #
-  # This is a FACING change and nothing else. The turn is about the slot
-  # polygon's own centre, and the room-proud block below re-seats the box
-  # against the band's room face afterwards, so the part's bounding box comes
-  # out where it already was on every axis. That is why the 4872 E's 0.0001
-  # agreement is not evidence the vent was facing the right way there - a probe
-  # compares boxes and a box cannot see a half turn. The same flip therefore
-  # applies to the 4872 E's N0i, and Benton's eye is the only instrument that
-  # can confirm it. One number, one word to put back.
-  IEP_VENT_YAW   = 180.0
+  # This was 180.0 for exactly one version and it was an over-correction.
+  # The route matters, because it is the classic two-changes-in-one-version
+  # trap and it cost a round:
+  #
+  # Benton, on a 6060 E built with v1.6.20, said "the vent walls need to
+  # rotate 180 degrees". v1.6.21 shipped that flip AND the rebalance fix that
+  # stopped ENH 35.5VNT being placed at booth y -7.875, outside the booth. The
+  # vents almost certainly looked wrong because one of them was in the wrong
+  # PLACE, not because it was facing the wrong way - and the placement fix
+  # alone would have settled it. Two variables moved at once, so neither was
+  # tested.
+  #
+  # The evidence for zero: Benton pulled an MDL 96144 E on v1.6.23 - with the
+  # 180 live and firing, since this block keys off the assigned component name
+  # and that booth's N0i/N1i/N2i/E0i all resolve to ENH ...VNT - and reported
+  # "the IEP vent walls need to all be flipped 180 degrees". ALL of them,
+  # uniformly. A half turn is its own inverse, so asking for another 180 on top
+  # of a live 180 is asking for none.
+  #
+  # It is a FACING change and nothing else: the turn is about the slot
+  # polygon's own centre and the room-proud block below re-seats the box
+  # afterwards, so the bounding box is identical either way. No probe can see
+  # it. Benton's eye is the only instrument, which is why this constant records
+  # which booth was looked at and on which version.
+  IEP_VENT_YAW   = 0.0
 
   # ACROSS THE WALL, an inner panel whose slab cannot be found stands its
   # bounding box this far into the room past the panel band's room face.
