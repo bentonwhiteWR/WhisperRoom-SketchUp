@@ -15,28 +15,32 @@ probe rather than a screenshot.
 - No regression on the Standard path.
 
 ## Now
-**Plugin 1.6.31.** VERSION is under `wr_tools/`, so this needs `git pull` -> `install-plugin.py`
+**Plugin 1.6.32.** VERSION is under `wr_tools/`, so this needs `git pull` -> `install-plugin.py`
 -> **restart SketchUp**, not a rescan. A Ruby module keeps its constants until restart.
 
-1. **Build `MDL 84126 E`, Shell = Both.** It is now BOTH tests at once, and Benton is mid-test on
-   it. Three things to look at, in order:
-   - **Standard CEILING, from below.** Both `STD8442CL SIDE` end tiles reverse in 1.6.31; their
-     hinges should now sit on the **outside perimeter**, not facing the middle. This is the fix
-     for his report and it is the one resting on the weakest evidence - say if it is still wrong.
-   - **Standard FLOOR, the far end.** The high `STD8442FL SIDE` moves out 1/32 and should now
-     reach the wall. The CTR/SIDE butt joint keeps a 3/32 interior gap - **expected, not a defect.**
-   - **Inner ENH ceiling, from below** - the 1.6.30 tray test, still owed. All three plates face
-     down; console reads `UP ... FLIPPED` on the SIDEs, `DOWN` on the CTR.
-   Take the **wall-lift reading** while in there - it is the fourth reading the table below needs.
-2. **Then `MDL 7272 S`.** Its ceiling moves in 1.6.31 and its ceiling has never been checked;
-   its floor was signed off in August and does **not** move. It is the best falsifier of the
-   convention-A mirror. ⚠ Its floor is separately broken by a **defective component file** - see
-   open questions - so ignore the ~14 in error at its high end.
-3. **Then finish `MDL 6060 E`, Shell = Both.** Its Standard ceiling high tile moves in 1.6.31;
-   its inner deck does not. Probe the inner deck and hand back the TSV - that closes the
-   end-for-end turn question, which no harness can answer.
-4. **Re-open the 4872 E and check its inner shell vertical at 0.6875.** Unchanged by 1.6.31
-   (single-tile decks never move) and still the only number in the mission resting on a guess.
+### MDL 84126 E IS CONFIRMED GOOD IN A BUILT MODEL — the first such confirmation in this mission
+Benton, 2026-08-26: the 84126 E "now looks correct". That closes **three** things at once and
+they are not to be revisited: the Standard ceiling hinge rotation and the far-tile floor seating
+(both 1.6.31), and the **IEP tray orientation** (1.6.30), whose test was owed and is now paid.
+Every one of those was measured rather than guessed, and every one held up in a real model.
+
+1. **Build a booth on the 41.5 vent — `MDL 7272 E` or `MDL 96144 E`, Shell = Both — and look at
+   the inner vent walls.** This is the 1.6.32 test and it is the one that matters, because those
+   ten layouts have been **wrong since 10:04 this morning** and nobody had rebuilt one to see it.
+   The console now prints, per inner vent, the width axis it measured and the turn it chose;
+   expect `width runs Y -> vent yaw 0`. Then **rebuild the HX** you were looking at and confirm
+   the vents came back. The 15 non-HX 35.5-vent layouts (84126 E, 102144 E, 6060 E among them)
+   are untouched by 1.6.32 — if a vent moved on one of those, the fix is wrong.
+2. **Then `MDL 7272 S`.** Its ceiling moved in 1.6.31 and has never been checked; its floor was
+   signed off in August and does **not** move. It is the best falsifier of the convention-A
+   mirror. ⚠ Its floor is separately broken by a **defective component file** — see open
+   questions — so ignore the ~14 in error at its high end.
+3. **Then finish `MDL 6060 E`, Shell = Both.** Probe the inner deck and hand back the TSV — that
+   closes the end-for-end turn question, which no harness can answer. Take the **wall-lift
+   reading** while in there; it is the fourth reading the table below needs.
+4. **Re-open the 4872 E.** Two jobs now: its inner shell vertical at 0.6875, still the only
+   number in the mission resting on a guess — and its **inner vents**, which 1.6.32 returns to
+   the orientation it was signed off with on 08-25.
 
 ### THE WALL LIFT IS A PER-BOOTH TABLE (v1.6.28), and its default is a guess
 `IEP_WALL_LIFT` is no longer one constant. Three measurements exist and they disagree:
@@ -84,6 +88,14 @@ to `IEP_ROOM_PROUD_DEFAULT`; the build warns by name. Expect ~1/8" on `N0i`/`E1i
   floor seals are the full cross.
 - **The `ENH` deck library is COMPLETE. Nothing needs authoring.** All 25 `E` layouts resolve.
 - Rebalance an `ENH` wall from its **module width off the name**, never its bounding box (v1.6.21).
+- **The INNER VENT'S half turn is MEASURED, per part, and the constant is gone (v1.6.32).**
+  `rotation()` derives the along-wall direction from the parity of the part's own axis
+  permutation, so parts of opposite parity land end for end from each other. `ENH 35.5VNT` is the
+  ONLY one of the eight `ENH` vent parts whose width runs X; the blanket `IEP_VENT_YAW = 180` was
+  fitted to it. `iep_vent_yaw(cls)` now derives the turn. **The turn is a per-family convention
+  and MUST NOT be generalised** - the mid-wall seal (runs X, 180) agrees with the vents, but the
+  inner DOOR family is all Y-running and wants 180, the opposite convention.
+  `.forge/fixer/ROOTCAUSE-iep-vent-yaw-2026-08-26.md`.
 - Not to be authored: ramp doors on Enhanced, the 2.5" panel, vent option variants, side vents.
 
 ## Out of scope
@@ -97,6 +109,13 @@ to `IEP_ROOM_PROUD_DEFAULT`; the build warns by name. Expect ~1/8" on `N0i`/`E1i
   Standard placement.
 
 ## History
+2026-08-26 — **MDL 84126 E CONFIRMED GOOD in a built model.** First in-SketchUp confirmation the
+mission has had: 1.6.31's two Standard-deck fixes and 1.6.30's tray orientation all held.
+2026-08-26 — **The IEP vent yaw was never one number (1.6.32).** `IEP_VENT_YAW = 180` was fitted
+to `ENH 35.5VNT`, the only one of eight `ENH` vent parts whose width runs X, and applied to all
+eight. Ten non-HX 41.5-vent layouts had been silently wrong since 1.6.21 shipped that morning.
+The 96144 E report that v1.6.25 dismissed as an unrestarted SketchUp was real evidence about a
+different part.
 2026-08-26 — **Two Standard-deck defects fixed (1.6.31).** Benton's MDL 84126 report. The 1/32 is
 nominal stations vs measured seating, surfacing once at the far wall; the ceiling hinges are an
 unmeasured "coplanar" invariant applied to 17 pre-inverted parts. No Standard ceiling's plan

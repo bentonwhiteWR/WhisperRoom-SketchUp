@@ -2,6 +2,56 @@
 
 ## 2026-08-26
 
+### 1.6.32 - THE IEP VENT YAW WAS NEVER ONE NUMBER
+
+Benton, on an HX Enhanced booth: *"looked at the HX, the IEP vent walls are all flipped wrong.
+Need to flip the 180."* He is right, and the fix is bigger than the booth he was looking at.
+
+**Root cause.** `rotation()` pins height->up and thickness->the wall normal and then DERIVES the
+along-wall width direction from the parity of the definition's own axis permutation
+(`build-booth-components.rb:1400`, `s = EVEN.include?([hi, ti, wi]) ? 1 : -1`). `VZ.cross(n)` and
+`n.cross(VZ)` are exact negatives, so two parts of opposite parity land **end for end from each
+other on the same wall**. For a wall panel `hi == 2` always, so parity is decided entirely by
+whether the part's width runs X or Y.
+
+**`ENH 35.5VNT` is the only one of the eight `ENH` vent parts whose width runs X.** `IEP_VENT_YAW
+= 180` was calibrated against it and then applied to all eight. Right for one, wrong for seven.
+
+**The 96144 E report was real evidence and it was thrown away.** v1.6.25 reconciled two
+contradictory-looking reports by arguing Benton's SketchUp had not been restarted. It had not
+needed to: the 6060 E's vent is `ENH 35.5VNT` and the 96144 E's is `ENH 41.5VNT`, a different
+part with the opposite parity. Two true reports about two parts were read as one contradictory
+report about one constant. The restart lesson itself stands and stays in the source - the error
+was using it to **dismiss** a report rather than to qualify one.
+
+**Five in-SketchUp reports now fit the rule at face value, none contradict it:** 6060 E (X, wrong
+at 0), 96144 E (Y, wrong at 180), 102144 E (X, wrong at 0), 4872 E (Y, right at 0 - signed off
+2026-08-25 when the constant did not yet exist), and today's HX (Y, wrong at 180).
+
+**The fix.** `IEP_VENT_YAW` deleted; `iep_vent_yaw(cls)` returns 180 only when the part's measured
+parity is odd. The build prints the width axis and the chosen turn for every inner vent.
+
+**Blast radius: 35 of 50 (layout, part) pairs change, and nothing confirmed good moves.** The 15
+non-HX 35.5-vent layouts - which include `MDL 84126 E`, `MDL 102144 E` and `MDL 6060 E` - keep
+their 180. What changes is all 25 HX layouts and the ten non-HX layouts on the 41.5 vent
+(4848, 4872, 4896, 7272, 7296, 96120, 96144, 96168, 96192, 9696). **Those ten have been wrong
+since 1.6.21 shipped at 10:04 this morning and nobody had rebuilt one to notice**, `MDL 4872 E`
+among them.
+
+**Not generalised, on purpose.** The turn is a per-family authoring convention. The mid-wall seal
+runs X and wants 180, agreeing with the vents; the inner DOOR family is all Y-running and wants
+180, which is the opposite convention. A blanket parity rule would break the door.
+
+**Predicted and deliberately not fixed:** every `ENH ...WDO` inner window panel runs X and gets no
+turn, so it is predicted end for end. No in-SketchUp observation exists and they are never
+auto-assigned. Flagged in the HANDOFF, not changed.
+
+`.forge/fixer/ROOTCAUSE-iep-vent-yaw-2026-08-26.md`;
+harness `.forge/fixer/verify-vent-yaw.py` (witnesses: the measured `_component-probe.tsv` and the
+generated `wr-booth-data.rb`, neither derived from the placement code). `scripts/rbparse.py`
+clean on 52 files. **Nothing was run in SketchUp - needs `git pull` -> `install-plugin.py` ->
+RESTART.**
+
 ### 1.6.31 - TWO STANDARD-DECK DEFECTS ON MDL 84126, both root-caused from measurement
 
 Benton built `MDL 84126 E`, Shell = Both, and reported two things in its **Standard outer shell**.

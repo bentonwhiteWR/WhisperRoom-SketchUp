@@ -218,7 +218,14 @@ module WR_BuildBoothComponents
   # own centre and the room-proud block below re-seats the box afterwards, so
   # the bounding box is identical at 0 and at 180. Benton's eye is the only
   # instrument.
-  IEP_VENT_YAW   = 180.0
+  # 2026-08-26, v1.6.32: THE CONSTANT IS GONE. It was never one number. See
+  # iep_vent_yaw() below and .forge/fixer/ROOTCAUSE-iep-vent-yaw-2026-08-26.md.
+  # Keep everything above: the "restart before you believe a report" lesson is
+  # still true, but it was ALSO used to dismiss a report that was real. Benton's
+  # 96144 E report was not stale state - the 96144 E's inner vent is
+  # ENH 41.5VNT, a DIFFERENT part from the 6060 E's ENH 35.5VNT, and the two
+  # parts genuinely want opposite turns. Two true reports were read as one
+  # contradictory report about one constant.
 
   # ACROSS THE WALL, an inner panel whose slab cannot be found stands its
   # bounding box this far into the room past the panel band's room face.
@@ -1373,6 +1380,33 @@ module WR_BuildBoothComponents
   # definition's own X, Y, Z. Used to get the handedness right by construction.
   EVEN = [[0, 1, 2], [1, 2, 0], [2, 0, 1]].freeze
 
+  # THE INNER VENT'S HALF TURN, DERIVED FROM THE PART'S MEASURED AXES.
+  #
+  # rotation() below pins height->up and thickness->the wall normal, then
+  # DERIVES the along-wall width direction from the parity of the definition's
+  # own (height, thickness, width) axis permutation. Parity is an accident of
+  # how the part was authored, so two parts with opposite parity land END FOR
+  # END from each other on the same wall. That is the whole defect.
+  #
+  # Of the eight ENH vent parts, ENH 35.5VNT is the only one whose width runs
+  # X; the other seven - both 41.5s, all four _HX, and the NVs - run Y. So the
+  # blanket 180 was calibrated against the one odd part and was wrong for the
+  # rest. Five of Benton's in-SketchUp reports fit this rule at face value and
+  # none contradict it; the write-up lists them.
+  #
+  # A part authored end for end IN ITS OWN FRAME would defeat this, exactly as
+  # four ENH ceiling parts are authored upside down (IEP tray, v1.6.30). Only
+  # ENH 35.5VNT and the _HX 35.5 have been seen in a built model.
+  #
+  # DO NOT generalise this to every inner part. The inner DOOR family is all
+  # Y-running and empirically wants 180 (IEP_DOOR_YAW), which is the OPPOSITE
+  # convention; the mid-wall seal runs X and wants 180, which agrees with the
+  # vents. Convention is per family, and it is measured per family.
+  def self.iep_vent_yaw(cls)
+    return 0.0 if cls.nil?
+    EVEN.include?([cls[:hi], cls[:ti], cls[:wi]]) ? 0.0 : 180.0
+  end
+
   # Rotation only. Two constraints are pinned and the third is DERIVED:
   #
   #     the height axis  -> world up
@@ -2183,17 +2217,24 @@ module WR_BuildBoothComponents
           tr = Geom::Transformation.rotation(spiv, VZ, IEP_SEAL_YAW.degrees) * tr
         end
 
-        # The IEP vent wall goes in end for end too (see IEP_VENT_YAW). Read
+        # The IEP vent wall may go in end for end - see iep_vent_yaw(), which
+        # DERIVES the turn from the part's measured axes. Read the name
         # off the COMPONENT THAT WAS ASSIGNED, never p[:sk] - the same reason
         # is_door is: a customer can move a vent into a slot the layout calls
         # SOLID, and the slot kind would not know.
         is_vent = !(r[:name].to_s =~ /VNT|NV/i).nil?
-        if inner?(p) && p[:k] == 'panel' && is_vent && IEP_VENT_YAW != 0.0
-          vxs = p[:poly].map { |q| q[0].to_f }
-          vys = p[:poly].map { |q| q[1].to_f }
-          vpiv = Geom::Point3d.new((vxs.min + vxs.max) / 2.0,
-                                   (vys.min + vys.max) / 2.0, 0)
-          tr = Geom::Transformation.rotation(vpiv, VZ, IEP_VENT_YAW.degrees) * tr
+        if inner?(p) && p[:k] == 'panel' && is_vent
+          vyaw = iep_vent_yaw(r[:cls])
+          axis = r[:cls].nil? ? '?' : %w[X Y Z][r[:cls][:wi]]
+          puts format('  %-6s %-22s width runs %s -> vent yaw %g',
+                      p[:id], r[:name], axis, vyaw)
+          if vyaw != 0.0
+            vxs = p[:poly].map { |q| q[0].to_f }
+            vys = p[:poly].map { |q| q[1].to_f }
+            vpiv = Geom::Point3d.new((vxs.min + vxs.max) / 2.0,
+                                     (vys.min + vys.max) / 2.0, 0)
+            tr = Geom::Transformation.rotation(vpiv, VZ, vyaw.degrees) * tr
+          end
         end
 
         # Across the wall, for an inner panel with no slab - AFTER the yaw
