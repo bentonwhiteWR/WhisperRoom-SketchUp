@@ -1,5 +1,95 @@
 # DEVLOG
 
+## 2026-08-27
+
+### SESSION CLOSE - plugin 1.6.40, eight versions, and one regression left open on purpose
+
+Eight versions, 1.6.33 -> 1.6.40. **Nothing shipped today has been run.** There is no `ruby.exe`
+outside SketchUp on this machine; `rbparse.py` parses all 53 files and three harnesses pass, and
+none of that is evidence a booth builds. `HANDOFF.md` carries the one-pass checklist.
+
+**Three fixes came from Benton looking at real builds**, which is the only instrument this project
+has for the inner shell: the IEP vent walls drop 1/16 on the 102144 E and its HX (1.6.33), the
+floor seam seal datum moved twice more (1.6.35, 1.6.37), and the deck's quarter turn stopped being
+an assumption (1.6.38).
+
+**The floor seam seals were never missing.** The ask read as "add the floor seam seals", and the
+honest answer was that `WR_Deck.seals(kind 'FL')` has placed `STDSS 8.5FL` since v1.6.23 and
+`booth-from-link` goes through the same `build_booth`. Asking for the console line instead of
+building a second placement path was the right call and cost one message. It was a height
+correction the whole time: `-1.1250` -> `-1.0078125` -> `-1.0000`, three fit tests walking it onto
+the third of the three candidates the constant has carried in its comment since the seals were
+first placed. **The roundness is not the evidence and the comment says so** - this constant was a
+tidy reasoned number once before, `-1.6906`, and it was off by more than half an inch. What would
+make `-1.0000` a rule is the same figure on a different profile, an `FL6` or `FL7` rather than the
+`8.5FL` all three measurements came off.
+
+**A literal backspace had been in `build-booth-components.rb` since v1.6.12.** Three vent regexes
+carried byte `0x08` where a `\b` word boundary belongs, because a shell heredoc ate the escape
+when the constant was written (`9474d4b`). It cost nothing so far - the `VNT` alternative still
+matched and every catalogue vent part is named `...VNT` - but the `NV` alternative could never
+match anything, so a natural-ventilation part would have silently taken the panel family's
+room-proud figure and the wrong trim end. Found by an assertion counting occurrences, then
+**reproduced by doing it again in the fix**. Non-trivial escapes now go through a file written
+with the Write tool, never a shell heredoc, and the harness asserts no control character survives.
+
+**The deck's quarter turn was asserting something it never checked.** `turn = !t[:along_is_x]`
+rested on "fact 2" - that a deck definition's X axis runs along the tiling direction - a claim
+about how 42 `.skp` files were authored, by several people, over years. `dx` and `dy` were being
+measured two lines above the decision and ignored by it. The folder carries **both** orientations
+of the same deck as separate files (`STD4896CL` beside `STD9648CL SIDE/CTR`), and the quote tool's
+own renderer says why: *"each came out the way it installs."* The turn is now measured off the
+definition, it provably reduces to the old rule for any part that really satisfies fact 2
+(`.forge/builder/replay-deck-quarter-turn.py`, 40 checks), and every part that disagrees is
+**named in the build warnings**. The premise that `STD4896CL` is authored crossways is INFERRED
+from the defect, not measured - nothing outside SketchUp can open a `.skp`.
+
+**An afternoon of black V-Ray renders, and two faults stacked.** `Light It From Here` built its
+hour with `Time.new`, which stamps the *system's* zone into a value SketchUp reads as UTC - ask
+for 12:30, get a sun placed for 17:30, past sunset in November, elevation -8.0, render black. And
+the model was never geo-located, so elevation was never controlled at all. **Benton diagnosed the
+first one himself**: *"the time of day part of the tool is totally broken."*
+
+v1.6.39 pinned Knoxville/EST and **stood for about an hour before being replaced**, which is worth
+recording as a wrong answer to a right complaint. Benton: *"I really just want the sun smack where
+my camera is. Nowhere else. I dont care about time of year."* A real location makes elevation a
+consequence of the calendar instead of a control. So 1.6.40 aims the sun in **both** axes:
+NorthAngle for bearing, and **latitude for height** at a pinned equinox noon, where declination is
+~0 and elevation is `90 - |lat|`. Bisected against a live `SunDirection` reading rather than
+computed, because the closed form is "very nearly right" and this file has been burned by very
+nearly twice. The calendar is machinery now, not a setting - said in the constant's own comment so
+nobody "fixes" it back to a real place.
+
+### Left open on purpose: the 7272 side walls
+
+v1.6.34's E/W walk revert fixed the 102144 window - Benton confirmed it - and **regressed the
+7272**, which he then reported. The big run moved from the far end to the door end.
+
+It is traced and **not fixed**, because **HEAD now matches the portal's own
+`booth-iso-geometry.json` exactly**, and its 2D plan too. Either the portal has been showing
+customers the wrong arrangement, or something subtler is going on. A blanket flip back would undo
+the 102144 fix, since the same walk drives both. This question has moved three times and one
+earlier revert was retracted for a stale witness (`e2e3461`), so it waits on one answer from a
+real booth: does the 46" window panel sit at the door end of the side wall, or the far end?
+
+### Client work
+
+**UTHSC Audiology** - four marked rooms drawn to their measured interiors
+(`scripts/uthsc-audiology-rooms.rb`, CLIENT DRAWINGS tab; `clients/uthsc-audiology/notes.md`).
+No booth drawn and no model named: sales quotes it.
+
+**Room 2 taught a real lesson.** Its printed area would not close on its printed width x depth, so
+a depth was derived from the area - and it matched a plausible misread digit *to three decimals*.
+It was wrong. The room is an **L**, and the plan's `15'-8 1/4"` was correct all along as the west
+wall. The arithmetic was flawless about a false premise, and it also manufactured a "chain that
+does not close" that never existed. Benton's four numbers close the L to 334.94 sf against a
+printed 333.45. **Deriving a dimension from an area can be exactly right and completely wrong.**
+
+Ceiling heights are on no part of that plan, all four rooms are drawn at the 8'-0" house default
+and labelled assumed, and that is the number that decides whether the all-Enhanced order they want
+is even possible - 7'-1" of install clearance against Standard's 6'-11". Site visit Tuesday.
+
+
 ## 2026-08-26
 
 ### SESSION CLOSE - plugin 1.6.32, and the first three fixes ever confirmed in a built model

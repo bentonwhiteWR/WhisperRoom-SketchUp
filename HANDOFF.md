@@ -1,50 +1,105 @@
-# HANDOFF — 2026-08-26, end of day
+# HANDOFF — 2026-08-27, end of day
 
 ## Read this first
 
-Plugin **1.6.29**. Tree clean, everything on `main`. The full story is the 2026-08-26
-`SESSION CLOSE` block of `DEVLOG.md`; this is the short version.
+Plugin **1.6.40**. Tree clean, everything pushed to `main`. Eight versions today, 1.6.33 → 1.6.40.
+The full story is the 2026-08-27 `SESSION CLOSE` block of `DEVLOG.md`; this is the short version.
 
-**Nine versions shipped today.** The Enhanced inner shell now rebalances from module widths,
-tiles its deck across all 25 layouts with nothing left to author, seats tray tiles by their outer
-edge, measures tray orientation per part, places floor seam seals at a measured datum, and keys
-the wall lift per booth. `angled-component-art.rb` writes `_dimensions.json` for the Prism Gauge.
+**Nothing shipped today has been run.** There is no `ruby.exe` outside SketchUp on this machine.
+`rbparse.py` parses all 53 files and three harnesses pass, and none of that is evidence a booth
+builds. Every item below needs one SketchUp pass to become real.
 
-**Two things were retracted, and the reasons matter more than the retractions:**
+## Step 0, and it is not optional
 
-1. `IEP_VENT_YAW` was flipped to 0 on a report made against **pre-1.6.21 code still in memory**.
-   A Ruby module keeps its constants until SketchUp restarts. Before treating an observation as
-   evidence about a constant, establish the process was restarted after that constant shipped.
-2. The side-wall "108 reversed walls" was **false**. The witness file was a 2026-08-07 snapshot
-   of the artifact under test. Never check an artifact against a copy of itself. Both circular
-   harnesses are deleted; `.forge/fixer/replay-portal-wallrun.js` now *executes* the portal's own
-   `wallPanelRun()` instead of restating it.
+`git pull` → `python scripts/install-plugin.py` → **RESTART SketchUp.**
 
-## Next: reinstall, then one SketchUp pass
+A Ruby module keeps its constants until the process restarts. Two versions have already been
+spent on reports made against code that was never in memory. A report about anything below is
+only evidence if the restart happened first.
 
-1. `git pull` → `python scripts/install-plugin.py` → **RESTART SketchUp.** VERSION lives under
-   `wr_tools/`; a rescan will not do it.
-2. **`scripts/probe-levels.rb` on `P:/Sketchup/NewMasterComponentList` with an EMPTY filter.**
-   `_face-levels.tsv` has zero `ENH` rows, which is why the IEP tray abstains. Cheapest unblock.
-3. Build **`MDL 4872 E`, Shell = Both** — must read `0.75" - MEASURED ON THIS BOOTH`, unchanged.
-4. Build **`MDL 9696 E`** — must read `DEFAULT - NOT MEASURED ON THIS BOOTH`. If its IEP shell is
-   1/16 low, the wall-lift default belongs at 0.6875.
-5. First real `_dimensions.json`: load `angled-component-art.rb`, **ENH Extra batch**,
-   **Dry run = Yes** (renders nothing) → then `node scripts/prism-audit.js --html` from
-   `WhisperRoomQuote`.
+## The one thing that is BLOCKED on Benton
 
-## The one question that needs a real booth
+**The 7272 S / 7272 E side walls, and it is a live regression.** Benton, off a real build:
+*"The 22" wall is where the window should be, and the window is where the 22" wall should be."*
 
-**Stated without reference to the door, because the door is customer-placed:** on a 102144,
-measured against the **floor and ceiling hinge slots**, does the window sit at the same end as
-the hinge slots or the opposite end? And is it fixed by the model at all, or does the assembler
-put it where the customer asks? The wall is 40/16/40 — symmetric — so nothing on disk can settle
-it. Same question for the 96144.
+Traced and **not fixed**, deliberately:
 
-## Held, not forgotten
+- v1.6.34's E/W walk revert moved the 7272's big run from the far end to the door end.
+  `E0` went from `y 26–72` (46" at the far end) to `y 2–48` (46" at the door end); `W` mirrors it.
+  `N`/`S` never moved.
+- **HEAD now matches the portal's own `booth-iso-geometry.json` exactly** — it has `E0` at
+  `y 2–48` and `E1` at `y 50–72`. The portal's 2D plan agrees too. So if the build is wrong, the
+  booth builder has been showing customers the same wrong arrangement.
+- A blanket flip back would **undo the 102144 window fix Benton signed off on**, because the same
+  walk drives both and the 102144's `W` wall is `40 / 16 / 40` where reversing the order is
+  exactly what moves the window between the two 40s.
 
-- The **four-booth big-run flip** (6060/6084/7272/7296) — written up in
-  `.forge/fixer/ROOTCAUSE-side-wall-order-2026-08-26.md`, unshipped, moves `MDL 6060 E`.
-- **Do not re-extract** the portal's `booth-iso-geometry.json` until that is settled.
-- Room-proud for **11.5 / 26.5 / 35.5** still unmeasured, still warns by name.
-- The **width-axis family split** — a different defect from the window position.
+**The question that unblocks it:** on a real 7272, taking the door wall as the reference, does the
+46" window panel sit at the **door end** of the side wall or at the **far end**? Answer that and
+the fix is surgical — split the two-slot split-run booths from the general walk, add the 7272 to
+`.forge/builder/` as a pinned case so it cannot flip a fourth time, and raise the portal
+discrepancy with the slot coordinates.
+
+This has now moved three times and one earlier revert was retracted for a stale witness
+(`e2e3461`). Do not flip it on reasoning.
+
+## What to check in one SketchUp pass
+
+1. **MDL 4896 E** — the ceiling that started this. The deck's quarter turn is now measured off the
+   part instead of asserted from its filename (1.6.38). The build **names every part whose box
+   contradicts its name**; that console output is the measurement and it does not exist yet.
+   Paste it. If the ceiling is still crossways, the inferred premise was wrong and the cause is
+   elsewhere.
+2. **MDL 102144 E, and its HX** — inner vent walls 1/16 lower than the rest of the shell (1.6.33),
+   floor seam seals at `-1.0000` (1.6.37), window at the door end of its wall (1.6.34).
+3. **Any Enhanced booth** — the floor seal datum landed on the round `-1.0000` after three fit
+   tests. **The roundness is not evidence.** What would make it a rule is the same figure holding
+   on a different profile — an `STDSS FL6` or `FL7`, not the `8.5FL` all three came off.
+4. **Light It From Here** (1.6.40) — the sun is now aimed in both axes. Height is solved by
+   bisecting latitude at a pinned equinox noon against a live `SunDirection` reading. Confirm a
+   render actually lights, and that the reported height error is small.
+
+## What shipped, in one line each
+
+| Ver | |
+|---|---|
+| 1.6.33 | IEP vent walls drop 1/16 on the 102144 E; a literal `0x08` backspace repaired in three vent regexes, live since 1.6.12 |
+| 1.6.34 | E/W slot order reverted to south→north — the side-wall window defect **(see the blocked item above)** |
+| 1.6.35 | Floor seam seal datum `-1.1250` → `-1.0078125` |
+| 1.6.36 | UTHSC Audiology: the four marked rooms drawn, no booth |
+| 1.6.37 | Floor seam seal datum → `-1.0000`, third fit test |
+| 1.6.38 | Deck quarter turn measured off the part, not the filename |
+| 1.6.39 | `ShadowTime` is UTC, not `Time.new` — the black-render bug |
+| 1.6.40 | Sun aimed in both axes; height solved by latitude, calendar is machinery |
+
+## The client work
+
+**UTHSC Audiology** — `scripts/uthsc-audiology-rooms.rb` (CLIENT DRAWINGS tab),
+`clients/uthsc-audiology/notes.md`. Four rooms drawn to their measured interiors. Room 2 is an
+**L** — Benton's own numbers, and its area closes to 334.94 sf against the plan's printed 333.45.
+
+Site visit is **Tuesday** and the list is in the notes. In priority order: **ceiling heights in
+all four rooms** (none on the plan anywhere; all four drawn at the 8'-0" house default and
+labelled assumed — and going all-Enhanced is exactly the choice that spends the extra 2" of
+install clearance, 7'-1" against 6'-11"), then the doors (**the plan dimensions none of them**, so
+positions carry ±3" and only one door per room was legible in the raster — nothing could be
+confirmed or ruled out in the wall Rooms 1 and 2 share), then the delivery path.
+
+**On the package question:** Audiology Deluxe and Audiology Premium are **both single-wall**.
+Saravanan wants all-Enhanced, and the only Enhanced Audiology package is **Audiology Ultra**
+(6×6, base 7272, ADA) — Deluxe's `tierCounterpart`. Premium's is `null`; there is no 6×8 Enhanced
+Audiology package, so that would have to be configured. Floor area is not the constraint in any of
+the four rooms — ceiling height is, and it is unmeasured. Sales owns the model choice.
+
+## Two lessons from today worth keeping
+
+**Deriving a dimension from an area can be exactly right and completely wrong.** Room 2's printed
+area would not close on its printed width × depth, so a depth was derived from the area and it
+matched a plausible misread digit to three decimals. The room simply was not a rectangle. The
+arithmetic was flawless about a false premise, and it also invented a "chain that does not close"
+that never existed.
+
+**The shell ate an escape, twice.** Three vent regexes have carried a literal backspace byte since
+v1.6.12 because a heredoc turned `\\b` into `\b`. Found by an assertion counting occurrences — and
+then reproduced by doing it again in the fix. Non-trivial escapes go through a file written with
+the Write tool, never a shell heredoc. The harness now asserts no control character survives.
