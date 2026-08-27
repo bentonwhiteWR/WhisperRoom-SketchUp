@@ -22,9 +22,17 @@
 #   packs: 'STDWL46' | 'STDWL46 VNT' | 'STDWL46 DRFRM R' | 'STDWL46 WDO3236'
 #          | 'WA STDDRFRM L' | 'STDWL40 NV'
 #
-# What does NOT come through (yet): furniture and accessories — desk, MJP jack
-# panel, step, bass traps, studio light — and the roof-mounted vent. Walls,
-# doors, windows, vents and seals only.
+# Beyond the walls, the OPTION PARTS now come through too: desk (dk/dl/ds/dox),
+# MJP jack panel (jp/ms), and the elevated floor (ep, or the ad ADA bundle's
+# floor) ride into the builder's overlay pass (wr-overlays.rb), which also
+# places the foam sheets and duct covers every booth ships with. Foam colour
+# (f) is read and REPORTED — Foam.skp has no colour variants to apply.
+#
+# What still does NOT build, each named LOUDLY below rather than dropped:
+# the caster PLATE half of cs (only the vent-art suffix is applied), step (sp,
+# pairs with that plate), bass traps (bt) and the Audimute package (ac) — no
+# .skp exists for either — the studio light (sl, no fixture .skp), and the
+# roof-mounted vent (rv, out of scope per GOAL).
 #
 # STANDARD: anything unrecognised is reported and falls back to the slot's
 # default part rather than silently vanishing.
@@ -379,8 +387,39 @@ module WR_BoothLink
       end
       puts '!' * 74
     end
-    ignored = %w[dk sp jp bt sl rv].select { |k| payload[k].to_i == 1 }
-    puts "  NOT built (out of scope for now): #{ignored.join(', ')}" unless ignored.empty?
+    # ---- option parts for the overlay pass, and LOUD refusals ------------
+    #
+    # Rule (GOAL): no silent fallback. Every payload key is either handed to
+    # the builder's overlay pass or refused BY NAME with the reason. The keys
+    # that used to be dropped silently — f, ep, ad, dl/ds/dox, ms, ac, and the
+    # caster-plate half of cs — are all accounted for below.
+    overlay = {
+      'foam_color'    => payload['f'].to_s,                 # report-only downstream
+      'desk'          => payload['dk'].to_i == 1,
+      'desk_large'    => payload['dl'].to_i == 1,
+      'desk_slot'     => payload['ds'].to_s,
+      'desk_outside'  => payload['dox'].to_i == 1,
+      'mjp'           => payload['jp'].to_i == 1,
+      'mjp_slot'      => payload['ms'].to_s,
+      'efp'           => payload['ep'].to_i == 1 || payload['ad'].to_i == 1,
+      'efp_from_ada'  => payload['ad'].to_i == 1,
+      'casters_plate' => payload['cs'].to_i == 1,           # refused by name downstream
+      'step'          => payload['sp'].to_i == 1            # refused by name downstream
+    }
+    built_opts = { 'desk' => 'desk', 'mjp' => 'MJP jack panel',
+                   'efp' => 'elevated floor' }.select { |k, _| overlay[k] }.values
+    puts "  option parts to build: #{built_opts.join(', ')}" unless built_opts.empty?
+    refused = []
+    refused << 'cs: caster PLATE + 5 in lift (vent _CP art only — plate not implemented)' if payload['cs'].to_i == 1
+    refused << 'sp: step (pairs with the caster plate, which is not built)' if payload['sp'].to_i == 1
+    refused << 'bt: bass traps (no .skp exists — Benton to author)' if payload['bt'].to_i == 1
+    refused << 'ac: Audimute panels (no .skp exists — Benton to author)' if payload['ac'].to_i == 1
+    refused << 'sl: studio light (no fixture .skp exists — Benton to author)' if payload['sl'].to_i == 1
+    refused << 'rv: roof-mounted vent (out of scope per GOAL)' if payload['rv'].to_i == 1
+    unless refused.empty?
+      puts "  NOT built, by name and by reason (#{refused.length}):"
+      refused.each { |x| puts "    #{x}" }
+    end
     puts '=' * 74
 
     # THE REFUSAL. An Enhanced booth that is missing parts is not built at all.
@@ -410,7 +449,8 @@ module WR_BoothLink
     # unconditionally.
     WR_BuildBoothComponents.build_booth(key, assign,
                                         'dir' => cfg['dir'], 'hx' => hx,
-                                        'dry' => cfg['dry'])
+                                        'dry' => cfg['dry'],
+                                        'overlay' => overlay)
   end
 
   # -------------------------------------------------------------------- run --

@@ -56,6 +56,11 @@ load File.join(File.dirname(__FILE__), 'wr-folder.rb')
 # and documented in reference/floor-ceiling-geometry.md, with their own
 # constants; inlining them here would bury them in a 900-line file.
 load File.join(File.dirname(__FILE__), 'wr-deck.rb')
+# Foam, duct covers and the option parts (desk, MJP, elevated floor). Kept
+# separate for the same reason wr-deck is: every number in it is portal-sourced
+# and documented in .forge/researcher/portal-part-placement.md, and inlining
+# them here would bury them.
+load File.join(File.dirname(__FILE__), 'wr-overlays.rb')
 
 module WR_BuildBoothComponents
   DATA = File.join(File.dirname(__FILE__), 'wr-booth-data.rb')
@@ -2490,6 +2495,28 @@ module WR_BuildBoothComponents
           dwarns.each { |x| puts "  IEP DECK: #{x}" }
           puts '  IEP deck NOT PLACED - see above' if n.zero?
         end
+      end
+
+      # ---- overlays: foam, duct covers, and the link's option parts --------
+      #
+      # After the walls and both decks, from the same resolved rows. Foam and
+      # duct covers ship on every booth (a product fact, not an option — see
+      # wr-overlays.rb); desk / MJP / elevated floor arrive only when
+      # cfg['overlay'] carries them from a decoded link. Fenced with its own
+      # rescue: the walls and deck are committed work, and a foam bug must not
+      # take a built booth down with it.
+      if shell == 'all'
+        begin
+          oc, owarn = WR_Overlays.place_all(model, booth, key, spec, cfg, rows, cache)
+          placed += oc
+          warn.concat(owarn)
+        rescue Exception => e
+          warn << "OVERLAYS FAILED — #{e.class}: #{e.message}. The walls and deck " \
+                  'are intact; foam / duct covers / options were not (all) placed.'
+          puts e.backtrace.first(6).map { |l| "    #{l}" }.join("\n")
+        end
+      else
+        puts "  overlays (foam, duct covers, options) SKIPPED on a #{shell}-only build"
       end
 
       model.commit_operation unless cfg['dry']
