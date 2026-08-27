@@ -1193,15 +1193,31 @@ module WR_Deck
   # below the floor panel underside (-1.000) - very nearly flush with it - and
   # it stands 0.6828 proud of the walking surface (0.000).
   #
-  # WORTH KNOWING IF A THIRD CORRECTION EVER LANDS: that is within 1/128 of the
-  # THIRD candidate listed above, "bottom flush with the panel underside"
-  # (-1.0000) - the one none of the three rounds of reasoning picked, and the
-  # one two successive fit tests have now walked onto from -1.6906. The answer
-  # looks like it wants to be -1.0000 exactly. That is an OBSERVATION AND NOT A
-  # LICENCE TO ROUND: the constant stays at what was measured until Benton says
-  # otherwise, because every time this file has reasoned its way to a number
-  # instead of being told one, it has been wrong.
-  SEAL_FL_DATUM_LIFT = -1.0078125
+  # THE THIRD CORRECTION LANDED, AND IT LANDED ON THE ROUND NUMBER. Benton,
+  # 2026-08-27, immediately after the -1.0078125 build: "You were right, go
+  # ahead and raise it up 1/128 again." -1.0078125 + 0.0078125 = -1.0000000,
+  # exactly.
+  #
+  # THAT IS THE THIRD CANDIDATE LISTED ABOVE - "bottom flush with the panel
+  # underside" - reached at last. The seal spans booth z -1.0000 .. 0.6906: its
+  # underside dead flush with the floor panel underside (-1.000), standing
+  # 0.6906 proud of the walking surface (0.000). Three fit tests walked it there
+  # from the derived -1.6906, in steps of 9/16, 15/128 and 1/128.
+  #
+  # READ THE HISTORY BEFORE TRUSTING THE ROUNDNESS. This constant has been a
+  # round number before and been wrong: -1.6906 was the ceiling rule's own
+  # sentence applied to the floor, it was tidy, it was reasoned, and it missed
+  # by more than half an inch. The value is -1.0000 because a fit test put it
+  # there, NOT because "bottom flush with the panel underside" is a rule this
+  # file derived - that phrasing was one of three guesses and the other two are
+  # still sitting above it, equally tidy and equally wrong.
+  #
+  # WHAT WOULD MAKE IT A RULE rather than a coincidence: the same figure fit
+  # tested on a booth with a different floor seal - an STDSS FL6 or FL7 rather
+  # than the 8.5FL this was measured on. Until then it is one part, measured
+  # three times. If a second profile also wants -1.0000, that is a rule and this
+  # comment should say so.
+  SEAL_FL_DATUM_LIFT = -1.0000
 
   # How far the measured seal length may differ from cross - 2 before it is
   # called out. The name-to-cross mapping and the measured length are two
