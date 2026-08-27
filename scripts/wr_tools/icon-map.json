@@ -25,6 +25,7 @@
   "pendant-jig.rb": "jig-pendant",
   "probe-components.rb": "probe-components",
   "probe-levels.rb": "probe-levels",
+  "proposal-package.rb": "scenes-proposal",
   "proposal-scenes.rb": "scenes-proposal",
   "save-scene-components.rb": "scene-parts",
   "tube-drying-stand.rb": "jig-tube-stand",
