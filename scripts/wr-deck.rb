@@ -510,7 +510,13 @@ module WR_Deck
       return [nil, format('no %s part %g in wide', kind, width)] if part.nil?
       tiles << { :part => part, :along => width, :at => pos,
                  :at_low_end => i.zero?, :substituted => substituted,
-                 :along_is_x => along_is_x, :cross => cross_len }
+                 :along_is_x => along_is_x, :cross => cross_len,
+                 # The far perimeter, and whether this tile is the one that has
+                 # to reach it. A one-tile deck is BOTH ends, so it is excluded:
+                 # it is already flush at the low end and there is no second
+                 # tile to take up the slack. See the note at the seating step.
+                 :run => along_len,
+                 :at_high_end => (cuts.length > 1 && i == cuts.length - 1) }
       pos += width
     end
     [tiles, format('%d tile(s), %s', tiles.length,
@@ -761,12 +767,66 @@ module WR_Deck
       # On a CL build the twin is already loaded — build-booth-components runs FL
       # first — so this resolves to the existing definition rather than importing
       # anything new.
+      # ====================================================================
+      # A CEILING SPEAKS FOR ITSELF WHEN IT CAN, AND IS MIRRORED WHEN IT CANNOT.
+      # ====================================================================
+      #
+      # Benton, 2026-08-26, off a built MDL 84126: "the 84126 E standard ceiling
+      # components side pieces need to be rotated 180. The hinges are on the
+      # inside right now, they should be on the outside perimeter."
+      #
+      # He is the first person ever to look at one. No Standard CEILING deck's
+      # plan rotation has ever been confirmed, by eye or by probe - the
+      # bracket_edge rule below was validated by SIMULATION over FLOOR parts,
+      # and probe-levels.rb has always printed nothing at all for ceilings.
+      # reference/floor-ceiling-geometry.md's "floor and ceiling hinges are
+      # coplanar in plan" is an ASSERTION carried on the words "Also Benton"
+      # from 2026-08-14, with no measurement behind it.
+      #
+      # THE STANDARD CEILINGS COME IN TWO AUTHORING CONVENTIONS, and the split is
+      # measured, not named (_face-levels.tsv, 2026-08-26; the arithmetic is in
+      # .forge/fixer/verify-ceiling-cue.py, whose sole witness is that TSV):
+      #
+      #   B - rim at 1.7500, hardware ABOVE it, contact_z says flip.  6 parts.
+      #       Authored the same way up as a FLOOR and turned over by the X-axis
+      #       180 below. An X-180 mirrors Y and leaves the SHORT axis alone, so
+      #       the plan position survives - and it is measured to:
+      #           STD9648CL SIDE  own edge 0.7366
+      #           STD9648FL SIDE  twin     0.7366   <- identical to 4 dp
+      #       That is the ONLY Standard ceiling part carrying a cue of its own,
+      #       and for it the coplanar invariant HOLDS. It must not move.
+      #
+      #   A - rim at 3.1094, NOTHING above it, hardware hanging below, no flip.
+      #       17 parts, STD8442CL SIDE among them. Authored already inverted -
+      #       and inverted about the LONG axis, which DOES mirror the short axis.
+      #       So its bracket line sits at the opposite end of the tiling axis
+      #       from its floor twin's, and applying the twin's fraction unmirrored
+      #       turns it exactly the wrong way. That is the defect Benton reports.
+      #
+      # So: use the part's OWN cue when it has one (convention B - provably no
+      # change, its own reading and its twin's are the same number), and mirror
+      # the twin's when it does not (convention A). Floors always have a cue of
+      # their own and are untouched by this, to the thousandth.
+      #
+      # Moves the ceiling end tiles of the 60, 72, 84 and 102 series. Leaves
+      # every 96-series ceiling alone - the one series with a measured cue - and
+      # leaves every floor alone. Full list in
+      # .forge/fixer/ROOTCAUSE-std-deck-84126-2026-08-26.md.
+      #
+      # WHAT FALSIFIES THIS: a convention-A ceiling that still reads hinges
+      # inboard after the change. The mirror generalises ONE observed part
+      # across a MEASURED class; if the class is not uniformly authored, it will
+      # show up as a booth this fix turns the wrong way. Say which booth.
+      own  = bracket_edge(defn)
       twin = fl_twin(cat, t[:part])
-      t[:edge] = if twin[:file] == t[:part][:file]
-                   bracket_edge(defn)
+      t[:edge] = if own
+                   own
+                 elsif twin[:file] == t[:part][:file]
+                   nil
                  else
                    td = (model.definitions.load(twin[:path]) rescue nil)
-                   td ? bracket_edge(td) : nil
+                   e  = td ? bracket_edge(td) : nil
+                   (e && kind == 'CL') ? 1.0 - e : e
                  end
 
       # Say so when an end could not get the hand it wanted. Silence here is how
@@ -867,8 +927,56 @@ module WR_Deck
       seat = deck_extent(defn, cz) || bb
       got = Geom::BoundingBox.new
       8.times { |k| got.add(seat.corner(k).transform(tr)) }
+      dx_seat = x - got.min.x.to_f
+      dy_seat = y - got.min.y.to_f
+
+      # ====================================================================
+      # THE LAST TILE SEATS AGAINST THE FAR PERIMETER, NOT ITS NOMINAL STATION.
+      # ====================================================================
+      #
+      # Benton, 2026-08-26, off a built MDL 84126: "One of the 8442FL Sides
+      # needs to move outwards 1/32. Only one, so kinda weird." The asymmetry
+      # is the whole diagnosis, and it is not weird at all.
+      #
+      # catalogue() reads :along off the NAME DIGITS (see the regex above), so
+      # every tile station is NOMINAL - 0, 42, 84. But the seating above lands
+      # each tile by its MEASURED low corner. A part that measures under its
+      # name therefore loses that difference at whichever edge it is NOT seated
+      # against, and since every tile is laid low-edge-first, the loss lands at
+      # the HIGH end of the run - once, on the last tile only:
+      #
+      #   STD8442FL SIDE  41.9688 vs 42 nominal   -> ends 1/32 short of the wall
+      #   STD8442FL CTR   41.9375 vs 42 nominal   -> an interior joint, hidden
+      #   STD8442CL SIDE  42.0000 exactly         -> the CEILING is already flush
+      #
+      # That last line is why he reported this on the FLOOR and not the ceiling:
+      # all 21 Standard CL parts measure their nominal name, so no ceiling deck
+      # moves by one thousandth here. Of the 25 Standard layouts, 17 floors move
+      # (1/32 or 1/16) and 8 do not; every one of the 23 ceilings is unchanged.
+      # Verified part by part in .forge/fixer/verify-deck-pitch.py, whose
+      # witnesses are the folder listing, _component-probe.tsv and
+      # wr-booth-data.rb - never a snapshot of this file.
+      #
+      # This is the same rule the Enhanced tray already follows: seat the tile
+      # on the edge that meets the wall and let the slack fall at the interior
+      # joint, which is a butt joint nobody sees. Doing it from `got.max` rather
+      # than by adding a fudge means it is right whatever deck_extent measures -
+      # the outer edge lands on the perimeter by construction.
+      #
+      # The interior slack is NOT closed by this and is not claimed to be: an
+      # MDL 84126 floor still carries a 3/32 gap at the CTR/high-SIDE joint.
+      # Benton reported the perimeter, so the perimeter is what moves.
+      if t[:at_high_end]
+        far = INSET + t[:run].to_f
+        if t[:along_is_x]
+          dx_seat = far - got.max.x.to_f
+        else
+          dy_seat = far - got.max.y.to_f
+        end
+      end
+
       tr = Geom::Transformation.translation(
-        Geom::Vector3d.new(x - got.min.x.to_f, y - got.min.y.to_f, 0)) * tr
+        Geom::Vector3d.new(dx_seat, dy_seat, 0)) * tr
 
       inst = nil
       begin

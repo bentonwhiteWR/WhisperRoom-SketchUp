@@ -2,6 +2,92 @@
 
 ## 2026-08-26
 
+### 1.6.31 - TWO STANDARD-DECK DEFECTS ON MDL 84126, both root-caused from measurement
+
+Benton built `MDL 84126 E`, Shell = Both, and reported two things in its **Standard outer shell**.
+His panel read **v1.6.29** and he had not pulled or restarted, so the first job was working out
+whether he was describing code that still exists.
+
+**He was. 1.6.30 touches neither defect.** Re-ran `.forge/fixer/verify-tray.py` against its named
+witness: the new tray rule returns `ABSTAIN(no cue)` on **all 23 Standard ceilings** and decides
+**zero** Standard floors, and its only call site (`build-booth-components.rb:909`) sits inside the
+**inner IEP tile loop**, which no Standard tile reaches. `wr-deck.rb` was not touched by 1.6.30.
+
+#### "One of the 8442FL Sides needs to move outwards 1/32. Only one, so kinda weird"
+
+Not weird - **structural, and it can only ever be one.** `catalogue` builds `:along` from the
+**name digits** (`wr-deck.rb:341`), so `plan` steps stations by NOMINAL width - 0, 42, 84 - while
+`build` seats each tile by its **MEASURED** low corner. Every tile is laid low-edge-first, so the
+low tile is flush against the low wall by construction and every undersize opens a gap on the
+tile's high side. On the LAST tile that gap is against the **wall**:
+
+```
+STD8442FL SIDE  nom 42  meas 41.9688  station  1.0000  ->   1.0000 ..  42.9688   flush
+STD8442FL CTR   nom 42  meas 41.9375  station 43.0000  ->  43.0000 ..  84.9375
+STD8442FL SIDE  nom 42  meas 41.9688  station 85.0000  ->  85.0000 .. 126.9688   1/32 SHORT of 127
+```
+
+**0.0312 = 1/32, on exactly one SIDE** - his number and his asymmetry, derived from the code and
+the probe before his report was used. **The last tile of a multi-tile run now seats against the far
+perimeter** (`far - got.max`) instead of its nominal station, so it is right whatever `deck_extent`
+measures. **17 floor decks move**, each by its own undersize (1/32 or 1/16). **No ceiling moves** -
+every Standard `CL` part measures its nominal exactly, which is precisely why he reported this on
+the floor and not the ceiling. **No single-tile deck moves.** The INTERIOR slack is untouched and
+not claimed: an 84126 floor still has 3/32 at the CTR/SIDE butt joint.
+
+#### "the standard ceiling components side pieces need to be rotated 180"
+
+**Nobody had ever looked at a Standard ceiling's plan rotation - he is the first.**
+`reference/floor-ceiling-geometry.md:251-265` asserts "FLOOR AND CEILING HINGES ARE COPLANAR IN
+PLAN" on the strength of the two words *"Also Benton"*, with no measurement anywhere; the same file
+at :331-338 records that `probe-levels.rb` **prints nothing for ceilings**, so the "free correctness
+check" it proposes has never been runnable. The `bracket_edge` rule (`03f6441`) was validated by
+**simulation over FLOOR parts**, and DEVLOG lists the follow-up build as still owed at :2545 and
+:2621. No entry closes it. Every booth sign-off in the corpus is floor-scoped; every ceiling report
+is about vertical flip or z-height, never plan rotation.
+
+**The 23 Standard ceiling parts split into two authoring conventions, measured not named:**
+
+| | rim_z | area above rim | `contact_z` flip | count |
+|---|---|---|---|---|
+| **B** authored like a floor, turned over by the code | 1.7500 | > 0 | true | 6 |
+| **A** authored already inverted | 3.1094 | **0** | false | **17** |
+
+Convention B keeps the invariant, and this is the one place it was ever measured: `STD9648CL SIDE`
+reads its own `bracket_edge` **0.7366** and its floor twin reads **0.7366** - identical to four
+decimals, because an X-180 mirrors Y and leaves the short axis alone. It is the **only** Standard
+ceiling part with a cue of its own. Convention A has nothing above its rim to measure, hangs its
+hardware below the plate, and - being pre-inverted about the LONG axis - carries its bracket line at
+the **opposite** end of the tiling axis from its floor twin. The code applied the twin's fraction
+unmirrored. That is the defect.
+
+**A ceiling now uses its OWN cue when it has one, and the MIRROR (`1.0 - e`) of the twin's when it
+does not.** Convention B takes its own reading, which is the same number as the twin's - provably no
+change, and the whole 96 series is verified unchanged. **18 ceiling end-tiles move**, across the 60,
+72, 84 and 102 series. **Zero floor tiles change rotation** (control run). On `MDL 84126 S` **both**
+ceiling SIDE tiles reverse, which is what he asked for.
+
+**Weakest link, named:** the two-convention split is measured; the *direction* of convention A's
+mirror rests on **one** observed booth generalised across a measured class of 17 parts. Falsified by
+any convention-A ceiling still reading hinges inboard, or one that was right before and is wrong
+now. **The 72 series is the one to watch.**
+
+#### Found on the way, flagged not fixed
+
+- **`STD7224FL SIDE R.skp` is defective** - measures **37.9375 x 72** where its name says 24 across
+  (`origin_anchor max/min/min`). Both harnesses refuse to guess rather than pick silently. This means
+  **`MDL 7272 S`'s floor is ~14 in wrong at the high end** and always has been. Component authoring,
+  Benton's to fix.
+- **The window-end question is now answerable.** It wanted a hinge datum "that does not move when the
+  door moves"; `hinge_runs` measures exactly that, but only the short-axis `bracket_edge` is
+  persisted to the TSV - the long-axis runs are printed and thrown away. A `runs` column would close
+  it. Left alone deliberately.
+
+Harnesses, each naming its independent witness in its header and none compared against a copy of
+itself: `.forge/fixer/verify-deck-pitch.py`, `.forge/fixer/verify-ceiling-cue.py`,
+`.forge/fixer/verify-84126.py`. Write-up:
+`.forge/fixer/ROOTCAUSE-std-deck-84126-2026-08-26.md`. **`P:` read-only; nothing written to it.**
+
 ### 1.6.30 - THE IEP TRAY ORIENTATION ABSTENTION IS LIFTED. It was a threshold, not a mystery.
 
 Benton re-ran `scripts/probe-levels.rb` over the whole parts folder with a **blank filter**, all
