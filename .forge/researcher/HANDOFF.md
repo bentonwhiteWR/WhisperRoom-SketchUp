@@ -1,63 +1,83 @@
-# HANDOFF — Researcher → Scoper / Builder
+# HANDOFF — Researcher (portal part placement) → Builders, 2026-08-27
+
+(This file replaces an older HANDOFF for the panel-reorg mission; that mission's reports —
+`script-inventory.md`, `panel-problems.md`, `proposed-structure.md` — still stand in this
+folder. The lighting stream has its own `HANDOFF-lighting.md`.)
 
 ## Produced
 
-- `.forge/researcher/script-inventory.md` — all 42 files in `scripts/`: current headers,
-  what each actually does, audience (DAILY / OCCASIONAL / DEV-ONLY / LIBRARY / ONE-OFF),
-  ability-vs-action, what it operates on, current icon. Includes the `SKIP` audit and the
-  Python tools the panel cannot see.
-- `.forge/researcher/panel-problems.md` — 11 concrete problems with `main.rb` and
-  `panel.html`, each cited to a line, plus the two suspected overlaps checked in detail.
-- `.forge/researcher/proposed-structure.md` — the six-category tree, the eight scripts to
-  hide and how they stay reachable, 14 proposed renames, 2 retirements, and one icon brief
-  per visible script.
+- `.forge/researcher/portal-part-placement.md` — THE deliverable. Per part (foam, duct
+  covers, desks, MJP, elevated floor / EFP, caster plate, plus the full anything-else
+  enumeration): the portal's wall rule stated evaluably, the face, offsets in inches,
+  Standard vs Enhanced difference, whether a `.skp` exists (exact filename), and a
+  provenance word on every number. Ends with a one-table build spec.
 - `.forge/researcher/HANDOFF.md` — this file.
 
 Nothing outside `.forge/researcher/` was created or modified.
 
 ## Read first
 
-1. `.forge/researcher/panel-problems.md` **finding 2** — toggling any ability also runs the
-   script's normal entry point, dialog and all. It is a defect, not a design choice, and it
-   gates any redesign that puts a run affordance and a switch on the same row.
-2. `.forge/researcher/proposed-structure.md` — the tree and the icon briefs are what the
-   Scoper's mockup and icon set should be built against.
-3. `scripts/wr_tools/main.rb:97-184` — `meta_of` and `cat_of`. Every proposal that adds a
-   header directive (`@icon`, `@shelf`) lands here.
-4. `scripts/make-icons.py` — where a new icon set is authored. One table, one generator; the
-   plugin globs `ico-*.svg`, so adding icons needs no plugin edit.
-5. `.forge/GOAL.md` — reconfirmed. This work is design and spec only; `main.rb` and
-   `panel.html` are explicitly out of scope for rewriting this round, and nothing here
-   rewrites them.
+1. `portal-part-placement.md` section 0 (vocabulary): **"bench wall" is not a portal term
+   — it is the VNT (vent) wall**; "IEP wall" = the Enhanced inner panel whose room face is
+   **2.25" roomward** of the standard interior face (1.25" air gap + 1" panel).
+2. Sections 1-2: Benton's foam and duct-cover rules are **verified**, with three portal
+   rules he did not state: (a) foam only on **40"/46"** SOLID/VNT/CBL/NV panels — never on
+   doors, windows, or any narrow companion including the 43"; (b) **no duct covers on an
+   HX booth** (product fact — they don't ship); (c) foam layers **in front of** the duct
+   covers.
+3. Section 7's table before touching `scripts/booth-from-link.rb` — it lists exactly which
+   payload keys are handled, which are named-ignored, and which are **silently dropped**
+   today (`f`, `ep`, `ad`, `ac`, `dl`, `ds`, `ms`, `dox`, and the caster PLATE half of
+   `cs`). "No silent fallback" (GOAL) means the silent ones must at least become named.
 
-## Assumptions
+## Key numbers (all sourced in the main report)
 
-- **assumed** — Audience labels (DAILY / OCCASIONAL) are inferred from what each script is
-  for plus the pipeline in `CLAUDE.md` and `README.md`. Benton's actual click frequency was
-  not measured and no usage data exists. The DEV-ONLY, LIBRARY and ONE-OFF labels are much
-  firmer: those come from the scripts' own headers.
-- **assumed** — `diag-favourites.rb` is dead. The preferences bug it diagnoses is documented
-  as understood and fixed at `main.rb:206-224`, but Benton may still want it.
-- **assumed** — `pendant-jig.rb` and `tube-drying-stand.rb` will be run again, so they are
-  proposed as hidden-but-reachable rather than retired.
-- **derived, not observed** — every behavioural claim about running code. There is no Ruby
-  interpreter on this machine outside SketchUp (`CLAUDE.md`), so nothing was executed.
+- Foam sheet: nominal 24 x 48 x 2"; centered on its panel horizontally AND vertically
+  (ph 81" / 91" HX); interior face, proud; one per qualifying panel; color = payload `f`.
+- Duct covers: pair per vent wall, centered on ports — 40": hi [13.9", 71.1"],
+  lo [27.7", 9.1"]; 46": hi [16.15", 71.45"], lo [29.9", 9.45"]; x from the panel's left
+  edge **as seen from inside**; cover ~11.94 x 14.76/13.78 x 3.14".
+- Enhanced move for both: +2.25" roomward onto the IEP room face — a move, never a copy.
+- Desk: surface 32.5"; small 30 x 14 (may mount outside, +14" clearance), large 42 x 17
+  interior-only; centered on host panel; host selection rule in section 3.
+- MJP ("Multi jack panel"): pass-through, boxes on BOTH faces, plate center 27.25" high,
+  centered on a WDO/CBL panel (fallback rules in section 4).
+- EFP slab: ~2.83-2.89" tall, centered in plan (flush to IEP walls on Enhanced; ~2-2.4"
+  gap per side on Standard, filled by perimeter strips that have NO art and NO .skp).
+- Caster plate: replaces the 5/16" mat, footprint = published exterior, floor sits 0.739"
+  into its tray, net booth lift exactly 5"; step (12") only with casters.
 
-## Open questions
+## Assumptions (labelled)
 
-1. **Confirm the autorun defect in SketchUp** before building on it. Open the panel, flip
-   the "Exploded" switch, and see whether the explode dialog appears. If it does, the finding
-   holds and the fix is `$wr_no_autorun = true` around `main.rb:635` plus reconciling the
-   two guard-global names (`$wr_no_autorun` vs `$wr_suppress_autorun`).
-2. **Is `diag-favourites.rb` retired?** Benton's call.
-3. **Should `csusb-rooms.rb` move to `clients/csusb/`** or stay in `scripts/` hidden?
-4. **Are `booth-4260-s.rb` and `booth-96168-s.rb` safe to delete?** Both look fully
-   superseded by `build-booth.rb`, but I did not verify that `build-booth.rb`'s dropdown
-   actually offers MDL 4260 S and MDL 96168 S — check `wr-booth-data.rb` covers both before
-   deleting.
-5. **Does the ability/action merge into one row survive Benton's habits?** He may value the
-   ABILITIES group as a "what is currently switched on in this model" status panel, which a
-   merged list loses. Worth asking before the mockup commits to it.
-6. **Should the Python tools get a listing in the panel** — read-only, "run these in a
-   shell" — or stay out entirely? They are currently invisible while the README tells the
-   user to run three of them.
+- "Bench wall" = vent wall — **derived** from rule-matching; no portal text defines the
+  word. If Benton meant something else, sections 1-2 still stand (they are stated in
+  portal vocabulary).
+- `Foam.skp`, `Duct Cover.skp`, `MJP.skp`, desk and EFP `.skp` internal geometry is
+  **assumed** to match the portal art — none were opened; Builders must measure each on
+  first load (SketchUp side, not from here).
+- The Enhanced ceiling tray being covered (or not) by our existing deck code is
+  **assumed unresolved** — `wr-deck.rb` shows no tray/EFP/CP terms.
+
+## Open questions (Benton is away — evidence-leaning answers recorded)
+
+1. **Desk/MJP on Enhanced: which face?** The portal disagrees with itself (top-down = IEP
+   face; iso = standard face, buried). Evidence leans IEP room face — same "wall the
+   customer can touch" reasoning Benton gave for foam. Build on the IEP face, cheap to
+   move.
+2. **EFP exact position**: the portal draws it centered and admits it's authored, not
+   measured ("Benton is asked on the proof sheet"). Evidence leans: centered = pressed to
+   the IEP walls on Enhanced; centered with perimeter-strip fill on Standard. Build
+   centered.
+3. **`EFP96192.skp` is missing; `EFP96196.skp` matches no catalogue size** — almost
+   certainly a misnamed file. Benton must confirm/rename; until then a 96192 EFP cannot
+   resolve. This is an author-the-component (well, rename) item for Benton.
+4. **`Duct Cover.skp` internal spacing**: the portal measured the cover-set export at 66"
+   apart vs the real 62.0". If the .skp mirrors the export, placing it whole puts the low
+   cover ~4" wrong. Evidence leans: place each cover independently at its port center.
+5. **Which end of the vent panel the duct x is measured from** is stated ("left edge seen
+   from inside") from `assets/layout-render.js:3369-3374`; worth one visual check against
+   a portal render before the numbers ship.
+6. **Parts Benton must author (no .skp exists)**: EFP perimeter strips (Standard+EFP),
+   IEP floor pad (5/16" rubber, Enhanced), bass traps, Audimute panels, studio-light
+   fixture, isolation mat (if not already inside the floor components). Report, don't
+   fake — per GOAL.
