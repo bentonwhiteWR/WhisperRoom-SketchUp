@@ -112,6 +112,16 @@ module WR_BuildBoothComponents
     part[:sh].to_s == 'in'
   end
 
+  # Stub of the real helper (build-booth-components.rb iep_nominal_width),
+  # copied because rebalance_walls now calls it: the module width an ENH
+  # part's name declares, or nil. Without it the lifted method dies with
+  # NameError before it can prove anything - which is exactly the class of
+  # failure this harness exists to catch, so the miss was at least loud.
+  def self.iep_nominal_width(name)
+    w = name.to_s[/ENH\s+([\d.]+)/, 1]
+    w && w.to_f
+  end
+
 %(rebalance)s
 
   # S wall of a 4872 E with a WIDE-ACCESS door on both shells.
