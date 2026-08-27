@@ -1,156 +1,145 @@
-# FIXER HANDOFF — 2026-08-26 (v7, supersedes v6)
+# FIXER HANDOFF — side-wall window at the wrong END, 2026-08-27 (v4, supersedes v3)
 
-v6 shipped two Standard-deck fixes (1.6.31). **Benton has now built `MDL 84126 E` and confirmed
-it good — the first in-SketchUp confirmation this mission has ever had.** That closes v6's open
-item 0 *and* the tray-orientation test owed since v5. **v7 fixes the IEP vent yaw (1.6.32).**
-Every other open item is carried forward below.
+## The defect and the verdict
 
-## Produced
+Benton, 2026-08-27, off a real SketchUp build of the MDL 102144 E **HX** from the link:
+*"the windows on the side walls are still on the wrong 'side'."* Same report he made 2026-08-26
+on the plain E and on Standard. Orchestrator-observed picture pair (reported to me; I cannot see
+images): in the booth builder the window sits on the correct long wall at the end **closest** to
+the door; in SketchUp it sits on that same wall at the end **farthest** from the door. Correct
+WALL, wrong END — commit 39bdc71's title, confirmed a second time on a fresh build.
 
-- **`scripts/build-booth-components.rb` — CHANGED, one defect, three edits.**
-  - `IEP_VENT_YAW = 180.0` **deleted**. The long comment above it is kept and corrected: its
-    "restart before you believe a report" lesson is true, but it was used to *dismiss* a real
-    report, and the note now says so.
-  - New `self.iep_vent_yaw(cls)`, sitting immediately under `EVEN` so the parity it reads is
-    next to the parity `rotation()` writes. Returns 180 only when the part's measured axis
-    permutation is odd.
-  - The inner-vent block in `build_booth` calls it and **prints the measured width axis and the
-    chosen turn for every inner vent**, so the console is now evidence.
-- **`scripts/wr_tools/VERSION` 1.6.31 → 1.6.32.** `DEVLOG.md` entry added.
-- **`.forge/fixer/ROOTCAUSE-iep-vent-yaw-2026-08-26.md` — new.** Symptom, mechanism at
-  `build-booth-components.rb:1400`, the eight measured vent axes, the five in-SketchUp reports
-  and why the rule fits all five, the blast radius, and what must **not** be generalised.
-- **`.forge/fixer/verify-vent-yaw.py` — new harness.** Independent witnesses named in its header:
-  the measured `_component-probe.tsv` and the generated `scripts/wr-booth-data.rb`. Neither is
-  derived from the placement code. It re-implements `classify()`'s axis pick and the parity from
-  the measurements, prints the turn for all 25 layouts × {non-HX, HX}, and asserts the five
-  reports. **All five fit; exit 0.**
-- `.forge/GOAL.md` — **Now** replaced (records the 84126 E confirmation); **Settled** gained the
-  measured vent-yaw fact and its do-not-generalise warning; two History lines.
-- Unchanged from v6 and still the things to read on their own subjects:
-  `.forge/fixer/ROOTCAUSE-std-deck-84126-2026-08-26.md`,
-  `.forge/fixer/TRAY-ORIENTATION-2026-08-26.md`, `.forge/fixer/verify-tray.py`,
-  `.forge/fixer/WIDTH-AXIS-FAMILY-2026-08-26.md`,
-  `.forge/fixer/ROOTCAUSE-side-wall-order-2026-08-26.md`,
-  `.forge/fixer/verify-deck-pitch.py`, `.forge/fixer/verify-ceiling-cue.py`,
-  `.forge/fixer/verify-84126.py`.
+**Root cause: the 2026-08-11 change to `scripts/gen-booth.py` that walked every E/W wall
+N→S.** It put slot 0 at the N end of the side walls; the customer's own booth-builder view — and
+the pre-2026-08-11 data, and WhisperRoom's measured big-run convention — put slot 0 at the
+door-wall (S) end. **Shipped in this change: the walk is reverted to S→N and
+`scripts/wr-booth-data.rb` regenerated.** UNRUN — no Ruby executed, no SketchUp opened.
 
-**`P:` read-only, nothing written to it. `WhisperRoomQuote` untouched. `scripts/wr-deck.rb`
-untouched. No Standard placement changed.**
+## How this differs from the RETRACTED e2e3461 diagnosis — read before re-litigating
 
-## Read first
+e2e3461 retracted the same four-line revert because its *witness* was circular
+(`booth-iso-geometry.json` is a stale snapshot of the file under test) and left the 102144
+**unresolved pending Benton**. Two things are new:
 
-1. `.forge/fixer/ROOTCAUSE-iep-vent-yaw-2026-08-26.md` — and specifically its last two sections.
-   The vent fix is done; the **general** defect behind it is not, and the door family proves you
-   cannot fix it by generalising the vent rule.
-2. `.forge/fixer/WIDTH-AXIS-FAMILY-2026-08-26.md` — unchanged, still changes the plan for
-   placement. 1.6.32 is the first fix to act on it.
-3. `.forge/fixer/ROOTCAUSE-std-deck-84126-2026-08-26.md` — now **confirmed in a built model**.
-4. `.forge/fixer/ROOTCAUSE-side-wall-order-2026-08-26.md` — the retractions. Do not reuse any
-   pre-retraction conclusion about panel order.
+1. **Benton has now adjudicated, twice, on real builds** (Standard + Enhanced 2026-08-26, HX
+   2026-08-27): the built end is wrong. That is the human ruling e2e3461 said was required. The
+   evidence for this fix is *Benton plus the live customer-facing view*, not the stale JSON.
+2. The "breaks the 14 models where the builder matches the plan the customer is shown" objection
+   inverted: the customer's primary view is the angled "YOUR BOOTH" view, and it — plus Benton —
+   contradicts the portal 2D plan's raw order on exactly those models. The 2D plan is the odd
+   one out (see below).
 
-## The answer in five lines
+The retraction's other three findings all still stand and were honoured: booth-iso-geometry.json
+was used only as *context*, never as a verdict; the portal's `wallPanelRun()` flip gate is a
+correct rendering of the documented convention; and the anchor is the **model's own door wall**
+(`layout.door.wall`, S on all 25 catalogue models), never the live door placement (v2.417.1).
 
-`rotation()` derives the along-wall width direction from the **parity of the part's own axis
-permutation**, so parts of opposite parity land end for end from each other on the same wall.
-`ENH 35.5VNT` is the only one of the eight `ENH` vent parts whose width runs X; the blanket
-`IEP_VENT_YAW = 180` was fitted to it and applied to the other seven. It is now derived per part.
-Benton saw it on the HX; **ten non-HX 41.5-vent layouts were wrong too, and nobody had looked.**
+## Where slot order comes from (question 1 of the brief)
 
-## Assumptions
+- `scripts/gen-booth.py` digitises the catalogue and writes `scripts/wr-booth-data.rb`
+  (header line 1: GENERATED — do not hand-edit). Slot order → physical position is decided by
+  the walk at gen-booth.py **line ~411** (outer) and **~259** (inner IEP), with the mid-wall
+  seals at **~424** and **~268**.
+- `scripts/booth-from-link.rb` assigns pack→slot-id only (`assign[sid]`, :319-342); it never
+  positions anything. **HX is a part-name suffix only** (`resolve_part`, :246-247; layout key
+  built at :289-290 without hx) — there is **no per-variant layout table**, which is why the HX
+  build shows the identical defect. `build-booth-components.rb` places each part at its `:poly`
+  verbatim.
+- So the disagreement was in the **DATA** (generated layout), not the placer. The placer was not
+  touched (and the IEP_WALL_LIFT region ~140-170 was left strictly alone — the orchestrator is
+  editing it concurrently; the tree's `M build-booth-components.rb` is theirs, not mine).
 
-- **The parity rule is a per-FAMILY convention, not a law.** derived for the mechanism, but which
-  of the two rigid orientations is *correct* is an authoring property. It fits five reports across
-  vents, and agrees with the mid-wall seal — and it would be **wrong** for the inner door family,
-  which is uniformly Y-running and uniformly wants 180. This is the weakest link in 1.6.32.
-- **Only two of the eight `ENH` vent parts have been seen in a built model** (`ENH 35.5VNT`,
-  `ENH 35.5VNT_HX`). The 41.5s rest on the 96144 E and 4872 E reports. **reported.**
-- **The `MDL 4872 E` data point is the weakest of the five.** The booth was signed off as a whole
-  on 08-25 when the constant did not exist; there is no note that the vent's end-for-end
-  orientation was specifically examined. **reported.** Drop it and the rule still stands on the
-  96144 E and today's HX, which are independent of each other.
-- **A part authored end for end in its own frame defeats this rule**, exactly as four of 23 `ENH`
-  ceiling parts are authored upside down. No way to detect it from a bounding box. **assumed** it
-  does not occur among the eight vent parts.
-- `_component-probe.tsv` is a faithful stand-in for what `classify()` measures at build time.
-  **derived** — both read `defn.bounds`; they are two functions and neither ran here.
-- (from v6) The direction of convention A's mirror is **reported**, not measured — but it has now
-  survived a built `MDL 84126 E`, which is real evidence it did not have before.
-- (from v6) `_face-levels.tsv` is a faithful stand-in for what `wr-deck.rb` measures. **derived.**
-- (from v5) Cut lists per layout are **derived** from a Python transcription of `WR_Deck.plan`.
-  No Ruby interpreter exists here; `scripts/rbparse.py` reports files **parse**, not that they run.
-- (from v4/v5) `runs` is meaningful as a wall-plane axis only for thin parts. **derived.**
-- (from v4) `ENH LeftWADoor_HX` / `RightWADoor_HX` being +9.9908 in over their twins is deliberate
-  door-leaf clearance rather than a defect. **assumed** — unconfirmed.
-- (from v3/v4) The coordinate map `E/W builder y == H - bIn .. H - aIn` is **derived** from
-  `layout-render.js:1003-1004` and `:1562-1565`.
+## The portal's three views (question 2), observed in code
 
-## Open questions for Benton
+| view | index-0 end on E/W | source |
+|---|---|---|
+| angled "YOUR BOOTH" (what the customer judges) | **S / door end** — 102144 `W0` at y 2..42 | `lib/pl-data/booth-iso-geometry.json` (`booths[].parts`), painted by `assets/iso-render.js:1464-1475`, `:1731-1752` |
+| 2D top-down plan | **N end** raw (`aIn` grows from N; `layout-render.js:156` `wallPanelRun`), flipped back to the door end ONLY on 2-slot unequal walls (`:275` gate `n===2 && skuRaw[0]!==skuRaw[1]`) | `assets/layout-render.js` |
+| SketchUp builder (pre-fix) | N end | `wr-booth-data.rb` post-2026-08-11 |
 
-0. **NEW — build `MDL 7272 E` or `MDL 96144 E`, Shell = Both, and look at the inner vent walls.**
-   `git pull` → `install-plugin.py` → **RESTART**. Those are 41.5-vent layouts and they have been
-   wrong since this morning. Then **rebuild the HX** and confirm its vents came back. The console
-   now prints the width axis and turn per vent. See `.forge/GOAL.md` **Now**.
+The 2D plan therefore contradicts the angled view on every multi-slot **symmetric** E/W wall (14
+models, 56 walls) — invisible on solids, visible the moment a window or vent occupies a side-wall
+slot. `wallPanelRun`'s own comment block (layout-render.js:~240) states the angled view "was
+already correct." The big-run convention (`reference/seam-seal-attachment.md` §"Two things that
+move a seal along a wall", hinge slots, measured) also puts slot 0 (the big run) at the door end
+on 6060/6084/7272/7296.
 
-1. **NEW — the inner WINDOW panels are predicted wrong and were deliberately not changed.**
-   Every `ENH ...WDO` inner panel runs **X** (measured) and gets **no** turn, so under the
-   vent/seal convention it should be end for end. There is no in-SketchUp observation of one, and
-   the door family proves conventions differ per family, so guessing would be the same mistake
-   1.6.21 made. **The test: build a booth with an inner window** — `guess_component` has no WDO
-   branch, so it needs an explicit assignment such as `'W1i' => 'ENH 41.5Panel3236WDO'`
-   (`build-booth-components.rb:1200`), or a portal link that carries one — **and say which end the
-   window sits at.** One look closes it.
+## Exactly what changed
 
-2. **`STD7224FL SIDE R.skp` is defective, and only you can fix it.** It measures **37.9375 x 72**
-   where its name says 24 across, `origin_anchor max/min/min`, 6 entities. Its ceiling twin
-   `STD7224CL SIDE R` measures the correct 24.0000 x 72. **This makes `MDL 7272 S`'s floor ~14 in
-   wrong at the high end, and it always has been.** Both deck harnesses refuse to guess a width
-   for it rather than pick one silently. Component-authoring fix, on the share.
+- `scripts/gen-booth.py` — four sites: outer panel walk (now `y = cursor`), outer seal
+  (`mid = cursor + SEAL_W/2`, E/W override deleted), inner IEP panel walk (`y, dy = cursor, ln`),
+  inner seal (E/W override deleted). Both shells now walk the same direction **unconditionally**,
+  so they can never disagree with each other. Comments carry the evidence and the
+  "anchor = model's fixed door wall, NOT live placement" rule, with a note for any future
+  N-door model.
+- `scripts/wr-booth-data.rb` — regenerated (`python scripts/gen-booth.py --all`): 312 lines
+  changed, **every changed entity is E/W** (panels W0..W2/E0..E2, their `i` twins, W-/E-seals).
+  N/S untouched.
+- `.forge/fixer/replay-portal-wallrun.js` — header note only: expected state changed; 84
+  DISAGREE is now the correct reading (see below).
+- `scripts/wr_tools/VERSION` → **1.6.34** (the orchestrator's concurrent edit had already taken
+  1.6.33; collapsing to one number at commit time is the orchestrator's call).
 
-3. **`RightSideVent_CP_HX.skp` is defective and only you can fix it.** The HX rework was never
-   applied: every measured property is identical to the non-HX `RightSideVent_CP`, including the
-   origin offset and an entity count of 1 where the correct mirror `LeftSideVent_CP_HX` has 3.
-   Expected after re-authoring: x = 46.0000, y = 8.5468, z = 96.6128, anchor `min/min/min`,
-   3 entities. **Component-authoring fix, not a code change.**
+Nothing committed; tree left dirty for the orchestrator. `WhisperRoomQuote` read only.
 
-4. **On a real 102144, which end of the side wall does the window sit at**, measured against the
-   floor/ceiling **hinge slots**? And is it fixed by the model at all, **or does the assembler put
-   the window wherever the customer asks?** Same question for the 96144. ⚠ **Partly answerable
-   without you, and still not done.** `hinge_runs` (`wr-deck.rb:149`) measures exactly the datum
-   this wants along the panel's long axis, and `probe-levels.rb`'s `brackets` already computes it
-   — but **only the short-axis `bracket_edge` is written to `_face-levels.tsv`; the long-axis runs
-   are printed to the console and thrown away.** Adding a `runs` column would close the measurable
-   half. **Flagged, deliberately not done — out of scope for both 1.6.31 and 1.6.32.**
-   Note this overlaps open item 1: same wall, same part family.
+## Verification run (all offline — NOTHING here ran in SketchUp)
 
-5. **Green-light the four-booth flip?** 6060 / 6084 / 7272 / 7296 only, 24 walls. ⚠ `MDL 6060 E`
-   and `MDL 7272 E` are both in the GOAL "Now" now. Sequence it; do not land it underneath him.
+- Regenerated data vs **pre-flip commit `4c0cf38`**: all 226 Standard outer panel origins
+  compared — **224 identical, 2 differ**, and the 2 are the known 96168 N3/S3 digitisation
+  correction (post-flip, legitimate, N/S). The revert is exact.
+- 102144 E: `W0` outer now y 2..42 (door end), `W0i` 4.25..39.75 — matches the angled view's
+  `W0 [[1,2],[2,2],[2,42],[1,42]]` (file still stamped 2026-08-07, verified today).
+- 6060: `W0` (the 40" big run) now y 2..42 — the measured hinge-slot convention lands as a
+  byproduct; **the four split-run booths' 24-wall defect from ROOTCAUSE-6060E is closed by this
+  same change.**
+- `node .forge/fixer/replay-portal-wallrun.js --all`: **300 walls, 84 DISAGREE** — exactly the
+  14 symmetric multi-slot models × 2 walls × 3 shell rows where the portal 2D plan draws raw
+  N-first order. The four split-run booths **AGREE (0 disagreements)**; if one of those ever
+  disagrees again, that is a real regression. 6060 S: 0 DISAGREE, angled matches too.
+- `python scripts/rbparse.py`: **52 files parse** (real CRuby parse; parsing is not running).
+- `.forge/builder/replay-iep-wall-lift.py`: 105/105 PASS against HEAD's
+  `build-booth-components.rb` + my regenerated data (isolated in a temp worktree). The 1/105
+  failure in the live tree is caused by the orchestrator's in-progress IEP_WALL_LIFT edit, not
+  by this change. `.forge/builder/replay-iep-deck.py`'s failure is the DEVLOG-documented stale
+  line-879 assert, present at clean HEAD, unrelated.
 
-6. **Green-light bounding-box width-axis resolution?** Written up but **not made**, and 1.6.32
-   makes the case for it stronger: the vent fix is a per-family patch on a **general** defect —
-   `rotation()` deriving the along-wall direction from authoring parity. It would touch the outer
-   Standard shell as well as Enhanced, and the Standard fence has only ever been lifted for named
-   defects. Still needs its own decision.
+## Provenance
 
-7. **The portal's angled view is stale on 14 models** (56 walls). Refreshing it requires fixing
-   `gen-booth.py` FIRST. `WhisperRoomQuote` change, not mine to make.
+- Slot order source, HX keying, the four walk sites, the portal's three-view code paths, the
+  regeneration diffs, and every harness number above: **observed** (file:line cited).
+- "The customer's booth-builder view shows the window door-adjacent / SketchUp shows far end":
+  **reported** (Benton via orchestrator screenshots; I cannot see images).
+- "Slot 0 belongs at the door-wall end on symmetric walls": **derived** from Benton's two
+  reports + the customer-facing angled view + the portal's own "already correct" comment +
+  continuity with the pre-2026-08-11 data; **measured** (hinge slots) only on the four
+  split-run booths. A physical hinge-slot check on a real 102144/96144 (HANDOFF.md's open
+  question) would upgrade this to measured; it has still never been taken.
+- The fix itself: **assumed correct until built** — UNRUN.
 
-8. **`RightWADoorWithRamp_HX` has no non-HX twin under that name** — its twin is in the set as
-   `RightWADoorWithRamp#1`, SketchUp's duplicate-definition suffix. Any name-keyed lookup for
-   `RightWADoorWithRamp` will miss it. Flagged, not investigated.
+## What Benton must look at in a rebuilt booth
 
-9. **`.forge/builder/replay-iep-deck.py` section 9 describes a file that no longer exists.** It
-   still asserts `_face-levels.tsv` carries zero `ENH` rows. **Left alone deliberately — it is the
-   Builder's harness, not the Fixer's.**
+Reinstall (`git pull` → `python scripts/install-plugin.py` → **restart SketchUp**), then:
 
-10. **Neither 1.6.31 fix reaches the ENHANCED inner deck, and that is a scope boundary, not a
-    verdict.** `build-booth-components.rb` calls `WR_Deck.plan` (line 863) but runs its **own**
-    placement loop and its **own** `bracket_edge` call (line 611); it never calls `WR_Deck.build`.
-    So the inner deck still seats every tile low-edge-first off nominal stations, and still reads a
-    ceiling's orientation without the convention-A mirror. **`ENH 8418 FL` measures 17.9375, 1/16
-    under its nominal**, so an inner floor ending on that part has the same perimeter gap the
-    Standard floor had. ⚠ **The 84126 E confirmation makes this decidable now** — the same
-    evidence that held for the Standard deck carries over. Worth a decision.
+1. **MDL 102144 E HX from his same link** — window (`W0`/`W0i`) at the end of the W wall
+   **adjacent to the door corner**, both shells; E-wall vent (`E0`) likewise at the door end.
+2. **Standard MDL 102144** from the same link — same.
+3. **MDL 6060 (either variant)** — the 40" run at the door end of both side walls, 16" at the
+   back; mid-wall seal 24" from where it was.
+4. **MDL 4872 E** (signed off) — must be **unchanged** (single panel per side wall; its E/W
+   origins are in the 224-identical set).
+5. Any N-wall vents — **unchanged** (N/S untouched).
 
-11. ~~ENH parts have never been face-level probed.~~ **CLOSED (v5).**
-    ~~Build the 84126 E for the tray test.~~ **CLOSED 2026-08-26 — built and confirmed good.**
+## Left open, deliberately
+
+- **The portal 2D plan draws the raw N-first order on 14 models** — now the lone dissenter,
+  contradicting its own angled view, SketchUp, and Benton. That is a `WhisperRoomQuote`
+  (`wallPanelRun`) change — generalise the door-end rule beyond the 2-slot-unequal gate — and
+  is not makeable from this repo. Until then the portal's 2D plan will look mirrored on
+  side-wall windows/vents relative to the (now-correct) build.
+- `booth-iso-geometry.json` can now be re-extracted safely (its source file matches it again on
+  E/W), but that is also `WhisperRoomQuote`'s to run.
+- The **width-axis family split** (end-for-end IN PLACE, `WIDTH-AXIS-FAMILY-2026-08-26.md`) is a
+  separate, still-open defect. If a rebuilt 102144's window is at the right END but the panel
+  looks turned, that is the other defect, not a failure of this one.
+- The physical hinge-slot measurement on a 102144/96144 is still worth taking; it is the only
+  thing that would make the symmetric-wall rule *measured* rather than derived.

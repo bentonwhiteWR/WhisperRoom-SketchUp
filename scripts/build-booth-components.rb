@@ -160,6 +160,72 @@ module WR_BuildBoothComponents
     IEP_WALL_LIFT.key?(key.to_s)
   end
 
+  # ---- THE VENT WALL SITS 1/16 BELOW THE REST OF THE INNER SHELL ----
+  #
+  # IEP_WALL_LIFT is one figure for a whole inner shell, and that was right
+  # until a booth disagreed with itself. Benton, 2026-08-27, off a built
+  # MDL 102144 E (and the same booth in HX): "The IEP vent walls need to lower
+  # 1/16. Just the IEP vent walls." Everything else on that shell he called
+  # good, so this is NOT the shell lift moving - the shell lift stays 0.7500
+  # and the vent parts alone come down to 0.6875.
+  #
+  # WHY A SEPARATE TABLE INSTEAD OF SPLITTING IEP_WALL_LIFT: the shell figure
+  # and the vent offset answer different questions. The shell figure is how the
+  # 1.5 of capture splits between the floor lip and the ceiling lip. This is one
+  # family of part hanging lower than its neighbours in the same run, which is a
+  # property of the vent part, not of the booth's capture. Folding them into one
+  # number would mean re-measuring the whole shell every time a vent moved.
+  #
+  # SCOPE, and the discipline here is the same as IEP_WALL_LIFT's: ONE BOOTH HAS
+  # BEEN LOOKED AT. Eye only, no probe - no probe can see it either, for the
+  # same reason IEP_VENT_YAW cannot, since the room-proud block re-seats the box
+  # afterwards. A booth not named below gets 0.0, meaning its vent sits flush
+  # with the rest of its inner shell, and that is the pre-2026-08-27 behaviour
+  # rather than a claim about that booth. Nothing is extrapolated from one point.
+  #
+  # AND THE RESTART RULE APPLIES. This constant ships in v1.6.33. A report that
+  # the vent is still 1/16 low is only evidence about this table if SketchUp was
+  # restarted after 1.6.33 was installed - see the long note at IEP_VENT_YAW for
+  # the version this lesson already cost.
+  IEP_VENT_LIFT_DROP_DEFAULT = 0.0
+  IEP_VENT_LIFT_DROP = {
+    'MDL 102144 E' => 0.0625,   # eye only, E and HX both  2026-08-27
+  }.freeze
+
+  def self.iep_vent_lift_drop(key)
+    IEP_VENT_LIFT_DROP[key.to_s] || IEP_VENT_LIFT_DROP_DEFAULT
+  end
+
+  def self.iep_vent_lift_drop_measured?(key)
+    IEP_VENT_LIFT_DROP.key?(key.to_s)
+  end
+
+  # A VENT PART, read off the COMPONENT NAME THAT WAS ASSIGNED - the same test
+  # iep_room_proud and iep_trim_end already use, deliberately the same regex so
+  # the three cannot drift apart and disagree about what a vent is. Never read
+  # from the slot's :sk: a customer moving ventilation in the booth builder
+  # changes the assigned component and does not change the layout's slot kind.
+  # THE WORD BOUNDARY IS A REAL BYTE, NOT AN ESCAPE, AND IT WAS BROKEN FOR
+  # TWENTY VERSIONS. From v1.6.12 (9474d4b) until v1.6.33 the three vent tests
+  # below carried a literal 0x08 BACKSPACE where the \b belongs - a shell
+  # heredoc ate the escape when the constant was first written, and the file has
+  # carried an unprintable control character ever since. Reproduced deliberately
+  # on 2026-08-27 while adding this helper: the same heredoc collapses \\b to
+  # \b, which Python then writes as the control character.
+  #
+  # WHAT IT COST, and it is smaller than it looks: the VNT alternative was
+  # unaffected, and every vent part in the catalogue is named ...VNT, so no
+  # booth ever built wrong because of it. The NV alternative could never match
+  # anything - nothing is followed by a backspace - so a natural-ventilation
+  # part would silently have taken the panel family room-proud figure instead of
+  # the vent one, and iep_trim_end would have called it :lo instead of :sym.
+  #
+  # The harness asserts no control character survives in this file. If that
+  # check ever fails again, something wrote this file through a shell.
+  def self.iep_vent_part?(name)
+    !(name.to_s =~ /VNT|NV\b/i).nil?
+  end
+
   # The IEP mid-wall seam seal's stem - the joint between two inner panels.
   # 6.5 where the Standard seal is 2. Needed here because rebalance_walls
   # re-walks a run from real part widths and has to use the right joint.
@@ -270,19 +336,19 @@ module WR_BuildBoothComponents
   # need no move at all; the vent's is symmetric and centring landed it
   # exactly, so the vent family is :sym and the panel family is :lo.
   def self.iep_trim_end(name)
-    name.to_s =~ /VNT|NV/i ? :sym : :lo
+    name.to_s =~ /VNT|NV\b/i ? :sym : :lo
   end
 
   def self.iep_room_proud(name)
     n = name.to_s
-    return IEP_ROOM_PROUD[:vent] if n =~ /VNT|NV/i
+    return IEP_ROOM_PROUD[:vent] if n =~ /VNT|NV\b/i
     w = n[/ENH\s+([\d.]+)/, 1]
     IEP_ROOM_PROUD[w] || IEP_ROOM_PROUD_DEFAULT
   end
 
   def self.iep_room_proud_measured?(name)
     n = name.to_s
-    return true if n =~ /VNT|NV/i
+    return true if n =~ /VNT|NV\b/i
     IEP_ROOM_PROUD.key?(n[/ENH\s+([\d.]+)/, 1])
   end
 
@@ -1990,6 +2056,8 @@ module WR_BuildBoothComponents
     # inherit it. Outer-only builds resolve it too and simply never use it.
     lift = iep_wall_lift(key)
     lift_measured = iep_wall_lift_measured?(key)
+    vent_drop = iep_vent_lift_drop(key)
+    vent_drop_measured = iep_vent_lift_drop_measured?(key)
     centre = [spec[:w] / 2.0, spec[:h] / 2.0]
     cache  = {}
     rows   = []
@@ -2005,6 +2073,11 @@ module WR_BuildBoothComponents
       puts "  ENHANCED - a second (IEP) shell inside it: #{inner_n} parts, room #{spec[:eiw]}\" x #{spec[:eih]}\""
       lift_src = lift_measured ? "MEASURED ON THIS BOOTH" : "DEFAULT - NOT MEASURED ON THIS BOOTH (measured: #{IEP_WALL_LIFT.keys.join(', ')})"
       puts "  inner walls #{cfg['hx'] ? ENH_WALL_H_HX : ENH_WALL_H}\" tall, underside lifted #{lift}\" - #{lift_src}. See IEP_WALL_LIFT"
+      if vent_drop > 0.0
+        puts "  inner VENT walls #{vent_drop}\" lower still - underside at #{lift - vent_drop}\". See IEP_VENT_LIFT_DROP"
+      else
+        puts "  inner vent walls flush with the rest of the inner shell - this booth has no IEP_VENT_LIFT_DROP figure (measured: #{IEP_VENT_LIFT_DROP.keys.join(', ')})"
+      end
       puts "  inner rotations: corners placed directly (SW 0 / SE 90 / NE 180 / NW 270), mid-wall seal #{IEP_SEAL_YAW}deg, door #{IEP_DOOR_YAW}deg"
     end
     puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"
@@ -2117,6 +2190,9 @@ module WR_BuildBoothComponents
       warn = []
       # Same idiom as the room-proud warning below: a figure this booth has not
       # been measured for is used, and is NAMED so it cannot pass as measured.
+      if spec[:eiw] && shell != 'outer' && !vent_drop_measured
+        warn << "#{key}: no IEP_VENT_LIFT_DROP figure for this booth, so its inner "                  "vent walls sit flush with the rest of the inner shell. That is the "                  "pre-v1.6.33 behaviour, NOT a measurement. Measured booths: "                  "#{IEP_VENT_LIFT_DROP.map { |k, v| "#{k} #{v}" }.join(', ')}"
+      end
       if spec[:eiw] && shell != 'outer' && !lift_measured
         warn << "#{key}: IEP wall lift #{lift} is IEP_WALL_LIFT_DEFAULT - this booth "  \
                 "has never been measured. Measured booths: "  \
@@ -2127,7 +2203,13 @@ module WR_BuildBoothComponents
         # Per PART, not per booth. An inner wall is 1.5 shorter than an outer
         # one and its top sits IEP_WALL_LIFT higher; one booth-wide nominal put
         # every IEP wall 1.5 too low, which looks almost right.
-        nominal = part_top_z(p, cfg['hx'], lift)
+        # The vent family hangs IEP_VENT_LIFT_DROP below the rest of the inner
+        # shell. Subtracted from the lift rather than from the nominal so an
+        # outer part is untouched - part_top_z applies the lift only to inner
+        # parts, and an outer vent must not move.
+        p_lift = lift
+        p_lift -= vent_drop if inner?(p) && iep_vent_part?(r[:name])
+        nominal = part_top_z(p, cfg['hx'], p_lift)
         rev = REVERSED.include?(r[:name])
         proud = p[:k] == 'seal' ? SEAL_PROUD : 0.0
         # A door's bulk is its swung leaf and belongs on the ROOM side, the
@@ -2222,7 +2304,7 @@ module WR_BuildBoothComponents
         # off the COMPONENT THAT WAS ASSIGNED, never p[:sk] - the same reason
         # is_door is: a customer can move a vent into a slot the layout calls
         # SOLID, and the slot kind would not know.
-        is_vent = !(r[:name].to_s =~ /VNT|NV/i).nil?
+        is_vent = iep_vent_part?(r[:name])
         if inner?(p) && p[:k] == 'panel' && is_vent
           vyaw = iep_vent_yaw(r[:cls])
           axis = r[:cls].nil? ? '?' : %w[X Y Z][r[:cls][:wi]]

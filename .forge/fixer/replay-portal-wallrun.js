@@ -34,6 +34,20 @@
  *   angled   booth-iso-geometry.json           the portal ANGLED ("YOUR BOOTH")
  *                                              3D view, assets/iso-render.js
  *
+ * ⚠ EXPECTED STATE CHANGED 2026-08-27 (v1.6.34). gen-booth.py's E/W walk was
+ * reverted to S->N — slot 0 at the model's own door-wall end — on Benton's
+ * twice-repeated report (Standard, Enhanced and HX builds of the 102144) that
+ * the side-wall window built at the wrong end, against the customer-facing
+ * booth-builder view. So a DISAGREE from this harness is no longer evidence
+ * against the builder: `--all` now reads 84 DISAGREE, and those 84 are the 14
+ * symmetric multi-slot models x 2 walls x 3 shell rows where the portal 2D
+ * plan draws its RAW N-first order (its door-end flip cannot fire there).
+ * On those walls the portal 2D plan is the odd one out — it contradicts the
+ * portal's own angled view and Benton — and fixing it is a WhisperRoomQuote
+ * change, not one that can be made from this repo. The four split-run booths
+ * (6060/6084/7272/7296) must AGREE; if one of those ever disagrees again,
+ * THAT is a real defect.
+ *
  * The VERDICT is layout vs portal. `angled` is reported but never judged: it is
  * a snapshot of wr-booth-data.rb parsed on 2026-08-07 (see the header of
  * lib/pl-data/extract-booth-iso-geometry.js), so where it differs from `portal`

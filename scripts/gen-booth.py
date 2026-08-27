@@ -254,9 +254,12 @@ def inner_parts(L, W, H, inner, assign=None):
                 x, dx = cursor, ln
                 y, dy = (H - f if side == 'N' else b), IEP_PANEL_T
             else:
-                # Same N->S walk as the outer shell, for the same reason.
+                # Same S->N walk as the outer shell, for the same reason — and
+                # unconditionally the SAME direction as the outer shell, so the
+                # two shells of an Enhanced booth can never disagree on which
+                # end of a wall a slot id owns.
                 x, dx = (W - f if side == 'E' else b), IEP_PANEL_T
-                y, dy = H - cursor - ln, ln
+                y, dy = cursor, ln
             parts.append(dict(kind='panel', id='%si' % slot['id'], side=side,
                               slot_kind=slot['kind'], shell='in',
                               pack=(assign or {}).get('%si' % slot['id']), length=ln,
@@ -265,8 +268,6 @@ def inner_parts(L, W, H, inner, assign=None):
             cursor += ln
             if i < len(inner[side]) - 1:
                 mid = cursor + IEP_SEAL_W / 2.0
-                if side in ('E', 'W'):
-                    mid = H - cursor - IEP_SEAL_W / 2.0
                 h = IEP_SEAL_PLATE / 2.0
                 s = IEP_SEAL_W / 2.0
                 # A T on its side: the 6.5 stem fills the joint through the
@@ -403,12 +404,28 @@ def build(model, variant, assign=None):
                 x, y = cursor, (H - t if side == 'N' else t - PANEL_T)
                 dx, dy = ln, PANEL_T
             else:
-                # E/W slot lists run NORTH -> SOUTH. That is the booth builder's own
-                # convention (layout-render.js top-down: ay = runY(aIn), y-down from
-                # the N wall), and this walked them south->north until 2026-08-11 —
-                # which put every E/W wall's panels at the mirrored end. N/S run
-                # west->east in both, so only these two flip.
-                x, y = (W - t if side == 'E' else t - PANEL_T), H - cursor - ln
+                # E/W slot lists run SOUTH -> NORTH: slot 0 sits at the end of the
+                # wall nearest the MODEL'S OWN door wall (S on all 25 catalogue
+                # models — the fixed layout.door.wall property, NOT the live door
+                # placement; see the portal's v2.417.1 note in layout-render.js).
+                #
+                # The 2026-08-11 change walked these N->S to copy the portal 2D
+                # plan's DRAWING order (aIn grows from the N wall). That was
+                # reverted 2026-08-27: it put every E/W slot id at the mirrored
+                # end, so a side-wall window (102144/96144 W0) built at the far
+                # end from the door while the customer's own booth-builder view
+                # showed it adjacent to the door — Benton reported it wrong twice,
+                # on Standard, Enhanced, and HX builds. The S->N walk also lands
+                # the BIG run at the door end on 6060/6084/7272/7296, which the
+                # floor/ceiling hinge slots confirm (reference/
+                # seam-seal-attachment.md § "Two things that move a seal along a
+                # wall") and which the portal's wallPanelRun() door-end flip and
+                # angled view both draw. The portal 2D plan's raw N-first order is
+                # the odd one out on multi-slot symmetric walls — a portal display
+                # issue, not the build convention. If a future model ever has
+                # door.wall == 'N', this walk needs the door-anchored form.
+                # N/S slot lists run west->east and are untouched.
+                x, y = (W - t if side == 'E' else t - PANEL_T), cursor
                 dx, dy = PANEL_T, ln
             parts.append(dict(kind='panel', id=slot['id'], side=side, shell='out', slot_kind=slot['kind'],
                               pack=pack, length=ln,
@@ -419,9 +436,7 @@ def build(model, variant, assign=None):
                 # in the outboard band; the 2" stem fills the gap and the two panels
                 # butt into its sides.
                 band = t - PANEL_T
-                mid = cursor + SEAL_W / 2.0
-                if side in ('E', 'W'):
-                    mid = H - cursor - SEAL_W / 2.0   # same N->S flip as the panels
+                mid = cursor + SEAL_W / 2.0   # same S->N walk as the panels, all four sides
                 h = SEAL_PLATE / 2.0
                 s = SEAL_W / 2.0
                 if side == 'N':

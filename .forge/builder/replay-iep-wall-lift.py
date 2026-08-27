@@ -149,8 +149,40 @@ check('build_booth resolves measured? once',
       len(re.findall(r'^\s*lift_measured = iep_wall_lift_measured\?\(key\)\s*$', src, re.M)), 1)
 check('exactly one part_top_z call site',
       len(re.findall(r'(?<!def self\.)part_top_z\(p, ', src)), 1)
+# v1.6.33: the call site passes p_lift, which IS the resolved lift with the
+# vent family's drop taken off it. The assertion's intent is unchanged - the
+# lift is still resolved once in build_booth and passed down, and there is
+# still exactly one place that decides a part's top z.
 check('the call site passes the resolved lift',
-      len(re.findall(r"part_top_z\(p, cfg\['hx'\], lift\)", src)), 1)
+      len(re.findall(r"part_top_z\(p, cfg\['hx'\], p_lift\)", src)), 1)
+check('p_lift starts as the resolved lift',
+      len(re.findall(r'^\s*p_lift = lift\s*$', src, re.M)), 1)
+check('the vent drop applies to INNER vent parts only',
+      len(re.findall(r"p_lift -= vent_drop if inner\?\(p\) && iep_vent_part\?\(r\[:name\]\)", src)), 1)
+check('the vent drop is resolved once, beside the lift',
+      len(re.findall(r'^\s*vent_drop = iep_vent_lift_drop\(key\)\s*$', src, re.M)), 1)
+check('a booth with no vent figure drops nothing',
+      re.search(r'IEP_VENT_LIFT_DROP_DEFAULT = ([\d.]+)', src).group(1), '0.0')
+VENT_TABLE = {}
+_vm = re.search(r'^\s*IEP_VENT_LIFT_DROP\s*=\s*\{(.*?)\}\.freeze', src, re.M | re.S)
+for _k, _v in re.findall(r"'([^']+)'\s*=>\s*([\d.]+)", _vm.group(1) if _vm else ''):
+    VENT_TABLE[_k] = float(_v)
+check('the 102144 E vent drop is 1/16', VENT_TABLE.get('MDL 102144 E'), 0.0625)
+check('one booth has been looked at for the vent', len(VENT_TABLE), 1)
+check('no Standard key in the vent table',
+      any(k.endswith(' S') for k in VENT_TABLE), False)
+# One vent test, used everywhere. The three name-driven vent rules
+# (iep_vent_part?, iep_trim_end, iep_room_proud x2) must all ask the same
+# question, or a part can be a vent for its trim and not for its lift.
+check('every vent test uses one regex', src.count(r'/VNT|NV\b/i'), 4)
+# v1.6.33: three of these carried a literal 0x08 BACKSPACE where the \b
+# word boundary was meant (introduced v1.6.12, a shell heredoc eating the
+# escape). The VNT alternative still matched, so every booth built so far
+# was unaffected - but an NV part could never be recognised as a vent and
+# would silently take the panel family's room-proud figure.
+check('no control character survives in the source', chr(8) in src, False)
+check('the vent-yaw block asks iep_vent_part?',
+      len(re.findall(r'is_vent = iep_vent_part\?\(r\[:name\]\)', src)), 1)
 # No module state: nothing assigns a current booth onto the module.
 check('no @@ class variable was introduced', '@@' in src, False)
 check('no module-level current-booth ivar',
