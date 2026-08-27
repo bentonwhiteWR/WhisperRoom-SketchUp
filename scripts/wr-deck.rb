@@ -1178,7 +1178,30 @@ module WR_Deck
   # default this shipped with - was wrong by exactly the 9/16 Benton moved it.
   # The ceiling's -1.75 does not transfer and never did; the two seals are
   # different profiles, 6.500 across against 7.1897.
-  SEAL_FL_DATUM_LIFT = -1.1250
+  # SECOND FIT TEST, 2026-08-27, and the constant moved again. Benton, off a
+  # built MDL 102144 E carrying the -1.1250 above: "each floor seam seal needs
+  # to go up 15/128"." Up is toward the room, so the datum lift RISES:
+  # -1.1250 + 0.1171875 = -1.0078125, i.e. -129/128.
+  #
+  # 15/128 IS NOT A HAND MEASUREMENT AND IS NOT MEANT TO LOOK LIKE ONE. It is
+  # the kind of figure SketchUp reports when a placed instance is moved onto a
+  # snap and the displacement is read back, so it is a real distance off a real
+  # build rather than a fraction anyone chose. Do NOT tidy it to 1/8 (0.125):
+  # that is 1/128 of an inch away, and the precision is the point.
+  #
+  # THE SEAL NOW SPANS booth z -1.0078 .. 0.6828. Its underside sits 0.0078
+  # below the floor panel underside (-1.000) - very nearly flush with it - and
+  # it stands 0.6828 proud of the walking surface (0.000).
+  #
+  # WORTH KNOWING IF A THIRD CORRECTION EVER LANDS: that is within 1/128 of the
+  # THIRD candidate listed above, "bottom flush with the panel underside"
+  # (-1.0000) - the one none of the three rounds of reasoning picked, and the
+  # one two successive fit tests have now walked onto from -1.6906. The answer
+  # looks like it wants to be -1.0000 exactly. That is an OBSERVATION AND NOT A
+  # LICENCE TO ROUND: the constant stays at what was measured until Benton says
+  # otherwise, because every time this file has reasoned its way to a number
+  # instead of being told one, it has been wrong.
+  SEAL_FL_DATUM_LIFT = -1.0078125
 
   # How far the measured seal length may differ from cross - 2 before it is
   # called out. The name-to-cross mapping and the measured length are two
