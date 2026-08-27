@@ -57,7 +57,7 @@ module WR_Deck
   # copy of them may still be sitting in a running session's memory, and
   # removing them here clears it rather than leaving a stale value that nothing
   # reads but everything remembers.
-  %w[INSET DECK_TOP_Z WALL_H TOL NAME ENH_NAME ORIGIN Z_AXIS X_AXIS
+  %w[INSET DECK_TOP_Z WALL_H TOL SQUARE_TOL NAME ENH_NAME ORIGIN Z_AXIS X_AXIS
      BIG_GAP SMALL_GAP GAP_TOL
      SEAL_NAME SEAL_FL_NAME SEAL_DATUM_LIFT SEAL_FL_DATUM_LIFT
      SEAL_LEN_TOL SEAL_LEN_INSET
@@ -103,6 +103,18 @@ module WR_Deck
   # tune, and correct whether or not the layout is fixed.
 
   TOL = 0.35   # a tiling this far off the footprint is wrong
+
+  # How close a tile's along and cross nominals have to be before the part is
+  # treated as SQUARE IN PLAN and its quarter turn stops being a real question.
+  #
+  # This is not a manufacturing tolerance and must not be confused with TOL. It
+  # separates 48 from 96, and the smallest real gap it has to resolve is the
+  # 9624 family's 96 against 24. Every deck in the folder is nominally a whole
+  # number of inches, so anything under an inch apart is the same number written
+  # twice - and a genuinely square deck (STD4848, STD7272) reads identically
+  # whichever way it is laid, which is why it keeps the old positional rule
+  # rather than being decided by a measurement that cannot mean anything.
+  SQUARE_TOL = 1.0
 
   # ------------------------------------------------------- reading the part --
   #
@@ -845,9 +857,77 @@ module WR_Deck
       dx = (bb.max.x - bb.min.x).to_f
       dy = (bb.max.y - bb.min.y).to_f
 
-      # Definition X runs along the tiling direction (fact 2). When the booth
-      # tiles along its own Y instead, the part turns a quarter turn.
-      turn = !t[:along_is_x]
+      # ====================================================================
+      # THE QUARTER TURN IS MEASURED OFF THE PART, NOT ASSERTED FROM THE NAME.
+      # ====================================================================
+      #
+      # Benton, 2026-08-27, off a booth pulled into the builder from a link:
+      # "We pulled A4896E into the booth builder. The standard ceiling was
+      # rotated 90 degrees." The MDL 4896 takes the one-piece STD4896CL, and it
+      # came out crossways, hanging off the side of the booth.
+      #
+      # THE OLD RULE WAS `turn = !t[:along_is_x]` AND IT ASSERTED SOMETHING IT
+      # NEVER CHECKED. It rests on "fact 2" - definition X runs along the tiling
+      # direction - which is a claim about how 42 separate .skp files were
+      # authored, by several people, over years. Nothing verified it per part.
+      # dx and dy were being measured two lines above and then IGNORED for this
+      # decision, which is the tell: the measurement was right there and the
+      # code preferred an assumption about a filename.
+      #
+      # WHAT IS ACTUALLY KNOWN, from the folder listing: the library carries
+      # BOTH orientations of the same deck as separate files - STD4896CL (48
+      # across, 96 along) and STD9648CL SIDE/CTR (96 across, 48 along), and
+      # likewise 4872/7248, 4848, 9624. The quote tool's own renderer says why,
+      # in as many words: "the export has both STD4872FL at 48x72 and STD7248FL
+      # at 72x48, because each came out the way it installs." A library that
+      # ships both orientations as distinct parts is a library where the name
+      # carries the orientation - so a blanket "X is always the along axis"
+      # cannot be true of all 42 of them, and the 4896 is where it broke.
+      #
+      # THE RULE NOW: ask the DEFINITION which of its two plan axes is the
+      # along one, by comparing its measured X against the two nominals this
+      # tile needs. If X already measures the along dimension, it is oriented
+      # for a booth tiling in X and turns only when the booth tiles in Y - the
+      # old rule, unchanged. If X measures the CROSS dimension instead, the part
+      # is authored the other way round and wants the opposite turn.
+      #
+      # THIS CANNOT MOVE A PART THAT WAS ALREADY RIGHT. For any part that really
+      # does satisfy fact 2, `x_is_along` is true and the expression reduces to
+      # `!t[:along_is_x]` exactly. It changes the answer ONLY for a part whose
+      # own measured box contradicts the name-based assumption - which is the
+      # entire defect class, and nothing else. The confirmed builds (7272 S,
+      # 96120 S, 84126) either satisfy fact 2, in which case they do not move,
+      # or they never did, in which case they were being turned wrong too and
+      # the console now says which part and why.
+      #
+      # AMBIGUOUS PARTS KEEP THE OLD RULE. When along and cross are the same
+      # number the part is square in plan, the question has no answer, and there
+      # is nothing to get wrong - a square deck reads identically either way.
+      # SQUARE_TOL is generous on purpose: it is not trying to catch a part that
+      # measures a thirty-second under its name, it is separating 48 from 96.
+      #
+      # WHAT FALSIFIES THIS: a deck that this change turns the WRONG way, i.e. a
+      # part whose measured box genuinely disagrees with how it installs. Every
+      # such part is NAMED in the build warnings below the moment it disagrees
+      # with the old rule, so it cannot happen quietly. Say which booth.
+      along_nom = t[:along].to_f
+      cross_nom = t[:cross].to_f
+      old_turn  = !t[:along_is_x]
+      if (along_nom - cross_nom).abs <= SQUARE_TOL
+        # Square in plan - no cue, and no way to be wrong. Old rule.
+        turn = old_turn
+      else
+        # Which nominal does the definition's X axis actually measure?
+        x_is_along = (dx - along_nom).abs < (dx - cross_nom).abs
+        turn = x_is_along ? old_turn : !old_turn
+        if turn != old_turn
+          warn << format('%s is authored with its %g in edge on X, not its ' \
+                         '%g in one, so it takes the OPPOSITE quarter turn to ' \
+                         'the one its name implies. Measured %.3f x %.3f. The ' \
+                         'old name-based rule would have laid it crossways.',
+                         t[:part][:file], cross_nom, along_nom, dx, dy)
+        end
+      end
 
       # Target position of the tile's low corner, in booth coordinates.
       ax = INSET + t[:at]
