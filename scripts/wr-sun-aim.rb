@@ -135,8 +135,6 @@ module WR_SunAim
   # reported LOW CONFIDENCE rather than silently trusted.
   CALIB_TOLERANCE_DEG = 2.0
 
-  DEFAULT_HOUR = 10.0
-
   # ==========================================================================
   # THE MODEL IS PINNED TO KNOXVILLE, EST. Benton, 2026-08-27: "do something to
   # just set this time in EST permanently."
@@ -165,9 +163,60 @@ module WR_SunAim
   # EST, not EDT. -5 year round, deliberately: the difference is one hour of sun
   # angle on a product shot nobody is reading a sundial off, and a DST rule that
   # has to be right twice a year is a second thing to get wrong.
-  EST_TZ_OFFSET = -5.0
-  KNOXVILLE_LAT = 35.9606
-  KNOXVILLE_LNG = -83.9207
+  # ==========================================================================
+  # THE SUN IS A STUDIO LIGHT ON A BOOM, NOT A DATE ON A CALENDAR.
+  # ==========================================================================
+  #
+  # Benton, 2026-08-27, after the black-render afternoon: "I really just want the
+  # sun smack where my camera is. Nowhere else. I dont care about time of year or
+  # anything like that. This is strictly to make whisperrooms in doors look
+  # good."
+  #
+  # That is the whole brief, and everything about date, time zone and latitude
+  # that this file used to argue with is now MACHINERY rather than meaning. A
+  # booth render is a product shot. Nobody reads the season off it, and the only
+  # question that has ever mattered is "is the subject lit from where I am
+  # standing".
+  #
+  # SketchUp gives no way to place the sun directly - SunDirection is computed,
+  # not writable. So the sun is aimed through the only two dials that do move
+  # it, and both are now solved rather than exposed:
+  #
+  #   AZIMUTH   NorthAngle, exactly as before (calibrate + solve_north_angle).
+  #   ELEVATION LATITUDE, at a fixed equinox noon. That is the trick, and it is
+  #             why the date and zone below are constants and not settings.
+  #
+  # At the equinox the sun's declination is ~0, and at local solar noon on the
+  # meridian its elevation is 90 - |latitude|. Pin the date to an equinox, the
+  # longitude to 0, the zone to 0 and the clock to 12:00 UTC, and latitude
+  # becomes a clean monotonic dial for sun HEIGHT. Nothing else is left free to
+  # move it.
+  #
+  # THIS DELIBERATELY THROWS AWAY GEOGRAPHIC TRUTH, and that is the point. The
+  # numbers written into Geo-location are no longer a claim about where the booth
+  # is - they are the coordinates that put the light where the camera is. Do not
+  # "fix" them back to Knoxville: v1.6.39 pinned Knoxville/EST for exactly one
+  # afternoon and it was the wrong answer to the right complaint, because a real
+  # location makes elevation a consequence of the calendar instead of a control.
+  # If a genuine site-accurate solar study is ever needed it is a DIFFERENT
+  # TOOL, and it must not be something you get by accident from this one.
+  SUN_EPOCH_Y = 2026
+  SUN_EPOCH_M = 3
+  SUN_EPOCH_D = 20      # equinox: declination ~0, so elevation ~ 90 - |lat|
+  SUN_EPOCH_H = 12      # solar noon on the prime meridian, TZ 0
+
+  # Sun height limits, in degrees above the horizon.
+  #
+  # ELEV_MIN is not a tolerance, it is a floor with a reason: at 0 the sun is on
+  # the horizon and an interior renders black, which is the entire bug this
+  # replaced. 8 keeps a raking shot possible while making the black-render state
+  # unreachable through the UI. ELEV_MAX stops short of the zenith because
+  # azimuth stops being measurable there (see azimuth_of) and the calibration
+  # would have nothing to bite on.
+  ELEV_MIN   = 8.0
+  ELEV_MAX   = 85.0
+  ELEV_TOL   = 0.25    # close enough for a product shot; ~1/4 of a degree
+  ELEV_ITERS = 32      # bisection over 89 deg reaches ELEV_TOL in about 9
 
   # See "ONE ASSUMPTION THIS SCRIPT MAKES" above. Flip this single line if a
   # real render comes back lit from the wrong side.
@@ -224,6 +273,71 @@ module WR_SunAim
     azimuth_of(view.camera.direction)
   end
 
+  # The height the sun wants, to sit where the camera is.
+  #
+  # SIGN, because it is the one thing to get wrong here: a camera looking DOWN
+  # at a booth has a NEGATIVE direction elevation. The sun behind that camera
+  # has to ride the same angle ABOVE the horizon, so the sign flips. A camera
+  # looking level wants a sun on the horizon, which ELEV_MIN then lifts to
+  # something that actually renders.
+  def self.camera_elevation(view)
+    e = elevation_of(view.camera.direction)
+    e.nil? ? nil : -e
+  end
+
+  def self.clamp_elev(e)
+    return ELEV_MIN if e.nil? || !e.finite?
+    return ELEV_MIN if e < ELEV_MIN
+    return ELEV_MAX if e > ELEV_MAX
+    e
+  end
+
+  # ------------------------------------------------------ elevation solve --
+  #
+  # Put the sun at `target` degrees above the horizon by moving LATITUDE, with
+  # every other influence pinned. Returns the achieved elevation.
+  #
+  # BISECTION, NOT THE CLOSED FORM. lat = 90 - target is the arithmetic and it
+  # is very nearly right, but "very nearly" is how this file got into trouble
+  # twice already: SketchUp applies its own refraction and equation-of-time
+  # corrections that are not documented anywhere I can read, and the equinox
+  # declination is not exactly 0 on the day. So the closed form is used as the
+  # OPENING GUESS and the answer is then measured, exactly as `calibrate` does
+  # for NorthAngle. Nothing here trusts a formula it has not checked.
+  #
+  # Elevation is monotonically DECREASING in latitude over 0..89 at equinox
+  # noon, which is what makes a bisection valid. The southern hemisphere would
+  # serve identically and is simply not needed.
+  def self.solve_elevation(si, target)
+    si['TZOffset']   = 0.0
+    si['Longitude']  = 0.0
+    si['ShadowTime'] = Time.utc(SUN_EPOCH_Y, SUN_EPOCH_M, SUN_EPOCH_D, SUN_EPOCH_H, 0, 0)
+
+    lo   = 0.0
+    hi   = 89.0
+    seed = 90.0 - target
+    mid  = seed < lo ? lo : (seed > hi ? hi : seed)
+    got  = nil
+
+    ELEV_ITERS.times do
+      si['Latitude'] = mid
+      e = elevation_of(si['SunDirection'])
+      break if e.nil?
+      got = e
+      break if (e - target).abs <= ELEV_TOL
+      # higher latitude -> lower sun
+      if e > target
+        lo = mid
+      else
+        hi = mid
+      end
+      mid = (lo + hi) / 2.0
+    end
+
+    { :achieved => got, :latitude => mid,
+      :error => got.nil? ? nil : (got - target) }
+  end
+
   # ---------------------------------------------------------- calibration --
   #
   # Measures, in the live model, how many degrees the sun's world azimuth
@@ -270,7 +384,7 @@ module WR_SunAim
   # rather than what was asked for. One start_operation/commit_operation, so
   # Ctrl+Z undoes calibration probes, the time change and the NorthAngle
   # change together as a single step.
-  def self.light_it_from_here(model, view, offset_deg, hour)
+  def self.light_it_from_here(model, view, offset_deg, match_cam, elev_deg)
     return { :ok => false, :reason => 'no active model' } if model.nil?
     return { :ok => false, :reason => 'no active view' } if view.nil?
 
@@ -288,106 +402,22 @@ module WR_SunAim
     result = nil
     model.start_operation('Light it from here (sun aim)', true)
     begin
+      # HEIGHT FIRST, THEN BEARING. The order is not cosmetic: solve_elevation
+      # moves Latitude, Longitude, TZOffset and ShadowTime, all of which move
+      # the sun's AZIMUTH as well as its height. Solving the bearing first would
+      # have it invalidated a moment later by the height solve. NorthAngle is
+      # the one dial that moves azimuth ALONE, which is why it goes last.
+      want_elev = clamp_elev(match_cam ? camera_elevation(view) : elev_deg.to_f)
+      elev_solve = solve_elevation(si, want_elev)
+
+      # The azimuth calibration has to happen AFTER the date and location are
+      # set, for the same reason - it measures the live sun, and the live sun
+      # just moved.
       calib = calibrate(model)
       unless calib[:ok]
         model.abort_operation
         return calib.merge(:ok => false)
       end
-
-      # PIN THE ZONE FIRST, BEFORE THE TIME IS COMPUTED OR THE SUN IS READ.
-      # Order matters: TZOffset moves the sun, so writing it after solving the
-      # azimuth would invalidate the solve that was just done.
-      geo_note = []
-      begin
-        had_tz = (si['TZOffset'] rescue nil)
-        si['TZOffset'] = EST_TZ_OFFSET
-        geo_note << format('TZ %s -> %g (EST, pinned)',
-                           had_tz.nil? ? '(unset)' : had_tz.to_s, EST_TZ_OFFSET)
-      rescue StandardError => e
-        geo_note << "TZOffset would not write: #{e.class}: #{e.message}"
-      end
-      begin
-        lat = (si['Latitude'] rescue nil)
-        lng = (si['Longitude'] rescue nil)
-        # "No location" is nil, or the 0,0 the API reports for an ungeolocated
-        # model. A real site is never at Null Island.
-        # ALWAYS WRITTEN, NOT ONLY WHEN UNSET, AND THE FIRST VERSION OF THIS
-        # BLOCK HAD IT WRONG. It wrote Knoxville only if the model had no
-        # location - which sounds careful and is useless here, because SketchUp
-        # pre-fills its Geo-location dialog with BOULDER, CO on a model that is
-        # "not geo-located". Accept that default by reflex and the model now HAS
-        # a location, so the careful version would have kept Boulder while
-        # pinning the zone to EST: a two-hour error, and a sun placed for the
-        # wrong latitude, with nothing on screen saying so.
-        #
-        # Every render this shop makes is a daylight product shot of a booth
-        # built and shipped out of Knoxville. There is no case for a per-model
-        # location, so it is pinned rather than negotiated. A genuine
-        # site-accurate solar study is a different job and wants a different
-        # tool; it must not be something you get by accident from a stale
-        # default.
-        si['Latitude']  = KNOXVILLE_LAT
-        si['Longitude'] = KNOXVILLE_LNG
-        was = (lat.nil? || lng.nil?) ? '(none)' : format('%.4f, %.4f', lat.to_f, lng.to_f)
-        geo_note << format('location %s -> Knoxville %.4f, %.4f (pinned)',
-                           was, KNOXVILLE_LAT, KNOXVILLE_LNG)
-      rescue StandardError => e
-        geo_note << "location would not write: #{e.class}: #{e.message}"
-      end
-
-      t0 = (si['ShadowTime'] rescue nil)
-      base_time = t0.is_a?(Time) ? t0 : Time.now
-      h = hour.to_f
-      h = DEFAULT_HOUR unless h.finite? && h >= 0.0 && h <= 24.0
-      hh = h.to_i
-      mm = ((h - hh) * 60.0).round
-      # ====================================================================
-      # ShadowTime IS UTC. Time.new IS NOT. THAT IS THE WHOLE BUG.
-      # ====================================================================
-      #
-      # Benton, 2026-08-27, after a V-Ray render came out black with the dialog
-      # reporting a clean aim and a sun elevation of -8.0 at 12:30: "the time of
-      # day part of the tool is totally broken. thats whats going on." He is
-      # right, and this is where.
-      #
-      # `Time.new(y, m, d, hh, mm, 0)` builds a time in the SYSTEM's local zone.
-      # SketchUp's ShadowTime is a UTC Time whose FIELDS carry the model's local
-      # wall clock - which is why the Shadows dialog shows 12:30 for a value
-      # whose UTC hour is 12. Handing it a system-local Time means the zone
-      # offset is baked into the value before SketchUp ever sees it, and the
-      # solar engine then reads those shifted fields as the wall clock. On this
-      # machine that is a five-hour push: ask for 12:30 and the sun is placed
-      # for 17:30, which in November is past sunset. Hence -8.0, hence black.
-      #
-      # It also means the tool behaved DIFFERENTLY on different machines, and
-      # identically-set sliders would have produced different renders on
-      # Benton's laptop and desktop if their zones ever differed. Nothing in the
-      # old code could have caught that; there was no read-back.
-      #
-      # Time.utc is the documented idiom and the fix. The date still comes from
-      # whatever the model already had - this tool sets the hour, never the day.
-      new_time = Time.utc(base_time.year, base_time.month, base_time.day, hh, mm, 0)
-      time_stuck = nil
-      begin
-        si['ShadowTime'] = new_time
-      rescue StandardError => e
-        time_stuck = "#{e.class}: #{e.message}"
-      end
-
-      # READ IT BACK AND REPORT WHAT SKETCHUP ACTUALLY HOLDS.
-      #
-      # The same discipline `calibrate` already uses on NorthAngle: do not
-      # assume a write landed, measure it. If the hour SketchUp reports differs
-      # from the hour that was asked for, the zone handling is still wrong and
-      # the number says so instead of a black render saying it three steps
-      # later. This is also how the Time.utc fix gets CONFIRMED rather than
-      # believed - nothing here can run SketchUp.
-      got_t = (si['ShadowTime'] rescue nil)
-      hour_readback = if got_t.is_a?(Time)
-                        g = got_t.utc rescue got_t
-                        (g.hour + g.min / 60.0)
-                      end
-      hour_drift = hour_readback.nil? ? nil : (hour_readback - h)
 
       orig_na = si['NorthAngle'].to_f
       na = solve_north_angle(calib, target_az)
@@ -412,25 +442,14 @@ module WR_SunAim
         :elevation_deg => elev,
         :calibration_confident => calib[:confident],
         :calibration_slack => calib[:slack],
-        :time_set => new_time.strftime('%Y-%m-%d %H:%M'),
-        :time_stuck => time_stuck,
-        :geo_note => geo_note,
-        :hour_asked => h,
-        :hour_readback => hour_readback,
-        :hour_drift => hour_drift,
-        # THE THREE SETTINGS THIS TOOL DOES NOT WRITE, REPORTED SO A BLACK
-        # RENDER IS SELF-DIAGNOSING.
-        #
-        # Elevation is a function of DATE, LATITUDE and TIMEZONE. This tool
-        # solves azimuth only - it sets the hour and leaves the date exactly as
-        # the model has it - so when the sun comes out below the horizon the
-        # cause is always one of these three and never the offset slider. They
-        # were invisible before, which is how "light it from here" could report
-        # a successful aim and a -8 degree sun in the same breath.
-        :latitude  => (si['Latitude']  rescue nil),
-        :longitude => (si['Longitude'] rescue nil),
-        :tz_offset => (si['TZOffset']  rescue nil),
-        :city      => (si['City']      rescue nil)
+        :wanted_elevation => want_elev,
+        :matched_camera => match_cam,
+        :solved_latitude => elev_solve[:latitude],
+        :elevation_error => elev_solve[:error],
+        # The latitude the height solve landed on. Reported not because anyone
+        # needs to know where the model "is" - it is no longer a place - but so
+        # a wrong sun height can be traced to the dial that sets it.
+        :latitude  => (si['Latitude']  rescue nil)
       }
     rescue StandardError => e
       model.abort_operation
@@ -448,14 +467,9 @@ module WR_SunAim
       return
     end
 
-    si = model.shadow_info
-    cur_hour = begin
-      t = si['ShadowTime']
-      t.is_a?(Time) ? (t.hour + t.min / 60.0) : DEFAULT_HOUR
-    rescue StandardError
-      DEFAULT_HOUR
-    end
-    cur_hour = DEFAULT_HOUR unless cur_hour.finite? && cur_hour.between?(0.0, 24.0)
+    # No shadow_info is read to build the dialog any more. Date, hour, zone and
+    # location are no longer settings a user carries between sessions - they are
+    # the machinery the elevation solve writes, so there is nothing to restore.
 
     d = UI::HtmlDialog.new(
       :dialog_title    => 'Light It From Here',
@@ -468,7 +482,7 @@ module WR_SunAim
       :min_height      => 460,
       :style           => UI::HtmlDialog::STYLE_DIALOG
     )
-    d.set_html(html(cur_hour))
+    d.set_html(html)
 
     d.add_action_callback('apply') do |_c, json|
       opts = begin
@@ -478,7 +492,8 @@ module WR_SunAim
       end
       m = Sketchup.active_model
       v = (m.active_view rescue nil)
-      result = light_it_from_here(m, v, opts['offset'], opts['hour'])
+      result = light_it_from_here(m, v, opts['offset'],
+                                  opts['matchcam'] ? true : false, opts['elev'])
       if result[:ok]
         puts ''
         puts 'LIGHT IT FROM HERE'
@@ -489,36 +504,19 @@ module WR_SunAim
         puts format('  NorthAngle           %.1f deg -> %.1f deg', result[:north_angle_before], result[:north_angle_after])
         puts format('  achieved sun azimuth %s', result[:achieved_azimuth].nil? ? 'unreadable' : format('%.1f deg (off target by %.2f deg)', result[:achieved_azimuth], result[:error_deg].to_f))
         puts format('  elevation            %s', result[:elevation_deg].nil? ? 'unreadable' : format('%.1f deg', result[:elevation_deg]))
-        (result[:geo_note] || []).each { |g| puts "  geo                  #{g}" }
-        puts format('  hour asked           %.2f', result[:hour_asked]) unless result[:hour_asked].nil?
-        puts format('  hour SketchUp holds  %s%s',
-                    result[:hour_readback].nil? ? 'unreadable' : format('%.2f', result[:hour_readback]),
-                    (result[:hour_drift] && result[:hour_drift].abs > 0.02) ?
-                      format('   *** DRIFT %+.2f h - the zone handling is STILL wrong', result[:hour_drift]) : '')
-        puts format('  location             %s lat %s  lng %s  TZ %s',
-                    result[:city] || '(none set)',
-                    result[:latitude] || '?', result[:longitude] || '?',
-                    result[:tz_offset] || '?')
-        # BELOW THE HORIZON IS NIGHT, AND NIGHT RENDERS BLACK.
-        #
-        # Benton, 2026-08-27, on a V-Ray render that came out entirely black:
-        # "help me out here. Its like no light renders now." The dialog was
-        # reporting a clean aim and a sun elevation of -8.0 at 12:30, and
-        # nothing connected the two. It does now.
+        puts format('  sun height wanted    %.1f deg%s', result[:wanted_elevation],
+                    result[:matched_camera] ? '  (matched to the camera)' : '  (set by hand)')
+        puts format('  solved by latitude   %.3f   error %s',
+                    result[:solved_latitude],
+                    result[:elevation_error].nil? ? '?' : format('%+.2f deg', result[:elevation_error]))
         if !result[:elevation_deg].nil? && result[:elevation_deg] <= 0.0
           puts ''
-          puts '  *** THE SUN IS BELOW THE HORIZON. It is night in this model and'
-          puts '      any render will come out black no matter where the sun is'
-          puts '      AIMED. Azimuth is what this tool sets; elevation comes from'
-          puts '      the DATE, the LATITUDE and the TIME ZONE above, and this'
-          puts '      tool writes none of them - it keeps the date the model'
-          puts '      already had. Fix it in Window > Model Info > Geo-location'
-          puts '      (or Window > Shadows for the date), then press the button'
-          puts '      again. A midday sun in Knoxville reads about 35 to 70 deg.'
+          puts '  *** THE SUN IS STILL BELOW THE HORIZON. The latitude solve did'
+          puts '      not take - something else in this model is moving the sun.'
+          puts '      Report it; a render from here will be black.'
         end
         puts format('  time set             %s', result[:time_set])
         puts format('  calibration          %s (slack %.2f deg)', result[:calibration_confident] ? 'confident' : 'LOW CONFIDENCE', result[:calibration_slack].to_f)
-        puts "  *** ShadowTime would not write: #{result[:time_stuck]}" if result[:time_stuck]
       else
         puts ''
         puts "LIGHT IT FROM HERE — did not run: #{result[:reason]}"
@@ -531,7 +529,7 @@ module WR_SunAim
     nil
   end
 
-  def self.html(cur_hour)
+  def self.html
     <<-HTML
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Light It From Here</title>
@@ -594,10 +592,16 @@ module WR_SunAim
       Negative swings the light to the other side. Do not set this to 0 for a hero shot.</div>
   </div>
   <div class="field">
-    <label>Time of day <span class="val" id="hrv">10:00</span></label>
-    <input type="range" id="hr" min="6" max="18" step="0.25" value="#{'%.2f' % cur_hour}">
-    <div class="hint">Low, raking light near the ends of the range; high and even near midday.
-      Date is left as the model already has it.</div>
+    <label><input type="checkbox" id="mc" checked> Put the sun at the camera's own height</label>
+    <div class="hint">On is what you want for a booth shot: the light rides exactly as high as
+      you are looking from, so nothing you can see is in shadow.</div>
+  </div>
+  <div class="field" id="elevfield">
+    <label>Sun height above horizon <span class="val" id="elv">35&deg;</span></label>
+    <input type="range" id="el" min="8" max="85" step="1" value="35">
+    <div class="hint">Only used when the box above is off. Low is raking and dramatic;
+      high is flat and even. Date, time zone and location are not settings any more &mdash;
+      they are how the height gets set, so leave them alone.</div>
   </div>
 </div>
 
@@ -610,23 +614,22 @@ module WR_SunAim
 (function () {
   "use strict";
   var $off = document.getElementById("off"), $offv = document.getElementById("offv");
-  var $hr  = document.getElementById("hr"),  $hrv  = document.getElementById("hrv");
+  var $el  = document.getElementById("el"),  $elv  = document.getElementById("elv");
+  var $mc  = document.getElementById("mc"),  $elf  = document.getElementById("elevfield");
   var $out = document.getElementById("out");
 
-  function hFmt(h) {
-    var hh = Math.floor(h), mm = Math.round((h - hh) * 60);
-    if (mm === 60) { mm = 0; hh += 1; }
-    return (hh < 10 ? "0" : "") + hh + ":" + (mm < 10 ? "0" : "") + mm;
-  }
   function syncOff() { $offv.textContent = (+$off.value >= 0 ? "+" : "") + $off.value + "\\u00b0"; }
-  function syncHr()  { $hrv.textContent = hFmt(+$hr.value); }
+  function syncEl()  { $elv.textContent = $el.value + "\\u00b0"; }
+  function syncMc()  { $elf.style.opacity = $mc.checked ? "0.45" : "1"; $el.disabled = $mc.checked; }
   $off.addEventListener("input", syncOff);
-  $hr.addEventListener("input", syncHr);
-  syncOff(); syncHr();
+  $el.addEventListener("input", syncEl);
+  $mc.addEventListener("change", syncMc);
+  syncOff(); syncEl(); syncMc();
 
   document.getElementById("apply").addEventListener("click", function () {
     if (window.sketchup && sketchup.apply) {
-      sketchup.apply(JSON.stringify({ offset: +$off.value, hour: +$hr.value }));
+      sketchup.apply(JSON.stringify({ offset: +$off.value,
+                                     matchcam: $mc.checked, elev: +$el.value }));
     }
   });
 
@@ -650,33 +653,24 @@ module WR_SunAim
         ["NorthAngle", fmt(r.north_angle_before) + " \\u2192 " + fmt(r.north_angle_after)],
         ["Achieved sun azimuth", fmt(r.achieved_azimuth) +
           (r.error_deg != null ? "  (off by " + fmt(r.error_deg, 2) + ")" : "")],
-        ["Sun elevation", fmt(r.elevation_deg)],
-        ["Time set", r.time_set || "unreadable"],
-        ["Hour asked / held", fmt(r.hour_asked, 2) + " / " +
-          (r.hour_readback == null ? "unreadable" : fmt(r.hour_readback, 2)) +
-          (r.hour_drift != null && Math.abs(r.hour_drift) > 0.02 ?
-            "  DRIFT " + fmt(r.hour_drift, 2) + " h" : "")],
-        ["Location", (r.city || "(none set)") + "  lat " + (r.latitude == null ? "?" : fmt(r.latitude, 3)) +
-          "  TZ " + (r.tz_offset == null ? "?" : r.tz_offset)]
+        ["Sun height", fmt(r.elevation_deg) +
+          (r.matched_camera ? "  (matched to camera)" : "  (set by hand)")],
+        ["Height asked", fmt(r.wanted_elevation) +
+          (r.elevation_error != null ? "  (off by " + fmt(r.elevation_error, 2) + ")" : "")],
+        ["Solved latitude", r.solved_latitude == null ? "unreadable" : fmt(r.solved_latitude, 3)]
       ];
       var html = rows.map(function (row) {
         return '<div class="row"><span class="k">' + row[0] + '</span><span class="v">' + row[1] + "</span></div>";
       }).join("");
       if (r.elevation_deg != null && r.elevation_deg <= 0) {
-        html += '<div class="flag">THE SUN IS BELOW THE HORIZON (' + fmt(r.elevation_deg) +
-          '). It is night in this model and the render will be BLACK however the ' +
-          'sun is aimed. Elevation comes from the DATE, LATITUDE and TIME ZONE ' +
-          'shown above \u2014 none of which this tool writes; it keeps the date the ' +
-          'model already has. Fix those in Model Info \u203a Geo-location, or the ' +
-          'date in Window \u203a Shadows, then press the button again.</div>';
+        html += '<div class="flag">THE SUN CAME OUT BELOW THE HORIZON (' + fmt(r.elevation_deg) +
+          '). The latitude solve did not take, so something else in this model is ' +
+          'moving the sun. A render from here will be black \u2014 report it.</div>';
       }
       if (!r.calibration_confident) {
         html += '<div class="flag">LOW CONFIDENCE calibration — NorthAngle did not move the ' +
           'sun by the expected amount when tested (slack ' + fmt(r.calibration_slack, 2) +
           '). The azimuth above may be off. Check the shadow by eye before rendering.</div>';
-      }
-      if (r.time_stuck) {
-        html += '<div class="flag">Time of day would not write: ' + r.time_stuck + '</div>';
       }
       $out.innerHTML = html;
     }
