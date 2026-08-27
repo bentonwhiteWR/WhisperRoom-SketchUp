@@ -2,6 +2,118 @@
 
 ## 2026-08-26
 
+### SESSION CLOSE - plugin 1.6.32, and the first three fixes ever confirmed in a built model
+
+Supersedes the `SESSION CLOSE - plugin 1.6.29` entry further down this same day. That one is left
+standing as the record of where the session was at 1.6.29; its "Next steps" list is spent - items
+1, 2 and 3 were done, and what replaced them is below.
+
+**Benton, closing out: *"it works."*** The whole day is 1.6.21 -> 1.6.32, 22 commits. What makes
+this session different from every one before it is not the count. It is that three fixes stopped
+being harness output and became things a person looked at in SketchUp.
+
+**WHAT BENTON ACTUALLY SAW, AND WHAT HE DID NOT.** This distinction is the most valuable line in
+the entry, so it goes first and nothing below is allowed to blur it.
+
+- **Confirmed by eye in a built model, and not to be revisited:** `MDL 84126 E` "now looks
+  correct" - which closes the Standard ceiling hinge rotation and the far-tile floor seating
+  (both **1.6.31**) and the IEP tray orientation (**1.6.30**), whose owed test is now paid. And
+  separately, the inner vents after **1.6.32**. That is four defects, three versions, one pair of
+  eyes.
+- **Everything else in 1.6.30 / 1.6.31 / 1.6.32 was verified by an OFFLINE HARNESS and a CRuby
+  PARSE.** No Ruby ran. No SketchUp ran. `scripts/rbparse.py` reports that a file **parses**,
+  never that it **runs**. The harnesses - `.forge/fixer/verify-tray.py`,
+  `.forge/fixer/verify-deck-pitch.py`, `.forge/fixer/verify-ceiling-cue.py`,
+  `.forge/fixer/verify-84126.py`, `.forge/fixer/verify-vent-yaw.py` - each name an independent
+  witness in its header and none is compared against a copy of itself, which is a real standard
+  and still not the same thing as a built booth. Where this entry says a harness agrees, it means
+  a harness agreed.
+
+**THE TWO PROBES THAT UNBLOCKED THE DAY.** Both had been owed for weeks and both needed a
+reachable `P:` share, which is why they had not happened.
+
+- `probe-components.rb` over all **370** parts, giving `_component-probe.tsv`.
+- `probe-levels.rb` with a **BLANK filter**, giving `_face-levels.tsv` its first `ENH` face
+  levels ever: **380,767 bytes / 6,625 lines, 1,761 `ENH` rows** (re-counted for this entry). It
+  replaced a 2026-08-14 file that was Standard-only. The blank filter is the whole trick - the
+  script **overwrites** the file, so a `CL` filter would have thrown away every wall and FL row
+  again.
+
+**1.6.30 - the tray abstention was a THRESHOLD, not a missing measurement.** `IEP_LEVEL_MIN_SHARE
+= 0.05` deleted the tray's rim before the mouth ratio could see it. Four of the 23 `ENH` ceiling
+parts are authored upside down (`10218CL CTR`, `10242CL CTR`, `10242CL SIDE`, `8442CL SIDE`), and
+`ENH 8442CL CTR` is right way up while `8442CL SIDE` is not - so **there is no name-level rule and
+none should be sought**. `wr-deck.rb` untouched.
+
+**1.6.31 - two Standard-deck defects Benton found on `MDL 84126`.** The 1/32 is deck tile stations
+stepping by **nominal** name width while seating is **measured**, which by construction can only
+surface on the last tile of a run, against the far wall. The ceiling rotation was a floor twin's
+cue applied unmirrored, resting on a "floor and ceiling hinges are coplanar in plan" invariant
+that was never measured by anyone and is **false for the 17 pre-inverted Standard ceiling parts**.
+
+**1.6.32 - the IEP vent yaw was never one number.** `IEP_VENT_YAW = 180` was fitted to
+`ENH 35.5VNT`, the only one of eight `ENH` vent parts whose width runs X, and applied to all
+eight. It is now derived per part from measured axis parity. It also fixed **ten non-HX layouts
+nobody had reported**, `MDL 4872 E` among them, wrong since 1.6.21 shipped that morning.
+
+**THE WIDTH-AXIS FAMILY SPLIT IS CLOSED AS A NEGATIVE RESULT, and that is a finding.** There is no
+name-level rule. The most generous rule the data supports gets **174 of 194** wall parts (89.7%)
+and the 20 misses are real authoring choices, not typos. **Placement must read measured geometry.**
+A hard-coded table of 194 parts is not a rule.
+`.forge/fixer/WIDTH-AXIS-FAMILY-2026-08-26.md`.
+
+#### Two retractions, kept because the method lesson outlives the facts
+
+Both are the same failure: **a sample generalised past its evidence.**
+
+1. **v1.6.25's comment dismissed Benton's `MDL 96144 E` report as an unrestarted SketchUp. That
+   was wrong, and his report was correct.** The restart rule itself is true and stays in the
+   source - a Ruby module keeps its constants until restart. What was wrong was using it to
+   *dismiss* a report rather than to *qualify* one. The two reports were never in conflict: the
+   96144 E's vent is `ENH 41.5VNT` and the 6060 E's is `ENH 35.5VNT`, two different parts of
+   opposite parity. **Two true reports about two parts were read as one contradictory report about
+   one constant**, and the contradiction was then resolved by inventing a fact about Benton's
+   machine. When a report contradicts a constant, suspect that the constant is not a constant.
+2. **The `_HX` axis convention was generalised from a four-pair sample.** Across all **99** pairs
+   the axis flips both ways and **56 pairs do not flip at all**. There is no convention.
+
+#### Open, and deliberately not closed - these must survive the session
+
+- **Two component files are defective. They are Benton's to author, and the code must not work
+  around them.** `RightSideVent_CP_HX.skp` never received its HX rework - every measured property
+  is identical to the non-HX twin, **1 entity where the correct mirror `LeftSideVent_CP_HX` has
+  3**. And `STD7224FL SIDE R.skp` measures **37.9375** across on a name saying 24, which makes
+  **`MDL 7272 S`'s floor about 14 in wrong at the high end, and always has been.** Both deck
+  harnesses refuse to guess a width rather than pick one silently.
+- **The `ENH ...WDO` inner window panels are PREDICTED end for end and were deliberately left
+  alone.** They run X and get no turn, so under the vent/seal convention they should be reversed -
+  but there is no in-model observation of one, and the inner DOOR family proves conventions differ
+  per family. **Guessing here is exactly the mistake 1.6.21 made.** One look at a built booth
+  carrying an inner window closes it.
+- **The window-end question is unanswered, and is now partly measurable.** Which end of the side
+  wall does the window sit at on a 102144 / 96144 - and **is it fixed by the model at all, or does
+  the assembler put it where the customer asks?** If the latter there is no rule to code. Newly
+  relevant: `hinge_runs` already measures the datum the question wants, but **only the short-axis
+  `bracket_edge` is persisted to `_face-levels.tsv`** - the long-axis runs are printed to the
+  console and thrown away. A `runs` column would close the measurable half.
+- **The wall-lift default of 0.7500 is still a GUESS** covering 22 layouts. Three readings exist
+  and they disagree: 4872 E 0.7500 (probed), 102144 E 0.7500 (eye only), **6060 E 0.6875 (eye
+  only, never probed)**. A fourth reading settles it either way.
+- **`.forge/builder/replay-iep-deck.py` line 879 is now STALE.** It still asserts that
+  `_face-levels.tsv` carries ZERO `ENH` rows; it carries 1,761. Left alone deliberately - it is
+  the Builder's harness, not the Fixer's.
+- **The Enhanced inner deck did NOT receive the 1.6.31 perimeter-seating fix.**
+  `build-booth-components.rb` calls `WR_Deck.plan` but runs its own placement loop and never
+  calls `WR_Deck.build`, so the inner deck still seats every tile low-edge-first off nominal
+  stations. **`ENH 8418 FL` measures 17.9375 against a nominal 18**, so an inner floor ending on
+  that part carries the same perimeter gap the Standard floor did. The 84126 E confirmation makes
+  this decidable now.
+
+**State at close: `main` == `origin/main`, tree clean, HEAD `412aa8a`, `scripts/wr_tools/VERSION`
+reads 1.6.32.** Anything picked up on the other machine starts with `git pull` ->
+`python scripts/install-plugin.py` -> **RESTART SketchUp**, because VERSION lives under
+`wr_tools/` and a rescan will not reload a module's constants.
+
 ### 1.6.32 - THE IEP VENT YAW WAS NEVER ONE NUMBER
 
 Benton, on an HX Enhanced booth: *"looked at the HX, the IEP vent walls are all flipped wrong.
