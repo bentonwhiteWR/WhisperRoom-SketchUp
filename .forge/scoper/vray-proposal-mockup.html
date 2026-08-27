@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Proposal package — mockup</title>
+<style>
+  /* Same token set as list-scenes.rb / wr-pack-export.rb dialogs */
+  :root { --bg:#f4f5f6; --surface:#fff; --ink:#1c2327; --muted:#66727a;
+          --faint:#9aa4ab; --line:#e2e6e9; --accent:#ee6216; --soft:#fdeee4;
+          --ok:#2e7d46; --bad:#b0402c; }
+  * { box-sizing:border-box; margin:0; }
+  html,body { height:100%; }
+  body { font:13px/1.45 "Segoe UI",system-ui,sans-serif; background:#d7dadd;
+         color:var(--ink); display:flex; align-items:flex-start; justify-content:center;
+         padding:18px; }
+  ::-webkit-scrollbar { width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb { background:#c9d0d5; border-radius:5px; }
+
+  /* fake SketchUp dialog chrome so the mockup reads at true size */
+  .win { width:720px; max-width:100%; background:var(--bg); border:1px solid #b7bcc0;
+         border-radius:8px; box-shadow:0 12px 34px rgba(20,30,36,.28);
+         display:flex; flex-direction:column; height:820px; max-height:96vh; overflow:hidden; }
+  .chrome { flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:7px 12px;
+            background:#eceef0; border-bottom:1px solid #d4d8db; font-size:12px; color:#4a545b; }
+  .chrome .dot { width:10px; height:10px; border-radius:50%; background:#c5cbcf; margin-left:auto; }
+  .mocknote { flex:0 0 auto; background:#fff7ee; border-bottom:1px solid #f2ddc8;
+              color:#8a5a2b; font-size:11px; padding:5px 12px; }
+
+  .top { flex:0 0 auto; padding:10px 12px 6px; display:flex; gap:10px; align-items:baseline; }
+  .top .t { font-weight:650; }
+  .top .c { color:var(--muted); font-size:12px; margin-left:auto; }
+  .cmd { flex:0 0 auto; margin:0 12px 8px; display:flex; gap:8px; }
+  .cmd input { flex:1 1 auto; padding:8px 10px; font:inherit; color:var(--ink);
+    background:var(--surface); border:1px solid var(--line); border-radius:8px; outline:none; }
+  .cmd input:focus { border-color:var(--accent); }
+
+  .bulk { flex:0 0 auto; margin:0 12px 8px; padding:8px 11px; background:var(--surface);
+          border:1px solid var(--line); border-radius:8px; display:flex; gap:8px; align-items:center; }
+  .bulk .lbl { font-size:10.5px; font-weight:650; letter-spacing:.1em; color:var(--faint); }
+  .btn { font:inherit; font-size:12px; padding:5px 11px; border:1px solid var(--line);
+         border-radius:6px; background:var(--surface); color:var(--ink); cursor:pointer;
+         white-space:nowrap; }
+  .btn:hover { border-color:var(--accent); }
+  .btn.p { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:650; }
+  .btn.p:disabled { background:#f0b48e; border-color:#f0b48e; cursor:default; }
+  .btn:disabled { color:var(--faint); cursor:default; border-color:var(--line); }
+
+  .wrap { flex:1 1 auto; overflow:auto; margin:0 12px 10px; background:var(--surface);
+          border:1px solid var(--line); border-radius:9px; min-height:180px; }
+  table { width:100%; border-collapse:collapse; }
+  th { position:sticky; top:0; background:var(--surface); text-align:left;
+       font-size:10.5px; font-weight:650; letter-spacing:.09em; color:var(--faint);
+       padding:8px 9px; border-bottom:1px solid var(--line); white-space:nowrap; z-index:2; }
+  td { padding:5px 9px; border-top:1px solid var(--line); vertical-align:middle; }
+  tr:hover td { background:#f8f4f1; }
+  td.n { font-variant-numeric:tabular-nums; color:var(--muted); width:1%; white-space:nowrap; }
+  td.file { color:var(--muted); font-size:11.5px; white-space:nowrap; overflow:hidden;
+            text-overflow:ellipsis; max-width:210px; }
+  td.file b { color:var(--accent); font-weight:600; }
+  td.go { width:1%; }
+  .go button { border:0; background:transparent; color:var(--faint); cursor:pointer;
+               font-size:13px; padding:0 4px; }
+  .go button:hover { color:var(--accent); }
+  mark { background:#ffe3a8; color:inherit; border-radius:2px; }
+
+  /* three-state segmented control */
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  .seg button { font:inherit; font-size:11px; padding:3px 9px; border:0; background:var(--surface);
+                color:var(--muted); cursor:pointer; border-left:1px solid var(--line); }
+  .seg button:first-child { border-left:0; }
+  .seg button.on-skip   { background:#eef1f2; color:var(--muted); font-weight:650; }
+  .seg button.on-image  { background:#e8f0fa; color:#2b5e8f; font-weight:650; }
+  .seg button.on-render { background:var(--soft); color:var(--accent); font-weight:650; }
+
+  .sect { flex:0 0 auto; margin:0 12px 8px; background:var(--surface);
+          border:1px solid var(--line); border-radius:8px; }
+  .sect > .hd { padding:8px 11px; display:flex; gap:8px; align-items:center; cursor:pointer;
+                user-select:none; }
+  .sect .hd .lbl { font-size:10.5px; font-weight:650; letter-spacing:.1em; color:var(--faint); }
+  .sect .hd .sum { color:var(--muted); font-size:11.5px; margin-left:auto; }
+  .sect .hd .tri { color:var(--faint); font-size:10px; }
+  .sect .bodyy { padding:2px 11px 10px; display:none; }
+  .sect.open .bodyy { display:block; }
+  .matrow { display:flex; gap:8px; align-items:center; padding:4px 0; }
+  .matrow .from { width:210px; flex:0 0 auto; color:var(--muted); font-size:12px; }
+  .matrow .from b { color:var(--ink); font-weight:600; }
+  .matrow select { flex:1 1 auto; font:inherit; font-size:12px; padding:4px 6px;
+                   border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink); }
+  .matnote { color:var(--muted); font-size:11px; padding-top:6px; border-top:1px dashed var(--line);
+             margin-top:6px; }
+
+  .out { flex:0 0 auto; margin:0 12px 8px; padding:9px 11px; background:var(--surface);
+         border:1px solid var(--line); border-radius:8px; display:grid;
+         grid-template-columns:auto 1fr auto; gap:7px 8px; align-items:center; }
+  .out .lbl { font-size:10.5px; font-weight:650; letter-spacing:.08em; color:var(--faint); }
+  .out input, .out select { font:inherit; font-size:12px; padding:5px 8px; border:1px solid var(--line);
+               border-radius:6px; background:#fff; color:var(--ink); min-width:0; }
+  .out input:focus { border-color:var(--accent); outline:none; }
+  .out .half { display:flex; gap:8px; align-items:center; }
+  .out .half .lbl { width:auto; }
+  .out .half input { width:72px; }
+
+  .runlog { flex:0 0 auto; margin:0 12px 8px; background:#20262a; color:#cdd6da;
+            border-radius:8px; font:11px/1.6 Consolas,monospace; padding:8px 11px;
+            max-height:130px; overflow:auto; display:none; }
+  .runlog .ok { color:#8fd0a0; } .runlog .bad { color:#f0a08c; } .runlog .dim { color:#8b979e; }
+  .bar { flex:0 0 auto; padding:0 12px 12px; display:flex; gap:8px; align-items:center; }
+  .prog { flex:1 1 auto; color:var(--muted); font-size:11.5px; }
+  .prog .pbar { height:4px; background:#e6e9eb; border-radius:2px; margin-top:4px; overflow:hidden; }
+  .prog .pbar i { display:block; height:100%; width:0%; background:var(--accent); transition:width .2s; }
+  .foot { flex:0 0 auto; padding:0 12px 10px; color:var(--muted); font-size:11px; }
+</style></head><body>
+
+<div class="win">
+  <div class="chrome">Proposal package — MDL 4848 S — Smith Studio &nbsp;<span class="dot"></span></div>
+  <div class="mocknote">MOCKUP — clickable, nothing real behind it. Search, mode buttons, materials,
+    folder and the Export run are all simulated. This is the design of record for the dialog in
+    <code>vray-proposal-package-spec.md</code>.</div>
+
+  <div class="top">
+    <span class="t">Smith Studio 4848S</span>
+    <span class="c" id="count"></span>
+  </div>
+
+  <div class="cmd">
+    <input id="q" placeholder="Search scenes — several words, any order — or a range like 1-5"
+           autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="bulk">
+    <span class="lbl">SHOWN &rarr;</span>
+    <button class="btn" data-bulk="render">Render</button>
+    <button class="btn" data-bulk="image">Image</button>
+    <button class="btn" data-bulk="skip">Skip</button>
+    <span class="lbl" style="margin-left:auto" id="picksum"></span>
+  </div>
+
+  <div class="wrap"><table>
+    <thead><tr>
+      <th>#</th><th>SCENE</th><th>MODE</th><th>FILE IT WILL WRITE</th><th></th>
+    </tr></thead>
+    <tbody id="body"></tbody>
+  </table></div>
+
+  <div class="sect" id="mats">
+    <div class="hd" id="matshd">
+      <span class="tri">&#9654;</span>
+      <span class="lbl">MATERIALS FOR THE V-RAY PASS</span>
+      <span class="sum" id="matsum"></span>
+    </div>
+    <div class="bodyy">
+      <div class="matrow"><span class="from">Floor <b>0128_White</b> &rarr; WR-Floor-Render</span>
+        <select data-slot="floor"><option>(unset)</option><option selected>VRay Oak Herringbone</option><option>VRay Polished Concrete</option><option>VRay Carpet Charcoal</option></select></div>
+      <div class="matrow"><span class="from">Walls <b>0099_LightSteelBlue</b> &rarr; WR-Wall-Render</span>
+        <select data-slot="wall"><option selected>(unset)</option><option>VRay Painted Drywall</option><option>VRay Fabric Panel Gray</option></select></div>
+      <div class="matrow"><span class="from">Door <b>0043_SaddleBrown</b> &rarr; WR-Door-Render</span>
+        <select data-slot="door"><option>(unset)</option><option selected>VRay Walnut Veneer</option><option>VRay Painted Drywall</option></select></div>
+      <div class="matnote">Applied only while the V-Ray scenes render, and reverted before this
+        window says done — the model goes back to drafting materials. A slot left (unset) leaves
+        those surfaces drafting and is <b>reported by name</b>, never silently wrong. Same slots as
+        the Draft&nbsp;/&nbsp;Render toggle — set them in either place. If SketchUp ever dies
+        mid-render, the Toggle&nbsp;Draft/Render button puts the model back.</div>
+    </div>
+  </div>
+
+  <div class="out">
+    <span class="lbl">FOLDER</span>
+    <input id="dir" value="C:/Users/bento/Desktop/ProposalFiles/Smith Studio">
+    <button class="btn" id="browse">Browse&hellip;</button>
+
+    <span class="lbl">IMAGES</span>
+    <div class="half">
+      <span class="lbl">WIDTH</span><input id="width" value="2400">
+      <span class="lbl" style="margin-left:6px">PX — height follows the viewport aspect. V-Ray renders use the size set in the V-Ray Asset Editor.</span>
+    </div>
+    <span></span>
+
+    <span class="lbl">EXISTS?</span>
+    <select id="over" style="max-width:200px"><option>Ask</option><option>Overwrite</option><option>Skip existing</option></select>
+    <span></span>
+  </div>
+
+  <div class="runlog" id="log"></div>
+
+  <div class="bar">
+    <div class="prog"><span id="pmsg">Ready.</span><div class="pbar"><i id="pfill"></i></div></div>
+    <button class="btn" id="cancel" style="display:none">Cancel</button>
+    <button class="btn" id="closeb">Close</button>
+    <button class="btn p" id="export">Export package</button>
+  </div>
+
+  <div class="foot"># is the scene's position in the tabs — same number the exporters use.
+    The arrow jumps to that scene. Filenames are the scene names verbatim; only characters
+    Windows forbids become “-”, and a V-Ray scene gets “ render” added.</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // sample model — includes a deliberate name collision ("05-plan render" image vs "05-plan" render)
+  var ROWS = [
+    { n:1,  scene:"01-exterior",            mode:"render" },
+    { n:2,  scene:"02-dimensioned",         mode:"image"  },
+    { n:3,  scene:"03-side",                mode:"image"  },
+    { n:4,  scene:"04-ventilation",         mode:"render" },
+    { n:5,  scene:"05-plan",                mode:"render" },
+    { n:6,  scene:"05-plan render",         mode:"image"  },
+    { n:7,  scene:"Interior Desk",          mode:"render" },
+    { n:8,  scene:"Interior Door Open",     mode:"skip"   },
+    { n:9,  scene:"Room Only / Empty",      mode:"image"  },
+    { n:10, scene:"Booth vs Wall Gap",      mode:"skip"   },
+    { n:11, scene:"Ceiling Detail",         mode:"skip"   },
+    { n:12, scene:"ADA Ramp Approach",      mode:"image"  },
+    { n:13, scene:"Vent Silencers <rear>",  mode:"skip"   },
+    { n:14, scene:"Hero Wide",              mode:"render" }
+  ];
+  var running = false, cancelFlag = false;
+
+  var $q=g("q"), $b=g("body"), $count=g("count"), $pick=g("picksum"),
+      $log=g("log"), $pmsg=g("pmsg"), $pfill=g("pfill");
+  function g(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  // ---- filename rule: sanitize, " render" suffix, one collision map across both lanes
+  function sanitize(s){
+    return String(s).trim().replace(/[<>:"\/\\|?*\u0000-\u001f]/g,"-").replace(/[. ]+$/,"");
+  }
+  function fileMap(){
+    var used={}, out={};
+    ROWS.forEach(function(r){
+      if (r.mode==="skip") return;
+      var base = sanitize(r.scene) || ("scene-"+r.n);
+      if (r.mode==="render") base += " render";
+      if (used[base]){ used[base]++; base = base+" ("+used[base]+")"; } else { used[base]=1; }
+      out[r.n]=base+".png";
+    });
+    return out;
+  }
+
+  // ---- search: every term must appear; comma/hyphen query = scene numbers; bare number = both
+  function terms(q){ return q.toLowerCase().split(/\s+/).filter(function(t){return t.length>0;}); }
+  function parseNums(q){
+    if (!/^[\d\s,\-]+$/.test(q)) return null;
+    var want={}, only=/[,\-]/.test(q);
+    q.split(",").forEach(function(tok){
+      tok=tok.trim(); if(!tok) return;
+      var m=tok.match(/^(\d+)\s*-\s*(\d+)$/);
+      if (m){ var a=+m[1],b=+m[2]; if(a>b){var t=a;a=b;b=t;} for(var k=a;k<=b;k++) want[k]=1; }
+      else if (/^\d+$/.test(tok)) want[+tok]=1;
+    });
+    return Object.keys(want).length ? {want:want, only:only} : null;
+  }
+  function hl(t, ts){
+    var s=String(t), lo=s.toLowerCase(), spans=[];
+    (ts||[]).forEach(function(term){
+      if(!term) return; var i=lo.indexOf(term);
+      while(i>=0){ spans.push([i,i+term.length]); i=lo.indexOf(term,i+term.length); }
+    });
+    if(!spans.length) return esc(s);
+    spans.sort(function(a,b){return a[0]-b[0]||a[1]-b[1];});
+    var out="", at=0;
+    spans.forEach(function(sp){
+      if(sp[1]<=at) return; var a=sp[0]>at?sp[0]:at;
+      out+=esc(s.slice(at,a))+"<mark>"+esc(s.slice(a,sp[1]))+"</mark>"; at=sp[1];
+    });
+    return out+esc(s.slice(at));
+  }
+
+  var view = ROWS.slice();
+  function draw(){
+    var q=$q.value.trim(), nums=parseNums(q), ts=terms(q), files=fileMap();
+    view = ROWS.filter(function(r){
+      if(!q) return true;
+      if(nums && nums.only) return !!nums.want[r.n];
+      if(nums && nums.want[r.n]) return true;
+      var s=r.scene.toLowerCase();
+      return ts.length && ts.every(function(t){ return s.indexOf(t)>=0; });
+    });
+    var hi=(nums&&nums.only)?[]:ts;
+    $b.innerHTML = view.map(function(r){
+      var f=files[r.n]||"";
+      var fh = f ? esc(f).replace(/ render(?=( \(\d+\))?\.png$)/," <b>render</b>") : "&mdash;";
+      return "<tr data-n='"+r.n+"'>"+
+        "<td class='n'>"+r.n+"</td>"+
+        "<td>"+hl(r.scene,hi)+"</td>"+
+        "<td><span class='seg'>"+
+          segBtn(r,"skip","Skip")+segBtn(r,"image","Image")+segBtn(r,"render","Render")+
+        "</span></td>"+
+        "<td class='file'>"+fh+"</td>"+
+        "<td class='go'><button title='Go to this scene'>&#8594;</button></td></tr>";
+    }).join("");
+    Array.prototype.forEach.call($b.querySelectorAll("[data-mode]"), function(el){
+      el.addEventListener("click", function(){
+        var r=ROWS.filter(function(x){return x.n===+el.getAttribute("data-n");})[0];
+        r.mode=el.getAttribute("data-mode"); draw();   // real dialog: sketchup.mark({n,mode}) here
+      });
+    });
+    var nr=ROWS.filter(function(r){return r.mode==="render";}).length,
+        ni=ROWS.filter(function(r){return r.mode==="image";}).length;
+    $count.textContent = (view.length===ROWS.length ? ROWS.length+" scenes"
+                          : view.length+" of "+ROWS.length);
+    $pick.textContent = nr+" RENDER · "+ni+" IMAGE · "+(ROWS.length-nr-ni)+" SKIP";
+    g("matsum").textContent = nr ? "2 of 3 slots filled — applies to "+nr+" render scene(s)"
+                                 : "no render scenes marked";
+    g("export").disabled = running || (nr+ni)===0;
+  }
+  function segBtn(r,m,label){
+    return "<button data-n='"+r.n+"' data-mode='"+m+"' class='"+(r.mode===m?("on-"+m):"")+"'>"+label+"</button>";
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-bulk]"), function(el){
+    el.addEventListener("click", function(){
+      if(running) return;
+      view.forEach(function(r){ r.mode=el.getAttribute("data-bulk"); }); draw();
+    });
+  });
+  $q.addEventListener("input", draw);
+  g("matshd").addEventListener("click", function(){
+    var s=g("mats"); s.classList.toggle("open");
+    s.querySelector(".tri").innerHTML = s.classList.contains("open")?"&#9660;":"&#9654;";
+  });
+  g("browse").addEventListener("click", function(){
+    alert("Real dialog: opens the Windows folder browser (UI.select_directory), seeded from the last folder used. Recent folders are remembered per machine.");
+  });
+  g("closeb").addEventListener("click", function(){
+    alert("Real dialog: closes. Marks and settings are already saved — into the model for scene modes and slot fills, into plugin settings for folder / width / policy.");
+  });
+
+  // ---- simulated export run: two passes, progress, cancel, honest summary
+  function logLine(html){ $log.style.display="block"; $log.innerHTML+=html+"<br>"; $log.scrollTop=1e6; }
+  g("cancel").addEventListener("click", function(){ cancelFlag=true; });
+  g("export").addEventListener("click", function(){
+    if(running) return;
+    var files=fileMap();
+    var imgs=ROWS.filter(function(r){return r.mode==="image";}),
+        rens=ROWS.filter(function(r){return r.mode==="render";});
+    running=true; cancelFlag=false; $log.innerHTML=""; $log.style.display="block";
+    g("cancel").style.display=""; draw();
+    var steps=[];
+    steps.push(function(){ logLine("<span class='dim'>PREFLIGHT — 5 checks, 0 failing. Continue.</span>"); });
+    if(imgs.length){
+      steps.push(function(){ logLine("<span class='dim'>MODE &rarr; DRAFT (drafting materials, dims per scene)</span>"); });
+      imgs.forEach(function(r){ steps.push(function(){
+        logLine("<span class='ok'>ok</span>&nbsp;&nbsp;&nbsp;&nbsp;"+esc(files[r.n])+" <span class='dim'>(image, 2400&times;1500)</span>"); }); });
+    }
+    if(rens.length){
+      steps.push(function(){
+        logLine("<span class='dim'>MODE &rarr; RENDER — WR-Floor-Render: 6 surfaces, WR-Door-Render: 2 surfaces</span>");
+        logLine("<span class='bad'>unmapped</span> Booth &gt; Wall panel N&nbsp;<span class='dim'>(0099_LightSteelBlue &rarr; WR-Wall-Render: no fill set)</span>");
+      });
+      rens.forEach(function(r,i){ steps.push(function(){
+        if(i===1){ logLine("<span class='bad'>FAILED</span>&nbsp;"+esc(files[r.n])+" <span class='dim'>(save_vfb_image raised — file open in a viewer). Batch continues.</span>"); }
+        else logLine("<span class='ok'>ok</span>&nbsp;&nbsp;&nbsp;&nbsp;"+esc(files[r.n])+" <span class='dim'>(V-Ray, Asset Editor size)</span>"); }); });
+    }
+    steps.push(function(){ logLine("<span class='dim'>MODE &rarr; back to DRAFT · scene + camera restored</span>"); });
+    var total=steps.length, i=0;
+    var t=setInterval(function(){
+      if(cancelFlag){
+        clearInterval(t);
+        logLine("<span class='bad'>CANCELLED</span> <span class='dim'>— finishing: mode restored, scene + camera restored. Partial results above are real files.</span>");
+        finish("Cancelled — model restored."); return;
+      }
+      steps[i++](); $pfill.style.width=Math.round(100*i/total)+"%";
+      $pmsg.textContent="Exporting "+i+" of "+total+" steps…";
+      if(i>=total){
+        clearInterval(t);
+        var fails = rens.length>1 ? 1 : 0;
+        logLine("<b>PROPOSAL PACKAGE — "+(imgs.length+rens.length-fails)+" exported, 0 skipped, "+fails+" FAILED</b>");
+        finish("Done. "+(fails? fails+" failure named above — nothing silent." : "All rows exported."));
+      }
+    }, 420);
+    function finish(msg){ running=false; g("cancel").style.display="none"; $pmsg.textContent=msg; draw(); }
+  });
+
+  draw();
+}());
+</script></body></html>
