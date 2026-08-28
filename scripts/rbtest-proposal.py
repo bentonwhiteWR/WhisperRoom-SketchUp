@@ -39,6 +39,16 @@ Mutation-checked when written — each of these reintroduced bugs makes it FAIL:
     seq_ended consulted before state                     -> case 2 FAIL
     :raised treated as finished (the old in_process? bug)-> case 6 FAIL
 
+ENTRY GUARDS (added 2026-08-27, the dead-button day): the panel button did
+nothing because a shared $wr_no_autorun_was global was clobbered by nested
+loads, leaving $wr_no_autorun stuck true and the autorun line suppressed.
+The decisions are now pure methods, covered here and mutation-checked when
+added — each of these reintroduced bugs makes it FAIL:
+
+    autorun? inverted (suppressed flag runs, clear skips) -> auto1-3 FAIL
+    launch_decision's not-running early return inverted   -> launch1-6 FAIL
+    launch_decision reset/decline swapped                 -> launch4-6 FAIL
+
 Do that again if you ever doubt it.
 """
 import os
@@ -69,6 +79,10 @@ module WR_ProposalPackage
 
 %(classify)s
 
+%(autorun)s
+
+%(launch)s
+
   # Stub renderers for read_signal: one answers, one raises, one is bare.
   class RendOK
     def state; :idleInitialized; end
@@ -77,6 +91,23 @@ module WR_ProposalPackage
     def state; raise StandardError, 'Incorrect DR version'; end
   end
   class RendBare; end
+
+  # Entry-guard cases (the 2026-08-27 dead button): the autorun decision and
+  # the batch-guard decision, both pure. [args..., expected]
+  AUTORUN_CASES = [
+    [nil,   true ],   # fresh session — run
+    [false, true ],   # explicitly cleared — run
+    [true,  false],   # a loader (or a stale flag) suppressed it — skip, loudly
+  ]
+  LAUNCH_CASES = [
+    # [running, reset_confirmed, expected]
+    [false, false, :launch ],   # nothing running: open the dialog
+    [false, true,  :launch ],   # ...even a spurious confirm changes nothing
+    [nil,   false, :launch ],   # never-set ivar reads nil, same as false
+    [true,  true,  :reset  ],   # flag set, user confirmed stale: clear + open
+    [true,  false, :decline],   # flag set, user declined: leave it alone
+    [true,  nil,   :decline],   # no answer counts as declined
+  ]
 
   CASES = [
     # [state_val, seq_ended, expected]
@@ -106,6 +137,14 @@ module WR_ProposalPackage
               'sig-raise ok' : 'sig-raise FAIL')
     out << (read_signal(RendBare.new, :state) == :raised ?
               'sig-absent ok' : 'sig-absent FAIL')
+    AUTORUN_CASES.each_with_index do |(flag, want), i|
+      got = autorun?(flag)
+      out << (got == want ? "auto#{i + 1} ok" : "auto#{i + 1} FAIL got #{got}")
+    end
+    LAUNCH_CASES.each_with_index do |(running, confirmed, want), i|
+      got = launch_decision(running, confirmed)
+      out << (got == want ? "launch#{i + 1} ok" : "launch#{i + 1} FAIL got #{got}")
+    end
     out.join(' | ')
   end
 end
@@ -118,7 +157,10 @@ end).dup
 '''
 
 EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
-          'sig-ok ok | sig-raise ok | sig-absent ok')
+          'sig-ok ok | sig-raise ok | sig-absent ok | '
+          'auto1 ok | auto2 ok | auto3 ok | '
+          'launch1 ok | launch2 ok | launch3 ok | launch4 ok | launch5 ok | '
+          'launch6 ok')
 
 
 def main():
@@ -126,14 +168,20 @@ def main():
         'idle_state':  const_line('IDLE_STATE'),
         'read_signal': rbtest.method_source(SRC, 'read_signal'),
         'classify':    rbtest.method_source(SRC, 'classify_render'),
+        # 'autorun' (not 'autorun?'): method_source appends \b, and ? gives
+        # it no word boundary to land on. No other method starts 'autorun'.
+        'autorun':     rbtest.method_source(SRC, 'autorun'),
+        'launch':      rbtest.method_source(SRC, 'launch_decision'),
     }
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
-    print('classify_render + read_signal: the render-completion verdict')
+    print('classify_render + read_signal + entry guards')
     print('  got      %s' % got)
     if got == EXPECT:
         print('  PASS - observed idle finishes, unknown states keep running,')
-        print('         raises become :raised, both-dead is :unreadable')
+        print('         raises become :raised, both-dead is :unreadable,')
+        print('         autorun runs unless suppressed, batch guard resets')
+        print('         only on a confirmed stale flag')
         return 0
     print('  expected %s' % EXPECT)
     print('  FAIL')

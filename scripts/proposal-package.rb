@@ -43,26 +43,37 @@
 #
 #   load "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/proposal-package.rb"
 #
-# THIS FILE HAS NOT BEEN RUN. There is no ruby.exe on this machine outside
-# SketchUp, so nothing here has executed — only parsed with rbparse.py (real
-# syntax check) and, for the filename/collision logic and the render-state
-# classifier (rbtest-proposal.py), executed against fixtures through
-# SketchUp's own CRuby DLL. probe-vray.rb HAS run live and its observations
-# are folded in below; this tool itself, and the machinery it drives —
-# wr-mode.rb, wr-materials-swap.rb — still await their first live exercise.
+# LIVE STATUS (2026-08-27): the DIALOG has opened once in SketchUp 2026 —
+# loaded from the Ruby Console with $wr_no_autorun cleared, WR_ProposalPackage
+# .run showed the window (observed by Benton). The BATCH — the export/render
+# machinery, wr-mode.rb, wr-materials-swap.rb under it — has still never run.
+# Everything else is parsed with rbparse.py (real syntax check) and, for the
+# filename/collision logic, the render-state classifier and the entry guards,
+# executed against fixtures through SketchUp's own CRuby DLL
+# (rbtest-proposal.py). probe-vray.rb HAS run live; its observations are
+# folded in below.
 
 require 'sketchup.rb'
 require 'json'
 require 'fileutils'
 
-$wr_no_autorun_was = $wr_no_autorun
+# The saved flag lives in a LOCAL, never in a shared global. This was the
+# bug that made the panel button do nothing at all (2026-08-27, observed):
+# the old `$wr_no_autorun_was = $wr_no_autorun` was the same global that
+# wr-preflight.rb and wr-mode.rb use for their own save/restore dance, so the
+# nested loads below CLOBBERED the saved nil with true, the ensure "restored"
+# $wr_no_autorun to true, and the autorun line at the bottom of this file
+# never fired — no dialog, no error, nothing. A local cannot be touched by a
+# nested load. (wr-preflight.rb / wr-mode.rb / wr-pack-export.rb still carry
+# the global-temp idiom; flagged for a separate pass, not fixed from here.)
+wr_pp_autorun_was = $wr_no_autorun
 $wr_no_autorun = true
 begin
   load File.join(File.dirname(__FILE__), 'wr-preflight.rb')   # pulls in wr-mode.rb,
   load File.join(File.dirname(__FILE__), 'export-scenes.rb')  # wr-materials-swap.rb,
   load File.join(File.dirname(__FILE__), 'wr-folder.rb')      # wr-shading.rb
 ensure
-  $wr_no_autorun = $wr_no_autorun_was
+  $wr_no_autorun = wr_pp_autorun_was
 end
 
 module WR_ProposalPackage
@@ -260,7 +271,11 @@ module WR_ProposalPackage
 
   # cfg: {'dir', 'width', 'over' ('Ask'|'Overwrite'|'Skip existing'), 'shade'}
   def self.start_run(model, dlg, cfg)
-    return if @running
+    if @running                    # double-press race; never a silent ignore
+      puts 'WR_ProposalPackage: Export pressed while a batch is running — ignored.'
+      log(dlg, 'a batch is already running — this press was ignored', 'bad')
+      return
+    end
 
     dir = cfg['dir'].to_s.strip.delete('"').tr('\\', '/').sub(%r{/+\z}, '')
     if dir.empty?
@@ -773,11 +788,55 @@ module WR_ProposalPackage
     nil
   end
 
+  # ---------------------------------------------------------- entry guards --
+  #
+  # Both entry decisions are PURE — flag in, verdict out — so rbtest-proposal.py
+  # proves them offline. Every :decline / false verdict is announced by the
+  # caller: this button must never again do nothing and say nothing.
+
+  # The trailing autorun line's decision. True unless a loader suppressed it.
+  def self.autorun?(no_autorun_flag)
+    no_autorun_flag ? false : true
+  end
+
+  # What run() does about the live-batch flag:
+  #   :launch  — nothing running, open the dialog
+  #   :reset   — flag set, user confirmed it is stale: clear through FINISH,
+  #              then open the dialog
+  #   :decline — flag set, user did not confirm: leave the batch alone
+  def self.launch_decision(running, reset_confirmed)
+    return :launch unless running
+    reset_confirmed ? :reset : :decline
+  end
+
+  # The way out of a stuck @running flag that does not need a restart.
+  # Routed THROUGH finish(), not around it — the single-exit contract holds
+  # even for the reset: mode, scene and camera are restored (best-effort,
+  # loudly on failure) exactly as any other end of a batch.
+  def self.reset_stale_batch(model)
+    puts 'WR_ProposalPackage: clearing a stale batch flag through FINISH…'
+    @results     ||= []
+    @cfg         ||= {}
+    @cancel        = false
+    @close_after   = false
+    begin
+      @rend.stop if @rend                # reported API — best effort
+    rescue Exception
+      nil
+    end
+    @rend     = nil
+    @awaiting = nil
+    finish(model, @dlg, 'reset — stale batch state cleared from a new launch')
+    @running = false                     # finish sets this; belt and braces
+  end
+
   # ------------------------------------------------------------------ run --
 
   def self.run
+    puts 'WR_ProposalPackage.run — opening the dialog…'   # "did the click reach Ruby?"
     model = Sketchup.active_model
     if model.nil? || model.pages.count.zero?
+      puts 'WR_ProposalPackage: not opened — the model has no scenes.'
       UI.messagebox("This model has no scenes.\n\nAdd scenes first " \
                     '(View > Animation > Add Scene), or run ' \
                     "'Set up the five proposal plates'.")
@@ -785,11 +844,26 @@ module WR_ProposalPackage
     end
 
     # Never stomp a live batch — killing its timer would skip FINISH and leave
-    # the model mutated. The live run's own window has the Cancel button.
+    # the model mutated. The live run's own window has the Cancel button. But
+    # a STALE flag (window gone, module reloaded mid-batch) must not brick the
+    # button until a SketchUp restart, so a dead flag can be cleared here.
     if @running
-      UI.messagebox('A proposal-package export is already running. ' \
-                    'Cancel it from its own window first.')
-      return
+      confirmed = UI.messagebox(
+        "A proposal-package export is already running.\n\n" \
+        "If its window is open, cancel it there — do NOT reset a live run.\n\n" \
+        "If there is no window (the run is stuck or its window is gone),\n" \
+        'press Yes to clear the stale state and open the dialog.',
+        MB_YESNO
+      ) == IDYES
+      case launch_decision(true, confirmed)
+      when :reset
+        reset_stale_batch(model)
+      else # :decline
+        puts 'WR_ProposalPackage: not opened — a batch is (or claims to be) ' \
+             'running and the reset was declined. Cancel it from its window, ' \
+             'or press the button again and choose Yes to clear stale state.'
+        return
+      end
     end
     stop_stale_timer
     @results = []
@@ -829,6 +903,7 @@ module WR_ProposalPackage
       :style           => UI::HtmlDialog::STYLE_DIALOG
     )
     d.set_html(html(title, state(model), dir, width, over, shade))
+    @dlg = d   # so a stale-batch reset can reach the last window's log, if any
 
     d.add_action_callback('mark') do |_c, payload|
       begin
@@ -916,11 +991,15 @@ module WR_ProposalPackage
     end
 
     d.show
+    puts 'WR_ProposalPackage: dialog shown.'
     nil
-  rescue StandardError => e
+  rescue Exception => e
+    # Exception, not StandardError — the repo rule (main.rb, "running"): a
+    # ScriptError must become a message box here, never a silent dead button.
     UI.messagebox("Proposal package failed:\n\n#{e.class}: #{e.message}")
     puts "FAILED: #{e.class}: #{e.message}"
     puts e.backtrace.first(5)
+    raise if e.is_a?(SystemExit) || e.is_a?(NoMemoryError)
   end
 
   # ----------------------------------------------------------------- html --
@@ -1295,8 +1374,23 @@ module WR_ProposalPackage
   end
 end
 
+# The autorun line — the panel button IS this line. It can be suppressed by a
+# loader that sets $wr_no_autorun on purpose (main.rb's load_quietly, another
+# script pulling this file in as a library), but NEVER silently: a skip is
+# announced on the console with the way to launch by hand, because a truthy
+# flag here can also be STALE — left behind by a loader that crashed between
+# set and restore — and a stale flag suppressing this line is exactly how the
+# button once did nothing at all (2026-08-27).
 begin
-  WR_ProposalPackage.run unless $wr_no_autorun
+  if WR_ProposalPackage.autorun?($wr_no_autorun)
+    WR_ProposalPackage.run
+  else
+    puts 'WR_ProposalPackage: loaded but NOT launched — $wr_no_autorun is ' \
+         "#{$wr_no_autorun.inspect}. A loader that set it gets this on " \
+         'purpose; anywhere else the flag is stale. To open the dialog run:' \
+         "\n  WR_ProposalPackage.run" \
+         "\nand to clear a stale flag for good:  $wr_no_autorun = nil"
+  end
 rescue Exception => e
   puts ''
   puts "FAILED: #{e.class}: #{e.message}"
