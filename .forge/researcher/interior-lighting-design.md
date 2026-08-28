@@ -4,6 +4,19 @@ Researcher findings, 2026-08-27 (second lighting pass). Read-only outside `.forg
 Supersedes the *placement* half of `interior-lighting-options.md`; the *mechanism* half of that
 file (seed component, no V-Ray light API) stands and is the foundation here.
 
+> **UPDATE 2026-08-27 (evening) — mechanism status, from live tests.** The seed-component
+> mechanism this design rests on is now **partially observed and stands**: seed-minted,
+> `definitions.load`-placed instances emitted in an early live run (observed, pre-1.7.3
+> plugin), and a SketchUp copy/paste of a working light emits (observed, today). A later run
+> under plugin 1.7.4 did **not** emit (observed, dark at 30,000 lm) and was briefly mis-read
+> as disproving the mechanism; the difference between the runs is the draft-mode `WR Lights`
+> tag hiding shipped in between (commit `2f48a6e` / `c5b2cd2`), i.e. §"copies share one
+> asset" holds and the failure was almost certainly the assumed-unverified "hidden tag kills
+> the light in render" behaviour confirming itself. The §3.3 probe below remains useful for
+> the Brightness/Warmth/exposure writability fork, but the emission question and its ranked
+> suspects now live in `.forge/researcher/vray-light-creation.md` — read that first; its
+> Probe A2 and master probe supersede guessing.
+
 ## Question
 
 Benton, superseding what shipped: select a room, press a button, get a pop-up that defaults to

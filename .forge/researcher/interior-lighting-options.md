@@ -2,6 +2,24 @@
 
 Researcher findings, 2026-08-27. Read-only pass; nothing outside `.forge/researcher/` was touched.
 
+> **UPDATE 2026-08-27 (evening) — the copy-emits claim, corrected from live tests.**
+> This file's load-bearing claim — "a V-Ray light IS a SketchUp component instance; save one
+> as a `.skp`, `definitions.load` it, instance it, and the copies emit" — was **reported**
+> when written. It is now **partially observed, and it stands**: in Benton's live sessions
+> today, a hand-drawn rectangle light emitted (observed), a SketchUp copy/paste of one
+> emitted (observed), and seed-minted `definitions.load`-placed instances **emitted in an
+> early run** under the pre-1.7.3 plugin (observed — visible white rectangles that "just
+> didn't look good"). The same mechanism then **did not emit** in a later run under plugin
+> 1.7.4 (observed — dark at 30,000 lm) and was briefly mis-read as disproving the mechanism.
+> It does not: the difference between the two runs is code shipped in between — draft-mode
+> hiding of the `WR Lights` tag at placement (`wr-drop-lights.rb`, commit `2f48a6e`; the
+> HIDDEN warning printed verbatim in today's console) — which makes this file's *other*
+> flagged claim ("hiding the tag almost certainly disables the lights in render",
+> then-reported, unverified) the leading and probably-confirmed explanation. Full
+> differential diagnosis, ranked suspects and one-paste probes:
+> `.forge/researcher/vray-light-creation.md`. Do not rebuild anything on "copies don't
+> emit" — they do; the failure was environmental.
+
 ## Question
 
 Benton: the sun-aim tool now works, but "the floor plan drawings we've made today" still render
