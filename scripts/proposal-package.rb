@@ -28,11 +28,14 @@
 #     read well. One checkbox turns it off; it is pushed after the draft swap
 #     and popped before anything else changes mode, so it never leaks into a
 #     mode snapshot.
-#   - THE V-RAY LANE IS GATED, NOT ASSUMED. Nothing about the V-Ray Ruby API
-#     has ever been run from this repo (reference/vray-ruby-api.md is
-#     transcribed from docs; probe-vray.rb has never been run). When render
-#     rows are planned and VRay::Context.active is nil, this tool REFUSES BY
-#     NAME and offers to export the image rows only — never a half-run.
+#   - THE V-RAY LANE IS GATED, NOT ASSUMED. probe-vray.rb has now been run
+#     live (27 Aug 2026, SketchUp 2026): VRay::Context.active is NON-NIL even
+#     cold, `state` returned :idleInitialized, and the DR pair in_process? /
+#     dr_enabled? RAISE on this machine — see the completion-classification
+#     section below. When render rows are planned and VRay::Context.active is
+#     nil, this tool still REFUSES BY NAME and offers to export the image
+#     rows only — never a half-run. That refusal now proves only that V-Ray
+#     is absent entirely; a non-nil context proves presence, not readiness.
 #
 # The batch is a state machine stepped by UI.start_timer, not a blocking loop:
 # SketchUp runs Ruby on the UI thread, and a long `each` would freeze the
@@ -42,10 +45,11 @@
 #
 # THIS FILE HAS NOT BEEN RUN. There is no ruby.exe on this machine outside
 # SketchUp, so nothing here has executed — only parsed with rbparse.py (real
-# syntax check) and, for the filename/collision logic, executed against
-# fixtures through SketchUp's own CRuby DLL. The machinery it drives —
-# wr-mode.rb, wr-materials-swap.rb — carries the same banner: this tool is the
-# first live exercise of all of it.
+# syntax check) and, for the filename/collision logic and the render-state
+# classifier (rbtest-proposal.py), executed against fixtures through
+# SketchUp's own CRuby DLL. probe-vray.rb HAS run live and its observations
+# are folded in below; this tool itself, and the machinery it drives —
+# wr-mode.rb, wr-materials-swap.rb — still await their first live exercise.
 
 require 'sketchup.rb'
 require 'json'
@@ -62,7 +66,8 @@ ensure
 end
 
 module WR_ProposalPackage
-  %w[DICT PREF FORBIDDEN FOLDER_KEY SLOT_LABEL].each do |c|
+  %w[DICT PREF FORBIDDEN FOLDER_KEY SLOT_LABEL
+     IDLE_STATE RENDER_TIMEOUT_S UNREADABLE_LIMIT START_GRACE_S].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
 
@@ -176,14 +181,79 @@ module WR_ProposalPackage
 
   # ------------------------------------------------------------ v-ray gate --
 
-  # REPORTED API (reference/vray-ruby-api.md, transcribed from Chaos's docs;
-  # probe-vray.rb has never been run). Every VRay:: call in this file sits
-  # behind this gate and inside its own rescue.
+  # OBSERVED (probe-vray.rb, 27 Aug 2026, SketchUp 2026): VRay::Context.active
+  # is NON-NIL in a cold session, before any render. So a nil here means V-Ray
+  # is genuinely absent (not installed / not enabled) and the refusal by name
+  # is right — but a non-nil context is a WEAK guarantee: it proves V-Ray is
+  # loaded, not that a render will succeed (the same probe showed this very
+  # context's renderer raising from its DR methods). Every VRay:: call in this
+  # file still sits behind this gate and inside its own rescue.
   def self.vray_context
     return nil unless defined?(VRay)
     VRay::Context.active
   rescue Exception
     nil
+  end
+
+  # ------------------------------------------- render completion signals --
+  #
+  # OBSERVED (probe-vray.rb, 27 Aug 2026, cold idle renderer, no render yet):
+  #
+  #   renderer.state           -> :idleInitialized
+  #   renderer.sequence_ended? -> true
+  #   renderer.in_process?     -> RAISES StandardError "Incorrect DR version"
+  #   renderer.dr_enabled?     -> RAISES the same
+  #
+  # in_process? and dr_enabled? are the distributed-rendering pair, and on
+  # this machine they raise even on an idle renderer with DR never used.
+  # NOTHING in this file may call them, and nothing may gate the batch on
+  # them — `state` is the completion signal, `sequence_ended?` the backup.
+  #
+  # The idle vocabulary below is observed from ONE sample. Nobody has seen
+  # the mid-render or just-finished value (the post-render probe run came
+  # back unreadable), so the test is inverted: a state matching /idle/i is
+  # finished, ANY state we have never seen counts as still running, and
+  # RENDER_TIMEOUT_S fails the row BY NAME rather than polling forever.
+  # If a probe taken during or just after a render shows a different
+  # finished value, widen IDLE_STATE here — this regexp is the one place.
+  IDLE_STATE = /idle/i
+
+  RENDER_TIMEOUT_S = 30 * 60 # a row still not idle after this fails by name
+  UNREADABLE_LIMIT = 5       # consecutive polls with BOTH signals raising
+  START_GRACE_S    = 3       # ASSUMED: start may be async and state may lag
+                             # it, so an idle read this soon after start is
+                             # not trusted as completion — never observed,
+                             # cheap insurance against saving a black frame
+
+  # One guarded read of a renderer poll signal. :raised means the call
+  # raised or the method is absent — a V-Ray raise must never escape into
+  # the timer loop.
+  def self.read_signal(rend, meth)
+    return :raised unless rend.respond_to?(meth)
+    rend.public_send(meth)
+  rescue Exception
+    :raised
+  end
+
+  # PURE — exercised offline by rbtest-proposal.py, including the :raised
+  # paths. state_val / seq_ended are raw poll results (with :raised from
+  # read_signal). Returns :finished, :running or :unreadable.
+  #
+  #   - a readable state decides alone: IDLE_STATE finished, else running
+  #   - state unreadable: sequence_ended? true is finished, false running.
+  #     Its mid-render value is ASSUMED false (never observed) — it only
+  #     decides when state itself is unreadable, which the probe says it
+  #     is not on this machine.
+  #   - both unreadable: :unreadable — the poll loop fails the row by name
+  #     after UNREADABLE_LIMIT consecutive ticks.
+  def self.classify_render(state_val, seq_ended)
+    unless state_val == :raised || state_val.nil?
+      return (state_val.to_s =~ IDLE_STATE ? :finished : :running)
+    end
+    unless seq_ended == :raised || seq_ended.nil?
+      return (seq_ended ? :finished : :running)
+    end
+    :unreadable
   end
 
   # -------------------------------------------------------------- the run --
@@ -209,8 +279,12 @@ module WR_ProposalPackage
     # V-Ray gate BEFORE anything runs: never a half-run that dies mid-pass.
     if live.any? { |r| r['mode'] == 'render' } && vray_context.nil?
       images = live.select { |r| r['mode'] == 'image' }
+      # Observed: the context exists even cold, so a nil here means the
+      # extension itself is missing or disabled — not merely "not warmed up".
       msg = "V-Ray is not available in this session (no active context).\n\n" \
-            "Render one frame by hand in V-Ray, then run this again"
+            "V-Ray normally provides a context as soon as SketchUp starts, so " \
+            "check that the V-Ray extension is installed and enabled, then run " \
+            'this again'
       if images.empty?
         UI.messagebox("#{msg}.\n\nNo scenes are marked Image, so there is nothing " \
                       'else to export.')
@@ -323,6 +397,8 @@ module WR_ProposalPackage
     @total       = units.size
     @awaiting    = nil
     @rend        = nil
+    @render_began     = nil
+    @unreadable_polls = 0
     @shade_saved = nil
     @cfg         = { 'dir' => dir, 'width' => cfg['width'].to_s }
     @saved_mode  = WR_Mode.current(model)
@@ -368,20 +444,33 @@ module WR_ProposalPackage
       return
     end
 
-    # A render in flight: poll it, at most one poll per tick.
+    # A render in flight: poll it, at most one poll per tick. Completion is
+    # read from `state` (observed working), with `sequence_ended?` deciding
+    # only if `state` itself is unreadable — NEVER from in_process?, which
+    # raises "Incorrect DR version" on this machine (see the completion
+    # section above). Every branch here either stays in the timer loop or
+    # fails the row by name and moves on; none of them skips FINISH.
     if @awaiting
-      busy = begin
-        @rend.respond_to?(:in_process?) ? @rend.in_process? : false
-      rescue Exception
-        false                            # unreadable — treat as finished, try to save
-      end
-      if busy
-        progress(dlg, "Rendering #{@awaiting[:file]}…")
-      else
+      elapsed = Time.now - (@render_began || Time.now)
+      verdict = classify_render(read_signal(@rend, :state),
+                                read_signal(@rend, :sequence_ended?))
+      # An idle read straight after start is not trusted (async lag, ASSUMED).
+      verdict = :running if verdict == :finished && elapsed < START_GRACE_S
+      @unreadable_polls = verdict == :unreadable ? @unreadable_polls + 1 : 0
+
+      if verdict == :finished
         save_frame(dlg, @awaiting)
         @awaiting = nil
         @done += 1
         progress(dlg, nil)
+      elsif @unreadable_polls >= UNREADABLE_LIMIT
+        fail_render_row(dlg, 'renderer state and sequence_ended? both ' \
+                             'unreadable — render stopped, nothing saved')
+      elsif elapsed > RENDER_TIMEOUT_S
+        fail_render_row(dlg, "no idle state after #{RENDER_TIMEOUT_S / 60} " \
+                             'minutes — render stopped, nothing saved')
+      else
+        progress(dlg, "Rendering #{@awaiting[:file]}…")
       end
       return
     end
@@ -506,11 +595,16 @@ module WR_ProposalPackage
       return
     end
 
-    if rend.respond_to?(:in_process?)
-      @awaiting = p                      # async (or already done) — poll next tick
+    # Poll `state` / `sequence_ended?` from the next tick on. in_process? is
+    # NEVER consulted — it raises on this machine (completion section above).
+    if rend.respond_to?(:state) || rend.respond_to?(:sequence_ended?)
+      @awaiting         = p
+      @render_began     = Time.now
+      @unreadable_polls = 0
     else
-      # No way to poll — fall back to the documented blocking wait. Progress
-      # is per-scene here and mid-render cancel cannot land until it returns.
+      # No poll surface at all — fall back to the documented blocking wait.
+      # Progress is per-scene here and mid-render cancel cannot land until
+      # it returns.
       begin
         rend.wait if rend.respond_to?(:wait)
       rescue Exception
@@ -518,6 +612,24 @@ module WR_ProposalPackage
       end
       save_frame(dlg, p)
     end
+  end
+
+  # A render row that will never report finished (poll surface dead, or the
+  # timeout): stop the renderer best-effort, fail the row BY NAME, and let
+  # the batch move to its next unit. This stays inside the timer loop, so
+  # the batch still ends at FINISH with mode, scene and camera restored.
+  def self.fail_render_row(dlg, detail)
+    begin
+      @rend.stop if @rend                # reported API — best effort
+    rescue Exception
+      nil
+    end
+    @results << { :file => @awaiting[:file], :lane => 'render',
+                  :status => 'failed', :detail => detail }
+    log(dlg, "FAILED  #{@awaiting[:file]}  (#{detail})", 'bad')
+    @awaiting = nil
+    @done += 1
+    progress(dlg, nil)
   end
 
   def self.save_frame(dlg, p)
