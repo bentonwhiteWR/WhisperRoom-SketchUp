@@ -58,6 +58,26 @@ worked examples in .forge/researcher/interior-lighting-design.md:
      (WR-Doors) with "Door leaf N"/"Swing N" (WR-Doors-Leaf), and the
      UTHSC script's WR-Doors-tagged "doors" holding 'door leaf ...' solids
      and no Opening markers at all (the live "no door found" room).
+ 18. MOUNT PLANE: room lights sit FLUSH with the wall top (DROP = 0 —
+     Benton's live render, 2026-08-27: a 6" drop drew a visible "light
+     line" along the walls) while the closed-top booth keeps BOOTH_DROP =
+     6" so its interior light clears the roof tray. Guards against the 6"
+     room figure creeping back.
+ 19. THE 1.7.3/1.7.4 TAG REGRESSION: tag() must NEVER hide the "WR Lights"
+     tag — in a draft-mode model it stays visible (the shipped 1.7.3 code
+     hid it at placement, and the next manual V-Ray pass rendered unlit),
+     a hidden tag is shown again in every mode, a fresh tag is born
+     visible, and the console line says the tag is VISIBLE and names the
+     Draft/Render toggle as the owner of hiding. Run against stub
+     model/layer classes; the method itself is lifted verbatim.
+
+ALSO EXERCISED, from wr-mode.rb (same verbatim-lift protocol, second
+program): the pin_light_tags snapshot pin — leaving render mode with
+"WR Lights" hidden must NOT memorise hidden as the render-mode state (the
+self-persisting unlit-render trap); light keys are pinned to the mode's
+polarity, dim keys keep the remember-what-was-showing contract untouched,
+a pre-LIGHT_TAGS snapshot gets the key filled, and nil/dim-less snapshots
+pass through.
 
 MUTATION-CHECKED 2026-08-27 (each mutation applied to wr-drop-lights.rb,
 this test run, FAIL confirmed, mutation reverted): centred formula
@@ -73,6 +93,17 @@ MIN_ROOM_H 72.0->20.0 (veto stops firing on the 24" light); MIN_ROOM_AREA
 1296.0->50.0 (shoebox floor passes); fallback_verdict size<=1 -> size<=2
 (two fallbacks slip through); light_words? vray term dropped (Daylight
 matches). Each made this test FAIL and was reverted.
+
+MUTATION-CHECKED 2026-08-27 evening (tag/mount/pin additions, same
+protocol): tag() given a trailing `t.visible = false if mode == 'draft'`
+(the 1.7.3 regression re-applied — note a hide placed BEFORE the
+show-again branch is self-healed by it and is NOT a faithful mutant);
+DROP 0.0->6.0; pin_light_tags weakened to fill-only (the old backfill
+semantics — the exact memorisation trap); pin polarity flipped
+render<->draft. All four KILLED (test failed) and were reverted. NOT
+coverable here: wr-mode's to_mode wiring of the pin into its three
+save/apply sites, and everything layer/render-side — SketchUp-API-side,
+unverified until a live toggle and render.
 
 MUTATION-CHECKED 2026-08-27 (UTHSC-incident additions, same protocol):
 grid_points diag mis-charge (keep-out rejections counted as edge);
@@ -120,16 +151,27 @@ def lift_scalar(lines, name):
     raise SystemExit('wr-drop-lights.rb: no scalar constant %s' % name)
 
 
+def lift_string(lines, name):
+    """Verbatim single-line `  NAME = '...'.freeze` assignment (comment ok)."""
+    pat = re.compile(r"^  %s\s*=\s*'[^']*'\.freeze\s*(#.*)?$" % re.escape(name))
+    for ln in lines:
+        if pat.match(ln):
+            return ln
+    raise SystemExit('wr-drop-lights.rb: no string constant %s' % name)
+
+
 METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'edge_dist', 'poly_signed_area', 'poly_area', 'poly_centroid',
            'in_keepout?', 'edge_threshold', 'grid_points', 'nearest_edge',
            'opposite_edge', 'wash_points', 'downlight_lumens',
            'booth_lumens', 'accent_axis', 'subject_veto',
            'fallback_verdict', 'light_words?', 'room_structure_child?',
-           'doors_container?', 'door_child_kind']
-SCALARS = ['DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD', 'HEADROOM',
-           'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF', 'WASH_SPACING',
-           'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H', 'MIN_ROOM_AREA']
+           'doors_container?', 'door_child_kind', 'tag']
+SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
+           'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
+           'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H',
+           'MIN_ROOM_AREA']
+STRINGS = ['TAG', 'WR_MODE_DICT']
 BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES']
 
 
@@ -148,7 +190,34 @@ def lift_block(lines, name):
     raise SystemExit('wr-drop-lights.rb: %s never freezes' % name)
 
 FIXTURE = r'''
+# Stub tag/layer/model — just enough surface for the verbatim tag() method.
+# No Sketchup::Color stub on purpose: tag() guards the color write with a
+# rescue, and the stub-less NameError proves that guard holds.
+class FakeTag
+  attr_accessor :color
+  def initialize(vis); @vis = vis; end
+  def visible?; @vis; end
+  def visible=(v); @vis = v; end
+end
+class FakeLayers
+  def initialize(seed); @h = seed; end
+  def [](n); @h[n]; end
+  def add(n); @h[n] = FakeTag.new(true); end
+end
+class FakeModel
+  attr_reader :layers
+  def initialize(mode, tag_vis)
+    seed = tag_vis.nil? ? {} : { 'WR Lights' => FakeTag.new(tag_vis) }
+    @layers = FakeLayers.new(seed)
+    @mode = mode
+  end
+  def get_attribute(_d, k); k == 'current' ? @mode : nil; end
+end
+
 module WR_DropLights
+  LOG = []
+  def self.puts(s = ''); LOG << s.to_s; end # capture tag()'s console lines
+
 __CONSTS__
 
 __METHODS__
@@ -300,6 +369,26 @@ __METHODS__
                     doors_container?('WR-Doors', 'Opening 3'),
                     doors_container?('Layer0', 'Floor')]
                    .map { |b| b ? '1' : '0' }.join
+    # 18 — mount plane: room lights FLUSH with the wall top (Benton's
+    # render, 2026-08-27 — the 6" drop drew a "light line" on the walls);
+    # the closed-top booth keeps a real 6" drop to clear its roof tray.
+    out << format('mount %.1f %.1f', DROP, BOOTH_DROP)
+
+    # 19 — the 1.7.3 tag regression: placement NEVER hides "WR Lights".
+    # (a) draft-mode model, visible tag — the shipped regression hid it
+    # here; (b) draft-mode model, hidden tag — healed to visible; (c)
+    # render mode, hidden — shown; (d) no tag yet — born visible. The
+    # console must say VISIBLE and hand hiding to the Draft/Render toggle.
+    LOG.clear
+    a = tag(FakeModel.new('draft', true)).visible?
+    b = tag(FakeModel.new('draft', false)).visible?
+    say = LOG.any? { |l| l.include?('VISIBLE') } &&
+          LOG.any? { |l| l.include?('Draft/Render') }
+    c = tag(FakeModel.new('render', false)).visible?
+    d = tag(FakeModel.new(nil, nil)).visible?
+    out << 'tag ' + [a, b, c, d].map { |v| v ? '1' : '0' }.join +
+           (say ? ' say1' : ' say0')
+
     out << 'dk ' + [door_child_kind('WR-Doors', 'Opening 3') == :opening,
                     door_child_kind('Layer0', 'door leaf 36" ASSUMED, swings in') == :leaf,
                     door_child_kind('WR-Doors-Leaf', 'Door leaf 3') == :leaf,
@@ -340,32 +429,92 @@ EXPECT = ' | '.join([
     'usuite 119.63,134.13 fb1 rej0,0,9',
     'rsc 111100',
     'dc 1100',
+    'mount 0.0 6.0',
+    'tag 1111 say1',
     'dk 11111',
 ])
 
+# ---- second program: wr-mode.rb's snapshot pin --------------------------
+#
+# The self-persisting trap: hide "WR Lights" while IN render mode, toggle
+# away, and the leave-mode snapshot memorises hidden as "the render state"
+# — every future render entry re-hides the lights, silently, forever.
+# pin_light_tags (lifted verbatim from wr-mode.rb, with its LIGHT_TAGS
+# list) must pin light keys to the mode's polarity while leaving the dim
+# keys' remember-what-was-showing contract alone.
 
-def main():
-    lines = open(SRC, encoding='utf-8').read().split('\n')
-    consts = '\n'.join([lift_scalar(lines, c) for c in SCALARS] +
-                       [lift_block(lines, c) for c in BLOCKS])
-    prog = (FIXTURE
-            .replace('__CONSTS__', consts)
-            .replace('__METHODS__', '\n\n'.join(lift_method(lines, m) for m in METHODS)))
-    lib = rbparse.boot()
-    got = rbparse.rb_eval(lib, prog)
-    print('wr-drop-lights pure placement: grid, L-shape, keep-outs, centroid,'
-          ' wash, lumens')
-    if got == EXPECT:
-        print('  PASS  (%d checks in one transcript)' % len(EXPECT.split(' | ')))
+MODE_SRC = os.path.join(HERE, 'wr-mode.rb')
+
+MODE_FIXTURE = r'''
+module WR_Mode
+__CONSTS__
+
+__METHODS__
+
+  def self.check
+    out = []
+    # leaving render with "WR Lights" hidden: pinned back to true, dim
+    # keys untouched either way round.
+    s = { 'dims' => { 'WR Lights' => false, 'WR-Dims' => false, 'WR-Notes' => true } }
+    pin_light_tags(s, 'render')
+    out << 'rpin ' + [s['dims']['WR Lights'] == true,
+                      s['dims']['WR-Dims'] == false,
+                      s['dims']['WR-Notes'] == true].map { |b| b ? '1' : '0' }.join
+    # draft polarity: a visible light tag is pinned back to hidden.
+    s = { 'dims' => { 'WR Lights' => true } }
+    pin_light_tags(s, 'draft')
+    out << format('dpin %d', s['dims']['WR Lights'] == false ? 1 : 0)
+    # a pre-LIGHT_TAGS snapshot (key absent entirely): the pin fills it.
+    s = { 'dims' => {} }
+    pin_light_tags(s, 'render')
+    out << format('fill %d', s['dims']['WR Lights'] == true ? 1 : 0)
+    # nil and dim-less snapshots pass through untouched.
+    out << format('nil %d%d', pin_light_tags(nil, 'render').nil? ? 1 : 0,
+                  pin_light_tags({}, 'render') == {} ? 1 : 0)
+    out.join(' | ')
+  end
+end
+WR_Mode.check
+'''
+
+MODE_EXPECT = ' | '.join(['rpin 111', 'dpin 1', 'fill 1', 'nil 11'])
+
+
+def compare(title, got, expect):
+    print(title)
+    if got == expect:
+        print('  PASS  (%d checks in one transcript)' % len(expect.split(' | ')))
         return 0
     ge = got.split(' | ')
-    ee = EXPECT.split(' | ')
+    ee = expect.split(' | ')
     for i in range(max(len(ge), len(ee))):
         g = ge[i] if i < len(ge) else '(missing)'
         e = ee[i] if i < len(ee) else '(unexpected)'
         mark = 'ok  ' if g == e else 'FAIL'
         print('  %s got %-60s want %s' % (mark, g, e))
     return 1
+
+
+def main():
+    lines = open(SRC, encoding='utf-8').read().split('\n')
+    consts = '\n'.join([lift_scalar(lines, c) for c in SCALARS] +
+                       [lift_string(lines, c) for c in STRINGS] +
+                       [lift_block(lines, c) for c in BLOCKS])
+    prog = (FIXTURE
+            .replace('__CONSTS__', consts)
+            .replace('__METHODS__', '\n\n'.join(lift_method(lines, m) for m in METHODS)))
+    lib = rbparse.boot()
+    rc = compare('wr-drop-lights pure placement: grid, L-shape, keep-outs, '
+                 'centroid, wash, lumens, mount plane, tag regression',
+                 rbparse.rb_eval(lib, prog), EXPECT)
+
+    mlines = open(MODE_SRC, encoding='utf-8').read().split('\n')
+    mprog = (MODE_FIXTURE
+             .replace('__CONSTS__', lift_block(mlines, 'LIGHT_TAGS'))
+             .replace('__METHODS__', lift_method(mlines, 'pin_light_tags')))
+    rc |= compare('wr-mode snapshot pin: light tags are policy, never memory',
+                  rbparse.rb_eval(lib, mprog), MODE_EXPECT)
+    return rc
 
 
 if __name__ == '__main__':

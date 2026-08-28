@@ -39,6 +39,12 @@
 # shadow setting from the last time this mode was active — never a hard-coded
 # default fighting a choice Benton already made in the viewport.
 #
+# ONE EXCEPTION: the LIGHT_TAGS keys are POLICY, not memory. A light tag
+# hidden while in render mode must never be memorised as "the render state"
+# — that records a silently-unlit V-Ray pass forever — so every snapshot has
+# its light keys pinned to the mode's polarity (see pin_light_tags). The
+# dimension tags keep the full remember-what-was-showing contract.
+#
 # TOUCHES NO GEOMETRY. Fully reversible: everything this script changes is a
 # tag's visibility, the selected style, a shadow_info key or a material
 # assignment, all inside one start_operation, so one Ctrl+Z undoes the whole
@@ -125,6 +131,23 @@ module WR_Mode
       'shadow' => WR_Shading::SHADOW_KEYS.each_with_object({}) { |k, h| h[k] = (si[k] rescue nil) } }
   end
 
+  # LIGHT_TAGS are POLICY, never memory: hidden in draft, visible in
+  # render, whatever the tag happened to be showing when a mode was left.
+  # Without this pin, hiding "WR Lights" while IN render mode gets
+  # memorised as render state by the leave-mode snapshot and re-applied on
+  # every future entry into render — a silently unlit V-Ray pass that
+  # persists itself forever (and survives the missing-key backfill, which
+  # fills only ABSENT keys). So every snapshot is pinned at both ends:
+  # before it is saved and before it is applied — the apply-side pin also
+  # heals snapshots a pre-fix plugin already poisoned. The DIM_TAGS keys
+  # keep the full remember-what-was-showing contract; only light keys are
+  # pinned.
+  def self.pin_light_tags(snap, mode)
+    return snap if snap.nil? || snap['dims'].nil?
+    LIGHT_TAGS.each { |n| snap['dims'][n] = (mode == 'render') }
+    snap
+  end
+
   def self.apply_snapshot(model, snap)
     return if snap.nil?
     (snap['dims'] || {}).each { |n, v| l = model.layers[n]; (l.visible = v) if l && !v.nil? }
@@ -167,31 +190,28 @@ module WR_Mode
       # case "whatever is showing now" is as good a guess at "draft" as any).
       current = st['current']
       if current == other || current.nil?
-        save(model, other, snapshot(model), other)
+        save(model, other, pin_light_tags(snapshot(model), other), other)
       end
 
       mat_result = target == 'render' ? WR_MaterialsSwap.to_render(model) : WR_MaterialsSwap.to_draft(model)
 
-      target_snap = st[target] || DEFAULT[target]
+      # Deep-copy the DEFAULT (JSON round-trip) so the pin below can never
+      # write into the shared frozen constant's inner hashes.
+      target_snap = st[target] || JSON.parse(DEFAULT[target].to_json)
 
-      # Snapshots taken before LIGHT_TAGS existed carry no light entries.
-      # Backfill those keys from DEFAULT, or an already-toggled model would
-      # enter render with the lights left however Drop Interior Lights last
-      # set them — and the read-back save below would then freeze that state
-      # into the snapshot for good. Only MISSING keys are filled; a light
-      # state this mode has genuinely recorded is never overridden.
-      if target_snap['dims']
-        LIGHT_TAGS.each do |n|
-          target_snap['dims'][n] = DEFAULT[target]['dims'][n] unless target_snap['dims'].key?(n)
-        end
-      end
+      # Pin the light keys to this mode's polarity — this both fills keys
+      # missing from pre-LIGHT_TAGS snapshots AND overrides a wrong light
+      # state a pre-fix plugin memorised (see pin_light_tags). Dim keys are
+      # left exactly as the snapshot recorded them.
+      pin_light_tags(target_snap, target)
 
       stuck = apply_snapshot(model, target_snap)
 
       # Read back what actually landed, not what was asked for, so a stuck
       # shadow key doesn't get silently recorded as "restores exactly" next
-      # time this mode is entered.
-      save(model, target, snapshot(model), target)
+      # time this mode is entered — pinned too, so a light tag a stuck
+      # layer write left wrong cannot be memorised either.
+      save(model, target, pin_light_tags(snapshot(model), target), target)
       model.commit_operation
     rescue StandardError => e
       model.abort_operation

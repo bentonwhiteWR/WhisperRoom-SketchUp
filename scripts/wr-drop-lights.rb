@@ -160,7 +160,22 @@ module WR_DropLights
 
   # --- placement constants (interior-lighting-design.md; "assumed" ones are
   # --- single constants by design) --------------------------------------------
-  DROP          = 6.0    # in below the ceiling plane / booth tray (assumed)
+  DROP          = 0.0    # in below the wall-top plane for ROOM lights —
+                         #   FLUSH, from Benton's own render (2026-08-27):
+                         #   at the old 6" drop the fixture plane drew a
+                         #   visible horizontal "light line" along the
+                         #   walls; his verdict was "at the edge of the
+                         #   ceiling for sure". build-room rooms are
+                         #   OPEN-TOP, so flush cannot bury a light. A
+                         #   model with a REAL ceiling slab WOULD bury a
+                         #   flush light inside it — no cheap, testable way
+                         #   to detect a slab is known, so this stays flush
+                         #   and the console says so at placement.
+  BOOTH_DROP    = 6.0    # in below the booth's OUTER top for its interior
+                         #   light — a booth IS closed-top, so flush would
+                         #   put the light inside the roof tray; 6" clears
+                         #   it (assumed tray thickness — the pre-flush
+                         #   figure, which Benton has seen emit).
   EDGE_MIN      = 18.0   # in — absolute floor on distance to any wall
   EDGE_CAP      = 36.0   # in — cap on the edge keep-away (the 2-3' band)
   KEEPOUT_PAD   = 12.0   # in — obstruction footprint inflation (assumed)
@@ -871,35 +886,40 @@ module WR_DropLights
     src
   end
 
-  # The WR Lights tag, with its visibility set for the model's CURRENT
-  # draft/render mode (wr-mode.rb's dictionary — read only, never written
-  # here). V-Ray's Invisible flag hides a light only in a V-Ray render; a
-  # plain view.write_image draft export still draws the rectangles, so in a
-  # DRAFT-mode model the whole tag goes hidden at placement. In render mode
-  # (or a never-toggled model) it is forced VISIBLE — a hidden light tag in
-  # a V-Ray pass renders silently UNLIT, the worse failure.
+  # The WR Lights tag. Placement NEVER hides it — in ANY mode. Visibility
+  # belongs to the draft/render mode switch alone (wr-mode.rb's LIGHT_TAGS:
+  # hidden in draft, visible in render); this method only makes sure the
+  # tag EXISTS and is VISIBLE, so a just-dropped rig can never be silently
+  # absent from a V-Ray pass.
   #
-  # KNOWN GAP, said out loud: wr-mode.rb does not yet flip this tag back on
-  # when it enters render mode, so a draft-mode press followed straight by
-  # a V-Ray render would render unlit until that tag joins the mode flip
-  # (a LIGHT_TAGS list in wr-mode.rb, polarity opposite to DIM_TAGS).
-  # Until then the console line below is the recovery.
+  # THE 1.7.3/1.7.4 REGRESSION, so it is never re-introduced: this method
+  # used to hide the tag when the model was in draft mode, "so the
+  # rectangles don't show in plain exports". The unlit-render failure of
+  # 2026-08-27 correlated exactly with that change (commit 2f48a6e), and
+  # V-Ray excludes hidden geometry from the render (reported, Chaos docs) —
+  # but Benton's own evidence does NOT confirm the tag was hidden at
+  # failure time ("tag wasn't hidden, but I did toggle it"), so hiding is a
+  # plausible contributor, not a diagnosed cause. This fix removes the
+  # CLASS of problem either way: the failure asymmetry decides the default.
+  # A visible light rectangle in a draft export is a cosmetic problem seen
+  # immediately; a hidden light tag in a V-Ray pass renders silently UNLIT,
+  # the worse failure. Prefer the loud one. The mode dictionary is read
+  # only to word the console line, never to hide anything.
   def self.tag(model)
     t = model.layers[TAG] || model.layers.add(TAG)
     (t.color = Sketchup::Color.new(255, 199, 44)) rescue nil # troffer yellow
     mode = (model.get_attribute(WR_MODE_DICT, 'current') rescue nil)
-    if mode == 'draft'
-      if t.visible?
-        t.visible = false
-        puts "  tag \"#{TAG}\" HIDDEN — this model is in DRAFT mode, and " +
-             'the light rectangles must not appear in plain image exports.'
-        puts '    Show the tag (or switch to Render mode) BEFORE a V-Ray' +
-             ' pass, or the render will be unlit.'
-      end
-    elsif t.visible? == false
+    if t.visible? == false
       t.visible = true
-      puts "  tag \"#{TAG}\" was hidden — shown again (mode is " +
-           "#{mode ? mode : 'not draft'}); hidden lights render UNLIT."
+      puts "  tag \"#{TAG}\" was hidden — SHOWN. A hidden light tag makes " +
+           'a V-Ray pass render silently UNLIT (the 1.7.3 regression).'
+    end
+    if mode == 'draft'
+      puts "  tag \"#{TAG}\" is VISIBLE and placement leaves it that way, " +
+           'even though this model is in DRAFT mode — so the rectangles '
+      puts '    WILL show in plain image exports until you press the ' +
+           'Draft/Render toggle (draft hides them, render shows them).'
+      puts '    A V-Ray render right now WILL be lit.'
     end
     t
   end
@@ -1327,6 +1347,23 @@ module WR_DropLights
            "wash #{opts[:wash] ? 'on' : 'off'}, booth #{opts[:booth] ? 'on' : 'off'}"
       puts "  replaced #{stale.size} previously dropped light#{stale.size == 1 ? '' : 's'}" unless stale.empty?
       puts "  NOTE: #{legacy_note}" if legacy_note
+      puts '  room lights mount FLUSH with the wall top (Benton, 2026-08-27: ' \
+           'a 6" drop drew a "light line" on the walls). A room with a real ' \
+           'ceiling SLAB would bury a flush light — none of ours has one; ' \
+           "booth interior lights sit #{BOOTH_DROP.to_i}\" below the booth top."
+      # Mount-height honesty: placement puts each seed's ORIGIN at the
+      # computed mount point. If the geometry inside a seed .skp sits away
+      # from its own origin, every light on that layer lands offset by that
+      # much — invisible in this code, visible in the viewport. Say it as a
+      # number, not a mystery.
+      defs.each do |role, d|
+        bb = d.bounds
+        next if bb.min.z > -1.0 && bb.max.z < 1.0 # origin-hugging: fine
+        puts format('  NOTE: seed "%s" (%s) geometry spans z %.2f"..%.2f" ' \
+                    'from its own origin — its lights land that far off the ' \
+                    'mount plane. Re-author the seed at the origin to fix.',
+                    d.name, role, bb.min.z, bb.max.z)
+      end
 
       placed = 0
       down_targets = []   # per-room per-fixture lumen targets, for the advice
@@ -1369,7 +1406,7 @@ module WR_DropLights
           if defs[:booth]
             bb = s.bounds
             pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
-                  bb.max.z - DROP]
+                  bb.max.z - BOOTH_DROP]
             place.call(:booth, pt)
             lm = booth_lumens((bb.max.x - bb.min.x) * (bb.max.y - bb.min.y), opts[:mult])
             booth_targets << lm
@@ -1535,7 +1572,7 @@ module WR_DropLights
             bb = o[:bb]
             if defs[:booth]
               pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
-                    bb.max.z - DROP]
+                    bb.max.z - BOOTH_DROP]
               place.call(:booth, pt)
               lm = booth_lumens((bb.max.x - bb.min.x) * (bb.max.y - bb.min.y), opts[:mult])
               booth_targets << lm
