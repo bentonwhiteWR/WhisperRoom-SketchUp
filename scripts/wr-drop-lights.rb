@@ -81,6 +81,34 @@
 # scripts/vray-seeds/ this machine has (created if needed) — commit them.
 #
 # ===========================================================================
+# A SEED IS A POINTER, NOT A LIGHT — "WILL IT EMIT" IS CHECKED EVERY PRESS
+#
+# Observed live 2026-08-27: a V-Ray light's component definition does not
+# CONTAIN the light — it points at a V-Ray SCENE PLUGIN by name, in the
+# definition's VRayInfo dictionary ("main_plugin", e.g. "/Rectangle
+# Light"), with a cached copy of the plugin JSON in VRayPlugins. When a
+# new light definition appears in a model, V-Ray's definitions observer
+# duplicates the plugin the definition names. The three minted seeds named
+# "/Rectangle Light"; that plugin was gone from the model's scene; V-Ray
+# printed 'Could not find /Rectangle Light to duplicate' three times; the
+# placed lights listed in the Asset Editor (which reads dictionaries) and
+# emitted NOTHING. A seed .skp is therefore only valid in a model whose
+# V-Ray scene still holds the plugin it names — usually the model it was
+# minted in, or one where the source light was pasted.
+#
+# So every press now RESOLVES each loaded seed's main_plugin against
+# VRay::Context.active.scene (read-only; every V-Ray call is wrapped —
+# the standing "Incorrect DR version" lesson, reference/vray-ruby-api.md):
+#   found      -> "this layer WILL emit" printed, and it places;
+#   absent     -> the layer is REFUSED BY NAME, and when a resolvable
+#                 V-Ray light stands in this model the tool offers to
+#                 REBUILD the dead seed file as a copy of it (the
+#                 mechanism Benton verified live: duplicating an in-model
+#                 light makes V-Ray duplicate its plugin);
+#   unreadable -> placed, with a loud warning that emission is unverified.
+# This tool still never WRITES V-Ray scene parameters.
+#
+# ===========================================================================
 # BRIGHTNESS / WARMTH / EXPOSURE ARE PRINTED, NOT WRITTEN — THE SEAM
 #
 # Whether Ruby can write a V-Ray light's intensity/temperature (and the
@@ -110,7 +138,12 @@
 #   2. Pops the settings dialog (UI.inputbox, four dropdowns + one yes/no).
 #   3. If seed .skp files are missing: offers (default No) to mint them
 #      from a hand-made V-Ray light in the model — see the seeds section
-#      above — then carries on in the same press.
+#      above — then carries on in the same press. Loaded seeds then have
+#      their VRayInfo["main_plugin"] resolved against the live V-Ray
+#      scene: a seed naming an absent plugin is refused by name or
+#      rebuilt from a resolvable in-model light (the "A SEED IS A
+#      POINTER" section above), and the console says per layer whether
+#      it WILL emit.
 #   4. Removes any lights IT previously dropped inside the selected rooms
 #      (found by their WR_DropLights attribute) — a re-press re-places.
 #   5. Per selected room: sanity-checks it first (height >= MIN_ROOM_H,
@@ -204,6 +237,21 @@ module WR_DropLights
   #     = 8 sqft) stays under it.
   MIN_ROOM_H    = 72.0   # in — minimum plausible room height
   MIN_ROOM_AREA = 1296.0 # sq in — minimum plausible floor area (9 sqft)
+
+  # --- untagged-booth recognition (secondary to the WR-Booth-* tags) ------
+  # Benton's live booth carries no WR-Booth-* tags (imported, or built by a
+  # path that does not tag), so the tag test alone left the booth-interior
+  # and accent layers silently idle in a room with a visible booth. A
+  # booth-SIZED box standing in the room is treated as a booth, judged by
+  # the catalog's real envelope (reference/booth-models.md, exterior dims):
+  # plan sides run 2'-8" (4230) to 15'-8" (102186); heights draw ~83" Std /
+  # ~85" Enhanced, up to +5" on a caster plate. The bands take a little
+  # margin each way; a room (96"+ walls), a desk, or a light cannot fall
+  # inside them. Every size-matched booth is NAMED on the console.
+  BOOTH_SIDE_MIN = 30.0  # in — smallest catalog plan side is 32"
+  BOOTH_SIDE_MAX = 190.0 # in — largest catalog plan side is 188"
+  BOOTH_H_MIN    = 78.0  # in — Std draws ~83"; margin below
+  BOOTH_H_MAX    = 94.0  # in — Enh ~85" + 5" casters; an 8' room is out
 
   BRIGHT = { 'Dim' => 0.5, 'Normal' => 1.0, 'Bright' => 2.0 }.freeze
 
@@ -536,6 +584,50 @@ module WR_DropLights
     ROOM_CHILD_NAMES.any? { |n| n.casecmp(disp_name).zero? }
   end
 
+  # Pure core of the floor-child finder — the same predicate room_info uses
+  # to read a room and obstructions() uses to recognize a sibling ROOM (a
+  # thing with its own floor is a room, never a keep-out).
+  def self.floor_child?(tag_name, disp_name)
+    tag_name == 'WR-Floor' || disp_name =~ /\Afloor\z/i ? true : false
+  end
+
+  # Booth-by-size: both plan sides inside the catalog band and the height
+  # inside the booth band (constants above). The secondary booth test for
+  # untagged booths; every hit is named on the console by the caller.
+  def self.booth_like?(w, l, h)
+    lo = w < l ? w : l
+    hi = w < l ? l : w
+    lo >= BOOTH_SIDE_MIN && hi <= BOOTH_SIDE_MAX &&
+      h >= BOOTH_H_MIN && h <= BOOTH_H_MAX
+  end
+
+  # --- V-Ray plugin references — pure cores -------------------------------
+  # A light definition POINTS AT a scene plugin (VRayInfo["main_plugin"]);
+  # it emits only where that plugin exists. See the header block.
+
+  def self.norm_plugin(name)
+    s = name.to_s.strip
+    s.start_with?('/') ? s[1..-1] : s
+  end
+
+  # Is plugin `name` in `list`, tolerant of a leading "/" on either side?
+  # Exact names only — never a substring match.
+  def self.plugin_listed?(name, list)
+    n = norm_plugin(name)
+    list.any? { |p| norm_plugin(p) == n }
+  end
+
+  # The resolve/refuse decision. `exists` is true / false / nil (nil = the
+  # V-Ray scene would not answer). :ok places and says so; :dangling is
+  # refused by name (the silent-unlit failure class); :no_ref is refused
+  # (no main_plugin reference = not a working V-Ray light); :unknown
+  # places with a loud warning.
+  def self.plugin_verdict(name, exists)
+    return :no_ref if name.nil? || name.to_s.strip.empty?
+    return :unknown if exists.nil?
+    exists ? :ok : :dangling
+  end
+
   # Pure door-detection cores, matched to what the room generators REALLY
   # write (read from the .rb files, not remembered):
   #
@@ -861,6 +953,22 @@ module WR_DropLights
          roles.map { |r| "#{SEEDS[r][0]}.skp" }.join(', ')
     src = find_source_light(model)
     return nil if src.nil?
+    # A source whose own plugin reference does not resolve would mint dead
+    # seeds — the exact incident this tool now guards against. Checked
+    # only when the scene is readable; unreadable stays a warning, not a
+    # block (the seed validation at load time warns again).
+    scene, = vray_scene
+    if scene && src.respond_to?(:definition)
+      smp = main_plugin_of(src.definition)
+      v = plugin_verdict(smp, plugin_probe(scene, scene_plugin_names(scene), smp))
+      if v == :dangling || v == :no_ref
+        puts "  \"#{display_name(src)}\" cannot be the seed source — its V-Ray " \
+             "plugin reference #{smp ? "\"#{smp}\" does not resolve in this model's scene" : 'is missing'}: " \
+             'seeds copied from it would place and never emit. Draw a fresh ' \
+             'Rectangle Light and press again.'
+        return nil
+      end
+    end
     dir = mint_dir
     if dir.nil?
       puts '  MINTING IMPOSSIBLE — no scripts/ folder to create vray-seeds/ in. Looked at:'
@@ -989,6 +1097,20 @@ module WR_DropLights
     child_entities(ent).to_a.any? { |e| layer_name(e).start_with?('WR-Booth') }
   end
 
+  # A sibling that is itself a ROOM — it has its own floor child — is never
+  # an obstruction: rooms do not stand under each other's lights, and an
+  # L-shaped neighbour's BOUNDING BOX overlaps this room's floor even
+  # though the rooms never touch (the live 2026-08-27 "keep-out: ROOM 2"
+  # incident — an L's bbox covers its notch). A booth is never mistaken
+  # for a room here, whatever its children are named.
+  def self.room_group?(ent)
+    return false if booth?(ent)
+    child_entities(ent).to_a.any? do |e|
+      (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)) &&
+        floor_child?(layer_name(e), display_name(e))
+    end
+  end
+
   # World-space bounding box of a child entity under transform tr.
   def self.world_bounds(ent, tr)
     bb = Geom::BoundingBox.new
@@ -1015,7 +1137,7 @@ module WR_DropLights
     kids = child_entities(inst).to_a
     floor_g = kids.find do |e|
       (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)) &&
-        (layer_name(e) == 'WR-Floor' || display_name(e) =~ /\Afloor\z/i)
+        floor_child?(layer_name(e), display_name(e))
     end
 
     unless floor_g
@@ -1114,7 +1236,8 @@ module WR_DropLights
   # Everything that could stand under the light plane of `room`: the room's
   # SIBLINGS — the entities of the container the room itself sits in — plus
   # the room's own non-structural children (a booth dragged inside the
-  # group). Returns [{:rect(inflated), :ent, :tr, :bb}].
+  # group). Returns [[{:rect(inflated), :ent, :tr, :bb}...], [skipped
+  # sibling ROOMS — named by the caller, never keep-outs]].
   #
   # Siblings, NOT model.entities. The live UTHSC full-cull incident: the
   # selected room was nested inside a suite group, the old top-level scan
@@ -1152,18 +1275,26 @@ module WR_DropLights
     end
 
     out = []
+    skipped_rooms = []
     cands.each do |e, base|
       bb = base.identity? ? e.bounds : world_bounds(e, base)
       next unless bb.valid?
       next if bb.max.z <= z_m - HEADROOM                      # too short to matter
       next if bb.min.x > maxx || bb.max.x < minx ||           # clear of the floor
               bb.min.y > maxy || bb.max.y < miny
+      if room_group?(e)
+        # A room is never furniture — see room_group?. It is collected,
+        # not dropped, so the caller can NAME it on the console: a
+        # genuinely-overlapping room must not vanish silently.
+        skipped_rooms << e
+        next
+      end
       out << { :ent => e, :tr => base,
                :bb => bb,
                :rect => [bb.min.x - KEEPOUT_PAD, bb.min.y - KEEPOUT_PAD,
                          bb.max.x + KEEPOUT_PAD, bb.max.y + KEEPOUT_PAD] }
     end
-    out
+    [out, skipped_rooms]
   end
 
   # Booth door face centre in world XY, from the WR-Booth-Door children.
@@ -1179,6 +1310,167 @@ module WR_DropLights
     end
     return nil unless bb.valid?
     [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0]
+  end
+
+  # ---- the V-Ray scene, read-only — will these lights emit? ---------------
+  #
+  # EVERY V-Ray call below is wrapped so a raise cannot escape: the
+  # standing lesson is in_process? raising "Incorrect DR version" on a
+  # cold, idle renderer (reference/vray-ruby-api.md). Reading and
+  # existence-checking only; this tool never writes scene parameters.
+
+  # [scene, nil] or [nil, plain-words reason].
+  def self.vray_scene
+    unless defined?(VRay) && defined?(VRay::Context)
+      return [nil, 'V-Ray is not loaded in this SketchUp']
+    end
+    ctx = begin
+            VRay::Context.active
+          rescue StandardError => e
+            return [nil, "VRay::Context.active raised: #{e.message}"]
+          end
+    return [nil, 'VRay::Context.active is nil (V-Ray inactive)'] if ctx.nil?
+    sc = begin
+           ctx.scene
+         rescue StandardError => e
+           return [nil, "the V-Ray context's scene raised: #{e.message}"]
+         end
+    sc ? [sc, nil] : [nil, "the V-Ray context's scene is nil"]
+  end
+
+  # Every plugin name in the scene, or nil when enumeration is not
+  # possible. What scene.each yields is unprobed (a Scene::Plugin with a
+  # name, per the docs), so a String, an [name, plugin] pair, and a
+  # name-bearing object are all accepted; anything else falls through to
+  # nil and the per-name probe below takes over. An EMPTY result is
+  # treated as failure too — the one observed cold scene held 71 plugins,
+  # so empty means the mechanism did not work, not that the scene is bare.
+  def self.scene_plugin_names(scene)
+    names = []
+    begin
+      scene.each do |p|
+        n = if p.is_a?(String)
+              p
+            elsif p.is_a?(Array) && p.first.is_a?(String)
+              p.first
+            else
+              begin; p.name.to_s; rescue StandardError; nil; end
+            end
+        names << n unless n.nil? || n.empty?
+      end
+    rescue StandardError
+      return nil
+    end
+    names.empty? ? nil : names
+  end
+
+  # Does the scene hold this plugin? true / false / nil (could not tell).
+  # The enumerated name list is authoritative when it exists; otherwise a
+  # single scene[name] lookup, wrapped — if even that raises, the honest
+  # answer is nil, never a guess.
+  def self.plugin_probe(scene, names, name)
+    return nil if name.nil? || name.to_s.strip.empty?
+    return plugin_listed?(name, names) if names
+    begin
+      !scene[name.to_s].nil?
+    rescue StandardError
+      nil
+    end
+  end
+
+  # The plugin a light definition points at, or nil.
+  def self.main_plugin_of(defn)
+    d = begin
+          defn.attribute_dictionary('VRayInfo', false)
+        rescue StandardError
+          nil
+        end
+    d ? (begin; d['main_plugin']; rescue StandardError; nil; end) : nil
+  end
+
+  # Dangling seeds (loaded, but naming a plugin absent from this model's
+  # scene): when a RESOLVABLE V-Ray light stands in the model, offer to
+  # rebuild the dead layers as unique copies of it — the mechanism Benton
+  # verified live (duplicating an in-model light makes V-Ray duplicate its
+  # plugin) — and re-save the seed files over the dead ones. Runs inside
+  # the open operation. defs is edited in place: a rebuilt role gets its
+  # new definition, a refused role is deleted.
+  def self.rebuild_dangling(model, defs, paths, dangling, scene, names)
+    src = find_source_light(model)
+    if src && src.respond_to?(:definition)
+      smp = main_plugin_of(src.definition)
+      unless plugin_verdict(smp, plugin_probe(scene, names, smp)) == :ok
+        puts "  \"#{display_name(src)}\" cannot be the rebuild source — its own " \
+             "plugin reference #{smp ? "\"#{smp}\" does not resolve here" : 'is missing'}: " \
+             'copies of it would be more dead seeds.'
+        src = nil
+      end
+    end
+    if src.nil?
+      puts '  TO FIX: draw one V-Ray Rectangle Light in THIS model (V-Ray'
+      puts '  toolbar > Lights > Rectangle Light) and press again — the tool'
+      puts '  will offer to rebuild the dead seeds as copies of it. A seed'
+      puts '  .skp only works in a model whose V-Ray scene still holds the'
+      puts '  plugin it names.'
+      dangling.each_key { |r| defs.delete(r) }
+      return
+    end
+    ans = UI.inputbox(
+      ["Rebuild #{dangling.size} dead seed#{dangling.size == 1 ? '' : 's'} " \
+       "as copies of \"#{display_name(src)}\" (overwrites the .skp files)?"],
+      ['No'], ['Yes|No'], 'Dead V-Ray light seeds — rebuild them?')
+    unless ans && ans[0] == 'Yes'
+      puts '  Rebuild declined — the dead layers stay refused; the rest place.'
+      dangling.each_key { |r| defs.delete(r) }
+      return
+    end
+    dangling.each_key do |role|
+      seed_name = SEEDS[role][0]
+      dead = defs[role]
+      temp = model.active_entities.add_instance(src.definition, IDENT)
+      temp.make_unique
+      d = temp.definition
+      if d == src.definition
+        puts "  REBUILD FAILED (#{role}): make_unique did not copy the " \
+             'light — this layer stays refused.'
+        temp.erase!
+        defs.delete(role)
+        next
+      end
+      lost = own_dict_names(src.definition) - own_dict_names(d)
+      unless lost.empty?
+        puts "  REBUILD FAILED (#{role}): the copy lost V-Ray dictionaries " \
+             "#{lost.inspect} — a dead light will not be placed or saved; " \
+             'this layer stays refused.'
+        temp.erase!
+        defs.delete(role)
+        next
+      end
+      temp.erase! # keep the definition, drop the placeholder instance
+      (model.definitions.remove(dead) rescue nil) if dead
+      begin
+        d.name = seed_name
+      rescue StandardError => e
+        puts "  note: could not rename the rebuilt copy to \"#{seed_name}\" " \
+             "(#{e.message}) — placed anyway."
+      end
+      path = paths[role]
+      if path
+        begin
+          save_skp(d, path)
+          puts "  rebuilt #{seed_name}.skp over the dead file -> #{path}"
+        rescue StandardError => e
+          puts "  note: rebuilt IN-MODEL only — could not overwrite " \
+               "#{path} (#{e.message})."
+        end
+      end
+      defs[role] = d
+      mp = main_plugin_of(d)
+      puts "  #{role}: now placing copies of \"#{display_name(src)}\" " \
+           "(plugin #{mp ? "\"#{mp}\"" : 'unreadable'}) — this layer WILL " \
+           'emit here. The rewritten seed file works only in models whose ' \
+           'V-Ray scene holds that plugin.'
+    end
   end
 
   # ---- the dialog ---------------------------------------------------------
@@ -1335,6 +1627,55 @@ module WR_DropLights
         defs[role] = d
       end
 
+      # ---- WILL IT EMIT — resolve every seed's plugin reference ----------
+      # The /Rectangle Light incident (see the header): a seed naming a
+      # plugin absent from this model's V-Ray scene places, lists in the
+      # Asset Editor, and never emits. Checked here, before anything is
+      # placed; a dangling layer is refused by name (or rebuilt on the
+      # spot from a resolvable in-model light).
+      scene, scene_why = vray_scene
+      names = scene ? scene_plugin_names(scene) : nil
+      emit_unknown = []
+      puts ''
+      if scene.nil?
+        puts "  CANNOT CHECK EMISSION — #{scene_why}. The lights will " \
+             'place, but whether they emit is UNVERIFIED: a V-Ray light ' \
+             'only works where its scene plugin exists.'
+      else
+        dangling = {}
+        defs.each do |role, d|
+          mp = main_plugin_of(d)
+          case plugin_verdict(mp, plugin_probe(scene, names, mp))
+          when :ok
+            puts "  seed \"#{d.name}\": V-Ray plugin \"#{mp}\" FOUND in " \
+                 "this model's scene — this layer WILL emit."
+          when :unknown
+            emit_unknown << role
+            puts "  seed \"#{d.name}\": plugin \"#{mp}\" could NOT be " \
+                 'checked (the V-Ray scene would not answer) — placed ' \
+                 'anyway. If the render comes out unlit, start here.'
+          when :dangling
+            dangling[role] = mp
+            puts "REFUSED (#{role}): seed \"#{d.name}\" names V-Ray " \
+                 "plugin \"#{mp}\" and this model's scene does NOT have " \
+                 'it. Its lights would place, list in the Asset Editor, ' \
+                 'and NEVER EMIT (V-Ray: "Could not find ' \
+                 "#{mp} to duplicate\") — not placed."
+          when :no_ref
+            dangling[role] = nil
+            puts "REFUSED (#{role}): seed \"#{d.name}\" carries no " \
+                 'VRayInfo "main_plugin" reference — it is not a working ' \
+                 'V-Ray light and would never emit. Not placed.'
+          end
+        end
+        rebuild_dangling(model, defs, paths, dangling, scene, names) unless dangling.empty?
+        if defs[:downlight].nil?
+          raise 'Nothing placed — the ambient Downlight seed names a ' \
+                "V-Ray plugin this model's scene does not have, and it " \
+                'was not rebuilt. See the Ruby Console for the fix.'
+        end
+      end
+
       ents  = model.active_entities
       layer = tag(model)
       boxes = subjects.map(&:bounds).select(&:valid?)
@@ -1458,9 +1799,36 @@ module WR_DropLights
 
         z_m = info[:z_top] - DROP
 
-        obst = obstructions(model, s, poly, z_m, subjects)
+        obst, room_sibs = obstructions(model, s, poly, z_m, subjects)
+        # The 2026-08-27 "keep-out: ROOM 2" incident: a neighbouring
+        # L-shaped room's bounding box overlapped this room's floor and
+        # punched a hole in the grid. Rooms are never keep-outs — but a
+        # skipped room is NAMED, so a genuinely-overlapping one cannot
+        # vanish silently.
+        room_sibs.each do |e|
+          puts "  #{name}: sibling \"#{display_name(e)}\" overlaps this " \
+               "room's footprint but is itself a ROOM (it has its own " \
+               'floor child) — never a keep-out. An L-shaped ' \
+               "neighbour's bounding box covers its notch; only " \
+               'furniture and booths cut the grid.'
+        end
         keepouts = obst.map { |o| o[:rect] }
         booths = obst.select { |o| booth?(o[:ent]) }
+        # Untagged booths, recognized by size (the live booth that carried
+        # no WR-Booth-* tags and left the booth layers silently idle).
+        obst.each do |o|
+          next if booth?(o[:ent])
+          bb = o[:bb]
+          next unless booth_like?(bb.max.x - bb.min.x, bb.max.y - bb.min.y,
+                                  bb.max.z - bb.min.z)
+          booths << o
+          puts format('  %s: "%s" carries no WR-Booth-* tag but is ' \
+                      'booth-sized (%.0f" x %.0f" x %.0f" — catalog ' \
+                      'booths run 32-188" a side, ~83-85" tall) — ' \
+                      'treated as a booth.', name, display_name(o[:ent]),
+                      bb.max.x - bb.min.x, bb.max.y - bb.min.y,
+                      bb.max.z - bb.min.z)
+        end
 
         # A — ambient grid (computed now, placed only after the verdict)
         grid = grid_points(poly, h, opts[:density], keepouts)
@@ -1564,8 +1932,10 @@ module WR_DropLights
         # C — the booth is the merchandise
         if opts[:booth]
           if booths.empty?
-            puts "  #{name}: no booth found in this room (looked for WR-Booth-* " \
-                 'tags) — booth layers have nothing to do.'
+            puts "  #{name}: no booth found in this room (looked for " \
+                 'WR-Booth-* tags, then for an untagged booth-sized box ' \
+                 '32-188" a side, 78-94" tall) — booth layers have ' \
+                 'nothing to do.'
           end
           booths.each do |o|
             bname = display_name(o[:ent])
@@ -1637,6 +2007,19 @@ module WR_DropLights
                    :lumens => targets.first ? targets.first[:lumens] * 2 : 6000 } if any_accent
       print_asset_advice(targets, opts)
       puts ''
+      # The bottom line Benton reads before rendering: will these emit?
+      if scene.nil?
+        puts '  WILL IT EMIT: UNVERIFIED — V-Ray was not readable when ' \
+             "these placed (#{scene_why})."
+      elsif emit_unknown.any?
+        puts '  WILL IT EMIT: probably — but the ' \
+             "#{emit_unknown.map(&:to_s).join(', ')} layer" \
+             "#{emit_unknown.size == 1 ? "'s plugin" : "s' plugins"} " \
+             'could not be checked (see above).'
+      else
+        puts '  WILL IT EMIT: YES — every placed layer resolved to a ' \
+             "plugin that exists in this model's V-Ray scene."
+      end
       puts "  #{placed} light#{placed == 1 ? '' : 's'} in #{subjects.size} " \
            "container#{subjects.size == 1 ? '' : 's'}. Ctrl+Z removes them " \
            'all; a re-press replaces them. Move tool and eraser fine-tune.'

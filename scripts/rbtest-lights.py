@@ -70,6 +70,24 @@ worked examples in .forge/researcher/interior-lighting-design.md:
      visible, and the console line says the tag is VISIBLE and names the
      Draft/Render toggle as the owner of hiding. Run against stub
      model/layer classes; the method itself is lifted verbatim.
+ 20. plugin_verdict — the /Rectangle Light incident (2026-08-27, observed
+     live: seeds naming a plugin absent from the model's V-Ray scene
+     placed, listed in the Asset Editor, and emitted nothing): a found
+     plugin is :ok, an absent one :dangling (refused by name), an
+     unanswerable scene :unknown (placed, loudly), a missing reference
+     :no_ref (refused — not a working V-Ray light).
+ 21. plugin_listed? — exact plugin names, tolerant of a leading "/" on
+     either side, never a substring match.
+ 22. booth_like? — the untagged-booth secondary test, banded to the real
+     catalog envelope (reference/booth-models.md): the smallest (4230)
+     and largest (102186) booths and a caster-lifted 7272 are in; a
+     light, a room, a desk, a shallow cabinet, a long partition, and a
+     room-height shaft are out.
+ 23. floor_child? — the WR-Floor tag or an exact "floor" name, any case:
+     the predicate room_info reads a room by and the sibling-ROOM
+     keep-out skip keys on (the live "keep-out: ROOM 2" incident, where
+     an L-shaped neighbour room's bounding box punched a hole in this
+     room's grid).
 
 ALSO EXERCISED, from wr-mode.rb (same verbatim-lift protocol, second
 program): the pin_light_tags snapshot pin — leaving render mode with
@@ -119,6 +137,21 @@ rendering_options key at all (the key name is lifted from
 angled-component-art.rb's live probe of SketchUp 24.0.553, and the
 read-back names it as stuck if refused), and to_mode's live wiring —
 SketchUp-API-side, unverified until a real toggle.
+
+MUTATION-CHECKED 2026-08-27 late (plugin-resolution / sibling-room /
+untagged-booth additions, same protocol — each applied, this test run,
+FAIL confirmed, reverted): plugin_verdict absent-plugin arm :dangling ->
+:unknown (a dead seed stops being refused); plugin_verdict no_ref -> :ok
+(a dictionary-less seed passes); plugin_listed? normalisation dropped
+(p == name — the leading-slash tolerance gone); BOOTH_SIDE_MIN 30->20
+(the 26"-deep cabinet becomes a booth); BOOTH_SIDE_MAX 190->900 (the
+200" partition becomes a booth); BOOTH_H_MIN 78->20 (the desk becomes a
+booth); BOOTH_H_MAX 94->120 (the room-height shaft becomes a booth);
+floor_child? name match made case-sensitive ("Floor" stops reading as a
+floor). All eight KILLED. NOT coverable here: the V-Ray scene readers
+(vray_scene / scene_plugin_names / plugin_probe / main_plugin_of), the
+rebuild-from-source flow, and the sibling-room skip's wiring in
+obstructions() — SketchUp/V-Ray-API-side, unverified until a live press.
 
 MUTATION-CHECKED 2026-08-27 (UTHSC-incident additions, same protocol):
 grid_points diag mis-charge (keep-out rejections counted as edge);
@@ -181,11 +214,13 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'opposite_edge', 'wash_points', 'downlight_lumens',
            'booth_lumens', 'accent_axis', 'subject_veto',
            'fallback_verdict', 'light_words?', 'room_structure_child?',
-           'doors_container?', 'door_child_kind', 'tag']
+           'doors_container?', 'door_child_kind', 'tag', 'floor_child?',
+           'booth_like?', 'norm_plugin', 'plugin_listed?', 'plugin_verdict']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H',
-           'MIN_ROOM_AREA']
+           'MIN_ROOM_AREA', 'BOOTH_SIDE_MIN', 'BOOTH_SIDE_MAX',
+           'BOOTH_H_MIN', 'BOOTH_H_MAX']
 STRINGS = ['TAG', 'WR_MODE_DICT']
 BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES']
 
@@ -411,6 +446,55 @@ __METHODS__
                     door_child_kind('Layer0', 'wall').nil?]
                    .map { |b| b ? '1' : '0' }.join
 
+    # 20 — plugin_verdict: the /Rectangle Light incident decision table.
+    # found -> ok; absent -> dangling (refuse by name); scene would not
+    # answer -> unknown (place, loudly); no reference at all -> no_ref
+    # (refuse: not a working V-Ray light), whatever `exists` says.
+    out << 'pv ' + [plugin_verdict('/Rectangle Light', true) == :ok,
+                    plugin_verdict('/Rectangle Light', false) == :dangling,
+                    plugin_verdict('/Rectangle Light', nil) == :unknown,
+                    plugin_verdict(nil, true) == :no_ref,
+                    plugin_verdict('  ', false) == :no_ref]
+                   .map { |b| b ? '1' : '0' }.join
+
+    # 21 — plugin_listed?: exact names, tolerant of a leading "/" on
+    # either side, never a substring match.
+    out << 'pl ' + [plugin_listed?('/Standard Light', ['/CameraPhysical', '/Standard Light']),
+                    plugin_listed?('Standard Light', ['/Standard Light']),
+                    plugin_listed?('/Standard Light', ['Standard Light']),
+                    plugin_listed?('/Rectangle Light', ['/Standard Light']),
+                    plugin_listed?('/Light', ['/Standard Light'])]
+                   .map { |b| b ? '1' : '0' }.join
+
+    # 22 — booth_like? against real catalog envelopes
+    # (reference/booth-models.md): 4230 Std 44x32x83 (the smallest) and
+    # 102186 Enh 104x188x85 (the largest) are in; a 7272 lifted 5" on a
+    # caster plate (74x74x88) is in; a 24x48 rectangle light, the live
+    # UTHSC ROOM 1 itself (239x268x96), a 30"-tall desk, a 26"-deep
+    # cabinet, a 200"-long partition at booth height, and a 74x74 shaft
+    # at room height are all out — the last two isolate the upper side
+    # and height bounds the room case cannot.
+    out << 'bl ' + [booth_like?(44.0, 32.0, 83.0),
+                    booth_like?(104.0, 188.0, 85.0),
+                    booth_like?(74.0, 74.0, 88.0),
+                    booth_like?(24.0, 48.0, 2.0),
+                    booth_like?(239.25, 268.25, 96.0),
+                    booth_like?(30.0, 60.0, 30.0),
+                    booth_like?(44.0, 26.0, 83.0),
+                    booth_like?(74.0, 200.0, 83.0),
+                    booth_like?(74.0, 74.0, 96.0)]
+                   .map { |b| b ? '1' : '0' }.join
+
+    # 23 — floor_child?: the WR-Floor tag or an exact "floor" name (any
+    # case) — the predicate room_info reads a room by and the sibling-ROOM
+    # keep-out skip keys on (the "keep-out: ROOM 2" incident).
+    out << 'fc ' + [floor_child?('WR-Floor', 'anything'),
+                    floor_child?('Layer0', 'floor'),
+                    floor_child?('Layer0', 'Floor'),
+                    floor_child?('Layer0', 'floorboard'),
+                    floor_child?('WR-Booth-Deck', 'panel')]
+                   .map { |b| b ? '1' : '0' }.join
+
     out.join(' | ')
   end
 end
@@ -447,6 +531,10 @@ EXPECT = ' | '.join([
     'mount 0.0 6.0',
     'tag 1111 say1',
     'dk 11111',
+    'pv 11111',
+    'pl 11100',
+    'bl 111000000',
+    'fc 11100',
 ])
 
 # ---- second program: wr-mode.rb's snapshot pins -------------------------
