@@ -24,7 +24,12 @@ real UI.
    Minimalist. One button, sensible defaults, no lighting-designer UI.
 
 ## Now
-**Plugin 1.7.8. The proposal-package V-Ray lane is RUNNING LIVE and is the active work.**
+**LIVE JOB (28 Aug 2026): the Elangovan / UTHSC 4-booth proposal PDF.** Renders were made
+MANUALLY — the render-tool bug hunt is PAUSED at Benton's instruction until the pack ships.
+Renders: `C:\Users\bento\Desktop\ProposalFiles\UTHealthSciences`. Output:
+`C:\Users\bento\Desktop\ProposalFiles\Saravanan Elangovan\`.
+
+**Plugin 1.7.9. The proposal-package V-Ray lane defects are FIXED but UNRUN in SketchUp.**
 Live on UTHealthSciences Audiology (12 scenes, 5 render / 7 image). Image lane is good.
 Render lane wrote five EMPTY 640x480 frames (observed) and is now being fixed.
 
