@@ -2,6 +2,90 @@
 
 ## 2026-08-28
 
+### 1.8.0 Drop Interior Lights builds real V-Ray lights, because the premise it was written on was false
+
+`wr-drop-lights.rb` opened with a sentence that decided its whole architecture:
+*"The documented V-Ray Ruby API has NO light class."* That was true of the doc set it was
+written against. It is **false** of the V-Ray installed on this machine. The generated
+29 Apr 2026 docs under the V-Ray for SketchUp extension document
+`VRay::Command.create_rectangle_light` / `_sphere_` / `_spot_` / `_omni_` / `_ies_` /
+`_mesh_` / `_dome_light` (observed — read out of `VRay/Command.html`), and
+`VRay::Scene::Plugin#[]=` with `VRay::Color.new(1, 0, 0)` as its own worked example.
+
+Two live observations from Benton on 28 Aug decided the rebuild:
+
+* **A seed-copied light does not emit.** Outlines appear, the V-Ray settings look right,
+  the render is unlit — even copying from a light that works.
+* **An API-created light does emit.** Room lit, soft shadow under the fixture, floor
+  gradient, in the frame buffer.
+
+So the four seed `.skp` files, the minting flow, the seed refusals, the
+`VRayInfo["main_plugin"]` resolution and the whole "a seed is a pointer, not a light"
+apparatus are gone — about 450 lines. Every light is now made by
+`create_rectangle_light`, placed with the same `add_instance` as before.
+
+**Each light owns its own plugin, so Brightness and Warmth are WRITTEN now.** Under the
+seed architecture every copy shared one V-Ray asset — which is precisely why the dialog's
+Brightness/Warmth answers wrote nothing and why one Asset Editor slider silently retuned
+every light in the model (auditor, `lighting-inconsistency-2026-08-28.md`, C2). `invisible`
+is written too, and it is not optional: Benton's test render drew the emitter as a visible
+white slab on the ceiling. **Every write is read back and compared**; a write that does not
+stick is named on the console with what was asked and what the plugin holds.
+
+**Units stays at V-Ray's default 0, deliberately.** The enum is commonly documented as
+1 = lumens, but the docs installed here document no units enum at all (grepped), so
+shipping that guess would silently make every light the wrong brightness. Intensity is
+carried as a scalar, anchored to the one observed-good light — the 24"x48" default at
+intensity 30 that Benton rendered — and scaled by the design doc's own lumen arithmetic
+and by fixture area. The area correction is the weakest link in the file and is a single
+constant (`AREA_NORMALIZED`); the console prints units, size and intensity per layer so a
+wrong anchor is visible in the first render instead of silent.
+
+There is no temperature parameter on this light, so Warmth is a Kelvin→RGB conversion
+written out in the file (Tanner Helland's published black-body fit, cited in place) and
+written into `color`.
+
+**The accent layer exists for the first time.** `WR Light Accent.skp` was never authored,
+so that layer had been skipped on every press since the tool shipped. It now builds, with
+`directional = 0.5`.
+
+**The overlapping-row bug.** Benton: *"one side would always get overlapping lights, like
+an extra row they squeezed in on top."* The grid count was `ceil(L / S)` and `L` comes
+from face vertices pushed through a transformation, so a room side that is an exact
+multiple of the spacing arrives as `192.0000000001`. `ceil` then answers 3 rows where 2
+were meant — on that axis only, and only when the rounding error happens to be positive,
+which is why it read as the tool doing something different every time. `grid_count` now
+drops a last row that is within 1/16" of exactly closing the run. The sourced `ceil` rule
+from `interior-lighting-design.md` §1.2 is preserved; only its float hazard is removed.
+
+**Idempotency.** The stale sweep walked `model.active_entities` flat, so a press made
+inside an open group left the old lights and stacked a new grid on top (auditor, C7). It
+is now recursive and works in world coordinates, with 1/16" of slack on the containment
+test because room lights mount FLUSH and their origins sit exactly on the room's top
+face. Each replaced light's V-Ray plugin is deleted with it, so re-pressing does not grow
+the Asset Editor without bound. Lights dropped by every earlier version are still found —
+the `seed` attribute key was kept for exactly that.
+
+`scripts/vray-seeds/*.skp` are now dead on disk. They are deliberately NOT deleted in this
+release so a machine mid-upgrade cannot break; delete them once every install is past
+1.8.0.
+
+**Verification.** `python scripts/rbparse.py` clean (a real parse by the CRuby 3.2 SketchUp
+ships). `python scripts/rbtest-lights.py` extended from 33 to 38 checks and passing:
+`grid_count` pinned as a raw count and as a whole grid (a 16'x12' room with float noise on
+the long side must land 2x2, never 3x2), the Kelvin curve pinned at 6600 K where it is
+white by construction, `scalar_intensity` pinned at its anchor, the read-back comparator,
+and the containment slack. **Ten mutations applied, each run, each confirmed to FAIL the
+test, each reverted** — including deleting the grid fix, which brings the extra row
+straight back.
+
+**NOT RUN IN SKETCHUP.** There is no SketchUp and no `ruby.exe` here. Every `VRay::` call
+is individually rescued so a wrong assumption becomes a named console failure rather than
+a crash or a silent no-op, and the API is checked for by name before anything is placed.
+What still needs a live press to confirm: that the created light faces DOWN (`FACE_FLIP`
+is the one constant if it does not), that `invisible` reads back as written, and whether
+the scalar anchor lands at a sane exposure.
+
 ### 1.7.10 Three parts that were facing the wrong way, and a boundary the fix is not allowed to cross
 
 Benton inspected freshly built booths and reported five things. All five are ORIENTATION or

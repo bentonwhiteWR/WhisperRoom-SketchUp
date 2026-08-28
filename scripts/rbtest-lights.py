@@ -70,20 +70,41 @@ worked examples in .forge/researcher/interior-lighting-design.md:
      visible, and the console line says the tag is VISIBLE and names the
      Draft/Render toggle as the owner of hiding. Run against stub
      model/layer classes; the method itself is lifted verbatim.
- 20. plugin_verdict — the /Rectangle Light incident (2026-08-27, observed
-     live: seeds naming a plugin absent from the model's V-Ray scene
-     placed, listed in the Asset Editor, and emitted nothing): a found
-     plugin is :ok, an absent one :dangling (refused by name), an
-     unanswerable scene :unknown (placed, loudly), a missing reference
-     :no_ref (refused — not a working V-Ray light).
- 21. plugin_listed? — exact plugin names, tolerant of a leading "/" on
-     either side, never a substring match.
- 22. booth_like? — the untagged-booth secondary test, banded to the real
+ 20. grid_count — THE OVERLAPPING-ROW FIX (Benton, observed 2026-08-28:
+     "one side would always get overlapping lights, like an extra row
+     they squeezed in on top"). A room side that is an exact multiple of
+     the spacing arrives from transformed geometry as 192.0000000001, and
+     a bare ceil() answers 3 rows where 2 were meant — on that axis only.
+     Pinned both as the raw count and as a whole grid: a 16' x 12' room at
+     8' ceiling, Soft, with 1e-7" of float noise on the long side must
+     land 2 x 2 = FOUR lights, not 3 x 2 = six. Reverting the fix in
+     wr-drop-lights.rb makes this line fail.
+ 21. kelvin_rgb / scalar_intensity — the two numbers this tool now WRITES
+     into each light's own V-Ray plugin (the seed architecture wrote
+     nothing). The Kelvin curve is pinned at 6600 K, which is white by
+     construction, plus the two shipped answers (3000/3500 K) and both
+     clamp ends. scalar_intensity is pinned at its anchor: the 24" x 48"
+     light at intensity 30 that Benton rendered and found correctly lit
+     must come back as exactly 30.0 for its own 3,000 lm target, and a
+     12" x 12" fixture at the same target must come back 8x higher —
+     the area correction, which is the weakest assumption in the file and
+     therefore the one most worth pinning.
+ 22. param_agrees? — the read-back comparator. Every plugin write is read
+     back and compared, because a V-Ray parameter that silently refuses a
+     write is a black render an hour later. An integer flag and a boolean
+     are the same answer (the dump prints invisible as 0/1, `each` yields
+     true/false); floats compare with tolerance; a colour compares
+     component-wise; anything else is a mismatch, never a shrug.
+ 23. in_box? — the stale-sweep containment test with BOX_TOL slack. Room
+     lights mount FLUSH (DROP = 0) so their origin lies exactly on the
+     room bbox's top face; an exclusive test would miss every one of them
+     on a re-press and DOUBLE the grid.
+ 24. booth_like? — the untagged-booth secondary test, banded to the real
      catalog envelope (reference/booth-models.md): the smallest (4230)
      and largest (102186) booths and a caster-lifted 7272 are in; a
      light, a room, a desk, a shallow cabinet, a long partition, and a
      room-height shaft are out.
- 23. floor_child? — the WR-Floor tag or an exact "floor" name, any case:
+ 25. floor_child? — the WR-Floor tag or an exact "floor" name, any case:
      the predicate room_info reads a room by and the sibling-ROOM
      keep-out skip keys on (the live "keep-out: ROOM 2" incident, where
      an L-shaped neighbour room's bounding box punched a hole in this
@@ -153,6 +174,27 @@ floor). All eight KILLED. NOT coverable here: the V-Ray scene readers
 rebuild-from-source flow, and the sibling-room skip's wiring in
 obstructions() — SketchUp/V-Ray-API-side, unverified until a live press.
 
+MUTATION-CHECKED 2026-08-28 (the V-Ray light API rebuild, same protocol
+— each mutation applied to wr-drop-lights.rb, this test run, FAIL
+confirmed, mutation reverted): grid_count's snap clause deleted (the
+overlapping row comes straight back, on the noisy axis only);
+GRID_SNAP 0.0625 -> 0.0 (same); GRID_SNAP -> 100.0 (over-snapping: a
+room that HAS earned its extra row loses it); grid_count's `n -= 1`
+made `n -= 2`; kelvin_rgb green branch cut over AT 66 instead of below
+it; scalar_intensity area factor dropped (every fixture emits the
+reference power regardless of size); REF_INTENSITY 30 -> 60;
+param_agrees? boolean/integer bridge removed (invisible = true reads
+back as 1 and would be reported as a FAILED write on every single
+light); param_agrees? float tolerance made exact; in_box? BOX_TOL
+dropped to 0 (a light one snap proud of the ceiling plane stops being
+found by the stale sweep, so a re-press doubles the grid). All ten
+KILLED
+and reverted. NOT coverable here: create_light, configure_light,
+set_param, vray_api_missing, vray_context, collect_lights and
+erase_lights are V-Ray/SketchUp-API-side and are unverified until a
+live press — they are why every VRay:: call in that file is
+individually rescued and why every write is read back.
+
 MUTATION-CHECKED 2026-08-27 (UTHSC-incident additions, same protocol):
 grid_points diag mis-charge (keep-out rejections counted as edge);
 in_keepout? forced false; room_structure_child? name match made
@@ -215,14 +257,17 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'booth_lumens', 'accent_axis', 'subject_veto',
            'fallback_verdict', 'light_words?', 'room_structure_child?',
            'doors_container?', 'door_child_kind', 'tag', 'floor_child?',
-           'booth_like?', 'norm_plugin', 'plugin_listed?', 'plugin_verdict']
+           'booth_like?', 'grid_count', 'kelvin_rgb', 'scalar_intensity',
+           'param_agrees?', 'in_box?']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H',
            'MIN_ROOM_AREA', 'BOOTH_SIDE_MIN', 'BOOTH_SIDE_MAX',
-           'BOOTH_H_MIN', 'BOOTH_H_MAX']
+           'BOOTH_H_MIN', 'BOOTH_H_MAX', 'GRID_SNAP', 'BOX_TOL',
+           'UNITS_SCALAR', 'REF_INTENSITY', 'REF_AREA', 'REF_LUMENS',
+           'AREA_NORMALIZED', 'FACE_FLIP']
 STRINGS = ['TAG', 'WR_MODE_DICT']
-BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES']
+BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'LIGHT_LAYERS']
 
 
 def lift_block(lines, name):
@@ -281,6 +326,11 @@ __METHODS__
   # The LIVE room the 2026-08-27 refusal happened in: UTHSC Audiology
   # Room 1, 19'-11 1/4" x 22'-4 1/4" (444.92 sf), 8' walls.
   UROOM = [[0.0, 0.0], [239.25, 0.0], [239.25, 268.25], [0.0, 268.25]]
+  # THE OVERLAPPING-ROW ROOM: 16' x 12', 8' ceiling. The long side is an
+  # exact multiple of the Soft spacing (192 = 2 x 96) and arrives from
+  # transformed geometry with float noise on it — which is precisely when
+  # a bare ceil() squeezes a third row onto that ONE axis.
+  NOISY = [[0.0, 0.0], [192.0000001, 0.0], [192.0000001, 144.0], [0.0, 144.0]]
 
   def self.pts_s(pts)
     pts.map { |p| p.map { |v| v.round(2) }.join(',') }.join(';')
@@ -446,27 +496,83 @@ __METHODS__
                     door_child_kind('Layer0', 'wall').nil?]
                    .map { |b| b ? '1' : '0' }.join
 
-    # 20 — plugin_verdict: the /Rectangle Light incident decision table.
-    # found -> ok; absent -> dangling (refuse by name); scene would not
-    # answer -> unknown (place, loudly); no reference at all -> no_ref
-    # (refuse: not a working V-Ray light), whatever `exists` says.
-    out << 'pv ' + [plugin_verdict('/Rectangle Light', true) == :ok,
-                    plugin_verdict('/Rectangle Light', false) == :dangling,
-                    plugin_verdict('/Rectangle Light', nil) == :unknown,
-                    plugin_verdict(nil, true) == :no_ref,
-                    plugin_verdict('  ', false) == :no_ref]
+    # 20 — grid_count: THE OVERLAPPING-ROW FIX. In order: an exact
+    # multiple stays 2 rows; the SAME length with 1e-7" of float noise on
+    # it must STILL be 2 (a bare ceil answers 3 — that is the bug);
+    # likewise 3 rows at the Showroom spacing; a genuinely short room
+    # keeps 2; a room 4" longer than one spacing still earns its second
+    # row (the sourced ceil rule from interior-lighting-design.md §1.2 is
+    # preserved, only its float hazard is removed); one spacing exactly is
+    # one row; a tiny room is one row; 2.5 spacings is 3.
+    out << 'gc ' + [grid_count(192.0, 96.0), grid_count(192.0000001, 96.0),
+                    grid_count(144.0000001, 48.0), grid_count(191.9, 96.0),
+                    grid_count(100.0, 96.0), grid_count(96.0, 96.0),
+                    grid_count(30.0, 96.0), grid_count(240.0, 96.0),
+                    grid_count(96.0, 0.0)].join(',')
+
+    # 20b — the same fix seen as a whole grid: 2 x 2 = FOUR lights in the
+    # noisy 16' x 12' room, never the six a bare ceil produces.
+    g = grid_points(NOISY, 96.0, :soft, [])
+    out << format('noisy %s fb%d', pts_s(g[:pts]), g[:fallback] ? 1 : 0)
+
+    # 21 — kelvin_rgb: white at 6600 K by construction, the two shipped
+    # answers, and both clamp ends.
+    out << 'kr ' + [3000, 3500, 6600, 10000, 1000]
+                   .map { |k| kelvin_rgb(k).map { |v| format('%.3f', v) }.join(',') }
+                   .join(' ')
+
+    # 21b — scalar_intensity, anchored to the ONE observed-good light:
+    # 24" x 48" at its 3,000 lm design target must come back as exactly
+    # REF_INTENSITY (30). A 12" x 12" fixture at the same target is 8x
+    # (the area correction). Then the three other layers at their design
+    # figures, and a degenerate fixture.
+    out << 'si ' + [scalar_intensity(3000.0, 24.0, 48.0),
+                    scalar_intensity(3000.0, 12.0, 12.0),
+                    scalar_intensity(1500.0, 6.0, 24.0),
+                    scalar_intensity(1000.0, 12.0, 24.0),
+                    scalar_intensity(6000.0, 12.0, 12.0),
+                    scalar_intensity(3000.0, 0.0, 12.0),
+                    scalar_intensity(0.0, 12.0, 12.0)]
+                   .map { |v| format('%.1f', v) }.join(',')
+
+    # 21c — the layer table against interior-lighting-design.md: sizes and
+    # nominal lumens, plus the accent Directionality that could never be
+    # built while the accent seed .skp did not exist.
+    out << 'lt ' + [:downlight, :wallwash, :booth, :accent].map { |r|
+      s = LIGHT_LAYERS[r]
+      format('%.0fx%.0f/%d/%s', s[:u], s[:v], s[:lm].to_i, s[:dir].inspect)
+    }.join(' ') + format(' units%.0f', UNITS_SCALAR)
+
+    # 22 — param_agrees?, the read-back comparator. An integer flag and a
+    # boolean are the same answer; floats compare with tolerance; a
+    # colour-like object compares component-wise; a real mismatch is a
+    # mismatch.
+    out << 'pa ' + [param_agrees?(true, 1), param_agrees?(true, 1.0),
+                    param_agrees?(false, 0), param_agrees?(true, 0),
+                    param_agrees?(30.0, 30), param_agrees?(30.0, 30.000001),
+                    param_agrees?(30.0, 31.0), param_agrees?(0.0, 0.0),
+                    param_agrees?([1.0, 0.695, 0.431], [1.0, 0.695, 0.431]),
+                    param_agrees?([1.0, 0.695, 0.431], [1.0, 0.695, 0.9]),
+                    param_agrees?('x', 'x'), param_agrees?('x', 'y')]
                    .map { |b| b ? '1' : '0' }.join
 
-    # 21 — plugin_listed?: exact names, tolerant of a leading "/" on
-    # either side, never a substring match.
-    out << 'pl ' + [plugin_listed?('/Standard Light', ['/CameraPhysical', '/Standard Light']),
-                    plugin_listed?('Standard Light', ['/Standard Light']),
-                    plugin_listed?('/Standard Light', ['Standard Light']),
-                    plugin_listed?('/Rectangle Light', ['/Standard Light']),
-                    plugin_listed?('/Light', ['/Standard Light'])]
+    # 23 — in_box?: a FLUSH-mounted light's origin lies exactly on the
+    # room's top face. Inside, exactly on the face, one snap above it, and
+    # the far bottom corner are all IN; an inch above the ceiling and an
+    # inch outside a wall are both OUT. Line 2 is the one that matters:
+    # without BOX_TOL it reads as OUT and every re-press doubles the grid.
+    box = [0.0, 0.0, 0.0, 120.0, 120.0, 96.0]
+    out << 'ib ' + [in_box?(60.0, 60.0, 48.0, box),
+                    in_box?(60.0, 60.0, 96.0, box),
+                    in_box?(60.0, 60.0, 96.0625, box), # a literal 1/16",
+                    # NOT BOX_TOL: a test that reads the constant it is
+                    # pinning moves with it and pins nothing.
+                    in_box?(0.0, 0.0, 0.0, box),
+                    in_box?(60.0, 60.0, 97.0, box),
+                    in_box?(-1.0, 60.0, 48.0, box)]
                    .map { |b| b ? '1' : '0' }.join
 
-    # 22 — booth_like? against real catalog envelopes
+    # 24 — booth_like? against real catalog envelopes
     # (reference/booth-models.md): 4230 Std 44x32x83 (the smallest) and
     # 102186 Enh 104x188x85 (the largest) are in; a 7272 lifted 5" on a
     # caster plate (74x74x88) is in; a 24x48 rectangle light, the live
@@ -485,7 +591,7 @@ __METHODS__
                     booth_like?(74.0, 74.0, 96.0)]
                    .map { |b| b ? '1' : '0' }.join
 
-    # 23 — floor_child?: the WR-Floor tag or an exact "floor" name (any
+    # 25 — floor_child?: the WR-Floor tag or an exact "floor" name (any
     # case) — the predicate room_info reads a room by and the sibling-ROOM
     # keep-out skip keys on (the "keep-out: ROOM 2" incident).
     out << 'fc ' + [floor_child?('WR-Floor', 'anything'),
@@ -531,8 +637,14 @@ EXPECT = ' | '.join([
     'mount 0.0 6.0',
     'tag 1111 say1',
     'dk 11111',
-    'pv 11111',
-    'pl 11100',
+    'gc 2,2,3,2,2,1,1,3,1',
+    'noisy 48.0,36.0;48.0,108.0;144.0,36.0;144.0,108.0 fb0',
+    'kr 1.000,0.695,0.431 1.000,0.755,0.552 1.000,1.000,1.000 '
+    '0.791,0.855,1.000 1.000,0.266,0.000',
+    'si 30.0,240.0,120.0,40.0,480.0,0.0,0.0',
+    'lt 12x12/3000/nil 6x24/1500/nil 12x24/1000/nil 12x12/6000/0.5 units0',
+    'pa 111011011010',
+    'ib 111100',
     'bl 111000000',
     'fc 11100',
 ])

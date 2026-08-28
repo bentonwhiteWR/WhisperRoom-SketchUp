@@ -16,115 +16,106 @@
 #        wall — vertical light is what the camera sees, and washed walls are
 #        why showrooms photograph as designed.
 #     C. when a booth stands in the room: one INTERIOR light under its tray
-#        ceiling, and (if the optional Accent seed exists) one accent light
-#        tilted 35 degrees at its door face — the merchandise layer.
+#        ceiling, and one ACCENT light tilted 35 degrees at its door face —
+#        the merchandise layer.
 #
 #   Design source: .forge/researcher/interior-lighting-design.md — every
 #   spacing, standoff, footcandle and Kelvin number below traces there.
-#   Superseded: the single-troffer-per-bbox behaviour this file used to have.
 #
 #   Extensions > Developer > Ruby Console, then:
 #     load "C:/Users/bento/Documents/Claude/Sketchup/scripts/wr-drop-lights.rb"
 #
 # ===========================================================================
-# WHY SEED COMPONENTS AND NOT THE V-RAY API
+# EVERY LIGHT IS MADE BY THE V-RAY LIGHT API — THE SEEDS ARE GONE
 #
-# The documented V-Ray Ruby API has NO light class — see
-# reference/vray-ruby-api.md — and anything injected into the render scene
-# that is not in the SketchUp model is wiped on every re-export. But a V-Ray
-# light IS a SketchUp component instance carrying the extension's attributes:
-# save one as a .skp once and placing copies is definitions.load +
-# add_instance. Copies share ONE light asset, so one Asset Editor slider
-# tunes every copy at once — which is exactly why this rig uses one seed PER
-# LAYER: three seeds = three independent brightness sliders for free.
+# SUPERSEDED, and the correction matters: every version of this file up to
+# 1.7.9 said "the documented V-Ray Ruby API has NO light class" and placed
+# copies of hand-authored seed .skp files. That statement was true of the
+# older doc set and is FALSE of the V-Ray installed here. The docs generated
+# 29 Apr 2026, under the V-Ray for SketchUp extension's documentation folder,
+# document VRay::Command.create_rectangle_light / _sphere_ / _spot_ /
+# _omni_ / _ies_ / _mesh_ / _dome_light (observed — read out of
+# VRay/Command.html). The seed architecture is retired for two reasons,
+# both observed live by Benton in SketchUp 2026 on 2026-08-28:
 #
-# ===========================================================================
-# THE SEEDS — AUTHORED ONCE BY HAND, OR MINTED FROM ONE HAND-MADE LIGHT
+#   * SEED-COPIED LIGHTS DO NOT EMIT. Outlines appear, the V-Ray settings
+#     look right, the render is unlit — even copying from a light that
+#     works. That is the bug that triggered this rebuild.
+#   * AN API-CREATED LIGHT DOES EMIT. Room lit, soft shadow under the
+#     fixture, floor gradient, in the V-Ray frame buffer.
 #
-# All in scripts/vray-seeds/, each drawn AT THE COMPONENT ORIGIN, emitting
-# face DOWN (-Z), Units = Luminous Power (lm), Color Mode = Temperature at
-# 3000K, Invisible = ON:
+# And the architectural win: create_rectangle_light returns a light with
+# its OWN V-Ray plugin, so brightness and colour are set PER LIGHT, in
+# code. Under the seed architecture every copy shared ONE V-Ray asset —
+# which is why the dialog's Brightness/Warmth answers wrote nothing and
+# why one Asset Editor slider silently retuned every light in the model.
 #
-#   WR Light Downlight.skp   12" x 12"   3,000 lm   ambient grid
-#   WR Light Wallwash.skp     6" x 24"   1,500 lm   feature wall (long side
-#                                                   along the wall)
-#   WR Light Booth.skp       12" x 24"   1,000 lm   booth interior
-#   WR Light Accent.skp      12" x 12"   6,000 lm   booth face accent —
-#                            OPTIONAL, Directionality ~0.5; until it exists
-#                            the accent layer is skipped with a console note.
-#
-# Nobody has to author all of them by hand. Draw ONE V-Ray rectangle
-# light (V-Ray toolbar > Lights > Rectangle Light, at the origin, facing
-# down) and press the button: when seeds are missing and such a light is
-# found, the tool offers (Yes/No, default No — it writes files to disk) to
-# MINT the missing .skp seeds as copies of it, then carries on placing in
-# the same press. A copy is made with add_instance + make_unique — a real
-# duplicate of the hand-made definition — because a V-Ray light CANNOT be
-# synthesized from Ruby (no light API, reference/vray-ruby-api.md) and a
-# file that merely LOOKS like a light emits nothing, silently, in a render
-# an hour later. A copy that lost the source's V-Ray dictionaries is
-# refused, never saved. Sizes and intensities are NOT set on the copies —
-# where V-Ray stores them is unproven — so minting prints the exact Asset
-# Editor values to set per seed, plus a full attribute-dictionary dump of
-# the source light to paste back to Claude (that dump is the evidence that
-# will let a later version set the values in code).
-#
-# The accent seed is never minted: it needs Directionality ~0.5 set by
-# hand, and a plain copy would silently be a wrong light. It stays
-# optional, authored by hand when wanted.
-#
-# A layer whose seed is missing (and not minted) is refused BY NAME; the
-# other layers still place. If the older "WR Interior Light.skp" (24x48
-# troffer) exists it is accepted for the Downlight role with a console note.
-# NOTE install-plugin.py bundles only .rb files — the seeds ride in with a
-# repo checkout (git pull). Minted seeds land in the first
-# scripts/vray-seeds/ this machine has (created if needed) — commit them.
+# The three seed files under scripts/vray-seeds/ are now DEAD CODE on
+# disk. Nothing in this repo loads them. They are left in place rather
+# than deleted so that a machine mid-upgrade cannot break; delete them
+# once every install is past 1.8.0.
 #
 # ===========================================================================
-# A SEED IS A POINTER, NOT A LIGHT — "WILL IT EMIT" IS CHECKED EVERY PRESS
+# THE API, AS OBSERVED — nothing here is guessed
 #
-# Observed live 2026-08-27: a V-Ray light's component definition does not
-# CONTAIN the light — it points at a V-Ray SCENE PLUGIN by name, in the
-# definition's VRayInfo dictionary ("main_plugin", e.g. "/Rectangle
-# Light"), with a cached copy of the plugin JSON in VRayPlugins. When a
-# new light definition appears in a model, V-Ray's definitions observer
-# duplicates the plugin the definition names. The three minted seeds named
-# "/Rectangle Light"; that plugin was gone from the model's scene; V-Ray
-# printed 'Could not find /Rectangle Light to duplicate' three times; the
-# placed lights listed in the Asset Editor (which reads dictionaries) and
-# emitted NOTHING. A seed .skp is therefore only valid in a model whose
-# V-Ray scene still holds the plugin it names — usually the model it was
-# minted in, or one where the source light was pasted.
+#   o = VRay::Command.create_rectangle_light(context: VRay::Context.active,
+#                                            width: 24.0, height: 48.0)
+#   o.entity  => Sketchup::ComponentDefinition   (NOT placed — we place it)
+#   o.plugin  => VRay::Scene::Plugin             (this light's OWN params)
 #
-# So every press now RESOLVES each loaded seed's main_plugin against
-# VRay::Context.active.scene (read-only; every V-Ray call is wrapped —
-# the standing "Incorrect DR version" lesson, reference/vray-ruby-api.md):
-#   found      -> "this layer WILL emit" printed, and it places;
-#   absent     -> the layer is REFUSED BY NAME, and when a resolvable
-#                 V-Ray light stands in this model the tool offers to
-#                 REBUILD the dead seed file as a copy of it (the
-#                 mechanism Benton verified live: duplicating an in-model
-#                 light makes V-Ray duplicate its plugin);
-#   unreadable -> placed, with a loud warning that emission is unverified.
-# This tool still never WRITES V-Ray scene parameters.
+# width / height are INCHES and land on the plugin as u_size / v_size
+# (observed: 24.0 / 48.0 gave u_size 24, v_size 48). The call places no
+# instance — model.entities.add_instance(o.entity, tr) still does that.
+#
+# Plugin parameters are read and written with p[:key] / p[:key] = value
+# (documented, VRay/Scene/Plugin.html; there is no parameters/params/to_h).
+# A colour is written as VRay::Color.new(r, g, b) — that exact form is the
+# doc page's own example. What this tool writes per light:
+#
+#   invisible   true    REQUIRED. Benton's test render drew the emitter as
+#                       a visible white slab on the ceiling (observed). A
+#                       visible emitter in a client render is unacceptable.
+#   intensity   scalar  see the UNITS section below
+#   units       0       V-Ray's default. See below — this is deliberate.
+#   color       VRay::Color from the Warmth answer via kelvin_rgb.
+#   u/v_size    set by the create call; read back and reported.
+#   directional 0.5     accent layer only.
+#
+# EVERY write is followed by a READ-BACK and compared (param_agrees?). A
+# write that does not stick is named on the console, never assumed.
+#
+# There is NO temperature or colour-mode parameter on this light (observed
+# in the full default dump), so Warmth is a Kelvin -> RGB conversion this
+# file performs itself — kelvin_rgb, sourced in its own comment.
 #
 # ===========================================================================
-# BRIGHTNESS / WARMTH / EXPOSURE ARE PRINTED, NOT WRITTEN — THE SEAM
+# UNITS — WHY THIS TOOL STAYS ON THE SCALAR AND SAYS SO
 #
-# Whether Ruby can write a V-Ray light's intensity/temperature (and the
-# camera's exposure) without the write being wiped on the next export is
-# undetermined until Benton runs the probe in
-# .forge/researcher/interior-lighting-design.md §3.3. Until that probe says
-# yes, this tool NEVER calls scene.change on a light or camera plugin — a
-# wrong write into V-Ray settings persists in the model. Instead the pop-up's
-# Brightness / Warmth / exposure choices become a printed Asset Editor
-# recipe: the exact lumen number per seed, the Kelvin, the EV. The single
-# method print_asset_advice (marked V-RAY WRITE SEAM below) is where a real
-# write goes later — swap its body, keep its inputs, nothing else moves.
+# The rectangle light's `units` parameter defaults to 0. The enum is
+# commonly documented elsewhere as 0=default/scalar, 1=lumens, 2=lm/m2/sr,
+# 3=watts, 4=W/m2/sr — REPORTED, and NOT confirmed on this build: the
+# installed doc set documents no units enum at all (grepped 2026-08-28;
+# VRay/Command.html is the only light page and it carries none).
 #
-# V-Ray's default exposure (EV 14.2) is full-sun exterior; a correctly-lit
-# 40 fc interior at that EV renders 30-60x too dark. No lumen value fixes a
-# wrong exposure — hence the "Set interior exposure" advice line (EV 8).
+# Shipping a guessed enum would silently make every light the wrong
+# brightness, so units STAYS 0 and intensity is tuned as a scalar. The
+# console prints the units value and the intensity actually set for every
+# layer, so a wrong guess is visible immediately instead of silent.
+#
+# The scalar is anchored to the one observed-good data point: V-Ray's own
+# default rectangle light, 24" x 48" at intensity 30, is the light Benton
+# rendered and found correctly lit. So:
+#
+#   intensity = REF_INTENSITY * (target_lm / REF_LUMENS) * (REF_AREA / area)
+#
+# The first factor carries the design doc's own lumen arithmetic
+# (area x 40 fc / CU, split over the grid). The second is the size
+# correction: the design doc itself records that "the default scalar-units
+# intensity DOES depend on size" (§1.4, reported from Chaos' Rectangle
+# Light page), so a 12x12 fixture needs 8x the scalar of the 24x48
+# reference to emit the same power. THAT SECOND FACTOR IS THE WEAKEST
+# LINK IN THIS FILE — if the first render is uniformly ~8x too bright or
+# too dim, set AREA_NORMALIZED to 0.0 (one constant) and re-press.
 #
 # ===========================================================================
 # WHAT A PRESS DOES — ONE OPERATION, ONE Ctrl+Z
@@ -132,31 +123,25 @@
 #   1. Reads the selection: groups and component instances only — it never
 #      guesses which things in a model are rooms, and it NEVER lights a
 #      light: its own dropped lights, any V-Ray light, and anything tagged
-#      "WR Lights" are refused as subjects by name. When ONLY a V-Ray
-#      light is selected, the refusal also prints the attribute-dictionary
-#      dump (the evidence block to paste back to Claude).
+#      "WR Lights" are refused as subjects by name.
 #   2. Pops the settings dialog (UI.inputbox, four dropdowns + one yes/no).
-#   3. If seed .skp files are missing: offers (default No) to mint them
-#      from a hand-made V-Ray light in the model — see the seeds section
-#      above — then carries on in the same press. Loaded seeds then have
-#      their VRayInfo["main_plugin"] resolved against the live V-Ray
-#      scene: a seed naming an absent plugin is refused by name or
-#      rebuilt from a resolvable in-model light (the "A SEED IS A
-#      POINTER" section above), and the console says per layer whether
-#      it WILL emit.
-#   4. Removes any lights IT previously dropped inside the selected rooms
-#      (found by their WR_DropLights attribute) — a re-press re-places.
-#   5. Per selected room: sanity-checks it first (height >= MIN_ROOM_H,
-#      floor >= MIN_ROOM_AREA — a 24" "ceiling" is a fixture, not a room),
-#      then reads the WR-Floor polygon (bounding-box fallback, LOUD, when
-#      there is none — booths and legacy rooms are legitimate), the wall
-#      top, the doors; finds obstructions (a booth under the light plane);
-#      places the layers; prints every number it used. If MORE THAN ONE
-#      fallback fires for a single subject, that subject is refused by
-#      name, listing what fired — chained fallbacks are how a nonsense
-#      selection once became a confident report.
-#   6. Tags everything "WR Lights"; prints the per-seed lumen targets so the
-#      Asset Editor sliders can be nudged to the computed values.
+#   3. Checks the V-Ray light API is really there — VRay, VRay::Command,
+#      create_rectangle_light, VRay::Color, VRay::Context.active — and
+#      refuses BY NAME, before anything is placed, if any piece is missing.
+#   4. Removes any lights IT previously dropped inside the selected rooms,
+#      RECURSIVELY (nested groups included, in world coordinates) and
+#      deletes each one's V-Ray scene plugin. A second press replaces; it
+#      never doubles. The old sweep walked model.active_entities only and
+#      was not recursive, so a press made inside an open group left the old
+#      lights and stacked new ones on top.
+#   5. Per selected room: sanity-checks it, reads the WR-Floor polygon
+#      (bounding-box fallback, LOUD, when there is none), the wall top and
+#      the doors; finds obstructions; places the layers; prints every
+#      number it used. More than ONE fallback for a single subject refuses
+#      that subject by name.
+#   6. Tags everything "WR Lights" and prints, per layer, the size, units,
+#      intensity, Kelvin and RGB actually written — plus every write that
+#      did not stick.
 #
 # Lights go in the CURRENT drawing context, never inside the client's room
 # group, so coordinates agree with the selections' own bounding boxes.
@@ -166,11 +151,13 @@
 #
 # No SketchUp and no V-Ray on the machine that wrote it. python
 # scripts/rbparse.py proves it parses (the same CRuby 3.2 SketchUp ships) and
-# python scripts/rbtest-lights.py RUNS the whole pure placement section —
-# grid, polygon tests, L-shape, keep-outs, tiny-room centroid, wall wash,
-# lumens — outside SketchUp, lifted verbatim from this file. No instance has
-# been placed and no render seen. Everything below fails loudly to the
-# console and a messagebox rather than doing nothing.
+# python scripts/rbtest-lights.py RUNS the whole pure section — grid,
+# polygon tests, L-shape, keep-outs, tiny-room centroid, wall wash, lumens,
+# the Kelvin curve, the scalar-intensity formula, the read-back comparator
+# and the grid-count fix — outside SketchUp, lifted verbatim from this
+# file. No instance has been placed and no render seen. Every VRay:: call
+# is individually rescued so a wrong assumption becomes a NAMED failure on
+# the console, never a crash and never a silent no-op.
 
 require 'sketchup.rb'
 
@@ -255,14 +242,56 @@ module WR_DropLights
 
   BRIGHT = { 'Dim' => 0.5, 'Normal' => 1.0, 'Bright' => 2.0 }.freeze
 
-  # One seed per layer — shared asset = one Asset Editor slider per layer.
-  SEEDS = {
-    :downlight => ['WR Light Downlight', '12" x 12", 3,000 lm'],
-    :wallwash  => ['WR Light Wallwash',  '6" x 24" (long side along the wall), 1,500 lm'],
-    :booth     => ['WR Light Booth',     '12" x 24", 1,000 lm'],
-    :accent    => ['WR Light Accent',    '12" x 12", 6,000 lm, Directionality ~0.5']
+  # --- the four light layers ----------------------------------------------
+  # :u / :v are the fixture's width x height in INCHES — they go straight
+  # into create_rectangle_light(width:, height:) and land on the plugin as
+  # u_size / v_size (observed). :lm is the layer's nominal design lumen
+  # figure from interior-lighting-design.md — it is what the computed
+  # per-fixture target is measured AGAINST, never a value written anywhere.
+  # :dir is the accent layer's Directionality; nil means leave the
+  # parameter alone.
+  LIGHT_LAYERS = {
+    :downlight => { :label => 'Downlight',      :u => 12.0, :v => 12.0,
+                    :lm => 3000.0, :dir => nil },
+    :wallwash  => { :label => 'Wall wash',      :u => 6.0,  :v => 24.0,
+                    :lm => 1500.0, :dir => nil },
+    :booth     => { :label => 'Booth interior', :u => 12.0, :v => 24.0,
+                    :lm => 1000.0, :dir => nil },
+    :accent    => { :label => 'Booth accent',   :u => 12.0, :v => 12.0,
+                    :lm => 6000.0, :dir => 0.5 }
   }.freeze
-  LEGACY_DOWNLIGHT = 'WR Interior Light'.freeze  # accepted for :downlight
+
+  # --- the scalar-intensity anchor (see the UNITS section in the header) --
+  # ONE observed data point: V-Ray's own default rectangle light, 24" x 48"
+  # at intensity 30, is the light Benton rendered on 2026-08-28 and found
+  # correctly lit. Everything else scales off it.
+  UNITS_SCALAR    = 0.0    # the `units` value written — V-Ray's default.
+                           #   The units enum is NOT in the installed docs,
+                           #   so this tool refuses to guess one.
+  REF_INTENSITY   = 30.0   # observed: that light's intensity
+  REF_AREA        = 1152.0 # sq in — observed: that light's 24" x 48"
+  REF_LUMENS      = 3000.0 # the Downlight layer's nominal design figure —
+                           #   the lumen number REF_INTENSITY stands for
+  AREA_NORMALIZED = 1.0    # 1.0 = correct intensity for fixture area (the
+                           #   design doc records that scalar-units
+                           #   intensity DOES depend on size); 0.0 = off.
+                           #   THE WEAKEST ASSUMPTION IN THIS FILE — if the
+                           #   first render is uniformly ~8x off, flip this.
+  FACE_FLIP       = 0.0    # degrees about X applied to every light. 0 =
+                           #   the created light already faces DOWN, which
+                           #   is what Benton's lit test render implies but
+                           #   was never measured. If the first render
+                           #   lights the ceiling instead of the floor, set
+                           #   this to 180.0 — that is the whole fix.
+  BOX_TOL         = 0.0625 # in — 1/16". Bounding-box containment slack for
+                           #   the stale sweep: room lights mount FLUSH
+                           #   (DROP = 0), so their origin lies exactly on
+                           #   the room bbox's top face and an exclusive
+                           #   contains? would miss every one of them and
+                           #   double the grid on a re-press.
+  GRID_SNAP       = 0.0625 # in — 1/16", the finest quantity these drawings
+                           #   carry. See grid_count: this is what stops an
+                           #   extra row being squeezed in.
 
   # ========================================================================
   # PURE PLACEMENT LOGIC — no SketchUp API in this section. Polygons are
@@ -282,6 +311,40 @@ module WR_DropLights
   # spacing at each end when L = nS — the sourced half-spacing-at-walls rule.
   def self.axis_points(len, n)
     (0...n).map { |i| len * (2 * i + 1) / (2.0 * n) }
+  end
+
+  # HOW MANY fixtures fit on an axis of length `len` at target spacing `s`.
+  #
+  # THE OVERLAPPING-ROW BUG (Benton, observed 2026-08-28: "one side would
+  # always get overlapping lights, like an extra row they squeezed in on
+  # top"). The rule from interior-lighting-design.md §1.2 is
+  # n = max(1, ceil(L / S)) and it is right — but L here is not a typed
+  # number. It comes from face vertices pushed through a
+  # Geom::Transformation, so a room whose side is an exact multiple of the
+  # spacing arrives as 192.0000000001, not 192.0. ceil() then answers 3
+  # where 2 was meant, and that axis gets a whole extra row at 2/3 of the
+  # intended spacing while the other axis is untouched — an extra row
+  # squeezed in on ONE side, exactly as reported. It is not
+  # deterministic-by-axis either: the sign of the rounding error decides,
+  # which is why it looked like the tool "did something different every
+  # time".
+  #
+  # The fix is arithmetic, not a guessed axis: after ceil, if the last row
+  # is within GRID_SNAP (1/16" — the finest quantity these drawings carry)
+  # of exactly closing the run, that row was float noise and is dropped.
+  # A room genuinely longer than n*S by more than 1/16" still gets its
+  # extra row: the sourced ceil rule is preserved, only its float hazard
+  # is removed.
+  # (Coercion is written `x * 1.0`, never `x.to_f`, throughout the pure
+  # section: rbtest-lights.py runs these methods in the minimal CRuby VM
+  # rbparse boots, and that VM does not define Float#to_f. A method that
+  # cannot be exercised offline is a method with no test.)
+  def self.grid_count(len, s)
+    sp = s * 1.0
+    return 1 if sp <= 0.0
+    n = (len / sp).ceil
+    n -= 1 if n > 1 && (len - (n - 1) * sp) <= GRID_SNAP
+    n < 1 ? 1 : n
   end
 
   # Even-odd ray cast. Plays the role Geom.point_in_polygon_2D plays inside
@@ -395,8 +458,8 @@ module WR_DropLights
     lx = xs.max - minx
     ly = ys.max - miny
     s = grid_spacing(h, density)
-    nx = [1, (lx / s).ceil].max
-    ny = [1, (ly / s).ceil].max
+    nx = grid_count(lx, s)
+    ny = grid_count(ly, s)
     t = edge_threshold(s, lx / (2.0 * nx), ly / (2.0 * ny))
     cand = []
     axis_points(lx, nx).each do |x|
@@ -501,7 +564,7 @@ module WR_DropLights
     uy = dy / len
     nx0 = ccw ? -uy : uy
     ny0 = ccw ? ux : -ux
-    count = (len / (WASH_SPACING * WASH_STANDOFF)).ceil
+    count = grid_count(len, WASH_SPACING * WASH_STANDOFF)
     count = 2 if count < 2
     count = 4 if count > 4
     axis_points(len, count).map do |t|
@@ -601,31 +664,94 @@ module WR_DropLights
       h >= BOOTH_H_MIN && h <= BOOTH_H_MAX
   end
 
-  # --- V-Ray plugin references — pure cores -------------------------------
-  # A light definition POINTS AT a scene plugin (VRayInfo["main_plugin"]);
-  # it emits only where that plugin exists. See the header block.
+  # --- V-Ray light parameter cores — pure --------------------------------
 
-  def self.norm_plugin(name)
-    s = name.to_s.strip
-    s.start_with?('/') ? s[1..-1] : s
+  # Kelvin -> linear RGB, each component 0..1.
+  #
+  # Tanner Helland's black-body approximation
+  # (https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html),
+  # the standard published curve-fit to Mitchell Charity's blackbody table;
+  # valid 1000-40000 K, and its own author states the fit is within a few
+  # percent over 1000-10000 K. Written out here because the V-Ray rectangle
+  # light has NO temperature parameter (observed in its full default dump) —
+  # colour is the only place a Kelvin answer can land.
+  #
+  # This is a REPORTED curve, not a measured one. It is exact at 6600 K
+  # (white by construction), which is the test that pins it.
+  def self.kelvin_rgb(kelvin)
+    return [1.0, 1.0, 1.0] if kelvin * 1.0 <= 0.0
+    t = kelvin / 100.0
+    r = t <= 66.0 ? 255.0 : 329.698727446 * ((t - 60.0)**-0.1332047592)
+    g = if t <= 66.0
+          99.4708025861 * Math.log(t) - 161.1195681661
+        else
+          288.1221695283 * ((t - 60.0)**-0.0755148492)
+        end
+    b = if t >= 66.0
+          255.0
+        elsif t <= 19.0
+          0.0
+        else
+          138.5177312231 * Math.log(t - 10.0) - 305.0447927307
+        end
+    [r, g, b].map do |c|
+      if c <= 0.0 then 0.0
+      elsif c >= 255.0 then 1.0
+      else c / 255.0
+      end
+    end
   end
 
-  # Is plugin `name` in `list`, tolerant of a leading "/" on either side?
-  # Exact names only — never a substring match.
-  def self.plugin_listed?(name, list)
-    n = norm_plugin(name)
-    list.any? { |p| norm_plugin(p) == n }
+  # The scalar `intensity` to write for a fixture of u x v inches whose
+  # design target is target_lm lumens. See the UNITS section in the header:
+  # the units enum is unproven on this build, so units stays 0 and the
+  # brightness is carried entirely by this number, anchored to the one
+  # observed-good light (REF_*). Returns 0.0 on a degenerate fixture.
+  def self.scalar_intensity(target_lm, u, v)
+    a = u * v * 1.0
+    lm = target_lm * 1.0
+    return 0.0 if a <= 0.0 || lm <= 0.0
+    i = REF_INTENSITY * (lm / REF_LUMENS)
+    i * ((REF_AREA / a)**AREA_NORMALIZED)
   end
 
-  # The resolve/refuse decision. `exists` is true / false / nil (nil = the
-  # V-Ray scene would not answer). :ok places and says so; :dangling is
-  # refused by name (the silent-unlit failure class); :no_ref is refused
-  # (no main_plugin reference = not a working V-Ray light); :unknown
-  # places with a loud warning.
-  def self.plugin_verdict(name, exists)
-    return :no_ref if name.nil? || name.to_s.strip.empty?
-    return :unknown if exists.nil?
-    exists ? :ok : :dangling
+  # Did a plugin parameter write STICK? Compares what we asked for against
+  # what the plugin read back. Nothing is assumed about how V-Ray stores a
+  # value: an integer flag and a boolean are the same answer (the dump
+  # prints invisible as 0/1, `each` yields it as false/true), floats are
+  # compared with a relative tolerance, and anything with #to_a (a
+  # VRay::Color) is compared component-wise. An unrecognised pair falls
+  # back to ==, and a false answer is REPORTED, never silently accepted.
+  def self.param_agrees?(want, got)
+    return true if want == got
+    w = want == true ? 1.0 : (want == false ? 0.0 : nil)
+    g = got == true ? 1.0 : (got == false ? 0.0 : nil)
+    w = want * 1.0 if w.nil? && want.is_a?(Numeric)
+    g = got * 1.0 if g.nil? && got.is_a?(Numeric)
+    if !w.nil? && !g.nil?
+      scale = [w.abs, g.abs, 1.0].max
+      return (w - g).abs <= 1e-4 * scale
+    end
+    if want.respond_to?(:to_a) && got.respond_to?(:to_a) &&
+       !want.is_a?(String) && !got.is_a?(String)
+      wa = want.to_a
+      ga = got.to_a
+      n = [wa.size, ga.size].min
+      return false if n.zero?
+      return (0...n).all? { |i| param_agrees?(wa[i], ga[i]) }
+    end
+    false
+  end
+
+  # Is point (px, py, pz) inside the box [minx, miny, minz, maxx, maxy,
+  # maxz], with BOX_TOL of slack on every face? The slack is not
+  # cosmetic: room lights mount FLUSH (DROP = 0), so their origin lies
+  # exactly on the room's top face, and an exclusive containment test
+  # would fail to find them on a re-press and double the grid.
+  def self.in_box?(px, py, pz, box)
+    px >= box[0] - BOX_TOL && px <= box[3] + BOX_TOL &&
+      py >= box[1] - BOX_TOL && py <= box[4] + BOX_TOL &&
+      pz >= box[2] - BOX_TOL && pz <= box[5] + BOX_TOL
   end
 
   # Pure door-detection cores, matched to what the room generators REALLY
@@ -660,81 +786,8 @@ module WR_DropLights
   # END OF THE PURE SECTION — SketchUp API from here down.
   # ======================================================================
 
-  def self.seed_candidates(name)
-    home = ENV['USERPROFILE'].to_s
-    [
-      File.join(__dir__.to_s, 'vray-seeds', "#{name}.skp"),
-      File.join(home, 'Documents/Claude/Sketchup/scripts/vray-seeds', "#{name}.skp"),
-      File.join(home, 'Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/vray-seeds', "#{name}.skp"),
-      File.join(home, 'OneDrive/Documents/Claude/Sketchup/scripts/vray-seeds', "#{name}.skp"),
-      File.join(home, 'OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/vray-seeds', "#{name}.skp")
-    ].map { |p| p.tr('\\', '/') }.uniq
-  end
-
-  def self.seed_path(name)
-    seed_candidates(name).find { |p| File.exist?(p) }
-  end
-
-  def self.seed_refusal(role)
-    name, spec = SEEDS[role]
-    "scripts/vray-seeds/#{name}.skp is missing — the #{role} layer is " \
-    "refused until it exists.\nAuthor it once on the render machine: V-Ray " \
-    "toolbar > Rectangle Light, #{spec}, facing DOWN, drawn at the " \
-    "component origin, Units = Luminous Power (lm), Color Mode = " \
-    "Temperature 3000K, Invisible = ON, then right-click > Save As into " \
-    "scripts/vray-seeds/ as \"#{name}.skp\".\n" \
-    'OR draw ONE rectangle light anywhere in the model and press this ' \
-    'button again — the tool will offer to mint every missing seed from it.'
-  end
-
-
-  # nil-free seed paths for the requested layers, the roles refused because
-  # their file is missing, and the legacy-downlight console note.
-  def self.resolve_seeds(opts)
-    paths = {}
-    refusals = []
-    legacy_note = nil
-    paths[:downlight] = seed_path(SEEDS[:downlight][0])
-    if paths[:downlight].nil?
-      legacy = seed_path(LEGACY_DOWNLIGHT)
-      if legacy
-        paths[:downlight] = legacy
-        legacy_note = "using legacy #{LEGACY_DOWNLIGHT}.skp as the Downlight " \
-                      'seed — re-save it as WR Light Downlight.skp (12" x 12", ' \
-                      '3,000 lm) when convenient.'
-      else
-        refusals << :downlight
-      end
-    end
-    if opts[:wash]
-      paths[:wallwash] = seed_path(SEEDS[:wallwash][0])
-      refusals << :wallwash if paths[:wallwash].nil?
-    end
-    if opts[:booth]
-      paths[:booth] = seed_path(SEEDS[:booth][0])
-      refusals << :booth if paths[:booth].nil?
-      paths[:accent] = seed_path(SEEDS[:accent][0]) # optional — nil = skip
-    end
-    paths.delete_if { |_, v| v.nil? }
-    [paths, refusals, legacy_note]
-  end
-
-  # ========================================================================
-  # SEED MINTING — the missing .skp seeds, copied from ONE hand-made light
-  #
-  # A V-Ray light cannot be conjured from Ruby (no light class — see
-  # reference/vray-ruby-api.md), and a file assembled from guessed
-  # attributes is worse than none: it looks right and emits nothing, an
-  # hour later, in a render. So minting only ever COPIES a light V-Ray
-  # itself made, and verifies the copy kept the source's dictionaries
-  # before saving it.
-  # ========================================================================
-
-  # Roles whose seed may be minted. Accent is excluded on purpose: it
-  # needs Directionality ~0.5 set by hand; a plain copy would be a wrong
-  # light wearing the right name.
-  MINTABLE = [:downlight, :wallwash, :booth].freeze
-
+  # A V-Ray light is never a lighting subject — the pure core is
+  # light_words?; these two read the entity that feeds it.
   def self.own_dict_names(ent)
     ad = ent.respond_to?(:attribute_dictionaries) ? ent.attribute_dictionaries : nil
     ad ? ad.map { |d| d.name.to_s } : []
@@ -742,8 +795,8 @@ module WR_DropLights
 
   # Does this look like a V-Ray light? Judged by names only: its definition
   # name plus its attribute-dictionary names (instance and definition) must
-  # mention both "vray" and "light". Deliberately strict — minting from a
-  # non-light would produce seeds that fail silently in a render.
+  # mention both "vray" and "light". Deliberately strict: this is what
+  # keeps the tool from ever treating a light as a room to be lit.
   def self.vray_light?(ent)
     return false unless ent.is_a?(Sketchup::ComponentInstance) || ent.is_a?(Sketchup::Group)
     words = own_dict_names(ent)
@@ -758,241 +811,268 @@ module WR_DropLights
   # else the model's top level — but only when every candidate is the same
   # light (same definition). Different definitions are a genuine choice
   # this tool refuses to make; it lists them and asks for a selection.
-  def self.find_source_light(model)
-    sel = model.selection.to_a.select { |e| vray_light?(e) }
-    return sel.first if sel.size == 1
-    if sel.size > 1
-      puts '  Several V-Ray lights are SELECTED — select exactly one (with the rooms) and press again:'
-      sel.each { |e| puts "    #{display_name(e)}" }
-      return nil
+
+  # ========================================================================
+  # THE V-RAY LIGHT API — every call individually rescued
+  #
+  # The standing lesson (reference/vray-ruby-api.md) is that V-Ray calls
+  # raise for reasons that have nothing to do with the call — a cold DR
+  # renderer once raised "Incorrect DR version" from in_process?. So no
+  # VRay:: call below is made bare: each one either returns a value or
+  # turns into a NAMED failure. Nothing in this file may fail silently,
+  # because the symptom of a silent failure here is a black render an hour
+  # later.
+  # ========================================================================
+
+  # Every piece of the API this tool needs, checked BEFORE anything is
+  # placed. Returns nil when all present, else the plain-words reason.
+  def self.vray_api_missing
+    return 'V-Ray is not loaded in this SketchUp (no VRay module)' unless defined?(VRay)
+    return 'VRay::Command is not defined' unless defined?(VRay::Command)
+    return 'VRay::Color is not defined' unless defined?(VRay::Color)
+    return 'VRay::Context is not defined' unless defined?(VRay::Context)
+    ok = begin
+           VRay::Command.respond_to?(:create_rectangle_light)
+         rescue StandardError => e
+           return "asking VRay::Command for create_rectangle_light raised #{e.class}: #{e.message}"
+         end
+    unless ok
+      return 'VRay::Command has no create_rectangle_light — this V-Ray ' \
+             'predates the light API this tool is built on. Nothing was ' \
+             'placed; there is no seed fallback any more.'
     end
-    all = model.entities.to_a.select { |e| vray_light?(e) }
-    if all.empty?
-      puts '  No V-Ray light found to copy from (searched the selection and the model top level).'
-      return nil
-    end
-    defs = all.map { |e| e.respond_to?(:definition) ? e.definition : nil }.uniq
-    if defs.size == 1
-      note = all.size == 1 ? 'the only V-Ray light in the model' :
-             "all #{all.size} V-Ray lights found are copies of it"
-      puts "  Using \"#{display_name(all.first)}\" as the seed source — #{note}."
-      return all.first
-    end
-    puts '  Several DIFFERENT V-Ray lights found — this tool will not guess between them:'
-    all.each { |e| puts "    #{display_name(e)}" }
-    puts '  Add the one to copy to the selection and press again.'
     nil
   end
 
-  # Where minted seeds land: the first scripts/vray-seeds/ that exists,
-  # else the first one whose scripts/ parent exists (created on the spot).
-  def self.mint_dir
-    dirs = seed_candidates('probe').map { |p| File.dirname(p) }.uniq
-    hit = dirs.find { |d| File.directory?(d) }
-    return hit if hit
-    creatable = dirs.find { |d| File.directory?(File.dirname(d)) }
-    return nil if creatable.nil?
-    Dir.mkdir(creatable)
-    creatable
+  # [context, nil] or [nil, plain-words reason].
+  def self.vray_context
+    ctx = begin
+            VRay::Context.active
+          rescue StandardError => e
+            return [nil, "VRay::Context.active raised #{e.class}: #{e.message}"]
+          end
+    ctx.nil? ? [nil, 'VRay::Context.active is nil (V-Ray inactive)'] : [ctx, nil]
   end
 
-  def self.dump_dicts(ent, label)
-    ad = ent.respond_to?(:attribute_dictionaries) ? ent.attribute_dictionaries : nil
-    dicts = ad ? ad.to_a : []
-    if dicts.empty?
-      puts "  #{label}: no attribute dictionaries"
+  # The V-Ray scene, for deleting a replaced light's plugin. nil is fine —
+  # the sweep just says the plugin was left behind.
+  def self.vray_scene(ctx)
+    return nil if ctx.nil?
+    begin
+      ctx.scene
+    rescue StandardError
+      nil
+    end
+  end
+
+  # Make ONE V-Ray rectangle light. Returns [ComponentDefinition, Plugin].
+  # RAISES with the arguments in the message on any failure — a light that
+  # cannot be made must stop the press, not quietly reduce the rig.
+  #
+  # Observed signature (Benton, live, 2026-08-28):
+  #   VRay::Command.create_rectangle_light(context:, width:, height:)
+  #     -> OpenStruct with .entity (ComponentDefinition, NOT placed) and
+  #        .plugin (this light's own VRay::Scene::Plugin)
+  def self.create_light(ctx, w, h)
+    o = begin
+          VRay::Command.create_rectangle_light(:context => ctx,
+                                               :width => w.to_f,
+                                               :height => h.to_f)
+        rescue StandardError, ScriptError => e
+          raise "VRay::Command.create_rectangle_light(width: #{w}, " \
+                "height: #{h}) raised #{e.class}: #{e.message}"
+        end
+    raise "create_rectangle_light(width: #{w}, height: #{h}) returned nil" if o.nil?
+    d = begin
+          o.entity
+        rescue StandardError => e
+          raise "the created light's .entity raised #{e.class}: #{e.message}"
+        end
+    p = begin
+          o.plugin
+        rescue StandardError => e
+          raise "the created light's .plugin raised #{e.class}: #{e.message}"
+        end
+    unless d.is_a?(Sketchup::ComponentDefinition)
+      raise "create_rectangle_light gave .entity of class #{d.class}, not a " \
+            'Sketchup::ComponentDefinition — the API changed shape and this ' \
+            'tool will not guess at it.'
+    end
+    raise 'create_rectangle_light gave a nil .plugin — nothing to configure' if p.nil?
+    [d, p]
+  end
+
+  # Write ONE plugin parameter and READ IT BACK. Returns
+  # [stuck?, value_read, error_or_nil]. Never raises.
+  def self.set_param(plugin, key, value)
+    begin
+      plugin[key] = value
+    rescue StandardError => e
+      return [false, nil, "write raised #{e.class}: #{e.message}"]
+    end
+    got = begin
+            plugin[key]
+          rescue StandardError => e
+            return [false, nil, "read-back raised #{e.class}: #{e.message}"]
+          end
+    [param_agrees?(value, got), got, nil]
+  end
+
+  def self.plugin_name(plugin)
+    begin
+      plugin.name.to_s
+    rescue StandardError
+      ''
+    end
+  end
+
+  # Configure one freshly-created light for its layer. Returns a report
+  # hash: :writes => [[key, want, got, stuck?, err]...], :bad => [key...].
+  # NOTHING here raises — a parameter that will not take is reported by
+  # name and the light still places, because a wrongly-tuned light that
+  # emits is recoverable in the Asset Editor and a missing light is not.
+  def self.configure_light(plugin, role, target_lm, kelvin)
+    spec = LIGHT_LAYERS[role]
+    rgb = kelvin_rgb(kelvin)
+    color = nil
+    color_err = nil
+    begin
+      color = VRay::Color.new(rgb[0], rgb[1], rgb[2])
+    rescue StandardError => e
+      color_err = "VRay::Color.new raised #{e.class}: #{e.message}" \
+                  ' — this light stays V-Ray white; Warmth did not land.'
+    end
+    wants = []
+    # invisible FIRST: it is the one that must not be missed. Benton's test
+    # render drew the emitter as a white slab on the ceiling (observed).
+    wants << [:invisible, true]
+    wants << [:units, UNITS_SCALAR]
+    wants << [:intensity, scalar_intensity(target_lm, spec[:u], spec[:v])]
+    wants << [:color, color] unless color.nil?
+    wants << [:directional, spec[:dir]] unless spec[:dir].nil?
+    writes = []
+    bad = []
+    wants.each do |key, value|
+      stuck, got, err = set_param(plugin, key, value)
+      writes << [key, value, got, stuck, err]
+      bad << key unless stuck
+    end
+    # u_size / v_size were set by the create call — read them back rather
+    # than re-writing, so a mismatch is a fact about the API, not ours.
+    sizes = [:u_size, :v_size].map do |k|
+      begin
+        plugin[k]
+      rescue StandardError
+        nil
+      end
+    end
+    { :writes => writes, :bad => bad, :rgb => rgb, :sizes => sizes,
+      :color_err => color_err }
+  end
+
+  # ---- the stale sweep — RECURSIVE, in world coordinates -----------------
+  #
+  # THE IDEMPOTENCY BUG (auditor, lighting-inconsistency-2026-08-28.md, C7):
+  # the old sweep walked model.active_entities only, and not recursively.
+  # A press made while a group was open for edit dropped its lights INSIDE
+  # that group; the next press from the top level could not see them, left
+  # them, and stacked a fresh grid on top — double brightness, invisible in
+  # the viewport because the lights are Invisible = ON. This walks the whole
+  # tree and compares WORLD origins, so where the press happened stops
+  # mattering.
+  #
+  # Depth is capped so a pathological model cannot hang the press; hitting
+  # the cap is reported, never swallowed.
+  SWEEP_MAX_DEPTH = 12
+
+  def self.collect_lights(ents, tr, out, depth = 0, over = [])
+    if depth > SWEEP_MAX_DEPTH
+      over << true
       return
     end
-    puts "  #{label}:"
-    dicts.each do |d|
-      puts "    dictionary \"#{d.name}\":"
-      d.each_pair do |k, v|
-        s = v.inspect
-        s = "#{s[0, 160]}..." if s.length > 160
-        puts "      #{k} = (#{v.class}) #{s}"
+    ents.each do |e|
+      next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      wt = begin
+             tr * e.transformation
+           rescue StandardError
+             next
+           end
+      # 'seed' is the attribute EVERY version of this tool has written,
+      # including the seed-based ones — so a re-press after the upgrade
+      # still finds and replaces pre-1.8.0 lights instead of doubling them.
+      if e.get_attribute(DICT, 'seed') || e.get_attribute(DICT, 'role')
+        out << [e, wt.origin]
+        next # never walk into a light
       end
-      nested = d.attribute_dictionaries
-      (nested ? nested.to_a : []).each do |nd|
-        puts "      nested dictionary \"#{nd.name}\":"
-        nd.each_pair do |k, v|
-          s = v.inspect
-          s = "#{s[0, 160]}..." if s.length > 160
-          puts "        #{k} = (#{v.class}) #{s}"
+      kids = child_entities(e)
+      collect_lights(kids, wt, out, depth + 1, over) if kids.respond_to?(:each)
+    end
+  rescue StandardError
+    nil
+  end
+
+  # Every light this tool has ever dropped whose WORLD origin lies inside
+  # one of `boxes` ([minx,miny,minz,maxx,maxy,maxz] arrays). Returns
+  # [[entity, world_origin]...] and whether the depth cap was hit.
+  def self.stale_lights(model, boxes)
+    found = []
+    over = []
+    collect_lights(model.entities, IDENT, found, 0, over)
+    hits = found.select do |_, o|
+      boxes.any? { |b| in_box?(o.x, o.y, o.z, b) }
+    end
+    [hits, !over.empty?]
+  end
+
+  # Box array from a Geom::BoundingBox — the form in_box? takes.
+  def self.box_of(bb)
+    [bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z]
+  end
+
+  # Erase replaced lights AND their V-Ray plugins. A light's plugin is
+  # recorded on the instance at placement; deleting it keeps a re-press
+  # from growing the Asset Editor's light list without bound.
+  # Returns [erased, plugins_deleted, plugins_left].
+  def self.erase_lights(model, scene, lights)
+    erased = 0
+    gone = 0
+    left = 0
+    lights.each do |e, _|
+      # A light reached through two instance paths of one shared
+      # definition appears twice in the list; the second visit is already
+      # deleted and reading an attribute off it would raise.
+      next unless e.respond_to?(:valid?) && e.valid?
+      pname = e.get_attribute(DICT, 'plugin').to_s
+      defn = e.respond_to?(:definition) ? e.definition : nil
+      begin
+        e.erase!
+        erased += 1
+      rescue StandardError
+        next
+      end
+      if defn && defn.respond_to?(:instances) && defn.instances.empty?
+        begin
+          model.definitions.remove(defn)
+        rescue StandardError
+          nil
         end
       end
-    end
-  end
-
-  # The evidence printout. We do NOT currently know where a V-Ray light
-  # stores its size, intensity, colour temperature or invisible flag —
-  # this dump of a light V-Ray itself made is how we find out. Printed
-  # whenever minting runs.
-  def self.dump_light(src)
-    d = src.respond_to?(:definition) ? src.definition : nil
-    bb = d ? d.bounds : src.bounds
-    puts ''
-    puts '=== V-RAY LIGHT DUMP — copy this whole block back to Claude ========'
-    puts "  class: #{src.class}"
-    puts "  definition: #{d ? "\"#{d.name}\"" : '(none)'}"
-    puts format('  drawn size (definition bounds): %.2f" x %.2f" x %.2f"',
-                bb.width, bb.height, bb.depth)
-    o = src.transformation.origin
-    puts format('  placed at: (%.2f", %.2f", %.2f")', o.x, o.y, o.z)
-    dump_dicts(src, 'instance dictionaries')
-    if d
-      dump_dicts(d, 'definition dictionaries')
-      ents = d.entities.to_a
-      kinds = Hash.new(0)
-      ents.each { |e| kinds[e.class.to_s.sub('Sketchup::', '')] += 1 }
-      puts "  definition contains #{ents.size} entities: " +
-           kinds.map { |k, n| "#{n} #{k}" }.join(', ')
-      ents.first(12).each_with_index do |e, i|
-        dump_dicts(e, "entity[#{i}] (#{e.class.to_s.sub('Sketchup::', '')})")
+      if pname.empty?
+        left += 1 # a pre-1.8.0 seed light: it never owned a plugin
+      elsif scene.nil?
+        left += 1
+      else
+        ok = begin
+               scene.delete(pname)
+             rescue StandardError
+               false
+             end
+        ok ? gone += 1 : left += 1
       end
     end
-    puts '=== END DUMP ======================================================='
-    puts '  ^ Paste that whole block back to Claude — it is the evidence for'
-    puts '    where V-Ray keeps size / intensity / temperature / invisible.'
+    [erased, gone, left]
   end
 
-  # save_copy (SketchUp 2022+) writes the file without re-binding the
-  # definition to the path; older SketchUp falls back to save_as.
-  def self.save_skp(defn, path)
-    ok = defn.respond_to?(:save_copy) ? defn.save_copy(path) : defn.save_as(path)
-    raise "SketchUp refused to save #{path}" unless ok
-    raise "save reported success but #{path} does not exist" unless File.exist?(path)
-  end
-
-  # Mint the given roles' seed files as copies of src. Returns the minted
-  # [role, path] pairs. The temp copies are made inside an operation that
-  # is ABORTED at the end: the files persist, the model is left untouched.
-  def self.mint_seeds(model, src, roles, dir)
-    src_def = src.definition
-    minted = []
-    model.start_operation('Mint V-Ray light seeds', true)
-    begin
-      roles.each do |role|
-        name = SEEDS[role][0]
-        path = File.join(dir, "#{name}.skp").tr('\\', '/')
-        if File.exist?(path)
-          a = UI.messagebox("#{name}.skp already exists:\n#{path}\n\n" \
-                            "Overwrite it with a copy of \"#{display_name(src)}\"?",
-                            MB_YESNOCANCEL)
-          if a == IDCANCEL
-            puts '  minting CANCELLED — no further seeds written.'
-            break
-          end
-          if a == IDNO
-            puts "  kept the existing #{name}.skp — not overwritten."
-            next
-          end
-        end
-        if src_def.name == name
-          # The source is itself a placed copy of this very seed (a model
-          # made on another machine) — save its definition straight out.
-          save_skp(src_def, path)
-        else
-          temp = model.entities.add_instance(src_def, Geom::Transformation.new)
-          temp.make_unique
-          d = temp.definition
-          raise "make_unique did not copy the light for #{name}" if d == src_def
-          lost = own_dict_names(src_def) - own_dict_names(d)
-          unless lost.empty?
-            raise "the copy for #{name} LOST V-Ray dictionaries #{lost.inspect} — " \
-                  'a dead seed will not be saved. Author this one by hand ' \
-                  'instead (right-click the light > Save As).'
-          end
-          begin
-            d.name = name
-          rescue StandardError => e
-            puts "  note: could not rename the copy to \"#{name}\" " \
-                 "(#{e.message}) — saved anyway; the file name is what counts."
-          end
-          save_skp(d, path)
-        end
-        minted << [role, path]
-        puts "  minted #{name}.skp -> #{path}"
-      end
-    ensure
-      model.abort_operation # the temp copies leave the model; the files stay
-    end
-    minted
-  end
-
-  # Minted copies inherit the SOURCE light's size / intensity / colour —
-  # where V-Ray stores those is unproven, so this tool does not touch them
-  # and prints the hand-off instead.
-  def self.print_mint_recipe(minted)
-    puts ''
-    puts "  MINTED SEEDS CARRY THE SOURCE LIGHT'S SETTINGS. Set each one in"
-    puts '  the V-Ray Asset Editor (Lights tab):'
-    minted.each { |role, _| puts format('    %-22s -> %s', "\"#{SEEDS[role][0]}\"", SEEDS[role][1]) }
-    puts '    every one            -> Units: Luminous Power (lm), Color Mode:'
-    puts '                            Temperature 3000K, and INVISIBLE: ON —'
-    puts '                            the copies inherited the source flag,'
-    puts '                            and a visible light renders as a white'
-    puts '                            rectangle in the image.'
-    puts '  That edits the copies in THIS model. To bake the values into the'
-    puts '  seed files for every future model, re-save each tuned light over'
-    puts '  its .skp (right-click > Save As) — or keep tuning per model.'
-  end
-
-  # The on-the-spot fix for missing seeds. Never a surprise: it writes
-  # files to disk, so it asks first and the prompt defaults to No. Returns
-  # the source light used when anything was minted, else nil.
-  def self.offer_minting(model, refusals)
-    roles = refusals & MINTABLE
-    return nil if roles.empty?
-    # With a source light in hand, offer every missing core seed, not just
-    # the refused layers' — one Yes instead of three separate runs.
-    MINTABLE.each do |r|
-      roles << r if !roles.include?(r) && seed_path(SEEDS[r][0]).nil?
-    end
-    puts ''
-    puts "Missing seed file#{roles.size == 1 ? '' : 's'}: " +
-         roles.map { |r| "#{SEEDS[r][0]}.skp" }.join(', ')
-    src = find_source_light(model)
-    return nil if src.nil?
-    # A source whose own plugin reference does not resolve would mint dead
-    # seeds — the exact incident this tool now guards against. Checked
-    # only when the scene is readable; unreadable stays a warning, not a
-    # block (the seed validation at load time warns again).
-    scene, = vray_scene
-    if scene && src.respond_to?(:definition)
-      smp = main_plugin_of(src.definition)
-      v = plugin_verdict(smp, plugin_probe(scene, scene_plugin_names(scene), smp))
-      if v == :dangling || v == :no_ref
-        puts "  \"#{display_name(src)}\" cannot be the seed source — its V-Ray " \
-             "plugin reference #{smp ? "\"#{smp}\" does not resolve in this model's scene" : 'is missing'}: " \
-             'seeds copied from it would place and never emit. Draw a fresh ' \
-             'Rectangle Light and press again.'
-        return nil
-      end
-    end
-    dir = mint_dir
-    if dir.nil?
-      puts '  MINTING IMPOSSIBLE — no scripts/ folder to create vray-seeds/ in. Looked at:'
-      seed_candidates(SEEDS[roles.first][0]).each { |p| puts "    #{File.dirname(p)}" }
-      return nil
-    end
-    puts "  They can be minted as copies of \"#{display_name(src)}\" into:"
-    puts "    #{dir}"
-    ans = UI.inputbox(
-      ["Write #{roles.size} seed file#{roles.size == 1 ? '' : 's'} copied from \"#{display_name(src)}\"?"],
-      ['No'], ['Yes|No'], 'Missing V-Ray light seeds — mint them?')
-    unless ans && ans[0] == 'Yes'
-      puts '  Minting declined — the by-name refusals below stand.'
-      return nil
-    end
-    dump_light(src)
-    minted = mint_seeds(model, src, roles, dir)
-    if minted.empty?
-      puts '  Nothing was minted.'
-      return nil
-    end
-    print_mint_recipe(minted)
-    src
-  end
 
   # The WR Lights tag. Placement NEVER hides it — in ANY mode. Visibility
   # belongs to the draft/render mode switch alone (wr-mode.rb's LIGHT_TAGS:
@@ -1056,16 +1136,6 @@ module WR_DropLights
       r ? excluded << [e, r] : subjects << e
     end
     [subjects, excluded]
-  end
-
-  # Previously-dropped lights (any version of this tool) whose origin sits
-  # inside any of the given bounding boxes — the ones a re-press replaces.
-  def self.stale_lights(ents, boxes)
-    ents.grep(Sketchup::ComponentInstance).select do |i|
-      next false unless i.get_attribute(DICT, 'seed')
-      o = i.transformation.origin
-      boxes.any? { |bb| bb.contains?(o) }
-    end
   end
 
   def self.child_entities(ent)
@@ -1312,167 +1382,6 @@ module WR_DropLights
     [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0]
   end
 
-  # ---- the V-Ray scene, read-only — will these lights emit? ---------------
-  #
-  # EVERY V-Ray call below is wrapped so a raise cannot escape: the
-  # standing lesson is in_process? raising "Incorrect DR version" on a
-  # cold, idle renderer (reference/vray-ruby-api.md). Reading and
-  # existence-checking only; this tool never writes scene parameters.
-
-  # [scene, nil] or [nil, plain-words reason].
-  def self.vray_scene
-    unless defined?(VRay) && defined?(VRay::Context)
-      return [nil, 'V-Ray is not loaded in this SketchUp']
-    end
-    ctx = begin
-            VRay::Context.active
-          rescue StandardError => e
-            return [nil, "VRay::Context.active raised: #{e.message}"]
-          end
-    return [nil, 'VRay::Context.active is nil (V-Ray inactive)'] if ctx.nil?
-    sc = begin
-           ctx.scene
-         rescue StandardError => e
-           return [nil, "the V-Ray context's scene raised: #{e.message}"]
-         end
-    sc ? [sc, nil] : [nil, "the V-Ray context's scene is nil"]
-  end
-
-  # Every plugin name in the scene, or nil when enumeration is not
-  # possible. What scene.each yields is unprobed (a Scene::Plugin with a
-  # name, per the docs), so a String, an [name, plugin] pair, and a
-  # name-bearing object are all accepted; anything else falls through to
-  # nil and the per-name probe below takes over. An EMPTY result is
-  # treated as failure too — the one observed cold scene held 71 plugins,
-  # so empty means the mechanism did not work, not that the scene is bare.
-  def self.scene_plugin_names(scene)
-    names = []
-    begin
-      scene.each do |p|
-        n = if p.is_a?(String)
-              p
-            elsif p.is_a?(Array) && p.first.is_a?(String)
-              p.first
-            else
-              begin; p.name.to_s; rescue StandardError; nil; end
-            end
-        names << n unless n.nil? || n.empty?
-      end
-    rescue StandardError
-      return nil
-    end
-    names.empty? ? nil : names
-  end
-
-  # Does the scene hold this plugin? true / false / nil (could not tell).
-  # The enumerated name list is authoritative when it exists; otherwise a
-  # single scene[name] lookup, wrapped — if even that raises, the honest
-  # answer is nil, never a guess.
-  def self.plugin_probe(scene, names, name)
-    return nil if name.nil? || name.to_s.strip.empty?
-    return plugin_listed?(name, names) if names
-    begin
-      !scene[name.to_s].nil?
-    rescue StandardError
-      nil
-    end
-  end
-
-  # The plugin a light definition points at, or nil.
-  def self.main_plugin_of(defn)
-    d = begin
-          defn.attribute_dictionary('VRayInfo', false)
-        rescue StandardError
-          nil
-        end
-    d ? (begin; d['main_plugin']; rescue StandardError; nil; end) : nil
-  end
-
-  # Dangling seeds (loaded, but naming a plugin absent from this model's
-  # scene): when a RESOLVABLE V-Ray light stands in the model, offer to
-  # rebuild the dead layers as unique copies of it — the mechanism Benton
-  # verified live (duplicating an in-model light makes V-Ray duplicate its
-  # plugin) — and re-save the seed files over the dead ones. Runs inside
-  # the open operation. defs is edited in place: a rebuilt role gets its
-  # new definition, a refused role is deleted.
-  def self.rebuild_dangling(model, defs, paths, dangling, scene, names)
-    src = find_source_light(model)
-    if src && src.respond_to?(:definition)
-      smp = main_plugin_of(src.definition)
-      unless plugin_verdict(smp, plugin_probe(scene, names, smp)) == :ok
-        puts "  \"#{display_name(src)}\" cannot be the rebuild source — its own " \
-             "plugin reference #{smp ? "\"#{smp}\" does not resolve here" : 'is missing'}: " \
-             'copies of it would be more dead seeds.'
-        src = nil
-      end
-    end
-    if src.nil?
-      puts '  TO FIX: draw one V-Ray Rectangle Light in THIS model (V-Ray'
-      puts '  toolbar > Lights > Rectangle Light) and press again — the tool'
-      puts '  will offer to rebuild the dead seeds as copies of it. A seed'
-      puts '  .skp only works in a model whose V-Ray scene still holds the'
-      puts '  plugin it names.'
-      dangling.each_key { |r| defs.delete(r) }
-      return
-    end
-    ans = UI.inputbox(
-      ["Rebuild #{dangling.size} dead seed#{dangling.size == 1 ? '' : 's'} " \
-       "as copies of \"#{display_name(src)}\" (overwrites the .skp files)?"],
-      ['No'], ['Yes|No'], 'Dead V-Ray light seeds — rebuild them?')
-    unless ans && ans[0] == 'Yes'
-      puts '  Rebuild declined — the dead layers stay refused; the rest place.'
-      dangling.each_key { |r| defs.delete(r) }
-      return
-    end
-    dangling.each_key do |role|
-      seed_name = SEEDS[role][0]
-      dead = defs[role]
-      temp = model.active_entities.add_instance(src.definition, IDENT)
-      temp.make_unique
-      d = temp.definition
-      if d == src.definition
-        puts "  REBUILD FAILED (#{role}): make_unique did not copy the " \
-             'light — this layer stays refused.'
-        temp.erase!
-        defs.delete(role)
-        next
-      end
-      lost = own_dict_names(src.definition) - own_dict_names(d)
-      unless lost.empty?
-        puts "  REBUILD FAILED (#{role}): the copy lost V-Ray dictionaries " \
-             "#{lost.inspect} — a dead light will not be placed or saved; " \
-             'this layer stays refused.'
-        temp.erase!
-        defs.delete(role)
-        next
-      end
-      temp.erase! # keep the definition, drop the placeholder instance
-      (model.definitions.remove(dead) rescue nil) if dead
-      begin
-        d.name = seed_name
-      rescue StandardError => e
-        puts "  note: could not rename the rebuilt copy to \"#{seed_name}\" " \
-             "(#{e.message}) — placed anyway."
-      end
-      path = paths[role]
-      if path
-        begin
-          save_skp(d, path)
-          puts "  rebuilt #{seed_name}.skp over the dead file -> #{path}"
-        rescue StandardError => e
-          puts "  note: rebuilt IN-MODEL only — could not overwrite " \
-               "#{path} (#{e.message})."
-        end
-      end
-      defs[role] = d
-      mp = main_plugin_of(d)
-      puts "  #{role}: now placing copies of \"#{display_name(src)}\" " \
-           "(plugin #{mp ? "\"#{mp}\"" : 'unreadable'}) — this layer WILL " \
-           'emit here. The rewritten seed file works only in models whose ' \
-           'V-Ray scene holds that plugin.'
-    end
-  end
-
   # ---- the dialog ---------------------------------------------------------
 
   def self.ask
@@ -1499,35 +1408,62 @@ module WR_DropLights
     }
   end
 
-  # ==== V-RAY WRITE SEAM ===================================================
-  # Brightness / Warmth / exposure land HERE and today they are PRINTED as
-  # an Asset Editor recipe, never written: whether a scene.change write on a
-  # light or camera plugin sticks (or is wiped on the next export) is
-  # undetermined until the probe in interior-lighting-design.md §3.3 runs,
-  # and a wrong write into V-Ray settings persists in the model. When the
-  # probe proves the write path, replace THIS METHOD BODY with the writes
-  # and keep the printout as confirmation — its inputs already carry every
-  # target value. Nothing outside this method changes.
-  def self.print_asset_advice(targets, opts)
+  # ==== WHAT WAS ACTUALLY WRITTEN INTO V-RAY ===============================
+  # Brightness and Warmth are no longer advice: each light owns its plugin
+  # and this tool writes them (see the header). What survives as advice is
+  # EXPOSURE, which nothing here sets and nothing here can source — it is a
+  # camera setting, a known open item, and it is 30-60x more important than
+  # any lumen number.
+  #
+  # `layers` is { role => report-hash-from-configure_light } for the FIRST
+  # light of each layer, plus :target and :count. One block per layer, not
+  # per light: twelve identical blocks is not a report.
+  def self.print_light_report(layers, opts)
     puts ''
-    puts '  ASSET EDITOR TARGETS (this tool does not write V-Ray settings;'
-    puts '  nudge the sliders to these values):'
-    targets.each do |t|
-      puts format('    %-22s -> %s lm   (Units: Luminous Power)',
-                  "\"#{t[:seed]}\"", t[:lumens].to_s)
+    puts '  WHAT WAS WRITTEN INTO EACH V-RAY LIGHT (one plugin per light —'
+    puts '  no shared asset any more, so these are per-light values):'
+    layers.each do |role, r|
+      spec = LIGHT_LAYERS[role]
+      rgb = r[:rgb]
+      puts format('    %-15s x%-3d  %.0f" x %.0f"  units %s  intensity %.1f',
+                  spec[:label], r[:count], spec[:u], spec[:v],
+                  UNITS_SCALAR.to_i.to_s, r[:intensity])
+      puts format('                    target %d lm (design), colour %dK ' \
+                  '= rgb %.3f %.3f %.3f, invisible ON',
+                  r[:target].round, opts[:kelvin], rgb[0], rgb[1], rgb[2])
+      if r[:sizes] && r[:sizes].compact.size == 2
+        puts format('                    plugin read back u_size %s, v_size %s',
+                    r[:sizes][0].to_s, r[:sizes][1].to_s)
+      end
+      puts "                    NOTE: #{r[:color_err]}" if r[:color_err]
+      next if r[:bad].nil? || r[:bad].empty?
+      puts "    ** #{spec[:label]}: these writes DID NOT STICK — " \
+           "#{r[:bad].map(&:to_s).join(', ')}. Read them in the Asset " \
+           'Editor before rendering; the light placed anyway.'
+      r[:writes].each do |key, want, got, stuck, err|
+        next if stuck
+        puts format('       %s: wanted %s, plugin holds %s%s', key.to_s,
+                    want.inspect, got.inspect, err ? " (#{err})" : '')
+      end
     end
-    puts format('    every light asset    -> Color Mode: Temperature, %d K', opts[:kelvin])
-    puts '    every light asset    -> INVISIBLE: ON. Without it every light'
-    puts '                            renders as a bare WHITE RECTANGLE in'
-    puts '                            the image — the fixture must never be'
-    puts '                            seen, only its light.'
+    puts ''
+    puts format('  UNITS = %s. The units enum is NOT documented in the V-Ray',
+                UNITS_SCALAR.to_i.to_s)
+    puts '  docs installed on this machine, so this tool stays on V-Ray\'s'
+    puts '  own default scalar rather than guessing "1 = lumens". Intensity'
+    puts '  is anchored to the 24"x48" @ 30 light that rendered correctly on'
+    puts '  2026-08-28. If EVERY light is uniformly too bright or too dim by'
+    puts '  roughly the same factor, that anchor is the thing to move'
+    puts '  (REF_INTENSITY), or the area correction (AREA_NORMALIZED = 0.0).'
     if opts[:exposure]
-      puts '    Settings > Camera    -> Exposure Value 8 (or enable Auto'
-      puts '    Exposure). The default EV 14.2 is full-sun exterior and'
-      puts '    renders ANY sane interior rig 30-60x too dark.'
+      puts ''
+      puts '  EXPOSURE IS STILL YOURS — nothing here writes it. Asset Editor'
+      puts '  > Settings > Camera > Exposure Value 8 (or Auto Exposure). The'
+      puts '  default EV 14.2 is full-sun exterior and renders ANY sane'
+      puts '  interior rig 30-60x too dark. No lumen number fixes that.'
     end
   end
-  # ==== END V-RAY WRITE SEAM ==============================================
+  # ==== END REPORT =========================================================
 
   def self.fmt(pt)
     format('(%.1f", %.1f", %.1f")', pt[0], pt[1], pt[2])
@@ -1556,20 +1492,14 @@ module WR_DropLights
 
     if subjects.empty?
       if handmade.any?
-        # THE moment he has a light selected and is being told it is not a
-        # room — print the evidence dump we otherwise cannot reach (minting
-        # will not re-fire once the seeds exist).
-        handmade.uniq { |e| e.respond_to?(:definition) ? e.definition : e }
-                .each { |e| dump_light(e) }
         names = handmade.map { |e| "\"#{display_name(e)}\"" }.join(', ')
         puts ''
         puts "REFUSED — only a light is selected (#{names}); a light is " \
              'never a lighting subject. Select the ROOM group instead.'
         UI.messagebox("#{names} is a V-Ray light, not a room — this tool " \
                       "never lights a light.\n\nSelect the ROOM group (the " \
-                      "build-room group with the WR-Floor child) and press " \
-                      "again.\n\nA V-RAY LIGHT DUMP was printed to the Ruby " \
-                      'Console — copy that whole block back to Claude.')
+                      'build-room group with the WR-Floor child) and press ' \
+                      'again.')
       elsif excluded.any?
         UI.messagebox('The selection holds only lights (previously dropped ' \
                       "or tagged \"#{TAG}\") — nothing to light.\n\nSelect " \
@@ -1591,136 +1521,121 @@ module WR_DropLights
     opts = ask
     return unless opts # cancelled
 
-    # Resolve the seeds the requested layers need. A missing seed refuses
-    # ITS layer by name — but first the on-the-spot fix: when a hand-made
-    # V-Ray light is in the model, offer to mint the missing seed files as
-    # copies of it and carry on in the same press.
-    paths, refusals, legacy_note = resolve_seeds(opts)
-    unless refusals.empty?
-      seed_src = offer_minting(model, refusals)
-      # (the seed source is a V-Ray light, so split_selection already kept
-      # it out of subjects — nothing to remove here)
-      paths, refusals, legacy_note = resolve_seeds(opts) if seed_src
+    # THE API CHECK — before a single entity moves. There is no seed
+    # fallback any more: if the V-Ray light API is not here, nothing can
+    # be placed, and saying so now beats half a rig and a black render.
+    why = vray_api_missing
+    ctx = nil
+    unless why
+      ctx, why = vray_context
     end
-
-    unless refusals.empty?
-      txt = refusals.map { |r| seed_refusal(r) }.join("\n\n")
+    if why
       puts ''
-      refusals.each { |r| puts "REFUSED (#{r}): #{seed_refusal(r)}" }
-      UI.messagebox("#{txt}\n\nLooked in:\n#{seed_candidates(SEEDS[refusals.first][0]).join("\n")}")
-      if paths[:downlight].nil?
-        puts 'Nothing to place — the ambient Downlight seed is required.'
-        return
-      end
+      puts "REFUSED — #{why}"
+      puts '  This tool builds every light through VRay::Command.' \
+           'create_rectangle_light. Open V-Ray (any V-Ray toolbar button ' \
+           'wakes it), make sure the render engine has loaded, and press ' \
+           'again. Nothing was placed and nothing was removed.'
+      UI.messagebox("The V-Ray light API is not available:\n\n#{why}\n\n" \
+                    'Nothing was placed. Open V-Ray and press again.')
+      return
     end
+    scene = vray_scene(ctx)
+
+    # Which layers this press is allowed to build. Every layer is now
+    # buildable — including ACCENT, which never existed as a seed .skp and
+    # so had been skipped on every press since this tool shipped.
+    enabled = { :downlight => true, :wallwash => opts[:wash],
+                :booth => opts[:booth], :accent => opts[:booth] }
 
     model.start_operation('Drop Interior Lights', true)
     begin
-      defs = {}
-      paths.each do |role, path|
-        d = begin
-              model.definitions.load(path)
-            rescue StandardError => e
-              raise "SketchUp could not load the seed component:\n#{path}\n#{e.message}"
-            end
-        raise "SketchUp could not load the seed component:\n#{path}" if d.nil?
-        defs[role] = d
-      end
-
-      # ---- WILL IT EMIT — resolve every seed's plugin reference ----------
-      # The /Rectangle Light incident (see the header): a seed naming a
-      # plugin absent from this model's V-Ray scene places, lists in the
-      # Asset Editor, and never emits. Checked here, before anything is
-      # placed; a dangling layer is refused by name (or rebuilt on the
-      # spot from a resolvable in-model light).
-      scene, scene_why = vray_scene
-      names = scene ? scene_plugin_names(scene) : nil
-      emit_unknown = []
-      puts ''
-      if scene.nil?
-        puts "  CANNOT CHECK EMISSION — #{scene_why}. The lights will " \
-             'place, but whether they emit is UNVERIFIED: a V-Ray light ' \
-             'only works where its scene plugin exists.'
-      else
-        dangling = {}
-        defs.each do |role, d|
-          mp = main_plugin_of(d)
-          case plugin_verdict(mp, plugin_probe(scene, names, mp))
-          when :ok
-            puts "  seed \"#{d.name}\": V-Ray plugin \"#{mp}\" FOUND in " \
-                 "this model's scene — this layer WILL emit."
-          when :unknown
-            emit_unknown << role
-            puts "  seed \"#{d.name}\": plugin \"#{mp}\" could NOT be " \
-                 'checked (the V-Ray scene would not answer) — placed ' \
-                 'anyway. If the render comes out unlit, start here.'
-          when :dangling
-            dangling[role] = mp
-            puts "REFUSED (#{role}): seed \"#{d.name}\" names V-Ray " \
-                 "plugin \"#{mp}\" and this model's scene does NOT have " \
-                 'it. Its lights would place, list in the Asset Editor, ' \
-                 'and NEVER EMIT (V-Ray: "Could not find ' \
-                 "#{mp} to duplicate\") — not placed."
-          when :no_ref
-            dangling[role] = nil
-            puts "REFUSED (#{role}): seed \"#{d.name}\" carries no " \
-                 'VRayInfo "main_plugin" reference — it is not a working ' \
-                 'V-Ray light and would never emit. Not placed.'
-          end
-        end
-        rebuild_dangling(model, defs, paths, dangling, scene, names) unless dangling.empty?
-        if defs[:downlight].nil?
-          raise 'Nothing placed — the ambient Downlight seed names a ' \
-                "V-Ray plugin this model's scene does not have, and it " \
-                'was not rebuilt. See the Ruby Console for the fix.'
-        end
-      end
-
       ents  = model.active_entities
       layer = tag(model)
-      boxes = subjects.map(&:bounds).select(&:valid?)
-      stale = stale_lights(ents, boxes)
-      ents.erase_entities(stale) unless stale.empty?
+      etr = begin
+              model.edit_transform
+            rescue StandardError
+              IDENT
+            end
+
+      # THE STALE SWEEP — recursive, world-space, and it takes the V-Ray
+      # plugin with it. See collect_lights: the old sweep was flat and
+      # local, so a press inside an open group doubled the rig.
+      boxes = subjects.map { |sub| world_bounds(sub, etr) }
+                      .select(&:valid?).map { |bb| box_of(bb) }
+      stale, deep = stale_lights(model, boxes)
+      erased, plugs_gone, plugs_left = erase_lights(model, scene, stale)
 
       puts ''
       puts "Drop Interior Lights — density #{opts[:density]}, brightness " \
            "#{opts[:bright]} (x#{opts[:mult]}), #{opts[:kelvin]}K, " \
            "wash #{opts[:wash] ? 'on' : 'off'}, booth #{opts[:booth] ? 'on' : 'off'}"
-      puts "  replaced #{stale.size} previously dropped light#{stale.size == 1 ? '' : 's'}" unless stale.empty?
-      puts "  NOTE: #{legacy_note}" if legacy_note
+      unless stale.empty?
+        puts format('  replaced %d previously dropped light%s (V-Ray ' \
+                    'plugins: %d deleted, %d left behind)', erased,
+                    erased == 1 ? '' : 's', plugs_gone, plugs_left)
+        if plugs_left > 0
+          puts '    A left-behind plugin is a light asset with no light — ' \
+               'harmless in the render, but it clutters the Asset Editor. ' \
+               'Lights dropped before 1.8.0 shared a seed asset and never ' \
+               'owned a plugin to delete.'
+        end
+      end
+      if deep
+        puts "  NOTE: the stale sweep stopped at #{SWEEP_MAX_DEPTH} levels " \
+             'of nesting. Lights buried deeper than that were NOT removed ' \
+             'and this press may have stacked on top of them.'
+      end
+      unless etr.identity?
+        puts '  NOTE: you are inside an open group/component. The lights ' \
+             'land in THAT context, not at model top level — press Esc to ' \
+             'close the edit first if that is not what you want. The ' \
+             'stale sweep works in world coordinates either way.'
+      end
       puts '  room lights mount FLUSH with the wall top (Benton, 2026-08-27: ' \
            'a 6" drop drew a "light line" on the walls). A room with a real ' \
            'ceiling SLAB would bury a flush light — none of ours has one; ' \
            "booth interior lights sit #{BOOTH_DROP.to_i}\" below the booth top."
-      # Mount-height honesty: placement puts each seed's ORIGIN at the
-      # computed mount point. If the geometry inside a seed .skp sits away
-      # from its own origin, every light on that layer lands offset by that
-      # much — invisible in this code, visible in the viewport. Say it as a
-      # number, not a mystery.
-      defs.each do |role, d|
-        bb = d.bounds
-        next if bb.min.z > -1.0 && bb.max.z < 1.0 # origin-hugging: fine
-        puts format('  NOTE: seed "%s" (%s) geometry spans z %.2f"..%.2f" ' \
-                    'from its own origin — its lights land that far off the ' \
-                    'mount plane. Re-author the seed at the origin to fix.',
-                    d.name, role, bb.min.z, bb.max.z)
-      end
 
       placed = 0
-      down_targets = []   # per-room per-fixture lumen targets, for the advice
-      booth_targets = []
-      any_wash = false
-      any_accent = false
+      layers_rep = {}
 
-      place = lambda do |role, pt, extra_tr = nil|
+      # ONE V-Ray light per call — that is the whole point of the rebuild.
+      # Each light gets its own plugin, so its own brightness and colour.
+      # Creating a light is a V-Ray-scene change and V-Ray's scene is NOT
+      # on SketchUp's undo stack: if this press aborts, the SketchUp side
+      # rolls back and the plugins it made may stay in the Asset Editor.
+      place = lambda do |role, pt, target_lm, extra_tr = nil|
+        spec = LIGHT_LAYERS[role]
+        d, plug = create_light(ctx, spec[:u], spec[:v])
+        rpt = configure_light(plug, role, target_lm, opts[:kelvin])
         t = Geom::Transformation.translation(Geom::Point3d.new(*pt))
+        if FACE_FLIP != 0.0
+          t = t * Geom::Transformation.rotation(Geom::Point3d.new(0, 0, 0),
+                                                Geom::Vector3d.new(1, 0, 0),
+                                                FACE_FLIP.degrees)
+        end
         t = t * extra_tr if extra_tr
-        inst = ents.add_instance(defs[role], t)
-        raise "add_instance failed (#{role})" if inst.nil?
+        inst = ents.add_instance(d, t)
+        if inst.nil?
+          raise "add_instance failed (#{role}) — the V-Ray light was " \
+                'created but could not be placed in the model.'
+        end
         inst.layer = layer
-        inst.set_attribute(DICT, 'seed', SEEDS[role][0])
+        inst.set_attribute(DICT, 'seed', spec[:label])
         inst.set_attribute(DICT, 'role', role.to_s)
+        inst.set_attribute(DICT, 'plugin', plugin_name(plug))
         placed += 1
+        prev = layers_rep[role]
+        if prev.nil?
+          layers_rep[role] = rpt.merge(
+            :count => 1, :target => target_lm.to_f,
+            :intensity => scalar_intensity(target_lm, spec[:u], spec[:v]))
+        else
+          prev[:count] += 1
+          prev[:bad] = (prev[:bad] + rpt[:bad]).uniq
+          rpt[:writes].each { |w| prev[:writes] << w unless w[3] }
+        end
         inst
       end
 
@@ -1744,18 +1659,17 @@ module WR_DropLights
                  "\"#{display_name(host)}\" — handled with that room."
             next
           end
-          if defs[:booth]
+          if enabled[:booth]
             bb = s.bounds
             pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
                   bb.max.z - BOOTH_DROP]
-            place.call(:booth, pt)
             lm = booth_lumens((bb.max.x - bb.min.x) * (bb.max.y - bb.min.y), opts[:mult])
-            booth_targets << lm
+            place.call(:booth, pt, lm)
             puts "  #{name}: selected booth — 1 interior light at #{fmt(pt)}, " \
                  "target #{lm} lm"
           else
-            puts "  #{name}: selected booth but the Booth layer is off or its " \
-                 'seed is missing — nothing placed here.'
+            puts "  #{name}: selected booth but the Booth layer is switched " \
+                 'off in the dialog — nothing placed here.'
           end
           next
         end
@@ -1868,7 +1782,7 @@ module WR_DropLights
         # B — wall-wash wall choice (also decided before the verdict)
         wall_i = nil
         wps = []
-        if opts[:wash] && defs[:wallwash]
+        if opts[:wash] && enabled[:wallwash]
           door = info[:doors].max_by { |d| d[:w] }
           if door
             puts "  #{name}: door#{info[:doors].size == 1 ? '' : 's'} found " \
@@ -1906,9 +1820,8 @@ module WR_DropLights
           next
         end
 
-        grid[:pts].each { |p| place.call(:downlight, [p[0], p[1], z_m]) }
         lm = downlight_lumens(area, grid[:pts].size, opts[:mult])
-        down_targets << lm
+        grid[:pts].each { |p| place.call(:downlight, [p[0], p[1], z_m], lm) }
         puts format('  %s: ambient %d light%s, spacing %.0f", ceiling %.0f", ' \
                     'target %d lm per fixture', name, grid[:pts].size,
                     grid[:pts].size == 1 ? '' : 's', grid[:s], h, lm)
@@ -1921,8 +1834,8 @@ module WR_DropLights
           if wps.empty?
             puts "  #{name}: every wall-wash position was culled — layer skipped here."
           else
-            wps.each { |p| place.call(:wallwash, [p[0], p[1], z_m]) }
-            any_wash = true
+            wash_lm = LIGHT_LAYERS[:wallwash][:lm] * opts[:mult]
+            wps.each { |p| place.call(:wallwash, [p[0], p[1], z_m], wash_lm) }
             puts format('  %s: wall wash %d light%s at 24" standoff on wall ' \
                         'run %d: %s', name, wps.size, wps.size == 1 ? '' : 's',
                         wall_i + 1, wps.map { |p| format('(%.0f, %.0f)', p[0], p[1]) }.join(' '))
@@ -1940,16 +1853,15 @@ module WR_DropLights
           booths.each do |o|
             bname = display_name(o[:ent])
             bb = o[:bb]
-            if defs[:booth]
+            if enabled[:booth]
               pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
                     bb.max.z - BOOTH_DROP]
-              place.call(:booth, pt)
               lm = booth_lumens((bb.max.x - bb.min.x) * (bb.max.y - bb.min.y), opts[:mult])
-              booth_targets << lm
+              place.call(:booth, pt, lm)
               puts "  #{name}: booth \"#{bname}\" interior light at #{fmt(pt)}, " \
                    "target #{lm} lm"
             end
-            if defs[:accent]
+            if enabled[:accent]
               dc = booth_door_center(o)
               if dc.nil?
                 puts "  #{name}: booth \"#{bname}\" has no WR-Booth-Door tagged " \
@@ -1971,8 +1883,8 @@ module WR_DropLights
                       Geom::Point3d.new(0, 0, 0),
                       Geom::Vector3d.new(ax[0], ax[1], 0),
                       ACCENT_TILT.degrees)
-                    place.call(:accent, apt, rot)
-                    any_accent = true
+                    place.call(:accent, apt,
+                               LIGHT_LAYERS[:accent][:lm] * opts[:mult], rot)
                     puts "  #{name}: booth \"#{bname}\" accent at #{fmt(apt)}, " \
                          "tilted #{ACCENT_TILT.to_i} deg onto the door face"
                   else
@@ -1981,9 +1893,6 @@ module WR_DropLights
                   end
                 end
               end
-            elsif opts[:booth] && !booths.empty?
-              puts "  accent layer skipped — optional scripts/vray-seeds/" \
-                   "#{SEEDS[:accent][0]}.skp not authored (#{SEEDS[:accent][1]})."
             end
           end
         end
@@ -1992,39 +1901,35 @@ module WR_DropLights
       raise 'Nothing was placed — see the per-room lines above.' if placed.zero?
       model.commit_operation
 
-      targets = []
-      unless down_targets.empty?
-        targets << { :seed => SEEDS[:downlight][0],
-                     :lumens => (down_targets.inject(:+) / down_targets.size.to_f).round }
-      end
-      targets << { :seed => SEEDS[:wallwash][0],
-                   :lumens => targets.first ? (targets.first[:lumens] / 2.0).round : 1500 } if any_wash
-      unless booth_targets.empty?
-        targets << { :seed => SEEDS[:booth][0],
-                     :lumens => (booth_targets.inject(:+) / booth_targets.size.to_f).round }
-      end
-      targets << { :seed => SEEDS[:accent][0],
-                   :lumens => targets.first ? targets.first[:lumens] * 2 : 6000 } if any_accent
-      print_asset_advice(targets, opts)
+      print_light_report(layers_rep, opts)
       puts ''
-      # The bottom line Benton reads before rendering: will these emit?
-      if scene.nil?
-        puts '  WILL IT EMIT: UNVERIFIED — V-Ray was not readable when ' \
-             "these placed (#{scene_why})."
-      elsif emit_unknown.any?
-        puts '  WILL IT EMIT: probably — but the ' \
-             "#{emit_unknown.map(&:to_s).join(', ')} layer" \
-             "#{emit_unknown.size == 1 ? "'s plugin" : "s' plugins"} " \
-             'could not be checked (see above).'
+      bad = layers_rep.values.map { |r| r[:bad] }.flatten.uniq
+      if bad.empty?
+        puts '  WILL IT EMIT: every light was made by V-Ray itself and owns ' \
+             'its own plugin, and every parameter written read back the ' \
+             'value it was given. There is no seed and no shared asset.'
       else
-        puts '  WILL IT EMIT: YES — every placed layer resolved to a ' \
-             "plugin that exists in this model's V-Ray scene."
+        puts "  WILL IT EMIT: the lights are real V-Ray lights, but " \
+             "#{bad.map(&:to_s).join(', ')} did not read back — check those " \
+             'in the Asset Editor before rendering (details above).'
       end
       puts "  #{placed} light#{placed == 1 ? '' : 's'} in #{subjects.size} " \
-           "container#{subjects.size == 1 ? '' : 's'}. Ctrl+Z removes them " \
-           'all; a re-press replaces them. Move tool and eraser fine-tune.'
+           "container#{subjects.size == 1 ? '' : 's'}. Ctrl+Z removes the " \
+           'lights (their V-Ray plugins may linger in the Asset Editor — ' \
+           'a re-press deletes the ones it replaces). Move tool and eraser ' \
+           'fine-tune.'
     rescue StandardError => e
       model.abort_operation
+      # SketchUp's undo stack owns the geometry; V-Ray's scene does not sit
+      # on it. Any light plugins made before the failure are still in the
+      # Asset Editor with no instance to go with them. Say so — an
+      # unexplained pile of orphan light assets is how a tool loses trust.
+      if placed && placed > 0
+        puts "  NOTE: #{placed} V-Ray light plugin#{placed == 1 ? '' : 's'} " \
+             'had already been created when this failed. The SketchUp side ' \
+             'rolled back; those plugins may remain in the Asset Editor as ' \
+             'lights with no instance. Delete them there if they bother you.'
+      end
       raise e
     end
   end
