@@ -26,6 +26,9 @@
 #     the interior lights switched off and quietly renders an unlit booth.
 #   - the active style
 #   - shadow_info (DisplayShadows, UseSunForAllShading, Light, Dark)
+#   - rendering_options' AmbientOcclusion (RO_KEYS) — the soft contact
+#     shading under the booth lives HERE, not in shadow_info. Turning sun
+#     shadows off alone still leaves those AO puddles in a draft view.
 #
 # BOTH STATES ARE REMEMBERED, NOT ASSUMED
 #
@@ -34,16 +37,31 @@
 # in" — in an attribute dictionary, so it survives a save. The very first
 # toggle a model ever sees has no such snapshot to draw on, so a small,
 # clearly-commented default is used instead (dims on for draft, dims off for
-# render, shadows on for a photographic look). Every toggle after that
+# render, shadows on in render for a photographic look, shadows and AO off
+# in draft for a flat measurable one). Every toggle after that
 # restores exactly what was there before, including any hand-tweaked style or
 # shadow setting from the last time this mode was active — never a hard-coded
 # default fighting a choice Benton already made in the viewport.
 #
-# ONE EXCEPTION: the LIGHT_TAGS keys are POLICY, not memory. A light tag
-# hidden while in render mode must never be memorised as "the render state"
-# — that records a silently-unlit V-Ray pass forever — so every snapshot has
-# its light keys pinned to the mode's polarity (see pin_light_tags). The
-# dimension tags keep the full remember-what-was-showing contract.
+# TWO EXCEPTIONS, both POLICY rather than memory:
+#
+#   1. LIGHT_TAGS. A light tag hidden while in render mode must never be
+#      memorised as "the render state" — that records a silently-unlit
+#      V-Ray pass forever — so every snapshot has its light keys pinned to
+#      the mode's polarity (see pin_light_tags).
+#   2. DRAFT IS FLAT (2026-08-27, Benton: "I still see shadows in draft").
+#      Draft mode MEANS a clean, flat, shadow-free image, so every DRAFT
+#      snapshot has DisplayShadows and AmbientOcclusion pinned OFF (see
+#      pin_draft_flat) — which also heals the snapshot every already-toggled
+#      model stored back when draft's default kept shadows on. RENDER
+#      snapshots stay pure memory for these keys: V-Ray owns the
+#      photographic look, and a shadow choice made there is respected.
+#      The cost, stated plainly: shadows or AO turned on while sitting in
+#      draft mode survive until the next toggle and are then forgotten —
+#      they are the one viewport choice the toggle now refuses to remember.
+#
+# The dimension tags, style, sun position and Light/Dark values keep the
+# full remember-what-was-showing contract.
 #
 # TOUCHES NO GEOMETRY. Fully reversible: everything this script changes is a
 # tag's visibility, the selected style, a shadow_info key or a material
@@ -74,7 +92,7 @@ ensure
 end
 
 module WR_Mode
-  %w[DICT DIM_TAGS LIGHT_TAGS DEFAULT].each { |c| remove_const(c) if const_defined?(c, false) }
+  %w[DICT DIM_TAGS LIGHT_TAGS RO_KEYS DEFAULT].each { |c| remove_const(c) if const_defined?(c, false) }
 
   DICT = 'WR_Mode'.freeze
 
@@ -85,21 +103,36 @@ module WR_Mode
   # V-Ray pass render an unlit booth — a silent, plausible-looking failure.
   LIGHT_TAGS = ['WR Lights'].freeze
 
+  # model.rendering_options keys under mode management. AmbientOcclusion is
+  # the soft contact shading under the booth — a rendering option, NOT a
+  # shadow_info key, which is why turning DisplayShadows off never removed
+  # it. Same key name wr-shading.rb's TRANSPARENCY set already writes; the
+  # apply read-back below reports it as stuck if this SketchUp build does
+  # not know the key, rather than silently doing nothing.
+  RO_KEYS = ['AmbientOcclusion'].freeze
+
   # Used only the very first time a model enters a mode with no stored
   # snapshot yet. Not a measurement, not a claim about what any given model
   # should look like — a starting point that gets overwritten by the real
-  # state the moment the model leaves that mode again.
+  # state the moment the model leaves that mode again. (For draft's shadow
+  # and AO keys the pin_draft_flat policy makes the same OFF choice on
+  # every entry, not just the first — see the header.)
   DEFAULT = {
     'draft'  => { 'dims'   => DIM_TAGS.each_with_object({}) { |n, h| h[n] = true }
                               .merge(LIGHT_TAGS.each_with_object({}) { |n, h| h[n] = false }),
                   'style'  => nil,
-                  'shadow' => { 'DisplayShadows' => true, 'UseSunForAllShading' => false,
-                                'Light' => WR_Shading::DEF_LIGHT, 'Dark' => WR_Shading::DEF_DARK } },
+                  # Draft is the flat, measurable look: no sun shadows, no AO.
+                  'shadow' => { 'DisplayShadows' => false, 'UseSunForAllShading' => false,
+                                'Light' => WR_Shading::DEF_LIGHT, 'Dark' => WR_Shading::DEF_DARK },
+                  'ro'     => { 'AmbientOcclusion' => false } },
     'render' => { 'dims'   => DIM_TAGS.each_with_object({}) { |n, h| h[n] = false }
                               .merge(LIGHT_TAGS.each_with_object({}) { |n, h| h[n] = true }),
                   'style'  => nil,
                   'shadow' => { 'DisplayShadows' => true, 'UseSunForAllShading' => false,
-                                'Light' => WR_Shading::DEF_LIGHT, 'Dark' => WR_Shading::DEF_DARK } }
+                                'Light' => WR_Shading::DEF_LIGHT, 'Dark' => WR_Shading::DEF_DARK },
+                  # An empty hash on purpose: a first entry into render leaves
+                  # AO exactly as the viewport sits — V-Ray owns that look.
+                  'ro'     => {} }
   }.freeze
 
   # --------------------------------------------------------------- storage --
@@ -126,9 +159,11 @@ module WR_Mode
   def self.snapshot(model)
     ro_style = (model.styles.selected_style.name rescue nil)
     si = model.shadow_info
+    ro = model.rendering_options
     { 'dims'   => (DIM_TAGS + LIGHT_TAGS).each_with_object({}) { |n, h| l = model.layers[n]; h[n] = l ? l.visible? : nil },
       'style'  => ro_style,
-      'shadow' => WR_Shading::SHADOW_KEYS.each_with_object({}) { |k, h| h[k] = (si[k] rescue nil) } }
+      'shadow' => WR_Shading::SHADOW_KEYS.each_with_object({}) { |k, h| h[k] = (si[k] rescue nil) },
+      'ro'     => RO_KEYS.each_with_object({}) { |k, h| h[k] = (ro[k] rescue nil) } }
   end
 
   # LIGHT_TAGS are POLICY, never memory: hidden in draft, visible in
@@ -146,6 +181,28 @@ module WR_Mode
     return snap if snap.nil? || snap['dims'].nil?
     LIGHT_TAGS.each { |n| snap['dims'][n] = (mode == 'render') }
     snap
+  end
+
+  # DRAFT'S FLATNESS IS POLICY TOO (exception 2 in the header). A draft
+  # snapshot has DisplayShadows and every RO_KEYS key pinned OFF — creating
+  # the sub-hashes when a pre-fix snapshot lacks them, which is exactly how
+  # a snapshot stored under the old shadows-on default gets healed on its
+  # next apply instead of preserving the fault forever. A render snapshot
+  # passes through untouched: those keys stay pure memory there. Sun
+  # position (UseSunForAllShading) and Light/Dark are NOT pinned — they do
+  # not put shadows on the floor and stay remembered.
+  def self.pin_draft_flat(snap, mode)
+    return snap if snap.nil? || mode != 'draft'
+    (snap['shadow'] ||= {})['DisplayShadows'] = false
+    ro = (snap['ro'] ||= {})
+    RO_KEYS.each { |k| ro[k] = false }
+    snap
+  end
+
+  # Every snapshot point applies BOTH policy pins through this one call, so
+  # no future call site can pick up one pin and forget the other.
+  def self.pin_policy(snap, mode)
+    pin_draft_flat(pin_light_tags(snap, mode), mode)
   end
 
   def self.apply_snapshot(model, snap)
@@ -167,6 +224,21 @@ module WR_Mode
       end
       got = (si[k] rescue :unreadable)
       stuck << "shadow #{k}: wanted #{v.inspect}, still #{got.inspect}" unless got == v
+    end
+    # AO and friends live in rendering_options, not shadow_info — same
+    # write-then-read-back discipline, because an unknown key here fails
+    # SILENTLY (the []= just does nothing) and only the read-back shows it.
+    ro = model.rendering_options
+    (snap['ro'] || {}).each do |k, v|
+      next if v.nil?
+      begin
+        ro[k] = v
+      rescue StandardError => e
+        stuck << "render-option #{k}: write raised #{e.class}"
+        next
+      end
+      got = (ro[k] rescue :unreadable)
+      stuck << "render-option #{k}: wanted #{v.inspect}, still #{got.inspect}" unless got == v
     end
     stuck
   end
@@ -190,7 +262,7 @@ module WR_Mode
       # case "whatever is showing now" is as good a guess at "draft" as any).
       current = st['current']
       if current == other || current.nil?
-        save(model, other, pin_light_tags(snapshot(model), other), other)
+        save(model, other, pin_policy(snapshot(model), other), other)
       end
 
       mat_result = target == 'render' ? WR_MaterialsSwap.to_render(model) : WR_MaterialsSwap.to_draft(model)
@@ -199,19 +271,21 @@ module WR_Mode
       # write into the shared frozen constant's inner hashes.
       target_snap = st[target] || JSON.parse(DEFAULT[target].to_json)
 
-      # Pin the light keys to this mode's polarity — this both fills keys
-      # missing from pre-LIGHT_TAGS snapshots AND overrides a wrong light
-      # state a pre-fix plugin memorised (see pin_light_tags). Dim keys are
+      # Pin the policy keys to this mode's polarity — this both fills keys
+      # missing from older snapshots AND overrides a wrong state a pre-fix
+      # plugin memorised: a hidden light tag in render (pin_light_tags), or
+      # shadows/AO on in draft (pin_draft_flat — every model toggled before
+      # 2026-08-27 stored its draft snapshot with shadows on). Dim keys are
       # left exactly as the snapshot recorded them.
-      pin_light_tags(target_snap, target)
+      pin_policy(target_snap, target)
 
       stuck = apply_snapshot(model, target_snap)
 
       # Read back what actually landed, not what was asked for, so a stuck
       # shadow key doesn't get silently recorded as "restores exactly" next
-      # time this mode is entered — pinned too, so a light tag a stuck
-      # layer write left wrong cannot be memorised either.
-      save(model, target, pin_light_tags(snapshot(model), target), target)
+      # time this mode is entered — pinned too, so a light tag or shadow/AO
+      # state a stuck write left wrong cannot be memorised either.
+      save(model, target, pin_policy(snapshot(model), target), target)
       model.commit_operation
     rescue StandardError => e
       model.abort_operation
@@ -250,12 +324,31 @@ module WR_Mode
     puts e.backtrace.first(5)
   end
 
+  def self.onoff(v)
+    return 'ON'  if v == true
+    return 'OFF' if v == false
+    'unreadable'
+  end
+
   def self.report(result)
     lines = ['']
     lines << "MODE — now #{result[:to].upcase} (was #{(result[:from] || 'unknown').to_s.upcase})"
     lines.concat(WR_MaterialsSwap.report_lines('materials', result[:materials]))
+    # What the viewport is ACTUALLY showing now, read back from the model
+    # rather than echoed from the request — so "shadows OFF" here is a
+    # fact, and a key that refused shows up both as ON here and by name in
+    # the stuck list below.
+    begin
+      m = Sketchup.active_model
+      sh = (m.shadow_info['DisplayShadows'] rescue nil)
+      ao = (m.rendering_options['AmbientOcclusion'] rescue nil)
+      lines << "  shadows #{onoff(sh)}, ambient occlusion #{onoff(ao)}" \
+               "#{result[:to] == 'draft' ? ' (draft policy: both OFF)' : ''}"
+    rescue StandardError
+      nil
+    end
     unless result[:stuck].empty?
-      lines << '  *** style/shadow keys that would not take:'
+      lines << '  *** shadow / render-option keys that would not take:'
       result[:stuck].each { |s| lines << "        #{s}" }
     end
     lines << ''

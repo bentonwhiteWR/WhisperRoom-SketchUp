@@ -105,6 +105,21 @@ coverable here: wr-mode's to_mode wiring of the pin into its three
 save/apply sites, and everything layer/render-side — SketchUp-API-side,
 unverified until a live toggle and render.
 
+MUTATION-CHECKED 2026-08-27 night (draft-is-flat additions to wr-mode.rb,
+same protocol — each mutation applied, this test run, FAIL confirmed,
+reverted): DEFAULT draft DisplayShadows false->true (the old shadows-on
+default re-applied); pin_draft_flat polarity flipped draft<->render;
+pin_draft_flat weakened to fill-only (the exact heal-loss trap — a
+poisoned snapshot keeps its memorised shadows); apply_snapshot ro values
+mis-written into shadow_info instead of rendering_options; apply_snapshot
+ro read-back deleted (a silently-refused AmbientOcclusion key goes
+unreported); pin_policy dropping the flat pin. All six KILLED. NOT
+coverable here: whether this SketchUp build honours the AmbientOcclusion
+rendering_options key at all (the key name is lifted from
+angled-component-art.rb's live probe of SketchUp 24.0.553, and the
+read-back names it as stuck if refused), and to_mode's live wiring —
+SketchUp-API-side, unverified until a real toggle.
+
 MUTATION-CHECKED 2026-08-27 (UTHSC-incident additions, same protocol):
 grid_points diag mis-charge (keep-out rejections counted as edge);
 in_keepout? forced false; room_structure_child? name match made
@@ -434,19 +449,60 @@ EXPECT = ' | '.join([
     'dk 11111',
 ])
 
-# ---- second program: wr-mode.rb's snapshot pin --------------------------
+# ---- second program: wr-mode.rb's snapshot pins -------------------------
 #
-# The self-persisting trap: hide "WR Lights" while IN render mode, toggle
-# away, and the leave-mode snapshot memorises hidden as "the render state"
-# — every future render entry re-hides the lights, silently, forever.
+# Trap 1 (lights): hide "WR Lights" while IN render mode, toggle away, and
+# the leave-mode snapshot memorises hidden as "the render state" — every
+# future render entry re-hides the lights, silently, forever.
 # pin_light_tags (lifted verbatim from wr-mode.rb, with its LIGHT_TAGS
 # list) must pin light keys to the mode's polarity while leaving the dim
 # keys' remember-what-was-showing contract alone.
+#
+# Trap 2 (shadows/AO — Benton, 2026-08-27 evening: "draft mode still shows
+# shadows"): every model toggled before the draft-is-flat fix stored a
+# draft snapshot with DisplayShadows true and no 'ro' key at all, so a
+# DEFAULT change alone can never fix an already-toggled model.
+# pin_draft_flat must HEAL such a snapshot — DisplayShadows forced off,
+# the 'ro' hash created with AmbientOcclusion off — while a render
+# snapshot passes through as pure memory (V-Ray owns that look). Also
+# exercised with stub model classes: snapshot() records AmbientOcclusion
+# under 'ro' from model.rendering_options (NOT shadow_info — the two-API
+# split is the whole reason shadows-off never removed the AO puddles),
+# and apply_snapshot() writes it back, read-back included, naming a
+# refusing key as "render-option AmbientOcclusion" in the stuck list.
 
 MODE_SRC = os.path.join(HERE, 'wr-mode.rb')
 
 MODE_FIXTURE = r'''
+# Stubs for the SketchUp surface snapshot/apply_snapshot touch. FakeOpts
+# stands in for both shadow_info and rendering_options; a key on its
+# refuse list no-ops the write SILENTLY, exactly how RenderingOptions
+# treats a key a SketchUp build does not know — only read-back catches it.
+module WR_Shading
+  DEF_LIGHT = 80
+  DEF_DARK  = 45
+  SHADOW_KEYS = %w[DisplayShadows UseSunForAllShading Light Dark].freeze
+end
+class FakeOpts
+  def initialize(seed = {}, refuse = [])
+    @h = seed
+    @refuse = refuse
+  end
+  def [](k); @h[k]; end
+  def []=(k, v); @h[k] = v unless @refuse.include?(k); end
+end
+class FakeModel
+  attr_reader :shadow_info, :rendering_options
+  def initialize(si, ro)
+    @shadow_info = si
+    @rendering_options = ro
+  end
+  def layers; {}; end
+  def styles; nil; end # snapshot's style read is rescue-guarded
+end
+
 module WR_Mode
+  DIM_TAGS = ['WR-Dims'].freeze
 __CONSTS__
 
 __METHODS__
@@ -471,13 +527,67 @@ __METHODS__
     # nil and dim-less snapshots pass through untouched.
     out << format('nil %d%d', pin_light_tags(nil, 'render').nil? ? 1 : 0,
                   pin_light_tags({}, 'render') == {} ? 1 : 0)
+
+    # THE HEAL: a real pre-fix draft snapshot — shadows memorised ON, no
+    # 'ro' key anywhere. pin_draft_flat forces DisplayShadows off and
+    # CREATES the ro hash with AO off, while sun, Light/Dark and the dim
+    # keys keep their remembered values.
+    s = { 'dims' => { 'WR-Dims' => true },
+          'shadow' => { 'DisplayShadows' => true, 'UseSunForAllShading' => true,
+                        'Light' => 70, 'Dark' => 60 } }
+    pin_draft_flat(s, 'draft')
+    out << 'heal ' + [s['shadow']['DisplayShadows'] == false,
+                      s['ro'].is_a?(Hash) && s['ro']['AmbientOcclusion'] == false,
+                      s['shadow']['UseSunForAllShading'] == true,
+                      s['shadow']['Light'] == 70 && s['shadow']['Dark'] == 60,
+                      s['dims']['WR-Dims'] == true].map { |b| b ? '1' : '0' }.join
+    # render side: shadows/AO are pure MEMORY — pass through untouched.
+    s = { 'shadow' => { 'DisplayShadows' => true },
+          'ro' => { 'AmbientOcclusion' => true } }
+    pin_draft_flat(s, 'render')
+    out << 'rmem ' + [s['shadow']['DisplayShadows'] == true,
+                      s['ro']['AmbientOcclusion'] == true].map { |b| b ? '1' : '0' }.join
+    # nil passes through; pin_policy applies BOTH pins in one call.
+    s = { 'dims' => { 'WR Lights' => true },
+          'shadow' => { 'DisplayShadows' => true } }
+    pin_policy(s, 'draft')
+    out << 'both ' + [pin_draft_flat(nil, 'draft').nil?,
+                      s['dims']['WR Lights'] == false,
+                      s['shadow']['DisplayShadows'] == false,
+                      s['ro']['AmbientOcclusion'] == false].map { |b| b ? '1' : '0' }.join
+    # the shipped DEFAULTs: draft flat (shadows AND AO off), render
+    # photographic (shadows on, AO deliberately left alone — empty ro).
+    out << 'def ' + [DEFAULT['draft']['shadow']['DisplayShadows'] == false,
+                     DEFAULT['draft']['ro']['AmbientOcclusion'] == false,
+                     DEFAULT['render']['shadow']['DisplayShadows'] == true,
+                     DEFAULT['render']['ro'] == {}].map { |b| b ? '1' : '0' }.join
+    # apply_snapshot lands AO in rendering_options and shadows in
+    # shadow_info, reads both back, and a silently-refused render-option
+    # key is named in the stuck list rather than lost.
+    si = FakeOpts.new({ 'DisplayShadows' => true })
+    ro = FakeOpts.new({ 'AmbientOcclusion' => true })
+    stuck = apply_snapshot(FakeModel.new(si, ro),
+                           { 'shadow' => { 'DisplayShadows' => false },
+                             'ro' => { 'AmbientOcclusion' => false } })
+    ok = stuck.empty? && si['DisplayShadows'] == false && ro['AmbientOcclusion'] == false
+    stuck = apply_snapshot(FakeModel.new(FakeOpts.new({}), FakeOpts.new({}, ['AmbientOcclusion'])),
+                           { 'ro' => { 'AmbientOcclusion' => false } })
+    named = stuck.size == 1 && stuck[0].include?('AmbientOcclusion') &&
+            stuck[0].include?('render-option')
+    out << format('apply %d%d', ok ? 1 : 0, named ? 1 : 0)
+    # snapshot records the live AO value under 'ro', from rendering_options.
+    snap = snapshot(FakeModel.new(FakeOpts.new({ 'DisplayShadows' => true }),
+                                  FakeOpts.new({ 'AmbientOcclusion' => true })))
+    out << format('snap %d', snap['ro'] == { 'AmbientOcclusion' => true } ? 1 : 0)
     out.join(' | ')
   end
 end
 WR_Mode.check
 '''
 
-MODE_EXPECT = ' | '.join(['rpin 111', 'dpin 1', 'fill 1', 'nil 11'])
+MODE_EXPECT = ' | '.join(['rpin 111', 'dpin 1', 'fill 1', 'nil 11',
+                          'heal 11111', 'rmem 11', 'both 1111',
+                          'def 1111', 'apply 11', 'snap 1'])
 
 
 def compare(title, got, expect):
@@ -509,10 +619,14 @@ def main():
                  rbparse.rb_eval(lib, prog), EXPECT)
 
     mlines = open(MODE_SRC, encoding='utf-8').read().split('\n')
+    mode_methods = ['pin_light_tags', 'pin_draft_flat', 'pin_policy',
+                    'snapshot', 'apply_snapshot']
+    mode_consts = ['LIGHT_TAGS', 'RO_KEYS', 'DEFAULT']
     mprog = (MODE_FIXTURE
-             .replace('__CONSTS__', lift_block(mlines, 'LIGHT_TAGS'))
-             .replace('__METHODS__', lift_method(mlines, 'pin_light_tags')))
-    rc |= compare('wr-mode snapshot pin: light tags are policy, never memory',
+             .replace('__CONSTS__', '\n'.join(lift_block(mlines, c) for c in mode_consts))
+             .replace('__METHODS__', '\n\n'.join(lift_method(mlines, m) for m in mode_methods)))
+    rc |= compare('wr-mode snapshot pins: lights and draft-flatness are '
+                  'policy, never memory (incl. the poisoned-snapshot heal)',
                   rbparse.rb_eval(lib, mprog), MODE_EXPECT)
     return rc
 
