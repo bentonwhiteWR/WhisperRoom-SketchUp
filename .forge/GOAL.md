@@ -56,8 +56,10 @@ Two live defects, both in `scripts/proposal-package.rb`:
 
 Three things are Benton's, and no code should work around any of them:
 
-1. **Author `scripts/vray-seeds/WR Interior Light.skp`** — V-Ray toolbar > Rectangle Light,
-   24x48, facing down, drawn at the origin. `wr-drop-lights.rb` refuses by name until it exists.
+1. ~~Author `scripts/vray-seeds/WR Interior Light.skp`~~ **NO LONGER NEEDED, 28 Aug 2026.**
+   `VRay::Command.create_rectangle_light` exists and works (observed live); at plugin 1.8.0
+   `wr-drop-lights.rb` creates every light through the API and reads no seed files at all.
+   The three `.skp` files under `scripts/vray-seeds/` are dead and removable.
 2. **Rename `EFP96196.skp` -> `EFP96192.skp`** on the P: share. Until then a 96192 elevated
    floor is refused by name.
 3. ~~Run `scripts/probe-vray.rb` cold and after a manual render~~ **DONE 28 Aug 2026** —
