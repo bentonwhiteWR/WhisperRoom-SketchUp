@@ -21,6 +21,9 @@
 #     shorter list invented here. A tag proposal-scenes.rb knows about and
 #     this one doesn't is exactly how a booth catalogue number would sneak
 #     onto a clean exterior plate.
+#   - the "WR Lights" tag (LIGHT_TAGS), OPPOSITE polarity to the dims:
+#     hidden in draft, visible in render — so a V-Ray pass never runs with
+#     the interior lights switched off and quietly renders an unlit booth.
 #   - the active style
 #   - shadow_info (DisplayShadows, UseSunForAllShading, Light, Dark)
 #
@@ -65,22 +68,29 @@ ensure
 end
 
 module WR_Mode
-  %w[DICT DIM_TAGS DEFAULT].each { |c| remove_const(c) if const_defined?(c, false) }
+  %w[DICT DIM_TAGS LIGHT_TAGS DEFAULT].each { |c| remove_const(c) if const_defined?(c, false) }
 
   DICT = 'WR_Mode'.freeze
 
   DIM_TAGS = WR_ProposalScenes::DIM_TAGS
+
+  # Interior-light tags (wr-drop-lights.rb). OPPOSITE polarity to DIM_TAGS:
+  # hidden in draft, visible in render. Getting this backwards makes the
+  # V-Ray pass render an unlit booth — a silent, plausible-looking failure.
+  LIGHT_TAGS = ['WR Lights'].freeze
 
   # Used only the very first time a model enters a mode with no stored
   # snapshot yet. Not a measurement, not a claim about what any given model
   # should look like — a starting point that gets overwritten by the real
   # state the moment the model leaves that mode again.
   DEFAULT = {
-    'draft'  => { 'dims'   => DIM_TAGS.each_with_object({}) { |n, h| h[n] = true },
+    'draft'  => { 'dims'   => DIM_TAGS.each_with_object({}) { |n, h| h[n] = true }
+                              .merge(LIGHT_TAGS.each_with_object({}) { |n, h| h[n] = false }),
                   'style'  => nil,
                   'shadow' => { 'DisplayShadows' => true, 'UseSunForAllShading' => false,
                                 'Light' => WR_Shading::DEF_LIGHT, 'Dark' => WR_Shading::DEF_DARK } },
-    'render' => { 'dims'   => DIM_TAGS.each_with_object({}) { |n, h| h[n] = false },
+    'render' => { 'dims'   => DIM_TAGS.each_with_object({}) { |n, h| h[n] = false }
+                              .merge(LIGHT_TAGS.each_with_object({}) { |n, h| h[n] = true }),
                   'style'  => nil,
                   'shadow' => { 'DisplayShadows' => true, 'UseSunForAllShading' => false,
                                 'Light' => WR_Shading::DEF_LIGHT, 'Dark' => WR_Shading::DEF_DARK } }
@@ -110,7 +120,7 @@ module WR_Mode
   def self.snapshot(model)
     ro_style = (model.styles.selected_style.name rescue nil)
     si = model.shadow_info
-    { 'dims'   => DIM_TAGS.each_with_object({}) { |n, h| l = model.layers[n]; h[n] = l ? l.visible? : nil },
+    { 'dims'   => (DIM_TAGS + LIGHT_TAGS).each_with_object({}) { |n, h| l = model.layers[n]; h[n] = l ? l.visible? : nil },
       'style'  => ro_style,
       'shadow' => WR_Shading::SHADOW_KEYS.each_with_object({}) { |k, h| h[k] = (si[k] rescue nil) } }
   end
@@ -163,6 +173,19 @@ module WR_Mode
       mat_result = target == 'render' ? WR_MaterialsSwap.to_render(model) : WR_MaterialsSwap.to_draft(model)
 
       target_snap = st[target] || DEFAULT[target]
+
+      # Snapshots taken before LIGHT_TAGS existed carry no light entries.
+      # Backfill those keys from DEFAULT, or an already-toggled model would
+      # enter render with the lights left however Drop Interior Lights last
+      # set them — and the read-back save below would then freeze that state
+      # into the snapshot for good. Only MISSING keys are filled; a light
+      # state this mode has genuinely recorded is never overridden.
+      if target_snap['dims']
+        LIGHT_TAGS.each do |n|
+          target_snap['dims'][n] = DEFAULT[target]['dims'][n] unless target_snap['dims'].key?(n)
+        end
+      end
+
       stuck = apply_snapshot(model, target_snap)
 
       # Read back what actually landed, not what was asked for, so a stuck
