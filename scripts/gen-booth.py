@@ -51,6 +51,51 @@ CORNER_T = 1.0     # corner seam seal leg thickness
 
 # Panel lengths the factory actually makes, longest first.
 STOCK = [46.0, 43.0, 40.0, 31.0, 28.0, 22.0, 19.0, 16.0, 7.0]
+
+# ---------------------------------------------------------------- the 40/16 --
+#
+# Benton, 2026-08-28, off freshly built MDL 6060 and MDL 6084: "the side walls
+# where the 40 and 16 are, the 40 needs to swap location with the 16 and vice
+# versa."
+#
+# WHAT THIS IS. An E/W wall of exactly TWO panels of UNEQUAL length is the only
+# wall in the catalogue whose panel ORDER can be got wrong without moving a
+# joint, a seal or a corner - reverse a symmetric run and nothing measurable
+# changes. There are exactly two such length pairs in the whole catalogue:
+#
+#     40 + 16   MDL 6060, MDL 6084     <- Benton inspected these and reported
+#     46 + 22   MDL 7272, MDL 7296     <- NOT swapped: see below
+#
+# WHY THE 46/22 PAIR IS NOT IN THIS SET. Benton built the 7272 and the 7296 in
+# the same pass - he reported their CEILINGS (fixed in wr-deck.rb) and said
+# nothing about their walls. The 46/22 pair is the identical structural case
+# and may well have the identical defect, but nobody has looked. It is one
+# tuple away and it stays out until he looks. Adding it is a one-line change;
+# guessing it is a 4-model move on the live customer path.
+#
+# THIS PUTS THE BUILDER OUT OF STEP WITH THE PORTAL ON THESE TWO MODELS, and
+# that is deliberate and load-bearing. `.forge/fixer/replay-portal-wallrun.js
+# "MDL 6060 S"` EXECUTES the portal's own wallPanelRun() and reports 0 DISAGREE
+# today: the portal 2D plan, the portal angled view and this builder all put
+# the 40 at the low-y (door) end. Benton is looking at a BUILT BOOTH and says
+# the 40 belongs at the other end. A drawing loses to a part. The portal is
+# read-only from here; the disagreement is reported, not patched there.
+#
+# THE WALK DIRECTION IS NOT TOUCHED. Reversing the E/W walk globally is what
+# was shipped on 2026-08-11 and reverted on 2026-08-27, because it moved the
+# side-wall WINDOW on the MDL 102144 and MDL 96144 to the far end from the
+# door and Benton reported it wrong twice. Those two walls are 40+16+40 (three
+# panels) and 46+46 (equal), so neither can match this predicate. What is
+# reversed here is the slot-to-position pairing on one wall shape only.
+SWAP_TWO_PANEL_SIDE_WALL = frozenset([frozenset((40.0, 16.0))])
+
+
+def swap_side_wall(side, lengths):
+    """True when this wall's two panels must trade places. E/W only."""
+    if side not in ('E', 'W') or len(lengths) != 2:
+        return False
+    return frozenset(float(x) for x in lengths) in SWAP_TWO_PANEL_SIDE_WALL
+
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 
@@ -230,7 +275,7 @@ def solve_inner(L, model, runs, boms, comps):
     return out
 
 
-def inner_parts(L, W, H, inner, assign=None):
+def inner_parts(L, W, H, inner, assign=None, outer_lengths=None):
     """The IEP shell as plan polygons, in the same language as the outer one.
 
     Written separately rather than folded into the outer loop on purpose. The
@@ -248,8 +293,20 @@ def inner_parts(L, W, H, inner, assign=None):
         if not wall:
             continue
         slots = wall['slots']
+        # THE PREDICATE IS COMPUTED FROM THE OUTER LENGTHS, NEVER FROM THE INNER
+        # ONES. The IEP twins of a 40 and a 16 are 35.5 and 11.5, so a set test
+        # against {40, 16} would never fire here and the two shells would
+        # disagree - an inner shell sitting inside a mirrored outer one. Passing
+        # the outer run in is the only way the two can be guaranteed in step.
+        # No outer_lengths (a caller that predates this) means no swap, which is
+        # the old behaviour.
+        swap = swap_side_wall(side, (outer_lengths or {}).get(side, []))
+        pairs = list(zip(slots, inner[side]))
+        if swap:
+            pairs.reverse()
+
         cursor = f
-        for i, (slot, ln) in enumerate(zip(slots, inner[side])):
+        for i, (slot, ln) in enumerate(pairs):
             if side in ('N', 'S'):
                 x, dx = cursor, ln
                 y, dy = (H - f if side == 'N' else b), IEP_PANEL_T
@@ -384,6 +441,7 @@ def build(model, variant, assign=None):
     e_int = L['variants'].get('E', {}).get('interior')
 
     parts, notes = [], []
+    outer_lengths = {}
     runs = {'N': iw, 'S': iw, 'E': ih, 'W': ih}
 
     for side in ('N', 'S', 'E', 'W'):
@@ -397,8 +455,16 @@ def build(model, variant, assign=None):
                          % (side, [s['size'] for s in slots], [int(x) if x == int(x) else x for x in lengths],
                             how, len(slots) - 1, runs[side]))
 
+        outer_lengths[side] = list(lengths)
+        pairs = list(zip(slots, lengths))
+        if swap_side_wall(side, lengths):
+            pairs.reverse()
+            notes.append('%s wall: 40/16 order swapped - the 40 sits at the far '
+                         'end from slot 0 (Benton 2026-08-28, off a built booth)'
+                         % side)
+
         cursor = t
-        for i, (slot, ln) in enumerate(zip(slots, lengths)):
+        for i, (slot, ln) in enumerate(pairs):
             pack = (assign or {}).get(slot['id'])
             if side in ('N', 'S'):
                 x, y = cursor, (H - t if side == 'N' else t - PANEL_T)
@@ -496,7 +562,7 @@ def build(model, variant, assign=None):
             notes.append('inner shell UNRESOLVED (scaled) - no single IEP panel '
                          'arrangement satisfies both the BOM and the run rule')
         else:
-            parts += inner_parts(L, W, H, solved, assign)
+            parts += inner_parts(L, W, H, solved, assign, outer_lengths)
             for side in ('N', 'S', 'E', 'W'):
                 if side not in solved:
                     continue

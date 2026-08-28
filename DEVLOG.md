@@ -2,6 +2,93 @@
 
 ## 2026-08-28
 
+### 1.7.10 Three parts that were facing the wrong way, and a boundary the fix is not allowed to cross
+
+Benton inspected freshly built booths and reported five things. All five are ORIENTATION or
+POSITION defects — nothing is mis-sized, nothing is missing. They land in three files and the
+hard constraint on all of them is his fourth item: **"84 series, 96 series, 102 series are all
+FINE. Do not touch them."**
+
+**1 + 2 — the standard ceilings, and why the mirror was only half right.**
+*"the standard ceilings had the hinges in the center, not the outside. So those need to be
+rotated 180 degrees"* — MDL 7296 E/S, 7272 S/E. And on the MDL 6060, *"only the 6018 CL side is
+flipped the wrong way."*
+
+v1.6.38 taught `wr-deck.rb` to mirror a convention-A ceiling's turn cue off its floor twin
+(`1.0 - e`), because a convention-A ceiling carries nothing above its rim to measure and its
+twin's fraction is therefore read the wrong way round. That fixed the MDL 84126, which is the
+one booth it was checked against, and its own comment named what would falsify it: *"a
+convention-A ceiling that still reads hinges inboard after the change. Say which booth."*
+
+Benton has now said which booths, and **the split between the ceilings that are right and the
+ones that are wrong is exactly the HAND letter on the file name.** Every handed Standard deck
+part in the library is `STD6018`, `STD6042`, `STD7224`, `STD7248` — the 60 and 72 series, and
+nothing else. `STD8442CL SIDE`, `STD10242CL SIDE`, `STD9648CL SIDE` and every CTR panel carry
+no hand. So **the mirror is now skipped on handed parts**, and that condition cannot reach the
+84, 96 or 102 series by construction. Benton's regression boundary is enforced structurally,
+not by a model list.
+
+The reading behind it, and it is the part to argue with: an unhanded SIDE part is one file
+serving both ends and is its floor twin turned over about the part's LONG axis, which mirrors
+the tiling axis. A handed family ships the two ends as two files and generates the pair by
+mirroring across the TILING axis, so turning one over about its short axis leaves the
+short-axis bracket fraction where it was — and mirroring it a second time points it inboard.
+
+Exactly four parts move, and they are exactly the five tiles Benton reports:
+`STD7248CL SIDE L` (7272, 7296), `STD7248CL SIDE R` (7296), `STD7224CL SIDE R` (7272),
+`STD6018CL SIDE R` (6060). The 6060's `STD6042CL SIDE L` does **not** move — its floor twins
+measure 0.4301, which `bracket_edge` calls symmetric, so it has no cue and keeps the positional
+rule. That is Benton's *"ONLY the 6018 CL side"*, reproduced without being told.
+
+**3 — the 40 and the 16 trade places on the MDL 6060 and MDL 6084 side walls.**
+An E/W wall of exactly two panels of unequal length is the only wall in the catalogue whose
+order can be wrong without moving a joint: reverse a symmetric run and nothing measurable
+changes. There are two such pairs in the whole catalogue — **40+16** (6060, 6084) and **46+22**
+(7272, 7296). Benton inspected and reported the 40/16 pair. `gen-booth.py` now reverses the
+slot-to-position pairing on that wall shape only, outer and inner shells together, with the
+predicate computed from the OUTER lengths so the two shells can never disagree.
+
+**The 46/22 pair is deliberately NOT swapped.** Benton built the 7272 and the 7296 in the same
+pass — he reported their ceilings and said nothing about their walls. It is the identical
+structural case and may well have the identical defect, but nobody has looked. It is one tuple
+away in `SWAP_TWO_PANEL_SIDE_WALL`.
+
+**This puts the builder out of step with the portal on those two models, deliberately.**
+`.forge/fixer/replay-portal-wallrun.js "MDL 6060 S"` EXECUTES the portal's own `wallPanelRun()`
+and reports **0 DISAGREE** today: the portal 2D plan, the portal angled view and the builder all
+put the 40 at the low-y (door) end. Benton is looking at a built booth. A drawing loses to a
+part. Regenerating `wr-booth-data.rb` moved **72 lines in exactly four model blocks** — 6060 S/E
+and 6084 S/E — and nothing else in the file changed by a byte.
+
+The E/W **walk direction** is untouched. Reversing it globally is what shipped on 2026-08-11 and
+was reverted on 2026-08-27, because it moved the side-wall window on the 102144 and the 96144 to
+the far end from the door. Those walls are 40+16+40 and 46+46, so neither can match this
+predicate.
+
+**5 — every duct cover was back to front.** *"ALL duct covers need to be flipped 180 degrees."*
+Unconditional — not one model, not one wall, not one width — which is the signature of one
+family constant carrying the wrong sign. `wr-overlays.rb`'s `FACE_ROOM` exists for exactly this
+and says so: *"If a family builds consistently inside-out, flip its one constant — do not add
+per-booth exceptions."* `:duct` is now `-1`. It reverses only the wall normal handed to
+`rotation`, so the cover yaws 180 in place; the seating is computed from `room`, which is
+untouched, so the back still lands on the wall face and the port centre it is anchored on does
+not move by a thousandth.
+
+**New harness: `scripts/rbtest-part-orientation.py`, 45 checks.** It drives the ceiling rule off
+the `bracket_edge` column of the component library's own `_face-levels.tsv` — and
+**cross-checks the fixture against the live P: share when it is reachable**, which it was
+(18 values agree), so those fractions are observed rather than transcribed on trust. It asserts
+the four handed tiles turn over, that the 84/96/102 parts and their turns are identical before
+and after, that every tile's brackets end up outboard, that `swap_side_wall` fires on E/W 40+16
+and on nothing else, that only the four 6060/6084 blocks in the generated data carry the swap
+with both shells in step, and that `FACE_ROOM[:duct]` is -1 while foam/desk/MJP are untouched.
+
+**None of it has been run in SketchUp — there is no SketchUp and no `ruby.exe` on this machine.**
+`python scripts/rbparse.py` parses all 56 files on the CRuby 3.2 SketchUp ships;
+`rbtest.py`, `rbtest-overlays.py`, `rbtest-lights.py`, `rbtest-proposal.py` and
+`replay-deck-quarter-turn.py` all pass. What to look at on the next build is in
+`.forge/fixer/HANDOFF-part-orientation.md`.
+
 ### 1.7.9 The render lane stops saving frames that were never rendered
 
 Two live defects in `scripts/proposal-package.rb`, both found by Benton running the batch for

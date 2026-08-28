@@ -151,7 +151,24 @@ module WR_Overlays
   # ONE flag: +1 means the definition's +thickness axis points INTO the room,
   # -1 means away. If a family builds consistently inside-out, flip its one
   # constant — do not add per-booth exceptions.
-  FACE_ROOM = { :foam => 1, :duct => 1, :desk => 1, :mjp => 1 }.freeze
+  #
+  # :duct is -1 as of 2026-08-28. Benton, off freshly built booths: "ALL duct
+  # covers need to be flipped 180 degrees." Unconditional - not one model, not
+  # one wall, not one width - which is the signature of ONE family constant
+  # being the wrong sign, exactly the case this flag was written for. The
+  # 'Duct Cover.skp' export's +thickness axis points AWAY from the room, so
+  # pinning it to the room normal turned every cover back-to-front.
+  #
+  # WHAT THIS MOVES, and what it does not: face_sign only reverses the wall
+  # normal handed to `rotation`, so the cover yaws 180 degrees IN PLACE. The
+  # seating in `wall_transform` is computed from `room`, which is untouched, so
+  # the cover's back still lands ON the wall face and its body still stands into
+  # the room; the port centre it is anchored on (`run_c`, `z_c`) does not move
+  # by a thousandth. Nothing else reads FACE_ROOM[:duct].
+  #
+  # FALSIFIED BY: a duct cover that now reads backwards the other way, or one
+  # that has moved off its port. Say which booth and which wall.
+  FACE_ROOM = { :foam => 1, :duct => -1, :desk => 1, :mjp => 1 }.freeze
 
   # ------------------------------------------------------ caster plate (cs) --
   #
