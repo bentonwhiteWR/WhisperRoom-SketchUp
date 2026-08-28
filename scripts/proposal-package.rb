@@ -43,7 +43,25 @@
 #
 #   load "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/proposal-package.rb"
 #
-# LIVE STATUS (2026-08-27): the DIALOG has opened once in SketchUp 2026 —
+# LIVE STATUS (2026-08-28): THE BATCH HAS RUN LIVE, on UTHealthSciences
+# Audiology (12 scenes, 5 render / 7 image). The IMAGE lane is good. The
+# RENDER lane failed two ways and both are fixed below — unrun since:
+#
+#   1. It wrote five EMPTY framebuffers (1,271 bytes, 640x480, every pixel
+#      transparent), because IDLE_STATE = /idle/i called a renderer that had
+#      never started "finished". Now: ONLY :idleDone finishes, and only after
+#      the row has been SEEN RUNNING. See the completion section.
+#   2. It rendered the WRONG SCENE — the one selected BEFORE the row. A
+#      scene switch ANIMATES the camera over TransitionTime (1 s default) and
+#      V-Ray snapshots the model ~0.22 s after start. Now: transitions are 0
+#      for the batch, the camera is set from the page, and the two are
+#      compared before start. See the camera-settling section.
+#
+# The 640x480 was V-Ray's own Asset Editor output size, which this tool does
+# not set and has no known-safe way to set; it now WARNS about it in the log
+# before the first render row.
+#
+# EARLIER STATUS (2026-08-27): the DIALOG has opened once in SketchUp 2026 —
 # loaded from the Ruby Console with $wr_no_autorun cleared, WR_ProposalPackage
 # .run showed the window (observed by Benton). The BATCH — the export/render
 # machinery, wr-mode.rb, wr-materials-swap.rb under it — has still never run.
@@ -78,7 +96,8 @@ end
 
 module WR_ProposalPackage
   %w[DICT PREF FORBIDDEN FOLDER_KEY SLOT_LABEL
-     IDLE_STATE RENDER_TIMEOUT_S UNREADABLE_LIMIT START_GRACE_S].each do |c|
+     IDLE_STATE DONE_STATE RENDER_TIMEOUT_S UNREADABLE_LIMIT
+     START_WINDOW_S STOP_CONFIRM_S CAM_FIELDS].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
 
@@ -220,21 +239,50 @@ module WR_ProposalPackage
   # NOTHING in this file may call them, and nothing may gate the batch on
   # them — `state` is the completion signal, `sequence_ended?` the backup.
   #
-  # The idle vocabulary below is observed from ONE sample. Nobody has seen
-  # the mid-render or just-finished value (the post-render probe run came
-  # back unreadable), so the test is inverted: a state matching /idle/i is
-  # finished, ANY state we have never seen counts as still running, and
-  # RENDER_TIMEOUT_S fails the row BY NAME rather than polling forever.
-  # If a probe taken during or just after a render shows a different
-  # finished value, widen IDLE_STATE here — this regexp is the one place.
-  IDLE_STATE = /idle/i
+  # The state vocabulary is now OBSERVED IN FULL (Benton, live SketchUp
+  # 2026, 28 Aug 2026, a 0.25 s state watcher across a hand render):
+  #
+  #   :idleStopped      sequence_ended? true    stopped
+  #   :idleInitialized  sequence_ended? true    cold, never started
+  #   :preparing        sequence_ended? false   starting up
+  #   :rendering        sequence_ended? false   actively rendering
+  #   :idleDone         sequence_ended? true    FINISHED - a frame exists
+  #
+  # Timing from that watch: :idleInitialized 11:56:10.735 -> :preparing
+  # 11:56:11.176 (440 ms lead-in) -> :rendering 11:56:11.432 -> :idleDone
+  # 12:01:37.674 (5m26s total).
+  #
+  # THREE of the five match /idle/i, which is what the old IDLE_STATE test
+  # matched, so a renderer that had never started read as FINISHED on the
+  # first tick past START_GRACE_S. That is the 28 Aug bug: five 1,271-byte
+  # 640x480 fully transparent PNGs, mtimes 3.17 s apart - the grace window
+  # plus one tick, not a render. The rules now:
+  #
+  #   - ONLY :idleDone means finished.
+  #   - :idleStopped / :idleInitialized are idle-but-not-done.
+  #   - anything else (:preparing, :rendering, any state never seen) is
+  #     RUNNING - unknown still means running, as before.
+  #   - and a finished verdict is only ever accepted once the row has been
+  #     seen RUNNING at least once (the latch). sequence_ended? is true on
+  #     a cold renderer too, so the backup path needs the same latch.
+  IDLE_STATE = /\Aidle/i          # the idle family: stopped/initialized/done
+  DONE_STATE = /\AidleDone\z/i    # the ONLY value that means a frame exists
 
-  RENDER_TIMEOUT_S = 30 * 60 # a row still not idle after this fails by name
+  RENDER_TIMEOUT_S = 30 * 60 # a row still not done after this fails by name
   UNREADABLE_LIMIT = 5       # consecutive polls with BOTH signals raising
-  START_GRACE_S    = 3       # ASSUMED: start may be async and state may lag
-                             # it, so an idle read this soon after start is
-                             # not trusted as completion — never observed,
-                             # cheap insurance against saving a black frame
+  START_WINDOW_S   = 30      # a row that has never been seen in a running
+                             # state this long after `start` FAILS BY NAME:
+                             # the render never started. Observed lead-in is
+                             # 440 ms, so 30 s is ~68x margin and still far
+                             # under RENDER_TIMEOUT_S - long enough that a
+                             # slow scene export cannot trip it, short enough
+                             # that a dead batch is not a 30-minute wait.
+  STOP_CONFIRM_S   = 10      # once RUNNING has been seen, a return to an
+                             # idle-but-not-done state (i.e. :idleStopped)
+                             # held this long fails the row by name: someone
+                             # or something stopped the render. No such
+                             # transient was seen in the watch; 10 s is
+                             # margin against one.
 
   # One guarded read of a renderer poll signal. :raised means the call
   # raised or the method is absent — a V-Ray raise must never escape into
@@ -248,23 +296,108 @@ module WR_ProposalPackage
 
   # PURE — exercised offline by rbtest-proposal.py, including the :raised
   # paths. state_val / seq_ended are raw poll results (with :raised from
-  # read_signal). Returns :finished, :running or :unreadable.
+  # read_signal); seen_running is THE LATCH, threaded in as an argument so
+  # this method stays pure and testable. Returns :running, :finished, :idle
+  # or :unreadable.
   #
-  #   - a readable state decides alone: IDLE_STATE finished, else running
-  #   - state unreadable: sequence_ended? true is finished, false running.
-  #     Its mid-render value is ASSUMED false (never observed) — it only
-  #     decides when state itself is unreadable, which the probe says it
-  #     is not on this machine.
+  #   - a readable state decides alone:
+  #       not in the idle family      -> :running  (also sets the latch)
+  #       :idleDone and latched       -> :finished
+  #       :idleDone and NOT latched   -> :idle     (never started; the poll
+  #                                     loop fails the row on START_WINDOW_S
+  #                                     rather than saving an empty frame)
+  #       any other idle value        -> :idle
+  #   - state unreadable: sequence_ended? false is :running; true is
+  #     :finished ONLY if latched, else :idle — it reads true cold.
   #   - both unreadable: :unreadable — the poll loop fails the row by name
   #     after UNREADABLE_LIMIT consecutive ticks.
-  def self.classify_render(state_val, seq_ended)
+  def self.classify_render(state_val, seq_ended, seen_running = false)
     unless state_val == :raised || state_val.nil?
-      return (state_val.to_s =~ IDLE_STATE ? :finished : :running)
+      s = state_val.to_s
+      return :running unless s =~ IDLE_STATE
+      return :idle    unless s =~ DONE_STATE
+      return seen_running ? :finished : :idle
     end
     unless seq_ended == :raised || seq_ended.nil?
-      return (seq_ended ? :finished : :running)
+      return :running unless seq_ended
+      return seen_running ? :finished : :idle
     end
     :unreadable
+  end
+
+  # ------------------------------------------------ camera settling --
+  #
+  # OBSERVED (Benton, 28 Aug 2026): a render row rendered the PREVIOUS
+  # scene's view. The mechanism: `model.pages.selected_page =` starts a
+  # camera ANIMATION over PageOptions/TransitionTime (1 s by default), and
+  # V-Ray's own log says it snapshots the model ~0.22 s after `start`. So
+  # the export caught the camera barely off the scene it came from.
+  # `active_view.refresh` draws a frame; it does NOT wait for a transition.
+  #
+  # The image lane never showed this because export-scenes.rb's
+  # export_pages sets TransitionTime = 0 around its loop (its comment:
+  # "else write_image can catch a tween"). The render lane now does the
+  # same for the whole batch — pushed in start_run, popped in finish, which
+  # also covers finish's own selected_page / camera restore — AND sets the
+  # camera from the page directly, AND asserts the two agree before start.
+  CAM_FIELDS = %w[eye.x eye.y eye.z target.x target.y target.z
+                  up.x up.y up.z lens].freeze
+
+  # Flatten a Sketchup::Camera to comparable numbers, or nil if it cannot be
+  # read (a scene with "save camera" off has no camera at all).
+  def self.cam_tuple(cam)
+    return nil if cam.nil?
+    e = cam.eye
+    t = cam.target
+    u = cam.up
+    [e.x.to_f, e.y.to_f, e.z.to_f,
+     t.x.to_f, t.y.to_f, t.z.to_f,
+     u.x.to_f, u.y.to_f, u.z.to_f,
+     (cam.perspective? ? cam.fov.to_f : cam.height.to_f)]
+  rescue Exception
+    nil
+  end
+
+  # PURE — exercised offline by rbtest-proposal.py. Two cam_tuple readings;
+  # nil when they agree within tol, else a string naming the worst field.
+  # A nil tuple is a mismatch: an unreadable camera is not a match.
+  def self.cam_mismatch(a, b, tol = 0.01, fields = CAM_FIELDS)
+    return 'camera unreadable' if a.nil? || b.nil?
+    return 'camera readings differ in shape' if a.size != b.size
+    worst_i = 0
+    worst_d = 0.0
+    a.each_index do |i|
+      d = (a[i] - b[i]).abs      # cam_tuple has already made these Floats
+      next unless d > worst_d
+      worst_d = d
+      worst_i = i
+    end
+    return nil if worst_d <= tol
+    format('%s off by %.3f', fields[worst_i] || "field #{worst_i}", worst_d)
+  rescue Exception => e
+    "camera comparison failed (#{e.class})"
+  end
+
+  # Best-effort READ of V-Ray's configured output size, for the warning in
+  # start_run. REPORTED, never observed: /SettingsOutput with img_width /
+  # img_height are the V-Ray core names. Every hop is respond_to?-gated and
+  # rescued; nil means "could not read", which is a louder warning, not an
+  # error. This NEVER writes to V-Ray, and never touches in_process? /
+  # dr_enabled? (they raise on this machine).
+  def self.output_size(ctx)
+    return nil if ctx.nil? || !ctx.respond_to?(:scene)
+    scene = ctx.scene
+    return nil if scene.nil?
+    pl = nil
+    pl = (scene['/SettingsOutput'] rescue nil) if scene.respond_to?(:[])
+    pl = (scene.fetch('/SettingsOutput') rescue nil) if pl.nil? && scene.respond_to?(:fetch)
+    return nil if pl.nil? || !pl.respond_to?(:[])
+    w = (pl[:img_width]  rescue nil)
+    h = (pl[:img_height] rescue nil)
+    return nil unless w.to_i > 0 && h.to_i > 0
+    [w.to_i, h.to_i]
+  rescue Exception
+    nil
   end
 
   # -------------------------------------------------------------- the run --
@@ -414,6 +547,8 @@ module WR_ProposalPackage
     @rend        = nil
     @render_began     = nil
     @unreadable_polls = 0
+    @seen_running     = false
+    @idle_since       = nil
     @shade_saved = nil
     @cfg         = { 'dir' => dir, 'width' => cfg['width'].to_s }
     @saved_mode  = WR_Mode.current(model)
@@ -421,10 +556,29 @@ module WR_ProposalPackage
     @prev_page   = model.pages.selected_page
     @prev_cam    = (model.active_view.camera.clone rescue nil)
 
+    # Scene transitions OFF for the whole batch, popped in finish. A 1 s
+    # camera animation is why a render row captured the previous scene
+    # (see the camera-settling section). finish's own selected_page /
+    # camera restore runs BEFORE the pop, so the restore is instant too.
+    @page_opts = (model.options['PageOptions'] rescue nil)
+    @prev_tt   = nil
+    begin
+      if @page_opts
+        @prev_tt = @page_opts['TransitionTime']
+        @page_opts['TransitionTime'] = 0
+      end
+    rescue Exception => e
+      @prev_tt = nil
+      log(dlg, "could not disable scene transitions " \
+               "(#{e.class}: #{e.message}) - each render row still sets its " \
+               'camera from the page and checks it before starting', 'bad')
+    end
+
     puts ''
     puts "PROPOSAL PACKAGE — #{image_rows.size} image, #{render_rows.size} render -> #{dir}"
     dlg.execute_script('runStarted()')
     log(dlg, "#{image_rows.size} image + #{render_rows.size} render row(s) -> #{dir}", 'dim')
+    warn_output_size(dlg) unless render_rows.empty?
 
     stop_stale_timer
     @timer = UI.start_timer(0.1, true) { step(model, dlg) }
@@ -465,13 +619,31 @@ module WR_ProposalPackage
     # raises "Incorrect DR version" on this machine (see the completion
     # section above). Every branch here either stays in the timer loop or
     # fails the row by name and moves on; none of them skips FINISH.
+    #
+    # THE LATCH (@seen_running): a finished verdict is only accepted after
+    # this row has been seen in a RUNNING state at least once. Both finish
+    # signals — :idleDone and sequence_ended? — also read as finished on a
+    # renderer that never started, and that is exactly how five empty frame
+    # buffers got saved on 28 Aug 2026. A row that never latches fails BY
+    # NAME at START_WINDOW_S; nothing is ever saved for it.
     if @awaiting
       elapsed = Time.now - (@render_began || Time.now)
       verdict = classify_render(read_signal(@rend, :state),
-                                read_signal(@rend, :sequence_ended?))
-      # An idle read straight after start is not trusted (async lag, ASSUMED).
-      verdict = :running if verdict == :finished && elapsed < START_GRACE_S
+                                read_signal(@rend, :sequence_ended?),
+                                @seen_running)
+      if verdict == :running
+        unless @seen_running
+          @seen_running = true
+          log(dlg, "        #{@awaiting[:file]}  render started", 'dim')
+        end
+        @idle_since = nil
+      elsif verdict == :idle
+        @idle_since ||= Time.now
+      else
+        @idle_since = nil
+      end
       @unreadable_polls = verdict == :unreadable ? @unreadable_polls + 1 : 0
+      idle_held = @idle_since ? Time.now - @idle_since : 0
 
       if verdict == :finished
         save_frame(dlg, @awaiting)
@@ -481,9 +653,20 @@ module WR_ProposalPackage
       elsif @unreadable_polls >= UNREADABLE_LIMIT
         fail_render_row(dlg, 'renderer state and sequence_ended? both ' \
                              'unreadable — render stopped, nothing saved')
+      elsif !@seen_running && elapsed > START_WINDOW_S
+        fail_render_row(dlg, 'the render never started — the renderer was ' \
+                             "still idle #{START_WINDOW_S}s after " \
+                             'renderer.start (never reached :preparing or ' \
+                             ':rendering). Nothing saved — an empty frame ' \
+                             'buffer is NOT a render')
+      elsif @seen_running && idle_held > STOP_CONFIRM_S
+        fail_render_row(dlg, 'the renderer went idle without finishing — ' \
+                             "not :idleDone for #{STOP_CONFIRM_S}s after it " \
+                             'was running (stopped or cancelled). Nothing saved')
       elsif elapsed > RENDER_TIMEOUT_S
-        fail_render_row(dlg, "no idle state after #{RENDER_TIMEOUT_S / 60} " \
-                             'minutes — render stopped, nothing saved')
+        fail_render_row(dlg, "no :idleDone state after " \
+                             "#{RENDER_TIMEOUT_S / 60} minutes — render " \
+                             'stopped, nothing saved')
       else
         progress(dlg, "Rendering #{@awaiting[:file]}…")
       end
@@ -573,6 +756,32 @@ module WR_ProposalPackage
     log(dlg, "FAILED  #{p[:file]}  (#{e.class}: #{e.message})", 'bad')
   end
 
+  # The render lane's size is V-Ray's, not ours. The dialog's Width field
+  # only reaches the image lane (WR_ExportScenes.export_pages). On 28 Aug
+  # 2026 the render rows came out 640x480 — the V-Ray Asset Editor default
+  # — and nothing said so until the files were on disk. Say it FIRST now.
+  # There is no known-safe documented way to SET the size from Ruby, so this
+  # warns; it does not fix.
+  def self.warn_output_size(dlg)
+    sz = output_size(vray_context)
+    if sz
+      small = sz[0] < 1200
+      log(dlg, "RENDER SIZE: V-Ray is set to #{sz[0]}x#{sz[1]}" \
+               "#{small ? ' — that is small for a client pack' : ''}. " \
+               'Render rows use the V-Ray Asset Editor size; the Width ' \
+               'field above governs IMAGE rows only.', small ? 'bad' : 'dim')
+    else
+      log(dlg, 'RENDER SIZE: could not read V-Ray output size. Render ' \
+               'rows come out at whatever the V-Ray Asset Editor is set to ' \
+               '(its default is 640x480) — CHECK IT before a client pack. ' \
+               'The Width field above governs IMAGE rows only.', 'bad')
+    end
+  rescue Exception => e
+    log(dlg, "RENDER SIZE: output-size check failed " \
+             "(#{e.class}: #{e.message}) — render rows use the V-Ray Asset " \
+             'Editor size, not the Width field.', 'bad')
+  end
+
   # Everything V-Ray in here is REPORTED API, individually rescued: a wrong
   # assumption about a signature becomes a named per-row failure, never a
   # crash out of the batch.
@@ -596,8 +805,56 @@ module WR_ProposalPackage
       return
     end
 
+    # SETTLE THE CAMERA BEFORE start — see the camera-settling section.
+    # Transitions are already off for the batch (start_run); set the camera
+    # from the page anyway, then ASSERT the viewport agrees with the page.
+    # A disagreement fails the row BY NAME rather than rendering a view the
+    # caption will contradict.
     model.pages.selected_page = p[:page]
+    page_cam = (p[:page].camera rescue nil)
+    if page_cam
+      begin
+        model.active_view.camera = page_cam
+      rescue Exception => e
+        log(dlg, "        #{p[:file]}  could not set the camera " \
+                 "directly (#{e.class}: #{e.message}) — relying on the " \
+                 'scene switch', 'bad')
+      end
+    end
     model.active_view.refresh
+
+    if page_cam
+      va = cam_tuple(model.active_view.camera)
+      pa = cam_tuple(page_cam)
+      # POSITION (eye/target/up, fields 0-8) and LENS (field 9) are judged
+      # separately, because the worst single field across all ten could be
+      # the lens while the eye is also off.
+      #
+      # A lens difference is a WARNING, not a failure: eye/target/up decide
+      # which way the camera points, SketchUp can re-derive fov from the
+      # viewport aspect on assignment, and V-Ray's /CameraPhysical may carry
+      # its own value (open question 7 in reference/vray-ruby-api.md).
+      # Refusing to render over that would block every row for something
+      # that is not the wrong-view bug.
+      mm   = cam_mismatch(va && va[0, 9], pa && pa[0, 9])
+      lens = cam_mismatch(va && va[9, 1], pa && pa[9, 1], 0.01, ['lens'])
+      if lens && mm.nil?
+        log(dlg, "        #{p[:file]}  lens differs from the scene " \
+                 "(#{lens}) - position matches, rendering anyway", 'bad')
+      end
+      if mm
+        @results << { :file => p[:file], :lane => 'render', :status => 'failed',
+                      :detail => "the viewport camera never settled on " \
+                                 "this scene (#{mm}) — nothing rendered, " \
+                                 'because a render of the wrong view is ' \
+                                 'worse than a missing one' }
+        log(dlg, "FAILED  #{p[:file]}  (camera never settled on this scene: #{mm})", 'bad')
+        return
+      end
+    else
+      log(dlg, "        #{p[:file]}  this scene saves no camera — " \
+               'rendering the current view', 'bad')
+    end
     progress(dlg, "Rendering #{p[:file]}…")
 
     @rend = rend
@@ -616,6 +873,8 @@ module WR_ProposalPackage
       @awaiting         = p
       @render_began     = Time.now
       @unreadable_polls = 0
+      @seen_running     = false   # the latch, per row
+      @idle_since       = nil
     else
       # No poll surface at all — fall back to the documented blocking wait.
       # Progress is per-scene here and mid-render cancel cannot land until
@@ -704,6 +963,17 @@ module WR_ProposalPackage
       model.active_view.camera = @prev_cam if @prev_cam
     rescue Exception => e
       restore_errs << "camera restore: #{e.class}: #{e.message}"
+    end
+    # Scene transitions back on LAST, so the two restores above were instant.
+    begin
+      if @page_opts && !@prev_tt.nil?
+        @page_opts['TransitionTime'] = @prev_tt
+      end
+    rescue Exception => e
+      restore_errs << "scene transition time restore: #{e.class}: #{e.message}"
+    ensure
+      @page_opts = nil
+      @prev_tt   = nil
     end
 
     unless restore_errs.empty?

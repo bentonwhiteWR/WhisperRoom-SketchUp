@@ -33,12 +33,14 @@ renderer.state             :idleInitialized      (idle, cold — works)
 renderer.sequence_ended?   true                  (same moment — works)
 ```
 
-`state`'s vocabulary is observed from **one sample**. Nobody has seen the
-mid-render or just-finished value. Code that classifies it must treat
-"matches /idle/i" as finished and **any unknown state as still running**,
-with a wall-clock timeout — never a hard-coded list of running states.
-(`proposal-package.rb`'s completion-classification section is the worked
-example; widen its `IDLE_STATE` when a mid-/post-render probe lands.)
+**The full vocabulary is now OBSERVED — see question 2 below.** The line
+that used to stand here said "matches /idle/i is finished", and that was
+wrong in the most expensive way: **three of the five states match /idle/i**,
+two of them meaning the renderer never started. On 28 Aug 2026 that wrote
+five empty framebuffers into a client folder. The rule now is
+**`:idleDone` only, and only after the row has been seen in a running
+state** (`proposal-package.rb`'s completion-classification section is the
+worked example).
 
 ---
 
@@ -90,7 +92,7 @@ Observed on the cold idle renderer:
 | Read | Value | Status |
 |---|---|---|
 | `render_mode` | `:production` | observed |
-| `state` | `:idleInitialized` | observed (one sample — see warning above) |
+| `state` | `:idleInitialized` | observed cold; full vocabulary observed 28 Aug — see question 2 |
 | `sequence_ended?` | `true` | observed |
 | `vfb_visible?` | `false` | observed |
 | `thread_count` | `0` | observed (cold; meaning idle-time value unknown) |
@@ -197,27 +199,36 @@ where that would live.
 
 1. ~~Is `VRay::Context.active` non-nil in a normal session?~~ **ANSWERED:
    yes, non-nil cold (observed).** But presence only — see above.
-2. **Is `start` blocking or asynchronous, and what does `state` return
-   mid-render?** Still open, and now the load-bearing unknown: the batch's
-   completion test inverts on /idle/i precisely because nobody has seen the
-   running value. One probe settles it — run this in the Ruby Console,
-   start a render **by hand** immediately after, and paste the output:
+2. ~~Is `start` blocking or asynchronous, and what does `state` return
+   mid-render?~~ **ANSWERED 28 Aug 2026 (Benton, live SketchUp 2026):** a
+   0.25 s state watcher across a hand render gave the complete vocabulary,
+   and `start` is **asynchronous** — it returns and `state` moves on its own.
 
-   ```ruby
-   r = VRay::Context.active.renderer
-   $wr_states = []
-   $wr_t = UI.start_timer(0.5, true) {
-     $wr_states << [Time.now.strftime('%H:%M:%S'),
-                    (r.state rescue :raised),
-                    (r.sequence_ended? rescue :raised)]
-     if $wr_states.size >= 240
-       UI.stop_timer($wr_t)
-       $wr_states.each { |row| puts row.inspect }
-     end
-   }
-   # …render by hand, wait for it to finish, then if 2 min hasn't elapsed:
-   # UI.stop_timer($wr_t); $wr_states.each { |row| puts row.inspect }
-   ```
+   | `state` | `sequence_ended?` | meaning |
+   |---|---|---|
+   | `:idleStopped` | true | stopped |
+   | `:idleInitialized` | true | cold, never started |
+   | `:preparing` | false | starting up |
+   | `:rendering` | false | actively rendering |
+   | `:idleDone` | true | **FINISHED — the only value meaning a frame exists** |
+
+   Timing from that watch: `:idleInitialized` 11:56:10.735 -> `:preparing`
+   11:56:11.176 (**440 ms lead-in**) -> `:rendering` 11:56:11.432 ->
+   `:idleDone` 12:01:37.674 (5m26s total). A batch-triggered render reached
+   `:preparing` at 12:03:49.462, so **`renderer.start` does engage from a
+   script**.
+
+   What this costs anyone reading the old advice: `/idle/i` matches THREE of
+   the five, and `sequence_ended?` is `true` on a renderer that has never
+   run. **Neither signal alone can tell "never started" from "finished".**
+   Both need a latch — the row must be seen `:preparing` / `:rendering` /
+   anything outside the idle family before a finish is believed. That is
+   what `proposal-package.rb` does now, and its `classify_render` takes the
+   latch as an argument so `rbtest-proposal.py` can prove it offline.
+
+   Still unobserved on this surface: what `state` reads while V-Ray is
+   *saving* a frame, and whether `:idleDone` can ever be reached without
+   passing through a running state on a very short render.
 
 3. **Does `save_vfb_image` take a path and a format,** and does it respect
    the VFB colour corrections? Still reported only.
@@ -229,8 +240,20 @@ where that would live.
 6. **NEW: `get_compute_devices` returned `[]`.** If GPU rendering is
    expected on this machine, that empty list deserves a look in the V-Ray
    Asset Editor's device settings before blaming a script for slow renders.
-7. **NEW: which camera does a scripted render use** — the active view, the
-   scene's saved camera, or `/CameraPhysical`'s own state? The plugin's
-   presence (observed) says a physical camera participates; whose values it
-   carries is unknown. Settled by rendering two scenes in a row from a
-   script and seeing whether the framing follows the scene switch.
+7. **Which camera does a scripted render use** — PARTLY ANSWERED, and it
+   bit. 28 Aug 2026, observed by Benton: with only one scene marked Render,
+   V-Ray rendered a DIFFERENT scene's view — the one selected before it. So
+   the render follows the **active view at export time**, and V-Ray's own
+   log (`"Exporting model: Done (0.2201505 seconds)"`) says it snapshots the
+   camera ~0.22 s after `start`. `model.pages.selected_page =` starts a
+   camera ANIMATION over `PageOptions['TransitionTime']` (1 s by default),
+   so the export caught the camera in flight, still near where it came from.
+   `view.refresh` does not wait for a transition. The fix, mirroring what
+   `export-scenes.rb` has always done for the image lane: **set
+   `TransitionTime = 0` for the batch, set `view.camera` from `page.camera`
+   directly, and compare the two before calling `start`.**
+
+   Still open: whether `/CameraPhysical` carries its own values on top of
+   that (the field-of-view specifically), which is why
+   `proposal-package.rb` treats a lens-only difference as a warning and a
+   position difference as a failed row.

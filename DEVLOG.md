@@ -1,5 +1,70 @@
 # DEVLOG
 
+## 2026-08-28
+
+### 1.7.9 The render lane stops saving frames that were never rendered
+
+Two live defects in `scripts/proposal-package.rb`, both found by Benton running the batch for
+real on UTHealthSciences Audiology. The image lane was fine. The render lane wrote **five
+1,271-byte 640x480 PNGs in which every pixel was (0,0,0,0)** — empty framebuffers — and the
+V-Ray frame buffer was watching **the wrong scene** while it did it.
+
+**Defect 1 — `/idle/i` cannot tell "never started" from "finished".** The completion test was
+`IDLE_STATE = /idle/i`, written when `:idleInitialized` was the only state anyone had ever
+seen. Benton then polled `state` every 0.25 s across a hand render and the full vocabulary
+came back: `:idleStopped`, `:idleInitialized`, `:preparing`, `:rendering`, `:idleDone`.
+**Three of the five match `/idle/i`**, and `sequence_ended?` is `true` for all three. So the
+first poll past the 3-second grace window declared a renderer that had not started finished,
+and `save_vfb_image` dutifully wrote the empty buffer. The 3.17 s spacing on those five files
+is the grace window plus one tick — the timestamps were never a render, they were the bug's
+own clock.
+
+Now: **only `:idleDone` finishes, and only after the row has been seen in a running state.**
+The latch is threaded into `classify_render` as an argument, so the decision stays pure and
+`rbtest-proposal.py` proves it offline — including the case that matters, a renderer that
+reports idle forever across a thousand polls and never once says finished. A row that never
+latches fails **by name** at 30 s ("the render never started"), and one that goes idle without
+reaching `:idleDone` fails at 10 s ("stopped or cancelled"). Nothing is saved on either path.
+`START_GRACE_S`, a blind time window standing in for a signal we did not have, is gone.
+
+**Defect 2 — the camera was still in flight when V-Ray took its snapshot.** With ONE scene
+marked Render, the VFB rendered a different scene entirely: the one selected before it.
+`model.pages.selected_page =` starts a camera **animation** over `PageOptions['TransitionTime']`
+(1 s by default); V-Ray's own log says it exports the model ~0.22 s after `start`. So the
+export caught the camera barely off the scene it came from. `view.refresh` draws a frame — it
+does not wait for a transition.
+
+The image lane never showed this because `export-scenes.rb` has set `TransitionTime = 0`
+around its loop since it was written, with the comment "else write_image can catch a tween".
+**The answer was already in the repo, in the lane that worked.** The render lane now does the
+same for the whole batch (pushed in `start_run`, popped in `finish` *after* the scene and
+camera restore, so the restore is instant too), sets `view.camera` from `page.camera`
+directly, and then **compares the two before calling `start`** — a position mismatch fails the
+row by name rather than rendering a view the caption will contradict. A lens-only difference
+is a warning, not a failure: V-Ray's `/CameraPhysical` may carry its own field of view, and
+refusing to render over that would block every row for something that is not this bug.
+
+**The 640x480 is V-Ray's, not ours.** The dialog's Width field only ever reached the image
+lane; render rows come out at whatever the V-Ray Asset Editor is set to, and 640x480 is its
+default. There is no documented, safe way to set it from Ruby, so the tool does not pretend to
+— it now warns in the log **before the first render row**, and warns louder when it cannot
+read the size at all.
+
+`reference/vray-ruby-api.md` open question 2 is **answered** (the state table, with timings)
+and question 7 is half answered (the render follows the active view at export time). Both were
+costing real files while they sat open.
+
+Unrun in SketchUp, as always. `rbparse.py` parses all 56 files; `rbtest-proposal.py` passes
+34 assertions and was mutation-checked three ways — the old `/idle/` test, the latch ignored,
+and the camera tolerance blown open all make it FAIL.
+
+**And the heredoc ate the escapes again.** Yesterday's entry says non-trivial escapes go
+through a file written with the Write tool, never a shell heredoc. Writing this fix through a
+heredoc swallowed every `\` line continuation, silently joining string literals into 190-char
+lines. Valid Ruby, so the parser said nothing — the same class of miss as the literal
+backspace of 1.6.12. Caught by reading the diff, reflowed through a Write-tool script. The
+rule holds; obey it next time.
+
 ## 2026-08-27
 
 ### SESSION CLOSE - plugin 1.6.40, eight versions, and one regression left open on purpose

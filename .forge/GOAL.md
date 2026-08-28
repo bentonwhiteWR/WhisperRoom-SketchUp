@@ -24,8 +24,30 @@ real UI.
    Minimalist. One button, sensible defaults, no lighting-designer UI.
 
 ## Now
-**Plugin 1.7.0 is pushed. All five streams shipped as code; NOTHING has run in SketchUp.**
-Next machine: `git pull` -> `python scripts/install-plugin.py` -> **RESTART SketchUp**.
+**Plugin 1.7.8. The proposal-package V-Ray lane is RUNNING LIVE and is the active work.**
+Live on UTHealthSciences Audiology (12 scenes, 5 render / 7 image). Image lane is good.
+Render lane wrote five EMPTY 640x480 frames (observed) and is now being fixed.
+
+**V-Ray renderer state vocabulary — OBSERVED LIVE 28 Aug 2026, question 2 in
+`reference/vray-ruby-api.md` is now ANSWERED:**
+
+| state | `sequence_ended?` | meaning |
+|---|---|---|
+| `:idleStopped` | true | stopped |
+| `:idleInitialized` | true | cold, never started |
+| `:preparing` | false | starting (reached ~440 ms after start) |
+| `:rendering` | false | running |
+| `:idleDone` | true | FINISHED — the only value that means a frame exists |
+
+`IDLE_STATE = /idle/i` in `scripts/proposal-package.rb` matches three of the five and cannot
+tell an unstarted renderer from a finished one. A hand render took 5m26s; `renderer.start`
+DOES engage (observed 12:03:49).
+
+Two live defects, both in `scripts/proposal-package.rb`:
+1. Completion test must be `:idleDone` only, gated on having first SEEN a running state.
+2. `model.pages.selected_page =` at line 599 is not settled before `start` — scene
+   transitions leave the camera mid-flight, and the VFB renders the wrong view (Benton,
+   observed 28 Aug).
 
 Three things are Benton's, and no code should work around any of them:
 
@@ -33,8 +55,9 @@ Three things are Benton's, and no code should work around any of them:
    24x48, facing down, drawn at the origin. `wr-drop-lights.rb` refuses by name until it exists.
 2. **Rename `EFP96196.skp` -> `EFP96192.skp`** on the P: share. Until then a 96192 elevated
    floor is refused by name.
-3. **Run `scripts/probe-vray.rb`** in a live SketchUp, cold and then after one manual render,
-   and paste both outputs. The whole V-Ray render lane is written against *reported* docs.
+3. ~~Run `scripts/probe-vray.rb` cold and after a manual render~~ **DONE 28 Aug 2026** —
+   the state table above is the result. Still unprobed: `save_vfb_image` arguments, and
+   whether `start` engages on a renderer that has never rendered in the session.
 
 Still to author (no `.skp` exists): EFP perimeter strips, bass traps, Audimute panels,
 studio-light fixture. (The researcher also listed an "IEP floor pad"; the `ENH ...FL` mats
