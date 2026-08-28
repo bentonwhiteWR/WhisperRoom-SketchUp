@@ -32,6 +32,13 @@ worked examples in .forge/researcher/interior-lighting-design.md:
      1,000 each at Showroom (12); Bright x2 / Dim x0.5; booth 24 sqft x
      30 fc / 0.6 = 1,200.
   9. accent_axis — the rotation axis that tips -Z toward the booth face.
+ 10. subject_veto — the light-as-room incident guard: a 24"-tall subject
+     and a shoebox floor are refused; a 6'+/9sqft+ room passes; the
+     refusal text names the offending number.
+ 11. fallback_verdict — the multi-fallback rule: 0 or 1 fallback proceeds,
+     2 or more refuses, and the refusal lists what fired and how many.
+ 12. light_words? — the pure core of vray_light?: BOTH "vray" and "light"
+     must appear ("Daylight house" alone must not match).
 
 MUTATION-CHECKED 2026-08-27 (each mutation applied to wr-drop-lights.rb,
 this test run, FAIL confirmed, mutation reverted): centred formula
@@ -41,6 +48,12 @@ threshold dropped to 0; in_keepout? forced false; CU 0.6->0.5; centroid
 1.5->1.0. Note: flipping the ray-cast comparison (px < x_at -> px > x_at)
 is NOT catchable — left and right crossing parity are equal for any closed
 polygon, so that mutant is semantically equivalent, not a survivor.
+
+MUTATION-CHECKED 2026-08-27 (validation additions, same protocol):
+MIN_ROOM_H 72.0->20.0 (veto stops firing on the 24" light); MIN_ROOM_AREA
+1296.0->50.0 (shoebox floor passes); fallback_verdict size<=1 -> size<=2
+(two fallbacks slip through); light_words? vray term dropped (Daylight
+matches). Each made this test FAIL and was reverted.
 """
 import os
 import re
@@ -82,10 +95,11 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'edge_dist', 'poly_signed_area', 'poly_area', 'poly_centroid',
            'in_keepout?', 'edge_threshold', 'grid_points', 'nearest_edge',
            'opposite_edge', 'wash_points', 'downlight_lumens',
-           'booth_lumens', 'accent_axis']
+           'booth_lumens', 'accent_axis', 'subject_veto',
+           'fallback_verdict', 'light_words?']
 SCALARS = ['DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD', 'HEADROOM',
            'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF', 'WASH_SPACING',
-           'ACCENT_OUT', 'ACCENT_TILT']
+           'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H', 'MIN_ROOM_AREA']
 
 FIXTURE = r'''
 module WR_DropLights
@@ -161,6 +175,32 @@ __METHODS__
     out << 'axis35 ' + accent_axis(-1, 0).map { |v| v.round(2) }.join(',') +
            ' ' + accent_axis(0, -3).map { |v| v.round(2) }.join(',')
 
+    # 10 — the light-as-room incident: Benton's 24"-tall rectangle light
+    # (a) and a 100 sqin floor (b) are vetoed; 71.9" (c) is still below the
+    # 72" bar; a 12'x20' room at 8' (d) passes. The veto text must carry
+    # the offending number (the 24).
+    out << 'veto ' + [subject_veto(24.0, 100000.0),
+                      subject_veto(96.0, 100.0),
+                      subject_veto(71.9, 100000.0),
+                      subject_veto(96.0, 34560.0)]
+                     .map { |v| v ? '1' : '0' }.join +
+           ((v = subject_veto(24.0, 100000.0)) && v.include?('24') ? ' msg1' : ' msg0')
+
+    # 11 — the multi-fallback rule: 0 and 1 proceed (nil), 2 and 3 refuse,
+    # and the refusal names the count and the fired fallbacks.
+    fv = fallback_verdict(%w[x y])
+    out << 'fbv ' + [fallback_verdict([]), fallback_verdict(['a']),
+                     fallback_verdict(%w[a b]), fallback_verdict(%w[a b c])]
+                    .map { |v| v ? '1' : '0' }.join +
+           (fv && fv.include?('x') && fv.include?('y') && fv.include?('2') ? ' list1' : ' list0')
+
+    # 12 — light_words?: needs BOTH vray and light.
+    out << 'lw ' + [light_words?('SketchUp VRay dict: lights'),
+                    light_words?('V-Ray Rectangle Light'),
+                    light_words?('Daylight house'),
+                    light_words?('vray infinite plane')]
+                   .map { |b| b ? '1' : '0' }.join
+
     out.join(' | ')
   end
 end
@@ -186,6 +226,9 @@ EXPECT = ' | '.join([
     'lm 3000 1000 6000 1500 1200',
     'thr 22.5 36.0 18.0',
     'axis35 0.0,1.0 -1.0,0.0',
+    'veto 1110 msg1',
+    'fbv 0011 list1',
+    'lw 1100',
 ])
 
 

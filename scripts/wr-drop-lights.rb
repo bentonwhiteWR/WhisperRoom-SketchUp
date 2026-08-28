@@ -102,18 +102,26 @@
 # WHAT A PRESS DOES — ONE OPERATION, ONE Ctrl+Z
 #
 #   1. Reads the selection: groups and component instances only — it never
-#      guesses which things in a model are rooms. Lights it dropped earlier
-#      are never treated as rooms (never lights its own lights).
+#      guesses which things in a model are rooms, and it NEVER lights a
+#      light: its own dropped lights, any V-Ray light, and anything tagged
+#      "WR Lights" are refused as subjects by name. When ONLY a V-Ray
+#      light is selected, the refusal also prints the attribute-dictionary
+#      dump (the evidence block to paste back to Claude).
 #   2. Pops the settings dialog (UI.inputbox, four dropdowns + one yes/no).
 #   3. If seed .skp files are missing: offers (default No) to mint them
 #      from a hand-made V-Ray light in the model — see the seeds section
 #      above — then carries on in the same press.
 #   4. Removes any lights IT previously dropped inside the selected rooms
 #      (found by their WR_DropLights attribute) — a re-press re-places.
-#   5. Per selected room: reads the WR-Floor polygon (bounding-box fallback,
-#      LOUD, when there is none — booths and legacy rooms are legitimate),
-#      the wall top, the doors; finds obstructions (a booth under the light
-#      plane); places the layers; prints every number it used.
+#   5. Per selected room: sanity-checks it first (height >= MIN_ROOM_H,
+#      floor >= MIN_ROOM_AREA — a 24" "ceiling" is a fixture, not a room),
+#      then reads the WR-Floor polygon (bounding-box fallback, LOUD, when
+#      there is none — booths and legacy rooms are legitimate), the wall
+#      top, the doors; finds obstructions (a booth under the light plane);
+#      places the layers; prints every number it used. If MORE THAN ONE
+#      fallback fires for a single subject, that subject is refused by
+#      name, listing what fired — chained fallbacks are how a nonsense
+#      selection once became a confident report.
 #   6. Tags everything "WR Lights"; prints the per-seed lumen targets so the
 #      Asset Editor sliders can be nudged to the computed values.
 #
@@ -133,9 +141,17 @@
 
 require 'sketchup.rb'
 
+# Reload guard. A console re-`load` of this file used to print ~20
+# "already initialized constant" warnings: the module body re-assigns every
+# frozen constant on each load. Removing the whole module first makes each
+# load define it fresh — a re-load is now clean and always runs the newest
+# code.
+Object.send(:remove_const, :WR_DropLights) if Object.const_defined?(:WR_DropLights)
+
 module WR_DropLights
   DICT = 'WR_DropLights'.freeze
   TAG  = 'WR Lights'.freeze
+  WR_MODE_DICT = 'WR_Mode'.freeze # wr-mode.rb's dictionary — read only here
 
   # --- placement constants (interior-lighting-design.md; "assumed" ones are
   # --- single constants by design) --------------------------------------------
@@ -153,6 +169,21 @@ module WR_DropLights
   WASH_SPACING  = 1.5    # spacing = this x standoff (sourced 1.2-1.5 band)
   ACCENT_OUT    = 42.0   # in from the booth door face to the accent light
   ACCENT_TILT   = 35.0   # degrees from vertical, toward the booth face
+
+  # --- subject sanity — from the light-as-room incident -------------------
+  # The first live press selected a 24"-tall V-Ray rectangle light; the
+  # bbox-floor fallback happily called it a room and lit it. A room has a
+  # floor you stand ON and headroom you stand IN, so a subject must clear
+  # both bars or be refused by name:
+  #   MIN_ROOM_H    72" (6'-0") — below every walk-in ceiling (house default
+  #     is 8', the lowest habitable basements ~6'6") and above every
+  #     fixture, desk, or panel stack this tool must never mistake for a
+  #     room. Booths are NOT judged by this — they take the booth branch.
+  #   MIN_ROOM_AREA 1296 sq in (9 sqft, 3'x3') — smaller than any room a
+  #     person and a booth panel both fit in; a light's footprint (24"x48"
+  #     = 8 sqft) stays under it.
+  MIN_ROOM_H    = 72.0   # in — minimum plausible room height
+  MIN_ROOM_AREA = 1296.0 # sq in — minimum plausible floor area (9 sqft)
 
   BRIGHT = { 'Dim' => 0.5, 'Normal' => 1.0, 'Bright' => 2.0 }.freeze
 
@@ -413,6 +444,41 @@ module WR_DropLights
     [dy / len, -dx / len]
   end
 
+  # Subject sanity veto: nil when (h, area) is a plausible room, else the
+  # refusal text. Runs BEFORE any layer math — see MIN_ROOM_H above.
+  def self.subject_veto(h, area_sqin)
+    if h < MIN_ROOM_H
+      format('height %.0f" is below the %.0f" a walk-in room needs —' +
+             ' this looks like a fixture or a part, not a room.', h, MIN_ROOM_H)
+    elsif area_sqin < MIN_ROOM_AREA
+      format('floor area %.1f sqft is below the %.0f sqft a room needs —' +
+             ' this looks like a fixture or a part, not a room.',
+             area_sqin / 144.0, MIN_ROOM_AREA / 144.0)
+    end
+  end
+
+  # THE MULTI-FALLBACK RULE. Each fallback alone is a defensible
+  # accommodation (a legacy room without WR-Floor, a door-less room). The
+  # incident chained three of them — bbox floor, culled-grid centroid,
+  # no-door longest wall — and turned a selected LIGHT into a confident
+  # "1 light in 1 container" report. So: more than ONE fallback for a
+  # single subject means the input is not what the tool thinks it is.
+  # Returns nil (proceed) or the refusal text listing what fired.
+  def self.fallback_verdict(fired)
+    return nil if fired.size <= 1
+    "#{fired.size} fallbacks fired for this one subject:\n" +
+      fired.map { |f| "      - #{f}" }.join("\n") +
+      "\n    One fallback is an accommodation; several in a row" +
+      ' mean the selection is not the room this tool assumed.'
+  end
+
+  # Pure core of vray_light?: does this text (definition name + attribute
+  # dictionary names) name a V-Ray light? Both words required — "Daylight"
+  # alone must not match.
+  def self.light_words?(text)
+    !!(text =~ /v-?ray/i && text =~ /light/i)
+  end
+
   # ======================================================================
   # END OF THE PURE SECTION — SketchUp API from here down.
   # ======================================================================
@@ -508,8 +574,7 @@ module WR_DropLights
       words += own_dict_names(ent.definition)
       words << ent.definition.name.to_s
     end
-    text = words.join(' ')
-    !!(text =~ /v-?ray/i && text =~ /light/i)
+    light_words?(words.join(' '))
   end
 
   # The one light the seeds get copied from: a selected V-Ray light wins,
@@ -686,7 +751,10 @@ module WR_DropLights
     puts '  the V-Ray Asset Editor (Lights tab):'
     minted.each { |role, _| puts format('    %-22s -> %s', "\"#{SEEDS[role][0]}\"", SEEDS[role][1]) }
     puts '    every one            -> Units: Luminous Power (lm), Color Mode:'
-    puts '                            Temperature 3000K, Invisible: ON'
+    puts '                            Temperature 3000K, and INVISIBLE: ON —'
+    puts '                            the copies inherited the source flag,'
+    puts '                            and a visible light renders as a white'
+    puts '                            rectangle in the image.'
     puts '  That edits the copies in THIS model. To bake the values into the'
     puts '  seed files for every future model, re-save each tuned light over'
     puts '  its .skp (right-click > Save As) — or keep tuning per model.'
@@ -733,19 +801,63 @@ module WR_DropLights
     src
   end
 
+  # The WR Lights tag, with its visibility set for the model's CURRENT
+  # draft/render mode (wr-mode.rb's dictionary — read only, never written
+  # here). V-Ray's Invisible flag hides a light only in a V-Ray render; a
+  # plain view.write_image draft export still draws the rectangles, so in a
+  # DRAFT-mode model the whole tag goes hidden at placement. In render mode
+  # (or a never-toggled model) it is forced VISIBLE — a hidden light tag in
+  # a V-Ray pass renders silently UNLIT, the worse failure.
+  #
+  # KNOWN GAP, said out loud: wr-mode.rb does not yet flip this tag back on
+  # when it enters render mode, so a draft-mode press followed straight by
+  # a V-Ray render would render unlit until that tag joins the mode flip
+  # (a LIGHT_TAGS list in wr-mode.rb, polarity opposite to DIM_TAGS).
+  # Until then the console line below is the recovery.
   def self.tag(model)
     t = model.layers[TAG] || model.layers.add(TAG)
     (t.color = Sketchup::Color.new(255, 199, 44)) rescue nil # troffer yellow
+    mode = (model.get_attribute(WR_MODE_DICT, 'current') rescue nil)
+    if mode == 'draft'
+      if t.visible?
+        t.visible = false
+        puts "  tag \"#{TAG}\" HIDDEN — this model is in DRAFT mode, and " +
+             'the light rectangles must not appear in plain image exports.'
+        puts '    Show the tag (or switch to Render mode) BEFORE a V-Ray' +
+             ' pass, or the render will be unlit.'
+      end
+    elsif t.visible? == false
+      t.visible = true
+      puts "  tag \"#{TAG}\" was hidden — shown again (mode is " +
+           "#{mode ? mode : 'not draft'}); hidden lights render UNLIT."
+    end
     t
   end
 
-  # The rooms/booths to light: groups and component instances from the
-  # selection, minus any light this tool itself dropped (selecting the whole
-  # model and pressing again must not light the lights).
-  def self.containers(model)
-    model.selection.to_a
-         .select { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) }
-         .reject { |e| e.get_attribute(DICT, 'seed') }
+  # Why an entity is barred from being a lighting subject, or nil.
+  # THE INCIDENT FIX: the old exclusion keyed on this tool's own DICT
+  # attribute, so only lights IT had dropped were rejected — Benton's
+  # hand-made V-Ray rectangle light carried no such attribute, stayed a
+  # subject, and got lit as a "room". Classify by what the thing IS
+  # (V-Ray dictionaries, the WR Lights tag), not by who placed it.
+  def self.subject_exclusion(e)
+    return :own  if e.get_attribute(DICT, 'seed')
+    return :vray if vray_light?(e)
+    return :tag  if layer_name(e) == TAG
+    nil
+  end
+
+  # The rooms/booths to light, and the lights barred from being subjects:
+  # [[subjects...], [[entity, reason]...]]. This tool NEVER lights a light.
+  def self.split_selection(model)
+    subjects = []
+    excluded = []
+    model.selection.to_a.each do |e|
+      next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      r = subject_exclusion(e)
+      r ? excluded << [e, r] : subjects << e
+    end
+    [subjects, excluded]
   end
 
   # Previously-dropped lights (any version of this tool) whose origin sits
@@ -880,6 +992,7 @@ module WR_DropLights
       # selected BOOTH still obstructs (and is lit by) the room around it.
       next if e == room || (subjects.include?(e) && !booth?(e))
       next if e.get_attribute(DICT, 'seed')
+      next if vray_light?(e) || layer_name(e) == TAG # a light never keeps out
       cands << [e, IDENT]
     end
     child_entities(room).to_a.each do |e|
@@ -963,6 +1076,10 @@ module WR_DropLights
                   "\"#{t[:seed]}\"", t[:lumens].to_s)
     end
     puts format('    every light asset    -> Color Mode: Temperature, %d K', opts[:kelvin])
+    puts '    every light asset    -> INVISIBLE: ON. Without it every light'
+    puts '                            renders as a bare WHITE RECTANGLE in'
+    puts '                            the image — the fixture must never be'
+    puts '                            seen, only its light.'
     if opts[:exposure]
       puts '    Settings > Camera    -> Exposure Value 8 (or enable Auto'
       puts '    Exposure). The default EV 14.2 is full-sun exterior and'
@@ -981,17 +1098,52 @@ module WR_DropLights
     model = Sketchup.active_model
     raise 'No model open.' unless model
 
-    subjects = containers(model)
+    subjects, excluded = split_selection(model)
+    handmade = excluded.select { |_, r| r == :vray }.map { |p| p[0] }
+    own_count = excluded.count { |_, r| r == :own }
+    puts '' unless excluded.empty?
+    if own_count > 0
+      puts "  #{own_count} light#{own_count == 1 ? '' : 's'} this tool " \
+           'previously dropped are in the selection — never subjects.'
+    end
+    excluded.each do |e, r|
+      next if r == :own
+      what = r == :vray ? 'a V-Ray light' : "tagged \"#{TAG}\""
+      puts "  \"#{display_name(e)}\" is #{what} — excluded: this tool " \
+           'never lights a light.'
+    end
+
     if subjects.empty?
-      msg = if model.selection.empty?
-              'Nothing is selected.'
-            else
-              'The selection has no group or component in it — only loose ' \
-              'geometry or previously dropped lights.'
-            end
-      UI.messagebox("#{msg}\n\nSelect the room or booth groups to light, " \
-                    'then press Drop Interior Lights again. This tool never ' \
-                    'guesses which things are rooms.')
+      if handmade.any?
+        # THE moment he has a light selected and is being told it is not a
+        # room — print the evidence dump we otherwise cannot reach (minting
+        # will not re-fire once the seeds exist).
+        handmade.uniq { |e| e.respond_to?(:definition) ? e.definition : e }
+                .each { |e| dump_light(e) }
+        names = handmade.map { |e| "\"#{display_name(e)}\"" }.join(', ')
+        puts ''
+        puts "REFUSED — only a light is selected (#{names}); a light is " \
+             'never a lighting subject. Select the ROOM group instead.'
+        UI.messagebox("#{names} is a V-Ray light, not a room — this tool " \
+                      "never lights a light.\n\nSelect the ROOM group (the " \
+                      "build-room group with the WR-Floor child) and press " \
+                      "again.\n\nA V-RAY LIGHT DUMP was printed to the Ruby " \
+                      'Console — copy that whole block back to Claude.')
+      elsif excluded.any?
+        UI.messagebox('The selection holds only lights (previously dropped ' \
+                      "or tagged \"#{TAG}\") — nothing to light.\n\nSelect " \
+                      'the room or booth groups and press again.')
+      else
+        msg = if model.selection.empty?
+                'Nothing is selected.'
+              else
+                'The selection has no group or component in it — only ' \
+                'loose geometry.'
+              end
+        UI.messagebox("#{msg}\n\nSelect the room or booth groups to light, " \
+                      'then press Drop Interior Lights again. This tool ' \
+                      'never guesses which things are rooms.')
+      end
       return
     end
 
@@ -1005,18 +1157,9 @@ module WR_DropLights
     paths, refusals, legacy_note = resolve_seeds(opts)
     unless refusals.empty?
       seed_src = offer_minting(model, refusals)
-      if seed_src
-        if subjects.delete(seed_src)
-          puts "  \"#{display_name(seed_src)}\" was selected as the seed " \
-               'source — not treated as a room.'
-          if subjects.empty?
-            puts 'Only the source light was selected — select the rooms ' \
-                 'to light and press again.'
-            return
-          end
-        end
-        paths, refusals, legacy_note = resolve_seeds(opts)
-      end
+      # (the seed source is a V-Ray light, so split_selection already kept
+      # it out of subjects — nothing to remove here)
+      paths, refusals, legacy_note = resolve_seeds(opts) if seed_src
     end
 
     unless refusals.empty?
@@ -1116,29 +1259,47 @@ module WR_DropLights
                '(zero-area floor). Fix the floor or explode/rebuild the room.'
           next
         end
+
+        poly = info[:poly]
+        h = info[:z_top] - info[:z0]
+        area = poly_area(poly)
+
+        # Subject sanity FIRST: a 24"-tall component or a shoebox footprint
+        # is a fixture or a part, never a room (the light-as-room incident).
+        veto = subject_veto(h, area)
+        if veto
+          puts "  REFUSED #{name} — #{veto}"
+          puts '    Select the ROOM group instead (a build-room room — the ' \
+               'group with the WR-Floor child).'
+          next
+        end
+
+        # Every accommodation this subject needs is COLLECTED first; lights
+        # are placed only after fallback_verdict allows it. One fallback is
+        # helpful; more than one means the selection is not the room this
+        # tool assumed — see fallback_verdict.
+        fallbacks = []
         if info[:fallback]
+          fallbacks << 'no WR-Floor child: bounding-box rectangle used as the floor'
           puts "  #{name}: NO WR-Floor child found — using the BOUNDING-BOX " \
                'rectangle as the floor. Right for rectangular things; an ' \
                'L-shaped room needs its build-room floor group.'
         end
-        puts "  #{name}: no Walls child — ceiling taken from the group top." if info[:no_walls]
-
-        poly = info[:poly]
-        h = info[:z_top] - info[:z0]
-        if h <= DROP
-          puts "  REFUSED #{name} — height #{h.round(1)}\" is not a room."
-          next
+        if info[:no_walls]
+          fallbacks << 'no Walls child: ceiling taken from the group top'
+          puts "  #{name}: no Walls child — ceiling taken from the group top."
         end
+
         z_m = info[:z_top] - DROP
 
         obst = obstructions(model, s, poly, z_m, subjects)
         keepouts = obst.map { |o| o[:rect] }
         booths = obst.select { |o| booth?(o[:ent]) }
-        area = poly_area(poly)
 
-        # A — ambient grid
+        # A — ambient grid (computed now, placed only after the verdict)
         grid = grid_points(poly, h, opts[:density], keepouts)
         if grid[:fallback]
+          fallbacks << 'grid fully culled: single light at the floor centroid'
           puts "  #{name}: grid fully culled (tiny room or wall-to-wall " \
                "keep-out) — single light at the floor centroid."
         end
@@ -1146,21 +1307,12 @@ module WR_DropLights
           puts "  REFUSED #{name} — no valid point found inside its floor."
           next
         end
-        grid[:pts].each { |p| place.call(:downlight, [p[0], p[1], z_m]) }
-        lm = downlight_lumens(area, grid[:pts].size, opts[:mult])
-        down_targets << lm
-        puts format('  %s: ambient %d light%s, spacing %.0f", ceiling %.0f", ' \
-                    'target %d lm per fixture', name, grid[:pts].size,
-                    grid[:pts].size == 1 ? '' : 's', grid[:s], h, lm)
-        obst.each do |o|
-          puts "    keep-out: #{display_name(o[:ent])}" \
-               "#{booth?(o[:ent]) ? ' (booth)' : ''}"
-        end
 
-        # B — wall wash, opposite the largest door
+        # B — wall-wash wall choice (also decided before the verdict)
+        wall_i = nil
+        wps = []
         if opts[:wash] && defs[:wallwash]
           door = info[:doors].max_by { |d| d[:w] }
-          wall_i = nil
           if door
             wall_i = opposite_edge(poly, nearest_edge(poly, door[:cx], door[:cy]))
             puts "  #{name}: wall wash could not find a wall opposite the door — skipped." if wall_i.nil?
@@ -1173,20 +1325,45 @@ module WR_DropLights
               b = poly[(i + 1) % n]
               (b[0] - a[0])**2 + (b[1] - a[1])**2
             end
+            fallbacks << 'no door found: washing the longest wall'
             puts "  #{name}: no door found — washing the LONGEST wall instead " \
                  'of the one opposite a door.'
           end
-          if wall_i
-            wps = wash_points(poly, wall_i, keepouts)
-            if wps.empty?
-              puts "  #{name}: every wall-wash position was culled — layer skipped here."
-            else
-              wps.each { |p| place.call(:wallwash, [p[0], p[1], z_m]) }
-              any_wash = true
-              puts format('  %s: wall wash %d light%s at 24" standoff on wall ' \
-                          'run %d: %s', name, wps.size, wps.size == 1 ? '' : 's',
-                          wall_i + 1, wps.map { |p| format('(%.0f, %.0f)', p[0], p[1]) }.join(' '))
-            end
+          wps = wall_i ? wash_points(poly, wall_i, keepouts) : []
+        end
+
+        # THE MULTI-FALLBACK RULE — nothing has been placed for this
+        # subject yet, so refusing here refuses it whole.
+        verdict = fallback_verdict(fallbacks)
+        if verdict
+          puts "  REFUSED #{name} — #{verdict}"
+          puts '    Select the ROOM group itself (a build-room room has a ' \
+               'WR-Floor child). A legacy room with no WR-Floor can still ' \
+               'be lit with Layers = "Ambient only" or "Ambient + booth" — ' \
+               'that keeps it to the one bounding-box fallback.'
+          next
+        end
+
+        grid[:pts].each { |p| place.call(:downlight, [p[0], p[1], z_m]) }
+        lm = downlight_lumens(area, grid[:pts].size, opts[:mult])
+        down_targets << lm
+        puts format('  %s: ambient %d light%s, spacing %.0f", ceiling %.0f", ' \
+                    'target %d lm per fixture', name, grid[:pts].size,
+                    grid[:pts].size == 1 ? '' : 's', grid[:s], h, lm)
+        obst.each do |o|
+          puts "    keep-out: #{display_name(o[:ent])}" \
+               "#{booth?(o[:ent]) ? ' (booth)' : ''}"
+        end
+
+        if wall_i
+          if wps.empty?
+            puts "  #{name}: every wall-wash position was culled — layer skipped here."
+          else
+            wps.each { |p| place.call(:wallwash, [p[0], p[1], z_m]) }
+            any_wash = true
+            puts format('  %s: wall wash %d light%s at 24" standoff on wall ' \
+                        'run %d: %s', name, wps.size, wps.size == 1 ? '' : 's',
+                        wall_i + 1, wps.map { |p| format('(%.0f, %.0f)', p[0], p[1]) }.join(' '))
           end
         end
 
