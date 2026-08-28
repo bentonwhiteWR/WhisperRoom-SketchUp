@@ -2,6 +2,81 @@
 
 ## 2026-08-28
 
+### SESSION CLOSE 2026-08-28 — the V-Ray docs we had never read
+
+**Done this session**
+
+- **Elangovan / UTHSC 4-booth proposal SHIPPED.** 17 pages at
+  `C:\Users\bento\Desktop\ProposalFiles\Saravanan Elangovan\Saravanan-Elangovan-Booth-Renderings-4-Booth.pdf`
+  — cover + 11 render pages in Benton's stated order + MJP (3) and ADA ramp (2)
+  appended verbatim. All four booths MDL 7296 E. No prices, no acoustic claims.
+  Renders were made MANUALLY; the render tool was not trusted for the job.
+- **1.7.9** — render lane. `IDLE_STATE = /idle/i` matched `:idleStopped` and
+  `:idleInitialized` as well as `:idleDone`, so a renderer that had never started
+  read as finished and five empty 640x480 frames were saved 3.17 s apart. Now
+  `:idleDone` only, behind a seen-running latch. Scene transitions zeroed for the
+  batch so V-Ray no longer exports the camera mid-tween and renders the PREVIOUS
+  scene (`export-scenes.rb` had had `TransitionTime = 0` all along; the render
+  lane never did).
+- **1.7.10** — three parts faced the wrong way. Standard ceiling mirror skipped on
+  HANDED parts (the split is the hand letter, which is exactly the 60/72 series and
+  cannot reach 84/96/102); 40/16 side-wall pair swapped on two-panel unequal walls
+  (6060, 6084); `FACE_ROOM[:duct]` +1 -> **-1**, all duct covers.
+- **1.8.0** — Drop Interior Lights rebuilt on `VRay::Command.create_rectangle_light`.
+  Seed `.skp` files are dead. Each light owns its plugin, so Brightness/Warmth are
+  written and read back. Overlapping row was `ceil(L/S)` on `192.0000000001`; fixed
+  with a 1/16" snap. Stale sweep is recursive. Accent layer builds for the first time.
+- **Two fable audits** in `.forge/auditor/` — the render lane and the lighting rig.
+
+**THE FINDING THAT MATTERS MOST.** The V-Ray YARD docs installed on this machine
+(`C:\Program Files\Chaos\V-Ray\V-Ray for SketchUp\extension\documentation\`,
+generated 29 Apr 2026) are NEWER and FULLER than the set this repo was written
+against, and they overturned two load-bearing premises. Read them before writing any
+more V-Ray code. `renderer.state` has TEN values, not five; `:fatalError` does NOT
+match `/\Aidle/i` and 1.7.9 would read it as RUNNING and burn a 30-minute timeout
+per row. `save_vfb_image(path, options)` returns a Boolean the tool ignores and takes
+`:skip_alpha` / `:no_alpha`. `VRay::Command.render_production(context:)` emulates the
+toolbar render — the documented candidate for the cold-session `start` no-op.
+
+**Next steps, in order, for a fresh terminal**
+
+1. `git pull` -> `python scripts/install-plugin.py` -> **RESTART SketchUp**. 1.7.10
+   and 1.8.0 are library constants; a report without the restart says nothing.
+2. **Drop Interior Lights, one room, then render.** Checklist with the exact console
+   strings: `.forge/builder/HANDOFF-lights-api.md`. In order: emitters invisible (no
+   white slabs); FLOOR lit not ceiling (if up, set `FACE_FLIP = 180.0`); no
+   `DID NOT STICK` lines; Dim vs Bright actually changes intensity; press twice and
+   the count must NOT grow; whole-foot room 16'x12' gives FOUR lights not six.
+   If the whole render is uniformly ~8x off, set `AREA_NORMALIZED = 0.0`.
+3. **Build one booth per model** and walk the five-item orientation checklist in
+   `.forge/fixer/HANDOFF-part-orientation.md`. Check the **40/16 side-wall swap on
+   the 6060 first** — it is the least certain change and now disagrees with the
+   portal's `wallPanelRun()` in 2 places. Revert is one tuple.
+4. **Proposal package, 2-3 render rows.** Does each row log `render started`? Does
+   each render ITS OWN scene? Does the SECOND row behave like the first (never tested)?
+5. Then the render-lane audit's F1: `:fatalError` classifies as RUNNING today.
+   `.forge/auditor/render-lane-audit-2026-08-28.md`, ten ranked findings.
+
+**Open decisions**
+
+- **Cold-session `start` no-op.** On a fresh SketchUp, `renderer.start` returns without
+  rendering; after ONE hand render it works. Workaround: hand-render once before any
+  batch. Documented candidate is `VRay::Command.render_production(context:)`, unproven.
+- **Exposure is nobody's job.** Default sits near EV 14.2; an interior wants ~EV 8.
+  Until someone owns it, every interior renders dark regardless of the lights.
+- **Light It From Here matches sun height to the camera** — gave 73.4 deg on one view
+  and **8.0 deg** on another. Eight degrees is a raking sun that overpowers the fixtures.
+  Right rule for an exterior hero, wrong for a level interior.
+- **Saved scenes re-apply their own `WR Lights` tag visibility and sun** on every tab
+  click (`proposal-scenes.rb:221,223`), and the render lane sets mode BEFORE selecting
+  the page (`proposal-package.rb:708` vs `:813`), so the page selection undoes it.
+  Untouched. 60-second check: compare the `WR Lights` tick between a scene that
+  rendered dark and one that rendered right.
+- **7272 / 7296 side walls**: identical structural case to the 6060/6084 40/16 swap,
+  on their 46/22 walls. Benton reported those models' CEILINGS, not their walls. Not
+  changed — are they right, or was nobody looking?
+- `scripts/vray-seeds/*.skp` are dead and removable once every install is past 1.8.0.
+
 ### 1.8.0 Drop Interior Lights builds real V-Ray lights, because the premise it was written on was false
 
 `wr-drop-lights.rb` opened with a sentence that decided its whole architecture:
