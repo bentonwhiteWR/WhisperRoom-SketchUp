@@ -2507,7 +2507,11 @@ module WR_BuildBoothComponents
       # take a built booth down with it.
       if shell == 'all'
         begin
-          oc, owarn = WR_Overlays.place_all(model, booth, key, spec, cfg, rows, cache)
+          # The deck bounds ride along (nil on a dry run) so the caster plate
+          # can measure where the placed floor's underside really is instead
+          # of assuming the nominal slab.
+          oc, owarn = WR_Overlays.place_all(model, booth, key, spec, cfg, rows,
+                                            cache, defined?(host) ? host : nil)
           placed += oc
           warn.concat(owarn)
         rescue Exception => e

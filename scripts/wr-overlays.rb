@@ -39,19 +39,32 @@
 #               centred in plan on the carpet floor. The Standard booth's
 #               perimeter strips have NO component and NO art — reported
 #               missing, never faked.
+#   CASTER      payload cs. The wheeled tray the whole booth sits down into:
+#   PLATE       one CP plate per floor-deck tile — the plate set tiles
+#               one-for-one with the floor deck (observed, WhisperRoomQuote
+#               scripts/gen-iso-placeholders.js CP block: the cp tiles are
+#               built from the floor tiling plan) and each plate is authored
+#               with its lap out to the FULL published exterior (SIDE plates
+#               measure along+1 x cross+2, CTR along x cross+2, single-piece
+#               +2 both ways — verified against _face-levels.tsv for all 17
+#               two-axis CP parts). Plate bottoms seat on the ground plane
+#               (world z 0) and the WHOLE BOOTH is lifted CP_BOOTH_LIFT in
+#               one group transform — see the caster constants below for the
+#               datum figures and who they came from. A model whose CP file
+#               is missing (the 4260 / 4284 / 4896 today — the portal's own
+#               manifest is missing the same sizes) refuses BY NAME and the
+#               booth is NOT lifted. The vent-wall _CP art swap is separate
+#               and already handled by booth-from-link.rb.
 #
 # WHAT IT DOES NOT PLACE, ON PURPOSE
 #
-#   CASTER PLATE (the plate half of payload cs). The plate set replaces the
-#   5/16 isolation mat, tiles one-for-one with the floor deck (observed,
-#   WhisperRoomQuote scripts/gen-iso-placeholders.js:3642-3656 — the cp tiles
-#   are built from the floor tiling plan), laps out to the full published
-#   exterior, and lifts the booth exactly 5 in. Placing it means lifting the
-#   whole built booth and seating the floor 0.739 in into the tray — a change
-#   to the build's vertical datum that has not been designed, and the
-#   plate-bottom datum has no portal-sourced figure. Refused by name in the
-#   console until that work is done. The vent-wall _CP art swap is separate and
-#   already handled by booth-from-link.rb.
+#   STEP (payload sp). Pairs with the caster plate, which now builds — but
+#   the step's own placement is still not portal-sourced end to end. What IS
+#   known: 12 in deep in front of the door (layout-render's step block,
+#   TD_ART.step art measures 44.03 x 12.08), StepFront.skp exists. What is
+#   NOT sourced: its lateral anchor (centred on the door leaf or the frame?)
+#   and which face of the part is the tread. Refused by name until someone
+#   rules on those two, so a guessed step cannot ship inside a correct booth.
 
 require 'sketchup.rb'
 
@@ -139,6 +152,39 @@ module WR_Overlays
   # -1 means away. If a family builds consistently inside-out, flip its one
   # constant — do not add per-booth exceptions.
   FACE_ROOM = { :foam => 1, :duct => 1, :desk => 1, :mjp => 1 }.freeze
+
+  # ------------------------------------------------------ caster plate (cs) --
+  #
+  # THE THREE DATUM FIGURES CAME FROM BENTON DIRECTLY (2026-08-27) AND
+  # SUPERSEDE THE PORTAL. The portal's height rule lifts the booth "exactly
+  # 5 in" (assets/layout-render.js:3553) and the catalogue says "nearly 5 in"
+  # — that is the MARKETING number, what customers are told. Benton uses 4.75
+  # when he dimensions drawings, and 4.75 is what this builds. One line each
+  # to change if he refines them.
+  #
+  # CP_BOOTH_LIFT   the booth floor slab's UNDERSIDE ends up this far above
+  #                 the ground plane (world z 0, where the plate bottom sits).
+  # CP_TRAY_DEPTH   the plate is a TRAY and the whole WhisperRoom sits down
+  #                 into it — the rim wraps the bottom of the floor slab by
+  #                 this much. The researcher measured 0.739 off the portal
+  #                 art; Benton says 3/4, and the delivered plate geometry
+  #                 agrees with Benton EXACTLY: every CP part carries a face
+  #                 0.7500 below its rim (_face-levels.tsv, all 17 two-axis
+  #                 plates, checked 2026-08-27). 0.75 is authored intent AND
+  #                 measurement; the 0.739 was pixels.
+  # CP_PLATE_HEIGHT derived, 4.75 + 0.75: what a plate SHOULD measure from
+  #                 its bottom to its rim. THE DELIVERED PARTS DISAGREE: they
+  #                 measure 5.36 to 5.53 bottom-to-rim (rim minus lowest
+  #                 geometry, per part, same TSV) — most run about an eighth
+  #                 SHORT of 5.50. Neither number is averaged or silently
+  #                 picked: the plate bottom seats on the ground and the
+  #                 BOOTH holds Benton's 4.75 datum, so a short plate leaves
+  #                 its shortfall as a gap hidden inside the tray (tray floor
+  #                 a hair below the booth floor) instead of moving the booth.
+  #                 Each plate that measures off 5.50 is warned BY NAME.
+  CP_BOOTH_LIFT   = 4.75
+  CP_TRAY_DEPTH   = 0.75
+  CP_PLATE_HEIGHT = 5.50
 
   # ------------------------------------------------------------- pure logic --
   #
@@ -383,6 +429,39 @@ module WR_Overlays
     best
   end
 
+  # How far the whole booth group moves up. THE ONLY PLACE THE LIFT IS
+  # COMPUTED — the SketchUp side applies exactly this, once, to the booth
+  # group's transformation, so there is one function to test and one call
+  # site to read. A booth without casters gets 0.0, ALWAYS: that is the
+  # no-regression contract rbtest-overlays.py pins, because a lift leaking
+  # into the default path silently moves every drawing Benton has.
+  #
+  # fl_bottom is the placed floor deck's measured bottom in booth-local
+  # coordinates (DECK_TOP_Z - 1.0 nominally, so about -1.0): the lift is
+  # whatever puts that underside at CP_BOOTH_LIFT above world z 0.
+  def self.booth_lift(casters, fl_bottom)
+    return 0.0 unless casters
+    CP_BOOTH_LIFT - fl_bottom.to_f
+  end
+
+  # The CP file names to try for one floor-deck tile, best first.
+  #
+  # cross/along are the FLOOR part's name digits (WR_Deck catalogue fields —
+  # the plate set mirrors the floor set name for name, 17 two-axis plates
+  # against 17 floor arrangements, 4260/4284/4896 missing on both sides of
+  # the portal). Role is POSITIONAL — ends are SIDE, middles CTR — exactly
+  # the deck plan's own want; the CP set is unhanded so the L/R letter never
+  # appears. The alternate role and the bare name follow as fallbacks,
+  # mirroring WR_Deck.pick's byrole fallback; a fallback hit is WARNED by
+  # name at the call site, and no hit at all refuses the whole plate set.
+  def self.cp_candidates(cross, along, count, index)
+    d = format('%g%g', cross.to_f, along.to_f)
+    return ["CP#{d}"] if count < 2
+    role  = (index.zero? || index == count - 1) ? 'SIDE' : 'CTR'
+    other = role == 'SIDE' ? 'CTR' : 'SIDE'
+    ["CP#{d} #{role}", "CP#{d} #{other}", "CP#{d}"]
+  end
+
   # ========================================================================
   # SketchUp side — nothing below here is reachable from the offline tests.
   # ========================================================================
@@ -522,7 +601,12 @@ module WR_Overlays
   # [placed_count, warnings]. On a dry run everything is computed and printed
   # and nothing is placed. Any exception is the CALLER's to catch — the walls
   # are already committed work and a foam bug must not take them down.
-  def self.place_all(model, booth, key, spec, cfg, rows, cache)
+  #
+  # deck is build_booth's host-bounds hash ({'FL' => BoundingBox, ...}) so
+  # the caster plate can read where the placed floor's underside really is;
+  # nil on a dry run and from any older caller, and only the caster branch
+  # reads it.
+  def self.place_all(model, booth, key, spec, cfg, rows, cache, deck = nil)
     dry = cfg['dry'] ? true : false
     hx  = cfg['hx'] ? true : false
     ov  = cfg['overlay'] || {}
@@ -824,18 +908,19 @@ module WR_Overlays
       end
     end
 
-    # -------------------------------------------- named refusals, not silent --
+    # --------------------------------------- caster plate + the booth lift --
     if ov['casters_plate']
-      warns << 'CASTER PLATE not built: the plate set (CP*.skp) tiles with the floor ' \
-               'deck, laps to the full published exterior, and lifts the booth exactly ' \
-               '5 in with the floor seated 0.739 in into the tray — a vertical-datum ' \
-               'change this builder does not implement yet. Only the vent-wall _CP art ' \
-               'swap is in the model. See wr-overlays.rb header.'
+      placed += place_casters(model, booth, key, spec, cfg, cache,
+                              deck && deck['FL'], warns)
     end
+
+    # -------------------------------------------- named refusals, not silent --
     if ov['step']
-      warns << 'STEP (sp) not built: it pairs with the caster plate (12 in deep, in ' \
-               'front of the door at the 5 in lift) and the plate is not built — see ' \
-               'the caster-plate refusal above. StepFront.skp exists for when it is.'
+      warns << 'STEP (sp) not built: the caster plate it pairs with now builds, ' \
+               'but the step itself still lacks a ruling on its lateral anchor ' \
+               'and tread face — the portal gives only "12 in deep in front of ' \
+               'the door" (art 44.03 x 12.08). StepFront.skp exists; see the ' \
+               'wr-overlays.rb header before building it.'
     end
 
     puts '  ---- overlays end ' + '-' * 58
@@ -913,5 +998,181 @@ module WR_Overlays
     at = add(booth, defn, tr, "EFP#{digits} elevated floor", layer)
     puts "    #{at}"
     1
+  end
+
+  # ---- the caster plate, and the one place the booth is lifted -------------
+  #
+  # One CP plate per floor-deck tile — the SAME plan the floor was laid from
+  # (WR_Deck.plan on the same catalogue), so the plate set tiles one-for-one
+  # with the deck by construction, which is the portal's own rule (gen-iso-
+  # placeholders.js CP block builds the cp tiles from the floor sections).
+  # Each plate is authored with its lap to the published exterior already in
+  # the geometry (SIDE along+1 x cross+2, CTR +0/+2, single +2/+2 — measured,
+  # _face-levels.tsv), so a tile is seated exactly the way the IEP ceiling
+  # tray is: outer along edge to the outer end, cross centred, and the lap
+  # falls outward on its own.
+  #
+  # VERTICAL: plate bottoms on the ground plane (world z 0) and the WHOLE
+  # BOOTH GROUP lifted by booth_lift(...) in ONE transform, applied here and
+  # nowhere else — walls, decks, door, overlays all ride it, so no per-part
+  # z can drift. Everything printed before the lift line is in pre-lift
+  # booth-local coordinates (which stay the group's local frame afterwards).
+  #
+  # fl_bounds: the placed standard floor's union bounds, or nil on a dry run.
+  # Returns the number of plates placed; refusals return 0, warn BY NAME, and
+  # leave the booth UNLIFTED — a lifted booth over a missing plate is a
+  # floating booth.
+  def self.place_casters(model, booth, key, spec, cfg, cache, fl_bounds, warns)
+    dir = cfg['dir']
+    dry = cfg['dry'] ? true : false
+
+    cat = WR_Deck.catalogue(dir)
+    tiles, note = WR_Deck.plan(spec, cat, 'FL')
+    if tiles.nil?
+      warns << 'CASTER PLATE REFUSED BY NAME: the plate set tiles one-for-one ' \
+               "with the floor deck and the floor cannot be planned — #{note}. " \
+               'No plate was placed and the booth was NOT lifted.'
+      return 0
+    end
+    if !dry && fl_bounds.nil?
+      warns << 'CASTER PLATE REFUSED BY NAME: no standard floor deck was placed, ' \
+               'so there is nothing to seat the booth into the tray by. No plate ' \
+               'was placed and the booth was NOT lifted.'
+      return 0
+    end
+
+    # Resolve EVERY plate before touching the model: a half-lifted booth over
+    # half a plate set is worse than a named refusal.
+    plates = []
+    gone = []
+    subs = []
+    tiles.each_with_index do |t, i|
+      cands = cp_candidates(t[:part][:cross], t[:part][:along], tiles.length, i)
+      defn = nil
+      used = nil
+      cands.each do |n|
+        defn = WR_BuildBoothComponents.load_def(model, dir, n, cache)
+        if defn
+          used = n
+          break
+        end
+      end
+      if defn.nil?
+        gone << "#{cands.first}.skp"
+      else
+        subs << "#{cands.first} -> #{used}" if used != cands.first
+        plates << [t, used, defn]
+      end
+    end
+    unless gone.empty?
+      warns << "CASTER PLATE REFUSED BY NAME: #{gone.uniq.join(', ')} not in " \
+               "#{dir} (the portal's manifest is missing the same sizes on the " \
+               '4260/4284/4896). No plate was placed and the booth was NOT lifted.'
+      return 0
+    end
+    subs.each do |s|
+      warns << "caster plate role fallback: #{s} — the positional role does not " \
+               'exist at that size, the other one went in. Check the joint.'
+    end
+
+    # The measured floor underside; nominal on a dry run, and said so.
+    fl_bottom = fl_bounds ? fl_bounds.min.z.to_f : WR_Deck::DECK_TOP_Z - 1.0
+    lift = booth_lift(true, fl_bottom)
+    z_bot = fl_bottom - CP_BOOTH_LIFT
+    puts format('  CASTER PLATE  %s — plate bottoms at ground (booth-local %.4f), ' \
+                'floor underside %.4f%s',
+                note, z_bot, fl_bottom, fl_bounds ? '' : ' (NOMINAL — dry run)')
+    puts format('    datum from Benton, 2026-08-27: net lift %.2f, tray %.2f, ' \
+                'plate %.2f (= lift + tray). The portal\'s 5 in is marketing.',
+                CP_BOOTH_LIFT, CP_TRAY_DEPTH, CP_PLATE_HEIGHT)
+
+    t_cast = nil
+    unless dry
+      t_cast = model.layers['WR-Booth-Casters'] || model.layers.add('WR-Booth-Casters')
+      (t_cast.color = Sketchup::Color.new(60, 60, 66)) rescue nil
+    end
+
+    placed = 0
+    plates.each_with_index do |(t, name, defn), i|
+      rx, ry, rw, rh = WR_BuildBoothComponents.tile_rect(t)
+      # Same seating the IEP ceiling tray uses, for the same authored lap:
+      # outer along edge on the outer end, cross centred (the +2 splits 1/1).
+      seat_along = if tiles.length < 2 then :centre
+                   elsif t[:at_low_end] then :max
+                   elsif i == tiles.length - 1 then :min
+                   else :centre
+                   end
+      seat_x, seat_y = t[:along_is_x] ? [seat_along, :centre] : [:centre, seat_along]
+      # The plates are unhanded, so the turn is the deck's POSITIONAL fallback
+      # (low end as authored, everything else end for end). The portal notes
+      # the mating (lipless, pocketed) edge must land at the joint; no probe
+      # can confirm which authored end that is from here, so the turn is
+      # printed per plate and Benton's eye is the instrument, as it was for
+      # every other orientation in this builder.
+      half = tiles.length > 1 && !t[:at_low_end]
+
+      bb = defn.bounds
+      h = (bb.max.z - bb.min.z).to_f
+      if (h - CP_PLATE_HEIGHT).abs > 0.05
+        warns << format('%s measures %.4f bottom-to-rim where Benton\'s stack ' \
+                        'says %.2f (%.2f lift + %.2f tray). The plate bottom ' \
+                        'stays on the ground and the BOOTH holds the %.2f ' \
+                        'datum, so the difference (%.4f) is a gap hidden ' \
+                        'inside the tray, not a datum change.',
+                        name, h, CP_PLATE_HEIGHT, CP_BOOTH_LIFT, CP_TRAY_DEPTH,
+                        CP_BOOTH_LIFT, CP_PLATE_HEIGHT - h)
+      end
+      # The tray depth, off the part's own flat faces: a face CP_TRAY_DEPTH
+      # below the rim is the tray floor. Every delivered plate carries it at
+      # 0.7500 exactly (checked offline, all 17); this re-checks the live part
+      # so a re-export cannot silently change the stack.
+      tally = begin
+                WR_Deck.flat_levels(defn)
+              rescue StandardError
+                {}
+              end
+      unless tally.empty?
+        top = tally.keys.max
+        tray = tally.keys.find { |z| ((top - z) - CP_TRAY_DEPTH).abs <= 0.02 }
+        if tray.nil?
+          warns << format('%s carries NO face %.2f below its rim — its authored ' \
+                          'tray depth is not the %.2f Benton gave. CHECK IT.',
+                          name, CP_TRAY_DEPTH, CP_TRAY_DEPTH)
+        end
+      end
+
+      if dry
+        puts format('    %-14s at %6.2f  rect %.2f,%.2f %.2fx%.2f  seat %s%s  h %.3f',
+                    name, t[:at].to_f, rx, ry, rw, rh, seat_along.to_s,
+                    half ? '  turned' : '', h)
+        next
+      end
+      tr, tnote = WR_BuildBoothComponents.flat_placement(defn, rx, ry, rw, rh,
+                                                         false, half, :bottom,
+                                                         z_bot, seat_x, seat_y)
+      if tr.nil?
+        warns << "#{name}: #{tnote} — this plate was NOT placed. The booth was " \
+                 'still lifted (the rest of the set is in); the gap is visible.'
+        next
+      end
+      at = add(booth, defn, tr, "#{name}  caster plate", t_cast)
+      placed += 1
+      puts format('    %-14s %s%s', name, at, half ? '   (turned)' : '')
+    end
+
+    if dry
+      puts format('    would lift the whole booth %.4f (booth_lift) — nothing moved on a dry run', lift)
+      return 0
+    end
+
+    # THE LIFT, applied exactly once, to the group. Instances added to the
+    # group above are in booth-local coordinates and ride along; every bounds
+    # printed before this line is pre-lift.
+    booth.transformation = Geom::Transformation.translation(
+      Geom::Vector3d.new(0, 0, lift)) * booth.transformation
+    puts format('    BOOTH LIFTED %.4f — floor underside now %.2f above the ' \
+                'ground plane (Benton\'s figure; every bounds printed above ' \
+                'is pre-lift, booth-local).', lift, CP_BOOTH_LIFT)
+    placed
   end
 end

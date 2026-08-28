@@ -23,16 +23,18 @@
 #          | 'WA STDDRFRM L' | 'STDWL40 NV'
 #
 # Beyond the walls, the OPTION PARTS now come through too: desk (dk/dl/ds/dox),
-# MJP jack panel (jp/ms), and the elevated floor (ep, or the ad ADA bundle's
-# floor) ride into the builder's overlay pass (wr-overlays.rb), which also
+# MJP jack panel (jp/ms), the elevated floor (ep, or the ad ADA bundle's
+# floor), and the CASTER PLATE (cs — the CP plate set under the booth, plus
+# the 4.75 in booth lift; the vent-art _CP suffix is applied here as before)
+# all ride into the builder's overlay pass (wr-overlays.rb), which also
 # places the foam sheets and duct covers every booth ships with. Foam colour
 # (f) is read and REPORTED — Foam.skp has no colour variants to apply.
 #
 # What still does NOT build, each named LOUDLY below rather than dropped:
-# the caster PLATE half of cs (only the vent-art suffix is applied), step (sp,
-# pairs with that plate), bass traps (bt) and the Audimute package (ac) — no
-# .skp exists for either — the studio light (sl, no fixture .skp), and the
-# roof-mounted vent (rv, out of scope per GOAL).
+# the step (sp — StepFront.skp exists but its placement is not sourced end to
+# end; see wr-overlays.rb's header), bass traps (bt) and the Audimute package
+# (ac) — no .skp exists for either — the studio light (sl, no fixture .skp),
+# and the roof-mounted vent (rv, out of scope per GOAL).
 #
 # STANDARD: anything unrecognised is reported and falls back to the slot's
 # default part rather than silently vanishing.
@@ -403,15 +405,16 @@ module WR_BoothLink
       'mjp_slot'      => payload['ms'].to_s,
       'efp'           => payload['ep'].to_i == 1 || payload['ad'].to_i == 1,
       'efp_from_ada'  => payload['ad'].to_i == 1,
-      'casters_plate' => payload['cs'].to_i == 1,           # refused by name downstream
+      'casters_plate' => payload['cs'].to_i == 1,           # CP plate set + 4.75 in booth lift
       'step'          => payload['sp'].to_i == 1            # refused by name downstream
     }
     built_opts = { 'desk' => 'desk', 'mjp' => 'MJP jack panel',
-                   'efp' => 'elevated floor' }.select { |k, _| overlay[k] }.values
+                   'efp' => 'elevated floor',
+                   'casters_plate' => 'caster plate (CP set + 4.75 in booth lift)'
+                 }.select { |k, _| overlay[k] }.values
     puts "  option parts to build: #{built_opts.join(', ')}" unless built_opts.empty?
     refused = []
-    refused << 'cs: caster PLATE + 5 in lift (vent _CP art only — plate not implemented)' if payload['cs'].to_i == 1
-    refused << 'sp: step (pairs with the caster plate, which is not built)' if payload['sp'].to_i == 1
+    refused << 'sp: step (plate now builds; step placement not sourced — see wr-overlays.rb)' if payload['sp'].to_i == 1
     refused << 'bt: bass traps (no .skp exists — Benton to author)' if payload['bt'].to_i == 1
     refused << 'ac: Audimute panels (no .skp exists — Benton to author)' if payload['ac'].to_i == 1
     refused << 'sl: studio light (no fixture .skp exists — Benton to author)' if payload['sl'].to_i == 1

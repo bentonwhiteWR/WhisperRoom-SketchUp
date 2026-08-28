@@ -21,9 +21,18 @@ WHAT IS EXERCISED — the whole pure section of wr-overlays.rb:
      guarantees is 2.25 in roomward of the standard interior face.
   4. desk_host / mjp_host — the portal's host-selection precedence.
   5. axes_for — the measured-extents axis matcher.
+  6. THE CASTER-PLATE DATUM AND SELECTION — booth_lift / cp_candidates and
+     the CP_* constants. Benton's figures (2026-08-27, direct — they
+     supersede the portal's marketing 5 in): net lift 4.75, tray 0.75,
+     plate 5.50 derived. The single highest-risk pin here is booth_lift's
+     FALSE branch: a booth without casters must lift 0.0 EXACTLY, because a
+     leak into the default path silently moves every drawing Benton has.
+     main() also asserts, at source level, that the group transform is
+     touched nowhere outside wr-overlays' caster pass.
 
 Every expected number below traces to .forge/researcher/portal-part-placement.md
-(the port table, the 2.25 IEP move) or to wr-booth-data.rb (the slot polygons).
+(the port table, the 2.25 IEP move), to wr-booth-data.rb (the slot polygons),
+or to Benton directly (the caster datum trio).
 """
 import os
 import re
@@ -71,8 +80,20 @@ def lift_const(lines, name):
 METHODS = ['kind_of', 'wears_foam?', 'wears_duct_covers?', 'slot_frame',
            'port_run_pos', 'wall_of', 'host_frame', 'foam_targets',
            'duct_targets', 'desk_accepts_inside?', 'desk_accepts_outside?',
-           'desk_host', 'mjp_host', 'axes_for']
+           'desk_host', 'mjp_host', 'axes_for', 'booth_lift', 'cp_candidates']
 CONSTS = ['DUCT_PORTS', 'OPPOSITE_WALL']
+# Scalar constants (no .freeze line to anchor on): lifted verbatim as their
+# single assignment line.
+SCALARS = ['CP_BOOTH_LIFT', 'CP_TRAY_DEPTH', 'CP_PLATE_HEIGHT']
+
+
+def lift_scalar(lines, name):
+    """Verbatim single-line `  NAME = <number>` assignment."""
+    pat = re.compile(r'^  %s\s*=\s*[-\d.]+\s*$' % re.escape(name))
+    for ln in lines:
+        if pat.match(ln):
+            return ln
+    raise SystemExit('wr-overlays.rb: no scalar constant %s' % name)
 
 SHIMS = r'''
 class Float
@@ -203,6 +224,29 @@ __METHODS__
     ax = axes_for([2.13, 22.97, 47.88], 24.0, 48.0, 2.0)
     out << format('axes w%d h%d t%d', ax[:wi], ax[:hi], ax[:ti])
 
+    # 6 — caster datum arithmetic (Benton direct) and plate selection.
+    out << format('cp const %.2f %.2f %.2f %s', CP_BOOTH_LIFT, CP_TRAY_DEPTH,
+                  CP_PLATE_HEIGHT,
+                  (CP_PLATE_HEIGHT - (CP_BOOTH_LIFT + CP_TRAY_DEPTH)).abs < 1e-9 ? 'sum-ok' : 'SUM-BROKEN')
+    # THE no-regression pin: no casters means ZERO lift, whatever the floor
+    # measures. With casters, a floor underside at -1.0 (the nominal slab
+    # below DECK_TOP_Z 0) lifts 5.75 so the underside lands at 4.75.
+    out << format('cp lift off %.2f %.2f on %.2f', booth_lift(false, -1.0),
+                  booth_lift(false, 3.25), booth_lift(true, -1.0))
+    # Plate selection per footprint, one-for-one with the floor tiling:
+    # 4872 single; 7272 48+24; 96120 48+24+48; the 84 series' odd 18 middle;
+    # a 102 SIDE end. Every expected name exists in the P: library (listed
+    # 2026-08-27).
+    out << 'cp names ' + [
+      cp_candidates(48, 72, 1, 0).first,
+      cp_candidates(72, 48, 2, 0).first, cp_candidates(72, 24, 2, 1).first,
+      cp_candidates(96, 48, 3, 0).first, cp_candidates(96, 24, 3, 1).first,
+      cp_candidates(96, 48, 3, 2).first,
+      cp_candidates(84, 18, 4, 2).first,
+      cp_candidates(102, 42, 3, 0).first
+    ].join(',')
+    out << 'cp fall ' + cp_candidates(96, 24, 3, 0).join('/')
+
     out.join(' | ')
   end
 end
@@ -252,20 +296,57 @@ EXPECT = (
     ' | mjp auto W1'
     ' | mjp E1 W1'
     ' | axes w1 h2 t0'
+    ' | cp const 4.75 0.75 5.50 sum-ok'
+    ' | cp lift off 0.00 0.00 on 5.75'
+    ' | cp names CP4872,CP7248 SIDE,CP7224 SIDE,CP9648 SIDE,CP9624 CTR,'
+    'CP9648 SIDE,CP8418 CTR,CP10242 SIDE'
+    ' | cp fall CP9624 SIDE/CP9624 CTR/CP9624'
 )
+
+
+def lift_leak_check():
+    """The booth lift must be applied in exactly ONE place: wr-overlays'
+    caster pass. If `booth.transformation` appears anywhere else in the
+    builder chain, the no-caster datum can move — which is the regression
+    this whole test file exists to prevent."""
+    fails = []
+    ov = open(SRC, encoding='utf-8').read()
+    n = ov.count('booth.transformation')
+    # Exactly 2: the read and the write of the single compose-and-assign line
+    # in place_casters ("booth.transformation = ... * booth.transformation").
+    if n != 2:
+        fails.append('wr-overlays.rb touches booth.transformation %d time(s), '
+                     'expected exactly 2 (one compose-and-assign in '
+                     'place_casters)' % n)
+    if 'booth.transformation' not in ov.split('def self.place_casters')[-1]:
+        fails.append('the booth lift is no longer inside place_casters')
+    for other in ('build-booth-components.rb', 'wr-deck.rb'):
+        body = open(os.path.join(HERE, other), encoding='utf-8').read()
+        for tok in ('booth.transformation', 'CP_BOOTH_LIFT'):
+            if tok in body:
+                fails.append('%s mentions %s — the lift is leaking out of the '
+                             'caster pass' % (other, tok))
+    return fails
 
 
 def main():
     lines = open(SRC, encoding='utf-8').read().split('\n')
+    consts = ('\n'.join(lift_const(lines, c) for c in CONSTS) + '\n'
+              + '\n'.join(lift_scalar(lines, c) for c in SCALARS))
     prog = (SHIMS + FIXTURE
-            .replace('__CONSTS__', '\n'.join(lift_const(lines, c) for c in CONSTS))
+            .replace('__CONSTS__', consts)
             .replace('__METHODS__', '\n\n'.join(lift_method(lines, m) for m in METHODS)))
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
-    print('wr-overlays pure logic: predicates, port mirroring, IEP move, hosts')
-    ok = got == EXPECT
+    print('wr-overlays pure logic: predicates, port mirroring, IEP move, hosts,'
+          ' caster datum')
+    leaks = lift_leak_check()
+    for f in leaks:
+        print('  FAIL (lift leak) %s' % f)
+    ok = got == EXPECT and not leaks
     if ok:
-        print('  PASS  (%d checks in one transcript)' % len(EXPECT.split(' | ')))
+        print('  PASS  (%d checks in one transcript + lift-leak scan)'
+              % len(EXPECT.split(' | ')))
         return 0
     ge = got.split(' | ')
     ee = EXPECT.split(' | ')
