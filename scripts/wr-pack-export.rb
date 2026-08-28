@@ -52,14 +52,18 @@ require 'json'
 require 'fileutils'
 require 'tmpdir'
 
-$wr_no_autorun_was = $wr_no_autorun
+# The saved value MUST be a local, not a global. A nested load below runs this
+# same dance on $wr_no_autorun and would clobber a shared $wr_no_autorun_was,
+# so the ensure would 'restore' true and this file's own autorun would never
+# fire - a panel button that does nothing, silently. (2026-08-27)
+wr_pack_export_autorun_was = $wr_no_autorun
 $wr_no_autorun = true
 begin
   load File.join(File.dirname(__FILE__), 'wr-preflight.rb')     # also loads wr-mode.rb,
   load File.join(File.dirname(__FILE__), 'export-scenes.rb')    # wr-materials-swap.rb and
   load File.join(File.dirname(__FILE__), 'proposal-scenes.rb')  # proposal-scenes.rb itself
 ensure
-  $wr_no_autorun = $wr_no_autorun_was
+  $wr_no_autorun = wr_pack_export_autorun_was
 end
 
 module WR_PackExport
