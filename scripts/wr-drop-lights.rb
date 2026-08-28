@@ -143,12 +143,17 @@ require 'sketchup.rb'
 
 # Reload guard. A console re-`load` of this file used to print ~20
 # "already initialized constant" warnings: the module body re-assigns every
-# frozen constant on each load. Removing the whole module first makes each
-# load define it fresh — a re-load is now clean and always runs the newest
-# code.
-Object.send(:remove_const, :WR_DropLights) if Object.const_defined?(:WR_DropLights)
-
+# frozen constant on each load. An Object-level remove_const of the whole
+# module was tried first and a live session STILL printed the full warning
+# set (mechanism never reproduced outside SketchUp), so this now copies the
+# pattern that demonstrably reloads clean in this repo (wr-mode.rb,
+# wr-overlays.rb, wr-deck.rb): the module removes its OWN constants from
+# inside its own body before the body reassigns them. constants(false)
+# rather than a hand-kept list, so a constant added later is covered on the
+# day it is added.
 module WR_DropLights
+  constants(false).each { |c| remove_const(c) }
+
   DICT = 'WR_DropLights'.freeze
   TAG  = 'WR Lights'.freeze
   WR_MODE_DICT = 'WR_Mode'.freeze # wr-mode.rb's dictionary — read only here
@@ -309,9 +314,16 @@ module WR_DropLights
     t < EDGE_MIN ? EDGE_MIN : t
   end
 
-  # The ambient grid. Returns { :pts, :s, :fallback }. If every candidate is
-  # culled (tiny room, wall-to-wall keep-out) the single-centroid clause
-  # answers with one point and :fallback => true.
+  # The ambient grid. Returns { :pts, :s, :fallback, :diag }. If every
+  # candidate is culled (tiny room, wall-to-wall keep-out) the
+  # single-centroid clause answers with one point and :fallback => true.
+  #
+  # :diag is the cull ACCOUNTING — how many candidates were generated and
+  # how many each test rejected. The live full-cull incident printed only
+  # "grid fully culled" with no breakdown, and finding the offending
+  # keep-out took a second round trip; the caller now prints these numbers
+  # whenever the grid comes back empty. Each rejected point is charged to
+  # the FIRST test it fails, in the order polygon -> edge -> keep-out.
   def self.grid_points(poly, h, density, keepouts)
     xs = poly.map { |p| p[0] }
     ys = poly.map { |p| p[1] }
@@ -327,19 +339,33 @@ module WR_DropLights
     axis_points(lx, nx).each do |x|
       axis_points(ly, ny).each { |y| cand << [minx + x, miny + y] }
     end
+    n_out = 0
+    n_edge = 0
+    n_keep = 0
     keep = cand.select do |p|
-      point_in_poly?(p[0], p[1], poly) &&
-        edge_dist(p[0], p[1], poly) >= t - 1e-6 &&
-        !in_keepout?(p[0], p[1], keepouts)
+      if !point_in_poly?(p[0], p[1], poly)
+        n_out += 1
+        false
+      elsif edge_dist(p[0], p[1], poly) < t - 1e-6
+        n_edge += 1
+        false
+      elsif in_keepout?(p[0], p[1], keepouts)
+        n_keep += 1
+        false
+      else
+        true
+      end
     end
-    return { :pts => keep, :s => s, :fallback => false } unless keep.empty?
+    diag = { :cand => cand.size, :out => n_out, :edge => n_edge,
+             :keep => n_keep, :thr => t }
+    return { :pts => keep, :s => s, :fallback => false, :diag => diag } unless keep.empty?
     c = poly_centroid(poly)
     c = nil unless c && point_in_poly?(c[0], c[1], poly)
     if c.nil?
       c = cand.select { |p| point_in_poly?(p[0], p[1], poly) }
               .max_by { |p| edge_dist(p[0], p[1], poly) }
     end
-    { :pts => c ? [c] : [], :s => s, :fallback => true }
+    { :pts => c ? [c] : [], :s => s, :fallback => true, :diag => diag }
   end
 
   def self.nearest_edge(poly, px, py)
@@ -477,6 +503,50 @@ module WR_DropLights
   # alone must not match.
   def self.light_words?(text)
     !!(text =~ /v-?ray/i && text =~ /light/i)
+  end
+
+  # A room's own structure — floor, walls, doors — is never an obstruction.
+  # Tags are authoritative; names catch untagged builds, CASE-INSENSITIVELY,
+  # because the generators disagree: build-room.rb names the children
+  # "Floor"/"Walls"/"Doors", uthsc-audiology-rooms.rb (the live UTHSC
+  # rooms) names them "floor"/"walls"/"doors".
+  ROOM_CHILD_TAGS = %w[WR-Floor WR-Room WR-Room-Upper WR-Doors
+                       WR-Doors-Leaf WR-Notes].freeze
+  ROOM_CHILD_NAMES = %w[Floor Walls Doors].freeze
+
+  # Pure core of the obstruction child filter: is a child with this tag and
+  # name part of the room's own structure?
+  def self.room_structure_child?(tag_name, disp_name)
+    return true if ROOM_CHILD_TAGS.include?(tag_name)
+    ROOM_CHILD_NAMES.any? { |n| n.casecmp(disp_name).zero? }
+  end
+
+  # Pure door-detection cores, matched to what the room generators REALLY
+  # write (read from the .rb files, not remembered):
+  #
+  #   build-room.rb:  a "Doors" group (untagged) holding "Opening N" groups
+  #     tagged WR-Doors — the jamb-to-jamb marker auto-dimension.rb reads —
+  #     plus "Door leaf N" / "Swing N" groups on WR-Doors-Leaf.
+  #   uthsc-audiology-rooms.rb:  a "doors" group TAGGED WR-Doors holding
+  #     'door leaf 36" ...' solids (untagged) and the swing arc as loose
+  #     edges. NO Opening markers at all — which is exactly why the live
+  #     UTHSC run printed "no door found" on a room with a visible door.
+  #
+  # So: the container is found by name or tag (but a thing named like a
+  # marker is never the container); inside it an Opening marker is found by
+  # tag-or-name; failing that a leaf solid is found by name, and the open
+  # leaf's width stands in for the opening's.
+  def self.doors_container?(tag_name, disp_name)
+    return false if disp_name =~ /\Aopening/i
+    disp_name =~ /\Adoors\z/i || tag_name == 'WR-Doors' ? true : false
+  end
+
+  # :opening (the real jamb-to-jamb marker), :leaf (the stand-in), or nil
+  # (a swing arc, a header, anything else).
+  def self.door_child_kind(tag_name, disp_name)
+    return :opening if tag_name == 'WR-Doors' || disp_name =~ /\Aopening/i
+    return :leaf if disp_name =~ /\Adoor leaf/i
+    nil
   end
 
   # ======================================================================
@@ -913,14 +983,19 @@ module WR_DropLights
 
   # Reads one selected container into a plain-geometry hash:
   #   :poly [[x,y]..] world, :z0, :z_top, :doors [{:cx,:cy,:w}..],
+  #   :door_mech (how the doors were recognized — printed by the caller),
+  #   :door_diag (why NO door was found — printed on the no-door path),
   #   :fallback (true = bbox rectangle, said loudly by the caller),
   #   :degenerate (true = refuse this room by name).
+  # Child names are matched case-insensitively throughout: build-room.rb
+  # writes "Floor"/"Walls"/"Doors", uthsc-audiology-rooms.rb writes
+  # "floor"/"walls"/"doors".
   def self.room_info(inst)
     tr = inst.transformation
     kids = child_entities(inst).to_a
     floor_g = kids.find do |e|
       (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)) &&
-        (layer_name(e) == 'WR-Floor' || display_name(e) == 'Floor')
+        (layer_name(e) == 'WR-Floor' || display_name(e) =~ /\Afloor\z/i)
     end
 
     unless floor_g
@@ -942,41 +1017,94 @@ module WR_DropLights
 
     walls_g = kids.find do |e|
       (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)) &&
-        (layer_name(e) == 'WR-Room' || display_name(e) == 'Walls')
+        (layer_name(e) == 'WR-Room' || display_name(e) =~ /\Awalls\z/i)
     end
     z_top = walls_g ? world_bounds(walls_g, tr).max.z : inst.bounds.max.z
 
+    # Doors, in the defined order the pure classifiers encode (see
+    # doors_container? / door_child_kind): Opening markers inside the doors
+    # container first, then door-leaf solids inside it, then Opening
+    # markers sitting directly in the room group. Which mechanism matched
+    # is returned in :door_mech and printed by the caller; when nothing
+    # matched, :door_diag says exactly what was searched.
     doors = []
+    door_mech = nil
     doors_g = kids.find do |e|
       (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)) &&
-        (layer_name(e) == 'WR-Doors' || display_name(e) == 'Doors')
+        doors_container?(layer_name(e), display_name(e))
     end
+    door_kids = []
     if doors_g
-      dtr = tr * doors_g.transformation
-      child_entities(doors_g).to_a.each do |d|
-        next unless d.is_a?(Sketchup::Group) || d.is_a?(Sketchup::ComponentInstance)
-        next unless display_name(d).start_with?('Opening')
-        wb = world_bounds(d, dtr)
-        w = [wb.max.x - wb.min.x, wb.max.y - wb.min.y].max
-        doors << { :cx => (wb.min.x + wb.max.x) / 2.0,
-                   :cy => (wb.min.y + wb.max.y) / 2.0, :w => w }
+      door_kids = child_entities(doors_g).to_a.select do |d|
+        d.is_a?(Sketchup::Group) || d.is_a?(Sketchup::ComponentInstance)
       end
     end
+    picked = door_kids.select { |d| door_child_kind(layer_name(d), display_name(d)) == :opening }
+    base_tr = doors_g ? tr * doors_g.transformation : tr
+    if picked.any?
+      door_mech = "#{picked.size} Opening marker#{picked.size == 1 ? '' : 's'} " \
+                  "in \"#{display_name(doors_g)}\" (WR-Doors tag / Opening name)"
+    else
+      picked = door_kids.select { |d| door_child_kind(layer_name(d), display_name(d)) == :leaf }
+      if picked.any?
+        door_mech = "#{picked.size} door-leaf solid#{picked.size == 1 ? '' : 's'} " \
+                    "in \"#{display_name(doors_g)}\" — no Opening markers; " \
+                    "the open leaf's width stands in for the opening"
+      else
+        picked = kids.select do |d|
+          (d.is_a?(Sketchup::Group) || d.is_a?(Sketchup::ComponentInstance)) &&
+            !doors_container?(layer_name(d), display_name(d)) &&
+            door_child_kind(layer_name(d), display_name(d)) == :opening
+        end
+        base_tr = tr
+        if picked.any?
+          door_mech = "#{picked.size} Opening marker#{picked.size == 1 ? '' : 's'} " \
+                      'directly in the room group'
+        end
+      end
+    end
+    picked.each do |d|
+      wb = world_bounds(d, base_tr)
+      w = [wb.max.x - wb.min.x, wb.max.y - wb.min.y].max
+      doors << { :cx => (wb.min.x + wb.max.x) / 2.0,
+                 :cy => (wb.min.y + wb.max.y) / 2.0, :w => w }
+    end
+    door_diag =
+      if doors.any?
+        nil
+      elsif doors_g
+        "a doors container \"#{display_name(doors_g)}\" was found but none " \
+        "of its #{door_kids.size} group children matched an Opening marker " \
+        "(WR-Doors tag / name starting \"Opening\") or a leaf (name " \
+        "starting \"door leaf\")"
+      else
+        "no doors container among the room's #{kids.size} children " \
+        '(looked for the WR-Doors tag or a "Doors" name) and no Opening ' \
+        'markers directly in the room group'
+      end
 
     { :poly => poly, :z0 => z0, :z_top => z_top, :doors => doors,
+      :door_mech => door_mech, :door_diag => door_diag,
       :fallback => false, :degenerate => false,
       :no_walls => walls_g.nil? }
   end
 
   # ---- obstructions -------------------------------------------------------
 
-  ROOM_CHILD_TAGS = %w[WR-Floor WR-Room WR-Room-Upper WR-Doors
-                       WR-Doors-Leaf WR-Notes].freeze
-  ROOM_CHILD_NAMES = %w[Floor Walls Doors].freeze
-
-  # Everything that could stand under the light plane of `room`: top-level
-  # groups/components plus the room's own non-structural children (a booth
-  # dragged inside the group). Returns [{:rect(inflated), :ent, :tr, :bb}].
+  # Everything that could stand under the light plane of `room`: the room's
+  # SIBLINGS — the entities of the container the room itself sits in — plus
+  # the room's own non-structural children (a booth dragged inside the
+  # group). Returns [{:rect(inflated), :ent, :tr, :bb}].
+  #
+  # Siblings, NOT model.entities. The live UTHSC full-cull incident: the
+  # selected room was nested inside a suite group, the old top-level scan
+  # saw the SUITE ITSELF — a box spanning all four rooms wall-to-wall,
+  # rising to the ceiling — and turned the room's own ancestor into one
+  # keep-out that culled every grid point. A room's ancestors can never be
+  # its obstructions, and a sibling list cannot contain an ancestor. The
+  # siblings also share the coordinate frame the room's transformation (and
+  # the placed lights, and the selection's bounds) live in, which
+  # model.entities does not once the room is nested.
   def self.obstructions(model, room, poly, z_m, subjects)
     xs = poly.map { |p| p[0] }
     ys = poly.map { |p| p[1] }
@@ -985,8 +1113,10 @@ module WR_DropLights
     maxx = xs.max
     maxy = ys.max
 
+    par = room.respond_to?(:parent) ? room.parent : nil
+    sibs = par.respond_to?(:entities) ? par.entities : model.entities
     cands = []
-    model.entities.to_a.each do |e|
+    sibs.to_a.each do |e|
       next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
       # Other selected rooms are not obstructions of this one, but a
       # selected BOOTH still obstructs (and is lit by) the room around it.
@@ -997,8 +1127,7 @@ module WR_DropLights
     end
     child_entities(room).to_a.each do |e|
       next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
-      next if ROOM_CHILD_TAGS.include?(layer_name(e))
-      next if ROOM_CHILD_NAMES.include?(display_name(e))
+      next if room_structure_child?(layer_name(e), display_name(e))
       cands << [e, room.transformation]
     end
 
@@ -1300,8 +1429,31 @@ module WR_DropLights
         grid = grid_points(poly, h, opts[:density], keepouts)
         if grid[:fallback]
           fallbacks << 'grid fully culled: single light at the floor centroid'
-          puts "  #{name}: grid fully culled (tiny room or wall-to-wall " \
-               "keep-out) — single light at the floor centroid."
+          # The cull ACCOUNTING — the live UTHSC incident printed only
+          # "fully culled" and finding the offending keep-out took another
+          # round trip. Say what was generated, what each test rejected,
+          # and name every keep-out with its inflated rectangle.
+          d = grid[:diag]
+          puts "  #{name}: grid fully culled — single light at the floor " \
+               'centroid instead. The breakdown:'
+          puts format('    %d candidate%s at %.0f" spacing: %d outside the ' \
+                      'floor polygon, %d nearer than %.1f" to an edge, %d ' \
+                      'inside a keep-out.', d[:cand],
+                      d[:cand] == 1 ? '' : 's', grid[:s], d[:out],
+                      d[:edge], d[:thr], d[:keep])
+          if obst.empty?
+            puts '    No keep-outs exist — the culling is the polygon/edge ' \
+                 'tests alone (tiny room).'
+          else
+            obst.each do |o|
+              r = o[:rect]
+              puts format('    keep-out: "%s"%s — XY (%.0f, %.0f)-(%.0f, ' \
+                          '%.0f) incl. %.0f" pad, top at %.0f"',
+                          display_name(o[:ent]),
+                          booth?(o[:ent]) ? ' (booth)' : '',
+                          r[0], r[1], r[2], r[3], KEEPOUT_PAD, o[:bb].max.z)
+            end
+          end
         end
         if grid[:pts].empty?
           puts "  REFUSED #{name} — no valid point found inside its floor."
@@ -1314,11 +1466,16 @@ module WR_DropLights
         if opts[:wash] && defs[:wallwash]
           door = info[:doors].max_by { |d| d[:w] }
           if door
+            puts "  #{name}: door#{info[:doors].size == 1 ? '' : 's'} found " \
+                 "via #{info[:door_mech]}."
             wall_i = opposite_edge(poly, nearest_edge(poly, door[:cx], door[:cy]))
             puts "  #{name}: wall wash could not find a wall opposite the door — skipped." if wall_i.nil?
           else
             # No doors readable (bbox fallback or door-less room): wash the
-            # longest wall and say so.
+            # longest wall and say so — and say what the door search
+            # actually looked at, so a detection miss is visible without
+            # another live round trip.
+            puts "  #{name}: door search came up empty — #{info[:door_diag]}." if info[:door_diag]
             n = poly.size
             wall_i = (0...n).max_by do |i|
               a = poly[i]

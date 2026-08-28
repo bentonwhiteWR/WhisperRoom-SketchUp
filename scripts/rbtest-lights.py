@@ -39,6 +39,25 @@ worked examples in .forge/researcher/interior-lighting-design.md:
      2 or more refuses, and the refusal lists what fired and how many.
  12. light_words? — the pure core of vray_light?: BOTH "vray" and "light"
      must appear ("Daylight house" alone must not match).
+ 13. THE LIVE UTHSC ROOM (the 2026-08-27 "grid fully culled" refusal):
+     239.25" x 268.25" (444.92 sf), 8' walls, Soft density. Must land the
+     full 3x3 grid, and the new :diag accounting must show 9 candidates
+     with zero rejections. Several lights, never one.
+ 14. Same room with a booth-sized keep-out (90x90 + 12" pad) in a corner:
+     exactly one grid point dies, EIGHT remain — no centroid fallback.
+ 15. Same room with a wall-to-wall keep-out — what the room's own SUITE
+     ancestor became when the old obstruction scan read model top level
+     instead of the room's siblings. Fallback fires, and :diag must charge
+     all nine candidates to the keep-out test, naming the culprit class.
+ 16. room_structure_child? — the obstruction child filter: floor/walls/
+     doors are excluded by tag, or by name CASE-INSENSITIVELY (build-room
+     writes "Walls", uthsc-audiology-rooms.rb writes "walls"); a booth
+     child must NOT be excluded.
+ 17. doors_container? / door_child_kind — door detection matched to what
+     the generators really write: build-room's "Doors">"Opening N"
+     (WR-Doors) with "Door leaf N"/"Swing N" (WR-Doors-Leaf), and the
+     UTHSC script's WR-Doors-tagged "doors" holding 'door leaf ...' solids
+     and no Opening markers at all (the live "no door found" room).
 
 MUTATION-CHECKED 2026-08-27 (each mutation applied to wr-drop-lights.rb,
 this test run, FAIL confirmed, mutation reverted): centred formula
@@ -54,6 +73,16 @@ MIN_ROOM_H 72.0->20.0 (veto stops firing on the 24" light); MIN_ROOM_AREA
 1296.0->50.0 (shoebox floor passes); fallback_verdict size<=1 -> size<=2
 (two fallbacks slip through); light_words? vray term dropped (Daylight
 matches). Each made this test FAIL and was reverted.
+
+MUTATION-CHECKED 2026-08-27 (UTHSC-incident additions, same protocol):
+grid_points diag mis-charge (keep-out rejections counted as edge);
+in_keepout? forced false; room_structure_child? name match made
+case-sensitive; door_child_kind leaf regex made case-sensitive;
+doors_container? name alternative dropped (tag only); grid nx ceil->floor.
+All six KILLED (test failed) and were reverted. NOT coverable here: the
+obstruction scan's siblings-not-model.entities fix and the reload guard
+are SketchUp-API-side — the first is the actual incident fix and is
+unverified until a live press.
 """
 import os
 import re
@@ -96,10 +125,27 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'in_keepout?', 'edge_threshold', 'grid_points', 'nearest_edge',
            'opposite_edge', 'wash_points', 'downlight_lumens',
            'booth_lumens', 'accent_axis', 'subject_veto',
-           'fallback_verdict', 'light_words?']
+           'fallback_verdict', 'light_words?', 'room_structure_child?',
+           'doors_container?', 'door_child_kind']
 SCALARS = ['DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD', 'HEADROOM',
            'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF', 'WASH_SPACING',
            'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H', 'MIN_ROOM_AREA']
+BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES']
+
+
+def lift_block(lines, name):
+    """Verbatim multi-line `  NAME = ...` constant, through its `.freeze`."""
+    start = None
+    for i, ln in enumerate(lines):
+        if ln.startswith('  %s = ' % name):
+            start = i
+            break
+    if start is None:
+        raise SystemExit('wr-drop-lights.rb: no constant %s' % name)
+    for j in range(start, len(lines)):
+        if lines[j].rstrip().endswith('.freeze'):
+            return '\n'.join(lines[start:j + 1])
+    raise SystemExit('wr-drop-lights.rb: %s never freezes' % name)
 
 FIXTURE = r'''
 module WR_DropLights
@@ -113,6 +159,9 @@ __METHODS__
   LPOLY = [[0.0, 0.0], [144.0, 0.0], [144.0, 180.0], [72.0, 180.0],
            [72.0, 108.0], [0.0, 108.0]]
   TINY = [[0.0, 0.0], [30.0, 0.0], [30.0, 30.0], [0.0, 30.0]]
+  # The LIVE room the 2026-08-27 refusal happened in: UTHSC Audiology
+  # Room 1, 19'-11 1/4" x 22'-4 1/4" (444.92 sf), 8' walls.
+  UROOM = [[0.0, 0.0], [239.25, 0.0], [239.25, 268.25], [0.0, 268.25]]
 
   def self.pts_s(pts)
     pts.map { |p| p.map { |v| v.round(2) }.join(',') }.join(';')
@@ -201,6 +250,63 @@ __METHODS__
                     light_words?('vray infinite plane')]
                    .map { |b| b ? '1' : '0' }.join
 
+    # 13 — the live UTHSC room, no keep-outs: a 445 sqft room at Soft
+    # density MUST land a full 3x3 grid, with the diagnostics accounting
+    # for every candidate. The 2026-08-27 run reported "grid fully culled"
+    # here, which this line proves is impossible without a phantom keep-out
+    # (it was the room's own suite ancestor, swallowed by the old top-level
+    # obstruction scan).
+    g = grid_points(UROOM, 96.0, :soft, [])
+    d = g[:diag]
+    out << format('uroom n%d fb%d cand%d rej%d,%d,%d thr%s', g[:pts].size,
+                  g[:fallback] ? 1 : 0, d[:cand], d[:out], d[:edge],
+                  d[:keep], d[:thr].round(2))
+
+    # 14 — a booth-sized keep-out in the SW corner (a 90x90 booth inflated
+    # by the 12" pad): exactly one grid point dies, EIGHT lights remain —
+    # never the single-centroid fallback.
+    g = grid_points(UROOM, 96.0, :soft, [[-12.0, -12.0, 102.0, 102.0]])
+    d = g[:diag]
+    out << format('ubooth n%d fb%d keep%d', g[:pts].size,
+                  g[:fallback] ? 1 : 0, d[:keep])
+
+    # 15 — the incident replayed: one wall-to-wall keep-out (what the suite
+    # group became). The centroid fallback fires and the diagnostics must
+    # charge all nine candidates to the keep-out test, not the others.
+    g = grid_points(UROOM, 96.0, :soft, [[-12.0, -12.0, 900.0, 900.0]])
+    d = g[:diag]
+    out << format('usuite %s fb%d rej%d,%d,%d', pts_s(g[:pts]),
+                  g[:fallback] ? 1 : 0, d[:out], d[:edge], d[:keep])
+
+    # 16 — room_structure_child?: the room's own floor/walls/doors are
+    # NEVER keep-outs — by tag, or by name CASE-INSENSITIVELY (build-room
+    # writes "Walls", the UTHSC script writes "walls") — while a wall-like
+    # booth child MUST still become one.
+    out << 'rsc ' + [room_structure_child?('WR-Room', 'walls'),
+                     room_structure_child?('Layer0', 'walls'),
+                     room_structure_child?('Layer0', 'Walls'),
+                     room_structure_child?('WR-Room-Upper', 'whatever'),
+                     room_structure_child?('Layer0', 'WhisperRoom 7272 E'),
+                     room_structure_child?('WR-Booth-Walls', 'panel')]
+                    .map { |b| b ? '1' : '0' }.join
+
+    # 17 — the door classifiers against what the two generators REALLY
+    # write: build-room.rb's untagged "Doors" container holding "Opening N"
+    # (WR-Doors) / "Door leaf N" / "Swing N" (WR-Doors-Leaf), and the UTHSC
+    # script's WR-Doors-tagged "doors" container holding 'door leaf ...'
+    # solids and a loose swing arc — the live "no door found" room.
+    out << 'dc ' + [doors_container?('Layer0', 'Doors'),
+                    doors_container?('WR-Doors', 'doors'),
+                    doors_container?('WR-Doors', 'Opening 3'),
+                    doors_container?('Layer0', 'Floor')]
+                   .map { |b| b ? '1' : '0' }.join
+    out << 'dk ' + [door_child_kind('WR-Doors', 'Opening 3') == :opening,
+                    door_child_kind('Layer0', 'door leaf 36" ASSUMED, swings in') == :leaf,
+                    door_child_kind('WR-Doors-Leaf', 'Door leaf 3') == :leaf,
+                    door_child_kind('WR-Doors-Leaf', 'Swing 3').nil?,
+                    door_child_kind('Layer0', 'wall').nil?]
+                   .map { |b| b ? '1' : '0' }.join
+
     out.join(' | ')
   end
 end
@@ -229,12 +335,19 @@ EXPECT = ' | '.join([
     'veto 1110 msg1',
     'fbv 0011 list1',
     'lw 1100',
+    'uroom n9 fb0 cand9 rej0,0,0 thr36.0',
+    'ubooth n8 fb0 keep1',
+    'usuite 119.63,134.13 fb1 rej0,0,9',
+    'rsc 111100',
+    'dc 1100',
+    'dk 11111',
 ])
 
 
 def main():
     lines = open(SRC, encoding='utf-8').read().split('\n')
-    consts = '\n'.join(lift_scalar(lines, c) for c in SCALARS)
+    consts = '\n'.join([lift_scalar(lines, c) for c in SCALARS] +
+                       [lift_block(lines, c) for c in BLOCKS])
     prog = (FIXTURE
             .replace('__CONSTS__', consts)
             .replace('__METHODS__', '\n\n'.join(lift_method(lines, m) for m in METHODS)))
