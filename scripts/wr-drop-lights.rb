@@ -39,12 +39,11 @@
 # LAYER: three seeds = three independent brightness sliders for free.
 #
 # ===========================================================================
-# THE SEEDS ARE BENTON'S TO AUTHOR — MISSING ONES ARE REFUSED BY NAME
+# THE SEEDS — AUTHORED ONCE BY HAND, OR MINTED FROM ONE HAND-MADE LIGHT
 #
-# All in scripts/vray-seeds/, each authored ONCE on the render machine:
-# V-Ray toolbar > Rectangle Light, drawn AT THE COMPONENT ORIGIN, emitting
+# All in scripts/vray-seeds/, each drawn AT THE COMPONENT ORIGIN, emitting
 # face DOWN (-Z), Units = Luminous Power (lm), Color Mode = Temperature at
-# 3000K, Invisible = ON, then right-click > Save As into scripts/vray-seeds/:
+# 3000K, Invisible = ON:
 #
 #   WR Light Downlight.skp   12" x 12"   3,000 lm   ambient grid
 #   WR Light Wallwash.skp     6" x 24"   1,500 lm   feature wall (long side
@@ -54,11 +53,32 @@
 #                            OPTIONAL, Directionality ~0.5; until it exists
 #                            the accent layer is skipped with a console note.
 #
-# A layer whose seed is missing is refused BY NAME with these instructions;
-# the other layers still place. If the older "WR Interior Light.skp" (24x48
+# Nobody has to author all of them by hand. Draw ONE V-Ray rectangle
+# light (V-Ray toolbar > Lights > Rectangle Light, at the origin, facing
+# down) and press the button: when seeds are missing and such a light is
+# found, the tool offers (Yes/No, default No — it writes files to disk) to
+# MINT the missing .skp seeds as copies of it, then carries on placing in
+# the same press. A copy is made with add_instance + make_unique — a real
+# duplicate of the hand-made definition — because a V-Ray light CANNOT be
+# synthesized from Ruby (no light API, reference/vray-ruby-api.md) and a
+# file that merely LOOKS like a light emits nothing, silently, in a render
+# an hour later. A copy that lost the source's V-Ray dictionaries is
+# refused, never saved. Sizes and intensities are NOT set on the copies —
+# where V-Ray stores them is unproven — so minting prints the exact Asset
+# Editor values to set per seed, plus a full attribute-dictionary dump of
+# the source light to paste back to Claude (that dump is the evidence that
+# will let a later version set the values in code).
+#
+# The accent seed is never minted: it needs Directionality ~0.5 set by
+# hand, and a plain copy would silently be a wrong light. It stays
+# optional, authored by hand when wanted.
+#
+# A layer whose seed is missing (and not minted) is refused BY NAME; the
+# other layers still place. If the older "WR Interior Light.skp" (24x48
 # troffer) exists it is accepted for the Downlight role with a console note.
 # NOTE install-plugin.py bundles only .rb files — the seeds ride in with a
-# repo checkout (git pull), which every machine that renders has.
+# repo checkout (git pull). Minted seeds land in the first
+# scripts/vray-seeds/ this machine has (created if needed) — commit them.
 #
 # ===========================================================================
 # BRIGHTNESS / WARMTH / EXPOSURE ARE PRINTED, NOT WRITTEN — THE SEAM
@@ -85,13 +105,16 @@
 #      guesses which things in a model are rooms. Lights it dropped earlier
 #      are never treated as rooms (never lights its own lights).
 #   2. Pops the settings dialog (UI.inputbox, four dropdowns + one yes/no).
-#   3. Removes any lights IT previously dropped inside the selected rooms
+#   3. If seed .skp files are missing: offers (default No) to mint them
+#      from a hand-made V-Ray light in the model — see the seeds section
+#      above — then carries on in the same press.
+#   4. Removes any lights IT previously dropped inside the selected rooms
 #      (found by their WR_DropLights attribute) — a re-press re-places.
-#   4. Per selected room: reads the WR-Floor polygon (bounding-box fallback,
+#   5. Per selected room: reads the WR-Floor polygon (bounding-box fallback,
 #      LOUD, when there is none — booths and legacy rooms are legitimate),
 #      the wall top, the doors; finds obstructions (a booth under the light
 #      plane); places the layers; prints every number it used.
-#   5. Tags everything "WR Lights"; prints the per-seed lumen targets so the
+#   6. Tags everything "WR Lights"; prints the per-seed lumen targets so the
 #      Asset Editor sliders can be nudged to the computed values.
 #
 # Lights go in the CURRENT drawing context, never inside the client's room
@@ -416,7 +439,298 @@ module WR_DropLights
     "toolbar > Rectangle Light, #{spec}, facing DOWN, drawn at the " \
     "component origin, Units = Luminous Power (lm), Color Mode = " \
     "Temperature 3000K, Invisible = ON, then right-click > Save As into " \
-    "scripts/vray-seeds/ as \"#{name}.skp\"."
+    "scripts/vray-seeds/ as \"#{name}.skp\".\n" \
+    'OR draw ONE rectangle light anywhere in the model and press this ' \
+    'button again — the tool will offer to mint every missing seed from it.'
+  end
+
+
+  # nil-free seed paths for the requested layers, the roles refused because
+  # their file is missing, and the legacy-downlight console note.
+  def self.resolve_seeds(opts)
+    paths = {}
+    refusals = []
+    legacy_note = nil
+    paths[:downlight] = seed_path(SEEDS[:downlight][0])
+    if paths[:downlight].nil?
+      legacy = seed_path(LEGACY_DOWNLIGHT)
+      if legacy
+        paths[:downlight] = legacy
+        legacy_note = "using legacy #{LEGACY_DOWNLIGHT}.skp as the Downlight " \
+                      'seed — re-save it as WR Light Downlight.skp (12" x 12", ' \
+                      '3,000 lm) when convenient.'
+      else
+        refusals << :downlight
+      end
+    end
+    if opts[:wash]
+      paths[:wallwash] = seed_path(SEEDS[:wallwash][0])
+      refusals << :wallwash if paths[:wallwash].nil?
+    end
+    if opts[:booth]
+      paths[:booth] = seed_path(SEEDS[:booth][0])
+      refusals << :booth if paths[:booth].nil?
+      paths[:accent] = seed_path(SEEDS[:accent][0]) # optional — nil = skip
+    end
+    paths.delete_if { |_, v| v.nil? }
+    [paths, refusals, legacy_note]
+  end
+
+  # ========================================================================
+  # SEED MINTING — the missing .skp seeds, copied from ONE hand-made light
+  #
+  # A V-Ray light cannot be conjured from Ruby (no light class — see
+  # reference/vray-ruby-api.md), and a file assembled from guessed
+  # attributes is worse than none: it looks right and emits nothing, an
+  # hour later, in a render. So minting only ever COPIES a light V-Ray
+  # itself made, and verifies the copy kept the source's dictionaries
+  # before saving it.
+  # ========================================================================
+
+  # Roles whose seed may be minted. Accent is excluded on purpose: it
+  # needs Directionality ~0.5 set by hand; a plain copy would be a wrong
+  # light wearing the right name.
+  MINTABLE = [:downlight, :wallwash, :booth].freeze
+
+  def self.own_dict_names(ent)
+    ad = ent.respond_to?(:attribute_dictionaries) ? ent.attribute_dictionaries : nil
+    ad ? ad.map { |d| d.name.to_s } : []
+  end
+
+  # Does this look like a V-Ray light? Judged by names only: its definition
+  # name plus its attribute-dictionary names (instance and definition) must
+  # mention both "vray" and "light". Deliberately strict — minting from a
+  # non-light would produce seeds that fail silently in a render.
+  def self.vray_light?(ent)
+    return false unless ent.is_a?(Sketchup::ComponentInstance) || ent.is_a?(Sketchup::Group)
+    words = own_dict_names(ent)
+    if ent.respond_to?(:definition) && ent.definition
+      words += own_dict_names(ent.definition)
+      words << ent.definition.name.to_s
+    end
+    text = words.join(' ')
+    !!(text =~ /v-?ray/i && text =~ /light/i)
+  end
+
+  # The one light the seeds get copied from: a selected V-Ray light wins,
+  # else the model's top level — but only when every candidate is the same
+  # light (same definition). Different definitions are a genuine choice
+  # this tool refuses to make; it lists them and asks for a selection.
+  def self.find_source_light(model)
+    sel = model.selection.to_a.select { |e| vray_light?(e) }
+    return sel.first if sel.size == 1
+    if sel.size > 1
+      puts '  Several V-Ray lights are SELECTED — select exactly one (with the rooms) and press again:'
+      sel.each { |e| puts "    #{display_name(e)}" }
+      return nil
+    end
+    all = model.entities.to_a.select { |e| vray_light?(e) }
+    if all.empty?
+      puts '  No V-Ray light found to copy from (searched the selection and the model top level).'
+      return nil
+    end
+    defs = all.map { |e| e.respond_to?(:definition) ? e.definition : nil }.uniq
+    if defs.size == 1
+      note = all.size == 1 ? 'the only V-Ray light in the model' :
+             "all #{all.size} V-Ray lights found are copies of it"
+      puts "  Using \"#{display_name(all.first)}\" as the seed source — #{note}."
+      return all.first
+    end
+    puts '  Several DIFFERENT V-Ray lights found — this tool will not guess between them:'
+    all.each { |e| puts "    #{display_name(e)}" }
+    puts '  Add the one to copy to the selection and press again.'
+    nil
+  end
+
+  # Where minted seeds land: the first scripts/vray-seeds/ that exists,
+  # else the first one whose scripts/ parent exists (created on the spot).
+  def self.mint_dir
+    dirs = seed_candidates('probe').map { |p| File.dirname(p) }.uniq
+    hit = dirs.find { |d| File.directory?(d) }
+    return hit if hit
+    creatable = dirs.find { |d| File.directory?(File.dirname(d)) }
+    return nil if creatable.nil?
+    Dir.mkdir(creatable)
+    creatable
+  end
+
+  def self.dump_dicts(ent, label)
+    ad = ent.respond_to?(:attribute_dictionaries) ? ent.attribute_dictionaries : nil
+    dicts = ad ? ad.to_a : []
+    if dicts.empty?
+      puts "  #{label}: no attribute dictionaries"
+      return
+    end
+    puts "  #{label}:"
+    dicts.each do |d|
+      puts "    dictionary \"#{d.name}\":"
+      d.each_pair do |k, v|
+        s = v.inspect
+        s = "#{s[0, 160]}..." if s.length > 160
+        puts "      #{k} = (#{v.class}) #{s}"
+      end
+      nested = d.attribute_dictionaries
+      (nested ? nested.to_a : []).each do |nd|
+        puts "      nested dictionary \"#{nd.name}\":"
+        nd.each_pair do |k, v|
+          s = v.inspect
+          s = "#{s[0, 160]}..." if s.length > 160
+          puts "        #{k} = (#{v.class}) #{s}"
+        end
+      end
+    end
+  end
+
+  # The evidence printout. We do NOT currently know where a V-Ray light
+  # stores its size, intensity, colour temperature or invisible flag —
+  # this dump of a light V-Ray itself made is how we find out. Printed
+  # whenever minting runs.
+  def self.dump_light(src)
+    d = src.respond_to?(:definition) ? src.definition : nil
+    bb = d ? d.bounds : src.bounds
+    puts ''
+    puts '=== V-RAY LIGHT DUMP — copy this whole block back to Claude ========'
+    puts "  class: #{src.class}"
+    puts "  definition: #{d ? "\"#{d.name}\"" : '(none)'}"
+    puts format('  drawn size (definition bounds): %.2f" x %.2f" x %.2f"',
+                bb.width, bb.height, bb.depth)
+    o = src.transformation.origin
+    puts format('  placed at: (%.2f", %.2f", %.2f")', o.x, o.y, o.z)
+    dump_dicts(src, 'instance dictionaries')
+    if d
+      dump_dicts(d, 'definition dictionaries')
+      ents = d.entities.to_a
+      kinds = Hash.new(0)
+      ents.each { |e| kinds[e.class.to_s.sub('Sketchup::', '')] += 1 }
+      puts "  definition contains #{ents.size} entities: " +
+           kinds.map { |k, n| "#{n} #{k}" }.join(', ')
+      ents.first(12).each_with_index do |e, i|
+        dump_dicts(e, "entity[#{i}] (#{e.class.to_s.sub('Sketchup::', '')})")
+      end
+    end
+    puts '=== END DUMP ======================================================='
+    puts '  ^ Paste that whole block back to Claude — it is the evidence for'
+    puts '    where V-Ray keeps size / intensity / temperature / invisible.'
+  end
+
+  # save_copy (SketchUp 2022+) writes the file without re-binding the
+  # definition to the path; older SketchUp falls back to save_as.
+  def self.save_skp(defn, path)
+    ok = defn.respond_to?(:save_copy) ? defn.save_copy(path) : defn.save_as(path)
+    raise "SketchUp refused to save #{path}" unless ok
+    raise "save reported success but #{path} does not exist" unless File.exist?(path)
+  end
+
+  # Mint the given roles' seed files as copies of src. Returns the minted
+  # [role, path] pairs. The temp copies are made inside an operation that
+  # is ABORTED at the end: the files persist, the model is left untouched.
+  def self.mint_seeds(model, src, roles, dir)
+    src_def = src.definition
+    minted = []
+    model.start_operation('Mint V-Ray light seeds', true)
+    begin
+      roles.each do |role|
+        name = SEEDS[role][0]
+        path = File.join(dir, "#{name}.skp").tr('\\', '/')
+        if File.exist?(path)
+          a = UI.messagebox("#{name}.skp already exists:\n#{path}\n\n" \
+                            "Overwrite it with a copy of \"#{display_name(src)}\"?",
+                            MB_YESNOCANCEL)
+          if a == IDCANCEL
+            puts '  minting CANCELLED — no further seeds written.'
+            break
+          end
+          if a == IDNO
+            puts "  kept the existing #{name}.skp — not overwritten."
+            next
+          end
+        end
+        if src_def.name == name
+          # The source is itself a placed copy of this very seed (a model
+          # made on another machine) — save its definition straight out.
+          save_skp(src_def, path)
+        else
+          temp = model.entities.add_instance(src_def, Geom::Transformation.new)
+          temp.make_unique
+          d = temp.definition
+          raise "make_unique did not copy the light for #{name}" if d == src_def
+          lost = own_dict_names(src_def) - own_dict_names(d)
+          unless lost.empty?
+            raise "the copy for #{name} LOST V-Ray dictionaries #{lost.inspect} — " \
+                  'a dead seed will not be saved. Author this one by hand ' \
+                  'instead (right-click the light > Save As).'
+          end
+          begin
+            d.name = name
+          rescue StandardError => e
+            puts "  note: could not rename the copy to \"#{name}\" " \
+                 "(#{e.message}) — saved anyway; the file name is what counts."
+          end
+          save_skp(d, path)
+        end
+        minted << [role, path]
+        puts "  minted #{name}.skp -> #{path}"
+      end
+    ensure
+      model.abort_operation # the temp copies leave the model; the files stay
+    end
+    minted
+  end
+
+  # Minted copies inherit the SOURCE light's size / intensity / colour —
+  # where V-Ray stores those is unproven, so this tool does not touch them
+  # and prints the hand-off instead.
+  def self.print_mint_recipe(minted)
+    puts ''
+    puts "  MINTED SEEDS CARRY THE SOURCE LIGHT'S SETTINGS. Set each one in"
+    puts '  the V-Ray Asset Editor (Lights tab):'
+    minted.each { |role, _| puts format('    %-22s -> %s', "\"#{SEEDS[role][0]}\"", SEEDS[role][1]) }
+    puts '    every one            -> Units: Luminous Power (lm), Color Mode:'
+    puts '                            Temperature 3000K, Invisible: ON'
+    puts '  That edits the copies in THIS model. To bake the values into the'
+    puts '  seed files for every future model, re-save each tuned light over'
+    puts '  its .skp (right-click > Save As) — or keep tuning per model.'
+  end
+
+  # The on-the-spot fix for missing seeds. Never a surprise: it writes
+  # files to disk, so it asks first and the prompt defaults to No. Returns
+  # the source light used when anything was minted, else nil.
+  def self.offer_minting(model, refusals)
+    roles = refusals & MINTABLE
+    return nil if roles.empty?
+    # With a source light in hand, offer every missing core seed, not just
+    # the refused layers' — one Yes instead of three separate runs.
+    MINTABLE.each do |r|
+      roles << r if !roles.include?(r) && seed_path(SEEDS[r][0]).nil?
+    end
+    puts ''
+    puts "Missing seed file#{roles.size == 1 ? '' : 's'}: " +
+         roles.map { |r| "#{SEEDS[r][0]}.skp" }.join(', ')
+    src = find_source_light(model)
+    return nil if src.nil?
+    dir = mint_dir
+    if dir.nil?
+      puts '  MINTING IMPOSSIBLE — no scripts/ folder to create vray-seeds/ in. Looked at:'
+      seed_candidates(SEEDS[roles.first][0]).each { |p| puts "    #{File.dirname(p)}" }
+      return nil
+    end
+    puts "  They can be minted as copies of \"#{display_name(src)}\" into:"
+    puts "    #{dir}"
+    ans = UI.inputbox(
+      ["Write #{roles.size} seed file#{roles.size == 1 ? '' : 's'} copied from \"#{display_name(src)}\"?"],
+      ['No'], ['Yes|No'], 'Missing V-Ray light seeds — mint them?')
+    unless ans && ans[0] == 'Yes'
+      puts '  Minting declined — the by-name refusals below stand.'
+      return nil
+    end
+    dump_light(src)
+    minted = mint_seeds(model, src, roles, dir)
+    if minted.empty?
+      puts '  Nothing was minted.'
+      return nil
+    end
+    print_mint_recipe(minted)
+    src
   end
 
   def self.tag(model)
@@ -685,32 +999,25 @@ module WR_DropLights
     return unless opts # cancelled
 
     # Resolve the seeds the requested layers need. A missing seed refuses
-    # ITS layer by name; the other layers still place.
-    paths = {}
-    refusals = []
-    legacy_note = nil
-    paths[:downlight] = seed_path(SEEDS[:downlight][0])
-    if paths[:downlight].nil?
-      legacy = seed_path(LEGACY_DOWNLIGHT)
-      if legacy
-        paths[:downlight] = legacy
-        legacy_note = "using legacy #{LEGACY_DOWNLIGHT}.skp as the Downlight " \
-                      'seed — re-save it as WR Light Downlight.skp (12" x 12", ' \
-                      '3,000 lm) when convenient.'
-      else
-        refusals << :downlight
+    # ITS layer by name — but first the on-the-spot fix: when a hand-made
+    # V-Ray light is in the model, offer to mint the missing seed files as
+    # copies of it and carry on in the same press.
+    paths, refusals, legacy_note = resolve_seeds(opts)
+    unless refusals.empty?
+      seed_src = offer_minting(model, refusals)
+      if seed_src
+        if subjects.delete(seed_src)
+          puts "  \"#{display_name(seed_src)}\" was selected as the seed " \
+               'source — not treated as a room.'
+          if subjects.empty?
+            puts 'Only the source light was selected — select the rooms ' \
+                 'to light and press again.'
+            return
+          end
+        end
+        paths, refusals, legacy_note = resolve_seeds(opts)
       end
     end
-    if opts[:wash]
-      paths[:wallwash] = seed_path(SEEDS[:wallwash][0])
-      refusals << :wallwash if paths[:wallwash].nil?
-    end
-    if opts[:booth]
-      paths[:booth] = seed_path(SEEDS[:booth][0])
-      refusals << :booth if paths[:booth].nil?
-      paths[:accent] = seed_path(SEEDS[:accent][0]) # optional — nil = skip
-    end
-    paths.delete_if { |_, v| v.nil? }
 
     unless refusals.empty?
       txt = refusals.map { |r| seed_refusal(r) }.join("\n\n")
