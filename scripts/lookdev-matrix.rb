@@ -45,6 +45,19 @@ module WR_LookDev
   SNAP_FILE = File.join(OUT_DIR, '_snapshot.json').freeze
   JSONL     = File.join(OUT_DIR, '_frames.jsonl').freeze
 
+  # A SECOND SWEEP NEEDS A SECOND FOLDER, not a second copy of this file.
+  # out_dir= is how the sun-off sweep (scripts/sunoff-drive.py) reuses this
+  # harness without forking it; unset, everything below behaves exactly as it
+  # did for the look-development matrix.
+  def self.out_dir;      @out_dir || OUT_DIR;                     end
+  def self.snap_file;    File.join(out_dir, '_snapshot.json');    end
+  def self.jsonl;        File.join(out_dir, '_frames.jsonl');     end
+  def self.out_dir=(d)
+    require 'fileutils'
+    FileUtils.mkdir_p(d)
+    @out_dir = d
+  end
+
   # The light rig, grouped. OBSERVED 30 Aug 2026 by walking the model: every
   # Rectangle Light sits at z = 96 in (the room ceiling) EXCEPT #14 at
   # z = 78.3 in, which is inside the booth. /Standard Light has no instance the
@@ -63,6 +76,13 @@ module WR_LookDev
   # frame is failed as never-started. render_production returns as soon as the
   # export is queued, so this is generous by design.
   START_WINDOW_S = 20.0
+
+  # The four /SettingsEnvironment slots that scale what the environment
+  # contributes: background, global illumination, reflections, refractions.
+  # All four move together -- scaling GI but leaving the background at full
+  # would give a room lit as if there were no sky, photographed against one.
+  ENV_TEX_MULTS = [:bg_tex_mult, :gi_tex_mult,
+                   :reflect_tex_mult, :refract_tex_mult].freeze
 
   EV_F_NUMBER = 8.0
   EV_ISO      = 100.0
@@ -115,6 +135,11 @@ module WR_LookDev
          ['/SettingsImageSampler', :progressive_maxSubdivs],
          ['/SunLight', :enabled], ['/SunLight', :intensity_multiplier],
          ['/Environment Sky', :intensity_multiplier],
+         # THE KNOB THAT ACTUALLY CONTROLS THE SKY LIGHT. See ENV_TEX_MULTS.
+         ['/SettingsEnvironment', :bg_tex_mult],
+         ['/SettingsEnvironment', :gi_tex_mult],
+         ['/SettingsEnvironment', :reflect_tex_mult],
+         ['/SettingsEnvironment', :refract_tex_mult],
          ['/CameraPhysical', :f_number], ['/CameraPhysical', :ISO],
          ['/CameraPhysical', :shutter_speed]]
     ALL_LIGHTS.each { |l| p << [l, :enabled]; p << [l, :intensity] }
@@ -152,7 +177,7 @@ module WR_LookDev
   # capture!(:force => true), which is loud enough to be noticed in a review.
   def self.capture!(opts = {})
     require 'fileutils'
-    FileUtils.mkdir_p(OUT_DIR)
+    FileUtils.mkdir_p(out_dir)
     if @snap && !opts[:force]
       raise 'REFUSED: a snapshot already exists for this session. Re-capturing ' \
             'over a swept model is how a restore silently puts back the wrong ' \
@@ -181,8 +206,19 @@ module WR_LookDev
     Sketchup.active_model.layers.each do |ly|
       @snap["tag|#{ly.name}"] = (ly.visible? ? 1 : 0)
     end
+    # THE ROOM AS FOUND. Hidden-ness of every wall group, and whether the
+    # sweep's own ceiling was already in the model (it should never be), so
+    # restore! can put back a room rather than a room-shaped guess.
+    begin
+      walls_group.entities.grep(Sketchup::Group).each_with_index do |e, i|
+        @snap["wall|#{i}|#{e.name}"] = (e.hidden? ? 1 : 0)
+      end
+    rescue Exception => e
+      @snap['wall|ERROR'] = "#{e.class}: #{e.message}"
+    end
+    @snap['ceiling_group_preexisting'] = ceiling_group.nil? ? 0 : 1
     @snap['shadow_time'] = (si['ShadowTime'].to_s rescue nil)
-    File.open(SNAP_FILE, 'w') { |f| f.write(pretty(@snap)) }
+    File.open(snap_file, 'w') { |f| f.write(pretty(@snap)) }
     @snap
   end
 
@@ -262,9 +298,251 @@ module WR_LookDev
       end
       problems << "shadow_info[#{k}] DID NOT RESTORE: wanted #{want.inspect}, read back #{got.inspect}"
     end
+    # THE ROOM. The sweep's ceiling comes OUT unless it was already there
+    # (it never is), and every wall goes back to the hidden-ness it was found
+    # with -- by index AND name, so a renamed or reordered wall is reported
+    # rather than silently skipped.
+    begin
+      if snap['ceiling_group_preexisting'].to_i == 0
+        n = remove_ceiling!
+        problems << "ceiling group STILL PRESENT after remove_ceiling!" unless ceiling_group.nil?
+        @ceiling_removed = n
+        # AND THE MATERIAL. Erasing the group leaves the SketchUp material
+        # behind -- OBSERVED 30 Aug 2026, the model came back with 37
+        # materials where it was found with 36, and only an independent count
+        # caught it. Removing the material is safe (it is this harness's own,
+        # nothing else uses it); DELETING ITS V-RAY PLUGIN IS NOT, and is
+        # deliberately not attempted -- see MATTE_SUPPORTED.
+        mat = (Sketchup.active_model.materials[CEIL_MTL] rescue nil)
+        unless mat.nil?
+          begin
+            m2 = Sketchup.active_model
+            m2.start_operation('WR sweep material cleanup', true)
+            m2.materials.remove(mat)
+            m2.commit_operation
+          rescue Exception => e
+            problems << "sweep ceiling material NOT removed (#{e.class}: #{e.message})"
+          end
+          problems << "sweep ceiling material #{CEIL_MTL.inspect} STILL PRESENT" unless
+            (Sketchup.active_model.materials[CEIL_MTL] rescue nil).nil?
+        end
+      end
+      wg = walls_group
+      groups = wg.entities.grep(Sketchup::Group)
+      groups.each_with_index do |e, i|
+        want = snap["wall|#{i}|#{e.name}"]
+        if want.nil?
+          problems << "wall #{i} #{e.name.inspect} was NOT in the snapshot"
+          next
+        end
+        e.hidden = (want.to_i == 1)
+      end
+      groups.each_with_index do |e, i|
+        want = snap["wall|#{i}|#{e.name}"]
+        next if want.nil?
+        got = e.hidden? ? 1 : 0
+        problems << "wall #{i} #{e.name.inspect} DID NOT RESTORE: wanted hidden=#{want}, read #{got}" if got != want.to_i
+      end
+    rescue Exception => e
+      problems << "room restore raised #{e.class}: #{e.message}"
+    end
+
     written = snap.keys.reject { |k| k == 'shadow_time' || NEVER_WRITE.include?(k) }.length
     return "restored clean (#{written} keys put back)" if problems.empty?
     problems.join('; ')
+  end
+
+  # ------------------------------------------------- the host room itself --
+  #
+  # WHY THE ROOM IS A VARIABLE AND NOT A FIXTURE.
+  #
+  # OBSERVED 30 Aug 2026: the "Studio Room" group is a four-walled box that
+  # stops at z = 96 in with NO CEILING and no ceiling tag. Every render this
+  # project has judged was therefore lit in large part by sky light falling
+  # straight down through an open roof -- free, directionless fill that no
+  # real room has. Any verdict on the light rig taken against that room is a
+  # verdict about a room that does not exist.
+  #
+  # "Just add a ceiling" is NOT automatically the fix, because a lot of
+  # WhisperRoom drawings are deliberately 2- or 3-sided host rooms, with walls
+  # left out so the camera can see in (Benton, 30 Aug 2026). So the enclosure
+  # is swept, not assumed: walls 4 or 3, ceiling present or absent, and the
+  # sky itself takeable to zero.
+  #
+  # THE WALL THAT COMES OUT is Wall 2 -- the east pair, x = 240..244. BOTH
+  # saved cameras sit inside the room just west of it (exterior eye x = 232,
+  # interior eye x = 196, OBSERVED from the page cameras), so it is the wall
+  # the camera would be looking THROUGH in a 3-sided drawing. It is behind
+  # both cameras, so removing it changes the light in frame without changing
+  # what is composed.
+  CEIL_GROUP  = 'WR Sweep Ceiling'.freeze
+  CEIL_MTL    = 'WR Sweep Ceiling'.freeze
+  ROOM_Z      = 96.0
+  ROOM_MIN    = [-4.0, -4.0].freeze
+  ROOM_MAX    = [244.0, 196.0].freeze
+  OPEN_WALLS  = ['Wall 2', 'Wall 2 (upper)'].freeze
+
+  # A CAMERA-INVISIBLE CEILING IS NOT AVAILABLE ON THIS BUILD, and this is
+  # where the evidence lives so nobody spends the afternoon again.
+  #
+  # The V-Ray CORE mechanism exists and was found: MtlRenderStats carries
+  # camera_visibility / gi_visibility / reflections_visibility /
+  # refractions_visibility / shadows_visibility, and every V-Ray material in
+  # this scene carries an empty "renderStats" USERDATA slot that names one.
+  # Setting camera_visibility = 0 on a ceiling's material is exactly the
+  # architectural matte trick.
+  #
+  # It cannot be driven. OBSERVED FOUR TIMES, 30 Aug 2026, each costing a
+  # SketchUp force-kill and restart:
+  #
+  #   sc.change { sc.delete('/<a material bound to live geometry>') }   HANGS
+  #   sc.change { rs = sc.create(:MtlRenderStats,n); rs[:camera_visibility]=0 } HANGS
+  #   sc.create(:MtlRenderStats,n) outside a change, then rs[:...] = 0  HANGS
+  #   sc.change { rs = sc.create(...); rs[:base_mtl] = '/Aluminum'; ... } HANGS
+  #
+  # The create ALONE returns (1.7 s), and writing a parameter on an ALREADY
+  # EXISTING, already-bound material plugin returns (0.02 s). It is writing a
+  # parameter on a NEWLY CREATED material-category plugin that never comes
+  # back: Ruby stops answering the bridge, no modal is on screen (the window
+  # list was enumerated, there is none), and SketchUp must be killed.
+  #
+  # Nor is it in the product UI: V-Ray for SketchUp's localisation strings
+  # carry "V-Ray Object Visibility: Enabled / Disabled" and nothing about
+  # matte, camera visibility or render stats, and VRay::ObjectProperties
+  # exposes only get/set_object_visibility -- a BINARY toggle that removes the
+  # object from the render entirely, which is the same as not having a ceiling.
+  #
+  # So this harness REFUSES to render a "matte" ceiling rather than fake one.
+  # The supported stand-in it offers instead is 'sky_multiplier' => 0.0: the
+  # free sky light is removed at the environment rather than blocked by
+  # geometry. That is honest about what it does and what it does not -- it
+  # kills the skylight but provides NO bounce surface, whereas a real ceiling
+  # both blocks and bounces. The two arms bracket the matte ceiling: a matte
+  # ceiling would be the 'ceiling' arm's light with the 'open' arm's picture.
+  MATTE_SUPPORTED = false
+
+  def self.walls_group
+    m  = Sketchup.active_model
+    sr = m.entities.grep(Sketchup::Group).find { |g| g.name == 'Studio Room' }
+    raise 'no group named "Studio Room" -- the room axis cannot be swept' if sr.nil?
+    w = sr.entities.grep(Sketchup::Group).find { |g| g.name == 'Walls' }
+    raise 'no "Walls" group inside "Studio Room"' if w.nil?
+    w
+  end
+
+  def self.ceiling_group
+    Sketchup.active_model.entities.grep(Sketchup::Group).find { |g| g.name == CEIL_GROUP }
+  end
+
+  # Built ONCE and then hidden or shown per frame, rather than created and
+  # erased per frame: less model churn, and hiding is exactly right here
+  # because a hidden group is genuinely absent from the export, which is what
+  # "no ceiling" means.
+  def self.ensure_ceiling!
+    g = ceiling_group
+    return g unless g.nil?
+    m = Sketchup.active_model
+    m.start_operation('WR sweep ceiling', true)
+    mat = m.materials[CEIL_MTL] || m.materials.add(CEIL_MTL)
+    mat.color = Sketchup::Color.new(228, 228, 224)
+    g = m.entities.add_group
+    g.name = CEIL_GROUP
+    f = g.entities.add_face([[ROOM_MIN[0], ROOM_MIN[1], ROOM_Z],
+                             [ROOM_MAX[0], ROOM_MIN[1], ROOM_Z],
+                             [ROOM_MAX[0], ROOM_MAX[1], ROOM_Z],
+                             [ROOM_MIN[0], ROOM_MAX[1], ROOM_Z]])
+    f.reverse! if f.normal.z > 0     # the lit face points DOWN into the room
+    f.material = mat
+    f.back_material = mat
+    m.commit_operation
+    g
+  end
+
+  def self.remove_ceiling!
+    m  = Sketchup.active_model
+    gs = m.entities.grep(Sketchup::Group).select { |g| g.name == CEIL_GROUP }
+    return 0 if gs.empty?
+    m.start_operation('WR sweep ceiling remove', true)
+    n = gs.length
+    gs.each(&:erase!)
+    m.commit_operation
+    n
+  end
+
+  # Apply one room arm and REPORT WHAT THE MODEL NOW HOLDS, read back rather
+  # than echoed, so the record says what was rendered.
+  def self.room!(spec)
+    return nil if spec.nil?
+    ceil  = (spec['ceiling'] || 'none').to_s
+    walls = (spec['walls'] || 4).to_i
+    if ceil == 'matte' && !MATTE_SUPPORTED
+      raise 'REFUSED: a camera-invisible ("matte") ceiling is not available ' \
+            'in V-Ray for SketchUp on this build -- see MATTE_SUPPORTED for ' \
+            'the four hangs that established it. Use ceiling "none" with ' \
+            'sky_multiplier 0.0 for the supported stand-in.'
+    end
+    g = (ceil == 'none') ? ceiling_group : ensure_ceiling!
+    m = Sketchup.active_model
+    m.start_operation('WR sweep room', true)
+    g.hidden = (ceil == 'none') unless g.nil?
+    wg = walls_group
+    wg.entities.grep(Sketchup::Group).each do |e|
+      next unless OPEN_WALLS.include?(e.name)
+      e.hidden = (walls < 4)
+    end
+    m.commit_operation
+    room_measured(ceil, walls)
+  end
+
+  def self.room_measured(asked_ceiling = nil, asked_walls = nil)
+    g  = ceiling_group
+    wg = (walls_group rescue nil)
+    present = wg.nil? ? [] :
+      wg.entities.grep(Sketchup::Group).reject { |e| e.hidden? }.map { |e| e.name }
+    { 'ceiling_asked'    => asked_ceiling,
+      'walls_asked'      => asked_walls,
+      'ceiling_in_model' => !g.nil?,
+      'ceiling_hidden'   => (g.nil? ? nil : g.hidden?),
+      'ceiling_renders'  => (!g.nil? && !g.hidden?),
+      'wall_groups_visible' => present.length,
+      'walls_visible'    => present.uniq.sort.join(','),
+      'open_wall_hidden' => (wg.nil? ? nil :
+        wg.entities.grep(Sketchup::Group).any? { |e| OPEN_WALLS.include?(e.name) && e.hidden? }) }
+  end
+
+  # ---------------------------------------------- THE ASSERTION THAT COUNTS --
+  #
+  # The single most expensive mistake this project has made was rendering a
+  # whole stage of a light sweep with the tag that carries every light HIDDEN.
+  # Sixty-eight frames were rendered before anyone noticed that not one of
+  # them contained artificial light. A hidden tag is not exported, so the
+  # intensities being swept were numbers in a settings file that no render
+  # ever saw, and the arms came back identical to four decimal places.
+  #
+  # So this does not warn and it does not fix up quietly. It RAISES, before
+  # render_production is called, and the frame is failed by name. A frame that
+  # cannot contain the lights it is a study of is a wasted frame, and the
+  # harness's job is to refuse to produce one.
+  LIGHT_TAG = 'WR Lights'.freeze
+
+  def self.assert_lights_visible!
+    m  = Sketchup.active_model
+    ly = m.layers[LIGHT_TAG]
+    raise "REFUSED TO RENDER: this model has no tag named #{LIGHT_TAG.inspect}" if ly.nil?
+    unless ly.visible?
+      raise "REFUSED TO RENDER: the tag #{LIGHT_TAG.inspect} is HIDDEN. A light " \
+            'on a hidden tag is excluded from the V-Ray export, so this frame ' \
+            'would contain NO artificial light at all -- exactly the failure ' \
+            'that wasted 68 frames on 30 Aug 2026.'
+    end
+    on = m.entities.grep(Sketchup::ComponentInstance)
+          .select { |e| e.layer && e.layer.name == LIGHT_TAG && e.visible? }
+    if on.length < 8
+      raise "REFUSED TO RENDER: tag #{LIGHT_TAG.inspect} is visible but only " \
+            "#{on.length} light instances are visible in the model (expected 8). " \
+            'Something else is hiding the rig.'
+    end
+    on.length
   end
 
   # --------------------------------------------------------------- apply --
@@ -310,6 +588,11 @@ module WR_LookDev
       end
     end
 
+    # THE ROOM ITSELF, before the sun and before the lights: it is geometry,
+    # and geometry is what the other two are measured against.
+    @room = set['room'] ? room!(set['room']) : room_measured
+    @lights_visible = nil
+
     @sun_aim = nil
     if set['sun_aim']
       sa = set['sun_aim']
@@ -328,6 +611,26 @@ module WR_LookDev
       end
       sky = (sc['/Environment Sky'] rescue nil)
       sky[:intensity_multiplier] = set['sky_multiplier'].to_f if sky && set['sky_multiplier']
+
+      # THE SKY'S BRIGHTNESS IS NOT /Environment Sky[intensity_multiplier].
+      #
+      # OBSERVED 30 Aug 2026, and it cost twenty frames: writing
+      # /Environment Sky[:intensity_multiplier] = 0.0 READS BACK 0.0 and
+      # changes the render NOT AT ALL. Twenty "no sky" frames came back
+      # identical to their sky-on twins to four decimal places -- the same
+      # species of null experiment as the hidden light tag, and caught the
+      # same way, by noticing two arms that could not legitimately match.
+      #
+      # /Environment Sky is a TexSky whose intensity_multiplier is only in
+      # play for the sun-driven sky model; the environment's contribution to
+      # the render is scaled by /SettingsEnvironment's PER-SLOT multipliers.
+      # Setting all four to 0 measured mean luminance 0.2741 against 0.4557
+      # with them at 1 -- same frame, same rig, sun off. That is the knob.
+      se = (sc['/SettingsEnvironment'] rescue nil)
+      if se && set['env_mult']
+        m = set['env_mult'].to_f
+        ENV_TEX_MULTS.each { |k| se[k] = m }
+      end
 
       # Light groups carry a MULTIPLIER on the intensity the rig was FOUND at,
       # so a sweep arm is a ratio against Benton's own rig rather than against
@@ -451,6 +754,12 @@ module WR_LookDev
       'sun_enabled'  => (sc['/SunLight'][:enabled] rescue nil),
       'sun_mult'     => (sc['/SunLight'][:intensity_multiplier] rescue nil),
       'sky_mult'     => (sc['/Environment Sky'][:intensity_multiplier] rescue nil),
+      # WHAT THE ENVIRONMENT ACTUALLY CONTRIBUTES. sky_mult above is recorded
+      # for the record and is NOT the control -- see apply!.
+      'env_bg_tex_mult'      => (sc['/SettingsEnvironment'][:bg_tex_mult] rescue nil),
+      'env_gi_tex_mult'      => (sc['/SettingsEnvironment'][:gi_tex_mult] rescue nil),
+      'env_reflect_tex_mult' => (sc['/SettingsEnvironment'][:reflect_tex_mult] rescue nil),
+      'env_refract_tex_mult' => (sc['/SettingsEnvironment'][:refract_tex_mult] rescue nil),
       'sun_elev_deg' => r2(el),
       'sun_aim'      => sun_aim_record,
       'sun_azi_deg'  => r2(az),
@@ -476,6 +785,11 @@ module WR_LookDev
     # file that no render ever saw.
     out['tag_wr_lights_visible'] =
       (Sketchup.active_model.layers['WR Lights'].visible? rescue nil)
+    # NOT the tag alone. The tag being visible is necessary and not sufficient
+    # -- an instance can be hidden in its own right -- so the number of light
+    # instances that would actually export is counted and recorded per frame.
+    out['visible_light_instances'] = @lights_visible
+    out['room'] = (@room || room_measured)
     out['room_total_intensity']  = r2(ROOM_LIGHTS.inject(0.0)  { |a, l| a + li(sc, l) })
     out['booth_total_intensity'] = r2(BOOTH_LIGHTS.inject(0.0) { |a, l| a + li(sc, l) })
     out['standard_total_intensity'] = r2(STANDARD_LIGHTS.inject(0.0) { |a, l| a + li(sc, l) })
@@ -592,9 +906,15 @@ module WR_LookDev
     t_apply = Time.now
     aim!(spec['camera'])
     apply!(spec['set'] || {})
+    # THE REFUSAL, and it is deliberately BEFORE the timer and before the
+    # render. spec['require_lights'] is set by every sun-off frame, because a
+    # sun-off frame with no rig in it is not a dark picture of the booth -- it
+    # is a picture of nothing, and it would be indistinguishable from a
+    # correctly rendered failure. The frame is failed by name instead.
+    @lights_visible = assert_lights_visible! if spec['require_lights']
     apply_s = Time.now - t_apply
 
-    path = File.join(OUT_DIR, spec['file'])
+    path = File.join(out_dir, spec['file'])
     File.delete(path) if File.exist?(path)
 
     t0 = Time.now
@@ -619,7 +939,7 @@ module WR_LookDev
             'render_seconds' => r2(render_s),
             'wall_seconds'   => r2(total_s),
             'measured' => measured }
-    File.open(JSONL, 'a') { |f| f.puts(compact_json(rec)) }
+    File.open(jsonl, 'a') { |f| f.puts(compact_json(rec)) }
     rec
   end
 

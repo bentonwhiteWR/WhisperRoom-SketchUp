@@ -2,6 +2,163 @@
 
 ## 2026-08-30
 
+### sun-off look matrix + the ceiling question — the rig alone, and a host room that has no roof
+
+`scripts/lookdev-matrix.rb` (extended), `scripts/sunoff-drive.py` (new). SketchUp 2026 /
+V-Ray 7 only, through `scripts/sketchup-bridge.py --su 2026`. No change to
+`scripts/proposal-package.rb`, so its VERSION stays where 1.9.6 left it.
+
+#### The assertion first, because everything else depends on it
+
+**`WR Lights` was VISIBLE on every one of the frames below, and the harness now refuses to
+render if it is not.** Observed, and asserted frame by frame rather than once at the top.
+
+The tag read **hidden** on the model as found — again. `WR_LookDev.assert_lights_visible!`
+runs inside `frame!` *before* `render_production`, raises if the tag is hidden, and raises
+again if the tag is visible but fewer than eight light instances are. Both refusals were
+exercised as negative tests before the sweep started:
+
+    tag hidden          -> RuntimeError: REFUSED TO RENDER: the tag "WR Lights" is HIDDEN...
+    one instance hidden -> RuntimeError: ...only 7 light instances are visible (expected 8)
+    both restored       -> assert -> 8
+
+`measured` now records `tag_wr_lights_visible` **and** `visible_light_instances` on every
+frame, and `sunoff-results.json` carries a top-level `assertions` block that names any frame
+that slipped through. A wasted frame is now a failed frame.
+
+#### The camera-invisible ceiling: the mechanism exists in V-Ray, and it cannot be driven here
+
+The brief asked for a ceiling that blocks and bounces light without appearing in frame — the
+standard architectural matte trick — **if V-Ray for SketchUp supports it**. It does not, on
+this build, and the honest answer is worth more than a fake one.
+
+**What was found (observed).** `MtlRenderStats` is creatable through `VRay::Scene#create` and
+carries exactly the right parameters:
+
+    camera_visibility, gi_visibility, reflections_visibility,
+    refractions_visibility, shadows_visibility, shadows_receive, visibility
+
+and every real V-Ray material in the scene (`MtlSingleBRDF`) carries an **empty `renderStats`
+userdata slot** that names one. `camera_visibility = 0` with the rest at 1 is the trick.
+
+**What failed (observed four times, each costing a SketchUp force-kill and restart).**
+
+    sc.change { sc.delete('/<material bound to live geometry>') }              HANGS
+    sc.change { rs = sc.create(:MtlRenderStats,n); rs[:camera_visibility]=0 }  HANGS
+    sc.create(:MtlRenderStats,n) outside a change, then rs[:camera_visibility]=0  HANGS
+    sc.change { rs = sc.create(...); rs[:base_mtl]='/Aluminum'; ... }          HANGS
+
+Ruby stops answering the bridge, **no modal is on screen** — the process's window list was
+enumerated through `EnumWindows`, there is none — and SketchUp must be killed. The failure was
+isolated: `sc.create(:MtlRenderStats, n)` **alone** returns (1.7 s), and writing a parameter on
+an **already existing, already bound** material plugin returns (0.02 s,
+`sc.change { sc['/Aluminum'][:double_sided] = 1 }`). It is writing a parameter on a **newly
+created material-category plugin** that never comes back.
+
+**Nor is it in the product.** V-Ray for SketchUp's own localisation strings offer
+`"V-Ray Object Visibility": "Enabled" / "Disabled"` and nothing about matte, camera visibility
+or render stats; `VRay::ObjectProperties` exposes only `get_object_visibility` /
+`set_object_visibility`, a **binary** toggle that removes the object from the render entirely —
+which is the same picture as having no ceiling at all.
+
+So the harness **refuses** a `ceiling => 'matte'` arm by name rather than faking one with a
+hidden tag. Hiding a tag removes geometry from the export, which is precisely the trap that
+wasted 68 frames.
+
+**The supported stand-in that was swept instead** is `sky_multiplier => 0.0`: the free sky
+light is removed at the environment rather than blocked by geometry. It is not the same thing
+and the record says so — it kills the skylight but provides **no bounce surface**, where a real
+ceiling both blocks and bounces. The two arms bracket the matte ceiling: a matte ceiling would
+have the light of the `ceil` arm and the picture of the `open` arm.
+
+Two more V-Ray hazards for the NEVER-DO list, both observed here:
+
+- `VRay::Scene#delete` on a material plugin **bound to live geometry** hangs SketchUp.
+- V-Ray **garbage-collects an unreferenced material plugin between bridge jobs** — a
+  `MtlRenderStats` created in one job was gone by the next.
+
+#### The host room is a four-walled box with no roof, so the room became an axis
+
+Observed by walking the model: `Studio Room` holds `Floor`, `Walls` and `Doors` and **no
+ceiling group and no ceiling tag**; the walls stop at z = 96 in. Sky light has therefore been
+falling straight down into every frame this project has judged.
+
+"Just add a ceiling" is not automatically right — a lot of WhisperRoom drawings are
+deliberately 2- or 3-sided host rooms with walls left out so the camera can see in — so the
+enclosure is **swept, not assumed**. `WR_LookDev` gained `room!`:
+
+- a ceiling group (`WR Sweep Ceiling`, one face over the full outer footprint at z = 96,
+  normal pointing down) built **once** and then shown or hidden per frame;
+- a 3-sided arm that hides **Wall 2**, the east pair at x = 240..244. That is the wall
+  **both** saved cameras sit just inside (exterior eye x = 232, interior eye x = 196), so it
+  is the wall a 3-sided drawing would be looking through: removing it changes the light in
+  frame without changing what is composed;
+- every frame records what the model actually held — `ceiling_in_model`, `ceiling_renders`,
+  `walls_visible`, `open_wall_hidden` — read back, not echoed.
+
+`capture!` now snapshots every wall group's hidden-ness and whether the ceiling pre-existed,
+and `restore!` puts the walls back **and takes the ceiling out**, verifying both by name.
+
+#### A second null experiment, caught mid-sweep
+
+`/Environment Sky[intensity_multiplier] = 0.0` **reads back as 0.0 and changes the render not
+at all.** Twenty "no sky" frames came back identical to their sky-on twins to four decimal
+places (0.4557 / 0.4557 and 0.5789 / 0.5789) — the same species of failure as the hidden light
+tag, and caught the same way, by noticing two arms that could not legitimately match.
+
+`/Environment Sky` is a `TexSky`; the environment's contribution is scaled by
+`/SettingsEnvironment`'s per-slot multipliers — `bg_tex_mult`, `gi_tex_mult`,
+`reflect_tex_mult`, `refract_tex_mult`, all four together. Proven on one controlled probe,
+same frame and rig, sun off: **all four at 1.0 -> mean 0.4557; all four at 0.0 -> 0.2741.**
+
+The four keys joined `snap_pairs`, were added to the live snapshot **only after asserting each
+still read 1.0**, and `sunoff-results.json` gained a fourth assertion,
+`env_multiplier_landed_on_every_frame`, comparing each frame's request against V-Ray's own
+read-back. The twenty frames were re-rendered.
+
+#### What 148 frames say
+
+All four assertions clean, no frame failed to save; mean **12.86 s** a frame,
+**1903.5 s** total. Every number is in `.forge/builder/sunoff-results.json`; the tables are in
+`.forge/builder/HANDOFF-sunoff.md`. The four that change the picture:
+
+- **The sky was lighting the ROOM, not the booth.** Sun off, sky on, every light off: the
+  exterior still reads **0.2310** — half the as-found exterior, all of it through a roof that
+  is not there — while the interior reads **0.0173 with 95.4% of the frame near-black.**
+- **A ceiling is enormous for the room view and ~4% for the booth interior.** Capping the
+  four-walled room takes the exterior from 0.4557 to **0.1385**; at `booth16x` the interior
+  moves only 0.6261 -> 0.6032. So **the ceiling does not change which rig balance wins** —
+  `booth4x/8x/16x` all pass both cameras at EV 12 in **all six** enclosure arms. `booth16x`
+  was **not** over-corrected for free sky light; there was none in the interior to correct for.
+- **Removing a wall makes the room brighter.** A 3-sided room reads 0.5789 against the
+  4-sided 0.4557 — the missing wall is another opening for sky. The real drawings get *more*
+  free light than the test fixture, not less.
+- **The ceiling moves the EXPOSURE, about 1.5 stops.** `w4-ceil` plus the rig **as built** is
+  the only place in the sweep where the untouched rig serves both cameras — at EV 9.5.
+  `w4-open` plus `booth16x` keeps its two-stop window at EV 12.5 / 14.0, and 14.0 is within
+  0.23 of Benton's own camera.
+
+**Benton picks.** Nothing here chooses; the 148 thumbnails are in
+`Desktop\BridgeTest-sunoff\`.
+
+#### Model state, and a restore that was not quite clean
+
+`restore!` reported `restored clean (69 keys put back)`. An **independent** post-run read —
+not the harness's own — found **37 SketchUp materials where the model was found with 36**:
+erasing the sweep's ceiling group leaves its material behind. Removed, verified back at 36,
+and `restore!` now removes it itself with its own read-back check. Everything else matched the
+as-found record key for key, `WR Lights` back to hidden as the only hidden tag. The model was
+never saved.
+
+**SketchUp was force-killed and restarted four times**, all four chasing the matte ceiling.
+Nothing was lost — the scratch model was never saved, so each restart reopened clean and was
+verified against the independent as-found record.
+
+`scripts/wr_tools/VERSION` 1.9.6 -> **1.9.7**: the repo convention is to bump for any change
+under `scripts/`, and two dev scripts changed. (The brief said 1.9.4 -> 1.9.5; 1.9.6 had
+already landed from the audit-fix pass, so 1.9.7 is the next free number.)
+
+
 ### 1.9.6 — the render lane could not start; five defects from the 30 Aug audit, and the offline suite finally reaches the half where the bugs live
 
 `scripts/proposal-package.rb`, `scripts/rbtest-proposal.py`. All five findings the audit put
