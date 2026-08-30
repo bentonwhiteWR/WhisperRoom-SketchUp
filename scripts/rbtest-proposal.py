@@ -62,6 +62,48 @@ added — each of these reintroduced bugs makes it FAIL:
     launch_decision reset/decline swapped                 -> launch4-6 FAIL
 
 Do that again if you ever doubt it.
+
+THE LIFECYCLE HALF (added 1.9.6, 30 Aug 2026)
+---------------------------------------------
+The 30 Aug audit's sharpest sentence: **this suite passed 64/64 while the
+render lane was unlaunchable from the button.** Everything above covered ten
+PURE helpers; every defect of the previous month lived in the other half --
+start_run's ordering, the reconciliation, annot_push's capture-before-mutate
+contract, the dialog callbacks. Those are now covered too, with SketchUp and
+V-Ray stubbed (FakeModel / FakeLayer / output_size) so the REAL methods run.
+
+    gate1-4   the size gate READS before it JUDGES (D9, the 1.9.4 blocker),
+              the refusal survives for a genuinely unreadable size, and an
+              image-only batch is never refused
+    sum1-3    a LOST ROW is counted in the headline, not just named at the
+              bottom of the summary (D11)
+    lost1-3   lost_rows, the one method the headline and the closing verdict
+              both read
+    annot1-4  the hide record is published BEFORE the first tag is flipped,
+              so a partial failure is still restorable (D10)
+    busy1-3   the dialog callbacks' running guard (D12 / F5)
+
+Mutation-checked when written -- RUN, not assumed, 30 Aug 2026. Each of these
+reintroduced bugs makes the named check FAIL:
+
+    render_size_gate JUDGE-then-READ (the 1.9.4 order)    -> gate1, gate2 FAIL
+    render_size_gate refusal deleted                      -> gate3 FAIL
+    summary_lines headline counts @results only           -> sum1 FAIL
+    @annot_saved assigned after the hide loop             -> annot1, annot3,
+                                                             annot4 FAIL
+    busy? never refuses                                   -> busy1 FAIL
+
+WHAT THIS HALF STILL DOES NOT PROVE. start_run itself is not executed here --
+only the gate it now calls. step / step_body's re-entrancy split, finish's
+restore ORDER and its two messagebox sites, and plan_names / uniquify /
+sanitize (the FILE-column contract) remain uncovered. And nothing offline can
+prove the real UI::HtmlDialog path: no batch has ever been started from the
+dialog's own Export button.
+
+HARNESS LIMIT WORTH KNOWING. The barebones CRuby VM rbparse boots out of
+SketchUp's DLL has no Object#class -- `1.class` raises NoMethodError in it.
+proposal-package.rb interpolates e.class into every failure message, so any
+lifted rescue path needs an exception class that answers it (see FakeError).
 """
 import os
 import re
@@ -129,6 +171,77 @@ module WR_ProposalPackage
 %(autorun)s
 
 %(launch)s
+
+%(honoured_size)s
+
+%(require_render_size)s
+
+%(render_size_gate)s
+
+%(lost_rows)s
+
+%(summary_lines)s
+
+%(annot_push)s
+
+%(annot_pop)s
+
+%(busy)s
+
+  # ---- 1.9.6: the LIFECYCLE half. Everything above this line is a pure
+  # helper; every defect of the last month lived below it. The audit of
+  # 30 Aug 2026 put it plainly: this suite passed 64/64 while the render lane
+  # was unlaunchable from the button, because nothing here touched start_run's
+  # ordering, summary_lines' reconciliation, annot_push's capture-before-
+  # mutate contract or the dialog callbacks' running guard.
+  #
+  # These stubs stand in for SketchUp and V-Ray so the real methods can run.
+  ANNOT_TAGS = %%w[T1 T2 T3].freeze
+
+  # honoured_size asks output_size(vray_context). @vray_readable flips between
+  # "V-Ray answers 1600x900" and "V-Ray cannot be read", which is the whole
+  # input space of the size gate.
+  def self.vray_context; :ctx; end
+  def self.output_size(_ctx); @vray_readable ? [1600, 900] : nil; end
+
+  # The barebones CRuby VM rbparse boots out of SketchUp's DLL has NO
+  # Object#class -- verified 30 Aug 2026: `1.class` raises NoMethodError in
+  # it. Every failure message in proposal-package.rb interpolates e.class, so
+  # without this shim the partial-failure paths (annot_push's rescue, the one
+  # D10 is about) could not be exercised here at all. HARNESS ONLY: SketchUp's
+  # own Ruby has the real method and is unaffected.
+  # ...so the fake layer raises THIS instead, a StandardError subclass that
+  # answers `class`. Reopening StandardError itself breaks `raise` in this VM
+  # (tried, 30 Aug 2026); a subclass is caught by the same
+  # `rescue StandardError` and leaves the built-in alone.
+  class FakeError < StandardError
+    def class; 'FakeError'; end
+  end
+
+  # The dialog. Every log line in the real file is rescued; here it is a sink.
+  def self.log(_dlg, _text, _cls); nil; end
+
+  class FakeLayer
+    attr_reader :name
+    def initialize(name, vis, boom)
+      @name = name
+      @vis  = vis
+      @boom = boom
+    end
+    def visible?; @vis; end
+    def visible=(v)
+      raise FakeError, "layer #{@name} is locked" if @boom
+      @vis = v
+    end
+  end
+  class FakeLayers
+    def initialize(h); @h = h; end
+    def [](n); @h[n]; end
+  end
+  class FakeModel
+    attr_reader :layers
+    def initialize(layers); @layers = layers; end
+  end
 
   # Stub renderers for read_signal: one answers, one raises, one is bare.
   class RendOK
@@ -349,6 +462,150 @@ module WR_ProposalPackage
       out << (got == want ? "launch#{i + 1} ok" : "launch#{i + 1} FAIL got #{got}")
     end
 
+
+    # ================================================================
+    # D9 -- THE SIZE GATE'S ORDER. This is the test that would have caught
+    # the 1.9.4 blocker on a fresh load.
+    #
+    # require_render_size! judges @size_source; honoured_size is the only
+    # thing that sets it. start_run asked the gate 168 lines BEFORE the read,
+    # and refused by returning, so @size_source was still nil on the next
+    # press: every batch with a render row refused forever. render_size_gate
+    # welds the two together, READ then JUDGE, and gate1 fails if that order
+    # is ever swapped back.
+    # ================================================================
+    @vray_readable = true
+    @size_source   = nil                    # a fresh load, nothing read yet
+    sz1, why1 = render_size_gate('1200', true)
+    out << ((why1.nil? && sz1 == [1600, 900]) ? 'gate1 ok' :
+            "gate1 FAIL a readable V-Ray size was refused: #{why1.inspect} " \
+            "size #{sz1.inspect}")
+
+    # gate2: press it again. The old bug was a CLOSED LOOP -- the refusal
+    # returned before the read, so the second press refused identically.
+    @size_source = nil
+    _sz2, why2 = render_size_gate('1200', true)
+    out << (why2.nil? ? 'gate2 ok' :
+            'gate2 FAIL the second press was refused (the closed loop is back)')
+
+    # gate3: the refusal must SURVIVE as a real refusal. A render batch whose
+    # size genuinely cannot be read is still stopped, by name.
+    @vray_readable = false
+    @size_source   = nil
+    sz3, why3 = render_size_gate('1200', true)
+    out << ((why3.to_s.include?('could not be read') && sz3 == [1200, 900]) ?
+            'gate3 ok' : "gate3 FAIL an unreadable render size was allowed: " \
+                         "#{why3.inspect}")
+
+    # gate4: an image-only batch is never refused and still gets its size --
+    # the Width fallback is legitimate when nothing is being rendered.
+    @vray_readable = false
+    @size_source   = nil
+    sz4, why4 = render_size_gate('2400', false)
+    out << ((why4.nil? && sz4 == [2400, 1800]) ? 'gate4 ok' :
+            "gate4 FAIL image-only batch refused: #{why4.inspect} #{sz4.inspect}")
+
+    # ================================================================
+    # D11 -- A LOST ROW IS A FAILURE IN THE HEADLINE. The reconciliation
+    # existed and named the row at the BOTTOM of the summary; the top line
+    # was counted from @results alone, so a batch that lost a row still read
+    # '0 FAILED'. A client pack one render short that reports success is the
+    # worst failure this tool has.
+    # ================================================================
+    @cfg              = { 'dir' => 'C:/out' }
+    @unmapped         = nil
+    @mode_note        = nil
+    @quality_problems = []
+    @results = [
+      { :file => '01.png', :status => 'ok',     :detail => 'written' },
+      { :file => '02.png', :status => 'ok',     :detail => 'written' },
+      { :file => '03.png', :status => 'failed', :detail => 'render failed' }
+    ]
+    @plan_files = %%w[01.png 02.png 03.png 04.png 05.png]
+    sl   = summary_lines('done', [])
+    head = sl.first.to_s
+    okS  = head.include?('2 exported') && head.include?('3 FAILED') &&
+           sl.any? { |l| l.include?('PRODUCED NO RESULT') }
+    out << (okS ? 'sum1 ok' :
+            "sum1 FAIL two lost rows did not reach the headline: #{head.inspect}")
+
+    # sum2: nothing lost -- the headline must NOT inflate, and no lost-row
+    # block may be printed.
+    @plan_files = %%w[01.png 02.png 03.png]
+    sl2 = summary_lines('done', [])
+    ok2 = sl2.first.to_s.include?('1 FAILED') &&
+          sl2.none? { |l| l.include?('PRODUCED NO RESULT') }
+    out << (ok2 ? 'sum2 ok' : "sum2 FAIL #{sl2.first.inspect}")
+
+    # sum3: a run that never recorded a plan reconciles against nothing.
+    @plan_files = nil
+    out << (summary_lines('done', []).first.to_s.include?('1 FAILED') ?
+              'sum3 ok' : 'sum3 FAIL a nil plan broke the headline')
+
+    # lost_rows itself, the one method both the headline and the closing
+    # verdict read, so they can never disagree again.
+    out << (lost_rows(%%w[a b c], %%w[a c]) == %%w[b] ? 'lost1 ok' : 'lost1 FAIL')
+    out << (lost_rows(nil, %%w[a]) == [] ? 'lost2 ok' : 'lost2 FAIL')
+    out << (lost_rows(%%w[a], %%w[a]) == [] ? 'lost3 ok' : 'lost3 FAIL')
+
+    # ================================================================
+    # D10 -- CAPTURE BEFORE MUTATE. annot_push used to assign @annot_saved
+    # AFTER the hide loop and nil it in the rescue, so a raise partway
+    # through left tags hidden in Benton's model with no record of what they
+    # were -- annot_pop no-opped, finish no-opped, and the tags stayed off
+    # into the next session. annot1/annot2 fail if that ordering returns.
+    # ================================================================
+    lay = { 'T1' => FakeLayer.new('T1', true, false),
+            'T2' => FakeLayer.new('T2', true, false),
+            'T3' => FakeLayer.new('T3', true, true) }   # T3 raises on hide
+    fm = FakeModel.new(FakeLayers.new(lay))
+    @client_safe = true
+    @annot_saved = nil
+    annot_push(fm, nil, 'row.png')
+    rec = @annot_saved
+    okA = !rec.nil? && rec['T1'] == true && rec['T2'] == true
+    out << (okA ? 'annot1 ok' :
+            "annot1 FAIL the hide record was lost on a partial failure: #{rec.inspect}")
+    # ...and the record is USABLE: annot_pop puts back what was hidden.
+    out << ((lay['T1'].visible? == false && lay['T2'].visible? == false) ?
+              'annot2 ok' : 'annot2 FAIL the two reachable tags were not hidden')
+    # The property that matters: what was hidden comes BACK. (@annot_saved is
+    # not checked for nil here -- annot_pop's own nil comes after its loop and
+    # T3 raises again on the way back; finish's `ensure @annot_saved = nil`
+    # covers that in production.)
+    annot_pop(fm, nil)
+    okB = lay['T1'].visible? && lay['T2'].visible?
+    out << (okB ? 'annot3 ok' :
+            'annot3 FAIL tags were left hidden in the model after the batch')
+
+    # annot4: the clean path still records every tag and restores every tag.
+    lay2 = { 'T1' => FakeLayer.new('T1', true,  false),
+             'T2' => FakeLayer.new('T2', false, false),
+             'T3' => FakeLayer.new('T3', true,  false) }
+    fm2 = FakeModel.new(FakeLayers.new(lay2))
+    @annot_saved = nil
+    annot_push(fm2, nil, 'row.png')
+    hidden_all = lay2.values.none? { |l| l.visible? }
+    annot_pop(fm2, nil)
+    okC = hidden_all && lay2['T1'].visible? && !lay2['T2'].visible? &&
+          lay2['T3'].visible?
+    out << (okC ? 'annot4 ok' : 'annot4 FAIL clean push/pop did not round-trip')
+
+    # ================================================================
+    # D12 (F5, open since 28 Aug) -- the dialog callbacks' running guard.
+    # render_production pumps the Windows message loop, so a callback CAN be
+    # dispatched mid-render; setfill would then leave render materials on the
+    # model, silently. busy? is the predicate all four callbacks now consult.
+    # ================================================================
+    @running = true
+    out << (busy?(nil, 'setfill') ? 'busy1 ok' :
+            'busy1 FAIL a model-mutating callback would run mid-batch')
+    @running = false
+    out << ((busy?(nil, 'setfill') == false) ? 'busy2 ok' :
+            'busy2 FAIL the guard refuses when no batch is running')
+    @running = nil
+    out << ((busy?(nil, 'mark') == false) ? 'busy3 ok' : 'busy3 FAIL')
+
     out.join(' | ')
   end
 end
@@ -379,7 +636,12 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'sig-ok ok | sig-raise ok | sig-absent ok | '
           'auto1 ok | auto2 ok | auto3 ok | '
           'launch1 ok | launch2 ok | launch3 ok | launch4 ok | launch5 ok | '
-          'launch6 ok')
+          'launch6 ok | '
+          # 1.9.6 -- the lifecycle half.
+          'gate1 ok | gate2 ok | gate3 ok | gate4 ok | '
+          'sum1 ok | sum2 ok | sum3 ok | lost1 ok | lost2 ok | lost3 ok | '
+          'annot1 ok | annot2 ok | annot3 ok | annot4 ok | '
+          'busy1 ok | busy2 ok | busy3 ok')
 
 
 def main():
@@ -408,6 +670,18 @@ def main():
         'height_consts':  '\n'.join(const_line(c, EXP) for c in
                                      ('HEIGHT_MIN', 'HEIGHT_MAX')),
         'out_height':     rbtest.method_source(EXP, 'out_height'),
+        # 1.9.6 -- the lifecycle methods, lifted verbatim like everything
+        # else, so editing proposal-package.rb edits what is tested.
+        'honoured_size':     rbtest.method_source(SRC, 'honoured_size'),
+        # 'require_render_size' (not '...!'): method_source appends \b and
+        # ! gives it no word boundary. Same trick as autorun?.
+        'require_render_size': rbtest.method_source(SRC, 'require_render_size'),
+        'render_size_gate':  rbtest.method_source(SRC, 'render_size_gate'),
+        'lost_rows':         rbtest.method_source(SRC, 'lost_rows'),
+        'summary_lines':     rbtest.method_source(SRC, 'summary_lines'),
+        'annot_push':        rbtest.method_source(SRC, 'annot_push'),
+        'annot_pop':         rbtest.method_source(SRC, 'annot_pop'),
+        'busy':              rbtest.method_source(SRC, 'busy'),
     }
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)

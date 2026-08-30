@@ -2,6 +2,117 @@
 
 ## 2026-08-30
 
+### 1.9.6 — the render lane could not start; five defects from the 30 Aug audit, and the offline suite finally reaches the half where the bugs live
+
+`scripts/proposal-package.rb`, `scripts/rbtest-proposal.py`. All five findings the audit put
+on its "shortest list that would change my answer" are fixed. **Everything below is proven
+OFFLINE ONLY** — no SketchUp and no V-Ray on this session, and the lighting lane was holding
+SketchUp 2026 while this was written.
+
+#### The blocker: the render lane was refused on every press, forever
+
+`require_render_size!` judges `@size_source`. `honoured_size` is the only thing that sets it.
+`start_run` asked the gate at :774 and read the size at :942 — **168 lines later, past the
+gate's own `return`** — so on a fresh load `@size_source` was `nil`, the gate refused, the
+method returned before the read, and the next press refused identically. A closed loop: every
+batch containing a Render row refused on every press, permanently, with a message telling
+Benton to open the V-Ray Asset Editor and check a setting nothing had looked at. It survived
+because the one hand-written live test called `honoured_size` and *then* `require_render_size!`
+— the one order in which the bug is invisible. The button used the other order.
+
+- New `render_size_gate(width_field, has_render_row)` welds the two steps together in the only
+  order that can be correct: **READ, then JUDGE.** It returns `[[w, h], refusal_or_nil]`, and
+  `start_run` calls it where the gate used to be. `out_w`/`out_h` carry down to `@cfg`; the old
+  read at :942 is gone, with a comment saying not to put it back.
+- **The refusal survives as a real refusal.** A render batch whose size genuinely cannot be
+  read is still stopped by name — `gate3` pins that, and deleting the refusal makes it fail.
+
+#### Four more, all in the silent-mutation / silent-mis-report family
+
+- **`annot_push` could leave Benton's annotation tags switched off forever.** It assigned
+  `@annot_saved` *after* the hide loop and nil'd it in the rescue, so a raise partway through
+  left N tags hidden with **no record of what they were** — `annot_pop` no-opped, `finish`
+  no-opped, and the tags stayed off through the save and into the next session. The hash is now
+  published to `@annot_saved` **before the first flip** and filled in place, each entry written
+  before that tag is touched. And the log tells the truth about which way it failed: it used to
+  say only *"annotation may be visible in this image"*, the opposite of the actual damage.
+  It now names both halves — how many tags are hidden and recorded (and will be restored), and
+  how many were never reached and are still visible.
+- **A lost row reported success in the headline.** D8's reconciliation worked and named the row
+  at the *bottom* of the summary, but the headline counted `@results` alone (`0 FAILED`), only
+  `lines.first` ever reached the dialog, and the closing verdict said **"Done. Model restored."**
+  on a batch that lost a row. New pure `lost_rows(plan_files, result_files)` is read by **both**
+  the headline and the verdict so they can never disagree; the **whole** summary now goes to the
+  run window, not just the first line; and the verdict says *"the pack is INCOMPLETE"*.
+- **F5, open since 28 Aug: the dialog callbacks had no `@running` guard.** `mark`, `bulk`,
+  `setfill` and `activate` all mutate the model, two of them had no JS guard either, and the JS
+  `running` flag is set by a `runStarted()` whose failure is rescued and ignored — and which has
+  been observed to fail. `render_production` is now known to pump the Windows message loop, so a
+  mid-render `setfill` was not speculative: it changes the fill name `finish` looks surfaces up
+  by, so `to_draft` finds none and every floor face stays on the **render** material, silently.
+  All four now `next if busy?(d, ...)`, which refuses out loud on the console and in the log.
+- **The restore-failure `UI.messagebox` at :1890 was bare** — the one box that runs only when
+  something has already gone wrong. Under a caller whose `UI.messagebox` raises (the bridge
+  muzzles modals; observed once) it threw out of `finish` into `step_body`'s rescue, which
+  called `finish` again: the mode restore ran twice and `@running` never came down. It is now
+  wrapped like every other UI call, and **`finish` has a re-entrancy guard** (`@finishing`,
+  cleared in an `ensure` only by the call that set it) so nothing structural can do it either.
+  `@plan_files` is also cleared at the end of `finish`, so one batch's plan can never be
+  reconciled against another batch's results.
+
+#### The deeper problem: the suite passed 64/64 while the render lane was dead
+
+That is the audit's sharpest sentence and it was true. All 64 checks hit ten **pure** helpers;
+`start_run`'s ordering, `finish`, the reconciliation, `annot_push` and the callbacks had none.
+`rbtest-proposal.py` now runs **81 checks** and seventeen of them are in that other half, with
+SketchUp and V-Ray stubbed (`FakeModel` / `FakeLayer` / a fake `output_size`) so the **real**
+methods execute:
+
+    gate1-4   READ before JUDGE; the refusal survives; image-only is never refused
+    sum1-3    a lost row is counted in the HEADLINE
+    lost1-3   lost_rows itself
+    annot1-4  capture-before-mutate, and the record is usable after a partial failure
+    busy1-3   the callbacks' running guard
+
+**Mutation-checked by running it, not by assuming** — each reintroduced bug makes the named
+check fail, and each was reverted:
+
+    gate order swapped back (the 1.9.4 blocker)  -> gate1, gate2 FAIL
+    the refusal deleted                          -> gate3 FAIL
+    headline counts @results only                -> sum1 FAIL
+    @annot_saved assigned after the hide loop    -> annot1, annot3, annot4 FAIL
+    busy? never refuses                          -> busy1 FAIL
+
+Harness limit found on the way: **the barebones CRuby VM `rbparse.py` boots out of SketchUp's
+DLL has no `Object#class`** — `1.class` raises `NoMethodError`. Every failure message in
+`proposal-package.rb` interpolates `e.class`, so a lifted rescue path needs an exception class
+that answers it (`FakeError`). Reopening `StandardError` to add one breaks `raise` in that VM.
+
+#### A sixth defect, verified and NOT fixed
+
+The audit asked whether `reset_stale_batch` restores from a *previous run's* snapshot. **It
+does.** `@saved_mode`, `@prev_page` and `@prev_cam` are assigned only in `start_run` (:992-995)
+and are never cleared anywhere in the file; `reset_stale_batch` calls `finish` without
+re-capturing. So answering **Yes** to "a batch is already running — clear the stale state?" can
+run `WR_Mode.to_mode(model, 'draft')` — a full materials swap and tag flip — on a model this
+batch never touched, and jump it to a scene and camera from an earlier session. Same
+silent-mutation family as the two fixed above. Left alone deliberately: it needs a
+state-captured flag rather than a one-liner, and it was outside this pass's brief.
+
+#### Still unproven, and it is the thing that matters
+
+`python scripts/rbparse.py` passes on all 59 files; `python scripts/rbtest-proposal.py` passes
+81/81. **Not one of these fixes has been run in SketchUp.** No batch has ever been started from
+the dialog's own Export button — every run in the record went through the bridge with a stubbed
+dialog, which is exactly why the blocker existed. The step that settles this is unchanged from
+the audit: **one batch, driven by Benton through the real button, on a scratch model that has
+never been mode-toggled**, two render rows and two image rows, with the model inspected
+afterwards for mode, materials and tag visibility and the four files opened and looked at.
+
+`scripts/image-qa.py` is still not called by the package — see the handoff; wiring it in is a
+separate job, not part of this one.
+
+
 ### 1.9.4 — the proposal package stops overriding Benton's V-Ray settings, and a look-development matrix finds out why the renders looked wrong
 
 **The headline is not the tool, it is what the tool found: the SketchUp tag `WR Lights` was

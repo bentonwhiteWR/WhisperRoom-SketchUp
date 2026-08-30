@@ -306,6 +306,20 @@ module WR_ProposalPackage
     %w[draft render].include?(saved_mode.to_s) ? saved_mode.to_s : MODE_FALLBACK
   end
 
+  # PURE (D11, 1.9.6). The planned rows that produced no result of any kind --
+  # not an ok, not a skip, not a failure. A LOST ROW: a client pack one render
+  # short. D8 added the reconciliation and printed it at the bottom of the
+  # summary, but the HEADLINE count and the dialog's closing verdict were both
+  # computed from @results alone, so the window Benton actually watches said
+  # '0 FAILED' and 'Done. Model restored.' on a batch that lost a row.
+  #
+  # One method, used by BOTH the headline and the verdict, so they can never
+  # disagree again.
+  def self.lost_rows(plan_files, result_files)
+    return [] if plan_files.nil?
+    plan_files.to_a - result_files.to_a
+  end
+
   # THE HONOURED SIZE (1.9.4). V-Ray's own /SettingsOutput if it can be read,
   # otherwise the Width field at ASPECT_W:ASPECT_H. Sets @size_source so every
   # later log line can say WHERE the number came from rather than just quoting
@@ -335,6 +349,31 @@ module WR_ProposalPackage
       'confirm the render output size, and run this again. Nothing was ' \
       'rendered, because a render at a size nobody chose is worse than no ' \
       'render.'
+  end
+
+  # THE ORDER IS THE FIX (D9, 1.9.6). require_render_size! judges @size_source;
+  # honoured_size is the only thing that ever SETS it. Until 1.9.6 start_run
+  # asked the gate at :774 and read the size at :942 -- 168 lines later, past
+  # the gate's own `return` -- so on a fresh load @size_source was nil, the
+  # refusal fired, start_run returned BEFORE the read, and the next press was
+  # identical. Every batch containing a render row was refused on every press,
+  # permanently, with a message telling Benton to check a setting that nothing
+  # had looked at. It survived because the one hand-written live test called
+  # honoured_size and THEN require_render_size! -- the one order in which the
+  # bug is invisible. The button used the other order.
+  #
+  # The two steps are now welded into ONE method, in the only order that can
+  # be correct: READ, then JUDGE. Nothing else may call require_render_size!.
+  #
+  # Returns [[w, h], refusal_or_nil]. The refusal is still a REAL refusal and
+  # is still the whole point of the gate: a render batch whose size genuinely
+  # cannot be read is stopped, because rendering at a size nobody chose is the
+  # defect this release exists to prevent.
+  def self.render_size_gate(width_field, has_render_row)
+    @size_source = nil
+    size = honoured_size(width_field)                  # READ (sets @size_source)
+    why  = has_render_row ? require_render_size! : nil # ...then JUDGE
+    [size, why]
   end
 
   # PURE. One width in, the package's whole output size out -- the FALLBACK
@@ -766,16 +805,21 @@ module WR_ProposalPackage
       return
     end
 
-    # SIZE GATE (1.9.4). A render batch that could not read V-Ray's own output
-    # size is refused here, before a single file is written, rather than
-    # silently falling back to this tool's Width field -- which is exactly how
-    # a 1600x900 setting became a 1200x900 delivery.
-    if live.any? { |r| r['mode'] == 'render' }
-      why = require_render_size!
-      if why
-        UI.messagebox(why)
-        return
-      end
+    # SIZE GATE (1.9.4; ORDER FIXED 1.9.6). A render batch that could not read
+    # V-Ray's own output size is refused here, before a single file is
+    # written, rather than silently falling back to this tool's Width field --
+    # which is exactly how a 1600x900 setting became a 1200x900 delivery.
+    #
+    # render_size_gate READS the size before it JUDGES it. This read used to
+    # live 168 lines below, past this gate's own return, which made the
+    # refusal unconditional and permanent (D9). out_w/out_h carry down to
+    # @cfg; do not move the read back down.
+    sz, why = render_size_gate(cfg['width'],
+                               live.any? { |r| r['mode'] == 'render' })
+    out_w, out_h = sz
+    if why
+      UI.messagebox(why)
+      return
     end
 
     # V-Ray gate BEFORE anything runs: never a half-run that dies mid-pass.
@@ -938,8 +982,8 @@ module WR_ProposalPackage
     # a machine with no V-Ray at all, and when it is used the log says so by
     # name. A render batch that cannot read a size does not guess -- see
     # require_render_size!.
-    @size_source = nil
-    out_w, out_h = honoured_size(cfg['width'])
+    # ...and out_w/out_h were read by render_size_gate at the SIZE GATE above,
+    # BEFORE the gate judged them (D9). @size_source is already set.
     @cfg = { 'dir' => dir, 'width' => out_w.to_s, 'height' => out_h.to_s,
              'annot' => (client_safe ? 'client' : 'draft'),
              # OVERRIDES ARE OPT-IN AND NEVER DEFAULT (1.9.4). Absent or empty
@@ -1215,7 +1259,20 @@ module WR_ProposalPackage
   def self.annot_push(model, dlg, file)
     return unless @client_safe
     return if @annot_saved            # already hidden by an earlier row
+    # CAPTURE BEFORE MUTATE (D10, 1.9.6). @annot_saved used to be assigned
+    # AFTER the hide loop and nil'd by the rescue, so a raise partway through
+    # left N tags already hidden in Benton's model with NO RECORD of what they
+    # were -- annot_pop's `return if @annot_saved.nil?` no-opped, finish's
+    # `if @annot_saved` no-opped, and the tags stayed off through the save and
+    # into the next session. A leaked mutation, which this file's own header
+    # calls the worst failure it can have.
+    #
+    # Now the hash is published to @annot_saved BEFORE the first flip and
+    # filled IN PLACE, one tag at a time, each entry written before that tag
+    # is touched. Whatever was hidden is always recorded, so annot_pop can put
+    # it back on every exit path including a partial failure.
     saved = {}
+    @annot_saved = saved
     missing = []
     ANNOT_TAGS.each do |n|
       l = model.layers[n]
@@ -1223,20 +1280,29 @@ module WR_ProposalPackage
         missing << n
         next
       end
-      saved[n] = l.visible?
-      l.visible = false
+      saved[n] = l.visible?   # recorded first...
+      l.visible = false       # ...then flipped
     end
-    @annot_saved = saved
     shown = saved.select { |_n, v| v }.keys
     log(dlg, "CLIENT-SAFE: hid #{saved.size} annotation tag(s) for #{file}" +
              (shown.empty? ? ' (none were showing)' : " - #{shown.join(', ')} " \
               'were visible and would have gone out on a client image'), 'dim')
     log(dlg, "        not in this model: #{missing.join(', ')}", 'dim') unless missing.empty?
   rescue StandardError => e
-    @annot_saved = nil
-    log(dlg, "CLIENT-SAFE FAILED for #{file}: #{e.class}: #{e.message} - " \
-             'construction annotation may be visible in this image. Check ' \
-             'before sending.', 'bad')
+    # TELL THE TRUTH ABOUT WHICH WAY IT FAILED. The old message said only
+    # 'annotation may be visible in this image' -- the opposite of the actual
+    # damage, which was tags left hidden in the MODEL. Both halves are real
+    # and both are now stated: the tags already hidden ARE recorded and WILL
+    # be restored by finish, and the ones never reached are still showing, so
+    # the image may carry construction annotation after all.
+    done = (@annot_saved || {}).size
+    left = ANNOT_TAGS.size - done
+    log(dlg, "CLIENT-SAFE FAILED PARTWAY for #{file}: #{e.class}: #{e.message}", 'bad')
+    log(dlg, "        #{done} tag(s) were hidden and ARE recorded - finish " \
+             'will put them back. ' \
+             "#{left} tag(s) were not reached and are still visible, so " \
+             'construction annotation may be in this image. Check the image ' \
+             'before sending, and check the tags in the model after the batch.', 'bad')
   end
 
   def self.annot_pop(model, dlg)
@@ -1793,6 +1859,19 @@ module WR_ProposalPackage
   # the restore itself fails. A leaked mutation is the worst failure this
   # tool can have, so nothing here is allowed to fail quietly.
   def self.finish(model, dlg, why)
+    # RE-ENTRANCY GUARD (D13, 1.9.6). finish had none. When the bare
+    # UI.messagebox below raised, the exception escaped into step_body's
+    # rescue, which called finish AGAIN -- the mode restore ran twice and
+    # @running was left latched. The box is now wrapped, and this guard means
+    # nothing structural can do it either: a second entry is a no-op that says
+    # so, and the first entry always reaches its own end.
+    entered = false
+    if @finishing
+      puts "  (finish re-entered while already finishing - ignored: #{why})"
+      return
+    end
+    @finishing = true
+    entered    = true
     stop_stale_timer
     restore_errs = []
 
@@ -1887,6 +1966,14 @@ module WR_ProposalPackage
     unless restore_errs.empty?
       puts "  *** could not restore the model's original state:"
       restore_errs.each { |s| puts "        #{s}" }
+      # GUARDED (D13, 1.9.6). F10 named UI.messagebox as the residual raiser
+      # inside finish and the CLOSING box was wrapped in 1.9.2 -- but this
+      # one, the box that runs only when something has ALREADY gone wrong,
+      # was left bare. Under a caller whose UI.messagebox raises (the bridge
+      # muzzles modals; observed once) it threw out of finish into
+      # step_body's rescue, which calls finish a SECOND time: the mode
+      # restore ran twice and @running never came down.
+      begin
       UI.messagebox("*** COULD NOT RESTORE THE MODEL'S ORIGINAL STATE ***\n\n" +
                     restore_errs.join("\n") +
                     "\n\nThe model is likely in #{@mode_now.to_s.upcase} mode " \
@@ -1894,6 +1981,10 @@ module WR_ProposalPackage
                     "Press 'Toggle Draft / Render mode' to put it back — WR_Mode " \
                     'stores the true state in the model, so the toggle reads it ' \
                     'even after a crash.')
+      rescue Exception => e
+        puts "  (the restore-failure box could not be shown: #{e.class}: " \
+             "#{e.message} - the restore errors above are the whole of it)"
+      end
     end
 
     lines = summary_lines(why, restore_errs)
@@ -1901,14 +1992,27 @@ module WR_ProposalPackage
     lines.each { |l| puts l }
     puts ''
     restore_errs.each { |s| log(dlg, "RESTORE FAILED: #{s}", 'bad') }
-    log(dlg, lines.first.to_s, restore_errs.empty? ? 'dim' : 'bad')
+    # D11 -- THE WHOLE SUMMARY REACHES THE WINDOW, not just lines.first. The
+    # '*** N PLANNED ROW(S) PRODUCED NO RESULT AT ALL' block was written,
+    # printed to the console and put in the messagebox, and was the one thing
+    # the run window never showed.
+    lines.each do |l|
+      bad = !restore_errs.empty? || l.include?('***') || l.include?('FAILED')
+      log(dlg, l.to_s, bad ? 'bad' : 'dim')
+    end
     (@unmapped || []).each { |s| log(dlg, "unmapped  #{s}", 'bad') }
 
-    fails = @results.count { |r| r[:status] == 'failed' }
+    # D11 -- the closing verdict counts lost rows too, so the window can no
+    # longer say 'Done. Model restored.' on a short delivery.
+    lost  = lost_rows(@plan_files, @results.map { |r| r[:file] })
+    fails = @results.count { |r| r[:status] == 'failed' } + lost.size
     msg = if why == 'cancelled'
             'Cancelled — model restored. Partial results are real files.'
           elsif fails > 0
-            "Done — #{fails} failure(s) named in the log. Nothing silent."
+            "Done — #{fails} failure(s) named in the log" +
+              (lost.empty? ? '' : ", #{lost.size} of them LOST ROW(S) that " \
+                                  'produced no file at all') +
+              '. Nothing silent. The pack is INCOMPLETE.'
           else
             'Done. Model restored.'
           end
@@ -1934,6 +2038,10 @@ module WR_ProposalPackage
     # and the box is rescued like every other UI call in this file.
     @running  = false
     @unmapped = nil
+    # D11 -- the plan is consumed above (headline, verdict and reconciliation
+    # all read it) and must not survive into another call, or a later finish
+    # would reconcile this batch's plan against that batch's results.
+    @plan_files = nil
     @results  = @results || []
     begin
       UI.messagebox(lines.join("\n"))
@@ -1949,12 +2057,17 @@ module WR_ProposalPackage
         nil
       end
     end
+  ensure
+    @finishing = false if entered   # never clear the flag of an outer call
   end
 
   def self.summary_lines(why, restore_errs)
     ok    = @results.count { |r| r[:status] == 'ok' }
     skip  = @results.count { |r| %w[skipped cancelled].include?(r[:status]) }
-    fails = @results.count { |r| r[:status] == 'failed' }
+    # D11 -- a LOST ROW IS A FAILURE IN THE HEADLINE. It used to be named only
+    # at the bottom of the summary while the top line said 0 FAILED.
+    missing = lost_rows(@plan_files, @results.map { |r| r[:file] })
+    fails   = @results.count { |r| r[:status] == 'failed' } + missing.size
     lines = ["PROPOSAL PACKAGE — #{ok} exported, #{skip} skipped, #{fails} FAILED" \
              "#{why == 'done' ? '' : "  (#{why})"}"]
     lines << "  #{@cfg['dir']}"
@@ -1970,13 +2083,10 @@ module WR_ProposalPackage
     # D8 -- the reconciliation pass 1 did not have. 5 rows were planned, 4
     # files were written, and the summary still said '0 FAILED'. A row that
     # produced no result at all now shows up HERE, by name.
-    if @plan_files
-      missing = @plan_files - @results.map { |r| r[:file] }
-      unless missing.empty?
-        lines << "  *** #{missing.size} PLANNED ROW(S) PRODUCED NO RESULT AT " \
-                 "ALL - this is a lost row, not a skip:"
-        missing.each { |f| lines << "        #{f}" }
-      end
+    unless missing.empty?
+      lines << "  *** #{missing.size} PLANNED ROW(S) PRODUCED NO RESULT AT " \
+               "ALL - this is a lost row, not a skip (counted in FAILED above):"
+      missing.each { |f| lines << "        #{f}" }
     end
     lines
   end
@@ -2006,6 +2116,32 @@ module WR_ProposalPackage
   # The trailing autorun line's decision. True unless a loader suppressed it.
   def self.autorun?(no_autorun_flag)
     no_autorun_flag ? false : true
+  end
+
+  # F5, CLOSED AT LAST (D12, 1.9.6). The four dialog callbacks that MUTATE the
+  # model -- mark, bulk, setfill, activate -- had no @running check on the
+  # Ruby side. Two of them (the drawMats select and the go-arrow) had none on
+  # the JS side either, and the JS `running` flag is set by runStarted(),
+  # whose failure is rescued and ignored -- and which HAS been observed to
+  # fail, leaving every control in the window live for the whole batch.
+  #
+  # This stopped being theoretical when VRay::Command.render_production was
+  # OBSERVED to pump the Windows message loop (the mechanism behind the D1
+  # nested-tick bug). A setfill dispatched mid-render changes the slot fill
+  # the model is read from, so finish's WR_MaterialsSwap.to_draft looks for
+  # surfaces by a fill name that was not used to paint them, finds none, and
+  # leaves every floor face on the RENDER material -- silently, because the
+  # :left report only names surfaces found on a configured fill. A model left
+  # painted for render on a batch that reported clean.
+  #
+  # A refusal, never a silent ignore: the console and the run log both say it.
+  def self.busy?(dlg, what)
+    return false unless @running
+    puts "WR_ProposalPackage: '#{what}' ignored - a batch is running."
+    log(dlg, "'#{what}' was ignored: a batch is running and the model must " \
+             'not change under it. Cancel the batch, or wait for it to ' \
+             'finish, then try again.', 'bad')
+    true
   end
 
   # What run() does about the live-batch flag:
@@ -2121,6 +2257,7 @@ module WR_ProposalPackage
     @dlg = d   # so a stale-batch reset can reach the last window's log, if any
 
     d.add_action_callback('mark') do |_c, payload|
+      next if busy?(d, 'mark')
       begin
         data = JSON.parse(payload)
         page = model.pages.to_a[data['n'].to_i - 1]
@@ -2132,6 +2269,7 @@ module WR_ProposalPackage
     end
 
     d.add_action_callback('bulk') do |_c, payload|
+      next if busy?(d, 'bulk')
       begin
         data  = JSON.parse(payload)
         pages = model.pages.to_a
@@ -2146,6 +2284,7 @@ module WR_ProposalPackage
     end
 
     d.add_action_callback('setfill') do |_c, payload|
+      next if busy?(d, 'setfill')
       begin
         data = JSON.parse(payload)
         name = data['name'].to_s
@@ -2158,6 +2297,7 @@ module WR_ProposalPackage
     end
 
     d.add_action_callback('activate') do |_c, n|
+      next if busy?(d, 'activate')
       begin
         pg = model.pages.to_a[n.to_i - 1]
         model.pages.selected_page = pg if pg
