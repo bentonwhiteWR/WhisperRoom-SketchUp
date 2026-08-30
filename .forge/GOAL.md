@@ -25,22 +25,36 @@ of hand-walked eyeball checks.
    or write into `C:\Users\bento\Desktop\ProposalFiles\`.
 
 ## Now
-**Spec is written and approved:** `.forge/scoper/sketchup-bridge.md` (protocol, error
-semantics, modal diagnosis, fences, acceptance criteria A1-A12). **Builder implements it.**
+**Bridge shipped at plugin 1.9.0** (`scripts/wr_tools/wr_bridge.rb`, `scripts/sketchup-bridge.py`),
+all 12 acceptance criteria passing live on SketchUp 2026. Two lanes are running against it:
 
-**Benton's four decisions, 30 Aug 2026 — these override the spec where they differ:**
-1. **Off by default.** No marker file, no timer, nothing resident until enabled. (As specced.)
-2. **A modal prompt raises** and fails by name. No auto-answer. (As specced.)
-3. **Named models ARE allowed** — jobs may run against a saved drawing he has open.
-   **CHANGES THE SPEC.** The pre-flight refusal on named models is dropped. Every *write*
-   fence stays: no `save`/`save_copy` over any model, and the absolute deny list
-   (`ProposalFiles`, `P:`, `WhisperRoomQuote`) still governs `write_image` and every
-   bridge-mediated write. Running against a real drawing is fine; overwriting one is not.
-4. **The client defaults to SketchUp 2026** when both are listening. **CHANGES THE SPEC** —
-   the spec refused and made the caller pick. `--version` still overrides.
+- **Phase 2 — lights.** The 1.8.0 `wr-drop-lights.rb` rebuild has never been run in SketchUp.
+  Running the six-item checklist in `.forge/builder/HANDOFF-lights-api.md` live. **SketchUp
+  2026.** No V-Ray renders — every item is checkable from geometry, light properties, console
+  strings and viewport shots.
+- **Phase 0 — booth-matrix harness.** Enabling and validating the **SketchUp 2024** bridge
+  (never exercised), then building a harness that drives
+  `WR_BuildBoothComponents.build_booth` over all 50 keys and captures a per-key manifest of
+  placed parts, landed bounds, and named refusals. Dry runs for all 50; real builds for
+  `MDL 6060 S/E`, `MDL 96192 E`, `MDL 102186 E` only.
 
-Benton must launch SketchUp and restart it once after `python scripts/install-plugin.py`
-before A1-A12 can run. It was not running as of 30 Aug 2026 (observed).
+**Two SketchUp instances, one per lane.** A single instance shares one model, and a booth
+build calling `file_new` would destroy a lights test mid-run. 2026 is the lights lane; 2024 is
+the harness lane. Version numbers pre-assigned to avoid collision: lights 1.9.1, harness 1.9.2.
+
+**`EFP96192.skp` EXISTS on the share as of 30 Aug 2026** (426,135 bytes, verified;
+`EFP96196.skp` is gone). Benton renamed it. The refusal at `scripts/wr-overlays.rb:901-905`
+should no longer fire — the harness confirms that.
+
+**The golden-manifest plan:** build every model once, capture every part with its landed
+bounds and every refusal by name, review that baseline once, then freeze it. Every later
+change becomes a diff instead of an eyeball job. The landed-bounds print already exists at
+`scripts/wr-deck.rb:1130-1139` and is re-measured post-placement — capture it, do not
+reimplement it.
+
+**Still unowned, and no code fixes it: EXPOSURE.** The V-Ray default sits near EV 14.2; an
+interior wants roughly EV 8. Until someone owns it, every interior renders dark regardless of
+the lights or the render lane. Name it; do not build around it.
 
 ## Rules that still bind this work
 - Plugin edits land under `scripts/wr_tools/`; bump `VERSION`; a restart reloads.
