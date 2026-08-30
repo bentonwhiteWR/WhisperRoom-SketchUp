@@ -102,6 +102,7 @@ FIXTURE = r'''
 module WR_ProposalPackage
 %(idle_state)s
 %(done_state)s
+%(error_state)s
 %(cam_fields)s
 
 %(read_signal)s
@@ -164,6 +165,22 @@ module WR_ProposalPackage
                                                       #    COLD - not finished
     [:raised,          false,   false, :running   ],  # 13 backup, running
     [nil,              nil,     true,  :unreadable],  # 14 absent readings
+
+    # F1 -- the five documented states the 28 Aug live watch never saw.
+    # Source: VRayRenderer#state in the on-disk V-Ray 7 YARD docs, 29 Apr
+    # 2026. Cases 15 and 16 are the bug: before 1.9.2 :fatalError returned
+    # :running (latch set, 30-minute timeout burned) and :idleError
+    # returned :idle (failed with the wrong reason).
+    [:fatalError,      :raised, false, :failed    ],  # 15 was :running
+    [:fatalError,      :raised, true,  :failed    ],  # 16 latched, still fail
+    [:idleError,       true,    true,  :failed    ],  # 17 /Aidle/ prefix must
+                                                      #    NOT win over /error/
+    [:renderingPaused, false,   true,  :running   ],  # 18 paused is running
+    [:renderingAwaitingChanges, false, true, :running], # 19 idem
+    [:idleFrameDone,   true,    true,  :idle      ],  # 20 NOT :idleDone --
+                                                      #    policy unchanged,
+                                                      #    pinned so a future
+                                                      #    change is deliberate
   ]
 
   # cam_mismatch: nil means the viewport agrees with the page's camera.
@@ -243,6 +260,7 @@ end).dup
 
 EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           '10 ok | 11 ok | 12 ok | 13 ok | 14 ok | '
+          '15 ok | 16 ok | 17 ok | 18 ok | 19 ok | 20 ok | '
           'forever ok | seq ok | '
           'cam1 ok | cam2 ok | cam3 ok | cam4 ok | cam5 ok | cam6 ok | '
           'sig-ok ok | sig-raise ok | sig-absent ok | '
@@ -255,6 +273,7 @@ def main():
     prog = FIXTURE % {
         'idle_state':  const_line('IDLE_STATE'),
         'done_state':  const_line('DONE_STATE'),
+        'error_state': const_line('ERROR_STATE'),
         'cam_fields':  const_block('CAM_FIELDS'),
         'read_signal': rbtest.method_source(SRC, 'read_signal'),
         'classify':    rbtest.method_source(SRC, 'classify_render'),

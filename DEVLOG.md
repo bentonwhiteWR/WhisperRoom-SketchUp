@@ -2,6 +2,92 @@
 
 ## 2026-08-30
 
+### 1.9.2 — first full end-to-end run: room + booth + lights + scenes + render batch
+
+The whole pipeline was run in one model for the first time, in SketchUp 2026 / V-Ray 7,
+through `scripts/sketchup-bridge.py --su 2026`, on a scratch **Untitled** model. Everything
+below is **observed** unless it says otherwise. Full machine-readable results, with every
+timing and every open defect, are in `.forge/builder/endtoend-results.json`.
+
+**What was built.** `WR_BuildRoom.build` → a 20'-0" x 16'-0" room, 4" walls, 8'-0" ceiling,
+one 36" door; chain closes exactly. `WR_BuildBoothComponents.build_booth('MDL 7272 E', …)`
+→ 48 parts from `P:/Sketchup/NewMasterComponentList`, placed clear of every wall (both
+vented walls well over the 6" minimum). `wr-drop-lights.rb` → 8 lights. Five scenes, three
+marked Image and two marked Render, run through `proposal-package.rb`.
+
+**What came out.** Three image exports (0.5 s each) and ONE render (148.6 s at 1200x900).
+The render is **unusable** — blown out, noisy. The second render row was **silently lost**.
+
+**The cold-session `start` question is closed, and the received explanation was wrong.**
+`renderer.start(sync: true)` *does* engage cold — `:idleInitialized → :rendering → :idleDone`
+with no human click. But `start` renders **whatever is already loaded in the renderer**, and
+nothing exports the model into it:
+
+    renderer.start(sync: true)        :idleDone in 0.6 s, 429-byte SOLID BLACK PNG  (x3)
+    VRay::Command.render_production   "Exporting model: Done (0.43 s)" / "Starting render"
+                                      :idleDone in 8.5 s, 111,595-byte real image
+
+That is the whole "five empty frames" story of 28 Aug: the renders **did** run, on nothing.
+`render_production` drives the same renderer the poll loop reads, so no re-aiming was needed.
+`_coldtest.png` (640x480, 973 bytes, black) is on disk as the evidence.
+
+**D1 — the re-entrancy guard unlocked itself, and a render row vanished with no failure.**
+`step` was `return if @in_step; @in_step = true; …; ensure @in_step = false`. A method-level
+`ensure` runs on **every** exit — including the guard's own early return — so a nested tick
+cleared the flag on its way out and the next one walked straight in. `render_production`
+pumps the Windows message loop while exporting, so nested ticks really happen. The live log:
+
+    "Rendering 01 Booth Exterior Three-Quarter render.png…"   <- outer
+    "Rendering 04 Booth Interior render.png…"                 <- NESTED tick
+    "04 Booth Interior render.png  render started"
+    "01 Booth Exterior Three-Quarter render.png  render started"
+    … 1356 polls of 01 …
+    "PROPOSAL PACKAGE — 4 exported, 0 skipped, 0 FAILED"
+
+Row 04 was rendered and thrown away, produced no result row, and a 5-row plan reported a
+clean run. The guard now lives in a wrapper with no `ensure` of its own (`step_body`).
+
+**Exposure: no single EV works for both a room view and a booth interior.** Nothing in this
+repo sets exposure; it comes from `scene['/CameraPhysical']` `f_number` / `shutter_speed`
+(`:exposure_value` reads 0.0 and is unused). `EV100 = log2(f_number^2 * shutter_speed)`.
+V-Ray's default f/8 @ 1/300 = **EV 14.23**. Bracketed at 400x300:
+
+| view | EV 14.23 | EV 12 | EV 11 | EV 9 | EV 8 |
+|---|---|---|---|---|---|
+| booth interior | far too dark | — | — | **best** | good, hot window |
+| room / booth exterior | — | **best** | walls clipping | BLOWN to white | — |
+
+Three stops apart. The ambient downlights carry 10,667 lm design target at intensity 853;
+the booth interior light 2,670 lm at 106.8 — an 8x spread. Disabling `/SunLight` did **not**
+rescue the EV 9 room render, so it is the rig, not the sky. That answers the
+`REF_INTENSITY` / `AREA_NORMALIZED` question `HANDOFF-lights-run.md` left open, with pictures.
+
+**Also fixed at 1.9.2** — audit F1 (`:fatalError` and `:idleError` now classify `:failed` and
+fail the row by name on the first poll instead of burning a 30-minute timeout; six new
+classifier cases in `rbtest-proposal.py` cover the five documented states the 28 Aug watch
+never saw); F4 (`save_vfb_image(path, skip_alpha: true, no_alpha: true)`, Boolean checked,
+target deleted first — opaque PNG, no `.Alpha.png` sidecar, verified live); F7 (raw state in
+every failure message); F9 (the two `/SettingsOutput` plugins — the **scene** copy governs
+when rendering through `render_production`, because the export overwrites the renderer's);
+and D9, the one unguarded `dlg.execute_script` in `start_run`, which is F10's named hazard
+and fired here (`@running` latched true with no timer, batch sat at 0 of 7 saying nothing).
+
+**Still open, reported not fixed:** the exposure/rig calibration above; stock sampler
+settings and no denoiser (the speckle); `export-scenes.rb:164` deriving image height from the
+SketchUp window (1200x475 letterbox) while the render lane sets 1200x900 explicitly; client
+-facing images carrying dimensions and the `WR-Notes` ceiling banner (**`WR-Notes` is not in
+`DIM_TAGS`, so render mode never hides it**); no reconciliation of rows planned vs rows
+reported in the summary; `build-room.rb` building no ceiling slab; and only two ambient
+downlights placed in a 20' x 16' room, both in the west sixth.
+
+**Not run:** row 04 was never re-rendered after the D1 fix (renders were stopped), no render
+ever reached an error state so the F1 fix is unproven live, and no lights-deleted A/B render
+was done — the "are the emitters visible?" answer rests on all eight plugins reading
+`invisible => true` plus a screen projection putting every widget near the top of frame, not
+at the glows.
+
+## 2026-08-30
+
 ### 1.9.1 — Drop Interior Lights, first live run: two silent killers found and fixed
 
 `scripts/wr-drop-lights.rb` was rebuilt at 1.8.0 on `VRay::Command.create_rectangle_light`

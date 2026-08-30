@@ -268,6 +268,29 @@ module WR_ProposalPackage
   IDLE_STATE = /\Aidle/i          # the idle family: stopped/initialized/done
   DONE_STATE = /\AidleDone\z/i    # the ONLY value that means a frame exists
 
+  # F1 (render-lane audit, 2026-08-28) -- FIXED 1.9.2, 30 Aug 2026.
+  #
+  # The five states above are the five a hand render happened to pass
+  # through. The V-Ray 7 YARD docs on this machine
+  # (C:\Program Files\Chaos\V-Ray\V-Ray for SketchUp\extension\
+  # documentation\VRay/VRayRenderer.html#state-instance_method, generated
+  # 29 Apr 2026 -- OBSERVED) document TEN:
+  #
+  #   :fatalError :idleInitialized :idleStopped :idleError :idleFrameDone
+  #   :idleDone :preparing :rendering :renderingPaused :renderingAwaitingChanges
+  #
+  # :fatalError does NOT match /\Aidle/i, so under the pre-1.9.2 classifier
+  # it returned :running: a licence or engine failure would SET THE LATCH,
+  # log "render started", and then sit until RENDER_TIMEOUT_S -- thirty
+  # minutes per row, mislabelled as a timeout. :idleError was only slightly
+  # better: classified :idle, failing after STOP_CONFIRM_S with the wrong
+  # reason ("stopped or cancelled").
+  #
+  # Both now match ERROR_STATE and return :failed, which the poll loop fails
+  # BY NAME on the first poll, quoting the raw state. Checked before the
+  # idle family so the /\Aidle/i prefix of :idleError cannot win.
+  ERROR_STATE = /error/i          # :fatalError, :idleError -- fail immediately
+
   RENDER_TIMEOUT_S = 30 * 60 # a row still not done after this fails by name
   UNREADABLE_LIMIT = 5       # consecutive polls with BOTH signals raising
   START_WINDOW_S   = 30      # a row that has never been seen in a running
@@ -298,9 +321,10 @@ module WR_ProposalPackage
   # paths. state_val / seq_ended are raw poll results (with :raised from
   # read_signal); seen_running is THE LATCH, threaded in as an argument so
   # this method stays pure and testable. Returns :running, :finished, :idle
-  # or :unreadable.
+  # or :unreadable. (1.9.2 adds :failed.)
   #
   #   - a readable state decides alone:
+  #       matches ERROR_STATE         -> :failed   (checked FIRST -- F1)
   #       not in the idle family      -> :running  (also sets the latch)
   #       :idleDone and latched       -> :finished
   #       :idleDone and NOT latched   -> :idle     (never started; the poll
@@ -314,6 +338,7 @@ module WR_ProposalPackage
   def self.classify_render(state_val, seq_ended, seen_running = false)
     unless state_val == :raised || state_val.nil?
       s = state_val.to_s
+      return :failed  if     s =~ ERROR_STATE
       return :running unless s =~ IDLE_STATE
       return :idle    unless s =~ DONE_STATE
       return seen_running ? :finished : :idle
@@ -384,13 +409,40 @@ module WR_ProposalPackage
   # rescued; nil means "could not read", which is a louder warning, not an
   # error. This NEVER writes to V-Ray, and never touches in_process? /
   # dr_enabled? (they raise on this machine).
+  # F9 -- OBSERVED 30 Aug 2026, three live renders. There are TWO
+  # /SettingsOutput plugins, and WHICH ONE GOVERNS DEPENDS ON HOW THE RENDER
+  # IS STARTED:
+  #
+  #   renderer.start            renders the renderer's already-loaded scene at
+  #                             the RENDERER's SettingsOutput. Nothing exported
+  #                             the model, so this is an empty scene at V-Ray's
+  #                             640x480 default -- a black frame, and the
+  #                             scene-side 400x300 written just before it was
+  #                             ignored entirely.
+  #   VRay::Command             exports the V-Ray SCENE into the renderer
+  #     .render_production      first, SettingsOutput included, so the SCENE's
+  #                             img_width / img_height are what come out.
+  #                             Observed: renderer set to 400x300, scene set to
+  #                             1200x900, render_production -> a 1200x900 PNG.
+  #                             The export overwrote the renderer's copy.
+  #
+  # This lane renders through render_production, so the SCENE is read first
+  # here and the renderer is only the fallback. Whoever needs to CHANGE the
+  # size should write the scene copy inside `scene.change`.
+  #
+  # What is still NOT explained: Benton's Asset Editor showing 1600 while the
+  # output measured 2400x1350. Nothing here proves the Asset Editor field and
+  # scene['/SettingsOutput'] are the same number.
   def self.output_size(ctx)
     return nil if ctx.nil? || !ctx.respond_to?(:scene)
     scene = ctx.scene
-    return nil if scene.nil?
     pl = nil
     pl = (scene['/SettingsOutput'] rescue nil) if scene.respond_to?(:[])
     pl = (scene.fetch('/SettingsOutput') rescue nil) if pl.nil? && scene.respond_to?(:fetch)
+    if pl.nil? && ctx.respond_to?(:renderer)
+      rend = (ctx.renderer rescue nil)
+      pl = (rend.fetch(:SettingsOutput) rescue nil) if rend.respond_to?(:fetch)
+    end
     return nil if pl.nil? || !pl.respond_to?(:[])
     w = (pl[:img_width]  rescue nil)
     h = (pl[:img_height] rescue nil)
@@ -576,7 +628,18 @@ module WR_ProposalPackage
 
     puts ''
     puts "PROPOSAL PACKAGE — #{image_rows.size} image, #{render_rows.size} render -> #{dir}"
-    dlg.execute_script('runStarted()')
+    # GUARDED, 1.9.2. This was the ONE unguarded dialog call in the launch
+    # path, and it sits between `@running = true` and the timer start -- F10's
+    # named hazard, OBSERVED on 30 Aug 2026 when a scripted caller passed a
+    # dlg that could not take execute_script: it raised here, so @running
+    # latched true with NO timer, and the batch sat at 0 of 7 units forever
+    # with nothing said. Every other dialog call in this file is already
+    # rescued; this one now matches.
+    begin
+      dlg.execute_script('runStarted()')
+    rescue StandardError => e
+      puts "  (dialog runStarted() failed: #{e.class}: #{e.message} - the "            'batch continues; only the dialog is out of step)'
+    end
     log(dlg, "#{image_rows.size} image + #{render_rows.size} render row(s) -> #{dir}", 'dim')
     warn_output_size(dlg) unless render_rows.empty?
 
@@ -594,10 +657,55 @@ module WR_ProposalPackage
 
   # ------------------------------------------------------------- the step --
 
+  # THE RE-ENTRANCY GUARD, and why it is now two methods.
+  #
+  # FIXED 1.9.2, 30 Aug 2026 -- OBSERVED, and it cost a whole render row.
+  #
+  # It used to read:
+  #
+  #     def self.step(model, dlg)
+  #       return if @in_step
+  #       @in_step = true
+  #       ... body ...
+  #     ensure
+  #       @in_step = false
+  #     end
+  #
+  # A method-level `ensure` runs on EVERY exit from the method, and that
+  # includes the guard's own `return if @in_step`. So the guard UNLOCKED
+  # ITSELF: a nested tick returned and cleared the flag on its way out, and
+  # the tick after that walked straight in while the outer call was still
+  # running.
+  #
+  # That is not theoretical. VRay::Command.render_production pumps the
+  # Windows message loop while it exports the model, so SketchUp's timers
+  # DO fire inside it. Live 30 Aug 2026, a 5-scene batch with two render
+  # rows produced this dialog log:
+  #
+  #     "Rendering 01 Booth Exterior Three-Quarter render.png..."   <- outer
+  #     "Rendering 04 Booth Interior render.png..."                 <- NESTED
+  #     "04 Booth Interior render.png  render started"
+  #     "01 Booth Exterior Three-Quarter render.png  render started"
+  #     ... 1356 polls of 01 ...
+  #     "ok  01 Booth Exterior Three-Quarter render.png"
+  #     "PROPOSAL PACKAGE - 4 exported, 0 skipped, 0 FAILED"
+  #
+  # The nested tick dispatched row 04 and set @awaiting to it; the outer
+  # call then overwrote @awaiting with row 01. Row 04 was rendered and
+  # thrown away, produced NO result row, and the batch called itself a
+  # clean run: 5 rows planned, 4 files written, 0 failures reported. A
+  # silently vanishing row is the exact failure mode this file exists to
+  # make impossible.
+  #
+  # The guard now lives in a wrapper with no ensure of its own, so the only
+  # thing that can clear @in_step is a call that actually SET it.
   def self.step(model, dlg)
     return if @in_step
     @in_step = true
+    step_body(model, dlg)
+  end
 
+  def self.step_body(model, dlg)
     if @cancel
       if @awaiting
         begin
@@ -628,7 +736,12 @@ module WR_ProposalPackage
     # NAME at START_WINDOW_S; nothing is ever saved for it.
     if @awaiting
       elapsed = Time.now - (@render_began || Time.now)
-      verdict = classify_render(read_signal(@rend, :state),
+      # F7: keep the raw state for the failure messages. When a render row
+      # fails, the state symbol is the one datum that says WHICH failure it
+      # was; every fail_render_row message below now quotes it.
+      state_now = read_signal(@rend, :state)
+      @last_state = state_now
+      verdict = classify_render(state_now,
                                 read_signal(@rend, :sequence_ended?),
                                 @seen_running)
       if verdict == :running
@@ -645,7 +758,13 @@ module WR_ProposalPackage
       @unreadable_polls = verdict == :unreadable ? @unreadable_polls + 1 : 0
       idle_held = @idle_since ? Time.now - @idle_since : 0
 
-      if verdict == :finished
+      if verdict == :failed
+        # F1: an error state is terminal. Fail NOW, by name, with the raw
+        # state -- never burn RENDER_TIMEOUT_S on a renderer that has
+        # already given up.
+        fail_render_row(dlg, 'the renderer reported an ERROR state -- ' \
+                             'render abandoned, nothing saved')
+      elsif verdict == :finished
         save_frame(dlg, @awaiting)
         @awaiting = nil
         @done += 1
@@ -858,8 +977,45 @@ module WR_ProposalPackage
     progress(dlg, "Rendering #{p[:file]}…")
 
     @rend = rend
+    @last_state = nil
     begin
-      rend.start
+      # F2 (render-lane audit) -- ROOT CAUSE FOUND AND FIXED 1.9.2,
+      # 30 Aug 2026, all OBSERVED live in SketchUp 2026 / V-Ray 7.
+      #
+      # `renderer.start` does NOT export the model. It starts the renderer on
+      # whatever scene is already loaded INTO THE RENDERER, and on a session
+      # where nothing has exported the model that is nothing at all. Measured
+      # on this room-plus-booth model:
+      #
+      #   renderer.start(sync: true)      state -> :rendering, :idleDone in
+      #                                   0.6 s, saved frame 429 bytes of
+      #                                   SOLID BLACK, 3 runs, every time
+      #   VRay::Command.render_production console prints "Exporting model:
+      #                                   Done (0.43 s)" / "Starting render",
+      #                                   :idleDone in 8.5 s, saved frame
+      #                                   111,595 bytes -- the real image
+      #
+      # `sync: true` is real (it makes `start` engage the state machine cold,
+      # which a bare `start` does not) but it is NOT the fix: it engages the
+      # renderer on an empty scene. That is the whole "five empty frames"
+      # story of 28 Aug 2026 -- the renders DID run, on nothing.
+      #
+      # VRay::Command's own doc line is "meant to emulate the functionality
+      # exposed in the V-Ray for SketchUp toolbars and menus" -- i.e. the
+      # toolbar button, export step included. It drives the SAME renderer the
+      # poll loop reads (state went :idleDone -> :rendering -> :idleDone on
+      # `VRay::Context.active.renderer` throughout).
+      if defined?(VRay::Command) && VRay::Command.respond_to?(:render_production)
+        VRay::Command.render_production(:context => ctx)
+      else
+        # NO SILENT FALLBACK: say plainly that this path renders whatever is
+        # already in the renderer, which is usually an empty scene.
+        log(dlg, "        #{p[:file]}  VRay::Command.render_production is " \
+                 'ABSENT in this build -- falling back to renderer.start, ' \
+                 'which does NOT export the model and is the known ' \
+                 'black-frame path', 'bad')
+        rend.start(:sync => true)
+      end
     rescue Exception => e
       @results << { :file => p[:file], :lane => 'render', :status => 'failed',
                     :detail => "renderer.start raised #{e.class}: #{e.message}" }
@@ -898,6 +1054,7 @@ module WR_ProposalPackage
     rescue Exception
       nil
     end
+    detail = "#{detail} (last renderer state: #{@last_state.inspect})"
     @results << { :file => @awaiting[:file], :lane => 'render',
                   :status => 'failed', :detail => detail }
     log(dlg, "FAILED  #{@awaiting[:file]}  (#{detail})", 'bad')
@@ -906,13 +1063,44 @@ module WR_ProposalPackage
     progress(dlg, nil)
   end
 
+  # F4 (render-lane audit) -- FIXED 1.9.2, 30 Aug 2026, OBSERVED live.
+  #
+  # save_vfb_image(path, options) => Boolean. Three things were wrong:
+  #
+  #  1. The Boolean was discarded and success judged by File.exist?. Under
+  #     the Overwrite policy the target ALREADY EXISTS, so a failed save
+  #     (locked file, OneDrive sync, bad extension) reported ok against the
+  #     PREVIOUS run's image -- and a caption then gets written about the
+  #     wrong render. Fixed by deleting the target first (so File.exist?
+  #     means THIS run) and by checking the Boolean.
+  #  2. No options: the default writes a separate <name>.Alpha.png sidecar
+  #     that nothing in the collision map plans for, and a TRANSPARENT RGB
+  #     that has to be flattened before it can go in a client pack.
+  #     :skip_alpha kills the sidecar, :no_alpha gives an opaque PNG.
+  #  3. An option key this build rejects would raise, and the rescue below
+  #     fails the row by name rather than silently skipping -- the safe
+  #     direction. Verified live 30 Aug 2026: returns true, one opaque PNG,
+  #     no sidecar.
   def self.save_frame(dlg, p)
     begin
-      @rend.save_vfb_image(p[:path])
+      File.delete(p[:path]) if File.exist?(p[:path])
+    rescue Exception
+      nil
+    end
+    ok = nil
+    begin
+      ok = @rend.save_vfb_image(p[:path], :skip_alpha => true, :no_alpha => true)
     rescue Exception => e
       @results << { :file => p[:file], :lane => 'render', :status => 'failed',
                     :detail => "save_vfb_image raised #{e.class}: #{e.message}" }
       log(dlg, "FAILED  #{p[:file]}  (save_vfb_image raised #{e.class}: #{e.message})", 'bad')
+      return
+    end
+    if ok == false
+      @results << { :file => p[:file], :lane => 'render', :status => 'failed',
+                    :detail => 'save_vfb_image returned false -- the frame was ' \
+                               'NOT written' }
+      log(dlg, "FAILED  #{p[:file]}  (save_vfb_image returned false)", 'bad')
       return
     end
     if File.exist?(p[:path])

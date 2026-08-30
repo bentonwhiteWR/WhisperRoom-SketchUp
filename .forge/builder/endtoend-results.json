@@ -1,0 +1,341 @@
+{
+  "run": {
+    "date": "2026-08-30",
+    "operator": "Builder (Forge)",
+    "host": "SketchUp 2026 + V-Ray 7, scratch Untitled model, driven through scripts/sketchup-bridge.py --su 2026",
+    "plugin_version_before": "1.9.1",
+    "plugin_version_after": "1.9.2",
+    "output_dir": "C:\\Users\\bento\\Desktop\\BridgeTest-2026-08-30",
+    "verdict": "PARTIAL. Geometry, lights and scenes all built cleanly. 3 of 3 plain image exports succeeded. 1 of 2 V-Ray renders produced a file, and it is UNUSABLE (blown out). The 2nd render row was silently dropped by a re-entrancy defect found and fixed during the run. Five ranked defects remain open.",
+    "provenance_note": "Every number below is observed (read back from the live model / renderer / file system) unless the field says otherwise."
+  },
+
+  "room": {
+    "built_by": "scripts/build-room.rb -> WR_BuildRoom.build(cfg) (dialog bypassed)",
+    "name": "Studio Room",
+    "interior_in": { "x": 240.0, "y": 192.0 },
+    "interior_ft": "20'-0\" x 16'-0\"",
+    "ceiling_in": 96.0,
+    "ceiling_note": "8'-0\" house default. NO CEILING SLAB is built - build-room.rb makes four walls and a floor only. This matters for rendering: V-Ray's sun and sky pour straight into an open-topped box, and they, not the interior light rig, dominate every room-level view.",
+    "wall_thickness_in": 4.0,
+    "wall_band_split_in": 48.0,
+    "doors": [
+      { "run": 0, "wall": "south", "offset_from_corner_in": 24.0, "width_in": 36.0, "height_in": 80.0, "hinge": "near", "swing": "inward" }
+    ],
+    "chain_closure": "CLOSES exactly. east 240.00 / west 240.00 diff +0.000; north 192.00 / south 192.00 diff +0.000.",
+    "auto_dimensions": "6 dimensions on WR-Dims / WR-Dims-Doors, plus one Sketchup::Text ceiling banner on WR-Notes.",
+    "tags_created": ["WR-Floor", "WR-Room", "WR-Room-Upper", "WR-Doors", "WR-Doors-Leaf", "WR-Notes", "WR-Dims", "WR-Dims-Doors"]
+  },
+
+  "booth": {
+    "built_by": "scripts/build-booth-components.rb -> WR_BuildBoothComponents.build_booth(key, ASSIGN[key], cfg), $wr_no_autorun set",
+    "model_key": "MDL 7272 E",
+    "label": "Sound Booth 6' x 6', Enhanced",
+    "library": "P:/Sketchup/NewMasterComponentList (read only, 387 .skp files)",
+    "shell_exterior_in": { "w": 74.0, "d": 74.0, "panel_height": 81.0 },
+    "interior_in": { "w": 65.5, "d": 65.5 },
+    "parts_placed": 48,
+    "world_bounds_in": {
+      "note": "includes the door leaf swung open to the south",
+      "min": [130.0, 55.0, 0.0],
+      "max": [210.48, 150.56, 84.31]
+    },
+    "shell_world_extent_in": { "x": [130.0, 204.0], "y": [70.1, 144.1] },
+    "clearances_in": {
+      "west_wall": 130.0,
+      "east_wall_vent_side": 36.0,
+      "north_wall_vent_side": 47.9,
+      "south_open_floor": 70.1,
+      "rule_check": "N and E are this booth's vented walls (46VNT panels). Both clear by more than the 6\" vented-wall minimum. Overall height 84.31\" under a 96\" ceiling."
+    },
+    "orientation": "Door frame (S0/S0i, Right46Door) on the SOUTH face, leaf swung open into the room. Window (46Panel3236WDO) on the WEST face."
+  },
+
+  "lights": {
+    "built_by": "scripts/wr-drop-lights.rb (1.9.1), UI.inputbox stubbed by the bridge job",
+    "settings": { "density": "Soft", "brightness": "Normal (x1.0)", "warmth": "3000K", "layers": "All (ambient + wall wash + booth)" },
+    "count": 8,
+    "tag": "WR Lights",
+    "all_plugins_read_back": { "invisible": true, "enabled": true },
+    "placement": [
+      { "role": "ambient downlight", "at_in": [40.0, 48.0, 96.0], "size_in": [12, 12], "intensity": 853.36, "design_lumens": 10667 },
+      { "role": "ambient downlight", "at_in": [40.0, 144.0, 96.0], "size_in": [12, 12], "intensity": 853.36, "design_lumens": 10667 },
+      { "role": "wall wash", "at_in": [210.0, 168.0, 96.0], "size_in": [6, 24], "intensity": 120.0, "design_lumens": 1500 },
+      { "role": "wall wash", "at_in": [150.0, 168.0, 96.0], "size_in": [6, 24], "intensity": 120.0, "design_lumens": 1500 },
+      { "role": "wall wash", "at_in": [90.0, 168.0, 96.0], "size_in": [6, 24], "intensity": 120.0, "design_lumens": 1500 },
+      { "role": "wall wash", "at_in": [30.0, 168.0, 96.0], "size_in": [6, 24], "intensity": 120.0, "design_lumens": 1500 },
+      { "role": "booth interior", "at_in": [170.24, 102.78, 78.31], "size_in": [12, 24], "intensity": 106.8, "design_lumens": 2670 },
+      { "role": "booth accent", "at_in": [136.84, 33.12, 96.0], "size_in": [12, 12], "intensity": 480.0, "design_lumens": 6000, "tilt_deg": 35 }
+    ],
+    "observation": "Only TWO ambient downlights were placed in a 20' x 16' room, both at x=40 (the west sixth of the floor). The whole east half of the room has no ambient light except the four north-wall washes. The booth keep-out explains some of it but not all. Reported, not fixed."
+  },
+
+  "scenes": [
+    {
+      "n": 1,
+      "name": "01 Booth Exterior Three-Quarter",
+      "lane": "vray_render",
+      "output_path": "C:\\Users\\bento\\Desktop\\BridgeTest-2026-08-30\\01 Booth Exterior Three-Quarter render.png",
+      "pixels": [1200, 900],
+      "bytes": 330292,
+      "wall_clock_seconds": 148.6,
+      "wall_clock_basis": "dispatched ~14:41:59.2 (immediately after the 05 image row at 14:41:58.808 plus the MODE->RENDER unit), file written 14:44:27.821. 1356 poll ticks on the 0.1 s batch timer = 135.6 s inside the poll loop; the balance is VRay::Command.render_production's model export.",
+      "camera": { "eye_in": [55.0, 22.0, 60.0], "target_in": [172.0, 105.0, 40.0], "fov_deg": 55.0, "perspective": true },
+      "exposure": { "ev100": 9.0, "f_number": 8.0, "shutter_speed": 8.0, "iso": null },
+      "sun": "enabled (V-Ray default) for this row",
+      "usable": false,
+      "why_not": "Blown out. Booth panels clipped to pure white with all texture gone; room floor and walls clipped to white and read as an empty void. EV 9 was tuned on the booth INTERIOR and is roughly 3 stops too bright for a room-level view of this rig."
+    },
+    {
+      "n": 2,
+      "name": "02 Room Context Wide",
+      "lane": "sketchup_image_export",
+      "output_path": "C:\\Users\\bento\\Desktop\\BridgeTest-2026-08-30\\02 Room Context Wide.png",
+      "pixels": [1200, 475],
+      "bytes": 99375,
+      "wall_clock_seconds": 0.54,
+      "wall_clock_basis": "file mtimes 14:41:57.824 / 14:41:58.361 / 14:41:58.808 across the three image rows",
+      "camera": { "eye_in": [12.0, 180.0, 74.0], "target_in": [152.0, 62.0, 30.0], "fov_deg": 76.0, "perspective": true },
+      "settings": { "requested_width": 1200, "height_source": "derived from the SketchUp viewport aspect (2169 x 859) - NOT requested", "mode": "draft", "antialias": true, "transparent": false, "WR_Lights_tag": "hidden on this scene" },
+      "usable": "marginal",
+      "why_not": "1200 x 475 letterbox (ratio 2.53) crops the ceiling; construction dimension strings are visible (draft mode shows them by design)."
+    },
+    {
+      "n": 3,
+      "name": "03 Booth Rear Ventilation",
+      "lane": "sketchup_image_export",
+      "output_path": "C:\\Users\\bento\\Desktop\\BridgeTest-2026-08-30\\03 Booth Rear Ventilation.png",
+      "pixels": [1200, 475],
+      "bytes": 143786,
+      "wall_clock_seconds": 0.54,
+      "camera": { "eye_in": [236.0, 186.0, 78.0], "target_in": [180.0, 122.0, 34.0], "fov_deg": 78.0, "perspective": true },
+      "settings": { "requested_width": 1200, "height_source": "SketchUp viewport aspect", "mode": "draft" },
+      "usable": "marginal",
+      "why_not": "Same letterbox. The camera sits 4\" off the room's NE corner because a 6' booth in a 20' x 16' room leaves no room to back off - near-plane wall wedges intrude from both edges."
+    },
+    {
+      "n": 4,
+      "name": "04 Booth Interior",
+      "lane": "vray_render",
+      "output_path": null,
+      "pixels": null,
+      "bytes": null,
+      "wall_clock_seconds": null,
+      "camera": { "eye_in": [160.0, 79.0, 52.0], "target_in": [176.0, 139.0, 40.0], "fov_deg": 78.0, "perspective": true },
+      "exposure": { "ev100": 9.0, "f_number": 8.0, "shutter_speed": 8.0, "iso": null },
+      "usable": false,
+      "why_not": "ROW SILENTLY LOST. Dispatched by a re-entrant timer tick while row 01 was still inside VRay::Command.render_production, started rendering, then had its @awaiting slot overwritten by row 01. No file, no result row, and the batch summary still said '4 exported, 0 skipped, 0 FAILED' for a 5-row plan. See defect D1. Fixed at 1.9.2; NOT re-run (renders were stopped by the coordinator)."
+    },
+    {
+      "n": 5,
+      "name": "05 Room Plan Top Down",
+      "lane": "sketchup_image_export",
+      "output_path": "C:\\Users\\bento\\Desktop\\BridgeTest-2026-08-30\\05 Room Plan Top Down.png",
+      "pixels": [1200, 475],
+      "bytes": 30075,
+      "wall_clock_seconds": 0.45,
+      "camera": { "eye_in": [120.0, 96.0, 420.0], "target_in": [120.0, 96.0, 0.0], "perspective": false, "parallel_height_in": 300.0 },
+      "settings": { "requested_width": 1200, "height_source": "SketchUp viewport aspect", "mode": "draft" },
+      "usable": "marginal",
+      "why_not": "Correct as a working plan (dimensions, door swing, booth, light positions) but carries the internal WR-Notes banner and floats in two-thirds dead space at 1200 x 475."
+    }
+  ],
+
+  "render_settings_actually_used": {
+    "resolution": [1200, 900],
+    "resolution_set_by": "scene.change { scene['/SettingsOutput'][:img_width] = 1200; [:img_height] = 900 }",
+    "resolution_authority": "The SCENE copy. VRay::Command.render_production exports the V-Ray scene into the renderer, /SettingsOutput included, so the scene copy wins. Writing only renderer.fetch(:SettingsOutput) is overwritten by that export (observed: renderer 400x300 + scene 1200x900 -> a 1200x900 PNG).",
+    "exposure_set_by": "scene.change { scene['/CameraPhysical'][:shutter_speed] = <value> }, f_number left at 8.0",
+    "exposure_value_param_note": "scene['/CameraPhysical'][:exposure_value] reads 0.0 and was NOT used. :exposure reads true, :iso reads nil. The effective EV comes from f_number and shutter_speed: EV100 = log2(f_number^2 * shutter_speed).",
+    "vray_defaults_observed": { "f_number": 8.0, "shutter_speed": 300.0, "derived_ev100": 14.23 },
+    "image_sampler": { "plugin": "/SettingsImageSampler", "type": 3, "min_shade_rate": 6 },
+    "rt_engine": { "plugin": "/SettingsRTEngine", "noise_threshold": 0.04, "max_sample_level": 400 },
+    "quality_note": "All sampler/engine values are V-Ray stock. NOTHING in this repo sets them, and no denoiser was configured or checked. That is the direct cause of the orange/brown speckle and fireflies.",
+    "save_call": "renderer.save_vfb_image(path, skip_alpha: true, no_alpha: true) -> true. Opaque PNG, no .Alpha.png sidecar. Verified live.",
+    "image_lane_resolution_set_by": "scripts/export-scenes.rb line 164: height = (width * view.vpheight / view.vpwidth).round. Only WIDTH is requested; height is inherited from the SketchUp window (2169 x 859 this session -> 1200 x 475). The file's own header says 'BEFORE YOU RUN: size the SketchUp window to the aspect you want.'"
+  },
+
+  "exposure_finding": {
+    "headline": "No single EV exposes both a room-level view and a booth-interior view of this light rig. That is a calibration gap between wr-drop-lights.rb and the exposure default, not a bad EV.",
+    "vray_default_ev100": 14.23,
+    "recommended_booth_interior_ev100": 9.0,
+    "recommended_room_view_ev100": 12.0,
+    "how_to_set": "scene.change { scene['/CameraPhysical'][:shutter_speed] = 2**(ev - 6) } with f_number 8.0. shutter_speed 300 = EV 14.23 (default), 128 = EV 13, 64 = EV 12, 32 = EV 11, 8 = EV 9, 4 = EV 8.",
+    "bracket": [
+      { "scene": "04 Booth Interior", "ev100": 14.23, "shutter_speed": 300.0, "verdict": "far too dark - the black-hole case the DEVLOG warned about", "file": "exposure-bracket/booth-interior-EV14.23-first-real-render.png", "seconds": 8.5, "pixels": [400, 300] },
+      { "scene": "04 Booth Interior", "ev100": 8.0, "shutter_speed": 4.0, "verdict": "well exposed, slightly hot on the window", "file": "exposure-bracket/booth-interior-EV08.png", "seconds": 31.1, "pixels": [400, 300] },
+      { "scene": "04 Booth Interior", "ev100": 9.0, "shutter_speed": 8.0, "verdict": "BEST for the booth interior", "file": "exposure-bracket/booth-interior-EV09.png", "seconds": 30.9, "pixels": [400, 300] },
+      { "scene": "01 Booth Exterior Three-Quarter", "ev100": 9.0, "shutter_speed": 8.0, "verdict": "BLOWN - everything clipped to white, room reads as a void. Sun disabled for this one and it made no difference.", "file": "exposure-bracket/room-view-EV09-BLOWN-1200x900.png", "pixels": [1200, 900] },
+      { "scene": "01 Booth Exterior Three-Quarter", "ev100": 11.0, "shutter_speed": 32.0, "verdict": "booth good, room walls and floor still clipping", "file": "exposure-bracket/room-view-EV11.png", "seconds": 20.9, "pixels": [400, 300] },
+      { "scene": "01 Booth Exterior Three-Quarter", "ev100": 12.0, "shutter_speed": 64.0, "verdict": "BEST for the room view - floor, walls and booth all read", "file": "exposure-bracket/room-view-EV12-best.png", "seconds": 16.1, "pixels": [400, 300] },
+      { "scene": "01 Booth Exterior Three-Quarter", "ev100": 13.0, "shutter_speed": 128.0, "verdict": "room fine, booth too dark", "file": "exposure-bracket/room-view-EV13.png", "seconds": 12.2, "pixels": [400, 300] }
+    ],
+    "why_they_disagree": "The ambient downlights carry a design target of 10,667 lm each at intensity 853.36; the booth interior light carries 2,670 lm at intensity 106.8 - an 8x spread. The room is also open-topped (build-room.rb builds no ceiling slab), so the V-Ray sun and sky light it directly. Disabling /SunLight ([:enabled] = false) did NOT rescue the EV 9 room render, so the interior rig alone is what is over-bright.",
+    "sun_state_during_the_batch": "enabled (V-Ray default). It was disabled later, during the bracket probes only."
+  },
+
+  "cold_session_question": {
+    "question": "Does renderer.start no-op on a cold session, and does VRay::Command.render_production(context:) fix it?",
+    "answer": "BOTH halves answered, and the received explanation was wrong.",
+    "detail": [
+      "The session WAS cold: first probe read VRay::Context.active.renderer.state => :idleInitialized on an empty Untitled model, and no hand render had happened.",
+      "renderer.start(sync: true) DID engage the state machine cold: :idleInitialized -> :rendering -> :idleDone with no human click. So the 'start does nothing cold' framing is not quite right.",
+      "But start renders WHATEVER IS ALREADY LOADED IN THE RENDERER, and nothing exports the SketchUp model into it. Three runs on the finished room-plus-booth model: :idleDone in 0.6 s and a 429-byte SOLID BLACK PNG, every time. That is exactly the 28 Aug 'five empty frames'. The renders did run - on nothing.",
+      "VRay::Command.render_production(context: VRay::Context.active) prints 'Exporting model: Done (0.43 s)' / 'Starting render' and produced the first real image: :idleDone in 8.5 s, 111,595 bytes.",
+      "It drives the SAME renderer the poll loop reads: VRay::Context.active.renderer.state went :idleDone -> :rendering -> :idleDone across it. No re-aiming of the poll loop was needed.",
+      "Evidence on disk: C:\\Users\\bento\\Desktop\\BridgeTest-2026-08-30\\_coldtest.png - 640x480, 973 bytes, solid black, produced by renderer.start(sync: true) on a cold empty model.",
+      "SIDE EFFECT: render_production pumps the Windows message loop while exporting, so SketchUp timers fire inside it. That is what exposed defect D1."
+    ],
+    "resolution": "proposal-package.rb now calls VRay::Command.render_production(context: ctx). It falls back to renderer.start(sync: true) ONLY if the Command module is absent, and says loudly in the log that the fallback is the known black-frame path."
+  },
+
+  "audit_findings_addressed": {
+    "F1_fatalError_classified_as_RUNNING": {
+      "fixed": true,
+      "how": "New ERROR_STATE = /error/i, checked BEFORE the /\\Aidle/i family so :idleError's prefix cannot win. classify_render returns a new :failed verdict; the poll loop fails the row by name on the first poll instead of burning RENDER_TIMEOUT_S.",
+      "did_it_ever_fire": "NO. No render in this run reached :fatalError or :idleError. The fix is proven only by the offline suite.",
+      "test_coverage": "scripts/rbtest-proposal.py grew from 14 to 20 classifier cases - the five documented states the 28 Aug live watch never saw (:fatalError latched and unlatched, :idleError, :renderingPaused, :renderingAwaitingChanges, :idleFrameDone). All 20 pass on real CRuby 3.2."
+    },
+    "F2_cold_session_start": { "fixed": true, "see": "cold_session_question" },
+    "F4_save_vfb_image": {
+      "fixed": true,
+      "how": "Target deleted before saving so File.exist? means THIS run's file; Boolean return checked; skip_alpha and no_alpha both passed. Verified live: returns true, one opaque PNG, no .Alpha.png sidecar anywhere in the output folder."
+    },
+    "F7_raw_state_in_failure_messages": { "fixed": true, "how": "@last_state is recorded every poll and appended to every fail_render_row detail." },
+    "F9_output_size": {
+      "partly_answered": true,
+      "how": "Two /SettingsOutput plugins exist. Which governs depends on how the render starts - see render_settings_actually_used. output_size() now reads the scene first.",
+      "still_open": "Whether the Asset Editor's Width field IS scene['/SettingsOutput'][:img_width] was never tested, so the 1600 -> 2400x1350 mystery stays open."
+    },
+    "F3_mode_restore_skipped": {
+      "fixed": false,
+      "confirmed_live": true,
+      "detail": "WR_Mode.current(model) returned 'unknown (never toggled)' on this fresh model, so finish's mode restore was skipped in silence and the model was left in RENDER mode. Exactly as predicted. Not fixed - out of scope."
+    },
+    "F5_dialog_callbacks_live_during_batch": { "fixed": false, "tested": false },
+    "F6_nested_start_operation": { "fixed": false, "tested": false },
+    "F8_camera_clone_aliasing": { "fixed": false, "tested": false }
+  },
+
+  "defects_found": [
+    {
+      "id": "D1",
+      "severity": "HIGH",
+      "status": "FIXED at 1.9.2",
+      "where": "scripts/proposal-package.rb, self.step",
+      "title": "The re-entrancy guard unlocked itself, and a render row vanished with no failure reported",
+      "detail": "step was `return if @in_step; @in_step = true; ...body...; ensure @in_step = false`. A method-level ensure runs on EVERY exit including the guard's own early return, so a nested tick cleared the flag on its way out and the tick after it walked straight in. VRay::Command.render_production pumps the message loop while exporting, so nested ticks really do happen. Live log: 'Rendering 01...' then 'Rendering 04...' with no completion between them; row 04 set @awaiting, row 01 overwrote it, row 04 was rendered and discarded. Final summary: 'PROPOSAL PACKAGE - 4 exported, 0 skipped, 0 FAILED' for a 5-row plan.",
+      "fix": "The guard moved into a wrapper method with no ensure of its own; the body is now step_body."
+    },
+    {
+      "id": "D2",
+      "severity": "HIGH",
+      "status": "OPEN",
+      "where": "wr-drop-lights.rb intensity model vs the V-Ray exposure default",
+      "title": "No single exposure works for both a room view and a booth interior",
+      "detail": "EV 9 exposes the booth interior correctly and blows a room view to pure white. EV 12 exposes the room correctly and leaves the booth dark. The ambient downlights are ~8x the booth interior light in both design lumens and intensity. This is the REF_INTENSITY / AREA_NORMALIZED question HANDOFF-lights-run.md left open, now answered with pictures: the rig is not internally consistent. Nothing in the repo sets exposure at all, so today it is a manual Asset Editor step in both directions."
+    },
+    {
+      "id": "D3",
+      "severity": "HIGH",
+      "status": "OPEN",
+      "where": "V-Ray sampler settings - nothing in this repo touches them",
+      "title": "Heavy noise and fireflies; no denoiser",
+      "detail": "/SettingsImageSampler type 3, min_shade_rate 6; /SettingsRTEngine noise_threshold 0.04, max_sample_level 400 - all V-Ray stock. No denoiser was configured. The orange/brown speckle across every surface of the render is this. Nothing in proposal-package.rb, wr-shading.rb or wr-mode.rb sets a sampler value or a render time budget."
+    },
+    {
+      "id": "D4",
+      "severity": "HIGH",
+      "status": "OPEN",
+      "where": "scripts/export-scenes.rb line 164",
+      "title": "The image lane inherits the SketchUp window aspect; the render lane does not",
+      "detail": "height = (width * view.vpheight / view.vpwidth).round. Only width is requested. This session's viewport was 2169 x 859, so 1200 became 1200 x 475 (ratio 2.53) while the render lane produced 1200 x 900 (ratio 1.33) from an explicit img_width/img_height. Two lanes in one proposal package disagree on shape. The file's header already tells the operator to resize the SketchUp window first - that is a workaround, not a fix."
+    },
+    {
+      "id": "D5",
+      "severity": "HIGH",
+      "status": "OPEN",
+      "where": "wr-mode.rb / proposal-scenes.rb DIM_TAGS, and the image lane running in draft mode",
+      "title": "Construction annotations reach client-facing images",
+      "detail": "Two separate causes. (a) The image lane runs in DRAFT mode by design, and draft mode shows every dimension tag - so the 20' and 16' strings on WR-Dims and the door dimensions on WR-Dims-Doors are exported on purpose. (b) The ceiling banner \"Ceiling 8'-0\\\" - HOUSE DEFAULT, not measured. Confirm before quoting.\" is a Sketchup::Text on the WR-Notes tag, and WR-Notes is NOT in DIM_TAGS (which is ['WR-Dims','WR-Dims-Doors','WR-Dims-Booth','WR-Dims-Selection']). So even RENDER mode would never hide it. A client-safe pass must hide WR-Notes by name in addition to the four DIM_TAGS.",
+      "tags_to_hide_for_a_client_safe_pass": ["WR-Dims", "WR-Dims-Doors", "WR-Dims-Booth", "WR-Dims-Selection", "WR-Notes"]
+    },
+    {
+      "id": "D6",
+      "severity": "MEDIUM",
+      "status": "OPEN - explained, not a V-Ray bug",
+      "where": "the booth component library",
+      "title": "The opaque blue rectangle at the booth window",
+      "detail": "It is the material [Color_I06], RGB (0,0,204), alpha 1.0, no texture - the acoustic foam / interior panel colour that ships in the P: library components. NOT a glass material failing to resolve: there is NO transparent material anywhere in this model. Every one of the 30 materials reads alpha 1.0. The SketchUp export shows a diamond pattern there because the foam pyramids are real GEOMETRY; V-Ray flattens to the flat blue base colour at this exposure. So the window opening is showing the interior blue panel, and there is no glazing in the model at all."
+    },
+    {
+      "id": "D7",
+      "severity": "MEDIUM",
+      "status": "OPEN - answered, NOT visible emitters",
+      "where": "render 01, the blue glows at the left and right edges",
+      "title": "The glows are lit room-wall geometry, not visible light emitters",
+      "detail": "All eight V-Ray light plugins read invisible => true and enabled => true when queried after the render (this is the plugin state, read back live - the same check the lighting lane fixed today, and it still passes). Projecting the eight light widget origins onto scene 01's camera puts every one of them near the TOP of the frame or off it entirely (screen y 34..202 of an 859 px viewport, several negative), not at the mid-height left/right edges where the glows are. The EV 12 bracket render of the same camera shows the same two regions as ordinary bright patches on the room's side walls near the wall tops - sky spilling over the 96\" walls of an open-topped room, plus the north-wall wash pools. CAVEAT: this is parameter evidence plus a projection, not a render-side A/B with the lights deleted. That test was not run."
+    },
+    {
+      "id": "D8",
+      "severity": "MEDIUM",
+      "status": "OPEN",
+      "where": "scripts/proposal-package.rb summary_lines",
+      "title": "The summary does not reconcile rows planned against rows reported",
+      "detail": "5 rows were planned, 4 files were written, and the summary said '4 exported, 0 skipped, 0 FAILED'. Nothing compared the plan to the results. This is what let D1 pass as a clean run. A one-line check (results.size + skipped == plan.size, else say so loudly) would have caught it."
+    },
+    {
+      "id": "D9",
+      "severity": "MEDIUM",
+      "status": "FIXED at 1.9.2",
+      "where": "scripts/proposal-package.rb start_run",
+      "title": "dlg.execute_script('runStarted()') was the one unguarded dialog call, and it sits after @running = true",
+      "detail": "Audit F10 named this hazard; it fired here. A caller whose dlg could not take execute_script raised at that line, so @running latched true with NO timer created and the batch sat at 0 of 7 units forever, saying nothing. Every other dialog call in the file was already rescued. Now guarded."
+    },
+    {
+      "id": "D10",
+      "severity": "MEDIUM",
+      "status": "OPEN",
+      "where": "scripts/build-room.rb",
+      "title": "The room has no ceiling slab, so V-Ray's sun and sky light every interior view",
+      "detail": "build-room.rb builds four walls and a floor. In the V-Ray renders the sky is plainly visible above the wall tops. Any interior render of a build-room room is therefore lit by the environment as much as by the interior rig, which makes exposure unpredictable and makes the light-rig calibration in D2 impossible to judge cleanly."
+    },
+    {
+      "id": "D11",
+      "severity": "LOW",
+      "status": "OPEN",
+      "where": "scripts/wr-drop-lights.rb grid placement",
+      "title": "A 20' x 16' room got two ambient downlights, both in the west sixth",
+      "detail": "Soft density, spacing 96\", ceiling 96\". Placed at (40,48) and (40,144). The booth keep-out removes candidates near x=170 but does not explain the absence of anything at x=120 or x=200. The east half of the room has no ambient fixture."
+    },
+    {
+      "id": "D12",
+      "severity": "LOW",
+      "status": "OPEN",
+      "where": "scripts/wr-drop-lights.rb",
+      "title": "The tool autoruns on load and pops UI.inputbox, which the bridge does not muzzle",
+      "detail": "Carried over from HANDOFF-lights-run.md open question 5. Every bridge job that presses this button must stub UI.inputbox first; this run did. Additionally the tool raises a modal 'Nothing is selected' if no room group is selected, which the bridge blocks - the room and booth groups must be selected before loading it."
+    }
+  ],
+
+  "files_changed": [
+    "scripts/proposal-package.rb",
+    "scripts/rbtest-proposal.py",
+    "scripts/wr_tools/VERSION",
+    "DEVLOG.md",
+    ".forge/builder/endtoend-results.json",
+    ".forge/builder/HANDOFF-endtoend.md"
+  ],
+
+  "verification": {
+    "rbparse": "58 files parse (real CRuby 3.2)",
+    "rbtest_proposal": "40 checks PASS, including 6 new classifier cases for the previously unobserved V-Ray states",
+    "not_run": [
+      "Render row 04 was never re-run after the D1 fix - the coordinator stopped renders. The re-entrancy fix is therefore proven by code reading and the offline suite, NOT by a second live batch.",
+      "No render ever hit :fatalError or :idleError, so the F1 fix is unproven live.",
+      "No A/B render with the lights deleted, so D7 rests on plugin parameters plus a screen projection.",
+      "The V-Ray Asset Editor was never opened or compared against scene['/SettingsOutput'], so F9's 2400x1350 mystery is untouched.",
+      "The batch timer loop was driven by the real UI.start_timer, but the batch was launched from a bridge job with a stub dialog object, not from the HtmlDialog. The dialog's own JS was recorded, not executed."
+    ]
+  }
+}
