@@ -1,105 +1,53 @@
 # GOAL
 
 ## Mission
-Close the gap between what the **booth builder portal** shows and what **build-a-booth /
-booth-from-link** actually draws — foam, duct covers, and the remaining option parts —
-and replace the ad-hoc V-Ray render step with a **single proposal-package skill** that has a
-real UI.
+Build a **SketchUp bridge**: a resident Ruby listener inside SketchUp plus an outside client,
+so an agent can run WhisperRoom tools in the live application, read the console output, query
+the model geometry, and capture viewport images — without a human driving the mouse. The
+target is turning the pending test checklists into automated, repeatable assertions instead
+of hand-walked eyeball checks.
 
 ## Done means
-1. **Foam** is placed on the correct walls, portal-accurate:
-   - Standard booth -> inside face of the **standard walls**.
-   - Enhanced (IEP) booth -> **IEP (inner) walls only**. NOT also on the standard walls.
-2. **Duct covers** placed portal-accurate: **bench walls** only; on an Enhanced booth, the
-   **IEP walls**.
-3. The remaining option parts build: **desks, MJP, elevated floors, caster plate**, plus
-   anything else the portal emits that the scripts currently drop on the floor. A part the
-   portal can emit and we cannot draw is either built or **named in the report** — never
-   silently skipped.
-4. **One V-Ray proposal-package skill**, driven from a panel button: lists every scene in the
-   model, lets Benton tick which are V-Ray renders vs plain SketchUp exports, choose an output
-   folder, define material swaps that apply only to the V-Ray pass, and writes
-   `<SceneName>.png` / `<SceneName> render.png` into that folder.
-5. **A simple interior-lighting step** so booth-interior renders stop reading as black holes.
-   Minimalist. One button, sensible defaults, no lighting-designer UI.
+1. **A resident bridge** installed with the plugin (loads on SketchUp start, no per-run
+   restart). It polls an inbox directory, `load`s a submitted job `.rb` inside SketchUp,
+   captures `$stdout`, the return value, and any exception **with backtrace**, and writes a
+   result file the outside caller can read.
+2. **An outside client** (Python, matching `scripts/*.py` house style) that submits a job and
+   returns its result, with a timeout and a clear "SketchUp did not answer" failure — never a
+   silent hang.
+3. **Modal-dialog safety.** Jobs run with the prompt-suppression globals the codebase already
+   uses (`$wr_no_autorun`, `$wr_suppress_autorun`) set. A job blocked on a modal is reported
+   as a timeout naming the likely cause — it does not look like a pass.
+4. **Proven live in SketchUp**, not just reasoned about. At minimum: a job that reads model
+   state, a job that runs a real WR tool end to end, a job that writes a viewport PNG via
+   `model.active_view.write_image`, and a job that raises — whose backtrace comes back intact.
+5. **Safe by construction.** Scratch models only. The bridge must not save over an open model
+   or write into `C:\Users\bento\Desktop\ProposalFiles\`.
 
 ## Now
-**LIVE JOB (28 Aug 2026): the Elangovan / UTHSC 4-booth proposal PDF.** Renders were made
-MANUALLY — the render-tool bug hunt is PAUSED at Benton's instruction until the pack ships.
-Renders: `C:\Users\bento\Desktop\ProposalFiles\UTHealthSciences`. Output:
-`C:\Users\bento\Desktop\ProposalFiles\Saravanan Elangovan\`.
+**Scoper** writes the bridge contract to `.forge/scoper/` — inbox/outbox protocol, job and
+result file format, timeout and error semantics, dialog-suppression rules, install path within
+`install-plugin.py`, and the safety fences. Then a **Builder** implements and proves it live.
 
-**Plugin 1.7.9. The proposal-package V-Ray lane defects are FIXED but UNRUN in SketchUp.**
-Live on UTHealthSciences Audiology (12 scenes, 5 render / 7 image). Image lane is good.
-Render lane wrote five EMPTY 640x480 frames (observed) and is now being fixed.
-
-**V-Ray renderer state vocabulary — OBSERVED LIVE 28 Aug 2026, question 2 in
-`reference/vray-ruby-api.md` is now ANSWERED:**
-
-| state | `sequence_ended?` | meaning |
-|---|---|---|
-| `:idleStopped` | true | stopped |
-| `:idleInitialized` | true | cold, never started |
-| `:preparing` | false | starting (reached ~440 ms after start) |
-| `:rendering` | false | running |
-| `:idleDone` | true | FINISHED — the only value that means a frame exists |
-
-`IDLE_STATE = /idle/i` in `scripts/proposal-package.rb` matches three of the five and cannot
-tell an unstarted renderer from a finished one. A hand render took 5m26s; `renderer.start`
-DOES engage (observed 12:03:49).
-
-Two live defects, both in `scripts/proposal-package.rb`:
-1. Completion test must be `:idleDone` only, gated on having first SEEN a running state.
-2. `model.pages.selected_page =` at line 599 is not settled before `start` — scene
-   transitions leave the camera mid-flight, and the VFB renders the wrong view (Benton,
-   observed 28 Aug).
-
-Three things are Benton's, and no code should work around any of them:
-
-1. ~~Author `scripts/vray-seeds/WR Interior Light.skp`~~ **NO LONGER NEEDED, 28 Aug 2026.**
-   `VRay::Command.create_rectangle_light` exists and works (observed live); at plugin 1.8.0
-   `wr-drop-lights.rb` creates every light through the API and reads no seed files at all.
-   The three `.skp` files under `scripts/vray-seeds/` are dead and removable.
-2. **Rename `EFP96196.skp` -> `EFP96192.skp`** on the P: share. Until then a 96192 elevated
-   floor is refused by name.
-3. ~~Run `scripts/probe-vray.rb` cold and after a manual render~~ **DONE 28 Aug 2026** —
-   the state table above is the result. Still unprobed: `save_vfb_image` arguments, and
-   whether `start` engages on a renderer that has never rendered in the session.
-
-Still to author (no `.skp` exists): EFP perimeter strips, bass traps, Audimute panels,
-studio-light fixture. (The researcher also listed an "IEP floor pad"; the `ENH ...FL` mats
-exist and the IEP deck already places them, so that row looks stale.)
-
-**First live tests, in priority order:** build a **7272 E** and an **HX** booth and read the
-landed-bounds print from every overlay; then the proposal-package acceptance checklist at the
-end of `.forge/scoper/vray-proposal-package-spec.md`.
-
-**Open work, named rather than half-built:**
-- **Caster plate (`cs`) is NOT built** and refuses by name. The plate set tiles one-for-one
-  with the floor deck and lifts the booth exactly 5" with the floor 0.739" into the tray
-  (observed), but there is no portal-sourced plate-bottom figure and it is a vertical-datum
-  change to the whole build. Step (`sp`) is refused with it.
-- **Desk/MJP on Enhanced** are built on the **IEP room face** — the portal contradicts itself
-  (top-down says IEP face, iso says standard face). Built the way the evidence leans; one
-  constant to flip.
-- Which authored face of Foam / Duct Cover / desk / MJP points roomward is **assumed** —
-  one `FACE_ROOM` constant per family.
-- `build-booth.rb` (the slab plan tool) has no foam/duct parity. Deliberate.
-
+Benton must restart SketchUp once after the bridge is installed. It is not running right now
+(observed 30 Aug 2026).
 
 ## Rules that still bind this work
-- **Never invent a placement number.** Portal or measured geometry, or it does not ship.
-- **No silent fallback.** A part we cannot resolve aborts or warns **by name**.
-- **No regression on the Standard path**, and none on the Enhanced work closed at 1.6.32.
-- `WhisperRoomQuote` and the `P:` share are **read only**. No prices in any artifact.
-- Authoring new `.skp` components is Benton's job — report what is missing, do not fake it.
-- Plugin edits land under `scripts/wr_tools/`; bump `VERSION`; a restart is required to reload.
+- Plugin edits land under `scripts/wr_tools/`; bump `VERSION`; a restart reloads.
+- `WhisperRoomQuote` and the `P:` share are **read only**.
+- No silent fallback: a job that cannot run fails **by name**.
+- Never run bridge jobs against live client work — scratch models only.
+- Commit and push every change.
 
 ## Out of scope
-- Re-opening the Enhanced IEP shell mission (parked, see `.forge/GOAL-prev-iep-mission.md`).
-- Roof-mounted vent. Authoring `.skp` components.
+- Driving the V-Ray VFB, the asset editor, or any HtmlDialog by simulated keystrokes.
+- Actually running V-Ray renders through the bridge. The bridge must not *preclude* it, but
+  renders are a later use of the tool, not part of building it.
+- Any change to booth geometry, lighting, or the proposal package itself.
 
 ## History
-2026-08-27 — Enhanced/IEP two-shell mission parked at plugin 1.6.32 with three items still
-unmeasured (6060 E wall lift, inner-window end, perimeter-seating fix on the inner deck).
-Full text preserved at `.forge/GOAL-prev-iep-mission.md`.
+2026-08-30 — Portal-parity / proposal-package mission parked at plugin 1.8.0 to build this
+test harness first. Full text preserved at `.forge/GOAL-prev-portal-vray-mission.md`; its
+five-step resume list is the first customer for the bridge.
+2026-08-27 — Enhanced/IEP two-shell mission parked at 1.6.32, see
+`.forge/GOAL-prev-iep-mission.md`.
