@@ -25,44 +25,33 @@ of hand-walked eyeball checks.
    or write into `C:\Users\bento\Desktop\ProposalFiles\`.
 
 ## Now
-**Bridge shipped at plugin 1.9.0** (`scripts/wr_tools/wr_bridge.rb`, `scripts/sketchup-bridge.py`),
-all 12 acceptance criteria passing live on SketchUp 2026. Two lanes are running against it:
+**Render look development.** The bridge (1.9.0), the booth matrix (50/50 clean) and the lights
+(1.9.1, two silent defects fixed) are done. The open work is that **the renders still look bad**,
+and the reason progress was slow is that we were art-directing blind at ~6 minutes a frame.
+The fix is the feedback loop: a **thumbnail look matrix** at ~400x225, three stages —
+environment/sun, then the light-rig balance, then an exposure ladder. Benton picks from a
+contact sheet; no agent picks the look.
 
-- **Phase 2 — lights.** The 1.8.0 `wr-drop-lights.rb` rebuild has never been run in SketchUp.
-  Running the six-item checklist in `.forge/builder/HANDOFF-lights-api.md` live. **SketchUp
-  2026.** No V-Ray renders — every item is checkable from geometry, light properties, console
-  strings and viewport shots.
-- **Phase 0 — booth-matrix harness.** Enabling and validating the **SketchUp 2024** bridge
-  (never exercised), then building a harness that drives
-  `WR_BuildBoothComponents.build_booth` over all 50 keys and captures a per-key manifest of
-  placed parts, landed bounds, and named refusals. Dry runs for all 50; real builds for
-  `MDL 6060 S/E`, `MDL 96192 E`, `MDL 102186 E` only.
+**Benton's decisions, 30 Aug 2026:**
+1. **The tool HONOURS the V-Ray settings he has set — it does not write them.** His Asset Editor
+   is **1600x900, 16:9, Quality Medium, Progressive on**. `scripts/proposal-package.rb:1213`
+   was writing `/SettingsOutput` and `:1488` `/CameraPhysical` (observed). Overrides become
+   explicit, opt-in and logged; a missing setting **fails by name**, never gets a substitute.
+   This is the same rule as "never invent a placement number", applied to render settings.
+2. **BALANCE THE LIGHT RIG rather than keep per-scene exposure.** The room rig is ~8x the booth
+   rig, which is the only reason one EV could not serve both an interior and a room view.
+   Balancing it is the real fix; the per-scene EV override was a workaround. Target: **one
+   exposure, Benton's own, serves both**, and the package never writes `/CameraPhysical` on a
+   normal run. If no single EV works even after balancing, that is a finding to state plainly.
+3. **Safe Frame ON.** It was off, so the viewport showed one shape while V-Ray rendered 16:9 —
+   composing blind. It is a preview aid and changes no output.
 
-**SketchUp 2026 ONLY — 2024 lane cancelled 30 Aug 2026 (Benton).** 2026 is the version he
-works in, and a golden baseline captured on 2024 would produce spurious diffs against every
-later 2026 run, defeating the point of the baseline. The earlier two-instance split traded
-environment fidelity for parallelism; that was the wrong trade.
+**The blue panel is BLUE ACOUSTIC FOAM, a real product.** An earlier report called it a
+placeholder defect; that was wrong and is corrected. Open question: it renders flat where the
+SketchUp export shows its diamond pattern, so the wedge geometry or material may not survive
+into the render.
 
-**Consequence: the two lanes SERIALIZE on one SketchUp.** One instance shares one model, so a
-booth build's `file_new` would destroy a lights test mid-run. Lights holds 2026 now; the
-harness lane writes code and waits for an explicit hand-off before any live run. Version
-numbers pre-assigned to avoid collision: lights 1.9.1, harness 1.9.2.
-
-**SketchUp 2024's bridge remains unvalidated** and is now out of scope.
-
-**`EFP96192.skp` EXISTS on the share as of 30 Aug 2026** (426,135 bytes, verified;
-`EFP96196.skp` is gone). Benton renamed it. The refusal at `scripts/wr-overlays.rb:901-905`
-should no longer fire — the harness confirms that.
-
-**The golden-manifest plan:** build every model once, capture every part with its landed
-bounds and every refusal by name, review that baseline once, then freeze it. Every later
-change becomes a diff instead of an eyeball job. The landed-bounds print already exists at
-`scripts/wr-deck.rb:1130-1139` and is re-measured post-placement — capture it, do not
-reimplement it.
-
-**Still unowned, and no code fixes it: EXPOSURE.** The V-Ray default sits near EV 14.2; an
-interior wants roughly EV 8. Until someone owns it, every interior renders dark regardless of
-the lights or the render lane. Name it; do not build around it.
+**Report artifact:** https://claude.ai/code/artifact/4e498801-9e28-4dc1-9ac5-1f51755aefb0
 
 ## Rules that still bind this work
 - Plugin edits land under `scripts/wr_tools/`; bump `VERSION`; a restart reloads.
