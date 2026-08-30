@@ -1,62 +1,67 @@
-# Scoper HANDOFF — V-Ray proposal-package skill
-
-2026-08-27. Supersedes the 2026-08-24 Enhanced-booth handoff (that mission is parked —
-see `.forge/GOAL-prev-iep-mission.md`; its spec `enhanced-booth-build.md` stays in this
-folder for the record).
+# Scoper HANDOFF — SketchUp bridge (2026-08-30)
 
 ## Produced
 
-- `.forge/scoper/vray-proposal-package-spec.md` — the buildable spec: one new tool
-  script `scripts/proposal-package.rb` (module `WR_ProposalPackage`), reusing
-  `WR_MaterialsSwap` / `WR_Mode` / `WR_ExportScenes.export_pages` / `WR_Preflight` /
-  `WR_Folder` unchanged; scene-mode marks stored on each `Sketchup::Page`; exact
-  filename/collision rules; two-pass batch (draft images, then V-Ray renders) driven by
-  a `UI.start_timer` state machine with a single FINISH exit that restores the model;
-  acceptance checklist at the end.
-- `.forge/scoper/vray-proposal-mockup.html` — standalone clickable mockup, styled with
-  the same CSS tokens as the `list-scenes.rb` dialog. **Design of record** for the UI:
-  search, three-state Skip/Image/Render per row, live FILE column (shows the ` render`
-  suffix and collision `(2)` numbering), materials-slot section, folder/width/overwrite
-  row, simulated run with progress, one deliberate failure, and cancel. Open it in a
-  browser; this is what Benton reviews first.
+- `.forge/scoper/sketchup-bridge.md` — the full build contract: protocol, job/result JSON
+  with worked examples, error semantics, timeout and modal diagnosis table, output capture,
+  install/enablement, safety fences, and twelve acceptance criteria (A1-A12) mapped to the
+  five Done-means in `.forge/GOAL.md`.
 
-No production code written or changed. `wr-pack-export.rb` is deliberately untouched.
+No mockup: the deliverable has no graphical UI. The worked job/result JSON in the spec is the
+equivalent artifact, per the assignment.
 
-## Read-first (Builder)
+## Read first
 
-1. `.forge/scoper/vray-proposal-package-spec.md` — start at "The V-Ray call —
-   load-bearing and unverified". **Step 0 of the build is getting `probe-vray.rb`
-   output from Benton's live SketchUp**; the render lane's shape forks on it.
-2. `scripts/wr-materials-swap.rb` and `scripts/wr-mode.rb` — the swap/revert machinery
-   you must call, never copy. Both carry "THIS FILE HAS NOT BEEN RUN" banners; your
-   feature will be the first live exercise of them.
-3. `scripts/export-scenes.rb` `export_pages` — the one `write_image` path; drive it,
-   don't fork it.
-4. `scripts/list-scenes.rb` — lift its search/highlight/range JS and CSS tokens.
-5. `scripts/wr-pack-export.rb` — the HtmlDialog-command, preflight-gate, overwrite-ask
-   and restore-in-ensure patterns to copy.
+1. `.forge/GOAL.md` — Mission, Done-means, Out of scope.
+2. `.forge/scoper/sketchup-bridge.md` — this contract.
+3. `scripts/wr_tools/main.rb` lines 1026-1056 (`load_quietly`, the autorun-suppression model)
+   and lines 1057-1080 (why `rescue Exception`, not `StandardError`).
+4. `scripts/proposal-package.rb` lines 578-600 — the `UI.start_timer(0.1, true)` +
+   `@in_step` reentrancy idiom the listener copies.
+5. `scripts/install-plugin.py` — confirm it copies every file in `scripts/wr_tools/`
+   (it does, per its `main()`), so no installer edit is needed.
+6. `scripts/rbtest-lights.py` header — the harness house style the live tests should grow into.
 
-## Assumptions (all marked in the spec too)
+## Assumptions
 
-- **V-Ray API surface** (`Context.active`, `start`/`wait`/`in_process?`,
-  `save_vfb_image`, `stop`) — *reported* from `reference/vray-ruby-api.md`; the Chaos
-  docs are not on this desktop (checked — no `C:\Program Files\Chaos`), and probe-vray
-  has never run. Gate the render lane on the probe.
-- V-Ray renders the **active scene's camera** after `pages.selected_page=` +
-  `view.refresh` — *assumed*; confirm on first manual test.
-- "Normal images" = **draft mode** (drafting materials, scene's own tags) — *derived*
-  from Benton's "the floor might be just white" phrasing.
-- V-Ray output resolution stays whatever the Asset Editor holds in v1 — decided the
-  conservative way because setting it needs an unverified `/SettingsOutput` write.
-- Skip is the default state for an unmarked scene; marks live on the page attribute
-  dict `WR_ProposalPackage` so they survive save/reorder.
+- **observed:** a duck-typed object with a `write` method captures `Kernel#puts` in
+  SketchUp's own CRuby 3.2, and `File.rename` over an existing file succeeds on NTFS. Both
+  probed against `C:\Program Files\SketchUp\SketchUp 2024\x64-ucrt-ruby320.dll` via
+  `scripts/rbparse.py`'s VM. These are the two load-bearing mechanisms in the protocol.
+- **observed:** SketchUp 2024 and 2026 are both installed and both have profiles under
+  `%APPDATA%\SketchUp\`. Hence the per-version bridge root.
+- **assumed, must be settled live (A4):** that SketchUp's own console output honours a
+  `$stdout` swap. Only Ruby-level `puts` was provable outside SketchUp. Mitigated by teeing
+  rather than replacing, so an unverified path costs a missing record, not a missing line.
+- **assumed, must be settled live (A10):** that `UI.start_timer` stops firing while a modal
+  dialog is up — this is what makes the stale heartbeat the wedge signal. The spec names the
+  fallback signal if it turns out false.
+- **assumed:** `require 'json'` is available in the plugin context (`main.rb` already does it,
+  observed). The minimal rbparse VM could not load it, which is a property of that VM, not of
+  SketchUp.
+- **derived:** `eval` rather than `load` for the job body, because `load` returns `true` and
+  discards the job's return value. Deliberate deviation from the Done-means wording, justified
+  in the spec.
 
-## Open questions (decided in the spec, cheap to reverse; ask Benton when he's back)
+## Open questions — for Benton, none blocking the Builder's start
 
-1. Plain images in **draft** mode always — or "as the model currently sits"? (Spec:
-   always draft.)
-2. V-Ray resolution from the dialog (v2) — wanted, and at what default size?
-3. Should the tool also run `wr-flatten-trim.py` on the outputs, or does that stay in
-   the five-plate pack exporter? (Spec: stays there; this tool writes opaque PNGs.)
-4. Per-scene material swaps (different floor per scene) — out of scope v1; confirm.
-5. Icon: reuse `scenes-proposal` sprite or draw a dedicated one?
+1. **Opt-in confirmed?** The spec makes the bridge **off by default**: no marker file, no
+   timer, nothing resident in his daily-driver SketchUp. Enabled by a menu item or by the
+   client. Is that the trade he wants, or would he rather it just be on?
+2. **Bridge root.** `%LOCALAPPDATA%\WhisperRoom\bridge\<version>\` — deliberately out of
+   OneDrive (sync would race the protocol's core read) and out of the repo. Fine, or does he
+   want it somewhere he can see it in Explorer?
+3. **`UI.messagebox` inside a job:** the spec makes it **raise** by default, so a prompting
+   tool fails by name instead of freezing SketchUp. The alternative is auto-answering with the
+   default button and logging it. Raising is safer; auto-answering is more useful for driving
+   tools that prompt as part of their normal path. Which does he want as the default?
+4. **Named models:** the spec refuses to run against any saved model unless the job explicitly
+   sets `allow_named_model`. Is Untitled-only acceptable, or does he expect to run jobs against
+   a real drawing he has open?
+5. **Default SketchUp version** for the client when both are listening — the spec refuses and
+   makes you pick. Should 2026 be the default instead?
+
+## Blockers
+
+None. SketchUp is not running (observed 30 Aug 2026); the Builder will need Benton to start it
+and restart it once after `install-plugin.py`, before A1-A12 can be run.
