@@ -38,9 +38,17 @@ all 12 acceptance criteria passing live on SketchUp 2026. Two lanes are running 
   placed parts, landed bounds, and named refusals. Dry runs for all 50; real builds for
   `MDL 6060 S/E`, `MDL 96192 E`, `MDL 102186 E` only.
 
-**Two SketchUp instances, one per lane.** A single instance shares one model, and a booth
-build calling `file_new` would destroy a lights test mid-run. 2026 is the lights lane; 2024 is
-the harness lane. Version numbers pre-assigned to avoid collision: lights 1.9.1, harness 1.9.2.
+**SketchUp 2026 ONLY — 2024 lane cancelled 30 Aug 2026 (Benton).** 2026 is the version he
+works in, and a golden baseline captured on 2024 would produce spurious diffs against every
+later 2026 run, defeating the point of the baseline. The earlier two-instance split traded
+environment fidelity for parallelism; that was the wrong trade.
+
+**Consequence: the two lanes SERIALIZE on one SketchUp.** One instance shares one model, so a
+booth build's `file_new` would destroy a lights test mid-run. Lights holds 2026 now; the
+harness lane writes code and waits for an explicit hand-off before any live run. Version
+numbers pre-assigned to avoid collision: lights 1.9.1, harness 1.9.2.
+
+**SketchUp 2024's bridge remains unvalidated** and is now out of scope.
 
 **`EFP96192.skp` EXISTS on the share as of 30 Aug 2026** (426,135 bytes, verified;
 `EFP96196.skp` is gone). Benton renamed it. The refusal at `scripts/wr-overlays.rb:901-905`
