@@ -49,6 +49,20 @@ module WR_ProposalScenes
   # plates; nothing on them gets to be accidental.
   DIM_TAGS = %w[WR-Dims WR-Dims-Doors WR-Dims-Booth WR-Dims-Selection].freeze
 
+  # CONSTRUCTION NOTES -- text, not dimensions, and until 30 Aug 2026 nothing
+  # in the toolset knew they existed. build-room.rb writes a Sketchup::Text
+  # banner ("Ceiling 8'-0\" - HOUSE DEFAULT, not measured. Confirm before
+  # quoting.") onto WR-Notes. WR-Notes is NOT a dimension tag, so it was in no
+  # mode's tag list, so NO mode ever hid it -- and it went out on a client
+  # image on 30 Aug 2026 (defect D5). It is listed separately from DIM_TAGS
+  # rather than folded into it because DIM_TAGS also drives which plate shows
+  # the room's dimensions, and a note is not a dimension.
+  NOTE_TAGS = %w[WR-Notes].freeze
+
+  # Everything a client image must not carry. Anything added here is hidden by
+  # render mode and by the proposal package's client-safe image pass.
+  ANNOT_TAGS = (DIM_TAGS + NOTE_TAGS).freeze
+
   # What 02-dimensioned actually shows: the ROOM dimensions and its doors. The
   # other four plates show none of them.
   #

@@ -1,0 +1,992 @@
+{
+ "run": {
+  "date": "2026-08-30",
+  "pass": 2,
+  "operator": "Builder (Forge)",
+  "host": "SketchUp 2026 + V-Ray 7, scratch Untitled model, driven through scripts/sketchup-bridge.py --su 2026. SketchUp 2024 never touched. P: and WhisperRoomQuote read only. Nothing written to C:\\Users\\bento\\Desktop\\ProposalFiles\\.",
+  "plugin_version_before": "1.9.2",
+  "plugin_version_after": "1.9.3",
+  "output_dir": "C:\\Users\\bento\\Desktop\\BridgeTest-pass2",
+  "pass1_output_dir_left_intact": "C:\\Users\\bento\\Desktop\\BridgeTest-2026-08-30",
+  "mode_found_from_pass1": "render",
+  "mode_found_from_pass1_note": "OBSERVED at the start of this session, hours after pass 1 finished: WR_Mode.current returned 'render'. F3's leaked mutation, live. It was put back to draft before this pass started, and finish no longer skips a restore it cannot resolve.",
+  "verdict": "PASS. Five scenes, five files, 1200x900 in both lanes, no construction annotation in any of them, both render rows landed at their own exposure, and every one of the five passes the new automated image gate. Pass 1's blown render fails that same gate by name. The renders are still visibly grainy and both ran out their 6-minute budget rather than converging - that is the one thing in this pass that is better, not finished.",
+  "batches_run": 2,
+  "batches_note": "Run 1 (15:26:48-15:39) shipped the geometry and proved D1, and exposed a defect in the FIRST client-safe design: hiding the annotation tags once at the top of the batch is undone by the very next unit, MODE -> DRAFT. Run 2 (15:41 onward) is the shipped run, on the shipped code, with the hide bracketing each export instead. Both runs landed all 5 rows.",
+  "deviation_needing_a_human": "Sketchup.file_new on the dirty pass-1 model raised a native \"Save changes to Untitled?\" modal that the bridge cannot muzzle. It blocked SketchUp for ~3 minutes and the bridge diagnosed it correctly (exit 4, \"THE JOB STARTED AND SKETCHUP STOPPED ANSWERING ... the likely cause is A MODAL DIALOG\"). It was dismissed with No (discard) by invoking that button through Windows UI Automation - a targeted invoke on a named button, not blind keystrokes, and not the VFB or an HtmlDialog. Stated because it is a deviation: the pass was otherwise fully scripted. A bridge-side muzzle for file_new, or a model.set_datum/save-suppression before it, would remove the need.",
+  "scratch_files_in_output_dir": [
+   "_state.json - the live model / V-Ray read-back this results file was built from",
+   "_imageqa.json - the gate output",
+   "_extra.json - the hand-authored half"
+  ]
+ },
+ "room": {
+  "built_by": "scripts/build-room.rb -> WR_BuildRoom.build(cfg), dialog bypassed",
+  "name": "Studio Room",
+  "interior_ft": "20'-0\" x 16'-0\"",
+  "interior_in": {
+   "x": 240.0,
+   "y": 192.0
+  },
+  "ceiling_in": 96.0,
+  "ceiling_note": "8'-0\" house default. build-room.rb builds four walls and a floor and NO CEILING SLAB, so V-Ray sun and sky light every interior view (pass 1 defect D10, still open).",
+  "wall_thickness_in": 4.0,
+  "doors": [
+   {
+    "run": 0,
+    "at_in": 60.0,
+    "width_in": 36.0,
+    "height_in": 80.0,
+    "hinge": "near",
+    "leaf_bounds_in": [
+     [
+      60.0,
+      0.0,
+      0.0
+     ],
+     [
+      61.5,
+      36.0,
+      80.0
+     ]
+    ]
+   }
+  ],
+  "tags_created": [
+   "WR-Floor",
+   "WR-Room",
+   "WR-Room-Upper",
+   "WR-Doors",
+   "WR-Doors-Leaf",
+   "WR-Notes",
+   "WR-Dims",
+   "WR-Dims-Doors"
+  ],
+  "auto_dimensions": "dimensions on WR-Dims / WR-Dims-Doors plus one Sketchup::Text ceiling banner on WR-Notes - all five hidden for every client-safe export"
+ },
+ "booth": {
+  "built_by": "scripts/build-booth-components.rb -> WR_BuildBoothComponents.build_booth(key, ASSIGN[key], cfg)",
+  "model_key": "MDL 7272 E",
+  "label": "Sound Booth 6' x 6', Enhanced",
+  "library": "P:/Sketchup/NewMasterComponentList (read only)",
+  "parts_placed": 48,
+  "build_seconds": 3.46,
+  "orientation": "Door on the SOUTH face (leaf swings south into the room), window on the WEST face, vents on the NORTH and EAST faces.",
+  "clearances_in": {
+   "west_wall": 130.2,
+   "east_wall_vent_side": 29.5,
+   "north_wall_vent_side": 26.3,
+   "south_open_floor": 86.2,
+   "rule_check": "N and E are the vented walls; both clear well over the 6\" minimum. Overall height 84.31\" under a 96\" ceiling."
+  },
+  "seated_on_floor_by_in": 1.313,
+  "seating_note": "As built the deck sat 1.313\" below z=0; the booth was translated up so its bounds.min.z is exactly 0."
+ },
+ "lights": {
+  "built_by": "scripts/wr-drop-lights.rb (1.9.1), UI.inputbox stubbed by the bridge job",
+  "settings": {
+   "density": "Soft",
+   "brightness": "Normal (x1.0)",
+   "warmth": "3000K",
+   "layers": "All (ambient + wall wash + booth)"
+  },
+  "count": 8,
+  "tag": "WR Lights",
+  "vray_plugins": 8,
+  "all_invisible": true,
+  "all_enabled": true,
+  "intensities": {
+   "ambient downlight x4": 426.64,
+   "wall wash x2": 120.0,
+   "booth interior": 106.8,
+   "booth accent": 480.0
+  },
+  "ratio_note": "REPORTED, NOT FIXED (out of scope by instruction). The ambient downlights carry ~4x the booth interior light per fixture and ~8x in design lumens. That ratio is why no single exposure serves both a room view and a booth interior, and why exposure had to become per row. Per-row exposure works around the ratio; it does not settle it."
+ },
+ "scenes": [
+  {
+   "n": 1,
+   "name": "01 Booth Exterior Three-Quarter",
+   "lane": "vray_render",
+   "output_path": "C:\\Users\\bento\\Desktop\\BridgeTest-pass2\\01 Booth Exterior Three-Quarter render.png",
+   "pixels": [
+    1200,
+    900
+   ],
+   "bytes": 1661760,
+   "wall_clock_seconds": 362.1,
+   "wall_clock_basis": "render dispatched 15:41:14 (the poll loop's first sighting of this row), file written 15:47:16.132",
+   "exposure": {
+    "ev100": 12.0,
+    "ev_requested": 12.0,
+    "f_number": 8.0,
+    "iso": 100.0,
+    "shutter_speed": 64.0
+   },
+   "camera": {
+    "eye_in": [
+     232.0,
+     26.0,
+     64.0
+    ],
+    "target_in": [
+     178.0,
+     116.0,
+     40.0
+    ],
+    "up": [
+     -0.115,
+     0.191,
+     0.975
+    ],
+    "fov_deg": 60.0,
+    "ortho_height_in": null,
+    "perspective": true
+   },
+   "scene_restores_tag_visibility": false,
+   "batch_status": "ok",
+   "batch_detail": "V-Ray 1200x900, EV 12.00, denoiser on, plus 2 render-element sidecar(s): 01 Booth Exterior Three-Quarter render.denoiser.png, 01 Booth Exterior Three-Quarter render.effectsResult.png",
+   "image_qa": {
+    "profile": "render",
+    "mean_luminance": 0.5103,
+    "clipped_fraction": 0.2088,
+    "dark_fraction": 0.0771,
+    "thresholds": {
+     "mean_min": 0.12,
+     "mean_max": 0.75,
+     "clip_max": 0.4
+    },
+    "status": "PASS",
+    "reasons": []
+   }
+  },
+  {
+   "n": 2,
+   "name": "02 Booth Interior",
+   "lane": "vray_render",
+   "output_path": "C:\\Users\\bento\\Desktop\\BridgeTest-pass2\\02 Booth Interior render.png",
+   "pixels": [
+    1200,
+    900
+   ],
+   "bytes": 2336353,
+   "wall_clock_seconds": 361.4,
+   "wall_clock_basis": "render dispatched 15:47:17, file written 15:53:18.404",
+   "exposure": {
+    "ev100": 9.0,
+    "ev_requested": 9.0,
+    "f_number": 8.0,
+    "iso": 100.0,
+    "shutter_speed": 8.0
+   },
+   "camera": {
+    "eye_in": [
+     196.0,
+     100.0,
+     52.0
+    ],
+    "target_in": [
+     138.0,
+     126.0,
+     45.0
+    ],
+    "up": [
+     -0.1,
+     0.045,
+     0.994
+    ],
+    "fov_deg": 85.0,
+    "ortho_height_in": null,
+    "perspective": true
+   },
+   "scene_restores_tag_visibility": false,
+   "batch_status": "ok",
+   "batch_detail": "V-Ray 1200x900, EV 9.00, denoiser on, plus 2 render-element sidecar(s): 02 Booth Interior render.denoiser.png, 02 Booth Interior render.effectsResult.png",
+   "image_qa": {
+    "profile": "render",
+    "mean_luminance": 0.4867,
+    "clipped_fraction": 0.0838,
+    "dark_fraction": 0.0021,
+    "thresholds": {
+     "mean_min": 0.12,
+     "mean_max": 0.75,
+     "clip_max": 0.4
+    },
+    "status": "PASS",
+    "reasons": []
+   }
+  },
+  {
+   "n": 3,
+   "name": "03 Room Context Wide",
+   "lane": "sketchup_image_export",
+   "output_path": "C:\\Users\\bento\\Desktop\\BridgeTest-pass2\\03 Room Context Wide.png",
+   "pixels": [
+    1200,
+    900
+   ],
+   "bytes": 226498,
+   "wall_clock_seconds": 1.4,
+   "wall_clock_basis": "file mtime 15:41:12.366 minus the previous row's completion",
+   "exposure": {
+    "ev100": null,
+    "note": "image rows are a SketchUp viewport export - no camera exposure applies"
+   },
+   "camera": {
+    "eye_in": [
+     14.0,
+     178.0,
+     74.0
+    ],
+    "target_in": [
+     150.0,
+     100.0,
+     34.0
+    ],
+    "up": [
+     0.214,
+     -0.123,
+     0.969
+    ],
+    "fov_deg": 78.0,
+    "ortho_height_in": null,
+    "perspective": true
+   },
+   "scene_restores_tag_visibility": false,
+   "batch_status": "ok",
+   "batch_detail": "image, 1200x900 (height requested)",
+   "image_qa": {
+    "profile": "view",
+    "mean_luminance": 0.6149,
+    "clipped_fraction": 0.2643,
+    "dark_fraction": 0.0054,
+    "thresholds": {
+     "mean_min": 0.12,
+     "mean_max": 0.75,
+     "clip_max": 0.4
+    },
+    "status": "PASS",
+    "reasons": []
+   }
+  },
+  {
+   "n": 4,
+   "name": "04 Booth Window and Vent Wall",
+   "lane": "sketchup_image_export",
+   "output_path": "C:\\Users\\bento\\Desktop\\BridgeTest-pass2\\04 Booth Window and Vent Wall.png",
+   "pixels": [
+    1200,
+    900
+   ],
+   "bytes": 524073,
+   "wall_clock_seconds": 0.7,
+   "wall_clock_basis": "file mtime 15:41:13.080 minus the previous row's completion",
+   "exposure": {
+    "ev100": null,
+    "note": "image rows are a SketchUp viewport export - no camera exposure applies"
+   },
+   "camera": {
+    "eye_in": [
+     34.0,
+     66.0,
+     66.0
+    ],
+    "target_in": [
+     168.0,
+     148.0,
+     42.0
+    ],
+    "up": [
+     0.129,
+     0.079,
+     0.989
+    ],
+    "fov_deg": 55.0,
+    "ortho_height_in": null,
+    "perspective": true
+   },
+   "scene_restores_tag_visibility": false,
+   "batch_status": "ok",
+   "batch_detail": "image, 1200x900 (height requested)",
+   "image_qa": {
+    "profile": "view",
+    "mean_luminance": 0.5657,
+    "clipped_fraction": 0.1647,
+    "dark_fraction": 0.0134,
+    "thresholds": {
+     "mean_min": 0.12,
+     "mean_max": 0.75,
+     "clip_max": 0.4
+    },
+    "status": "PASS",
+    "reasons": []
+   }
+  },
+  {
+   "n": 5,
+   "name": "05 Room Plan Top Down",
+   "lane": "sketchup_image_export",
+   "output_path": "C:\\Users\\bento\\Desktop\\BridgeTest-pass2\\05 Room Plan Top Down.png",
+   "pixels": [
+    1200,
+    900
+   ],
+   "bytes": 90834,
+   "wall_clock_seconds": 0.5,
+   "wall_clock_basis": "file mtime 15:41:13.614 minus the previous row's completion",
+   "exposure": {
+    "ev100": null,
+    "note": "image rows are a SketchUp viewport export - no camera exposure applies"
+   },
+   "camera": {
+    "eye_in": [
+     120.0,
+     96.0,
+     420.0
+    ],
+    "target_in": [
+     120.0,
+     96.0,
+     0.0
+    ],
+    "up": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "fov_deg": null,
+    "ortho_height_in": 250.0,
+    "perspective": false
+   },
+   "scene_restores_tag_visibility": false,
+   "batch_status": "ok",
+   "batch_detail": "image, 1200x900 (height requested)",
+   "image_qa": {
+    "profile": "plan",
+    "mean_luminance": 0.9427,
+    "clipped_fraction": 0.8812,
+    "dark_fraction": 0.0018,
+    "thresholds": {
+     "mean_min": 0.1,
+     "mean_max": 0.995,
+     "clip_max": 0.98
+    },
+    "status": "PASS",
+    "reasons": []
+   }
+  }
+ ],
+ "output_shape": {
+  "both_lanes": [
+   1200,
+   900
+  ],
+  "aspect": "4:3, ASPECT_W/ASPECT_H in proposal-package.rb",
+  "image_lane": "export-scenes.rb out_height(width, cfg['height'], vpwidth, vpheight) - an explicit height WINS; the viewport is the fallback and the return value says which was used",
+  "render_lane": "the V-Ray SCENE's /SettingsOutput img_width/img_height, written inside scene.change and read back, because VRay::Command.render_production exports the scene into the renderer and the scene copy wins",
+  "viewport_during_the_run": [
+   2169.0,
+   859.0
+  ],
+  "pass1_comparison": "the same 2169x859 viewport gave pass 1 1200x475 image rows (ratio 2.53) against 1200x900 renders - one package, two shapes"
+ },
+ "exposure_policy": {
+  "formula": "EV100 = log2(f_number**2 * shutter_speed) at ISO 100; shutter_for_ev(ev) = 2**(ev - log2(f_number**2))",
+  "iso": 100.0,
+  "iso_note": "READ BACK LIVE as 100.0. The parameter key is :ISO, not :iso - pass 1 read nil from :iso and had to assume ISO 100, so its EV numbers were derived. They are now measured.",
+  "exposure_value_param": "/CameraPhysical[:exposure_value] reads 0.0 and is NOT used",
+  "defaults": {
+   "interior_views_ev100": 9.0,
+   "room_and_exterior_ev100": 12.0,
+   "chosen_by": "the page's stored 'ev' attribute if it has one, else the scene name against INTERIOR_RE"
+  },
+  "vray_default_ev100": 14.23,
+  "per_row": true,
+  "auditable": "the EV that actually landed (derived from the read-back f_number and shutter_speed, never the value asked for) is written into the run log and into the row's detail string",
+  "restored_after": "f/8.0 @ 1/300, ISO 100 - exactly as found"
+ },
+ "render_quality_settings": {
+  "owned_not_inherited": true,
+  "written_into": "the V-Ray SCENE, inside one VRay::Scene#change, every value read back, all restored in finish",
+  "changes": [
+   [
+    "/RenderChannelDenoiser",
+    "enabled",
+    false,
+    true
+   ],
+   [
+    "/SettingsImageSampler",
+    "progressive_threshold",
+    0.04,
+    0.01
+   ],
+   [
+    "/SettingsImageSampler",
+    "progressive_maxSubdivs",
+    20,
+    100
+   ],
+   [
+    "/SettingsImageSampler",
+    "progressive_maxTime",
+    0.0,
+    6.0
+   ],
+   [
+    "/SettingsImageSampler",
+    "min_shade_rate",
+    6,
+    8
+   ],
+   [
+    "/SettingsOptions",
+    "progressive_noise_limit",
+    0.04,
+    0.01
+   ],
+   [
+    "/SettingsRTEngine",
+    "noise_threshold",
+    0.04,
+    0.01
+   ],
+   [
+    "/SettingsRTEngine",
+    "max_sample_level",
+    400,
+    800
+   ]
+  ],
+  "left_as_found": {
+   "/RenderChannelDenoiser": {
+    "mode": 2,
+    "engine": 0,
+    "strength": 1.0,
+    "preset": 1
+   },
+   "/SettingsImageSampler": {
+    "type": 3,
+    "meaning": "progressive"
+   }
+  },
+  "cost": "render 01 362.1 s and render 02 361.4 s at 1200x900, against pass 1's single 148.6 s render at 1200x900 on stock settings with no denoiser - about 2.4x. Image rows are unchanged at well under a second each.",
+  "honest_caveat": "BOTH renders ran out the 6-minute time budget rather than reaching the 0.01 noise threshold. The frames are still visibly grainy. The budget is what stops a hard scene rendering forever; it is NOT evidence of convergence. A cleaner frame needs either more time or a different sampler, and neither was measured.",
+  "sidecars": "With the denoiser on, V-Ray also writes <name>.denoiser.png and <name>.effectsResult.png next to the saved frame. Nothing in the collision map or the overwrite policy plans for them; they are now NAMED in the row detail and the log rather than silently left, and they are NOT deleted. Measured on 01 at 1200x900: mean neighbour-pixel difference 0.0444 in the saved .png against 0.0416 in .denoiser.png - so save_vfb_image saves the RGB channel and the denoised frame is the sidecar, about 7% cleaner. Whether save_vfb_image can be pointed at the denoised channel was NOT tried.",
+  "sidecar_files_on_disk": [
+   {
+    "name": "01 Booth Exterior Three-Quarter render.denoiser.png",
+    "bytes": 1360949
+   },
+   {
+    "name": "01 Booth Exterior Three-Quarter render.effectsResult.png",
+    "bytes": 1360949
+   },
+   {
+    "name": "02 Booth Interior render.denoiser.png",
+    "bytes": 2195071
+   },
+   {
+    "name": "02 Booth Interior render.effectsResult.png",
+    "bytes": 2195071
+   }
+  ],
+  "sidecar_files_moved_to": "C:\\Users\\bento\\Desktop\\BridgeTest-pass2\\render-elements\\ - moved by hand AFTER the batch, so the five files in the folder root are exactly the five deliverables. The tool itself does not move or delete them; it names them."
+ },
+ "client_safe_output": {
+  "tags_hidden": [
+   "WR-Dims",
+   "WR-Dims-Doors",
+   "WR-Dims-Booth",
+   "WR-Dims-Selection",
+   "WR-Notes"
+  ],
+  "tags_present_in_this_model": [
+   "WR-Dims",
+   "WR-Dims-Doors",
+   "WR-Notes"
+  ],
+  "source_of_truth": "WR_ProposalScenes::NOTE_TAGS and ANNOT_TAGS = DIM_TAGS + NOTE_TAGS; WR_Mode manages ANNOT_TAGS from 1.9.3",
+  "deliberate_opt_out": "the ANNOTATION dropdown / cfg['annot'] = 'draft' keeps dimensions and notes visible for an internal check print",
+  "the_design_that_failed": "OBSERVED live in run 1. Hiding the tags once at the top of the batch is undone by the very next unit, MODE -> DRAFT, because showing dimensions is draft mode's entire job - the plan export came out fully annotated. Hiding them AFTER the mode unit fixes the picture and breaks something worse: WR_Mode snapshots live tag visibility when it LEAVES a mode, so the model would have memorised \"draft means no dimensions\" permanently. The hide therefore brackets each EXPORT - no mode transition happens between a push and its pop.",
+  "not_redundant_with_render_mode": "On a model whose first-ever toggle happens inside the batch, WR_Mode's render snapshot is seeded from whatever was showing, which is everything. Render mode alone does not guarantee a clean frame on a fresh model."
+ },
+ "image_qa_gate": {
+  "tool": "scripts/image-qa.py",
+  "clip_level_of_255": 250,
+  "profiles": {
+   "render": {
+    "mean_min": 0.12,
+    "mean_max": 0.75,
+    "clip_max": 0.4
+   },
+   "view": {
+    "mean_min": 0.12,
+    "mean_max": 0.75,
+    "clip_max": 0.4
+   },
+   "plan": {
+    "mean_min": 0.1,
+    "mean_max": 0.995,
+    "clip_max": 0.98
+   }
+  },
+  "calibration": {
+   "method": "thresholds tuned against Benton's own verdicts on pass 1's files, per profile, because a top-down plan is mostly paper-white by design and a photographic render at those numbers is destroyed",
+   "anchors": [
+    [
+     "pass1 01 Booth Exterior render (BLOWN)",
+     0.9643,
+     0.893,
+     "FAIL both"
+    ],
+    [
+     "pass1 room-view-EV09-BLOWN",
+     0.9349,
+     0.797,
+     "FAIL both"
+    ],
+    [
+     "pass1 room-view-EV11 (\"still clipping\")",
+     0.6831,
+     0.4489,
+     "FAIL clip"
+    ],
+    [
+     "pass1 room-view-EV12-best (\"BEST\")",
+     0.5455,
+     0.2696,
+     "PASS"
+    ],
+    [
+     "pass1 booth-interior-EV09 (\"BEST\")",
+     0.4095,
+     0.0837,
+     "PASS"
+    ],
+    [
+     "pass1 booth-interior-EV14.23 (near black)",
+     0.0265,
+     0.0057,
+     "FAIL mean"
+    ],
+    [
+     "pass1 _coldtest.png (the black frame)",
+     0.0,
+     0.0,
+     "FAIL mean"
+    ]
+   ]
+  },
+  "pass1_regression_check": {
+   "command": "python scripts/image-qa.py \"C:\\Users\\bento\\Desktop\\BridgeTest-2026-08-30\" \"C:\\Users\\bento\\Desktop\\BridgeTest-2026-08-30\\exposure-bracket\"",
+   "exit_code": 1,
+   "failed": 6,
+   "total": 13,
+   "failed_names": [
+    "01 Booth Exterior Three-Quarter render.png",
+    "_coldtest.png",
+    "booth-interior-EV14.23-first-real-render.png",
+    "booth-interior-EV14.23-vray-default.png",
+    "room-view-EV09-BLOWN-1200x900.png",
+    "room-view-EV11.png"
+   ],
+   "the_required_check": "pass 1's 01 Booth Exterior Three-Quarter render.png FAILS the gate by name, on both criteria: \"BLOWN OUT: mean luminance 0.9643 is above the render ceiling of 0.75\" and \"CLIPPED: 89.3% of the frame is pure white, above the render ceiling of 40.0%\". That is the frame this gate exists to stop."
+  }
+ },
+ "d1_reentrancy_proof": {
+  "defect": "the batch's re-entrancy guard used a method-level ensure that ran on the guard's own early return, so a nested tick dispatched a second row and one render row was silently lost while the batch reported \"0 FAILED\". Fixed at 1.9.2, never proven live.",
+  "proof": "TWO five-row batches, each with TWO render rows on TWO DIFFERENT scenes at TWO DIFFERENT exposures. Both times every row landed.",
+  "run1": {
+   "planned": 5,
+   "files_written": 5,
+   "result_rows": 5,
+   "summary": "PROPOSAL PACKAGE - 5 exported, 0 skipped, 0 FAILED"
+  },
+  "run2": {
+   "planned": 5,
+   "files_written": 5,
+   "result_rows": 5
+  },
+  "reconciliation_added": "summary_lines now diffs the planned file list against the reported result rows and names any row that produced NO result at all - the report pass 1 did not have (its defect D8)."
+ },
+ "f3_mode_restore": {
+  "model_mode_before_pass2": "render",
+  "saved_mode_at_batch_start": "draft",
+  "mode_restore_target": "draft",
+  "mode_after_batch": "draft",
+  "note_in_summary": null,
+  "run1_where_the_fallback_actually_fired": {
+   "saved_mode_at_batch_start": "unknown (never toggled)",
+   "mode_restore_target": "draft",
+   "mode_after_batch": "draft",
+   "note_in_summary": "the model had never been mode-toggled (WR_Mode.current read \"unknown (never toggled)\"), so it was restored to DRAFT rather than left in DRAFT",
+   "why": "Run 1 was the model's FIRST-EVER mode toggle, so WR_Mode.current read 'unknown (never toggled)' and the 1.9.3 fallback fired: restored to draft, with the fact stated. By run 2 the model carried a WR_Mode dictionary reading 'draft', so the fallback was not needed and note_in_summary is correctly null. Under the PRE-1.9.3 code run 1 would have left the model in RENDER mode in silence - which is exactly what pass 1 did, and what this session found when it opened that model hours later."
+  },
+  "run2": {
+   "model_mode_before_pass2": "render",
+   "saved_mode_at_batch_start": "draft",
+   "mode_restore_target": "draft",
+   "mode_after_batch": "draft",
+   "note_in_summary": null,
+   "run1_where_the_fallback_actually_fired": {
+    "saved_mode_at_batch_start": "unknown (never toggled)",
+    "mode_restore_target": "draft",
+    "mode_after_batch": "draft",
+    "note_in_summary": "the model had never been mode-toggled (WR_Mode.current read \"unknown (never toggled)\"), so it was restored to DRAFT rather than left in DRAFT",
+    "why": "Run 1 was the model's FIRST-EVER mode toggle, so WR_Mode.current read 'unknown (never toggled)' and the 1.9.3 fallback fired: restored to draft, with the fact stated. By run 2 the model carried a WR_Mode dictionary reading 'draft', so the fallback was not needed and note_in_summary is correctly null. Under the PRE-1.9.3 code run 1 would have left the model in RENDER mode in silence - which is exactly what pass 1 did, and what this session found when it opened that model hours later."
+   }
+  }
+ },
+ "model_state_after": {
+  "tag_visibility": [
+   [
+    "Layer0",
+    true
+   ],
+   [
+    "WR-Floor",
+    true
+   ],
+   [
+    "WR-Room",
+    true
+   ],
+   [
+    "WR-Room-Upper",
+    true
+   ],
+   [
+    "WR-Doors",
+    true
+   ],
+   [
+    "WR-Doors-Leaf",
+    true
+   ],
+   [
+    "WR-Notes",
+    true
+   ],
+   [
+    "WR-Dims",
+    true
+   ],
+   [
+    "WR-Dims-Doors",
+    true
+   ],
+   [
+    "WR-Booth-Walls",
+    true
+   ],
+   [
+    "WR-Booth-Door",
+    true
+   ],
+   [
+    "WR-Booth-Vent",
+    true
+   ],
+   [
+    "WR-Booth-Seals",
+    true
+   ],
+   [
+    "WR-Booth-Corners",
+    true
+   ],
+   [
+    "WR-Booth-Deck",
+    true
+   ],
+   [
+    "WR-Booth-Foam",
+    true
+   ],
+   [
+    "WR-Booth-Options",
+    true
+   ],
+   [
+    "WR Lights",
+    false
+   ]
+  ],
+  "vray_settings_after_restore": {
+   "/CameraPhysical[f_number]": 8.0,
+   "/CameraPhysical[shutter_speed]": 300.0,
+   "/CameraPhysical[ISO]": 100.0,
+   "/SettingsOutput[img_width]": 1600,
+   "/SettingsOutput[img_height]": 900,
+   "/RenderChannelDenoiser[enabled]": false,
+   "/RenderChannelDenoiser[mode]": 2,
+   "/RenderChannelDenoiser[engine]": 0,
+   "/RenderChannelDenoiser[strength]": 1.0,
+   "/SettingsImageSampler[type]": 3,
+   "/SettingsImageSampler[progressive_threshold]": 0.03999999910593033,
+   "/SettingsImageSampler[progressive_maxSubdivs]": 20,
+   "/SettingsImageSampler[progressive_maxTime]": 0.0,
+   "/SettingsImageSampler[min_shade_rate]": 6,
+   "/SettingsOptions[progressive_noise_limit]": 0.03999999910593033,
+   "/SettingsRTEngine[noise_threshold]": 0.03999999910593033,
+   "/SettingsRTEngine[max_sample_level]": 400,
+   "rectangle_lights": 8
+  }
+ },
+ "batch_log": [
+  [
+   "MSGBOX",
+   "Preflight found 3 issue(s):\n\n  - Dimension tags off: Visible: WR-Dims, WR-Dims-Doors\n  - Camera on a saved scene: Scene \"05 Room Plan Top Down\", but the view has drifted (eye 446.3 in, target 153.7 in, up 0.0 deg).\n  - No geometry outside walls: 1 item(s) sit outside the room. Select clears them into the selection so you can move, tag or delete by hand.\n\nContinue the export anyway?"
+  ],
+  [
+   "LOG",
+   "logLine(\"3 image + 2 render row(s) -> C:/Users/bento/Desktop/BridgeTest-pass2\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"RENDER SIZE: V-Ray is at 1600x900; this batch will set it to 1200x900 - the same size the image rows use, and it is put back at the end of the batch.\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"MODE -> DRAFT\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"shading contract on (Light 80 / Dark 45, shadows off)\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"CLIENT-SAFE: hid 3 annotation tag(s) for 03 Room Context Wide.png - WR-Dims, WR-Dims-Doors, WR-Notes were visible and would have gone out on a client image\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        not in this model: WR-Dims-Booth, WR-Dims-Selection\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"ok      03 Room Context Wide.png  (image, 1200x900, height requested)\", \"ok\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"CLIENT-SAFE: hid 3 annotation tag(s) for 04 Booth Window and Vent Wall.png - WR-Dims, WR-Dims-Doors, WR-Notes were visible and would have gone out on a client image\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        not in this model: WR-Dims-Booth, WR-Dims-Selection\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"ok      04 Booth Window and Vent Wall.png  (image, 1200x900, height requested)\", \"ok\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"CLIENT-SAFE: hid 3 annotation tag(s) for 05 Room Plan Top Down.png - WR-Dims, WR-Dims-Doors, WR-Notes were visible and would have gone out on a client image\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        not in this model: WR-Dims-Booth, WR-Dims-Selection\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"ok      05 Room Plan Top Down.png  (image, 1200x900, height requested)\", \"ok\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"shading contract restored\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"MODE -> RENDER\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"RENDER SIZE: V-Ray scene /SettingsOutput set to 1200x900 - the same shape as the image rows\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"RENDER QUALITY: denoiser true, progressive noise threshold 0.009999999776482582, max subdivs 100, min shade rate 8, time budget 6.0 min\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        01 Booth Exterior Three-Quarter render.png  EV 12.00 (f/8.0 @ 1/64.0, ISO 100.0)\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"CLIENT-SAFE: hid 3 annotation tag(s) for 01 Booth Exterior Three-Quarter render.png - WR-Dims, WR-Dims-Doors, WR-Notes were visible and would have gone out on a client image\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        not in this model: WR-Dims-Booth, WR-Dims-Selection\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        01 Booth Exterior Three-Quarter render.png  render started\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"ok      01 Booth Exterior Three-Quarter render.png  (V-Ray 1200x900, EV 12.00, denoiser on, plus 2 render-element sidecar(s): 01 Booth Exterior Three-Quarter render.denoiser.png, 01 Booth Exterior Three-Quarter render.effectsResult.png)\", \"ok\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        01 Booth Exterior Three-Quarter render.png  these sidecars are NOT in the collision plan and must not go to a client: 01 Booth Exterior Three-Quarter render.denoiser.png, 01 Booth Exterior Three-Quarter render.effectsResult.png\", \"bad\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        02 Booth Interior render.png  EV 9.00 (f/8.0 @ 1/8.0, ISO 100.0)\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        02 Booth Interior render.png  render started\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"ok      02 Booth Interior render.png  (V-Ray 1200x900, EV 9.00, denoiser on, plus 2 render-element sidecar(s): 02 Booth Interior render.denoiser.png, 02 Booth Interior render.effectsResult.png)\", \"ok\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"        02 Booth Interior render.png  these sidecars are NOT in the collision plan and must not go to a client: 02 Booth Interior render.denoiser.png, 02 Booth Interior render.effectsResult.png\", \"bad\")"
+  ],
+  [
+   "LOG",
+   "logLine(\"PROPOSAL PACKAGE — 5 exported, 0 skipped, 0 FAILED\", \"dim\")"
+  ],
+  [
+   "LOG",
+   "runFinished(\"Done. Model restored.\")"
+  ]
+ ],
+ "defects_found": [
+  {
+   "id": "P2-1",
+   "severity": "HIGH",
+   "status": "FIXED at 1.9.3",
+   "where": "scripts/proposal-package.rb, the client-safe annotation pass",
+   "title": "Hiding the annotation tags once per batch is undone by the very next unit",
+   "detail": "The obvious design - hide WR-Dims / WR-Dims-Doors / WR-Notes at the top of the unit list and restore them in finish - was written, run live, and the plan export still came out carrying the 20' and 16' strings and the ceiling banner. The unit immediately after the hide is [:mode, 'draft'], and DRAFT MODE'S WHOLE JOB IS TO SHOW DIMENSIONS. Moving the hide after the mode unit fixes the picture and introduces a worse bug: WR_Mode snapshots live tag visibility when it LEAVES a mode, so the model would have memorised 'draft means no dimensions' permanently.",
+   "fix": "The hide brackets each EXPORT (annot_push/annot_pop around write_image, and around render_production with the pop in finish). No mode transition occurs between a push and its pop, so no snapshot can record the temporary state.",
+   "evidence": "OBSERVED both ways: run 1's 05 Room Plan Top Down.png is fully annotated; run 2's, from the same scene and the same camera, carries nothing."
+  },
+  {
+   "id": "P2-2",
+   "severity": "HIGH",
+   "status": "FIXED at 1.9.3",
+   "where": "scripts/proposal-package.rb, finish",
+   "title": "finish's closing UI.messagebox can raise, leaving a finished batch claiming to run",
+   "detail": "The render-lane audit's F10 named UI.messagebox as the one residual raiser inside finish. It fired: under a scripted caller whose modals are muzzled, the line raised AFTER every file was written and every restore had run. The raise escaped finish into step's rescue, which called finish a SECOND time - so the mode restore ran twice - and @running was still latched true on a completed batch, so the next press hit the stale-reset path. Every file was on disk and the summary was correct; only the bookkeeping lied.",
+   "fix": "@running = false before the box, and the box rescued like every other UI call in the file.",
+   "evidence": "OBSERVED live, run 1: the dialog log shows the summary line, runFinished, then 'batch step raised: WhisperRoom::Bridge::ModalBlocked', then the summary line and runFinished AGAIN."
+  },
+  {
+   "id": "P2-3",
+   "severity": "MEDIUM",
+   "status": "OPEN - reported, not fixed",
+   "where": "V-Ray's denoiser output, and save_frame",
+   "title": "The denoiser writes two unplanned sidecars, and the saved frame is the un-denoised channel",
+   "detail": "With /RenderChannelDenoiser enabled, V-Ray writes <name>.denoiser.png and <name>.effectsResult.png next to the frame save_vfb_image writes. Nothing in the collision map, the Ask/Overwrite/Skip policy or the summary knows they exist, so they accumulate in the output folder and could reach a client pack. Worse for quality: measured on 01 Booth Exterior Three-Quarter at 1200x900, mean neighbour-pixel difference is 0.0444 in the saved .png against 0.0416 in .denoiser.png - the saved file is the VFB's RGB channel and is about 7% noisier than the denoised result sitting beside it.",
+   "fix": "PARTIAL. save_frame now finds and NAMES the sidecars in the row detail and in the log rather than leaving them silently; it does not delete them, because deleting another program's output is not this tool's call. Pointing save_vfb_image at the denoised channel was NOT tried."
+  },
+  {
+   "id": "P2-4",
+   "severity": "MEDIUM",
+   "status": "OPEN",
+   "where": "the render lane's time budget",
+   "title": "Both renders ended on the six-minute budget, not on the noise threshold",
+   "detail": "progressive_threshold was set to 0.01 and progressive_maxTime to 6.0 minutes as a safety cap. Both renders ran the full budget, so 0.01 was NOT reached at 1200x900 on this machine and the frames are still visibly grainy. The budget is what stops a hard scene rendering forever; it is not evidence of convergence, and this pass did not measure what convergence would cost.",
+   "fix": "none - named so the next quality pass starts from a measured fact rather than a guess about whether the settings 'worked'."
+  },
+  {
+   "id": "P2-5",
+   "severity": "MEDIUM",
+   "status": "OPEN",
+   "where": "scripts/sketchup-bridge.py / scripts/wr_tools/wr_bridge.rb",
+   "title": "Sketchup.file_new on a dirty model raises a native modal the bridge cannot muzzle",
+   "detail": "The bridge muzzles UI::HtmlDialog#show and UI.messagebox, but Sketchup.file_new on a modified model puts up a native QMessageBox 'Save changes to Untitled?' that no Ruby-side muzzle can reach. It blocked SketchUp for about three minutes. The bridge DIAGNOSED IT CORRECTLY - exit 4, 'THE JOB STARTED AND SKETCHUP STOPPED ANSWERING ... the likely cause is A MODAL DIALOG' - which is exactly what that diagnosis is for, so this is a gap in coverage, not a failure of the design.",
+   "fix": "none. Cleared by invoking the dialog's 'No' button through Windows UI Automation - a named-button invoke, not blind keystrokes, and not the VFB or an HtmlDialog. A bridge-side file_new wrapper that refuses or pre-clears a dirty model would remove the need."
+  },
+  {
+   "id": "P2-6",
+   "severity": "LOW",
+   "status": "FIXED at 1.9.3",
+   "where": "scripts/proposal-package.rb, summary_lines",
+   "title": "The summary never reconciled rows planned against rows reported (pass 1's D8)",
+   "detail": "Pass 1 planned 5 rows, wrote 4 files, and said '4 exported, 0 skipped, 0 FAILED'. Nothing compared the plan to the results, so a row that produced no result at all was invisible.",
+   "fix": "start_run records @plan_files; summary_lines diffs it against the reported rows and names any that produced no result, calling it a lost row rather than a skip."
+  },
+  {
+   "id": "P2-7",
+   "severity": "LOW",
+   "status": "OPEN - environment note",
+   "where": "scripts/rbparse.py's Ruby VM, and every pure method tested through it",
+   "title": "Float#to_f, Integer#to_i and NilClass#to_i do not exist in the offline test VM",
+   "detail": "rbparse.py boots SketchUp's own Ruby DLL into a barebones VM. In it, (10.5).to_f raises NoMethodError while 3.to_f returns 3.0, and nil.to_i and 1200.to_i raise too. Three of this pass's new pure methods failed their first offline run for exactly this reason and nothing else.",
+   "fix": "the pure methods use `x * 1.0` and `x.to_s.to_i` instead, with the reason in a comment. A .to_f in a pure method is a method that cannot be tested offline."
+  },
+  {
+   "id": "P2-8",
+   "severity": "LOW",
+   "status": "OPEN",
+   "where": "scripts/wr-drop-lights.rb grid placement",
+   "title": "The ambient downlights still cluster along one edge",
+   "detail": "In a 20' x 16' room, Soft density placed four ambient downlights at (40,48), (40,144), (120,48) and (200,48) - three of the four on the y=48 line. Better than pass 1 (which placed only two, both at x=40) but still not a grid. The booth keep-out does not explain the gap at (120,144) or (200,144).",
+   "fix": "none - carried forward from pass 1's D11."
+  }
+ ],
+ "files_changed": [
+  "scripts/proposal-package.rb",
+  "scripts/export-scenes.rb",
+  "scripts/proposal-scenes.rb",
+  "scripts/wr-mode.rb",
+  "scripts/image-qa.py (new)",
+  "scripts/rbtest-proposal.py",
+  "scripts/wr_tools/VERSION (1.9.2 -> 1.9.3)",
+  "DEVLOG.md",
+  ".forge/builder/pass2-results.json (new)",
+  ".forge/builder/HANDOFF-pass2.md (new)",
+  "scripts/rbtest-lights.py (fixture only - ANNOT_TAGS)"
+ ],
+ "verification": {
+  "rbparse": "58 files parse (real CRuby 3.2 out of SketchUp's own DLL)",
+  "rbtest_proposal": "64 checks PASS (was 40): the classifier, camera settle, entry guards, plus the new exposure table, shutter/EV round trip, mode-restore fallback, package size and out_height",
+  "mutation_checks_run": [
+   [
+    "mode_restore_target stops resolving (the F3 bug)",
+    "mode3, mode4 FAIL"
+   ],
+   [
+    "out_height ignores the requested height (D4)",
+    "h1 FAIL"
+   ],
+   [
+    "ev_for gives every row the room EV (D2)",
+    "ev1, ev5, ev8 FAIL"
+   ]
+  ],
+  "live": "both batches run end to end in SketchUp 2026 / V-Ray 7",
+  "not_run": [
+   "The ANNOTATION dropdown and the new HTML were never exercised through a real UI::HtmlDialog - both batches were driven with a stub dialog. The Ruby side of cfg['annot'] IS proven live; the markup is not.",
+   "No render reached an error state, so F1's :fatalError classification is still offline-only.",
+   "save_vfb_image was never pointed at the denoiser channel - the sidecar finding is measured, the remedy is untried.",
+   "No A/B render with the lights deleted, so pass 1's D7 (the blue glows) is still parameter evidence plus a projection.",
+   "The V-Ray Asset Editor was never opened, so pass 1's F9 1600 -> 2400x1350 mystery is untouched. /SettingsOutput read 1600x900 before this run and was restored to it."
+  ],
+  "rbtest_lights": "38 + 10 checks PASS. Its wr-mode fixture had to learn ANNOT_TAGS: it lifts DEFAULT and snapshot verbatim out of wr-mode.rb, and both now reference ANNOT_TAGS, so the fixture broke the moment WR-Notes joined the managed set. The fixture now declares one dimension tag and one note tag; MODE_EXPECT did not have to change, which is the right answer - the pins are per family, not per tag.",
+  "other_suites": "rbtest.py, rbtest-overlays.py, rbtest-part-orientation.py all exit 0.",
+  "rbcheck": "reports 2 files \"to look at\" (build-booth-components.rb:2562 and probe-enhanced.rb:747, both \"unmatched end\"). PRE-EXISTING and unrelated: identical on a stashed clean tree, in files this pass did not touch, and rbparse.py - the real CRuby parser - parses all 58.",
+  "files_untouched_by_instruction": [
+   "scripts/rbtest-live-booth.py",
+   ".forge/builder/booth-matrix/"
+  ]
+ },
+ "not_fixed_by_instruction": {
+  "unglazed_booth_window": {
+   "observed": "all 36 materials in the finished model read alpha 1.0 - there is NO transparent material anywhere. The booth window is an unglazed opening and what shows through it is [Color_I06], the interior panel colour. Visible as the flat blue rectangle in 02 Booth Interior render.png.",
+   "why_not_fixed": "library authoring question for Benton, per the assignment"
+  },
+  "room_to_booth_light_ratio": {
+   "observed": "ambient downlights 426.64 each (4 of them) against the booth interior light at 106.8 - and in design lumens 10,667 against 2,670, an 8x spread.",
+   "consequence": "no single exposure serves both view kinds; per-row exposure is a workaround, not a calibration",
+   "why_not_fixed": "out of scope by instruction"
+  }
+ }
+}

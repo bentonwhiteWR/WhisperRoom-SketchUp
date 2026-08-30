@@ -21,8 +21,12 @@
 # anything non-alphanumeric, so "01 Exterior View" landed as
 # "01-Exterior-View" and a file could not be matched back to its scene by eye.
 #
-# BEFORE YOU RUN: size the SketchUp window to the aspect you want. Height comes
-# from the viewport and every image in the run inherits it.
+# HEIGHT: a caller that passes cfg['height'] gets exactly that height (see
+# out_height). run()'s own interactive path passes none, so it still takes the
+# aspect from the SketchUp viewport -- BEFORE YOU RUN THAT PATH, size the
+# SketchUp window to the aspect you want. proposal-package.rb passes an
+# explicit height so its image rows and its V-Ray render rows come out the
+# same shape (defect D4, 30 Aug 2026).
 #
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/export-scenes.rb"
 
@@ -155,13 +159,52 @@ module WR_ExportScenes
   # Camera, rendering options and the selected page are all restored in an
   # ensure block exactly as before, so a caller that only wants one scene
   # exported does not leave the viewport looking at it afterward.
+  # OUTPUT HEIGHT -- pure, so rbtest-proposal.py can prove it offline.
+  #
+  # DEFECT D4, OBSERVED 30 Aug 2026: this method used to compute
+  #
+  #     height = (width * view.vpheight / view.vpwidth).round
+  #
+  # and nothing else. Only WIDTH was ever requested, so the height was
+  # whatever shape the SketchUp WINDOW happened to be. On 30 Aug the viewport
+  # was 2169 x 859, so a requested 1200 landed as 1200 x 475 -- a 2.53:1
+  # letterbox that cropped the ceiling out of every image row -- while the
+  # V-Ray render lane in the same proposal package produced 1200 x 900 from an
+  # explicit img_width / img_height. One package, two shapes, and the file
+  # header's "size the SketchUp window first" was a workaround, not a fix.
+  #
+  # An explicit cfg['height'] now WINS. The viewport is only the fallback, and
+  # out_height reports which of the two it used so the caller can log it.
+  # Returns [height, source].
+  HEIGHT_MIN = 150
+  HEIGHT_MAX = 6000
+
+  # requested.to_s.to_i, never requested.to_i: the caller passes a STRING
+  # from a dialog field (or nil), and in the barebones Ruby VM rbtest runs
+  # these in, NilClass#to_i and Integer#to_i are not defined at all -- a
+  # method that cannot be tested offline is not worth the two characters.
+  def self.out_height(width, requested, vp_w, vp_h)
+    h = requested.to_s.to_i
+    return [h, 'requested'] if h >= HEIGHT_MIN && h <= HEIGHT_MAX
+    said = !requested.nil? && requested.to_s.strip != '' && requested.to_s != '0'
+    vw = vp_w.to_f
+    vh = vp_h.to_f
+    if vw <= 0 || vh <= 0
+      # NO SILENT FALLBACK to some invented shape: an unreadable viewport with
+      # no explicit height is 4:3, and it SAYS it is.
+      return [(width * 3 / 4.0).round, 'viewport unreadable - 4:3 assumed']
+    end
+    [(width * vh / vw).round,
+     said ? "viewport (requested height #{requested.inspect} out of range "             "#{HEIGHT_MIN}-#{HEIGHT_MAX})" : 'viewport']
+  end
+
   def self.export_pages(model, plan, cfg)
     view  = model.active_view
     pages = model.pages
 
     width  = cfg['width'].to_i
     width  = 2400 if width < 200 || width > 6000
-    height = (width * view.vpheight.to_f / view.vpwidth.to_f).round
+    height, height_src = out_height(width, cfg['height'], view.vpwidth, view.vpheight)
     trans  = cfg['bg'] == 'Transparent'
     over   = cfg['over'] == 'Yes'
 
@@ -221,7 +264,8 @@ module WR_ExportScenes
     end
 
     { :written => written, :skipped => skipped, :failed => failed,
-      :width => width, :height => height, :transparent => trans }
+      :width => width, :height => height, :height_source => height_src,
+      :transparent => trans }
   end
 
   # -------------------------------------------------------------------- run --

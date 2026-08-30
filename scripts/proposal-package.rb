@@ -96,8 +96,10 @@ end
 
 module WR_ProposalPackage
   %w[DICT PREF FORBIDDEN FOLDER_KEY SLOT_LABEL
-     IDLE_STATE DONE_STATE RENDER_TIMEOUT_S UNREADABLE_LIMIT
-     START_WINDOW_S STOP_CONFIRM_S CAM_FIELDS].each do |c|
+     IDLE_STATE DONE_STATE ERROR_STATE RENDER_TIMEOUT_S UNREADABLE_LIMIT
+     START_WINDOW_S STOP_CONFIRM_S CAM_FIELDS
+     ASPECT_W ASPECT_H EV_F_NUMBER EV_ISO EV_INTERIOR EV_ROOM EV_MIN EV_MAX
+     INTERIOR_RE MODE_FALLBACK QUALITY ANNOT_TAGS].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
 
@@ -113,6 +115,104 @@ module WR_ProposalPackage
   SLOT_LABEL = { WR_MaterialsSwap::DRAFT_FLOOR => 'Floor',
                  WR_MaterialsSwap::DRAFT_WALL  => 'Walls',
                  WR_MaterialsSwap::DRAFT_DOOR  => 'Door' }.freeze
+
+  # ------------------------------------------------- output shape (D4) --
+  #
+  # ONE aspect for the whole package. Before 1.9.3 the two lanes disagreed:
+  # the image lane took its height from the SketchUp window (1200 -> 1200x475
+  # on 30 Aug 2026) and the render lane took whatever the V-Ray Asset Editor
+  # was set to. Now both are derived from the Width field and this ratio --
+  # export-scenes.rb gets an explicit cfg['height'], and the V-Ray SCENE's
+  # /SettingsOutput is written to the same numbers (see apply_output_size).
+  ASPECT_W = 4
+  ASPECT_H = 3
+
+  # --------------------------------------------------- exposure (D2) --
+  #
+  # OBSERVED 30 Aug 2026, seven bracket renders: V-Ray's physical camera is
+  # the only exposure control that does anything here. /CameraPhysical's
+  # :exposure_value reads 0.0 and is NOT used by this build; the effective
+  # exposure comes from f_number, shutter_speed and ISO:
+  #
+  #     EV100 = log2(f_number**2 * shutter_speed)   at ISO 100
+  #
+  # V-Ray's defaults f/8 @ 1/300 give EV 14.23, which renders this rig's
+  # booth interior nearly black. (ISO was READ BACK LIVE on 30 Aug 2026 as
+  # 100.0 -- the parameter key is :ISO, not :iso, which is why the first pass
+  # read nil and had to assume it. The EV numbers below are therefore
+  # measured, not assumed.)
+  #
+  # AND NO SINGLE VALUE SERVES BOTH KINDS OF VIEW. The ambient downlights
+  # carry ~8x the booth interior light, so:
+  #
+  #     booth interior   EV  9   (EV 12 leaves it dark)
+  #     room / exterior  EV 12   (EV  9 clips the room to white -- that is
+  #                               exactly the unusable image of pass 1)
+  #
+  # So exposure is PER ROW, not per batch. Each page carries an optional 'ev'
+  # attribute; a page without one gets EV_INTERIOR if its name reads like an
+  # interior view, else EV_ROOM. The value used is logged for every render
+  # row so it is auditable after the fact.
+  EV_F_NUMBER = 8.0
+  EV_ISO      = 100.0
+  EV_INTERIOR = 9.0
+  EV_ROOM     = 12.0
+  EV_MIN      = 2.0     # refuse absurd stored values rather than render them
+  EV_MAX      = 20.0
+  INTERIOR_RE = /interior|inside|in-booth|booth\s+in/i
+
+  # ---------------------------------------------- render quality (D3) --
+  #
+  # Pass 1 rendered on STOCK V-Ray sampler settings and no denoiser, and
+  # every surface came out crawling with orange speckle and fireflies. These
+  # are now OWNED: written into the V-Ray scene before the render rows, read
+  # back, and restored in finish. Values read back live 30 Aug 2026 before
+  # any change (the "was" column) --
+  #
+  #   /RenderChannelDenoiser  enabled            false -> true
+  #                           mode 2 / engine 0 / strength 1.0 left as found;
+  #                           the plugin already EXISTS in every V-Ray scene,
+  #                           it was simply switched off.
+  #   /SettingsImageSampler   type 3 = progressive, so the PROGRESSIVE keys
+  #                           are the ones that govern:
+  #                           progressive_threshold   0.04 -> 0.01
+  #                           progressive_maxSubdivs    20 -> 100
+  #                           progressive_maxTime      0.0 -> 6.0 (minutes;
+  #                             0 means "no limit" -- a budget, so a hard
+  #                             scene ends noisy instead of never)
+  #                           min_shade_rate             6 -> 8
+  #   /SettingsOptions        progressive_noise_limit 0.04 -> 0.01
+  #   /SettingsRTEngine       noise_threshold         0.04 -> 0.01
+  #                           max_sample_level         400 -> 800
+  #
+  # RTEngine governs the interactive/GPU engine rather than this production
+  # path; it is set anyway so the floor holds whichever engine runs.
+  # [plugin, key, value] -- every one read back after the write, and a write
+  # that does not stick is named, not swallowed.
+  QUALITY = [
+    ['/RenderChannelDenoiser', :enabled,                 true],
+    ['/SettingsImageSampler',  :progressive_threshold,   0.01],
+    ['/SettingsImageSampler',  :progressive_maxSubdivs,  100],
+    ['/SettingsImageSampler',  :progressive_maxTime,     6.0],
+    ['/SettingsImageSampler',  :min_shade_rate,          8],
+    ['/SettingsOptions',       :progressive_noise_limit, 0.01],
+    ['/SettingsRTEngine',      :noise_threshold,         0.01],
+    ['/SettingsRTEngine',      :max_sample_level,        800]
+  ].freeze
+
+  # -------------------------------------------- client-safe output (D5) --
+  #
+  # Every tag that carries construction annotation. WR_Mode owns the list
+  # (DIM_TAGS + WR-Notes since 1.9.3); named here only so the client-safe
+  # image pass and the mode machinery cannot drift apart.
+  ANNOT_TAGS = WR_Mode::ANNOT_TAGS
+
+  # F3 (render-lane audit) -- where a model goes when it started in no mode
+  # at all. WR_Mode.current returns 'unknown (never toggled)' on a model with
+  # no WR_Mode dictionary, and until 1.9.3 finish simply SKIPPED the restore
+  # on that value: OBSERVED 30 Aug 2026, the model was left sitting in RENDER
+  # mode after the batch, silently. Draft is the shop's resting state.
+  MODE_FALLBACK = 'draft'.freeze
 
   # -------------------------------------------------------------- marking --
 
@@ -133,6 +233,85 @@ module WR_ProposalPackage
       d = page.attribute_dictionary(DICT, false)
       d.delete_key('mode') if d
     end
+  end
+
+  # ------------------------------------------------------ per-row exposure --
+
+  # The EV a render row is exposed at, stored on the page beside its mode so
+  # it survives save, reopen and tab reorder. A page with no stored value
+  # falls back to the documented defaults -- interior views EV_INTERIOR,
+  # everything else EV_ROOM -- chosen from the SCENE NAME, which is the only
+  # thing this tool knows about the view without rendering it. That fallback
+  # is a default, not a guess dressed up as a measurement: the value actually
+  # used is written into the run log for every render row.
+  def self.ev_of(page)
+    raw = page.get_attribute(DICT, 'ev', nil)
+    ev_for(page.name.to_s, raw)
+  rescue StandardError
+    EV_ROOM
+  end
+
+  def self.set_ev(page, ev)
+    if ev.nil?
+      d = page.attribute_dictionary(DICT, false)
+      d.delete_key('ev') if d
+    else
+      page.set_attribute(DICT, 'ev', ev.to_f)
+    end
+  end
+
+  # PURE -- proven offline by rbtest-proposal.py.
+  #
+  # `x * 1.0` and not `x.to_f`, here and in the two methods below, and that is
+  # deliberate: rbtest-proposal.py runs these in the barebones Ruby VM
+  # rbparse.py boots out of SketchUp's own DLL, and in that VM Float#to_f is
+  # NOT DEFINED (Integer#to_f is). Observed 30 Aug 2026: `(10.5).to_f` raises
+  # NoMethodError there while `3.to_f` returns 3.0. A `.to_f` in a pure method
+  # is therefore a method that cannot be tested offline, which is worse than
+  # the small ugliness of multiplying by one.
+  def self.ev_for(scene_name, stored)
+    if stored.is_a?(Numeric)
+      v = stored * 1.0
+      return v if v >= EV_MIN && v <= EV_MAX
+    end
+    return EV_INTERIOR if scene_name.to_s =~ INTERIOR_RE
+    EV_ROOM
+  end
+
+  # PURE. EV100 = log2(f_number**2 * shutter_speed) at ISO 100, so the
+  # shutter that lands a wanted EV is 2**(EV - log2(f**2)). At f/8 that is
+  # 2**(EV - 6): EV 9 -> 8, EV 12 -> 64, EV 14.23 -> 300 (V-Ray's default,
+  # which is how this formula was checked against the shipped numbers).
+  def self.shutter_for_ev(ev, f_number = EV_F_NUMBER)
+    f = f_number * 1.0
+    2.0**((ev * 1.0) - (Math.log(f * f) / Math.log(2.0)))
+  end
+
+  # PURE. The inverse, used to report the EV that ACTUALLY landed after the
+  # write is read back -- never the EV that was asked for.
+  def self.ev_of_camera(f_number, shutter)
+    return nil unless f_number.is_a?(Numeric) && shutter.is_a?(Numeric)
+    f = f_number * 1.0
+    sp = shutter * 1.0
+    return nil if f <= 0.0 || sp <= 0.0
+    Math.log((f * f) * sp) / Math.log(2.0)
+  end
+
+  # PURE. F3: where the model goes at the end of a batch. WR_Mode.current
+  # returns 'unknown (never toggled)' on a model that has never been toggled,
+  # and that value used to make finish SKIP the restore in silence -- OBSERVED
+  # 30 Aug 2026, model left in RENDER mode. Anything that is not a real mode
+  # now resolves to MODE_FALLBACK and the summary SAYS so.
+  def self.mode_restore_target(saved_mode)
+    %w[draft render].include?(saved_mode.to_s) ? saved_mode.to_s : MODE_FALLBACK
+  end
+
+  # PURE. One width in, the package's whole output size out -- used for BOTH
+  # lanes (D4).
+  def self.package_size(width)
+    w = width.to_s.to_i
+    w = 1200 if w < 200 || w > 6000
+    [w, (w * ASPECT_H / ASPECT_W.to_f).round]
   end
 
   # ---------------------------------------------------------------- naming --
@@ -223,6 +402,85 @@ module WR_ProposalPackage
     VRay::Context.active
   rescue Exception
     nil
+  end
+
+  # --------------------------------------------------- v-ray parameters --
+  #
+  # Everything this tool writes into V-Ray goes through these three methods,
+  # for one reason: a V-Ray parameter write DOES NOT NECESSARILY STICK. The
+  # lighting lane learned that the hard way (wr-drop-lights.rb, 1.9.1) --
+  # a bare plugin[key] = value outside VRay::Scene#change is re-synced away
+  # and reads back as the factory default minutes later. So every write here
+  # happens inside ONE `scene.change`, and every write is READ BACK. A value
+  # that did not land is named, never assumed.
+
+  def self.vray_scene(ctx)
+    return nil if ctx.nil? || !ctx.respond_to?(:scene)
+    ctx.scene
+  rescue Exception
+    nil
+  end
+
+  # Snapshot [plugin, key] pairs so finish can put them back. :absent means
+  # the plugin is not in this scene; :unreadable means the read raised.
+  def self.read_params(scene, pairs)
+    out = {}
+    pairs.each do |plname, key|
+      pl = (scene[plname] rescue nil)
+      out[[plname, key]] = pl.nil? ? :absent : (pl[key] rescue :unreadable)
+    end
+    out
+  end
+
+  # Write [plugin, key, value] triples and read every one back.
+  # Returns [applied_hash, problems_array]; problems is empty on success.
+  def self.write_params(scene, triples)
+    begin
+      scene.change do
+        triples.each do |plname, key, val|
+          pl = (scene[plname] rescue nil)
+          next if pl.nil?
+          pl[key] = val
+        end
+      end
+    rescue Exception => e
+      return [{}, ["VRay::Scene#change raised #{e.class}: #{e.message}"]]
+    end
+    applied  = {}
+    problems = []
+    triples.each do |plname, key, val|
+      pl = (scene[plname] rescue nil)
+      if pl.nil?
+        problems << "#{plname} is not in this V-Ray scene - #{key} was NOT set"
+        next
+      end
+      got = (pl[key] rescue :unreadable)
+      applied["#{plname}[#{key}]"] = got
+      ok = if val.is_a?(Numeric) && got.is_a?(Numeric)
+             (got.to_f - val.to_f).abs <= (val.to_f.abs * 0.001 + 0.000001)
+           else
+             got == val
+           end
+      unless ok
+        problems << "#{plname}[#{key}] DID NOT STICK - wrote #{val.inspect}, " \
+                    "read back #{got.inspect}"
+      end
+    end
+    [applied, problems]
+  end
+
+  # Put a read_params snapshot back. Best effort by design (it runs in
+  # finish, where a raise must not strand the model), but every failure is
+  # returned so finish can report it.
+  def self.restore_params(scene, saved)
+    return [] if scene.nil? || saved.nil? || saved.empty?
+    triples = saved.reject { |_k, v| v == :absent || v == :unreadable }
+                   .map { |(plname, key), v| [plname, key, v] }
+    return [] if triples.empty?
+    _applied, problems = write_params(scene, triples)
+    problems
+  rescue Exception => e
+    ["V-Ray restore raised #{e.class}: #{e.message}"]
   end
 
   # ------------------------------------------- render completion signals --
@@ -559,6 +817,9 @@ module WR_ProposalPackage
       @results = []
       return
     end
+    # D8: what was PLANNED, so summary_lines can reconcile it against what
+    # was reported and name any row that vanished.
+    @plan_files = plan.map { |x| x[:file] }
 
     # Settings that should survive a restart — per machine, not per model
     # (a folder path is machine-specific). Quotes are stripped above; the
@@ -567,6 +828,7 @@ module WR_ProposalPackage
       Sketchup.write_default(PREF, 'width', cfg['width'].to_s.delete('"'))
       Sketchup.write_default(PREF, 'over',  cfg['over'].to_s.delete('"'))
       Sketchup.write_default(PREF, 'shade', cfg['shade'] ? 'Yes' : 'No')
+      Sketchup.write_default(PREF, 'annot', cfg['annot'].to_s == 'draft' ? 'draft' : 'client')
     rescue Exception
       nil
     end
@@ -574,6 +836,15 @@ module WR_ProposalPackage
 
     image_rows  = plan.select { |p| p[:lane] == 'image' }
     render_rows = plan.select { |p| p[:lane] == 'render' }
+
+    # CLIENT-SAFE OUTPUT (D5). 'client' is the default and hides every
+    # ANNOT_TAGS tag for the whole batch; 'draft' is the deliberate opt-out
+    # that keeps the annotated look, for the internal/check-print pass. The
+    # image lane runs in DRAFT mode (that is what makes it flat and
+    # measurable) and draft mode SHOWS dimensions on purpose, so hiding has
+    # to be an explicit pass over the tags, not a mode change -- and it is
+    # undone in finish, on every exit path.
+    client_safe = cfg['annot'].to_s != 'draft'
 
     # ---- build the unit list. One timer tick does at most one unit.
     units = []
@@ -585,6 +856,7 @@ module WR_ProposalPackage
     end
     unless render_rows.empty?
       units << [:mode, 'render']
+      units << [:vray_setup]
       render_rows.each { |p| units << [:render, p] }
     end
 
@@ -601,8 +873,17 @@ module WR_ProposalPackage
     @unreadable_polls = 0
     @seen_running     = false
     @idle_since       = nil
-    @shade_saved = nil
-    @cfg         = { 'dir' => dir, 'width' => cfg['width'].to_s }
+    @shade_saved   = nil
+    @annot_saved   = nil
+    @client_safe   = client_safe
+    @mode_note     = nil
+    @quality_problems = []
+    @vray_saved    = nil
+    @quality_note  = nil
+    @ev_used       = {}
+    out_w, out_h = package_size(cfg['width'])
+    @cfg = { 'dir' => dir, 'width' => out_w.to_s, 'height' => out_h.to_s,
+             'annot' => (client_safe ? 'client' : 'draft') }
     @saved_mode  = WR_Mode.current(model)
     @mode_now    = @saved_mode
     @prev_page   = model.pages.selected_page
@@ -628,6 +909,8 @@ module WR_ProposalPackage
 
     puts ''
     puts "PROPOSAL PACKAGE — #{image_rows.size} image, #{render_rows.size} render -> #{dir}"
+    puts "  output size #{out_w}x#{out_h} (both lanes), annotation: " \
+         "#{client_safe ? 'HIDDEN (client-safe)' : 'SHOWN (draft)'}"
     # GUARDED, 1.9.2. This was the ONE unguarded dialog call in the launch
     # path, and it sits between `@running = true` and the timer start -- F10's
     # named hazard, OBSERVED on 30 Aug 2026 when a scripted caller passed a
@@ -803,6 +1086,7 @@ module WR_ProposalPackage
     when :mode       then unit_mode(model, dlg, unit[1])
     when :shade_push then unit_shade_push(model, dlg)
     when :shade_pop  then unit_shade_pop(model, dlg)
+    when :vray_setup then unit_vray_setup(model, dlg)
     when :image      then unit_image(model, dlg, unit[1])
     when :render     then unit_render(model, dlg, unit[1])
     end
@@ -839,6 +1123,119 @@ module WR_ProposalPackage
     model.active_view.refresh
   end
 
+  # CLIENT-SAFE OUTPUT (D5) -- OBSERVED 30 Aug 2026: pass 1's image rows went
+  # out carrying the room's "20'" and "16'" dimension strings and the ceiling
+  # banner "Ceiling 8'-0" - HOUSE DEFAULT, not measured. Confirm before
+  # quoting." That banner lives on WR-Notes, which until 1.9.3 was in no tag
+  # list at all, so not even RENDER mode hid it.
+  #
+  # WHY THIS IS PER ROW AND NOT ONCE PER BATCH. The obvious design -- hide the
+  # tags at the top of the unit list, restore them in finish -- was WRITTEN,
+  # RUN, AND OBSERVED TO FAIL on 30 Aug 2026: the very next unit is
+  # [:mode, 'draft'], and DRAFT MODE'S WHOLE JOB IS TO SHOW DIMENSIONS, so
+  # WR_Mode turned every one of them straight back on and the plan export came
+  # out fully annotated. Moving the hide after the mode unit fixes the picture
+  # and breaks something worse: WR_Mode snapshots the LIVE tag visibilities
+  # when it leaves a mode, so a batch that was sitting in draft with the dims
+  # hidden would memorise "draft means no dimensions" into the model and keep
+  # it forever.
+  #
+  # So the hide brackets the EXPORT, not the batch. No mode transition ever
+  # happens between a push and its pop, so no snapshot can record the
+  # temporary state. Image rows push and pop around each write_image; render
+  # rows push before render_production (which is what exports the model into
+  # V-Ray) and are popped by finish, because nothing between the first render
+  # row and finish changes mode.
+  #
+  # And it is not redundant with render mode: on a model whose first-ever
+  # toggle happens inside this batch, WR_Mode's render snapshot is seeded from
+  # "whatever was showing", which is everything. Render mode alone does NOT
+  # guarantee a clean frame on a fresh model. This does.
+  def self.annot_push(model, dlg, file)
+    return unless @client_safe
+    return if @annot_saved            # already hidden by an earlier row
+    saved = {}
+    missing = []
+    ANNOT_TAGS.each do |n|
+      l = model.layers[n]
+      if l.nil?
+        missing << n
+        next
+      end
+      saved[n] = l.visible?
+      l.visible = false
+    end
+    @annot_saved = saved
+    shown = saved.select { |_n, v| v }.keys
+    log(dlg, "CLIENT-SAFE: hid #{saved.size} annotation tag(s) for #{file}" +
+             (shown.empty? ? ' (none were showing)' : " - #{shown.join(', ')} " \
+              'were visible and would have gone out on a client image'), 'dim')
+    log(dlg, "        not in this model: #{missing.join(', ')}", 'dim') unless missing.empty?
+  rescue StandardError => e
+    @annot_saved = nil
+    log(dlg, "CLIENT-SAFE FAILED for #{file}: #{e.class}: #{e.message} - " \
+             'construction annotation may be visible in this image. Check ' \
+             'before sending.', 'bad')
+  end
+
+  def self.annot_pop(model, dlg)
+    return if @annot_saved.nil?
+    @annot_saved.each do |n, vis|
+      l = model.layers[n]
+      l.visible = vis if l
+    end
+    @annot_saved = nil
+  rescue StandardError => e
+    log(dlg, "annotation tags could not be put back: #{e.class}: #{e.message}", 'bad')
+  end
+
+  # RENDER QUALITY AND SIZE, once per batch, before the first render row.
+  #
+  # D3 (speckle) and D4 (size). Both are written into the V-Ray SCENE, not
+  # the renderer: VRay::Command.render_production exports the scene into the
+  # renderer on every call, so the scene copy is the one that wins (observed
+  # 30 Aug 2026 -- renderer 400x300 + scene 1200x900 produced a 1200x900 PNG).
+  # Everything written here is read back, and everything is restored in
+  # finish: this tool owns these settings for the length of a batch and hands
+  # them back exactly as it found them.
+  def self.unit_vray_setup(model, dlg)
+    ctx   = vray_context
+    scene = vray_scene(ctx)
+    if scene.nil?
+      @quality_note = 'NOT SET - no V-Ray scene'
+      log(dlg, 'RENDER QUALITY: no V-Ray scene to write to. The render rows ' \
+               'will use whatever the Asset Editor is set to, denoiser ' \
+               'included - expect the stock speckle.', 'bad')
+      return
+    end
+
+    w, h = package_size(@cfg['width'])
+    size_triples = [['/SettingsOutput', :img_width, w],
+                    ['/SettingsOutput', :img_height, h]]
+    triples = size_triples + QUALITY.map { |pl, k, v| [pl, k, v] }
+    @vray_saved = read_params(scene, triples.map { |pl, k, _v| [pl, k] })
+    applied, problems = write_params(scene, triples)
+
+    log(dlg, "RENDER SIZE: V-Ray scene /SettingsOutput set to " \
+             "#{applied['/SettingsOutput[img_width]'].inspect}x" \
+             "#{applied['/SettingsOutput[img_height]'].inspect} - " \
+             'the same shape as the image rows', 'dim')
+    log(dlg, "RENDER QUALITY: denoiser " \
+             "#{applied['/RenderChannelDenoiser[enabled]'].inspect}, " \
+             "progressive noise threshold " \
+             "#{applied['/SettingsImageSampler[progressive_threshold]'].inspect}, " \
+             "max subdivs #{applied['/SettingsImageSampler[progressive_maxSubdivs]'].inspect}, " \
+             "min shade rate #{applied['/SettingsImageSampler[min_shade_rate]'].inspect}, " \
+             "time budget #{applied['/SettingsImageSampler[progressive_maxTime]'].inspect} min", 'dim')
+    @quality_note = applied.map { |k, v| "#{k}=#{v.inspect}" }.join(', ')
+    problems.each { |m| log(dlg, "RENDER QUALITY: #{m}", 'bad') }
+    @quality_problems = problems
+  rescue Exception => e
+    @quality_note = "raised #{e.class}"
+    log(dlg, "RENDER QUALITY: setup raised #{e.class}: #{e.message} - render " \
+             'rows run on stock settings', 'bad')
+  end
+
   # The wr-shading contract, image lane only, one checkbox. Pushed AFTER the
   # draft swap and popped before anything else changes mode, so the contract
   # never gets recorded into a WR_Mode snapshot.
@@ -858,12 +1255,23 @@ module WR_ProposalPackage
 
   def self.unit_image(model, dlg, p)
     plan = [{ :page => p[:page], :n => p[:n], :base => p[:base] }]
-    cfg  = { 'dir' => @cfg['dir'], 'width' => @cfg['width'], 'bg' => 'Opaque', 'over' => 'Yes' }
-    x = WR_ExportScenes.export_pages(model, plan, cfg)
+    # D4: an EXPLICIT height, so an image row and a render row of the same
+    # scene come out the same shape. Before 1.9.3 only width was passed and
+    # export-scenes.rb derived the height from the SketchUp window.
+    cfg  = { 'dir' => @cfg['dir'], 'width' => @cfg['width'],
+             'height' => @cfg['height'], 'bg' => 'Opaque', 'over' => 'Yes' }
+    begin
+      annot_push(model, dlg, p[:file])
+      x = WR_ExportScenes.export_pages(model, plan, cfg)
+    ensure
+      annot_pop(model, dlg)
+    end
     if x[:written] > 0
       @results << { :file => p[:file], :lane => 'image', :status => 'ok',
-                    :detail => "image, #{x[:width]}x#{x[:height]}" }
-      log(dlg, "ok      #{p[:file]}  (image, #{x[:width]}x#{x[:height]})", 'ok')
+                    :detail => "image, #{x[:width]}x#{x[:height]} " \
+                               "(height #{x[:height_source]})" }
+      log(dlg, "ok      #{p[:file]}  (image, #{x[:width]}x#{x[:height]}, " \
+               "height #{x[:height_source]})", 'ok')
     else
       @results << { :file => p[:file], :lane => 'image', :status => 'failed',
                     :detail => 'view.write_image returned false' }
@@ -875,30 +1283,37 @@ module WR_ProposalPackage
     log(dlg, "FAILED  #{p[:file]}  (#{e.class}: #{e.message})", 'bad')
   end
 
-  # The render lane's size is V-Ray's, not ours. The dialog's Width field
-  # only reaches the image lane (WR_ExportScenes.export_pages). On 28 Aug
-  # 2026 the render rows came out 640x480 — the V-Ray Asset Editor default
-  # — and nothing said so until the files were on disk. Say it FIRST now.
-  # There is no known-safe documented way to SET the size from Ruby, so this
-  # warns; it does not fix.
+  # THE RENDER LANE'S SIZE IS OURS NOW (D4, 1.9.3).
+  #
+  # Until 1.9.3 this method could only WARN: render rows came out at whatever
+  # the V-Ray Asset Editor happened to be set to (640x480 on 28 Aug 2026,
+  # discovered only once the files were on disk), while image rows came out
+  # at the Width field crossed with the SketchUp window's aspect. Two lanes,
+  # two shapes, neither requested.
+  #
+  # unit_vray_setup now WRITES /SettingsOutput from the same Width field the
+  # image lane uses, at ASPECT_W:ASPECT_H. This method reports what V-Ray is
+  # sitting at BEFORE that write, and what it is about to become -- so the
+  # log shows the change rather than implying the old value governed.
   def self.warn_output_size(dlg)
+    want_w, want_h = package_size(@cfg['width'])
     sz = output_size(vray_context)
     if sz
-      small = sz[0] < 1200
-      log(dlg, "RENDER SIZE: V-Ray is set to #{sz[0]}x#{sz[1]}" \
-               "#{small ? ' — that is small for a client pack' : ''}. " \
-               'Render rows use the V-Ray Asset Editor size; the Width ' \
-               'field above governs IMAGE rows only.', small ? 'bad' : 'dim')
+      same = sz[0] == want_w && sz[1] == want_h
+      log(dlg, "RENDER SIZE: V-Ray is at #{sz[0]}x#{sz[1]}" \
+               "#{same ? ' already' : "; this batch will set it to #{want_w}x#{want_h}"}" \
+               ' - the same size the image rows use, and it is put back at ' \
+               'the end of the batch.', 'dim')
     else
-      log(dlg, 'RENDER SIZE: could not read V-Ray output size. Render ' \
-               'rows come out at whatever the V-Ray Asset Editor is set to ' \
-               '(its default is 640x480) — CHECK IT before a client pack. ' \
-               'The Width field above governs IMAGE rows only.', 'bad')
+      log(dlg, 'RENDER SIZE: could not read the V-Ray output size before the ' \
+               "run. The batch still writes #{want_w}x#{want_h} into the " \
+               'V-Ray scene and reads it back; if that write does not land ' \
+               'it is named in the log.', 'bad')
     end
   rescue Exception => e
-    log(dlg, "RENDER SIZE: output-size check failed " \
-             "(#{e.class}: #{e.message}) — render rows use the V-Ray Asset " \
-             'Editor size, not the Width field.', 'bad')
+    log(dlg, "RENDER SIZE: pre-run size check failed " \
+             "(#{e.class}: #{e.message}) - the batch still sets the size " \
+             'itself and reads it back.', 'bad')
   end
 
   # Everything V-Ray in here is REPORTED API, individually rescued: a wrong
@@ -974,6 +1389,16 @@ module WR_ProposalPackage
       log(dlg, "        #{p[:file]}  this scene saves no camera — " \
                'rendering the current view', 'bad')
     end
+    # PER-ROW EXPOSURE (D2). Pass 1 set one EV for the whole batch and the
+    # room-level row came out clipped to white. EV is a property of the VIEW,
+    # not of the batch: this rig's booth interior wants EV 9 and its room
+    # views want EV 12, and there is no value that serves both. The number
+    # used goes in the log and into the row's detail, so a wrong-looking
+    # image can always be traced back to the exposure that made it.
+    ev = ev_of(p[:page])
+    ev_landed = apply_exposure(ctx, dlg, ev, p[:file])
+    @ev_used[p[:file]] = ev_landed || ev
+
     progress(dlg, "Rendering #{p[:file]}…")
 
     @rend = rend
@@ -1005,6 +1430,10 @@ module WR_ProposalPackage
       # toolbar button, export step included. It drives the SAME renderer the
       # poll loop reads (state went :idleDone -> :rendering -> :idleDone on
       # `VRay::Context.active.renderer` throughout).
+      # Hidden BEFORE render_production, because that call is what exports the
+      # SketchUp model into V-Ray. finish pops it: nothing between here and
+      # there changes mode, so no WR_Mode snapshot can record the hiding.
+      annot_push(model, dlg, p[:file])
       if defined?(VRay::Command) && VRay::Command.respond_to?(:render_production)
         VRay::Command.render_production(:context => ctx)
       else
@@ -1044,6 +1473,43 @@ module WR_ProposalPackage
     end
   end
 
+  # Write this row's exposure into the V-Ray physical camera and read it
+  # back. Returns the EV that ACTUALLY landed (derived from the read-back
+  # f_number and shutter_speed), or nil if it could not be set -- in which
+  # case the row still renders, at whatever exposure the camera carries, and
+  # the log says so by name rather than implying the value took.
+  def self.apply_exposure(ctx, dlg, ev, file)
+    scene = vray_scene(ctx)
+    if scene.nil?
+      log(dlg, "        #{file}  EXPOSURE NOT SET (no V-Ray scene) - this " \
+               'row renders at whatever the camera already carries', 'bad')
+      return nil
+    end
+    triples = [['/CameraPhysical', :f_number,      EV_F_NUMBER],
+               ['/CameraPhysical', :ISO,           EV_ISO],
+               ['/CameraPhysical', :shutter_speed, shutter_for_ev(ev)]]
+    # Snapshot ONCE per batch, before the first row changes anything, so the
+    # restore puts back the operator's camera and not row N-1's exposure.
+    @vray_saved ||= {}
+    read_params(scene, triples.map { |pl, k, _v| [pl, k] }).each do |k, v|
+      @vray_saved[k] = v unless @vray_saved.key?(k)
+    end
+    applied, problems = write_params(scene, triples)
+    problems.each { |m| log(dlg, "        #{file}  EXPOSURE: #{m}", 'bad') }
+    landed = ev_of_camera(applied['/CameraPhysical[f_number]'],
+                          applied['/CameraPhysical[shutter_speed]'])
+    log(dlg, format('        %s  EV %.2f (f/%s @ 1/%s, ISO %s)%s',
+                    file, landed || ev,
+                    applied['/CameraPhysical[f_number]'].inspect,
+                    applied['/CameraPhysical[shutter_speed]'].inspect,
+                    applied['/CameraPhysical[ISO]'].inspect,
+                    problems.empty? ? '' : ' - SEE THE WARNINGS ABOVE'), 'dim')
+    landed
+  rescue Exception => e
+    log(dlg, "        #{file}  EXPOSURE NOT SET (#{e.class}: #{e.message})", 'bad')
+    nil
+  end
+
   # A render row that will never report finished (poll surface dead, or the
   # timeout): stop the renderer best-effort, fail the row BY NAME, and let
   # the batch move to its next unit. This stays inside the timer loop, so
@@ -1081,6 +1547,37 @@ module WR_ProposalPackage
   #     fails the row by name rather than silently skipping -- the safe
   #     direction. Verified live 30 Aug 2026: returns true, one opaque PNG,
   #     no sidecar.
+  # RENDER-ELEMENT SIDECARS -- OBSERVED 30 Aug 2026, and they are new since
+  # the denoiser was switched on. save_vfb_image(:skip_alpha, :no_alpha)
+  # writes ONE opaque RGB file and no .Alpha.png, which is what F4 fixed. But
+  # with /RenderChannelDenoiser enabled, V-Ray also wrote
+  #
+  #     <base>.denoiser.png        the DENOISED image
+  #     <base>.effectsResult.png   the same pixels
+  #
+  # next to it. Two consequences worth stating plainly:
+  #
+  #  1. Nothing in the collision map, the Ask/Overwrite/Skip policy or the
+  #     summary knows these exist, so they accumulate in the output folder and
+  #     could reach a client pack. They are NAMED in the row detail and in the
+  #     log instead of being silently left -- deleting another program's
+  #     output is not this tool's call.
+  #  2. The file this tool saves is the VFB's RGB channel, and the denoiser
+  #     result is the SIDECAR. Measured on 01 Booth Exterior Three-Quarter,
+  #     1200x900: mean neighbour-pixel difference 0.0444 in the saved .png
+  #     against 0.0416 in .denoiser.png -- the saved frame is about 7%
+  #     noisier than the denoised one. So the denoiser IS running and the
+  #     saved image is NOT the fully denoised frame. Whether save_vfb_image
+  #     can be pointed at the denoised channel is UNANSWERED; it was not
+  #     tried.
+  def self.sidecars(p)
+    dir  = File.dirname(p[:path])
+    base = File.basename(p[:path], '.png')
+    Dir.glob(File.join(dir, "#{base}.*.png")).map { |f| File.basename(f) }.sort
+  rescue Exception
+    []
+  end
+
   def self.save_frame(dlg, p)
     begin
       File.delete(p[:path]) if File.exist?(p[:path])
@@ -1104,9 +1601,19 @@ module WR_ProposalPackage
       return
     end
     if File.exist?(p[:path])
+      det = format('V-Ray %sx%s, EV %.2f, denoiser on',
+                   @cfg['width'], @cfg['height'], (@ev_used[p[:file]] || 0.0).to_f)
+      side = sidecars(p)
+      det += format(', plus %d render-element sidecar(s): %s',
+                    side.size, side.join(', ')) unless side.empty?
       @results << { :file => p[:file], :lane => 'render', :status => 'ok',
-                    :detail => 'V-Ray, Asset Editor size' }
-      log(dlg, "ok      #{p[:file]}  (V-Ray, Asset Editor size)", 'ok')
+                    :detail => det }
+      log(dlg, "ok      #{p[:file]}  (#{det})", 'ok')
+      unless side.empty?
+        log(dlg, "        #{p[:file]}  these sidecars are NOT in the " \
+                 'collision plan and must not go to a client: ' \
+                 "#{side.join(', ')}", 'bad')
+      end
     else
       @results << { :file => p[:file], :lane => 'render', :status => 'failed',
                     :detail => 'save_vfb_image returned but wrote no file' }
@@ -1133,12 +1640,60 @@ module WR_ProposalPackage
       restore_errs << "shading pop: #{e.class}: #{e.message}"
     end
 
-    if %w[draft render].include?(@saved_mode) && @mode_now != @saved_mode
+    # V-RAY, back exactly as it was found: output size, denoiser, sampler and
+    # the physical camera's exposure. This tool OWNS those for the length of
+    # a batch and no longer.
+    begin
+      vs = vray_scene(vray_context)
+      restore_params(vs, @vray_saved).each do |m|
+        restore_errs << "V-Ray restore: #{m}"
+      end
+    rescue Exception => e
+      restore_errs << "V-Ray restore: #{e.class}: #{e.message}"
+    ensure
+      @vray_saved = nil
+    end
+
+    # ANNOTATION TAGS back BEFORE the mode restore, so the visibilities
+    # WR_Mode records into its snapshot are the model's real ones and not the
+    # client-safe pass's temporary hiding.
+    if @annot_saved
       begin
-        WR_Mode.to_mode(model, @saved_mode)
-        @mode_now = @saved_mode
+        annot_pop(model, dlg)
       rescue Exception => e
-        restore_errs << "mode restore: #{e.class}: #{e.message}"
+        restore_errs << "annotation tag restore: #{e.class}: #{e.message}"
+      ensure
+        @annot_saved = nil
+      end
+    end
+
+    # F3 -- FIXED 1.9.3. This used to read
+    #
+    #     if %w[draft render].include?(@saved_mode) && @mode_now != @saved_mode
+    #
+    # so a model that had never been toggled (WR_Mode.current returns the
+    # string 'unknown (never toggled)') fell straight through the condition
+    # and the batch left it in RENDER mode WITH NOTHING SAID. Observed live
+    # 30 Aug 2026: after pass 1's batch the scratch model was still in render
+    # mode, materials swapped, and the run reported a clean finish.
+    #
+    # Now: an unresolvable saved mode resolves to MODE_FALLBACK ('draft', the
+    # shop's resting state) and the fact is stated in the log AND in the
+    # summary. It fails by name; it never skips in silence.
+    @mode_target = mode_restore_target(@saved_mode)
+    if @mode_target != @saved_mode.to_s
+      @mode_note = "the model had never been mode-toggled (WR_Mode.current " \
+                   "read #{@saved_mode.inspect}), so it was restored to " \
+                   "#{@mode_target.upcase} rather than left in " \
+                   "#{@mode_now.to_s.upcase}"
+      puts "  #{@mode_note}"
+    end
+    if @mode_now != @mode_target
+      begin
+        WR_Mode.to_mode(model, @mode_target)
+        @mode_now = @mode_target
+      rescue Exception => e
+        restore_errs << "mode restore to #{@mode_target}: #{e.class}: #{e.message}"
       end
     end
 
@@ -1198,11 +1753,29 @@ module WR_ProposalPackage
     rescue StandardError
       nil
     end
-    UI.messagebox(lines.join("\n"))
 
+    # THE LATCH COMES DOWN BEFORE THE LAST MESSAGE BOX, and the box is
+    # guarded. F10 in the render-lane audit named UI.messagebox as the one
+    # residual raiser inside finish; OBSERVED live on 30 Aug 2026, a scripted
+    # caller whose UI.messagebox raises (the bridge muzzles modals) made this
+    # line throw AFTER every file was written and every restore had run. The
+    # raise escaped finish into step's rescue, which called finish a SECOND
+    # time -- so the mode restore ran twice -- and @running was still latched
+    # true at the end, leaving a completed batch claiming to be running and
+    # the button needing the stale-reset path. Every file was on disk and the
+    # summary was correct; only the bookkeeping lied.
+    #
+    # Order matters: @running goes down first so no raise can leave it up,
+    # and the box is rescued like every other UI call in this file.
     @running  = false
     @unmapped = nil
     @results  = @results || []
+    begin
+      UI.messagebox(lines.join("\n"))
+    rescue Exception => e
+      puts "  (the summary box could not be shown: #{e.class}: #{e.message} " \
+           '- the summary above is the whole of it, and the batch is finished)'
+    end
     if @close_after
       @close_after = false
       begin
@@ -1226,7 +1799,20 @@ module WR_ProposalPackage
       lines << format('  %-7s %-40s (%s)', tag, r[:file], r[:detail])
     end
     (@unmapped || []).each { |s| lines << "  unmapped: #{s}" }
+    lines << "  note: #{@mode_note}" if @mode_note
+    (@quality_problems || []).each { |s| lines << "  render quality: #{s}" }
     restore_errs.each { |s| lines << "  *** RESTORE FAILED: #{s}" }
+    # D8 -- the reconciliation pass 1 did not have. 5 rows were planned, 4
+    # files were written, and the summary still said '0 FAILED'. A row that
+    # produced no result at all now shows up HERE, by name.
+    if @plan_files
+      missing = @plan_files - @results.map { |r| r[:file] }
+      unless missing.empty?
+        lines << "  *** #{missing.size} PLANNED ROW(S) PRODUCED NO RESULT AT " \
+                 "ALL - this is a lost row, not a skip:"
+        missing.each { |f| lines << "        #{f}" }
+      end
+    end
     lines
   end
 
@@ -1346,8 +1932,14 @@ module WR_ProposalPackage
     rescue Exception
       'Yes'
     end != 'No'
+    annot = begin
+      Sketchup.read_default(PREF, 'annot', 'client').to_s
+    rescue Exception
+      'client'
+    end
     width = '2400' if width.strip.empty?
     over  = 'Ask' unless ['Ask', 'Overwrite', 'Skip existing'].include?(over)
+    annot = 'client' unless %w[client draft].include?(annot)
 
     d = UI::HtmlDialog.new(
       :dialog_title    => "Proposal package — #{title}",
@@ -1360,7 +1952,7 @@ module WR_ProposalPackage
       :min_height      => 480,
       :style           => UI::HtmlDialog::STYLE_DIALOG
     )
-    d.set_html(html(title, state(model), dir, width, over, shade))
+    d.set_html(html(title, state(model), dir, width, over, shade, annot))
     @dlg = d   # so a stale-batch reset can reach the last window's log, if any
 
     d.add_action_callback('mark') do |_c, payload|
@@ -1462,7 +2054,7 @@ module WR_ProposalPackage
 
   # ----------------------------------------------------------------- html --
 
-  def self.html(title, st, dir, width, over, shade)
+  def self.html(title, st, dir, width, over, shade, annot)
     <<-HTML
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Proposal package</title>
@@ -1621,6 +2213,16 @@ module WR_ProposalPackage
   <span class="lbl">SHADING</span>
   <label class="shadelbl"><input type="checkbox" id="shade"#{shade ? ' checked' : ''}>
     Even shading for plain images (shadows off, Light #{WR_Shading::DEF_LIGHT} / Dark #{WR_Shading::DEF_DARK} — the component-art contract). V-Ray scenes are never touched by this.</label>
+  <span></span>
+
+  <span class="lbl">ANNOTATION</span>
+  <select id="annot">
+    <option value="client"#{annot == 'draft' ? '' : ' selected'}>Client-safe — hide dimensions and notes</option>
+    <option value="draft"#{annot == 'draft' ? ' selected' : ''}>Draft — keep dimensions and notes visible</option>
+  </select>
+  <span></span>
+  <span class="lbl"></span>
+  <label class="shadelbl">Client-safe hides #{WR_Mode::ANNOT_TAGS.join(', ')} for the whole run and puts every one back at the end. Choose Draft only for an internal check print — those images carry construction dimensions and the ceiling-height note.</label>
   <span></span>
 </div>
 
@@ -1812,7 +2414,8 @@ module WR_ProposalPackage
         dir:   g("dir").value,
         width: g("width").value,
         over:  g("over").value,
-        shade: g("shade").checked
+        shade: g("shade").checked,
+        annot: g("annot").value
       }));
   });
 

@@ -96,11 +96,22 @@ ensure
 end
 
 module WR_Mode
-  %w[DICT DIM_TAGS LIGHT_TAGS RO_KEYS DEFAULT].each { |c| remove_const(c) if const_defined?(c, false) }
+  %w[DICT DIM_TAGS NOTE_TAGS ANNOT_TAGS LIGHT_TAGS RO_KEYS DEFAULT].each { |c| remove_const(c) if const_defined?(c, false) }
 
   DICT = 'WR_Mode'.freeze
 
   DIM_TAGS = WR_ProposalScenes::DIM_TAGS
+
+  # WR-Notes -- build-room.rb's ceiling banner and anything else written as a
+  # construction note. DEFECT D5, OBSERVED 30 Aug 2026: this tag was in NO
+  # mode's tag list, so no mode ever hid it and the banner "Ceiling 8'-0" -
+  # HOUSE DEFAULT, not measured. Confirm before quoting." was exported onto a
+  # client image. It shares DIM_TAGS' polarity (shown in draft, hidden in
+  # render), so ANNOT_TAGS is what the mode machinery manages from 1.9.3 on.
+  # DIM_TAGS is still exported unchanged for wr-preflight.rb and
+  # proposal-scenes.rb, which mean dimensions specifically.
+  NOTE_TAGS  = WR_ProposalScenes::NOTE_TAGS
+  ANNOT_TAGS = WR_ProposalScenes::ANNOT_TAGS
 
   # Interior-light tags (wr-drop-lights.rb). OPPOSITE polarity to DIM_TAGS:
   # hidden in draft, visible in render. Getting this backwards makes the
@@ -122,14 +133,14 @@ module WR_Mode
   # and AO keys the pin_draft_flat policy makes the same OFF choice on
   # every entry, not just the first — see the header.)
   DEFAULT = {
-    'draft'  => { 'dims'   => DIM_TAGS.each_with_object({}) { |n, h| h[n] = true }
+    'draft'  => { 'dims'   => ANNOT_TAGS.each_with_object({}) { |n, h| h[n] = true }
                               .merge(LIGHT_TAGS.each_with_object({}) { |n, h| h[n] = false }),
                   'style'  => nil,
                   # Draft is the flat, measurable look: no sun shadows, no AO.
                   'shadow' => { 'DisplayShadows' => false, 'UseSunForAllShading' => false,
                                 'Light' => WR_Shading::DEF_LIGHT, 'Dark' => WR_Shading::DEF_DARK },
                   'ro'     => { 'AmbientOcclusion' => false } },
-    'render' => { 'dims'   => DIM_TAGS.each_with_object({}) { |n, h| h[n] = false }
+    'render' => { 'dims'   => ANNOT_TAGS.each_with_object({}) { |n, h| h[n] = false }
                               .merge(LIGHT_TAGS.each_with_object({}) { |n, h| h[n] = true }),
                   'style'  => nil,
                   'shadow' => { 'DisplayShadows' => true, 'UseSunForAllShading' => false,
@@ -164,7 +175,7 @@ module WR_Mode
     ro_style = (model.styles.selected_style.name rescue nil)
     si = model.shadow_info
     ro = model.rendering_options
-    { 'dims'   => (DIM_TAGS + LIGHT_TAGS).each_with_object({}) { |n, h| l = model.layers[n]; h[n] = l ? l.visible? : nil },
+    { 'dims'   => (ANNOT_TAGS + LIGHT_TAGS).each_with_object({}) { |n, h| l = model.layers[n]; h[n] = l ? l.visible? : nil },
       'style'  => ro_style,
       'shadow' => WR_Shading::SHADOW_KEYS.each_with_object({}) { |k, h| h[k] = (si[k] rescue nil) },
       'ro'     => RO_KEYS.each_with_object({}) { |k, h| h[k] = (ro[k] rescue nil) } }

@@ -2,6 +2,127 @@
 
 ## 2026-08-30
 
+### 1.9.3 — pass 2: the pictures are shippable, and seven silent failures are closed
+
+Pass 1 built the geometry correctly and produced client-unusable images. This pass fixed the
+defects that made them unusable and re-ran the whole thing, SketchUp 2026 / V-Ray 7, scratch
+**Untitled** model, through `scripts/sketchup-bridge.py --su 2026`. Everything below is
+**observed** unless it says otherwise. Machine-readable record with every number:
+`.forge/builder/pass2-results.json`. Before/after: pass 1's folder is untouched at
+`C:\Users\bento\Desktop\BridgeTest-2026-08-30`, pass 2 is at
+`C:\Users\bento\Desktop\BridgeTest-pass2`.
+
+**The headline picture.** Pass 1's booth exterior render measured mean luminance 0.964 with
+**89.3% of the frame clipped to pure white** — no texture, no floor, no walls. Pass 2's same
+view measures 0.510 / 20.9%. The booth panels have grain and shadow, the room reads as a
+room, and there is not one dimension string or construction note in any of the five images.
+
+**Exposure is now per row, not per batch (D2).** `/CameraPhysical`'s `:exposure_value` reads
+0.0 and does nothing; exposure is `f_number`, `shutter_speed` and `ISO`, and
+`EV100 = log2(f_number² × shutter_speed)` at ISO 100. **`ISO` reads 100.0** — the key is
+`:ISO`, not `:iso`, which is why pass 1 read `nil` and had to assume it, so every EV number
+in both passes is now measured rather than assumed. Each scene carries an optional `ev`
+attribute; without one it gets EV 9 if the scene name reads like an interior view and EV 12
+otherwise, and the value actually used is written into the run log:
+
+    01 Booth Exterior Three-Quarter render.png  EV 12.00 (f/8.0 @ 1/64.0, ISO 100.0)
+    02 Booth Interior render.png                EV  9.00 (f/8.0 @ 1/8.0,  ISO 100.0)
+
+Both are exposed correctly in the same batch. Pass 1 could not do that: one EV served both
+rows and the room-level view blew out.
+
+**The denoiser was there all along, switched off (D3).** `/RenderChannelDenoiser` exists in
+every V-Ray scene and read `enabled => false`. It is now switched on for the render rows,
+with a sampler floor, and everything is read back and restored afterwards:
+
+    /RenderChannelDenoiser  enabled                 false -> true
+    /SettingsImageSampler   progressive_threshold    0.04 -> 0.01
+                            progressive_maxSubdivs     20 -> 100
+                            progressive_maxTime       0.0 -> 6.0 minutes (a budget)
+                            min_shade_rate              6 -> 8
+    /SettingsOptions        progressive_noise_limit  0.04 -> 0.01
+    /SettingsRTEngine       noise_threshold          0.04 -> 0.01
+                            max_sample_level          400 -> 800
+
+**What it cost: 362.1 s and 361.4 s** for the two 1200x900 renders, against pass 1's single 148.6 s render at the same size on stock settings with no denoiser — about **2.4x**. Image rows are unchanged at well under a second each.
+And be clear about what that number means: **both renders ran out the 6-minute budget rather
+than reaching the 0.01 noise threshold.** The frames are still visibly grainy. The budget is
+what stops a hard scene rendering forever; it is not evidence of convergence.
+
+**Two sidecars now land beside every render.** With the denoiser on, V-Ray also writes
+`<name>.denoiser.png` and `<name>.effectsResult.png`. Nothing in the collision map, the
+overwrite policy or the summary knew about them, so they are now NAMED in the row detail and
+in the log — not deleted, because deleting another program's output is not this tool's call.
+Measured on 01 at 1200x900: mean neighbour-pixel difference 0.0444 in the saved `.png`
+against 0.0416 in `.denoiser.png`, so **the file this tool saves is the RGB channel and the
+denoised frame is the sidecar** — about 7% noisier. Whether `save_vfb_image` can be pointed
+at the denoised channel was NOT tried.
+
+**Client-safe output, and the version of the fix that did not work (D5).** `WR-Notes` — the
+ceiling banner's tag — was in no tag list at all, so no mode ever hid it. It is now in
+`WR_ProposalScenes::NOTE_TAGS` and `ANNOT_TAGS = DIM_TAGS + NOTE_TAGS`, which is what
+`WR_Mode` manages. The first design hid those tags once at the top of the batch; it was run
+live and **failed**, because the very next unit is `MODE -> DRAFT` and draft mode's whole job
+is to show dimensions. Moving the hide after the mode unit fixes the picture and breaks
+something worse — `WR_Mode` snapshots live tag visibility on leaving a mode, so the model
+would have memorised "draft means no dimensions" permanently. So the hide brackets each
+EXPORT instead: no mode transition ever happens between a push and its pop. The annotated
+version is still available deliberately, from the new ANNOTATION dropdown (`annot: 'draft'`).
+
+**One aspect for the whole package (D4).** `export-scenes.rb`'s `out_height` now honours an
+explicit `cfg['height']`; the SketchUp window is only the fallback and the result says which
+one it used. `proposal-package.rb` derives both lanes from the Width field at 4:3 and writes
+the same numbers into the V-Ray scene's `/SettingsOutput`. This session's viewport was
+2169x859 — the shape that letterboxed every pass-1 image to 1200x475. Every pass-2 image,
+both lanes, is **1200x900**.
+
+**D1 is proven live.** The lost-row defect pass 1 fixed but never re-ran: a five-row batch
+with **two render rows on two different scenes** ran twice, and both times every row landed —
+5 planned, 5 files, `5 exported, 0 skipped, 0 FAILED`, each render its own view at its own
+exposure. The summary now also reconciles planned rows against reported rows and names any
+row that produced no result at all, which is the report pass 1 did not have.
+
+**F3 is fixed, and the model really was left in RENDER mode.** `WR_Mode.current` read
+`'unknown (never toggled)'` on pass 1's model when this session opened it — the leaked
+mutation the audit predicted, sitting there hours later. `finish` no longer skips a restore
+it cannot resolve: an unresolvable saved mode goes to `MODE_FALLBACK` ('draft') and the fact
+is stated in the log and in the summary. After the pass-2 batch: `WR_Mode.current => 'draft'`,
+every annotation tag back on, and every V-Ray value back where it was found (f/8 @ 1/300,
+1600x900, denoiser off, sampler stock).
+
+**F10's residual raiser fired, live.** `finish` ended with an unguarded `UI.messagebox`. Under
+a scripted caller whose modals are muzzled it raised AFTER every file was written and every
+restore had run — the raise escaped into `step`'s rescue, which called `finish` a second time
+(so the mode restore ran twice), and `@running` stayed latched true on a completed batch. The
+latch now comes down before the box and the box is rescued like every other UI call here.
+
+**Automated image QA (`scripts/image-qa.py`).** Nothing in this pipeline had ever looked at a
+pixel; a blown frame passed every check the toolset had. The gate computes mean luminance and
+the fraction of pure-white pixels for every output and **fails the row by name**. Thresholds
+are calibrated against Benton's own verdicts on pass 1's files, per profile, because a
+top-down plan is mostly paper-white by design and a photographic render at those numbers is
+destroyed. Run against pass 1's folder it fails 6 of 13 by name, including
+`01 Booth Exterior Three-Quarter render.png` — the frame this pass exists to prevent — and
+`room-view-EV11.png`, which Benton called "still clipping", while passing `room-view-EV12-best`
+and `booth-interior-EV09`. All five pass-2 images pass.
+
+**Not fixed, by instruction.** There is still **no glazing anywhere in the model** — all 36
+materials read alpha 1.0, so the booth window is an unglazed opening showing the blue interior
+panel `[Color_I06]`. That is a library authoring question. And the **8x lighting ratio**
+between the room's ambient downlights and the booth interior light is why no single EV serves
+both views; per-row exposure works around it, it does not settle it.
+
+**Offline:** `python scripts/rbparse.py` — 58 files parse. `python scripts/rbtest-lights.py`
+— 38 + 10 PASS, after its wr-mode fixture learned `ANNOT_TAGS` (it lifts `DEFAULT` and
+`snapshot` verbatim, and both now reference it); `MODE_EXPECT` did not have to change, which
+is the right answer — the pins are per family, not per tag. `python scripts/rbtest-proposal.py`
+— 64 checks PASS, up from 40, with the new exposure table, the mode-restore fallback, the
+output-shape maths and `out_height` mutation-checked (each reintroduced bug makes named cases
+fail). One thing worth knowing for anyone writing a pure method here: in the barebones Ruby VM
+`rbparse.py` boots out of SketchUp's DLL, **`Float#to_f`, `Integer#to_i` and `NilClass#to_i`
+are not defined** — `(10.5).to_f` raises there while `3.to_f` works. A `.to_f` in a pure
+method is a method that cannot be tested offline.
+
 ### 1.9.2 — first full end-to-end run: room + booth + lights + scenes + render batch
 
 The whole pipeline was run in one model for the first time, in SketchUp 2026 / V-Ray 7,

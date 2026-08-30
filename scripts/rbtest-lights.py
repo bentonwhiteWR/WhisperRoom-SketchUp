@@ -702,7 +702,13 @@ class FakeModel
 end
 
 module WR_Mode
-  DIM_TAGS = ['WR-Dims'].freeze
+  # One dimension tag and one note tag, so the transcript stays short but
+  # ANNOT_TAGS is the real two-family list wr-mode.rb manages from 1.9.3 -- the
+  # tag that carries build-room.rb's ceiling banner has the same polarity as a
+  # dimension and must be in every snapshot.
+  DIM_TAGS   = ['WR-Dims'].freeze
+  NOTE_TAGS  = ['WR-Notes'].freeze
+  ANNOT_TAGS = (DIM_TAGS + NOTE_TAGS).freeze
 __CONSTS__
 
 __METHODS__
