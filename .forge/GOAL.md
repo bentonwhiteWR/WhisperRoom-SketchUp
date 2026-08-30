@@ -25,12 +25,22 @@ of hand-walked eyeball checks.
    or write into `C:\Users\bento\Desktop\ProposalFiles\`.
 
 ## Now
-**Scoper** writes the bridge contract to `.forge/scoper/` — inbox/outbox protocol, job and
-result file format, timeout and error semantics, dialog-suppression rules, install path within
-`install-plugin.py`, and the safety fences. Then a **Builder** implements and proves it live.
+**Spec is written and approved:** `.forge/scoper/sketchup-bridge.md` (protocol, error
+semantics, modal diagnosis, fences, acceptance criteria A1-A12). **Builder implements it.**
 
-Benton must restart SketchUp once after the bridge is installed. It is not running right now
-(observed 30 Aug 2026).
+**Benton's four decisions, 30 Aug 2026 — these override the spec where they differ:**
+1. **Off by default.** No marker file, no timer, nothing resident until enabled. (As specced.)
+2. **A modal prompt raises** and fails by name. No auto-answer. (As specced.)
+3. **Named models ARE allowed** — jobs may run against a saved drawing he has open.
+   **CHANGES THE SPEC.** The pre-flight refusal on named models is dropped. Every *write*
+   fence stays: no `save`/`save_copy` over any model, and the absolute deny list
+   (`ProposalFiles`, `P:`, `WhisperRoomQuote`) still governs `write_image` and every
+   bridge-mediated write. Running against a real drawing is fine; overwriting one is not.
+4. **The client defaults to SketchUp 2026** when both are listening. **CHANGES THE SPEC** —
+   the spec refused and made the caller pick. `--version` still overrides.
+
+Benton must launch SketchUp and restart it once after `python scripts/install-plugin.py`
+before A1-A12 can run. It was not running as of 30 Aug 2026 (observed).
 
 ## Rules that still bind this work
 - Plugin edits land under `scripts/wr_tools/`; bump `VERSION`; a restart reloads.
