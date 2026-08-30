@@ -306,8 +306,40 @@ module WR_ProposalPackage
     %w[draft render].include?(saved_mode.to_s) ? saved_mode.to_s : MODE_FALLBACK
   end
 
-  # PURE. One width in, the package's whole output size out -- used for BOTH
-  # lanes (D4).
+  # THE HONOURED SIZE (1.9.4). V-Ray's own /SettingsOutput if it can be read,
+  # otherwise the Width field at ASPECT_W:ASPECT_H. Sets @size_source so every
+  # later log line can say WHERE the number came from rather than just quoting
+  # it -- a size that silently fell back to a default and a size the operator
+  # chose look identical on disk.
+  def self.honoured_size(width_field)
+    sz = output_size(vray_context)
+    if sz && sz[0] > 0 && sz[1] > 0
+      @size_source = 'the V-Ray Asset Editor (/SettingsOutput)'
+      return sz
+    end
+    @size_source = 'this tool\'s Width field - V-RAY\'S OWN SIZE COULD NOT BE READ'
+    package_size(width_field)
+  end
+
+  # A RENDER BATCH REFUSES TO GUESS ITS OWN SIZE.
+  #
+  # For an image-only batch the Width fallback is fine -- view.write_image has
+  # to be told a size and there is nothing else to ask. For a RENDER batch it
+  # is not: falling back means quietly rendering at a shape the operator never
+  # chose, which is exactly the 1200x900-instead-of-1600x900 defect this
+  # release exists to fix. Named refusal, not a substitution.
+  def self.require_render_size!
+    return nil if @size_source.to_s.start_with?('the V-Ray')
+    'V-Ray is being asked to render, but its output size could not be read ' \
+      "from /SettingsOutput (#{@size_source}). Open the V-Ray Asset Editor, " \
+      'confirm the render output size, and run this again. Nothing was ' \
+      'rendered, because a render at a size nobody chose is worse than no ' \
+      'render.'
+  end
+
+  # PURE. One width in, the package's whole output size out -- the FALLBACK
+  # shape only (D4). Kept because an image-only batch still needs a size when
+  # there is no V-Ray to ask.
   def self.package_size(width)
     w = width.to_s.to_i
     w = 1200 if w < 200 || w > 6000
@@ -734,6 +766,18 @@ module WR_ProposalPackage
       return
     end
 
+    # SIZE GATE (1.9.4). A render batch that could not read V-Ray's own output
+    # size is refused here, before a single file is written, rather than
+    # silently falling back to this tool's Width field -- which is exactly how
+    # a 1600x900 setting became a 1200x900 delivery.
+    if live.any? { |r| r['mode'] == 'render' }
+      why = require_render_size!
+      if why
+        UI.messagebox(why)
+        return
+      end
+    end
+
     # V-Ray gate BEFORE anything runs: never a half-run that dies mid-pass.
     if live.any? { |r| r['mode'] == 'render' } && vray_context.nil?
       images = live.select { |r| r['mode'] == 'image' }
@@ -881,9 +925,26 @@ module WR_ProposalPackage
     @vray_saved    = nil
     @quality_note  = nil
     @ev_used       = {}
-    out_w, out_h = package_size(cfg['width'])
+    # THE OUTPUT SIZE COMES FROM THE MODEL, NOT FROM THIS TOOL (1.9.4).
+    #
+    # Benton had the V-Ray Asset Editor set to 1600x900, 16:9. The package
+    # exported 1200x900 at 4:3, because 1.9.3 derived both lanes from its own
+    # Width field and wrote its answer into /SettingsOutput. That is backwards:
+    # the render settings are HIS, the package's job is to use them and say
+    # what it used.
+    #
+    # So the V-Ray scene is read first and both lanes are cut to what it says.
+    # The Width field survives only as the fallback for an image-only batch on
+    # a machine with no V-Ray at all, and when it is used the log says so by
+    # name. A render batch that cannot read a size does not guess -- see
+    # require_render_size!.
+    @size_source = nil
+    out_w, out_h = honoured_size(cfg['width'])
     @cfg = { 'dir' => dir, 'width' => out_w.to_s, 'height' => out_h.to_s,
-             'annot' => (client_safe ? 'client' : 'draft') }
+             'annot' => (client_safe ? 'client' : 'draft'),
+             # OVERRIDES ARE OPT-IN AND NEVER DEFAULT (1.9.4). Absent or empty
+             # means: touch nothing, render at the operator's own settings.
+             'overrides' => (cfg['overrides'] || {}) }
     @saved_mode  = WR_Mode.current(model)
     @mode_now    = @saved_mode
     @prev_page   = model.pages.selected_page
@@ -1086,7 +1147,7 @@ module WR_ProposalPackage
     when :mode       then unit_mode(model, dlg, unit[1])
     when :shade_push then unit_shade_push(model, dlg)
     when :shade_pop  then unit_shade_pop(model, dlg)
-    when :vray_setup then unit_vray_setup(model, dlg)
+    when :vray_setup then unit_vray_audit(model, dlg)
     when :image      then unit_image(model, dlg, unit[1])
     when :render     then unit_render(model, dlg, unit[1])
     end
@@ -1189,51 +1250,104 @@ module WR_ProposalPackage
     log(dlg, "annotation tags could not be put back: #{e.class}: #{e.message}", 'bad')
   end
 
-  # RENDER QUALITY AND SIZE, once per batch, before the first render row.
+  # AUDIT THE V-RAY SETTINGS. DO NOT OVERWRITE THEM. (1.9.4)
   #
-  # D3 (speckle) and D4 (size). Both are written into the V-Ray SCENE, not
-  # the renderer: VRay::Command.render_production exports the scene into the
-  # renderer on every call, so the scene copy is the one that wins (observed
-  # 30 Aug 2026 -- renderer 400x300 + scene 1200x900 produced a 1200x900 PNG).
-  # Everything written here is read back, and everything is restored in
-  # finish: this tool owns these settings for the length of a batch and hands
-  # them back exactly as it found them.
-  def self.unit_vray_setup(model, dlg)
+  # This method used to be called unit_vray_setup and it wrote eight quality
+  # parameters plus the output size into Benton's V-Ray scene on every batch.
+  # That was wrong on principle, not just in its values. He had the Asset
+  # Editor set to 1600x900 / 16:9 / Medium / Progressive / Denoiser off, and
+  # the package silently rendered 1200x900 at 4:3 with a denoiser and a
+  # sampler floor of its own invention. The renders that came out were not
+  # the renders he configured, and nothing in the log said so.
+  #
+  # The rule now: THE RENDER SETTINGS BELONG TO THE OPERATOR. This reads them,
+  # writes every one of them into the run log so a row is auditable after the
+  # fact, and changes nothing unless an override was explicitly asked for.
+  #
+  # It is the same ethos as the rest of this repo -- never invent a number --
+  # applied to the one place that was still inventing them.
+  AUDIT = [
+    ['/SettingsOutput',        :img_width],
+    ['/SettingsOutput',        :img_height],
+    ['/SettingsOutput',        :show_safe_frames],
+    ['/SettingsImageSampler',  :type],
+    ['/SettingsImageSampler',  :progressive_threshold],
+    ['/SettingsImageSampler',  :progressive_maxSubdivs],
+    ['/SettingsImageSampler',  :progressive_maxTime],
+    ['/SettingsImageSampler',  :min_shade_rate],
+    ['/SettingsOptions',       :progressive_noise_limit],
+    ['/RenderChannelDenoiser', :enabled],
+    ['/RenderChannelDenoiser', :mode],
+    ['/SettingsRTEngine',      :noise_threshold],
+    ['/SettingsRTEngine',      :max_sample_level],
+    ['/CameraPhysical',        :f_number],
+    ['/CameraPhysical',        :ISO],
+    ['/CameraPhysical',        :shutter_speed],
+    ['/SettingsGI',            :on],
+    ['/SunLight',              :enabled]
+  ].freeze
+
+  def self.unit_vray_audit(model, dlg)
     ctx   = vray_context
     scene = vray_scene(ctx)
     if scene.nil?
-      @quality_note = 'NOT SET - no V-Ray scene'
-      log(dlg, 'RENDER QUALITY: no V-Ray scene to write to. The render rows ' \
-               'will use whatever the Asset Editor is set to, denoiser ' \
-               'included - expect the stock speckle.', 'bad')
+      @quality_note = 'NOT READ - no V-Ray scene'
+      log(dlg, 'V-RAY SETTINGS: no V-Ray scene to read. The render rows will '                'use whatever the Asset Editor is set to - which is the '                'intended behaviour, but it could not be logged.', 'bad')
       return
     end
 
-    w, h = package_size(@cfg['width'])
-    size_triples = [['/SettingsOutput', :img_width, w],
-                    ['/SettingsOutput', :img_height, h]]
-    triples = size_triples + QUALITY.map { |pl, k, v| [pl, k, v] }
-    @vray_saved = read_params(scene, triples.map { |pl, k, _v| [pl, k] })
-    applied, problems = write_params(scene, triples)
+    read = read_params(scene, AUDIT)
+    pairs = AUDIT.map { |pl, k| ["#{pl}[#{k}]", read[[pl, k]]] }
+    @quality_note = pairs.map { |k, v| "#{k}=#{v.inspect}" }.join(', ')
 
-    log(dlg, "RENDER SIZE: V-Ray scene /SettingsOutput set to " \
-             "#{applied['/SettingsOutput[img_width]'].inspect}x" \
-             "#{applied['/SettingsOutput[img_height]'].inspect} - " \
-             'the same shape as the image rows', 'dim')
-    log(dlg, "RENDER QUALITY: denoiser " \
-             "#{applied['/RenderChannelDenoiser[enabled]'].inspect}, " \
-             "progressive noise threshold " \
-             "#{applied['/SettingsImageSampler[progressive_threshold]'].inspect}, " \
-             "max subdivs #{applied['/SettingsImageSampler[progressive_maxSubdivs]'].inspect}, " \
-             "min shade rate #{applied['/SettingsImageSampler[min_shade_rate]'].inspect}, " \
-             "time budget #{applied['/SettingsImageSampler[progressive_maxTime]'].inspect} min", 'dim')
-    @quality_note = applied.map { |k, v| "#{k}=#{v.inspect}" }.join(', ')
-    problems.each { |m| log(dlg, "RENDER QUALITY: #{m}", 'bad') }
+    # EVERY VALUE USED, IN THE LOG. Not a summary -- the actual numbers, so a
+    # render that looks wrong can be traced to the settings that made it
+    # without anyone having to reopen the Asset Editor and remember.
+    log(dlg, "V-RAY SETTINGS READ FROM THE MODEL - these are HONOURED, not "              "changed. Output size comes from #{@size_source}.", 'dim')
+    pairs.each_slice(3) do |row|
+      log(dlg, '        ' + row.map { |k, v| "#{k}=#{v.inspect}" }.join('  '), 'dim')
+    end
+
+    ev = ev_of_camera(read[['/CameraPhysical', :f_number]],
+                      read[['/CameraPhysical', :shutter_speed]])
+    log(dlg, format('        the camera as configured is EV %.2f%s', ev || 0.0,
+                    ev.nil? ? ' (could not be derived)' : ''), 'dim')
+
+    # OVERRIDES: opt-in, never default, and announced loudly when they are on.
+    ov = overrides_triples
+    if ov.empty?
+      log(dlg, 'no overrides are configured - nothing was written to V-Ray', 'dim')
+      @vray_saved = nil
+      @quality_problems = []
+      return
+    end
+    log(dlg, "OVERRIDES ARE ON. #{ov.length} V-Ray parameter(s) will be "              'CHANGED for this batch and restored afterwards:', 'bad')
+    ov.each { |pl, k, v| log(dlg, "        #{pl}[#{k}] -> #{v.inspect}", 'bad') }
+    @vray_saved = read_params(scene, ov.map { |pl, k, _v| [pl, k] })
+    applied, problems = write_params(scene, ov)
+    applied.each { |k, v| log(dlg, "        #{k} now reads #{v.inspect}", 'dim') }
+    problems.each { |m| log(dlg, "OVERRIDE: #{m}", 'bad') }
     @quality_problems = problems
   rescue Exception => e
     @quality_note = "raised #{e.class}"
-    log(dlg, "RENDER QUALITY: setup raised #{e.class}: #{e.message} - render " \
-             'rows run on stock settings', 'bad')
+    log(dlg, "V-RAY SETTINGS: audit raised #{e.class}: #{e.message} - the " \
+             'render rows still run on the settings the operator configured, ' \
+             'but this batch could not log what they were', 'bad')
+  end
+
+  # The override table, built from cfg['overrides'] -- EMPTY unless a caller
+  # deliberately supplied one. Keys are 'plugin|key' strings so an override
+  # set can be written down in a config without any Ruby.
+  def self.overrides_triples
+    raw = (@cfg && @cfg['overrides']) || {}
+    return [] if raw.nil? || raw.empty?
+    raw.map do |k, v|
+      pl, key = k.to_s.split('|', 2)
+      next nil if pl.nil? || key.nil?
+      [pl, key.to_sym, v]
+    end.compact
+  rescue StandardError
+    []
   end
 
   # The wr-shading contract, image lane only, one checkbox. Pushed AFTER the
@@ -1389,15 +1503,39 @@ module WR_ProposalPackage
       log(dlg, "        #{p[:file]}  this scene saves no camera — " \
                'rendering the current view', 'bad')
     end
-    # PER-ROW EXPOSURE (D2). Pass 1 set one EV for the whole batch and the
-    # room-level row came out clipped to white. EV is a property of the VIEW,
-    # not of the batch: this rig's booth interior wants EV 9 and its room
-    # views want EV 12, and there is no value that serves both. The number
-    # used goes in the log and into the row's detail, so a wrong-looking
-    # image can always be traced back to the exposure that made it.
-    ev = ev_of(p[:page])
-    ev_landed = apply_exposure(ctx, dlg, ev, p[:file])
-    @ev_used[p[:file]] = ev_landed || ev
+    # EXPOSURE IS THE OPERATOR'S BY DEFAULT (1.9.4).
+    #
+    # 1.9.3 wrote /CameraPhysical on EVERY render row -- EV 9 for interiors,
+    # EV 12 for room views -- because this rig needed two exposures and no
+    # single value served both. That worked, and it was the wrong fix: it
+    # hid a broken light rig behind a silent camera override, so the pictures
+    # were right for a reason nobody could see in the model.
+    #
+    # The look-development matrix (scripts/lookdev-matrix.rb) found what was
+    # actually wrong: the "WR Lights" TAG WAS HIDDEN, so not one of the eight
+    # rectangle lights reached any render, and every frame was lit by the
+    # V-Ray sun and sky alone. With the tag shown and the booth fixture raised,
+    # a SINGLE exposure serves both an interior and a room view -- measured
+    # 30 Aug 2026 across a five-step EV ladder on both cameras.
+    #
+    # So the default is now: write nothing, render at the camera the operator
+    # configured, and LOG the EV that camera implies. A per-row EV is still
+    # available, but only when the page carries an explicit stored value AND
+    # the batch was started with exposure overrides enabled -- and when it
+    # fires it is announced, never quiet.
+    ev_landed = nil
+    if exposure_override?
+      ev = ev_of(p[:page])
+      log(dlg, "        #{p[:file]}  EXPOSURE OVERRIDE IS ON - this row will "                "be rendered at EV #{format('%.2f', ev)}, not at the camera "                'as configured', 'bad')
+      ev_landed = apply_exposure(ctx, dlg, ev, p[:file])
+    end
+    if ev_landed.nil?
+      cam_ev = camera_ev(ctx)
+      ev_landed = cam_ev
+      log(dlg, format('        %s  EV %s, read from the camera as configured '                       '(nothing was written to /CameraPhysical)', p[:file],
+                      cam_ev.nil? ? 'UNREADABLE' : format('%.2f', cam_ev)), 'dim')
+    end
+    @ev_used[p[:file]] = ev_landed
 
     progress(dlg, "Rendering #{p[:file]}…")
 
@@ -1471,6 +1609,27 @@ module WR_ProposalPackage
       end
       save_frame(dlg, p)
     end
+  end
+
+  # Is a per-row exposure override switched on for this batch? Opt-in, and
+  # absent means NO -- the whole point of 1.9.4.
+  def self.exposure_override?
+    ov = (@cfg && @cfg['overrides']) || {}
+    !!(ov['exposure'] || ov['ev'])
+  rescue StandardError
+    false
+  end
+
+  # The EV the camera is ALREADY set to, for the log. Read-only: this is what
+  # the row will actually be exposed at when nothing overrides it.
+  def self.camera_ev(ctx)
+    scene = vray_scene(ctx)
+    return nil if scene.nil?
+    pl = (scene['/CameraPhysical'] rescue nil)
+    return nil if pl.nil?
+    ev_of_camera((pl[:f_number] rescue nil), (pl[:shutter_speed] rescue nil))
+  rescue Exception
+    nil
   end
 
   # Write this row's exposure into the V-Ray physical camera and read it
@@ -1601,8 +1760,14 @@ module WR_ProposalPackage
       return
     end
     if File.exist?(p[:path])
-      det = format('V-Ray %sx%s, EV %.2f, denoiser on',
-                   @cfg['width'], @cfg['height'], (@ev_used[p[:file]] || 0.0).to_f)
+      # The size and EV that were ACTUALLY used, and where the size came
+      # from. 1.9.3 hard-coded ", denoiser on" here because it had just
+      # switched the denoiser on itself; now that the denoiser is the
+      # operator's setting, claiming anything about it would be a guess.
+      evv = @ev_used[p[:file]]
+      det = format('V-Ray %sx%s (size from %s), EV %s',
+                   @cfg['width'], @cfg['height'], @size_source,
+                   evv.nil? ? 'unreadable' : format('%.2f', evv.to_f))
       side = sidecars(p)
       det += format(', plus %d render-element sidecar(s): %s',
                     side.size, side.join(', ')) unless side.empty?

@@ -2,6 +2,81 @@
 
 ## 2026-08-30
 
+### 1.9.4 — the proposal package stops overriding Benton's V-Ray settings, and a look-development matrix finds out why the renders looked wrong
+
+**The headline is not the tool, it is what the tool found: the SketchUp tag `WR Lights` was
+hidden, so not one of the eight rectangle lights has ever reached a render.** Every frame
+this project has produced was lit by the V-Ray sun and sky alone. That is why the booth
+interior would not expose, why "one EV for both views" was impossible, and a large part of
+why the pictures read as CG.
+
+**Measured first, because it decides everything else.** A 400x225 thumbnail at Benton's own
+Medium quality takes **7.1–16.6 s wall clock, mean 13.6 s**, against **53.07 s** for the same
+frame at 1600x900. About 4x — not the 10x the first single-frame probe suggested, because
+that probe ran on a dark default-exposure frame with no lights in it. The loop is genuinely
+fast enough to art-direct with; it is not "seconds a guess".
+
+#### Part 1 — read and honour, never overwrite
+
+`scripts/proposal-package.rb`. 1.9.3 wrote its own `/SettingsOutput`, eight sampler and
+denoiser parameters, and `/CameraPhysical` on every render row. Benton had the Asset Editor
+on 1600x900 / 16:9 / Medium / Progressive / denoiser off and got 1200x900 at 4:3 with a
+denoiser and a sampler floor he never asked for.
+
+- `unit_vray_setup` is now **`unit_vray_audit`**: it READS eighteen parameters, writes every
+  one into the run log so a row is auditable, and changes nothing.
+- **Output size comes from `/SettingsOutput`** and both lanes are cut to it. `@size_source`
+  records where the number came from, and every log line and row detail says so.
+- **A render batch that cannot read V-Ray's size is refused by name** (`require_render_size!`)
+  before a file is written, rather than falling back to the Width field — that fallback is
+  exactly how 1600x900 became 1200x900.
+- **`/CameraPhysical` is not written on a normal run.** The row logs the EV the configured
+  camera implies. Per-row EV survives only as an opt-in override, and when it fires it is
+  announced in the log as a change.
+- Overrides are `cfg['overrides']`, `'plugin|key' => value`, empty by default.
+
+Verified live: with 1600x900 in place, `honoured_size` returns `1600x900` sourced from
+`the V-Ray Asset Editor (/SettingsOutput)`, the audit logs all eighteen values, and size,
+camera and denoiser all read back **unchanged**. `rbtest-proposal.py` still passes whole.
+
+#### Part 2 — the matrix
+
+New `scripts/lookdev-matrix.rb` (render one frame; snapshot and restore everything it can
+touch) and `scripts/lookdev-drive.py` (compose the sweep, chunk it, join image-qa). 68 frames
+in `C:\Users\bento\Desktop\BridgeTest-lookdev\`, every variable in the filename, full records
+in `.forge/builder/lookdev-results.json`.
+
+Stage 1 is driven through **`scripts/wr-sun-aim.rb`** rather than by setting a clock — it
+already solves for elevation and already keeps the deliberate azimuth offset. It gained a
+`$wr_no_autorun` guard so it can be loaded for its solver without opening its dialog. Its
+solver is accurate: requested vs achieved elevation agreed within **0.3 deg** on every arm,
+azimuth error 0.00, calibration confident throughout. `match_cam = true` on the exterior
+camera lands at **12.83 deg**, not the 8 deg floor — that camera is angled slightly down.
+
+Stage 3 answers the exposure question with pictures: **as found, no single EV serves both
+views**; at `booth8x` EV 12.5 serves both; at `booth16x` **EV 12.5 and EV 14.0 both serve
+both**, and EV 14.0 is within 0.23 of Benton's untouched camera. Benton picks the ratio.
+
+#### Four things that cost real time, all now written down where they bite
+
+1. **Writing `/SettingsOutput[show_safe_frames]` wedges SketchUp.** No dialog, main window
+   still enabled, Ruby never returns, process has to be killed. Twice. Safe Frame must be
+   ticked in the V-Ray UI; `WR_LookDev.safe_frames!` now refuses with the reason.
+2. **Only the FIRST `render_production` in a Ruby job renders.** Later calls return, the
+   renderer never leaves idle, and `save_vfb_image` writes the PREVIOUS frame — eight arms
+   came back byte-identical with nothing raised. One frame per bridge job (`CHUNK = 1`).
+   This is almost certainly why `proposal-package.rb` drives renders from a UI timer.
+3. **`progressive_maxTime = 0.0` is no limit, not fast.** A budget-free thumbnail ran past
+   fifteen minutes. The harness sets 0.25 min and restores Benton's 0.0.
+4. **A second `capture!` silently redefines "original".** Re-capturing mid-sweep made
+   `restore!` put back swept values and report `restored clean`. `capture!` now refuses
+   without `:force`.
+
+**Model left exactly as found**, verified key by key: 1600x900, sampler 0.0 / 0.04 / 20 / 6,
+camera f/8 @ 1/300 ISO 100, denoiser off, sun on, all nine light intensities, all six
+shadow_info keys, and `WR Lights` hidden.
+
+
 ### 1.9.3 — pass 2: the pictures are shippable, and seven silent failures are closed
 
 Pass 1 built the geometry correctly and produced client-unusable images. This pass fixed the

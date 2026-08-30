@@ -681,6 +681,14 @@ module WR_SunAim
   end
 end
 
+# $wr_no_autorun lets another script LOAD this file for its solver without
+# opening the dialog — the convention probe-vray.rb already uses. The look-
+# development matrix (scripts/lookdev-matrix.rb) drives light_it_from_here
+# directly to sweep sun elevation, and a modal dialog in the middle of a
+# batch render wedges SketchUp with nothing able to answer it.
+if $wr_no_autorun
+  nil
+else
 begin
   WR_SunAim.run
 rescue Exception => e
@@ -688,4 +696,5 @@ rescue Exception => e
   puts "FAILED: #{e.class}: #{e.message}"
   puts e.backtrace.first(10).map { |l| "  #{l}" }.join("\n")
   UI.messagebox("Light It From Here failed:\n\n#{e.class}: #{e.message}\n\nSee the Ruby Console.")
+end
 end
