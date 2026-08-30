@@ -2,6 +2,109 @@
 
 ## 2026-08-30
 
+### booth-matrix harness — `scripts/rbtest-live-booth.py` (Phase 0, harness only; no live run yet)
+
+A harness that drives `WR_BuildBoothComponents.build_booth` through the bridge
+for every key in `scripts/wr-booth-data.rb` and writes a diffable manifest per
+key. Built and proven **offline**; the live dry runs are not yet run (see
+"Not run" below). No Ruby changed, no `VERSION` bump — this adds Python only.
+
+**Commands**
+
+    python scripts/rbtest-live-booth.py keys       the 50, read from the data file
+    python scripts/rbtest-live-booth.py selftest   20 checks, no SketchUp needed
+    python scripts/rbtest-live-booth.py dry        all 50 dry runs
+    python scripts/rbtest-live-booth.py build --keys "MDL 6060 S"
+    python scripts/rbtest-live-booth.py diff <baseline-dir>
+
+**The clean-model problem, and how it is solved.** 50 builds cannot share one
+model, and a build inheriting geometry from the previous key would silently
+corrupt every manifest after the first. `Sketchup.file_new` is **not** used:
+on a dirty model it opens a native save-or-discard prompt, and the bridge
+patches `UI.messagebox` and friends, not the application's own file dialogs, so
+a native modal wedges SketchUp until a human clicks. Each job instead begins
+with `WRB.scratch!` (`scripts/wr-bridge-lib.rb`) — `start_operation`,
+`entities.clear!`, commit, `definitions.purge_unused`, `materials.purge_unused`
+— none of which can raise a dialog. It returns a census taken **after** the
+wipe, and the job **asserts that census total is 0** before letting
+`build_booth` run, recording it in the manifest as `pre`. So no-carryover is
+proven per key and written down, not assumed. Definitions are purged between
+keys on purpose: keeping the cache warm would make key N's result depend on
+keys 1..N-1, which is the one property a golden baseline cannot have. It costs
+a re-read of each `.skp` from `P:` and is most of the wall-clock time.
+`WRB.scratch!` refuses on a saved model, so the harness only ever runs against
+an Untitled scratch model and fails by name naming the open drawing otherwise.
+
+**Every dry run comes back as a raise, and that is not a failure.** `build_booth`
+ends a dry run with a `UI.messagebox`, and takes the same route on the
+missing-parts path. Under the bridge every `UI.messagebox` raises `ModalBlocked`
+instead of opening. The job therefore rescues `ModalBlocked` **separately** from
+every other exception and records its text in `dialog`; a real exception lands
+in `error`. The two are never merged. Nothing is lost — in both paths the
+messagebox is the last statement, after the console report is already complete.
+
+**The manifest is captured, not reimplemented.** The landed-bounds print already
+exists in `WR_Deck.build` (`scripts/wr-deck.rb:1130-1139`) and `WR_Deck.seals`
+(`:1561-1568`): per placed floor/ceiling part, the filename, flipped/turned, the
+contact z, the landed min/max x/y/z re-measured from the placed instance, and
+the wall-joint edge station. The harness captures the job's whole stdout
+verbatim into `<key>.txt` — that file **is** the diffable artifact, in the
+tools' own words — and parses those lines into `<key>.json`. It computes no
+deck bounds of its own; a second implementation of the same measurement would
+drift and the drift would be reported as a booth defect. The `.json` also
+carries a whole-booth `ComponentInstance` census (name, definition, tag, bounds)
+read back off the model, **additional** to the deck print, never a substitute.
+
+**The parser is pinned to wr-deck.rb's own format strings.** If a print changes,
+the regex stops matching and the harness would record zero floor and ceiling
+parts for every key — a silently empty manifest, the worst failure it could
+have. So `selftest` lifts those `format(...)` literals verbatim, renders them in
+SketchUp's own Ruby 3.2 via `scripts/rbparse.py` (no SketchUp needed), and feeds
+the result back through the regexes. It also compiles the generated job Ruby in
+the same VM, so a typo in the job can never reach a live model as a mysterious
+timeout.
+
+MUTATION-CHECKED 2026-08-30 (each applied to `wr-deck.rb`, `selftest` run, FAIL
+confirmed, reverted): `contact %7.4f` -> `contact= %7.4f` (the lift fails by
+name, saying the print has moved); `contact %7.4f  ->  %7.2f...` -> `contact
+%7.4f | %7.2f...` (all six deck checks FAIL). A clean `selftest` is therefore
+evidence the parser still matches the code, not just that it runs.
+
+**Verdicts.** `clean` / `flagged` / `missing` / `raised` / `harness`. A bridge
+fault or a failed clean-model check is `harness` and is never written into a
+manifest as a booth result — a harness fault reported as a booth defect wastes
+a day.
+
+**FINDING, not fixed (diagnosis is this pass; fixes are a separate job).**
+`EFP96192.skp` **now exists** on the share (`P:/Sketchup/NewMasterComponentList`,
+426,135 bytes — observed 30 Aug 2026), and `WR_Overlays::EFP_SIZES`
+(`scripts/wr-overlays.rb:143`) already lists `96192`. But the refusal at
+`scripts/wr-overlays.rb:898-905` is an `if digits == '96192'` branch **ahead of**
+the `EFP_SIZES` test, so it still fires unconditionally and the 96192's elevated
+floor is still refused by name. The branch is stale and wants deleting; it was
+not touched here. Not yet confirmed against a live build — see below.
+
+**Named refusals this harness does and does not reach.** The overlay refusals
+(EFP, caster plate `cs`, step `sp`) live in `WR_Overlays.place_all` and fire only
+when `cfg['overlay']` asks for that option, so they appear only under
+`--overlay`. The link-level refusals (`bt`, `ac`, `sl`, `rv`) live in
+`booth-from-link.rb`, **not** in `build_booth`, and this harness does not reach
+them at all — it calls the programmatic entry point directly. Said plainly
+rather than left as a silent gap.
+
+**Verified offline (no SketchUp).** `selftest` — 20/20. `keys` — 50 keys, 25
+sizes, every one ending ` S` or ` E`, matching the assignment's list.
+`scripts/rbparse.py` — 58 files parse, clean, after the mutation revert.
+
+**NOT RUN, and why.** No live dry run and no live build has been executed. The
+work was reassigned mid-pass from SketchUp 2024 to SketchUp 2026 only (Benton:
+a baseline captured on 2024 would diff spuriously against every future 2026
+run), and 2026 is occupied by the interior-lights lane. So all 50 dry runs, the
+four representative real builds (`MDL 6060 S`, `MDL 6060 E`, `MDL 96192 E`,
+`MDL 102186 E`), the golden baseline under `.forge/builder/booth-matrix/`, and
+the live confirmation of the EFP96192 finding are **outstanding**. The harness
+has never touched a live model; nothing here should be read as a booth result.
+
 ### 1.9.0 — the SketchUp bridge, built and proven live
 
 An agent can now run Ruby inside the running SketchUp and read back stdout, the
