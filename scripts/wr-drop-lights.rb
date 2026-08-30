@@ -147,17 +147,45 @@
 # group, so coordinates agree with the selections' own bounding boxes.
 #
 # ===========================================================================
-# THIS SCRIPT HAS NOT BEEN RUN IN SKETCHUP
+# RUN LIVE 2026-08-30 — AND IT WAS BROKEN IN TWO SILENT WAYS
 #
-# No SketchUp and no V-Ray on the machine that wrote it. python
-# scripts/rbparse.py proves it parses (the same CRuby 3.2 SketchUp ships) and
-# python scripts/rbtest-lights.py RUNS the whole pure section — grid,
-# polygon tests, L-shape, keep-outs, tiny-room centroid, wall wash, lumens,
-# the Kelvin curve, the scalar-intensity formula, the read-back comparator
-# and the grid-count fix — outside SketchUp, lifted verbatim from this
-# file. No instance has been placed and no render seen. Every VRay:: call
-# is individually rescued so a wrong assumption becomes a NAMED failure on
-# the console, never a crash and never a silent no-op.
+# 1.8.0 wrote everything below without a SketchUp on the machine. It was
+# first run for real on 2026-08-30, SketchUp 2026 / V-Ray 7, through
+# scripts/sketchup-bridge.py, on a scratch 16' x 12' build-room room. Two
+# defects were found, both of which made a clean-looking press produce a
+# rig that could not do its job, and both are fixed here (1.9.1):
+#
+#   1. EVERY PER-LIGHT WRITE WAS DISCARDED. plugin[key] = value outside a
+#      VRay::Scene#change transaction does not persist; V-Ray re-syncs the
+#      plugin from the JSON in the light DEFINITION's VRayPlugins
+#      dictionary and the write is gone. All eight lights of the first
+#      live press read back V-Ray's factory defaults minutes later —
+#      intensity 30, invisible FALSE, i.e. visible white slabs at the
+#      wrong brightness. The read-back this file already had reported a
+#      clean press, because it read the same in-memory object right after
+#      the write. See write_params / read_param.
+#   2. THE SECOND PRESS KILLED THE RIG. Removing the replaced lights'
+#      definitions schedules a deferred V-Ray purge by plugin name, and
+#      the new lights inherit those freed names. 8 instances, 0 light
+#      plugins. See erase_lights / reap_lights.
+#
+# What is CONFIRMED live now: 4 lights in a 16x12 room (not 6); every
+# parameter persists into later sessions; Dim/Normal/Bright read back
+# 128/256/512 on the downlights; a second and third press leave the count
+# at 8 with 8 live plugins; the light widget's direction arrow runs to
+# (0, 0, -7.41), so the fixture faces DOWN and FACE_FLIP stays 0.0.
+#
+# What is STILL UNSEEN: any V-Ray render. REF_INTENSITY and
+# AREA_NORMALIZED cannot be judged without one, and neither can exposure.
+#
+# python scripts/rbparse.py proves this file parses (the same CRuby 3.2
+# SketchUp ships) and python scripts/rbtest-lights.py RUNS the whole pure
+# section — grid, polygon tests, L-shape, keep-outs, tiny-room centroid,
+# wall wash, lumens, the Kelvin curve, the scalar-intensity formula, the
+# read-back comparator and the grid-count fix — outside SketchUp, lifted
+# verbatim from this file. Every VRay:: call is individually rescued so a
+# wrong assumption becomes a NAMED failure on the console, never a crash
+# and never a silent no-op.
 
 require 'sketchup.rb'
 
@@ -902,20 +930,81 @@ module WR_DropLights
     [d, p]
   end
 
-  # Write ONE plugin parameter and READ IT BACK. Returns
-  # [stuck?, value_read, error_or_nil]. Never raises.
-  def self.set_param(plugin, key, value)
-    begin
-      plugin[key] = value
-    rescue StandardError => e
-      return [false, nil, "write raised #{e.class}: #{e.message}"]
+  # ---- THE TRANSACTION, and why it is not optional ----------------------
+  #
+  # LIVE FINDING, SketchUp 2026 / V-Ray 7, 2026-08-30 (observed through the
+  # bridge, A/B'd twice):
+  #
+  #   plugin[:intensity] = 256.0        # reads back 256.0 immediately
+  #   ... next bridge job, seconds later ...
+  #   scene[name][:intensity]           # => 30.0. The write is GONE.
+  #
+  # A bare `plugin[key] = value` lands only on the in-memory plugin. The
+  # authoritative copy is the JSON blob V-Ray keeps in the light component
+  # DEFINITION's `VRayPlugins` attribute dictionary (observed: the
+  # definition of every light this tool placed on 30 Aug held V-Ray's
+  # factory defaults, `"intensity":"30"`, `"invisible":"0"`). V-Ray
+  # re-syncs the scene plugin from that blob on its own schedule, and an
+  # un-transacted write is silently discarded.
+  #
+  # The read-back this file already had could not catch it: it read the
+  # same in-memory object microseconds after the write, so it agreed every
+  # single time. Eight lights placed, zero "DID NOT STICK" lines, and not
+  # one of the eight was actually configured. A read-back that cannot fail
+  # is not a check.
+  #
+  # `VRay::Scene#change { }` (documented, VRay/Scene.html: "Wraps all
+  # changes inside the block in a transaction") is the fix. Writing inside
+  # it pushes the parameters into the definition's `VRayPlugins` JSON
+  # (observed: `"intensity":"555"`, `"invisible":"1"`) and the value
+  # survives every later job. The same code without the block, same order
+  # of operations, same commit_operation: reset to default. That is the
+  # whole difference.
+  #
+  # So the two halves are now SEPARATE, and the read-back happens AFTER
+  # the transaction closes, where it can genuinely fail:
+  #   write_params  — every write, inside one scene.change
+  #   read_param    — every read, after it
+
+  # Write every [key, value] inside ONE scene transaction. Returns a hash
+  # of key => error-string for the writes that raised; an empty hash means
+  # every write was accepted (which is NOT yet proof it stuck — read back).
+  # Never raises.
+  def self.write_params(scene, plugin, wants)
+    errs = {}
+    body = lambda do
+      wants.each do |key, value|
+        begin
+          plugin[key] = value
+        rescue StandardError => e
+          errs[key] = "write raised #{e.class}: #{e.message}"
+        end
+      end
     end
+    if scene.nil?
+      errs[:__scene] = 'no V-Ray scene — these writes were made outside a '                        'transaction and V-Ray will discard them'
+      body.call
+      return errs
+    end
+    begin
+      scene.change('WR Drop Interior Lights') { body.call }
+    rescue StandardError => e
+      errs[:__scene] = "scene.change raised #{e.class}: #{e.message} — "                        'these writes were not transacted'
+      body.call
+    end
+    errs
+  end
+
+  # Read ONE plugin parameter back and compare. Returns
+  # [stuck?, value_read, error_or_nil]. Never raises. Call this only AFTER
+  # write_params has closed its transaction.
+  def self.read_param(plugin, key, value, write_err)
     got = begin
             plugin[key]
           rescue StandardError => e
             return [false, nil, "read-back raised #{e.class}: #{e.message}"]
           end
-    [param_agrees?(value, got), got, nil]
+    [param_agrees?(value, got) && write_err.nil?, got, write_err]
   end
 
   def self.plugin_name(plugin)
@@ -931,7 +1020,7 @@ module WR_DropLights
   # NOTHING here raises — a parameter that will not take is reported by
   # name and the light still places, because a wrongly-tuned light that
   # emits is recoverable in the Asset Editor and a missing light is not.
-  def self.configure_light(plugin, role, target_lm, kelvin)
+  def self.configure_light(scene, plugin, role, target_lm, kelvin)
     spec = LIGHT_LAYERS[role]
     rgb = kelvin_rgb(kelvin)
     color = nil
@@ -950,10 +1039,18 @@ module WR_DropLights
     wants << [:intensity, scalar_intensity(target_lm, spec[:u], spec[:v])]
     wants << [:color, color] unless color.nil?
     wants << [:directional, spec[:dir]] unless spec[:dir].nil?
+    # ONE transaction for the whole light, then read every value back
+    # OUTSIDE it. See write_params: an un-transacted write is discarded by
+    # V-Ray and a read-back taken inside the transaction always agrees.
+    werrs = write_params(scene, plugin, wants)
     writes = []
     bad = []
+    if werrs[:__scene]
+      writes << [:__scene, 'transacted', 'NOT transacted', false, werrs[:__scene]]
+      bad << :__scene
+    end
     wants.each do |key, value|
-      stuck, got, err = set_param(plugin, key, value)
+      stuck, got, err = read_param(plugin, key, value, werrs[key])
       writes << [key, value, got, stuck, err]
       bad << key unless stuck
     end
@@ -1029,14 +1126,47 @@ module WR_DropLights
     [bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z]
   end
 
-  # Erase replaced lights AND their V-Ray plugins. A light's plugin is
-  # recorded on the instance at placement; deleting it keeps a re-press
-  # from growing the Asset Editor's light list without bound.
-  # Returns [erased, plugins_deleted, plugins_left].
-  def self.erase_lights(model, scene, lights)
+  # ---- THE SECOND-PRESS KILL, and why the reap is deferred --------------
+  #
+  # LIVE FINDING, SketchUp 2026 / V-Ray 7, 2026-08-30 (observed through
+  # the bridge; four variants run, three of them clean).
+  #
+  # 1.8.0 swept in one pass: erase the instance, remove its component
+  # definition, delete its V-Ray plugin - all BEFORE the new rig was
+  # placed. Press once and the rig is fine. Press TWICE and the eight new
+  # lights are still in the model, still tagged, still reporting a clean
+  # read-back on the console - and the V-Ray scene holds ZERO light
+  # plugins. A second press produced a rig that CANNOT emit, silently
+  # (observed: 8 instances in the model, and the only light plugin left in
+  # the whole scene was /SunLight).
+  #
+  # The mechanism: removing the component definition schedules a DEFERRED
+  # purge in V-Ray, keyed on the plugin name recorded in that definition's
+  # VRayInfo dictionary. SketchUp then hands the freed definition names
+  # ("Rectangle Light", "#1", ...) straight back to the lights created
+  # moments later in the same press, and their plugins take the freed
+  # plugin names too. When the purge finally runs - after the job returns
+  # - it deletes those names, and it is the NEW lights it kills.
+  #
+  # Renaming the stale plugin and definition to a graveyard name first
+  # does NOT help (tried live; the purge follows the definition's recorded
+  # main_plugin, not the current name). What helps is never letting the
+  # new lights inherit a freed name. Three variants were run live and all
+  # three survived: skip definitions.remove; skip scene.delete; or place
+  # first and reap last. The third is the one taken here - it is the only
+  # one that still leaves the Asset Editor clean.
+  #
+  # So the sweep is now TWO steps with all of the placement between them:
+  #   erase_lights  - erase the instances only, and hand back the list
+  #   reap_lights   - remove the now-unused definitions and delete the
+  #                   plugins, AFTER every new light exists
+  #
+  # Erase the replaced lights' INSTANCES. Returns [erased, pending], where
+  # pending is [[plugin_name, definition], ...] for reap_lights to finish
+  # once the new rig is in place. Nothing V-Ray-side happens here.
+  def self.erase_lights(lights)
     erased = 0
-    gone = 0
-    left = 0
+    pending = []
     lights.each do |e, _|
       # A light reached through two instance paths of one shared
       # definition appears twice in the list; the second visit is already
@@ -1050,7 +1180,21 @@ module WR_DropLights
       rescue StandardError
         next
       end
-      if defn && defn.respond_to?(:instances) && defn.instances.empty?
+      pending << [pname, defn]
+    end
+    [erased, pending]
+  end
+
+  # Finish the sweep: drop the now-unused definitions and delete the V-Ray
+  # plugins. MUST run after every new light has been created, or V-Ray's
+  # deferred purge takes the new rig with it (see above).
+  # Returns [plugins_deleted, plugins_left].
+  def self.reap_lights(model, scene, pending)
+    gone = 0
+    left = 0
+    pending.each do |pname, defn|
+      if defn && defn.respond_to?(:valid?) && defn.valid? &&
+         defn.respond_to?(:instances) && defn.instances.empty?
         begin
           model.definitions.remove(defn)
         rescue StandardError
@@ -1070,7 +1214,7 @@ module WR_DropLights
         ok ? gone += 1 : left += 1
       end
     end
-    [erased, gone, left]
+    [gone, left]
   end
 
 
@@ -1564,22 +1708,19 @@ module WR_DropLights
       boxes = subjects.map { |sub| world_bounds(sub, etr) }
                       .select(&:valid?).map { |bb| box_of(bb) }
       stale, deep = stale_lights(model, boxes)
-      erased, plugs_gone, plugs_left = erase_lights(model, scene, stale)
+      # Instances now; definitions and V-Ray plugins only AFTER placement
+      # (reap_lights, at the bottom of this method). See erase_lights.
+      erased, reap_pending = erase_lights(stale)
 
       puts ''
       puts "Drop Interior Lights — density #{opts[:density]}, brightness " \
            "#{opts[:bright]} (x#{opts[:mult]}), #{opts[:kelvin]}K, " \
            "wash #{opts[:wash] ? 'on' : 'off'}, booth #{opts[:booth] ? 'on' : 'off'}"
       unless stale.empty?
-        puts format('  replaced %d previously dropped light%s (V-Ray ' \
-                    'plugins: %d deleted, %d left behind)', erased,
-                    erased == 1 ? '' : 's', plugs_gone, plugs_left)
-        if plugs_left > 0
-          puts '    A left-behind plugin is a light asset with no light — ' \
-               'harmless in the render, but it clutters the Asset Editor. ' \
-               'Lights dropped before 1.8.0 shared a seed asset and never ' \
-               'owned a plugin to delete.'
-        end
+        puts format('  replacing %d previously dropped light%s - their ' \
+                    'V-Ray plugins are deleted AFTER the new rig is ' \
+                    'placed, because a deferred V-Ray purge kills the new ' \
+                    'lights otherwise', erased, erased == 1 ? '' : 's')
       end
       if deep
         puts "  NOTE: the stale sweep stopped at #{SWEEP_MAX_DEPTH} levels " \
@@ -1608,7 +1749,7 @@ module WR_DropLights
       place = lambda do |role, pt, target_lm, extra_tr = nil|
         spec = LIGHT_LAYERS[role]
         d, plug = create_light(ctx, spec[:u], spec[:v])
-        rpt = configure_light(plug, role, target_lm, opts[:kelvin])
+        rpt = configure_light(scene, plug, role, target_lm, opts[:kelvin])
         t = Geom::Transformation.translation(Geom::Point3d.new(*pt))
         if FACE_FLIP != 0.0
           t = t * Geom::Transformation.rotation(Geom::Point3d.new(0, 0, 0),
@@ -1899,6 +2040,20 @@ module WR_DropLights
       end
 
       raise 'Nothing was placed — see the per-room lines above.' if placed.zero?
+
+      # THE REAP - last, and it has to be last. See erase_lights.
+      plugs_gone, plugs_left = reap_lights(model, scene, reap_pending)
+      unless reap_pending.empty?
+        puts format('  swept the replaced rig: %d V-Ray plugin%s deleted, ' \
+                    '%d left behind', plugs_gone, plugs_gone == 1 ? '' : 's',
+                    plugs_left)
+        if plugs_left > 0
+          puts '    A left-behind plugin is a light asset with no light — ' \
+               'harmless in the render, but it clutters the Asset Editor. ' \
+               'Lights dropped before 1.8.0 shared a seed asset and never ' \
+               'owned a plugin to delete.'
+        end
+      end
       model.commit_operation
 
       print_light_report(layers_rep, opts)

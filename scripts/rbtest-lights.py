@@ -190,7 +190,7 @@ dropped to 0 (a light one snap proud of the ceiling plane stops being
 found by the stale sweep, so a re-press doubles the grid). All ten
 KILLED
 and reverted. NOT coverable here: create_light, configure_light,
-set_param, vray_api_missing, vray_context, collect_lights and
+write_params, read_param, vray_api_missing, vray_context, collect_lights and
 erase_lights are V-Ray/SketchUp-API-side and are unverified until a
 live press — they are why every VRay:: call in that file is
 individually rescued and why every write is read back.

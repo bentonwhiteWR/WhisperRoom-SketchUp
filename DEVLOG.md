@@ -2,6 +2,85 @@
 
 ## 2026-08-30
 
+### 1.9.1 — Drop Interior Lights, first live run: two silent killers found and fixed
+
+`scripts/wr-drop-lights.rb` was rebuilt at 1.8.0 on `VRay::Command.create_rectangle_light`
+and had **never been run in SketchUp**. It was run today, in SketchUp 2026 / V-Ray 7,
+through the 1.9.0 bridge, against a scratch 16' x 12' `build-room` room. Everything below
+is **observed** through `scripts/sketchup-bridge.py --su 2026`, not reasoned about.
+
+**Defect 1 — every per-light parameter write was silently discarded.**
+
+    plugin[:intensity] = 256.0     # reads back 256.0 immediately
+    ... next bridge job, seconds later ...
+    scene['/Rectangle Light'][:intensity]   # => 30.0.  invisible => false.
+
+A bare `plugin[key] = value` lands only on the in-memory plugin object. The
+authoritative copy is the JSON blob V-Ray keeps in the light component **definition's**
+`VRayPlugins` attribute dictionary, and V-Ray re-syncs the scene plugin from that blob on
+its own schedule. After the very first live press, all eight lights read V-Ray factory
+defaults: `intensity 30`, `invisible false`. So the emitters would have rendered as
+**visible white slabs at the wrong brightness** — exactly the failure 1.8.0 was written to
+prevent. The file's own read-back could not catch it, because it read the same in-memory
+object microseconds after the write and therefore agreed every single time: zero
+`DID NOT STICK` lines for eight completely unconfigured lights. *A read-back that cannot
+fail is not a check.*
+
+Fix: `set_param` is replaced by `write_params` + `read_param`. Every write for a light goes
+inside one `VRay::Scene#change` transaction (documented, `VRay/Scene.html`); every read-back
+happens **after** the transaction closes, where it can genuinely fail. Confirmed live: the
+definition JSON now carries `"intensity":"256"`, `"invisible":"1"`, and the value survives
+into later jobs. The same code without the block, same order, same `commit_operation`,
+resets to default — that is the whole difference.
+
+**Defect 2 — the SECOND press produced a rig that could not emit.**
+
+Press twice and the model held 8 correctly tagged light instances and the V-Ray scene held
+**zero** light plugins (`/SunLight` only). Silent: the console reported a clean press.
+
+Mechanism: removing a light's component definition schedules a **deferred** purge in V-Ray,
+keyed on the plugin name recorded in that definition's `VRayInfo`. SketchUp then hands the
+freed definition names (`Rectangle Light`, `#1`, ...) straight back to the lights created
+moments later in the same press, their plugins take the freed plugin names too, and when
+the purge finally runs — after the job returns — it kills the new rig. Renaming the stale
+plugin and definition to a graveyard name first does **not** help (tried live; the purge
+follows the definition's recorded `main_plugin`). Three variants were run and all three
+survived: skip `definitions.remove`; skip `scene.delete`; or place first and reap last.
+
+Fix: the sweep is split. `erase_lights` erases the replaced **instances** only and hands
+back a pending list; the new `reap_lights` removes the now-unused definitions and deletes
+the plugins **after every new light exists**. It is the only one of the three that still
+leaves the Asset Editor clean. Confirmed live: press → press → press, 8 lights and 8 live
+plugins every time, `8 V-Ray plugins deleted, 0 left behind`.
+
+**The checklist from `.forge/builder/HANDOFF-lights-api.md`, run live**
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 1 | Emitters invisible | PASS *after fix 1* | all 8 plugins read `invisible => true` in a later job; viewport shot shows wireframe widgets with **no faces at all** in the light definition |
+| 2 | FLOOR lit, not ceiling | PASS | the light widget's direction arrow runs `(0,0,0) → (0,0,-7.41)`, i.e. **-Z**, and the screenshot shows eight arrows pointing down. `FACE_FLIP` stays `0.0` |
+| 3 | No `DID NOT STICK` | PASS, but it was **meaningless before fix 1** — it also passed on eight unconfigured lights |
+| 4 | Dim vs Bright changes intensity | PASS | read off the scene plugins, not the log: Dim 128/60, Normal 256/120, Bright 512/240 — exactly x0.5 / x1 / x2 |
+| 5 | Idempotency | PASS *after fix 2* | press 2 and press 3: 8 instances, 8 plugins, count never grew |
+| 6 | 16' x 12' gives FOUR lights | PASS | 4 downlights at (48,36) (48,108) (144,36) (144,108), spacing 96" |
+
+**Not run / open, said plainly**
+
+- **No V-Ray render.** Out of scope by instruction. So "the floor is lit" rests on the
+  widget arrow and the geometry, not on a rendered frame; `AREA_NORMALIZED` and
+  `REF_INTENSITY` are still unjudged and cannot be judged without one.
+- **The float bug behind check 6 did not reproduce in this room.** The room's own polygon
+  came back exactly `192.000000000000000`, so raw `ceil` would also have answered 2. The
+  1/16" snap was confirmed on the synthetic input inside SketchUp's own Ruby
+  (`grid_count(192.0000000001, 96.0) => 2` where raw ceil gives 3), not on a live room that
+  actually misbehaves.
+- **The wall-wash lights point straight down**, like the downlights — visible in the
+  screenshot. Whether a wall wash should be aimed at its wall is a design question nobody
+  has answered; it was not on this checklist and was not changed.
+- The tool still runs on `load` and pops `UI.inputbox` immediately. The bridge muzzles
+  `UI::HtmlDialog#show`, not `UI.inputbox`, so a bridge job must stub `UI.inputbox` to press
+  this button. Not fixed here — it is a plugin-wide convention, not this file's bug.
+
 ### booth-matrix harness — `scripts/rbtest-live-booth.py` (Phase 0, harness only; no live run yet)
 
 A harness that drives `WR_BuildBoothComponents.build_booth` through the bridge
