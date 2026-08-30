@@ -1,0 +1,62 @@
+{
+  "dir": "P:/Sketchup/NewMasterComponentList",
+  "finished": "2026-08-30T14:09:45",
+  "hx": false,
+  "keys": 1,
+  "mode": "build",
+  "overlay": {
+    "efp": true
+  },
+  "results": {
+    "MDL 96192 E": {
+      "deck_parts": 8,
+      "dry_parts": null,
+      "elapsed_s": 4.717,
+      "error": null,
+      "flagged": [
+        "slot, or a figure used that was not measured for this booth:",
+        "MDL 96192 E: no IEP_VENT_LIFT_DROP figure for this booth, so its inner vent walls sit flush with the rest of the inner shell. That is the pre-v1.6.33 behaviour, NOT a measurement. Measured booths: MDL 102144 E 0.0625",
+        "MDL 96192 E: IEP wall lift 0.75 is IEP_WALL_LIFT_DEFAULT - this booth has never been measured. Measured booths: MDL 4872 E 0.75, MDL 6060 E 0.6875, MDL 102144 E 0.75",
+        "N0i ENH 41.5VNT: +0.2337 in against its slot",
+        "N1i ENH 41.5VNT: +0.2337 in against its slot",
+        "N2i ENH 41.5VNT: +0.2337 in against its slot",
+        "N3i ENH 41.5VNT: +0.2337 in against its slot",
+        "S1i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "S2i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "S3i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "E0i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "E1i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "W0i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "W1i ENH 41.5PanelSolid: +0.1250 in against its slot"
+      ],
+      "harness_message": null,
+      "missing": [],
+      "placed": 90,
+      "post_total": 1,
+      "pre_total": 0,
+      "refusals": [],
+      "seal_parts": 6,
+      "verdict": "flagged",
+      "wall_s": 4.938,
+      "wipe": {
+        "defs_after": 0,
+        "defs_before": 0,
+        "direct_read": 0,
+        "re_census": 0,
+        "scratch_census": 0
+      }
+    }
+  },
+  "started": "2026-08-30T14:09:40",
+  "su": "2026",
+  "tally": {
+    "clean": [],
+    "flagged": [
+      "MDL 96192 E"
+    ],
+    "harness": [],
+    "missing": [],
+    "raised": []
+  },
+  "wall_s": 4.9
+}

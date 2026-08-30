@@ -81,108 +81,207 @@ plugins every time, `8 V-Ray plugins deleted, 0 left behind`.
   `UI::HtmlDialog#show`, not `UI.inputbox`, so a bridge job must stub `UI.inputbox` to press
   this button. Not fixed here — it is a plugin-wide convention, not this file's bug.
 
-### booth-matrix harness — `scripts/rbtest-live-booth.py` (Phase 0, harness only; no live run yet)
+### booth-matrix harness — all 50 booths verified live, and one stale refusal removed
 
-A harness that drives `WR_BuildBoothComponents.build_booth` through the bridge
-for every key in `scripts/wr-booth-data.rb` and writes a diffable manifest per
-key. Built and proven **offline**; the live dry runs are not yet run (see
-"Not run" below). No Ruby changed, no `VERSION` bump — this adds Python only.
-
-**Commands**
+`scripts/rbtest-live-booth.py` drives `WR_BuildBoothComponents.build_booth`
+through the SketchUp bridge for every key in `scripts/wr-booth-data.rb`, from a
+clean model each time, and writes a diffable manifest per key. **All 50 dry runs
+pass, 115.3 s, one session, no restart.** The golden baseline is committed under
+`.forge/builder/booth-matrix/`; a future run is now a `diff`.
 
     python scripts/rbtest-live-booth.py keys       the 50, read from the data file
     python scripts/rbtest-live-booth.py selftest   20 checks, no SketchUp needed
     python scripts/rbtest-live-booth.py dry        all 50 dry runs
     python scripts/rbtest-live-booth.py build --keys "MDL 6060 S"
-    python scripts/rbtest-live-booth.py diff <baseline-dir>
+    python scripts/rbtest-live-booth.py diff .forge/builder/booth-matrix/dry
 
-**The clean-model problem, and how it is solved.** 50 builds cannot share one
-model, and a build inheriting geometry from the previous key would silently
-corrupt every manifest after the first. `Sketchup.file_new` is **not** used:
-on a dirty model it opens a native save-or-discard prompt, and the bridge
+**Results — dry, all 50 keys (SketchUp 2026 26.2.243, library
+`P:/Sketchup/NewMasterComponentList`).**
+
+    clean    50   every key in wr-booth-data.rb
+    flagged   0
+    missing   0
+    raised    0
+    harness   0
+
+Every one of the 50 resolved every part and reached `DRY RUN — nothing built`.
+Part counts run 8 (`MDL 4230 S`, `MDL 4242 S`, `MDL 4848 S`) to 64
+(`MDL 102186 E`). Per-key wall time 1.6–4.1 s.
+
+**Results — real builds, four representative keys.**
+
+    MDL 6060 S     clean     29 placed, deck 4 + seals 2
+    MDL 6060 E     flagged   49 placed, deck 4 + seals 2
+    MDL 96192 E    flagged   89 placed, deck 8 + seals 6
+    MDL 102186 E   flagged  111 placed, deck 10 + seals 8
+
+Every `flagged` item is a warning the tools raise about themselves — unmeasured
+IEP figures and inner-panel fit — not a harness finding. They are listed under
+"Reported, not fixed" below.
+
+**A 50/50 pass deserves a negative control, so it got one.** Pointed at
+`P:/Sketchup/NoSuchLibrary`, `MDL 4242 S` came back `missing` naming all six
+unresolvable parts (`N0 40VNT.skp`, `S0 Right40Door.skp`, `E0`/`W0
+40PanelSolid.skp`, both `CornerSeamSeal.skp`) and the run exited non-zero. The
+harness can report failure, so "50 clean" is a result rather than a check that
+cannot fail.
+
+**FIXED, and proven in the same pass: the stale 96192 EFP refusal.**
+`scripts/wr-overlays.rb` carried an `if digits == '96192'` branch **ahead of**
+the `EFP_SIZES` test, so it refused unconditionally. Its reason was true when
+written — `EFP96192.skp` did not exist and `EFP96196.skp` matched no catalogue
+size. Benton renamed the file; `96192` was already in `EFP_SIZES` (line 143); so
+the branch had become a refusal of a part that builds. Deleted. Nothing replaces
+it: the `ed.nil?` guard three lines down already refuses a missing `.skp` by
+name, and that is the general form of what the special case was standing in for.
+
+Proven by `build --keys "MDL 96192 E" --overlay efp`: the refusal is gone and
+the EFP **places correctly** —
+
+    EFP96192  slab 185.50 x 89.50 x 2.75, centred in plan, bottom at z 0.00
+    landed  x 4.25..189.75   y 4.25..93.75   z 0.00..2.7514
+
+185.50 x 89.50 is exactly the booth's `:eiw` x `:eih`, the Enhanced room — the
+art is cut for the inner shell, as the code says. Centred to 4.25 on all four
+sides of the 194 x 98 exterior. Correct.
+
+**LIBRARY DEFECT, reported not fixed (`P:` is read-only): the STD6042FL floor
+tiles are 0.392 in over-tall and 1/32 in undersize.** Measured straight from the
+`.skp` files (definition bounding boxes, w x d x h):
+
+    STD6042FL SIDE L   41.9688 x 60.0 x 3.5000     <-- 0.392 taller
+    STD6042FL SIDE R   41.9688 x 60.0 x 3.5000     <-- 0.392 taller
+    STD6018FL SIDE R   17.9688 x 60.0 x 3.1080
+    STD6042CL SIDE L   42.0000 x 60.0 x 3.1080
+    STD6018CL SIDE R   18.0000 x 60.0 x 3.1080
+
+Every other deck part in the four builds is 3.108 in tall. The consequence is
+visible in the 6060 manifests: the two floor tiles of one deck land at
+**different heights** — `STD6042FL SIDE L` top at z 2.50, `STD6018FL SIDE R` top
+at z 2.11, from the same `contact 1.0000` and the same bottom at z -1.00. The
+6060 floor is not flat. This is in the components, not in the placement code:
+`wr-deck.rb` seated both correctly at the same contact plane.
+
+The same table explains a second, smaller thing. The FL parts are 1/32 in narrow
+(41.9688 / 17.9688) where the CL parts are exact (42.0 / 18.0), so **floor tiles
+leave small gaps at their joints and ceiling tiles meet flush** — 6060 floor
+42.97 | 43.03, ceiling 43.00 | 43.00. Across the larger booths the gaps run
+0.03–0.09 in. The seam seals cover them. One root cause, two symptoms.
+
+**Reported, not fixed — the other flags.** Diagnosis was this pass; fixes are a
+separate scoped job.
+
+- `MDL 6060 E`, `MDL 96192 E`, `MDL 102186 E`: no `IEP_VENT_LIFT_DROP` figure,
+  so inner vent walls sit flush — pre-v1.6.33 behaviour, and the tool says so.
+  Only `MDL 102144 E` has ever been measured.
+- `MDL 96192 E`: `IEP wall lift 0.75` is the default; this booth has never been
+  measured. Measured: `4872 E 0.75`, `6060 E 0.6875`, `102144 E 0.75`.
+- Inner panels standing proud of their slots: `ENH 41.5VNT` +0.2337 in (96192 E,
+  four slots), `ENH 41.5PanelSolid` +0.1250 in (seven slots), `ENH 35.5VNT`
+  +0.2500 in (6060 E).
+- `MDL 6060 E`: five inner slots use the 41.5's room-proud figure at a width it
+  was not measured for.
+- `EFP96192.skp` contains a component whose **internal definition name is still
+  `EFP96196`** — the file was renamed, the definition inside it was not. The
+  placed instance is named `EFP96192 elevated floor` but its definition reads
+  `EFP96196`, a size that is not in the catalogue.
+
+**THE 6060 SIDE-WALL SWAP, which is what the real-build set was chosen for.**
+The 40/16 arrangement from 1.7.10 places, on both S and E, identically and with
+every panel an `exact` fit:
+
+    E wall   40VNT          y  2.00.. 42.00     (door end)
+             16PanelSolid   y 44.00.. 60.00
+    W wall   40PanelSolid   y  2.00.. 42.00     (door end)
+             16PanelSolid   y 44.00.. 60.00
+
+Both 40s at the door end, both 16s at the back, seam at y 42–44, symmetric.
+That matches the stated intent of `ASSIGN['MDL 6060 S']`. **Whether it matches
+the portal's `wallPanelRun()` is not something this harness can adjudicate** —
+it records stations; the comparison is a separate job, and these are the numbers
+to compare against.
+
+**The clean-model problem, and how it is solved.** `Sketchup.file_new` is **not**
+used: on a dirty model it opens a native save-or-discard prompt, and the bridge
 patches `UI.messagebox` and friends, not the application's own file dialogs, so
-a native modal wedges SketchUp until a human clicks. Each job instead begins
-with `WRB.scratch!` (`scripts/wr-bridge-lib.rb`) — `start_operation`,
+a native modal would wedge SketchUp until a human clicked. Each job instead
+begins with `WRB.scratch!` (`scripts/wr-bridge-lib.rb`) — `start_operation`,
 `entities.clear!`, commit, `definitions.purge_unused`, `materials.purge_unused`
-— none of which can raise a dialog. It returns a census taken **after** the
-wipe, and the job **asserts that census total is 0** before letting
-`build_booth` run, recording it in the manifest as `pre`. So no-carryover is
-proven per key and written down, not assumed. Definitions are purged between
-keys on purpose: keeping the cache warm would make key N's result depend on
-keys 1..N-1, which is the one property a golden baseline cannot have. It costs
-a re-read of each `.skp` from `P:` and is most of the wall-clock time.
-`WRB.scratch!` refuses on a saved model, so the harness only ever runs against
-an Untitled scratch model and fails by name naming the open drawing otherwise.
+— none of which can raise a dialog.
+
+**The wipe is verified by three reads that share no code path or cached handle**,
+because the lighting lane's 1.9.1 headline was a read-back against the same
+in-memory object that reported success while the write had been discarded, and a
+check that cannot fail is not a check. The three are: the census `scratch!`
+returns; `WRB.census` called again afterwards; and
+`Sketchup.active_model.entities.length`, re-fetching the model from the
+application rather than reusing the handle and asking the collection for its own
+length rather than counting it. All three must be zero **and agree** — a
+disagreement is itself a failure. Definition counts are recorded either side of
+the purge for the same reason: a purge that silently did nothing would otherwise
+be invisible.
+
+Across all 55 live builds the three reads agreed at 0 every time, and
+`defs_before` ran 34–69 against `defs_after` 0 on every key — so the purge
+demonstrably ran 55 times and the evidence is in each manifest under `wipe`.
 
 **Every dry run comes back as a raise, and that is not a failure.** `build_booth`
-ends a dry run with a `UI.messagebox`, and takes the same route on the
-missing-parts path. Under the bridge every `UI.messagebox` raises `ModalBlocked`
-instead of opening. The job therefore rescues `ModalBlocked` **separately** from
-every other exception and records its text in `dialog`; a real exception lands
-in `error`. The two are never merged. Nothing is lost — in both paths the
-messagebox is the last statement, after the console report is already complete.
+ends a dry run with a `UI.messagebox`, and takes the same route when parts are
+missing. Under the bridge every `UI.messagebox` raises `ModalBlocked`. The job
+rescues that **separately** from every other exception into `dialog`; a real
+exception lands in `error`. Nothing is lost — in both paths the messagebox is
+the last statement, after the console report is complete.
 
 **The manifest is captured, not reimplemented.** The landed-bounds print already
-exists in `WR_Deck.build` (`scripts/wr-deck.rb:1130-1139`) and `WR_Deck.seals`
-(`:1561-1568`): per placed floor/ceiling part, the filename, flipped/turned, the
-contact z, the landed min/max x/y/z re-measured from the placed instance, and
-the wall-joint edge station. The harness captures the job's whole stdout
-verbatim into `<key>.txt` — that file **is** the diffable artifact, in the
-tools' own words — and parses those lines into `<key>.json`. It computes no
-deck bounds of its own; a second implementation of the same measurement would
-drift and the drift would be reported as a booth defect. The `.json` also
-carries a whole-booth `ComponentInstance` census (name, definition, tag, bounds)
-read back off the model, **additional** to the deck print, never a substitute.
+exists in `WR_Deck.build` (`wr-deck.rb:1130-1139`) and `WR_Deck.seals`
+(`:1561-1568`). The harness captures the job's whole stdout verbatim into
+`<KEY>.txt` — that file **is** the diffable artifact, in the tools' own words —
+and parses those lines into `<KEY>.json`. It computes no deck bounds of its own;
+a second implementation of the same measurement would drift, and the drift would
+be reported as a booth defect. The `.json` also carries a whole-booth
+`ComponentInstance` census (name, definition, tag, bounds) read back off the
+model, **additional** to the deck print.
 
-**The parser is pinned to wr-deck.rb's own format strings.** If a print changes,
-the regex stops matching and the harness would record zero floor and ceiling
-parts for every key — a silently empty manifest, the worst failure it could
-have. So `selftest` lifts those `format(...)` literals verbatim, renders them in
-SketchUp's own Ruby 3.2 via `scripts/rbparse.py` (no SketchUp needed), and feeds
-the result back through the regexes. It also compiles the generated job Ruby in
-the same VM, so a typo in the job can never reach a live model as a mysterious
-timeout.
+**The parser is pinned to wr-deck.rb's own format strings.** If a print changed,
+the regex would stop matching and the harness would record zero floor and
+ceiling parts for every key — a silently empty manifest, the worst failure it
+could have. `selftest` lifts those `format(...)` literals verbatim, renders them
+in SketchUp's own Ruby 3.2 via `scripts/rbparse.py`, and feeds the result back
+through the regexes. It also compiles the generated job Ruby in the same VM.
 
 MUTATION-CHECKED 2026-08-30 (each applied to `wr-deck.rb`, `selftest` run, FAIL
 confirmed, reverted): `contact %7.4f` -> `contact= %7.4f` (the lift fails by
 name, saying the print has moved); `contact %7.4f  ->  %7.2f...` -> `contact
-%7.4f | %7.2f...` (all six deck checks FAIL). A clean `selftest` is therefore
-evidence the parser still matches the code, not just that it runs.
+%7.4f | %7.2f...` (all six deck checks FAIL).
 
-**Verdicts.** `clean` / `flagged` / `missing` / `raised` / `harness`. A bridge
-fault or a failed clean-model check is `harness` and is never written into a
-manifest as a booth result — a harness fault reported as a booth defect wastes
-a day.
+**The four assumptions the handoff flagged — all four held.**
 
-**FINDING, not fixed (diagnosis is this pass; fixes are a separate job).**
-`EFP96192.skp` **now exists** on the share (`P:/Sketchup/NewMasterComponentList`,
-426,135 bytes — observed 30 Aug 2026), and `WR_Overlays::EFP_SIZES`
-(`scripts/wr-overlays.rb:143`) already lists `96192`. But the refusal at
-`scripts/wr-overlays.rb:898-905` is an `if digits == '96192'` branch **ahead of**
-the `EFP_SIZES` test, so it still fires unconditionally and the 96192's elevated
-floor is still refused by name. The branch is stale and wants deleting; it was
-not touched here. Not yet confirmed against a live build — see below.
+1. **The scratch wipe completes without a dialog on a model holding a full
+   booth.** Held. The build runs wiped models carrying 29, 49, 89 and 111 placed
+   instances. No dialog, no timeout, no wedge.
+2. **`build_booth` reaches its closing messagebox on every dry run.** Held. All
+   50 returned the `DRY RUN` messagebox text in `dialog` and all 50 parsed a
+   part count.
+3. **50 keys survive one session despite definition churn.** Held. 115.3 s, one
+   session, no restart, no degradation — key 1 at 1.7 s, key 50 at 2.5 s,
+   slowest 4.1 s at key 46.
+4. **The 600 s per-key timeout suffices for `MDL 102186 E`.** Held by a wide
+   margin: the largest booth built in **5.8 s**. Nothing in the run exceeded
+   5.8 s.
 
-**Named refusals this harness does and does not reach.** The overlay refusals
-(EFP, caster plate `cs`, step `sp`) live in `WR_Overlays.place_all` and fire only
-when `cfg['overlay']` asks for that option, so they appear only under
-`--overlay`. The link-level refusals (`bt`, `ac`, `sl`, `rv`) live in
-`booth-from-link.rb`, **not** in `build_booth`, and this harness does not reach
-them at all — it calls the programmatic entry point directly. Said plainly
-rather than left as a silent gap.
+**Dry runs do not exercise the deck.** `build_booth` skips floors, ceilings and
+seam seals on a dry run by design, so all 50 dry manifests carry zero deck
+lines. Component resolution across the catalogue is proven; **floor and ceiling
+geometry is proven only for the four keys that were really built.** The
+remaining 46 real builds are the next phase.
 
-**Verified offline (no SketchUp).** `selftest` — 20/20. `keys` — 50 keys, 25
-sizes, every one ending ` S` or ` E`, matching the assignment's list.
-`scripts/rbparse.py` — 58 files parse, clean, after the mutation revert.
+**Named refusals this harness does not reach.** The link-level refusals (`bt`,
+`ac`, `sl`, `rv`, `sp`) live in `booth-from-link.rb`, not in `build_booth`, so
+calling the programmatic entry point directly never reaches them. The overlay
+refusals fire only under `--overlay`.
 
-**NOT RUN, and why.** No live dry run and no live build has been executed. The
-work was reassigned mid-pass from SketchUp 2024 to SketchUp 2026 only (Benton:
-a baseline captured on 2024 would diff spuriously against every future 2026
-run), and 2026 is occupied by the interior-lights lane. So all 50 dry runs, the
-four representative real builds (`MDL 6060 S`, `MDL 6060 E`, `MDL 96192 E`,
-`MDL 102186 E`), the golden baseline under `.forge/builder/booth-matrix/`, and
-the live confirmation of the EFP96192 finding are **outstanding**. The harness
-has never touched a live model; nothing here should be read as a booth result.
+No `VERSION` bump: `scripts/wr-overlays.rb` resolves live from the checkout, and
+the lighting lane holds 1.9.1.
 
 ### 1.9.0 — the SketchUp bridge, built and proven live
 

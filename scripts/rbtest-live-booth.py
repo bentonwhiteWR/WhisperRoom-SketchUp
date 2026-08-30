@@ -183,13 +183,47 @@ end
 # THE CLEAN-MODEL STEP, AND ITS PROOF. scratch! clears the entities, commits,
 # and purges definitions and materials, then censuses what is left. No dialog
 # can come out of any of it -- which is why file_new is not used here.
+#
+# THREE INDEPENDENT READS, NOT ONE ECHO. The lighting lane's 1.9.1 headline
+# finding was a read-back taken microseconds after a write, against the same
+# in-memory object, that reported success while the value had in fact been
+# discarded. A check that cannot fail is not a check. So the wipe is verified by
+# three reads that share no code path and no cached handle:
+#
+#   1. the census scratch! returns, taken inside it;
+#   2. WRB.census called again afterwards, walking model.entities a second time;
+#   3. Sketchup.active_model.entities.length -- re-fetching the model from the
+#      application instead of reusing `m`, and asking the collection for its own
+#      length instead of counting it by iteration.
+#
+# All three must be zero AND agree. A disagreement is itself a failure: it means
+# the collection answers differently to different callers, which would make
+# every bound in every manifest below it untrustworthy.
+#
+# The definition count is recorded either side of the purge for the same reason.
+# A purge that silently did nothing would otherwise be invisible, and a warm
+# definition cache is exactly the carryover this harness exists to rule out.
+before_defs = m.definitions.length
 pre = WRB.scratch!
-if pre['total'].to_i != 0
-  raise "CLEAN-MODEL CHECK FAILED for #{key}: #{pre['total']} entities survived " \
-        "WRB.scratch!. Every manifest after this one would inherit them, so " \
-        "this refuses to build rather than write a corrupt baseline. Census: " \
-        "#{pre.inspect}"
+recount = WRB.census
+direct = Sketchup.active_model.entities.length
+after_defs = Sketchup.active_model.definitions.length
+if pre['total'].to_i != 0 || recount['total'].to_i != 0 || direct != 0
+  raise "CLEAN-MODEL CHECK FAILED for #{key}: entities survived WRB.scratch! " \
+        "(scratch! census #{pre['total']}, re-census #{recount['total']}, " \
+        "direct model read #{direct}). Every manifest after this one would " \
+        "inherit them, so this refuses to build rather than write a corrupt " \
+        "baseline. Census: #{pre.inspect}"
 end
+if pre['total'].to_i != direct || recount['total'].to_i != direct
+  raise "CLEAN-MODEL CHECK INCONSISTENT for #{key}: three reads of the same " \
+        "supposedly-empty model disagree (#{pre['total']} / " \
+        "#{recount['total']} / #{direct}). Refusing to build on a model that " \
+        "answers differently to different callers."
+end
+wipe = { 'scratch_census' => pre['total'].to_i,
+         're_census' => recount['total'].to_i, 'direct_read' => direct,
+         'defs_before' => before_defs, 'defs_after' => after_defs }
 
 # Once per SketchUp session. Re-loading per key would work but would reprint
 # Ruby's constant-redefinition warnings 50 times over.
@@ -244,7 +278,7 @@ end
 
 { 'key' => key, 'dry' => cfg['dry'], 'hx' => cfg['hx'], 'dir' => cfg['dir'],
   'overlay' => cfg['overlay'], 'elapsed_s' => elapsed,
-  'pre' => pre, 'post' => post, 'top' => top,
+  'pre' => pre, 'wipe' => wipe, 'post' => post, 'top' => top,
   'dialog' => dialog, 'error' => err,
   'booth_bounds' => bbox, 'part_count' => parts.length, 'parts' => parts }
 '''
@@ -456,6 +490,7 @@ def run_matrix(keys, opts):
             'elapsed_s': rec.get('elapsed_s'),
             'wall_s': rec.get('wall_s'),
             'pre_total': (rec.get('pre') or {}).get('total'),
+            'wipe': rec.get('wipe'),
             'post_total': (rec.get('post') or {}).get('total'),
             'dry_parts': p.get('dry_parts'),
             'placed': p.get('placed'),

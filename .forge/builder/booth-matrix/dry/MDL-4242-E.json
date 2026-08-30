@@ -1,0 +1,58 @@
+{
+  "booth_bounds": null,
+  "bridge_env": {
+    "bridge": "C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026",
+    "os": "platform_win",
+    "plugin": "1.9.0",
+    "ruby": "3.2.2",
+    "sketchup": "26.2.243"
+  },
+  "dialog": "UI.messagebox(\"DRY RUN — nothing built.\\n\\n16 parts resolved, 7 item(s) flagged.\\n\\nThe full table is in the Ruby Console:\\nExtensions > Developer > Ruby Console.\") — a job tried to open a modal dialog. The bridge blocks these so SketchUp cannot freeze waiting for a click nobody is there to give. Pass modal:\"allow\" if a human is sitting in front of SketchUp and means to answer it.",
+  "dir": "P:/Sketchup/NewMasterComponentList",
+  "dry": true,
+  "elapsed_s": 1.756,
+  "error": null,
+  "hx": false,
+  "key": "MDL 4242 E",
+  "overlay": null,
+  "parsed": {
+    "deck": [],
+    "deck_notes": [],
+    "dry_parts": 16,
+    "flagged": [],
+    "guessed": [
+      "N0 (VNT) -> 40VNT",
+      "S0 (DRFRM) -> Right40Door",
+      "E0 (SOLID) -> 40PanelSolid",
+      "W0 (SOLID) -> 40PanelSolid",
+      "N0i (VNT, inner) -> ENH 35.5VNT",
+      "S0i (DRFRM, inner) -> ENH Right35.5Door",
+      "E0i (SOLID, inner) -> ENH 35.5PanelSolid",
+      "W0i (SOLID, inner) -> ENH 35.5PanelSolid"
+    ],
+    "missing": [],
+    "placed": null,
+    "reached_end": true,
+    "refusals": [],
+    "seals": []
+  },
+  "part_count": 0,
+  "parts": [],
+  "post": {
+    "total": 0
+  },
+  "pre": {
+    "total": 0
+  },
+  "stderr": "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/wr-booth-data.rb:14: warning: already initialized constant WR_BOOTH_DATA::BOOTHS\nC:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/wr-booth-data.rb:14: warning: previous definition of BOOTHS was here\n",
+  "top": [],
+  "verdict": "clean",
+  "wall_s": 2.118,
+  "wipe": {
+    "defs_after": 0,
+    "defs_before": 34,
+    "direct_read": 0,
+    "re_census": 0,
+    "scratch_census": 0
+  }
+}

@@ -1,0 +1,927 @@
+{
+  "booth_bounds": {
+    "max": [
+      68.4218,
+      68.4218,
+      83.0
+    ],
+    "min": [
+      0.0,
+      -1.8381,
+      -1.3125
+    ]
+  },
+  "bridge_env": {
+    "bridge": "C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026",
+    "os": "platform_win",
+    "plugin": "1.9.0",
+    "ruby": "3.2.2",
+    "sketchup": "26.2.243"
+  },
+  "dialog": null,
+  "dir": "P:/Sketchup/NewMasterComponentList",
+  "dry": false,
+  "elapsed_s": 3.678,
+  "error": null,
+  "hx": false,
+  "key": "MDL 6060 E",
+  "overlay": null,
+  "parsed": {
+    "deck": [
+      {
+        "contact": 1.0,
+        "edge": "edge n/a",
+        "file": "STD6042FL SIDE L",
+        "flipped": false,
+        "max": [
+          42.97,
+          61.0,
+          2.5
+        ],
+        "min": [
+          1.0,
+          1.0,
+          -1.0
+        ],
+        "turned": false
+      },
+      {
+        "contact": 1.0,
+        "edge": "edge 0.216",
+        "file": "STD6018FL SIDE R",
+        "flipped": false,
+        "max": [
+          61.0,
+          61.0,
+          2.11
+        ],
+        "min": [
+          43.03,
+          1.0,
+          -1.0
+        ],
+        "turned": true
+      },
+      {
+        "contact": 2.108,
+        "edge": "edge n/a",
+        "file": "STD6042CL SIDE L",
+        "flipped": false,
+        "max": [
+          43.0,
+          61.0,
+          82.0
+        ],
+        "min": [
+          1.0,
+          1.0,
+          78.89
+        ],
+        "turned": false
+      },
+      {
+        "contact": 2.108,
+        "edge": "edge 0.216",
+        "file": "STD6018CL SIDE R",
+        "flipped": false,
+        "max": [
+          61.0,
+          61.0,
+          82.0
+        ],
+        "min": [
+          43.0,
+          1.0,
+          78.89
+        ],
+        "turned": true
+      }
+    ],
+    "deck_notes": [
+      "deck     FL 2 (2 tile(s), 42 + 18); CL 2 (2 tile(s), 42 + 18); CL seals 1 (STDSS CL5 x1); FL seals 1 (STDSS FL5 x1)",
+      "IEP deck FLi 2 tile(s), 42 + 18, z -1.0000 - the mat goes under the standard floor",
+      "IEP deck   ENH 6042FL SIDE L        low  at   0.00  ->     1.00    1.00   -1.31 to   43.00   61.00   -1.00   (as authored - left as authored by IEP_FL_UPSIDE_DOWN)",
+      "IEP deck   ENH 6018FL SIDE R        high at  42.00  ->    43.00    1.00   -1.31 to   61.00   61.00   -1.00   (end for end, as authored - left as authored by IEP_FL_UPSIDE_DOWN)",
+      "IEP deck CLi 2 tile(s), 42 + 18, z 81.2500 - the tray drops over the standard ceiling",
+      "IEP deck   ENH 6042CL SIDE L        low  at   0.00  ->     0.00    0.00   81.25 to   43.00   62.00   83.00   (as authored - tray mouth reads DOWN (plate 2666 sq in at z 1.7500, rim 146 at z 0.0000), lip 1.0000, pushed 0.5000 out onto it)",
+      "IEP deck   ENH 6018CL SIDE R        high at  42.00  ->    43.00   -0.00   81.25 to   62.00   62.00   83.00   (end for end, as authored - tray mouth reads DOWN (plate 1178 sq in at z 1.7500, rim 98 at z 0.0000), lip 1.0000, pushed 0.5000 out onto it)"
+    ],
+    "dry_parts": null,
+    "flagged": [
+      "slot, or a figure used that was not measured for this booth:",
+      "MDL 6060 E: no IEP_VENT_LIFT_DROP figure for this booth, so its inner vent walls sit flush with the rest of the inner shell. That is the pre-v1.6.33 behaviour, NOT a measurement. Measured booths: MDL 102144 E 0.0625",
+      "N0i ENH 35.5VNT: +0.2500 in against its slot",
+      "N1i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+      "S1i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+      "E1i ENH 35.5VNT: +0.2500 in against its slot",
+      "E0i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+      "W1i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+      "W1i ENH 35.5PanelSolid: +0.1250 in against its slot",
+      "W0i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width"
+    ],
+    "guessed": [
+      "N0 (VNT) -> 40VNT",
+      "N1 (SOLID) -> 16PanelSolid",
+      "S0 (DRFRM) -> Right40Door",
+      "S1 (SOLID) -> 16PanelSolid",
+      "N0i (VNT, inner) -> ENH 35.5VNT",
+      "N1i (SOLID, inner) -> ENH 11.5PanelSolid",
+      "S0i (DRFRM, inner) -> ENH Right35.5Door",
+      "S1i (SOLID, inner) -> ENH 11.5PanelSolid"
+    ],
+    "missing": [],
+    "placed": 49,
+    "reached_end": true,
+    "refusals": [],
+    "seals": [
+      {
+        "datum": 0.0,
+        "file": "STDSS CL5",
+        "joint": 43.0,
+        "max": [
+          46.25,
+          60.0,
+          81.0
+        ],
+        "min": [
+          39.75,
+          2.0,
+          79.25
+        ]
+      },
+      {
+        "datum": -1.0,
+        "file": "STDSS FL5",
+        "joint": 43.0,
+        "max": [
+          46.59,
+          61.0,
+          0.69
+        ],
+        "min": [
+          39.41,
+          1.0,
+          -1.0
+        ]
+      }
+    ]
+  },
+  "part_count": 49,
+  "parts": [
+    {
+      "def": "ENH 6018CL SIDE R",
+      "max": [
+        62.0,
+        62.0,
+        83.0
+      ],
+      "min": [
+        43.0,
+        0.0,
+        81.25
+      ],
+      "name": "CLi  ENH 6018CL SIDE R",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "ENH 6042CL SIDE L",
+      "max": [
+        43.0,
+        62.0,
+        83.0
+      ],
+      "min": [
+        0.0,
+        0.0,
+        81.25
+      ],
+      "name": "CLi  ENH 6042CL SIDE L",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "WR Duct Cover (hi)",
+      "max": [
+        57.625,
+        34.0375,
+        78.5106
+      ],
+      "min": [
+        54.5062,
+        22.1625,
+        63.6894
+      ],
+      "name": "Duct Cover hi  E1i",
+      "tag": "WR-Booth-Options"
+    },
+    {
+      "def": "WR Duct Cover (hi)",
+      "max": [
+        21.8375,
+        57.625,
+        78.5106
+      ],
+      "min": [
+        9.9625,
+        54.5062,
+        63.6894
+      ],
+      "name": "Duct Cover hi  N0i",
+      "tag": "WR-Booth-Options"
+    },
+    {
+      "def": "WR Duct Cover (lo)",
+      "max": [
+        57.625,
+        20.2375,
+        16.5106
+      ],
+      "min": [
+        54.5062,
+        8.3625,
+        1.6894
+      ],
+      "name": "Duct Cover lo  E1i",
+      "tag": "WR-Booth-Options"
+    },
+    {
+      "def": "WR Duct Cover (lo)",
+      "max": [
+        35.6375,
+        57.625,
+        16.5106
+      ],
+      "min": [
+        23.7625,
+        54.5062,
+        1.6894
+      ],
+      "name": "Duct Cover lo  N0i",
+      "tag": "WR-Booth-Options"
+    },
+    {
+      "def": "MidWallSeamSeal",
+      "max": [
+        62.0,
+        46.875,
+        81.0
+      ],
+      "min": [
+        60.0,
+        39.125,
+        0.0
+      ],
+      "name": "E-seal0  MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "ENH MidWallSeamSeal",
+      "max": [
+        60.25,
+        49.125,
+        80.1875
+      ],
+      "min": [
+        57.75,
+        36.875,
+        0.6875
+      ],
+      "name": "E-seal0i  ENH MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "16PanelSolid",
+      "max": [
+        61.0,
+        60.0,
+        81.0
+      ],
+      "min": [
+        60.0,
+        44.0,
+        0.0
+      ],
+      "name": "E0  16PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "ENH 11.5PanelSolid",
+      "max": [
+        58.8438,
+        57.75,
+        80.1875
+      ],
+      "min": [
+        57.6875,
+        46.25,
+        0.6875
+      ],
+      "name": "E0i  ENH 11.5PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "40VNT",
+      "max": [
+        68.4218,
+        42.0,
+        81.0
+      ],
+      "min": [
+        59.875,
+        2.0,
+        -1.0
+      ],
+      "name": "E1  40VNT",
+      "tag": "WR-Booth-Vent"
+    },
+    {
+      "def": "ENH 35.5VNT",
+      "max": [
+        60.0,
+        39.875,
+        80.1875
+      ],
+      "min": [
+        57.625,
+        4.125,
+        0.75
+      ],
+      "name": "E1i  ENH 35.5VNT",
+      "tag": "WR-Booth-Vent"
+    },
+    {
+      "def": "ENH 6018FL SIDE R",
+      "max": [
+        61.0,
+        61.0,
+        -1.0
+      ],
+      "min": [
+        43.0,
+        1.0,
+        -1.3125
+      ],
+      "name": "FLi  ENH 6018FL SIDE R",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "ENH 6042FL SIDE L",
+      "max": [
+        43.0,
+        61.0,
+        -1.0
+      ],
+      "min": [
+        1.0,
+        1.0,
+        -1.3125
+      ],
+      "name": "FLi  ENH 6042FL SIDE L",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "Foam",
+      "max": [
+        57.625,
+        34.0,
+        64.5
+      ],
+      "min": [
+        55.625,
+        10.0,
+        16.5
+      ],
+      "name": "Foam  E1i",
+      "tag": "WR-Booth-Foam"
+    },
+    {
+      "def": "Foam",
+      "max": [
+        34.0,
+        57.625,
+        64.5
+      ],
+      "min": [
+        10.0,
+        55.625,
+        16.5
+      ],
+      "name": "Foam  N0i",
+      "tag": "WR-Booth-Foam"
+    },
+    {
+      "def": "Foam",
+      "max": [
+        6.3125,
+        34.0,
+        64.5
+      ],
+      "min": [
+        4.3125,
+        10.0,
+        16.5
+      ],
+      "name": "Foam  W1i",
+      "tag": "WR-Booth-Foam"
+    },
+    {
+      "def": "MidWallSeamSeal",
+      "max": [
+        46.875,
+        62.0,
+        81.0
+      ],
+      "min": [
+        39.125,
+        60.0,
+        0.0
+      ],
+      "name": "N-seal0  MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "ENH MidWallSeamSeal",
+      "max": [
+        49.125,
+        60.25,
+        80.1875
+      ],
+      "min": [
+        36.875,
+        57.75,
+        0.6875
+      ],
+      "name": "N-seal0i  ENH MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "40VNT",
+      "max": [
+        42.0,
+        68.4218,
+        81.0
+      ],
+      "min": [
+        2.0,
+        59.875,
+        -1.0
+      ],
+      "name": "N0  40VNT",
+      "tag": "WR-Booth-Vent"
+    },
+    {
+      "def": "ENH 35.5VNT",
+      "max": [
+        39.875,
+        60.0,
+        80.1875
+      ],
+      "min": [
+        4.125,
+        57.625,
+        0.75
+      ],
+      "name": "N0i  ENH 35.5VNT",
+      "tag": "WR-Booth-Vent"
+    },
+    {
+      "def": "16PanelSolid",
+      "max": [
+        60.0,
+        61.0,
+        81.0
+      ],
+      "min": [
+        44.0,
+        60.0,
+        0.0
+      ],
+      "name": "N1  16PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "ENH 11.5PanelSolid",
+      "max": [
+        57.75,
+        58.8438,
+        80.1875
+      ],
+      "min": [
+        46.25,
+        57.6875,
+        0.6875
+      ],
+      "name": "N1i  ENH 11.5PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "CornerSeamSeal",
+      "max": [
+        62.0,
+        62.0,
+        81.0
+      ],
+      "min": [
+        57.125,
+        57.125,
+        0.0
+      ],
+      "name": "NE corner seal  CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "ENH CornerSeamSeal",
+      "max": [
+        60.25,
+        60.25,
+        80.1875
+      ],
+      "min": [
+        54.875,
+        54.875,
+        0.6875
+      ],
+      "name": "NE corner seal i  ENH CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "CornerSeamSeal",
+      "max": [
+        4.875,
+        62.0,
+        81.0
+      ],
+      "min": [
+        0.0,
+        57.125,
+        0.0
+      ],
+      "name": "NW corner seal  CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "ENH CornerSeamSeal",
+      "max": [
+        7.125,
+        60.25,
+        80.1875
+      ],
+      "min": [
+        1.75,
+        54.875,
+        0.6875
+      ],
+      "name": "NW corner seal i  ENH CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "MidWallSeamSeal",
+      "max": [
+        46.875,
+        2.0,
+        81.0
+      ],
+      "min": [
+        39.125,
+        0.0,
+        0.0
+      ],
+      "name": "S-seal0  MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "ENH MidWallSeamSeal",
+      "max": [
+        49.125,
+        4.25,
+        80.1875
+      ],
+      "min": [
+        36.875,
+        1.75,
+        0.6875
+      ],
+      "name": "S-seal0i  ENH MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "Right40Door",
+      "max": [
+        42.0,
+        5.1003,
+        81.0
+      ],
+      "min": [
+        2.0,
+        -1.8381,
+        0.0
+      ],
+      "name": "S0  Right40Door",
+      "tag": "WR-Booth-Door"
+    },
+    {
+      "def": "ENH Right35.5Door",
+      "max": [
+        39.75,
+        5.1003,
+        80.1875
+      ],
+      "min": [
+        4.25,
+        2.7253,
+        0.6875
+      ],
+      "name": "S0i  ENH Right35.5Door",
+      "tag": "WR-Booth-Door"
+    },
+    {
+      "def": "16PanelSolid",
+      "max": [
+        60.0,
+        2.0,
+        81.0
+      ],
+      "min": [
+        44.0,
+        1.0,
+        0.0
+      ],
+      "name": "S1  16PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "ENH 11.5PanelSolid",
+      "max": [
+        57.75,
+        4.3125,
+        80.1875
+      ],
+      "min": [
+        46.25,
+        3.1562,
+        0.6875
+      ],
+      "name": "S1i  ENH 11.5PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "CornerSeamSeal",
+      "max": [
+        62.0,
+        4.875,
+        81.0
+      ],
+      "min": [
+        57.125,
+        0.0,
+        0.0
+      ],
+      "name": "SE corner seal  CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "ENH CornerSeamSeal",
+      "max": [
+        60.25,
+        7.125,
+        80.1875
+      ],
+      "min": [
+        54.875,
+        1.75,
+        0.6875
+      ],
+      "name": "SE corner seal i  ENH CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "STD6018CL SIDE R",
+      "max": [
+        61.0,
+        61.0,
+        82.0
+      ],
+      "min": [
+        43.0,
+        1.0,
+        78.892
+      ],
+      "name": "STD6018CL SIDE R",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STD6018FL SIDE R",
+      "max": [
+        61.0,
+        61.0,
+        2.108
+      ],
+      "min": [
+        43.0312,
+        1.0,
+        -1.0
+      ],
+      "name": "STD6018FL SIDE R",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STD6042CL SIDE L",
+      "max": [
+        43.0,
+        61.0,
+        82.0
+      ],
+      "min": [
+        1.0,
+        1.0,
+        78.892
+      ],
+      "name": "STD6042CL SIDE L",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STD6042FL SIDE L",
+      "max": [
+        42.9688,
+        61.0,
+        2.5
+      ],
+      "min": [
+        1.0,
+        1.0,
+        -1.0
+      ],
+      "name": "STD6042FL SIDE L",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STDSS CL5",
+      "max": [
+        46.25,
+        60.0,
+        81.0
+      ],
+      "min": [
+        39.75,
+        2.0,
+        79.25
+      ],
+      "name": "STDSS CL5",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STDSS FL5",
+      "max": [
+        46.5949,
+        61.0,
+        0.6875
+      ],
+      "min": [
+        39.4051,
+        1.0,
+        -1.0031
+      ],
+      "name": "STDSS FL5",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "CornerSeamSeal",
+      "max": [
+        4.875,
+        4.875,
+        81.0
+      ],
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "name": "SW corner seal  CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "ENH CornerSeamSeal",
+      "max": [
+        7.125,
+        7.125,
+        80.1875
+      ],
+      "min": [
+        1.75,
+        1.75,
+        0.6875
+      ],
+      "name": "SW corner seal i  ENH CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "MidWallSeamSeal",
+      "max": [
+        2.0,
+        46.875,
+        81.0
+      ],
+      "min": [
+        0.0,
+        39.125,
+        0.0
+      ],
+      "name": "W-seal0  MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "ENH MidWallSeamSeal",
+      "max": [
+        4.25,
+        49.125,
+        80.1875
+      ],
+      "min": [
+        1.75,
+        36.875,
+        0.6875
+      ],
+      "name": "W-seal0i  ENH MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "16PanelSolid",
+      "max": [
+        2.0,
+        60.0,
+        81.0
+      ],
+      "min": [
+        1.0,
+        44.0,
+        0.0
+      ],
+      "name": "W0  16PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "ENH 11.5PanelSolid",
+      "max": [
+        4.3125,
+        57.75,
+        80.1875
+      ],
+      "min": [
+        3.1562,
+        46.25,
+        0.6875
+      ],
+      "name": "W0i  ENH 11.5PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "40PanelSolid",
+      "max": [
+        2.0,
+        42.0,
+        81.0
+      ],
+      "min": [
+        1.0,
+        2.0,
+        0.0
+      ],
+      "name": "W1  40PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "ENH 35.5PanelSolid",
+      "max": [
+        4.3125,
+        39.75,
+        80.1875
+      ],
+      "min": [
+        2.25,
+        4.125,
+        0.6875
+      ],
+      "name": "W1i  ENH 35.5PanelSolid",
+      "tag": "WR-Booth-Walls"
+    }
+  ],
+  "post": {
+    "Group": 1,
+    "total": 1
+  },
+  "pre": {
+    "total": 0
+  },
+  "stderr": "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/wr-booth-data.rb:14: warning: already initialized constant WR_BOOTH_DATA::BOOTHS\nC:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/wr-booth-data.rb:14: warning: previous definition of BOOTHS was here\n",
+  "top": [
+    "MDL 6060 E (components)"
+  ],
+  "verdict": "flagged",
+  "wall_s": 4.335,
+  "wipe": {
+    "defs_after": 0,
+    "defs_before": 55,
+    "direct_read": 0,
+    "re_census": 0,
+    "scratch_census": 0
+  }
+}

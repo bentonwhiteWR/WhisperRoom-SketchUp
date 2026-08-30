@@ -1,0 +1,170 @@
+{
+  "dir": "P:/Sketchup/NewMasterComponentList",
+  "finished": "2026-08-30T14:10:21",
+  "hx": false,
+  "keys": 4,
+  "mode": "build",
+  "overlay": null,
+  "results": {
+    "MDL 102186 E": {
+      "deck_parts": 10,
+      "dry_parts": null,
+      "elapsed_s": 5.032,
+      "error": null,
+      "flagged": [
+        "slot, or a figure used that was not measured for this booth:",
+        "MDL 102186 E: no IEP_VENT_LIFT_DROP figure for this booth, so its inner vent walls sit flush with the rest of the inner shell. That is the pre-v1.6.33 behaviour, NOT a measurement. Measured booths: MDL 102144 E 0.0625",
+        "MDL 102186 E: IEP wall lift 0.75 is IEP_WALL_LIFT_DEFAULT - this booth has never been measured. Measured booths: MDL 4872 E 0.75, MDL 6060 E 0.6875, MDL 102144 E 0.75",
+        "N0i ENH 35.5VNT: +0.2500 in against its slot",
+        "N1i ENH 35.5VNT: +0.2500 in against its slot",
+        "N2i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "N3i ENH 35.5VNT: +0.2500 in against its slot",
+        "N4i ENH 35.5VNT: +0.2500 in against its slot",
+        "S1i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "S1i ENH 35.5PanelSolid: +0.1250 in against its slot",
+        "S2i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "S3i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "S3i ENH 35.5PanelSolid: +0.1250 in against its slot",
+        "S4i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "S4i ENH 35.5PanelSolid: +0.1250 in against its slot",
+        "E0i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "E0i ENH 35.5PanelSolid: +0.1250 in against its slot",
+        "E1i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "E2i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "E2i ENH 35.5PanelSolid: +0.1250 in against its slot",
+        "W0i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "W0i ENH 35.5PanelSolid: +0.1250 in against its slot",
+        "W1i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "W2i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "W2i ENH 35.5PanelSolid: +0.1250 in against its slot"
+      ],
+      "harness_message": null,
+      "missing": [],
+      "placed": 111,
+      "post_total": 1,
+      "pre_total": 0,
+      "refusals": [],
+      "seal_parts": 8,
+      "verdict": "flagged",
+      "wall_s": 5.848,
+      "wipe": {
+        "defs_after": 0,
+        "defs_before": 75,
+        "direct_read": 0,
+        "re_census": 0,
+        "scratch_census": 0
+      }
+    },
+    "MDL 6060 E": {
+      "deck_parts": 4,
+      "dry_parts": null,
+      "elapsed_s": 3.678,
+      "error": null,
+      "flagged": [
+        "slot, or a figure used that was not measured for this booth:",
+        "MDL 6060 E: no IEP_VENT_LIFT_DROP figure for this booth, so its inner vent walls sit flush with the rest of the inner shell. That is the pre-v1.6.33 behaviour, NOT a measurement. Measured booths: MDL 102144 E 0.0625",
+        "N0i ENH 35.5VNT: +0.2500 in against its slot",
+        "N1i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "S1i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "E1i ENH 35.5VNT: +0.2500 in against its slot",
+        "E0i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "W1i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width",
+        "W1i ENH 35.5PanelSolid: +0.1250 in against its slot",
+        "W0i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width"
+      ],
+      "harness_message": null,
+      "missing": [],
+      "placed": 49,
+      "post_total": 1,
+      "pre_total": 0,
+      "refusals": [],
+      "seal_parts": 2,
+      "verdict": "flagged",
+      "wall_s": 4.335,
+      "wipe": {
+        "defs_after": 0,
+        "defs_before": 55,
+        "direct_read": 0,
+        "re_census": 0,
+        "scratch_census": 0
+      }
+    },
+    "MDL 6060 S": {
+      "deck_parts": 4,
+      "dry_parts": null,
+      "elapsed_s": 2.278,
+      "error": null,
+      "flagged": [],
+      "harness_message": null,
+      "missing": [],
+      "placed": 29,
+      "post_total": 1,
+      "pre_total": 0,
+      "refusals": [],
+      "seal_parts": 2,
+      "verdict": "clean",
+      "wall_s": 3.125,
+      "wipe": {
+        "defs_after": 0,
+        "defs_before": 80,
+        "direct_read": 0,
+        "re_census": 0,
+        "scratch_census": 0
+      }
+    },
+    "MDL 96192 E": {
+      "deck_parts": 8,
+      "dry_parts": null,
+      "elapsed_s": 4.039,
+      "error": null,
+      "flagged": [
+        "slot, or a figure used that was not measured for this booth:",
+        "MDL 96192 E: no IEP_VENT_LIFT_DROP figure for this booth, so its inner vent walls sit flush with the rest of the inner shell. That is the pre-v1.6.33 behaviour, NOT a measurement. Measured booths: MDL 102144 E 0.0625",
+        "MDL 96192 E: IEP wall lift 0.75 is IEP_WALL_LIFT_DEFAULT - this booth has never been measured. Measured booths: MDL 4872 E 0.75, MDL 6060 E 0.6875, MDL 102144 E 0.75",
+        "N0i ENH 41.5VNT: +0.2337 in against its slot",
+        "N1i ENH 41.5VNT: +0.2337 in against its slot",
+        "N2i ENH 41.5VNT: +0.2337 in against its slot",
+        "N3i ENH 41.5VNT: +0.2337 in against its slot",
+        "S1i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "S2i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "S3i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "E0i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "E1i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "W0i ENH 41.5PanelSolid: +0.1250 in against its slot",
+        "W1i ENH 41.5PanelSolid: +0.1250 in against its slot"
+      ],
+      "harness_message": null,
+      "missing": [],
+      "placed": 89,
+      "post_total": 1,
+      "pre_total": 0,
+      "refusals": [],
+      "seal_parts": 6,
+      "verdict": "flagged",
+      "wall_s": 4.942,
+      "wipe": {
+        "defs_after": 0,
+        "defs_before": 88,
+        "direct_read": 0,
+        "re_census": 0,
+        "scratch_census": 0
+      }
+    }
+  },
+  "started": "2026-08-30T14:10:02",
+  "su": "2026",
+  "tally": {
+    "clean": [
+      "MDL 6060 S"
+    ],
+    "flagged": [
+      "MDL 6060 E",
+      "MDL 96192 E",
+      "MDL 102186 E"
+    ],
+    "harness": [],
+    "missing": [],
+    "raised": []
+  },
+  "wall_s": 18.3
+}

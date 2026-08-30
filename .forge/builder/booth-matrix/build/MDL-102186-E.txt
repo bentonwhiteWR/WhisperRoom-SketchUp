@@ -1,0 +1,669 @@
+
+==============================================================================
+BUILD FROM COMPONENTS — MDL 102186 E   Sound Booth · 8.5'×15.5'
+  exterior 188.0" x 104.0"   interior 184.0" x 100.0"
+  ENHANCED - a second (IEP) shell inside it: 32 parts, room 179.5" x 95.5"
+  inner walls 79.5" tall, underside lifted 0.75" - DEFAULT - NOT MEASURED ON THIS BOOTH (measured: MDL 4872 E, MDL 6060 E, MDL 102144 E). See IEP_WALL_LIFT
+  inner vent walls flush with the rest of the inner shell - this booth has no IEP_VENT_LIFT_DROP figure (measured: MDL 102144 E)
+  inner rotations: corners placed directly (SW 0 / SE 90 / NE 180 / NW 270), mid-wall seal 180.0deg, door 180.0deg
+  height   Standard, 81 in panels
+  parts    P:/Sketchup/NewMasterComponentList
+==============================================================================
+material_sync.rbc(42):warning: materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material Booth Builder SRO"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material Color_007"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material 0131_Silver"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material Color_003"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material Color_009"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material Color_005"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material Color_006"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material Material1"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material Color_000"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material 0136_Charcoal"
+materials_helper.rbc(37):info: "Material sanity check: Resyncing Sketchup::Material <Black>"
+undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:1414:in `load_def'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2119:in `block in build_booth'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `each'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2094:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+
+  32 slot(s) had no explicit assignment and were guessed from kind + run:
+      N0 (VNT) -> 40VNT
+      N1 (VNT) -> 40VNT
+      N2 (SOLID) -> 16PanelSolid
+      N3 (VNT) -> 40VNT
+      N4 (VNT) -> 40VNT
+      S0 (DRFRM) -> Right40Door
+      S1 (SOLID) -> 40PanelSolid
+      S2 (SOLID) -> 16PanelSolid
+      S3 (SOLID) -> 40PanelSolid
+      S4 (SOLID) -> 40PanelSolid
+      E0 (SOLID) -> 40PanelSolid
+      E1 (SOLID) -> 16PanelSolid
+      E2 (SOLID) -> 40PanelSolid
+      W0 (SOLID) -> 40PanelSolid
+      W1 (SOLID) -> 16PanelSolid
+      W2 (SOLID) -> 40PanelSolid
+      N0i (VNT, inner) -> ENH 35.5VNT
+      N1i (VNT, inner) -> ENH 35.5VNT
+      N2i (SOLID, inner) -> ENH 11.5PanelSolid
+      N3i (VNT, inner) -> ENH 35.5VNT
+      N4i (VNT, inner) -> ENH 35.5VNT
+      S0i (DRFRM, inner) -> ENH Right35.5Door
+      S1i (SOLID, inner) -> ENH 35.5PanelSolid
+      S2i (SOLID, inner) -> ENH 11.5PanelSolid
+      S3i (SOLID, inner) -> ENH 35.5PanelSolid
+      S4i (SOLID, inner) -> ENH 35.5PanelSolid
+      E0i (SOLID, inner) -> ENH 35.5PanelSolid
+      E1i (SOLID, inner) -> ENH 11.5PanelSolid
+      E2i (SOLID, inner) -> ENH 35.5PanelSolid
+      W0i (SOLID, inner) -> ENH 35.5PanelSolid
+      W1i (SOLID, inner) -> ENH 11.5PanelSolid
+      W2i (SOLID, inner) -> ENH 35.5PanelSolid
+
+  FACE_OUT = false  — if EVERY part is reversed, flip that one constant.
+
+  SLOT             COMPONENT               SLOT in  PART in  FIT         PANEL     FACING    BELOW WALL
+  ----------------------------------------------------------------------------------------------------
+  N0               40VNT                    40.000   40.000  exact       1.0000    Y+ OUT·floor hangs 1.000
+                     votes: bulk +5389.6 / -12.2   floor +21.7 / -0.0   panel w 1.000..41.000 of part 40.000
+  N-seal0          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y+ OUT    
+  N1               40VNT                    40.000   40.000  exact       1.0000    Y+ OUT·floor hangs 1.000
+                     votes: bulk +5389.6 / -12.2   floor +21.7 / -0.0   panel w 1.000..41.000 of part 40.000
+  N-seal1          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y+ OUT    
+  N2               16PanelSolid             16.000   16.000  exact       1.0000    Y- IN     
+  N-seal2          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y+ OUT    
+  N3               40VNT                    40.000   40.000  exact       1.0000    Y+ OUT·floor hangs 1.000
+                     votes: bulk +5389.6 / -12.2   floor +21.7 / -0.0   panel w 1.000..41.000 of part 40.000
+  N-seal3          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y+ OUT    
+  N4               40VNT                    40.000   40.000  exact       1.0000    Y+ OUT·floor hangs 1.000
+                     votes: bulk +5389.6 / -12.2   floor +21.7 / -0.0   panel w 1.000..41.000 of part 40.000
+  S0               Right40Door              40.000   40.000  exact       1.0000    Y+ IN·bulk 
+                     votes: bulk +601.8 / -223.5   floor +0.0 / -0.0   panel w 1.000..41.000 of part 40.000
+  S-seal0          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y- OUT    
+  S1               40PanelSolid             40.000   40.000  exact       1.0000    Y+ IN     
+  S-seal1          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y- OUT    
+  S2               16PanelSolid             16.000   16.000  exact       1.0000    Y+ IN     
+  S-seal2          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y- OUT    
+  S3               40PanelSolid             40.000   40.000  exact       1.0000    Y+ IN     
+  S-seal3          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y- OUT    
+  S4               40PanelSolid             40.000   40.000  exact       1.0000    Y+ IN     
+  E0               40PanelSolid             40.000   40.000  exact       1.0000    X- IN     
+  E-seal0          MidWallSeamSeal           7.750    7.750  n/a         0.0000    X+ OUT    
+  E1               16PanelSolid             16.000   16.000  exact       1.0000    X- IN     
+  E-seal1          MidWallSeamSeal           7.750    7.750  n/a         0.0000    X+ OUT    
+  E2               40PanelSolid             40.000   40.000  exact       1.0000    X- IN     
+  W0               40PanelSolid             40.000   40.000  exact       1.0000    X+ IN     
+  W-seal0          MidWallSeamSeal           7.750    7.750  n/a         0.0000    X- OUT    
+  W1               16PanelSolid             16.000   16.000  exact       1.0000    X+ IN     
+  W-seal1          MidWallSeamSeal           7.750    7.750  n/a         0.0000    X- OUT    
+  W2               40PanelSolid             40.000   40.000  exact       1.0000    X+ IN     
+  SW corner seal   CornerSeamSeal            4.875    4.875  n/a         0.0000    Y+ IN     
+                     votes: bulk +51.4 / -0.0   floor +0.0 / -0.0   panel w -0.000..4.875 of part 4.875
+  SE corner seal   CornerSeamSeal            4.875    4.875  n/a         0.0000    Y+ IN     
+                     votes: bulk +51.4 / -0.0   floor +0.0 / -0.0   panel w -0.000..4.875 of part 4.875
+  NW corner seal   CornerSeamSeal            4.875    4.875  n/a         0.0000    Y- IN     
+                     votes: bulk +51.4 / -0.0   floor +0.0 / -0.0   panel w -0.000..4.875 of part 4.875
+  NE corner seal   CornerSeamSeal            4.875    4.875  n/a         0.0000    Y- IN     
+                     votes: bulk +51.4 / -0.0   floor +0.0 / -0.0   panel w -0.000..4.875 of part 4.875
+  N0i    ENH 35.5VNT            width runs X -> vent yaw 180
+  N0i              ENH 35.5VNT              35.500   35.750  +0.2500     NOT FOUND Y- IN     
+  N-seal0i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    Y- IN     
+  N1i    ENH 35.5VNT            width runs X -> vent yaw 180
+  N1i              ENH 35.5VNT              35.500   35.750  +0.2500     NOT FOUND Y- IN     
+  N-seal1i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    Y- IN     
+  N2i              ENH 11.5PanelSolid       11.500   11.500  exact       NOT FOUND Y- IN     
+  N-seal2i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    Y- IN     
+  N3i    ENH 35.5VNT            width runs X -> vent yaw 180
+  N3i              ENH 35.5VNT              35.500   35.750  +0.2500     NOT FOUND Y- IN     
+  N-seal3i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    Y- IN     
+  N4i    ENH 35.5VNT            width runs X -> vent yaw 180
+  N4i              ENH 35.5VNT              35.500   35.750  +0.2500     NOT FOUND Y- IN     
+  S0i              ENH Right35.5Door        35.500   35.500  exact       1.0000    Y- OUT·bulk 
+  S-seal0i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    Y+ IN     
+  S1i              ENH 35.5PanelSolid       35.500   35.625  +0.1250     NOT FOUND Y+ IN     
+  S-seal1i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    Y+ IN     
+  S2i              ENH 11.5PanelSolid       11.500   11.500  exact       NOT FOUND Y+ IN     
+  S-seal2i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    Y+ IN     
+  S3i              ENH 35.5PanelSolid       35.500   35.625  +0.1250     NOT FOUND Y+ IN     
+  S-seal3i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    Y+ IN     
+  S4i              ENH 35.5PanelSolid       35.500   35.625  +0.1250     NOT FOUND Y+ IN     
+  E0i              ENH 35.5PanelSolid       35.500   35.625  +0.1250     NOT FOUND X- IN     
+  E-seal0i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    X- IN     
+  E1i              ENH 11.5PanelSolid       11.500   11.500  exact       NOT FOUND X- IN     
+  E-seal1i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    X- IN     
+  E2i              ENH 35.5PanelSolid       35.500   35.625  +0.1250     NOT FOUND X- IN     
+  W0i              ENH 35.5PanelSolid       35.500   35.625  +0.1250     NOT FOUND X+ IN     
+  W-seal0i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    X+ IN     
+  W1i              ENH 11.5PanelSolid       11.500   11.500  exact       NOT FOUND X+ IN     
+  W-seal1i         ENH MidWallSeamSeal      12.250   12.250  n/a         0.0000    X+ IN     
+  W2i              ENH 35.5PanelSolid       35.500   35.625  +0.1250     NOT FOUND X+ IN     
+  SW corner seal i ENH CornerSeamSeal        5.375    4.875  n/a         0.0000    Y+ IN     
+                     votes: bulk +121.2 / -7.5   floor +0.0 / -0.0   panel w 2.250..7.125 of part 5.375
+  SE corner seal i ENH CornerSeamSeal        5.375    4.875  n/a         0.0000    Y+ IN     
+                     votes: bulk +121.2 / -7.5   floor +0.0 / -0.0   panel w 2.250..7.125 of part 5.375
+  NW corner seal i ENH CornerSeamSeal        5.375    4.875  n/a         0.0000    Y- IN     
+                     votes: bulk +121.2 / -7.5   floor +0.0 / -0.0   panel w 2.250..7.125 of part 5.375
+  NE corner seal i ENH CornerSeamSeal        5.375    4.875  n/a         0.0000    Y- IN     
+                     votes: bulk +121.2 / -7.5   floor +0.0 / -0.0   panel w 2.250..7.125 of part 5.375
+    STD10242FL SIDE                              contact  1.0000  ->     1.00    1.00   -1.00  to   42.97  103.00    2.11   edge 0.240
+    STD10242FL CTR                      turned   contact  1.0000  ->    43.00    1.00   -1.00  to   84.94  103.00    2.11   edge n/a
+    STD10218FL CTR                      turned   contact  1.0000  ->    85.00    1.00   -1.00  to  102.94  103.00    2.11   edge n/a
+    STD10242FL CTR                      turned   contact  1.0000  ->   103.00    1.00   -1.00  to  144.94  103.00    2.11   edge n/a
+    STD10242FL SIDE                     turned   contact  1.0000  ->   145.03    1.00   -1.00  to  187.00  103.00    2.11   edge 0.240
+    STD10242CL SIDE                     turned   contact  2.1080  ->     1.00    1.00   78.89  to   43.00  103.00   82.00   edge 0.760
+    STD10242CL CTR                      turned   contact  2.1080  ->    43.00    1.00   78.89  to   85.00  103.00   82.00   edge n/a
+    STD10218CL CTR                      turned   contact  2.1080  ->    85.00    1.00   78.89  to  103.00  103.00   82.00   edge n/a
+    STD10242CL CTR                      turned   contact  2.1080  ->   103.00    1.00   78.89  to  145.00  103.00   82.00   edge n/a
+    STD10242CL SIDE                              contact  2.1080  ->   145.00    1.00   78.89  to  187.00  103.00   82.00   edge 0.760
+    STDSS 8.5CL                joint   43.00  datum -0.7500  ->    39.75    2.00   79.25  to   46.25  102.00   81.00
+    STDSS 8.5CL                joint   85.00  datum -0.7500  ->    81.75    2.00   79.25  to   88.25  102.00   81.00
+    STDSS 8.5CL                joint  103.00  datum -0.7500  ->    99.75    2.00   79.25  to  106.25  102.00   81.00
+    STDSS 8.5CL                joint  145.00  datum -0.7500  ->   141.75    2.00   79.25  to  148.25  102.00   81.00
+    STDSS 8.5FL                joint   43.00  datum -1.0000  ->    39.41    1.00   -1.00  to   46.59  103.00    0.69
+    STDSS 8.5FL                joint   85.00  datum -1.0000  ->    81.41    1.00   -1.00  to   88.59  103.00    0.69
+    STDSS 8.5FL                joint  103.00  datum -1.0000  ->    99.41    1.00   -1.00  to  106.59  103.00    0.69
+    STDSS 8.5FL                joint  145.00  datum -1.0000  ->   141.41    1.00   -1.00  to  148.59  103.00    0.69
+  deck     FL 5 (5 tile(s), 42 + 42 + 18 + 42 + 42); CL 5 (5 tile(s), 42 + 42 + 18 + 42 + 42); CL seals 4 (STDSS 8.5CL x4); FL seals 4 (STDSS 8.5FL x4)
+  IEP deck FLi 5 tile(s), 42 + 42 + 18 + 42 + 42, z -1.0000 - the mat goes under the standard floor
+  IEP deck   ENH 10242FL SIDE         low  at   0.00  ->     1.00    1.00   -1.31 to   43.00  103.00   -1.00   (as authored - left as authored by IEP_FL_UPSIDE_DOWN)
+  IEP deck   ENH 10242FL CTR          high at  42.00  ->    43.00    1.00   -1.31 to   85.00  103.00   -1.00   (end for end, as authored - left as authored by IEP_FL_UPSIDE_DOWN)
+  IEP deck   ENH 10218FL CTR          high at  84.00  ->    85.00    1.00   -1.31 to  103.00  103.00   -1.00   (end for end, as authored - left as authored by IEP_FL_UPSIDE_DOWN)
+  IEP deck   ENH 10242FL CTR          high at 102.00  ->   103.00    1.00   -1.31 to  145.00  103.00   -1.00   (end for end, as authored - left as authored by IEP_FL_UPSIDE_DOWN)
+  IEP deck   ENH 10242FL SIDE         high at 144.00  ->   145.00    1.00   -1.31 to  187.00  103.00   -1.00   (end for end, as authored - left as authored by IEP_FL_UPSIDE_DOWN)
+  IEP deck CLi 5 tile(s), 42 + 42 + 18 + 42 + 42, z 81.2500 - the tray drops over the standard ceiling
+  IEP deck   ENH 10242CL SIDE         low  at   0.00  ->    -0.00    0.00   81.25 to   43.00  104.00   83.01   (FLIPPED - tray mouth reads UP (plate 4472 sq in at z 0.0000, rim 188 at z 1.7656) - FLIPPED, lip 1.0000, pushed 0.5000 out onto it)
+  IEP deck   ENH 10242CL CTR          high at  42.00  ->    43.00   -0.00   81.25 to   85.00  104.00   83.00   (end for end, FLIPPED - tray mouth reads UP (plate 4368 sq in at z 0.0000, rim 84 at z 1.7500) - FLIPPED)
+  IEP deck   ENH 10218CL CTR          high at  84.00  ->    85.00   -0.00   81.25 to  103.00  104.00   83.00   (end for end, FLIPPED - tray mouth reads UP (plate 1872 sq in at z 0.0000, rim 36 at z 1.7500) - FLIPPED)
+  IEP deck   ENH 10242CL CTR          high at 102.00  ->   103.00   -0.00   81.25 to  145.00  104.00   83.00   (end for end, FLIPPED - tray mouth reads UP (plate 4368 sq in at z 0.0000, rim 84 at z 1.7500) - FLIPPED)
+  IEP deck   ENH 10242CL SIDE         high at 144.00  ->   145.00   -0.00   81.25 to  188.00  104.00   83.01   (end for end, FLIPPED - tray mouth reads UP (plate 4472 sq in at z 0.0000, rim 188 at z 1.7656) - FLIPPED, lip 1.0000, pushed 0.5000 out onto it)
+
+  ---- overlays: foam, duct covers, options ----------------------------------
+  ENHANCED: foam and duct covers mount on the IEP inner walls (a MOVE,
+  never a copy), 2.25 in roomward of the standard interior face via the
+  inner slot band, plus the measured IEP_ROOM_PROUD stand-off.
+  FOAM  measures 24.00 x 48.00 x 2.00 (w x h x t, matched err 0.00) — one sheet per panel, centred, IEP room face
+    N0     -> N0i        10.00   97.62   16.50 to   34.00   99.62   64.50  (IEP)
+    N1     -> N1i        52.00   97.62   16.50 to   76.00   99.62   64.50  (IEP)
+    N3     -> N3i       112.00   97.62   16.50 to  136.00   99.62   64.50  (IEP)
+    N4     -> N4i       154.00   97.62   16.50 to  178.00   99.62   64.50  (IEP)
+    S1     -> S1i        52.00    4.31   16.50 to   76.00    6.31   64.50  (IEP)
+    S3     -> S3i       112.00    4.31   16.50 to  136.00    6.31   64.50  (IEP)
+    S4     -> S4i       154.00    4.31   16.50 to  178.00    6.31   64.50  (IEP)
+    E0     -> E0i       181.69   10.00   16.50 to  183.69   34.00   64.50  (IEP)
+    E2     -> E2i       181.69   70.00   16.50 to  183.69   94.00   64.50  (IEP)
+    W0     -> W0i         4.31   10.00   16.50 to    6.31   34.00   64.50  (IEP)
+    W2     -> W2i         4.31   70.00   16.50 to    6.31   94.00   64.50  (IEP)
+  DUCT COVERS  hi/lo pair per vent wall, each centred on its measured port
+    N0     hi  -> N0i         9.96   96.51   63.69 to   21.84   99.62   78.51  (IEP)
+    N0     lo  -> N0i        23.76   96.51    1.69 to   35.64   99.62   16.51  (IEP)
+    N1     hi  -> N1i        51.96   96.51   63.69 to   63.84   99.62   78.51  (IEP)
+    N1     lo  -> N1i        65.76   96.51    1.69 to   77.64   99.62   16.51  (IEP)
+    N3     hi  -> N3i       111.96   96.51   63.69 to  123.84   99.62   78.51  (IEP)
+    N3     lo  -> N3i       125.76   96.51    1.69 to  137.64   99.62   16.51  (IEP)
+    N4     hi  -> N4i       153.96   96.51   63.69 to  165.84   99.62   78.51  (IEP)
+    N4     lo  -> N4i       167.76   96.51    1.69 to  179.64   99.62   16.51  (IEP)
+    (foam overlaps the covers on a vent wall — the portal layers them flat; the interpenetration is the known simplification)
+  ---- overlays end ----------------------------------------------------------
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2526:in `commit_operation'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2526:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+material_sync.rbc(42):warning: undefined method `type' for nil:NilClass
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_translator.rbc:15:in `apply'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:128:in `translate'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/sketchup_to_vray_material_syncer.rbc:18:in `sync'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:38:in `block in to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `change'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/material_sync/material_sync.rbc:36:in `to_vray'
+C:/Program Files/Chaos/V-Ray/V-Ray for SketchUp/extension/integration/observers/materials_observer.rbc:17:in `onMaterialAdd'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2526:in `commit_operation'
+C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-booth-components.rb:2526:in `build_booth'
+C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026/run/20260830-141015-164036-36.job.rb:77:in `<main>'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `eval'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:643:in `run_job'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:568:in `claim_and_run'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:545:in `tick'
+C:/Users/bento/AppData/Roaming/SketchUp/SketchUp 2026/SketchUp/Plugins/wr_tools/wr_bridge.rb:731:in `block in start'
+
+  ------------------------------------------------------------
+  placed 111 component instances.
+  13 part(s) carry bulk beyond their wall panel (a leaf, a housing,
+  a trim) and were oriented so that bulk faces OUT of the booth — measured
+  from each part's own geometry, marked ·bulk in the FACING column. Parts
+  authored either way round therefore come out the same. If one of THOSE
+  faces the wrong way, the part itself points its bulk into the booth.
+
+  *** 24 item(s) flagged - a part that does not measure its
+      slot, or a figure used that was not measured for this booth:
+      MDL 102186 E: no IEP_VENT_LIFT_DROP figure for this booth, so its inner vent walls sit flush with the rest of the inner shell. That is the pre-v1.6.33 behaviour, NOT a measurement. Measured booths: MDL 102144 E 0.0625
+      MDL 102186 E: IEP wall lift 0.75 is IEP_WALL_LIFT_DEFAULT - this booth has never been measured. Measured booths: MDL 4872 E 0.75, MDL 6060 E 0.6875, MDL 102144 E 0.75
+      N0i ENH 35.5VNT: +0.2500 in against its slot
+      N1i ENH 35.5VNT: +0.2500 in against its slot
+      N2i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      N3i ENH 35.5VNT: +0.2500 in against its slot
+      N4i ENH 35.5VNT: +0.2500 in against its slot
+      S1i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      S1i ENH 35.5PanelSolid: +0.1250 in against its slot
+      S2i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      S3i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      S3i ENH 35.5PanelSolid: +0.1250 in against its slot
+      S4i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      S4i ENH 35.5PanelSolid: +0.1250 in against its slot
+      E0i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      E0i ENH 35.5PanelSolid: +0.1250 in against its slot
+      E1i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      E2i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      E2i ENH 35.5PanelSolid: +0.1250 in against its slot
+      W0i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      W0i ENH 35.5PanelSolid: +0.1250 in against its slot
+      W1i ENH 11.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      W2i ENH 35.5PanelSolid: room-proud 0.0625 is the 41.5's figure, not measured for this width
+      W2i ENH 35.5PanelSolid: +0.1250 in against its slot
+  ------------------------------------------------------------
+

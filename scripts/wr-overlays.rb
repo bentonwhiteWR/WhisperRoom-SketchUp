@@ -898,12 +898,20 @@ module WR_Overlays
     if ov['efp']
       digits = key[/MDL\s+(\d+)/, 1].to_s
       src = ov['efp_from_ada'] ? 'ADA bundle (ad)' : 'elevated floor (ep)'
-      if digits == '96192'
-        warns << 'EFP for the 96192 REFUSED BY NAME: EFP96192.skp does not exist in the ' \
-                 'library, and EFP96196.skp matches no catalogue size — almost certainly ' \
-                 'the same file misnamed. BENTON MUST RENAME IT; this code does not ' \
-                 'guess around a filename.'
-      elsif !EFP_SIZES.include?(digits)
+      # THE 96192 REFUSAL IS GONE, 2026-08-30. It used to sit HERE, ahead of
+      # the EFP_SIZES test, so it fired unconditionally. Its reason was true
+      # when it was written: EFP96192.skp did not exist, and EFP96196.skp
+      # matched no catalogue size - almost certainly the same file misnamed.
+      # Benton renamed it. EFP96192.skp is now on the share (426,135 bytes,
+      # observed 30 Aug 2026) and 96192 was already in EFP_SIZES, so this
+      # branch had become a refusal of a part that builds.
+      #
+      # NOTHING REPLACES IT, deliberately. A missing .skp is already refused
+      # by name three lines down by `ed.nil?`, which prints the filename and
+      # the directory - so a future rename, or the share being offline,
+      # still fails loudly rather than placing nothing quietly. That general
+      # guard is what this special case was standing in for.
+      if !EFP_SIZES.include?(digits)
         warns << "EFP requested (#{src}) but the portal sells no EFP for a #{digits} " \
                  "(sold sizes: #{EFP_SIZES.join(', ')}) — NOT placed"
       else

@@ -1,0 +1,606 @@
+{
+  "booth_bounds": {
+    "max": [
+      68.4218,
+      68.4218,
+      82.0
+    ],
+    "min": [
+      0.0,
+      -1.8381,
+      -1.0031
+    ]
+  },
+  "bridge_env": {
+    "bridge": "C:/Users/bento/AppData/Local/WhisperRoom/bridge/SketchUp 2026",
+    "os": "platform_win",
+    "plugin": "1.9.0",
+    "ruby": "3.2.2",
+    "sketchup": "26.2.243"
+  },
+  "dialog": null,
+  "dir": "P:/Sketchup/NewMasterComponentList",
+  "dry": false,
+  "elapsed_s": 2.278,
+  "error": null,
+  "hx": false,
+  "key": "MDL 6060 S",
+  "overlay": null,
+  "parsed": {
+    "deck": [
+      {
+        "contact": 1.0,
+        "edge": "edge n/a",
+        "file": "STD6042FL SIDE L",
+        "flipped": false,
+        "max": [
+          42.97,
+          61.0,
+          2.5
+        ],
+        "min": [
+          1.0,
+          1.0,
+          -1.0
+        ],
+        "turned": false
+      },
+      {
+        "contact": 1.0,
+        "edge": "edge 0.216",
+        "file": "STD6018FL SIDE R",
+        "flipped": false,
+        "max": [
+          61.0,
+          61.0,
+          2.11
+        ],
+        "min": [
+          43.03,
+          1.0,
+          -1.0
+        ],
+        "turned": true
+      },
+      {
+        "contact": 2.108,
+        "edge": "edge n/a",
+        "file": "STD6042CL SIDE L",
+        "flipped": false,
+        "max": [
+          43.0,
+          61.0,
+          82.0
+        ],
+        "min": [
+          1.0,
+          1.0,
+          78.89
+        ],
+        "turned": false
+      },
+      {
+        "contact": 2.108,
+        "edge": "edge 0.216",
+        "file": "STD6018CL SIDE R",
+        "flipped": false,
+        "max": [
+          61.0,
+          61.0,
+          82.0
+        ],
+        "min": [
+          43.0,
+          1.0,
+          78.89
+        ],
+        "turned": true
+      }
+    ],
+    "deck_notes": [
+      "deck     FL 2 (2 tile(s), 42 + 18); CL 2 (2 tile(s), 42 + 18); CL seals 1 (STDSS CL5 x1); FL seals 1 (STDSS FL5 x1)"
+    ],
+    "dry_parts": null,
+    "flagged": [],
+    "guessed": [
+      "N0 (VNT) -> 40VNT",
+      "N1 (SOLID) -> 16PanelSolid",
+      "S0 (DRFRM) -> Right40Door",
+      "S1 (SOLID) -> 16PanelSolid"
+    ],
+    "missing": [],
+    "placed": 29,
+    "reached_end": true,
+    "refusals": [],
+    "seals": [
+      {
+        "datum": 0.0,
+        "file": "STDSS CL5",
+        "joint": 43.0,
+        "max": [
+          46.25,
+          60.0,
+          81.0
+        ],
+        "min": [
+          39.75,
+          2.0,
+          79.25
+        ]
+      },
+      {
+        "datum": -1.0,
+        "file": "STDSS FL5",
+        "joint": 43.0,
+        "max": [
+          46.59,
+          61.0,
+          0.69
+        ],
+        "min": [
+          39.41,
+          1.0,
+          -1.0
+        ]
+      }
+    ]
+  },
+  "part_count": 29,
+  "parts": [
+    {
+      "def": "WR Duct Cover (hi)",
+      "max": [
+        60.0,
+        34.0375,
+        78.5106
+      ],
+      "min": [
+        56.8812,
+        22.1625,
+        63.6894
+      ],
+      "name": "Duct Cover hi  E1",
+      "tag": "WR-Booth-Options"
+    },
+    {
+      "def": "WR Duct Cover (hi)",
+      "max": [
+        21.8375,
+        60.0,
+        78.5106
+      ],
+      "min": [
+        9.9625,
+        56.8812,
+        63.6894
+      ],
+      "name": "Duct Cover hi  N0",
+      "tag": "WR-Booth-Options"
+    },
+    {
+      "def": "WR Duct Cover (lo)",
+      "max": [
+        60.0,
+        20.2375,
+        16.5106
+      ],
+      "min": [
+        56.8812,
+        8.3625,
+        1.6894
+      ],
+      "name": "Duct Cover lo  E1",
+      "tag": "WR-Booth-Options"
+    },
+    {
+      "def": "WR Duct Cover (lo)",
+      "max": [
+        35.6375,
+        60.0,
+        16.5106
+      ],
+      "min": [
+        23.7625,
+        56.8812,
+        1.6894
+      ],
+      "name": "Duct Cover lo  N0",
+      "tag": "WR-Booth-Options"
+    },
+    {
+      "def": "MidWallSeamSeal",
+      "max": [
+        62.0,
+        46.875,
+        81.0
+      ],
+      "min": [
+        60.0,
+        39.125,
+        0.0
+      ],
+      "name": "E-seal0  MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "16PanelSolid",
+      "max": [
+        61.0,
+        60.0,
+        81.0
+      ],
+      "min": [
+        60.0,
+        44.0,
+        0.0
+      ],
+      "name": "E0  16PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "40VNT",
+      "max": [
+        68.4218,
+        42.0,
+        81.0
+      ],
+      "min": [
+        59.875,
+        2.0,
+        -1.0
+      ],
+      "name": "E1  40VNT",
+      "tag": "WR-Booth-Vent"
+    },
+    {
+      "def": "Foam",
+      "max": [
+        60.0,
+        34.0,
+        64.5
+      ],
+      "min": [
+        58.0,
+        10.0,
+        16.5
+      ],
+      "name": "Foam  E1",
+      "tag": "WR-Booth-Foam"
+    },
+    {
+      "def": "Foam",
+      "max": [
+        34.0,
+        60.0,
+        64.5
+      ],
+      "min": [
+        10.0,
+        58.0,
+        16.5
+      ],
+      "name": "Foam  N0",
+      "tag": "WR-Booth-Foam"
+    },
+    {
+      "def": "Foam",
+      "max": [
+        4.0,
+        34.0,
+        64.5
+      ],
+      "min": [
+        2.0,
+        10.0,
+        16.5
+      ],
+      "name": "Foam  W1",
+      "tag": "WR-Booth-Foam"
+    },
+    {
+      "def": "MidWallSeamSeal",
+      "max": [
+        46.875,
+        62.0,
+        81.0
+      ],
+      "min": [
+        39.125,
+        60.0,
+        0.0
+      ],
+      "name": "N-seal0  MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "40VNT",
+      "max": [
+        42.0,
+        68.4218,
+        81.0
+      ],
+      "min": [
+        2.0,
+        59.875,
+        -1.0
+      ],
+      "name": "N0  40VNT",
+      "tag": "WR-Booth-Vent"
+    },
+    {
+      "def": "16PanelSolid",
+      "max": [
+        60.0,
+        61.0,
+        81.0
+      ],
+      "min": [
+        44.0,
+        60.0,
+        0.0
+      ],
+      "name": "N1  16PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "CornerSeamSeal",
+      "max": [
+        62.0,
+        62.0,
+        81.0
+      ],
+      "min": [
+        57.125,
+        57.125,
+        0.0
+      ],
+      "name": "NE corner seal  CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "CornerSeamSeal",
+      "max": [
+        4.875,
+        62.0,
+        81.0
+      ],
+      "min": [
+        0.0,
+        57.125,
+        0.0
+      ],
+      "name": "NW corner seal  CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "MidWallSeamSeal",
+      "max": [
+        46.875,
+        2.0,
+        81.0
+      ],
+      "min": [
+        39.125,
+        0.0,
+        0.0
+      ],
+      "name": "S-seal0  MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "Right40Door",
+      "max": [
+        42.0,
+        5.1003,
+        81.0
+      ],
+      "min": [
+        2.0,
+        -1.8381,
+        0.0
+      ],
+      "name": "S0  Right40Door",
+      "tag": "WR-Booth-Door"
+    },
+    {
+      "def": "16PanelSolid",
+      "max": [
+        60.0,
+        2.0,
+        81.0
+      ],
+      "min": [
+        44.0,
+        1.0,
+        0.0
+      ],
+      "name": "S1  16PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "CornerSeamSeal",
+      "max": [
+        62.0,
+        4.875,
+        81.0
+      ],
+      "min": [
+        57.125,
+        0.0,
+        0.0
+      ],
+      "name": "SE corner seal  CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "STD6018CL SIDE R",
+      "max": [
+        61.0,
+        61.0,
+        82.0
+      ],
+      "min": [
+        43.0,
+        1.0,
+        78.892
+      ],
+      "name": "STD6018CL SIDE R",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STD6018FL SIDE R",
+      "max": [
+        61.0,
+        61.0,
+        2.108
+      ],
+      "min": [
+        43.0312,
+        1.0,
+        -1.0
+      ],
+      "name": "STD6018FL SIDE R",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STD6042CL SIDE L",
+      "max": [
+        43.0,
+        61.0,
+        82.0
+      ],
+      "min": [
+        1.0,
+        1.0,
+        78.892
+      ],
+      "name": "STD6042CL SIDE L",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STD6042FL SIDE L",
+      "max": [
+        42.9688,
+        61.0,
+        2.5
+      ],
+      "min": [
+        1.0,
+        1.0,
+        -1.0
+      ],
+      "name": "STD6042FL SIDE L",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STDSS CL5",
+      "max": [
+        46.25,
+        60.0,
+        81.0
+      ],
+      "min": [
+        39.75,
+        2.0,
+        79.25
+      ],
+      "name": "STDSS CL5",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "STDSS FL5",
+      "max": [
+        46.5949,
+        61.0,
+        0.6875
+      ],
+      "min": [
+        39.4051,
+        1.0,
+        -1.0031
+      ],
+      "name": "STDSS FL5",
+      "tag": "WR-Booth-Deck"
+    },
+    {
+      "def": "CornerSeamSeal",
+      "max": [
+        4.875,
+        4.875,
+        81.0
+      ],
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "name": "SW corner seal  CornerSeamSeal",
+      "tag": "WR-Booth-Corners"
+    },
+    {
+      "def": "MidWallSeamSeal",
+      "max": [
+        2.0,
+        46.875,
+        81.0
+      ],
+      "min": [
+        0.0,
+        39.125,
+        0.0
+      ],
+      "name": "W-seal0  MidWallSeamSeal",
+      "tag": "WR-Booth-Seals"
+    },
+    {
+      "def": "16PanelSolid",
+      "max": [
+        2.0,
+        60.0,
+        81.0
+      ],
+      "min": [
+        1.0,
+        44.0,
+        0.0
+      ],
+      "name": "W0  16PanelSolid",
+      "tag": "WR-Booth-Walls"
+    },
+    {
+      "def": "40PanelSolid",
+      "max": [
+        2.0,
+        42.0,
+        81.0
+      ],
+      "min": [
+        1.0,
+        2.0,
+        0.0
+      ],
+      "name": "W1  40PanelSolid",
+      "tag": "WR-Booth-Walls"
+    }
+  ],
+  "post": {
+    "Group": 1,
+    "total": 1
+  },
+  "pre": {
+    "total": 0
+  },
+  "stderr": "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/wr-booth-data.rb:14: warning: already initialized constant WR_BOOTH_DATA::BOOTHS\nC:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/wr-booth-data.rb:14: warning: previous definition of BOOTHS was here\n",
+  "top": [
+    "MDL 6060 S (components)"
+  ],
+  "verdict": "clean",
+  "wall_s": 3.125,
+  "wipe": {
+    "defs_after": 0,
+    "defs_before": 80,
+    "direct_read": 0,
+    "re_census": 0,
+    "scratch_census": 0
+  }
+}
