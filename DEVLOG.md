@@ -1,5 +1,136 @@
 # DEVLOG
 
+## 2026-08-30
+
+### 1.9.0 — the SketchUp bridge, built and proven live
+
+An agent can now run Ruby inside the running SketchUp and read back stdout, the
+return value, and any exception with its backtrace, without a human touching the
+mouse. The pending hand-walked checklists can become assertions. All twelve
+acceptance criteria in `.forge/scoper/sketchup-bridge.md` were run against a live
+SketchUp 2026 (26.2.243, Ruby 3.2.2) and all twelve pass.
+
+**What shipped**
+
+- `scripts/wr_tools/wr_bridge.rb` — the resident listener. A `UI.start_timer`
+  polling an inbox at 0.25 s, claiming one job per tick by rename, `eval`ing it
+  with `$stdout`/`$stderr` teed, and writing one result file. **Off by default:**
+  no `enabled` marker, no timer, nothing resident but two menu items.
+- `scripts/wr_tools/main.rb` — one guarded `load` of the bridge plus its menu
+  items, and `wr-bridge-lib.rb` added to `SKIP` so it does not show as a command.
+- `scripts/wr-bridge-lib.rb` — job-side helpers, read LIVE from the repo, so
+  iterating on test logic needs no reinstall. Only the protocol costs a restart.
+- `scripts/sketchup-bridge.py` — the client. `ping`/`eval`/`run`/`shot`/
+  `enable`/`disable`/`log`, and an importable `submit()`.
+- `install-plugin.py` needed no edit, as the spec predicted — it copies every
+  file in `wr_tools/`, so `wr_bridge.rb` installed itself (confirmed, not assumed).
+
+**Two things the spec could not know without SketchUp running. One of them it
+guessed backwards.**
+
+**A4 — the `$stdout` swap holds.** SketchUp's own console output DOES honour it.
+Three `puts` lines came back in `stdout` in order and appeared in the Ruby
+Console, `warn` went to `stderr` separately, and SketchUp's own deprecation
+warning for `Sketchup.send_action` was captured too — so the tee catches API-side
+Ruby writes, not just the job's. No caveat needed anywhere.
+
+**A10 — `UI.start_timer` KEEPS FIRING while a modal is up, and the spec assumed
+the opposite.** With `UI.messagebox('block me')` open and waiting, the heartbeat
+was sampled once a second for eleven seconds and never aged past 0.08 s. A modal
+on Windows runs a nested message loop and SketchUp's timers ride it.
+
+That inverts the spec's diagnosis table, and the inversion is what makes it work
+at all:
+
+        .running + heartbeat FRESH  ->  a modal. Ruby blocked, message loop
+                                        alive.            exit 4  (saw 0.2 s)
+        .running + heartbeat STALE  ->  an ordinary long job. The job owns the
+                                        interpreter.      exit 5  (saw 4.9 s)
+
+Both directions were run. Under the spec's original table every job outliving
+3 s would have reported as wedged, because the listener cannot tick while `eval`
+is running. The fallback the spec named — the `.running` file's own age — was not
+needed and could not have discriminated either. `MODAL_KEEPS_TIMERS` in
+`sketchup-bridge.py` records the measurement; re-run A10 before changing it.
+
+**The failure that mattered most: a half-written result read as a complete one.**
+Guarded three ways — the result is written to `.tmp` and renamed into place,
+`complete` is the last key and the client requires it, and a bad read is retried
+five times before being reported as corrupt rather than guessed at. A12 ran
+twenty jobs each carrying ~2 MB of stdout and a ~2 MB return value, asserting on
+content and not merely on getting a dict back: **20 ok, 0 corrupt, 0 other, 59.2 s.**
+
+**A6 next to A7 — a raise and a nil are impossible to confuse.**
+
+    $ python scripts/sketchup-bridge.py eval "def a; raise ArgumentError, 'boom'; end; def b; a; end; b"
+    ArgumentError: boom
+        .../run/20260830-132717-149868-51.job.rb:1:in `a'
+        .../run/20260830-132717-149868-51.job.rb:1:in `b'
+        .../run/20260830-132717-149868-51.job.rb:1:in `<main>'
+    exit=1
+
+    $ python scripts/sketchup-bridge.py eval "nil"
+    -> nil   (NilClass, 0.007s)
+    exit=0
+
+`status` is the verdict and the client never asserts on `value`. A `SyntaxError`
+in a job comes back the same way, as an ordinary `status:"error"` — proven by
+accident when a shell quoting slip sent a malformed job. That is the whole reason
+the listener rescues `Exception` and not `StandardError`: a `ScriptError` would
+otherwise sail into SketchUp, be swallowed, and hang the job to its timeout for
+no visible reason.
+
+**A3 — a real tool, end to end.** `build-room.rb` loaded from `SCRIPTS_DIR` and
+driven to build a 12' x 15' room with a door; it chained into `auto-dimension.rb`
+by itself and laid 6 dimensions. Returned
+`{"Group"=>1, "Text"=>1, "DimensionLinear"=>6, "total"=>8}` in 0.271 s, and the
+geometry is in the viewport — A5's PNG shows it.
+
+**Safety, with Benton's decision 3 applied.** Named models ARE now allowed to be
+run against; the spec's pre-flight refusal is dropped and A11 is restated in the
+spec to match. Every write fence stays and all of them were exercised against a
+saved model: `save` with no path, `save_copy` into `ProposalFiles`, `write_image`
+onto `P:`, and a `..`-walk that resolves back into `ProposalFiles` — all four
+raise `Forbidden`, and no file was created. Saving to `%TEMP%` is permitted and is
+how the test got its named model. The fence is a guardrail, not a sandbox: it
+covers the SketchUp APIs a job realistically uses and does not cover a bare
+`File.write`. Its header says so.
+
+**Two findings about the existing scripts, neither fixed here.**
+
+- **`build-room.rb`, `build-booth.rb` and `csusb-rooms.rb` do not honour the
+  autorun-suppression globals.** Their last line runs unconditionally, so merely
+  `load`ing them opens a dialog or builds geometry. `explode-view.rb` and
+  `auto-dimension.rb` do guard (`... unless $wr_no_autorun`). `WRB.tool` works
+  round it by muzzling `UI::HtmlDialog#show` for the duration of the load, which
+  is a workaround and not a fix — the scripts are the right place to fix it, and
+  that is a separate job.
+- **The two SketchUp versions have different install layouts.** 2024 puts
+  `SketchUp.exe` straight in `SketchUp 2024\`; 2026 nests it in
+  `SketchUp 2026\SketchUp\`. Checking only one form silently finds one version
+  and reads as "the other is not installed". `sketchup-bridge.py` checks both.
+
+**Enablement, and why the marker is checked at load.** The bridge is off until an
+`enabled` marker exists in its root, and the listener reads that marker when it
+loads. That is what makes the whole loop automatable: the marker can be written
+from outside while SketchUp is shut, and the bridge is live the moment SketchUp
+next starts — no human clicks anything. Proven that way here. The menu items are
+a convenience on top, for turning it on mid-session.
+
+    %LOCALAPPDATA%\WhisperRoom\bridge\SketchUp 2026\
+
+`%LOCALAPPDATA%` and never OneDrive: a synced folder would put a second writer
+and a replication delay into exactly the read the protocol depends on.
+
+**One thing worth knowing about the restart.** Plugins do not finish loading
+while the Welcome screen is up — the listener started only once a model was
+opened. A restart is not enough on its own; SketchUp has to get as far as a model.
+
+**Not covered.** Concurrent jobs, any network transport, driving the V-Ray VFB or
+an HtmlDialog by simulated keystrokes, and running V-Ray renders through the
+bridge — all out of scope per `.forge/GOAL.md`, and none of them precluded.
+
+
 ## 2026-08-28
 
 ### SESSION CLOSE 2026-08-28 — the V-Ray docs we had never read

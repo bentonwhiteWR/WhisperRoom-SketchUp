@@ -59,7 +59,8 @@ module WhisperRoom
     # build-booth.rb; wr-shading.rb is the shading contract both component-art
     # exporters share.
     SKIP     = ['wr_tools.rb', 'wr-booth-data.rb', 'wr-shading.rb',
-                'wr-folder.rb', 'wr-deck.rb', 'wr-overlays.rb'].freeze
+                'wr-folder.rb', 'wr-deck.rb', 'wr-overlays.rb',
+                'wr-bridge-lib.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5
 
@@ -1441,6 +1442,29 @@ module WhisperRoom
       menu.add_separator
       menu.add_item('Open Scripts Folder') { UI.openURL('file:///' + SCRIPTS_DIR) }
       menu.add_item('Ruby Console')        { Sketchup.send_action('showRubyPanel:') }
+
+      # ---- the agent bridge -------------------------------------------------
+      #
+      # OFF BY DEFAULT. wr_bridge.rb decides for itself whether to start, from
+      # an `enabled` marker file in its own root — no marker, no timer, nothing
+      # resident but the two menu items it adds here. See its header.
+      #
+      # RESCUE Exception, for the same reason every other load path in this file
+      # does it: a SyntaxError descends from ScriptError, not StandardError, and
+      # a fault in the bridge must never be able to take the panel and the
+      # toolbars down with it. The console line is the only signal that the load
+      # was even attempted.
+      menu.add_separator
+      begin
+        load File.join(File.dirname(__FILE__), 'wr_bridge.rb')
+        WhisperRoom::Bridge.add_menu(menu)
+      rescue Exception => e
+        puts "WR BRIDGE failed to load: #{e.class}: #{e.message}"
+        puts e.backtrace.first(6).map { |l| "  #{l}" }.join("\n") if e.backtrace
+        menu.add_item('Bridge: FAILED TO LOAD (see Ruby Console)') do
+          UI.messagebox("The WhisperRoom bridge did not load:\n\n#{e.class}: #{e.message}")
+        end
+      end
 
       # ---- customisable slots, across three toolbars ------------------------
       #

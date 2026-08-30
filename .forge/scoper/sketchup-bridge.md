@@ -381,6 +381,12 @@ open. Paste the real output into `DEVLOG.md`; "reasoned about" is not a pass (Do
 - **A4 — stdout capture.** A job that `puts` three lines returns all three in `stdout`, in
   order, and the same three lines are also visible in the Ruby Console. This is the criterion
   that settles the one thing this spec could not verify outside SketchUp.
+
+  **SETTLED LIVE 30 Aug 2026: SketchUp's own console output DOES honour the `$stdout` swap.**
+  Three `puts` lines came back in `stdout` in order *and* appeared in the Ruby Console, and a
+  `warn` went to `stderr` separately. SketchUp's own deprecation warning for
+  `Sketchup.send_action` was captured too, so the tee catches API-side Ruby writes and not only
+  the job's own. No caveat is needed in `DEVLOG.md` or the client's usage text.
 - **A5 — viewport PNG.** A job calling `model.active_view.write_image(<bridge art dir>/x.png)`
   produces a file, lists it in `artifacts`, and the PNG is non-empty. Then the same call
   targeting `C:\Users\bento\Desktop\ProposalFiles\x.png` raises `Forbidden` — `status:"error"`,
@@ -401,9 +407,28 @@ open. Paste the real output into `DEVLOG.md`; "reasoned about" is not a pass (Do
   and leave the dialog up. The client must exit **4**, naming the modal as the likely cause.
   Then click the dialog and confirm the late result lands harmlessly and is not picked up by any
   later run.
-- **A11 — safety.** With a *saved* model open, a job is `refused` with reason `named-model`
-  before any of its code runs (prove it by having the job `puts` and getting an empty `stdout`).
-  `Sketchup.active_model.save` inside a job raises `Forbidden`.
+
+  **SETTLED LIVE 30 Aug 2026, AND THIS SPEC GUESSED IT BACKWARDS.** `UI.start_timer` *does*
+  keep firing while a native modal is up — the heartbeat never aged past 0.08 s across eleven
+  seconds with a message box open. The diagnosis table below must therefore be **inverted**
+  from what this document proposed: `.running` present **plus a FRESH heartbeat** is the wedge
+  (Ruby blocked, message loop alive) and `.running` present **plus a STALE heartbeat** is an
+  ordinary long job (the job owns the interpreter, so the timer cannot fire). Both directions
+  were run — the modal gave exit 4 at a 0.2 s heartbeat, a 20 s busy loop under a 5 s timeout
+  gave exit 5 at a 4.9 s heartbeat. Under this document's original table every job outliving
+  3 s would have reported as wedged. The named fallback (the `.running` file's own age) was not
+  needed and would not have discriminated anyway.
+- **A11 — safety. RESTATED 30 Aug 2026 by Benton's decision 3** (`.forge/GOAL.md`), which drops
+  the pre-flight refusal on named models. The original wording — "with a saved model open, a
+  job is `refused` with reason `named-model`" — no longer describes wanted behaviour, because
+  running a job against a real drawing that is open is now explicitly allowed. What the
+  criterion tests instead is that **allowing the read did not weaken any write fence**. With a
+  *saved* model open: the job RUNS (`status:"ok"`, its `puts` reaches `stdout`); and each of
+  these raises `Forbidden` — `Sketchup.active_model.save` with no path, `save_copy` into
+  `ProposalFiles`, `write_image` onto `P:`, and a `..`-walk that resolves back into
+  `ProposalFiles`. Saving to `%TEMP%` is permitted and is how the test gets its named model.
+  The `refused` status and exit 6 remain reachable, and are covered by the malformed-job path
+  (`reason: bad-job-json`, empty `stdout`).
 - **A12 — no partial reads.** A job producing about 2 MB of stdout, run 20 times in a loop from
   the client, yields 20 clean results and zero exit-7s.
 
