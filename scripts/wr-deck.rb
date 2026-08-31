@@ -61,7 +61,8 @@ module WR_Deck
      BIG_GAP SMALL_GAP GAP_TOL
      SEAL_NAME SEAL_FL_NAME SEAL_DATUM_LIFT SEAL_FL_DATUM_LIFT
      SEAL_LEN_TOL SEAL_LEN_INSET
-     SIDE_R_SMALL_WALL_AT_LOW_END LOW_END_PANEL_IS_TURNED].each do |c|
+     SIDE_R_SMALL_WALL_AT_LOW_END LOW_END_PANEL_IS_TURNED
+     YAW_180_FILES].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
 
@@ -753,6 +754,11 @@ module WR_Deck
   # Everything is positioned from the part's MEASURED bounding box and its
   # measured contact face, never from its origin — the parts do not agree on
   # where their origin is, which is the lesson the wall panels already taught.
+  # Deck parts whose measured yaw comes out backwards, by filename without the
+  # extension, upper-cased. Kept as a plain list so adding the next one is a
+  # single line and so the exceptions are all visible in one place.
+  YAW_180_FILES = %w[STD4260CL STD4260FL].freeze
+
   def self.build(model, parent, spec, dir, kind, wall_h = WALL_H)
     cat = catalogue(dir)
     return [0, ["no #{kind} parts in #{dir}"]] if cat.empty?
@@ -1038,6 +1044,29 @@ module WR_Deck
              else
                edge < 0.5
              end
+      # PER-PART YAW EXCEPTION, BY FILENAME.
+      #
+      # The measured rule above is right for the 237 parts the probe covered.
+      # It is not right for everything, and this file's own history is the
+      # argument for handling that HERE rather than by moving the rule again:
+      # "LOW_END_PANEL_IS_TURNED and SIDE_R_SMALL_WALL_AT_LOW_END were each
+      # flipped four times across an evening, and every flip fixed one panel
+      # and broke another."
+      #
+      # So a part that comes out backwards is named, one line, and nothing
+      # else moves. Benton, 2026-08-31: MDL 4260 S needs its standard ceiling
+      # and floor turned 180 in plan. Both, together, which is the signature
+      # of a bad shared cue -- the pair take one rotation read off the FLOOR
+      # part by design (see the invariant above), so one wrong read turns both.
+      #
+      # NOTE STD4260FL is the only part in the library whose origin is not at
+      # its min corner (origin_anchor "?/min/min", origin_x 18.0 in
+      # _component-probe.tsv). That is a plausible cause and is NOT the fix
+      # here -- this turns the result, it does not re-anchor the part.
+      if YAW_180_FILES.include?(File.basename(t[:part][:file].to_s, '.skp').upcase)
+        half = !half
+        warn << "#{t[:part][:file]}: turned 180 in plan by the YAW_180_FILES exception"
+      end
       tr = Geom::Transformation.rotation(ORIGIN, X_AXIS, 180.degrees) * tr if flip
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if half
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
