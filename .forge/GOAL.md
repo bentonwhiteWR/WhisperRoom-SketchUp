@@ -45,16 +45,33 @@ SketchUp, score it, fix the largest error, repeat.
   problems with opposite fixes; do not conflate them.
 
 ## Now
-**Diagnosis, in parallel, before any building.** Two Researchers are out:
-- one on the floor-plan pipeline and the 31 Aug artifacts (what exists, where error enters,
-  is the DWG readable);
-- one on the proposal image-assembly step (where the 45 minutes actually went).
+**Diagnosis is done. Both Researchers reported 31 Aug; findings are in
+`.forge/researcher/floorplan-pipeline-diagnosis.md` and
+`.forge/researcher/proposal-image-step-timing.md`.** The two root causes:
 
-No Scoper or Builder starts until both report. The eval-harness design is a Scoper's job
-after that, not a thing to start now.
+- **Floor plans.** There is no intake pipeline — only a hand-typed take-off dialog or a
+  bespoke Ruby script per client. The accuracy failure is **pen-chain interpretation**, not
+  scaling: the stated field measurements form chains that close arithmetically
+  (`17'3" + 10" + 10" = 18'11"`, exactly) but nothing checks that they close, and reading
+  `17'3"` as the room width rather than the clear width between the heaters is ~8 ft wrong.
+  Separately the dialog **silently invents door placements** (`at:36"`, `door_h:80"`),
+  violating the never-invent rule exactly where it matters. And `S609-3.pdf` is a **pure
+  vector PDF** that reproduces the field measurements to ~1–2 in from one anchor — the exact
+  geometry was in the job folder and nothing pointed at it.
+- **Proposal speed.** The ~45 min went into procedure-mandated work, chiefly the agent
+  reading off pixels what the model already holds as text: `scripts/proposal-package.rb`
+  exports bare PNGs and discards scene names, order, and callout strings.
+
+**In flight (three lanes, all on Fable):**
+1. Builder — manifest + dimension sidecar at export time, and `scripts/check-doc-paths.py`.
+2. Scoper — the intake pipeline and the eval loop, spec to `.forge/scoper/floorplan-intake.md`.
+3. (Folded into 2, not a separate lane) the invented-placement and corner-door defects in
+   `scripts/build-room.rb` / `.html` — specced now, built after Benton approves.
 
 **Blocked on Benton:** SketchUp is not running (bridge heartbeat ~18 h stale, no process —
 observed 31 Aug). Nothing can be verified live until it is open with the bridge enabled.
+**Open question for Gabe:** what he actually typed on 31 Aug is recorded nowhere, so the
+split between misread-chain and invented-placement for that specific job is a hypothesis.
 
 ## Rules that still bind this work
 - Plugin edits land under `scripts/wr_tools/`; bump `VERSION`; a restart reloads.
