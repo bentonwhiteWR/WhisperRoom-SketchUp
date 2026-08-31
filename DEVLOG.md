@@ -2,6 +2,57 @@
 
 ## 2026-08-30
 
+### "the 6060's window needs to go inwards 11/16" — refused: the 6060 has no window
+
+Diagnosis only. **No script changed, `scripts/wr_tools/VERSION` stays at 1.9.7, the
+booth-matrix baseline was not regenerated.** Full write-up:
+`.forge/fixer/HANDOFF-6060-window.md`.
+
+Benton, from a screenshot of a generated 6060: *"the window needs to go inwards 11/16 of an
+inch."* The figure is his and is not in dispute. **The part it belongs to could not be
+identified, so nothing was moved.**
+
+**`40VNT` — the part the brief pointed at — is a vent, not a window (observed).** Its
+component art is two louvred duct grilles; it sits in the VNT option family
+(`40VNT_VSS`, `40VNT_EFS`, `40Vnt_CP`); `wr-overlays.rb:221` classifies windows as `WDO`
+and vents separately; and `build-booth-components.rb` hangs **duct covers** on the 6060's
+`E1 40VNT`. Window panels are a different family entirely — `40Panel2636WDO`,
+`46Panel3236WDO`, `31Panel1648WDO`.
+
+**And a generated 6060 carries no window panel at all (observed).** The string `WDO` does
+not appear anywhere in `wr-booth-data.rb`; the 6060's slot kinds are `VNT`, `SOLID`,
+`DRFRM`, `SEAL`, `CORNER`. The committed golden builds agree — `MDL 6060 S` places 29
+instances and `MDL 6060 E` its inner shell on top, and there is not a window among them.
+**Across all 50 matrix keys only `MDL 7272 S/E` places a window**, from the hard-coded
+`ASSIGN` entry.
+
+**Blast radius, had the brief's part been right: `40VNT` is in 30 of the 50 keys** — every
+S and E of the 4230, 4242, 4260, 4284, 6060, 6084, 8484, 84102, 84126, 10284, 102102,
+102126, 102144, 102168 and 102186. A blanket 11/16 move would have shifted 30 booths to
+fix one. That is a stop condition on its own, independent of the misidentification.
+
+**The likeliest real subject is the lite in the door leaf** — on a generated 6060 it is the
+only window in the picture — but it lives inside `Right40Door.skp` (and, on the E, `ENH
+Right35.5Door.skp`), so "move the window in 11/16" means either moving the whole door (a
+placement change, ours) or moving the glass within the leaf (a library edit, Benton's, and
+`P:` is read-only). A 6060 built from a booth-builder link is the other candidate: that
+route *can* put a real WDO panel on a side wall, and `40Panel2636WDO` measures 1.750 thick
+against `40PanelSolid`'s 1.000, so a WDO seating-depth error is plausible. Plausible is not
+measured, and neither was acted on.
+
+**Nothing here was proven live. SketchUp was not running** — the bridge listener answered
+silent with a heartbeat going 72 s → 166 s stale and `Get-Process` found no SketchUp
+process, so there was no build and no screenshot. Every observation above comes from the
+committed golden manifests, `wr-booth-data.rb`, the component-probe TSV on the share, and
+the rendered component art. `python scripts/rbparse.py` — 59 files parse, run to confirm
+the tree was clean as found.
+
+**One question closes it:** which window on the screenshot — the one in the door, or a
+window panel on a side wall from a link? And Standard, Enhanced, or both? On an Enhanced
+6060 the window you look through is two lites deep and 11/16 may belong to the inner door
+alone.
+
+
 ### sun-off look matrix + the ceiling question — the rig alone, and a host room that has no roof
 
 `scripts/lookdev-matrix.rb` (extended), `scripts/sunoff-drive.py` (new). SketchUp 2026 /
