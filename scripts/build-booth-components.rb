@@ -1451,6 +1451,12 @@ module WR_BuildBoothComponents
 
     last = read_pref('booth', keys.include?('MDL 7272 S') ? 'MDL 7272 S' : keys.first)
     last = keys.first unless keys.include?(last)
+    # REMEMBERED like the booth, because it is a working preference and not a
+    # per-build decision: Benton runs a batch of imports one way, and having to
+    # re-answer No on every single one is the kind of friction that gets a tool
+    # abandoned. Anything but a stored 'No' means Yes, so a corrupt or absent
+    # value fails to the normal booth rather than to a dark one.
+    lit_last = read_pref('lighting', 'Yes') == 'No' ? 'No' : 'Yes'
     dir  = read_pref('dir', DEFAULT_DIR)
 
     # 'parts' is shared with booth-from-link.rb and probe-components.rb — all
@@ -1470,7 +1476,7 @@ module WR_BuildBoothComponents
     # 5 dry run.
     res = UI.inputbox(['Booth', 'Component folder', 'Height', 'Shell',
                        'Ceiling lighting', 'Dry run — report only'],
-                      [last, dir, 'Standard (81 in)', 'Both', 'Yes', 'No'],
+                      [last, dir, 'Standard (81 in)', 'Both', lit_last, 'No'],
                       [keys.join('|'), dlist, 'Standard (81 in)|HX (91 in)',
                        'Both|Inner (IEP) only|Outer (Standard) only',
                        'Yes|No', 'Yes|No'],
@@ -1482,6 +1488,7 @@ module WR_BuildBoothComponents
     d = WR_Folder.resolve(res[1], 'parts', 'Folder of component .skp files', false)
     return nil if d.nil?
     write_pref('booth', res[0])
+    write_pref('lighting', res[4] == 'No' ? 'No' : 'Yes')
     # The stored 'deck' preference is deliberately left where it is rather than
     # deleted. Nothing reads or writes it any more, it is a few bytes in the
     # registry, and migration code for a preference no user will ever see again
