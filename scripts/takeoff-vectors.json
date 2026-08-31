@@ -1,0 +1,38 @@
+{
+  "comment": [
+    "Shared grammar vectors — the single source of truth holding parseLen",
+    "(scripts/build-room.html:194) and parse_len (scripts/takeoff-check.py)",
+    "identical. `in` is inches; null means the parser must REJECT the input",
+    "(NaN in JS, None in Python). Run `python scripts/takeoff-check.py",
+    "--selftest` for the Python side; open scripts/takeoff-vectors.html in a",
+    "browser for the JS side. Every form named in the build-room.html header",
+    "comment is here, plus junk inputs."
+  ],
+  "vectors": [
+    {"s": "150",          "in": 150},
+    {"s": "150\"",        "in": 150},
+    {"s": "12'6\"",       "in": 150},
+    {"s": "12'-6\"",      "in": 150},
+    {"s": "12' 6 1/2\"",  "in": 150.5},
+    {"s": "12.5'",        "in": 150},
+    {"s": "12 1/2",       "in": 12.5},
+    {"s": "1/2",          "in": 0.5},
+    {"s": "12'",          "in": 144},
+    {"s": "0",            "in": 0},
+    {"s": "8ft",          "in": 96},
+    {"s": "96 in",        "in": 96},
+    {"s": "12’6″", "in": 150},
+    {"s": "12' 6",        "in": 150},
+    {"s": "  12'6\"  ",   "in": 150},
+    {"s": "6 1/2\"",      "in": 6.5},
+    {"s": "12.5",         "in": 12.5},
+    {"s": "1'1 1/2\"",    "in": 13.5},
+    {"s": "",             "in": null},
+    {"s": "abc",          "in": null},
+    {"s": "-12",          "in": null},
+    {"s": "12''",         "in": null},
+    {"s": "12\"6'",       "in": null},
+    {"s": "3/0",          "in": null},
+    {"s": "12'x",         "in": null}
+  ]
+}

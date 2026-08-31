@@ -73,6 +73,31 @@ observed 31 Aug). Nothing can be verified live until it is open with the bridge 
 **Open question for Gabe:** what he actually typed on 31 Aug is recorded nowhere, so the
 split between misread-chain and invented-placement for that specific job is a hypothesis.
 
+## The review sheet — requirements Benton set, 31 Aug 2026
+The take-off review sheet is published as an Artifact and reviewed before anything runs.
+Benton: *"the mockups are very good for review before we just send them to scripts."*
+
+1. **Reviewable, not just viewable.** Approve / needs-changes per room, editable values, and
+   a **copy box emitting a structured patch** — room, field, old, new, source — that
+   `takeoff-check.py` consumes directly. Not prose: re-interpreting prose is the
+   transcription step that caused this mission.
+2. **Every edit carries measured-vs-assumed.** Changing a number is a measurement claim. An
+   edit with no source is the same defect as the dialog's `at:36"`.
+3. **Booth overlay.** The sheet takes a booth **three ways — a pasted booth-builder link, a
+   typed model number, or a catalog picker** — and draws the top-down inside the room outline
+   at the take-off's own scale, with door-swing arc and the 1" wall gap. Reuse
+   `WhisperRoomQuote\assets\layout-render.js` (`renderLayoutSvg`); do not reinvent it, and do
+   not embed the PNG top-down art.
+   - **The artifact sandbox blocks all outbound requests.** `#d=<base64>` links decode
+     in-page with no network (as `scripts/booth-from-link.rb` documents); `?d=<short id>`
+     needs `GET /api/booth-design/<id>` resolved at publish time and the payload embedded.
+   - **Benton or Gabe names the model; the tool never does.** A typed model or a picked one
+     is the model being specified and is fine. What is forbidden is pre-selecting, defaulting,
+     or ranking a "best fit" — drawing a small booth implies it is the largest that fits.
+   - **No prices on the page** (`models.json` prices are internal and the link gets
+     forwarded). The embedded catalog is a snapshot — stamp the version it was built from.
+4. Mark plainly on the page which data is verified and which is illustrative.
+
 ## Rules that still bind this work
 - Plugin edits land under `scripts/wr_tools/`; bump `VERSION`; a restart reloads.
 - `WhisperRoomQuote` and the `P:` share are **read only**.

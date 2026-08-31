@@ -140,6 +140,13 @@
         </div>
       </div>
       <div>
+        <span class="lab">Door height</span>
+        <input id="dh" type="text" spellcheck="false" autocomplete="off" value="80&quot;">
+        <span class="echo" id="dh-e"></span>
+        <p class="note">80" is the standard leaf, <b>not measured</b>. If the plan
+          states a head height, type it.</p>
+      </div>
+      <div>
         <span class="lab">Wall split (sill)</span>
         <input id="sill" type="text" spellcheck="false" autocomplete="off" value="4'-0&quot;">
         <span class="echo" id="sill-e"></span>
@@ -174,7 +181,9 @@
   // is why it is safe to default and safe to override in detail mode.
   // sill is where every wall (and door header) splits into its two render
   // bands — see WR-Room-Upper in build-room.rb. 48" is a placeholder default.
-  var S={len:144,wid:120,ceil:96,thick:4,sill:48,name:"Room"};
+  // dh is the door head height. 80" is the standard leaf and stays visible in
+  // detail mode with a "not measured" note — it is a default, never data.
+  var S={len:144,wid:120,ceil:96,thick:4,sill:48,dh:80,name:"Room"};
   var runs=rect(S.len,S.wid);
   var doors=[];
 
@@ -302,8 +311,10 @@
       }
     });
 
-    // doors, drawn as a gap marker on their run
+    // doors, drawn as a gap marker on their run (none for an unplaced door —
+    // drawing it anywhere would be inventing the very number it is missing)
     doors.forEach(function(dr){
+      if(dr.at==null)return;
       var i=dr.run|0; if(i<0||i>=runs.length)return;
       var a=p[i],u=VEC[runs[i].d]||[0,0];
       var j0=[a[0]+u[0]*dr.at,a[1]+u[1]*dr.at];
@@ -331,8 +342,11 @@
         ? "← Back to length & width (remove the door" + (doors.length>1?"s":"") + " first)"
         : "← Back to length & width";
 
-    $go.disabled=!closed||document.querySelectorAll("input.bad").length>0;
+    var unplaced=-1;
+    doors.forEach(function(dr,i){ if(unplaced<0&&dr.at==null)unplaced=i; });
+    $go.disabled=!closed||unplaced>=0||document.querySelectorAll("input.bad").length>0;
     $hint.textContent = !closed ? "fix the closure to build"
+      : unplaced>=0 ? "door "+(unplaced+1)+" has no position — measure corner → near jamb"
       : mode==="simple"
         ? arch(x1-x0)+" × "+arch(y1-y0)+", ceiling "+arch(S.ceil)
         : runs.length+" runs, "+doors.length+" door(s), ceiling "+arch(S.ceil);
@@ -380,6 +394,8 @@
     function(){return S.ceil;},function(v){S.ceil=v;}));
   syncDetail.push(lenField(document.getElementById("sill"),document.getElementById("sill-e"),
     function(){return S.sill;},function(v){S.sill=v;}));
+  syncDetail.push(lenField(document.getElementById("dh"),document.getElementById("dh-e"),
+    function(){return S.dh;},function(v){S.dh=v;}));
   document.getElementById("nm").addEventListener("input",function(){S.name=this.value;});
 
   // ------------------------------------------------------------------- rows --
@@ -405,7 +421,12 @@
     doors.forEach(function(d,i){
       var tr=document.createElement("tr");
       tr.innerHTML='<td style="width:44px"><input type="number" min="0" step="1" data-i="'+i+'" data-k="run" value="'+(d.run|0)+'" title="run #"></td>'+
-        '<td><input type="text" spellcheck="false" autocomplete="off" data-i="'+i+'" data-k="at" data-len="1" value="'+esc(fmtField(d.at))+'" title="from corner"></td>'+
+        '<td><input type="text" spellcheck="false" autocomplete="off" data-i="'+i+'" data-k="at" data-len="1"'+
+          (d.at==null
+            // A new door has NO position — it gets an empty red field, not an
+            // invented 36". The red blocks Build until a measurement is typed.
+            ? ' value="" class="bad" placeholder="from corner — measure it"'
+            : ' value="'+esc(fmtField(d.at))+'"')+' title="from corner"></td>'+
         '<td><input type="text" spellcheck="false" autocomplete="off" data-i="'+i+'" data-k="w" data-len="1" value="'+esc(fmtField(d.w))+'" title="width"></td>'+
         '<td style="width:62px"><select data-i="'+i+'" data-k="hinge">'+
           ['near','far'].map(function(h){return '<option'+(h===d.hinge?" selected":"")+'>'+h+"</option>";}).join("")+
@@ -475,7 +496,12 @@
   document.getElementById("addrun").addEventListener("click",function(){
     runs.push({d:"E",v:48});runRows();draw();});
   document.getElementById("adddoor").addEventListener("click",function(){
-    doors.push({run:0,at:36,w:36,hinge:"near"});doorRows();draw();});
+    // at:null, deliberately. The old seed was at:36" — an invented placement
+    // indistinguishable from a measurement once built (the 31 Aug defect).
+    // A door with no position blocks Build by name until one is typed; a job
+    // where the position genuinely is not on the plan belongs in a take-off
+    // file, where the assumption is recorded and flagged into the model.
+    doors.push({run:0,at:null,w:36,hinge:"near"});doorRows();draw();});
   document.getElementById("cancel").addEventListener("click",function(){sketchup.cancel();});
 
   document.getElementById("go").addEventListener("click",function(){
@@ -494,7 +520,7 @@
       thick:(mode==="simple"?4:S.thick),
       ceil:S.ceil,
       sill:S.sill,
-      door_h:80
+      door_h:(mode==="simple"?80:S.dh)
     }));
   });
 

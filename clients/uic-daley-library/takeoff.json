@@ -1,0 +1,116 @@
+{
+  "job": "uic-daley-library",
+  "title": "UIC Richard J. Daley Library, third floor — rooms 3190F / 3190G+H / 3190J",
+  "sources": ["plans/IMG_7594.jpeg", "plans/IMG_7595.jpeg", "plans/IMG_7596.jpeg",
+              "plans/S609-3.pdf", "plans/S609-3.dwg"],
+  "anchor": "pen 18'11\" G+H interior width (IMG_7594) — also the PDF-vector scale anchor",
+  "interpretations": [
+    "3190G and 3190H are modeled as ONE room: pen note on IMG_7594 says the partition was removed by the contractor and a bulkhead will be in its place 8'3\" above the floor. Pen beats print (Benton, 31 Aug 2026).",
+    "The 17'3\" on IMG_7594 is the clear width BETWEEN the two 10\" heaters, not the room width — the chain 10\" + 17'3\" + 10\" = 18'11\" closes exactly. Recorded as parts of run 0.",
+    "On IMG_7595 the 8'10\" is a VERTICAL chain along 3190J's door wall — north corner to the door's near jamb, with the 38\" door below it (Benton's corner->jamb convention). It is not a second width; the two pen widths do not disagree.",
+    "3190F's two widths (9'3\" mid-room, 9'6\" at the door wall) are 3\" apart; the print linework shows the east wall stepping out where the heater ends, so F is modeled with a 3\" jog at 9'1\" from the back wall. CONFIRM with Gabe — if the two chains were meant to be the same span, one is a misread."
+  ],
+  "rooms": [
+    {
+      "name": "3190G+H",
+      "runs": [
+        {"d": "E", "v": "18'11\"", "parts": ["10\"", "17'3\"", "10\""],
+         "src": "pen IMG_7594",
+         "note": "17'3\" is the clear width between the two 10\" heaters, not the room"},
+        {"d": "S", "v": "14'4\"", "src": "pen IMG_7594"},
+        {"d": "W", "v": "18'11\"", "src": "pen IMG_7594",
+         "note": "the 18'11\" chain is drawn once at mid-room, wall to wall; room is rectangular per the print linework"},
+        {"d": "N", "v": "14'4\"", "src": "pen IMG_7594"}
+      ],
+      "ceiling": {"v": "8'9\"", "src": "pen IMG_7594",
+        "note": "H side; G side pen says 8'8\" — one slab at the higher figure, the 1\" step is recorded here, not modeled"},
+      "doors": [
+        {"run": 2, "w": {"v": "38\"", "src": "pen IMG_7594"},
+         "at": {"assumed": "6\"", "reason": "no position on plan; drawn at the east jamb per plan symbol, 6\" clear of the corner. Measure corner -> near jamb."},
+         "hinge": "near"},
+        {"run": 2, "w": {"v": "38\"", "src": "pen IMG_7594"},
+         "at": {"assumed": "15'3\"", "reason": "no position on plan; drawn at the west jamb per plan symbol, 6\" clear of the corner (18'11\" - 38\" - 6\"). Measure corner -> near jamb."},
+         "hinge": "far"}
+      ],
+      "features": [
+        {"type": "heater", "run": 1,
+         "from": {"v": "0\"", "src": "pen IMG_7594", "note": "starts at the back (north) wall"},
+         "length": {"v": "9'1\"", "src": "pen IMG_7594",
+           "note": "left-margin pen note '9'1\" from back wall' read as the heater extent — same reading as 3190F's '9'1\" heater'"},
+         "depth": {"v": "10\"", "src": "pen IMG_7594"}},
+        {"type": "heater", "run": 3,
+         "from": {"v": "5'3\"", "src": "pen IMG_7594",
+           "note": "west heater also runs 9'1\" down from the back wall; run 3 starts at the SW corner, so from = 14'4\" - 9'1\""},
+         "length": {"v": "9'1\"", "src": "pen IMG_7594"},
+         "depth": {"v": "10\"", "src": "pen IMG_7594"}},
+        {"type": "bulkhead", "run": 0,
+         "from": {"v": "9'5\"", "src": "pen IMG_7594",
+           "note": "pen 9'5\" at the old partition line; PDF vectors put the partition centerline at 9'5.5\" from the west wall"},
+         "length": {"v": "5\"", "src": "plan-vector S609-3.pdf (anchor: 18'11\" pen chain)",
+           "note": "old partition thickness, 0.96 pt on the plot"},
+         "head": {"v": "8'3\"", "src": "pen IMG_7594",
+           "note": "'a bulkhead will be in its place 8'3\" above the floor'"}}
+      ],
+      "notes": [
+        "Window walls east and west (print linework); no window sills or widths stated — not modeled.",
+        "Partition removed by contractor; bulkhead massing spans the room on the old partition line, underside at 8'3\"."
+      ]
+    },
+    {
+      "name": "3190J",
+      "runs": [
+        {"d": "W", "v": "8'1\"", "src": "pen IMG_7595",
+         "note": "the pen chain is drawn along the south edge; rectangular per print, applied wall to wall"},
+        {"d": "S", "v": "14'4\"",
+         "src": "assumed", "reason": "no full-height chain on IMG_7595 — 8'10\" stops at the door jamb. The 3190 band depth is 14'4\" per IMG_7594/7596 and the print shows J in the same band. Measure it."},
+        {"d": "E", "v": "8'1\"", "src": "pen IMG_7595"},
+        {"d": "N", "v": "14'4\"",
+         "src": "assumed", "reason": "same assumption as run 1 — band depth carried from IMG_7594/7596"}
+      ],
+      "ceiling": {"assumed": "8'9\"",
+        "reason": "no ceiling note on IMG_7595; adjacent 3190H pen says 8'9\" — same band, same slab per print. CONFIRM with a tape."},
+      "doors": [
+        {"run": 1, "w": {"v": "38\"", "src": "pen IMG_7595"},
+         "at": {"v": "8'10\"", "src": "pen IMG_7595",
+           "note": "vertical pen chain: north corner -> near jamb, the 38\" door bracketed below it"},
+         "hinge": "far"}
+      ],
+      "features": [],
+      "notes": [
+        "Door is on the WEST wall (corridor side), position measured 8'10\" off the north corner — the one measured door position on this job."
+      ]
+    },
+    {
+      "name": "3190F",
+      "runs": [
+        {"d": "E", "v": "9'3\"", "src": "pen IMG_7596",
+         "note": "mid-room chain, west wall to the east wall at the heater band"},
+        {"d": "S", "v": "9'1\"", "src": "pen IMG_7596",
+         "note": "east wall, back wall down to where the heater ends and the wall steps out ('9'1\" heater')"},
+        {"d": "E", "v": "3\"", "src": "pen IMG_7596",
+         "note": "the jog: difference of the two stated widths, 9'6\" - 9'3\"; step visible in the print linework at the heater's south end. CONFIRM."},
+        {"d": "S", "v": "5'3\"", "src": "pen IMG_7596",
+         "note": "east wall below the jog: 14'4\" - 9'1\""},
+        {"d": "W", "v": "9'6\"", "src": "pen IMG_7596",
+         "note": "door-wall chain"},
+        {"d": "N", "v": "14'4\"", "src": "pen IMG_7596"}
+      ],
+      "ceiling": {"v": "8'7\"", "src": "pen IMG_7596"},
+      "doors": [
+        {"run": 4, "w": {"v": "38\"", "src": "pen IMG_7596"},
+         "at": {"assumed": "6\"", "reason": "no position on plan; drawn near the SE corner per plan symbol. Measure corner -> near jamb."},
+         "hinge": "far"}
+      ],
+      "features": [
+        {"type": "heater", "run": 1,
+         "from": {"v": "0\"", "src": "pen IMG_7596"},
+         "length": {"v": "9'1\"", "src": "pen IMG_7596", "note": "'9'1\" heater'"},
+         "depth": {"v": "10\"", "src": "pen IMG_7596"}}
+      ],
+      "notes": [
+        "Window wall east (print linework); no window measurements stated — not modeled.",
+        "The 9'3\"/9'6\" split is an interpretation (see job interpretations) — if the room is a plain rectangle, one of the two pen chains is a misread; say which."
+      ]
+    }
+  ]
+}

@@ -340,6 +340,35 @@ module WR_BuildRoom
     end
   end
 
+  # Doors whose cut cannot be made, by name. `wall_run` drops any cut that
+  # touches a corner (the mitre owns the corner), and until 1.11.0 `build`
+  # still drew the leaf for it — a door leaf embedded in solid wall, silently.
+  # Now the whole build refuses first, matching the closure-failure pattern.
+  # Pure data in, messages out, so rbtest-takeoff.py can run it outside
+  # SketchUp.
+  def self.door_errors(pts, doors)
+    errs = []
+    n = pts.size
+    doors.each_with_index do |d, j|
+      i = d['run'].to_i
+      unless i >= 0 && i < n
+        errs << "door #{j + 1}: run #{i} does not exist (#{n} runs)"
+        next
+      end
+      len = (pts[(i + 1) % n] - pts[i]).length.to_f
+      at = d['at'].to_f
+      w = d['w'].to_f
+      if w <= TOL
+        errs << "door #{j + 1} on run #{i}: width must be positive"
+      elsif at < TOL || at + w > len - TOL
+        errs << format('door %d on run %d touches the corner (at %.1f" + ' \
+                       'width %.1f" vs run %.1f") — build-room cannot cut a ' \
+                       'corner opening; move it or shrink it', j + 1, i, at, w, len)
+      end
+    end
+    errs
+  end
+
   # ---------------------------------------------------------------------- run --
 
   def self.build(cfg)
@@ -360,6 +389,13 @@ module WR_BuildRoom
     if pts.nil?
       UI.messagebox("Those runs do not close. Fix the take-off first —\n" \
                     "a chain that does not close means a wall face was misread.")
+      return
+    end
+
+    bad = door_errors(pts, doors)
+    unless bad.empty?
+      UI.messagebox("Doors that cannot be cut — nothing was built:\n\n" +
+                    bad.join("\n"))
       return
     end
 
@@ -528,4 +564,4 @@ module WR_BuildRoom
   end
 end
 
-WR_BuildRoom.open
+WR_BuildRoom.open unless $wr_suppress_autorun || $wr_no_autorun

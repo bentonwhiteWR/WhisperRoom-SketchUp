@@ -1,0 +1,40 @@
+{
+  "rooms": [
+    {
+      "ceiling_in": 105.0,
+      "doors": [
+        {
+          "expect_flag": null,
+          "jambs_in": [
+            106.0,
+            144.0
+          ],
+          "run": 1,
+          "w_in": 38.0
+        }
+      ],
+      "features": [],
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          -97.0,
+          0.0
+        ],
+        [
+          -97.0,
+          -172.0
+        ],
+        [
+          0.0,
+          -172.0
+        ]
+      ],
+      "room": "3190J",
+      "source": "pen IMG_7595 (width, door chain); depth is the ASSUMED band depth \u2014 see README, not ground truth",
+      "tolerance_in": 2.0
+    }
+  ]
+}

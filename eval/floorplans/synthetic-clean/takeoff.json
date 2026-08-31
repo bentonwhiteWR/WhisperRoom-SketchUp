@@ -1,0 +1,24 @@
+{
+  "job": "synthetic-clean",
+  "title": "Eval fixture: plain rectangle, one measured door — the base case",
+  "anchor": "authored — truth set at authoring time, no plan exists",
+  "rooms": [
+    {
+      "name": "clean",
+      "runs": [
+        {"d": "E", "v": "12'", "src": "stated synthetic (authored)"},
+        {"d": "S", "v": "10'", "src": "stated synthetic (authored)"},
+        {"d": "W", "v": "12'", "src": "stated synthetic (authored)"},
+        {"d": "N", "v": "10'", "src": "stated synthetic (authored)"}
+      ],
+      "ceiling": {"v": "8'6\"", "src": "stated synthetic (authored)"},
+      "doors": [
+        {"run": 0, "w": {"v": "36\"", "src": "stated synthetic (authored)"},
+         "at": {"v": "36\"", "src": "stated synthetic (authored)"},
+         "hinge": "near",
+         "h": {"v": "80\"", "src": "stated synthetic (authored)"}}
+      ],
+      "features": []
+    }
+  ]
+}

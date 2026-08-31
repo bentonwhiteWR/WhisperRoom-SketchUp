@@ -1,0 +1,55 @@
+{
+  "rooms": [
+    {
+      "ceiling_in": 105.0,
+      "doors": [
+        {
+          "expect_flag": "assumed",
+          "jambs_in": null,
+          "run": 2,
+          "w_in": 38.0
+        },
+        {
+          "expect_flag": "assumed",
+          "jambs_in": null,
+          "run": 2,
+          "w_in": 38.0
+        }
+      ],
+      "features": [
+        {
+          "count": 2,
+          "type": "heater"
+        },
+        {
+          "count": 1,
+          "from_in": 113.5,
+          "head_in": 99.0,
+          "type": "bulkhead"
+        }
+      ],
+      "pdf_depth_in": 174.6,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          227.0,
+          0.0
+        ],
+        [
+          227.0,
+          -172.0
+        ],
+        [
+          0.0,
+          -172.0
+        ]
+      ],
+      "room": "3190G+H",
+      "source": "S609-3.pdf vectors + pen anchor 18'11\" (this script); pen depth 14'4\"",
+      "tolerance_in": 2.0
+    }
+  ]
+}

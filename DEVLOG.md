@@ -2,6 +2,50 @@
 
 ## 2026-08-31
 
+### 1.11.0 — floor-plan intake: the take-off file, its checker, the multi-room builder, the scorer, and the dialog's invented defaults removed
+
+Spec: `.forge/scoper/floorplan-intake.md` steps 1–6 (slice 1), Benton's
+Q1–Q5 answers applied. New: `scripts/takeoff-check.py`,
+`scripts/build-takeoff.rb`, `scripts/eval-floorplan.py`,
+`scripts/takeoff-vectors.{json,html}`, `scripts/rbtest-takeoff.py`,
+`reference/takeoff-format.md`, `clients/uic-daley-library/`
+(takeoff + notes; plans gitignored), `eval/` (4 S609 cases + baseline +
+synthetic-clean, `derive-s609.py`, `RESULTS.md` ledger). Changed:
+`scripts/build-room.rb` (autorun guard; corner-door refusal BY NAME),
+`scripts/build-room.html` ("+ door" seeds an EMPTY RED position instead of
+an invented 36"; door-height field, 80" labeled "standard, not measured"),
+`scripts/wr-bridge-lib.rb` (`WRB.takeoff_readback`). VERSION 1.10.7 ->
+**1.11.0**.
+
+- **The intake is now a data file, not keystrokes.** `takeoff.json` records
+  every dimension `{v, src}` with its chain arithmetic; the checker enforces
+  parts-sum EXACTLY and polygon closure at intake, prints the ASSUMED
+  inventory, writes `takeoff.lock.json` (all Ruby consumes) and the `--html`
+  review sheet (mockup-approved look). The 31 Aug trap is now structural:
+  transcribe 17'3" as the G+H width and the file cannot validate, because
+  10"+17'3"+10"=18'11" is recorded, not remembered.
+- **Never invent a placement number, in code.** Door with no `at`: fails by
+  name. Assumed value: legal only with a reason, flagged on the sheet, in
+  the report, and as a WR-Notes text AT THE FEATURE in the model. The dialog
+  seed `at:36"` and the hidden hardcoded `door_h:80` are gone. A door
+  touching a corner refuses the whole build by name (was: silent leaf in
+  solid wall).
+- **Verified LIVE, SketchUp 2026 via the bridge (this session):** the whole
+  UIC job (3190G+H one room per pen + bulkhead at 8'3", J, F) built in
+  0.34 s, read back exact — scorer says 0.00" vertex/jamb/ceiling error on
+  all four cases. Baseline case reproducing the old semantics scores
+  **20.00" vertex error, 9.00" ceiling error, 2 unflagged invented doors**
+  against the same PDF-derived truth — the before/after is in
+  `eval/RESULTS.md`. Corner-door refusal exercised live both paths (model
+  provably unchanged, census-diffed). Grammar parity: 25 shared vectors run
+  through BOTH parsers (Python selftest; the real parseLen extracted
+  verbatim, executed under cscript) — 0 failures.
+- Not verified live: the dialog's new UI behavior (AC-11/12/13 need a human
+  click-through — JS compiles, logic reuses the existing bad-field
+  machinery) and the review sheet in light mode (dark-mode render checked
+  via headless Chrome). Steps 7–9 of the spec (panel button, synthetic
+  generator, protocol docs) untouched by design — slice line.
+
 ### 1.10.7 — manifest.json from the Proposal Package: the export stops throwing away what it knows
 
 `scripts/proposal-package.rb`, `scripts/rbtest-proposal.py`, new

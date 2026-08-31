@@ -1,0 +1,15 @@
+{
+  "rooms": [
+    {
+      "room": "clean",
+      "source": "authored — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [[0.0, 0.0], [144.0, 0.0], [144.0, -120.0], [0.0, -120.0]],
+      "ceiling_in": 102.0,
+      "doors": [
+        {"run": 0, "w_in": 36.0, "jambs_in": [36.0, 72.0], "expect_flag": null}
+      ],
+      "features": []
+    }
+  ]
+}

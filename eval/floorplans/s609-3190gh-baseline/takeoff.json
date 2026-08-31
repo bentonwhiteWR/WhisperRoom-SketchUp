@@ -1,0 +1,31 @@
+{
+  "job": "s609-3190gh-baseline",
+  "title": "THE 31 AUG FAILURE, REPRODUCED — do not fix this file, it is the baseline",
+  "anchor": "none — this take-off deliberately reproduces the old dialog semantics",
+  "interpretations": [
+    "This is what the Draw-floor-plan dialog path could record on 31 Aug 2026: the 17'3\" pen chain read as the wall-to-wall width (no parts recorded, so nothing can catch it), the door at the dialog's invented at:36\" seed presented as if it were data, and the 96\" house-default ceiling. Scored against the same truth as s609-3190gh, it shows the failure the take-off pipeline replaces: ~20\" of width error, a 9\" ceiling error, and invented door positions with no ASSUMED flag."
+  ],
+  "rooms": [
+    {
+      "name": "3190G+H",
+      "runs": [
+        {"d": "E", "v": "17'3\"", "src": "pen IMG_7594",
+         "note": "MISREAD ON PURPOSE: this is the clear width between the heaters, transcribed as the room width — the chain arithmetic that would catch it is deliberately not recorded"},
+        {"d": "S", "v": "14'4\"", "src": "pen IMG_7594"},
+        {"d": "W", "v": "17'3\"", "src": "pen IMG_7594"},
+        {"d": "N", "v": "14'4\"", "src": "pen IMG_7594"}
+      ],
+      "ceiling": {"v": "96\"", "src": "default",
+        "note": "old dialog left at the 8'-0\" house default; pen said 8'8\"/8'9\""},
+      "doors": [
+        {"run": 2, "w": {"v": "38\"", "src": "pen IMG_7594"},
+         "at": {"v": "36\"", "src": "stated old dialog '+ door' seed — an invented placement presented as a measurement"},
+         "hinge": "near"},
+        {"run": 2, "w": {"v": "38\"", "src": "pen IMG_7594"},
+         "at": {"v": "12'", "src": "stated old dialog '+ door' seed, nudged along the run — equally invented, equally unflagged"},
+         "hinge": "far"}
+      ],
+      "features": []
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "rooms": [
+    {
+      "ceiling_in": 103.0,
+      "doors": [
+        {
+          "expect_flag": "assumed",
+          "jambs_in": null,
+          "run": 4,
+          "w_in": 38.0
+        }
+      ],
+      "features": [
+        {
+          "count": 1,
+          "type": "heater"
+        }
+      ],
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          111.0,
+          0.0
+        ],
+        [
+          111.0,
+          -109.0
+        ],
+        [
+          114.0,
+          -109.0
+        ],
+        [
+          114.0,
+          -172.0
+        ],
+        [
+          0.0,
+          -172.0
+        ]
+      ],
+      "room": "3190F",
+      "source": "pen IMG_7596; jogged 6-run interpretation of the 9'3\"/9'6\" pair \u2014 UNCONFIRMED, see README",
+      "tolerance_in": 3.0
+    }
+  ]
+}

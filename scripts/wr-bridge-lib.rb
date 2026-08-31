@@ -48,9 +48,10 @@ module WRB
   # wants ONE quiet load.
   # NOT EVERY TOOL HONOURS THE GLOBALS, and that is a fact about the scripts
   # rather than a fault in the bridge. explode-view.rb and auto-dimension.rb end
-  # in `... unless $wr_no_autorun`. build-room.rb, build-booth.rb and
-  # csusb-rooms.rb do not: their last line runs unconditionally, so merely
-  # LOADING them opens a dialog or builds geometry (observed 30 Aug 2026).
+  # in `... unless $wr_no_autorun`; build-room.rb and build-takeoff.rb guard on
+  # both globals (since 1.11.0). build-booth.rb and csusb-rooms.rb do not:
+  # their last line runs unconditionally, so merely LOADING them opens a
+  # dialog or builds geometry (observed 30 Aug 2026).
   #
   # `deaf` is the answer for those. It makes UI::HtmlDialog#show and #show_modal
   # no-ops for the duration of the load, so a tool whose autorun opens a panel
@@ -164,6 +165,67 @@ module WRB
     model.active_view.zoom_extents
     model.active_view.refresh rescue nil
     true
+  end
+
+  # ------------------------------------------------------ take-off rooms --
+
+  # Everything the floor-plan scorer needs to compare a built take-off room
+  # against truth, per room group, IN THE ROOM'S OWN FRAME (the group stores
+  # the origin build-takeoff.rb placed it at; every coordinate here has it
+  # subtracted back out, so the numbers line up with the lock polygon and
+  # eval/floorplans/<case>/truth.json with no best-fit step). Inches
+  # throughout — Length#to_f is inches.
+  def takeoff_readback(names = nil)
+    out = []
+    model.entities.grep(Sketchup::Group).each do |g|
+      room_name = g.get_attribute('wr_takeoff', 'room')
+      next unless room_name
+      next if names && !names.include?(room_name)
+      org = g.get_attribute('wr_takeoff', 'origin') || [0.0, 0.0]
+      ox = org[0].to_f
+      oy = org[1].to_f
+      room = { 'name' => room_name, 'origin' => [ox, oy] }
+
+      subs = g.entities.grep(Sketchup::Group)
+      if (fg = subs.find { |x| x.name == 'Floor' })
+        face = fg.entities.grep(Sketchup::Face).max_by(&:area)
+        if face
+          room['floor'] = face.outer_loop.vertices.map do |v|
+            p = v.position
+            [(p.x.to_f - ox).round(4), (p.y.to_f - oy).round(4)]
+          end
+        end
+      end
+      if (cg = subs.find { |x| x.name == 'Ceiling' })
+        room['ceiling_z'] = cg.bounds.min.z.to_f.round(4)
+      end
+      if (dg = subs.find { |x| x.name == 'Doors' })
+        door_groups = dg.entities.grep(Sketchup::Group)
+        room['openings'] = door_groups.select { |x| x.name.start_with?('Opening') }
+                                      .map do |og|
+          b = og.bounds
+          { 'name' => og.name,
+            'min' => [(b.min.x.to_f - ox).round(4), (b.min.y.to_f - oy).round(4)],
+            'max' => [(b.max.x.to_f - ox).round(4), (b.max.y.to_f - oy).round(4)] }
+        end
+        room['leaf_count'] = door_groups.count { |x| x.name.start_with?('Door leaf') }
+        room['opening_count'] = room['openings'].length
+      end
+      room['features'] = subs.select { |x| x.layer && x.layer.name == 'WR-Obstruction' }
+                             .map do |o|
+        b = o.bounds
+        { 'name' => o.name,
+          'min' => [(b.min.x.to_f - ox).round(4), (b.min.y.to_f - oy).round(4),
+                    b.min.z.to_f.round(4)],
+          'max' => [(b.max.x.to_f - ox).round(4), (b.max.y.to_f - oy).round(4),
+                    b.max.z.to_f.round(4)] }
+      end
+      room['notes'] = model.entities.grep(Sketchup::Text)
+                           .select { |t| t.get_attribute('wr_takeoff', 'room') == room_name }
+                           .map(&:text)
+      out << room
+    end
+    out
   end
 
   # ---------------------------------------------------------- assertions --
