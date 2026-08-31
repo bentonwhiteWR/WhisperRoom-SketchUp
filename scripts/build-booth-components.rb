@@ -344,9 +344,58 @@ module WR_BuildBoothComponents
     name.to_s =~ /VNT|NV\b/i ? :sym : :lo
   end
 
+  # THE INNER WINDOW IS THE ONE PART WHOSE BOX IS NOT ROUGHLY SYMMETRIC ABOUT
+  # ITS PANEL, and the rule above quietly assumed that every part was.
+  #
+  # Benton, off a generated 7272 E: "the window needs to go inwards 11/16 of an
+  # inch." 11/16 = 0.6875, and it is not a fudge - it is a dimension of the
+  # part. Measured live on a built MDL 7272 E (bridge, SketchUp 2026 26.2.243),
+  # the world-x levels of the wall-parallel faces of the W wall's two INNER
+  # panels, room toward +x:
+  #
+  #   W0i ENH 17.5PanelSolid     3.1875 | 3.2500 ..... 4.2500 | 4.3125
+  #   W1i ENH 41.5Panel3236WDO   2.5000 | 2.5625 ..... 3.5625 | 3.6250 .. 4.3125
+  #                                       ^--- 1.0 panel ---^   ^-- trim 0.6875 -^
+  #
+  # The room-proud rule pins the BOUNDING BOX face. On a solid or a vent the box
+  # is the panel plus an even sliver, so pinning the box pins the panel. On a
+  # WDO the box's room end is the tip of the WINDOW TRIM RING, which stands
+  # 0.6875 proud of the panel it is screwed to - so pinning the box drove the
+  # PANEL 0.6875 out of the room and the window sat that far behind its
+  # neighbours. The 0.0625 the width lookup handed it was never wrong for a
+  # 41.5; it was measured on 41.5PanelSolid, a part that has no trim ring.
+  #
+  # 0.0625 + 0.6875 = 0.7500, and that move lands THREE independent numbers
+  # exactly flush against the neighbouring inner panel - the panel's outboard
+  # face (2.5625 -> 3.2500), its room face (3.5625 -> 4.2500) and the box's
+  # outboard end (2.5000 -> 3.1875). Three exact hits is why this is a
+  # measurement and not a tuning.
+  #
+  # ONE FIGURE FOR THE FAMILY, and the evidence for generalising it is the
+  # parts' own boxes rather than an assumption: of the 22 ENH ...WDO components
+  # on the share (P:/Sketchup/NewMasterComponentList/_component-probe.tsv,
+  # observed), 21 measure 1.8125 thick - identical to the 41.5 this was measured
+  # on - so it is the same trim ring on all of them. The exception is
+  # ENH 26.5Panel1648WDO at 1.7500, a sixteenth thinner, which may want 0.6875
+  # instead. It is NOT silently given the 41.5's figure: it is named in the
+  # build report, exactly the way an unmeasured width already is.
+  #
+  # OUTER WINDOWS ARE NOT TOUCHED AND MUST NOT BE. This whole rule runs only for
+  # inner parts - see the inner?(p) guard at the call site. The outer
+  # 46Panel3236WDO is placed off a slab that IS found, and it already lands
+  # exactly flush: measured on the same build, its panel faces sit at world x
+  # 1.0000 and 2.0000 against 22PanelSolid's 1.0000 and 2.0000. Moving it would
+  # break a wall that is right, and it would move Standard booths, which this
+  # change deliberately does not.
+  IEP_ROOM_PROUD_WDO = 0.7500
+  # The one inner WDO whose box is not 1.8125, so the figure above is the 41.5's
+  # and has not been measured for it.
+  IEP_ROOM_PROUD_WDO_UNMEASURED = ['ENH 26.5Panel1648WDO'].freeze
+
   def self.iep_room_proud(name)
     n = name.to_s
     return IEP_ROOM_PROUD[:vent] if n =~ /VNT|NV\b/i
+    return IEP_ROOM_PROUD_WDO if n =~ /WDO/i
     w = n[/ENH\s+([\d.]+)/, 1]
     IEP_ROOM_PROUD[w] || IEP_ROOM_PROUD_DEFAULT
   end
@@ -354,6 +403,7 @@ module WR_BuildBoothComponents
   def self.iep_room_proud_measured?(name)
     n = name.to_s
     return true if n =~ /VNT|NV\b/i
+    return !IEP_ROOM_PROUD_WDO_UNMEASURED.include?(n.sub(/_HX\z/, '')) if n =~ /WDO/i
     IEP_ROOM_PROUD.key?(n[/ENH\s+([\d.]+)/, 1])
   end
 

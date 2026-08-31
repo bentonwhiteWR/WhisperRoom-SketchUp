@@ -2,6 +2,68 @@
 
 ## 2026-08-30
 
+### 1.9.8 — "the window needs to go inwards 11/16": it is the trim ring, and the rule was pinning it
+
+`scripts/build-booth-components.rb`, `scripts/wr_tools/VERSION` 1.9.7 -> **1.9.8**. Full
+write-up: `.forge/fixer/HANDOFF-6060-window.md`. The probe that proved it is committed at
+`.forge/fixer/probe-wall-face-levels.rb`.
+
+**The booth is the 7272 E, Enhanced only, and the part is the INNER window
+`ENH 41.5Panel3236WDO`.** The refusal logged below — which named a 6060 and a vent — was
+right to stop; Benton named the real part afterwards.
+
+**0.6875 is a dimension of the part, not a fudge.** `iep_room_proud` pins an inner panel's
+BOUNDING BOX face a measured sliver into the room. On a solid or a vent the box is the panel
+plus an even sliver, so pinning the box pins the panel. On a WDO the box's room end is the
+tip of the **window trim ring**, 0.6875 proud of the panel it is screwed to — so pinning the
+box drove the panel 0.6875 out of the room. The 0.0625 it was getting was measured on
+`ENH 41.5PanelSolid`, a part with no trim ring.
+
+**Measured live on a built `MDL 7272 E` (SketchUp 2026 26.2.243), world-x face levels of the
+inner window, room toward +x:**
+
+| face | before | after | neighbour `W0i ENH 17.5PanelSolid` |
+|---|---:|---:|---:|
+| box outboard end | 2.5000 | **3.1875** | **3.1875** |
+| panel outboard face | 2.5625 | **3.2500** | **3.2500** |
+| panel room face | 3.5625 | **4.2500** | **4.2500** |
+| H-strip edge | 3.6250 | **4.3125** | **4.3125** |
+| trim ring tip | 4.3125 | 5.0000 | — |
+
+Every face moved by exactly 0.6875 and four of them land on the neighbouring inner panel to
+four decimals. **The outer window did not move and must not:** `46Panel3236WDO`'s panel faces
+sit at 1.0000 / 2.0000, exactly where `22PanelSolid`'s do, before and after. A `MDL 7272 S`
+built after the fix reads the same 1.0000 / 2.0000 — **Standard is untouched by
+construction**, the whole rule being inside the `inner?(p)` guard.
+
+The fix is a named constant with its provenance, in the style of the rules around it:
+`IEP_ROOM_PROUD_WDO = 0.7500`, with `IEP_ROOM_PROUD_WDO_UNMEASURED` naming
+`ENH 26.5Panel1648WDO` — the one inner WDO whose box is 1.7500 rather than 1.8125, so it takes
+the 41.5's figure and **says so in the build report** instead of passing as measured. The
+other 21 share the 41.5's exact box thickness (`_component-probe.tsv`, observed), which is the
+evidence for one figure covering the family.
+
+**Baseline: nothing moved in it, and it could not have seen this.** The 50-key dry diff reads
+"50 changed", which is V-Ray `material_sync` stderr embedded in the manifests — it fires on
+the first build of a session and the golden files carry ~330 lines of it. Filter only that and
+**2 of 50 differ, both by a single blank line**; no manifest line changed anywhere, and the
+`MDL 7272 E` **real build manifest is byte-identical before and after the fix**. The manifest
+records slot fit, facing and along-wall stations and **nothing about the across-wall
+position**, so 11/16 of real movement left no trace. That is a gap, not a pass. **The baseline
+does not need regenerating and was not regenerated** — Benton's call; the recommendation is to
+leave it. Turning "an inner panel's faces must agree with its neighbour's" into an assertion is
+the next build.
+
+**A trap that cost a wasted build.** `rbtest-live-booth.py:230` loads the booth builder once
+per SketchUp session (`unless defined?(WR_BuildBoothComponents)`), so the first post-fix build
+reused the stale module and reproduced the "before" numbers exactly — a green-looking result
+that proved nothing. Caught only because the face-level probe was run instead of the manifest
+trusted. `load` the file through the bridge and verify the rule returns the new figure before
+measuring anything. Same lesson as the IEP_VENT_YAW episode, new place.
+
+Checks: `rbparse` 59 files parse; full dry sweep 50 clean / 0 flagged / 0 raised in 119.8 s;
+`7272 S` build clean; nothing written to `P:` or `WhisperRoomQuote`.
+
 ### "the 6060's window needs to go inwards 11/16" — refused: the 6060 has no window
 
 Diagnosis only. **No script changed, `scripts/wr_tools/VERSION` stays at 1.9.7, the
