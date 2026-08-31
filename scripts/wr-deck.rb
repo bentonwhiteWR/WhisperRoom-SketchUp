@@ -757,7 +757,16 @@ module WR_Deck
   # Deck parts whose measured yaw comes out backwards, by filename without the
   # extension, upper-cased. Kept as a plain list so adding the next one is a
   # single line and so the exceptions are all visible in one place.
-  YAW_180_FILES = %w[STD4260CL STD4260FL].freeze
+  #
+  # THE PATTERN, SO FAR. Both confirmed models are single-piece STD decks whose
+  # FLOOR part's origin is NOT at its min corner (_component-probe.tsv:
+  # STD4260FL "?/min/min", STD4872FL "?/?/min"). The yaw for the pair is read
+  # off the floor, so a floor that measures oddly turns the ceiling with it.
+  # Single-piece floors sharing that trait and NOT yet checked: STD4230FL,
+  # STD4284FL, STD4848FL, STD8418 FL. They are deliberately NOT listed here --
+  # a guess that fixes one and breaks another is this file's oldest mistake.
+  YAW_180_FILES = %w[STD4260CL STD4260FL
+                     STD4872CL STD4872FL].freeze
 
   def self.build(model, parent, spec, dir, kind, wall_h = WALL_H)
     cat = catalogue(dir)
