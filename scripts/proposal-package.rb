@@ -2437,23 +2437,23 @@ module WR_ProposalPackage
           --ok:#2e7d46; --bad:#b0402c; }
   * { box-sizing:border-box; margin:0; }
   html,body { height:100%; }
-  body { font:13px/1.45 "Segoe UI",system-ui,sans-serif; background:var(--bg);
+  body { font:12.5px/1.4 "Segoe UI",system-ui,sans-serif; background:var(--bg);
          color:var(--ink); display:flex; flex-direction:column; overflow:hidden; }
   ::-webkit-scrollbar { width:9px; height:9px; }
   ::-webkit-scrollbar-thumb { background:#c9d0d5; border-radius:5px; }
 
-  .top { flex:0 0 auto; padding:10px 12px 6px; display:flex; gap:10px; align-items:baseline; }
+  .top { flex:0 0 auto; padding:7px 11px 4px; display:flex; gap:10px; align-items:baseline; }
   .top .t { font-weight:650; }
   .top .c { color:var(--muted); font-size:12px; margin-left:auto; }
-  .cmd { flex:0 0 auto; margin:0 12px 8px; }
-  .cmd input { width:100%; padding:8px 10px; font:inherit; color:var(--ink);
+  .cmd { flex:0 0 auto; margin:0 11px 6px; }
+  .cmd input { width:100%; padding:6px 9px; font:inherit; color:var(--ink);
     background:var(--surface); border:1px solid var(--line); border-radius:8px; outline:none; }
   .cmd input:focus { border-color:var(--accent); }
 
-  .bulk { flex:0 0 auto; margin:0 12px 8px; padding:8px 11px; background:var(--surface);
+  .bulk { flex:0 0 auto; margin:0 11px 6px; padding:5px 9px; background:var(--surface);
           border:1px solid var(--line); border-radius:8px; display:flex; gap:8px; align-items:center; }
   .bulk .lbl { font-size:10.5px; font-weight:650; letter-spacing:.1em; color:var(--faint); }
-  .btn { font:inherit; font-size:12px; padding:5px 11px; border:1px solid var(--line);
+  .btn { font:inherit; font-size:11.5px; padding:4px 10px; border:1px solid var(--line);
          border-radius:6px; background:var(--surface); color:var(--ink); cursor:pointer;
          white-space:nowrap; }
   .btn:hover { border-color:var(--accent); }
@@ -2461,13 +2461,13 @@ module WR_ProposalPackage
   .btn.p:disabled { background:#f0b48e; border-color:#f0b48e; cursor:default; }
   .btn:disabled { color:var(--faint); cursor:default; border-color:var(--line); }
 
-  .wrap { flex:1 1 auto; overflow:auto; margin:0 12px 10px; background:var(--surface);
-          border:1px solid var(--line); border-radius:9px; min-height:140px; }
+  .wrap { flex:1 1 auto; overflow:auto; margin:0; background:var(--surface);
+          border:0; border-radius:0 0 8px 8px; min-height:0; }
   table { width:100%; border-collapse:collapse; }
   th { position:sticky; top:0; background:var(--surface); text-align:left;
-       font-size:10.5px; font-weight:650; letter-spacing:.09em; color:var(--faint);
-       padding:8px 9px; border-bottom:1px solid var(--line); white-space:nowrap; z-index:2; }
-  td { padding:5px 9px; border-top:1px solid var(--line); vertical-align:middle; }
+       font-size:10px; font-weight:650; letter-spacing:.09em; color:var(--faint);
+       padding:5px 8px; border-bottom:1px solid var(--line); white-space:nowrap; z-index:2; }
+  td { padding:3px 8px; border-top:1px solid var(--line); vertical-align:middle; }
   tr:hover td { background:#f8f4f1; }
   td.n { font-variant-numeric:tabular-nums; color:var(--muted); width:1%; white-space:nowrap; }
   td.file { color:var(--muted); font-size:11.5px; white-space:nowrap; overflow:hidden;
@@ -2487,15 +2487,26 @@ module WR_ProposalPackage
   .seg button.on-image  { background:#e8f0fa; color:#2b5e8f; font-weight:650; }
   .seg button.on-render { background:var(--soft); color:var(--accent); font-weight:650; }
 
-  .sect { flex:0 0 auto; margin:0 12px 8px; background:var(--surface);
+  .sect { flex:0 0 auto; margin:0 11px 6px; background:var(--surface);
           border:1px solid var(--line); border-radius:8px; }
-  .sect > .hd { padding:8px 11px; display:flex; gap:8px; align-items:center; cursor:pointer;
+  .sect > .hd { padding:5px 9px; display:flex; gap:8px; align-items:center; cursor:pointer;
                 user-select:none; }
   .sect .hd .lbl { font-size:10.5px; font-weight:650; letter-spacing:.1em; color:var(--faint); }
   .sect .hd .sum { color:var(--muted); font-size:11.5px; margin-left:auto; }
   .sect .hd .tri { color:var(--faint); font-size:10px; }
-  .sect .bodyy { padding:2px 11px 10px; display:none; }
+  .sect .bodyy { padding:2px 9px 8px; display:none; }
   .sect.open .bodyy { display:block; }
+  /* A section that should EAT the leftover height when it is open (the scene
+     list, the log) and give all of it back when it is collapsed. Without this
+     every section is fixed-height, the column overflows a short window, and
+     the bar carrying Export package is pushed off the bottom -- which is the
+     bug this markup exists to fix. */
+  .sect.grow { display:flex; flex-direction:column; min-height:0; }
+  .sect.grow.open { flex:1 1 auto; }
+  .sect.grow.open > .bodyy { flex:1 1 auto; min-height:0; display:flex;
+                             flex-direction:column; padding:0; }
+  .sect .hd .mini { color:var(--faint); font-size:14px; line-height:1; padding:0 2px; }
+  .sect .hd:hover .mini { color:var(--accent); }
   .matrow { display:flex; gap:8px; align-items:center; padding:4px 0; }
   .matrow .from { width:64px; flex:0 0 auto; color:var(--muted); font-size:12px; }
   .matrow .from b { color:var(--ink); font-weight:600; }
@@ -2512,9 +2523,9 @@ module WR_ProposalPackage
   .matnote { color:var(--muted); font-size:11px; padding-top:6px;
              border-top:1px dashed var(--line); margin-top:6px; }
 
-  .out { flex:0 0 auto; margin:0 12px 8px; padding:9px 11px; background:var(--surface);
-         border:1px solid var(--line); border-radius:8px; display:grid;
-         grid-template-columns:auto 1fr auto; gap:7px 8px; align-items:center; }
+  .out { flex:0 0 auto; margin:0; padding:0; background:transparent;
+         border:0; border-radius:0; display:grid;
+         grid-template-columns:auto 1fr auto; gap:5px 8px; align-items:center; }
   .out .lbl { font-size:10.5px; font-weight:650; letter-spacing:.08em; color:var(--faint); }
   .out input, .out select { font:inherit; font-size:12px; padding:5px 8px;
                border:1px solid var(--line); border-radius:6px; background:#fff;
@@ -2525,15 +2536,16 @@ module WR_ProposalPackage
   .out .half input[type=text] { width:72px; }
   .out .shadelbl { font-size:11.5px; color:var(--muted); }
 
-  .runlog { flex:0 0 auto; margin:0 12px 8px; background:#20262a; color:#cdd6da;
-            border-radius:8px; font:11px/1.6 Consolas,monospace; padding:8px 11px;
-            max-height:130px; overflow:auto; display:none; }
+  .runlog { flex:1 1 auto; margin:0; background:#20262a; color:#cdd6da;
+            border-radius:0 0 8px 8px; font:11px/1.5 Consolas,monospace; padding:7px 10px;
+            max-height:150px; min-height:0; overflow:auto; }
   .runlog .ok { color:#8fd0a0; } .runlog .bad { color:#f0a08c; } .runlog .dim { color:#8b979e; }
-  .bar { flex:0 0 auto; padding:0 12px 12px; display:flex; gap:8px; align-items:center; }
+  .bar { flex:0 0 auto; padding:2px 11px 9px; display:flex; gap:8px; align-items:center; }
   .prog { flex:1 1 auto; color:var(--muted); font-size:11.5px; }
   .prog .pbar { height:4px; background:#e6e9eb; border-radius:2px; margin-top:4px; overflow:hidden; }
   .prog .pbar i { display:block; height:100%; width:0%; background:var(--accent); transition:width .2s; }
-  .foot { flex:0 0 auto; padding:0 12px 10px; color:var(--muted); font-size:11px; }
+  .foot { flex:0 0 auto; padding:0 11px 8px; color:var(--muted); font-size:10.5px; display:none; }
+  body.showhelp .foot { display:block; }
 </style></head><body>
 
 <div class="top">
@@ -2554,12 +2566,20 @@ module WR_ProposalPackage
   <span class="lbl" style="margin-left:auto" id="picksum"></span>
 </div>
 
-<div class="wrap"><table>
-  <thead><tr>
-    <th>#</th><th>SCENE</th><th>MODE</th><th>FILE IT WILL WRITE</th><th></th>
-  </tr></thead>
-  <tbody id="body"></tbody>
-</table></div>
+<div class="sect grow open" id="scenesect">
+  <div class="hd">
+    <span class="tri">&#9660;</span>
+    <span class="lbl">SCENES</span>
+    <span class="sum" id="scenesum"></span>
+    <span class="mini" title="Minimise">&minus;</span>
+  </div>
+  <div class="bodyy"><div class="wrap"><table>
+    <thead><tr>
+      <th>#</th><th>SCENE</th><th>MODE</th><th>FILE IT WILL WRITE</th><th></th>
+    </tr></thead>
+    <tbody id="body"></tbody>
+  </table></div></div>
+</div>
 
 <div class="sect" id="mats">
   <div class="hd" id="matshd">
@@ -2570,7 +2590,14 @@ module WR_ProposalPackage
   <div class="bodyy" id="matbody"></div>
 </div>
 
-<div class="out">
+<div class="sect open" id="outsect">
+  <div class="hd">
+    <span class="tri">&#9660;</span>
+    <span class="lbl">FOLDER &amp; DETAILS</span>
+    <span class="sum" id="outsum"></span>
+    <span class="mini" title="Minimise">&minus;</span>
+  </div>
+  <div class="bodyy"><div class="out">
   <span class="lbl">FOLDER</span>
   <input type="text" id="dir" value="#{escAttr(dir)}" style="width:100%">
   <button class="btn" id="browse">Browse&hellip;</button>
@@ -2604,13 +2631,23 @@ module WR_ProposalPackage
   <span class="lbl"></span>
   <label class="shadelbl">Client-safe hides #{WR_Mode::ANNOT_TAGS.join(', ')} for the whole run and puts every one back at the end. Choose Draft only for an internal check print — those images carry construction dimensions and the ceiling-height note.</label>
   <span></span>
+</div></div>
 </div>
 
-<div class="runlog" id="log"></div>
+<div class="sect grow open" id="logsect" style="display:none">
+  <div class="hd">
+    <span class="tri">&#9660;</span>
+    <span class="lbl">LOG</span>
+    <span class="sum" id="logsum"></span>
+    <span class="mini" title="Minimise">&minus;</span>
+  </div>
+  <div class="bodyy"><div class="runlog" id="log"></div></div>
+</div>
 
 <div class="bar">
   <div class="prog"><span id="pmsg">Ready.</span><div class="pbar"><i id="pfill"></i></div></div>
   <button class="btn" id="cancel" style="display:none">Cancel</button>
+  <button class="btn" id="helpb" title="Show the notes under this window">?</button>
   <button class="btn" id="closeb">Close</button>
   <button class="btn p" id="export">Export package</button>
 </div>
@@ -2711,6 +2748,9 @@ module WR_ProposalPackage
                           : view.length+" of "+ST.rows.length)
                          + " · "+nr+" render · "+ni+" image";
     $pick.textContent = nr+" RENDER · "+ni+" IMAGE · "+(ST.rows.length-nr-ni)+" SKIP";
+    // The scene section's own header carries the count, so a minimised list
+    // still says what is in it.
+    g("scenesum").textContent = $count.textContent;
     var filled = ST.slots.filter(function(s){ return s.fill; }).length;
     g("matsum").textContent = nr ? (filled+" of "+ST.slots.length+" slots filled — applies to "
                                     +nr+" render scene(s)")
@@ -2793,7 +2833,7 @@ module WR_ProposalPackage
 
   // ---- run feedback, driven from Ruby ----
   window.logLine = function (text, cls) {
-    $log.style.display="block";
+    g("logsect").style.display="";
     $log.innerHTML += "<span class='"+(cls||"dim")+"'>"+esc(text)+"</span><br>";
     $log.scrollTop = 1e6;
   };
@@ -2801,7 +2841,12 @@ module WR_ProposalPackage
     $pfill.style.width = pct+"%"; $pmsg.textContent = msg;
   };
   window.runStarted = function () {
-    running = true; $log.innerHTML=""; $log.style.display="block";
+    running = true; $log.innerHTML="";
+    // Reveal the log AND open it -- a run someone minimised the log for still
+    // needs to show its first line, or a failure scrolls past unseen.
+    var ls = g("logsect"); ls.style.display=""; ls.classList.add("open");
+    var lt = ls.querySelector(".tri"); if(lt) lt.innerHTML="&#9660;";
+    var lm = ls.querySelector(".mini"); if(lm){ lm.innerHTML="&minus;"; lm.title="Minimise"; }
     g("cancel").style.display=""; $pfill.style.width="0%"; draw();
   };
   window.runFinished = function (msg) {
@@ -2818,9 +2863,21 @@ module WR_ProposalPackage
     });
   });
   $q.addEventListener("input", draw);
-  g("matshd").addEventListener("click", function(){
-    var s=g("mats"); s.classList.toggle("open");
-    s.querySelector(".tri").innerHTML = s.classList.contains("open")?"&#9660;":"&#9654;";
+  // EVERY section collapses, not just the materials one. A short SketchUp
+  // window could not reach Export package because every block was fixed-height
+  // and the bar was pushed off the bottom; now the scene list, the details and
+  // the log all give their height back when minimised, and the two that should
+  // absorb the leftover (.grow) do.
+  Array.prototype.forEach.call(document.querySelectorAll(".sect > .hd"), function(hd){
+    hd.addEventListener("click", function(){
+      var s = hd.parentNode, open = s.classList.toggle("open");
+      var t = s.querySelector(".tri"); if(t) t.innerHTML = open?"&#9660;":"&#9654;";
+      var m = s.querySelector(".mini");
+      if(m){ m.innerHTML = open?"&minus;":"&plus;"; m.title = open?"Minimise":"Expand"; }
+    });
+  });
+  g("helpb").addEventListener("click", function(){
+    document.body.classList.toggle("showhelp");
   });
   g("browse").addEventListener("click", function(){
     if(window.sketchup && sketchup.browse) sketchup.browse(g("dir").value);
