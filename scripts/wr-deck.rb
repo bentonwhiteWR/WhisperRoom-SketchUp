@@ -62,7 +62,7 @@ module WR_Deck
      SEAL_NAME SEAL_FL_NAME SEAL_DATUM_LIFT SEAL_FL_DATUM_LIFT
      SEAL_LEN_TOL SEAL_LEN_INSET
      SIDE_R_SMALL_WALL_AT_LOW_END LOW_END_PANEL_IS_TURNED
-     YAW_180_FILES].each do |c|
+     YAW_180_FILES MIRROR_DECK_SIZES SIZE_TOL].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
 
@@ -768,6 +768,44 @@ module WR_Deck
   YAW_180_FILES = %w[STD4260CL STD4260FL
                      STD4872CL STD4872FL].freeze
 
+  # PER-MODEL MIRROR, BY EXTERIOR FOOTPRINT.
+  #
+  # Benton, 2026-08-31: "The model 7272, the floors and ceilings are incorrect
+  # as far as the hinge positioning. So they need to be mirrored. Not
+  # necessarily flipped 180 degrees but just flat out mirrored."
+  #
+  # A MIRROR IS NOT A ROTATION and the two are not interchangeable here. A 180
+  # yaw sends the hinge to the diagonally opposite corner; a mirror sends it
+  # across one axis and leaves the other alone. On a square deck those land in
+  # different places, which is the whole distinction he is drawing.
+  #
+  # KEYED ON THE MODEL, NOT THE FILE, and that is forced rather than chosen. A
+  # 7272 deck is tiled from STD7248 and STD7224 parts that OTHER 72-series
+  # booths also use, so a filename exception like YAW_180_FILES above would
+  # mirror those booths too. The exterior footprint is the narrowest key
+  # available in what WR_Deck.build is handed: 74.0 x 74.0 is MDL 7272 S and E
+  # and nothing else in wr-booth-data.rb (checked).
+  #
+  # NOTE 7272 IS THE BOOTH THE MEASURED YAW RULE WAS TUNED AGAINST -- its
+  # comment above says "the booth Benton signed off on does not move." It moves
+  # now. The yaw rule is unchanged and still reproduces what it did; this is a
+  # mirror applied on top of it, so if the tuning is later revisited the two
+  # are separable.
+  # 74x74 = MDL 7272 S/E, 98x74 = MDL 7296 S/E. Each checked against
+  # wr-booth-data.rb: no other model carries either footprint.
+  MIRROR_DECK_SIZES = [[74.0, 74.0], [98.0, 74.0]].freeze
+  SIZE_TOL = 0.51
+
+  def self.mirror_deck?(spec)
+    w = spec[:w].to_f
+    h = spec[:h].to_f
+    MIRROR_DECK_SIZES.any? do |mw, mh|
+      (w - mw).abs < SIZE_TOL && (h - mh).abs < SIZE_TOL
+    end
+  rescue StandardError
+    false
+  end
+
   def self.build(model, parent, spec, dir, kind, wall_h = WALL_H)
     cat = catalogue(dir)
     return [0, ["no #{kind} parts in #{dir}"]] if cat.empty?
@@ -777,6 +815,9 @@ module WR_Deck
 
     warn = []
     placed = 0
+    mirror = mirror_deck?(spec)
+    warn << format('deck mirrored across YZ for this model (%.0f x %.0f)',
+                   spec[:w].to_f, spec[:h].to_f) if mirror
     tiles.each do |t|
       defn = begin
                model.definitions.load(t[:part][:path])
@@ -1079,6 +1120,20 @@ module WR_Deck
       tr = Geom::Transformation.rotation(ORIGIN, X_AXIS, 180.degrees) * tr if flip
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 180.degrees) * tr if half
       tr = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees) * tr if turn
+      # THE MIRROR GOES LAST, after every rotation, so it reflects the final
+      # orientation rather than an intermediate one. Across the YZ plane (x ->
+      # -x): the tile keeps its footprint and its hinge crosses to the other
+      # side, which is what "mirrored, not rotated 180" means.
+      #
+      # It cannot displace the part. Seating below reads all eight TRANSFORMED
+      # corners and takes the minimum -- written for exactly this reason, since
+      # a reflection sends the minimum corner to the maximum just as a half
+      # turn does.
+      #
+      # IF THE HINGE COMES OUT ON THE WRONG END rather than the wrong side, the
+      # other mirror is wanted: mirror-Y is mirror-X composed with a 180 yaw,
+      # so adding the same parts to YAW_180_FILES gives it without a new dial.
+      tr = Geom::Transformation.scaling(ORIGIN, -1, 1, 1) * tr if mirror
 
       # Where the contact plane ended up, after all of that.
       now_cz = Geom::Point3d.new(0, 0, cz).transform(tr).z.to_f
