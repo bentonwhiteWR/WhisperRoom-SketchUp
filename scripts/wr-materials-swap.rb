@@ -19,7 +19,11 @@
 #
 # There are three drafting materials in this shop (CLAUDE.md): the floor
 # (0128_White), the walls (0099_LightSteelBlue) and the door leaf
-# (0043_SaddleBrown). Each maps to a RENDER SLOT — WR-Floor-Render,
+# (0043_SaddleBrown). Those are the DEFAULT source of each slot, not a fixed
+# one -- a model that did not come out of build-room.rb still has a floor,
+# but it is not called 0128_White, and each slot's source is therefore
+# per-model and pickable from the model's own materials (see `source`). Each
+# maps to a RENDER SLOT — WR-Floor-Render,
 # WR-Wall-Render, WR-Door-Render — that starts empty. This script does not
 # know or care what V-Ray material fills a slot; the operator imports whatever
 # real material the client's room needs and points the slot at it by name.
@@ -57,11 +61,16 @@
 require 'sketchup.rb'
 
 module WR_MaterialsSwap
-  %w[DICT DRAFT_FLOOR DRAFT_WALL DRAFT_DOOR SLOT_FOR DRAFT_FOR DRAFT_RGB].each do |c|
+  %w[DICT SRC_PREFIX DRAFT_FLOOR DRAFT_WALL DRAFT_DOOR SLOT_FOR DRAFT_FOR
+     DRAFT_RGB].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
 
   DICT = 'WR_MaterialsSwap'.freeze
+
+  # Per-model SOURCE override, stored in the same dictionary as the fills under
+  # a prefixed key so one dictionary still holds the whole mapping.
+  SRC_PREFIX = 'src:'.freeze
 
   # The house drafting materials — CLAUDE.md and build-room.rb's own MAT_*
   # constants. Kept as plain strings here on purpose: this file must never
@@ -130,6 +139,66 @@ module WR_MaterialsSwap
     SLOT_FOR.values.each_with_object({}) { |s, h| h[s] = fill(model, s) }
   end
 
+  # ----------------------------------------------------------- sources --
+  #
+  # WHICH MATERIAL EACH SLOT SWAPS *FROM*, PER MODEL.
+  #
+  # The three house drafting materials above are the DEFAULTS, not the law. A
+  # model that did not come out of build-room.rb -- a client's own file, an
+  # imported booth, a room someone painted by hand -- has a floor, walls and a
+  # door like any other, but they are not called 0128_White. Before this was
+  # configurable the sweep simply found nothing in such a model and said so,
+  # which was honest and useless: there was no way to point it at the right
+  # material without editing this file.
+  #
+  # So each slot's SOURCE is stored per model, exactly like its fill, and
+  # falls back to the house name when unset. Set it in the Proposal Package
+  # window or in this script's own panel -- both write the same dictionary.
+
+  def self.source(model, slot)
+    d = model.attribute_dictionary(DICT)
+    v = d ? d[SRC_PREFIX + slot].to_s.strip : ''
+    v.empty? ? DRAFT_FOR[slot].to_s : v
+  rescue StandardError
+    DRAFT_FOR[slot].to_s
+  end
+
+  def self.set_source(model, slot, name)
+    # '' clears the override and restores the house default -- storing the
+    # house name itself would look identical but would silently pin the slot
+    # if the default ever changed.
+    n = name.to_s.strip
+    n = '' if n == DRAFT_FOR[slot].to_s
+    model.set_attribute(DICT, SRC_PREFIX + slot, n)
+  end
+
+  def self.sources(model)
+    SLOT_FOR.values.each_with_object({}) { |s, h| h[s] = source(model, s) }
+  end
+
+  # source name -> slot, this model's live replacement for SLOT_FOR.
+  #
+  # Two slots CAN be pointed at the same material, and that is not a mapping
+  # -- a surface on it has two possible destinations and no way to choose. The
+  # conflicting name is left OUT of the map and returned separately so the
+  # sweep can name it rather than quietly letting the last slot win.
+  def self.slot_for(model)
+    map = {}
+    dupes = {}
+    SLOT_FOR.values.each do |slot|
+      src = source(model, slot)
+      next if src.empty?
+      if dupes.key?(src)
+        dupes[src] << slot
+      elsif map.key?(src)
+        dupes[src] = [map.delete(src), slot]
+      else
+        map[src] = slot
+      end
+    end
+    [map, dupes]
+  end
+
   # ----------------------------------------------------------------- walk --
 
   # Any entity that carries an explicit material and whose material's NAME is
@@ -174,12 +243,19 @@ module WR_MaterialsSwap
   # named in :unmapped — never silently left "swapped" when it wasn't.
   def self.to_render(model)
     result = { :applied => Hash.new(0), :unmapped => [] }
-    hits = find(model, SLOT_FOR.keys)
+    map, dupes = slot_for(model)
+    hits = find(model, map.keys + dupes.keys)
     model.start_operation('WR Materials: Draft -> Render', true)
     begin
       hits.each do |e, chain|
         draft_name = e.material.name
-        slot = SLOT_FOR[draft_name]
+        if dupes.key?(draft_name)
+          two = dupes[draft_name].join(' and ')
+          result[:unmapped] << "#{describe(chain)}  (#{draft_name} is the source for " \
+                               "#{two} — pick a different material for one of them)"
+          next
+        end
+        slot = map[draft_name]
         fill_name = fill(model, slot)
         if fill_name.empty?
           result[:unmapped] << "#{describe(chain)}  (#{draft_name} -> #{slot}: no fill set)"
@@ -218,7 +294,8 @@ module WR_MaterialsSwap
       hits.each do |e, chain|
         cur = e.material.name
         slot = fillmap.key(cur)
-        draft_name = DRAFT_FOR[slot]
+        draft_name = slot ? source(model, slot) : nil
+        draft_name = nil if draft_name.to_s.empty?
         if draft_name.nil?
           result[:left] << "#{describe(chain)}  (on #{cur.inspect}, no drafting material known for it)"
           next
@@ -255,13 +332,21 @@ module WR_MaterialsSwap
 
   # ------------------------------------------------------------------ panel --
 
+  # Two rows per slot: the material it swaps FROM (defaults to the house
+  # drafting name, and the list is this model's own materials) and the render
+  # material it swaps TO. The Proposal Package window writes the same two
+  # values, so either surface can set them.
   def self.ask(model)
     mats = (model.materials.map(&:name).sort rescue [])
-    slot_list = (['(unset)'] + mats).join('|')
+    fill_list = (['(unset)'] + mats).join('|')
+    src_list  = mats.join('|')
     slots = SLOT_FOR.values
-    prompts = slots.map { |s| "#{s} fill" } + ['Direction']
-    current = slots.map { |s| f = fill(model, s); f.empty? ? '(unset)' : f }
-    lists = slots.map { slot_list } + ['Apply Render|Revert to Draft']
+    prompts  = slots.flat_map { |s| ["#{s} from", "#{s} fill"] } + ['Direction']
+    current  = slots.flat_map do |s|
+      f = fill(model, s)
+      [source(model, s), f.empty? ? '(unset)' : f]
+    end
+    lists    = slots.flat_map { [src_list, fill_list] } + ['Apply Render|Revert to Draft']
     defaults = current + ['Apply Render']
     UI.inputbox(prompts, defaults, lists, 'Materials — Draft / Render')
   end
@@ -272,7 +357,8 @@ module WR_MaterialsSwap
     return unless res
     slots = SLOT_FOR.values
     slots.each_with_index do |s, i|
-      v = res[i].to_s
+      set_source(model, s, res[i * 2].to_s)
+      v = res[(i * 2) + 1].to_s
       set_fill(model, s, v == '(unset)' ? '' : v)
     end
     action = res.last.to_s

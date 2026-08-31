@@ -110,11 +110,13 @@ module WR_ProposalPackage
   # Only what Windows genuinely refuses — export-scenes.rb's rule, verbatim.
   FORBIDDEN = /[<>:"\/\\|?*\x00-\x1f]/.freeze
 
-  # Human label for each drafting material, for the slot rows. The slots and
-  # their draft names come from WR_MaterialsSwap — the one owner of that table.
-  SLOT_LABEL = { WR_MaterialsSwap::DRAFT_FLOOR => 'Floor',
-                 WR_MaterialsSwap::DRAFT_WALL  => 'Walls',
-                 WR_MaterialsSwap::DRAFT_DOOR  => 'Door' }.freeze
+  # Human label for each render slot. Keyed by the SLOT, not by the drafting
+  # material: since 1.9.10 each slot's source material is per-model and
+  # pickable, so the draft name is a value that moves, not a stable key.
+  # WR_MaterialsSwap remains the one owner of the slot table itself.
+  SLOT_LABEL = { 'WR-Floor-Render' => 'Floor',
+                 'WR-Wall-Render'  => 'Walls',
+                 'WR-Door-Render'  => 'Door' }.freeze
 
   # ------------------------------------------------- output shape (D4) --
   #
@@ -437,10 +439,14 @@ module WR_ProposalPackage
   end
 
   def self.slot_rows(model)
-    WR_MaterialsSwap::SLOT_FOR.map do |draft, slot|
-      { 'slot' => slot, 'draft' => draft,
-        'label' => SLOT_LABEL[draft] || draft,
-        'fill'  => WR_MaterialsSwap.fill(model, slot) }
+    WR_MaterialsSwap::SLOT_FOR.map do |house, slot|
+      src = WR_MaterialsSwap.source(model, slot)
+      { 'slot'    => slot,
+        'draft'   => src,
+        'house'   => house,          # the shop default, so the row can say so
+        'missing' => !(model.materials[src] rescue nil),
+        'label'   => SLOT_LABEL[slot] || slot,
+        'fill'    => WR_MaterialsSwap.fill(model, slot) }
     end
   end
 
@@ -2296,6 +2302,17 @@ module WR_ProposalPackage
       push_state(model, d)
     end
 
+    d.add_action_callback('setsrc') do |_c, payload|
+      next if busy?(d, 'setsrc')
+      begin
+        data = JSON.parse(payload)
+        WR_MaterialsSwap.set_source(model, data['slot'].to_s, data['name'].to_s)
+      rescue StandardError => e
+        puts "  slot source failed: #{e.class}: #{e.message}"
+      end
+      push_state(model, d)
+    end
+
     d.add_action_callback('activate') do |_c, n|
       next if busy?(d, 'activate')
       begin
@@ -2429,8 +2446,12 @@ module WR_ProposalPackage
   .sect .bodyy { padding:2px 11px 10px; display:none; }
   .sect.open .bodyy { display:block; }
   .matrow { display:flex; gap:8px; align-items:center; padding:4px 0; }
-  .matrow .from { width:230px; flex:0 0 auto; color:var(--muted); font-size:12px; }
+  .matrow .from { width:64px; flex:0 0 auto; color:var(--muted); font-size:12px; }
   .matrow .from b { color:var(--ink); font-weight:600; }
+  .matrow .arrow { flex:0 0 auto; color:var(--muted); font-size:12px; }
+  .matrow .to { width:132px; flex:0 0 auto; color:var(--muted); font-size:12px; }
+  .matrow select.src { flex:1 1 0; min-width:0; }
+  .matrow select.src.gone { color:#b00; }
   .matrow select { flex:1 1 auto; font:inherit; font-size:12px; padding:4px 6px;
                    border:1px solid var(--line); border-radius:6px; background:#fff;
                    color:var(--ink); min-width:0; }
@@ -2645,23 +2666,44 @@ module WR_ProposalPackage
 
   function drawMats(){
     g("matbody").innerHTML = ST.slots.map(function(s){
+      // LEFT select — which material in THIS model the slot swaps FROM. The
+      // shop default (0128_White and friends) is only a default; a model that
+      // did not come out of build-room.rb needs to point the slot at its own
+      // floor. A source that is no longer in the model is still listed, and
+      // marked, rather than silently falling back to the first material.
+      var srcs = ST.materials.slice();
+      if(s.missing && s.draft && srcs.indexOf(s.draft) < 0) srcs.unshift(s.draft);
+      var sopts = srcs.map(function(m){
+        return "<option"+(m===s.draft?" selected":"")+">"+esc(m)+"</option>";
+      }).join("");
+      // RIGHT select — the V-Ray material it swaps TO.
       var opts = ["(unset)"].concat(ST.materials).map(function(m){
         var cur = s.fill ? s.fill : "(unset)";
         return "<option"+(m===cur?" selected":"")+">"+esc(m)+"</option>";
       }).join("");
-      return "<div class='matrow'><span class='from'>"+esc(s.label)+" <b>"+esc(s.draft)+
-             "</b> &rarr; "+esc(s.slot)+"</span>"+
+      var title = s.missing ? " title='Not a material in this model right now'"
+                : (s.draft===s.house ? " title='The shop default for this slot'"
+                                     : " title='Custom for this model — the shop default is "+esc(s.house)+"'");
+      return "<div class='matrow'><span class='from'>"+esc(s.label)+"</span>"+
+             "<select class='src"+(s.missing?" gone":"")+"' data-slot='"+esc(s.slot)+"'"+title+">"+sopts+"</select>"+
+             "<span class='arrow'>&rarr;</span>"+
+             "<span class='to'>"+esc(s.slot)+"</span>"+
              "<select data-slot='"+esc(s.slot)+"'>"+opts+"</select></div>";
     }).join("") +
     "<div class='matnote'>Applied only while the V-Ray scenes render, and reverted before this " +
     "window says done — the model goes back to drafting materials. A slot left (unset) leaves " +
-    "those surfaces drafting and is <b>reported by name</b>, never silently wrong. Same slots as " +
-    "the Draft / Render toggle — set them in either place. If SketchUp ever dies mid-render, " +
-    "the Toggle Draft/Render button puts the model back.</div>";
+    "those surfaces drafting and is <b>reported by name</b>, never silently wrong. The left box " +
+    "is the material the slot swaps <b>from</b> — it starts on the shop drafting material, and " +
+    "you point it at this model's own floor, walls or door when the model didn't come from " +
+    "Build room. Same slots as the Draft / Render toggle — set them in either place. If " +
+    "SketchUp ever dies mid-render, the Toggle Draft/Render button puts the model back.</div>";
     Array.prototype.forEach.call(g("matbody").querySelectorAll("select"), function(sel){
+      var isSrc = sel.classList.contains("src");
       sel.addEventListener("change", function(){
-        if(window.sketchup && sketchup.setfill)
-          sketchup.setfill(JSON.stringify({ slot:sel.getAttribute("data-slot"), name:sel.value }));
+        var msg = JSON.stringify({ slot:sel.getAttribute("data-slot"), name:sel.value });
+        if(!window.sketchup) return;
+        if(isSrc){ if(sketchup.setsrc) sketchup.setsrc(msg); }
+        else     { if(sketchup.setfill) sketchup.setfill(msg); }
       });
     });
   }

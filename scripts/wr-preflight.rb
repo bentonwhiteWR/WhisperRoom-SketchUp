@@ -58,7 +58,11 @@ module WR_Preflight
   # 2. Floor still on the drafting material.
   def self.check_floor(model)
     hits = WR_ProposalScenes.tagged(model, 'WR-Floor')
-    drafting = hits.select { |e| (e.material.name rescue nil) == WR_MaterialsSwap::DRAFT_FLOOR }
+    # The floor slot's source is per-model since 1.9.10 -- ask for THIS model's
+    # rather than the shop default, or the check silently passes on any model
+    # whose floor was never called 0128_White.
+    src = WR_MaterialsSwap.source(model, 'WR-Floor-Render')
+    drafting = hits.select { |e| (e.material.name rescue nil) == src }
     if hits.empty?
       { 'status' => 'skip', 'detail' => 'No WR-Floor tagged geometry in this model.' }
     elsif drafting.empty?
@@ -66,7 +70,7 @@ module WR_Preflight
     else
       { 'status' => 'fail',
         'detail' => "#{drafting.size} of #{hits.size} WR-Floor surface(s) still on " \
-                    "#{WR_MaterialsSwap::DRAFT_FLOOR}." }
+                    "#{src}." }
     end
   end
 
