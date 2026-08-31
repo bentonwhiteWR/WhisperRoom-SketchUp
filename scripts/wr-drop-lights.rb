@@ -727,8 +727,35 @@ module WR_DropLights
   # What ONE instance of a layer actually gets written, in lumens. This is the
   # whole of the intensity calculation now: no area term, no reference light,
   # no scalar anchor. In Luminous Power mode intensity IS the output.
+  # THE RIG RENDERS ~10x DIMMER THAN ITS OWN LUMEN TABLE SAYS.
+  #
+  # Measured by eye, Benton, 2026-08-31, on a real press: the pendant landed
+  # in V-Ray at 750 lm and "7500 looked more acceptable"; the sconce landed at
+  # 187.5 and 1870.5 "looked much better". Both are exactly x10, and both are
+  # the SPHERE roles, which is where he happened to look.
+  #
+  # WHY THIS IS A SEPARATE CONSTANT AND NOT A BIGGER TABLE. LIGHT_LAYERS'
+  # :lumens are real product numbers -- the file's own contract is that every
+  # visible figure is one a client could hold against a product page. Ten-xing
+  # the table would quietly break that and leave nobody able to tell a
+  # calibration fudge from a spec. So the table stays honest and the
+  # discrepancy lives here, in one number, named, with the evidence for it.
+  #
+  # It is a CALIBRATION, not a design figure: it says the units this rig
+  # writes do not land where a lumen should in this scene. If the real cause
+  # is ever found -- V-Ray's unit interpretation, or the physical camera's
+  # exposure, which proposal-package.rb already documents as the dominant
+  # lever -- this is the number that goes back to 1.0.
+  #
+  # NOT ALL SEVEN ROLES WERE EYEBALLED. Two spheres were. The five rectangle
+  # roles are carried along on the same factor because Benton's report was
+  # "everything was quite too dim to begin with", and because lumens is total
+  # flux -- emitter size changes the softness of a shadow, not how much light
+  # leaves it. If the rects come out hot, this is the knob.
+  LUMEN_GAIN = 10.0
+
   def self.layer_lumens(base_lm, mult, trim)
-    (base_lm * 1.0) * (mult * 1.0) * (trim * 1.0)
+    (base_lm * 1.0) * (mult * 1.0) * (trim * 1.0) * LUMEN_GAIN
   end
 
   # Global Kelvin offset from the Warmth answer. Warm = the table as written;
