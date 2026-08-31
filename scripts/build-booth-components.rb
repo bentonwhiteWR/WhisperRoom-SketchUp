@@ -604,7 +604,10 @@ module WR_BuildBoothComponents
   # (load_def globs the folder when the exact filename misses). Several
   # spellings are tried because "booth lighting" is a spoken name, not a
   # filename, and a silent miss here looks identical to a booth with no lights.
-  LIGHT_NAMES = ['Booth Lighting', 'BoothLighting', 'Booth Light',
+  # BoothLighting.skp is the real one, confirmed in the library 2026-08-31.
+  # The rest stay as fallbacks: the name was given to me spoken, and a silent
+  # miss here looks exactly like a booth with no lights.
+  LIGHT_NAMES = ['BoothLighting', 'Booth Lighting', 'Booth Light',
                  'WR Booth Lighting'].freeze
 
   # The tag is WR_Mode::LIGHT_TAGS' one entry, spelled here rather than
