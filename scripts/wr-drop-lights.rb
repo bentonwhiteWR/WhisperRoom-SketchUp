@@ -89,34 +89,34 @@
 # file performs itself — kelvin_rgb, sourced in its own comment.
 #
 # ===========================================================================
-# UNITS — WHY THIS TOOL STAYS ON THE SCALAR AND SAYS SO
+# UNITS — LUMENS, AGAINST A CONSIDERED INTERIOR EXPOSURE
 #
-# The rectangle light's `units` parameter defaults to 0. The enum is
-# commonly documented elsewhere as 0=default/scalar, 1=lumens, 2=lm/m2/sr,
-# 3=watts, 4=W/m2/sr — REPORTED, and NOT confirmed on this build: the
-# installed doc set documents no units enum at all (grepped 2026-08-28;
-# VRay/Command.html is the only light page and it carries none).
+# SUPERSEDED at 1.9.9, and the correction is the foundation of this rewrite.
+# Up to 1.9.8 this file said the units enum was unproven and stayed on
+# V-Ray's default scalar, with an area correction it called "the weakest
+# link in this file". Both are gone:
 #
-# Shipping a guessed enum would silently make every light the wrong
-# brightness, so units STAYS 0 and intensity is tuned as a scalar. The
-# console prints the units value and the intensity actually set for every
-# layer, so a wrong guess is visible immediately instead of silent.
+#   units = 1   Luminous Power (Lumens). intensity is TOTAL OUTPUT and is
+#               SIZE-INDEPENDENT, so the area term has nothing to correct
+#               and REF_INTENSITY / REF_AREA / REF_LUMENS / AREA_NORMALIZED
+#               are all deleted — four constants going away together.
 #
-# The scalar is anchored to the one observed-good data point: V-Ray's own
-# default rectangle light, 24" x 48" at intensity 30, is the light Benton
-# rendered and found correctly lit. So:
+# What made lumens usable is the exposure. V-Ray's factory physical camera
+# is f/8 @ 1/300 @ ISO 100 = EV 14.23, which is a FULL-SUN EXTERIOR
+# exposure (observed). A 40 fc interior wants EV 8.8-9.1 by photometry
+# (L = rho*E/pi, EV = log2(L*8), derived), and the one arm of the 148-frame
+# sun-off sweep where the fixtures alone served both cameras was EV 9.5
+# (observed). Three lines converge, so this tool writes ONE interior
+# exposure — f/8 @ 1/300 @ ISO 3200 = EV 9.23, exactly five stops of pure
+# ISO gain — ONCE, and then leaves the camera alone forever. See
+# stamp_exposure! for the five guards on that write.
 #
-#   intensity = REF_INTENSITY * (target_lm / REF_LUMENS) * (REF_AREA / area)
+# The payoff is that every number in LIGHT_LAYERS is now a real product
+# number: 2,000 lm 18" flush mount, 1,200 lm drum pendant, 600 lm sconce,
+# 2,800 lm track head, 1,600 lm wall washer, 800 lm booth light, 400 lm
+# graze strip. Benton can hold each against a product page.
 #
-# The first factor carries the design doc's own lumen arithmetic
-# (area x 40 fc / CU, split over the grid). The second is the size
-# correction: the design doc itself records that "the default scalar-units
-# intensity DOES depend on size" (§1.4, reported from Chaos' Rectangle
-# Light page), so a 12x12 fixture needs 8x the scalar of the 24x48
-# reference to emit the same power. THAT SECOND FACTOR IS THE WEAKEST
-# LINK IN THIS FILE — if the first render is uniformly ~8x too bright or
-# too dim, set AREA_NORMALIZED to 0.0 (one constant) and re-press.
-#
+# ===========================================================================
 # ===========================================================================
 # WHAT A PRESS DOES — ONE OPERATION, ONE Ctrl+Z
 #
@@ -124,7 +124,9 @@
 #      guesses which things in a model are rooms, and it NEVER lights a
 #      light: its own dropped lights, any V-Ray light, and anything tagged
 #      "WR Lights" are refused as subjects by name.
-#   2. Pops the settings dialog (UI.inputbox, four dropdowns + one yes/no).
+#   2. Pops the settings dialog — TWO dropdowns, Brightness and Warmth.
+#      The exposure question is gone: exposure is written ONCE as a
+#      documented default (see stamp_exposure!), never asked per press.
 #   3. Checks the V-Ray light API is really there — VRay, VRay::Command,
 #      create_rectangle_light, VRay::Color, VRay::Context.active — and
 #      refuses BY NAME, before anything is placed, if any piece is missing.
@@ -139,9 +141,11 @@
 #      the doors; finds obstructions; places the layers; prints every
 #      number it used. More than ONE fallback for a single subject refuses
 #      that subject by name.
-#   6. Tags everything "WR Lights" and prints, per layer, the size, units,
-#      intensity, Kelvin and RGB actually written — plus every write that
-#      did not stick.
+#   6. Draws the visible fixtures (F1/F2/F3) as its OWN groups around the
+#      emitters, borrows a ceiling for the room if it has none, tags all of
+#      it "WR Lights", stamps that tag into every saved scene, and prints,
+#      per layer, the size, units, lumens, Kelvin and RGB actually written
+#      — plus every write that did not stick.
 #
 # Lights go in the CURRENT drawing context, never inside the client's room
 # group, so coordinates agree with the selections' own bounding boxes.
@@ -175,8 +179,9 @@
 # at 8 with 8 live plugins; the light widget's direction arrow runs to
 # (0, 0, -7.41), so the fixture faces DOWN and FACE_FLIP stays 0.0.
 #
-# What is STILL UNSEEN: any V-Ray render. REF_INTENSITY and
-# AREA_NORMALIZED cannot be judged without one, and neither can exposure.
+# SUPERSEDED at 1.9.9: the rig HAS now been rendered — six 1600x900 frames,
+# .forge/builder/rig-build-results.json. REF_INTENSITY and AREA_NORMALIZED
+# no longer exist to be judged; the exposure is settled at EV 9.23.
 #
 # python scripts/rbparse.py proves this file parses (the same CRuby 3.2
 # SketchUp ships) and python scripts/rbtest-lights.py RUNS the whole pure
@@ -270,47 +275,135 @@ module WR_DropLights
 
   BRIGHT = { 'Dim' => 0.5, 'Normal' => 1.0, 'Bright' => 2.0 }.freeze
 
-  # --- the four light layers ----------------------------------------------
-  # :u / :v are the fixture's width x height in INCHES — they go straight
-  # into create_rectangle_light(width:, height:) and land on the plugin as
-  # u_size / v_size (observed). :lm is the layer's nominal design lumen
-  # figure from interior-lighting-design.md — it is what the computed
-  # per-fixture target is measured AGAINST, never a value written anywhere.
-  # :dir is the accent layer's Directionality; nil means leave the
-  # parameter alone.
+  # --- THE SEVEN-ROLE LAYER TABLE -----------------------------------------
+  # Spec: .forge/scoper/layered-light-rig.md §6. The rig runs in LUMENS
+  # (units = 1), so :lumens is what is WRITTEN, not a design figure something
+  # else is measured against, and every visible number is a real product
+  # number a client could hold against a product page (reported, spec §7.4).
+  #
+  #   :n         instances of this role a full rig places
+  #   :emitter   :rect (create_rectangle_light) or :sphere (create_sphere_light)
+  #   :u / :v    rectangle size in inches; for a sphere :u is the DIAMETER
+  #   :emitters  emitters per fixture (the sconce cylinder throws up AND down)
+  #   :lumens    per INSTANCE at Brightness = Normal, before the enclosure trim
+  #   :kelvin    per LAYER — six temperatures across the rig, 2700 K to 5000 K
+  #   :budget    :room (trimmed when the room is open) or :booth (never trimmed)
+  #   :visible   invisible = 0 — the emitter is SEEN. Five layers are.
+  #   :fixture   the procedural fixture group drawn around it, or nil
+  #   :disc      rectangle lights only: write is_disc = 1 (observed present)
+  #   :tilt      degrees off vertical, aimed booth-relative
+  #   :dir       Directionality, or nil to leave the parameter alone
   LIGHT_LAYERS = {
-    :downlight => { :label => 'Downlight',      :u => 12.0, :v => 12.0,
-                    :lm => 3000.0, :dir => nil },
-    :wallwash  => { :label => 'Wall wash',      :u => 6.0,  :v => 24.0,
-                    :lm => 1500.0, :dir => nil },
-    :booth     => { :label => 'Booth interior', :u => 12.0, :v => 24.0,
-                    :lm => 1000.0, :dir => nil },
-    :accent    => { :label => 'Booth accent',   :u => 12.0, :v => 12.0,
-                    :lm => 6000.0, :dir => 0.5 }
+    :ceiling => { :label => 'Ceiling ambient', :n => 2, :emitter => :rect,
+                  :u => 17.5, :v => 17.5, :emitters => 1, :lumens => 2000.0,
+                  :kelvin => 3500, :budget => :room, :visible => true,
+                  :fixture => :f1, :disc => true, :tilt => nil, :dir => nil },
+    :key     => { :label => 'Key / booth face', :n => 1, :emitter => :rect,
+                  :u => 24.0, :v => 24.0, :emitters => 1, :lumens => 2800.0,
+                  :kelvin => 3200, :budget => :room, :visible => false,
+                  :fixture => nil, :disc => false, :tilt => 35.0, :dir => 0.5 },
+    :pendant => { :label => 'Pendant', :n => 1, :emitter => :sphere,
+                  :u => 3.0, :v => 3.0, :emitters => 1, :lumens => 1200.0,
+                  :kelvin => 2700, :budget => :room, :visible => true,
+                  :fixture => :f2, :disc => false, :tilt => nil, :dir => nil },
+    :sconce  => { :label => 'Sconce graze', :n => 2, :emitter => :sphere,
+                  :u => 2.0, :v => 2.0, :emitters => 2, :lumens => 300.0,
+                  :kelvin => 3000, :budget => :room, :visible => true,
+                  :fixture => :f3, :disc => false, :tilt => nil, :dir => nil },
+    :rim     => { :label => 'Rim / kicker', :n => 1, :emitter => :rect,
+                  :u => 12.0, :v => 36.0, :emitters => 1, :lumens => 1600.0,
+                  :kelvin => 5000, :budget => :room, :visible => false,
+                  :fixture => nil, :disc => false, :tilt => 60.0, :dir => nil },
+    :booth   => { :label => 'Booth interior', :n => 1, :emitter => :rect,
+                  :u => 12.0, :v => 24.0, :emitters => 1, :lumens => 800.0,
+                  :kelvin => 4000, :budget => :booth, :visible => false,
+                  :fixture => nil, :disc => false, :tilt => nil, :dir => nil },
+    :foam    => { :label => 'Foam graze', :n => 1, :emitter => :rect,
+                  :u => 4.0, :v => 36.0, :emitters => 1, :lumens => 400.0,
+                  :kelvin => 3500, :budget => :booth, :visible => false,
+                  :fixture => nil, :disc => false, :tilt => nil, :dir => nil }
   }.freeze
 
-  # --- the scalar-intensity anchor (see the UNITS section in the header) --
-  # ONE observed data point: V-Ray's own default rectangle light, 24" x 48"
-  # at intensity 30, is the light Benton rendered on 2026-08-28 and found
-  # correctly lit. Everything else scales off it.
-  UNITS_SCALAR    = 0.0    # the `units` value written — V-Ray's default.
-                           #   The units enum is NOT in the installed docs,
-                           #   so this tool refuses to guess one.
-  REF_INTENSITY   = 30.0   # observed: that light's intensity
-  REF_AREA        = 1152.0 # sq in — observed: that light's 24" x 48"
-  REF_LUMENS      = 3000.0 # the Downlight layer's nominal design figure —
-                           #   the lumen number REF_INTENSITY stands for
-  AREA_NORMALIZED = 1.0    # 1.0 = correct intensity for fixture area (the
-                           #   design doc records that scalar-units
-                           #   intensity DOES depend on size); 0.0 = off.
-                           #   THE WEAKEST ASSUMPTION IN THIS FILE — if the
-                           #   first render is uniformly ~8x off, flip this.
+  # Roles that only exist when a booth stands in the room.
+  BOOTH_ROLES = [:key, :rim, :booth, :foam].freeze
+
+  # --- UNITS, and the four constants that went away -----------------------
+  # UNITS_SCALAR / REF_INTENSITY / REF_AREA / REF_LUMENS / AREA_NORMALIZED
+  # are DELETED at 1.9.9. In Luminous Power mode intensity is total output
+  # and size-independent, so the area term — the weakest link in this file
+  # since 1.8.0 — has nothing left to correct.
+  UNITS_LUMENS    = 1.0    # `units` = 1 = Luminous Power (Lumens).
   FACE_FLIP       = 0.0    # degrees about X applied to every light. 0 =
-                           #   the created light already faces DOWN, which
-                           #   is what Benton's lit test render implies but
-                           #   was never measured. If the first render
-                           #   lights the ceiling instead of the floor, set
-                           #   this to 180.0 — that is the whole fix.
+                           #   the created light already faces DOWN.
+
+  # --- the exposure stamp (spec §4) ---------------------------------------
+  # ONE interior exposure, written ONCE, ISO ONLY, and only from the factory
+  # ISO. f/8 @ 1/300 @ ISO 3200 = EV 9.23. Five stops off V-Ray's factory
+  # full-sun-exterior default, and 0.13 stops from the photometric target for
+  # a 40 fc interior at rho = 0.50 (derived, spec §4).
+  EXPO_ISO         = 3200.0
+  EXPO_FACTORY_ISO = 100.0
+  EXPO_EV          = 9.23
+  EXPO_F           = 8.0     # NEVER written — read back and asserted unmoved
+  EXPO_SHUTTER     = 300.0   # NEVER written — read back and asserted unmoved
+
+  # THE NEVER-WRITE LIST, with the reason at the site. Everything outside the
+  # single ISO stamp above is Benton's. A tool that quietly retunes a render
+  # setting is indistinguishable from a bug in the render.
+  NEVER_WRITE = ['/SettingsOutput',       # image size, safe frames — his
+                 '/SunLight',             # sun is his dressing decision
+                 '/SettingsEnvironment',  # sky, GI and background multipliers
+                 '/SettingsImageSampler', # quality — "Medium" is his choice
+                 '/CameraPhysical except ISO'].freeze
+
+  # --- the reference room the lumen table is quoted for (spec §6) ----------
+  # "Lumens are for a capped room, sun off, EV 9.23, Brightness = Normal, in
+  # the 192 sq ft reference room; THEY SCALE WITH FLOOR AREA via the budget."
+  # Without this a 20'x16' room gets a 16'x12' room's light and meters 0.74
+  # stops under (observed: mean luminance 0.093 on the first live frame).
+  REF_ROOM_SQFT  = 192.0
+  REF_BOOTH_SQFT = 24.0
+  AREA_SCALE_MIN = 0.5    # a tiny room still wants a usable fixture
+  AREA_SCALE_MAX = 3.0    # and a hall does not get a stadium's worth
+
+  # --- enclosure trims (spec §6; derived from the sun-off sweep) -----------
+  TRIM_OPEN4 = 0.35      # no ceiling, 4 walls  (-1.5 stops, observed cost)
+  TRIM_OPEN3 = 0.25      # no ceiling, 3 walls  (-2 stops)
+
+  # --- fixture geometry (spec §7.2; dimensions reported, §7.4) ------------
+  SEG            = 16    # segments per circle. The spec asks for 24; at 24
+                         #   the five fixtures cost ~590 faces and the 600
+                         #   budget has no headroom, so this ships at 16 and
+                         #   says so. One constant.
+  FIXTURE_FACES_MAX = 600
+  F1_DRUM_R      = 9.0   # 18" flush drum
+  F1_DRUM_H      = 3.5
+  F1_SHELL       = 0.125
+  F1_EMIT_UP     = 0.25  # emitter sits this far inside the open bottom
+  F2_SHADE_BOT_R = 8.0   # 16" bottom
+  F2_SHADE_TOP_R = 5.0   # 10" top
+  F2_SHADE_H     = 10.0
+  F2_CANOPY_R    = 2.5
+  F2_CANOPY_H    = 0.75
+  F2_CORD_R      = 0.25
+  F2_BULB_UP     = 4.0   # sphere centre above the shade bottom
+  PENDANT_AFF    = 78.0  # shade bottom above finished floor (generalised)
+  F3_CYL_R       = 2.5   # 5" cylinder
+  F3_CYL_H       = 12.0
+  F3_PLATE_D     = 0.5
+  F3_PROJECT     = 3.0   # cylinder axis this far off the wall face
+  F3_EMIT_OUT    = 0.5   # spheres this far outside each open end
+  SCONCE_AFF     = 66.0  # mounting height (reported, 60-72" band)
+  SCONCE_STANDOFF = 3.0
+
+  # --- the rim and the foam graze ----------------------------------------
+  RIM_OUT       = 30.0   # in from the booth centre, opposite the key
+  RIM_TILT      = 60.0   # degrees, across the booth's back top edge
+  FOAM_OFFSET   = 4.0    # in inside the booth's foam wall — grazing is about
+                         #   ANGLE, and 4" across 2" of pyramid relief is what
+                         #   makes the foam self-shadow instead of flatten
+  CEIL_NAME     = 'WR Lights Ceiling'.freeze
+
   BOX_TOL         = 0.0625 # in — 1/16". Bounding-box containment slack for
                            #   the stale sweep: room lights mount FLUSH
                            #   (DROP = 0), so their origin lies exactly on
@@ -581,27 +674,25 @@ module WR_DropLights
   # a keep-out disagrees.
   def self.wash_points(poly, wall_i, keepouts)
     n = poly.size
-    ccw = poly_signed_area(poly) > 0
     ax, ay = poly[wall_i]
     bx, by = poly[(wall_i + 1) % n]
-    dx = bx - ax
-    dy = by - ay
-    len = Math.sqrt(dx * dx + dy * dy)
+    len = Math.sqrt((bx - ax)**2 + (by - ay)**2)
     return [] if len < 1e-6
-    ux = dx / len
-    uy = dy / len
-    nx0 = ccw ? -uy : uy
-    ny0 = ccw ? ux : -ux
     count = grid_count(len, WASH_SPACING * WASH_STANDOFF)
     count = 2 if count < 2
     count = 4 if count > 4
-    axis_points(len, count).map do |t|
-      [ax + ux * t + nx0 * WASH_STANDOFF, ay + uy * t + ny0 * WASH_STANDOFF]
-    end.select do |p|
-      point_in_poly?(p[0], p[1], poly) && !in_keepout?(p[0], p[1], keepouts)
-    end
+    wall_points(poly, wall_i, WASH_STANDOFF, count, keepouts)
   end
 
+  # THE BUDGET ARITHMETIC, kept and no longer used to set anything. At 1.9.9
+  # the per-layer lumen figures come from LIGHT_LAYERS (real product numbers)
+  # scaled by area_scale, not from a share of this. These two remain because
+  # they ARE the design doc's budget and the layer table is checked against
+  # them: 320 sq ft x 40 fc / 0.6 = 21,333 lm against the rig's 18,000, the
+  # deliberate 16% under-spend explained in the spec (three of the five room
+  # sources throw sideways and upward, so the room meters lower and looks
+  # better). rbtest-lights.py exercises both.
+  #
   # Per-fixture ambient lumens: floor area x 40 fc / CU, split over the grid.
   # 12x15 @ Soft (4 lights) = 3,000 lm each; @ Showroom (12) = 1,000 lm.
   def self.downlight_lumens(area_sqin, count, mult)
@@ -613,6 +704,143 @@ module WR_DropLights
   # A 24 sqft booth lands at 1,200 lm — the seed's 1,000 lm is in range.
   def self.booth_lumens(area_sqin, mult)
     (area_sqin / 144.0 * BOOTH_FC / CU * mult).round
+  end
+
+  # Enclosure trim for the ROOM budget only (spec §6). Booth-side roles never
+  # trim — the sky was never getting into the booth (observed: capping costs
+  # the room view ~1.5 stops and the booth interior 4%).
+  def self.enclosure_trim(capped, walls)
+    return 1.0 if capped
+    walls >= 4 ? TRIM_OPEN4 : TRIM_OPEN3
+  end
+
+  # The lumen table is quoted for a 192 sq ft room; a real room is not that
+  # room. Clamped both ways so the scaling can never run away.
+  def self.area_scale(area_sqin, ref_sqft)
+    return 1.0 if area_sqin.nil? || area_sqin <= 0.0 || ref_sqft <= 0.0
+    k = (area_sqin / 144.0) / (ref_sqft * 1.0)
+    return AREA_SCALE_MIN if k < AREA_SCALE_MIN
+    return AREA_SCALE_MAX if k > AREA_SCALE_MAX
+    k
+  end
+
+  # What ONE instance of a layer actually gets written, in lumens. This is the
+  # whole of the intensity calculation now: no area term, no reference light,
+  # no scalar anchor. In Luminous Power mode intensity IS the output.
+  def self.layer_lumens(base_lm, mult, trim)
+    (base_lm * 1.0) * (mult * 1.0) * (trim * 1.0)
+  end
+
+  # Global Kelvin offset from the Warmth answer. Warm = the table as written;
+  # Neutral = every layer +500 K. It SHIFTS the palette; it never flattens it.
+  def self.layer_kelvin(base_k, offset)
+    (base_k + offset)
+  end
+
+  # n points evenly around a circle. Every drum, cone and cylinder shell in
+  # §7 is built from two of these, so it is the one piece of fixture geometry
+  # maths worth running outside SketchUp.
+  def self.ring_points(cx, cy, r, n)
+    return [] if n < 3 || r <= 0.0
+    (0...n).map do |i|
+      a = 2.0 * Math::PI * i / n
+      [cx + r * Math.cos(a), cy + r * Math.sin(a)]
+    end
+  end
+
+  # Faces a two-ring shell of n segments costs: outer, inner, and the two rims.
+  def self.shell_faces(n)
+    4 * n
+  end
+
+  # Total faces the fixtures on one room will add, so the budget assertion is
+  # arithmetic and not a guess. F1 and F3 are annular tubes (4n side/rim faces
+  # + 1 cap); F2 is a cone shell plus two small solids of (n + 2) each.
+  def self.fixture_faces(n_f1, n_f2, n_f3, seg)
+    n_f1 * (shell_faces(seg) + 1) +
+      n_f2 * (shell_faces(seg) + 2 * (seg + 2)) +
+      n_f3 * (shell_faces(seg) + (seg + 2))
+  end
+
+  # Generalised wall row: `count` points at `standoff` into the room off wall
+  # `wall_i`, centred on the run, culled by the floor polygon and the
+  # keep-outs. wash_points is this at the wash standoff with its 2-4 clamp;
+  # the sconce pair is this at 3" with count 2.
+  def self.wall_points(poly, wall_i, standoff, count, keepouts)
+    n = poly.size
+    ccw = poly_signed_area(poly) > 0
+    ax, ay = poly[wall_i]
+    bx, by = poly[(wall_i + 1) % n]
+    dx = bx - ax
+    dy = by - ay
+    len = Math.sqrt(dx * dx + dy * dy)
+    return [] if len < 1e-6 || count < 1
+    ux = dx / len
+    uy = dy / len
+    nx0 = ccw ? -uy : uy
+    ny0 = ccw ? ux : -ux
+    axis_points(len, count).map do |t|
+      [ax + ux * t + nx0 * standoff, ay + uy * t + ny0 * standoff]
+    end.select do |p|
+      point_in_poly?(p[0], p[1], poly) && !in_keepout?(p[0], p[1], keepouts)
+    end
+  end
+
+  # The sconce pair: two fixtures 3" off the wall, at wash spacing.
+  def self.sconce_points(poly, wall_i, keepouts)
+    wall_points(poly, wall_i, SCONCE_STANDOFF, 2, keepouts)
+  end
+
+  # The inward unit normal of wall run i — the direction a sconce faces and
+  # the direction its backplate is pushed.
+  def self.wall_normal(poly, wall_i)
+    n = poly.size
+    ccw = poly_signed_area(poly) > 0
+    ax, ay = poly[wall_i]
+    bx, by = poly[(wall_i + 1) % n]
+    dx = bx - ax
+    dy = by - ay
+    len = Math.sqrt(dx * dx + dy * dy)
+    return nil if len < 1e-6
+    ux = dx / len
+    uy = dy / len
+    ccw ? [-uy, ux] : [uy, -ux]
+  end
+
+  # The polygon corner furthest from (bx, by), pulled `inset` toward the
+  # floor centroid so the pendant hangs in the room and not inside a wall.
+  def self.far_corner(poly, bx, by, inset)
+    return nil if poly.size < 3
+    c = poly_centroid(poly)
+    best = poly.max_by { |p| (p[0] - bx)**2 + (p[1] - by)**2 }
+    dx = c[0] - best[0]
+    dy = c[1] - best[1]
+    d = Math.sqrt(dx * dx + dy * dy)
+    return [c[0], c[1]] if d < 1e-6
+    t = [inset / d, 1.0].min
+    [best[0] + dx * t, best[1] + dy * t]
+  end
+
+  # The two grid points furthest from the booth — the ceiling ambient pair.
+  # With no booth, the two furthest from each other, so the pair spreads.
+  def self.ceiling_pair(pts, bx, by)
+    return pts if pts.size <= 2
+    if bx.nil? || by.nil?
+      best = nil
+      best_d = -1.0
+      pts.each_with_index do |a, i|
+        pts.each_with_index do |b, j|
+          next if j <= i
+          d = (a[0] - b[0])**2 + (a[1] - b[1])**2
+          if d > best_d
+            best_d = d
+            best = [a, b]
+          end
+        end
+      end
+      return best
+    end
+    pts.sort_by { |p| -((p[0] - bx)**2 + (p[1] - by)**2) }.first(2)
   end
 
   # Rotation axis that tips a down-facing light toward the booth: for unit
@@ -728,19 +956,6 @@ module WR_DropLights
       else c / 255.0
       end
     end
-  end
-
-  # The scalar `intensity` to write for a fixture of u x v inches whose
-  # design target is target_lm lumens. See the UNITS section in the header:
-  # the units enum is unproven on this build, so units stays 0 and the
-  # brightness is carried entirely by this number, anchored to the one
-  # observed-good light (REF_*). Returns 0.0 on a degenerate fixture.
-  def self.scalar_intensity(target_lm, u, v)
-    a = u * v * 1.0
-    lm = target_lm * 1.0
-    return 0.0 if a <= 0.0 || lm <= 0.0
-    i = REF_INTENSITY * (lm / REF_LUMENS)
-    i * ((REF_AREA / a)**AREA_NORMALIZED)
   end
 
   # Did a plugin parameter write STICK? Compares what we asked for against
@@ -930,8 +1145,562 @@ module WR_DropLights
     [d, p]
   end
 
-  # ---- THE TRANSACTION, and why it is not optional ----------------------
+
+  # Make ONE V-Ray sphere light of radius r. Same contract as create_light:
+  # returns [ComponentDefinition, Plugin] or RAISES with its arguments in the
+  # message. A sphere reads round from every angle and is physically exactly
+  # "a bulb in a shade", which is why every emitter inside a shade is one
+  # (spec §7.1) — and it needs no unproven parameter.
+  def self.create_sphere(ctx, r)
+    o = begin
+          VRay::Command.create_sphere_light(:context => ctx, :radius => r.to_f)
+        rescue StandardError, ScriptError => e
+          raise "VRay::Command.create_sphere_light(radius: #{r}) raised " \
+                "#{e.class}: #{e.message}"
+        end
+    raise "create_sphere_light(radius: #{r}) returned nil" if o.nil?
+    d = (o.entity rescue nil)
+    p = (o.plugin rescue nil)
+    unless d.is_a?(Sketchup::ComponentDefinition)
+      raise "create_sphere_light gave .entity of class #{d.class}, not a " \
+            'Sketchup::ComponentDefinition — the API changed shape.'
+    end
+    raise 'create_sphere_light gave a nil .plugin' if p.nil?
+    [d, p]
+  end
+
+  # ======================================================================
+  # THE FIXTURES — drawn here, in Ruby, from primitives (spec §7)
   #
+  # THE BINDING RULE, and it is not optional: fixture geometry NEVER goes
+  # inside a V-Ray light definition. That definition is V-Ray's, it holds
+  # zero faces, and removing it schedules a deferred purge by plugin name
+  # that killed the whole rig once already (observed, 1.9.1 — see THE
+  # SECOND-PRESS KILL above). So each fixture is its OWN group in the same
+  # drawing context, the light instance is placed separately at the right
+  # offset inside it, and BOTH carry the WR_DropLights dictionary so the
+  # existing recursive world-space sweep removes both. No new sweep logic.
+  #
+  # NO MATERIAL IS EVER CREATED. lookdev-matrix.rb:446 did
+  # `materials[X] || materials.add(X)` and its removal path never took the
+  # material back — 37 materials where the model had 36 (observed). This
+  # reuses an existing material by name if one is there and otherwise
+  # leaves the default.
+  #
+  # KNOWN LIMITATION, stated rather than hidden: F2's shade renders OPAQUE.
+  # A real fabric drum shade is a translucent diffuser and light escapes
+  # through the shade wall; making ours glow needs a translucent V-Ray
+  # material, and writing a newly created material plugin HANGS SketchUp
+  # (observed, four force-kills). So the pendant reads as a shade with
+  # light escaping top and bottom, not as a glowing lantern. F1 and F3 are
+  # unaffected: F1's diffuser IS its visible emitter, and a real up/down
+  # cylinder is opaque metal anyway.
+  # ======================================================================
+
+  # A solid disc: circle, face, extrude by h along +z (h may be negative).
+  def self.disc_solid(ents, cx, cy, z, r, h, seg)
+    c = ents.add_circle(Geom::Point3d.new(cx, cy, z),
+                        Geom::Vector3d.new(0, 0, 1), r, seg)
+    f = ents.add_face(c)
+    return nil if f.nil?
+    f.reverse! if f.normal.z < 0
+    f.pushpull(h)
+    f
+  end
+
+  # An open-ended TUBE with a real wall thickness: outer circle, inner circle,
+  # erase the inner disc, extrude the annulus. A shade must read as a shade
+  # and not as a box — a single unshaded plane renders dark from inside and
+  # gives the whole thing away (spec §7.3).
+  def self.tube(ents, cx, cy, z, r_out, r_in, h, seg)
+    before = ents.grep(Sketchup::Face)
+    o = ents.add_circle(Geom::Point3d.new(cx, cy, z),
+                        Geom::Vector3d.new(0, 0, 1), r_out, seg)
+    f = ents.add_face(o)
+    return nil if f.nil?
+    # OBSERVED, 30 Aug 2026: adding the inner circle SPLITS the face that is
+    # already there, so `add_face` on the inner loop returns NIL — the face
+    # exists but was not created by that call. Erasing "the face add_face
+    # returned" therefore erased nothing, left a solid disc, and the group
+    # went away under the next call. Find the two coplanar faces by AREA
+    # instead: the annulus is the small one, the inner disc the large one.
+    ents.add_circle(Geom::Point3d.new(cx, cy, z),
+                    Geom::Vector3d.new(0, 0, 1), r_in, seg)
+    fresh = (ents.grep(Sketchup::Face) - before).select(&:valid?)
+    return nil if fresh.empty?
+    ring = fresh.min_by { |x| x.area }
+    disc = fresh.max_by { |x| x.area }
+    disc.erase! if disc && ring && !disc.equal?(ring)
+    return nil unless ring && ring.valid?
+    ring.reverse! if ring.normal.z < 0
+    ring.pushpull(h)
+    ring
+  end
+
+  # A truncated-cone SHELL — the pendant shade. Built as an explicit polygon
+  # mesh because a lofted cone has no pushpull: outer wall, inner wall offset
+  # by t, and a rim quad at each end so no edge is a one-sided surface.
+  def self.cone_shell(ents, cx, cy, z_bot, r_bot, r_top, h, t, seg)
+    ob = ring_points(cx, cy, r_bot, seg)
+    ot = ring_points(cx, cy, r_top, seg)
+    ib = ring_points(cx, cy, r_bot - t, seg)
+    it = ring_points(cx, cy, r_top - t, seg)
+    zt = z_bot + h
+    mesh = Geom::PolygonMesh.new
+    p3 = lambda { |xy, z| Geom::Point3d.new(xy[0], xy[1], z) }
+    seg.times do |i|
+      j = (i + 1) % seg
+      mesh.add_polygon(p3.call(ob[i], z_bot), p3.call(ob[j], z_bot),
+                       p3.call(ot[j], zt),    p3.call(ot[i], zt))
+      mesh.add_polygon(p3.call(it[i], zt),    p3.call(it[j], zt),
+                       p3.call(ib[j], z_bot), p3.call(ib[i], z_bot))
+      mesh.add_polygon(p3.call(ot[i], zt),    p3.call(ot[j], zt),
+                       p3.call(it[j], zt),    p3.call(it[i], zt))
+      mesh.add_polygon(p3.call(ib[i], z_bot), p3.call(ib[j], z_bot),
+                       p3.call(ob[j], z_bot), p3.call(ob[i], z_bot))
+    end
+    ents.add_faces_from_mesh(mesh, 12)
+    mesh
+  end
+
+  # Reuse a model material by NAME if one is there; never create one.
+  def self.borrow_material(model, names)
+    names.each do |n|
+      m = (model.materials[n] rescue nil)
+      return m if m
+    end
+    nil
+  end
+
+  # F1 — flush ceiling drum, 18" across, 3.5" deep, OPEN BOTTOM. The emitter
+  # disc IS the diffuser, which is how a real flush mount is built, and it is
+  # why role 1 is both the general layer and the room's obvious light source.
+  # Returns [group, emitter_z].
+  def self.build_f1(ents, model, cx, cy, z_ceil, mat)
+    g = ents.add_group
+    g.name = 'WR Fixture F1 flush drum'
+    z_bot = z_ceil - F1_DRUM_H
+    tube(g.entities, cx, cy, z_bot, F1_DRUM_R, F1_DRUM_R - F1_SHELL,
+         F1_DRUM_H, SEG)
+    # NO TOP CAP. The drum is FLUSH against the ceiling, so a cap disc would
+    # be coplanar with the tube's own top ring — add_face on coincident edges
+    # returns nil or raises "Could not create Face" (observed) — and it would
+    # never be seen anyway: the ceiling closes the drum.
+    g.material = mat if mat
+    [g, z_bot + F1_EMIT_UP]
+  end
+
+  # F2 — cord-hung pendant. Canopy at the ceiling, 1/4-IPS-scale cord, and a
+  # truncated-cone shade whose bottom sits at PENDANT_AFF. Drawn from the
+  # PH5 / Nelson Bubble / Akari proportions (reported, spec §7.4).
+  # Returns [group, emitter_z].
+  def self.build_f2(ents, model, cx, cy, z_ceil, z_floor, mat)
+    g = ents.add_group
+    g.name = 'WR Fixture F2 pendant'
+    z_shade_bot = z_floor + PENDANT_AFF
+    z_shade_top = z_shade_bot + F2_SHADE_H
+    disc_solid(g.entities, cx, cy, z_ceil - F2_CANOPY_H, F2_CANOPY_R,
+               F2_CANOPY_H, SEG)
+    cord_h = z_ceil - F2_CANOPY_H - z_shade_top
+    disc_solid(g.entities, cx, cy, z_shade_top, F2_CORD_R, cord_h, SEG) if cord_h > 0.1
+    cone_shell(g.entities, cx, cy, z_shade_bot, F2_SHADE_BOT_R,
+               F2_SHADE_TOP_R, F2_SHADE_H, F1_SHELL, SEG)
+    g.material = mat if mat
+    [g, z_shade_bot + F2_BULB_UP]
+  end
+
+  # F3 — open-ended up/down cylinder sconce. The body is opaque; light escapes
+  # only through the open top and bottom, which is the double scallop the
+  # graze layer wants, and it is a visible fixture and the graze source in one
+  # object. Returns [group, [ex, ey, z_up_emitter, z_down_emitter]].
+  def self.build_f3(ents, model, wx, wy, nx, ny, z_mid, mat)
+    g = ents.add_group
+    g.name = 'WR Fixture F3 sconce'
+    nv = Geom::Vector3d.new(nx, ny, 0)
+    c = g.entities.add_circle(Geom::Point3d.new(wx, wy, z_mid), nv, F3_CYL_R, SEG)
+    f = g.entities.add_face(c)
+    if f
+      d = f.normal.dot(nv) > 0 ? F3_PLATE_D : -F3_PLATE_D
+      f.pushpull(d)
+    end
+    bx = wx + nx * F3_PROJECT
+    by = wy + ny * F3_PROJECT
+    z_bot = z_mid - F3_CYL_H / 2.0
+    tube(g.entities, bx, by, z_bot, F3_CYL_R, F3_CYL_R - F1_SHELL, F3_CYL_H, SEG)
+    g.material = mat if mat
+    [g, [bx, by, z_bot + F3_CYL_H + F3_EMIT_OUT, z_bot - F3_EMIT_OUT]]
+  end
+
+  # ======================================================================
+  # THE ON-DEMAND CEILING (spec §8) — and its removal, which is the
+  # riskiest thing in this tool.
+  #
+  # LIFETIME = THE RIG'S LIFETIME, not the press's. A ceiling removed at the
+  # end of the press does not exist when the render runs, which defeats its
+  # purpose and leaves five visible fixtures hanging in open air. It is
+  # created with the rig and removed by the same thing that removes the rig:
+  # the next press's stale sweep, or WR_DropLights.remove_rig!.
+  #
+  # OWNERSHIP IS BY DICTIONARY, never by name and never by tag alone — a name
+  # match will happily miss a renamed group or match a user's own.
+  # ======================================================================
+
+  # Does this room already have a ceiling THE TOOL DOES NOT OWN? A horizontal
+  # face at or above the wall top, spanning the floor centroid.
+  def self.existing_ceiling(room, poly, z_top)
+    c = poly_centroid(poly)
+    found = nil
+    scan = nil
+    scan = lambda do |ents, tr, depth|
+      next if depth > 3 || found
+      ents.each do |e|
+        break if found
+        if e.is_a?(Sketchup::Face)
+          nrm = e.normal.transform(tr)
+          next if nrm.z.abs < 0.99
+          pts = e.outer_loop.vertices.map { |v| v.position.transform(tr) }
+          zs = pts.map(&:z)
+          next if zs.max < z_top - 2.0
+          xy = pts.map { |p| [p.x, p.y] }
+          found = e if point_in_poly?(c[0], c[1], xy)
+        elsif e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+          next if e.get_attribute(DICT, 'kind') == 'ceiling'
+          kids = child_entities(e)
+          scan.call(kids, tr * e.transformation, depth + 1) if kids.respond_to?(:each)
+        end
+      end
+    end
+    scan.call(child_entities(room), room.transformation, 0)
+    found
+  rescue StandardError
+    nil
+  end
+
+  # Build the ceiling: the floor polygon, faced at the wall top, lit side
+  # DOWN. No new geometry logic and L-shaped rooms work for free.
+  def self.add_ceiling(ents, poly, z_top, layer, uuid, mat)
+    g = ents.add_group
+    g.name = CEIL_NAME
+    f = g.entities.add_face(poly.map { |p| Geom::Point3d.new(p[0], p[1], z_top) })
+    if f.nil?
+      g.erase! if g.valid?
+      return nil
+    end
+    f.reverse! if f.normal.z > 0     # the lit face points DOWN into the room
+    g.material = mat if mat
+    g.layer = layer
+    g.set_attribute(DICT, 'kind', 'ceiling')
+    g.set_attribute(DICT, 'uuid', uuid)
+    g.set_attribute(DICT, 'role', 'ceiling')  # so the existing sweep owns it
+    g
+  end
+
+  # An INDEPENDENT probe of the model — the numbers criterion 9 compares.
+  # Deliberately reads the model afresh and never a captured value: two
+  # separate restores have already lied in this project by trusting their own
+  # capture (37 materials where the model had 36; a sky_multiplier written,
+  # read back, and changed nothing).
+  def self.model_probe(model)
+    { :definitions => model.definitions.count,
+      :materials   => model.materials.count,
+      :tags        => model.layers.map { |l| l.name.to_s }.sort,
+      :top_level   => model.entities.length,
+      :ceilings    => find_ceilings(model).size }
+  end
+
+  # Every entity anywhere carrying WR_DropLights/kind => 'ceiling'.
+  def self.find_ceilings(model, ents = nil, out = nil, depth = 0)
+    out ||= []
+    ents ||= model.entities
+    return out if depth > SWEEP_MAX_DEPTH
+    ents.each do |e|
+      next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      if e.get_attribute(DICT, 'kind') == 'ceiling'
+        out << e
+        next
+      end
+      kids = child_entities(e)
+      find_ceilings(model, kids, out, depth + 1) if kids.respond_to?(:each)
+    end
+    out
+  rescue StandardError
+    out
+  end
+
+  # Remove the tool-owned ceilings and PROVE it by re-reading the model from
+  # scratch. Refuses BY NAME and prints no success line if any check fails.
+  # Returns [ok?, lines].
+  # Erase every tool-owned ceiling. Returns how many groups went.
+  def self.erase_ceilings!(model)
+    gs = find_ceilings(model)
+    return 0 if gs.empty?
+    model.start_operation('Remove WR Lights ceiling', true)
+    n = 0
+    gs.each do |g|
+      next unless g.valid?
+      begin
+        g.erase!
+        n += 1
+      rescue StandardError
+        nil
+      end
+    end
+    model.commit_operation
+    n
+  end
+
+  # THE RE-READ, and it is the whole point: not the capture, the model again,
+  # from the top. Refuses BY NAME and prints no success line if anything is
+  # off. Returns [ok?, lines].
+  def self.verify_restore!(model, before, n = nil)
+    lines = []
+    after = model_probe(model)
+    fails = []
+    if after[:ceilings] > 0
+      fails << format('%d entit%s still carries WR_DropLights/kind => ceiling',
+                      after[:ceilings], after[:ceilings] == 1 ? 'y' : 'ies')
+    end
+    if after[:materials] != before[:materials]
+      fails << format('materials.count is %d, was %d before the press — ' \
+                      'this is the check that catches the 37th material',
+                      after[:materials], before[:materials])
+    end
+    if after[:definitions] != before[:definitions]
+      fails << format('definitions.count is %d, was %d before the press',
+                      after[:definitions], before[:definitions])
+    end
+    if after[:tags] != before[:tags]
+      fails << format('the tag list changed: %s',
+                      ((after[:tags] - before[:tags]) +
+                       (before[:tags] - after[:tags])).join(', '))
+    end
+    if after[:top_level] != before[:top_level]
+      fails << format('the model holds %d top-level entities, was %d before '                       'the press', after[:top_level], before[:top_level])
+    end
+    if fails.empty?
+      lines << format('  restore verified by an INDEPENDENT re-read — '                       'definitions %d, materials %d, %d tags, %d top-level '                       'entities, and nothing anywhere carries the ceiling '                       'stamp.%s', after[:definitions], after[:materials],
+                      after[:tags].size, after[:top_level],
+                      n.nil? ? '' : format(' %d ceiling group%s erased.',
+                                           n, n == 1 ? '' : 's'))
+      return [true, lines]
+    end
+    lines << '  REFUSED — the restore DID NOT verify:'
+    fails.each { |f| lines << "    #{f}" }
+    lines << '    Delete the group named ' + CEIL_NAME.inspect +
+             ' by hand and check the Materials browser.'
+    [false, lines]
+  end
+
+  # Erase the ceilings and verify in one call — the shape the negative test
+  # exercises, and the one a caller with nothing else to remove wants.
+  def self.remove_ceilings_verified!(model, before)
+    n = erase_ceilings!(model)
+    return [true, ['  no tool-owned ceiling in this model — nothing to remove.']] if n.zero?
+    verify_restore!(model, before, n)
+  end
+
+  # The explicit Remove Lights action: sweep every light, fixture and ceiling
+  # this tool owns, anywhere in the model, and verify the ceiling went.
+  def self.remove_rig!(model, before = nil)
+    before ||= model_probe(model)
+    found = []
+    collect_lights(model.entities, IDENT, found, 0, [])
+    ceilings = find_ceilings(model).size
+    model.start_operation('Remove Interior Lights', true)
+    pend = []
+    n = 0
+    found.each do |e, _|
+      next unless e.respond_to?(:valid?) && e.valid?
+      next if e.get_attribute(DICT, 'kind') == 'ceiling'
+      pname = e.get_attribute(DICT, 'plugin').to_s
+      defn = e.respond_to?(:definition) ? e.definition : nil
+      begin
+        e.erase!
+        n += 1
+      rescue StandardError
+        next
+      end
+      pend << [pname, defn] unless pname.empty?
+    end
+    model.commit_operation
+    ctx, = vray_context
+    sc = vray_scene(ctx)
+    gone, left = reap_lights(model, sc, pend)
+    # THE CEILING GOES FIRST, then the tag, then the verification —
+    # in that order, because the ceiling group is itself ON the tag and
+    # a tag with something standing on it is never removed (observed:
+    # the first run of this refused itself with "1 entity is still on
+    # the tag", which was its own ceiling).
+    erased_ceilings = erase_ceilings!(model)
+    # THE TAG COMES BACK OFF, when this tool is the one that put it on and
+    # nothing is left standing on it. Both conditions matter: a tag the model
+    # already had is Benton's, and a tag with something on it would take that
+    # something's visibility with it.
+    tag_removed = false
+    tag_note = nil
+    if model.get_attribute(DICT, 'tag_created')
+      ly = model.layers[TAG]
+      if ly.nil?
+        tag_removed = true
+      else
+        users = 0
+        count_users = nil
+        count_users = lambda do |ents, d|
+          next if d > SWEEP_MAX_DEPTH
+          ents.each do |e|
+            users += 1 if e.respond_to?(:layer) && e.layer && e.layer.name == TAG
+            kids = child_entities(e) if e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+            count_users.call(kids, d + 1) if kids.respond_to?(:each)
+          end
+        end
+        count_users.call(model.entities, 0)
+        if users.zero?
+          begin
+            model.layers.remove(ly, false)
+            tag_removed = model.layers[TAG].nil?
+            model.set_attribute(DICT, 'tag_created', nil) if tag_removed
+          rescue StandardError => e
+            tag_note = "removing the #{TAG.inspect} tag raised #{e.class}: #{e.message}"
+          end
+        else
+          tag_note = "#{users} entit#{users == 1 ? 'y is' : 'ies are'} still on "                      "the #{TAG.inspect} tag, so it stays"
+        end
+      end
+    end
+    ok, lines = verify_restore!(model, before)
+    { 'erased' => n, 'ceilings' => ceilings, 'plugins_deleted' => gone,
+      'plugins_left' => left, 'ceiling_verified' => ok, 'lines' => lines,
+      'ceiling_groups_erased' => erased_ceilings,
+      'tag_removed' => tag_removed, 'tag_note' => tag_note }
+  end
+
+  # ======================================================================
+  # THE EXPOSURE STAMP (spec §4) — narrow, loud, once.
+  #
+  # Five guards, and every one of them is here because the alternative is a
+  # tool that quietly retunes Benton's camera:
+  #   1. ISO ONLY. Never f_number, never shutter, never anything in
+  #      /SettingsOutput, /SunLight or /SettingsEnvironment (NEVER_WRITE).
+  #   2. ONCE. The stamp is recorded in the model's own dictionary; a second
+  #      press writes nothing and says so.
+  #   3. ONLY FROM FACTORY ISO 100. Anything else means Benton set it:
+  #      report the value and leave it alone.
+  #   4. LOUD, WITH ITS UNDO, by name.
+  #   5. READ BACK after the transaction, and refused by name if it did not
+  #      stick — and f_number and shutter are read back too, to PROVE they
+  #      did not move.
+  # ======================================================================
+  def self.stamp_exposure!(model, scene)
+    r = { :wrote => false, :reason => nil }
+    cp = (scene && (scene['/CameraPhysical'] rescue nil))
+    if cp.nil?
+      r[:reason] = 'no /CameraPhysical plugin in the V-Ray scene — exposure left alone'
+      return r
+    end
+    r[:f_before]   = (cp[:f_number] rescue nil)
+    r[:iso_before] = (cp[:ISO] rescue nil)
+    r[:sh_before]  = (cp[:shutter_speed] rescue nil)
+    prev = model.get_attribute(DICT, 'exposure_stamped')
+    if prev
+      r[:reason] = "already stamped (#{prev}) — a second press writes nothing"
+      return r
+    end
+    unless param_agrees?(EXPO_FACTORY_ISO, r[:iso_before])
+      r[:reason] = format('ISO reads %s, not the factory %.0f — you have set ' \
+                          'this yourself, so it is left exactly as it is',
+                          r[:iso_before].inspect, EXPO_FACTORY_ISO)
+      return r
+    end
+    errs = write_params(scene, cp, [[:ISO, EXPO_ISO]])
+    stuck, got, err = read_param(cp, :ISO, EXPO_ISO, errs[:ISO] || errs[:__scene])
+    r[:iso_after] = got
+    r[:f_after]   = (cp[:f_number] rescue nil)
+    r[:sh_after]  = (cp[:shutter_speed] rescue nil)
+    r[:moved_f]  = !param_agrees?(r[:f_before], r[:f_after])
+    r[:moved_sh] = !param_agrees?(r[:sh_before], r[:sh_after])
+    if stuck
+      r[:wrote] = true
+      model.set_attribute(DICT, 'exposure_stamped',
+                          format('ISO %.0f, %s', EXPO_ISO,
+                                 Time.now.strftime('%Y-%m-%d %H:%M:%S')))
+    else
+      r[:reason] = "the ISO write DID NOT STICK#{err ? " (#{err})" : ''}"
+    end
+    r
+  end
+
+  def self.print_exposure_report(r)
+    puts ''
+    puts '  EXPOSURE — the ONE V-Ray setting this tool writes, and it writes'
+    puts '  it once. ISO only: f-number and shutter never move.'
+    if r[:wrote]
+      puts format('    /CameraPhysical ISO  %s  ->  %.0f', r[:iso_before].inspect, EXPO_ISO)
+      puts format('    f/%s @ 1/%s @ ISO %.0f = EV %.2f — an interior exposure.',
+                  r[:f_after].to_s, r[:sh_after].to_s, EXPO_ISO, EXPO_EV)
+      puts '    TO UNDO: Asset Editor > Settings > Camera > ISO, back to 100.'
+      puts format('    f-number read back %s (was %s) and shutter %s (was %s) — %s',
+                  r[:f_after].inspect, r[:f_before].inspect,
+                  r[:sh_after].inspect, r[:sh_before].inspect,
+                  (r[:moved_f] || r[:moved_sh]) ?
+                    '** ONE OF THEM MOVED — that is a BUG **' :
+                    'both unmoved, as promised')
+    else
+      puts "    nothing written — #{r[:reason]}"
+      puts format('    camera reads f/%s @ 1/%s @ ISO %s',
+                  r[:f_before].inspect, r[:sh_before].inspect, r[:iso_before].inspect)
+    end
+    puts format('    NEVER WRITTEN: %s', NEVER_WRITE.join(', '))
+  end
+
+  # ======================================================================
+  # THE TAG GATE (spec §9 step 2b, auditor finding C1)
+  #
+  # `WR Lights` read FALSE on the live model three times on 30 Aug, and a
+  # saved scene re-applies its OWN stored copy of tag visibility on
+  # activation (observed, proposal-scenes.rb:221,223 — scenes are captured
+  # with use_hidden_layers = true). So forcing the tag visible for the
+  # session is necessary and NOT sufficient: every page has to be stamped
+  # too, or activating a scene hides the whole rig again and V-Ray exports
+  # none of it. This is the mechanism behind "same model, some frames lit,
+  # some black", and no rig design survives it.
+  # ======================================================================
+  def self.stamp_tag_into_pages(model, layer)
+    done = 0
+    failed = []
+    model.pages.each do |pg|
+      begin
+        pg.set_visibility(layer, true)
+        done += 1
+      rescue StandardError => e
+        failed << "#{pg.name}: #{e.class}"
+      end
+    end
+    [done, failed]
+  end
+
+  # The render-time gate. The same pattern as lookdev-matrix.rb's
+  # assert_lights_visible!, which has already caught one null experiment: it
+  # RAISES rather than warning, because a frame rendered with this tag hidden
+  # is a wasted frame and is indistinguishable from a correctly rendered
+  # failure.
+  def self.assert_lights_visible!(model, expect = nil)
+    ly = model.layers[TAG]
+    raise "REFUSED: this model has no tag named #{TAG.inspect}" if ly.nil?
+    unless ly.visible?
+      raise "REFUSED: the tag #{TAG.inspect} is HIDDEN. A light on a hidden " \
+            'tag is excluded from the V-Ray export, so the frame would ' \
+            'contain no artificial light at all.'
+    end
+    on = model.entities.grep(Sketchup::ComponentInstance)
+              .select { |e| e.layer && e.layer.name == TAG && e.visible? }
+    if expect && on.length < expect
+      raise "REFUSED: tag #{TAG.inspect} is visible but only #{on.length} " \
+            "light instances are visible (expected #{expect})."
+    end
+    on.length
+  end
+
+  # ---- THE TRANSACTION, and why it is not optional ----------------------  #
   # LIVE FINDING, SketchUp 2026 / V-Ray 7, 2026-08-30 (observed through the
   # bridge, A/B'd twice):
   #
@@ -1020,7 +1789,12 @@ module WR_DropLights
   # NOTHING here raises — a parameter that will not take is reported by
   # name and the light still places, because a wrongly-tuned light that
   # emits is recoverable in the Asset Editor and a missing light is not.
-  def self.configure_light(scene, plugin, role, target_lm, kelvin)
+  #
+  # THE UNITS CHANGE, 1.9.9: `units` is 1 — Luminous Power (Lumens) — and
+  # `intensity` is the layer's lumen figure, unmodified. There is no area
+  # correction any more because in lumens mode intensity IS the total output
+  # and does not depend on emitter size.
+  def self.configure_light(scene, plugin, role, lumens, kelvin)
     spec = LIGHT_LAYERS[role]
     rgb = kelvin_rgb(kelvin)
     color = nil
@@ -1032,13 +1806,20 @@ module WR_DropLights
                   ' — this light stays V-Ray white; Warmth did not land.'
     end
     wants = []
-    # invisible FIRST: it is the one that must not be missed. Benton's test
-    # render drew the emitter as a white slab on the ceiling (observed).
-    wants << [:invisible, true]
-    wants << [:units, UNITS_SCALAR]
-    wants << [:intensity, scalar_intensity(target_lm, spec[:u], spec[:v])]
+    # invisible FIRST, and it is now PER LAYER rather than a constant: five
+    # of the seven roles are visible fixtures, which is the whole point of
+    # the redesign. An invisible emitter inside a visible shade would be a
+    # fixture that does not glow.
+    wants << [:invisible, !spec[:visible]]
+    wants << [:units, UNITS_LUMENS]
+    wants << [:intensity, lumens.to_f]
     wants << [:color, color] unless color.nil?
     wants << [:directional, spec[:dir]] unless spec[:dir].nil?
+    # is_disc is READ from the plugin's own default dump on this build
+    # (observed, 30 Aug 2026: rectangle lights carry is_disc = 0), so it is
+    # not a guessed key — but it is still written, read back, and refused by
+    # name if it will not take.
+    wants << [:is_disc, 1] if spec[:disc] && spec[:emitter] == :rect
     # ONE transaction for the whole light, then read every value back
     # OUTSIDE it. See write_params: an un-transacted write is discarded by
     # V-Ray and a read-back taken inside the transaction always agrees.
@@ -1054,9 +1835,10 @@ module WR_DropLights
       writes << [key, value, got, stuck, err]
       bad << key unless stuck
     end
-    # u_size / v_size were set by the create call — read them back rather
-    # than re-writing, so a mismatch is a fact about the API, not ours.
-    sizes = [:u_size, :v_size].map do |k|
+    # Sizes were set by the create call — read them back rather than
+    # re-writing, so a mismatch is a fact about the API, not ours.
+    keys = spec[:emitter] == :sphere ? [:radius] : [:u_size, :v_size]
+    sizes = keys.map do |k|
       begin
         plugin[k]
       rescue StandardError
@@ -1064,7 +1846,7 @@ module WR_DropLights
       end
     end
     { :writes => writes, :bad => bad, :rgb => rgb, :sizes => sizes,
-      :color_err => color_err }
+      :color_err => color_err, :lumens => lumens.to_f, :kelvin => kelvin }
   end
 
   # ---- the stale sweep — RECURSIVE, in world coordinates -----------------
@@ -1173,6 +1955,7 @@ module WR_DropLights
       # deleted and reading an attribute off it would raise.
       next unless e.respond_to?(:valid?) && e.valid?
       pname = e.get_attribute(DICT, 'plugin').to_s
+      kind = e.get_attribute(DICT, 'kind').to_s
       defn = e.respond_to?(:definition) ? e.definition : nil
       begin
         e.erase!
@@ -1180,6 +1963,11 @@ module WR_DropLights
       rescue StandardError
         next
       end
+      # A FIXTURE GROUP AND THE BORROWED CEILING never owned a V-Ray plugin,
+      # so they are not "left behind" when none is deleted for them — counting
+      # them as left behind made a clean sweep report 6 orphans it had not
+      # created (observed, 1.9.9 first live press).
+      next if kind == 'fixture' || kind == 'ceiling'
       pending << [pname, defn]
     end
     [erased, pending]
@@ -1238,7 +2026,16 @@ module WR_DropLights
   # the worse failure. Prefer the loud one. The mode dictionary is read
   # only to word the console line, never to hide anything.
   def self.tag(model)
-    t = model.layers[TAG] || model.layers.add(TAG)
+    t = model.layers[TAG]
+    if t.nil?
+      t = model.layers.add(TAG)
+      # RECORD THAT WE MADE IT. "Leaves Benton's drawing exactly as it found
+      # it" includes the tag list: the first live removal refused itself by
+      # name because `WR Lights` was still there afterwards (observed,
+      # 1.9.9). remove_rig! takes the tag back, but ONLY the one this tool
+      # created and only while nothing is left on it.
+      model.set_attribute(DICT, 'tag_created', true)
+    end
     (t.color = Sketchup::Color.new(255, 199, 44)) rescue nil # troffer yellow
     mode = (model.get_attribute(WR_MODE_DICT, 'current') rescue nil)
     if t.visible? == false
@@ -1528,62 +2325,54 @@ module WR_DropLights
 
   # ---- the dialog ---------------------------------------------------------
 
+  # TWO DROPDOWNS, and no more. Brightness is a global multiplier; Warmth is
+  # a global KELVIN OFFSET — Warm = the layer table as written (2700-5000 K),
+  # Neutral = every layer +500 K. It SHIFTS the palette; it never flattens
+  # it, which is the difference between a warmth control and the old
+  # one-colour-on-everything rig this replaces.
+  #
+  # The exposure question is GONE. Exposure is written once, as a documented
+  # default, not asked per press — see stamp_exposure!.
   def self.ask
-    @last ||= ['Soft', 'Normal', '3000K warm', 'All', 'Yes']
+    @last ||= ['Normal', 'Warm']
     res = UI.inputbox(
-      ['Density', 'Brightness', 'Warmth', 'Layers', 'Set interior exposure'],
+      ['Brightness', 'Warmth'],
       @last,
-      ['Soft|Showroom grid',
-       'Normal|Dim|Bright',
-       '3000K warm|3500K neutral',
-       'All|Ambient only|Ambient + wall wash|Ambient + booth',
-       'Yes|No'],
+      ['Normal|Dim|Bright', 'Warm|Neutral'],
       'Drop Interior Lights')
     return nil unless res
     @last = res
-    {
-      :density  => res[0] == 'Showroom grid' ? :showroom : :soft,
-      :mult     => BRIGHT[res[1]] || 1.0,
-      :bright   => res[1],
-      :kelvin   => res[2].start_with?('3500') ? 3500 : 3000,
-      :wash     => res[3] == 'All' || res[3] == 'Ambient + wall wash',
-      :booth    => res[3] == 'All' || res[3] == 'Ambient + booth',
-      :exposure => res[4] == 'Yes'
-    }
+    { :mult    => BRIGHT[res[0]] || 1.0,
+      :bright  => res[0],
+      :warmth  => res[1],
+      :koffset => res[1] == 'Neutral' ? 500 : 0,
+      :density => :soft }
   end
 
   # ==== WHAT WAS ACTUALLY WRITTEN INTO V-RAY ===============================
-  # Brightness and Warmth are no longer advice: each light owns its plugin
-  # and this tool writes them (see the header). What survives as advice is
-  # EXPOSURE, which nothing here sets and nothing here can source — it is a
-  # camera setting, a known open item, and it is 30-60x more important than
-  # any lumen number.
-  #
-  # `layers` is { role => report-hash-from-configure_light } for the FIRST
-  # light of each layer, plus :target and :count. One block per layer, not
-  # per light: twelve identical blocks is not a report.
-  def self.print_light_report(layers, opts)
+  # `layers` is { role => report-hash } for the FIRST light of each layer,
+  # plus :count. One block per layer, not per light.
+  def self.print_light_report(layers, opts, extra)
     puts ''
-    puts '  WHAT WAS WRITTEN INTO EACH V-RAY LIGHT (one plugin per light —'
-    puts '  no shared asset any more, so these are per-light values):'
+    puts '  WHAT WAS WRITTEN INTO EACH V-RAY LIGHT — one plugin per light, so'
+    puts '  these are per-light values, in LUMENS (units = 1):'
     layers.each do |role, r|
       spec = LIGHT_LAYERS[role]
       rgb = r[:rgb]
-      puts format('    %-15s x%-3d  %.0f" x %.0f"  units %s  intensity %.1f',
-                  spec[:label], r[:count], spec[:u], spec[:v],
-                  UNITS_SCALAR.to_i.to_s, r[:intensity])
-      puts format('                    target %d lm (design), colour %dK ' \
-                  '= rgb %.3f %.3f %.3f, invisible ON',
-                  r[:target].round, opts[:kelvin], rgb[0], rgb[1], rgb[2])
-      if r[:sizes] && r[:sizes].compact.size == 2
-        puts format('                    plugin read back u_size %s, v_size %s',
-                    r[:sizes][0].to_s, r[:sizes][1].to_s)
-      end
-      puts "                    NOTE: #{r[:color_err]}" if r[:color_err]
+      size = spec[:emitter] == :sphere ?
+        format('sphere d%.1f"', spec[:u]) :
+        format('%.1f" x %.1f"%s', spec[:u], spec[:v], spec[:disc] ? ' disc' : '')
+      puts format('    %-16s x%-2d %-18s %6.0f lm  %4dK  %s',
+                  spec[:label], r[:count], size, r[:lumens], r[:kelvin],
+                  spec[:visible] ? 'VISIBLE' : 'invisible')
+      puts format('                     colour rgb %.3f %.3f %.3f, fixture %s, plugin size %s',
+                  rgb[0], rgb[1], rgb[2],
+                  spec[:fixture] ? spec[:fixture].to_s.upcase : 'none',
+                  r[:sizes].map(&:to_s).join(' x '))
+      puts "                     NOTE: #{r[:color_err]}" if r[:color_err]
       next if r[:bad].nil? || r[:bad].empty?
       puts "    ** #{spec[:label]}: these writes DID NOT STICK — " \
-           "#{r[:bad].map(&:to_s).join(', ')}. Read them in the Asset " \
-           'Editor before rendering; the light placed anyway.'
+           "#{r[:bad].map(&:to_s).join(', ')}."
       r[:writes].each do |key, want, got, stuck, err|
         next if stuck
         puts format('       %s: wanted %s, plugin holds %s%s', key.to_s,
@@ -1591,21 +2380,25 @@ module WR_DropLights
       end
     end
     puts ''
-    puts format('  UNITS = %s. The units enum is NOT documented in the V-Ray',
-                UNITS_SCALAR.to_i.to_s)
-    puts '  docs installed on this machine, so this tool stays on V-Ray\'s'
-    puts '  own default scalar rather than guessing "1 = lumens". Intensity'
-    puts '  is anchored to the 24"x48" @ 30 light that rendered correctly on'
-    puts '  2026-08-28. If EVERY light is uniformly too bright or too dim by'
-    puts '  roughly the same factor, that anchor is the thing to move'
-    puts '  (REF_INTENSITY), or the area correction (AREA_NORMALIZED = 0.0).'
-    if opts[:exposure]
-      puts ''
-      puts '  EXPOSURE IS STILL YOURS — nothing here writes it. Asset Editor'
-      puts '  > Settings > Camera > Exposure Value 8 (or Auto Exposure). The'
-      puts '  default EV 14.2 is full-sun exterior and renders ANY sane'
-      puts '  interior rig 30-60x too dark. No lumen number fixes that.'
+    ks = layers.values.map { |r| r[:kelvin] }.uniq.sort
+    puts format('  %d distinct colour temperatures across the rig: %s',
+                ks.size, ks.map { |k| "#{k}K" }.join(', '))
+    puts format('  %d of the %d layers are VISIBLE fixtures.',
+                layers.keys.count { |r| LIGHT_LAYERS[r][:visible] }, layers.size)
+    puts format('  room budget spent %.0f lm; booth budget spent %.0f lm.',
+                extra[:room_lm], extra[:booth_lm])
+    puts format('  enclosure: %s, %d walls -> room trim x%.2f (booth roles never trim)',
+                extra[:capped] ? 'CAPPED' : 'OPEN', extra[:walls], extra[:trim])
+    puts format('  fixture geometry added %d faces (budget %d, %d segments/circle)',
+                extra[:faces], FIXTURE_FACES_MAX, SEG)
+    if extra[:faces] > FIXTURE_FACES_MAX
+      puts '    ** OVER THE FACE BUDGET — lower SEG or drop a fixture type.'
     end
+    puts format('  materials.count %d before the press, %d after — %s',
+                extra[:mat_before], extra[:mat_after],
+                extra[:mat_before] == extra[:mat_after] ?
+                  'unchanged, as it must be' :
+                  '** CHANGED. This tool must create no material. **')
   end
   # ==== END REPORT =========================================================
 
@@ -1686,11 +2479,17 @@ module WR_DropLights
     end
     scene = vray_scene(ctx)
 
-    # Which layers this press is allowed to build. Every layer is now
-    # buildable — including ACCENT, which never existed as a seed .skp and
-    # so had been skipped on every press since this tool shipped.
-    enabled = { :downlight => true, :wallwash => opts[:wash],
-                :booth => opts[:booth], :accent => opts[:booth] }
+    # THE PROBE, taken BEFORE anything is placed and NEVER from this
+    # tool's own capture. It is what the ceiling removal is checked against
+    # (spec §8 / criterion 9), and it is the check that would have caught
+    # "restored clean (69 keys put back)" while a 37th material stayed
+    # behind.
+    probe_before = model_probe(model)
+    puts ''
+    puts format('  probe BEFORE the press: %d definitions, %d materials, ' \
+                '%d tags, %d top-level entities',
+                probe_before[:definitions], probe_before[:materials],
+                probe_before[:tags].size, probe_before[:top_level])
 
     model.start_operation('Drop Interior Lights', true)
     begin
@@ -1713,9 +2512,9 @@ module WR_DropLights
       erased, reap_pending = erase_lights(stale)
 
       puts ''
-      puts "Drop Interior Lights — density #{opts[:density]}, brightness " \
-           "#{opts[:bright]} (x#{opts[:mult]}), #{opts[:kelvin]}K, " \
-           "wash #{opts[:wash] ? 'on' : 'off'}, booth #{opts[:booth] ? 'on' : 'off'}"
+      puts format('Drop Interior Lights 1.9.9 — brightness %s (x%.2f), ' \
+                  'warmth %s (%+d K), units 1 (LUMENS), seven roles',
+                  opts[:bright], opts[:mult], opts[:warmth], opts[:koffset])
       unless stale.empty?
         puts format('  replacing %d previously dropped light%s - their ' \
                     'V-Ray plugins are deleted AFTER the new rig is ' \
@@ -1733,23 +2532,66 @@ module WR_DropLights
              'close the edit first if that is not what you want. The ' \
              'stale sweep works in world coordinates either way.'
       end
-      puts '  room lights mount FLUSH with the wall top (Benton, 2026-08-27: ' \
-           'a 6" drop drew a "light line" on the walls). A room with a real ' \
-           'ceiling SLAB would bury a flush light — none of ours has one; ' \
-           "booth interior lights sit #{BOOTH_DROP.to_i}\" below the booth top."
-
       placed = 0
       layers_rep = {}
+      fixture_faces = 0
+      ceilings_added = 0
+      room_lm = 0.0
+      booth_lm = 0.0
+      press_uuid = format('%d-%06d', Time.now.to_i, rand(1_000_000))
+      mat_before = model.materials.count
+      capped_any = false
+      walls_any = 0
+      trim_any = 1.0
 
-      # ONE V-Ray light per call — that is the whole point of the rebuild.
-      # Each light gets its own plugin, so its own brightness and colour.
-      # Creating a light is a V-Ray-scene change and V-Ray's scene is NOT
-      # on SketchUp's undo stack: if this press aborts, the SketchUp side
-      # rolls back and the plugins it made may stay in the Asset Editor.
-      place = lambda do |role, pt, target_lm, extra_tr = nil|
+      # THE ONE SANCTIONED V-RAY WRITE. Everything else in NEVER_WRITE is
+      # Benton's and is not touched.
+      expo = stamp_exposure!(model, scene)
+      print_exposure_report(expo)
+
+      # THE TAG GATE. Forcing the tag visible for the session is necessary
+      # and NOT sufficient — a saved scene re-applies its own stored copy on
+      # activation, which is the mechanism behind "same model, some frames
+      # lit, some black". So every page is stamped too.
+      pages_ok, pages_bad = stamp_tag_into_pages(model, layer)
+      puts format('  tag "%s": visible, and stamped VISIBLE into %d of %d ' \
+                  'saved scene%s%s', TAG, pages_ok, model.pages.count,
+                  model.pages.count == 1 ? '' : 's',
+                  pages_bad.empty? ? '' : " (FAILED on: #{pages_bad.join(', ')})")
+
+      # No material is ever created — borrow one by name or leave the
+      # default. See the comment above build_f1.
+      fx_mat = borrow_material(model, ['Aluminum', 'WR Wall', 'Wall',
+                                       'WR Panel', 'Metal'])
+
+      stamp_own = lambda do |g, kind|
+        g.layer = layer
+        g.set_attribute(DICT, 'seed', "Fixture #{kind.to_s.upcase}")
+        g.set_attribute(DICT, 'role', "fixture_#{kind}")
+        g.set_attribute(DICT, 'kind', 'fixture')
+        g.set_attribute(DICT, 'uuid', press_uuid)
+        n = 0
+        begin
+          n = g.entities.grep(Sketchup::Face).length
+        rescue StandardError
+          n = 0
+        end
+        fixture_faces += n
+        g
+      end
+
+      # ONE V-Ray light per call — each light gets its own plugin, so its own
+      # brightness, colour and visibility. Creating a light is a V-Ray-scene
+      # change and V-Ray's scene is NOT on SketchUp's undo stack.
+      place = lambda do |role, pt, lumens, extra_tr = nil|
         spec = LIGHT_LAYERS[role]
-        d, plug = create_light(ctx, spec[:u], spec[:v])
-        rpt = configure_light(scene, plug, role, target_lm, opts[:kelvin])
+        if spec[:emitter] == :sphere
+          d, plug = create_sphere(ctx, spec[:u] / 2.0)
+        else
+          d, plug = create_light(ctx, spec[:u], spec[:v])
+        end
+        kelv = layer_kelvin(spec[:kelvin], opts[:koffset])
+        rpt = configure_light(scene, plug, role, lumens, kelv)
         t = Geom::Transformation.translation(Geom::Point3d.new(*pt))
         if FACE_FLIP != 0.0
           t = t * Geom::Transformation.rotation(Geom::Point3d.new(0, 0, 0),
@@ -1765,13 +2607,17 @@ module WR_DropLights
         inst.layer = layer
         inst.set_attribute(DICT, 'seed', spec[:label])
         inst.set_attribute(DICT, 'role', role.to_s)
+        inst.set_attribute(DICT, 'uuid', press_uuid)
         inst.set_attribute(DICT, 'plugin', plugin_name(plug))
         placed += 1
+        if spec[:budget] == :room
+          room_lm += lumens
+        else
+          booth_lm += lumens
+        end
         prev = layers_rep[role]
         if prev.nil?
-          layers_rep[role] = rpt.merge(
-            :count => 1, :target => target_lm.to_f,
-            :intensity => scalar_intensity(target_lm, spec[:u], spec[:v]))
+          layers_rep[role] = rpt.merge(:count => 1)
         else
           prev[:count] += 1
           prev[:bad] = (prev[:bad] + rpt[:bad]).uniq
@@ -1788,7 +2634,7 @@ module WR_DropLights
         end
 
         # A selected booth is merchandise, not a room: it gets the interior
-        # light only (the old tool's booth behaviour, scoped to booths).
+        # light only.
         if booth?(s)
           bb = s.bounds
           c = Geom::Point3d.new((bb.min.x + bb.max.x) / 2.0,
@@ -1800,18 +2646,11 @@ module WR_DropLights
                  "\"#{display_name(host)}\" — handled with that room."
             next
           end
-          if enabled[:booth]
-            bb = s.bounds
-            pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
-                  bb.max.z - BOOTH_DROP]
-            lm = booth_lumens((bb.max.x - bb.min.x) * (bb.max.y - bb.min.y), opts[:mult])
-            place.call(:booth, pt, lm)
-            puts "  #{name}: selected booth — 1 interior light at #{fmt(pt)}, " \
-                 "target #{lm} lm"
-          else
-            puts "  #{name}: selected booth but the Booth layer is switched " \
-                 'off in the dialog — nothing placed here.'
-          end
+          pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
+                bb.max.z - BOOTH_DROP]
+          lm = layer_lumens(LIGHT_LAYERS[:booth][:lumens], opts[:mult], 1.0)
+          place.call(:booth, pt, lm)
+          puts "  #{name}: selected booth — 1 interior light at #{fmt(pt)}, #{lm.round} lm"
           next
         end
 
@@ -1826,26 +2665,16 @@ module WR_DropLights
         h = info[:z_top] - info[:z0]
         area = poly_area(poly)
 
-        # Subject sanity FIRST: a 24"-tall component or a shoebox footprint
-        # is a fixture or a part, never a room (the light-as-room incident).
         veto = subject_veto(h, area)
         if veto
           puts "  REFUSED #{name} — #{veto}"
-          puts '    Select the ROOM group instead (a build-room room — the ' \
-               'group with the WR-Floor child).'
           next
         end
 
-        # Every accommodation this subject needs is COLLECTED first; lights
-        # are placed only after fallback_verdict allows it. One fallback is
-        # helpful; more than one means the selection is not the room this
-        # tool assumed — see fallback_verdict.
         fallbacks = []
         if info[:fallback]
           fallbacks << 'no WR-Floor child: bounding-box rectangle used as the floor'
-          puts "  #{name}: NO WR-Floor child found — using the BOUNDING-BOX " \
-               'rectangle as the floor. Right for rectangular things; an ' \
-               'L-shaped room needs its build-room floor group.'
+          puts "  #{name}: NO WR-Floor child found — using the BOUNDING-BOX rectangle."
         end
         if info[:no_walls]
           fallbacks << 'no Walls child: ceiling taken from the group top'
@@ -1853,24 +2682,15 @@ module WR_DropLights
         end
 
         z_m = info[:z_top] - DROP
+        z0 = info[:z0]
 
         obst, room_sibs = obstructions(model, s, poly, z_m, subjects)
-        # The 2026-08-27 "keep-out: ROOM 2" incident: a neighbouring
-        # L-shaped room's bounding box overlapped this room's floor and
-        # punched a hole in the grid. Rooms are never keep-outs — but a
-        # skipped room is NAMED, so a genuinely-overlapping one cannot
-        # vanish silently.
         room_sibs.each do |e|
           puts "  #{name}: sibling \"#{display_name(e)}\" overlaps this " \
-               "room's footprint but is itself a ROOM (it has its own " \
-               'floor child) — never a keep-out. An L-shaped ' \
-               "neighbour's bounding box covers its notch; only " \
-               'furniture and booths cut the grid.'
+               "room's footprint but is itself a ROOM — never a keep-out."
         end
         keepouts = obst.map { |o| o[:rect] }
         booths = obst.select { |o| booth?(o[:ent]) }
-        # Untagged booths, recognized by size (the live booth that carried
-        # no WR-Booth-* tags and left the booth layers silently idle).
         obst.each do |o|
           next if booth?(o[:ent])
           bb = o[:bb]
@@ -1878,164 +2698,239 @@ module WR_DropLights
                                   bb.max.z - bb.min.z)
           booths << o
           puts format('  %s: "%s" carries no WR-Booth-* tag but is ' \
-                      'booth-sized (%.0f" x %.0f" x %.0f" — catalog ' \
-                      'booths run 32-188" a side, ~83-85" tall) — ' \
-                      'treated as a booth.', name, display_name(o[:ent]),
+                      'booth-sized (%.0f" x %.0f" x %.0f") — treated as a booth.',
+                      name, display_name(o[:ent]),
                       bb.max.x - bb.min.x, bb.max.y - bb.min.y,
                       bb.max.z - bb.min.z)
         end
 
-        # A — ambient grid (computed now, placed only after the verdict)
-        grid = grid_points(poly, h, opts[:density], keepouts)
-        if grid[:fallback]
-          fallbacks << 'grid fully culled: single light at the floor centroid'
-          # The cull ACCOUNTING — the live UTHSC incident printed only
-          # "fully culled" and finding the offending keep-out took another
-          # round trip. Say what was generated, what each test rejected,
-          # and name every keep-out with its inflated rectangle.
-          d = grid[:diag]
-          puts "  #{name}: grid fully culled — single light at the floor " \
-               'centroid instead. The breakdown:'
-          puts format('    %d candidate%s at %.0f" spacing: %d outside the ' \
-                      'floor polygon, %d nearer than %.1f" to an edge, %d ' \
-                      'inside a keep-out.', d[:cand],
-                      d[:cand] == 1 ? '' : 's', grid[:s], d[:out],
-                      d[:edge], d[:thr], d[:keep])
-          if obst.empty?
-            puts '    No keep-outs exist — the culling is the polygon/edge ' \
-                 'tests alone (tiny room).'
+        # ---- THE ON-DEMAND CEILING (spec §8) --------------------------------
+        # It is created with the rig and it leaves with the rig. Ownership is
+        # by DICTIONARY plus a per-press UUID, never by name.
+        had_ceiling = !existing_ceiling(s, poly, info[:z_top]).nil?
+        capped = had_ceiling
+        if had_ceiling
+          puts "  #{name}: this room already has a ceiling this tool does not " \
+               'own — borrowing it. Nothing added, nothing to remove.'
+        else
+          cg = add_ceiling(ents, poly, info[:z_top], layer, press_uuid,
+                           borrow_material(model, ['WR Wall', 'Wall']))
+          if cg
+            capped = true
+            ceilings_added += 1
+            puts format('  %s: added a tool-owned ceiling "%s" at %.0f" — the ' \
+                        'rig needs a surface to mount to and a room to bounce ' \
+                        'in. IT LEAVES WHEN THE LIGHTS DO (next press, or ' \
+                        'WR_DropLights.remove_rig!), and the removal is ' \
+                        'verified by an independent re-read.',
+                        name, CEIL_NAME, info[:z_top])
           else
-            obst.each do |o|
-              r = o[:rect]
-              puts format('    keep-out: "%s"%s — XY (%.0f, %.0f)-(%.0f, ' \
-                          '%.0f) incl. %.0f" pad, top at %.0f"',
-                          display_name(o[:ent]),
-                          booth?(o[:ent]) ? ' (booth)' : '',
-                          r[0], r[1], r[2], r[3], KEEPOUT_PAD, o[:bb].max.z)
-            end
+            puts "  #{name}: could not face the floor polygon at the wall top " \
+                 '— no ceiling added, and the open-room trims apply.'
           end
         end
+        walls_n = poly.size
+        trim = enclosure_trim(capped, walls_n)
+        room_trim = trim
+        capped_any = capped
+        walls_any = walls_n
+        trim_any = trim
+        room_k = area_scale(area, REF_ROOM_SQFT)
+        booth_k = 1.0
+        lm_of = lambda do |role|
+          sp = LIGHT_LAYERS[role]
+          k = sp[:budget] == :room ? room_k * room_trim : booth_k
+          layer_lumens(sp[:lumens], opts[:mult], k)
+        end
+
+        # ---- ROLE 1 — ceiling ambient, and the room's visible light source --
+        grid = grid_points(poly, h, opts[:density], keepouts)
         if grid[:pts].empty?
           puts "  REFUSED #{name} — no valid point found inside its floor."
           next
         end
-
-        # B — wall-wash wall choice (also decided before the verdict)
-        wall_i = nil
-        wps = []
-        if opts[:wash] && enabled[:wallwash]
-          door = info[:doors].max_by { |d| d[:w] }
-          if door
-            puts "  #{name}: door#{info[:doors].size == 1 ? '' : 's'} found " \
-                 "via #{info[:door_mech]}."
-            wall_i = opposite_edge(poly, nearest_edge(poly, door[:cx], door[:cy]))
-            puts "  #{name}: wall wash could not find a wall opposite the door — skipped." if wall_i.nil?
-          else
-            # No doors readable (bbox fallback or door-less room): wash the
-            # longest wall and say so — and say what the door search
-            # actually looked at, so a detection miss is visible without
-            # another live round trip.
-            puts "  #{name}: door search came up empty — #{info[:door_diag]}." if info[:door_diag]
-            n = poly.size
-            wall_i = (0...n).max_by do |i|
-              a = poly[i]
-              b = poly[(i + 1) % n]
-              (b[0] - a[0])**2 + (b[1] - a[1])**2
-            end
-            fallbacks << 'no door found: washing the longest wall'
-            puts "  #{name}: no door found — washing the LONGEST wall instead " \
-                 'of the one opposite a door.'
-          end
-          wps = wall_i ? wash_points(poly, wall_i, keepouts) : []
-        end
-
-        # THE MULTI-FALLBACK RULE — nothing has been placed for this
-        # subject yet, so refusing here refuses it whole.
         verdict = fallback_verdict(fallbacks)
         if verdict
           puts "  REFUSED #{name} — #{verdict}"
-          puts '    Select the ROOM group itself (a build-room room has a ' \
-               'WR-Floor child). A legacy room with no WR-Floor can still ' \
-               'be lit with Layers = "Ambient only" or "Ambient + booth" — ' \
-               'that keeps it to the one bounding-box fallback.'
           next
         end
 
-        lm = downlight_lumens(area, grid[:pts].size, opts[:mult])
-        grid[:pts].each { |p| place.call(:downlight, [p[0], p[1], z_m], lm) }
-        puts format('  %s: ambient %d light%s, spacing %.0f", ceiling %.0f", ' \
-                    'target %d lm per fixture', name, grid[:pts].size,
-                    grid[:pts].size == 1 ? '' : 's', grid[:s], h, lm)
-        obst.each do |o|
-          puts "    keep-out: #{display_name(o[:ent])}" \
-               "#{booth?(o[:ent]) ? ' (booth)' : ''}"
+        bcx = nil
+        bcy = nil
+        unless booths.empty?
+          bb = booths.first[:bb]
+          bcx = (bb.min.x + bb.max.x) / 2.0
+          bcy = (bb.min.y + bb.max.y) / 2.0
+        end
+        pair = ceiling_pair(grid[:pts], bcx, bcy)
+        pair.each do |p|
+          fg, ez = build_f1(ents, model, p[0], p[1], info[:z_top], fx_mat)
+          stamp_own.call(fg, :f1)
+          place.call(:ceiling, [p[0], p[1], ez], lm_of.call(:ceiling))
+        end
+        puts format('  %s: floor %.0f sq ft against the %.0f sq ft reference '                     'room -> room roles x%.2f, and the enclosure trim is x%.2f',
+                    name, area / 144.0, REF_ROOM_SQFT, room_k, room_trim)
+        puts format('  %s: ceiling ambient — %d x F1 flush drum (18"), %.0f lm ' \
+                    'each at %dK, at %s', name, pair.size,
+                    lm_of.call(:ceiling), layer_kelvin(3500, opts[:koffset]),
+                    pair.map { |p| format('(%.0f, %.0f)', p[0], p[1]) }.join(' '))
+
+        # ---- ROLE 3 — the pendant, the warm human-scale cue -----------------
+        cen = poly_centroid(poly)
+        pc = far_corner(poly, bcx || cen[0], bcy || cen[1], 36.0)
+        if pc && point_in_poly?(pc[0], pc[1], poly) &&
+           !in_keepout?(pc[0], pc[1], keepouts)
+          fg, ez = build_f2(ents, model, pc[0], pc[1], info[:z_top], z0, fx_mat)
+          stamp_own.call(fg, :f2)
+          place.call(:pendant, [pc[0], pc[1], ez], lm_of.call(:pendant))
+          puts format('  %s: pendant — F2 cord-hung drum (16"), shade bottom ' \
+                      '%.0f" AFF at (%.0f, %.0f), %.0f lm at %dK',
+                      name, PENDANT_AFF, pc[0], pc[1], lm_of.call(:pendant),
+                      layer_kelvin(2700, opts[:koffset]))
+        else
+          puts "  #{name}: no clear corner for the pendant — layer skipped here."
         end
 
-        if wall_i
-          if wps.empty?
-            puts "  #{name}: every wall-wash position was culled — layer skipped here."
+        # ---- the washed wall: opposite the largest door, else the longest ---
+        door = info[:doors].max_by { |d| d[:w] }
+        wall_i = nil
+        if door
+          puts "  #{name}: door#{info[:doors].size == 1 ? '' : 's'} found via #{info[:door_mech]}."
+          wall_i = opposite_edge(poly, nearest_edge(poly, door[:cx], door[:cy]))
+        end
+        if wall_i.nil?
+          puts "  #{name}: door search came up empty — #{info[:door_diag]}." if info[:door_diag]
+          n = poly.size
+          wall_i = (0...n).max_by do |i|
+            a = poly[i]
+            b = poly[(i + 1) % n]
+            (b[0] - a[0])**2 + (b[1] - a[1])**2
+          end
+        end
+
+        # ---- ROLE 4 — the sconce pair: visible fixture AND the graze layer --
+        nrm = wall_normal(poly, wall_i)
+        sps = nrm ? sconce_points(poly, wall_i, keepouts) : []
+        if sps.empty?
+          puts "  #{name}: no sconce position survived on wall run #{wall_i + 1} — layer skipped."
+        else
+          sps.each do |p|
+            wx = p[0] - nrm[0] * SCONCE_STANDOFF
+            wy = p[1] - nrm[1] * SCONCE_STANDOFF
+            fg, e = build_f3(ents, model, wx, wy, nrm[0], nrm[1],
+                             z0 + SCONCE_AFF, fx_mat)
+            stamp_own.call(fg, :f3)
+            place.call(:sconce, [e[0], e[1], e[2]], lm_of.call(:sconce))
+            place.call(:sconce, [e[0], e[1], e[3]], lm_of.call(:sconce))
+          end
+          puts format('  %s: sconces — %d x F3 up/down cylinder (5") at %.0f" ' \
+                      'AFF on wall run %d, TWO spheres each (%.0f lm up, ' \
+                      '%.0f lm down) at %dK. Two emitters per fixture is what ' \
+                      'throws the double scallop; the spec\'s "9 instances" ' \
+                      'counts one per fixture and undercounts by two.',
+                      name, sps.size, SCONCE_AFF, wall_i + 1,
+                      lm_of.call(:sconce), lm_of.call(:sconce),
+                      layer_kelvin(3000, opts[:koffset]))
+        end
+
+        # ---- ROLES 2, 5, 6, 7 — the booth-conditional layers ----------------
+        if booths.empty?
+          puts "  #{name}: no booth in this room — the key, rim, booth " \
+               'interior and foam graze have nothing to aim at.'
+        end
+        booths.each do |o|
+          bname = display_name(o[:ent])
+          bb = o[:bb]
+          cx = (bb.min.x + bb.max.x) / 2.0
+          cy = (bb.min.y + bb.max.y) / 2.0
+          # The booth roles scale with the BOOTH's footprint against the
+          # 24 sq ft reference, for the same reason the room roles scale.
+          booth_k = area_scale((bb.max.x - bb.min.x) * (bb.max.y - bb.min.y),
+                               REF_BOOTH_SQFT)
+
+          # ROLE 6 — the booth is a sealed box: 0.0173 mean, 95.4% near-black
+          # with the room lights on and nothing inside (observed). Without
+          # this the hero product is a hole in every frame.
+          bpt = [cx, cy, bb.max.z - BOOTH_DROP]
+          place.call(:booth, bpt, lm_of.call(:booth))
+          puts format('  %s: booth "%s" interior — %.0f lm at %dK, %s',
+                      name, bname, lm_of.call(:booth),
+                      layer_kelvin(4000, opts[:koffset]), fmt(bpt))
+
+          dc = booth_door_center(o)
+          if dc.nil?
+            puts "  #{name}: booth \"#{bname}\" has no WR-Booth-Door tagged " \
+                 'panel — key, rim and foam graze all skipped (they are all ' \
+                 'aimed booth-relative and there is nothing to aim from).'
+            next
+          end
+          dlen = Math.sqrt((dc[0] - cx)**2 + (dc[1] - cy)**2)
+          ax = accent_axis(cx - dc[0], cy - dc[1])
+          if ax.nil? || dlen < 1e-6
+            puts "  #{name}: booth \"#{bname}\" door direction is degenerate — " \
+                 'key, rim and foam graze skipped.'
+            next
+          end
+          ux = (dc[0] - cx) / dlen
+          uy = (dc[1] - cy) / dlen
+
+          # ROLE 2 — the key, 42" out from the door face, tilted 35 degrees
+          # onto it. This is what gives the booth a defined FRONT instead of
+          # a lit TOP.
+          kpt = [dc[0] + ux * ACCENT_OUT, dc[1] + uy * ACCENT_OUT, z_m]
+          if point_in_poly?(kpt[0], kpt[1], poly)
+            rot = Geom::Transformation.rotation(
+              Geom::Point3d.new(0, 0, 0),
+              Geom::Vector3d.new(ax[0], ax[1], 0), ACCENT_TILT.degrees)
+            place.call(:key, kpt, lm_of.call(:key), rot)
+            puts format('  %s: key — %.0f lm at %dK, %s, tilted %d deg onto ' \
+                        'the door face', name, lm_of.call(:key),
+                        layer_kelvin(3200, opts[:koffset]), fmt(kpt),
+                        ACCENT_TILT.to_i)
           else
-            wash_lm = LIGHT_LAYERS[:wallwash][:lm] * opts[:mult]
-            wps.each { |p| place.call(:wallwash, [p[0], p[1], z_m], wash_lm) }
-            puts format('  %s: wall wash %d light%s at 24" standoff on wall ' \
-                        'run %d: %s', name, wps.size, wps.size == 1 ? '' : 's',
-                        wall_i + 1, wps.map { |p| format('(%.0f, %.0f)', p[0], p[1]) }.join(' '))
+            puts "  #{name}: the key position lands outside the floor — skipped."
           end
-        end
 
-        # C — the booth is the merchandise
-        if opts[:booth]
-          if booths.empty?
-            puts "  #{name}: no booth found in this room (looked for " \
-                 'WR-Booth-* tags, then for an untagged booth-sized box ' \
-                 '32-188" a side, 78-94" tall) — booth layers have ' \
-                 'nothing to do.'
+          # ROLE 5 — the rim, OPPOSITE the key across the booth, cool against
+          # the warm key. Without it the booth's silhouette dissolves into the
+          # wall behind it and the frame goes flat.
+          rx = cx - ux * (dlen + RIM_OUT)
+          ry = cy - uy * (dlen + RIM_OUT)
+          rax = accent_axis(cx - rx, cy - ry)
+          if rax && point_in_poly?(rx, ry, poly)
+            rrot = Geom::Transformation.rotation(
+              Geom::Point3d.new(0, 0, 0),
+              Geom::Vector3d.new(rax[0], rax[1], 0), RIM_TILT.degrees)
+            place.call(:rim, [rx, ry, z_m], lm_of.call(:rim), rrot)
+            puts format('  %s: rim — %.0f lm at %dK, %s, tilted %d deg across ' \
+                        'the booth\'s back top edge', name, lm_of.call(:rim),
+                        layer_kelvin(5000, opts[:koffset]),
+                        fmt([rx, ry, z_m]), RIM_TILT.to_i)
+          else
+            puts "  #{name}: the rim position lands outside the floor — skipped."
           end
-          booths.each do |o|
-            bname = display_name(o[:ent])
-            bb = o[:bb]
-            if enabled[:booth]
-              pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
-                    bb.max.z - BOOTH_DROP]
-              lm = booth_lumens((bb.max.x - bb.min.x) * (bb.max.y - bb.min.y), opts[:mult])
-              place.call(:booth, pt, lm)
-              puts "  #{name}: booth \"#{bname}\" interior light at #{fmt(pt)}, " \
-                   "target #{lm} lm"
-            end
-            if enabled[:accent]
-              dc = booth_door_center(o)
-              if dc.nil?
-                puts "  #{name}: booth \"#{bname}\" has no WR-Booth-Door tagged " \
-                     'panel — accent skipped.'
-              else
-                bcx = (bb.min.x + bb.max.x) / 2.0
-                bcy = (bb.min.y + bb.max.y) / 2.0
-                ax = accent_axis(bcx - dc[0], bcy - dc[1]) # toward the booth
-                dlen = Math.sqrt((dc[0] - bcx)**2 + (dc[1] - bcy)**2)
-                if ax.nil? || dlen < 1e-6
-                  puts "  #{name}: booth \"#{bname}\" door direction is " \
-                       'degenerate — accent skipped.'
-                else
-                  ux = (dc[0] - bcx) / dlen
-                  uy = (dc[1] - bcy) / dlen
-                  apt = [dc[0] + ux * ACCENT_OUT, dc[1] + uy * ACCENT_OUT, z_m]
-                  if point_in_poly?(apt[0], apt[1], poly)
-                    rot = Geom::Transformation.rotation(
-                      Geom::Point3d.new(0, 0, 0),
-                      Geom::Vector3d.new(ax[0], ax[1], 0),
-                      ACCENT_TILT.degrees)
-                    place.call(:accent, apt,
-                               LIGHT_LAYERS[:accent][:lm] * opts[:mult], rot)
-                    puts "  #{name}: booth \"#{bname}\" accent at #{fmt(apt)}, " \
-                         "tilted #{ACCENT_TILT.to_i} deg onto the door face"
-                  else
-                    puts "  #{name}: accent position for \"#{bname}\" lands " \
-                         'outside the floor — skipped.'
-                  end
-                end
-              end
-            end
-          end
+
+          # ROLE 7 — the foam graze. The foam is a real pyramid field and its
+          # material is a flat-diffuse shim with no reflection layer and no
+          # texture (observed), so GEOMETRY IS THE ONLY CHANNEL THIS SURFACE
+          # HAS. Lit flat from above it vanishes; raked from 4" away across 2"
+          # of relief it self-shadows and reads. Grazing is the mechanism, not
+          # a nicety.
+          # `dlen` — centre to door face — and NOT half the bounding box: an
+          # open door leaf swings outside the booth and inflates that box, and
+          # a graze light placed from it lands OUTSIDE the back wall instead of
+          # 4" inside it (observed on MDL 7272 E, whose leaf adds 15" of depth).
+          fx = cx - ux * (dlen - FOAM_OFFSET)
+          fy = cy - uy * (dlen - FOAM_OFFSET)
+          zrot = Geom::Transformation.rotation(
+            Geom::Point3d.new(0, 0, 0), Geom::Vector3d.new(0, 0, 1),
+            Math.atan2(uy, ux))
+          place.call(:foam, [fx, fy, bb.max.z - BOOTH_DROP],
+                     lm_of.call(:foam), zrot)
+          puts format('  %s: foam graze — %.0f lm at %dK, %.0f" inside the ' \
+                      'back wall at the tray plane, long axis along the wall',
+                      name, lm_of.call(:foam),
+                      layer_kelvin(3500, opts[:koffset]), FOAM_OFFSET)
         end
       end
 
@@ -2056,23 +2951,42 @@ module WR_DropLights
       end
       model.commit_operation
 
-      print_light_report(layers_rep, opts)
+      probe_after = model_probe(model)
+      print_light_report(layers_rep, opts,
+                         { :room_lm => room_lm, :booth_lm => booth_lm,
+                           :capped => capped_any, :walls => walls_any,
+                           :trim => trim_any, :faces => fixture_faces,
+                           :mat_before => mat_before,
+                           :mat_after => probe_after[:materials] })
       puts ''
       bad = layers_rep.values.map { |r| r[:bad] }.flatten.uniq
       if bad.empty?
         puts '  WILL IT EMIT: every light was made by V-Ray itself and owns ' \
-             'its own plugin, and every parameter written read back the ' \
-             'value it was given. There is no seed and no shared asset.'
+             'its own plugin, every parameter written read back the value it ' \
+             'was given, and the tag that carries them is visible and stamped ' \
+             'into every saved scene.'
       else
-        puts "  WILL IT EMIT: the lights are real V-Ray lights, but " \
+        puts '  WILL IT EMIT: the lights are real V-Ray lights, but ' \
              "#{bad.map(&:to_s).join(', ')} did not read back — check those " \
              'in the Asset Editor before rendering (details above).'
       end
-      puts "  #{placed} light#{placed == 1 ? '' : 's'} in #{subjects.size} " \
-           "container#{subjects.size == 1 ? '' : 's'}. Ctrl+Z removes the " \
-           'lights (their V-Ray plugins may linger in the Asset Editor — ' \
-           'a re-press deletes the ones it replaces). Move tool and eraser ' \
-           'fine-tune.'
+      vis = layers_rep.keys.select { |r| LIGHT_LAYERS[r][:visible] }
+      puts format('  %d light instance%s across %d role%s, %d of them VISIBLE ' \
+                  'fixtures, in %d container%s.', placed,
+                  placed == 1 ? '' : 's', layers_rep.size,
+                  layers_rep.size == 1 ? '' : 's',
+                  vis.inject(0) { |a, r| a + layers_rep[r][:count] },
+                  subjects.size, subjects.size == 1 ? '' : 's')
+      if ceilings_added > 0
+        puts format('  %d tool-owned ceiling%s stands in the model. Its ' \
+                    'lifetime is THE RIG\'S lifetime: the next press sweeps ' \
+                    'it, or run WR_DropLights.remove_rig!(Sketchup.active_model) ' \
+                    'to take the whole rig away with a verified removal.',
+                    ceilings_added, ceilings_added == 1 ? '' : 's')
+      end
+      puts '  Ctrl+Z removes the lights, the fixtures and the ceiling in one ' \
+           'step (their V-Ray plugins may linger in the Asset Editor — a ' \
+           're-press deletes the ones it replaces).'
     rescue StandardError => e
       model.abort_operation
       # SketchUp's undo stack owns the geometry; V-Ray's scene does not sit

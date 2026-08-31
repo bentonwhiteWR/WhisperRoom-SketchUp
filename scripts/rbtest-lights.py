@@ -79,16 +79,19 @@ worked examples in .forge/researcher/interior-lighting-design.md:
      8' ceiling, Soft, with 1e-7" of float noise on the long side must
      land 2 x 2 = FOUR lights, not 3 x 2 = six. Reverting the fix in
      wr-drop-lights.rb makes this line fail.
- 21. kelvin_rgb / scalar_intensity — the two numbers this tool now WRITES
-     into each light's own V-Ray plugin (the seed architecture wrote
-     nothing). The Kelvin curve is pinned at 6600 K, which is white by
-     construction, plus the two shipped answers (3000/3500 K) and both
-     clamp ends. scalar_intensity is pinned at its anchor: the 24" x 48"
-     light at intensity 30 that Benton rendered and found correctly lit
-     must come back as exactly 30.0 for its own 3,000 lm target, and a
-     12" x 12" fixture at the same target must come back 8x higher —
-     the area correction, which is the weakest assumption in the file and
-     therefore the one most worth pinning.
+ 21. kelvin_rgb and THE LUMEN COLUMN (1.9.9). The Kelvin curve is pinned
+     at 6600 K, which is white by construction, plus two shipped answers
+     and both clamp ends. Then, in place of the deleted scalar column:
+     layer_lumens against Brightness and the enclosure trims; area_scale
+     with BOTH clamps (the lumen table is quoted for a 192 sq ft room and
+     a real room is not that room); the seven-role table's instance count,
+     visible count, distinct Kelvins and per-budget totals — a rig with
+     fewer than five distinct colour temperatures fails outright, because
+     one colour on everything is the fault this rewrite exists to fix; the
+     Warmth offset; the fixture geometry maths (a ring closes, a shell
+     costs 4n faces, five fixtures stay inside the 600-face budget); the
+     sconce row at its 3" standoff with the inward wall normal; and the
+     pendant corner and ceiling pair, both booth-relative.
  22. param_agrees? — the read-back comparator. Every plugin write is read
      back and compared, because a V-Ray parameter that silently refuses a
      write is a black render an hour later. An integer flag and a boolean
@@ -195,6 +198,25 @@ erase_lights are V-Ray/SketchUp-API-side and are unverified until a
 live press — they are why every VRay:: call in that file is
 individually rescued and why every write is read back.
 
+MUTATION-CHECKED 2026-08-30 (1.9.9, the seven-role lumen rig — each
+mutation applied to wr-drop-lights.rb, this test run, FAIL confirmed,
+mutation reverted): TRIM_OPEN4 0.35 -> 1.00 (an open room stops being
+trimmed); enclosure_trim's 3-wall and 4-wall arms swapped; shell_faces
+4n -> 2n (the fixture face budget stops being real); area_scale's upper
+clamp removed; its lower clamp removed; area_scale forgetting the
+sq in -> sq ft conversion; the sconce's 300 lm per sphere -> 600 (the
+fixture emits twice its product figure); layer_kelvin ignoring the
+Warmth offset (Neutral stops shifting the palette); wall_normal flipped
+(sconces mount facing OUT of the room); SCONCE_STANDOFF 3" -> 24"
+(grazing becomes a wall wash). All ten KILLED. The upper-clamp mutation
+SURVIVED on the first pass and the `as` check was added for it — which
+is the only reason it is in this list.
+NOT coverable here and unverified except by the live press recorded in
+.forge/builder/rig-build-results.json: create_sphere, the F1/F2/F3
+geometry builders (tube / cone_shell / disc_solid touch the SketchUp
+Entities API), add_ceiling, remove_ceilings_verified!, model_probe,
+stamp_exposure!, stamp_tag_into_pages and assert_lights_visible!.
+
 MUTATION-CHECKED 2026-08-27 (UTHSC-incident additions, same protocol):
 grid_points diag mis-charge (keep-out rejections counted as edge);
 in_keepout? forced false; room_structure_child? name match made
@@ -257,16 +279,22 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'booth_lumens', 'accent_axis', 'subject_veto',
            'fallback_verdict', 'light_words?', 'room_structure_child?',
            'doors_container?', 'door_child_kind', 'tag', 'floor_child?',
-           'booth_like?', 'grid_count', 'kelvin_rgb', 'scalar_intensity',
-           'param_agrees?', 'in_box?']
+           'booth_like?', 'grid_count', 'kelvin_rgb',
+           'param_agrees?', 'in_box?', 'enclosure_trim', 'layer_lumens',
+           'layer_kelvin', 'area_scale', 'ring_points', 'shell_faces', 'fixture_faces',
+           'wall_points', 'sconce_points', 'wall_normal', 'far_corner',
+           'ceiling_pair']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H',
            'MIN_ROOM_AREA', 'BOOTH_SIDE_MIN', 'BOOTH_SIDE_MAX',
            'BOOTH_H_MIN', 'BOOTH_H_MAX', 'GRID_SNAP', 'BOX_TOL',
-           'UNITS_SCALAR', 'REF_INTENSITY', 'REF_AREA', 'REF_LUMENS',
-           'AREA_NORMALIZED', 'FACE_FLIP']
-STRINGS = ['TAG', 'WR_MODE_DICT']
+           'UNITS_LUMENS', 'FACE_FLIP', 'TRIM_OPEN4', 'TRIM_OPEN3', 'SEG',
+           'FIXTURE_FACES_MAX', 'REF_ROOM_SQFT', 'REF_BOOTH_SQFT',
+           'AREA_SCALE_MIN', 'AREA_SCALE_MAX', 'PENDANT_AFF', 'SCONCE_AFF',
+           'SCONCE_STANDOFF', 'RIM_OUT', 'RIM_TILT', 'FOAM_OFFSET',
+           'EXPO_ISO', 'EXPO_FACTORY_ISO', 'EXPO_EV']
+STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT']
 BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'LIGHT_LAYERS']
 
 
@@ -307,6 +335,10 @@ class FakeModel
     @mode = mode
   end
   def get_attribute(_d, k); k == 'current' ? @mode : nil; end
+  # tag() records that IT created the WR Lights tag, so remove_rig! can take
+  # the tag back and the removal's tag-list check can pass. The stub only has
+  # to accept the write; what it records is not what this check is about.
+  def set_attribute(_d, _k, _v); true; end
 end
 
 module WR_DropLights
@@ -521,27 +553,71 @@ __METHODS__
                    .map { |k| kelvin_rgb(k).map { |v| format('%.3f', v) }.join(',') }
                    .join(' ')
 
-    # 21b — scalar_intensity, anchored to the ONE observed-good light:
-    # 24" x 48" at its 3,000 lm design target must come back as exactly
-    # REF_INTENSITY (30). A 12" x 12" fixture at the same target is 8x
-    # (the area correction). Then the three other layers at their design
-    # figures, and a degenerate fixture.
-    out << 'si ' + [scalar_intensity(3000.0, 24.0, 48.0),
-                    scalar_intensity(3000.0, 12.0, 12.0),
-                    scalar_intensity(1500.0, 6.0, 24.0),
-                    scalar_intensity(1000.0, 12.0, 24.0),
-                    scalar_intensity(6000.0, 12.0, 12.0),
-                    scalar_intensity(3000.0, 0.0, 12.0),
-                    scalar_intensity(0.0, 12.0, 12.0)]
-                   .map { |v| format('%.1f', v) }.join(',')
+    # 21b — THE LUMEN COLUMN, 1.9.9. There is no scalar anchor and no area
+    # correction any more: in Luminous Power mode intensity IS the output.
+    # Brightness multiplies, the enclosure trim multiplies room roles only,
+    # and the booth roles never trim.
+    out << 'lm ' + [layer_lumens(2000.0, 1.0, 1.0),
+                    layer_lumens(2000.0, 2.0, 1.0),
+                    layer_lumens(2000.0, 0.5, 1.0),
+                    layer_lumens(2000.0, 1.0, enclosure_trim(false, 4)),
+                    layer_lumens(2000.0, 1.0, enclosure_trim(false, 3)),
+                    layer_lumens(800.0, 1.0, enclosure_trim(true, 4))]
+                   .map { |v| format('%.0f', v) }.join(',')
 
-    # 21c — the layer table against interior-lighting-design.md: sizes and
-    # nominal lumens, plus the accent Directionality that could never be
-    # built while the accent seed .skp did not exist.
-    out << 'lt ' + [:downlight, :wallwash, :booth, :accent].map { |r|
-      s = LIGHT_LAYERS[r]
-      format('%.0fx%.0f/%d/%s', s[:u], s[:v], s[:lm].to_i, s[:dir].inspect)
-    }.join(' ') + format(' units%.0f', UNITS_SCALAR)
+    # 21b2 — area_scale: the lumen table is quoted for a 192 sq ft room, and
+    # a real room is not that room. Both clamps must bite — without the upper
+    # one a big hall multiplies the rig without limit.
+    out << 'as ' + [area_scale(192.0 * 144.0, REF_ROOM_SQFT),
+                    area_scale(320.0 * 144.0, REF_ROOM_SQFT),
+                    area_scale(24.0 * 144.0, REF_ROOM_SQFT),
+                    area_scale(4000.0 * 144.0, REF_ROOM_SQFT),
+                    area_scale(30.0 * 144.0, REF_BOOTH_SQFT),
+                    area_scale(0.0, REF_ROOM_SQFT)]
+                   .map { |v| format('%.3f', v) }.join(',')
+
+    # 21c — THE SEVEN-ROLE LAYER TABLE. Its budgets must total the design
+    # figures, EXACTLY FIVE layers must be visible, and the rig must carry at
+    # least five distinct Kelvins — a single-hue rig is the fault this whole
+    # rewrite exists to fix, so it fails outright here.
+    roles = [:ceiling, :key, :pendant, :sconce, :rim, :booth, :foam]
+    tot = lambda { |b| roles.select { |r| LIGHT_LAYERS[r][:budget] == b }
+                            .inject(0.0) { |a, r| a + LIGHT_LAYERS[r][:lumens] *
+                                                  LIGHT_LAYERS[r][:n] *
+                                                  LIGHT_LAYERS[r][:emitters] } }
+    kelvins = roles.map { |r| LIGHT_LAYERS[r][:kelvin] }.uniq
+    out << format('lt roles%d inst%d visroles%d visfix%d k%d room%.0f booth%.0f units%.0f',
+                  roles.size,
+                  roles.inject(0) { |a, r| a + LIGHT_LAYERS[r][:n] * LIGHT_LAYERS[r][:emitters] },
+                  roles.count { |r| LIGHT_LAYERS[r][:visible] },
+                  roles.select { |r| LIGHT_LAYERS[r][:visible] }
+                       .inject(0) { |a, r| a + LIGHT_LAYERS[r][:n] },
+                  kelvins.size, tot.call(:room), tot.call(:booth), UNITS_LUMENS)
+
+    # 21d — the Kelvin offset SHIFTS the palette and never flattens it.
+    out << 'ko ' + roles.map { |r| layer_kelvin(LIGHT_LAYERS[r][:kelvin], 500) }
+                        .join(',')
+
+    # 21e — the fixture geometry maths, outside SketchUp: a ring closes, a
+    # shell costs 4n faces, and the five fixtures of a full rig stay inside
+    # the face budget at the shipped segment count.
+    rp = ring_points(0.0, 0.0, 9.0, 4)
+    out << format('fx %s shell%d faces%d budget%d',
+                  rp.map { |p| format('%.1f/%.1f', p[0], p[1]) }.join(' '),
+                  shell_faces(SEG), fixture_faces(2, 1, 2, SEG),
+                  fixture_faces(2, 1, 2, SEG) <= FIXTURE_FACES_MAX ? 1 : 0)
+
+    # 21f — the sconce row: 3" off the wall, two of them, and the inward
+    # wall normal that the backplate is pushed along.
+    sp = sconce_points(RECT, 0, [])
+    nn = wall_normal(RECT, 0)
+    out << format('sc %s n%.0f,%.0f', pts_s(sp), nn[0], nn[1])
+
+    # 21g — the pendant corner and the ceiling pair, both booth-relative.
+    fc = far_corner(RECT, 10.0, 10.0, 36.0)
+    cp = ceiling_pair([[48.0, 45.0], [48.0, 135.0], [96.0, 45.0], [96.0, 135.0]],
+                      10.0, 10.0)
+    out << format('pp %.1f,%.1f %s', fc[0], fc[1], pts_s(cp))
 
     # 22 — param_agrees?, the read-back comparator. An integer flag and a
     # boolean are the same answer; floats compare with tolerance; a
@@ -641,8 +717,13 @@ EXPECT = ' | '.join([
     'noisy 48.0,36.0;48.0,108.0;144.0,36.0;144.0,108.0 fb0',
     'kr 1.000,0.695,0.431 1.000,0.755,0.552 1.000,1.000,1.000 '
     '0.791,0.855,1.000 1.000,0.266,0.000',
-    'si 30.0,240.0,120.0,40.0,480.0,0.0,0.0',
-    'lt 12x12/3000/nil 6x24/1500/nil 12x24/1000/nil 12x12/6000/0.5 units0',
+    'lm 2000,4000,1000,700,500,800',
+    'as 1.000,1.667,0.500,3.000,1.250,1.000',
+    'lt roles7 inst11 visroles3 visfix5 k6 room10800 booth1200 units1',
+    'ko 4000,3700,3200,3500,5500,4500,4000',
+    'fx 9.0/0.0 0.0/9.0 -9.0/0.0 -0.0/-9.0 shell64 faces394 budget1',
+    'sc 36.0,3.0;108.0,3.0 n0,1',
+    'pp 121.5,151.9 96.0,135.0;48.0,135.0',
     'pa 111011011010',
     'ib 111100',
     'bl 111000000',

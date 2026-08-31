@@ -2,6 +2,79 @@
 
 ## 2026-08-30
 
+### 1.9.9 — the layered rig, built for real and rendered: seven roles, lumens, three drawn fixtures, a borrowed ceiling
+
+`scripts/wr-drop-lights.rb`, `scripts/rbtest-lights.py`, `scripts/wr_tools/VERSION` 1.9.8 ->
+**1.9.9**. Spec: `.forge/scoper/layered-light-rig.md`. Every number, per view and per light:
+`.forge/builder/rig-build-results.json`. Write-up: `.forge/builder/HANDOFF-rig-build.md`.
+Images (out of the repo, per CLAUDE.md): `C:\Users\bento\Desktop\BridgeTest-rig\`.
+
+**The one-tier grid of eight identical invisible 3000 K panels is gone.** In its place: seven
+roles at six colour temperatures, in **lumens** (`units = 1`), with **three procedurally drawn
+fixtures** — F1 flush ceiling drum, F2 cord-hung pendant, F3 up/down cylinder sconce — and an
+**on-demand ceiling** the tool borrows for the rig's lifetime and takes away again.
+
+| role | n | emitter | lumens (192 sq ft ref) | K | visible | fixture |
+|---|---|---|---|---|---|---|
+| Ceiling ambient | 2 | 17.5" disc rect, `is_disc` | 2,000 | 3500 | **yes** | F1 |
+| Key / booth face | 1 | 24x24 rect, 35 deg tilt | 2,800 | 3200 | no | — |
+| Pendant | 1 | sphere d3" | 1,200 | 2700 | **yes** | F2 |
+| Sconce graze | 2 fixtures x **2** spheres | sphere d2" | 300 each | 3000 | **yes** | F3 |
+| Rim / kicker | 1 | 12x36 rect, 60 deg tilt | 1,600 | 5000 | no | — |
+| Booth interior | 1 | 12x24 rect | 800 | 4000 | no | — |
+| Foam graze | 1 | 4x36 rect | 400 | 3500 | no | — |
+
+**Four constants deleted together.** `UNITS_SCALAR`, `REF_INTENSITY`, `REF_AREA`, `REF_LUMENS`
+and `AREA_NORMALIZED` go with `scalar_intensity`. In Luminous Power mode intensity is total
+output and size-independent, so the area correction — "the weakest link in this file" since
+1.8.0 — has nothing left to correct. `area_scale` replaces it: the table is quoted for a
+192 sq ft room, and a real room is not that room (the live 20'x16' room takes x1.67).
+
+**The exposure is written once, ISO only, with five guards.** `f/8 @ 1/300 @ ISO 3200` = EV
+9.23. Live: ISO 100.0 -> 3200.0, and **`f_number` read back 8.0 and `shutter_speed` 300.0,
+both unmoved**. A second press wrote nothing and said so by name. `NEVER_WRITE` lists
+`/SettingsOutput`, `/SunLight`, `/SettingsEnvironment`, `/SettingsImageSampler` and every
+`/CameraPhysical` key except `ISO`, with the reason at the site.
+
+**LIVE, SketchUp 2026 / V-Ray 7, on a 20'x16' room with an `MDL 7272 E` in it** (all
+**observed**): 11 light instances, 11 live plugins, every one `units = 1` with its table lumens
+and its own Kelvin; `is_disc = 1` on both drums; `invisible = 0` on the seven visible emitters
+and `1` on the four invisible ones; six distinct colour temperatures; 273 fixture faces against
+a 600 budget; **`materials.count` unchanged, 36 before and 36 after**; the tag stamped VISIBLE
+into all six saved scenes; zero `DID NOT STICK`. **Six 1600x900 frames rendered**, four PASS
+`image-qa` and two fail as too dark (below).
+
+**THE CEILING RESTORE, and its negative test.** A poisoned probe (materials count one out)
+made `remove_ceilings_verified!` **refuse by name and print no success line** — it named the
+37th material, the definition count and the tag. The real removal then swept 16 entities, 1
+ceiling and 11 plugins with **0 left behind**, took back the `WR Lights` tag it had created,
+and an **independent re-read from scratch** agreed: definitions 108, materials 36, 17 tags, 9
+top-level entities, and nothing anywhere carrying `WR_DropLights / kind => ceiling`. The first
+run of that check **refused itself** because the tag was still there, which is exactly what it
+is for.
+
+**Three live findings worth more than the code.**
+
+1. **The booth budget is about four stops short for a real WhisperRoom interior.** The two
+   interior frames metered 0.0080 and 0.0097 against `image-qa`'s 0.12 floor. Not a placement
+   fault — a raycast from the booth light found 3.25" of clear air above it and 11.12" below,
+   so it is inside the booth, not trapped in the roof tray. A measured ladder at **x16 on the
+   booth roles only** brings them to 0.0969 / 0.0918 and the pictures become readable. The
+   mechanism: `BOOTH_FC 30 / CU 0.6` assumes ordinary reflectances, and a WhisperRoom interior
+   is charcoal panels plus dark blue foam with a flat-diffuse material and no reflection layer.
+   **The shipped table is unchanged — this is Benton's constant to move, not mine.**
+2. **V-Ray will not start a second production render inside one Ruby job.** Six frames from one
+   job came back BYTE-IDENTICAL: frame 1 `ended`, frames 2..6 `never_started`, and
+   `save_vfb_image` wrote the first frame's pixels five more times. One frame per bridge job,
+   and check the images are distinct.
+3. **`progressive_maxTime` is in MINUTES.** 150 was accepted and stopped nothing.
+
+**`python scripts/rbparse.py`** — 59 files parse. **`python scripts/rbtest-lights.py`** —
+**43 + 10 checks PASS**, with the scalar-column checks replaced by lumen, area-scale,
+layer-table, Kelvin-offset, fixture-geometry, sconce-row and pendant/ceiling-placement checks.
+**Eleven mutations applied and killed** (one survived first time and the `as` check was added
+for it); the list is in the test's header.
+
 ### 1.9.8 — "the window needs to go inwards 11/16": it is the trim ring, and the rule was pinning it
 
 `scripts/build-booth-components.rb`, `scripts/wr_tools/VERSION` 1.9.7 -> **1.9.8**. Full

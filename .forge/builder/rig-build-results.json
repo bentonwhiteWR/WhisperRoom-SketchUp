@@ -1,0 +1,1152 @@
+{
+  "generated": "2026-08-30",
+  "version": "1.9.9",
+  "spec": ".forge/scoper/layered-light-rig.md",
+  "sketchup": "SketchUp 2026 / V-Ray 7, driven through scripts/sketchup-bridge.py --su 2026",
+  "summary": {
+    "what": "The seven-role layered light rig of .forge/scoper/layered-light-rig.md, built for real in wr-drop-lights.rb 1.9.9 and rendered in SketchUp 2026 / V-Ray 7 through scripts/sketchup-bridge.py --su 2026.",
+    "light_instances": 11,
+    "roles": 7,
+    "visible_emitters": 7,
+    "visible_fixtures": 5,
+    "fixture_types_built": [
+      "F1 flush ceiling drum",
+      "F2 cord-hung pendant",
+      "F3 up/down cylinder sconce"
+    ],
+    "fixture_types_not_built": [
+      "F4 floor lamp (out of scope this pass)"
+    ],
+    "distinct_colour_temperatures": 6,
+    "room_lumens_total": 18000,
+    "booth_lumens_total": 2670,
+    "fixture_faces_added": 273,
+    "fixture_face_budget": 600,
+    "circle_segments": 16,
+    "materials_created": 0,
+    "on_demand_ceiling": "created with the rig, removed with the rig, removal verified by an independent re-read",
+    "instance_count_note": "The spec's \u00a76 arithmetic says 9 instances. It is 11, and the difference is the sconce: \u00a77.2 gives each F3 cylinder TWO spheres (one at each open end) and that is what throws the double scallop, while \u00a76's instance sum counts one per fixture. Five VISIBLE FIXTURES, seven visible emitters."
+  },
+  "room": {
+    "built_by": "scripts/build-room.rb WR_BuildRoom.build",
+    "name": "Studio Room",
+    "interior_in": [
+      240.0,
+      192.0
+    ],
+    "interior_ft": "20'-0\" x 16'-0\"",
+    "floor_sqft": 320.0,
+    "wall_height_in": 96.0,
+    "wall_thickness_in": 4.0,
+    "doors": 1,
+    "door_width_in": 36.0,
+    "door_on_run": 0,
+    "door_at_in": 90.0,
+    "enclosure_at_render": "CAPPED (the tool's own ceiling) with 4 walls, so the room trim is x1.00"
+  },
+  "booth": {
+    "built_by": "scripts/build-booth-components.rb WR_BuildBoothComponents.build_booth from P:/Sketchup/NewMasterComponentList",
+    "key": "MDL 7272 E",
+    "label": "Sound Booth 6' x 6', Enhanced (second IEP inner shell)",
+    "exterior_in": [
+      74.0,
+      74.0
+    ],
+    "world_bounds_in": {
+      "min": [
+        128.0,
+        44.92,
+        0.0
+      ],
+      "max": [
+        208.48,
+        140.48,
+        84.31
+      ]
+    },
+    "walls_bounds_in": {
+      "min": [
+        128.0,
+        60.0,
+        1.31
+      ],
+      "max": [
+        202.0,
+        134.0,
+        82.31
+      ]
+    },
+    "door_face": "south (-Y), leaf drawn open, WR-Booth-Door bounds y 44.92..76.9",
+    "component_instances_placed": 48,
+    "foam": "two Foam.skp sheets on the IEP inner north and east walls, WR-Booth-Foam, 1447 faces each, world bounds x 141..197.6, y 97..129.6, z 17.8..65.8"
+  },
+  "exposure": {
+    "written": "ONCE, ISO only",
+    "f_number": 8.0,
+    "shutter_speed": 300.0,
+    "ISO_before": 100.0,
+    "ISO_after": 3200.0,
+    "EV": 9.23,
+    "f_number_and_shutter_moved": false,
+    "second_press": "wrote nothing and said so by name: 'already stamped (ISO 3200, 2026-08-30 21:58:22)'",
+    "undo": "Asset Editor > Settings > Camera > ISO, back to 100",
+    "never_written": [
+      "/SettingsOutput",
+      "/SunLight",
+      "/SettingsEnvironment",
+      "/SettingsImageSampler",
+      "every /CameraPhysical key except ISO"
+    ]
+  },
+  "vray_settings_at_render": {
+    "f_number": 8.0,
+    "ISO": 3200.0,
+    "shutter_speed": 300.0,
+    "img_width": 1600,
+    "img_height": 900,
+    "progressive_maxSubdivs": 20,
+    "progressive_maxTime": 0.0,
+    "progressive_threshold": 0.03999999910593033,
+    "sun_enabled": true,
+    "sun_intensity": 1.0,
+    "standard_light_enabled": true,
+    "standard_light_intensity": 2500.0
+  },
+  "frames": [
+    {
+      "name": "rig-1-ext-3q",
+      "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\rig-1-ext-3q.png",
+      "pixel_size": "1600x900",
+      "bytes_on_disk": 2608698,
+      "wall_clock_seconds": 155.84,
+      "render_end": "ended",
+      "exposure_used": {
+        "f_number": 8.0,
+        "ISO": 3200.0,
+        "shutter_speed": 300.0,
+        "EV": 9.23
+      },
+      "quality": {
+        "progressive_maxSubdivs": 20,
+        "progressive_threshold": 0.03999999910593033,
+        "progressive_maxTime_min": 2.5
+      },
+      "camera": {
+        "eye_in": [
+          34.0,
+          58.0,
+          66.0
+        ],
+        "target_in": [
+          176.0,
+          122.0,
+          40.0
+        ],
+        "fov_deg": 60.0
+      },
+      "light_instances_visible_at_render": 11,
+      "wr_lights_tag_visible_at_render": true,
+      "fixtures_in_frame": [
+        "F3 sconce (north wall, both spheres and its wall scallop)"
+      ],
+      "what_it_shows": "Three-quarter exterior of the booth in the room from the south-west. The booth's west face and door face both read; the key light's pool sits on the door; an F3 sconce and its scallop are visible past the booth on the north wall. Dark overall - the frame is 70% charcoal booth.",
+      "image_qa": {
+        "verdict": "PASS",
+        "profile": "view",
+        "mean_luminance": 0.1208,
+        "clipped_fraction": 0.0275,
+        "dark_fraction": 0.2447,
+        "thresholds": {
+          "mean_min": 0.12,
+          "mean_max": 0.75,
+          "clip_max": 0.4
+        },
+        "reasons": []
+      },
+      "web_copy": {
+        "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\web\\rig-1-ext-3q.png",
+        "pixel_size": "1024x576",
+        "bytes": 501115,
+        "note": "downscaled and 256-colour quantised for embedding; the full 1600x900 render is the file in `path`"
+      }
+    },
+    {
+      "name": "rig-2-room-wide",
+      "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\rig-2-room-wide.png",
+      "pixel_size": "1600x900",
+      "bytes_on_disk": 3321657,
+      "wall_clock_seconds": 159.98,
+      "render_end": "ended",
+      "exposure_used": {
+        "f_number": 8.0,
+        "ISO": 3200.0,
+        "shutter_speed": 300.0,
+        "EV": 9.23
+      },
+      "quality": {
+        "progressive_maxSubdivs": 20,
+        "progressive_threshold": 0.03999999910593033,
+        "progressive_maxTime_min": 2.5
+      },
+      "camera": {
+        "eye_in": [
+          150.0,
+          20.0,
+          70.0
+        ],
+        "target_in": [
+          35.0,
+          172.0,
+          58.0
+        ],
+        "fov_deg": 78.0
+      },
+      "light_instances_visible_at_render": 11,
+      "wr_lights_tag_visible_at_render": true,
+      "fixtures_in_frame": [
+        "F1 flush drum x2",
+        "F2 pendant",
+        "F3 sconce scallops"
+      ],
+      "what_it_shows": "The wide room shot, looking north-west along the clear lane south of the booth. BOTH ceiling drums and the pendant are in frame and unmistakably fixtures; the sconce scallops read on the north wall; the room door leaf is the orange slab at the left edge. This is the frame that shows the redesign.",
+      "image_qa": {
+        "verdict": "PASS",
+        "profile": "view",
+        "mean_luminance": 0.2032,
+        "clipped_fraction": 0.0169,
+        "dark_fraction": 0.1124,
+        "thresholds": {
+          "mean_min": 0.12,
+          "mean_max": 0.75,
+          "clip_max": 0.4
+        },
+        "reasons": []
+      },
+      "web_copy": {
+        "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\web\\rig-2-room-wide.png",
+        "pixel_size": "1024x576",
+        "bytes": 493257,
+        "note": "downscaled and 256-colour quantised for embedding; the full 1600x900 render is the file in `path`"
+      }
+    },
+    {
+      "name": "rig-3-booth-int",
+      "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\rig-3-booth-int.png",
+      "pixel_size": "1600x900",
+      "bytes_on_disk": 1378420,
+      "wall_clock_seconds": 153.03,
+      "render_end": "ended",
+      "exposure_used": {
+        "f_number": 8.0,
+        "ISO": 3200.0,
+        "shutter_speed": 300.0,
+        "EV": 9.23
+      },
+      "quality": {
+        "progressive_maxSubdivs": 20,
+        "progressive_threshold": 0.03999999910593033,
+        "progressive_maxTime_min": 2.5
+      },
+      "camera": {
+        "eye_in": [
+          152.0,
+          68.0,
+          50.0
+        ],
+        "target_in": [
+          185.0,
+          128.0,
+          42.0
+        ],
+        "fov_deg": 70.0
+      },
+      "light_instances_visible_at_render": 11,
+      "wr_lights_tag_visible_at_render": true,
+      "fixtures_in_frame": [],
+      "what_it_shows": "Inside the booth looking at the north-east corner. The foam pyramid field reads with self-shadowing on both walls, but the frame is far under-exposed at the specced booth lumens - see caveats.",
+      "image_qa": {
+        "verdict": "FAIL",
+        "profile": "view",
+        "mean_luminance": 0.008,
+        "clipped_fraction": 0.0,
+        "dark_fraction": 0.9078,
+        "thresholds": {
+          "mean_min": 0.12,
+          "mean_max": 0.75,
+          "clip_max": 0.4
+        },
+        "reasons": [
+          "TOO DARK: mean luminance 0.0080 is below the view floor of 0.12"
+        ]
+      },
+      "web_copy": {
+        "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\web\\rig-3-booth-int.png",
+        "pixel_size": "1024x576",
+        "bytes": 419145,
+        "note": "downscaled and 256-colour quantised for embedding; the full 1600x900 render is the file in `path`"
+      }
+    },
+    {
+      "name": "rig-4-foam-detail",
+      "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\rig-4-foam-detail.png",
+      "pixel_size": "1600x900",
+      "bytes_on_disk": 1519550,
+      "wall_clock_seconds": 152.26,
+      "render_end": "ended",
+      "exposure_used": {
+        "f_number": 8.0,
+        "ISO": 3200.0,
+        "shutter_speed": 300.0,
+        "EV": 9.23
+      },
+      "quality": {
+        "progressive_maxSubdivs": 20,
+        "progressive_threshold": 0.03999999910593033,
+        "progressive_maxTime_min": 2.5
+      },
+      "camera": {
+        "eye_in": [
+          150.0,
+          80.0,
+          58.0
+        ],
+        "target_in": [
+          192.0,
+          126.0,
+          36.0
+        ],
+        "fov_deg": 40.0
+      },
+      "light_instances_visible_at_render": 11,
+      "wr_lights_tag_visible_at_render": true,
+      "fixtures_in_frame": [],
+      "what_it_shows": "The foam graze at close range: the pyramid relief self-shadows across the whole field with a clear top-to-bottom gradient. This is role 7 doing exactly its job. Under-exposed at the specced lumens.",
+      "image_qa": {
+        "verdict": "FAIL",
+        "profile": "view",
+        "mean_luminance": 0.0097,
+        "clipped_fraction": 0.0,
+        "dark_fraction": 0.8962,
+        "thresholds": {
+          "mean_min": 0.12,
+          "mean_max": 0.75,
+          "clip_max": 0.4
+        },
+        "reasons": [
+          "TOO DARK: mean luminance 0.0097 is below the view floor of 0.12"
+        ]
+      },
+      "web_copy": {
+        "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\web\\rig-4-foam-detail.png",
+        "pixel_size": "1024x576",
+        "bytes": 454947,
+        "note": "downscaled and 256-colour quantised for embedding; the full 1600x900 render is the file in `path`"
+      }
+    },
+    {
+      "name": "rig-5-fittings",
+      "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\rig-5-fittings.png",
+      "pixel_size": "1600x900",
+      "bytes_on_disk": 3118094,
+      "wall_clock_seconds": 151.44,
+      "render_end": "ended",
+      "exposure_used": {
+        "f_number": 8.0,
+        "ISO": 3200.0,
+        "shutter_speed": 300.0,
+        "EV": 9.23
+      },
+      "quality": {
+        "progressive_maxSubdivs": 20,
+        "progressive_threshold": 0.03999999910593033,
+        "progressive_maxTime_min": 2.5
+      },
+      "camera": {
+        "eye_in": [
+          150.0,
+          30.0,
+          55.0
+        ],
+        "target_in": [
+          34.0,
+          160.0,
+          86.0
+        ],
+        "fov_deg": 55.0
+      },
+      "light_instances_visible_at_render": 11,
+      "wr_lights_tag_visible_at_render": true,
+      "fixtures_in_frame": [
+        "F1 flush drum (diffuser and drum ring both read)",
+        "F2 pendant (canopy, cord, cone shade)",
+        "F3 sconce scallop"
+      ],
+      "what_it_shows": "Looking up at an F1 flush drum and the F2 pendant side by side. The drum reads as a real flush mount - a glowing diffuser disc inside a visible drum ring - and the pendant as a canopy, cord and cone shade. Neither is clipped to featureless white.",
+      "image_qa": {
+        "verdict": "PASS",
+        "profile": "view",
+        "mean_luminance": 0.2335,
+        "clipped_fraction": 0.0145,
+        "dark_fraction": 0.0178,
+        "thresholds": {
+          "mean_min": 0.12,
+          "mean_max": 0.75,
+          "clip_max": 0.4
+        },
+        "reasons": []
+      },
+      "web_copy": {
+        "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\web\\rig-5-fittings.png",
+        "pixel_size": "1024x576",
+        "bytes": 488107,
+        "note": "downscaled and 256-colour quantised for embedding; the full 1600x900 render is the file in `path`"
+      }
+    },
+    {
+      "name": "rig-6-sconce",
+      "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\rig-6-sconce.png",
+      "pixel_size": "1600x900",
+      "bytes_on_disk": 2944167,
+      "wall_clock_seconds": 151.9,
+      "render_end": "ended",
+      "exposure_used": {
+        "f_number": 8.0,
+        "ISO": 3200.0,
+        "shutter_speed": 300.0,
+        "EV": 9.23
+      },
+      "quality": {
+        "progressive_maxSubdivs": 20,
+        "progressive_threshold": 0.03999999910593033,
+        "progressive_maxTime_min": 2.5
+      },
+      "camera": {
+        "eye_in": [
+          108.0,
+          128.0,
+          60.0
+        ],
+        "target_in": [
+          60.0,
+          190.0,
+          66.0
+        ],
+        "fov_deg": 40.0
+      },
+      "light_instances_visible_at_render": 11,
+      "wr_lights_tag_visible_at_render": true,
+      "fixtures_in_frame": [
+        "F3 sconce, filling the frame, both open ends emitting"
+      ],
+      "what_it_shows": "The F3 up/down cylinder filling the frame, both open ends emitting, throwing the classic double scallop on the wall. The single most 'an interior designer did this' object in the rig.",
+      "image_qa": {
+        "verdict": "PASS",
+        "profile": "view",
+        "mean_luminance": 0.1649,
+        "clipped_fraction": 0.0082,
+        "dark_fraction": 0.0078,
+        "thresholds": {
+          "mean_min": 0.12,
+          "mean_max": 0.75,
+          "clip_max": 0.4
+        },
+        "reasons": []
+      },
+      "web_copy": {
+        "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\web\\rig-6-sconce.png",
+        "pixel_size": "1024x576",
+        "bytes": 491653,
+        "note": "downscaled and 256-colour quantised for embedding; the full 1600x900 render is the file in `path`"
+      }
+    }
+  ],
+  "booth_budget_ladder": [
+    {
+      "name": "rig-3-booth-int-boothx16",
+      "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\rig-3-booth-int-boothx16.png",
+      "base_frame": "rig-3-booth-int",
+      "booth_budget_multiplier": 16.0,
+      "intensities_set_lm": [
+        [
+          "/Rectangle Light#8",
+          28481.759765625
+        ],
+        [
+          "/Rectangle Light#11",
+          14240.912109375
+        ]
+      ],
+      "intensities_restored_ok": true,
+      "wall_clock_seconds": 60.47,
+      "render_end": "ended",
+      "pixel_size": "1600x900",
+      "bytes_on_disk": 2284992,
+      "image_qa": {
+        "verdict": "FAIL",
+        "mean_luminance": 0.0969,
+        "clipped_fraction": 0.0001
+      },
+      "web_copy": {
+        "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\web\\rig-3-booth-int-boothx16.png",
+        "pixel_size": "1024x576",
+        "bytes": 514869,
+        "note": "downscaled and 256-colour quantised for embedding; the full 1600x900 render is the file in `path`"
+      }
+    },
+    {
+      "name": "rig-4-foam-detail-boothx16",
+      "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\rig-4-foam-detail-boothx16.png",
+      "base_frame": "rig-4-foam-detail",
+      "booth_budget_multiplier": 16.0,
+      "intensities_set_lm": [
+        [
+          "/Rectangle Light#8",
+          28481.759765625
+        ],
+        [
+          "/Rectangle Light#11",
+          14240.912109375
+        ]
+      ],
+      "intensities_restored_ok": true,
+      "wall_clock_seconds": 79.91,
+      "render_end": "ended",
+      "pixel_size": "1600x900",
+      "bytes_on_disk": 2272938,
+      "image_qa": {
+        "verdict": "FAIL",
+        "mean_luminance": 0.0918,
+        "clipped_fraction": 0.0
+      },
+      "web_copy": {
+        "path": "C:\\Users\\bento\\Desktop\\BridgeTest-rig\\web\\rig-4-foam-detail-boothx16.png",
+        "pixel_size": "1024x576",
+        "bytes": 527945,
+        "note": "downscaled and 256-colour quantised for embedding; the full 1600x900 render is the file in `path`"
+      }
+    }
+  ],
+  "lights_read_back_after_the_renders": [
+    {
+      "role": "ceiling",
+      "plugin": "/Rectangle Light",
+      "world_xyz": [
+        40.0,
+        48.0,
+        92.75
+      ],
+      "units": 1,
+      "intensity_lm": 3333.330078125,
+      "invisible": false,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.755,
+        0.5523
+      ],
+      "u_size_in": 17.5,
+      "v_size_in": 17.5,
+      "radius_in": null,
+      "is_disc": 1,
+      "directional": 0.0,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "ceiling",
+      "plugin": "/Rectangle Light#1",
+      "world_xyz": [
+        40.0,
+        144.0,
+        92.75
+      ],
+      "units": 1,
+      "intensity_lm": 3333.330078125,
+      "invisible": false,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.755,
+        0.5523
+      ],
+      "u_size_in": 17.5,
+      "v_size_in": 17.5,
+      "radius_in": null,
+      "is_disc": 1,
+      "directional": 0.0,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "pendant",
+      "plugin": "/Sphere Light",
+      "world_xyz": [
+        28.11,
+        169.51,
+        82.0
+      ],
+      "units": 1,
+      "intensity_lm": 2000.0,
+      "invisible": false,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.6538,
+        0.3428
+      ],
+      "u_size_in": null,
+      "v_size_in": null,
+      "radius_in": 1.5,
+      "is_disc": null,
+      "directional": null,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "sconce",
+      "plugin": "/Sphere Light#1",
+      "world_xyz": [
+        180.0,
+        189.0,
+        72.5
+      ],
+      "units": 1,
+      "intensity_lm": 500.0,
+      "invisible": false,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.6949,
+        0.431
+      ],
+      "u_size_in": null,
+      "v_size_in": null,
+      "radius_in": 1.0,
+      "is_disc": null,
+      "directional": null,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "sconce",
+      "plugin": "/Sphere Light#2",
+      "world_xyz": [
+        180.0,
+        189.0,
+        59.5
+      ],
+      "units": 1,
+      "intensity_lm": 500.0,
+      "invisible": false,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.6949,
+        0.431
+      ],
+      "u_size_in": null,
+      "v_size_in": null,
+      "radius_in": 1.0,
+      "is_disc": null,
+      "directional": null,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "sconce",
+      "plugin": "/Sphere Light#3",
+      "world_xyz": [
+        60.0,
+        189.0,
+        72.5
+      ],
+      "units": 1,
+      "intensity_lm": 500.0,
+      "invisible": false,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.6949,
+        0.431
+      ],
+      "u_size_in": null,
+      "v_size_in": null,
+      "radius_in": 1.0,
+      "is_disc": null,
+      "directional": null,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "sconce",
+      "plugin": "/Sphere Light#4",
+      "world_xyz": [
+        60.0,
+        189.0,
+        59.5
+      ],
+      "units": 1,
+      "intensity_lm": 500.0,
+      "invisible": false,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.6949,
+        0.431
+      ],
+      "u_size_in": null,
+      "v_size_in": null,
+      "radius_in": 1.0,
+      "is_disc": null,
+      "directional": null,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "booth",
+      "plugin": "/Rectangle Light#2",
+      "world_xyz": [
+        168.24,
+        92.7,
+        78.31
+      ],
+      "units": 1,
+      "intensity_lm": 1780.1099853515625,
+      "invisible": true,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.8071,
+        0.6513
+      ],
+      "u_size_in": 12.0,
+      "v_size_in": 24.0,
+      "radius_in": null,
+      "is_disc": 0,
+      "directional": 0.0,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "key",
+      "plugin": "/Rectangle Light#3",
+      "world_xyz": [
+        134.84,
+        23.04,
+        96.0
+      ],
+      "units": 1,
+      "intensity_lm": 4666.669921875,
+      "invisible": true,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.7201,
+        0.4828
+      ],
+      "u_size_in": 24.0,
+      "v_size_in": 24.0,
+      "radius_in": null,
+      "is_disc": 0,
+      "directional": 0.5,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "rim",
+      "plugin": "/Rectangle Light#4",
+      "world_xyz": [
+        196.44,
+        151.53,
+        96.0
+      ],
+      "units": 1,
+      "intensity_lm": 2666.669921875,
+      "invisible": true,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.8942,
+        0.8076
+      ],
+      "u_size_in": 12.0,
+      "v_size_in": 36.0,
+      "radius_in": null,
+      "is_disc": 0,
+      "directional": 0.0,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    },
+    {
+      "role": "foam",
+      "plugin": "/Rectangle Light#5",
+      "world_xyz": [
+        181.75,
+        120.87,
+        78.31
+      ],
+      "units": 1,
+      "intensity_lm": 890.0570068359375,
+      "invisible": true,
+      "enabled": true,
+      "color_rgb": [
+        1.0,
+        0.755,
+        0.5523
+      ],
+      "u_size_in": 4.0,
+      "v_size_in": 36.0,
+      "radius_in": null,
+      "is_disc": 0,
+      "directional": 0.0,
+      "tag": "WR Lights",
+      "instance_visible": true,
+      "tag_visible": true
+    }
+  ],
+  "fixtures_read_back_after_the_renders": [
+    {
+      "role": "fixture_f1",
+      "kind": "fixture",
+      "name": "WR Fixture F1 flush drum",
+      "tag": "WR Lights",
+      "visible": true,
+      "faces": 34,
+      "uuid": "1788145780-378322",
+      "bounds_min": [
+        31.0,
+        39.0,
+        92.5
+      ],
+      "bounds_max": [
+        49.0,
+        57.0,
+        96.0
+      ]
+    },
+    {
+      "role": "fixture_f1",
+      "kind": "fixture",
+      "name": "WR Fixture F1 flush drum",
+      "tag": "WR Lights",
+      "visible": true,
+      "faces": 34,
+      "uuid": "1788145780-378322",
+      "bounds_min": [
+        31.0,
+        135.0,
+        92.5
+      ],
+      "bounds_max": [
+        49.0,
+        153.0,
+        96.0
+      ]
+    },
+    {
+      "role": "fixture_f2",
+      "kind": "fixture",
+      "name": "WR Fixture F2 pendant",
+      "tag": "WR Lights",
+      "visible": true,
+      "faces": 99,
+      "uuid": "1788145780-378322",
+      "bounds_min": [
+        20.11,
+        161.51,
+        78.0
+      ],
+      "bounds_max": [
+        36.11,
+        177.51,
+        96.0
+      ]
+    },
+    {
+      "role": "fixture_f3",
+      "kind": "fixture",
+      "name": "WR Fixture F3 sconce",
+      "tag": "WR Lights",
+      "visible": true,
+      "faces": 53,
+      "uuid": "1788145780-378322",
+      "bounds_min": [
+        177.5,
+        186.5,
+        60.0
+      ],
+      "bounds_max": [
+        182.5,
+        192.0,
+        72.0
+      ]
+    },
+    {
+      "role": "fixture_f3",
+      "kind": "fixture",
+      "name": "WR Fixture F3 sconce",
+      "tag": "WR Lights",
+      "visible": true,
+      "faces": 53,
+      "uuid": "1788145780-378322",
+      "bounds_min": [
+        57.5,
+        186.5,
+        60.0
+      ],
+      "bounds_max": [
+        62.5,
+        192.0,
+        72.0
+      ]
+    }
+  ],
+  "ceiling_read_back_after_the_renders": [
+    {
+      "role": "ceiling",
+      "kind": "ceiling",
+      "name": "WR Lights Ceiling",
+      "tag": "WR Lights",
+      "visible": true,
+      "faces": 1,
+      "uuid": "1788145780-378322",
+      "bounds_min": [
+        0.0,
+        0.0,
+        96.0
+      ],
+      "bounds_max": [
+        240.0,
+        192.0,
+        96.0
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "name": "rig-1-ext-3q",
+      "eye": [
+        34.0,
+        58.0,
+        66.0
+      ],
+      "target": [
+        176.0,
+        122.0,
+        40.0
+      ],
+      "fov": 60.0
+    },
+    {
+      "name": "rig-2-room-wide",
+      "eye": [
+        150.0,
+        20.0,
+        70.0
+      ],
+      "target": [
+        35.0,
+        172.0,
+        58.0
+      ],
+      "fov": 78.0
+    },
+    {
+      "name": "rig-3-booth-int",
+      "eye": [
+        152.0,
+        68.0,
+        50.0
+      ],
+      "target": [
+        185.0,
+        128.0,
+        42.0
+      ],
+      "fov": 70.0
+    },
+    {
+      "name": "rig-4-foam-detail",
+      "eye": [
+        150.0,
+        80.0,
+        58.0
+      ],
+      "target": [
+        192.0,
+        126.0,
+        36.0
+      ],
+      "fov": 40.0
+    },
+    {
+      "name": "rig-5-fittings",
+      "eye": [
+        150.0,
+        30.0,
+        55.0
+      ],
+      "target": [
+        34.0,
+        160.0,
+        86.0
+      ],
+      "fov": 55.0
+    },
+    {
+      "name": "rig-6-sconce",
+      "eye": [
+        108.0,
+        128.0,
+        60.0
+      ],
+      "target": [
+        60.0,
+        190.0,
+        66.0
+      ],
+      "fov": 40.0
+    }
+  ],
+  "model_after_renders": {
+    "definitions": 136,
+    "materials": 36,
+    "tags": [
+      "Layer0",
+      "WR Lights",
+      "WR-Booth-Corners",
+      "WR-Booth-Deck",
+      "WR-Booth-Door",
+      "WR-Booth-Foam",
+      "WR-Booth-Options",
+      "WR-Booth-Seals",
+      "WR-Booth-Vent",
+      "WR-Booth-Walls",
+      "WR-Dims",
+      "WR-Dims-Doors",
+      "WR-Doors",
+      "WR-Doors-Leaf",
+      "WR-Floor",
+      "WR-Notes",
+      "WR-Room",
+      "WR-Room-Upper"
+    ],
+    "top_level": 26
+  },
+  "restore": {
+    "negative_test": {
+      "refused": true,
+      "lines": [
+        "  REFUSED \u2014 the restore DID NOT verify:",
+        "    materials.count is 36, was 37 before the press \u2014 this is the check that catches the 37th material",
+        "    definitions.count is 135, was 108 before the press",
+        "    the tag list changed: WR Lights",
+        "    the model holds 25 top-level entities, was 9 before the press",
+        "    Delete the group named \"WR Lights Ceiling\" by hand and check the Materials browser."
+      ]
+    },
+    "mid_probe_ceilings": 1,
+    "remove_rig": {
+      "erased": 16,
+      "ceilings": 1,
+      "plugins_deleted": 11,
+      "plugins_left": 0,
+      "ceiling_verified": true,
+      "lines": [
+        "  restore verified by an INDEPENDENT re-read \u2014 definitions 108, materials 36, 17 tags, 9 top-level entities, and nothing anywhere carries the ceiling stamp."
+      ],
+      "ceiling_groups_erased": 1,
+      "tag_removed": true,
+      "tag_note": null
+    },
+    "probe_before": {
+      "definitions": 108,
+      "materials": 36,
+      "tags": [
+        "Layer0",
+        "WR-Booth-Corners",
+        "WR-Booth-Deck",
+        "WR-Booth-Door",
+        "WR-Booth-Foam",
+        "WR-Booth-Options",
+        "WR-Booth-Seals",
+        "WR-Booth-Vent",
+        "WR-Booth-Walls",
+        "WR-Dims",
+        "WR-Dims-Doors",
+        "WR-Doors",
+        "WR-Doors-Leaf",
+        "WR-Floor",
+        "WR-Notes",
+        "WR-Room",
+        "WR-Room-Upper"
+      ],
+      "top_level": 9
+    },
+    "probe_after": {
+      "definitions": 108,
+      "materials": 36,
+      "tags": [
+        "Layer0",
+        "WR-Booth-Corners",
+        "WR-Booth-Deck",
+        "WR-Booth-Door",
+        "WR-Booth-Foam",
+        "WR-Booth-Options",
+        "WR-Booth-Seals",
+        "WR-Booth-Vent",
+        "WR-Booth-Walls",
+        "WR-Dims",
+        "WR-Dims-Doors",
+        "WR-Doors",
+        "WR-Doors-Leaf",
+        "WR-Floor",
+        "WR-Notes",
+        "WR-Room",
+        "WR-Room-Upper"
+      ],
+      "top_level": 9,
+      "ceilings": 0,
+      "wr_dict_entities": 0
+    },
+    "definitions_match": true,
+    "materials_match": true,
+    "top_level_match": true,
+    "tags_added": [],
+    "vray_after": {
+      "f_number": 8.0,
+      "ISO": 3200.0,
+      "shutter_speed": 300.0,
+      "img": [
+        1600,
+        900
+      ],
+      "progressive_maxTime": 0.0,
+      "progressive_maxSubdivs": 20
+    }
+  },
+  "caveats": [
+    "THE BOOTH INTERIOR IS ABOUT FOUR STOPS UNDER-LIT AT THE SPECCED LUMENS, and that is a fault in the spec's booth budget, not in the placement. The booth-interior light was raycast in place: 3.25 in of clear air above it to the ceiling deck at z 81.56 and 11.12 in below - it is inside the booth, not trapped in the roof tray. The two interior frames metered mean luminance 0.0080 and 0.0097 against image-qa's 0.12 floor. A measured ladder arm at x16 on the booth-budget roles ONLY (booth interior 1780 -> 28482 lm, foam graze 890 -> 14241 lm) brings them to 0.0969 and 0.0918 and the pictures become properly readable - both files are kept as *-boothx16.png. The mechanism: BOOTH_FC 30 fc / CU 0.6 assumes ordinary room reflectances, and a WhisperRoom interior is charcoal panels plus dark blue acoustic foam whose material is a flat-diffuse shim with no reflection layer at all (observed, prior lane). Almost nothing comes back. The fix is one constant and it is BENTON'S CALL, not mine - so the shipped table is unchanged.",
+    "RENDER TIME. A 1600x900 Medium frame of THIS scene does not converge in seven minutes; the first one hit a 420 s ceiling still rendering. The 53.1 s figure from the look sweep was itself taken under a 1-minute progressive_maxTime budget on a much lighter scene. The six delivered frames were rendered under a HARNESS budget of progressive_maxTime = 2.5 MINUTES (the parameter is in minutes, not seconds - observed: 150 was accepted and stopped nothing), which is the same mechanism lookdev-matrix.rb uses. Benton's 0.0 was restored afterwards and read back as 0.0. Everything else - 1600x900, progressive_maxSubdivs 20, threshold 0.04 - was never written. The frames are visibly noisy as a result.",
+    "ONE FRAME PER BRIDGE JOB, and it is not a style choice. Six frames issued from a single Ruby job came back BYTE-IDENTICAL: frame 1 'ended' after 156 s and frames 2..6 all read 'never_started'. V-Ray will not begin a second production render inside one Ruby job, and save_vfb_image then writes the first frame's pixels again with nothing saying a render did not happen. The delivered run is six separate bridge jobs and the driver checks that the six images are six distinct files - they are.",
+    "THE SUN IS ON, at V-Ray's default. /SunLight is on the NEVER_WRITE list, so the tool did not touch it and neither did the harness. The room is capped with four walls, so the only opening is the 36 in door; the sun is dressing, not a source, but it is not zero and the spec's lumens were derived for a sun-off room.",
+    "/Standard Light exists in this scene, enabled, at intensity 2500, as it does in every new V-Ray model. It was not written and it is not part of the rig. It is recorded in vray_settings_at_render so nobody has to wonder.",
+    "THE PENDANT AND A CEILING DRUM LAND 28 IN APART. \u00a76 sends the ceiling ambient to the grid points FURTHEST from the booth and the pendant to the floor-polygon corner FURTHEST from the booth, so in a room with one booth they converge on the same corner. Visible in rig-5-fittings, where the two fixtures sit side by side. A future rule should keep the pendant clear of the chosen ceiling points; it is a placement question, not a lumen one.",
+    "BOTH CEILING DRUMS LANDED ON THE SAME SIDE OF THE ROOM. The 80 in booth inflated by the 12 in keep-out pad kills the whole middle column of a 240 x 192 Soft grid, leaving only x = 40, so 'the two furthest from the booth' had two candidates and took both. The east half of the room has no ceiling ambient over it; the key and rim carry the booth instead.",
+    "F2's SHADE RENDERS OPAQUE, exactly as \u00a77.3 predicted. Light escapes top and bottom, not through the shade wall. Fixing it needs a translucent V-Ray material and this tool may not create materials - writing a newly created material plugin hangs SketchUp (observed, four force-kills, prior lane).",
+    "THE FIXTURES ARE DRAWN AT 16 SEGMENTS PER CIRCLE, not the spec's 24. At 24 the five fixtures cost about 590 faces against a 600 budget with no headroom; at 16 they cost 273. SEG is one constant.",
+    "The six saved scenes (rig-1..rig-6) are the HARNESS's, not the tool's, and they were left in the scratch model. The tool's own contribution to a model that has been swept is the WR_DropLights dictionary entry recording the exposure stamp, and the /CameraPhysical ISO itself - both by design, both documented, both revertible in one number.",
+    "The rig read back in this file is a re-press made AFTER the six frames, because the restore test swept the rendered rig. It is the same code with the same inputs and every lumen, Kelvin, size and world position is identical by construction; only the V-Ray plugin NAMES differ from the ones the frames were rendered with."
+  ],
+  "images_note": "Every frame is kept twice: the full 1600x900 render, and a modest 1024x576 copy under web/ for embedding as base64. The eight web copies total about 3.9 MB (~5.2 MB base64); the full renders total 19 MB."
+}
