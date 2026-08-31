@@ -1463,16 +1463,17 @@ module WR_BuildBoothComponents
     # they disagree — it just reads the wrong field into the wrong variable. The
     # 'Floor and ceiling' row was removed from all three together for that
     # reason; res is now 0 booth, 1 folder, 2 height, 3 dry run.
-    # FOUR ROWS SINCE 2026-08-25. Adding one means editing all THREE arrays and
+    # SIX ROWS SINCE 2026-08-31. Adding one means editing all THREE arrays and
     # every res[] index below - UI.inputbox matches them by position and says
     # nothing when they disagree, it just reads the wrong field into the wrong
-    # variable. res is now 0 booth, 1 folder, 2 height, 3 shell, 4 dry run.
+    # variable. res is now 0 booth, 1 folder, 2 height, 3 shell, 4 lighting,
+    # 5 dry run.
     res = UI.inputbox(['Booth', 'Component folder', 'Height', 'Shell',
-                       'Dry run — report only'],
-                      [last, dir, 'Standard (81 in)', 'Both', 'No'],
+                       'Ceiling lighting', 'Dry run — report only'],
+                      [last, dir, 'Standard (81 in)', 'Both', 'Yes', 'No'],
                       [keys.join('|'), dlist, 'Standard (81 in)|HX (91 in)',
                        'Both|Inner (IEP) only|Outer (Standard) only',
-                       'Yes|No'],
+                       'Yes|No', 'Yes|No'],
                       'Build Booth from Components')
     return nil unless res
 
@@ -1490,7 +1491,7 @@ module WR_BuildBoothComponents
             else 'all'
             end
     { 'booth' => res[0], 'dir' => d, 'hx' => res[2].to_s.start_with?('HX'),
-      'shell' => shell, 'dry' => res[4] == 'Yes' }
+      'shell' => shell, 'lighting' => res[4] != 'No', 'dry' => res[5] == 'Yes' }
   end
 
   # read_default EVALS the stored string and write_default does not escape quotes
@@ -2603,11 +2604,20 @@ module WR_BuildBoothComponents
         #
         # Every instance carries the WR Lights tag, so the Draft/Render toggle
         # hides them with the rest of the rig (LIGHT_TAG above).
-        t_light = tag.call(LIGHT_TAG, [255, 199, 44])
-        ln, lnote = place_booth_lighting(model, booth, cfg['dir'],
-                                         deck_added['CL'], t_light, cache)
-        placed += ln
-        puts "  lighting #{lnote}" if lnote
+        #
+        # DEFAULT ON WHEN THE KEY IS ABSENT, not off. booth-from-link.rb builds
+        # its own cfg and does not carry this answer; a missing key must mean
+        # "the usual booth", or every link-built booth would silently lose its
+        # light the day this option was added.
+        if cfg['lighting'] == false
+          puts '  lighting Ceiling lighting was No — none placed.'
+        else
+          t_light = tag.call(LIGHT_TAG, [255, 199, 44])
+          ln, lnote = place_booth_lighting(model, booth, cfg['dir'],
+                                           deck_added['CL'], t_light, cache)
+          placed += ln
+          puts "  lighting #{lnote}" if lnote
+        end
 
         if shell == 'inner'
           gone = deck_added.values.flatten + seal_added
