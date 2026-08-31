@@ -2333,12 +2333,26 @@ module WR_DropLights
   #
   # The exposure question is GONE. Exposure is written once, as a documented
   # default, not asked per press — see stamp_exposure!.
+  # ADD CEILING? -- the room's own enclosure is a judgement, not a fact this
+  # tool can read. A room drawn as four walls with an open top is a drawing
+  # convention, not a statement that the real room has no ceiling, so the tool
+  # used to cap it unconditionally: the rig needs a surface to mount to and a
+  # room to bounce in, and an uncapped room renders as a lightbox.
+  #
+  # But capping is not always wanted, so it is a choice now. 'Yes' stays the
+  # default because it is what every press before this did. 'No' takes the
+  # enclosure trims that already exist (enclosure_trim), so the lumens follow
+  # the choice rather than pretending the room is still capped.
+  #
+  # An existing ceiling this tool does not own is BORROWED either way and this
+  # answer does not touch it -- 'No' means "do not add one", never "delete the
+  # one that is there."
   def self.ask
-    @last ||= ['Normal', 'Warm']
+    @last ||= ['Normal', 'Warm', 'Yes']
     res = UI.inputbox(
-      ['Brightness', 'Warmth'],
+      ['Brightness', 'Warmth', 'Add ceiling'],
       @last,
-      ['Normal|Dim|Bright', 'Warm|Neutral'],
+      ['Normal|Dim|Bright', 'Warm|Neutral', 'Yes|No'],
       'Drop Interior Lights')
     return nil unless res
     @last = res
@@ -2346,6 +2360,7 @@ module WR_DropLights
       :bright  => res[0],
       :warmth  => res[1],
       :koffset => res[1] == 'Neutral' ? 500 : 0,
+      :ceiling => res[2].to_s != 'No',
       :density => :soft }
   end
 
@@ -2712,6 +2727,12 @@ module WR_DropLights
         if had_ceiling
           puts "  #{name}: this room already has a ceiling this tool does not " \
                'own — borrowing it. Nothing added, nothing to remove.'
+        elsif !opts[:ceiling]
+          # Said out loud WITH the consequence: the lumens below are about to
+          # be trimmed for an open room, and that is not visible in the picture.
+          puts "  #{name}: \"Add ceiling\" was No — the room is left open. The " \
+               'open-room trims apply, so the rig is dimmer than a capped room ' \
+               'by design; the fixtures still mount at the wall top.'
         else
           cg = add_ceiling(ents, poly, info[:z_top], layer, press_uuid,
                            borrow_material(model, ['WR Wall', 'Wall']))

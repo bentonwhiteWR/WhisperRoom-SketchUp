@@ -220,6 +220,31 @@ module WR_Mode
     pin_draft_flat(pin_light_tags(snap, mode), mode)
   end
 
+  # Stamp LIGHT_TAGS into every saved scene at this mode's polarity. Failures
+  # are collected, not raised: a page that refuses the write is a cosmetic
+  # problem on one scene, and aborting the whole mode switch over it would be
+  # worse. Returns the pages that refused, so a caller can say so.
+  def self.stamp_light_pages(model, mode)
+    want = (mode == 'render')
+    bad  = []
+    LIGHT_TAGS.each do |n|
+      l = model.layers[n]
+      next if l.nil?
+      model.pages.each do |pg|
+        begin
+          pg.set_visibility(l, want)
+        rescue StandardError => e
+          bad << "#{pg.name}/#{n}: #{e.class}"
+        end
+      end
+    end
+    puts "  light tags: #{bad.size} scene stamp(s) refused — #{bad.join(', ')}" unless bad.empty?
+    bad
+  rescue StandardError => e
+    puts "  light tags: could not stamp the scenes (#{e.class}: #{e.message})"
+    []
+  end
+
   def self.apply_snapshot(model, snap)
     return if snap.nil?
     (snap['dims'] || {}).each { |n, v| l = model.layers[n]; (l.visible = v) if l && !v.nil? }
@@ -295,6 +320,23 @@ module WR_Mode
       pin_policy(target_snap, target)
 
       stuck = apply_snapshot(model, target_snap)
+
+      # AND INTO EVERY SAVED SCENE, OR THE HIDE LASTS UNTIL THE NEXT CLICK.
+      #
+      # A SketchUp page restores its own saved tag visibility when it is
+      # activated. wr-drop-lights.rb stamps "WR Lights" VISIBLE into every
+      # scene on purpose (stamp_tag_into_pages) so a V-Ray pass can never
+      # render silently unlit -- which also meant that toggling to draft hid
+      # the lights and the tool-owned ceiling in the viewport, and clicking any
+      # scene tab brought them straight back. The tag was right; the pages
+      # outvoted it.
+      #
+      # So the pages are stamped to the SAME polarity the mode just applied:
+      # hidden in draft, visible in render. That keeps the never-unlit
+      # guarantee exactly as it was for render, and makes the draft hide
+      # survive a scene click. Only LIGHT_TAGS are stamped -- the annotation
+      # tags keep their per-scene memory, which is a real part of a drawing.
+      stamp_light_pages(model, target)
 
       # Read back what actually landed, not what was asked for, so a stuck
       # shadow key doesn't get silently recorded as "restores exactly" next
