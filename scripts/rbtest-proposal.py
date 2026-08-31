@@ -100,6 +100,24 @@ sanitize (the FILE-column contract) remain uncovered. And nothing offline can
 prove the real UI::HtmlDialog path: no batch has ever been started from the
 dialog's own Export button.
 
+THE MANIFEST HALF (1.10.7)
+--------------------------
+proposal-package.rb now writes manifest.json beside the images (the
+45-minute finding: scene names, export order and dimension text were being
+re-derived from pixels downstream). Its pure half is covered here:
+
+    bn1-7     booth_name? — name-matching only, never derivation
+    dd1-6     dim_display — '<>' substitution; a nil measured value leaves
+              the raw text (placeholder and all) so absence stays VISIBLE
+    st1-4     shown_annot_tags — client-safe beats everything; an unreadable
+              scene state is nil-with-a-note, never a guessed list
+    mr1-4     manifest_rows — the plan/results join: a planned row with no
+              result is status 'lost' (the D8/D11 doctrine), width/height
+              are null unless actually recorded, export order is preserved
+
+The impure half — collect_annotations, page_hidden_tags, write_manifest —
+touches the SketchUp API and is live-verified per .forge/builder/HANDOFF.md.
+
 HARNESS LIMIT WORTH KNOWING. The barebones CRuby VM rbparse boots out of
 SketchUp's DLL has no Object#class -- `1.class` raises NoMethodError in it.
 proposal-package.rb interpolates e.class into every failure message, so any
@@ -187,6 +205,14 @@ module WR_ProposalPackage
 %(annot_pop)s
 
 %(busy)s
+
+%(booth_name)s
+
+%(dim_display)s
+
+%(shown_annot_tags)s
+
+%(manifest_rows)s
 
   # ---- 1.9.6: the LIFECYCLE half. Everything above this line is a pure
   # helper; every defect of the last month lived below it. The audit of
@@ -606,6 +632,76 @@ module WR_ProposalPackage
     @running = nil
     out << ((busy?(nil, 'mark') == false) ? 'busy3 ok' : 'busy3 FAIL')
 
+    # ================================================================
+    # 1.10.7 -- THE MANIFEST'S PURE HALF. The honesty rule under test:
+    # nothing may invent a number, a missing value fails BY NAME (null /
+    # 'lost' / a note), and export order is preserved.
+    # ================================================================
+    [['MDL 4260 S', true],       # the booth-*.rb group name
+     ['4872 S', true],           # build-booth.rb names the group the bare key
+     ['96120 E booth', true],
+     ['MDL', true],              # verbatim capture; matching is not judging
+     ['Room shell', false],
+     ['', false],
+     ['12 chairs', false]].each_with_index do |(nm, want), i|
+      got = booth_name?(nm)
+      out << (got == want ? "bn#{i + 1} ok" :
+              "bn#{i + 1} FAIL got #{got} for #{nm.inspect}")
+    end
+
+    [['<>', '4\' 6"', '4\' 6"'],     # dd1 auto text: substituted
+     ['~<>', '10"', '~10"'],         # dd2 prefix survives
+     ['CLEAR', '10"', 'CLEAR'],      # dd3 an override WINS over geometry
+     ['', '10"', '10"'],             # dd4 empty raw: the measured value
+     ['<>', nil, '<>'],              # dd5 nil measured: placeholder STAYS
+     ['', nil, '']].each_with_index do |(raw, meas, want), i|
+      got = dim_display(raw, meas)
+      out << (got == want ? "dd#{i + 1} ok" :
+              "dd#{i + 1} FAIL got #{got.inspect} want #{want.inspect}")
+    end
+
+    st1 = shown_annot_tags(['B'], true, ['A', 'B', 'C'], true)
+    out << ((st1[0] == [] && st1[1].to_s.include?('client-safe')) ?
+              'st1 ok' : "st1 FAIL #{st1.inspect}")
+    st2 = shown_annot_tags(['B'], false, ['A', 'B'], false)
+    out << ((st2[0].nil? && st2[1].to_s.include?('use_hidden_layers')) ?
+              'st2 ok' : "st2 FAIL #{st2.inspect}")
+    st3 = shown_annot_tags(nil, true, ['A'], false)
+    out << ((st3[0].nil? && st3[1].to_s.include?('could not be read')) ?
+              'st3 ok' : "st3 FAIL #{st3.inspect}")
+    st4 = shown_annot_tags(['B'], true, ['A', 'B', 'C'], false)
+    out << ((st4 == [['A', 'C'], nil]) ? 'st4 ok' : "st4 FAIL #{st4.inspect}")
+
+    mplan = [{ :file => '01.png', :n => 1, :lane => 'image', :scene => 'S1',
+               :shown => ['WR-Dims'], :shown_note => nil },
+             { :file => '02 render.png', :n => 2, :lane => 'render',
+               :scene => 'S2', :shown => nil, :shown_note => 'unreadable: x' },
+             { :file => '03.png', :n => 3, :lane => 'image', :scene => 'S3',
+               :shown => [], :shown_note => nil }]
+    mres  = [{ :file => '01.png', :status => 'ok', :detail => 'image',
+               :width => 1200, :height => 900 },
+             { :file => '02 render.png', :status => 'skipped',
+               :detail => 'already existed' }]
+    mr = manifest_rows(mplan, mres)
+    r1 = mr[0]
+    r2 = mr[1]
+    r3 = mr[2]
+    ok1 = r1['file'] == '01.png' && r1['scene'] == 'S1' &&
+          r1['scene_index'] == 1 && r1['lane'] == 'image' &&
+          r1['status'] == 'ok' && r1['width'] == 1200 &&
+          r1['height'] == 900 && r1['annotation_tags_shown'] == ['WR-Dims'] &&
+          !r1.key?('annotation_note')
+    out << (ok1 ? 'mr1 ok' : "mr1 FAIL #{r1.inspect}")
+    ok2 = r2['status'] == 'skipped' && r2['width'].nil? &&
+          r2['height'].nil? && r2['annotation_tags_shown'].nil? &&
+          r2['annotation_note'].to_s.include?('unreadable')
+    out << (ok2 ? 'mr2 ok' : "mr2 FAIL #{r2.inspect}")
+    ok3 = r3['status'] == 'lost' && r3['detail'].include?('lost row') &&
+          r3['width'].nil?
+    out << (ok3 ? 'mr3 ok' : "mr3 FAIL #{r3.inspect}")
+    out << ((mr.map { |r| r['scene_index'] } == [1, 2, 3]) ?
+              'mr4 ok' : 'mr4 FAIL export order not preserved')
+
     out.join(' | ')
   end
 end
@@ -641,7 +737,12 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'gate1 ok | gate2 ok | gate3 ok | gate4 ok | '
           'sum1 ok | sum2 ok | sum3 ok | lost1 ok | lost2 ok | lost3 ok | '
           'annot1 ok | annot2 ok | annot3 ok | annot4 ok | '
-          'busy1 ok | busy2 ok | busy3 ok')
+          'busy1 ok | busy2 ok | busy3 ok | '
+          # 1.10.7 -- the manifest's pure half.
+          'bn1 ok | bn2 ok | bn3 ok | bn4 ok | bn5 ok | bn6 ok | bn7 ok | '
+          'dd1 ok | dd2 ok | dd3 ok | dd4 ok | dd5 ok | dd6 ok | '
+          'st1 ok | st2 ok | st3 ok | st4 ok | '
+          'mr1 ok | mr2 ok | mr3 ok | mr4 ok')
 
 
 def main():
@@ -682,6 +783,13 @@ def main():
         'annot_push':        rbtest.method_source(SRC, 'annot_push'),
         'annot_pop':         rbtest.method_source(SRC, 'annot_pop'),
         'busy':              rbtest.method_source(SRC, 'busy'),
+        # 1.10.7 -- the manifest's pure half.
+        # 'booth_name' (not 'booth_name?'): method_source appends \b and ?
+        # gives it no word boundary. Same trick as autorun?.
+        'booth_name':        rbtest.method_source(SRC, 'booth_name'),
+        'dim_display':       rbtest.method_source(SRC, 'dim_display'),
+        'shown_annot_tags':  rbtest.method_source(SRC, 'shown_annot_tags'),
+        'manifest_rows':     rbtest.method_source(SRC, 'manifest_rows'),
     }
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)

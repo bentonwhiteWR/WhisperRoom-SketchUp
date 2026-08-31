@@ -2,6 +2,42 @@
 
 ## 2026-08-31
 
+### 1.10.7 — manifest.json from the Proposal Package: the export stops throwing away what it knows
+
+`scripts/proposal-package.rb`, `scripts/rbtest-proposal.py`, new
+`scripts/check-doc-paths.py`, `scripts/wr_tools/VERSION` 1.10.6 -> **1.10.7**.
+Spec source: `.forge/researcher/proposal-image-step-timing.md` §6 items 1 and 3
+(the 45-minute finding). Live-run checklist: `.forge/builder/HANDOFF.md`.
+
+- Every batch now writes `manifest.json` beside the images (same name, same
+  `JSON.pretty_generate`, same placement as `export-component-art.rb` and
+  `orbit-export.rb` — deliberately NOT a third shape). Per image: file, scene
+  name, scene-tab index, lane, status/detail, actual pixel size, and which
+  annotation tags the scene's saved state shows. Per model: every
+  `DimensionLinear` / `DimensionRadial` / `Text` callout in model space —
+  verbatim `text`, plus `measured`/`measured_in` computed from the dimension's
+  own anchor points — so the proposal-assembly agent reads the callout STRINGS
+  as data instead of transcribing them off pixels at 300–700 dpi. Also
+  `booth_groups` (top-level names matching the `MDL`/catalogue-key convention),
+  `model`/`model_path`, and `annotations_hidden_in_images` (the client-safe
+  flag). Honesty rule throughout: nothing invents a number — unreadable is
+  `null` plus a note, a planned row with no result is status `lost`, and the
+  `field_notes` block travels inside the file.
+- Written from `finish`, after every restore, on done/cancelled/failed alike;
+  internally rescued so a manifest failure is loud but never costs the restore.
+- `rbtest-proposal.py` grew 21 checks (bn/dd/st/mr) over the four pure methods,
+  lifted verbatim as ever; mutation-checked (lost→ok, width default, client-safe
+  ignored each make the named check FAIL — run, not assumed). The impure half
+  (`collect_annotations`, `page_hidden_tags`, `write_manifest`) is **UNRUN** —
+  SketchUp was closed all session; `.forge/builder/HANDOFF.md` carries the live
+  checklist, including verifying that `Page#layers` really returns the hidden
+  tags.
+- `scripts/check-doc-paths.py`: read-only reporter of which documented external
+  paths resolve on the current machine (the laptop/desktop split). Reads the
+  paths out of the docs themselves, expands `<CLAUDE>`, checks placeholders at
+  their literal parent. Fixes nothing by design. Today's run: 24 references,
+  7 missing/uncheckable here — matching the researcher's §4 audit.
+
 Fifteen versions, 1.9.9 -> **1.10.6**. Three threads: the V-Ray material slots and
 the Proposal Package window, the booth ceiling light, and a run of deck
 orientation bugs found by importing real booths.

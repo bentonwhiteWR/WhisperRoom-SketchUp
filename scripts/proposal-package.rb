@@ -5,7 +5,11 @@
 # One button for a proposal's whole image set. Lists every scene in the model,
 # lets each one be marked Skip / Image / Render, picks an output folder, and
 # writes `<Scene Name>.png` (plain SketchUp export) or `<Scene Name> render.png`
-# (V-Ray) into that folder — leaving the model exactly as it was.
+# (V-Ray) into that folder — leaving the model exactly as it was. Since 1.10.7
+# every batch also writes `manifest.json` beside the images: scene name, export
+# order, lane, status, pixel size and every dimension/callout STRING the model
+# holds — so the proposal-assembly step reads facts instead of re-deriving them
+# from pixels at 300-700 dpi (see the manifest section below).
 #
 # Spec and clickable mockup: .forge/scoper/vray-proposal-package-spec.md and
 # vray-proposal-mockup.html. The design decisions live there; the short form:
@@ -99,7 +103,8 @@ module WR_ProposalPackage
      IDLE_STATE DONE_STATE ERROR_STATE RENDER_TIMEOUT_S UNREADABLE_LIMIT
      START_WINDOW_S STOP_CONFIRM_S CAM_FIELDS
      ASPECT_W ASPECT_H EV_F_NUMBER EV_ISO EV_INTERIOR EV_ROOM EV_MIN EV_MAX
-     INTERIOR_RE MODE_FALLBACK QUALITY ANNOT_TAGS].each do |c|
+     INTERIOR_RE MODE_FALLBACK QUALITY ANNOT_TAGS
+     MANIFEST_FORMAT MANIFEST_NOTES].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
 
@@ -426,6 +431,119 @@ module WR_ProposalPackage
       out[r['n']] = "#{uniquify(base, used)}.png"
     end
     out
+  end
+
+  # -------------------------------------------------------------- manifest --
+  #
+  # WHY (1.10.7, the 45-minute finding). This tool used to write bare PNGs and
+  # throw away everything else it knew: which scene a file came from, the
+  # export order, and — the expensive part — the dimension callouts, which the
+  # model holds as TEXT and the assembly agent then read back OFF THE PIXELS
+  # at 300-700 dpi, one crop at a time (.forge/researcher/
+  # proposal-image-step-timing.md §6 item 1). So every batch now writes
+  # `manifest.json` beside the images. Same name, same serialisation and same
+  # placement as the two existing manifest writers — export-component-art.rb
+  # and orbit-export.rb — because a third incompatible shape would be a
+  # defect, not a feature.
+  #
+  # THE HONESTY RULE, and it outranks completeness: nothing in this file may
+  # invent a number. A dimension's `text` is the entity's own string,
+  # verbatim ('<>' is SketchUp's placeholder for the computed value).
+  # `measured` / `measured_in` are the straight-line distance between the
+  # dimension's two anchor points — the model's own geometry, formatted by
+  # the model's own unit settings — never a default and never a guess.
+  # Anything unreadable is emitted as null with a note naming why; a missing
+  # value FAILS BY NAME so a later reader cannot mistake absence for zero.
+  #
+  # The four methods below are PURE (data in, data out) so rbtest-proposal.py
+  # proves them offline; the collectors and the writer further down touch the
+  # SketchUp API and can only be proven live.
+
+  MANIFEST_FORMAT = 1
+
+  # What each field means, carried INSIDE the file because the reader of a
+  # manifest.json in a client folder will not have this source open.
+  MANIFEST_NOTES = [
+    'measured / measured_in: straight-line distance between the dimension\'s ' \
+    'two anchor points, in the model\'s units / in decimal inches. Model ' \
+    'geometry, not the rendered string; for the axis-aligned dimensions the ' \
+    'WR tools draw, it is the displayed value. null = unreadable, never zero.',
+    'text: the entity\'s text property verbatim; \'<>\' is SketchUp\'s ' \
+    'placeholder for the computed value. display: text with \'<>\' replaced ' \
+    'by measured when both are known.',
+    'annotation_tags_shown: the tags the scene\'s SAVED state shows - it says ' \
+    'a callout\'s tag was visible, NOT that the callout lands inside the ' \
+    'camera frame. Match annotations to a scene through their tag.',
+    'annotations_hidden_in_images true means the batch ran client-safe: the ' \
+    'exported files carry NO annotation text regardless of scene state.',
+    'width/height null on an image row = not recorded (row failed, was ' \
+    'skipped, or was lost) - never a default.'
+  ].freeze
+
+  # A top-level group/component whose NAME names a booth model. The builders
+  # write "MDL 4260 S" (booth-*.rb) or the bare catalogue key (build-booth.rb),
+  # and dimension-booth.rb's own fallback instruction is to rename the group
+  # to include the model. Name-matching only — this reports what the model
+  # SAYS, it never derives what the booth might be.
+  def self.booth_name?(nm)
+    s = nm.to_s
+    return false if s.empty?
+    !!(s =~ /\bMDL\b/ || s =~ /\b\d{3,6}\s?[SE]\b/)
+  end
+
+  # The string a plate shows for a dimension: the override text verbatim when
+  # there is one, the measured value substituted into '<>' when SketchUp is
+  # auto-texting. When measured is nil the raw text goes out untouched —
+  # placeholder and all — so absence stays visible.
+  def self.dim_display(raw, measured)
+    r = raw.to_s
+    return r.gsub('<>', measured.to_s) if r.include?('<>') && measured
+    return measured.to_s if r.strip.empty? && measured
+    r
+  end
+
+  # Which annotation tags a given exported plate could show, or nil-with-a-
+  # note when that cannot be known. hidden: tag names the scene's saved state
+  # hides (nil = unreadable); use_hidden: the scene stores tag visibility at
+  # all; present: the annotation tags that exist in the model; client_safe:
+  # the batch hid every annotation tag for the whole export (D5).
+  def self.shown_annot_tags(hidden, use_hidden, present, client_safe)
+    if client_safe
+      return [[], 'batch ran client-safe: every annotation tag was hidden ' \
+                  'in the exported file']
+    end
+    unless use_hidden
+      return [nil, 'unreadable: the scene does not store tag visibility ' \
+                   '(use_hidden_layers off) - the model\'s live state governed']
+    end
+    return [nil, 'unreadable: the scene\'s hidden-tag list could not be read'] if hidden.nil?
+    [present - hidden, nil]
+  end
+
+  # Join the planned rows against what the batch actually reported, in export
+  # order. A planned row with no result is a LOST row and says so — same
+  # doctrine as lost_rows/summary_lines, never a silent omission.
+  # plan_rows: [{ :file, :n, :lane, :scene, :shown, :shown_note }]
+  # results:   the @results array (:file, :status, :detail, opt :width/:height)
+  def self.manifest_rows(plan_rows, results)
+    by_file = {}
+    results.to_a.each { |r| by_file[r[:file]] ||= r }
+    plan_rows.to_a.map do |p|
+      r = by_file[p[:file]]
+      row = { 'file'        => p[:file].to_s,
+              'scene'       => p[:scene].to_s,
+              'scene_index' => p[:n],
+              'lane'        => p[:lane].to_s,
+              'status'      => (r ? r[:status].to_s : 'lost'),
+              'detail'      => (r ? r[:detail].to_s :
+                                'the batch never reported on this row - a ' \
+                                'lost row, not a skip') }
+      row['width']  = (r && r[:width])  ? r[:width]  : nil
+      row['height'] = (r && r[:height]) ? r[:height] : nil
+      row['annotation_tags_shown'] = p[:shown]
+      row['annotation_note'] = p[:shown_note] if p[:shown_note]
+      row
+    end
   end
 
   # ----------------------------------------------------------------- state --
@@ -918,6 +1036,13 @@ module WR_ProposalPackage
     # D8: what was PLANNED, so summary_lines can reconcile it against what
     # was reported and name any row that vanished.
     @plan_files = plan.map { |x| x[:file] }
+    # THE MANIFEST covers every LIVE row — including ones the collision policy
+    # skipped, whose files are already on disk from an earlier batch and whose
+    # scene mapping downstream still needs. finish writes it and clears this.
+    @manifest_plan = live.map do |r|
+      { :page => pages[r['n'] - 1], :n => r['n'], :lane => r['mode'],
+        :file => files[r['n']] }
+    end
 
     # Settings that should survive a restart — per machine, not per model
     # (a folder path is machine-specific). Quotes are stripped above; the
@@ -1477,6 +1602,9 @@ module WR_ProposalPackage
     end
     if x[:written] > 0
       @results << { :file => p[:file], :lane => 'image', :status => 'ok',
+                    # :width/:height feed manifest.json — the size the export
+                    # ACTUALLY used, not the size that was asked for.
+                    :width => x[:width].to_i, :height => x[:height].to_i,
                     :detail => "image, #{x[:width]}x#{x[:height]} " \
                                "(height #{x[:height_source]})" }
       log(dlg, "ok      #{p[:file]}  (image, #{x[:width]}x#{x[:height]}, " \
@@ -1867,6 +1995,9 @@ module WR_ProposalPackage
       det += format(', plus %d render-element sidecar(s): %s',
                     side.size, side.join(', ')) unless side.empty?
       @results << { :file => p[:file], :lane => 'render', :status => 'ok',
+                    # The size written into /SettingsOutput and read back by
+                    # the size gate — det already names where it came from.
+                    :width => @cfg['width'].to_i, :height => @cfg['height'].to_i,
                     :detail => det }
       log(dlg, "ok      #{p[:file]}  (#{det})", 'ok')
       unless side.empty?
@@ -1879,6 +2010,170 @@ module WR_ProposalPackage
                     :detail => 'save_vfb_image returned but wrote no file' }
       log(dlg, "FAILED  #{p[:file]}  (save_vfb_image returned but wrote no file)", 'bad')
     end
+  end
+
+  # ------------------------------------------- manifest collectors/writer --
+  #
+  # The IMPURE half of the manifest section above: these read the SketchUp
+  # API and can only be proven live. Every read is rescued to a null-with-a-
+  # note, never to a substitute value.
+
+  # A dimension attachment as a Point3d. The API returns start/end as an
+  # array carrying the attached entity and/or the point; the shape is not
+  # trusted — anything that is a Point3d or answers .position is accepted,
+  # anything else is nil and the row says 'unreadable' by name.
+  def self.dim_anchor(v)
+    return v if v.is_a?(Geom::Point3d)
+    if v.is_a?(Array)
+      p = v.find { |x| x.is_a?(Geom::Point3d) }
+      return p if p
+      e = v.find { |x| x.respond_to?(:position) }
+      return e.position if e
+    end
+    return v.position if v.respond_to?(:position)
+    nil
+  rescue StandardError
+    nil
+  end
+
+  # Straight-line distance between a linear dimension's two anchors, in
+  # inches (SketchUp's internal unit), or nil when either anchor is
+  # unreadable.
+  def self.dim_span(d)
+    a = dim_anchor(d.start)
+    b = dim_anchor(d.end)
+    return nil unless a && b
+    a.distance(b).to_f
+  rescue StandardError
+    nil
+  end
+
+  def self.ent_tag(e)
+    e.layer ? e.layer.name.to_s : nil
+  rescue StandardError
+    nil
+  end
+
+  # Every dimension and text callout in MODEL SPACE (model.entities top
+  # level — where auto-dimension.rb, dimension-booth.rb, dimension-selection.rb
+  # and build-room.rb's notes all draw). Deliberately NOT a deep walk:
+  # annotations nested inside groups are not where the house tools put them,
+  # and the manifest says exactly what it covered via `annotation_scope`.
+  def self.collect_annotations(model)
+    out = []
+    model.entities.each do |e|
+      case e
+      when Sketchup::DimensionLinear
+        raw  = (e.text.to_s rescue '')
+        span = dim_span(e)
+        meas = span ? (Sketchup.format_length(span).to_s rescue nil) : nil
+        row  = { 'kind' => 'linear_dimension', 'tag' => ent_tag(e),
+                 'text' => raw }
+        if meas
+          row['measured']    = meas
+          row['measured_in'] = (span * 1000).round / 1000.0
+          row['display']     = dim_display(raw, meas)
+        else
+          row['measured']    = nil
+          row['measured_in'] = nil
+          row['display']     = raw
+          row['note'] = 'anchor points unreadable - no measured value; the ' \
+                        'rendered string must be read off the image'
+        end
+        out << row
+      when Sketchup::DimensionRadial
+        out << { 'kind' => 'radial_dimension', 'tag' => ent_tag(e),
+                 'text' => (e.text.to_s rescue '') }
+      when Sketchup::Text
+        out << { 'kind' => 'text', 'tag' => ent_tag(e),
+                 'text' => (e.text.to_s rescue '') }
+      end
+    end
+    out
+  rescue StandardError => e
+    [{ 'kind' => 'error', 'tag' => nil, 'text' => nil,
+       'note' => "annotation walk failed: #{e.class}: #{e.message} - the " \
+                 'callouts must be read off the images for this batch' }]
+  end
+
+  # Tag names a scene's saved state HIDES, or nil when that cannot be read.
+  # Sketchup::Page#layers is documented as the page's hidden layers; this is
+  # verified live in the HANDOFF checklist, not assumed silently — a wrong
+  # read here shows up as a wrong shown-list against a visible callout.
+  def self.page_hidden_tags(page)
+    return nil unless page && page.respond_to?(:layers)
+    page.layers.map { |l| l.name.to_s }
+  rescue StandardError
+    nil
+  end
+
+  # Names of top-level groups/components that name a booth model — what the
+  # model SAYS it contains, for the product-identity line downstream.
+  def self.booth_groups(model)
+    model.entities.to_a
+         .select { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) }
+         .map    { |e| (e.name.to_s rescue '') }
+         .select { |n| booth_name?(n) }
+  rescue StandardError
+    []
+  end
+
+  # Write manifest.json beside the images. Called from finish on EVERY exit —
+  # done, cancelled and failed alike — because partial results are real files
+  # and the manifest must say which rows they are. A manifest failure is
+  # named loudly but never blocks finish: the images are already on disk and
+  # the model restore matters more.
+  def self.write_manifest(model, dlg)
+    plan = @manifest_plan
+    return if plan.nil? || plan.empty?
+    dir = @cfg && @cfg['dir'].to_s
+    return if dir.nil? || dir.empty?
+    present = ANNOT_TAGS.select { |n| (model.layers[n] rescue nil) }
+    rows = plan.map do |p|
+      page  = p[:page]
+      scene = begin
+        page ? page.name.to_s : ''
+      rescue StandardError
+        ''
+      end
+      use_h = begin
+        page && page.use_hidden_layers?
+      rescue StandardError
+        nil
+      end
+      shown, note = shown_annot_tags(page_hidden_tags(page), use_h, present,
+                                     @client_safe)
+      { :file => p[:file], :n => p[:n], :lane => p[:lane], :scene => scene,
+        :shown => shown, :shown_note => note }
+    end
+    annots = collect_annotations(model)
+    data = { 'format'      => MANIFEST_FORMAT,
+             'tool'        => 'proposal-package',
+             'generated'   => Time.now.strftime('%Y-%m-%d %H:%M'),
+             'model'       => model.title.to_s,
+             'model_path'  => model.path.to_s,
+             'booth_groups' => booth_groups(model),
+             'width'       => @cfg['width'].to_i,
+             'height'      => @cfg['height'].to_i,
+             'size_source' => @size_source.to_s,
+             'annotations_hidden_in_images' => (@client_safe ? true : false),
+             'annotation_scope' => 'model-space top level (model.entities) - ' \
+                                   'where the WR dimension tools draw',
+             'field_notes' => MANIFEST_NOTES,
+             'images'      => manifest_rows(rows, @results || []),
+             'annotations' => annots }
+    File.open(File.join(dir, 'manifest.json'), 'w') do |f|
+      f.write(JSON.pretty_generate(data))
+    end
+    puts "  manifest.json written - #{data['images'].size} image row(s), " \
+         "#{annots.size} annotation(s)"
+    log(dlg, "manifest.json written - #{data['images'].size} image row(s), " \
+             "#{annots.size} annotation(s)", 'dim')
+  rescue StandardError => e
+    puts "  *** manifest.json NOT written: #{e.class}: #{e.message}"
+    log(dlg, "MANIFEST NOT WRITTEN: #{e.class}: #{e.message} - the images " \
+             'are unaffected; callouts must be read off the renders for ' \
+             'this batch', 'bad')
   end
 
   # -------------------------------------------------------------- finish --
@@ -2016,6 +2311,12 @@ module WR_ProposalPackage
       end
     end
 
+    # THE MANIFEST, after every restore and before the summary: the model is
+    # back in its resting state, @results is complete, and a cancelled batch
+    # still gets a manifest naming its partial files. Internally rescued —
+    # a manifest failure is loud but never costs the restore or the summary.
+    write_manifest(model, dlg)
+
     lines = summary_lines(why, restore_errs)
     puts ''
     lines.each { |l| puts l }
@@ -2071,6 +2372,9 @@ module WR_ProposalPackage
     # all read it) and must not survive into another call, or a later finish
     # would reconcile this batch's plan against that batch's results.
     @plan_files = nil
+    # Same rule for the manifest plan: consumed by write_manifest above and
+    # never allowed to leak into a later batch's finish.
+    @manifest_plan = nil
     @results  = @results || []
     begin
       UI.messagebox(lines.join("\n"))
