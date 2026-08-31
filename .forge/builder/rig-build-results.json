@@ -1148,5 +1148,40 @@
     "The six saved scenes (rig-1..rig-6) are the HARNESS's, not the tool's, and they were left in the scratch model. The tool's own contribution to a model that has been swept is the WR_DropLights dictionary entry recording the exposure stamp, and the /CameraPhysical ISO itself - both by design, both documented, both revertible in one number.",
     "The rig read back in this file is a re-press made AFTER the six frames, because the restore test swept the rendered rig. It is the same code with the same inputs and every lumen, Kelvin, size and world position is identical by construction; only the V-Ray plugin NAMES differ from the ones the frames were rendered with."
   ],
-  "images_note": "Every frame is kept twice: the full 1600x900 render, and a modest 1024x576 copy under web/ for embedding as base64. The eight web copies total about 3.9 MB (~5.2 MB base64); the full renders total 19 MB."
+  "images_note": "Every frame is kept twice: the full 1600x900 render, and a modest 1024x576 copy under web/ for embedding as base64. The eight web copies total about 3.9 MB (~5.2 MB base64); the full renders total 19 MB.",
+  "final_state_independent_reread": {
+    "note": "Read from the live model in a bridge job of its own AFTER everything else, and after the removal had to be run a SECOND time - see the handoff. The first removal reported verified-clean and a later probe found the rig back, with no press in between and no explanation. Do not trust a single restore report.",
+    "top_level_groups": [
+      "Studio Room",
+      "MDL 7272 E (components)"
+    ],
+    "top_level_entities": 9,
+    "definitions": 108,
+    "materials": 36,
+    "tags": 17,
+    "wr_lights_tag_present": false,
+    "tool_owned_ceilings": 0,
+    "saved_scenes_left_behind": [
+      "rig-1-ext-3q",
+      "rig-2-room-wide",
+      "rig-3-booth-int",
+      "rig-4-foam-detail",
+      "rig-5-fittings",
+      "rig-6-sconce"
+    ],
+    "scenes_are": "the render harness's, not the tool's",
+    "vray": {
+      "f_number": 8.0,
+      "ISO": 3200.0,
+      "shutter_speed": 300.0,
+      "img": [
+        1600,
+        900
+      ],
+      "progressive_maxTime": 0.0,
+      "progressive_maxSubdivs": 20,
+      "note": "ISO 3200 is the sanctioned documented default and is the ONLY V-Ray value this work leaves changed; f/8 and 1/300 are exactly where Benton has them, and the harness's progressive_maxTime budget was restored to 0.0 and read back as 0.0."
+    },
+    "model_saved": false
+  }
 }

@@ -170,6 +170,23 @@ still standing. That is a real gap the check found rather than papered over, and
 closed: `tag()` records that it created the tag, and `remove_rig!` takes it back — but only the
 one this tool created, and only while nothing is left on it.
 
+### One thing I cannot explain, and will not paper over
+
+**The removal ran twice.** The first run reported verified-clean and its own independent
+re-read agreed on every number — definitions 108, materials 36, tags 17, top level 9, ceilings
+0. A probe taken a few minutes later, in a separate bridge job with no press in between,
+found the rig **back**: 26 top-level entities, the ceiling, the five fixture groups and eleven
+lights, with the definition names restarted at `Rectangle Light` (no suffix), which is what a
+fresh creation after a purge looks like. I did not issue a press between those two reads and I
+cannot account for it. I ran the removal again; it reported verified-clean, and **two further
+independent probes agree**: top level holds only `Studio Room` and `MDL 7272 E (components)`,
+9 entities, 108 definitions, 36 materials, 17 tags, no `WR Lights` tag, no ceiling.
+
+Candidates I could not rule out: a SketchUp undo triggered from outside the bridge, or a
+queued job I lost track of. **Anyone extending this should not trust a single restore report —
+probe again a minute later.** That is the same lesson as the two restores that lied on 30 Aug,
+arriving from a third direction.
+
 ## What I left the model and the machine in
 
 * **The scratch model is a new, unsaved Untitled document** created with `Sketchup.file_new`.
