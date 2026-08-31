@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Take-off review — uic-daley-library</title>
+<!--
+  MOCKUP — Scoper, 2026-08-31. This is a static preview of what
+  `python scripts/takeoff-check.py clients/uic-daley-library/takeoff.json --html`
+  emits (spec: .forge/scoper/floorplan-intake.md §A2). Style tokens lifted from
+  scripts/build-room.html so an approval here is an approval of the shipped look.
+  Data is the real 31 Aug job (IMG_7594/5/6 pen notes; PDF-vector cross-checks
+  per the researcher's S609-3 probe). Nothing here is interactive by design —
+  the review sheet is a document Gabe reads, not a form he fills.
+-->
+<style>
+  :root{--bg:#f2f3f5;--card:#fff;--ink:#14181c;--ink-2:#626c75;--ink-3:#949ea6;
+    --rule:#dfe3e7;--accent:#ee6216;--ok:#2c6e49;--bad:#b03027;--warn:#9a6a00;
+    --warn-bg:#fdf4e0;--solid:#e3e8ec;--field:#fff;}
+  @media (prefers-color-scheme:dark){:root{--bg:#1b1e21;--card:#23272b;--ink:#e6eaed;
+    --ink-2:#98a2aa;--ink-3:#6d777e;--rule:#32383d;--accent:#ff7a33;--ok:#63b98a;
+    --bad:#e8705f;--warn:#e0b45a;--warn-bg:#2c2820;--solid:#2c3237;--field:#191c1f;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI",system-ui,sans-serif;font-size:13px;line-height:1.45;
+    -webkit-font-smoothing:antialiased}
+  .mono,.lab,.arch,.tag,td,th{font-family:Consolas,ui-monospace,monospace}
+  .wrap{max-width:980px;margin:0 auto;padding:18px 18px 60px}
+
+  header{padding:4px 0 12px;border-bottom:1px solid var(--rule);margin-bottom:16px}
+  header b{font-size:16px;font-weight:650}
+  header span{color:var(--ink-3);margin-left:8px;font-size:12px}
+  .srcline{margin-top:4px;font-size:11.5px;color:var(--ink-2);font-family:Consolas,monospace}
+
+  .lab{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+    display:block;margin-bottom:6px}
+
+  .tag{font-size:9.5px;letter-spacing:.11em;padding:1px 7px;border-radius:2px;color:#fff}
+  .cl{border:1px solid var(--rule);border-radius:5px;padding:10px 12px;background:var(--card);
+    margin-bottom:10px}
+  .cl.good{border-color:var(--ok)} .cl.good .tag{background:var(--ok)}
+  .cl.bad{border-color:var(--bad)} .cl.bad .tag{background:var(--bad)}
+  .cl.warn{border-color:var(--warn)} .cl.warn .tag{background:var(--warn)}
+  .cl p{margin:7px 0 0;font-size:11.5px;color:var(--ink-2)}
+  .cl .mono{color:var(--ink)}
+
+  /* provenance badges */
+  .b{display:inline-block;font-family:Consolas,monospace;font-size:9px;letter-spacing:.08em;
+    padding:0 5px;border-radius:2px;vertical-align:1px;margin-left:6px}
+  .b.pen{background:var(--solid);color:var(--ink-2);border:1px solid var(--rule)}
+  .b.vec{background:transparent;color:var(--ok);border:1px solid var(--ok)}
+  .b.asm{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);font-weight:700}
+  .b.def{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+
+  section.room{border:1px solid var(--rule);border-radius:6px;background:var(--card);
+    margin-bottom:18px;overflow:hidden}
+  .room h2{margin:0;padding:10px 14px;font-size:13px;font-weight:650;
+    border-bottom:1px solid var(--rule);display:flex;gap:10px;align-items:baseline}
+  .room h2 .mono{color:var(--ink-3);font-weight:400;font-size:11px}
+  .roomgrid{display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:760px){.roomgrid{grid-template-columns:minmax(0,1fr) 340px}}
+  .plan{padding:14px;display:grid;place-items:center;background:var(--bg)}
+  .plan svg{width:100%;height:auto;max-width:560px}
+  .facts{padding:12px 14px;border-left:1px solid var(--rule)}
+  table{width:100%;border-collapse:collapse;margin-bottom:12px}
+  td{padding:3px 0;font-size:11.5px;vertical-align:top}
+  td.k{color:var(--ink-2);white-space:nowrap;padding-right:10px}
+  td.v{color:var(--ink)}
+
+  .inv{border:1px solid var(--warn);background:var(--warn-bg);border-radius:6px;
+    padding:12px 14px;margin-bottom:18px}
+  .inv .tag{background:var(--warn)}
+  .inv ul{margin:8px 0 0;padding-left:18px}
+  .inv li{margin:3px 0;font-size:11.5px}
+  .inv .mono{color:var(--ink)}
+
+  footer{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--rule);
+    padding:11px 18px;display:flex;gap:10px;align-items:center}
+  footer .hint{font-size:11px;color:var(--ink-3);font-family:Consolas,monospace}
+  button.go{padding:7px 16px;border-radius:5px;border:0;font:inherit;font-size:13px;
+    font-weight:600;background:var(--accent);color:#fff;margin-left:auto;cursor:pointer}
+  button.ghost{padding:7px 13px;border-radius:5px;background:transparent;cursor:pointer;
+    border:1px solid var(--rule);color:var(--ink-2);font:inherit;font-size:12.5px}
+
+  /* svg text */
+  text{font-family:Consolas,ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <b>Take-off review</b><span>uic-daley-library — UIC Daley Library, third floor, rooms 3190F/G+H/J</span>
+  <div class="srcline">source: clients/uic-daley-library/takeoff.json · images IMG_7594/5/6.jpeg · cross-check S609-3.pdf vectors (anchor: 18'11" pen chain) · checked 2026-08-31</div>
+</header>
+
+<!-- The loudest block on the page: what was NOT measured. -->
+<div class="inv">
+  <span class="tag">5 ASSUMED / DEFAULT VALUES — CONFIRM BEFORE QUOTING</span>
+  <ul>
+    <li><span class="mono">3190G+H door (G side) at</span> — <b>ASSUMED 6" from corner</b>: no position on the plan; drawn at the jamb per the plan symbol. <i>Measure corner → near jamb.</i></li>
+    <li><span class="mono">3190G+H door (H side) at</span> — <b>ASSUMED 6" from corner</b>: same.</li>
+    <li><span class="mono">3190J door at</span> — <b>ASSUMED 6" from corner</b>: same.</li>
+    <li><span class="mono">3190F door at</span> — <b>ASSUMED 6" from corner</b>: same.</li>
+    <li><span class="mono">door height (all rooms)</span> — <b>DEFAULT 80"</b>: standard leaf, not measured.</li>
+  </ul>
+  <p style="margin:8px 0 0;font-size:11px;color:var(--ink-2)">Each of these builds with an
+  ASSUMED note placed in the model at the feature itself. Nothing else on this job is assumed.</p>
+</div>
+
+<!-- ============================================================ 3190 G+H -->
+<section class="room">
+  <h2>3190G + 3190H <span class="mono">one room — partition removed per pen note; bulkhead in its place at 8'3" AFF</span></h2>
+  <div class="roomgrid">
+    <div class="plan">
+      <svg viewBox="-64 -58 360 300" role="img" aria-label="Plan of combined room G and H">
+        <!-- interior 227 x 172 in, drawn 1px = 1in -->
+        <rect x="0" y="0" width="227" height="172" fill="var(--solid)" stroke="var(--ink)" stroke-width="1.6"/>
+        <!-- heaters, 10in deep, along left + right (window) walls -->
+        <g fill="none" stroke="var(--ink-2)" stroke-width=".8">
+          <rect x="0" y="8" width="10" height="120"/>
+          <path d="M0 18 l10 -10 M0 38 l10 -10 M0 58 l10 -10 M0 78 l10 -10 M0 98 l10 -10 M0 118 l10 -10"/>
+          <rect x="217" y="8" width="10" height="120"/>
+          <path d="M217 18 l10 -10 M217 38 l10 -10 M217 58 l10 -10 M217 78 l10 -10 M217 98 l10 -10 M217 118 l10 -10"/>
+        </g>
+        <text x="16" y="70" font-size="7" fill="var(--ink-2)" transform="rotate(-90 16 70)">10" heater</text>
+        <text x="222" y="112" font-size="7" fill="var(--ink-2)" transform="rotate(-90 222 112)">10" heater</text>
+        <!-- bulkhead line where the partition was -->
+        <path d="M113.5 0 V172" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="5 4" fill="none"/>
+        <text x="118" y="96" font-size="7" fill="var(--ink-3)" transform="rotate(-90 118 96)">bulkhead 8'3" AFF</text>
+        <!-- doors on the bottom (door) wall; ASSUMED positions -->
+        <g stroke="var(--accent)" stroke-width="3.4">
+          <path d="M6 172 h38"/><path d="M183 172 h38"/>
+        </g>
+        <path d="M44 172 A38 38 0 0 0 6 134" fill="none" stroke="var(--accent)" stroke-width=".7" stroke-dasharray="3 3"/>
+        <path d="M183 172 A38 38 0 0 1 221 134" fill="none" stroke="var(--accent)" stroke-width=".7" stroke-dasharray="3 3"/>
+        <text x="25" y="166" font-size="7" fill="var(--warn)" text-anchor="middle">38" ASSUMED at</text>
+        <text x="202" y="166" font-size="7" fill="var(--warn)" text-anchor="middle">38" ASSUMED at</text>
+        <!-- top chain: parts 10 / 17'3 / 10 -->
+        <g stroke="var(--accent)" stroke-width=".7" fill="none">
+          <path d="M0 -14 H227 M0 -10 V-18 M10 -10 V-18 M217 -10 V-18 M227 -10 V-18"/>
+        </g>
+        <text x="5" y="-20" font-size="6.5" fill="var(--accent)" text-anchor="middle">10"</text>
+        <text x="113.5" y="-20" font-size="8" fill="var(--accent)" text-anchor="middle">17'-3"</text>
+        <text x="222" y="-20" font-size="6.5" fill="var(--accent)" text-anchor="middle">10"</text>
+        <!-- overall above the parts row -->
+        <g stroke="var(--accent)" stroke-width=".7" fill="none">
+          <path d="M0 -38 H227 M0 -34 V-42 M227 -34 V-42"/>
+        </g>
+        <text x="113.5" y="-44" font-size="8" fill="var(--accent)" text-anchor="middle">18'-11"</text>
+        <!-- right side depth -->
+        <g stroke="var(--accent)" stroke-width=".7" fill="none">
+          <path d="M243 0 V172 M239 0 H247 M239 172 H247"/>
+        </g>
+        <text x="250" y="88" font-size="8" fill="var(--accent)" transform="rotate(-90 250 88)" text-anchor="middle">14'-4"</text>
+        <!-- bottom duplicate chain -->
+        <g stroke="var(--accent)" stroke-width=".7" fill="none">
+          <path d="M0 196 H227 M0 192 V200 M227 192 V200"/>
+        </g>
+        <text x="113.5" y="208" font-size="8" fill="var(--accent)" text-anchor="middle">18'-11" (door wall, pen)</text>
+        <text x="113.5" y="222" font-size="7" fill="var(--ink-3)" text-anchor="middle">9'-5" pen note at old partition — recorded, see interpretation</text>
+      </svg>
+    </div>
+    <div class="facts">
+      <span class="lab">Stated values</span>
+      <table>
+        <tr><td class="k">width, wall to wall</td><td class="v">18'-11" <span class="b pen">PEN</span> <span class="b vec">PDF ±2" ✓</span></td></tr>
+        <tr><td class="k">&nbsp;&nbsp;= parts</td><td class="v">10" + 17'-3" + 10" <span class="b pen">PEN</span> — 17'-3" is the clear width <i>between heaters</i>, not the room</td></tr>
+        <tr><td class="k">depth</td><td class="v">14'-4" <span class="b pen">PEN</span> <span class="b vec">PDF ±2" ✓</span></td></tr>
+        <tr><td class="k">ceiling, G side</td><td class="v">8'-8" <span class="b pen">PEN</span></td></tr>
+        <tr><td class="k">ceiling, H side</td><td class="v">8'-9" <span class="b pen">PEN</span> — slab built at 8'-9", step noted</td></tr>
+        <tr><td class="k">doors</td><td class="v">2 × 38" wide <span class="b pen">PEN</span>, height <span class="b def">DEFAULT 80"</span>, positions <span class="b asm">ASSUMED</span></td></tr>
+        <tr><td class="k">bulkhead</td><td class="v">head at 8'-3" AFF <span class="b pen">PEN</span>, on the old partition line</td></tr>
+        <tr><td class="k">heaters</td><td class="v">2 × 10" deep <span class="b pen">PEN</span>, full window walls</td></tr>
+      </table>
+      <div class="cl good"><span class="tag">CHAIN CLOSES</span>
+        <p><span class="mono">10" + 17'-3" + 10" = 18'-11"</span> — exact. Both stated
+        18'-11" chains (window wall, door wall) agree.</p></div>
+      <div class="cl good"><span class="tag">POLYGON CLOSES</span>
+        <p>4 runs, closes to 0.00". PDF-vector cross-check: every run within 1.3" of the
+        plot geometry (anchor: this 18'-11" chain).</p></div>
+      <div class="cl warn"><span class="tag">INTERPRETATION — CONFIRM</span>
+        <p>Built as <b>one room</b>: pen note says the G/H partition was removed by the
+        contractor (pen beats print). The 9'-5" note at the old partition is recorded
+        but not used as geometry.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 3190 J -->
+<section class="room">
+  <h2>3190J <span class="mono">IMG_7595</span></h2>
+  <div class="roomgrid">
+    <div class="plan">
+      <svg viewBox="-52 -46 220 268" role="img" aria-label="Plan of room 3190J">
+        <rect x="0" y="0" width="106" height="172" fill="var(--solid)" stroke="var(--ink)" stroke-width="1.4"/>
+        <g stroke="var(--accent)" stroke-width="3">
+          <path d="M6 172 h38"/>
+        </g>
+        <text x="25" y="166" font-size="7" fill="var(--warn)" text-anchor="middle">38" ASSUMED at</text>
+        <g stroke="var(--accent)" stroke-width=".7" fill="none">
+          <path d="M0 -14 H106 M0 -10 V-18 M106 -10 V-18"/>
+        </g>
+        <text x="53" y="-20" font-size="8" fill="var(--accent)" text-anchor="middle">8'-10" (top, pen)</text>
+        <g stroke="var(--accent)" stroke-width=".7" fill="none">
+          <path d="M122 0 V172 M118 0 H126 M118 172 H126"/>
+        </g>
+        <text x="129" y="88" font-size="8" fill="var(--accent)" transform="rotate(-90 129 88)" text-anchor="middle">14'-4"</text>
+        <g stroke="var(--bad)" stroke-width=".7" fill="none">
+          <path d="M0 192 H97 M0 188 V196 M97 188 V196"/>
+        </g>
+        <text x="48" y="204" font-size="8" fill="var(--bad)" text-anchor="middle">8'-1" (bottom, pen)</text>
+      </svg>
+    </div>
+    <div class="facts">
+      <span class="lab">Stated values</span>
+      <table>
+        <tr><td class="k">width, top run</td><td class="v">8'-10" <span class="b pen">PEN</span></td></tr>
+        <tr><td class="k">width, bottom run</td><td class="v">8'-1" <span class="b pen">PEN</span> <span class="b vec">PDF says 95.7" ±2"</span></td></tr>
+        <tr><td class="k">depth</td><td class="v">14'-4" <span class="b pen">PEN</span> (carried from the 3190 band)</td></tr>
+        <tr><td class="k">ceiling</td><td class="v">— none stated on IMG_7595; carried 8'-9" from the band <span class="b asm">ASSUMED</span>? No — <b>blocked, see check</b></td></tr>
+        <tr><td class="k">door</td><td class="v">38" <span class="b pen">PEN</span>, position <span class="b asm">ASSUMED</span></td></tr>
+      </table>
+      <div class="cl bad"><span class="tag">DOES NOT VALIDATE — 2 ERRORS</span>
+        <p><span class="mono">runs 0 and 2 disagree by 9"</span> — 8'-10" (top) vs 8'-1"
+        (bottom). One of them is a clear width between obstructions, or a misread.
+        The PDF vectors side with 8'-1" wall-to-wall. Record the 8'-10" as a parts
+        chain or correct it — <b>the room does not build until this closes.</b></p>
+        <p><span class="mono">ceiling: missing</span> — no height stated for 3190J.
+        Measure it, or mark it assumed with a reason.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 3190 F -->
+<section class="room">
+  <h2>3190F <span class="mono">IMG_7596</span></h2>
+  <div class="roomgrid">
+    <div class="plan">
+      <svg viewBox="-52 -46 226 258" role="img" aria-label="Plan of room 3190F">
+        <rect x="0" y="0" width="111" height="172" fill="var(--solid)" stroke="var(--ink)" stroke-width="1.4"/>
+        <g fill="none" stroke="var(--ink-2)" stroke-width=".8">
+          <rect x="0" y="8" width="10" height="101"/>
+          <path d="M0 18 l10 -10 M0 38 l10 -10 M0 58 l10 -10 M0 78 l10 -10 M0 98 l10 -10"/>
+        </g>
+        <text x="16" y="62" font-size="7" fill="var(--ink-2)" transform="rotate(-90 16 62)">10" heater — 9'-1" long</text>
+        <g stroke="var(--accent)" stroke-width="3">
+          <path d="M67 172 h38"/>
+        </g>
+        <text x="86" y="166" font-size="7" fill="var(--warn)" text-anchor="middle">38" ASSUMED at</text>
+        <g stroke="var(--accent)" stroke-width=".7" fill="none">
+          <path d="M0 -14 H111 M0 -10 V-18 M111 -10 V-18"/>
+        </g>
+        <text x="55" y="-20" font-size="8" fill="var(--accent)" text-anchor="middle">9'-3"</text>
+        <g stroke="var(--accent)" stroke-width=".7" fill="none">
+          <path d="M127 0 V172 M123 0 H131 M123 172 H131"/>
+        </g>
+        <text x="134" y="88" font-size="8" fill="var(--accent)" transform="rotate(-90 134 88)" text-anchor="middle">14'-4"</text>
+        <g stroke="var(--accent)" stroke-width=".7" fill="none">
+          <path d="M0 192 H111 M0 188 V196 M111 188 V196"/>
+        </g>
+        <text x="55" y="204" font-size="8" fill="var(--accent)" text-anchor="middle">9'-6" (pen — see check)</text>
+      </svg>
+    </div>
+    <div class="facts">
+      <span class="lab">Stated values</span>
+      <table>
+        <tr><td class="k">width runs</td><td class="v">9'-3" and 9'-6" <span class="b pen">PEN</span></td></tr>
+        <tr><td class="k">depth</td><td class="v">14'-4" <span class="b pen">PEN</span></td></tr>
+        <tr><td class="k">ceiling</td><td class="v">8'-7" <span class="b pen">PEN</span> — differs from G/H next door; slab at 8'-7"</td></tr>
+        <tr><td class="k">heater</td><td class="v">10" deep × 9'-1" from back wall <span class="b pen">PEN</span></td></tr>
+        <tr><td class="k">door</td><td class="v">38" <span class="b pen">PEN</span>, height <span class="b def">DEFAULT 80"</span>, position <span class="b asm">ASSUMED</span></td></tr>
+      </table>
+      <div class="cl warn"><span class="tag">CHAIN — 3" APART, RESOLVED, CONFIRM</span>
+        <p><span class="mono">9'-3" vs 9'-6"</span>: recorded as opposite faces of a wall
+        jog per the plan linework; both kept, polygon uses each on its own run and closes.
+        If they were meant to be the same span, one is a misread — say which.</p></div>
+      <div class="cl good"><span class="tag">POLYGON CLOSES</span>
+        <p>6 runs (jog included), closes to 0.00". PDF cross-check within 2".</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span class="hint">2 rooms ready · 3190J blocked by 2 named errors · 5 assumed values will be flagged in the model</span>
+  <button class="ghost">Open takeoff.json</button>
+  <button class="go" title="Mockup — in the shipped sheet this hands off to the panel's Build-from-take-off button">Build 2 ready rooms</button>
+</footer>
+
+</div>
+</body>
+</html>
