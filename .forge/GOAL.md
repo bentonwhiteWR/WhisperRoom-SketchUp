@@ -62,16 +62,47 @@ SketchUp, score it, fix the largest error, repeat.
   reading off pixels what the model already holds as text: `scripts/proposal-package.rb`
   exports bare PNGs and discards scene names, order, and callout strings.
 
-**In flight (three lanes, all on Fable):**
-1. Builder — manifest + dimension sidecar at export time, and `scripts/check-doc-paths.py`.
-2. Scoper — the intake pipeline and the eval loop, spec to `.forge/scoper/floorplan-intake.md`.
-3. (Folded into 2, not a separate lane) the invented-placement and corner-door defects in
-   `scripts/build-room.rb` / `.html` — specced now, built after Benton approves.
+**Shipped and live-verified, 31 Aug:**
+- **Proposal manifest** (plugin 1.10.8). `scripts/proposal-package.rb` writes `manifest.json`
+  beside every export — scene name, order, pixel size, and every callout string the model
+  holds, nulls-plus-note where unreadable. Proven live: the exported PNG's callouts match the
+  manifest strings character for character. Three SketchUp API assumptions became observations.
+- **Take-off intake, slice 1** (plugin 1.11.0). `scripts/takeoff-check.py` validates a
+  take-off and emits the review sheet; `scripts/build-takeoff.rb` builds all rooms from the
+  lock; `scripts/eval-floorplan.py` scores against truth. **The measured result:** the
+  reproduced 31 Aug failure scores **20.00" of width error**, the fixed take-off **0.00"**,
+  both rows in `eval/RESULTS.md`. The trap fails by name — transcribing `17'-3"` as the room
+  width gives *"the runs do not close — out by 1'-8" east-west"*, exit 1, no lock written,
+  nothing builds (orchestrator verified this directly).
+- The dialog's invented `at:36"` seed and hardcoded `door_h:80"` are gone; a corner door now
+  refuses by name instead of drawing a leaf into solid wall.
 
-**Blocked on Benton:** SketchUp is not running (bridge heartbeat ~18 h stale, no process —
-observed 31 Aug). Nothing can be verified live until it is open with the bridge enabled.
-**Open question for Gabe:** what he actually typed on 31 Aug is recorded nowhere, so the
-split between misread-chain and invented-placement for that specific job is a hypothesis.
+**Established live, 31 Aug (orchestrator probe):** SketchUp scenes **do** remember per-entity
+hidden state — two groups on one shared tag, flags set differently, two scenes: switching back
+returned each scene's own state. So per-scene wall hiding needs no per-wall tags. Benton's
+"Walls - Shown / Walls - Hidden" pair is the readable *interface*; the scene mechanism carries
+the state. This is why both existing scripts went to half-walls: with one shared `WR-Room` tag,
+hiding whole walls per scene looked impossible, so they cut geometry instead.
+
+**In flight (three lanes, all on Fable):**
+1. Builder — per-scene whole-wall hiding, the two-group interface, manifest records which walls
+   were hidden per image, plus a retrofit for existing rooms. Keep `wr-lower-walls.rb`: Benton
+   asked for the curb today and a fully-missing wall shows the camera empty space.
+2. Builder — the review artifact: source photo beside the interpretation (Benton has cleared
+   the photo for claude.ai; **still never committed to this public repo**), a rotatable
+   dimensioned 3D view built from the lock file, and approve/edit controls emitting a
+   structured patch the checker can consume.
+3. Builder — **actually running the eval loop.** The machinery ran once; every ledger row
+   shares a timestamp. Step 8's generator builds adversarial cases with exact known truth, and
+   the loop gets run as a loop with a row per iteration. A generator that only produces cases
+   the pipeline already passes is worthless.
+
+**Open question for Gabe:** what he actually typed on 31 Aug is recorded nowhere, so the split
+between misread-chain and invented-placement for that specific job is a hypothesis. Also: did
+the 45-minute proposal session actually render, or were the images already on disk?
+
+**Benton declined**, 31 Aug, for the artifact: the booth fit check, the ASSUMED-list-as-field-
+checklist, a version diff view, and a wall/scene picker in the page.
 
 ## The review sheet — requirements Benton set, 31 Aug 2026
 The take-off review sheet is published as an Artifact and reviewed before anything runs.
