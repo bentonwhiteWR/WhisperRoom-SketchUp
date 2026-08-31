@@ -456,6 +456,10 @@ module WR_ProposalPackage
     rows.each { |r| r['file'] = files[r['n']].to_s }
     { 'rows'      => rows,
       'slots'     => slot_rows(model),
+      # Which way the model is showing RIGHT NOW, so the materials section can
+      # offer the same flip the Toggle Draft/Render button does — you set the
+      # slots here, you should be able to SEE them here.
+      'mode'      => WR_Mode.current(model),
       'materials' => (model.materials.map(&:name).sort rescue []) }
   end
 
@@ -2313,6 +2317,34 @@ module WR_ProposalPackage
       push_state(model, d)
     end
 
+    # The same flip as the Toggle Draft/Render panel button, driven from inside
+    # this window. NOT a shortcut around WR_Mode: it calls the same to_mode, so
+    # the snapshot bookkeeping, the tag policy and the materials sweep are
+    # identical whichever surface pressed it. Refused mid-batch — the batch owns
+    # the model's mode while it runs.
+    d.add_action_callback('togglemode') do |_c, _p|
+      next if busy?(d, 'togglemode')
+      begin
+        cur    = WR_Mode.current(model)
+        target = cur == 'render' ? 'draft' : 'render'
+        res    = WR_Mode.to_mode(model, target)
+        log(d, "MODE -> #{target.upcase}", 'dim')
+        mat = res[:materials] || {}
+        (mat[:applied] || mat[:reverted] || {}).each do |slot, n|
+          log(d, "  #{slot}: #{n} surface(s)", 'dim')
+        end
+        # Named here, in the window, at the moment you flip -- the whole point
+        # of the button is seeing what did and did not swap.
+        (mat[:unmapped] || mat[:left] || []).each { |x| log(d, "unmapped  #{x}", 'bad') }
+        (res[:stuck] || []).each { |x| log(d, "stuck  #{x}", 'bad') }
+        model.active_view.refresh
+      rescue StandardError => e
+        log(d, "mode toggle failed: #{e.class}: #{e.message}", 'bad')
+        puts "  mode toggle failed: #{e.class}: #{e.message}"
+      end
+      push_state(model, d)
+    end
+
     d.add_action_callback('activate') do |_c, n|
       next if busy?(d, 'activate')
       begin
@@ -2452,6 +2484,9 @@ module WR_ProposalPackage
   .matrow .to { width:132px; flex:0 0 auto; color:var(--muted); font-size:12px; }
   .matrow select.src { flex:1 1 0; min-width:0; }
   .matrow select.src.gone { color:#b00; }
+  .matmode { display:flex; gap:8px; align-items:center; padding:2px 0 8px; }
+  .matmode .now { color:var(--muted); font-size:12px; }
+  .matmode .now b { color:var(--ink); font-weight:600; }
   .matrow select { flex:1 1 auto; font:inherit; font-size:12px; padding:4px 6px;
                    border:1px solid var(--line); border-radius:6px; background:#fff;
                    color:var(--ink); min-width:0; }
@@ -2662,10 +2697,29 @@ module WR_ProposalPackage
                                     +nr+" render scene(s)")
                                  : "no render scenes marked";
     g("export").disabled = running || (nr+ni)===0;
+    // drawMats() is not re-run when a batch starts or stops, so the mode
+    // button's disabled state is refreshed here instead — the batch owns the
+    // model's mode while it runs.
+    var mb = g("modebtn"); if(mb) mb.disabled = running;
   }
 
   function drawMats(){
-    g("matbody").innerHTML = ST.slots.map(function(s){
+    // The same flip as the Toggle Draft/Render panel button, put where the
+    // slots are set — you pick the materials here, so you should be able to
+    // SEE them here rather than closing the window to look.
+    // Three states, not two: WR_Mode reports "unknown (never toggled)" on a
+    // model it has never switched, and claiming that one is showing drafting
+    // colours would be a guess. Say what is known and no more.
+    var mode = ST.mode || "", isRender = mode === "render", isDraft = mode === "draft",
+        word = isRender ? "RENDER" : isDraft ? "DRAFT" : "NOT YET TOGGLED",
+        tail = isRender ? " — the V-Ray fills below are on the model right now."
+             : isDraft  ? " — drafting colours. Press to put the fills below on the model."
+             : " — this model has not been switched, so what it shows now is whatever it was saved with.",
+        modeHtml = "<div class='matmode'>" +
+          "<button class='btn' id='modebtn'" + (running ? " disabled" : "") + ">" +
+          (isRender ? "Show draft materials" : "Show render materials") + "</button>" +
+          "<span class='now'>Model is showing <b>" + word + "</b>" + tail + "</span></div>";
+    g("matbody").innerHTML = modeHtml + ST.slots.map(function(s){
       // LEFT select — which material in THIS model the slot swaps FROM. The
       // shop default (0128_White and friends) is only a default; a model that
       // did not come out of build-room.rb needs to point the slot at its own
@@ -2697,6 +2751,11 @@ module WR_ProposalPackage
     "you point it at this model's own floor, walls or door when the model didn't come from " +
     "Build room. Same slots as the Draft / Render toggle — set them in either place. If " +
     "SketchUp ever dies mid-render, the Toggle Draft/Render button puts the model back.</div>";
+    var mb = g("modebtn");
+    if(mb) mb.addEventListener("click", function(){
+      if(running) return;
+      if(window.sketchup && sketchup.togglemode) sketchup.togglemode("");
+    });
     Array.prototype.forEach.call(g("matbody").querySelectorAll("select"), function(sel){
       var isSrc = sel.classList.contains("src");
       sel.addEventListener("change", function(){
