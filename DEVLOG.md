@@ -1,5 +1,108 @@
 # DEVLOG
 
+## 2026-08-31
+
+Fifteen versions, 1.9.9 -> **1.10.6**. Three threads: the V-Ray material slots and
+the Proposal Package window, the booth ceiling light, and a run of deck
+orientation bugs found by importing real booths.
+
+### Done
+
+**V-Ray materials + the Proposal Package window (1.9.10 - 1.9.14)**
+
+- `1.9.10` Each slot's SOURCE material is now per-model and pickable, not a
+  frozen constant. `WR_MaterialsSwap` stores it beside the fill under a `src:`
+  key; both the Proposal Package rows and the swap script's own inputbox write
+  it. Two slots on one material is reported, not silently resolved. Also fixed
+  `wr-preflight`'s floor check, which asked for `DRAFT_FLOOR` by name and so
+  would have passed silently on exactly the models this enables.
+- `1.9.11` Draft/Render toggle button inside the materials section, calling the
+  same `WR_Mode.to_mode` as the panel button, logging into the window.
+- `1.9.12` **Lights were going out in plain image exports.** Draft mode was
+  hiding them correctly; `pages.selected_page =` put them back, because a page
+  restores its own saved tag visibility and `wr-drop-lights` stamps `WR Lights`
+  VISIBLE into every scene on purpose. `export_pages` now takes
+  `cfg['hide_tags']` and re-applies after each page switch.
+- `1.9.13` `Add ceiling?` dropdown on Drop Interior Lights (default Yes), and
+  `WR_Mode` stamps `LIGHT_TAGS` into every scene at the mode's polarity so a
+  draft hide survives a scene click.
+- `1.9.14` Every block in the Proposal Package window collapses. The cause of
+  "can't reach Export package" was structural: `body` is a flex column with
+  `overflow:hidden` and every block was `flex:0 0 auto`, so a short window
+  pushed the bar off the bottom with nothing to scroll.
+
+**The booth ceiling light (1.9.15 - 1.9.17, 1.10.3, 1.10.4)**
+
+- One `BoothLighting.skp` instance per **standard** CL tile, centred in plan,
+  top face flush to the tile's underside, on the `WR Lights` tag. Placement is
+  measured off the loaded definition, never tabulated.
+- Reached by both doors, since `booth-from-link` calls `build_booth`.
+- `Ceiling lighting` is a Yes/No row on the components popup, default Yes, and
+  the answer is remembered. The gate tests `== false` so an absent key (the
+  link path) still means lit.
+
+**Lighting brightness (1.10.0)**
+
+- `LUMEN_GAIN = 10.0` in `wr-drop-lights.rb`. Benton measured by eye: pendant
+  750 -> 7500, sconce 187.5 -> 1870.5. Both exactly x10. Kept as a separate
+  named constant so `LIGHT_LAYERS`' `:lumens` stay real product numbers.
+
+**New tool (1.10.0)**
+
+- `scripts/wr-lower-walls.rb` — select walls, cut them to a curb (default 6"),
+  tops go on `WR-Room-Cutaway` for a scene to hide. Distinct from
+  `WR-Room-Upper`, which splits every wall at one 48" sill.
+
+**Deck orientation, found by importing (1.10.1, 1.10.2, 1.10.5, 1.10.6)**
+
+- `YAW_180_FILES` in `wr-deck.rb`: `STD4260CL/FL`, `STD4872CL/FL` turned 180 in
+  plan. Named exceptions, not a rule change.
+- `MIRROR_DECK_SIZES`: MDL 7272 (74x74) and 7296 (98x74) decks mirrored across
+  YZ. Keyed on footprint because their tiles are shared with other 72-series
+  booths. Note 7272 is the booth the yaw rule was originally tuned against.
+- **MDL 10284 was being built with MDL 84102's deck.** They are a transpose and
+  BOTH tile from either family, so "try the long side first" could not tell
+  them apart. Rule changed: the tile's CROSS number runs along the booth's H
+  axis. Simulated over all 50 models, FL and CL, against the real library —
+  exactly the two reported change, nothing becomes unbuildable.
+
+### Next steps
+
+1. `git pull`, `python scripts/install-plugin.py`, **restart SketchUp**.
+2. **Build MDL 10284 S and MDL 84102 S side by side.** The 1.10.6 fix is
+   verified by SIMULATION ONLY (Python against the same filenames, not the
+   Ruby). These two builds are the real proof.
+3. **Four floor parts predicted to need a 180 yaw and never tested:**
+   `STD4230FL`, `STD4284FL`, `STD4848FL`, `STD8418 FL`. They share the
+   off-min-corner origin (`_component-probe.tsv`) behind both confirmed
+   failures. If one comes out turned, add it to `YAW_180_FILES` in
+   `scripts/wr-deck.rb` — one line.
+4. **Check the ceiling ambient did not blow out.** `LUMEN_GAIN = 10.0` was
+   measured on the two SPHERE roles only; the five rectangle roles ride it on
+   inference.
+5. **Run `wr-lower-walls.rb` once.** New, never executed.
+6. Confirm `BoothLighting` lands flush and centred on a real build.
+
+### Open decisions
+
+- **Grid density is still not exposed.** `wr-drop-lights.rb` supports
+  `:showroom` spacing (half the ceiling height, ~4x the fixtures) but `ask`
+  hard-codes `:soft`, where spacing EQUALS the ceiling height — one fixture
+  every 8 feet in an 8' room. This is the highest-value fix for "too dim /
+  too sparse" and is not built. Say the word.
+- **7272 / 7296 mirror axis.** If the hinge landed on the wrong END rather than
+  the wrong SIDE, the other mirror is wanted: adding those parts to
+  `YAW_180_FILES` composes mirror-X with a 180 yaw to give mirror-Y.
+- Booth-builder add-on regrouping is specced and parked for the OTHER repo's
+  session: `WhisperRoomQuote\.forge\scoper\HANDOFF-bb-addon-categories.md`.
+
+### Standing caveat
+
+There is no `ruby.exe` on this machine outside SketchUp. **Everything from
+1.9.10 onward is `scripts/rbparse.py`-clean only** — a real syntax check, not a
+behaviour check. Nothing in this entry has been executed except by Benton in
+SketchUp during the import run.
+
 ## 2026-08-30
 
 ### 1.9.9 — the layered rig, built for real and rendered: seven roles, lumens, three drawn fixtures, a borrowed ceiling
