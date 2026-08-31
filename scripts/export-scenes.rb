@@ -218,6 +218,28 @@ module WR_ExportScenes
                         'DisplayFog'  => ro['DisplayFog'] } : {}
     prev_page = pages.selected_page
 
+    # TAGS THAT MUST BE OFF IN THE WRITTEN IMAGE, RE-HIDDEN AFTER EVERY PAGE
+    # SWITCH.
+    #
+    # Hiding a tag before calling this method does NOT survive: a SketchUp
+    # page restores its own saved tag visibility when it is activated, so
+    # `pages.selected_page = ...` below puts the tag straight back. That is
+    # not hypothetical -- wr-drop-lights.rb deliberately stamps "WR Lights"
+    # VISIBLE into every saved scene (stamp_tag_into_pages), because a light
+    # tag hidden during a V-Ray pass renders silently unlit. Correct for the
+    # render lane, and it meant the plain-image lane exported the fixtures
+    # too, however the model's mode was set.
+    #
+    # So the hide is re-applied AFTER each switch, for the same reason the
+    # style keys below are, and the ORIGINAL model state -- captured once,
+    # before the first switch -- is put back in the ensure.
+    hide_tags = Array(cfg['hide_tags']).map(&:to_s).reject(&:empty?)
+    prev_vis  = {}
+    hide_tags.each do |n|
+      l = model.layers[n]
+      prev_vis[n] = l.visible? if l
+    end
+
     written = 0
     skipped = 0
     failed  = []
@@ -232,6 +254,12 @@ module WR_ExportScenes
         end
 
         pages.selected_page = p[:page]
+
+        # A scene restores its own TAG visibility too — see hide_tags above.
+        hide_tags.each do |n|
+          l = model.layers[n]
+          l.visible = false if l
+        end
 
         # A scene can restore its own style, so force these AFTER the switch.
         if trans
@@ -260,6 +288,12 @@ module WR_ExportScenes
       prev_ro.each { |k, v| ro[k] = v }
       page_opts['TransitionTime'] = prev_tt
       pages.selected_page = prev_page if prev_page
+      # AFTER the page is restored, so the restore's own tag re-apply cannot
+      # undo this. Only tags we actually touched, only to what they were.
+      prev_vis.each do |n, v|
+        l = model.layers[n]
+        (l.visible = v) if l && !v.nil?
+      end
       Sketchup.status_text = ''
     end
 

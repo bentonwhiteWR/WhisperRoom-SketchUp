@@ -1448,10 +1448,29 @@ module WR_ProposalPackage
     # D4: an EXPLICIT height, so an image row and a render row of the same
     # scene come out the same shape. Before 1.9.3 only width was passed and
     # export-scenes.rb derived the height from the SketchUp window.
+    # HIDE THESE AFTER EVERY PAGE SWITCH, NOT BEFORE THE EXPORT.
+    #
+    # The image lane runs in DRAFT mode, whose policy hides WR_Mode::LIGHT_TAGS
+    # -- and that was not enough. wr-drop-lights.rb stamps "WR Lights" VISIBLE
+    # into every saved scene on purpose (a light tag hidden during a V-Ray pass
+    # renders silently unlit), and activating a page re-applies its saved tag
+    # visibility, so the fixtures came back between the mode switch and
+    # write_image and went out in the plain image. Observed in
+    # ProposalFiles/test/Scene 1.png, 31 Aug 2026.
+    #
+    # annot_push below has the same exposure for the same reason, so the
+    # client-safe tags ride along here too. It stays as well: it is what logs
+    # WHICH annotation tags were showing, and it covers the render lane, which
+    # does not go through export_pages at all.
+    hide = WR_Mode::LIGHT_TAGS.dup
+    hide.concat(ANNOT_TAGS) if @client_safe
     cfg  = { 'dir' => @cfg['dir'], 'width' => @cfg['width'],
-             'height' => @cfg['height'], 'bg' => 'Opaque', 'over' => 'Yes' }
+             'height' => @cfg['height'], 'bg' => 'Opaque', 'over' => 'Yes',
+             'hide_tags' => hide }
     begin
       annot_push(model, dlg, p[:file])
+      present = hide.select { |n| model.layers[n] }
+      log(dlg, "re-hiding after the scene switch: #{present.join(', ')}", 'dim') unless present.empty?
       x = WR_ExportScenes.export_pages(model, plan, cfg)
     ensure
       annot_pop(model, dlg)
