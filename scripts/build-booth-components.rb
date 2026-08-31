@@ -2586,6 +2586,26 @@ module WR_BuildBoothComponents
         host = { 'FL' => union_bounds(deck_added['FL']),
                  'CL' => union_bounds(deck_added['CL']) }
 
+        # ---- THE CEILING LIGHT ------------------------------------------
+        #
+        # ONE PER STANDARD CEILING COMPONENT (Benton, 2026-08-31), so a larger
+        # booth with several CL tiles gets several fixtures. Deliberately NOT
+        # the IEP tray: an Enhanced booth's tray hangs below the standard
+        # ceiling and engulfs it, and keying off the tray would change the
+        # count and the spacing on exactly the booths that have both.
+        #
+        # Placed HERE, before the inner-only build erases the standard deck,
+        # because that deck is the datum even when it is measured and thrown
+        # away. The fixtures are not in `gone`, so they survive the erase.
+        #
+        # Every instance carries the WR Lights tag, so the Draft/Render toggle
+        # hides them with the rest of the rig (LIGHT_TAG above).
+        t_light = tag.call(LIGHT_TAG, [255, 199, 44])
+        ln, lnote = place_booth_lighting(model, booth, cfg['dir'],
+                                         deck_added['CL'], t_light, cache)
+        placed += ln
+        puts "  lighting #{lnote}" if lnote
+
         if shell == 'inner'
           gone = deck_added.values.flatten + seal_added
           booth.entities.erase_entities(gone) unless gone.empty?
@@ -2595,7 +2615,6 @@ module WR_BuildBoothComponents
         puts "  deck     #{deck_note}"
 
         # THE IEP DECK, against the standard one.
-        iep_added = []
         if spec[:eiw] && shell != 'outer'
           before = booth.entities.length
           n, dnotes, dwarns = iep_deck(model, booth, key, spec, cfg['dir'], cache, host)
@@ -2604,29 +2623,7 @@ module WR_BuildBoothComponents
           dnotes.each { |x| puts "  IEP deck #{x}" }
           dwarns.each { |x| puts "  IEP DECK: #{x}" }
           puts '  IEP deck NOT PLACED - see above' if n.zero?
-          iep_added = booth.entities.to_a[before..-1].to_a
         end
-
-        # ---- THE CEILING LIGHT ------------------------------------------
-        #
-        # Under the ceiling the room actually sees. On an Enhanced booth the
-        # IEP tray hangs BELOW the standard ceiling and engulfs it, so the
-        # tray's tiles are the ones a light must sit under; anywhere else it
-        # is the standard CL. Getting this backwards buries the fixture inside
-        # the ceiling sandwich, where it is invisible and lights nothing.
-        #
-        # It carries the WR Lights tag, so the Draft/Render toggle hides it
-        # with the rest of the rig (LIGHT_TAG above).
-        lit_parts = if spec[:eiw] && shell != 'outer' && !(iep_added || []).empty?
-                      iep_added
-                    else
-                      shell == 'inner' ? [] : (deck_added['CL'] || [])
-                    end
-        t_light = tag.call(LIGHT_TAG, [255, 199, 44])
-        ln, lnote = place_booth_lighting(model, booth, cfg['dir'], lit_parts,
-                                         t_light, cache)
-        placed += ln
-        puts "  lighting #{lnote}" if lnote
       end
 
       # ---- overlays: foam, duct covers, and the link's option parts --------
