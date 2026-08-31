@@ -474,10 +474,31 @@ module WR_Deck
     #
     # Tiling the long way is right for every multi-panel booth, but MDL 4230 S
     # is 42 x 30 and its only part is STD4230FL — 42 ACROSS, 30 along. Assuming
-    # long-way-along made it unbuildable while the part sat right there. So try
-    # the long way first and fall back to the short way, and let the catalogue
-    # decide which orientation actually exists.
-    orders = w >= h ? [[w, h, true], [h, w, false]] : [[h, w, false], [w, h, true]]
+    # long-way-along made it unbuildable while the part sat right there. So a
+    # first choice and a fall back, and let the catalogue decide which
+    # orientation actually exists.
+    #
+    # THE FIRST CHOICE IS "CROSS RUNS ALONG H", NOT "ALONG RUNS THE LONG WAY".
+    #
+    # Benton, 2026-08-31: "You are not pulling the proper 10284 S. You are
+    # pulling the MDL 84102 S. Two different booths."
+    #
+    # He is right and the two are a transpose of each other: 10284 S is 86 x
+    # 104 and 84102 S is 104 x 86, so after the inset one is 84 x 102 and the
+    # other 102 x 84. BOTH tile from either family — 102-across takes two 42s,
+    # 84-across takes 42+42+18 — so long-side-first could not tell them apart
+    # and handed both booths the 84 family. 84102 was right by luck; 10284 got
+    # the other booth's deck.
+    #
+    # The rule that separates them is geometric, not a name lookup: the tile's
+    # CROSS number runs along the booth's H axis. 10284 (h' 102) wants the 102
+    # family; 84102 (h' 84) wants the 84. The fall back is unchanged, so 4230
+    # still finds its one part.
+    #
+    # SIMULATED OVER ALL 50 MODELS IN wr-booth-data.rb, FL and CL, against the
+    # real library: exactly two results change — MDL 10284 S and E, the two
+    # reported — and nothing that built before becomes unbuildable.
+    orders = [[w, h, true], [h, w, false]]
 
     pool = nil
     cuts = nil
