@@ -2018,10 +2018,16 @@ module WR_ProposalPackage
   # API and can only be proven live. Every read is rescued to a null-with-a-
   # note, never to a substitute value.
 
-  # A dimension attachment as a Point3d. The API returns start/end as an
-  # array carrying the attached entity and/or the point; the shape is not
-  # trusted — anything that is a Point3d or answers .position is accepted,
-  # anything else is nil and the row says 'unreadable' by name.
+  # A dimension attachment as a Point3d. OBSERVED (31 Aug 2026, SketchUp
+  # 2026): start/end return [nil, Point3d] for point-attached dims. The shape
+  # is still not trusted — anything that is a Point3d or answers .position is
+  # accepted, anything else is nil and the row says 'unreadable' by name.
+  # Also observed: Dimension#text returns the RENDERED string ("4'"), not a
+  # '<>' placeholder, so `text` is directly usable and dim_display's '<>'
+  # branch is a guard for overrides that embed it, not the common case. And
+  # format_length can differ from the drawn text by a leading '~ ' on
+  # non-exact lengths — `measured` on a diagonal read "~ 7' 2 9/16\"" while
+  # the dim itself drew "7' 2 9/16\"".
   def self.dim_anchor(v)
     return v if v.is_a?(Geom::Point3d)
     if v.is_a?(Array)
@@ -2097,9 +2103,10 @@ module WR_ProposalPackage
   end
 
   # Tag names a scene's saved state HIDES, or nil when that cannot be read.
-  # Sketchup::Page#layers is documented as the page's hidden layers; this is
-  # verified live in the HANDOFF checklist, not assumed silently — a wrong
-  # read here shows up as a wrong shown-list against a visible callout.
+  # Sketchup::Page#layers returning the HIDDEN layers is OBSERVED (31 Aug
+  # 2026, SketchUp 2026, scripted run): a scene saved with all four annot
+  # tags hidden listed all four; one saved with two hidden listed those two,
+  # and the manifest's shown-lists matched the exported pixels both ways.
   def self.page_hidden_tags(page)
     return nil unless page && page.respond_to?(:layers)
     page.layers.map { |l| l.name.to_s }

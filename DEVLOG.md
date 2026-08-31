@@ -38,6 +38,23 @@ Spec source: `.forge/researcher/proposal-image-step-timing.md` §6 items 1 and 3
   their literal parent. Fixes nothing by design. Today's run: 24 references,
   7 missing/uncheckable here — matching the researcher's §4 audit.
 
+**1.10.8, same evening — LIVE-VERIFIED.** SketchUp 2026 came up and the batch ran
+scripted three times on a scratch fixture (four dims, a note, `MDL 4872 S` group,
+two scenes with different saved tag states). Real `manifest.json` written by the
+real `finish` path and checked against pixels: `02-dimensioned.png` shows `6'`,
+`4'`, `CLEAR OPENING` — character-for-character the manifest's `display` values;
+client-safe run flags `annotations_hidden_in_images: true`, exports zero callouts
+and still carries all 5 strings as data. All three API assumptions settled by
+observation: `start`/`end` → `[nil, Point3d]`; `Page#layers` IS the hidden list
+(confirmed both directions); `Dimension#text` returns the RENDERED string, never
+`<>`, and `format_length` adds `~ ` on non-exact lengths (so captions come from
+`text`/`display`, arithmetic from `measured_in`). 1.10.8 is comment-only —
+assumption comments upgraded to observations. Unexercised: cancel-path manifest
+(batch too fast to cancel into), render-lane row (V-Ray parked). Scripted-driver
+lesson in `.forge/builder/HANDOFF.md`: muzzle `UI.messagebox` in the start job and
+poll with `--modal allow`, or a real Qt modal blocks the queue (observed, keyed
+through by hand-rolled SendKeys).
+
 Fifteen versions, 1.9.9 -> **1.10.6**. Three threads: the V-Ray material slots and
 the Proposal Package window, the booth ceiling light, and a run of deck
 orientation bugs found by importing real booths.
