@@ -595,6 +595,65 @@ module WR_BuildBoothComponents
   IEP_TRAY_DROP = 0.75
 
   # Union of the bounding boxes of everything the deck pass just added.
+  # ---------------------------------------------------------- booth lighting --
+  #
+  # ONE LIGHT FIXTURE UNDER EACH CEILING TILE.
+  #
+  # Benton's own component, dropped into the same parts folder as everything
+  # else, so it is loaded the same way and by the same case-insensitive rule
+  # (load_def globs the folder when the exact filename misses). Several
+  # spellings are tried because "booth lighting" is a spoken name, not a
+  # filename, and a silent miss here looks identical to a booth with no lights.
+  LIGHT_NAMES = ['Booth Lighting', 'BoothLighting', 'Booth Light',
+                 'WR Booth Lighting'].freeze
+
+  # The tag is WR_Mode::LIGHT_TAGS' one entry, spelled here rather than
+  # required: this file must not need wr-mode.rb loaded to build a booth. If
+  # that name ever changes, it changes in both places or the draft toggle
+  # stops hiding these -- which is the whole reason they carry a tag at all.
+  LIGHT_TAG = 'WR Lights'.freeze
+
+  # MEASURED, NOT TABULATED -- the same rule the rest of this file follows for
+  # every part. The component's own size and origin are read off the loaded
+  # definition, so its top face is set flush to the ceiling tile's UNDERSIDE
+  # and its centre to the tile's centre, whatever the author's axes happened to
+  # be. Nothing here assumes the component was drawn at any particular origin.
+  def self.place_booth_lighting(model, parent, dir, ceiling_parts, layer, cache)
+    return [0, nil] if parent.nil? || ceiling_parts.nil? || ceiling_parts.empty?
+    defn = nil
+    used = nil
+    LIGHT_NAMES.each do |nm|
+      defn = load_def(model, dir, nm, cache)
+      if defn
+        used = nm
+        break
+      end
+    end
+    if defn.nil?
+      return [0, "no lighting component in #{dir} (tried "                  "#{LIGHT_NAMES.map { |n| n + '.skp' }.join(', ')}) — the "                  'booth is built, with no ceiling light']
+    end
+    db = defn.bounds
+    n = 0
+    ceiling_parts.each do |e|
+      bb = (e.bounds rescue nil)
+      next if bb.nil? || !bb.valid?
+      # Centre on the tile in plan; sit the fixture's TOP on the tile's
+      # underside so it hangs into the room rather than into the ceiling.
+      dx = ((bb.min.x + bb.max.x) / 2.0) - ((db.min.x + db.max.x) / 2.0)
+      dy = ((bb.min.y + bb.max.y) / 2.0) - ((db.min.y + db.max.y) / 2.0)
+      dz = bb.min.z - db.max.z
+      inst = parent.entities.add_instance(
+        defn, Geom::Transformation.translation(Geom::Vector3d.new(dx, dy, dz)))
+      next if inst.nil?
+      (inst.layer = layer) if layer
+      n += 1
+    end
+    [n, n.zero? ? 'lighting component loaded but no instance was placed' :
+        "#{used}.skp x#{n}"]
+  rescue StandardError => e
+    [0, "lighting: #{e.class}: #{e.message}"]
+  end
+
   def self.union_bounds(list)
     bb = Geom::BoundingBox.new
     (list || []).each { |e| bb.add(e.bounds) rescue nil }
@@ -2536,6 +2595,7 @@ module WR_BuildBoothComponents
         puts "  deck     #{deck_note}"
 
         # THE IEP DECK, against the standard one.
+        iep_added = []
         if spec[:eiw] && shell != 'outer'
           before = booth.entities.length
           n, dnotes, dwarns = iep_deck(model, booth, key, spec, cfg['dir'], cache, host)
@@ -2544,7 +2604,29 @@ module WR_BuildBoothComponents
           dnotes.each { |x| puts "  IEP deck #{x}" }
           dwarns.each { |x| puts "  IEP DECK: #{x}" }
           puts '  IEP deck NOT PLACED - see above' if n.zero?
+          iep_added = booth.entities.to_a[before..-1].to_a
         end
+
+        # ---- THE CEILING LIGHT ------------------------------------------
+        #
+        # Under the ceiling the room actually sees. On an Enhanced booth the
+        # IEP tray hangs BELOW the standard ceiling and engulfs it, so the
+        # tray's tiles are the ones a light must sit under; anywhere else it
+        # is the standard CL. Getting this backwards buries the fixture inside
+        # the ceiling sandwich, where it is invisible and lights nothing.
+        #
+        # It carries the WR Lights tag, so the Draft/Render toggle hides it
+        # with the rest of the rig (LIGHT_TAG above).
+        lit_parts = if spec[:eiw] && shell != 'outer' && !(iep_added || []).empty?
+                      iep_added
+                    else
+                      shell == 'inner' ? [] : (deck_added['CL'] || [])
+                    end
+        t_light = tag.call(LIGHT_TAG, [255, 199, 44])
+        ln, lnote = place_booth_lighting(model, booth, cfg['dir'], lit_parts,
+                                         t_light, cache)
+        placed += ln
+        puts "  lighting #{lnote}" if lnote
       end
 
       # ---- overlays: foam, duct covers, and the link's option parts --------
