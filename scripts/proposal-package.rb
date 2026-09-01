@@ -2133,15 +2133,31 @@ module WR_ProposalPackage
   # (verified live 31 Aug 2026, SketchUp 2026) and the pixels honour exactly
   # that state. A hidden group's children are not walked — they vanish with
   # it, and listing every wall band of a hidden wall would bury the signal.
+  # Component instances too, not just groups (code review, 1.12.4):
+  # wr-scene-walls' selection buttons hide whatever is selected, and a booth
+  # part placed as add_instance is a ComponentInstance — grepping only
+  # groups made the manifest write [] for a scene that deliberately hid one,
+  # which the field notes define as "nothing was hidden". An instance
+  # descends through its definition's entities, so a hidden group nested
+  # inside a component is seen as well.
   def self.hidden_group_walk(ents, path, depth)
     out = []
-    ents.grep(Sketchup::Group).each do |g|
+    ents.each do |g|
+      is_grp = g.is_a?(Sketchup::Group)
+      is_ci  = g.is_a?(Sketchup::ComponentInstance)
+      next unless is_grp || is_ci
       nm = (g.name.to_s rescue '')
+      nm = (g.definition.name.to_s rescue '') if nm.empty? && is_ci
       label = nm.empty? ? '(unnamed group)' : nm
       if (g.hidden? rescue false)
         out << (path + [label]).join(' / ')
       elsif depth < 3
-        out.concat(hidden_group_walk(g.entities, path + [label], depth + 1))
+        kids = begin
+          is_grp ? g.entities : g.definition.entities
+        rescue StandardError
+          nil
+        end
+        out.concat(hidden_group_walk(kids, path + [label], depth + 1)) if kids
       end
     end
     out

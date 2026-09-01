@@ -2,6 +2,22 @@
 
 ## 2026-08-31
 
+### 1.12.5 — manifest hidden-walk sees component instances too (code review)
+
+`/code-review` on the 1.12.0–1.12.3 diff: `proposal-package.rb`'s
+`hidden_group_walk` grepped only `Sketchup::Group`, but the wall picker's
+selection buttons hide whatever is selected — a booth part placed as
+`add_instance` is a `ComponentInstance`, so a scene that deliberately hid
+one wrote `groups_hidden: []`, which the field notes define as "nothing
+was hidden". The walk now takes instances (labelled by instance name,
+falling back to the definition's) and descends through a definition's
+entities, so a hidden group nested inside a component is seen as well.
+Verified live: a hidden probe instance and a group hidden inside a
+component definition both appear, probe removed by abort. The review's
+seven other findings sit in `takeoff-check.py` / `eval-floorplan.py`
+(other Builders' files) and were handed to the coordinator, not fixed
+here. VERSION -> **1.12.5**.
+
 ### 1.12.4 — self-touching polygons refuse by name (eval F1), and the clear-width residual named
 
 Fix for the eval sweep's F1 in `scripts/takeoff-check.py`; VERSION 1.12.3 ->
