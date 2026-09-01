@@ -101,6 +101,9 @@ begin
   # wr-scene-walls.rb stays a standalone tool as well; this reuses its
   # inventory/apply so there is ONE mechanism, not two that can disagree.
   load File.join(File.dirname(__FILE__), 'wr-scene-walls.rb')
+  # The sRGB post-encode for the render lane (the dark-file fix — see the
+  # THE DARK RENDERS section above save_frame). Pure Ruby, no tool of its own.
+  load File.join(File.dirname(__FILE__), 'wr-png-srgb.rb')
 ensure
   $wr_no_autorun = wr_pp_autorun_was
 end
@@ -1115,6 +1118,7 @@ module WR_ProposalPackage
     @client_safe   = client_safe
     @mode_note     = nil
     @quality_problems = []
+    @srgb_problems = []
     @vray_saved    = nil
     @quality_note  = nil
     @ev_used       = {}
@@ -2004,10 +2008,52 @@ module WR_ProposalPackage
   # because at the time nobody had a measurement showing it mattered. Now
   # there is one.
   #
+  # AND :apply_color_corrections IS NOT THE FIX. MEASURED 1 Sep 2026: with it
+  # in SAVE_OPTS the retry file came out byte-different but luminance
+  # IDENTICAL (mean 0.1585, max 0.691). It bakes only the VFB's correction
+  # LAYERS (exposure / curve / LUT — all at default on this rig), not the
+  # display sRGB transform the VFB window applies on top. It stays in
+  # SAVE_OPTS so that any correction Benton DOES dial into the VFB reaches
+  # the file; the display transform is baked deterministically by srgb_bake
+  # below (wr-png-srgb.rb), which also stamps the sRGB + gAMA chunks so the
+  # file finally declares its colour space.
+  #
   # The other two options stay exactly as they were: :skip_alpha kills the
   # .Alpha.png sidecar, :no_alpha gives an opaque PNG.
   SAVE_OPTS = { :skip_alpha => true, :no_alpha => true,
                 :apply_color_corrections => true }.freeze
+
+  # THE DARK-FILE FIX. Runs on every render-lane file the moment it lands on
+  # disk: decode, sRGB-encode every colour byte, declare the colour space,
+  # verify, replace (the whole contract lives in wr-png-srgb.rb — temp file,
+  # pixel-perfect re-decode check, original never corrupted). Returns the
+  # string to append to the row's detail; a failure is logged loudly, named
+  # in the summary via @srgb_problems, and flagged in the detail itself so a
+  # dark file can never be shipped quietly as 'ok'.
+  #
+  # If a future V-Ray build starts saving display-corrected pixels itself,
+  # this would double-brighten — which is why the before/after means are in
+  # the log and the detail on every row: a 'before' that already reads ~0.35+
+  # on a normally-lit frame is the audit trail that says so. wr-png-srgb.rb
+  # also refuses any file that already DECLARES a colour space.
+  def self.srgb_bake(dlg, p)
+    r = begin
+      WR_PNGSRGB.encode_file(p[:path], "#{p[:path]}.srgb-tmp")
+    rescue Exception => e
+      { :ok => false, :why => "WR_PNGSRGB raised #{e.class}: #{e.message}" }
+    end
+    if r[:ok]
+      format(', sRGB-encoded (mean %.3f -> %.3f, max %.3f -> %.3f)',
+             r[:before] * 1.0, r[:after] * 1.0,
+             r[:max_before] * 1.0, r[:max_after] * 1.0)
+    else
+      (@srgb_problems ||= []) << "#{p[:file]}: #{r[:why]}"
+      log(dlg, "        #{p[:file]}  *** sRGB ENCODE FAILED - the file on " \
+               'disk is the LINEAR buffer and will read DARK in every ' \
+               "viewer. Do not send it to a client. (#{r[:why]})", 'bad')
+      ', *** LINEAR/DARK - sRGB encode failed, NOT CLIENT-READY (see log)'
+    end
+  end
 
   def self.sidecars(p)
     dir  = File.dirname(p[:path])
@@ -2037,7 +2083,8 @@ module WR_ProposalPackage
         @colour_baked = false
         log(dlg, "        #{p[:file]}  :apply_color_corrections was REJECTED by " \
                  "this V-Ray build (#{e.class}) - saved the RAW buffer instead. " \
-                 'THIS IMAGE WILL BE DARK. Do not send it to a client.', 'bad')
+                 'Any VFB correction layers are NOT in this file; the sRGB ' \
+                 'post-encode below still runs and fixes the darkness.', 'bad')
       rescue Exception => e2
         @results << { :file => p[:file], :lane => 'render', :status => 'failed',
                       :detail => "save_vfb_image raised #{e2.class}: #{e2.message}" }
@@ -2053,6 +2100,13 @@ module WR_ProposalPackage
       return
     end
     if File.exist?(p[:path])
+      # THE DARK-FILE FIX runs the moment the file exists, before the row is
+      # reported: save_vfb_image writes the LINEAR buffer (measured 1 Sep
+      # 2026 — see THE DARK RENDERS above), so every render-lane file gets
+      # the sRGB transfer curve baked in and the colour space declared. Its
+      # note (success means, or a loud NOT-CLIENT-READY flag) is part of the
+      # row's detail so the manifest and the summary carry it too.
+      enc_note = srgb_bake(dlg, p)
       # The size and EV that were ACTUALLY used, and where the size came
       # from. 1.9.3 hard-coded ", denoiser on" here because it had just
       # switched the denoiser on itself; now that the denoiser is the
@@ -2061,6 +2115,7 @@ module WR_ProposalPackage
       det = format('V-Ray %sx%s (size from %s), EV %s',
                    @cfg['width'], @cfg['height'], @size_source,
                    evv.nil? ? 'unreadable' : format('%.2f', evv.to_f))
+      det += enc_note
       side = sidecars(p)
       det += format(', plus %d render-element sidecar(s): %s',
                     side.size, side.join(', ')) unless side.empty?
@@ -2532,6 +2587,12 @@ module WR_ProposalPackage
     (@unmapped || []).each { |s| lines << "  unmapped: #{s}" }
     lines << "  note: #{@mode_note}" if @mode_note
     (@quality_problems || []).each { |s| lines << "  render quality: #{s}" }
+    # THE DARK-FILE doctrine: a file that could not be sRGB-encoded is on
+    # disk as the linear buffer and reads dark — named here, never quietly
+    # shipped inside an 'ok' count.
+    (@srgb_problems || []).each do |s|
+      lines << "  *** sRGB ENCODE FAILED (file is LINEAR/DARK, not client-ready): #{s}"
+    end
     restore_errs.each { |s| lines << "  *** RESTORE FAILED: #{s}" }
     # D8 -- the reconciliation pass 1 did not have. 5 rows were planned, 4
     # files were written, and the summary still said '0 FAILED'. A row that
