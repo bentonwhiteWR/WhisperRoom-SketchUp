@@ -8,14 +8,28 @@
 #
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/booth-from-link.rb"
 #
-# Accepts both link forms the portal produces:
+# Accepts all three link forms the portal produces (v2.502.0 ships a third):
+#
+#   .../booth-builder#3=<short base64url>
+#     The NEW structural encoding (portal v2.502.0, 2026-09-01): a byte
+#     array, 15-39 characters where #d= ran 407-764. Decoded locally, no
+#     network — see the "#3= structural decode" section below. Both hash
+#     forms converge on the SAME payload hash, so everything downstream of
+#     build_from_payload is untouched.
 #
 #   https://sales.whisperroom.com/booth-builder?d=e0d972ac9fec
 #     A short id. The design lives server-side; this fetches
 #     GET /api/booth-design/<id> (public, no auth) and reads the payload.
 #
 #   .../booth-builder#d=<long base64>
-#     The legacy self-contained hash. Decoded locally, no network.
+#     The older self-contained hash. STILL MINTED by the portal (the #3=
+#     encoder sits behind a feature flag, and the server writes #d= into
+#     HubSpot rep notes), still valid, and per the wire-format guide it
+#     must never stop working. Decoded locally, no network.
+#
+# The host is NEVER part of the format — production is sales.whisperroom.com,
+# staging is a Railway hostname. Every path here takes the origin from the
+# link it was given and hard-codes nothing.
 #
 # The payload contract (from booth-builder.html's designPayload()):
 #   m  'MDL 7272'   v 'S'|'E'    hx/vs/ef/cs/rp  0|1   a { slotId => pack }
@@ -178,7 +192,10 @@ module WR_BoothLink
     m ? [m[1], m[2]] : nil
   end
 
-  # Legacy hash: #d=<base64url JSON>, self-contained.
+  # Older hash: #d=<base64url JSON>, self-contained. Still minted by the
+  # portal, still valid, must keep decoding forever (wire-format guide,
+  # Rule 3.2). NOTHING in the #3= work below may change this method's
+  # behaviour — a regression here is worse than not reading #3= at all.
   def self.hash_payload(link)
     m = link.match(/#d=([A-Za-z0-9_-]+)/)
     return nil unless m
@@ -187,6 +204,379 @@ module WR_BoothLink
     JSON.parse(h.unpack1('m'))
   rescue StandardError
     nil
+  end
+
+  # ---------------------------------------------------- #3= structural decode --
+  #
+  # The short booth-design link the portal ships in v2.502.0 (2026-09-01).
+  # Source of truth: the wire-format guide ("The #3= booth-design link"),
+  # itself read out of booth-builder.html's codec and pinned by the portal's
+  # own 135-check test suite. The layout on the wire:
+  #
+  #   byte 0     format version — always 1; anything else is REFUSED
+  #   byte 1     model index into V3_MODELS (frozen, append-only)
+  #   byte 2     variant bit0 | hinge bit1 | facing bits2-3 | foam bits4-6
+  #              (bit 7 unused; written 0, not validated on read — guide §6.4)
+  #   bytes 3-6  32-bit flag word, LITTLE-ENDIAN; bit index = V3_FLAGS index
+  #   then, ONLY when the flag bit says so, in exactly this order:
+  #     1 byte   desk slot   (bit 22, 1-based ordinal into the slot order)
+  #     1 byte   MJP slot    (bit 23, same)
+  #     1 byte   package     (bit 24, 0-based into V3_PACKAGES)
+  #     5 bytes  room        (bit 20; ft/ft/ft, then packed inch nibbles)
+  #     N bytes  wall map    (bit 21; one byte per slot, N-S-E-W order,
+  #                           255 = "not specified, use the slot default")
+  #   Any shortfall or trailing byte is a hard error — a truncated link never
+  #   half-restores. Flag bits 28-31 are reserved, must be zero, and are
+  #   REFUSED when set, not masked off (guide §2.4).
+  #
+  # THE TABLES BELOW ARE WIRE FORMAT (guide, Rule 3.1). Append-only, forever:
+  # never reorder, never delete, never repurpose an index. Index 16 of the
+  # model table is MDL 96120 for all time. When a link carries an index these
+  # tables do not have, the answer is a refusal that names it — the link is
+  # newer than the plugin — never a clamp and never a guess at a neighbour.
+  #
+  # Every refusal raises V3Refusal with the reason BY NAME. This decoder
+  # never half-decodes: the caller gets a complete payload or a refusal,
+  # because a wrong number reaching a drawing is the worst outcome this
+  # repo knows.
+  #
+  # KNOWN OPEN POINTS, stated rather than papered over:
+  #   - Companion code 9 (the 7" WA companion) reconstructs to the guide's
+  #     own SKU column verbatim, 'STDWL7 / WL16' — one slot, two physical
+  #     panels. component_for has no branch for that string, so downstream
+  #     reports it untranslatable and the slot falls to its layout default,
+  #     LOUDLY. What single string the portal's #d= payload carries for that
+  #     slot is not stated in the guide; until it is, loud beats invented.
+  #   - The guide's own fully-loaded example ships wd = 1 (wide-access door)
+  #     with a plain DRFRM byte in the door slot; v3_report warns when that
+  #     combination arrives, because the build follows the pack strings.
+  #   - The decode is deliberately FAITHFUL, not normalised: the portal's
+  #     applyDesign() contradiction rules (nv forces vs/ef/rv off, ADA only
+  #     restores whole, dl forces dox off, vent-set BOM re-seating — guide
+  #     §4.1) are applied by NEITHER hash path here, so both forms of the
+  #     same link build the same booth. Adding a normaliser is a decision to
+  #     make for both paths together, not a #3= side effect.
+
+  class V3Refusal < StandardError; end
+
+  # Model index -> [name, module]. The module is the model's wall series
+  # (40- or 46-inch nominal panels); it is not in the link, it decides the
+  # window width in v3_sku (26 on the 40-series, 32 on the 46-series).
+  V3_MODELS = [
+    ['MDL 4230', 40],   ['MDL 4242', 40],   ['MDL 4260', 40],
+    ['MDL 4284', 40],   ['MDL 4848', 46],   ['MDL 4872', 46],
+    ['MDL 4896', 46],   ['MDL 6060', 40],   ['MDL 6084', 40],
+    ['MDL 7272', 46],   ['MDL 7296', 46],   ['MDL 8484', 40],
+    ['MDL 9696', 46],   ['MDL 10284', 40],  ['MDL 84102', 40],
+    ['MDL 84126', 40],  ['MDL 96120', 46],  ['MDL 96144', 46],
+    ['MDL 96168', 46],  ['MDL 96192', 46],  ['MDL 102102', 40],
+    ['MDL 102126', 40], ['MDL 102144', 40], ['MDL 102168', 40],
+    ['MDL 102186', 40]
+  ].freeze
+
+  V3_FOAM   = %w[Gray Orange Blue Purple Burgundy].freeze
+  V3_FACING = %w[N S E W].freeze
+  V3_CORNER = %w[NW NE SW SE].freeze
+
+  # Flag-word bits 0-19, in bit order. These are literally the #d= payload's
+  # own key names, which is what lets one build_from_payload serve both forms.
+  V3_FLAGS = %w[wd rp hx cs vs ef rv sl jp bt dk sp nv ac ad ep dl hp
+                dox re].freeze
+
+  V3_PACKAGES = ['Voice Over Basic', 'Voice Over Deluxe', 'Audiology Basic',
+                 'Audiology Deluxe', 'Office Booth', 'Work From Home Booth',
+                 'Drum Booth', 'Audiology Basic Plus', 'Audiology Compact',
+                 'Audiology Ultra', 'Audiology Premium', 'Creator Basic',
+                 'Creator Deluxe', 'Practice Basic', 'Practice Deluxe',
+                 'Recording Studio', 'Drum Studio', 'Meeting Booth',
+                 'Maker Space'].freeze
+
+  # New short hash: #3=<base64url>. Returns the raw hash text (validated in
+  # v3_bytes, so a malformed one is refused by name, not treated as "no link").
+  def self.v3_hash(link)
+    m = link.to_s.match(/#3=(\S+)/)
+    m && m[1]
+  end
+
+  # base64url, UNPADDED: the standard alphabet with + -> - and / -> _, all
+  # '=' stripped. The guide is explicit that anything outside [A-Za-z0-9_-]
+  # is rejected, so the alphabet is checked FIRST — unpack('m') would
+  # silently skip characters it does not like, and a skipped character
+  # shifts every byte after it. Decoded by hand rather than through
+  # String#unpack so the whole thing runs under rbtest's minimal VM, which
+  # has no unpack; forty characters of shifting costs nothing.
+  V3_B64 = (('A'..'Z').to_a + ('a'..'z').to_a + ('0'..'9').to_a +
+            %w[- _]).each_with_index.to_h.freeze
+
+  def self.v3_bytes(hash)
+    bad = hash.scan(/[^A-Za-z0-9_-]/).uniq
+    unless bad.empty?
+      raise V3Refusal, "the payload contains #{bad.map(&:inspect).join(', ')} " \
+                       '— not base64url ([A-Za-z0-9_-] only). The link is ' \
+                       'mangled, most likely by an email client or a copy-paste.'
+    end
+    if hash.length % 4 == 1
+      raise V3Refusal, "a base64url payload can never be #{hash.length} " \
+                       'characters long (length % 4 == 1) — the link lost ' \
+                       'characters in transit.'
+    end
+    acc = 0
+    nbits = 0
+    bytes = []
+    hash.each_char do |c|
+      acc = (acc << 6) | V3_B64[c]
+      nbits += 6
+      next if nbits < 8
+      nbits -= 8
+      bytes << ((acc >> nbits) & 0xFF)
+    end
+    bytes
+  end
+
+  # The model's outer wall slots, [id, drawn width] in the canonical N-S-E-W
+  # order the wall-map bytes line up against. Derived from wr-booth-data.rb —
+  # the same digitised layouts the builder itself reads — rather than
+  # hard-coded, per the guide's own instruction ("derive it from the layout
+  # data, which is allowed to diverge later"). Within a wall the slots sort
+  # by their number: the guide's canonical table is ascending on every one
+  # of the 25 models, and wr-booth-data's LISTING order is not to be trusted
+  # for this — MDL 6060/6084 list E1 before E0 (a gen-booth artifact), and
+  # taking that order as canonical would swap two wall-map bytes silently.
+  # rbtest-boothlink-v3.py pins the derived order against the guide's table
+  # for all 25 models, both variants. Inner (IEP) slots are excluded; the
+  # link describes the outer shell and build_from_payload mirrors it inward.
+  # Returns nil — not [] — when the layout cannot be read, so "no slots" and
+  # "could not tell" stay distinguishable.
+  def self.v3_slots(key)
+    return nil unless File.exist?(DATA)
+    load DATA
+    spec = WR_BOOTH_DATA::BOOTHS[key]
+    return nil if spec.nil?
+    panels = (spec[:parts] || []).select { |p| p[:k] == 'panel' && p[:sh] != 'in' }
+    %w[N S E W].flat_map do |wall|
+      panels.select { |p| p[:id].to_s.start_with?(wall) }
+            .sort_by { |p| p[:id].to_s[1..-1].to_i }
+            .map do |p|
+        xs = p[:poly].map { |q| q[0] }
+        ys = p[:poly].map { |q| q[1] }
+        [p[:id].to_s, [xs.max - xs.min, ys.max - ys.min].max]
+      end
+    end
+  rescue StandardError
+    nil
+  end
+
+  # The guide's width snap: the slot's drawn width, snapped to the nearest of
+  # [16, 22, 28, module]. 43 is deliberately NOT in the set — it exists only
+  # as a wide-access companion, and including it made the 84-series' 42/44 in
+  # nominal slots snap to a phantom wall (guide §2.10).
+  def self.v3_snap(width, mod)
+    [16, 22, 28, mod].min_by { |w| (w - width).abs }
+  end
+
+  # Slot-vocabulary code -> the exact SKU string the #d= payload would carry,
+  # so the two hash forms hand build_from_payload identical packs. Codes 0-8
+  # take the snapped slot width; the window numeric is <width><height> with
+  # the width fixed by the module. Codes 9-15 are fixed strings — their
+  # widths come from the wide-access-door geometry, not from the slot.
+  # Returns nil for a code outside the frozen 16-entry vocabulary.
+  def self.v3_sku(code, snapped, mod, hinge)
+    wdo = mod == 40 ? 26 : 32
+    case code
+    when 0  then "STDWL#{snapped}"
+    when 1  then "STDWL#{snapped} VNT"
+    when 2  then "STDWL#{snapped} CBL"
+    when 3  then "STDWL#{snapped} DRFRM #{hinge}"
+    when 4  then "WA STDDRFRM #{hinge}"
+    when 5  then "STDWL#{snapped} WDO#{wdo}30"
+    when 6  then "STDWL#{snapped} WDO#{wdo}36"
+    when 7  then "STDWL#{snapped} WDO#{wdo}42"
+    when 8  then "STDWL#{snapped} WDO#{wdo}48"
+    when 9  then 'STDWL7 / WL16'   # the guide's own SKU column, verbatim; see
+                                   # the header note on companion code 9
+    when 10 then 'STDWL19'
+    when 11 then 'STDWL31'
+    when 12 then 'STDWL43'
+    when 13 then 'STDWL43 WDO2636'
+    when 14 then 'STDWL43 WDO2648'
+    when 15 then 'STDWL31 WDO1648'
+    end
+  end
+
+  # #3= hash text -> the SAME payload hash shape hash_payload returns, so
+  # build_from_payload and everything below it need no change. Raises
+  # V3Refusal, with the reason named, on anything malformed — never returns
+  # a partial payload.
+  def self.v3_payload(hash)
+    b = v3_bytes(hash)
+    if b.length < 7
+      raise V3Refusal, "the payload is #{b.length} byte(s); even a booth with " \
+                       'nothing optional is 7 (format, model, enums, flag word). ' \
+                       'The link is truncated.'
+    end
+    unless b[0] == 1
+      raise V3Refusal, "unknown format version #{b[0]} — this plugin reads " \
+                       'only version 1. The link is newer than the plugin; ' \
+                       'update the plugin rather than trusting a partial read.'
+    end
+    model, mod = V3_MODELS[b[1]]
+    if model.nil?
+      raise V3Refusal, "unknown model index #{b[1]} — this plugin knows " \
+                       "0..#{V3_MODELS.length - 1}. The link is newer than " \
+                       'the plugin. Refusing rather than guessing a nearby ' \
+                       'model (wire-format guide, Rule 3.1).'
+    end
+
+    enums   = b[2]
+    variant = (enums & 1) == 1 ? 'E' : 'S'
+    hinge   = ((enums >> 1) & 1) == 1 ? 'L' : 'R'
+    facing  = V3_FACING[(enums >> 2) & 3]
+    foam_ix = (enums >> 4) & 7
+    foam    = V3_FOAM[foam_ix]
+    if foam.nil?
+      raise V3Refusal, "unknown foam colour index #{foam_ix} — this plugin " \
+                       "knows 0..#{V3_FOAM.length - 1}. The link is newer " \
+                       'than the plugin.'
+    end
+
+    flags = b[3] | (b[4] << 8) | (b[5] << 16) | (b[6] << 24)
+    if (flags & 0xF0000000) != 0
+      raise V3Refusal, 'reserved flag bits 28-31 are set. Those bits belong ' \
+                       'to a future format; the guide is explicit that they ' \
+                       'are refused, not masked off (§2.4).'
+    end
+    corner_ix = (flags >> 25) & 7
+    corner = corner_ix.zero? ? nil : V3_CORNER[corner_ix - 1]
+    if corner.nil? && !corner_ix.zero?
+      raise V3Refusal, "unknown room-corner value #{corner_ix} — this plugin " \
+                       "knows 1..#{V3_CORNER.length} (and 0 for none)."
+    end
+
+    key = "#{model} #{variant}"
+    slots = v3_slots(key)
+    if slots.nil? || slots.empty?
+      raise V3Refusal, "the layout for #{key} could not be read from " \
+                       'wr-booth-data.rb, so the wall map cannot be sized or ' \
+                       'named. Nothing decoded.'
+    end
+
+    # The buffer length is fully determined by the flag word plus the slot
+    # count. Anything else is a truncated or padded link, refused whole.
+    need = 7
+    need += 1 if flags[22] == 1                 # desk slot
+    need += 1 if flags[23] == 1                 # MJP slot
+    need += 1 if flags[24] == 1                 # package
+    need += 5 if flags[20] == 1                 # room block
+    need += slots.length if flags[21] == 1      # wall map
+    unless b.length == need
+      how = b.length < need ? 'truncated' : 'carrying trailing bytes'
+      raise V3Refusal, "the payload is #{b.length} byte(s) but the flag word " \
+                       "says it must be exactly #{need} for #{key} " \
+                       "(#{slots.length} wall slots). The link is #{how}; " \
+                       'refusing rather than half-restoring.'
+    end
+
+    payload = { 'ver' => 2, 'm' => model, 'v' => variant, 'h' => hinge,
+                'f' => foam, 'fc' => facing }
+    V3_FLAGS.each_with_index { |k, i| payload[k] = flags[i] }
+
+    pos = 7
+    # Desk and MJP slot bytes are 1-based ordinals into the canonical slot
+    # order; the #d= payload carries slot ID STRINGS, so translate here.
+    if flags[22] == 1
+      n = b[pos]
+      pos += 1
+      unless n >= 1 && n <= slots.length
+        raise V3Refusal, "desk-slot ordinal #{n} is outside 1..#{slots.length} " \
+                         "for #{key}."
+      end
+      payload['ds'] = slots[n - 1][0]
+    end
+    if flags[23] == 1
+      n = b[pos]
+      pos += 1
+      unless n >= 1 && n <= slots.length
+        raise V3Refusal, "MJP-slot ordinal #{n} is outside 1..#{slots.length} " \
+                         "for #{key}."
+      end
+      payload['ms'] = slots[n - 1][0]
+    end
+    if flags[24] == 1
+      n = b[pos]
+      pos += 1
+      pk = V3_PACKAGES[n]
+      if pk.nil?
+        raise V3Refusal, "unknown package index #{n} — this plugin knows " \
+                         "0..#{V3_PACKAGES.length - 1}. The link is newer " \
+                         'than the plugin.'
+      end
+      payload['pk'] = pk
+    end
+    if flags[20] == 1
+      wf, lf, cf, wl_in, c_in = b[pos, 5]
+      pos += 5
+      payload['rm'] = {
+        'wFt' => wf == 255 ? '' : wf.to_s,
+        'wIn' => (wl_in >> 4) == 15 ? '' : (wl_in >> 4).to_s,
+        'lFt' => lf == 255 ? '' : lf.to_s,
+        'lIn' => (wl_in & 15) == 15 ? '' : (wl_in & 15).to_s,
+        'cFt' => cf == 255 ? '' : cf.to_s,
+        'cIn' => (c_in >> 4) == 15 ? '' : (c_in >> 4).to_s
+      }
+    end
+    payload['rc'] = corner if corner
+    if flags[21] == 1
+      a = {}
+      slots.each_with_index do |(sid, width), i|
+        v = b[pos + i]
+        next if v == 255                # not specified: the slot default rules
+        sku = v3_sku(v, v3_snap(width, mod), mod, hinge)
+        if sku.nil?
+          raise V3Refusal, "wall-map byte #{v} at slot #{sid} is not in the " \
+                           '16-entry slot vocabulary — the link is newer ' \
+                           'than the plugin.'
+        end
+        a[sid] = sku
+      end
+      payload['a'] = a
+    end
+    payload
+  end
+
+  # Provenance for the console before the build prints its own report: what
+  # the short link decoded to, plus the two things a #3= link can say that
+  # the build itself will not surface.
+  def self.v3_report(payload)
+    puts "  decoded #3= structural link -> #{payload['m']} #{payload['v']}, " \
+         "door #{payload['h']}, foam #{payload['f']}" \
+         "#{payload['pk'] ? ", package \"#{payload['pk']}\"" : ''}"
+    rm = payload['rm']
+    if rm
+      dim = lambda do |ft, inch|
+        ft.empty? && inch.empty? ? '?' : "#{ft.empty? ? '0' : ft}'" +
+          (inch.empty? ? '' : "-#{inch}\"")
+      end
+      puts "  room in the link: #{dim.call(rm['wFt'], rm['wIn'])} x " \
+           "#{dim.call(rm['lFt'], rm['lIn'])} x #{dim.call(rm['cFt'], rm['cIn'])} " \
+           "ceiling#{payload['rc'] ? ", booth in the #{payload['rc']} corner" : ''}" \
+           ' (reported only; the builder does not draw the room)'
+      if payload['re'].to_i == 1
+        puts '  ROOM IS AN EXAMPLE (re flag): the portal seeded it so the page had'
+        puts '  something to show. It is NOT the customer\'s measurement — do not'
+        puts '  let it reach a drawing as one.'
+      end
+    end
+    # The wd option flag travels separately from the wall map, and the
+    # portal's own examples ship wd = 1 with a plain DRFRM byte in the door
+    # slot (the WA-ness is applied by its restore step). Downstream here
+    # builds from the pack strings alone, so say it loudly when the two
+    # disagree rather than letting a standard door stand in silently.
+    if payload['wd'].to_i == 1 && !(payload['a'] || {}).values.any? { |s| s.start_with?('WA ') }
+      puts '  WIDE-ACCESS DOOR flag (wd) is set, but no wall-map slot carries the'
+      puts '  WA pack — the wall map says a standard door frame. The build follows'
+      puts '  the wall map, so the WIDE door is NOT what will stand in the model.'
+      puts '  Check the portal page for this link before trusting the door.'
+    end
   end
 
   # ----------------------------------------------------------- translation --
@@ -709,13 +1099,32 @@ module WR_BoothLink
     cfg = ask
     return if cfg.nil?
 
+    # The NEW #3= structural hash is recognised first, and a malformed one is
+    # REFUSED BY NAME here — it must not fall through to the "could not find
+    # a design id" message, which would misreport a mangled link as no link.
+    v3 = v3_hash(cfg['link'])
+    if v3
+      begin
+        payload = v3_payload(v3)
+      rescue V3Refusal => e
+        puts "REFUSED #3= link: #{e.message}"
+        UI.messagebox("This #3= short link cannot be decoded:\n\n#{e.message}\n\n" \
+                      'NOTHING WAS BUILT. A link this tool cannot decode whole ' \
+                      'is never decoded in part.')
+        return
+      end
+      v3_report(payload)
+      return build_from_payload(payload, cfg)
+    end
+
     inline = hash_payload(cfg['link'])
     return build_from_payload(inline, cfg) if inline
 
     origin_id = short_id(cfg['link'])
     if origin_id.nil?
       UI.messagebox("Could not find a design id in that link.\n\n" \
-                    "Expected ...booth-builder?d=<id> or ...#d=<hash>.")
+                    "Expected ...booth-builder?d=<id>, ...#d=<hash> " \
+                    "or ...#3=<hash>.")
       return
     end
 
