@@ -444,10 +444,19 @@ module WR_Overlays
   # convention (measured across the wall library) and these parts are new
   # territory, so nothing is assumed about which authored axis is up.
   # e: [ex, ey, ez]. Returns { :wi, :hi, :ti, :err }.
+  #
+  # want_h MAY BE NIL, and for any part whose height is not measured it MUST
+  # be. A guessed height is not a free hint: it is scored exactly like the two
+  # real numbers, so it can outvote them and win a permutation that stands the
+  # part on edge. That is what put the desk vertically on the wall — the
+  # invented 20" height beat the measured 14" depth into the vertical slot.
+  # With nil, only the measured axes are scored and the leftover axis IS the
+  # vertical one, which is the fact we actually know about a wall-mounted part.
   def self.axes_for(e, want_w, want_h, want_t)
     best = nil
     [0, 1, 2].permutation.each do |wi, hi, ti|
-      err = (e[wi] - want_w).abs + (e[hi] - want_h).abs + (e[ti] - want_t).abs
+      err = (e[wi] - want_w).abs + (e[ti] - want_t).abs
+      err += (e[hi] - want_h).abs unless want_h.nil?
       best = { :wi => wi, :hi => hi, :ti => ti, :err => err } if best.nil? || err < best[:err]
     end
     best
@@ -805,10 +814,11 @@ module WR_Overlays
           fr0 = slot_frame(host[:poly], centre)
           hf = mode == :inside ? host_frame(panels, host, centre) : slot_frame(host[:poly], centre)
           gx = geom_extents(dd)
-          ax = axes_for(gx[:e], dk[:w], 20.0, dk[:d])
-          # Height expectation is loose (20): the folded desk's vertical extent
-          # is unmeasured; width and depth carry the match. Printed so a wrong
-          # axis call is visible.
+          # Height is NOT guessed. The desk's two measured numbers — width
+          # along the wall and depth out from it — pick the axes; whatever is
+          # left over is vertical. Passing an invented height here is what
+          # stood the work surface up on edge against the wall.
+          ax = axes_for(gx[:e], dk[:w], nil, dk[:d])
           z_top = DESK_SURFACE_Z + (DESK_TOP_IS_STRIP ? DESK_STRIP_PROUD : 0.0)
           t = { :run => fr0[:run], :naxis => fr0[:naxis],
                 :run_c => (fr0[:r0] + fr0[:r1]) / 2.0,

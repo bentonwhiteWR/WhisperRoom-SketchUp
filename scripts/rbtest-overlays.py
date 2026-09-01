@@ -223,6 +223,18 @@ __METHODS__
     # 5 — axis matcher on the foam manifest figures.
     ax = axes_for([2.13, 22.97, 47.88], 24.0, 48.0, 2.0)
     out << format('axes w%d h%d t%d', ax[:wi], ax[:hi], ax[:ti])
+    # The desk rule: height is NOT supplied, so the two MEASURED numbers pick
+    # their axes and the LEFTOVER axis is vertical. Extents below are a
+    # wall-mounted desk authored with width on x, depth on y and its (small,
+    # unmeasured) vertical extent on z — the answer must be w0 t1, h2, and it
+    # must NOT depend on how tall the part happens to be. Both rows are the
+    # same part at two different heights and both must land identically;
+    # under the old guessed-20 height the taller row flipped depth into the
+    # vertical slot and stood the work surface on edge against the wall.
+    a1 = axes_for([30.0, 14.0, 6.0], 30.0, nil, 14.0)
+    a2 = axes_for([30.0, 14.0, 26.0], 30.0, nil, 14.0)
+    out << format('desk axes %d%d%d %d%d%d', a1[:wi], a1[:hi], a1[:ti],
+                  a2[:wi], a2[:hi], a2[:ti])
 
     # 6 — caster datum arithmetic (Benton direct) and plate selection.
     out << format('cp const %.2f %.2f %.2f %s', CP_BOOTH_LIFT, CP_TRAY_DEPTH,
@@ -296,6 +308,7 @@ EXPECT = (
     ' | mjp auto W1'
     ' | mjp E1 W1'
     ' | axes w1 h2 t0'
+    ' | desk axes 021 021'
     ' | cp const 4.75 0.75 5.50 sum-ok'
     ' | cp lift off 0.00 0.00 on 5.75'
     ' | cp names CP4872,CP7248 SIDE,CP7224 SIDE,CP9648 SIDE,CP9624 CTR,'
