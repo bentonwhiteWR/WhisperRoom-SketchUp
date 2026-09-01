@@ -1983,6 +1983,32 @@ module WR_ProposalPackage
   #     saved image is NOT the fully denoised frame. Whether save_vfb_image
   #     can be pointed at the denoised channel is UNANSWERED; it was not
   #     tried.
+  # THE DARK RENDERS. MEASURED 1 Sep 2026, and this is the whole of it.
+  #
+  # Benton: "The images don't look the same if you manually do it compared to
+  # when you press the export package ... it's making them usually much
+  # darker." Measured on his own pair, same model, same scene, same camera
+  # (EV 14.229 in both -- so exposure is NOT the difference):
+  #
+  #     Scene 4 render.png (batch)   mean luminance 0.159, MAX 0.682
+  #     the same frame by hand       mean luminance ~0.35+, max 1.000
+  #
+  # A render that never reaches white is the tell. Apply an sRGB transfer
+  # curve to the batch file and it lands on 0.397 -- the hand render. The
+  # saved file is the LINEAR buffer: what the VFB shows under "Raw".
+  #
+  # save_vfb_image saves the buffer without baking the VFB's colour
+  # corrections unless it is asked to. The option has been documented in this
+  # repo since the 28 Aug render-lane audit (F4) -- ":apply_color_corrections
+  # -- Bake the VFB corrections to the output file" -- and was never adopted,
+  # because at the time nobody had a measurement showing it mattered. Now
+  # there is one.
+  #
+  # The other two options stay exactly as they were: :skip_alpha kills the
+  # .Alpha.png sidecar, :no_alpha gives an opaque PNG.
+  SAVE_OPTS = { :skip_alpha => true, :no_alpha => true,
+                :apply_color_corrections => true }.freeze
+
   def self.sidecars(p)
     dir  = File.dirname(p[:path])
     base = File.basename(p[:path], '.png')
@@ -1999,12 +2025,25 @@ module WR_ProposalPackage
     end
     ok = nil
     begin
-      ok = @rend.save_vfb_image(p[:path], :skip_alpha => true, :no_alpha => true)
+      ok = @rend.save_vfb_image(p[:path], SAVE_OPTS)
     rescue Exception => e
-      @results << { :file => p[:file], :lane => 'render', :status => 'failed',
-                    :detail => "save_vfb_image raised #{e.class}: #{e.message}" }
-      log(dlg, "FAILED  #{p[:file]}  (save_vfb_image raised #{e.class}: #{e.message})", 'bad')
-      return
+      # An option key this build rejects raises. :apply_color_corrections is
+      # the one that could be missing, and losing the whole batch over it
+      # would be worse than a dark image, so drop it, SAY SO LOUDLY, and
+      # save. The row still succeeds; it is just wrong in the way it used to
+      # be wrong, and now it is named instead of silent.
+      begin
+        ok = @rend.save_vfb_image(p[:path], :skip_alpha => true, :no_alpha => true)
+        @colour_baked = false
+        log(dlg, "        #{p[:file]}  :apply_color_corrections was REJECTED by " \
+                 "this V-Ray build (#{e.class}) - saved the RAW buffer instead. " \
+                 'THIS IMAGE WILL BE DARK. Do not send it to a client.', 'bad')
+      rescue Exception => e2
+        @results << { :file => p[:file], :lane => 'render', :status => 'failed',
+                      :detail => "save_vfb_image raised #{e2.class}: #{e2.message}" }
+        log(dlg, "FAILED  #{p[:file]}  (save_vfb_image raised #{e2.class}: #{e2.message})", 'bad')
+        return
+      end
     end
     if ok == false
       @results << { :file => p[:file], :lane => 'render', :status => 'failed',
