@@ -2,6 +2,52 @@
 
 ## 2026-08-31
 
+### 1.12.2 — review sheet becomes reviewable: photo beside the pen-read, 3D views, structured patch
+
+Benton's three picks for the take-off review sheet, built into
+`scripts/takeoff-check.py --html` (generator fixed, not the published copy
+patched by hand). VERSION 1.12.1 -> **1.12.2**. No Ruby touched.
+
+- **Source photo beside the interpretation.** Each room shows the plan photo
+  it was read from next to a pen-callout -> take-off-value ledger, so review
+  is a comparison, not a memory test. The take-off carries no pixel
+  coordinates for pen marks, so no callout overlay is faked on the image —
+  the ledger lists every value against where it landed instead, and assumed
+  values are marked "not on any photo". Photos embed only behind
+  `--embed-photos` (downsampled to 1600px long edge, ~250 KB each, EXIF
+  orientation deliberately ignored — flat-lay phone shots carry arbitrary
+  tags and all three of UIC's are wrong while the raw pixels read upright).
+  Benton cleared sending these photos to claude.ai for THIS job; the flag
+  stays off by default because the next client may not be. `*.review.html`
+  is gitignored either way — client images never reach the public repo.
+- **Rotatable 3D view per room**, built from the LOCK (the checked numbers),
+  hand-written WebGL matching the `docs/tube-drying-stand.html` viewer's
+  interaction (drag orbit, arrows, R/reset; wheel zoom added per the 3D
+  house rule). Wall runs, ceiling height and doors are labelled in a
+  screen-space overlay so the text stays horizontal while the model turns,
+  and provenance carries through: ASSUMED runs/values draw in the warn
+  colour (3190J's carried band depth shows as two amber walls). Door
+  openings are real cuts; heaters/bulkhead massing included; 3190F's 3" jog
+  L-polygon triangulates correctly.
+- **Approve / needs-changes + the copy-back box.** Every stated value is
+  click-editable; an edit will not save without its source (pen / stated /
+  plan-vector, or assumed + reason) — an unsourced edit is the dialog's old
+  invented `at:36"` and the page refuses it. The copy box emits a
+  structured JSON patch (room, field, old, new-with-src, per-room review
+  status), and `takeoff-check.py --apply-patch patch.json` consumes it:
+  refuses by name on stale `old`, missing source, unknown field or wrong
+  job; rewrites takeoff.json only when clean; re-runs the full check so a
+  patched value passes the same invariants as a typed one. Format
+  documented in `reference/takeoff-format.md`.
+- Theme fixed in the generator: bare `:root` light, dark under the guarded
+  media query AND `:root[data-theme="dark"]`, explicit body background — all
+  three artifact viewer states verified by screenshot.
+- Verified: `--selftest` (25 grammar vectors + 15 invariant cases + 8 new
+  patch cases, 0 failures); headless-Chrome renders at 1200px/420px in
+  light, system-dark and forced-dark; page `#autotest` drives the real edit
+  path and the emitted patch was round-tripped through `--apply-patch` on a
+  copy of the UIC take-off (applied, `d` preserved, re-validated).
+
 ### 1.12.1 — adversarial eval set: the loop actually ran, and it found things
 
 Floor-plan intake spec step 8. New: `eval/gen-plans.py` (authors 12

@@ -120,3 +120,49 @@ SketchUp: load scripts/build-takeoff.rb, pick the lock file
 
 Scoring loop: `python scripts/eval-floorplan.py <case>` against
 `eval/floorplans/<case>/truth.json`, ledger in `eval/RESULTS.md`.
+
+## The review sheet, and the patch it emits
+
+`--html` writes `takeoff.review.html` next to the file: source photo beside
+the interpretation (a pen-callout → value ledger per room), the to-scale
+plan, a rotatable 3D view built **from the lock** (drag to rotate, scroll to
+zoom, arrows step, R resets — ASSUMED values draw in the warn colour there
+too), and per-room APPROVE / NEEDS CHANGES.
+
+- `--embed-photos` inlines the job's photos as downsampled data URIs
+  (1600 px long edge). Off by default: publishing the sheet sends the image
+  to claude.ai, which is a per-client decision. Either way the sheet file is
+  gitignored (`*.review.html`) — **client images are never committed**.
+- Every stated value on the sheet is editable, and an edit **requires** its
+  source (`pen`/`stated`/`plan-vector`, or `assumed` + reason) — an edit
+  with no source is the dialog's invented `at:36"` again and the page
+  refuses to record it.
+
+The copy box emits a structured patch, never prose:
+
+```jsonc
+{
+  "patch": 1,
+  "job": "uic-daley-library",
+  "review": {"3190G+H": "approved", "3190J": "needs-changes"},
+  "edits": [
+    {"room": "3190J", "field": "ceiling", "old": "8'-9\"",
+     "new": {"v": "8'10\"", "src": "stated Gabe tape 1 Sep"}}
+  ]
+}
+```
+
+`field` is one of `runs[i]`, `ceiling`, `thick`, `sill`, `doors[j].at/.w/.h`,
+`features[j].from/.length/.width/.depth/.head/.sill`. Apply it with
+
+```
+python scripts/takeoff-check.py clients/<job>/takeoff.json --apply-patch patch.json
+```
+
+which refuses by name any edit whose `old` no longer matches the file (stale
+patch) or whose `new` has no source, rewrites `takeoff.json` only when every
+edit applies cleanly, and re-runs the full check — so a patched value passes
+the same closure/corner/src invariants as a hand-typed one. Editing a run
+replaces its value and drops any old `parts` chain (the number changed; a
+stale chain would contradict it) — restate the chain in the take-off if the
+new value has one.

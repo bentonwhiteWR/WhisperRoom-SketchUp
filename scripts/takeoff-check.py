@@ -3,7 +3,24 @@
 
     python takeoff-check.py clients/<job>/takeoff.json
     python takeoff-check.py clients/<job>/takeoff.json --html [out.html]
+    python takeoff-check.py clients/<job>/takeoff.json --html --embed-photos
+    python takeoff-check.py clients/<job>/takeoff.json --apply-patch patch.json
     python takeoff-check.py --selftest
+
+--embed-photos inlines the job's source photos (downsampled, data URIs) into
+the review sheet so Gabe compares the pen marks against the transcription
+instead of recalling them. OFF by default: the sheet goes to claude.ai when
+published, and client imagery leaves the machine only on an explicit flag.
+The output lands in *.review.html, which is gitignored either way — client
+images are NEVER committed, embedded or otherwise.
+
+--apply-patch consumes the structured patch the review sheet's copy box
+emits: {"patch": 1, "job": ..., "review": {room: status}, "edits": [{room,
+field, old, new}]}. Every edit's `new` is a full {v, src} / {assumed,
+reason} value — an edit with no source is refused, the same defect as the
+dialog's invented at:36". `old` must match the current value or the edit is
+refused by name (the patch was written against a different file). A cleanly
+applied patch rewrites takeoff.json and re-runs the full check.
 
 Pure Python, no SketchUp. Exit 0 = every invariant holds and
 <takeoff>.lock.json was written next to the input. Exit 1 = at least one
@@ -372,6 +389,7 @@ def check_room(ck, room, idx):
                 continue
             ff[key + '_in'] = nv['in']
             ff[key + '_flag'] = nv['flag']
+            ff[key + '_src'] = nv['src']
         if not ok:
             continue
         run_len = runs[run_i]['in'] if run_i < len(runs) else 0
@@ -576,13 +594,20 @@ def esc(s):
             .replace('>', '&gt;').replace('"', '&quot;'))
 
 
+# The dark palette is written once and emitted twice: under the guarded
+# prefers-color-scheme media query (system dark, no explicit choice) and under
+# :root[data-theme="dark"] (the viewer's explicit toggle). Bare :root is the
+# complete light palette, so all three viewer theme states resolve.
+DARK_VARS = """--bg:#1b1e21;--card:#23272b;--ink:#e6eaed;
+    --ink-2:#98a2aa;--ink-3:#6d777e;--rule:#32383d;--accent:#ff7a33;--ok:#63b98a;
+    --bad:#e8705f;--warn:#e0b45a;--warn-bg:#2c2820;--solid:#2c3237;--field:#191c1f;"""
+
 CSS = """
   :root{--bg:#f2f3f5;--card:#fff;--ink:#14181c;--ink-2:#626c75;--ink-3:#949ea6;
     --rule:#dfe3e7;--accent:#ee6216;--ok:#2c6e49;--bad:#b03027;--warn:#9a6a00;
-    --warn-bg:#fdf4e0;--solid:#e3e8ec;--field:#fff;}
-  @media (prefers-color-scheme:dark){:root{--bg:#1b1e21;--card:#23272b;--ink:#e6eaed;
-    --ink-2:#98a2aa;--ink-3:#6d777e;--rule:#32383d;--accent:#ff7a33;--ok:#63b98a;
-    --bad:#e8705f;--warn:#e0b45a;--warn-bg:#2c2820;--solid:#2c3237;--field:#191c1f;}}
+    --warn-bg:#fdf4e0;--solid:#e3e8ec;--field:#fff;color-scheme:light dark;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){@DARK@}}
+  :root[data-theme="dark"]{@DARK@}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
     font-family:"Segoe UI",system-ui,sans-serif;font-size:13px;line-height:1.45;
@@ -612,7 +637,8 @@ CSS = """
   section.room{border:1px solid var(--rule);border-radius:6px;background:var(--card);
     margin-bottom:18px;overflow:hidden}
   .room h2{margin:0;padding:10px 14px;font-size:13px;font-weight:650;
-    border-bottom:1px solid var(--rule);display:flex;gap:10px;align-items:baseline}
+    border-bottom:1px solid var(--rule);display:flex;gap:10px;align-items:baseline;
+    flex-wrap:wrap}
   .room h2 .mono{color:var(--ink-3);font-weight:400;font-size:11px}
   .roomgrid{display:grid;grid-template-columns:1fr;gap:0}
   @media(min-width:760px){.roomgrid{grid-template-columns:minmax(0,1fr) 340px}}
@@ -635,6 +661,821 @@ CSS = """
     padding:11px 18px;display:flex;gap:10px;align-items:center}
   footer .hint{font-size:11px;color:var(--ink-3);font-family:Consolas,monospace}
   text{font-family:Consolas,ui-monospace,monospace}
+
+  /* --- source photo beside the interpretation ------------------------------ */
+  .cmp{display:grid;grid-template-columns:1fr;gap:0;border-bottom:1px solid var(--rule)}
+  @media(min-width:760px){.cmp{grid-template-columns:minmax(0,1fr) 340px}}
+  .ph{padding:12px 14px;background:var(--bg)}
+  .ph img{width:100%;height:auto;border:1px solid var(--rule);border-radius:3px;
+    cursor:zoom-in;display:block}
+  .phcap{margin-top:6px;font-size:10.5px;color:var(--ink-3);font-family:Consolas,monospace}
+  .noph{border:1px dashed var(--rule);border-radius:3px;padding:26px 16px;text-align:center;
+    color:var(--ink-3);font-size:11px;font-family:Consolas,monospace;background:var(--card)}
+  .ledger{padding:12px 14px;border-left:1px solid var(--rule)}
+  .ledger td.k{color:var(--ink);padding-right:10px}
+  .ledger td.v{color:var(--ink-2);width:58%}
+  .ledger td.v span{font-size:10.5px}
+  .lightbox{position:fixed;inset:0;background:rgba(10,12,14,.88);z-index:60;
+    overflow:auto;cursor:zoom-out;padding:24px}
+  .lightbox img{display:block;margin:0 auto;max-width:none;width:min(1600px,160vw)}
+
+  /* --- rotatable 3D view --------------------------------------------------- */
+  .v3d{position:relative;border-top:1px solid var(--rule);background:var(--bg);
+    height:340px;overflow:hidden}
+  .v3d canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;
+    cursor:grab;display:block}
+  .v3d canvas:active{cursor:grabbing}
+  .v3d .ovl{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .v3d .ovl span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;
+    font-family:Consolas,ui-monospace,monospace;font-size:10.5px;color:var(--accent);
+    text-shadow:0 0 3px var(--bg),0 0 3px var(--bg),0 0 3px var(--bg)}
+  .v3d .ovl span.asm{color:var(--warn);font-weight:700}
+  .v3d .ovl span.dim2{color:var(--ink-2)}
+  .v3d .ro{position:absolute;left:10px;bottom:8px;font-family:Consolas,monospace;
+    font-size:10px;color:var(--ink-3);pointer-events:none}
+  .v3d .hint3d{position:absolute;right:10px;bottom:8px;font-family:Consolas,monospace;
+    font-size:10px;color:var(--ink-3);pointer-events:none}
+  .v3d .rst{position:absolute;right:10px;top:8px;font-family:Consolas,monospace;
+    font-size:10px;padding:3px 9px;border:1px solid var(--rule);border-radius:3px;
+    background:var(--card);color:var(--ink-2);cursor:pointer}
+  .v3d .rst:hover{color:var(--ink)}
+
+  /* --- review controls, edits, the patch box ------------------------------- */
+  .rv{margin-left:auto;display:flex;gap:6px}
+  .rv button{font-family:Consolas,monospace;font-size:9.5px;letter-spacing:.09em;
+    padding:3px 10px;border-radius:3px;border:1px solid var(--rule);background:var(--card);
+    color:var(--ink-2);cursor:pointer}
+  .rv button.on-a{background:var(--ok);border-color:var(--ok);color:#fff}
+  .rv button.on-n{background:var(--warn);border-color:var(--warn);color:#fff}
+  .val{cursor:pointer;border-bottom:1px dashed var(--ink-3)}
+  .val:hover{border-bottom-color:var(--accent);color:var(--accent)}
+  .val.edited{color:var(--accent);font-weight:700;border-bottom:1px solid var(--accent)}
+  .was{color:var(--ink-3);text-decoration:line-through;margin-left:5px;font-size:10.5px}
+  .edform{margin:6px 0 8px;padding:9px 10px;border:1px solid var(--accent);border-radius:4px;
+    background:var(--bg);font-size:11px}
+  .edform label{display:block;margin:5px 0 2px;font-size:9.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-3);font-family:Consolas,monospace}
+  .edform input,.edform select{width:100%;padding:4px 7px;border:1px solid var(--rule);
+    border-radius:3px;background:var(--field);color:var(--ink);
+    font-family:Consolas,monospace;font-size:11.5px}
+  .edform .err{color:var(--bad);margin-top:5px;font-size:10.5px;font-family:Consolas,monospace}
+  .edform .row{display:flex;gap:8px;margin-top:8px}
+  .edform button{font-family:Consolas,monospace;font-size:10px;padding:4px 12px;
+    border-radius:3px;border:1px solid var(--rule);background:var(--card);
+    color:var(--ink-2);cursor:pointer}
+  .edform button.save{background:var(--accent);border-color:var(--accent);color:#fff}
+  #patchsec{border:1px solid var(--rule);border-radius:6px;background:var(--card);
+    margin-bottom:18px;padding:12px 14px}
+  #patchsec textarea{width:100%;min-height:120px;resize:vertical;border:1px solid var(--rule);
+    border-radius:4px;background:var(--field);color:var(--ink);padding:8px 10px;
+    font-family:Consolas,ui-monospace,monospace;font-size:11px;line-height:1.5}
+  #patchsec .row{display:flex;gap:10px;align-items:center;margin-top:8px}
+  #patchsec button{font-family:Consolas,monospace;font-size:10.5px;padding:5px 14px;
+    border-radius:3px;border:1px solid var(--accent);background:var(--accent);color:#fff;
+    cursor:pointer}
+  #patchsec .copied{color:var(--ok);font-size:10.5px;font-family:Consolas,monospace}
+  #patchsec .how{font-size:10.5px;color:var(--ink-3);font-family:Consolas,monospace;
+    margin-top:6px}
+""".replace('@DARK@', DARK_VARS)
+
+
+# The sheet's script: review controls + the structured patch box, and the
+# per-room rotatable 3D view. The 3D interaction (pointer-drag orbit, arrow
+# keys, reset, colours read live from the sheet's own CSS tokens) matches the
+# workspace's approved viewer in docs/tube-drying-stand.html; wheel zoom is
+# added per the 3D-artifact house rule (rotate, flip, zoom). Hand-written
+# WebGL, zero external dependencies — the sheet must also work from file://
+# with no network. parseLen is the dialog grammar, ported verbatim from
+# scripts/build-room.html:203 (held identical to parse_len above by
+# scripts/takeoff-vectors.json).
+JS = r"""
+(function () {
+  'use strict';
+  var LOCK = JSON.parse(document.getElementById('lockdata').textContent);
+  var pd = document.getElementById('photodata');
+  var PHOTOS = pd ? JSON.parse(pd.textContent) : {};
+
+  // ---------------------------------------------------------------- grammar --
+  function parseLen(s) {
+    if (typeof s === 'number') return isFinite(s) ? s : NaN;
+    var t = String(s).trim().toLowerCase()
+      .replace(/[′’]/g, "'").replace(/[″“”]/g, '"')
+      .replace(/\s*(?:ft|feet|foot)\b/g, "'")
+      .replace(/\s*(?:in|inch|inches)\b/g, '"')
+      .replace(/'\s*-\s*/g, "' ")
+      .trim();
+    if (!t) return NaN;
+    var feet = 0, inch = 0, seen = false, m;
+    m = t.match(/^([0-9]*\.?[0-9]+)\s*'/);
+    if (m) { feet = parseFloat(m[1]); seen = true; t = t.slice(m[0].length).trim(); }
+    if (t) {
+      m = t.match(/^([0-9]*\.?[0-9]+)?\s*(?:([0-9]+)\s*\/\s*([0-9]+))?\s*"?$/);
+      if (!m || (m[1] === undefined && m[2] === undefined)) return NaN;
+      inch = (m[1] ? parseFloat(m[1]) : 0) + (m[2] ? parseFloat(m[2]) / parseFloat(m[3]) : 0);
+      seen = true;
+    }
+    if (!seen) return NaN;
+    var v = feet * 12 + inch;
+    return isFinite(v) ? v : NaN;
+  }
+  function arch(n) {
+    var neg = n < 0; n = Math.abs(n);
+    var f = Math.floor(n / 12), i = Math.round((n - f * 12) * 10) / 10;
+    if (i >= 12) { f += 1; i -= 12; }
+    return (neg ? '-' : '') + f + "'-" + (i % 1 === 0 ? i : i.toFixed(1)) + '"';
+  }
+
+  // ------------------------------------------------------- photos, lightbox --
+  document.querySelectorAll('img.photo').forEach(function (img) {
+    var name = img.getAttribute('data-img');
+    if (PHOTOS[name]) img.src = PHOTOS[name];
+    img.addEventListener('click', function () {
+      var lb = document.createElement('div');
+      lb.className = 'lightbox';
+      var big = document.createElement('img');
+      big.src = img.src; big.alt = img.alt;
+      lb.appendChild(big);
+      lb.addEventListener('click', function () { lb.remove(); });
+      document.body.appendChild(lb);
+    });
+  });
+
+  // -------------------------------------------- review state + patch emitter --
+  // Every edit is a measurement claim: the form will not save without a
+  // source, and "assumed" will not save without a reason. The patch box emits
+  // structured JSON that takeoff-check.py --apply-patch consumes directly —
+  // never prose, because re-interpreting prose is the transcription step this
+  // whole sheet exists to remove.
+  var state = { edits: [], review: {} };
+  var $patch = document.getElementById('patchbox');
+  var $counts = document.getElementById('fcounts');
+
+  function recordEdit(room, field, oldArch, newObj) {
+    state.edits = state.edits.filter(function (e) {
+      return !(e.room === room && e.field === field);
+    });
+    if (newObj) state.edits.push({ room: room, field: field, old: oldArch, 'new': newObj });
+    renderPatch();
+  }
+  function renderPatch() {
+    var any = state.edits.length || Object.keys(state.review).length;
+    if (!any) {
+      $patch.value = '(no edits and no room decisions yet — click a dashed '
+        + 'value to change it, or APPROVE / NEEDS CHANGES on a room)';
+    } else {
+      $patch.value = JSON.stringify({
+        patch: 1, job: LOCK.job, review: state.review, edits: state.edits
+      }, null, 2);
+    }
+    if ($counts) {
+      var a = 0, n = 0, k;
+      for (k in state.review) {
+        if (state.review[k] === 'approved') a++; else n++;
+      }
+      $counts.textContent = ' · ' + state.edits.length + ' edit(s), '
+        + a + ' approved, ' + n + ' needs-changes';
+    }
+  }
+
+  document.querySelectorAll('.rv button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var room = b.getAttribute('data-room'), st = b.getAttribute('data-st');
+      var box = b.parentElement;
+      if (state.review[room] === st) delete state.review[room];
+      else state.review[room] = st;
+      box.querySelectorAll('button').forEach(function (x) {
+        var on = state.review[room] === x.getAttribute('data-st');
+        x.className = on ? (x.getAttribute('data-st') === 'approved' ? 'on-a' : 'on-n') : '';
+      });
+      renderPatch();
+    });
+  });
+
+  // ------------------------------------------------------------ inline edit --
+  var openForm = null;
+  function closeForm() { if (openForm) { openForm.remove(); openForm = null; } }
+  document.querySelectorAll('.val').forEach(function (span) {
+    span.setAttribute('title', 'click to change this value');
+    span.addEventListener('click', function () {
+      closeForm();
+      var room = span.getAttribute('data-room');
+      var field = span.getAttribute('data-field');
+      var oldArch = span.getAttribute('data-old');
+      var existing = state.edits.filter(function (e) {
+        return e.room === room && e.field === field;
+      })[0];
+      var f = document.createElement('div');
+      f.className = 'edform';
+      f.innerHTML =
+        '<label>new value (was ' + oldArch.replace(/</g, '&lt;') + ')</label>'
+        + '<input class="fv" placeholder="e.g. 12\'6&quot;, 38&quot;, 150">'
+        + '<label>how was it measured?</label>'
+        + '<select class="fk"><option value="pen">pen — hand-written on the plan (name the image)</option>'
+        + '<option value="stated">stated — client said so (name where)</option>'
+        + '<option value="plan-vector">plan-vector — from PDF/DWG geometry (name the anchor)</option>'
+        + '<option value="assumed">assumed — nobody measured it (give the reason)</option></select>'
+        + '<label class="fdl">source detail</label>'
+        + '<input class="fd" placeholder="e.g. IMG_7594, or tape measure 1 Sep">'
+        + '<div class="err" hidden></div>'
+        + '<div class="row"><button class="save">SAVE EDIT</button>'
+        + '<button class="cancel">CANCEL</button>'
+        + (existing ? '<button class="drop">REMOVE EDIT</button>' : '') + '</div>';
+      span.parentElement.appendChild(f);
+      openForm = f;
+      var $v = f.querySelector('.fv'), $k = f.querySelector('.fk'),
+          $d = f.querySelector('.fd'), $e = f.querySelector('.err');
+      if (existing) {
+        if (existing['new'].assumed !== undefined) {
+          $v.value = existing['new'].assumed; $k.value = 'assumed';
+          $d.value = existing['new'].reason || '';
+        } else {
+          $v.value = existing['new'].v;
+          var parts = String(existing['new'].src || '').split(' ');
+          $k.value = parts[0] || 'pen'; $d.value = parts.slice(1).join(' ');
+        }
+      }
+      $k.addEventListener('change', function () {
+        f.querySelector('.fdl').textContent =
+          $k.value === 'assumed' ? 'reason (required — a silent assumption is the old defect)'
+                                 : 'source detail (required)';
+      });
+      f.querySelector('.save').addEventListener('click', function () {
+        var raw = $v.value.trim(), det = $d.value.trim();
+        var inches = parseLen(raw);
+        if (isNaN(inches)) {
+          $e.textContent = 'value does not parse — grammar: 150, 150", 12\'6", '
+            + '12\'-6", 12\' 6 1/2", 12.5\'; a bare number is inches';
+          $e.hidden = false; return;
+        }
+        if (!det) {
+          $e.textContent = $k.value === 'assumed'
+            ? 'an assumption with no reason is the defect this sheet exists to stop'
+            : 'name the source — where did this number come from?';
+          $e.hidden = false; return;
+        }
+        var obj = $k.value === 'assumed'
+          ? { assumed: raw, reason: det }
+          : { v: raw, src: $k.value + ' ' + det };
+        recordEdit(room, field, oldArch, obj);
+        span.textContent = arch(inches);
+        span.classList.add('edited');
+        var was = span.parentElement.querySelector('.was[data-for="' + field + '"]');
+        if (!was) {
+          was = document.createElement('span');
+          was.className = 'was'; was.setAttribute('data-for', field);
+          span.after(was);
+        }
+        was.textContent = oldArch;
+        closeForm();
+      });
+      f.querySelector('.cancel').addEventListener('click', closeForm);
+      var drop = f.querySelector('.drop');
+      if (drop) drop.addEventListener('click', function () {
+        recordEdit(room, field, oldArch, null);
+        span.textContent = oldArch;
+        span.classList.remove('edited');
+        var was = span.parentElement.querySelector('.was[data-for="' + field + '"]');
+        if (was) was.remove();
+        closeForm();
+      });
+      $v.focus();
+    });
+  });
+
+  document.getElementById('copybtn').addEventListener('click', function () {
+    var done = function () {
+      var c = document.querySelector('#patchsec .copied');
+      c.textContent = 'copied — paste it back to takeoff-check.py --apply-patch';
+      setTimeout(function () { c.textContent = ''; }, 4000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText($patch.value).then(done, function () {
+        $patch.select(); document.execCommand('copy'); done();
+      });
+    } else { $patch.select(); document.execCommand('copy'); done(); }
+  });
+  renderPatch();
+
+  // ------------------------------------------------------------- 3D viewers --
+  // Geometry is generated from the LOCK — the checked numbers, never the raw
+  // take-off — so the view shows what would actually be built. ASSUMED values
+  // draw in the warn colour, the same flag they carry on the plan.
+  function rgb(hex) {
+    hex = hex.trim().replace('#', '');
+    if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    return [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255,
+            parseInt(hex.slice(4, 6), 16) / 255];
+  }
+  function tokens() {
+    var cs = getComputedStyle(document.documentElement);
+    function t(k, fb) {
+      var v = cs.getPropertyValue('--' + k).trim();
+      return rgb(v && v.charAt(0) === '#' ? v : fb);
+    }
+    var solid = t('solid', '#e3e8ec'), warn = t('warn', '#9a6a00');
+    return {
+      wall: solid,
+      feat: solid.map(function (v) { return v * 0.82; }),
+      asm: [solid[0] * 0.35 + warn[0] * 0.65, solid[1] * 0.35 + warn[1] * 0.65,
+            solid[2] * 0.35 + warn[2] * 0.65],
+      floor: t('bg', '#f2f3f5').map(function (v) { return v * 0.96; }),
+      ink: t('ink', '#14181c'),
+      accent: t('accent', '#ee6216')
+    };
+  }
+  function mul(a, b) {
+    var o = new Float32Array(16), i, j, k;
+    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) {
+      var s = 0;
+      for (k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k];
+      o[i * 4 + j] = s;
+    }
+    return o;
+  }
+  function perspective(fovy, asp, n, f) {
+    var t = 1 / Math.tan(fovy / 2);
+    return new Float32Array([t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1,
+                             0, 0, 2 * f * n / (n - f), 0]);
+  }
+  function lookAt(eye, at, up) {
+    function s(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+    function x(a, b) {
+      return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    }
+    function d(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+    function nz(a) { var m = Math.sqrt(d(a, a)) || 1; return [a[0] / m, a[1] / m, a[2] / m]; }
+    var z = nz(s(eye, at)), xx = nz(x(up, z)), y = x(z, xx);
+    return new Float32Array([
+      xx[0], y[0], z[0], 0, xx[1], y[1], z[1], 0, xx[2], y[2], z[2], 0,
+      -d(xx, eye), -d(y, eye), -d(z, eye), 1]);
+  }
+
+  // Simple ear clipping — the polygons are small rectilinear rooms.
+  function triArea2(a, b, c) {
+    return (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+  }
+  function inTri(p, a, b, c) {
+    var d1 = triArea2(p, a, b), d2 = triArea2(p, b, c), d3 = triArea2(p, c, a);
+    var neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    var pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+    return !(neg && pos);
+  }
+  function triangulate(poly) {
+    var n = poly.length, idx = [], i, area = 0;
+    for (i = 0; i < n; i++) {
+      var j = (i + 1) % n;
+      area += poly[i][0] * poly[j][1] - poly[j][0] * poly[i][1];
+      idx.push(i);
+    }
+    var ccw = area > 0, tris = [], guard = 0;
+    while (idx.length > 3 && guard++ < 500) {
+      var cut = false;
+      for (i = 0; i < idx.length; i++) {
+        var a = idx[(i + idx.length - 1) % idx.length], b = idx[i],
+            c = idx[(i + 1) % idx.length];
+        var cr = triArea2(poly[a], poly[b], poly[c]);
+        if (ccw ? cr <= 1e-7 : cr >= -1e-7) continue;
+        var ok = true, m;
+        for (m = 0; m < idx.length; m++) {
+          var p = idx[m];
+          if (p === a || p === b || p === c) continue;
+          if (inTri(poly[p], poly[a], poly[b], poly[c])) { ok = false; break; }
+        }
+        if (ok) { tris.push([a, b, c]); idx.splice(i, 1); cut = true; break; }
+      }
+      if (!cut) break;
+    }
+    if (idx.length === 3) tris.push([idx[0], idx[1], idx[2]]);
+    return tris;
+  }
+
+  function viewer(section, room) {
+    var cv = section.querySelector('canvas');
+    var ovl = section.querySelector('.ovl');
+    var ro = section.querySelector('.ro');
+    var gl = null;
+    try {
+      gl = cv.getContext('webgl', { antialias: true, alpha: true, depth: true })
+        || cv.getContext('experimental-webgl', { antialias: true, alpha: true, depth: true });
+    } catch (e) { gl = null; }
+    if (!gl) {
+      section.querySelector('.v3d').innerHTML =
+        '<p style="padding:20px;font-size:11px;color:var(--ink-2)" class="mono">'
+        + 'This view needs WebGL, which this browser has turned off. '
+        + 'Every dimension it would show is on the plan above.</p>';
+      return null;
+    }
+    var poly = room.polygon;
+    var t = room.thick_in || 4, ceil = room.ceiling ? room.ceiling['in'] : 96;
+
+    // Outward normal per run: interior is on the polygon side, so outward is
+    // the right side of each directed edge for CCW polygons, left for CW.
+    var n = poly.length, area = 0, i;
+    for (i = 0; i < n; i++) {
+      var j = (i + 1) % n;
+      area += poly[i][0] * poly[j][1] - poly[j][0] * poly[i][1];
+    }
+    var ccw = area > 0;
+    function runGeom(i) {
+      var a = poly[i], b = poly[(i + 1) % n];
+      var ux = b[0] - a[0], uy = b[1] - a[1];
+      var L = Math.hypot(ux, uy) || 1;
+      ux /= L; uy /= L;
+      var nx = ccw ? uy : -uy, ny = ccw ? -ux : ux;
+      return { a: a, u: [ux, uy], n: [nx, ny], L: L };
+    }
+
+    var M = { pos: [], nrm: [], mat: [], lin: [], acc: [] };
+    var bmin = [1e9, 1e9, 1e9], bmax = [-1e9, -1e9, -1e9];
+    function pt(o, u, du, nn, dn, z) {
+      var p = [o[0] + u[0] * du + nn[0] * dn, o[1] + u[1] * du + nn[1] * dn, z];
+      for (var k = 0; k < 3; k++) {
+        if (p[k] < bmin[k]) bmin[k] = p[k];
+        if (p[k] > bmax[k]) bmax[k] = p[k];
+      }
+      return p;
+    }
+    function quad(a, b, c, d, nrm, m) {
+      [a, b, c, a, c, d].forEach(function (p) {
+        M.pos.push(p[0], p[1], p[2]);
+        M.nrm.push(nrm[0], nrm[1], nrm[2]);
+        M.mat.push(m);
+      });
+    }
+    function edge(a, b) { M.lin.push(a[0], a[1], a[2], b[0], b[1], b[2]); }
+    // Box: corner o on the interior face at run offset, u along the run for
+    // len, nn outward (or inward) for dep, z0..z1 up.
+    function box(o, u, len, nn, dep, z0, z1, m) {
+      var p000 = pt(o, u, 0, nn, 0, z0), p100 = pt(o, u, len, nn, 0, z0),
+          p110 = pt(o, u, len, nn, dep, z0), p010 = pt(o, u, 0, nn, dep, z0),
+          p001 = pt(o, u, 0, nn, 0, z1), p101 = pt(o, u, len, nn, 0, z1),
+          p111 = pt(o, u, len, nn, dep, z1), p011 = pt(o, u, 0, nn, dep, z1);
+      var un = [-nn[0], -nn[1], 0];
+      quad(p000, p100, p101, p001, un, m);                       // interior face
+      quad(p010, p110, p111, p011, nn.concat(0), m);             // outer face
+      quad(p000, p010, p011, p001, [-u[0], -u[1], 0], m);        // start cap
+      quad(p100, p110, p111, p101, [u[0], u[1], 0], m);          // end cap
+      quad(p001, p101, p111, p011, [0, 0, 1], m);                // top
+      quad(p000, p100, p110, p010, [0, 0, -1], m);               // bottom
+      edge(p000, p100); edge(p100, p110); edge(p110, p010); edge(p010, p000);
+      edge(p001, p101); edge(p101, p111); edge(p111, p011); edge(p011, p001);
+      edge(p000, p001); edge(p100, p101); edge(p110, p111); edge(p010, p011);
+    }
+
+    var MAT_WALL = 0, MAT_FEAT = 1, MAT_ASM = 2, MAT_FLOOR = 3;
+    var labels = [];   // {p:[x,y,z], text, cls}
+
+    // Floor
+    var tris = triangulate(poly);
+    tris.forEach(function (tr) {
+      var a = poly[tr[0]], b = poly[tr[1]], c = poly[tr[2]];
+      [[a[0], a[1], -0.7], [b[0], b[1], -0.7], [c[0], c[1], -0.7]].forEach(function (p) {
+        M.pos.push(p[0], p[1], p[2]);
+        M.nrm.push(0, 0, 1);
+        M.mat.push(MAT_FLOOR);
+      });
+    });
+
+    // Walls, split around door openings.
+    (room.runs || []).forEach(function (r, i) {
+      var g = runGeom(i);
+      var m = r.flag ? MAT_ASM : MAT_WALL;
+      var spans = (room.doors || []).filter(function (d) { return d.run === i; })
+        .map(function (d) { return d; })
+        .sort(function (a, b) { return a.at_in - b.at_in; });
+      var cur = 0;
+      spans.forEach(function (d) {
+        if (d.at_in > cur + 0.05) {
+          box([g.a[0] + g.u[0] * cur, g.a[1] + g.u[1] * cur],
+              g.u, d.at_in - cur, g.n, t, 0, ceil, m);
+        }
+        var h = Math.min(d.h_in, ceil);
+        if (h < ceil - 0.1) {
+          box([g.a[0] + g.u[0] * d.at_in, g.a[1] + g.u[1] * d.at_in],
+              g.u, d.w_in, g.n, t, h, ceil, m);
+        }
+        cur = d.at_in + d.w_in;
+        var lc = [g.a[0] + g.u[0] * (d.at_in + d.w_in / 2),
+                  g.a[1] + g.u[1] * (d.at_in + d.w_in / 2)];
+        var asm = d.at_flag || d.w_flag;
+        labels.push({
+          p: [lc[0], lc[1], h * 0.55],
+          text: 'door ' + arch(d.w_in) + ' at ' + arch(d.at_in)
+            + (d.at_flag ? ' ASSUMED' : ''),
+          cls: asm ? 'asm' : ''
+        });
+      });
+      if (g.L > cur + 0.05) {
+        box([g.a[0] + g.u[0] * cur, g.a[1] + g.u[1] * cur],
+            g.u, g.L - cur, g.n, t, 0, ceil, m);
+      }
+      labels.push({
+        p: [g.a[0] + g.u[0] * g.L / 2 + g.n[0] * (t + 13),
+            g.a[1] + g.u[1] * g.L / 2 + g.n[1] * (t + 13), 2],
+        text: arch(r['in']) + (r.flag ? ' ' + r.flag.toUpperCase() : ''),
+        cls: r.flag ? 'asm' : ''
+      });
+    });
+
+    // Features — the same massing the builder makes: heater 24" tall,
+    // bulkhead head..ceiling across the room, window 1" deep sill..ceiling.
+    (room.features || []).forEach(function (f) {
+      var g = runGeom(f.run);
+      var inw = [-g.n[0], -g.n[1]];
+      var flagged = ['from', 'length', 'width', 'depth', 'head', 'sill']
+        .some(function (k) { return f[k + '_flag']; });
+      var m = flagged ? MAT_ASM : MAT_FEAT;
+      var o = [g.a[0] + g.u[0] * (f.from_in || 0), g.a[1] + g.u[1] * (f.from_in || 0)];
+      if (f.type === 'heater') {
+        box(o, g.u, f.length_in, inw, f.depth_in || 10, 0, 24, m);
+        labels.push({
+          p: [o[0] + g.u[0] * f.length_in / 2 + inw[0] * (f.depth_in + 8),
+              o[1] + g.u[1] * f.length_in / 2 + inw[1] * (f.depth_in + 8), 27],
+          text: 'heater ' + arch(f.length_in), cls: 'dim2'
+        });
+      } else if (f.type === 'bulkhead') {
+        var ext = 0;
+        poly.forEach(function (p) {
+          var d = (p[0] - g.a[0]) * inw[0] + (p[1] - g.a[1]) * inw[1];
+          if (d > ext) ext = d;
+        });
+        box(o, g.u, f.length_in, inw, ext, Math.min(f.head_in, ceil), ceil, m);
+        labels.push({
+          p: [o[0] + g.u[0] * f.length_in / 2 + inw[0] * ext / 2,
+              o[1] + g.u[1] * f.length_in / 2 + inw[1] * ext / 2,
+              (Math.min(f.head_in, ceil) + ceil) / 2],
+          text: 'bulkhead, head ' + arch(f.head_in), cls: 'dim2'
+        });
+      } else if (f.type === 'window') {
+        var sill = f.sill_in != null ? f.sill_in : (room.sill_in || 48);
+        box(o, g.u, f.width_in, inw, 1, Math.min(sill, ceil), ceil, m);
+        labels.push({
+          p: [o[0] + g.u[0] * f.width_in / 2, o[1] + g.u[1] * f.width_in / 2,
+              (Math.min(sill, ceil) + ceil) / 2],
+          text: 'window ' + arch(f.width_in), cls: 'dim2'
+        });
+      }
+    });
+
+    // Ceiling-height dimension: a vertical accent line off the first corner.
+    var g0 = runGeom(0), gl_ = runGeom(n - 1);
+    var ox = g0.n[0] + gl_.n[0], oy = g0.n[1] + gl_.n[1];
+    var om = Math.hypot(ox, oy) || 1;
+    ox = ox / om; oy = oy / om;
+    var cx = poly[0][0] + ox * (t + 16), cy = poly[0][1] + oy * (t + 16);
+    M.acc.push(cx, cy, 0, cx, cy, ceil);
+    M.acc.push(cx - 4, cy - 4, 0, cx + 4, cy + 4, 0);
+    M.acc.push(cx - 4, cy - 4, ceil, cx + 4, cy + 4, ceil);
+    labels.push({
+      p: [cx, cy, ceil / 2],
+      text: 'ceil ' + arch(ceil) + (room.ceiling && room.ceiling.flag ? ' ASSUMED' : ''),
+      cls: room.ceiling && room.ceiling.flag ? 'asm' : ''
+    });
+
+    // GL plumbing (docs/tube-drying-stand.html's shaders, one more colour).
+    var VS = 'attribute vec3 aPos; attribute vec3 aNrm; attribute float aMat;'
+      + 'uniform mat4 uMVP; varying vec3 vN; varying float vM;'
+      + 'void main(){ vN = aNrm; vM = aMat; gl_Position = uMVP * vec4(aPos, 1.0); }';
+    var FS = 'precision mediump float; varying vec3 vN; varying float vM;'
+      + 'uniform vec3 uC0; uniform vec3 uC1; uniform vec3 uC2; uniform vec3 uC3;'
+      + 'uniform vec3 uLight;'
+      + 'void main(){ vec3 nn = normalize(vN); if (!gl_FrontFacing) nn = -nn;'
+      + ' float d = 0.6 + 0.4 * max(dot(nn, normalize(uLight)), 0.0);'
+      + ' vec3 c = uC0; if (vM > 2.5) c = uC3; else if (vM > 1.5) c = uC2;'
+      + ' else if (vM > 0.5) c = uC1;'
+      + ' gl_FragColor = vec4(c * d, 1.0); }';
+    var LVS = 'attribute vec3 aPos; uniform mat4 uMVP;'
+      + 'void main(){ gl_Position = uMVP * vec4(aPos, 1.0); }';
+    var LFS = 'precision mediump float; uniform vec4 uCol;'
+      + 'void main(){ gl_FragColor = uCol; }';
+    function compile(src, type) {
+      var s = gl.createShader(type);
+      gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+        throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    }
+    function program(vs, fs) {
+      var p = gl.createProgram();
+      gl.attachShader(p, compile(vs, gl.VERTEX_SHADER));
+      gl.attachShader(p, compile(fs, gl.FRAGMENT_SHADER));
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS))
+        throw new Error(gl.getProgramInfoLog(p));
+      return p;
+    }
+    var progT = program(VS, FS), progL = program(LVS, LFS);
+    function buf(data) {
+      var b = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, b);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+      return b;
+    }
+    var bufP = buf(M.pos), bufN = buf(M.nrm), bufM = buf(M.mat),
+        bufL = buf(M.lin), bufA = buf(M.acc);
+    var nTri = M.pos.length / 3, nLin = M.lin.length / 3, nAcc = M.acc.length / 3;
+
+    var HOME = { az: 36, el: 28, zoom: 1 };
+    var st = { az: HOME.az, el: HOME.el, zoom: HOME.zoom };
+    var mid = [(bmin[0] + bmax[0]) / 2, (bmin[1] + bmax[1]) / 2, (bmin[2] + bmax[2]) / 2];
+    var rad = 0.5 * Math.hypot(bmax[0] - bmin[0], bmax[1] - bmin[1], bmax[2] - bmin[2]);
+    var COL = tokens();
+
+    // Labels live in an HTML overlay, projected each draw, so they stay
+    // horizontal and legible at every rotation.
+    var spans = labels.map(function (lb) {
+      var s = document.createElement('span');
+      s.textContent = lb.text;
+      if (lb.cls) s.className = lb.cls;
+      ovl.appendChild(s);
+      return s;
+    });
+
+    function attr(prog, name, b, size) {
+      var l = gl.getAttribLocation(prog, name);
+      if (l < 0) return;
+      gl.bindBuffer(gl.ARRAY_BUFFER, b);
+      gl.enableVertexAttribArray(l);
+      gl.vertexAttribPointer(l, size, gl.FLOAT, false, 0, 0);
+    }
+    function draw() {
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var w = cv.clientWidth, h = cv.clientHeight;
+      if (!w || !h) return;
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      gl.viewport(0, 0, cv.width, cv.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.enable(gl.DEPTH_TEST);
+      gl.disable(gl.CULL_FACE);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      var fov = 32 * Math.PI / 180, asp = w / h;
+      var dist = rad / Math.sin(Math.min(fov, 2 * Math.atan(Math.tan(fov / 2) * asp)) / 2)
+        * 1.12 / st.zoom;
+      var az = st.az * Math.PI / 180, el = st.el * Math.PI / 180;
+      var eye = [mid[0] + dist * Math.cos(el) * Math.sin(az),
+                 mid[1] - dist * Math.cos(el) * Math.cos(az),
+                 mid[2] + dist * Math.sin(el)];
+      var mvp = mul(perspective(fov, asp, dist * 0.05, dist * 4),
+                    lookAt(eye, mid, [0, 0, 1]));
+
+      gl.useProgram(progT);
+      gl.uniformMatrix4fv(gl.getUniformLocation(progT, 'uMVP'), false, mvp);
+      gl.uniform3fv(gl.getUniformLocation(progT, 'uC0'), COL.wall);
+      gl.uniform3fv(gl.getUniformLocation(progT, 'uC1'), COL.feat);
+      gl.uniform3fv(gl.getUniformLocation(progT, 'uC2'), COL.asm);
+      gl.uniform3fv(gl.getUniformLocation(progT, 'uC3'), COL.floor);
+      gl.uniform3fv(gl.getUniformLocation(progT, 'uLight'), [-0.4, -0.6, 0.69]);
+      attr(progT, 'aPos', bufP, 3);
+      attr(progT, 'aNrm', bufN, 3);
+      attr(progT, 'aMat', bufM, 1);
+      gl.enable(gl.POLYGON_OFFSET_FILL);
+      gl.polygonOffset(1.0, 1.0);
+      gl.drawArrays(gl.TRIANGLES, 0, nTri);
+      gl.disable(gl.POLYGON_OFFSET_FILL);
+
+      gl.useProgram(progL);
+      gl.uniformMatrix4fv(gl.getUniformLocation(progL, 'uMVP'), false, mvp);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.uniform4f(gl.getUniformLocation(progL, 'uCol'),
+                   COL.ink[0], COL.ink[1], COL.ink[2], 0.5);
+      attr(progL, 'aPos', bufL, 3);
+      gl.drawArrays(gl.LINES, 0, nLin);
+      gl.uniform4f(gl.getUniformLocation(progL, 'uCol'),
+                   COL.accent[0], COL.accent[1], COL.accent[2], 0.9);
+      attr(progL, 'aPos', bufA, 3);
+      gl.drawArrays(gl.LINES, 0, nAcc);
+      gl.disable(gl.BLEND);
+
+      labels.forEach(function (lb, i) {
+        var p = lb.p;
+        var cxp = mvp[0] * p[0] + mvp[4] * p[1] + mvp[8] * p[2] + mvp[12];
+        var cyp = mvp[1] * p[0] + mvp[5] * p[1] + mvp[9] * p[2] + mvp[13];
+        var cwp = mvp[3] * p[0] + mvp[7] * p[1] + mvp[11] * p[2] + mvp[15];
+        var s = spans[i];
+        if (cwp <= 0.001) { s.hidden = true; return; }
+        var px = (cxp / cwp * 0.5 + 0.5) * w, py = (0.5 - cyp / cwp * 0.5) * h;
+        if (px < -60 || px > w + 60 || py < -20 || py > h + 20) {
+          s.hidden = true; return;
+        }
+        s.hidden = false;
+        s.style.left = px + 'px';
+        s.style.top = py + 'px';
+      });
+      ro.textContent = 'AZ ' + Math.round((st.az % 360 + 360) % 360) + '°  EL '
+        + Math.round(st.el) + '°  ×' + st.zoom.toFixed(2);
+    }
+
+    var drag = null;
+    cv.addEventListener('pointerdown', function (e) {
+      drag = { x: e.clientX, y: e.clientY, az: st.az, el: st.el };
+      cv.setPointerCapture(e.pointerId);
+    });
+    cv.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      st.az = drag.az + (e.clientX - drag.x) * 0.45;
+      st.el = Math.max(-15, Math.min(88, drag.el + (e.clientY - drag.y) * 0.35));
+      draw();
+    });
+    function endDrag() { drag = null; }
+    cv.addEventListener('pointerup', endDrag);
+    cv.addEventListener('pointercancel', endDrag);
+    cv.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      st.zoom = Math.max(0.5, Math.min(3, st.zoom * Math.exp(-e.deltaY * 0.0012)));
+      draw();
+    }, { passive: false });
+    cv.tabIndex = 0;
+    cv.addEventListener('keydown', function (e) {
+      var step = e.shiftKey ? 15 : 5, used = true;
+      if (e.key === 'ArrowLeft') st.az -= step;
+      else if (e.key === 'ArrowRight') st.az += step;
+      else if (e.key === 'ArrowUp') st.el = Math.min(88, st.el + step);
+      else if (e.key === 'ArrowDown') st.el = Math.max(-15, st.el - step);
+      else if (e.key === 'r' || e.key === 'R') {
+        st.az = HOME.az; st.el = HOME.el; st.zoom = HOME.zoom;
+      } else used = false;
+      if (used) { e.preventDefault(); draw(); }
+    });
+    section.querySelector('.rst').addEventListener('click', function () {
+      st.az = HOME.az; st.el = HOME.el; st.zoom = HOME.zoom; draw();
+    });
+
+    draw();
+    return { draw: draw, retoken: function () { COL = tokens(); draw(); } };
+  }
+
+  var viewers = [];
+  var byName = {};
+  (LOCK.rooms || []).forEach(function (r) { byName[r.name] = r; });
+  document.querySelectorAll('section.room[data-room]').forEach(function (sec) {
+    var room = byName[sec.getAttribute('data-room')];
+    if (!room || !room.polygon || !sec.querySelector('.v3d canvas')) return;
+    try {
+      var v = viewer(sec, room);
+      if (v) viewers.push(v);
+    } catch (e) {
+      var el = sec.querySelector('.v3d');
+      if (el) el.innerHTML = '<p style="padding:20px;font-size:11px;'
+        + 'color:var(--bad)" class="mono">3D view failed: ' + String(e).replace(/</g, '&lt;')
+        + '. The plan above is unaffected.</p>';
+    }
+  });
+  window.addEventListener('resize', function () {
+    viewers.forEach(function (v) { v.draw(); });
+  });
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onTheme = function () { viewers.forEach(function (v) { v.retoken(); }); };
+    if (mq.addEventListener) mq.addEventListener('change', onTheme);
+    else if (mq.addListener) mq.addListener(onTheme);
+    new MutationObserver(onTheme)
+      .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  }
+
+  // --------------------------------------------------------------- autotest --
+  // #autotest drives the same code paths the UI uses and reports into the
+  // DOM, so a headless --dump-dom run verifies the page end to end.
+  if (location.hash === '#autotest') {
+    var fails = [];
+    function chk(ok, m) { if (!ok) fails.push(m); }
+    chk(Math.abs(parseLen("12'6\"") - 150) < 1e-9, 'parseLen 12\'6"');
+    chk(Math.abs(parseLen("12' 6 1/2\"") - 150.5) < 1e-9, 'parseLen frac');
+    chk(Math.abs(parseLen('150') - 150) < 1e-9, 'bare number is inches');
+    chk(isNaN(parseLen('about 8ish')), 'junk rejected');
+    var v0 = document.querySelector('.val');
+    chk(!!v0, 'an editable value exists');
+    if (v0) {
+      recordEdit(v0.getAttribute('data-room'), v0.getAttribute('data-field'),
+                 v0.getAttribute('data-old'),
+                 { v: v0.getAttribute('data-old'), src: 'stated autotest re-check' });
+    }
+    var sec0 = document.querySelector('section.room[data-room]');
+    if (sec0) {
+      state.review[sec0.getAttribute('data-room')] = 'approved';
+      renderPatch();
+    }
+    try {
+      var p = JSON.parse($patch.value);
+      chk(p.patch === 1 && p.edits.length === 1 && p.edits[0]['new'].src
+        === 'stated autotest re-check', 'patch box holds the structured edit');
+    } catch (e) { fails.push('patch box is not JSON: ' + e); }
+    chk(viewers.length > 0, '3D viewer initialised (' + viewers.length + ')');
+    var d = document.createElement('div');
+    d.id = 'autotest-result';
+    d.textContent = fails.length ? 'AUTOTEST FAIL: ' + fails.join('; ')
+      : 'AUTOTEST OK (' + viewers.length + ' viewers)';
+    document.body.appendChild(d);
+    var pp = document.createElement('pre');
+    pp.id = 'autotest-patch';
+    pp.textContent = $patch.value;
+    document.body.appendChild(pp);
+    // Leave one edit form open so a screenshot shows the rendered form.
+    var v1 = document.querySelectorAll('.val')[1];
+    if (v1) v1.click();
+  }
+})();
 """
 
 
@@ -651,10 +1492,254 @@ def badge(src, flag):
     return '<span class="b pen">PEN</span>'
 
 
-def html_report(ck, lock, path):
+# ------------------------------------------------- photos + the transcription --
+
+PHOTO_EDGE = 1600   # long edge, px — pen callouts stay legible, page stays small
+PHOTO_QUALITY = 78
+
+IMG_RE = re.compile(r'(IMG_[A-Za-z0-9]+)')
+
+
+def load_photos(lock, takeoff_path, embed):
+    """{IMG_name: {'path', 'uri'|None, 'err'|None}} for every image source.
+
+    uri is a downsampled JPEG data URI when embed is true and the file is
+    readable; otherwise None with err naming why (missing file, no PIL...).
+    The photos are gitignored client assets — they reach the sheet only
+    through this explicit flag, and the sheet file itself is gitignored."""
+    base = os.path.dirname(os.path.abspath(takeoff_path))
+    out = {}
+    for s in (lock.get('sources') or []):
+        m = re.search(r'(IMG_[A-Za-z0-9]+)\.(jpe?g|png|webp)$', str(s), re.I)
+        if not m:
+            continue
+        name = m.group(1)
+        rec = {'path': str(s), 'uri': None, 'err': None}
+        if embed:
+            p = os.path.join(base, str(s).replace('/', os.sep))
+            if not os.path.exists(p):
+                rec['err'] = 'file not found: %s' % p
+            else:
+                try:
+                    import base64
+                    from PIL import Image
+                    im = Image.open(p)
+                    # Deliberately NOT applying the EXIF orientation: a phone
+                    # shooting a plan flat on a table gets an arbitrary
+                    # orientation tag (gravity is ambiguous straight down),
+                    # and on this job all three tags are wrong while the raw
+                    # pixels read upright. Re-encoding strips the tag so the
+                    # browser shows the same orientation. A sideways photo is
+                    # loud and cosmetic; the reviewer will say so.
+                    im.thumbnail((PHOTO_EDGE, PHOTO_EDGE))
+                    buf = io.BytesIO()
+                    im.convert('RGB').save(buf, 'JPEG', quality=PHOTO_QUALITY)
+                    rec['uri'] = ('data:image/jpeg;base64,'
+                                  + base64.b64encode(buf.getvalue()).decode('ascii'))
+                except Exception as e:
+                    rec['err'] = '%s: %s' % (type(e).__name__, e)
+        out[name] = rec
+    return out
+
+
+def _img_of(src):
+    m = IMG_RE.search(str(src or ''))
+    return m.group(1) if m else None
+
+
+def room_ledger(room):
+    """[(stated, target, note, img, flag)] — every value in the room that
+    reads from a photo, so a reader can tick each pen mark against the number
+    it became. Assumed values are listed too, marked as NOT on any photo."""
+    rows = []
+
+    def add(nv_in, src, flag, reason, target, note, parts=None):
+        img = _img_of(src)
+        if flag in ('assumed', 'default'):
+            rows.append(('(%s %s)' % (flag, arch(nv_in)), target,
+                         reason or note, None, flag))
+            return
+        stated = arch(nv_in)
+        if parts:
+            stated += ' = ' + ' + '.join(arch(p) for p in parts)
+        rows.append((stated, target, note, img, flag))
+
+    for i, r in enumerate(room.get('runs') or []):
+        add(r['in'], r['src'], r['flag'], r.get('reason'),
+            'run %d (%s)' % (i, r['d']), r.get('note'), r.get('parts'))
+    c = room.get('ceiling')
+    if c:
+        add(c['in'], c['src'], c['flag'], c.get('reason'), 'ceiling', c.get('note'))
+    for j, d in enumerate(room.get('doors') or []):
+        add(d['w_in'], d['w_src'], d['w_flag'], None, 'door %d width' % j, None)
+        add(d['at_in'], d['at_src'], d['at_flag'], d.get('at_reason'),
+            'door %d position' % j, None)
+    for j, f in enumerate(room.get('features') or []):
+        for key in ('from', 'length', 'width', 'depth', 'head', 'sill'):
+            if (key + '_in') in f:
+                add(f[key + '_in'], f.get(key + '_src'), f.get(key + '_flag'),
+                    None, '%s %s' % (f['type'], key), None)
+    return rows
+
+
+def room_images(room):
+    """The photo(s) this room reads from — IMG tokens in its measured srcs,
+    most-used first."""
+    counts = {}
+    for stated, target, note, img, flag in room_ledger(room):
+        if img:
+            counts[img] = counts.get(img, 0) + 1
+    return sorted(counts, key=lambda k: -counts[k])
+
+
+def val_span(room_name, field, inches):
+    """An editable value: the page turns these into edit forms whose output
+    lands in the structured patch box."""
+    a = arch(inches)
+    return ('<span class="val" data-room="%s" data-field="%s" data-old="%s">%s'
+            '</span>' % (esc(room_name), esc(field), esc(a), esc(a)))
+
+
+# ---------------------------------------------------------------- the patch --
+
+FIELD_RE = re.compile(r'^(runs|doors|features)\[(\d+)\](?:\.([A-Za-z]+))?$')
+DOOR_SUB = ('at', 'w', 'h')
+FEAT_SUB = ('from', 'length', 'width', 'depth', 'head', 'sill')
+
+
+def _stated_inches(obj):
+    """Inches currently stated by a raw take-off value object, or None."""
+    if isinstance(obj, dict):
+        if 'assumed' in obj:
+            return parse_len(obj['assumed'])
+        if 'v' in obj:
+            return parse_len(obj['v'])
+    elif isinstance(obj, (int, float, str)):
+        return parse_len(obj)
+    return None
+
+
+def apply_patch(data, patch):
+    """Apply a review-sheet patch to raw take-off data, in place.
+
+    Returns (errors, n_applied, review). Every failure is by name and any
+    failure means NOTHING was mutated for that edit; the caller only writes
+    the file when errors is empty. The two rules that bind everything else
+    bind here too: an edit with no source is refused (a measurement claim
+    with no source is the dialog's old invented at:36"), and an `old` that
+    does not match the current file is refused (the patch was written against
+    a different take-off)."""
+    errs = []
+    if not isinstance(patch, dict) or patch.get('patch') != 1:
+        errs.append(('patch', 'not a review-sheet patch — expected '
+                              '{"patch": 1, "job": ..., "edits": [...]}'))
+        return errs, 0, {}
+    pj, dj = str(patch.get('job') or ''), str(data.get('job') or '')
+    if pj and dj and pj != dj:
+        errs.append(('patch job', 'patch is for %r but the file is %r — '
+                                  'wrong take-off' % (pj, dj)))
+        return errs, 0, {}
+    rooms = {}
+    for r in (data.get('rooms') or []):
+        rooms[str(r.get('name', '')).strip()] = r
+    review = {}
+    for k, v in (patch.get('review') or {}).items():
+        if v not in ('approved', 'needs-changes'):
+            errs.append(('review %s' % k, 'status %r is not approved/needs-changes' % (v,)))
+        elif k not in rooms:
+            errs.append(('review %s' % k, 'no such room'))
+        else:
+            review[k] = v
+
+    n = 0
+    for k, e in enumerate(patch.get('edits') or []):
+        if not isinstance(e, dict):
+            errs.append(('edit %d' % k, 'not an object'))
+            continue
+        name = 'edit %d (%s %s)' % (k, e.get('room'), e.get('field'))
+        room = rooms.get(str(e.get('room') or ''))
+        if room is None:
+            errs.append((name, 'room %r is not in the take-off' % (e.get('room'),)))
+            continue
+        new = e.get('new')
+        has_src = isinstance(new, dict) and (
+            ('v' in new and str(new.get('src', '')).strip())
+            or ('assumed' in new and str(new.get('reason', '')).strip()))
+        if not has_src:
+            errs.append((name, 'new value carries no source — every edit is a '
+                               'measurement claim; give {"v", "src"} or '
+                               '{"assumed", "reason"}'))
+            continue
+        if _stated_inches(new) is None:
+            errs.append((name, 'new value does not parse'))
+            continue
+        field = str(e.get('field') or '')
+        m = FIELD_RE.match(field)
+        container = key = None
+        if field in ('ceiling', 'thick', 'sill'):
+            container, key = room, field
+        elif m:
+            kind, idx, sub = m.group(1), int(m.group(2)), m.group(3)
+            lst = room.get(kind) or []
+            if idx >= len(lst):
+                errs.append((name, '%s[%d] does not exist (%d present)'
+                             % (kind, idx, len(lst))))
+                continue
+            if kind == 'runs' and sub is None:
+                container, key = lst, idx
+            elif kind == 'doors' and sub in DOOR_SUB:
+                container, key = lst[idx], sub
+            elif kind == 'features' and sub in FEAT_SUB:
+                container, key = lst[idx], sub
+        if container is None:
+            errs.append((name, 'field %r is not editable — one of: runs[i], '
+                               'ceiling, thick, sill, doors[j].at/.w/.h, '
+                               'features[j].from/.length/.width/.depth/.head/.sill'
+                         % (field,)))
+            continue
+        current = container[key] if (isinstance(key, int) or key in container) \
+            else None
+        cur_in = _stated_inches(current)
+        if current is None:
+            # An absent optional value is currently the house default — the
+            # sheet shows it flagged DEFAULT, and measuring it is exactly the
+            # edit this exists for.
+            if key == 'h':
+                cur_in = HOUSE['door_h']
+            elif key in ('thick', 'sill'):
+                cur_in = HOUSE[key]
+        old_in = parse_len(e.get('old'))
+        if old_in is None:
+            errs.append((name, 'old %r does not parse' % (e.get('old'),)))
+            continue
+        if cur_in is None or abs(cur_in - old_in) > TOL:
+            errs.append((name, 'old is %s but the file currently says %s — '
+                               'the patch was written against a different '
+                               'take-off; regenerate the sheet and re-review'
+                         % (arch(old_in),
+                            arch(cur_in) if cur_in is not None else 'nothing')))
+            continue
+        if isinstance(key, int):
+            # A run: keep its direction, replace the value wholesale. If the
+            # old run carried a parts chain the edit drops it unless the new
+            # value brings its own — the reviewer changed the number, and a
+            # stale chain would contradict it.
+            replacement = dict(new)
+            replacement['d'] = container[key].get('d')
+            container[key] = replacement
+        else:
+            container[key] = dict(new)
+        n += 1
+    return errs, n, review
+
+
+def html_report(ck, lock, path, photos=None):
     """The review sheet — the page Gabe reads. Look approved via
     .forge/scoper/takeoff-review.mockup.html; same style tokens as
-    scripts/build-room.html."""
+    scripts/build-room.html. `photos` comes from load_photos(); when a photo
+    is embedded the sheet shows the pen source beside the interpretation so
+    review is a comparison, not a memory test."""
+    photos = photos or {}
     job = lock.get('job') if lock else '?'
     h = ['<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">',
          '<meta name="viewport" content="width=device-width,initial-scale=1">',
@@ -702,12 +1787,56 @@ def html_report(ck, lock, path):
             blocked += 1
         else:
             ready += 1
-        h.append('<section class="room"><h2>%s <span class="mono">%s</span></h2>'
-                 '<div class="roomgrid"><div class="plan">%s</div><div class="facts">'
-                 % (esc(name),
+        h.append('<section class="room" data-room="%s"><h2>%s '
+                 '<span class="mono">%s</span>'
+                 '<span class="rv"><button data-room="%s" data-st="approved">'
+                 'APPROVE</button><button data-room="%s" data-st="needs-changes">'
+                 'NEEDS CHANGES</button></span></h2>'
+                 % (esc(name), esc(name),
                     esc('; '.join(room.get('notes') or [])[:110]),
-                    _svg_room(room)))
-        h.append('<span class="lab">Stated values</span><table>')
+                    esc(name), esc(name)))
+
+        # The source photo beside the interpretation. The take-off carries no
+        # pixel coordinates for the pen marks, so no callout overlay is drawn
+        # on the image — instead every value that reads from this photo is
+        # listed against the number it became, and the reviewer ticks pen
+        # mark against number instead of recalling it.
+        imgs = room_images(room)
+        primary = imgs[0] if imgs else None
+        rec = photos.get(primary) if primary else None
+        h.append('<div class="cmp"><div class="ph">')
+        if rec and rec.get('uri'):
+            h.append('<img class="photo" data-img="%s" alt="Source photo %s — '
+                     'the marked-up plan this room was read from">'
+                     % (esc(primary), esc(primary)))
+            h.append('<div class="phcap">%s — click to enlarge. Every value '
+                     'right of here was read off this photo unless marked '
+                     'assumed.</div>' % esc(rec['path']))
+        elif primary:
+            why = (rec.get('err') if rec else
+                   'run takeoff-check.py --html --embed-photos to inline it')
+            h.append('<div class="noph">photo not embedded — %s<br>%s<br>'
+                     'client images stay out of git either way; the sheet '
+                     'file is gitignored</div>'
+                     % (esc(rec['path'] if rec else primary), esc(why)))
+        else:
+            h.append('<div class="noph">no photo source recorded for this '
+                     'room</div>')
+        h.append('</div><div class="ledger">'
+                 '<span class="lab">Pen callout &rarr; take-off value</span><table>')
+        for stated, target, note, img, flag in room_ledger(room):
+            h.append('<tr><td class="k">%s</td><td class="v">%s%s%s</td></tr>'
+                     % (esc(stated), esc(target),
+                        ' <span style="color:var(--warn)">not on any photo</span>'
+                        if flag in ('assumed', 'default') else
+                        (' · %s' % esc(img) if img and len(imgs) > 1 else ''),
+                        '<br><span style="color:var(--ink-3)">%s</span>'
+                        % esc(note) if note else ''))
+        h.append('</table></div></div>')
+
+        h.append('<div class="roomgrid"><div class="plan">%s</div><div class="facts">'
+                 % _svg_room(room))
+        h.append('<span class="lab">Stated values — click one to change it</span><table>')
         for i, r in enumerate(room['runs']):
             extra = ''
             if r.get('parts'):
@@ -716,24 +1845,32 @@ def html_report(ck, lock, path):
             elif r.get('note'):
                 extra = ' — ' + esc(r['note'])
             h.append('<tr><td class="k">run %d (%s)</td><td class="v">%s %s%s</td></tr>'
-                     % (i, r['d'], esc(arch(r['in'])), badge(r['src'], r['flag']), extra))
+                     % (i, r['d'], val_span(name, 'runs[%d]' % i, r['in']),
+                        badge(r['src'], r['flag']), extra))
         c = room.get('ceiling')
         if c:
             h.append('<tr><td class="k">ceiling</td><td class="v">%s %s%s</td></tr>'
-                     % (esc(arch(c['in'])), badge(c['src'], c['flag']),
+                     % (val_span(name, 'ceiling', c['in']),
+                        badge(c['src'], c['flag']),
                         ' — ' + esc(c['note']) if c.get('note') else ''))
         for j, dd in enumerate(room.get('doors') or []):
-            h.append('<tr><td class="k">door %d</td><td class="v">%s wide %s, at %s %s, '
-                     'height %s %s</td></tr>'
-                     % (j, esc(arch(dd['w_in'])), badge(dd['w_src'], dd['w_flag']),
-                        esc(arch(dd['at_in'])), badge(dd['at_src'], dd['at_flag']),
-                        esc(arch(dd['h_in'])), badge(dd['h_src'], dd['h_flag'])))
-        for f in room.get('features') or []:
-            span = f.get('length_in', f.get('width_in', 0.0))
-            h.append('<tr><td class="k">%s</td><td class="v">run %d, %s long%s%s</td></tr>'
-                     % (esc(f['type']), f['run'], esc(arch(span)),
-                        ', %s deep' % esc(arch(f['depth_in'])) if f.get('depth_in') else '',
-                        ', head %s' % esc(arch(f['head_in'])) if f.get('head_in') else ''))
+            h.append('<tr><td class="k">door %d</td><td class="v">%s wide %s, '
+                     'at %s %s, height %s %s</td></tr>'
+                     % (j, val_span(name, 'doors[%d].w' % j, dd['w_in']),
+                        badge(dd['w_src'], dd['w_flag']),
+                        val_span(name, 'doors[%d].at' % j, dd['at_in']),
+                        badge(dd['at_src'], dd['at_flag']),
+                        val_span(name, 'doors[%d].h' % j, dd['h_in']),
+                        badge(dd['h_src'], dd['h_flag'])))
+        for j, f in enumerate(room.get('features') or []):
+            bits = []
+            for key in ('from', 'length', 'width', 'depth', 'head', 'sill'):
+                if (key + '_in') in f:
+                    bits.append('%s %s' % (
+                        key, val_span(name, 'features[%d].%s' % (j, key),
+                                      f[key + '_in'])))
+            h.append('<tr><td class="k">%s</td><td class="v">run %d, %s</td></tr>'
+                     % (esc(f['type']), f['run'], ', '.join(bits)))
         h.append('</table>')
         for n, msg in oks:
             h.append('<div class="cl good"><span class="tag">%s OK</span><p>%s</p></div>'
@@ -744,14 +1881,46 @@ def html_report(ck, lock, path):
         for note in room.get('notes') or []:
             h.append('<div class="cl warn"><span class="tag">INTERPRETATION — CONFIRM</span>'
                      '<p>%s</p></div>' % esc(note))
-        h.append('</div></div></section>')
+        h.append('</div></div>')
+        # The rotatable 3D view — built from the LOCK numbers, i.e. what
+        # would actually be built. ASSUMED walls/values draw in the warn
+        # colour there too.
+        if room.get('polygon'):
+            h.append('<div class="v3d"><canvas aria-label="Rotatable 3D view '
+                     'of %s"></canvas><div class="ovl"></div>'
+                     '<button class="rst">RESET VIEW</button>'
+                     '<div class="ro"></div>'
+                     '<div class="hint3d">drag to rotate · scroll to zoom · '
+                     'arrows step · R resets</div></div>' % esc(name))
+        h.append('</section>')
+
+    h.append('<div id="patchsec"><span class="lab">Review patch — structured, '
+             'not prose</span>'
+             '<textarea id="patchbox" readonly spellcheck="false"></textarea>'
+             '<div class="row"><button id="copybtn">COPY PATCH</button>'
+             '<span class="copied"></span></div>'
+             '<div class="how">paste it back and run:  python '
+             'scripts/takeoff-check.py %s --apply-patch patch.json'
+             '<br>every edit carries its measured-vs-assumed source — the page '
+             'will not record one without it</div></div>' % esc(path))
 
     h.append('<footer><span class="hint">%d room%s ready%s · %d assumed value%s '
-             'will be flagged in the model</span></footer>'
+             'will be flagged in the model<span id="fcounts"></span></span></footer>'
              % (ready, '' if ready == 1 else 's',
                 ' · %d blocked by named errors' % blocked if blocked else '',
                 len(ck.assumed), '' if len(ck.assumed) == 1 else 's'))
-    h.append('</div></body></html>')
+    h.append('</div>')
+
+    # Data + script. </ is escaped so a note containing "</script>" cannot
+    # break out of the JSON blocks.
+    h.append('<script type="application/json" id="lockdata">%s</script>'
+             % json.dumps(lock, ensure_ascii=False).replace('</', '<\\/'))
+    uris = {k: v['uri'] for k, v in photos.items() if v.get('uri')}
+    if uris:
+        h.append('<script type="application/json" id="photodata">%s</script>'
+                 % json.dumps(uris).replace('</', '<\\/'))
+    h.append('<script>%s</script>' % JS)
+    h.append('</body></html>')
     return '\n'.join(h)
 
 
@@ -860,6 +2029,85 @@ def selftest():
     if not ok:
         print('       got %s' % inv)
         fails += 1
+
+    # ---- the patch path: what the review sheet's copy box emits ------------
+    def pcase(label, patch_body, want_ok, want_word=None, check=None):
+        data = room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
+                            'at': {'assumed': '6"', 'reason': 'no position'},
+                            'hinge': 'near'}])
+        patch = {'patch': 1, 'job': 'selftest'}
+        patch.update(patch_body)
+        errs, n, review = apply_patch(data, patch)
+        good = (not errs) == want_ok
+        if good and not want_ok and want_word:
+            blob = ' '.join(nm + ' ' + m for nm, m in errs).lower()
+            good = want_word.lower() in blob
+        if good and want_ok and check:
+            good = check(data, n, review)
+        print('%-4s patch: %s' % ('PASS' if good else 'FAIL', label))
+        if not good:
+            for nm, m in errs:
+                print('       %s: %s' % (nm, m))
+            return 1
+        return 0
+
+    fails += pcase(
+        'a sourced edit applies and the file re-validates',
+        {'edits': [{'room': 'T', 'field': 'doors[0].at',
+                    'old': '0\'-6"', 'new': {'v': '9"', 'src': 'pen tape'}}],
+         'review': {'T': 'approved'}},
+        True, None,
+        lambda d, n, rv: (n == 1 and rv == {'T': 'approved'}
+                          and d['rooms'][0]['doors'][0]['at'] == {'v': '9"', 'src': 'pen tape'}
+                          and not check_file(d, 'p')[0].errors))
+    fails += pcase(
+        'an edit with no source is refused (the invented-at:36 defect)',
+        {'edits': [{'room': 'T', 'field': 'doors[0].at',
+                    'old': '0\'-6"', 'new': {'v': '9"'}}]},
+        False, 'no source')
+    fails += pcase(
+        'assumed edit with a reason applies',
+        {'edits': [{'room': 'T', 'field': 'ceiling', 'old': '8\'6"',
+                    'new': {'assumed': '8\'6"', 'reason': 'still unmeasured'}}]},
+        True, None,
+        lambda d, n, rv: d['rooms'][0]['ceiling'].get('reason') == 'still unmeasured')
+    fails += pcase(
+        'old that does not match the file is refused (stale patch)',
+        {'edits': [{'room': 'T', 'field': 'ceiling', 'old': '9\'0"',
+                    'new': {'v': '8\'6"', 'src': 'pen tape'}}]},
+        False, 'different')
+    # apply_patch only applies; check_file judges what the edit did. Prove
+    # the pair: a run edit keeps its direction, and the polygon it reopens
+    # fails the full check by name.
+    data2 = room()
+    errs2, n2, _ = apply_patch(
+        data2, {'patch': 1, 'job': 'selftest',
+                'edits': [{'room': 'T', 'field': 'runs[0]', 'old': '10\'',
+                           'new': {'v': '10\'2"', 'src': 'stated tape'}}]})
+    ck2, _ = check_file(data2, 'p')
+    ok2 = (not errs2 and n2 == 1 and data2['rooms'][0]['runs'][0]['d'] == 'E'
+           and any('polygon' in nm for nm, _ in ck2.errors))
+    print('%-4s patch: run edit keeps d, and the reopened polygon fails the '
+          'full check by name' % ('PASS' if ok2 else 'FAIL'))
+    if not ok2:
+        fails += 1
+    fails += pcase(
+        'unknown field is refused by name',
+        {'edits': [{'room': 'T', 'field': 'doors[0].hinge', 'old': '6"',
+                    'new': {'v': '9"', 'src': 'pen tape'}}]},
+        False, 'not editable')
+    fails += pcase(
+        'wrong job is refused',
+        {'job': 'other-job',
+         'edits': [{'room': 'T', 'field': 'ceiling', 'old': '8\'6"',
+                    'new': {'v': '8\'6"', 'src': 'pen tape'}}]},
+        False, 'wrong take-off')
+    fails += pcase(
+        'measuring a DEFAULT door height applies (absent h = house 80")',
+        {'edits': [{'room': 'T', 'field': 'doors[0].h', 'old': '6\'-8"',
+                    'new': {'v': '82"', 'src': 'pen tape'}}]},
+        True, None,
+        lambda d, n, rv: d['rooms'][0]['doors'][0]['h'] == {'v': '82"', 'src': 'pen tape'})
     print('')
     print('%d failure(s)' % fails)
     return 1 if fails else 0
@@ -875,7 +2123,16 @@ def main(argv):
         return selftest()
     path = argv[0]
     want_html = '--html' in argv
-    rest = [a for a in argv[1:] if a != '--html']
+    embed = '--embed-photos' in argv
+    rest = [a for a in argv[1:] if a not in ('--html', '--embed-photos')]
+    patch_path = None
+    if '--apply-patch' in rest:
+        i = rest.index('--apply-patch')
+        if i + 1 >= len(rest):
+            print('--apply-patch needs the patch file')
+            return 2
+        patch_path = rest[i + 1]
+        del rest[i:i + 2]
     if not os.path.exists(path):
         print('no such file: %s' % path)
         return 2
@@ -884,6 +2141,33 @@ def main(argv):
     except ValueError as e:
         print('FAIL %s: not valid JSON — %s' % (path, e))
         return 1
+
+    if patch_path:
+        if not os.path.exists(patch_path):
+            print('no such patch file: %s' % patch_path)
+            return 2
+        try:
+            patch = json.load(open(patch_path, encoding='utf-8'))
+        except ValueError as e:
+            print('FAIL %s: not valid JSON — %s' % (patch_path, e))
+            return 1
+        perrs, n, review = apply_patch(data, patch)
+        print('')
+        print('APPLY PATCH  %s -> %s' % (patch_path, path))
+        for nm, msg in perrs:
+            print('  FAIL  %-28s %s' % (nm, msg))
+        if perrs:
+            print('  %d edit(s) refused by name — NOTHING was written; the '
+                  'take-off is unchanged.' % len(perrs))
+            return 1
+        for rname, st in sorted(review.items()):
+            print('  %-9s %s' % (st.upper(), rname))
+        print('  %d edit(s) applied; rewriting %s and re-running the full '
+              'check.' % (n, path))
+        with io.open(path, 'w', encoding='utf-8', newline='\n') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.write('\n')
+
     ck, lock = check_file(data, path)
     print_report(ck, lock, path)
 
@@ -898,10 +2182,23 @@ def main(argv):
             f.write('\n')
         print('  lock: %s' % lock_path)
     if want_html and lock:
+        photos = load_photos(lock, path, embed)
+        if embed:
+            for name, rec in sorted(photos.items()):
+                if rec['err']:
+                    print('  PHOTO FAIL %s — %s (placeholder rendered)'
+                          % (name, rec['err']))
+                elif rec['uri']:
+                    print('  photo embedded: %s (%d KB downsampled to %dpx '
+                          'long edge)' % (rec['path'],
+                                          len(rec['uri']) * 3 // 4 // 1024,
+                                          PHOTO_EDGE))
         out = rest[0] if rest else re.sub(r'\.json$', '', path) + '.review.html'
         with io.open(out, 'w', encoding='utf-8', newline='\n') as f:
-            f.write(html_report(ck, lock, path))
-        print('  review sheet: %s' % out)
+            f.write(html_report(ck, lock, path, photos))
+        print('  review sheet: %s%s' % (out,
+              ' (client photos EMBEDDED — this file must never be committed; '
+              '*.review.html is gitignored)' if embed else ''))
     return 1 if ck.errors else 0
 
 
