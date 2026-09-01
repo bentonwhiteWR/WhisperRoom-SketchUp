@@ -1196,8 +1196,7 @@ JS = r"""
     lab.textContent = 'What needs to change in ' + room + '?';
     var ta = document.createElement('textarea');
     ta.placeholder = 'e.g. the door on the north wall opens the other way; '
-      + 'the west partition is gone; the alcove is deeper than drawn.
-'
+      + 'the west partition is gone; the alcove is deeper than drawn. '
       + 'A number you can measure is better entered by clicking the dashed '
       + 'value above — that becomes a checked edit instead of prose.';
     ta.setAttribute('aria-label', 'Requested changes for ' + room);
@@ -2699,6 +2698,39 @@ def selftest():
           % ('PASS' if ok_h else 'FAIL', len(page)))
     if not ok_h:
         fails += 1
+
+    # The sheet is one big inline <script>, so a single stray character in it
+    # is a syntax error that kills the WHOLE block — photos, 3D viewers, the
+    # patch box, all of it, silently. That shipped once: a literal newline
+    # inside a JS string literal. "It renders" never proved the script parses,
+    # so parse it for real when node is on the machine.
+    if ok_h:
+        import subprocess, tempfile, shutil
+        node = shutil.which('node')
+        if not node:
+            print('SKIP review-sheet JS parse (no node on this machine)')
+        else:
+            blocks = re.findall(r'<script>(.*?)</script>', page, re.S)
+            jsok, why = bool(blocks), 'no inline <script> found'
+            for i, b in enumerate(blocks):
+                fh = tempfile.NamedTemporaryFile('w', suffix='.js', delete=False,
+                                                 encoding='utf-8', newline=chr(10))
+                fh.write(b)
+                fh.close()
+                r = subprocess.run([node, '--check', fh.name],
+                                   capture_output=True, text=True)
+                os.unlink(fh.name)
+                if r.returncode != 0:
+                    jsok = False
+                    err = [ln for ln in (r.stderr or '').splitlines()
+                           if 'Error' in ln] or ['(no message)']
+                    why = 'block %d: %s' % (i, err[0].strip())
+                    break
+            print('%-4s review sheet JS parses (%d block(s))%s'
+                  % ('PASS' if jsok else 'FAIL', len(blocks),
+                     '' if jsok else ' — ' + str(why)))
+            if not jsok:
+                fails += 1
 
     # apply_patch only applies; check_file judges what the edit did. Prove
     # the pair: a run edit keeps its direction, and the polygon it reopens
