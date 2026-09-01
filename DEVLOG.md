@@ -2,6 +2,38 @@
 
 ## 2026-08-31
 
+### 1.12.3 — two silent impossibilities in the take-off builder now refuse by name (F2/F3)
+
+Found by the eval-loop Builder's probe case
+`eval/floorplans/synthetic-headroom/`, both in `scripts/build-takeoff.rb`,
+both the corner-door defect's shape: an impossible input producing
+plausible-looking output instead of a refusal.
+
+- **F2 — a bulkhead whose head sits at or above the ceiling was silently
+  DROPPED** (`build_feature`'s zero-height guard turned it into a no-op),
+  so the room looked finished while missing a feature the client named —
+  and on the real UIC job the 8'-3" bulkhead is load-bearing detail.
+- **F3 — a door taller than its ceiling built THROUGH the ceiling plane**
+  (8'-6" leaf against 8'-0" walls, no complaint).
+
+Both now refuse in `lock_errors` before anything builds — same doctrine,
+same wording style as the corner door — and a window sill at/above the
+ceiling gets the identical clause, because it is the same silent-drop line.
+`build_feature` additionally distrusts its caller: a feature resolving to
+no volume raises `Refused` naming room, feature and the numbers, instead
+of returning quietly. Verified live (bridge, SketchUp 2026): the headroom
+lock refuses naming BOTH defects with the model census-verified unchanged,
+and the real UIC lock still builds all three rooms. Offline:
+`rbtest-takeoff.py` le6–le9, each guard mutation-checked (weaken it and
+its case FAILs). The fixtures were not touched — their wrongness is their
+job. Note for the coordinator: the checker (`scripts/takeoff-check.py`,
+another Builder's file) should ALSO refuse both at intake so the operator
+hears it before the build step; and `build-room.rb`'s dialog path
+(`door_errors` has no ceiling parameter) can still draw a too-tall door —
+both routed rather than fixed across ownership lines. VERSION -> **1.12.3**
+(1.12.1 and 1.12.2 were taken by concurrent Builders while this was in
+flight).
+
 ### 1.12.2 — review sheet becomes reviewable: photo beside the pen-read, 3D views, structured patch
 
 Benton's three picks for the take-off review sheet, built into

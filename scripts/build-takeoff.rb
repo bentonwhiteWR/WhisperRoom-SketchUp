@@ -28,6 +28,14 @@
 #   - two doors on one run with different heights (wall_run cuts every
 #     header on a run at one height; mixed heights would build one of them
 #     wrong, so the limit is stated instead of silently misbuilt)
+#   - a door taller than its room's ceiling, and a bulkhead (or window sill)
+#     whose underside sits at or above the ceiling. Both are impossible
+#     statements a transcription error produces, and both used to yield
+#     plausible-looking output instead of a refusal: the leaf built THROUGH
+#     the ceiling plane, and the bulkhead massing was silently dropped by a
+#     zero-height guard, so the room looked finished while missing a feature
+#     the client named (eval/floorplans/synthetic-headroom, F2/F3, 31 Aug
+#     2026). Same doctrine as the corner door: refuse before building.
 #
 # NEVER INVENT A PLACEMENT NUMBER, ENFORCED: every value the lock flags
 # assumed/default gets a text note on WR-Notes at the feature itself —
@@ -111,6 +119,7 @@ module WR_BuildTakeoff
         errs << "#{name}: no ceiling height — measure it, or record an " \
                 'assumption in the take-off and re-run the checker'
       end
+      ceil = room['ceiling'] ? room['ceiling']['in'].to_f : 0.0
       by_run = {}
       (room['doors'] || []).each_with_index do |d, j|
         i = d['run'].to_i
@@ -127,13 +136,40 @@ module WR_BuildTakeoff
                          'reach a corner; move it or shrink it',
                          name, j, i, at, w, len)
         end
-        (by_run[i] ||= []) << d['h_in'].to_f
+        h = d['h_in'].to_f
+        if ceil > 0 && h > ceil + TOL
+          errs << format('%s door %d is taller than its ceiling (leaf %.1f" '                          'vs ceiling %.1f") - it would build through the '                          'ceiling plane; one of the two numbers is misread',
+                         name, j, h, ceil)
+        end
+        (by_run[i] ||= []) << h
       end
       by_run.each do |i, hs|
         if hs.uniq.length > 1
           errs << "#{name}: doors on run #{i} have different heights " \
                   "(#{hs.uniq.join(', ')}) — one cut height per run; " \
                   'this build refuses rather than cutting one of them wrong'
+        end
+      end
+      # A hanging feature entirely above the ceiling is not a feature with
+      # zero height, it is a statement that cannot be true: head/sill and
+      # ceiling cannot both be right. Dropping it silently (the old
+      # behaviour, via build_feature's zero-height guard) left the room
+      # looking finished while missing something the client named.
+      (room['features'] || []).each_with_index do |f, j|
+        next unless ceil > 0
+        case f['type']
+        when 'bulkhead'
+          head = f['head_in'].to_f
+          if head >= ceil - TOL
+            errs << format('%s bulkhead %d has its head at or above the '                            'ceiling (head %.1f" vs ceiling %.1f") - '                            'nothing would hang below the ceiling; one of '                            'the two numbers is misread',
+                           name, j + 1, head, ceil)
+          end
+        when 'window'
+          sill = (f['sill_in'] || 0.0).to_f
+          if sill >= ceil - TOL
+            errs << format('%s window %d has its sill at or above the '                            'ceiling (sill %.1f" vs ceiling %.1f") - one '                            'of the two numbers is misread',
+                           name, j + 1, sill, ceil)
+          end
         end
       end
     end
@@ -260,7 +296,7 @@ module WR_BuildTakeoff
       # Features build as flagged massing on WR-Obstruction — footprint
       # honesty, not furniture.
       (room['features'] || []).each_with_index do |f, j|
-        build_feature(br, g, pts, ccw, f, j, ceil, t_obst)
+        build_feature(br, g, pts, ccw, f, j, ceil, t_obst, name)
       end
 
       place_notes(model, g, pts, ccw, room, data['assumed_inventory'] || [],
@@ -286,7 +322,7 @@ module WR_BuildTakeoff
     raise
   end
 
-  def self.build_feature(br, parent, pts, ccw, f, j, ceil, t_obst)
+  def self.build_feature(br, parent, pts, ccw, f, j, ceil, t_obst, name)
     i = f['run'].to_i
     n = pts.size
     a = pts[i]
@@ -314,7 +350,16 @@ module WR_BuildTakeoff
     else
       return
     end
-    return if span <= TOL || dep <= TOL || z1 - z0 <= TOL
+    # DISTRUST THE CALLER, same as lock_errors being re-run on a forced
+    # lock: a feature that resolves to no volume is an impossible statement,
+    # not a no-op. This used to be `return` - which is exactly how the
+    # 9'-0" bulkhead in an 8'-0" room vanished without a word (F2,
+    # eval/floorplans/synthetic-headroom). The raise aborts the whole
+    # operation in build_from, so the model is left untouched.
+    if span <= TOL || dep <= TOL || z1 - z0 <= TOL
+      raise Refused, format('%s %s %d cannot exist as stated (span %.1f", '                             'depth %.1f", %.1f" up to %.1f" against '                             'ceiling %.1f") - refused rather than silently '                             'dropped: the room would look finished while '                             'missing a feature the client named',
+                            name, f['type'], j + 1, span, dep, z0, z1, ceil)
+    end
     c0 = a.offset(u, from)
     poly = [c0, c0.offset(u, span),
             c0.offset(u, span).offset(inward, dep), c0.offset(inward, dep)]

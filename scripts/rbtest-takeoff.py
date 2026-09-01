@@ -119,6 +119,26 @@ e = WR_BuildTakeoff.lock_errors(lock([room('doors' => [
 check(results, 'le5 mixed door heights on one run named', e.length == 1 &&
       e[0].include?('different heights'), e.inspect)
 
+# --- 1.12.x: F2/F3 from eval/floorplans/synthetic-headroom ----------------
+e = WR_BuildTakeoff.lock_errors(lock([room('doors' => [
+  { 'run' => 0, 'at_in' => 36.0, 'w_in' => 36.0, 'h_in' => 110.0 }])]))
+check(results, 'le6 door taller than ceiling named', e.length == 1 &&
+      e[0].include?('taller than its ceiling'), e.inspect)
+e = WR_BuildTakeoff.lock_errors(lock([room('features' => [
+  { 'type' => 'bulkhead', 'run' => 0, 'from_in' => 24.0,
+    'length_in' => 60.0, 'head_in' => 108.0 }])]))
+check(results, 'le7 bulkhead head above ceiling named', e.length == 1 &&
+      e[0].include?('head at or above the ceiling'), e.inspect)
+e = WR_BuildTakeoff.lock_errors(lock([room('features' => [
+  { 'type' => 'window', 'run' => 0, 'from_in' => 24.0,
+    'width_in' => 36.0, 'sill_in' => 102.0 }])]))
+check(results, 'le8 window sill at ceiling named', e.length == 1 &&
+      e[0].include?('sill at or above the ceiling'), e.inspect)
+e = WR_BuildTakeoff.lock_errors(lock([room('features' => [
+  { 'type' => 'bulkhead', 'run' => 0, 'from_in' => 24.0,
+    'length_in' => 60.0, 'head_in' => 99.0 }])]))
+check(results, 'le9 real bulkhead still passes', e.empty?, e.inspect)
+
 out = results.map { |(n, ok, d)| (ok ? 'PASS ' : 'FAIL ') + n + (ok ? '' : '   ' + d) }
 (out.join("\n") + "\n" + results.count { |r| !r[1] }.to_s + ' failure(s)').dup
 '''
