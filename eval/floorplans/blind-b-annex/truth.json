@@ -1,0 +1,85 @@
+{
+  "generated_by": "eval/gen-plans.py --blind 831 — truth authored first from the seeded RNG, plan derived from it",
+  "rooms": [
+    {
+      "room": "ell",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          199.0,
+          0.0
+        ],
+        [
+          199.0,
+          -85.0
+        ],
+        [
+          101.0,
+          -85.0
+        ],
+        [
+          101.0,
+          -142.0
+        ],
+        [
+          0.0,
+          -142.0
+        ]
+      ],
+      "ceiling_in": 108.0,
+      "doors": [
+        {
+          "run": 4,
+          "w_in": 36.0,
+          "jambs_in": [
+            38.0,
+            74.0
+          ],
+          "expect_flag": null
+        }
+      ],
+      "features": []
+    },
+    {
+      "room": "annex",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          114.0,
+          0.0
+        ],
+        [
+          114.0,
+          -110.0
+        ],
+        [
+          0.0,
+          -110.0
+        ]
+      ],
+      "ceiling_in": 99.0,
+      "doors": [
+        {
+          "run": 0,
+          "w_in": 36.0,
+          "jambs_in": [
+            42.0,
+            78.0
+          ],
+          "expect_flag": null
+        }
+      ],
+      "features": []
+    }
+  ]
+}

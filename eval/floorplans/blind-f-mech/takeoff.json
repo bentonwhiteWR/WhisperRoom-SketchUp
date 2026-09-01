@@ -1,0 +1,58 @@
+{
+  "job": "blind-f-mech",
+  "title": "FIELD SKETCH - blind-f-mech (mech room)",
+  "sources": ["photo.png"],
+  "anchor": "pen 15'2\" clear between htrs, north wall",
+  "interpretations": [
+    "Pen header note reads 'pen only measured the clear run btwn the htrs - no total taken'. The north wall length is therefore NOT a measurement. It is recorded as assumed 17'8\" from the chain 15\" + 15'2\" + 15\", which additionally assumes both heaters sit flush in their corners with the 15\" side along the north wall. The format doc has no way to attach a parts[] chain to an {assumed} value, so the arithmetic lives in the reason string instead of a checkable chain.",
+    "Heater orientation is ambiguous: 'HTR 15\" x 12\"' does not say which side runs along the wall. The NW heater is sketched wider than tall (15\" along the wall); the NE heater is sketched slightly taller than wide. If the NE heater actually runs 12\" along the north wall, the assumed total becomes 17'5\", not 17'8\". Assumed 15\" along the wall for both, symmetrically. Needs a tape or a client answer.",
+    "Neither heater's position is dimensioned; both are assumed flush to their corners because that is how the dashed boxes are drawn.",
+    "The 1'-9\" tick dimension at the right edge spans the east-wall segment from the NE corner down to the wall break; read as the door 'at' (corner to near jamb). The format doc says 'corner -> near jamb' without naming which corner; I took it as the run's start corner (run 1 starts at the NE corner, which is also where the 1'-9\" is dimensioned from, so both readings agree here).",
+    "The solid line projecting west into the room at the near-jamb side of the east-wall opening is read as the open door leaf, hinged at the near jamb: hinge 'near'.",
+    "Door height is not on the plan; h omitted so it builds the flagged 80\" DEFAULT per the format doc.",
+    "The south wall carries no dimension; it is assumed equal to the north wall so the polygon closes, and inherits every assumption in the north-wall value.",
+    "Two 8'-10\" labels appear, one outside the west wall and one outside the lower east wall; read as the full north-south depth on each side wall (they agree, which supports the rectangular reading).",
+    "The 15'-2\" clear run is deliberately NOT transcribed as any wall length, per the note and the clear-width-trap lesson; it appears only inside the assumed chain for the north wall."
+  ],
+  "rooms": [
+    {
+      "name": "mech",
+      "runs": [
+        {"d": "E", "assumed": "17'8\"", "reason": "north wall total never measured (pen note: 'no total taken'); 15\" heater + 15'2\" clear (pen photo.png) + 15\" heater = 17'8\", assuming both heaters flush to corners with the 15\" side along the wall"},
+        {"d": "S", "v": "8'10\"", "src": "pen photo.png", "note": "8'-10\" written outside the east wall"},
+        {"d": "W", "assumed": "17'8\"", "reason": "no dimension on the south wall; mirrors the north wall for closure, so it inherits the north wall's assumptions"},
+        {"d": "N", "v": "8'10\"", "src": "pen photo.png", "note": "8'-10\" written outside the west wall"}
+      ],
+      "ceiling": {"v": "9'1\"", "src": "pen photo.png", "note": "CLG 9'-1\" written at room centre"},
+      "doors": [
+        {
+          "run": 1,
+          "at": {"v": "1'9\"", "src": "pen photo.png", "note": "1'-9\" tick dimension on the east wall, NE corner to near jamb"},
+          "w": {"v": "3'0\"", "src": "pen photo.png", "note": "DR 3'-0\""},
+          "hinge": "near"
+        }
+      ],
+      "features": [
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {"assumed": "0\"", "reason": "drawn flush to the NW corner; no offset dimensioned"},
+          "length": {"v": "15\"", "src": "pen photo.png", "note": "HTR 15\" x 12\"; 15\" side taken as along the wall (see interpretations)"},
+          "depth": {"v": "12\"", "src": "pen photo.png"}
+        },
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {"assumed": "16'5\"", "reason": "drawn flush to the NE corner: assumed 17'8\" wall minus 15\" heater; inherits both the assumed wall total and the assumed heater orientation"},
+          "length": {"v": "15\"", "src": "pen photo.png", "note": "HTR 15\" x 12\"; sketched slightly taller than wide - orientation ambiguous (see interpretations)"},
+          "depth": {"v": "12\"", "src": "pen photo.png"}
+        }
+      ],
+      "notes": [
+        "Sketch header: 'FIELD SKETCH - blind-f-mech / synthetic plan for the blind-transcription trial - not a client drawing'",
+        "Pen note on sketch: '* pen only measured the clear run btwn the htrs - no total taken'",
+        "'15'-2\" CLEAR BETWEEN HTRS' written across the north wall - clear run only, not a wall length"
+      ]
+    }
+  ]
+}

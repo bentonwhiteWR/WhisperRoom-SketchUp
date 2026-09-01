@@ -2,6 +2,38 @@
 
 ## 2026-08-31
 
+### Blind-transcription trial — 7 randomised plans, isolated transcribers (no version bump; nothing under scripts/ changed)
+
+The step that failed on 31 Aug — reading a marked-up plan photo and writing
+the numbers down — had been blind-tested exactly once. Now it is a repeatable
+harness: `eval/gen-plans.py --blind <seed>` / `--blind2 <seed>` author
+randomised cases truth-first (exact inches from a seeded RNG, phone-photo
+style plan derived from the truth, keystone + uneven light + JPEG loss, NO
+takeoff fixture), and seven isolated sub-agents — photo plus the two written
+protocol docs only, repo forbidden — transcribed them; the results ran the
+real pipeline untouched and scored live through the bridge.
+
+- **No wrong value passed silently and nothing was invented unflagged**, in
+  either round — including `blind-f-mech` (clear-width trap with NO total
+  stated: a misread would have closed and built 30" small with no complaint)
+  and `blind-g-lounge` (the pen chain is wrong by 2" on the plan itself; the
+  transcriber recorded it verbatim and the checker refused by name — that
+  row going FAIL in future means someone silently "fixed" client
+  arithmetic).
+- Round 1 (blind-a..e, seed 831) went 0.00" across the board — judged NOT
+  hard enough on its own (four of five plans carried a closure cross-check),
+  which is why round 2 (seed 407) exists.
+- **Five documentation defects surfaced** (D1–D5 in `eval/RESULTS.md`): the
+  `at` corner convention and run winding are undefined (all seven guessed
+  the same way and got lucky), `parts` cannot attach to an assumed value,
+  enums have no assumed-escape, and closure-derived values have no defined
+  provenance. Owned by the protocol-doc lane (spec step 9).
+- Ledger: the trial is its own clearly-labelled section in
+  `eval/RESULTS.md` — it measures transcription, not the deterministic
+  pipeline, and must not be averaged with the fixture rows.
+- Model cleaned after scoring (the seven trial groups removed by name,
+  verified by read-back). Transcription wall time was 1–2 min/case.
+
 ### 1.12.7 — whisperroom-takeoff skill; installer now distributes skills
 
 The take-off rules the 31 Aug mission established are now a skill, and skills

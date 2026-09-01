@@ -1,0 +1,59 @@
+{
+  "job": "g-lounge",
+  "title": "FIELD SKETCH - blind-g-lounge",
+  "sources": ["photo.png"],
+  "anchor": "pen 15'-11\" lounge width (top chain total and bottom wall agree)",
+  "interpretations": [
+    "The top-wall pen chain reads 10\" + 13'-11\" + 12\" = 15'-11\", but the parts sum to 15'-9\" (189\"), 2\" short of the stated 15'-11\" (191\") total. This is the plan's own arithmetic, transcribed as written; the checker will fail the chain by name, which is correct — either the clear-between-heaters figure is really 14'-1\", or the total is really 15'-9\". The independent bottom-wall dimension of 15'-11\" corroborates the total, so the middle (clear) figure is the suspect, but nobody has measured it: Gabe must resolve before build.",
+    "Starred note on the plan: 'middle figure is clear btwn the heaters' — so 13'-11\" is the clear width between the two heaters, NOT a wall or room dimension. It is recorded only inside the chain parts, never as a run value.",
+    "Room taken as a plain rectangle 15'-11\" (E-W) x 10'-5\" (N-S): left and right walls are both dimensioned 10'-5\", top and bottom both 15'-11\". Plan top treated as model North.",
+    "The break in the drawn east wall (between the 3'-5\" point and the lower wall segment) is read as the DR 3'-0\" door opening, with the short horizontal line at its upper jamb read as the door leaf drawn swung ~90 degrees into the room. The gap and leaf both scale to roughly 36\", consistent with DR 3'-0\".",
+    "The 3'-5\" dimension on the right edge runs from the NE corner down to the door's near jamb, so door at = 3'-5\" from the NE corner (start of the east run). Hinge at that near jamb (leaf drawn attached there), so hinge = near.",
+    "Door height is not on the plan; h is omitted so it builds 80\" flagged DEFAULT per the schema.",
+    "Heaters: HTR 10\" (NW end of north wall) and HTR 12\" (NE end) are drawn as dashed boxes flush to their corners, and the chain 10\" + clear + 12\" spans the full north wall, so both are placed flush: left heater from = 0\". Right heater from = 14'-11\" (stated 15'-11\" total minus its 12\" length); note that the chain-sum reading would instead give 14'-9\" — same 2\" discrepancy as above.",
+    "Heater depth (off-wall) is not dimensioned anywhere; recorded as assumed 8\", scaled roughly from the dashed outlines against the 15'-11\" wall — needs a tape measurement.",
+    "Ceiling CLG 8'-5\" is stated in pen; taken as the room ceiling height.",
+    "Wall thickness and sill are not on the plan; omitted so house defaults (4\" / 48\") apply. No windows or bulkheads are drawn."
+  ],
+  "rooms": [
+    {
+      "name": "lounge",
+      "runs": [
+        {"d": "E", "v": "15'11\"", "parts": ["10\"", "13'11\"", "12\""], "src": "pen photo.png", "note": "north wall chain as written on the plan: 10\" + 13'-11\" + 12\" = 15'-11\"; the starred note says the 13'-11\" middle figure is clear between the heaters. Parts sum to 15'-9\" — 2\" short of the stated total; the plan's arithmetic does not close and this must fail until resolved."},
+        {"d": "S", "v": "10'5\"", "src": "pen photo.png", "note": "east wall, dimensioned 10'-5\" on the right edge of the sketch"},
+        {"d": "W", "v": "15'11\"", "src": "pen photo.png", "note": "south wall, dimensioned 15'-11\" below the sketch — independently corroborates the north-wall total"},
+        {"d": "N", "v": "10'5\"", "src": "pen photo.png", "note": "west wall, dimensioned 10'-5\" on the left edge of the sketch"}
+      ],
+      "ceiling": {"v": "8'5\"", "src": "pen photo.png", "note": "CLG 8'-5\" written in the room"},
+      "doors": [
+        {
+          "run": 1,
+          "at": {"v": "3'5\"", "src": "pen photo.png", "note": "3'-5\" dimension from the NE corner down to the near jamb of the east-wall opening"},
+          "w": {"v": "3'0\"", "src": "pen photo.png", "note": "DR 3'-0\" callout; drawn opening and leaf both scale to ~36\""},
+          "hinge": "near"
+        }
+      ],
+      "features": [
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {"v": "0\"", "src": "pen photo.png", "note": "dashed HTR box drawn flush to the NW corner; chain 10\" + clear + 12\" spans the whole north wall"},
+          "length": {"v": "10\"", "src": "pen photo.png", "note": "HTR 10\" callout, first term of the north-wall chain"},
+          "depth": {"assumed": "8\"", "reason": "heater depth not dimensioned on the plan; ~8\" scaled from the dashed outline in photo.png against the 15'-11\" wall — confirm with tape"}
+        },
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {"v": "14'11\"", "src": "pen photo.png", "note": "dashed HTR box drawn flush to the NE corner: stated 15'-11\" wall total minus the 12\" heater length. The chain-sum reading (10\" + 13'-11\") would give 14'-9\" instead — same 2\" plan discrepancy flagged on run 0"},
+          "length": {"v": "12\"", "src": "pen photo.png", "note": "HTR 12\" callout, last term of the north-wall chain"},
+          "depth": {"assumed": "8\"", "reason": "heater depth not dimensioned on the plan; ~8\" scaled from the dashed outline in photo.png against the 15'-11\" wall — confirm with tape"}
+        }
+      ],
+      "notes": [
+        "Synthetic plan for the blind-transcription trial per its own subtitle - not a client drawing.",
+        "North-wall chain does not close (189\" of parts vs 191\" stated): resolve whether the clear-between-heaters figure or the total is wrong before building.",
+        "Door height not on plan; omitted h builds 80\" flagged DEFAULT."
+      ]
+    }
+  ]
+}

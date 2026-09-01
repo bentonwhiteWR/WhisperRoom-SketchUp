@@ -106,3 +106,84 @@ recorded so they cannot be lost; the reproducing case pins each one.
 | 2026-08-31 20:27 | synthetic-sliver | PASS | 0.00" | clean |
 | 2026-08-31 20:27 | synthetic-unflagged | PASS | 0.00" | planted defect detected (checker-silent by design): door 0 position is assumed in truth but the model carries no "door 0 at ASSUMED" note — an unflagged assumption scores as a failure even when the number is right |
 | 2026-08-31 20:27 | synthetic-units | PASS | 0.00" | clean |
+
+## Blind-transcription trial — 31 Aug 2026 (seven cases, isolated transcribers)
+
+**This section measures a different thing from the deterministic rows above
+and must never be averaged with them.** The rows above score the pipeline on
+FIXTURE take-offs authored alongside the truth; these rows score the step
+that actually failed on 31 Aug — an agent reading a marked-up plan photo and
+writing the numbers down — using transcribers that never saw the truth.
+
+Method: `python eval/gen-plans.py --blind 831` authored five randomised
+cases (and `--blind2 407` two harder ones after round 1) — truth first as
+exact inches, plan photo derived from it, NO takeoff fixture emitted. One
+fresh isolated sub-agent per case got ONLY the photo plus copies of
+`reference/takeoff-format.md` and `skills/whisperroom-takeoff/SKILL.md`,
+was forbidden from reading this repo, and produced `takeoff.json`, which
+then ran through the real pipeline (checker -> live bridge build -> scorer)
+untouched. Do not "fix" the committed blind take-offs — what they got wrong
+is the trial's data.
+
+**Result: no wrong value passed silently, and no value was invented
+unflagged, in either round.** Round 1 (a-e) scored 0.00" everywhere, but
+four of those five plans handed the transcriber a closure cross-check, so a
+misread could not have BUILT silently — that judgment is why round 2
+exists. Round 2 removed the net: `blind-f-mech` states only the clear width
+between heaters (a misread closes cleanly and builds 30" small with no
+complaint anywhere) and the transcriber still refused the bait, recording
+the walls as ASSUMED 17'-8" with the chain arithmetic in the reason;
+`blind-g-lounge` carries a pen chain that is wrong BY 2" ON THE PLAN
+ITSELF, and the transcriber recorded it verbatim so the checker refused by
+name — a take-off that validates clean there means the transcriber
+silently "fixed" the client's arithmetic, and that row going FAIL is the
+most important regression this trial leaves behind.
+
+Caveats, stated plainly: the transcribers were Fable-class agents reading
+synthetic, fully legible plans; every pen digit was readable. This is
+evidence the written protocol steers a careful agent right, not proof the
+31 Aug failure cannot recur on a smudged photo or a rushed human. Wall
+time per transcription was 1–2 minutes (self-reported 5–12 minutes of
+equivalent work) — transcription is not where the 45 minutes went.
+
+Documentation defects the blind transcribers surfaced (a transcriber going
+wrong by following the docs is a doc bug; these six followed them and had
+to guess):
+
+- **D1 — `at` never says which corner.** "corner -> near jamb" does not
+  name the run's start corner; all seven guessed start-corner-in-travel-
+  direction and happened to match the builder. One different guess flips a
+  door to the wrong end of its wall and nothing would catch it.
+- **D2 — no winding/start-corner convention for runs.** Nothing says start
+  top-left, walk clockwise. All seven happened to; the scorer compares in
+  the room's own frame, so a different-but-congruent walk would score as
+  wildly wrong. Convention belongs in `reference/takeoff-format.md`.
+- **D3 — `parts` cannot attach to an `{assumed}` value** (found by
+  blind-f). When a total is honestly assumed FROM a chain (15" + 15'-2" +
+  15"), the arithmetic can only live in the reason string, where the
+  checker cannot verify it.
+- **D4 — no assumed-escape for enums.** `hinge` is near/far with no way to
+  flag "not stated"; all seven wrote `near`, most of them from a drawn
+  leaf, at least one admittedly arbitrarily.
+- **D5 — closure-derived values have no defined provenance.** An unlabeled
+  wall whose length is forced by closure was recorded three different
+  ways across the trial (pen-sourced sum with a note, `assumed`, omitted
+  from `parts`); the docs never say which is right.
+
+| date | case | verdict | worst vertex err | detail |
+|---|---|---|---|---|
+| 2026-08-31 20:48 | blind-a-office | PASS | 0.00" | clean |
+| 2026-08-31 20:48 | blind-b-annex | PASS | 0.00" | clean |
+| 2026-08-31 20:48 | blind-c-storage | PASS | 0.00" | clean |
+| 2026-08-31 20:48 | blind-d-workshop | PASS | 0.00" | clean |
+| 2026-08-31 20:48 | blind-e-studio | PASS | 0.00" | clean |
+| 2026-08-31 20:54 | blind-f-mech | PASS | 0.00" | clean |
+| 2026-08-31 20:54 | blind-g-lounge | PASS | — | refused by name as designed: not close |
+
+Row detail beyond the table: blind-d-workshop's door had NO position on the
+plan; the transcriber recorded `{"assumed": "100\""}` (scaled from pixels,
+reason given) and the ASSUMED note reached the model — the never-invent
+rule held end to end. blind-e-studio's plan note said "south wall" where
+the drawing chained the NORTH wall (an authoring slip that read like a
+real client's sloppy note); the transcriber caught the contradiction,
+said so, and transcribed the geometry right.

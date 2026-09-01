@@ -1,0 +1,46 @@
+{
+  "generated_by": "eval/gen-plans.py --blind2 407 — truth authored first from the seeded RNG, plan derived from it",
+  "rooms": [
+    {
+      "room": "lounge",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          191.0,
+          0.0
+        ],
+        [
+          191.0,
+          -125.0
+        ],
+        [
+          0.0,
+          -125.0
+        ]
+      ],
+      "ceiling_in": 101.0,
+      "doors": [
+        {
+          "run": 1,
+          "w_in": 36.0,
+          "jambs_in": [
+            41.0,
+            77.0
+          ],
+          "expect_flag": null
+        }
+      ],
+      "features": [
+        {
+          "type": "heater",
+          "count": 2
+        }
+      ]
+    }
+  ]
+}

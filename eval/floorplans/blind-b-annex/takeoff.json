@@ -1,0 +1,63 @@
+{
+  "job": "b-annex",
+  "title": "FIELD SKETCH - blind-b-annex (synthetic plan for the blind-transcription trial)",
+  "sources": ["photo.png"],
+  "anchor": "pen 11'-10\" ell west wall",
+  "interpretations": [
+    "Ell north wall has no stated total; the plan writes 6'-9\" and 9'-10\" split by a tick mark on the wall. Recorded as a chain: v = 16'-7\" is my arithmetic (81\" + 118\" = 199\"), parts are the pen values.",
+    "Ell polygon closes exactly on the stated numbers: E 199\" vs W 98\"+101\"=199\", S 85\"+57\"=142\" vs N 142\". No adjustment made.",
+    "The 8'-2\" dimension is read as the interior west-running wall at the top of the L-notch, and 4'-9\" as the notch's south-running wall; 8'-5\" is the full bottom wall including the door opening (label centered under the whole span, and pixel proportions agree).",
+    "Door 'at' is taken as measured from the run's START corner in its direction of travel; the format says only 'corner -> near jamb' without naming which corner. Ell: the pen 3'-2\" tick dimension runs from the interior SE corner (where the 4'-9\" wall meets the bottom wall) to the near jamb, which is the start corner of run 4 as I ordered the runs, so it transcribes directly. Annex: the pen 3'-6\" tick dimension runs from the NW corner to the near jamb, the start corner of run 0.",
+    "Hinge 'near' on both doors because the open leaf is drawn perpendicular to the wall at the near jamb (ell: leaf at the east jamb of the opening; annex: leaf at the west jamb). The format does not define hinge semantics beyond near/far, so this is a judgment call.",
+    "Door widths are the pen 'DR 3'-0\"' callouts. No door heights appear anywhere on the plan; h is omitted on both doors so they build 80\" flagged DEFAULT per the format.",
+    "No dimension ties the two rooms together on the plan; origin omitted on both rooms, accepting the default side-by-side placement with a 48\" gap.",
+    "Wall thickness and window sill are not stated; both optional fields omitted (house defaults 4\" / 48\").",
+    "Annex ceiling 8'-3\" is a pen value; the header note '* annex ceiling is LOWER - measured separately' is carried as a note on the value, not treated as doubt about it.",
+    "The photo is a skewed phone shot; all values are transcribed from the written pen text only, never scaled from pixels. Pixel proportions were used solely as a cross-check that labels attach to the right walls.",
+    "The plan header says this is a synthetic plan for the blind-transcription trial, not a client drawing; job name taken from the working folder (b-annex), title from the sketch header."
+  ],
+  "rooms": [
+    {
+      "name": "ell",
+      "runs": [
+        {"d": "E", "v": "16'-7\"", "parts": ["6'-9\"", "9'-10\""], "src": "pen photo.png", "note": "north wall; total not written on plan, sum of the two pen segments split by a tick mark"},
+        {"d": "S", "v": "7'-1\"", "src": "pen photo.png", "note": "east wall, upper leg"},
+        {"d": "W", "v": "8'-2\"", "src": "pen photo.png", "note": "interior wall at top of L-notch"},
+        {"d": "S", "v": "4'-9\"", "src": "pen photo.png", "note": "notch wall down to bottom wall"},
+        {"d": "W", "v": "8'-5\"", "src": "pen photo.png", "note": "bottom wall, full length including door opening"},
+        {"d": "N", "v": "11'-10\"", "src": "pen photo.png", "note": "west wall"}
+      ],
+      "ceiling": {"v": "9'-0\"", "src": "pen photo.png", "note": "CLG 9'-0\" written in room"},
+      "doors": [
+        {
+          "run": 4,
+          "at": {"v": "3'-2\"", "src": "pen photo.png", "note": "tick dimension from interior SE corner (run start) to near jamb"},
+          "w": {"v": "3'-0\"", "src": "pen photo.png", "note": "DR 3'-0\" callout"},
+          "hinge": "near"
+        }
+      ],
+      "features": [],
+      "notes": ["L-shaped room; polygon closes exactly on stated pen dimensions"]
+    },
+    {
+      "name": "annex",
+      "runs": [
+        {"d": "E", "v": "9'-6\"", "src": "pen photo.png", "note": "north wall, contains door"},
+        {"d": "S", "v": "9'-2\"", "src": "pen photo.png", "note": "east wall"},
+        {"d": "W", "v": "9'-6\"", "src": "pen photo.png", "note": "south wall"},
+        {"d": "N", "v": "9'-2\"", "src": "pen photo.png", "note": "west wall"}
+      ],
+      "ceiling": {"v": "8'-3\"", "src": "pen photo.png", "note": "CLG 8'-3\"; plan header states 'annex ceiling is LOWER - measured separately'"},
+      "doors": [
+        {
+          "run": 0,
+          "at": {"v": "3'-6\"", "src": "pen photo.png", "note": "tick dimension from NW corner (run start) to near jamb"},
+          "w": {"v": "3'-0\"", "src": "pen photo.png", "note": "DR 3'-0\" callout"},
+          "hinge": "near"
+        }
+      ],
+      "features": [],
+      "notes": ["annex ceiling flagged LOWER on plan header, measured separately per the sketch note"]
+    }
+  ]
+}

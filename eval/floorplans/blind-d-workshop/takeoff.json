@@ -1,0 +1,42 @@
+{
+  "job": "blind-d-workshop",
+  "title": "FIELD SKETCH - blind-d-workshop (synthetic plan for the blind-transcription trial)",
+  "sources": ["photo.png"],
+  "anchor": "pen 15'-11\" south wall interior width",
+  "interpretations": [
+    "L-shaped room transcribed clockwise from the NW corner: E 8'-6\", S 2'-1\", E 7'-5\", S 7'-5\", W 15'-11\", N 9'-6\". All six values are written on the plan; no chain arithmetic is drawn, so no parts are recorded.",
+    "Closure cross-check (transcription only, no blending): 8'-6\" + 7'-5\" = 15'-11\" matches the stated south wall, and 2'-1\" + 7'-5\" = 9'-6\" matches the stated west wall. The polygon closes exactly as stated.",
+    "The gap in the south wall with the 'DR 36\"' callout is read as a 36\"-wide door opening in the south wall (run index 4). The single vertical stroke at the east jamb is read as the door leaf swinging into the room, hinged on the east jamb — the jamb nearer the SE corner, i.e. hinge 'near' for a W-direction run.",
+    "The door's position along the south wall is NOT dimensioned anywhere on the plan. It is recorded as assumed, with the value scaled from photo pixel geometry (the east jamb sits roughly 100\" west of the SE corner; the pixel width of the gap independently scales to ~36\", consistent with the DR 36\" callout, which supports the scaling but was not used to alter any stated number).",
+    "No door height is written on the plan; 'h' is omitted so the pipeline builds 80\" flagged DEFAULT.",
+    "Wall thickness and sill are not stated; both fields are omitted so the 4\" / 48\" house defaults apply.",
+    "The '7'-5\"' value appears twice on the plan — once on the lower top wall segment (horizontal) and once on the right wall (vertical). They are two different walls that happen to share a dimension; both were transcribed independently from their own callouts."
+  ],
+  "rooms": [
+    {
+      "name": "workshop",
+      "runs": [
+        {"d": "E", "v": "8'6\"", "src": "pen photo.png", "note": "upper top wall, west segment"},
+        {"d": "S", "v": "2'1\"", "src": "pen photo.png", "note": "jog down between the two top wall segments"},
+        {"d": "E", "v": "7'5\"", "src": "pen photo.png", "note": "lower top wall, east segment"},
+        {"d": "S", "v": "7'5\"", "src": "pen photo.png", "note": "east wall"},
+        {"d": "W", "v": "15'11\"", "src": "pen photo.png", "note": "south wall; contains the DR 36\" opening"},
+        {"d": "N", "v": "9'6\"", "src": "pen photo.png", "note": "west wall"}
+      ],
+      "ceiling": {"v": "8'2\"", "src": "pen photo.png", "note": "CLG 8'-2\" callout at room label"},
+      "doors": [
+        {
+          "run": 4,
+          "at": {"assumed": "100\"", "reason": "door position along the south wall is not dimensioned on the plan; scaled from photo pixel geometry (east jamb ~100\" west of the SE corner; the gap's pixel width independently scales to ~36\", matching the stated DR 36\") — needs a tape measurement"},
+          "w": {"v": "36\"", "src": "pen photo.png", "note": "DR 36\" callout at the south-wall opening"},
+          "hinge": "near"
+        }
+      ],
+      "features": [],
+      "notes": [
+        "Synthetic plan for the blind-transcription trial - not a client drawing (printed on the sketch itself).",
+        "Stated dimensions close the polygon exactly on both axes: 8'-6\" + 7'-5\" = 15'-11\" (E-W) and 2'-1\" + 7'-5\" = 9'-6\" (N-S)."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "job": "blind-c-storage",
+  "title": "FIELD SKETCH - blind-c-storage (storage room)",
+  "sources": ["photo.png"],
+  "anchor": "pen 15'-0\" south wall = 12\" + 13'-0\" + 12\" heater chain on north wall",
+  "interpretations": [
+    "Job name taken from the sketch title block 'FIELD SKETCH - blind-c-storage'; no job name is stated elsewhere.",
+    "Room read as a plain 15'-0\" x 12'-2\" rectangle. The jog drawn on the east side (short horizontal line into the room at the bottom of the 3'-11\" segment) is read as the door leaf drawn open into the room, not as a wall notch: the gap in the east wall scales to ~3'-0\", matching the 'DR 3'-0\"' callout, and both side walls carry the same 12'-2\" dimension.",
+    "Runs are ordered clockwise from the NW corner (E north wall, S east wall, W south wall, N west wall) so the door's stated dimension - 3'-11\" from the NE corner to the near jamb - can be entered directly as 'at' on the east-wall run without derived arithmetic. The unstated wall segment below the door (12'-2\" - 3'-11\" - 3'-0\" = 5'-3\") is implied by closure, never entered.",
+    "'13'-0\" CLEAR BETWEEN HEATERS' is the clear width between the two heaters, NOT the north wall length. North wall recorded as the chain 12\" + 13'-0\" + 12\" = 15'-0\", which matches the pen 15'-0\" on the south wall exactly - this is the clear-width trap the format exists for.",
+    "'HTR 12\" x 10\"' read as 12\" long along the wall by 10\" deep into the room, matching the drawn proportions of both dashed boxes (wider than deep).",
+    "Heaters placed flush to the NW and NE corners (from 0\" and from 14'-0\"): the chain 12\" + 13'-0\" + 12\" sums exactly to the 15'-0\" wall, leaving no room between heater and corner, and the boxes are drawn touching the corners. The east heater's 'from' (14'-0\") is chain arithmetic (12\" + 13'-0\"), not a lone pen number.",
+    "Door hinge recorded 'near': the leaf is drawn swinging from the jamb at the 3'-11\" end of the opening (the near jamb as dimensioned from the NE corner).",
+    "Door height is not on the plan; 'h' omitted so it builds 80\" flagged DEFAULT per the format.",
+    "Wall thickness and sill are not on the plan; fields omitted so house defaults (4\" / 48\") apply. No windows are drawn.",
+    "Pen note '* heaters stay - do not remove' carried into room notes."
+  ],
+  "rooms": [
+    {
+      "name": "storage",
+      "runs": [
+        {"d": "E", "v": "15'-0\"", "parts": ["12\"", "13'-0\"", "12\""], "src": "pen photo.png", "note": "north wall; 13'-0\" is CLEAR BETWEEN HEATERS, 12\" is each heater length; chain matches the pen 15'-0\" on the south wall"},
+        {"d": "S", "v": "12'-2\"", "src": "pen photo.png", "note": "east wall, pen 12'-2\" on right side of sketch"},
+        {"d": "W", "v": "15'-0\"", "src": "pen photo.png", "note": "south wall, pen 15'-0\" below bottom wall"},
+        {"d": "N", "v": "12'-2\"", "src": "pen photo.png", "note": "west wall, pen 12'-2\" on left side of sketch"}
+      ],
+      "ceiling": {"v": "8'-6\"", "src": "pen photo.png", "note": "CLG 8'-6\" at room label"},
+      "doors": [
+        {
+          "run": 1,
+          "at": {"v": "3'-11\"", "src": "pen photo.png", "note": "NE corner to near jamb, the 3'-11\" dimension on the right edge"},
+          "w": {"v": "3'-0\"", "src": "pen photo.png", "note": "DR 3'-0\" callout"},
+          "hinge": "near"
+        }
+      ],
+      "features": [
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {"v": "0\"", "src": "pen photo.png", "note": "flush to NW corner; chain 12\"+13'-0\"+12\" = 15'-0\" leaves no offset and the box is drawn touching the corner"},
+          "length": {"v": "12\"", "src": "pen photo.png", "note": "HTR 12\" x 10\" - 12\" read as along-wall length"},
+          "depth": {"v": "10\"", "src": "pen photo.png", "note": "HTR 12\" x 10\" - 10\" read as depth into room"}
+        },
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {"v": "14'-0\"", "parts": ["12\"", "13'-0\""], "src": "pen photo.png", "note": "west heater 12\" + 13'-0\" clear = 14'-0\"; flush to NE corner"},
+          "length": {"v": "12\"", "src": "pen photo.png", "note": "HTR 12\" x 10\""},
+          "depth": {"v": "10\"", "src": "pen photo.png", "note": "HTR 12\" x 10\""}
+        }
+      ],
+      "notes": [
+        "Pen note on sketch: '* heaters stay - do not remove'.",
+        "Sketch subtitle: 'synthetic plan for the blind-transcription trial - not a client drawing'.",
+        "Door h not stated on plan - builds 80\" DEFAULT; real height still needs to be asked for.",
+        "East wall segment below the door is implied at 5'-3\" (12'-2\" - 3'-11\" - 3'-0\"), not stated on the plan."
+      ]
+    }
+  ]
+}

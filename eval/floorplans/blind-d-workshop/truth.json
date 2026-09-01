@@ -1,0 +1,46 @@
+{
+  "generated_by": "eval/gen-plans.py --blind 831 — truth authored first from the seeded RNG, plan derived from it",
+  "rooms": [
+    {
+      "room": "workshop",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          102.0,
+          0.0
+        ],
+        [
+          102.0,
+          -25.0
+        ],
+        [
+          191.0,
+          -25.0
+        ],
+        [
+          191.0,
+          -114.0
+        ],
+        [
+          0.0,
+          -114.0
+        ]
+      ],
+      "ceiling_in": 98.0,
+      "doors": [
+        {
+          "run": 4,
+          "w_in": 36.0,
+          "jambs_in": null,
+          "expect_flag": "assumed"
+        }
+      ],
+      "features": []
+    }
+  ]
+}

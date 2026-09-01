@@ -705,6 +705,548 @@ def _n(v):
     return float(m.group(1)) * 12 + float(m.group(2) or 0)
 
 
+# ================== blind trial cases — randomised, truth-first ===========
+#
+#     python eval/gen-plans.py --blind <seed>
+#
+# Five fresh randomised cases for a BLIND-TRANSCRIPTION trial (the step that
+# actually failed on 31 Aug — a person or agent reading a marked-up plan and
+# writing the numbers down — exercised against transcribers who have never
+# seen the truth). Truth is drawn from a seeded RNG FIRST, exact inches; the
+# plan photo is derived from it; and NO takeoff.json is emitted — an isolated
+# agent transcribes input/photo.png into one, and eval-floorplan.py scores
+# what came back. Isolation is the mechanism: the truth-holder generates and
+# scores; the transcriber gets the photo and the written protocol, nothing
+# else, and is forbidden from reading this repo.
+#
+# The set is a deliberate mix, not all traps: two honest rooms, a clear-width
+# chain (the 31 Aug shape), a missing dimension that must be flagged rather
+# than invented, and a removed-partition two-room space; one pair of
+# neighbouring rooms differs in ceiling height.
+
+def blind_cases(seed):
+    import random
+    rng = random.Random(seed)
+    R = rng.randrange
+    cases = []
+
+    # --- blind-a-office: honest rectangle, everything stated ---------------
+    w, h, cl = float(R(130, 200)), float(R(100, 160)), float(R(97, 113))
+    at = float(R(12, int((h - 36) / 2)))
+    cases.append({
+        'name': 'blind-a-office',
+        'summary': 'honest rectangle — every dimension stated in pen',
+        'truth_rooms': [troom('office',
+                              [('E', w), ('S', h), ('W', w), ('N', h)], cl,
+                              doors=[{'run': 1, 'w_in': 36.0,
+                                      'jambs_in': [at, at + 36.0],
+                                      'expect_flag': None}])],
+        'draw': {'rooms': [{
+            'run_labels': [arch(w), arch(h), arch(w), arch(h)],
+            'ceil': 'CLG %s' % arch(cl),
+            'doors': [{'run': 1, 'at': at, 'w': 36.0, 'dim': True}]}],
+            'notes': ['field measured w/ tape']},
+        'readme': 'Control case: a plain rectangle with every wall, the '
+                  'ceiling and the door position all stated. Honest on '
+                  'purpose — a test set that is all traps teaches a '
+                  'transcriber to distrust everything.',
+    })
+
+    # --- blind-b-annex: L-room + neighbour at a DIFFERENT ceiling ----------
+    a = float(R(190, 240))
+    b = float(R(84, 120))
+    e = float(R(48, 84))
+    d = float(R(84, int(a) - 72))
+    cl1 = float(R(100, 112))
+    cl2 = cl1 - float(R(4, 10))
+    p1 = float(R(72, int(a) - 72))          # pen chain break on the top wall
+    w2, h2 = float(R(100, 140)), float(R(110, 150))
+    atb = float(R(12, max(13, int((a - d) - 48))))
+    ata = float(R(12, int(w2 - 48)))
+    cases.append({
+        'name': 'blind-b-annex',
+        'summary': 'L-room with a pen chain + adjacent room, ceilings differ',
+        'truth_rooms': [
+            troom('ell', [('E', a), ('S', b), ('W', d), ('S', e),
+                          ('W', a - d), ('N', b + e)], cl1,
+                  doors=[{'run': 4, 'w_in': 36.0,
+                          'jambs_in': [atb, atb + 36.0], 'expect_flag': None}]),
+            troom('annex', [('E', w2), ('S', h2), ('W', w2), ('N', h2)], cl2,
+                  doors=[{'run': 0, 'w_in': 36.0,
+                          'jambs_in': [ata, ata + 36.0], 'expect_flag': None}])],
+        'draw': {'rooms': [
+            {'run_labels': [
+                [(p1 / (2 * a), arch(p1)),
+                 ((p1 + (a - p1) / 2) / a, arch(a - p1))],
+                arch(b), arch(d), arch(e), arch(a - d), arch(b + e)],
+             'ticks': [{'run': 0, 'at': p1}],
+             'ceil': 'CLG %s' % arch(cl1),
+             'doors': [{'run': 4, 'at': atb, 'w': 36.0, 'dim': True}]},
+            {'run_labels': [arch(w2), arch(h2), arch(w2), arch(h2)],
+             'ceil': 'CLG %s' % arch(cl2),
+             'doors': [{'run': 0, 'at': ata, 'w': 36.0, 'dim': True}]}],
+            'notes': ['annex ceiling is LOWER - measured separately']},
+        'readme': 'Two honest rooms: a six-run L whose top wall the pen '
+                  'measured as a two-part chain (to a tick mark), and a '
+                  'neighbouring rectangle at a lower ceiling. Tests chains '
+                  'and per-room ceilings without any trap.',
+    })
+
+    # --- blind-c-storage: the 31 Aug clear-width shape ---------------------
+    clear = float(R(150, 200))
+    tot = clear + 24.0
+    hh = float(R(110, 150))
+    cl3 = float(R(96, 108))
+    atc = float(R(12, int((hh - 36) / 2)))
+    cases.append({
+        'name': 'blind-c-storage',
+        'summary': "clear width between heaters stated; wall total only on "
+                   "the opposite wall",
+        'truth_rooms': [troom('storage',
+                              [('E', tot), ('S', hh), ('W', tot), ('N', hh)],
+                              cl3,
+                              doors=[{'run': 1, 'w_in': 36.0,
+                                      'jambs_in': [atc, atc + 36.0],
+                                      'expect_flag': None}],
+                              features=[{'type': 'heater', 'count': 2}])],
+        'draw': {'rooms': [{
+            'run_labels': [None, arch(hh), arch(tot), arch(hh)],
+            'ceil': 'CLG %s' % arch(cl3),
+            'doors': [{'run': 1, 'at': atc, 'w': 36.0, 'dim': True}],
+            'boxes': [
+                {'run': 0, 'from': 0.0, 'len': 12.0, 'depth': 10.0,
+                 'label': 'HTR 12" x 10"'},
+                {'run': 0, 'from': tot - 12.0, 'len': 12.0, 'depth': 10.0,
+                 'label': 'HTR 12" x 10"'}],
+            'inner': [(tot / 2, -22.0,
+                       '%s CLEAR BETWEEN HEATERS' % arch(clear), 9)]}],
+            'notes': ['heaters stay - do not remove']},
+        'readme': 'The 31 Aug trap shape with fresh numbers: the pen states '
+                  'the CLEAR width between two 12"-long heaters on the top '
+                  'wall (no total there) and the total only on the opposite '
+                  'wall. Reading the clear width as the top wall length '
+                  'cannot close against the bottom wall; the right take-off '
+                  'records the 12" + clear + 12" chain.',
+    })
+
+    # --- blind-d-workshop: jogged wall + a MISSING door position -----------
+    aj = float(R(96, 144))
+    bj = float(R(24, 48))
+    cjr = float(R(48, 96))
+    dj = float(R(84, 120))
+    cl4 = float(R(96, 110))
+    att = float(R(24, int(aj + cjr - 60)))   # true position — stated NOWHERE
+    cases.append({
+        'name': 'blind-d-workshop',
+        'summary': 'jogged wall; door drawn with width but NO position',
+        'truth_rooms': [troom('workshop',
+                              [('E', aj), ('S', bj), ('E', cjr), ('S', dj),
+                               ('W', aj + cjr), ('N', bj + dj)], cl4,
+                              doors=[{'run': 4, 'w_in': 36.0,
+                                      'jambs_in': None,
+                                      'expect_flag': 'assumed'}])],
+        'draw': {'rooms': [{
+            'run_labels': [arch(aj), arch(bj), arch(cjr), arch(dj),
+                           arch(aj + cjr), arch(bj + dj)],
+            'ceil': 'CLG %s' % arch(cl4),
+            'doors': [{'run': 4, 'at': att, 'w': 36.0, 'dim': False,
+                       'label': 'DR 36"'}]}],
+            'notes': []},
+        'readme': 'A north wall that jogs down mid-run (six runs), fully '
+                  'dimensioned — except the door, drawn with a width callout '
+                  'and no position anywhere. The only correct transcription '
+                  'records the position as {"assumed": ..., "reason": ...}; '
+                  'a bare number there is an invented placement, the cardinal '
+                  'sin. Truth marks it expect_flag: assumed.',
+    })
+
+    # --- blind-e-studio: two-room space, partition removed -----------------
+    wA = float(R(96, 144))
+    wB = float(R(96, 144))
+    hs = float(R(110, 160))
+    cl5 = float(R(98, 112))
+    ate = float(R(12, 60))
+    cases.append({
+        'name': 'blind-e-studio',
+        'summary': 'partition between A and B removed — transcribe ONE room',
+        'truth_rooms': [troom('studio',
+                              [('E', wA + wB), ('S', hs), ('W', wA + wB),
+                               ('N', hs)], cl5,
+                              doors=[{'run': 2, 'w_in': 36.0,
+                                      'jambs_in': [ate, ate + 36.0],
+                                      'expect_flag': None}])],
+        'draw': {'rooms': [{
+            'run_labels': [
+                [(wA / (2 * (wA + wB)), arch(wA)),
+                 ((wA + wB / 2) / (wA + wB), arch(wB))],
+                arch(hs), None, arch(hs)],
+            'ticks': [{'run': 0, 'at': wA}],
+            'ceil': 'CLG %s THRU-OUT' % arch(cl5),
+            'doors': [{'run': 2, 'at': ate, 'w': 36.0, 'dim': True}],
+            'dashed': [{'p0': (wA, 0.0), 'p1': (wA, -hs)}],
+            'inner': [(wA / 2, -hs / 2.4, 'A', 12),
+                      (wA + wB / 2, -hs / 2.4, 'B', 12)]}],
+            'notes': ['wall btwn A + B comes OUT - build as one room '
+                      '"studio"', 'no total on the south wall - pen '
+                      'measured each half']},
+        'readme': 'Two halves A and B with the partition dashed and a pen '
+                  'note saying it comes out. Truth is ONE room named studio, '
+                  'the full width being the A + B chain (no total stated '
+                  'anywhere). Tests interpretation of a demolition note and '
+                  'a chain that must be recorded with its parts.',
+    })
+    return cases
+
+
+def blind2_cases(seed):
+    """Round 2 — authored after round 1 came back 0.00" across the board.
+    Round 1's verdict: the transcribers were good, but four of five plans
+    handed them a closure cross-check, so a misread could not have passed
+    silently. These two remove the net: a clear-width trap with NO total
+    stated anywhere (a misread closes and builds wrong with no complaint),
+    and a pen chain whose own arithmetic is off by 2" (the only honest
+    transcription is verbatim, and the checker MUST refuse it — a
+    transcriber who quietly harmonises the numbers defeats the one
+    cross-check the pipeline has)."""
+    import random
+    rng = random.Random(seed)
+    R = rng.randrange
+
+    cases = []
+
+    # --- blind-f-mech: silent clear-width trap, no total anywhere ----------
+    clear = float(R(140, 190))
+    tot = clear + 30.0
+    hh = float(R(100, 140))
+    cl = float(R(96, 110))
+    at = float(R(12, int((hh - 36) / 2)))
+    cases.append({
+        'name': 'blind-f-mech',
+        'summary': 'clear width between heaters is the ONLY north-south '
+                   'figure — a misread closes silently',
+        'truth_rooms': [troom('mech',
+                              [('E', tot), ('S', hh), ('W', tot), ('N', hh)],
+                              cl,
+                              doors=[{'run': 1, 'w_in': 36.0,
+                                      'jambs_in': [at, at + 36.0],
+                                      'expect_flag': None}],
+                              features=[{'type': 'heater', 'count': 2}])],
+        'draw': {'rooms': [{
+            'run_labels': [None, arch(hh), None, arch(hh)],
+            'ceil': 'CLG %s' % arch(cl),
+            'doors': [{'run': 1, 'at': at, 'w': 36.0, 'dim': True}],
+            'boxes': [
+                {'run': 0, 'from': 0.0, 'len': 15.0, 'depth': 12.0,
+                 'label': 'HTR 15" x 12"'},
+                {'run': 0, 'from': tot - 15.0, 'len': 15.0, 'depth': 12.0,
+                 'label': 'HTR 15" x 12"'}],
+            'inner': [(tot / 2, -26.0,
+                       '%s CLEAR BETWEEN HTRS' % arch(clear), 9)]}],
+            'notes': ['pen only measured the clear run btwn the htrs - no '
+                      'total taken']},
+        'readme': 'The true 31 Aug silent shape: neither east-west wall '
+                  'carries a total, only the clear width between two 15" '
+                  'heaters. Reading the clear width as the wall length '
+                  'closes cleanly and builds a room 30" too small with no '
+                  'refusal anywhere — only the scorer would see it. The '
+                  'right take-off records the 15" + clear + 15" chain.',
+    })
+
+    # --- blind-g-lounge: the pen arithmetic is WRONG by 2" -----------------
+    true_mid = float(R(152, 180))
+    stated_mid = true_mid - 2.0          # the pen slipped
+    tot2 = 10.0 + true_mid + 12.0
+    hh2 = float(R(100, 140))
+    cl2 = float(R(96, 110))
+    at2 = float(R(12, int((hh2 - 36) / 2)))
+    cases.append({
+        'name': 'blind-g-lounge',
+        'summary': "chain 10\" + mid + 12\" = total is off by 2\" on the "
+                   "plan itself — verbatim transcription MUST refuse",
+        'truth_rooms': [troom('lounge',
+                              [('E', tot2), ('S', hh2), ('W', tot2),
+                               ('N', hh2)], cl2,
+                              doors=[{'run': 1, 'w_in': 36.0,
+                                      'jambs_in': [at2, at2 + 36.0],
+                                      'expect_flag': None}],
+                              features=[{'type': 'heater', 'count': 2}])],
+        'expects': {'refusal': ['not close']},
+        'draw': {'rooms': [{
+            'run_labels': [
+                [(0.5, '10" + %s + 12"  = %s' % (arch(stated_mid),
+                                                 arch(tot2)))],
+                arch(hh2), arch(tot2), arch(hh2)],
+            'ceil': 'CLG %s' % arch(cl2),
+            'doors': [{'run': 1, 'at': at2, 'w': 36.0, 'dim': True}],
+            'boxes': [
+                {'run': 0, 'from': 0.0, 'len': 10.0, 'depth': 8.0,
+                 'label': 'HTR 10"'},
+                {'run': 0, 'from': tot2 - 12.0, 'len': 12.0, 'depth': 8.0,
+                 'label': 'HTR 12"'}]}],
+            'notes': ['middle figure is clear btwn the heaters']},
+        'readme': 'The pen chain on the north wall does not add up: '
+                  '10" + mid + 12" is 2" short of the stated total (the '
+                  'field tape slipped on the middle figure; the total and '
+                  'the south wall are right). The only honest transcription '
+                  'records the stated numbers verbatim, and the checker '
+                  'refuses by name — chain mismatch or non-closure, both '
+                  'say "not close". PASS is that refusal. A take-off that '
+                  'validates clean here means the transcriber silently '
+                  '"fixed" the arithmetic, which defeats the only '
+                  'cross-check the pipeline has — that is a FAIL and the '
+                  'most important thing this case can find.',
+    })
+    return cases
+
+
+def draw_blind(c, folder):
+    """Transcriber-facing plan: printed linework + pen-style callouts, then
+    the phone-photo treatment. Geometry from truth; labels from the draw
+    spec, which deliberately omits or displaces what the case is about."""
+    import pymupdf
+
+    rooms = c['truth_rooms']
+    spec = c['draw']
+    doc = pymupdf.open()
+    page = doc.new_page(width=792, height=612)
+    polys = [r['polygon'] for r in rooms]
+    placed, xoff, offs = [], 0.0, []
+    for p in polys:
+        xs = [q[0] for q in p]
+        ys = [q[1] for q in p]
+        offs.append((xoff - min(xs), -min(ys)))
+        placed.append([(q[0] - min(xs) + xoff, q[1] - min(ys)) for q in p])
+        xoff += (max(xs) - min(xs)) + 70.0
+    allx = [q[0] for p in placed for q in p]
+    ally = [q[1] for p in placed for q in p]
+    w, h = max(allx) - min(allx), max(ally) - min(ally)
+    sc = min((792 - 190) / max(w, 1), (612 - 230) / max(h, 1))
+
+    def X(x):
+        return 95 + (x - min(allx)) * sc
+
+    def Y(y):
+        return 612 - 135 - (y - min(ally)) * sc
+
+    shape = page.new_shape()
+    tw = pymupdf.get_text_length
+
+    for ri, (r, poly, rs) in enumerate(zip(rooms, placed, spec['rooms'])):
+        off = offs[ri]
+        pts = [pymupdf.Point(X(x), Y(y)) for x, y in poly]
+        shape.draw_polyline(pts + [pts[0]])
+        shape.finish(color=INK, width=2.4, closePath=False)
+        cx = sum(p.x for p in pts) / len(pts)
+        cy = sum(p.y for p in pts) / len(pts)
+        page.insert_text((cx - tw(r['room'], 'hebo', 12) / 2, cy), r['room'],
+                         fontname='hebo', fontsize=12, color=INK)
+        if rs.get('ceil'):
+            t = rs['ceil']
+            page.insert_text((cx - tw(t, 'heit', 9) / 2, cy + 15), t,
+                             fontname='heit', fontsize=9, color=PEN)
+        closed = poly + [poly[0]]
+        gx = sum(p[0] for p in poly) / len(poly)
+        gy = sum(p[1] for p in poly) / len(poly)
+
+        def runframe(i):
+            (ax, ay), (bx, by) = closed[i], closed[i + 1]
+            ux, uy = bx - ax, by - ay
+            ln = math.hypot(ux, uy) or 1.0
+            ux, uy = ux / ln, uy / ln
+            nx, ny = uy, -ux
+            mx, my = (ax + bx) / 2, (ay + by) / 2
+            if (mx - gx) * nx + (my - gy) * ny < 0:
+                nx, ny = -nx, -ny
+            return (ax, ay), (bx, by), (ux, uy), (nx, ny), ln
+
+        # run labels — a string, a list of (frac, text), or None (unstated)
+        for i, lab in enumerate(rs.get('run_labels') or []):
+            if lab is None or i >= len(poly):
+                continue
+            (ax, ay), (bx, by), (ux, uy), (nx, ny), ln = runframe(i)
+            entries = lab if isinstance(lab, list) else [(0.5, lab)]
+            for frac, text in entries:
+                px = X(ax + ux * ln * frac) + nx * 17
+                py = Y(ay + uy * ln * frac) - ny * 17
+                rot = 0 if abs(ux) >= abs(uy) else 90
+                wlab = tw(text, 'heit', 9)
+                if rot == 0:
+                    page.insert_text((px - wlab / 2, py + 3), text,
+                                     fontname='heit', fontsize=9, color=PEN)
+                else:
+                    page.insert_text((px, py + wlab / 2), text,
+                                     fontname='heit', fontsize=9, color=PEN,
+                                     rotate=90)
+        # tick marks where a pen chain breaks
+        for t in rs.get('ticks') or []:
+            (ax, ay), _, (ux, uy), (nx, ny), _ = runframe(t['run'])
+            px, py = ax + ux * t['at'], ay + uy * t['at']
+            # short pen tick perpendicular to the run, straddling the wall
+            shape.draw_line(pymupdf.Point(X(px) + nx * 7, Y(py) - ny * 7),
+                            pymupdf.Point(X(px) - nx * 7, Y(py) + ny * 7))
+            shape.finish(color=PEN, width=1.2)
+        # doors: gap + leaf; position dimension only when the plan states it
+        for dspec in rs.get('doors') or []:
+            (ax, ay), (bx, by), (ux, uy), (nx, ny), ln = runframe(dspec['run'])
+            at, wd = dspec['at'], dspec['w']
+            j0 = (ax + ux * at, ay + uy * at)
+            j1 = (ax + ux * (at + wd), ay + uy * (at + wd))
+            shape.draw_line(pymupdf.Point(X(j0[0]), Y(j0[1])),
+                            pymupdf.Point(X(j1[0]), Y(j1[1])))
+            shape.finish(color=(1, 1, 1), width=3.4)
+            # leaf swings inward
+            shape.draw_line(
+                pymupdf.Point(X(j0[0]), Y(j0[1])),
+                pymupdf.Point(X(j0[0] - nx * wd * 0.8),
+                              Y(j0[1] - ny * wd * 0.8)))
+            shape.finish(color=INK, width=0.9)
+            lab = dspec.get('label') or 'DR %s' % arch(wd)
+            lx, ly = (j0[0] + j1[0]) / 2 - nx * 24, (j0[1] + j1[1]) / 2 - ny * 24
+            page.insert_text((X(lx) - tw(lab, 'heit', 8) / 2, Y(ly)), lab,
+                             fontname='heit', fontsize=8, color=PEN)
+            if dspec.get('dim'):
+                # pen dimension: run-start corner -> near jamb, offset outward
+                o = 30
+                pA = pymupdf.Point(X(ax) + nx * o, Y(ay) - ny * o)
+                pB = pymupdf.Point(X(j0[0]) + nx * o, Y(j0[1]) - ny * o)
+                shape.draw_line(pA, pB)
+                shape.finish(color=PEN, width=0.8)
+                for pp, mm in ((pA, (ax, ay)), (pB, j0)):
+                    shape.draw_line(pymupdf.Point(X(mm[0]) + nx * (o - 5),
+                                                  Y(mm[1]) - ny * (o - 5)),
+                                    pymupdf.Point(X(mm[0]) + nx * (o + 5),
+                                                  Y(mm[1]) - ny * (o + 5)))
+                    shape.finish(color=PEN, width=0.8)
+                dlab = arch(at)
+                dmx = (pA.x + pB.x) / 2
+                dmy = (pA.y + pB.y) / 2
+                rot = 0 if abs(ux) >= abs(uy) else 90
+                if rot == 0:
+                    page.insert_text((dmx - tw(dlab, 'heit', 8) / 2, dmy - 4),
+                                     dlab, fontname='heit', fontsize=8,
+                                     color=PEN)
+                else:
+                    page.insert_text((dmx + 12, dmy + tw(dlab, 'heit', 8) / 2),
+                                     dlab, fontname='heit', fontsize=8,
+                                     color=PEN, rotate=90)
+        # feature boxes (heaters etc.), dashed, inward
+        for f in rs.get('boxes') or []:
+            (ax, ay), (bx, by), (ux, uy), (nx, ny), ln = runframe(f['run'])
+            fr, span, dep = f['from'], f['len'], f['depth']
+            p0 = (ax + ux * fr, ay + uy * fr)
+            quad = [p0, (p0[0] + ux * span, p0[1] + uy * span),
+                    (p0[0] + ux * span - nx * dep, p0[1] + uy * span - ny * dep),
+                    (p0[0] - nx * dep, p0[1] - ny * dep)]
+            qp = [pymupdf.Point(X(x), Y(y)) for x, y in quad]
+            shape.draw_polyline(qp + [qp[0]])
+            shape.finish(color=FEAT, width=0.9, dashes='[3 2] 0')
+            # label centered under the box's inner edge, nudged toward the
+            # room centre so it never clips into a wall
+            wl = tw(f['label'], 'heit', 7)
+            lx0 = (qp[2].x + qp[3].x) / 2 - wl / 2
+            ly0 = max(qp[2].y, qp[3].y) + 10
+            if fr < 1.0:
+                lx0 += 14              # box in the run-start corner
+            elif fr + span > ln - 1.0:
+                lx0 -= 14              # box in the run-end corner
+            page.insert_text((lx0, ly0), f['label'],
+                             fontname='heit', fontsize=7, color=PEN)
+        # dashed interior lines (removed partitions), room-local coords
+        for dl in rs.get('dashed') or []:
+            p0 = (dl['p0'][0] + off[0], dl['p0'][1] + off[1])
+            p1 = (dl['p1'][0] + off[0], dl['p1'][1] + off[1])
+            shape.draw_line(pymupdf.Point(X(p0[0]), Y(p0[1])),
+                            pymupdf.Point(X(p1[0]), Y(p1[1])))
+            shape.finish(color=INK, width=1.4, dashes='[5 4] 0')
+        # free interior labels, room-local coords
+        for il in rs.get('inner') or []:
+            ix, iy, text, size = il
+            px, py = ix + off[0], iy + off[1]
+            page.insert_text((X(px) - tw(text, 'heit', size) / 2, Y(py)),
+                             text, fontname='heit', fontsize=size, color=PEN)
+    shape.commit()
+
+    page.insert_text((95, 42), 'FIELD SKETCH - %s' % c['name'],
+                     fontname='hebo', fontsize=13, color=INK)
+    page.insert_text((95, 57), 'synthetic plan for the blind-transcription '
+                     'trial - not a client drawing', fontname='helv',
+                     fontsize=7, color=FEAT)
+    yy = 72
+    for note in spec.get('notes') or []:
+        page.insert_text((95, yy), '* ' + note, fontname='heit', fontsize=9,
+                         color=PEN)
+        yy += 12
+
+    doc.set_metadata({'title': c['name'], 'author': 'eval/gen-plans.py',
+                      'producer': 'gen-plans', 'creator': 'gen-plans',
+                      'creationDate': '', 'modDate': ''})
+    pdf_path = os.path.join(folder, 'input', 'plan.pdf')
+    doc.save(pdf_path, deflate=True)
+
+    # Phone-photo treatment: keystone, uneven light, warm cast, small
+    # rotation, slight blur, JPEG generation loss. All fixed numbers —
+    # deterministic.
+    try:
+        from PIL import Image, ImageChops, ImageEnhance, ImageFilter
+        pix = page.get_pixmap(dpi=130)
+        img = Image.frombytes('RGB', (pix.width, pix.height), pix.samples)
+        wpx, hpx = img.size
+        dq = int(wpx * 0.022)
+        img = img.transform(
+            (wpx, hpx), Image.QUAD,
+            (dq, int(dq * 0.6), -int(dq * 0.4), hpx - dq,
+             wpx + dq, hpx + int(dq * 0.5), wpx - dq, -int(dq * 0.7)),
+            resample=Image.BILINEAR, fillcolor=(226, 221, 210))
+        g = Image.new('L', (64, 64))
+        for gy_ in range(64):
+            for gx_ in range(64):
+                v = 190 + int(65 * (gx_ / 63.0) * 0.7
+                              + 65 * (1 - gy_ / 63.0) * 0.3)
+                g.putpixel((gx_, gy_), min(v, 255))
+        grad = g.resize((wpx, hpx), Image.BILINEAR).convert('RGB')
+        img = ImageChops.multiply(img, grad)
+        img = ImageEnhance.Brightness(img).enhance(1.08)
+        img = ImageEnhance.Color(img).enhance(0.88)
+        img = img.rotate(-1.6, resample=Image.BILINEAR,
+                         fillcolor=(214, 208, 196))
+        img = img.filter(ImageFilter.GaussianBlur(0.4))
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=78)
+        Image.open(buf).save(os.path.join(folder, 'input', 'photo.png'),
+                             optimize=True)
+    finally:
+        doc.close()
+    return pdf_path
+
+
+def emit_blind(c, seed, flag='--blind'):
+    folder = os.path.join(OUT, c['name'])
+    os.makedirs(os.path.join(folder, 'input'), exist_ok=True)
+    emit_json(os.path.join(folder, 'truth.json'),
+              {'generated_by': 'eval/gen-plans.py %s %d — truth authored '
+                               'first from the seeded RNG, plan derived from '
+                               'it' % (flag, seed),
+               'rooms': c['truth_rooms']})
+    if c.get('expects'):
+        emit_json(os.path.join(folder, 'case.json'), {'expects': c['expects']})
+    with io.open(os.path.join(folder, 'README.md'), 'w', encoding='utf-8',
+                 newline='\n') as f:
+        f.write('# %s\n\n%s\n\n%s\n\n**BLIND CASE.** Generated by '
+                '`python eval/gen-plans.py %s %d` — no takeoff fixture '
+                'is emitted; the committed `takeoff.json` (if present) was '
+                'transcribed from `input/photo.png` by an ISOLATED agent '
+                'that never saw `truth.json` or this repo. Do not "fix" it — '
+                'what it got wrong is the trial\'s data. Regenerating with '
+                'the same seed reproduces the same truth.\n'
+                % (c['name'], c['summary'], c['readme'].strip(), flag, seed))
+    try:
+        plan = draw_blind(c, folder)
+    except Exception as e:
+        plan = None
+        print('  (plan drawing failed for %s: %s)' % (c['name'], e))
+    print('  %s%s' % (c['name'], '  (+plan.pdf, photo.png)' if plan else ''))
+
+
 # ------------------------------------------------------------------ main --
 
 def emit(c):
@@ -752,6 +1294,16 @@ def emit(c):
 
 
 def main(argv):
+    for flag, maker in (('--blind', blind_cases), ('--blind2', blind2_cases)):
+        if flag in argv:
+            i = argv.index(flag)
+            if i + 1 >= len(argv):
+                print('usage: gen-plans.py %s <seed>' % flag)
+                return 2
+            seed = int(argv[i + 1])
+            for c in maker(seed):
+                emit_blind(c, seed, flag)
+            return 0
     if '--list' in argv:
         for c in CASES:
             tag = (c['expects'] if isinstance(c['expects'], str)

@@ -1,47 +1,48 @@
-# Builder HANDOFF — whisperroom-takeoff skill + skill distribution (2026-08-31)
+# Builder HANDOFF — blind-transcription trial (2026-08-31)
 
-Goal reconfirmed against `.forge/GOAL.md`: this is Done-means 5 territory
-(written protocol) plus the distribution gap Benton raised directly ("we need
-to make sure this skill is shareable so we can get to other computers and
-Gabe"). Prior slice's handoff preserved at
-`.forge/builder/HANDOFF-eval-adversarial.md`. Plugin at **1.12.7**.
+Goal reconfirmed against `.forge/GOAL.md` before writing this: Done-means 2/4
+(the eval loop exercised on the step that actually failed — transcription —
+not just on fixtures). Prior handoff preserved at
+`.forge/builder/HANDOFF-step8-adversarial.md`. Nothing under `scripts/`
+changed; VERSION stays 1.12.7.
 
 ## Produced
 
 | file | what |
 |---|---|
-| `skills/whisperroom-takeoff/SKILL.md` | New skill: floor plan -> takeoff.json -> checker -> review sheet -> build, short form. Two-paths rule (transcribe stated measurements vs pixel-scale estimation — opposite failure modes), chains-carry-parts with the 31 Aug example, never-invent, patch loop, machine facts. Names the checker's real limit: a lone wrong number with no chain validates clean (synthetic-clearwidth-trap). |
-| `scripts/install-plugin.py` | Now installs repo `skills/` into `~/.claude/skills/` with the same manifest discipline as the bundled scripts (`.installed-by-wr.txt` in the dest; only manifest-listed skills ever removed; foreign skills kept and reported). Destination via `expanduser('~')` — no hardcoded laptop/desktop path. |
-| `CLAUDE.md` | Hand-copy-the-skill instruction replaced by the installer; skills distribution documented under Working conventions; scale-estimation section now routes stated-measurement plans to the take-off pipeline. |
-| `scripts/wr_tools/VERSION` | 1.12.6 -> **1.12.7** |
-| `DEVLOG.md` | 1.12.7 entry |
+| `eval/gen-plans.py` | `--blind <seed>` / `--blind2 <seed>`: randomised blind cases, truth-first from a seeded RNG, phone-photo plan derived (keystone, uneven light, JPEG loss), NO takeoff fixture emitted. `draw_blind` supports per-run label omission, chain labels, pen ticks, heater boxes, dashed removed-partition lines, corner→jamb door dims. |
+| `eval/floorplans/blind-{a-office,b-annex,c-storage,d-workshop,e-studio}/` | Round 1, seed 831 — rectangle, L+neighbour (ceilings differ), clear-width chain, jog with a MISSING door position, removed-partition pair. |
+| `eval/floorplans/blind-{f-mech,g-lounge}/` | Round 2, seed 407 — silent clear-width trap (no total anywhere) and a pen chain wrong by 2" on the plan (expects.refusal 'not close'). |
+| each case's `takeoff.json` | Written by an ISOLATED transcriber (photo + the two protocol docs only). **Do not "fix" them** — what they got wrong is the trial's data. |
+| `eval/RESULTS.md` | New clearly-labelled section: method, verdict, caveats, doc defects D1–D5, 7 rows. Not to be averaged with fixture rows. |
+| `DEVLOG.md` | Trial entry. |
+| `.forge/builder/blind-score.sh` | copy transcription into case dir + score `--record` (scratch). |
 
 ## Read-first
-
-1. `skills/whisperroom-takeoff/SKILL.md` — the skill itself.
-2. `scripts/install-plugin.py` header — why skills are bundled now.
-3. `reference/takeoff-format.md` — still the normative schema; the skill
-   points at it, does not duplicate it.
+1. `eval/RESULTS.md` — the "Blind-transcription trial" section, especially D1–D5.
+2. `eval/floorplans/blind-f-mech/README.md` and `blind-g-lounge/README.md`.
 
 ## Assumptions
-
-- **observed:** before this change `~/.claude/skills/` on this machine held
-  only `launch` — the documented hand-copy of whisperroom-proposal had never
-  happened. After `python scripts/install-plugin.py`: both skills present,
-  manifest written, `launch` untouched (mtime unchanged), and both skills
-  registered in the live session's skill list.
-- **observed:** install logic proven first against a temp destination:
-  idempotent re-run, stale (manifest-listed, repo-dropped) skill removed,
-  foreign skill and its content preserved.
-- **assumed:** Gabe's machine resolves `~` to his own profile via
-  USERPROFILE — standard Windows; not verified on his machine. Next
-  Update-now there will settle it.
-- **reported:** the Update-now button runs git pull + install-plugin.py
-  (CLAUDE.md); I did not exercise the button itself.
+- **observed:** all 7 rows scored live through the bridge (SketchUp 2026);
+  model cleaned after — the seven trial groups erased by name, read-back
+  showed no top-level groups left.
+- **observed:** transcribers were genuinely isolated — fresh sub-agents,
+  scratchpad copies of photo + docs, repo forbidden; their reports and the
+  audited takeoffs show zero invented values, chains recorded with parts.
+- **derived:** round 1 alone was not hard enough (closure cross-checks in
+  4/5 plans); round 2's f/g are the real silent-risk cases. Stated in the
+  ledger, not hidden.
+- **assumed:** Fable-class agents on fully-legible synthetic plans are an
+  upper bound on operator care; a smudged photo or rushed human can still
+  reproduce 31 Aug. The trial measures the protocol, not human fallibility.
 
 ## Open-questions
-
-1. Verify on Gabe's machine after his next Update-now that
-   `~/.claude/skills/whisperroom-takeoff/` appeared.
-2. The concurrent blind-trial Builder owns `eval/` and may hand off after
-   me — its HANDOFF should preserve this one by name, per convention.
+1. D1–D5 doc defects → protocol-doc lane (spec step 9): define `at`'s
+   corner + run winding in `reference/takeoff-format.md`, allow `parts` on
+   assumed values (checker change), enum assumed-escape, closure-derived
+   provenance ruling.
+2. `synthetic-headroom` still records no ledger row (builder-side refusal
+   scored as fatal bridge error). Orchestrator ruling: refusal-is-refusal =
+   PASS. Not fixed here (didn't block; owned by scorer's lane).
+3. A future FAIL on `blind-g-lounge` means silent client-arithmetic
+   "fixing" crept in — treat as a 31 Aug regression.

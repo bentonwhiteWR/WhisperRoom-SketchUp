@@ -1,0 +1,43 @@
+{
+  "job": "a-office",
+  "title": "FIELD SKETCH - blind-a-office",
+  "sources": ["photo.png"],
+  "anchor": "pen 12'-6\" north wall, photo.png",
+  "interpretations": [
+    "Sketch header reads 'FIELD SKETCH - blind-a-office ... * field measured w/ tape', so all pen numbers are treated as stated tape measurements (mainline path), not estimates.",
+    "Room is a plain rectangle: 12'-6\" appears on both the top (north) and bottom (south) walls, 10'-2\" on both the left (west) and right (east) walls. Opposite walls agree, so the polygon closes exactly with the stated values.",
+    "Runs are recorded clockwise from the NW corner: E 12'-6\" (north wall), S 10'-2\" (east wall), W 12'-6\" (south wall), N 10'-2\" (west wall).",
+    "The break in the east wall is the door: 'DR 3'-0\"' labels the opening width. The vertical 2'-8\" dimension at far right runs from the NE corner down to the near (north) jamb of the opening, so at = 2'-8\" measured from the start corner of run 1 (the NE corner). Checks: 2'-8\" + 3'-0\" leaves 4'-6\" of wall below the opening; no chain is written on the plan for that wall, so no parts are recorded.",
+    "The drawn gap in the east wall looks slightly wider than 3'-0\" at sketch scale, but this is a not-to-scale field sketch; per the skill the pen number governs and was not blended with any pixel measurement.",
+    "Door height is not stated; h is omitted so the build flags the 80\" DEFAULT.",
+    "No swing arc or hinge side is drawn. hinge is a required enum, not a dimension, so it cannot be an {assumed} object; 'near' is recorded here as an arbitrary choice and must be confirmed at review.",
+    "Ceiling: 'CLG 9'-1\"' written in the room.",
+    "Wall thickness and sill are not on the plan; both fields are omitted so house defaults (4\" / 48\") apply.",
+    "job is set to 'a-office' from the working folder name; the sketch title calls it 'blind-a-office'."
+  ],
+  "rooms": [
+    {
+      "name": "office",
+      "runs": [
+        {"d": "E", "v": "12'6\"", "src": "pen photo.png", "note": "north wall, top dimension"},
+        {"d": "S", "v": "10'2\"", "src": "pen photo.png", "note": "east wall, right-side dimension; wall containing the door"},
+        {"d": "W", "v": "12'6\"", "src": "pen photo.png", "note": "south wall, bottom dimension"},
+        {"d": "N", "v": "10'2\"", "src": "pen photo.png", "note": "west wall, left-side dimension"}
+      ],
+      "ceiling": {"v": "9'1\"", "src": "pen photo.png", "note": "CLG 9'-1\" written in room"},
+      "doors": [
+        {
+          "run": 1,
+          "at": {"v": "2'8\"", "src": "pen photo.png", "note": "NE corner (start of run 1) to near/north jamb, per the vertical 2'-8\" dimension at far right"},
+          "w": {"v": "3'0\"", "src": "pen photo.png", "note": "labelled DR 3'-0\""},
+          "hinge": "near"
+        }
+      ],
+      "notes": [
+        "Door height not on plan - h omitted, builds 80\" flagged DEFAULT.",
+        "Hinge side not drawn on plan; 'near' is arbitrary - confirm at review.",
+        "Remaining east wall below the door opening works out to 4'-6\" (10'-2\" - 2'-8\" - 3'-0\"); not written on the plan, derived only as a plausibility check."
+      ]
+    }
+  ]
+}
