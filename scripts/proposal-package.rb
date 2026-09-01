@@ -477,7 +477,13 @@ module WR_ProposalPackage
     'annotations_hidden_in_images true means the batch ran client-safe: the ' \
     'exported files carry NO annotation text regardless of scene state.',
     'width/height null on an image row = not recorded (row failed, was ' \
-    'skipped, or was lost) - never a default.'
+    'skipped, or was lost) - never a default.',
+    'groups_hidden: paths of model groups (e.g. \'3190J / Walls / Wall 2\') ' \
+    'hidden in the model when this row exported - a wall missing from the ' \
+    'image is missing BY DESIGN (per-scene wall hiding, wr-scene-walls.rb), ' \
+    'not a modelling error. Read from the live model after the row\'s scene ' \
+    'was selected. null = not recorded (row failed, skipped, or lost) - ' \
+    'never means nothing was hidden; [] means that.'
   ].freeze
 
   # A top-level group/component whose NAME names a booth model. The builders
@@ -540,6 +546,7 @@ module WR_ProposalPackage
                                 'lost row, not a skip') }
       row['width']  = (r && r[:width])  ? r[:width]  : nil
       row['height'] = (r && r[:height]) ? r[:height] : nil
+      row['groups_hidden'] = (r && r[:groups_hidden]) ? r[:groups_hidden] : nil
       row['annotation_tags_shown'] = p[:shown]
       row['annotation_note'] = p[:shown_note] if p[:shown_note]
       row
@@ -1592,6 +1599,18 @@ module WR_ProposalPackage
     cfg  = { 'dir' => @cfg['dir'], 'width' => @cfg['width'],
              'height' => @cfg['height'], 'bg' => 'Opaque', 'over' => 'Yes',
              'hide_tags' => hide }
+    # RECORD WHAT IS HIDDEN ON THIS SCENE BEFORE EXPORTING IT. Selecting the
+    # page applies its saved per-entity hidden state — the per-scene wall
+    # hiding (wr-scene-walls.rb, verified live 31 Aug 2026) — and
+    # export_pages selects the same page again, so this early switch changes
+    # nothing about the pixels. Transitions are off for the whole batch
+    # (start_run), so it is instant.
+    begin
+      model.pages.selected_page = p[:page] if p[:page]
+      p[:groups_hidden] = collect_hidden_groups(model)
+    rescue StandardError
+      p[:groups_hidden] = nil
+    end
     begin
       annot_push(model, dlg, p[:file])
       present = hide.select { |n| model.layers[n] }
@@ -1604,6 +1623,7 @@ module WR_ProposalPackage
       @results << { :file => p[:file], :lane => 'image', :status => 'ok',
                     # :width/:height feed manifest.json — the size the export
                     # ACTUALLY used, not the size that was asked for.
+                    :groups_hidden => p[:groups_hidden],
                     :width => x[:width].to_i, :height => x[:height].to_i,
                     :detail => "image, #{x[:width]}x#{x[:height]} " \
                                "(height #{x[:height_source]})" }
@@ -1682,6 +1702,10 @@ module WR_ProposalPackage
     # A disagreement fails the row BY NAME rather than rendering a view the
     # caption will contradict.
     model.pages.selected_page = p[:page]
+    # Same per-scene hidden record the image lane keeps — read here, right
+    # after the scene switch applied its saved hidden state, so the manifest
+    # says which walls this render is missing BY DESIGN.
+    p[:groups_hidden] = collect_hidden_groups(model)
     page_cam = (p[:page].camera rescue nil)
     if page_cam
       begin
@@ -1997,6 +2021,7 @@ module WR_ProposalPackage
       @results << { :file => p[:file], :lane => 'render', :status => 'ok',
                     # The size written into /SettingsOutput and read back by
                     # the size gate — det already names where it came from.
+                    :groups_hidden => p[:groups_hidden],
                     :width => @cfg['width'].to_i, :height => @cfg['height'].to_i,
                     :detail => det }
       log(dlg, "ok      #{p[:file]}  (#{det})", 'ok')
@@ -2100,6 +2125,32 @@ module WR_ProposalPackage
     [{ 'kind' => 'error', 'tag' => nil, 'text' => nil,
        'note' => "annotation walk failed: #{e.class}: #{e.message} - the " \
                  'callouts must be read off the images for this batch' }]
+  end
+
+  # Group paths hidden in the model RIGHT NOW — the per-scene wall-hiding
+  # record (wr-scene-walls.rb). Called after a row's scene is selected,
+  # because selecting a scene applies its saved per-entity hidden state
+  # (verified live 31 Aug 2026, SketchUp 2026) and the pixels honour exactly
+  # that state. A hidden group's children are not walked — they vanish with
+  # it, and listing every wall band of a hidden wall would bury the signal.
+  def self.hidden_group_walk(ents, path, depth)
+    out = []
+    ents.grep(Sketchup::Group).each do |g|
+      nm = (g.name.to_s rescue '')
+      label = nm.empty? ? '(unnamed group)' : nm
+      if (g.hidden? rescue false)
+        out << (path + [label]).join(' / ')
+      elsif depth < 3
+        out.concat(hidden_group_walk(g.entities, path + [label], depth + 1))
+      end
+    end
+    out
+  end
+
+  def self.collect_hidden_groups(model)
+    hidden_group_walk(model.entities, [], 0)
+  rescue StandardError
+    nil
   end
 
   # Tag names a scene's saved state HIDES, or nil when that cannot be read.

@@ -679,7 +679,8 @@ module WR_ProposalPackage
              { :file => '03.png', :n => 3, :lane => 'image', :scene => 'S3',
                :shown => [], :shown_note => nil }]
     mres  = [{ :file => '01.png', :status => 'ok', :detail => 'image',
-               :width => 1200, :height => 900 },
+               :width => 1200, :height => 900,
+               :groups_hidden => ['R1 / Walls / Wall 2'] },
              { :file => '02 render.png', :status => 'skipped',
                :detail => 'already existed' }]
     mr = manifest_rows(mplan, mres)
@@ -701,6 +702,11 @@ module WR_ProposalPackage
     out << (ok3 ? 'mr3 ok' : "mr3 FAIL #{r3.inspect}")
     out << ((mr.map { |r| r['scene_index'] } == [1, 2, 3]) ?
               'mr4 ok' : 'mr4 FAIL export order not preserved')
+    # 1.12.0 — groups_hidden rides the result row through to the manifest;
+    # a row that never recorded it says null, never [].
+    ok5 = r1['groups_hidden'] == ['R1 / Walls / Wall 2'] &&
+          r2['groups_hidden'].nil? && r3['groups_hidden'].nil?
+    out << (ok5 ? 'mr5 ok' : "mr5 FAIL #{mr.map { |r| r['groups_hidden'] }.inspect}")
 
     out.join(' | ')
   end
@@ -742,7 +748,7 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'bn1 ok | bn2 ok | bn3 ok | bn4 ok | bn5 ok | bn6 ok | bn7 ok | '
           'dd1 ok | dd2 ok | dd3 ok | dd4 ok | dd5 ok | dd6 ok | '
           'st1 ok | st2 ok | st3 ok | st4 ok | '
-          'mr1 ok | mr2 ok | mr3 ok | mr4 ok')
+          'mr1 ok | mr2 ok | mr3 ok | mr4 ok | mr5 ok')
 
 
 def main():

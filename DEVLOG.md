@@ -2,6 +2,47 @@
 
 ## 2026-08-31
 
+### 1.12.0 — hide WHOLE walls per scene, and the proposal package says which
+
+Benton: "we need to be sure that we can 'hide a wall' in the proposal
+package. Not half a wall, an entire one... Walls just need to be either
+grouped in 'walls - Shown' / 'walls - hidden'. Upon selecting a scene, you
+can select which walls are 'hidden' at that scene. The next scene, those
+walls would go back to 'shown'." New: `scripts/wr-scene-walls.rb` (the
+picker), `scripts/wr-name-walls.rb` (retrofit for rooms with unnamed
+walls). Changed: `scripts/proposal-package.rb` (manifest `groups_hidden`
+per image row), `scripts/rbtest-proposal.py` (mr5). VERSION 1.11.0 ->
+**1.12.0**.
+
+- **The mechanism is the scene itself.** A scene saves per-entity hidden
+  state, nested groups included — verified live (SketchUp 2026, bridge):
+  hide a wall's groups, `page.update(PAGE_USE_HIDDEN_OBJECTS |
+  PAGE_USE_HIDDEN_GEOMETRY)`, and every other scene shows them while that
+  one keeps them hidden, camera untouched. So no per-wall tags, and the
+  two groups Benton asked for are the picker's two columns ("Shown in this
+  scene" / "Hidden in this scene") — a container group could not be
+  per-scene, because scenes do not save parentage.
+- **A wall is ALL its pieces.** Wall bands, upper bands, header, opening,
+  leaf and swing of one run move together, so hiding a wall never strands
+  a floating door. The selection buttons cover anything unnamed.
+- **The proposal package rides it for free and now SAYS so.** Each
+  manifest image row carries `groups_hidden` — the group paths hidden when
+  that row's scene exported — so a caption writer knows a missing wall is
+  missing BY DESIGN. Proven with a real headless batch on the eval scratch
+  model: scene 01 with two walls of 3190J hidden exported without them
+  (10 piece paths in the manifest row), the control batch after unhiding
+  differed exactly in that room's pixels and wrote `[]`.
+- **Retrofit is names, not surgery.** wr-name-walls recognises wall solids
+  the way wr-split-walls does (leaf, vertical extrusion, right tags — plus
+  a proportion rule so an untagged floor slab is never named a wall),
+  numbers them around the room, dry-run by default. Scan + naming + picker
+  pickup verified live on a hand-built probe room.
+- Not verified by a human: clicking through the picker dialog itself (its
+  HTML loaded and its JS booted live — `sketchup.ready` fired — but nobody
+  has moved a chip by mouse), and a V-Ray render row with hidden walls
+  (image lane proven; the render lane records `groups_hidden` from the
+  same scene switch but no V-Ray render was run).
+
 ### 1.11.0 — floor-plan intake: the take-off file, its checker, the multi-room builder, the scorer, and the dialog's invented defaults removed
 
 Spec: `.forge/scoper/floorplan-intake.md` steps 1–6 (slice 1), Benton's
