@@ -2,6 +2,35 @@
 
 ## 2026-08-31
 
+### 1.12.7 — whisperroom-takeoff skill; installer now distributes skills
+
+The take-off rules the 31 Aug mission established are now a skill, and skills
+now actually reach other machines. VERSION 1.12.6 -> **1.12.7**
+(install-plugin.py changed).
+
+- **New skill `skills/whisperroom-takeoff/SKILL.md`** — the short-form
+  procedure for floor plan -> takeoff.json -> checker -> review sheet ->
+  build. Carries the two-paths rule (transcribe stated measurements vs
+  estimate scale — opposite failure modes, never blended), the
+  chains-carry-their-parts rule with the 31 Aug example, the never-invent
+  rule, and — named plainly — the checker's real limit: a lone wrong number
+  with no chain recorded validates clean and builds wrong
+  (synthetic-clearwidth-trap is the committed proof).
+- **`scripts/install-plugin.py` installs the repo's `skills/` into
+  `~/.claude/skills/`**, same manifest discipline as the bundled scripts:
+  only repo skill dirs are copied, only manifest-listed ones are ever
+  removed, foreign skills are kept and reported. Reason: CLAUDE.md said
+  "copy it into ~/.claude/skills/ yourself" and nobody ever had — this
+  machine was missing whisperroom-proposal. Update-now (git pull +
+  install-plugin.py) now delivers skills to Gabe automatically.
+  Logic proven against a temp destination (idempotence, stale removal,
+  foreign preservation), then run live: both skills landed in
+  `~/.claude/skills/`, the pre-existing `launch` skill untouched.
+- CLAUDE.md updated to match: hand-copy instruction removed, skills
+  distribution documented under Working conventions, and the
+  scale-estimation section now points stated-measurement plans at the
+  take-off pipeline instead.
+
 ### 1.12.6 — patch flow fixed for fractions finer than a tenth; grammar third copy removed; five eval-scorer defects (code review)
 
 The seven review findings handed off from the 1.12.x lanes, routed to a

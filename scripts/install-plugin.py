@@ -26,6 +26,17 @@ which is a miserable thing to debug.
 
 RE-RUN THIS after pulling changes if you want the bundled copy refreshed. On
 your own machine you rarely need to: the repo wins anyway.
+
+THE SKILLS ARE INSTALLED TOO, FOR THE SAME REASON
+
+The repo's skills/ folder (whisperroom-proposal, whisperroom-takeoff, ...) used
+to rely on a "copy it into ~/.claude/skills/ yourself" line in CLAUDE.md. Nobody
+performed that step — this very machine was missing whisperroom-proposal when we
+checked — so the skills now travel with the installer, exactly like the scripts.
+Each repo skill directory is copied into ~/.claude/skills/<name>/, a manifest
+records which ones WE installed, and anything else in that folder (a teammate's
+own skills) is never touched. Since Update-now runs git pull + this script, a
+pushed skill actually reaches Gabe.
 """
 import os
 import shutil
@@ -123,6 +134,58 @@ def copy_scripts(dst):
     return len(shipping), stale, foreign
 
 
+def install_skills():
+    """Repo skills/ -> ~/.claude/skills/, same manifest discipline as scripts.
+
+    Only directories that carry a SKILL.md count as skills. The manifest in the
+    destination records which skill folders THIS installer put there; a skill
+    dropped from the repo is removed only if the manifest says we installed it.
+    A skill the user made themselves — same folder, not ours — is never touched.
+    ~ resolves per machine (USERPROFILE), so the laptop/desktop OneDrive split
+    in CLAUDE.md's machine-note table needs no special-casing here.
+    """
+    src = os.path.join(os.path.dirname(SRC), 'skills')
+    if not os.path.isdir(src):
+        return None  # running from a bundled copy with no repo — nothing to do
+
+    dst_root = os.path.join(os.path.expanduser('~'), '.claude', 'skills')
+    os.makedirs(dst_root, exist_ok=True)
+    mf = os.path.join(dst_root, MANIFEST)
+
+    previously = set()
+    if os.path.isfile(mf):
+        try:
+            with open(mf, encoding='utf-8') as fh:
+                previously = {ln.strip() for ln in fh if ln.strip()}
+        except OSError:
+            previously = set()
+
+    shipping = {
+        d for d in sorted(os.listdir(src))
+        if os.path.isfile(os.path.join(src, d, 'SKILL.md'))
+    }
+
+    # Skills WE installed that the repo has dropped. Nothing else is removed.
+    stale = sorted(previously - shipping)
+    for d in stale:
+        shutil.rmtree(os.path.join(dst_root, d), ignore_errors=True)
+
+    foreign = sorted(
+        d for d in os.listdir(dst_root)
+        if os.path.isdir(os.path.join(dst_root, d))
+        and d not in shipping and d not in previously
+    )
+
+    for d in sorted(shipping):
+        shutil.copytree(os.path.join(src, d), os.path.join(dst_root, d),
+                        dirs_exist_ok=True)
+
+    with open(mf, 'w', encoding='utf-8') as fh:
+        fh.write(chr(10).join(sorted(shipping)) + chr(10))
+
+    return dst_root, sorted(shipping), stale, foreign
+
+
 def main():
     targets = []
     if os.path.isdir(ROOT):
@@ -162,6 +225,20 @@ def main():
             print('     Those are yours. They were NOT touched. If you want them to')
             print('     survive every install and reach anyone else, put them in the')
             print('     repo scripts/ folder and commit them.')
+
+    skills = install_skills()
+    if skills:
+        dst_root, shipping, stale, foreign = skills
+        print('')
+        print('skills    -> %s' % dst_root)
+        for d in shipping:
+            print('     %s' % d)
+        if stale:
+            print('     removed %d skill(s) no longer in the repo: %s'
+                  % (len(stale), ', '.join(stale)))
+        if foreign:
+            print('     KEPT %d skill(s) that are not from the repo (yours, untouched): %s'
+                  % (len(foreign), ', '.join(foreign)))
 
     print('')
     print('Restart SketchUp. Menu: Extensions > WhisperRoom')

@@ -61,6 +61,12 @@ A local copy of the model table is in `reference/booth-models.md` for fast looku
 
 ## Estimating dimensions from a client floor plan
 
+**If the plan carries stated measurements (pen callouts, dimension strings), this
+section does not apply — transcribe them via the take-off pipeline instead.** That is
+the `whisperroom-takeoff` skill and `reference/takeoff-format.md`: stated numbers are
+exact and the risk is transcription, not scale. Estimation below is for plans with no
+usable numbers, and the two must never be blended.
+
 Full method: `reference/scale-estimation.md`. The short version, and it is not optional:
 
 - **Establish scale from exactly one anchor, then state which one.** In priority order:
@@ -238,8 +244,9 @@ Output: on Benton's machine the PDF goes to
 machine, a `ProposalFiles/<Client>/` folder wherever the operator says. Never overwrite
 anything already in that folder unless told to. Working files stay in the scratchpad.
 
-The `whisperroom-proposal` skill (`skills/whisperroom-proposal/SKILL.md` in this repo,
-copy it into `~/.claude/skills/`) is the same material in short form.
+The `whisperroom-proposal` skill (`skills/whisperroom-proposal/SKILL.md` in this repo)
+is the same material in short form. Skills are installed by `install-plugin.py` —
+see Working conventions; do not copy them by hand.
 
 ---
 
@@ -312,6 +319,14 @@ ramps to the clearance rules above, tags, materials, and dimension entities.
   sits at a path in `CANDIDATES` (see `main.rb`), so on such a machine a `git pull`
   alone is enough for those. Anywhere else they come from the bundled copy and need
   the installer.
+- **Skills travel with the installer too.** `install-plugin.py` copies every
+  `skills/<name>/` directory in this repo into `~/.claude/skills/` (currently
+  `whisperroom-proposal` and `whisperroom-takeoff`), keeps a manifest of what it
+  installed, and never touches skills it didn't install. Never copy skills by hand —
+  that instruction used to exist and nobody performed it; this machine was missing
+  `whisperroom-proposal` until the installer took the job over. A changed skill
+  reaches another machine the same way as a script: push, then `git pull` +
+  `install-plugin.py` there (the panel's **Update now** does both).
 - **Client material stays out of this repo — it is public.** Renders, proposal PDFs and
   per-client configs live in the private `whisperroom-proposals` repo.
 
