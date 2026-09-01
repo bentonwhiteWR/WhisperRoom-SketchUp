@@ -3,7 +3,8 @@
 #
 # Every room in a validated take-off lock file, built in one go — polygons,
 # doors, per-room ceiling slabs, obstruction massing, dimensions, and an
-# ASSUMED note in the model at every value somebody guessed.
+# every value somebody guessed listed on the console report. The model itself
+# carries geometry and dimensions only — no text.
 #
 # INPUT IS THE LOCK FILE, NEVER THE TAKE-OFF ITSELF. `takeoff.lock.json` is
 # what `python scripts/takeoff-check.py clients/<job>/takeoff.json` writes
@@ -370,10 +371,21 @@ module WR_BuildTakeoff
     end
   end
 
-  # Every assumed/default value of this room gets a text IN THE MODEL, at the
-  # door for door values, stacked above the room for the rest — the same
-  # loudness the 96" house-default ceiling already gets in build-room.rb.
+  # NO TEXT IN THE MODEL. Benton, 1 Sep 2026: "I don't want any text, we just
+  # want the floor plan and the dimensions, and if requested, booths put into
+  # there as well." A drawing carries geometry and dimensions; a paragraph
+  # floating over the plan is something to delete before anyone can use it.
+  #
+  # The assumptions are NOT lost, and this is not a weakening of the rule that
+  # they are never silent — they are listed by name on the console report at
+  # the end of every build, flagged on the review sheet, and in the lock file.
+  # What changed is where they are said, not whether.
+  #
+  # Set NOTES_IN_MODEL true to put them back.
+  NOTES_IN_MODEL = false
+
   def self.place_notes(model, group, pts, ccw, room, inventory, name, t_note)
+    return unless NOTES_IN_MODEL
     mine = inventory.select { |a| a['path'].to_s.start_with?(name + ' ') }
     return if mine.empty?
     doors = room['doors'] || []
@@ -424,8 +436,9 @@ module WR_BuildTakeoff
     if inv.empty?
       puts '  ASSUMED / DEFAULT — none. Every value is measured or stated.'
     else
-      puts "  ASSUMED / DEFAULT — #{inv.size} value(s), noted IN THE MODEL, " \
-           'confirm before quoting:'
+      puts "  ASSUMED / DEFAULT — #{inv.size} value(s). The model carries no " \
+           'text; this list and the review sheet are where they are said. ' \
+           'Confirm before quoting:'
       inv.each do |a|
         puts format('    %s %s — %.1f" (%s)', a['kind'].to_s.upcase,
                     a['path'], a['value_in'].to_f, a['reason'])

@@ -72,6 +72,10 @@
 require 'json'
 
 module WR_BuildRoom
+  # See the ceiling-note block below: the model carries geometry and
+  # dimensions only. Flip to true to paint the notes on the drawing again.
+  NOTES_IN_MODEL = false
+
   DIR = { 'E' => [1, 0], 'W' => [-1, 0], 'N' => [0, 1], 'S' => [0, -1] }.freeze
   TOL = 0.02
   PREF = 'com.whisperroom.buildroom'.freeze
@@ -416,9 +420,13 @@ module WR_BuildRoom
            d['hinge'].to_s, t_door, t_leaf, mat_door)
     end
 
-    # The ceiling height is the thing that disqualifies a booth fastest, so if
-    # it is the house default it gets said on the drawing, not just in chat.
-    if house
+    # NO TEXT IN THE MODEL — same rule as build-takeoff.rb, and the same reason
+    # (Benton, 1 Sep 2026: "I don't want any text, we just want the floor plan
+    # and the dimensions"). A defaulted ceiling is still the thing that
+    # disqualifies a booth fastest, so it is still said LOUDLY — on the console
+    # report, every build. It is just not painted onto the drawing.
+    # Set NOTES_IN_MODEL true to put it back.
+    if house && NOTES_IN_MODEL
       begin
         bb = floor ? floor.bounds : room.bounds
         note = model.entities.add_text(

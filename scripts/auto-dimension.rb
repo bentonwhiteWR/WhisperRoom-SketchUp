@@ -37,9 +37,14 @@
 #   load "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/auto-dimension.rb"
 
 module WR_AutoDimension
-  SEG_OFF   = 12.0     # segment chain, closest to the building
-  OVR_OFF   = 34.0     # overall, outside the chain
-  DOOR_OFF  = 23.0     # doors, between the two and on their own tag
+  # Standoffs. These were 12 / 34 / 23 and sat on top of the walls — Benton,
+  # 1 Sep 2026: "You're usually way too close to the walls, you have to
+  # manually move them." A dimension you have to drag before you can read it
+  # is not dimensioned. Room to breathe, and the three bands stay distinct so
+  # the chain, the overall and the doors never collide.
+  SEG_OFF   = 20.0     # segment chain, closest to the building
+  OVR_OFF   = 48.0     # overall, outside the chain
+  DOOR_OFF  = 33.0     # doors, between the two and on their own tag
   TOL       = 0.02     # inches — below this two points are the same point
 
   TAG_DIM   = 'WR-Dims'.freeze
@@ -225,9 +230,76 @@ module WR_AutoDimension
     l
   end
 
+  # ------------------------------------------------------- attached dimensions --
+  #
+  # A dimension built from two bare Point3d values is UNATTACHED: SketchUp
+  # stores the coordinates and nothing else. It does not know which wall it
+  # measures, it does not follow the wall when the wall moves, and dragging it
+  # to the other side leaves its extension lines reaching back the way they
+  # were. Benton, 1 Sep 2026: "it's all disconnected. It's not actually
+  # connected to the walls ... it's kind of shitty."
+  #
+  # add_dimension_linear also takes ATTACHED references — a Vertex, an Edge, a
+  # ConstructionPoint, or [instance_path, one of those] for geometry inside a
+  # group. Given one, SketchUp owns the relationship: the dimension follows the
+  # geometry, reports its real length, and re-derives its extension lines from
+  # the attachment whenever it is moved.
+  #
+  # So every point we dimension is resolved to a real entity first. Room
+  # corners resolve to the floor face's own vertices. Door jambs fall on the
+  # middle of an edge where no vertex exists, so a ConstructionPoint is made
+  # there and attached to — a real entity in the same container, which moves
+  # with the room.
+  #
+  # WHAT HAPPENS WHEN IT CANNOT ATTACH. It falls back to the bare point, which
+  # is what every dimension used to be, and it is COUNTED. The report says how
+  # many are floating rather than letting a silent regression look like
+  # success.
+  ATTACH_TOL = 0.02   # inches; the traced runs are transformed floats
+
+  # Vertex lookup for one face, keyed loosely by transformed position.
+  def self.vertex_index(face, tr)
+    idx = []
+    face.outer_loop.vertices.each { |v| idx << [v.position.transform(tr), v] }
+    idx
+  rescue StandardError
+    []
+  end
+
+  # The attachable reference for a point, or nil. `path` is an InstancePath (or
+  # array of instances) when the face lives inside a group; nil when it is
+  # loose in model.entities.
+  def self.attach_for(pt, idx, path)
+    hit = nil
+    idx.each do |pos, v|
+      if pos.distance(pt) <= ATTACH_TOL
+        hit = v
+        break
+      end
+    end
+    return nil unless hit
+    path ? [path, hit] : hit
+  end
+
+  # A ConstructionPoint to hang a mid-wall dimension (a door jamb) on. Made in
+  # the same entities as the geometry so it travels with it.
+  def self.cpoint_for(ents, pt, path, tag)
+    cp = ents.add_cpoint(pt)
+    return nil unless cp
+    cp.layer = tag if tag
+    path ? [path, cp] : cp
+  rescue StandardError
+    nil
+  end
+
+  # a/b may be a Point3d or an already-resolved attachment reference.
   def self.dim(ents, a, b, vec, layer)
     d = ents.add_dimension_linear(a, b, vec)
-    d.layer = layer if d
+    return nil unless d
+    d.layer = layer
+    # An attached dimension must never be allowed to show a typed-in string:
+    # the whole point is that it reports what the geometry actually measures.
+    (d.text = '') rescue nil
     d
   rescue StandardError
     nil
@@ -329,14 +401,26 @@ module WR_AutoDimension
     t_dim  = tag(model, TAG_DIM,  [40, 40, 40])
     t_door = tag(model, TAG_DOOR, [238, 98, 22])
 
+    # Attachment context. opts[:path] is the InstancePath to the face when it
+    # lives in a group; nil means the face is loose in model.entities and a
+    # bare Vertex is the right reference.
+    path = opts[:path]
+    vidx = vertex_index(face, tr)
+
     made = 0
+    loose = 0
     table = []
+    at = lambda do |pt|
+      r = attach_for(pt, vidx, path)
+      loose += 1 if r.nil?
+      r || pt
+    end
 
     # 1. The segment chain — one dimension per in-line run, on every side.
     runs.each_with_index do |r, i|
       n = outward(r, ccw)
       off = Geom::Vector3d.new(n.x * SEG_OFF, n.y * SEG_OFF, 0)
-      made += 1 if dim(ents, r[:a], r[:b], off, t_dim)
+      made += 1 if dim(ents, at.call(r[:a]), at.call(r[:b]), off, t_dim)
       table << [i + 1, r[:vec].length.to_f, direction_of(r[:vec])]
     end
 
@@ -344,12 +428,12 @@ module WR_AutoDimension
     z = bb.min.z
     ox = OVR_OFF
     made += 1 if dim(ents,
-                     Geom::Point3d.new(bb.min.x, bb.min.y, z),
-                     Geom::Point3d.new(bb.max.x, bb.min.y, z),
+                     at.call(Geom::Point3d.new(bb.min.x, bb.min.y, z)),
+                     at.call(Geom::Point3d.new(bb.max.x, bb.min.y, z)),
                      Geom::Vector3d.new(0, -ox, 0), t_dim)
     made += 1 if dim(ents,
-                     Geom::Point3d.new(bb.min.x, bb.min.y, z),
-                     Geom::Point3d.new(bb.min.x, bb.max.y, z),
+                     at.call(Geom::Point3d.new(bb.min.x, bb.min.y, z)),
+                     at.call(Geom::Point3d.new(bb.min.x, bb.max.y, z)),
                      Geom::Vector3d.new(-ox, 0, 0), t_dim)
 
     # 3. Doors, on their own tag so they read as secondary.
@@ -363,12 +447,17 @@ module WR_AutoDimension
       off = Geom::Vector3d.new(n.x * DOOR_OFF, n.y * DOOR_OFF, 0)
       j0 = r[:a].offset(u, hit[:t0])
       j1 = r[:a].offset(u, hit[:t1])
-      made += 1 if dim(ents, r[:a], j0, off, t_door)      # corner -> near jamb
-      made += 1 if dim(ents, j0, j1, off, t_door)         # opening width
+      # The jambs are mid-edge, so there is no vertex to attach to: give them
+      # construction points on the door tag, which move with the room.
+      c0 = cpoint_for(ents, j0, path, t_door) || j0
+      c1 = cpoint_for(ents, j1, path, t_door) || j1
+      made += 1 if dim(ents, at.call(r[:a]), c0, off, t_door)  # corner -> near jamb
+      made += 1 if dim(ents, c0, c1, off, t_door)              # opening width
       doors += 1
     end
 
     { :runs => runs, :table => table, :made => made, :doors => doors,
+      :loose => loose,
       :closure => closure(runs, bb), :ccw => ccw, :bounds => bb }
   end
 
