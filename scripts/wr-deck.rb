@@ -814,15 +814,39 @@ module WR_Deck
   # are separable.
   # 74x74 = MDL 7272 S/E, 98x74 = MDL 7296 S/E. Each checked against
   # wr-booth-data.rb: no other model carries either footprint.
-  MIRROR_DECK_SIZES = [[74.0, 74.0], [98.0, 74.0]].freeze
+  # PER KIND, since 1 Sep 2026. The mirror used to apply to FL and CL alike,
+  # because the two were wrong together on the 7272. They are not wrong
+  # together on the 7296.
+  #
+  # Benton, 1 Sep 2026, off a booth pulled in from a booth link: "need to
+  # mirror flip the standard ceilings of a 7296". Its FLOOR is right and has
+  # been since 1.10.5; only the ceiling is not. Mirroring an already-mirrored
+  # tile a second time across the same plane is the identity, so the change
+  # that answers him is to STOP mirroring the 7296 ceiling — the tile then
+  # sits where the handed-part rule put it, which is the arrangement the 7272
+  # ceiling already gets right.
+  #
+  # 7272 keeps both. Benton has reported its ceiling correct since the handed
+  # rule landed and it is not in this report.
+  #
+  # IF THE 7296 CEILING NOW COMES OUT MIRRORED THE OTHER WAY rather than
+  # right, this reading was wrong and the fix is the other mirror, not none:
+  # put 'CL' back below and add STD7248CL SIDE L/R to YAW_180_FILES, which
+  # composes to a mirror-Y. One line either way, which is why it is a table.
+  MIRROR_DECK_KINDS = {
+    [74.0, 74.0] => %w[FL CL].freeze,   # MDL 7272 S/E
+    [98.0, 74.0] => %w[FL].freeze       # MDL 7296 S/E — ceiling excluded
+  }.freeze
   SIZE_TOL = 0.51
 
-  def self.mirror_deck?(spec)
+  def self.mirror_deck?(spec, kind = nil)
     w = spec[:w].to_f
     h = spec[:h].to_f
-    MIRROR_DECK_SIZES.any? do |mw, mh|
-      (w - mw).abs < SIZE_TOL && (h - mh).abs < SIZE_TOL
+    MIRROR_DECK_KINDS.each do |(mw, mh), kinds|
+      next unless (w - mw).abs < SIZE_TOL && (h - mh).abs < SIZE_TOL
+      return kind.nil? ? true : kinds.include?(kind.to_s)
     end
+    false
   rescue StandardError
     false
   end
@@ -836,9 +860,9 @@ module WR_Deck
 
     warn = []
     placed = 0
-    mirror = mirror_deck?(spec)
-    warn << format('deck mirrored across YZ for this model (%.0f x %.0f)',
-                   spec[:w].to_f, spec[:h].to_f) if mirror
+    mirror = mirror_deck?(spec, kind)
+    warn << format('%s mirrored across YZ for this model (%.0f x %.0f)',
+                   kind, spec[:w].to_f, spec[:h].to_f) if mirror
     tiles.each do |t|
       defn = begin
                model.definitions.load(t[:part][:path])

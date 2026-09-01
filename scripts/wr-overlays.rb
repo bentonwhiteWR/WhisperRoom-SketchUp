@@ -135,6 +135,22 @@ module WR_Overlays
   DESK_SMALL = { :file => 'DeskSmall', :w => 30.0, :d => 14.0 }.freeze
   DESK_LARGE = { :file => 'DeskLarge', :w => 42.0, :d => 17.0 }.freeze
 
+  # MJP: BOTH BOXES TAKE A HALF TURN IN THE PLANE OF THE WALL.
+  #
+  # Benton, 1 Sep 2026, off a booth pulled in from a booth link: "MJP needs to
+  # be flipped 180". As authored, MJP.skp lands upside down on the wall.
+  #
+  # This is a spin about the wall NORMAL, not a room flip — the plate stays
+  # flat on its face and only its own orientation changes. It is applied to
+  # the interior AND the exterior box, because they are the same .skp and a
+  # part authored upside down is upside down on both faces. The exterior box's
+  # existing 180-in-plan (room_flip, "the ports need to face the camera") is a
+  # separate move and is unchanged; the two compose.
+  #
+  # IF ONLY ONE FACE COMES OUT RIGHT, this is not one constant but two, and
+  # the call sites below take the flag separately.
+  MJP_SPIN180 = true
+
   # MJP. Plate CENTRE at 27.25 off the floor (32.5 desk surface minus 5.25,
   # Benton QA 2026-06-27). The jack box is 3.64 tall with cable tails hanging
   # BELOW it, so the box TOP is the stable datum: geometry top goes at
@@ -532,12 +548,25 @@ module WR_Overlays
   # width direction derived right-handed. face_sign is the part family's
   # FACE_ROOM constant; outward-mounted parts (the exterior desk, the outer
   # MJP box) pass room_flip = true.
-  def self.wall_transform(gx, ax, t, face_sign, room_flip = false)
+  # spin180 turns the part a half turn ABOUT THE WALL NORMAL — in the plane of
+  # the wall, so it stays flat on its face and only its own up/down and
+  # left/right swap. That is a different move from room_flip, which sends the
+  # part to the other FACE of the wall.
+  #
+  # It is composed into `rot` BEFORE the span arithmetic below, deliberately:
+  # every offset is then measured off the part as it will finally sit, so a
+  # spun part is centred and seated by exactly the same code as an unspun one
+  # and cannot drift off its slot. Applying it afterwards would move the part.
+  def self.wall_transform(gx, ax, t, face_sign, room_flip = false, spin180 = false)
     room = t[:room] * (room_flip ? -1.0 : 1.0)
     o = room * face_sign
     nrm = t[:naxis] == :x ? Geom::Vector3d.new(o, 0, 0) : Geom::Vector3d.new(0, o, 0)
     cls = { :hi => ax[:hi], :ti => ax[:ti], :wi => ax[:wi] }
     rot = WR_BuildBoothComponents.rotation(cls, nrm)
+    if spin180
+      rot = Geom::Transformation.rotation(Geom::Point3d.new(0, 0, 0),
+                                          nrm, 180.degrees) * rot
+    end
 
     xs = []
     ys = []
@@ -908,10 +937,10 @@ module WR_Overlays
             puts format('    would place both boxes at run centre %.2f — interior face ' \
                         '%.2f, exterior face %.2f', run_c, inner_t[:face], outer_face)
           else
-            tri = wall_transform(gx, ax, inner_t, FACE_ROOM[:mjp])
+            tri = wall_transform(gx, ax, inner_t, FACE_ROOM[:mjp], false, MJP_SPIN180)
             placed += 1
             puts '    interior  ' + add(booth, md, tri, "MJP interior  #{hf[:host_id]}", t_opt)
-            tro = wall_transform(gx, ax, outer_t, FACE_ROOM[:mjp], true)
+            tro = wall_transform(gx, ax, outer_t, FACE_ROOM[:mjp], true, MJP_SPIN180)
             placed += 1
             puts '    exterior  ' + add(booth, md, tro, "MJP exterior  #{host[:id]}", t_opt)
           end
