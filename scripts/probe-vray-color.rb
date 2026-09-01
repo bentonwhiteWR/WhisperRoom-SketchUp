@@ -2,24 +2,28 @@
 # @cat V-Ray renders
 # @rank 90
 #
-# READ-ONLY. Dumps every colour/gamma-related V-Ray setting in the current
-# scene to the Ruby Console. Writes nothing, renders nothing, changes nothing.
+# READ-ONLY. Dumps the V-Ray colour/gamma path to the Ruby Console. Writes
+# nothing, renders nothing, changes nothing.
 #
 # WHY THIS EXISTS. Measured 1 Sep 2026 on Benton's own pair: the proposal
 # package's saved PNG has mean luminance 0.159 and a MAXIMUM of 0.68 — it
-# never reaches white — while the same frame rendered by hand reads ~0.35
-# and touches 1.0. Apply an sRGB transfer curve to the saved file and it
-# lands exactly on the hand render. The file also carries NO gAMA, sRGB or
-# iCCP chunk, so nothing tells a viewer it is linear.
+# never reaches white — while the same frame by hand reads ~0.35 and touches
+# 1.0. Apply an sRGB transfer curve to the saved file and it lands exactly on
+# the hand render. The file carries NO gAMA, sRGB or iCCP chunk, so nothing
+# tells a viewer it is linear. Benton: "when I see the vray window rendering,
+# it looks correctly bright. Just the finished file doesn't look good."
 #
-# Benton: "when I see the vray window rendering, it looks correctly bright.
-# Just the finished file doesn't look good." That is the shape of a display
-# transform the VFB applies and the saved file does not inherit.
+# RUN 1 (1 Sep) told us two things and both are acted on here:
 #
-# save_vfb_image(:apply_color_corrections => true) did NOT change it —
-# byte-different file, identical luminance (mean 0.1585 both runs) — so that
-# option is not the knob. This probe finds the one that is, instead of
-# guessing at plugin names one release at a time.
+#   1. Every plugin key came back :unreadable — because the keys were passed
+#      as STRINGS. proposal-package.rb has always used SYMBOLS (`pl[:gamma]`).
+#      Both are tried now, and which one worked is printed.
+#   2. The renderer's own method list is where the answer actually lives:
+#        vfb_settings / vfb_settings=      apply_settings_vfb
+#        fill_settings_vfb                 vfb_persistent_state
+#        load_color_corrections_preset     save_color_corrections_preset
+#      The VFB's display correction is a VFB setting, not a scene plugin, and
+#      save_vfb_image saves the buffer. So vfb_settings is dumped in full.
 #
 # Extensions > Developer > Ruby Console, then run it from the panel, or:
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/probe-vray-color.rb"
@@ -27,32 +31,49 @@
 require 'sketchup.rb'
 
 module WR_ProbeVRayColor
-  # Everything plausibly involved in how a rendered pixel becomes a file
-  # pixel. Missing plugins are reported as missing, not skipped silently —
-  # which one is absent is itself the answer on some builds.
-  PLUGINS = %w[
-    /SettingsColorMapping
-    /SettingsVFB
-    /SettingsOutput
-    /SettingsImageSampler
-    /SettingsEXR
-    /SettingsPNG
-    /SettingsJPEG
-    /RenderChannelDenoiser
-    /CameraPhysical
-    /SettingsCameraDof
-    /SettingsEnvironment
-  ].freeze
+  # Methods, not constants: re-running this in one session used to print four
+  # "already initialized constant" warnings before it got to the answer.
+  def self.plugins
+    %w[
+      /SettingsColorMapping /SettingsVFB /SettingsOutput /SettingsPNG
+      /SettingsJPEG /SettingsEXR /SettingsImageSampler /CameraPhysical
+      /RenderChannelDenoiser /SettingsEnvironment /SettingsRTEngine
+      /SettingsOptions
+    ]
+  end
 
-  # Keys worth calling out by name if they exist — the usual suspects for a
-  # linear file out of a corrected viewer.
-  HOT = %w[
-    gamma type adaptation_only linearWorkflow subpixel_mapping clamp_output
-    clamp_level affect_background mode display_correction srgb
-    force_srgb display_srgb use_display_correction img_noAlpha
-    img_file_needFrameNumber bitmap_gamma color_space
-    exposure iso f_number shutter_speed white_balance
-  ].freeze
+  def self.hot
+    %w[
+      gamma type adaptation_only linearWorkflow subpixel_mapping clamp_output
+      clamp_level affect_background mode display_correction srgb force_srgb
+      display_srgb use_display_correction img_noAlpha bitmap_gamma
+      color_space exposure iso f_number shutter_speed white_balance
+      img_width img_height
+    ]
+  end
+
+  # Read one key both ways. Returns [value, how] or [:unreadable, nil].
+  def self.read_key(pl, k)
+    begin
+      v = pl[k.to_sym]
+      return [v, 'sym'] unless v.nil?
+    rescue Exception
+      nil
+    end
+    begin
+      v = pl[k.to_s]
+      return [v, 'str'] unless v.nil?
+    rescue Exception
+      nil
+    end
+    [:unreadable, nil]
+  end
+
+  def self.dump_value(label, v)
+    s = v.inspect
+    s = s[0, 4000] + " ...(truncated, #{v.inspect.length} chars)" if s.length > 4000
+    puts "  #{label} = #{s}"
+  end
 
   def self.run
     unless defined?(VRay) && defined?(VRay::Context)
@@ -65,68 +86,77 @@ module WR_ProbeVRayColor
       return
     end
     scene = (ctx.scene rescue nil)
-    if scene.nil?
-      puts 'No V-Ray scene on the active context.'
-      return
-    end
+    rend  = (ctx.renderer rescue nil)
 
     puts ''
     puts '=' * 74
-    puts 'V-RAY COLOUR PROBE — read-only'
+    puts 'V-RAY COLOUR PROBE 2 — read-only'
     puts '=' * 74
 
-    PLUGINS.each do |name|
-      pl = (scene[name] rescue nil)
-      if pl.nil?
-        puts format('  %-26s NOT IN THIS SCENE', name)
-        next
-      end
-      puts ''
-      puts "  #{name}"
-      keys = nil
-      # Different builds expose the key list differently; try the documented
-      # routes in order and say which one worked, so the next person knows.
-      %i[keys parameter_names properties each_key].each do |m|
-        next unless pl.respond_to?(m)
+    # ---- 1. the VFB settings blob: the most likely home of the answer ----
+    puts ''
+    puts '-- RENDERER / VFB --------------------------------------------------'
+    if rend.nil?
+      puts '  no renderer on the context'
+    else
+      %i[vfb_settings vfb_persistent_state].each do |m|
+        next unless rend.respond_to?(m)
         begin
-          keys = pl.send(m)
-          keys = keys.to_a if keys.respond_to?(:to_a)
-          puts "      (keys via ##{m})"
-          break
-        rescue Exception
-          keys = nil
+          dump_value(m.to_s, rend.send(m))
+        rescue Exception => e
+          puts "  #{m} raised #{e.class}: #{e.message}"
         end
       end
-      if keys.nil? || keys.empty?
-        puts '      no key list available — probing the named suspects only'
-        keys = HOT
+      %i[fill_settings_vfb].each do |m|
+        next unless rend.respond_to?(m)
+        puts "  #{m} arity #{(rend.method(m).arity rescue '?')}"
       end
-      keys.each do |k|
-        v = (pl[k] rescue :unreadable)
-        next if v == :unreadable && !HOT.include?(k.to_s)
-        star = HOT.include?(k.to_s) ? '*' : ' '
-        puts format('    %s %-30s %s', star, k, v.inspect)
+      # What does save_vfb_image actually accept? Its arity tells us whether
+      # options are a hash argument at all on this build.
+      if rend.respond_to?(:save_vfb_image)
+        puts "  save_vfb_image arity #{(rend.method(:save_vfb_image).arity rescue '?')}"
+        begin
+          puts "  save_vfb_image params #{rend.method(:save_vfb_image).parameters.inspect}"
+        rescue Exception
+          nil
+        end
+      end
+    end
+
+    # ---- 2. the scene plugins, keys tried as symbol AND string ----
+    puts ''
+    puts '-- SCENE PLUGINS ---------------------------------------------------'
+    if scene.nil?
+      puts '  no V-Ray scene on the active context'
+    else
+      plugins.each do |name|
+        pl = (scene[name] rescue nil)
+        if pl.nil?
+          puts format('  %-24s NOT IN THIS SCENE', name)
+          next
+        end
+        found = []
+        hot.each do |k|
+          v, how = read_key(pl, k)
+          found << format('    %-26s %-6s %s', k, how, v.inspect) unless v == :unreadable
+        end
+        if found.empty?
+          puts format('  %-24s present, but no probed key was readable', name)
+          puts format('        (class %s)', pl.class)
+        else
+          puts "  #{name}"
+          puts found.join("\n")
+        end
       end
     end
 
     puts ''
-    puts '  renderer responds to:'
-    r = (ctx.renderer rescue nil)
-    if r
-      ms = r.methods.map(&:to_s).select do |m|
-        m =~ /save|image|vfb|color|colour|gamma|srgb|correct/i
-      end.sort
-      puts '    ' + (ms.empty? ? '(nothing matching save/image/vfb/color/gamma)' : ms.join(', '))
-    else
-      puts '    (no renderer on the context)'
-    end
-    puts ''
-    puts '  Lines marked * are the ones I care about. Copy this whole block back.'
+    puts '  Copy this whole block back.'
     puts '=' * 74
     puts ''
   rescue Exception => e
     puts "PROBE FAILED: #{e.class}: #{e.message}"
-    puts e.backtrace.first(5).join("\n") if e.backtrace
+    puts e.backtrace.first(6).join("\n") if e.backtrace
   end
 end
 
