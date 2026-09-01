@@ -1,5 +1,226 @@
 # DEVLOG
 
+## 2026-09-01
+
+Fourteen versions, 1.14.1 through 1.19.2. Two of them were fixing my own
+mistakes; both are written up below rather than quietly folded into a later
+change.
+
+### The render lane was writing linear pixels — 1.19.0
+
+The one that mattered. Benton: *"The images don't look the same if you manually
+do it compared to when you press the export package ... it's making them
+usually much darker."*
+
+**Measured, on his own pair, and the measurement is the whole diagnosis.**
+`Scene 4 render.png` from the batch reads mean luminance **0.1585, max 0.682**;
+the same frame by hand reads mean ~0.35 and touches **1.000**. A render that
+never reaches white is the tell. Apply an sRGB transfer curve to the batch file
+and it lands on **0.397** — the hand render. The file also carries **no gAMA,
+no sRGB, no iCCP chunk**, so nothing tells a viewer it is linear and every
+viewer treats it as sRGB.
+
+`save_vfb_image` writes the buffer, not the display transform. That is why
+Benton's *"when I see the vray window rendering, it looks correctly bright"*
+is consistent with a dark file: the VFB corrects on the way to the screen and
+the save does not inherit it.
+
+**Two wrong answers came first, and both are worth keeping.** A Fable
+diagnosis ranked exposure first — the batch renders in RENDER mode (capped
+room, `WR Lights` on) and rests the model in DRAFT (open-top, sun-lit), so a
+hand render really is a different scene. Plausible, wrong: Benton's settings
+screenshot showed **EV 14.229 in both**, including the bright one. Then
+`:apply_color_corrections => true` changed nothing — byte-different file,
+identical luminance — because it bakes the correction LAYERS (exposure, curve,
+LUT), all at default here, not the display transform.
+
+**The fix is `wr-png-srgb.rb`**, a pure-Ruby PNG re-encoder: parse chunks
+CRC-checked, inflate, undo all five row filters, run every colour byte through
+the sRGB encode LUT (alpha untouched), refilter, deflate, and stamp `sRGB` +
+`gAMA` so no viewer has to guess again. It refuses by name anything it cannot
+own — non-8-bit, palette, greyscale, interlaced, bad CRC, truncated, or a file
+that already declares a colour space, which would double-correct.
+
+Corruption-proof by construction: writes a temp, **re-decodes the temp and
+compares pixel-for-pixel** against the intended output, and only then replaces
+the original. Every failure leaves the original untouched, names itself in the
+row detail (`*** LINEAR/DARK ... NOT CLIENT-READY`) and gets its own line in
+the summary. Before/after means go into the row, the summary and
+`manifest.json`, so a future V-Ray that starts saving corrected pixels shows up
+as a "before" near 0.35 instead of silently double-correcting.
+
+`rbtest-srgb.py` runs `encode_file` **end to end in SketchUp's own CRuby**,
+zlib seams shimmed with real stored-block streams, and Python's real zlib
+re-validates every byte written — 29 checks, all five filter types, all six
+refusals. The shipped LUT was also rebuilt independently in Python and run over
+Benton's actual file: 0.1585 → 0.3968. Confirmed working in the model.
+
+Max reaches 0.844, not 1.000, because the linear buffer itself tops out at
+0.682 — nothing in that frame was ever full white. Mean is the figure that
+matches.
+
+### Dimensions were never attached to anything — 1.17.0
+
+Benton: *"it's all disconnected. It's not actually connected to the walls ...
+if you move it to the left, extended lines kind of still point out to the
+left."*
+
+That is literally what it was. `add_dimension_linear` was being handed two bare
+`Point3d` values, so SketchUp stored coordinates and nothing else — no idea
+which wall it measures, no following the geometry, and no attachment to
+re-derive extension lines from when it is dragged.
+
+Every dimensioned point now resolves to a real entity first: room corners to
+the floor face's own vertices, door jambs (mid-edge, no vertex to take) to a
+ConstructionPoint on the door tag. A point that cannot be resolved falls back
+to the bare point — the old behaviour — and is COUNTED and returned as
+`:loose`, so a silent regression cannot look like success. Standoffs were also
+sitting on the walls: 12/34/23 → **20/48/33**.
+
+This is `auto-dimension.rb`, the shared dimensioner, so it is across the board.
+
+### No text in the model — 1.17.0
+
+Benton: *"I don't want any text, we just want the floor plan and the
+dimensions, and if requested, booths put into there as well."* `build-takeoff`'s
+ASSUMED notes and `build-room`'s house-default ceiling note are both off behind
+`NOTES_IN_MODEL`. The assumptions are NOT silenced — console report every
+build, review sheet, lock file. What changed is where they are said.
+
+### The review sheet, rebuilt around how it is actually used — 1.14.1–1.15.1
+
+An agent pulled the take-off skill, had the rules in context, and still
+hand-built a review page. The skill now opens with a STOP block: run
+`takeoff-check.py --html`, publish THAT file, the only permitted edit is
+stripping the publisher's wrapper, and *if you are about to write HTML for a
+take-off you are doing it wrong*.
+
+The sheet itself gained, in order of how much they were needed:
+
+- **A per-room notes box** on NEEDS CHANGES. A verdict with no way to say WHAT
+  is wrong sends the reviewer back to prose in chat, which is the transcription
+  hop the sheet exists to remove. Notes ride in the patch under `notes`,
+  `--apply-patch` ignores the key and echoes them.
+- **Every plan dimension clickable**, and the callout column too — one value,
+  both views repaint together, so the drawing can never drift from the table.
+  Assumed values are italic and clickable like any other.
+- **One box to edit.** The source dropdown is gone; the patch stamps
+  `"src": "stated corrected on the review sheet"`. The rule that no measurement
+  claim lands without a source is intact, the answer is just known in advance.
+- **A live closure warning.** Editing one wall does NOT rewrite the opposite
+  wall — both are measured and rooms are not square — so the room says so
+  instead, naming both totals and the difference.
+- **FT&IN / INCHES toggle** (clients mix them on one plan), **zoom on every
+  plan**, and the edit box now **floats** instead of being inserted into the
+  flow, which used to push the drawing down the moment you clicked a value.
+
+Also, per Benton: a hand sketch does not have to be 100% precise and a job
+should not stall demanding exactness a pen drawing cannot give. Assumptions are
+fine; silent ones are not. That is now in the skill in his words.
+
+### My own two bugs
+
+**A literal newline inside a JavaScript string — 1.14.2.** The sheet is ONE
+inline `<script>`, so it was a syntax error that killed the entire block:
+photos never got their src, the 3D viewers never built, the patch box never
+wired. It looked like "the images broke". `review sheet renders` had passed the
+whole time, because rendering HTML never proved the script parses. The selftest
+now runs `node --check` over every inline block of the generated sheet —
+verified by re-injecting that exact bug and watching it go red.
+
+**A guessed height outvoted two measured ones — 1.14.3/1.14.6.** `axes_for`
+scores a part's expected (width, height, thickness) against its measured
+extents. The desk passed a made-up height of 20". DeskSmall.skp actually
+measures **30.00 × 12.18 × 14.75**, so the guess scored |14.75−20| = 5.25
+against |12.18−20| = 7.82 and chose the 14.75 DEPTH as the vertical axis — the
+work surface standing up against the wall, which is what Benton photographed.
+`want_h` may now be nil and for the desk it is: the measured numbers pick their
+axes and the leftover is vertical. Benton on the rebuild: *"desk looks good
+now."* The MJP still passes a guessed 8.0 on the same path — same latent bug,
+left alone only because it renders correctly.
+
+### The rest
+
+- **1.15.0 — Hide walls moved into the proposal package**, next to MODE, where
+  the decision is actually made. **1.16.0** made it two-way: USE MY SELECTION
+  reads what is selected in the viewport and ticks it; SHOW ME on any row
+  selects and zooms to that wall. *"we don't really know what wall four is
+  unless we start digging into it."* Matching walks the containment tree on
+  entity ids, because what is selected is rarely the group the inventory holds.
+  One mechanism — it reuses `WR_SceneWalls.inventory/apply` rather than
+  reimplementing them.
+- **1.16.0 — a real lighting panel.** *"we can more customize it and just click
+  in kind of hope it works."* The three-dropdown inputbox is gone: brightness
+  and warmth as numbers, the grid choice exposed (it was hardcoded `:soft`), all
+  seven layers individually switchable with their own intensity and Kelvin
+  nudge, and named setups saved to `Sketchup.write_default`. The rig is SCALED,
+  not rebuilt — the designed palette stays and the panel multiplies it, entering
+  at the only two role-aware seams so the engine never learned about the panel.
+- **1.16.1 / 1.19.1 — shop defaults.** Panel settings live per-user in the
+  registry and never travelled. `wr_tools/defaults.json` ships inside the
+  plugin, so `install-plugin.py` already carries it. Layering is: this user's
+  own choice → the shop default → the code's fallback, with a sentinel so
+  "never set" and "set to empty" stay distinguishable. 1.19.1 filled it with
+  Benton's actual bar — 11 starred scripts across 18 slots with icons.
+  **Worth writing down:** SketchUp 2026 does NOT use the registry (only
+  2013–2024 have keys) and it is not in Roaming's `SharedPreferences.json`;
+  `write_default` lands in `%LOCALAPPDATA%\SketchUp\SketchUp 2026\SketchUp\
+  PrivatePreferences.json` under "This Computer Only" → "WR_Tools".
+- **1.18.0 — the new `#3=` booth link.** The portal ships a short structural
+  encoding (v2.502.0): base64url, unpadded, 15–39 chars where the old form was
+  407–764. Decodes into the SAME payload hash `hash_payload` produces, so
+  nothing downstream changed. `#d=` and `?d=` untouched — the diff deletes four
+  lines and all four are comments. base64url is decoded by hand rather than
+  through `unpack('m')`, which silently SKIPS bad characters and shifts every
+  byte after them; a corrupted link would have decoded into a plausible booth.
+  146 offline checks against the guide's three worked examples.
+- **1.19.2 — 7296 ceiling and the MJP.** The deck mirror was per-size and now is
+  per-(size, kind): the 7296 FLOOR has been right since 1.10.5 and only the
+  ceiling is not, and mirroring an already-mirrored tile twice is the identity,
+  so the 7296 CL is excluded. 84/96/102 untouched by construction. The MJP takes
+  a half turn about the WALL NORMAL — in the plane of the wall, composed into
+  the rotation before the span arithmetic so it cannot drift off its slot.
+
+## Next steps
+
+1. **Look at a freshly built room and drag a dimension.** 1.17.0 is unrun in
+   SketchUp. It should stay tied to its wall with extension lines following to
+   whichever side. If the console reports dimensions as `loose`, the vertex
+   tolerance in `auto-dimension.rb` (`ATTACH_TOL`, 0.02") needs widening — say
+   the number. Also say whether 20/48/33 standoffs read right.
+2. **Pull a 7296 from a booth link and look at the ceiling hinges and the MJP.**
+   If the 7296 ceiling now reads mirrored the OTHER way rather than right, the
+   reading was wrong: put `'CL'` back in `MIRROR_DECK_KINDS` and add
+   `STD7248CL SIDE L/R` to `YAW_180_FILES`, which composes to a mirror-Y. If
+   only one MJP face is right, `MJP_SPIN180` splits per call site.
+3. **Take a real floor plan through the take-off sheet end to end.** The notes
+   box, the clickable plan dimensions, the closure warning, the unit toggle and
+   the zoom have all shipped and NONE has been clicked by a person.
+4. **Optional, retires code:** render by hand, leave the VFB open, run
+   `probe-vray-color.rb`. It saves the same frame six ways and measures each.
+   If `image(:do_color_correct => true)` or `change_srgb(true)` already reads
+   ~0.35, that is a native fix and `wr-png-srgb.rb` can retire for that call.
+   If all six read ~0.16, the API cannot bake the display transform and the
+   post-process stays permanent. Either way the batch is correct today.
+
+## Open decisions
+
+- **`#3=` vocabulary code 9** (the 7" WA companion): the guide gives a SKU
+  column but not what the real `#d=` payload carries there. Emitted verbatim;
+  downstream reports it untranslatable and falls to the slot default, loudly.
+  Needs an answer from whoever owns the format.
+- **The guide's own fully-loaded example sets `wd`=1 with a plain DRFRM wall
+  byte.** We follow the wall map and build the standard frame, warning loudly.
+  Same question, same owner.
+- **Neither link path applies the §4.1 normaliser** (nv killing vs/ef/rv,
+  ADA-whole, dl forcing dox off). Deliberate — both forms of one design must
+  build identically — but adding one is a both-paths decision.
+- **`rbtest-lights.py` fails on clean HEAD**, and did before any of today's
+  work (`the check harness itself raised inside Ruby`). Left alone; not
+  diagnosed.
+- **The MJP still passes a guessed 8.0 into `axes_for`** — the same defect that
+  stood the desk on edge. Renders correctly today, so untouched.
+
 ## 2026-08-31
 
 ### 1.14.0 — the roof unit is seated
