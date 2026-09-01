@@ -837,6 +837,22 @@ def print_report(ck, lock, path):
 
 # ------------------------------------------------------------ review html --
 
+def _sval(room_name, field, old_arch, flag):
+    """Attributes that make one SVG dimension text editable, or '' when the
+    text is not a single editable value (a chain breakdown, say).
+
+    The plan and the callout column are two views of ONE value: both carry the
+    same data-room/data-field, and the page keeps every view of a field in
+    step when it is edited. Assumed values are clickable like any other —
+    they are the ones most worth correcting — and carry data-assumed so the
+    drawing can say so before it is clicked."""
+    if not field:
+        return ''
+    return (' class="sval%s" data-room="%s" data-field="%s" data-old="%s"'
+            % (' asm' if flag in ('assumed', 'default', 'derived') else '',
+               esc(room_name), esc(field), esc(old_arch)))
+
+
 def _svg_room(room):
     """A to-scale SVG plan of one room: polygon, doors, features, and a chain
     row per run (parts inside, overall outside). 1 unit = 1 inch."""
@@ -877,9 +893,12 @@ def _svg_room(room):
         if i + 1 >= len(pts):
             break
         (ax, ay), (ux, uy), (nx, ny), ln = run_geom(i)
-        rows = [(18.0, r['parts'], 6.5)] if r.get('parts') else []
-        rows.append((18.0 + (16.0 if r.get('parts') else 0.0), [r['in']], 8.0))
-        for off, vals, fs in rows:
+        # The parts row is a breakdown, not one editable value; only the
+        # overall carries a field, so only the overall is clickable.
+        rows = [(18.0, r['parts'], 6.5, None, None)] if r.get('parts') else []
+        rows.append((18.0 + (16.0 if r.get('parts') else 0.0), [r['in']], 8.0,
+                     'runs[%d]' % i, r.get('flag')))
+        for off, vals, fs, field, flag in rows:
             cur = 0.0
             j0x, j0y = ax + nx * off, ay + ny * off
             jex, jey = ax + ux * ln + nx * off, ay + uy * ln + ny * off
@@ -895,10 +914,12 @@ def _svg_room(room):
                 if abs(uy) > 0.5:
                     rot = ' transform="rotate(-90 %.1f %.1f)"' % (stx, sty)
                 out.append('<text x="%.1f" y="%.1f" font-size="%g" '
-                           'fill="var(--accent)" text-anchor="middle"%s>%s</text>'
-                           % (stx, sty, fs, rot, esc(arch(v))))
+                           'fill="var(--accent)" text-anchor="middle"%s%s>%s</text>'
+                           % (stx, sty, fs, rot, _sval(room['name'], field,
+                                                      arch(v), flag),
+                              esc(arch(v))))
                 cur += v
-    for dd in room.get('doors') or []:
+    for dj, dd in enumerate(room.get('doors') or []):
         i = dd['run']
         if i + 1 >= len(pts):
             continue
@@ -911,8 +932,10 @@ def _svg_room(room):
         lab = arch(dd['w_in']) + (' ASSUMED at' if dd['at_flag'] else '')
         mx, my = P((j0[0] + j1[0]) / 2 - nx * 8, (j0[1] + j1[1]) / 2 - ny * 8)
         out.append('<text x="%.1f" y="%.1f" font-size="6.5" fill="var(--%s)" '
-                   'text-anchor="middle">%s</text>'
-                   % (mx, my, 'warn' if dd['at_flag'] else 'ink-2', esc(lab)))
+                   'text-anchor="middle"%s>%s</text>'
+                   % (mx, my, 'warn' if dd['at_flag'] else 'ink-2',
+                      _sval(room['name'], 'doors[%d].w' % dj,
+                            arch(dd['w_in']), dd.get('w_flag')), esc(lab)))
     for f in room.get('features') or []:
         i = f['run']
         if i + 1 >= len(pts):
@@ -1056,6 +1079,15 @@ CSS = """
   .rv button.on-a{background:var(--ok);border-color:var(--ok);color:#fff}
   .rv button.on-n{background:var(--warn);border-color:var(--warn);color:#fff}
   .val{cursor:pointer;border-bottom:1px dashed var(--ink-3)}
+  /* A dimension on the plan is the same value as the one in the callout
+     column, so it gets the same affordance: dashed = click me, orange bold
+     = you changed it. Dotted-underlined in the drawing because SVG text has
+     no border. */
+  .sval{cursor:pointer;text-decoration:underline;text-decoration-style:dashed;
+    text-underline-offset:2px}
+  .sval:hover{fill:var(--accent);font-weight:700}
+  .sval.asm{font-style:italic}
+  .sval.edited{fill:var(--accent);font-weight:700;text-decoration-style:solid}
   .val:hover{border-bottom-color:var(--accent);color:var(--accent)}
   .val.edited{color:var(--accent);font-weight:700;border-bottom:1px solid var(--accent)}
   .was{color:var(--ink-3);text-decoration:line-through;margin-left:5px;font-size:10.5px}
@@ -1238,10 +1270,42 @@ JS = r"""
   });
 
   // ------------------------------------------------------------ inline edit --
+  // A value shows up twice: as a dimension ON THE PLAN and as a row in the
+  // callout column. They are ONE value, so an edit to either must move both —
+  // a drawing that disagrees with the table beside it is exactly the kind of
+  // thing that reaches a client. Every view of a field registers here and
+  // paintField repaints all of them together.
+  var views = {};
+  function keyOf(room, field) { return JSON.stringify([room, field]); }
+  function register(el) {
+    var k = keyOf(el.getAttribute('data-room'), el.getAttribute('data-field'));
+    (views[k] = views[k] || []).push(el);
+  }
+  function setCls(el, name, on) {
+    // SVG elements have classList in every browser this page targets, but
+    // className is a read-only SVGAnimatedString there — never assign it.
+    if (on) { el.classList.add(name); } else { el.classList.remove(name); }
+  }
+  function paintField(room, field, txt, edited) {
+    (views[keyOf(room, field)] || []).forEach(function (el) {
+      // The door label on the plan is "38\" ASSUMED at" — swap only the
+      // number, never the trailing note.
+      var oldArch = el.getAttribute('data-old');
+      var cur = el.textContent;
+      el.textContent = cur.indexOf(oldArch) === 0
+        ? txt + cur.slice(oldArch.length) : txt;
+      setCls(el, 'edited', edited);
+    });
+  }
+
   var openForm = null;
   function closeForm() { if (openForm) { openForm.remove(); openForm = null; } }
-  document.querySelectorAll('.val').forEach(function (span) {
-    span.setAttribute('title', 'click to change this value');
+  document.querySelectorAll('.val, .sval').forEach(function (span) {
+    register(span);
+    var isSvg = span.classList.contains('sval');
+    span.setAttribute('title', span.classList.contains('asm')
+      ? 'assumed — click to replace it with a measured value'
+      : 'click to change this value');
     span.addEventListener('click', function () {
       closeForm();
       var room = span.getAttribute('data-room');
@@ -1266,7 +1330,14 @@ JS = r"""
         + '<div class="row"><button class="save">SAVE EDIT</button>'
         + '<button class="cancel">CANCEL</button>'
         + (existing ? '<button class="drop">REMOVE EDIT</button>' : '') + '</div>';
-      span.parentElement.appendChild(f);
+      if (isSvg) {
+        // An SVG <text> cannot contain a <div>; drop the form just below the
+        // drawing so it opens next to the dimension that was clicked.
+        var plan = span.closest('.plan') || span.closest('section.room');
+        plan.parentNode.insertBefore(f, plan.nextSibling);
+      } else {
+        span.parentElement.appendChild(f);
+      }
       openForm = f;
       var $v = f.querySelector('.fv'), $k = f.querySelector('.fk'),
           $d = f.querySelector('.fd'), $e = f.querySelector('.err');
@@ -1303,25 +1374,29 @@ JS = r"""
           ? { assumed: raw, reason: det }
           : { v: raw, src: $k.value + ' ' + det };
         recordEdit(room, field, oldArch, obj);
-        span.textContent = arch(inches);
-        span.classList.add('edited');
-        var was = span.parentElement.querySelector('.was[data-for="' + field + '"]');
-        if (!was) {
-          was = document.createElement('span');
-          was.className = 'was'; was.setAttribute('data-for', field);
-          span.after(was);
-        }
-        was.textContent = oldArch;
+        paintField(room, field, arch(inches), true);
+        (views[keyOf(room, field)] || []).forEach(function (el) {
+          if (el.classList.contains('sval')) return;   // no strikethrough in SVG
+          var was = el.parentElement.querySelector('.was[data-for="' + field + '"]');
+          if (!was) {
+            was = document.createElement('span');
+            was.className = 'was'; was.setAttribute('data-for', field);
+            el.after(was);
+          }
+          was.textContent = oldArch;
+        });
         closeForm();
       });
       f.querySelector('.cancel').addEventListener('click', closeForm);
       var drop = f.querySelector('.drop');
       if (drop) drop.addEventListener('click', function () {
         recordEdit(room, field, oldArch, null);
-        span.textContent = oldArch;
-        span.classList.remove('edited');
-        var was = span.parentElement.querySelector('.was[data-for="' + field + '"]');
-        if (was) was.remove();
+        paintField(room, field, oldArch, false);
+        (views[keyOf(room, field)] || []).forEach(function (el) {
+          if (el.classList.contains('sval')) return;
+          var was = el.parentElement.querySelector('.was[data-for="' + field + '"]');
+          if (was) was.remove();
+        });
         closeForm();
       });
       $v.focus();
