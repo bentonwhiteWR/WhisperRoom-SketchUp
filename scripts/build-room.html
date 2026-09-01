@@ -99,15 +99,6 @@
         <p class="note">8'-0" is the house default, not a measurement. It is the
           constraint that disqualifies a booth fastest &mdash; get the real number.</p>
       </div>
-      <div>
-        <span class="lab">Wall split (sill)</span>
-        <input id="ssill" type="text" spellcheck="false" autocomplete="off" value="4'-0&quot;">
-        <span class="echo" id="ssill-e"></span>
-        <p class="note">Every wall builds in two bands split at this height &mdash; the
-          upper band goes on its own tag (WR-Room-Upper) so a scene can hide it and
-          &ldquo;lower&rdquo; the walls for a render without touching geometry. 4'-0" is a
-          placeholder default, not a settled convention.</p>
-      </div>
       <button class="add mode" id="tomore">More detail &mdash; take-off, doors, wall thickness&hellip;</button>
     </div>
 
@@ -146,14 +137,6 @@
         <p class="note">80" is the standard leaf, <b>not measured</b>. If the plan
           states a head height, type it.</p>
       </div>
-      <div>
-        <span class="lab">Wall split (sill)</span>
-        <input id="sill" type="text" spellcheck="false" autocomplete="off" value="4'-0&quot;">
-        <span class="echo" id="sill-e"></span>
-        <p class="note">Splits every wall (and door header) into a lower band and an
-          upper band on tag WR-Room-Upper, hideable per scene for a render. Placeholder
-          default &mdash; not settled.</p>
-      </div>
       <div class="cl" id="cl"></div>
       <button class="add mode" id="toless">&larr; Back to length &amp; width</button>
     </div>
@@ -179,11 +162,9 @@
   // Wall thickness is cosmetic: walls grow OUTWARD from the interior polygon,
   // so the 4" default never moves a dimension already given to a client. That
   // is why it is safe to default and safe to override in detail mode.
-  // sill is where every wall (and door header) splits into its two render
-  // bands — see WR-Room-Upper in build-room.rb. 48" is a placeholder default.
   // dh is the door head height. 80" is the standard leaf and stays visible in
   // detail mode with a "not measured" note — it is a default, never data.
-  var S={len:144,wid:120,ceil:96,thick:4,sill:48,dh:80,name:"Room"};
+  var S={len:144,wid:120,ceil:96,thick:4,dh:80,name:"Room"};
   var runs=rect(S.len,S.wid);
   var doors=[];
 
@@ -386,14 +367,10 @@
     function(){return S.wid;},function(v){S.wid=v;runs=rect(S.len,S.wid);}));
   syncSimple.push(lenField(document.getElementById("sceil"),document.getElementById("sceil-e"),
     function(){return S.ceil;},function(v){S.ceil=v;}));
-  syncSimple.push(lenField(document.getElementById("ssill"),document.getElementById("ssill-e"),
-    function(){return S.sill;},function(v){S.sill=v;}));
   syncDetail.push(lenField(document.getElementById("thick"),document.getElementById("thick-e"),
     function(){return S.thick;},function(v){S.thick=v;}));
   syncDetail.push(lenField(document.getElementById("ceil"),document.getElementById("ceil-e"),
     function(){return S.ceil;},function(v){S.ceil=v;}));
-  syncDetail.push(lenField(document.getElementById("sill"),document.getElementById("sill-e"),
-    function(){return S.sill;},function(v){S.sill=v;}));
   syncDetail.push(lenField(document.getElementById("dh"),document.getElementById("dh-e"),
     function(){return S.dh;},function(v){S.dh=v;}));
   document.getElementById("nm").addEventListener("input",function(){S.name=this.value;});
@@ -519,7 +496,6 @@
       doors:(mode==="simple"?[]:doors),
       thick:(mode==="simple"?4:S.thick),
       ceil:S.ceil,
-      sill:S.sill,
       door_h:(mode==="simple"?80:S.dh)
     }));
   });

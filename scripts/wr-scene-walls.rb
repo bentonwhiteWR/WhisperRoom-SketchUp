@@ -35,10 +35,11 @@
 # greyed out on the scene that hides it.
 #
 # WHAT COUNTS AS "AN ENTIRE WALL". build-room.rb / build-takeoff.rb name
-# every piece after its wall run: "Wall 3", "Wall 3 (upper)", "Header 3",
-# "Opening 3", "Door leaf 3", "Swing 3". One wall in this dialog is ALL of
-# those pieces for one run of one room, so hiding it never strands a door
-# leaf floating in space where its wall used to be. Rooms drawn by hand or
+# every piece after its wall run: "Wall 3", "Header 3", "Opening 3",
+# "Door leaf 3", "Swing 3" — plus "Wall 3 (upper)" in a legacy model built
+# before the two-band split was removed on 31 Aug 2026. One wall in this
+# dialog is ALL of those pieces for one run of one room, so hiding it never
+# strands a door leaf floating in space where its wall used to be. Rooms drawn by hand or
 # by an older script have no such names — run "Name walls for the scene
 # picker" (wr-name-walls.rb) once and they appear here too.
 #

@@ -919,6 +919,10 @@ module WR_DropLights
   # because the generators disagree: build-room.rb names the children
   # "Floor"/"Walls"/"Doors", uthsc-audiology-rooms.rb (the live UTHSC
   # rooms) names them "floor"/"walls"/"doors".
+  # WR-Room-Upper is LEGACY: build-room.rb stopped banding walls on
+  # 31 Aug 2026 and no longer creates that tag. It stays in this list
+  # because models built before then still carry upper-band wall groups on
+  # it, and a wall must never be mistaken for an obstruction.
   ROOM_CHILD_TAGS = %w[WR-Floor WR-Room WR-Room-Upper WR-Doors
                        WR-Doors-Leaf WR-Notes].freeze
   ROOM_CHILD_NAMES = %w[Floor Walls Doors].freeze

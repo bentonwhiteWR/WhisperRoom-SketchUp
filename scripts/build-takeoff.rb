@@ -13,7 +13,7 @@
 # scripts/takeoff-vectors.json — so everything here is float inches with the
 # assumed/default flags already attached.
 #
-# The geometry is WR_BuildRoom's own (polygon, mitre, wall_run, door, band —
+# The geometry is WR_BuildRoom's own (polygon, mitre, wall_run, door, span —
 # loaded from build-room.rb with its autorun suppressed), applied per room at
 # an offset. There is no second wall builder to drift.
 #
@@ -203,7 +203,6 @@ module WR_BuildTakeoff
 
     t_floor = br.tag(model, 'WR-Floor', [230, 230, 230])
     t_wall  = br.tag(model, 'WR-Room', [120, 128, 140])
-    t_up    = br.tag(model, 'WR-Room-Upper', [176, 182, 190])
     t_door  = br.tag(model, 'WR-Doors', [238, 98, 22])
     t_leaf  = br.tag(model, 'WR-Doors-Leaf', [200, 130, 60])
     t_note  = br.tag(model, 'WR-Notes', [90, 90, 96])
@@ -239,7 +238,6 @@ module WR_BuildTakeoff
 
       thick = (room['thick_in'] || 4.0).to_f
       ceil  = room['ceiling']['in'].to_f
-      sill  = (room['sill_in'] || 48.0).to_f
       ccw   = br.signed_area(pts) > 0
       outer = br.mitre(pts, ccw, thick)
       doors = (room['doors'] || []).map do |d|
@@ -269,7 +267,7 @@ module WR_BuildTakeoff
         door_h = (room['doors'] || []).select { |d| d['run'].to_i == i }
                                       .map { |d| d['h_in'].to_f }.first || 80.0
         walls += br.wall_run(wg, pts, outer, i, ccw, thick, ceil,
-                             run_doors, door_h, sill, t_up)
+                             run_doors, door_h)
       end
       wg.material = br.material(model, br::MAT_WALL)
 

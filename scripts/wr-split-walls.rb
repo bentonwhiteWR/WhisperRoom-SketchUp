@@ -1,18 +1,29 @@
-# @title Split existing walls at sill (EDITS MODEL)...
+# @title Split existing walls at sill (LEGACY, EDITS MODEL)...
 # @cat V-Ray renders
 # @rank 6
 #
-# ONE-TIME RETROFIT. Existing rooms — anything drawn before two-band walls
-# existed, including current output of build-room.rb before this change —
-# have each wall (and each door header) as a SINGLE solid, floor to ceiling.
-# This script finds those solids and cuts each one in two at a sill height,
-# so the room gets the same WR-Room-Upper tag a freshly-built two-band room
-# has and a scene can hide it to "lower" the walls for a render.
+# SUPERSEDED, 31 Aug 2026 — KEPT, NOT WIRED INTO ANYTHING NEW.
+# build-room.rb and build-takeoff.rb no longer band walls: a wall is ONE
+# solid, floor to ceiling, and a whole wall is hidden per scene by
+# wr-scene-walls.rb (a SketchUp scene remembers per-entity hidden state, so
+# no per-band tag is needed). Benton, 31 Aug 2026: "There is a lower and
+# upper half. I dont want that." Nothing built from now on needs this
+# script, and running it on a new room re-introduces exactly the split that
+# was removed — including the header shards over doorways.
 #
-# build-room.rb builds two bands going forward. This script is for a model
-# that already exists and was NOT built with that code. Run it once per
-# model. Running it again on a model it has already split is a no-op — see
-# ALREADY SPLIT, below.
+# It survives because it is the only tool that can put a model back into
+# the old shape, and because a model already split still renders the way it
+# always did. If you want a wall down for a render, reach for
+# wr-scene-walls.rb (hide the whole wall) or wr-lower-walls.rb (cut chosen
+# walls to a curb) instead.
+#
+# WHAT IT DOES. Existing rooms — anything drawn before two-band walls
+# existed, and everything drawn after they were removed — have each wall
+# (and each door header) as a SINGLE solid, floor to ceiling. This script
+# finds those solids and cuts each one in two at a sill height, tagging the
+# upper piece WR-Room-Upper so a scene can hide it to "lower" the walls.
+# Run it once per model. Running it again on a model it has already split
+# is a no-op — see ALREADY SPLIT, below.
 #
 # THIS GENUINELY EDITS GEOMETRY, unlike every other script this workspace
 # ships. That is exactly why it is not part of the render-prep flow, is not

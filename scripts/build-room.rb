@@ -40,43 +40,32 @@
 #
 # Finishes by calling auto-dimension.rb, so the room arrives dimensioned.
 #
-# TWO-BAND WALLS. Every wall run (and every door header) builds as two
-# stacked solids split at a sill height, not one — a lower band from the
-# floor to the sill, and an upper band from the sill to the ceiling. The
-# upper band goes on its own tag, WR-Room-Upper, alongside WR-Floor,
-# WR-Room, WR-Doors, WR-Doors-Leaf and WR-Notes. Hiding WR-Room-Upper on a
-# scene "lowers" the walls for a ventilation render without editing any
-# geometry — nothing was ever moved, so there is nothing to put back. See
-# proposal-scenes.rb for the same per-scene tag-visibility pattern applied
-# to the dimension tags.
+# ONE SOLID PER WALL, FLOOR TO CEILING. Every wall run builds as a single
+# solid from the floor to the ceiling, and every door header as a single
+# solid from the door head to the ceiling. Nothing is banded, nothing is
+# split at a sill, and there is only one wall tag: WR-Room, alongside
+# WR-Floor, WR-Doors, WR-Doors-Leaf and WR-Notes.
 #
-# The split is one generic operation (see `band`, below `quad`) applied
-# identically to a plain wall span and to a door header — there is no
-# special case for openings. That generic rule has a real consequence for
-# how a doorway looks when the upper band is hidden, and it is a look
-# decision, not something this script gets to make silently:
+# Walls used to build as two stacked solids split at a 48" sill, the upper
+# piece on its own WR-Room-Upper tag, so that a scene could hide the upper
+# tag and "lower" the walls for a ventilation render. That was the only way
+# to lower a wall when every wall shared one tag. It is no longer needed:
+# a SketchUp scene remembers PER-ENTITY hidden state (verified live,
+# 31 Aug 2026, SketchUp 2026), so a whole wall can be hidden on one scene
+# and shown on the next with no tag of its own - that is what
+# wr-scene-walls.rb does. Banding also had a real cost: a door header that
+# straddled the sill split into shards, so one doorway could become three
+# solids. Removed 31 Aug 2026 (Benton: "There is a lower and upper half.
+# I dont want that").
 #
-#   sill height <  door head height  -> the header (door_h..ceil) falls
-#     entirely at or above the sill, so it builds as ONE solid, entirely
-#     on WR-Room-Upper. Hide that tag and the whole header disappears —
-#     the doorway reads as a clean, open pass-through.
-#
-#   sill height >= door head height  -> the header straddles the sill, so
-#     it SPLITS: a lower shard (door_h..sill) stays on WR-Room next to the
-#     wall below it and never hides, while only the piece from sill..ceil
-#     moves to WR-Room-Upper. Hiding the upper band still leaves that
-#     lower shard hanging over the opening.
-#
-# DEFAULT_SILL (below) is picked to land in the first case, because a
-# clean pass-through is the more useful default for a "see into the room"
-# render. Which case Benton actually wants is still open — see the
-# handoff note.
-#
-# The split cannot move a dimension or disturb a mitred corner: `band`
-# only clips the Z range a span already had (0..ceil for a wall, or
-# door_h..ceil for a header) at the sill height. The XY footprint —
-# where the mitred outer polygon comes from — is computed once per wall
-# run before any Z work happens and is shared unchanged by both bands.
+# Two neighbouring tools are deliberately NOT this mechanism and both still
+# work on one-solid walls:
+#   wr-scene-walls.rb   hides WHOLE walls per scene - the replacement.
+#   wr-lower-walls.rb   cuts SELECTED walls down to a curb (tag
+#                       WR-Room-Cutaway), which is the different look where
+#                       a missing wall would show the camera empty space.
+# wr-split-walls.rb retrofits the old two-band split into older models and
+# is kept only for models that already carry it; new builds never band.
 #
 #   load "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/build-room.rb"
 
@@ -86,13 +75,6 @@ module WR_BuildRoom
   DIR = { 'E' => [1, 0], 'W' => [-1, 0], 'N' => [0, 1], 'S' => [0, -1] }.freeze
   TOL = 0.02
   PREF = 'com.whisperroom.buildroom'.freeze
-
-  # Where a wall splits into its lower (always-visible) and upper
-  # (WR-Room-Upper, hideable) band. This is a GUESS, not a settled
-  # convention — Benton has not yet said whether it is fixed across jobs
-  # or varies per room. Change it here in one place; it is also exposed
-  # per-build as cfg['sill'] from the dialog.
-  DEFAULT_SILL = 48.0.freeze
 
   MAT_FLOOR = '0128_White'.freeze
   MAT_WALL  = '0099_LightSteelBlue'.freeze
@@ -196,52 +178,28 @@ module WR_BuildRoom
     f
   end
 
-  # Builds one wall/header span as up to two independent solids, clipped
-  # from the span's own (z0, z1) at `sill`. Same footprint `poly` both
-  # times, so the two stack with no gap and no overlap at the seam.
+  # Builds one wall/header span as ONE solid over its own (z0, z1). Left
+  # untagged (Layer0) so it inherits whatever tag the caller's parent group
+  # carries — WR-Room for the Walls container. Returns 1 if a solid was
+  # made, 0 if the footprint was degenerate.
   #
-  # The lower piece is left untagged (Layer0) so it inherits whatever tag
-  # the caller's parent group carries (WR-Room today) exactly as a single
-  # full-height span always has. The upper piece is explicitly tagged
-  # `upper_tag` (WR-Room-Upper) so it hides independently of that parent.
-  #
-  # One span can produce zero, one or two solids: a span that never
-  # reaches the sill builds lower only, one that starts at or above it
-  # builds upper only, and one that straddles it builds both. That last
-  # case is exactly how a door header ends up split — see the file header.
-  def self.band(parent, poly, z0, z1, sill, name, upper_tag)
-    built = 0
-    lo0 = z0
-    lo1 = [z1, sill].min
-    if lo1 - lo0 > TOL
-      g = parent.entities.add_group
-      if quad(g.entities, poly, lo0, lo1)
-        g.name = name
-        built += 1
-      else
-        g.erase! if g.valid?
-      end
+  # This used to be `band`, which clipped the same span twice at a sill and
+  # tagged the upper piece WR-Room-Upper. That is gone — see the file header.
+  def self.span(parent, poly, z0, z1, name)
+    return 0 if z1 - z0 <= TOL
+    g = parent.entities.add_group
+    if quad(g.entities, poly, z0, z1)
+      g.name = name
+      return 1
     end
-    hi0 = [z0, sill].max
-    hi1 = z1
-    if hi1 - hi0 > TOL
-      g = parent.entities.add_group
-      if quad(g.entities, poly, hi0, hi1)
-        g.name = "#{name} (upper)"
-        g.layer = upper_tag
-        built += 1
-      else
-        g.erase! if g.valid?
-      end
-    end
-    built
+    g.erase! if g.valid?
+    0
   end
 
   # One run's wall, split around any doors on it. Sub-segments that ARE an
-  # opening get built from the door head up, which is the header. Every
-  # sub-segment then splits again at `sill` into its lower and upper band
-  # via `band`, above.
-  def self.wall_run(parent, pts, outer, i, ccw, thick, ceil, doors, door_h, sill, upper_tag)
+  # opening get built from the door head up, which is the header. Each
+  # sub-segment becomes exactly ONE solid via `span`, above.
+  def self.wall_run(parent, pts, outer, i, ccw, thick, ceil, doors, door_h)
     n = pts.size
     a = pts[i]
     b = pts[(i + 1) % n]
@@ -273,7 +231,7 @@ module WR_BuildRoom
       poly = [a.offset(u, s), a.offset(u, e), o1, o0]
       z0, z1 = kind == :opening ? [door_h, ceil] : [0.0, ceil]
       name = kind == :opening ? "Header #{i + 1}" : "Wall #{i + 1}"
-      built += band(parent, poly, z0, z1, sill, name, upper_tag)
+      built += span(parent, poly, z0, z1, name)
     end
     built
   end
@@ -381,8 +339,6 @@ module WR_BuildRoom
     ceil  = 96.0 if ceil <= 0
     door_h = cfg['door_h'].to_f
     door_h = 80.0 if door_h <= 0
-    sill = cfg['sill'].to_f
-    sill = DEFAULT_SILL if sill <= 0
     house = (ceil - 96.0).abs < TOL
 
     pts = polygon(runs)
@@ -410,7 +366,6 @@ module WR_BuildRoom
 
     t_floor = tag(model, 'WR-Floor', [230, 230, 230])
     t_wall  = tag(model, 'WR-Room',  [120, 128, 140])
-    t_wall_up = tag(model, 'WR-Room-Upper', [176, 182, 190])
     t_door  = tag(model, 'WR-Doors', [238, 98, 22])
     t_leaf  = tag(model, 'WR-Doors-Leaf', [200, 130, 60])
     t_note  = tag(model, 'WR-Notes', [90, 90, 96])
@@ -432,7 +387,7 @@ module WR_BuildRoom
     wg.name = 'Walls'
     wg.layer = t_wall
     walls = 0
-    pts.size.times { |i| walls += wall_run(wg, pts, outer, i, ccw, thick, ceil, doors, door_h, sill, t_wall_up) }
+    pts.size.times { |i| walls += wall_run(wg, pts, outer, i, ccw, thick, ceil, doors, door_h) }
     wg.material = material(model, MAT_WALL)
 
     dg = room.entities.add_group
@@ -479,7 +434,7 @@ module WR_BuildRoom
     end
 
     model.active_view.zoom_extents
-    report(pts, walls, doors.size, ceil, thick, house, dims, sill, door_h)
+    report(pts, walls, doors.size, ceil, thick, house, dims)
   rescue StandardError => e
     model.abort_operation if model
     UI.messagebox("Build room failed:\n\n#{e.class}: #{e.message}")
@@ -487,7 +442,7 @@ module WR_BuildRoom
     puts e.backtrace.first(6)
   end
 
-  def self.report(pts, walls, ndoors, ceil, thick, house, dims, sill, door_h)
+  def self.report(pts, walls, ndoors, ceil, thick, house, dims)
     puts ''
     puts 'BUILD ROOM'
     puts ''
@@ -495,14 +450,7 @@ module WR_BuildRoom
     puts format('  walls %.2f" thick, built OUTWARD from the interior polygon and mitred', thick)
     puts format('  ceiling %s%s', WR_AutoDimension.arch(ceil),
                 house ? '  <- HOUSE DEFAULT, not measured' : '  (stated)')
-    puts format('  two-band split at %s — lower band stays on WR-Room, upper band on ' \
-                'WR-Room-Upper (hide that tag to lower the walls for a render)',
-                WR_AutoDimension.arch(sill))
-    puts(sill < door_h - TOL \
-      ? '  sill is below the door head, so door headers build ENTIRELY on WR-Room-Upper — ' \
-        'hiding it leaves a clean pass-through.'
-      : '  sill is at/above the door head, so door headers SPLIT — a shard stays on ' \
-        'WR-Room over each opening even with WR-Room-Upper hidden.')
+    puts '  one solid per wall run, floor to ceiling; headers one solid each, all on WR-Room'
     puts ''
     if dims
       WR_AutoDimension.report(dims)

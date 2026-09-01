@@ -14,6 +14,13 @@
 # I usually find the corner where the WhisperRoom is and lower those two
 # adjacent walls by 7.5'. Not just hide half."
 #
+# Later the same day the banding was removed outright — build-room.rb and
+# build-takeoff.rb now build ONE solid per wall, floor to ceiling, and
+# wr-split-walls.rb is legacy. Nothing here depended on the bands: this
+# script works on whatever leaf wall solids the selection contains, and one
+# full-height solid per wall is the simplest case it handles (it straddles
+# the curb plane and splits in two).
+#
 # Two differences, and both matter:
 #
 #   1. TWO WALLS, NOT ALL OF THEM. Which two is a judgement about where the
@@ -26,8 +33,9 @@
 #      for is the height that REMAINS, not the amount removed, so the same
 #      answer reads the same on an 8' room and a 10' one.
 #
-# WR-Room-Upper is left completely alone. The two tags are independent and a
-# model can carry both; hide either, or both.
+# WR-Room-Upper is left completely alone where a legacy model still carries
+# it. The two tags are independent and such a model can carry both; hide
+# either, or both. New rooms have no WR-Room-Upper at all.
 #
 # THE CUT PLANE IS ONE HEIGHT FOR THE WHOLE SELECTION
 #
@@ -71,9 +79,9 @@ module WR_LowerWalls
   TOL  = 0.02
   PREF = 'WR_LowerWalls'.freeze
 
-  # Its own tag, deliberately NOT WR-Room-Upper. That one is the room-wide
-  # 48" band; this one is a per-scene cutaway of chosen walls. A model may
-  # carry both and a scene may hide either.
+  # Its own tag, deliberately NOT WR-Room-Upper. That one was the room-wide
+  # 48" band, now legacy; this one is a per-scene cutaway of chosen walls.
+  # An older model may carry both and a scene may hide either.
   CUT_TAG = 'WR-Room-Cutaway'.freeze
 
   # 8'-0" less Benton's 7'-6" drop. Stored per machine after the first run.

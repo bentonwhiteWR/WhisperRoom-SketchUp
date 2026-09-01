@@ -2,6 +2,65 @@
 
 ## 2026-08-31
 
+### 1.12.8 — walls build as ONE solid, floor to ceiling; the two-band split is gone
+
+Benton, 31 Aug: *"Why are you still building these walls with 'two parts'.
+There is a lower and upper half. I dont want that."* He is right, and the
+reason is specific: the split was obsolete scaffolding.
+
+Every wall run and every door header used to build as two stacked solids
+clipped at a 48" sill, the lower piece inheriting `WR-Room` and the upper
+piece tagged `WR-Room-Upper`. The **only** purpose was to let a scene hide
+the upper tag and "lower" the walls for a ventilation render — the only way
+to lower a wall when every wall shared one tag. That constraint went away
+earlier the same day: a SketchUp scene remembers **per-entity** hidden state,
+so `wr-scene-walls.rb` hides whole walls per scene with no tag of its own.
+The banding was not free either — a header that straddled the sill split
+into shards, so one doorway could become three solids.
+
+- `WR_BuildRoom.band` is replaced by `WR_BuildRoom.span`: one solid over the
+  span's own `(z0, z1)`, left untagged so it inherits the `Walls` container's
+  `WR-Room`. `wall_run` loses its `sill` and `upper_tag` parameters.
+- `DEFAULT_SILL`, the dialog's two "Wall split (sill)" fields (simple and
+  detail), the `sill` key in the dialog payload, and the `WR-Room-Upper` tag
+  creation in both `build-room.rb` and `build-takeoff.rb` are all removed.
+  `build-takeoff.rb` ignores a room-level `sill_in` if a lock still carries
+  one; the **window** `sill_in` on a feature is a different number entirely
+  and is untouched.
+- `wr-split-walls.rb` is **kept and marked SUPERSEDED** in its header and its
+  panel title, not deleted — it is the only tool that can put a model back
+  into the old shape. `wr-lower-walls.rb` (curb cut, `WR-Room-Cutaway`) is
+  unaffected: it works on whatever leaf wall solids are selected, and one
+  full-height solid is its simplest case. `wr-drop-lights.rb` keeps
+  `WR-Room-Upper` in `ROOM_CHILD_TAGS` so a legacy model's upper bands are
+  still recognised as room structure and never as an obstruction.
+
+**Verified live** (SketchUp 2026, through the bridge, scratch model): two
+`build-room` rooms and eleven `build-takeoff` rooms interrogated piece by
+piece — every `Wall n` is one manifold solid `0..ceiling`, every `Header n`
+one manifold solid `door_h..ceiling`, zero pieces named `(upper)` or tagged
+`WR-Room-Upper`. The door-header case that used to shard (head **below** the
+48" sill, so the old code split it) was built deliberately at a 40" head and
+came out as a single solid. A build into a model with the tag removed did not
+re-create it.
+
+**Eval suite: 25 cases, no case moved.** Every verdict matches the previous
+recorded row in `eval/RESULTS.md` — 22 PASS, the s609 baseline FAIL by
+design, the two planted-defect cases still detected, and every refusal still
+refused by name. Wall banding was internal construction and the scorer
+measures floor vertices, door jambs and ceiling height, which is why it could
+not move. `synthetic-headroom` now refuses instead of building; that is
+**not** this change — the same refusal fires with these edits stashed, so it
+is the checker work that landed after that case's last PROBE row, and the
+case README is now stale.
+
+**Existing models are left alone.** Nothing unsplits a room already built
+with bands, and nothing needs to: a banded model renders exactly as it always
+did, `wr-scene-walls.rb` hides its wall pieces by name (`Wall 3 (upper)`
+matches), and `wr-lower-walls.rb` was designed for exactly that mixed case.
+A one-time unsplit tool is buildable but was not built — it is a merge of
+solids, which is riskier than the split was, and nobody has asked.
+
 ### Blind-transcription trial — 7 randomised plans, isolated transcribers (no version bump; nothing under scripts/ changed)
 
 The step that failed on 31 Aug — reading a marked-up plan photo and writing

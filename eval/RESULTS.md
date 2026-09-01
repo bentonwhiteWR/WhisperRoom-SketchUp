@@ -187,3 +187,27 @@ rule held end to end. blind-e-studio's plan note said "south wall" where
 the drawing chained the NORTH wall (an authoring slip that read like a
 real client's sloppy note); the transcriber caught the contradiction,
 said so, and transcribed the geometry right.
+| 2026-08-31 21:03 | blind-a-office | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | blind-b-annex | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | blind-c-storage | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | blind-d-workshop | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | blind-e-studio | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | blind-f-mech | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | blind-g-lounge | PASS | — | refused by name as designed: not close |
+| 2026-08-31 21:03 | s609-3190f | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | s609-3190gh-baseline | FAIL | 20.00" | max vertex error 20.00" > 2.00"; ceiling off by 9.00"; door 0 position is assumed in truth but the model carries no "door 0 at ASSUMED" note — an unflagged assumption scores as a failure even when the number is right; door 1 position is assumed in truth but the model carries no "door 1 at ASSUMED" note — an unflagged assumption scores as a failure even when the number is right; feature missing: 2 x heater in truth, 0 built; feature missing: 1 x bulkhead in truth, 0 built |
+| 2026-08-31 21:03 | s609-3190gh | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | s609-3190j | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | synthetic-clean | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | synthetic-clearwidth-trap | PASS | 24.00" | planted defect detected (checker-silent by design): max vertex error 24.00" > 0.10"; feature missing: 2 x heater in truth, 0 built |
+| 2026-08-31 21:03 | synthetic-clearwidth | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | synthetic-cornerdoor | PASS | — | refused by name as designed: touches the corner; overlap |
+| 2026-08-31 21:03 | synthetic-jog | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | synthetic-missing | PASS | — | refused by name as designed: no position on run 0; noceil ceiling |
+| 2026-08-31 21:03 | synthetic-nasty-t2 | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | synthetic-nasty | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | synthetic-nonclosing | PASS | — | refused by name as designed: runs do not close |
+| 2026-08-31 21:03 | synthetic-selfcross | PASS | — | refused by name as designed: revisits the corner; self-touches |
+| 2026-08-31 21:03 | synthetic-sliver | PASS | 0.00" | clean |
+| 2026-08-31 21:03 | synthetic-unflagged | PASS | 0.00" | planted defect detected (checker-silent by design): door 0 position is assumed in truth but the model carries no "door 0 at ASSUMED" note — an unflagged assumption scores as a failure even when the number is right |
+| 2026-08-31 21:03 | synthetic-units | PASS | 0.00" | clean |
