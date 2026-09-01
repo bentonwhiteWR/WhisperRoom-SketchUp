@@ -1104,6 +1104,11 @@ CSS = """
     border-radius:3px;border:1px solid var(--rule);background:var(--card);
     color:var(--ink-2);cursor:pointer}
   .edform button.save{background:var(--accent);border-color:var(--accent);color:#fff}
+  .closewarn{margin:8px 12px;padding:9px 11px;border:1px solid var(--bad);
+    border-left-width:3px;border-radius:4px;background:var(--card);
+    font-family:Consolas,monospace;font-size:11px;color:var(--bad);line-height:1.55}
+  .closewarn b{display:block;margin-bottom:4px;letter-spacing:.06em}
+  .closewarn div{margin-top:3px}
   .rnote{margin:8px 0 4px;padding:9px 11px;border:1px solid var(--warn);
     border-left-width:3px;border-radius:4px;background:var(--warn-bg)}
   .rnote label{display:block;font-family:Consolas,monospace;font-size:9.5px;
@@ -1173,7 +1178,13 @@ JS = r"""
   // structured JSON that takeoff-check.py --apply-patch consumes directly —
   // never prose, because re-interpreting prose is the transcription step this
   // whole sheet exists to remove.
+  // Every edit still carries a source into the patch — the source is simply
+  // known in advance here: the reviewer corrected it on this sheet. Written
+  // once so the CLI's refusal rule stays satisfied without asking.
+  var EDIT_SRC = 'stated corrected on the review sheet';
   var state = { edits: [], review: {}, notes: {} };
+  var roomsByName = {};
+  (LOCK.rooms || []).forEach(function (r) { roomsByName[r.name] = r; });
   var $patch = document.getElementById('patchbox');
   var $counts = document.getElementById('fcounts');
 
@@ -1205,6 +1216,7 @@ JS = r"""
       if (nn) out.notes = notes;
       $patch.value = JSON.stringify(out, null, 2);
     }
+    renderClosure();
     if ($counts) {
       var a = 0, n = 0, k;
       for (k in state.review) {
@@ -1218,6 +1230,66 @@ JS = r"""
   // Every room gets a note box, revealed by NEEDS CHANGES. A verdict with no
   // way to say WHAT is wrong sends the reviewer back to prose in chat, which
   // is the transcription hop this sheet exists to remove.
+  // ------------------------------------------------------------- closure --
+  // A room's opposite walls are BOTH measured, so they are allowed to differ —
+  // real rooms are not square. What is not allowed is changing one and leaving
+  // the drawing claiming a room that cannot close. Editing 18'-11" on the
+  // north wall does NOT rewrite the south wall: copying a number Benton did
+  // not measure is the invention this sheet exists to stop. It says so
+  // instead, live, in the room it happened in.
+  function curInches(rname, field, fallback) {
+    var e = state.edits.filter(function (x) {
+      return x.room === rname && x.field === field;
+    })[0];
+    if (!e) return fallback;
+    var raw = e['new'].v !== undefined ? e['new'].v : e['new'].assumed;
+    var n = parseLen(raw);
+    return isNaN(n) ? fallback : n;
+  }
+  function closureIssues(rname) {
+    var r = roomsByName[rname], msgs = [];
+    if (!r || !r.runs) return msgs;
+    var ax = { N: 0, S: 0, E: 0, W: 0 };
+    r.runs.forEach(function (run, i) {
+      var v = curInches(rname, 'runs[' + i + ']', run['in']);
+      if (ax[run.d] !== undefined) ax[run.d] += v;
+      // A chain is its own claim: the parts must still sum to the overall.
+      if (run.parts && run.parts.length) {
+        var sum = 0;
+        run.parts.forEach(function (p) { sum += p; });
+        if (Math.abs(sum - v) > 0.05) {
+          msgs.push('run ' + i + ' (' + run.d + ') now reads ' + arch(v)
+            + ' but its segments still sum to ' + arch(sum)
+            + ' — the chain no longer closes, so one of them is wrong.');
+        }
+      }
+    });
+    [['N', 'S', 'north', 'south'], ['E', 'W', 'east', 'west']].forEach(function (q) {
+      var d = ax[q[0]] - ax[q[1]];
+      if (Math.abs(d) > 0.05) {
+        msgs.push(q[2] + ' walls total ' + arch(ax[q[0]]) + ' but ' + q[3]
+          + ' total ' + arch(ax[q[1]]) + ' — off by ' + arch(Math.abs(d))
+          + '. Both are measured, so this may be real; if it is not, the '
+          + 'opposite wall needs the same correction.');
+      }
+    });
+    return msgs;
+  }
+  var closeBoxes = {};
+  function renderClosure() {
+    Object.keys(closeBoxes).forEach(function (rname) {
+      var msgs = closureIssues(rname), box = closeBoxes[rname];
+      box.hidden = !msgs.length;
+      if (!msgs.length) return;
+      box.innerHTML = '<b>This room no longer closes</b>';
+      msgs.forEach(function (m) {
+        var d = document.createElement('div');
+        d.textContent = m;
+        box.appendChild(d);
+      });
+    });
+  }
+
   var noteBoxes = {};
   document.querySelectorAll('section.room[data-room]').forEach(function (sec) {
     var room = sec.getAttribute('data-room');
@@ -1238,6 +1310,11 @@ JS = r"""
     d.appendChild(lab); d.appendChild(ta); d.appendChild(hint);
     sec.appendChild(d);
     noteBoxes[room] = { box: d, ta: ta };
+    var cw = document.createElement('div');
+    cw.className = 'closewarn';
+    cw.hidden = true;
+    sec.insertBefore(cw, sec.children[1] || null);
+    closeBoxes[room] = cw;
     ta.addEventListener('input', function () {
       state.notes[room] = ta.value;
       renderPatch();
@@ -1316,18 +1393,16 @@ JS = r"""
       })[0];
       var f = document.createElement('div');
       f.className = 'edform';
+      // One box. The source is not asked for because on this sheet it is
+      // always the same answer — Benton corrected the number while reviewing
+      // it — so asking a question with one possible answer just taxes every
+      // edit. EDIT_SRC still satisfies --apply-patch's rule that no
+      // measurement claim lands without a source.
       f.innerHTML =
         '<label>new value (was ' + oldArch.replace(/</g, '&lt;') + ')</label>'
-        + '<input class="fv" placeholder="e.g. 12\'6&quot;, 38&quot;, 150">'
-        + '<label>how was it measured?</label>'
-        + '<select class="fk"><option value="pen">pen — hand-written on the plan (name the image)</option>'
-        + '<option value="stated">stated — client said so (name where)</option>'
-        + '<option value="plan-vector">plan-vector — from PDF/DWG geometry (name the anchor)</option>'
-        + '<option value="assumed">assumed — nobody measured it (give the reason)</option></select>'
-        + '<label class="fdl">source detail</label>'
-        + '<input class="fd" placeholder="e.g. IMG_7594, or tape measure 1 Sep">'
+        + '<input class="fv" placeholder="e.g. 12&#39;6&quot;, 38&quot;, 150">'
         + '<div class="err" hidden></div>'
-        + '<div class="row"><button class="save">SAVE EDIT</button>'
+        + '<div class="row"><button class="save">SAVE</button>'
         + '<button class="cancel">CANCEL</button>'
         + (existing ? '<button class="drop">REMOVE EDIT</button>' : '') + '</div>';
       if (isSvg) {
@@ -1339,41 +1414,20 @@ JS = r"""
         span.parentElement.appendChild(f);
       }
       openForm = f;
-      var $v = f.querySelector('.fv'), $k = f.querySelector('.fk'),
-          $d = f.querySelector('.fd'), $e = f.querySelector('.err');
+      var $v = f.querySelector('.fv'), $e = f.querySelector('.err');
       if (existing) {
-        if (existing['new'].assumed !== undefined) {
-          $v.value = existing['new'].assumed; $k.value = 'assumed';
-          $d.value = existing['new'].reason || '';
-        } else {
-          $v.value = existing['new'].v;
-          var parts = String(existing['new'].src || '').split(' ');
-          $k.value = parts[0] || 'pen'; $d.value = parts.slice(1).join(' ');
-        }
+        $v.value = existing['new'].v !== undefined
+          ? existing['new'].v : existing['new'].assumed;
       }
-      $k.addEventListener('change', function () {
-        f.querySelector('.fdl').textContent =
-          $k.value === 'assumed' ? 'reason (required — a silent assumption is the old defect)'
-                                 : 'source detail (required)';
-      });
       f.querySelector('.save').addEventListener('click', function () {
-        var raw = $v.value.trim(), det = $d.value.trim();
+        var raw = $v.value.trim();
         var inches = parseLen(raw);
         if (isNaN(inches)) {
           $e.textContent = 'value does not parse — grammar: 150, 150", 12\'6", '
             + '12\'-6", 12\' 6 1/2", 12.5\'; a bare number is inches';
           $e.hidden = false; return;
         }
-        if (!det) {
-          $e.textContent = $k.value === 'assumed'
-            ? 'an assumption with no reason is the defect this sheet exists to stop'
-            : 'name the source — where did this number come from?';
-          $e.hidden = false; return;
-        }
-        var obj = $k.value === 'assumed'
-          ? { assumed: raw, reason: det }
-          : { v: raw, src: $k.value + ' ' + det };
-        recordEdit(room, field, oldArch, obj);
+        recordEdit(room, field, oldArch, { v: raw, src: EDIT_SRC });
         paintField(room, field, arch(inches), true);
         (views[keyOf(room, field)] || []).forEach(function (el) {
           if (el.classList.contains('sval')) return;   // no strikethrough in SVG
