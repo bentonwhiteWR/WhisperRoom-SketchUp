@@ -156,7 +156,9 @@ Pure Python, no SketchUp, runs on any machine. Given `takeoff.json`:
 - on success writes `takeoff.lock.json`: everything normalized to float inches with the
   assumed/default flags carried through. **The builder consumes only the lock file** —
   Ruby never re-parses dimension strings, so the grammar lives in exactly two places
-  (dialog JS, checker Python) instead of three;
+  (dialog JS, checker Python) instead of three — the review sheet's page script embeds
+  the dialog's parseLen/arch extracted verbatim from build-room.html at generation
+  time, not a copy of its own;
 - `--html` emits the **review sheet**: a self-contained HTML page (mockup:
   `.forge/scoper/takeoff-review.mockup.html`, populated with the real 3190G/H data —
   this is the approved look, in `build-room.html`'s own house style) showing per room a

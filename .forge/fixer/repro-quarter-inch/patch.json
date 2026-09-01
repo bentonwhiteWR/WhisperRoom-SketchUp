@@ -1,0 +1,11 @@
+{
+  "patch": 1,
+  "job": "repro-quarter-inch",
+  "review": {"rm": "approved"},
+  "edits": [
+    {"room": "rm", "field": "runs[0]", "old": "12'-6.2\"",
+     "new": {"v": "12' 6 1/2\"", "src": "stated tape re-measure 31 Aug"}},
+    {"room": "rm", "field": "runs[2]", "old": "12'-6.2\"",
+     "new": {"v": "12' 6 1/2\"", "src": "stated tape re-measure 31 Aug"}}
+  ]
+}

@@ -50,7 +50,9 @@ scripts/build-takeoff.rb — consumes ONLY the lock file, so the dimension
 grammar lives in exactly two places: parseLen in scripts/build-room.html and
 parse_len here. The two are held identical by the shared vectors in
 scripts/takeoff-vectors.json (run --selftest; open scripts/takeoff-vectors.html
-for the JS side).
+for the JS side). The review sheet this file generates needs the grammar too,
+but carries no third copy: dialog_grammar_js() extracts the dialog's own
+parseLen/arch by text at generation time and embeds that.
 """
 import io
 import json
@@ -65,6 +67,14 @@ sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 TOL = 0.02          # polygon closure, inches — matches WR_BuildRoom::TOL
+DISPLAY_TOL = 0.05 + 1e-9   # patch staleness, inches. The sheet's `old` is
+                    # arch()'s display string, rounded to a TENTH of an inch,
+                    # so it can sit up to 0.05" from the stored value (1/4" =
+                    # 0.25 displays as 6.2" or 6.3"). Staleness is therefore
+                    # judged at display precision — anything the sheet showed
+                    # matches; a real edit of even one sixteenth (0.0625")
+                    # still refuses. Comparing with TOL here made every value
+                    # finer than a tenth permanently unpatchable.
 PART_TOL = 0.001    # parts are stated numbers; a mismatch is a transcription
                     # error, not noise, so the tolerance is float dust only
 DIR = {'E': (1, 0), 'W': (-1, 0), 'N': (0, 1), 'S': (0, -1)}
@@ -816,9 +826,10 @@ CSS = """
 # workspace's approved viewer in docs/tube-drying-stand.html; wheel zoom is
 # added per the 3D-artifact house rule (rotate, flip, zoom). Hand-written
 # WebGL, zero external dependencies — the sheet must also work from file://
-# with no network. parseLen is the dialog grammar, ported verbatim from
-# scripts/build-room.html:203 (held identical to parse_len above by
-# scripts/takeoff-vectors.json).
+# with no network. The page's parseLen/arch are NOT a copy: the /*@GRAMMAR@*/
+# marker is filled at generation time with the literal function text extracted
+# from scripts/build-room.html (dialog_grammar_js), the same extraction
+# scripts/takeoff-vectors.html uses to run the parity vectors.
 JS = r"""
 (function () {
   'use strict';
@@ -827,34 +838,11 @@ JS = r"""
   var PHOTOS = pd ? JSON.parse(pd.textContent) : {};
 
   // ---------------------------------------------------------------- grammar --
-  function parseLen(s) {
-    if (typeof s === 'number') return isFinite(s) ? s : NaN;
-    var t = String(s).trim().toLowerCase()
-      .replace(/[′’]/g, "'").replace(/[″“”]/g, '"')
-      .replace(/\s*(?:ft|feet|foot)\b/g, "'")
-      .replace(/\s*(?:in|inch|inches)\b/g, '"')
-      .replace(/'\s*-\s*/g, "' ")
-      .trim();
-    if (!t) return NaN;
-    var feet = 0, inch = 0, seen = false, m;
-    m = t.match(/^([0-9]*\.?[0-9]+)\s*'/);
-    if (m) { feet = parseFloat(m[1]); seen = true; t = t.slice(m[0].length).trim(); }
-    if (t) {
-      m = t.match(/^([0-9]*\.?[0-9]+)?\s*(?:([0-9]+)\s*\/\s*([0-9]+))?\s*"?$/);
-      if (!m || (m[1] === undefined && m[2] === undefined)) return NaN;
-      inch = (m[1] ? parseFloat(m[1]) : 0) + (m[2] ? parseFloat(m[2]) / parseFloat(m[3]) : 0);
-      seen = true;
-    }
-    if (!seen) return NaN;
-    var v = feet * 12 + inch;
-    return isFinite(v) ? v : NaN;
-  }
-  function arch(n) {
-    var neg = n < 0; n = Math.abs(n);
-    var f = Math.floor(n / 12), i = Math.round((n - f * 12) * 10) / 10;
-    if (i >= 12) { f += 1; i -= 12; }
-    return (neg ? '-' : '') + f + "'-" + (i % 1 === 0 ? i : i.toFixed(1)) + '"';
-  }
+  // parseLen and arch are NOT written here: they are the dialog's own shipped
+  // functions, extracted verbatim from scripts/build-room.html at sheet
+  // generation time (dialog_grammar_js below) — the grammar cannot drift
+  // because there is no third copy to drift.
+  /*@GRAMMAR@*/
 
   // ------------------------------------------------------- photos, lightbox --
   document.querySelectorAll('img.photo').forEach(function (img) {
@@ -1550,6 +1538,33 @@ JS = r"""
 """
 
 
+def dialog_grammar_js():
+    """The dialog's own parseLen and arch, extracted verbatim by text from
+    scripts/build-room.html — the same extraction takeoff-vectors.html does
+    to run the parity vectors against the shipped dialog. The review sheet
+    embeds THIS text at generation time (the /*@GRAMMAR@*/ marker in JS), so
+    the dimension grammar keeps living in exactly two places: parseLen there
+    and parse_len here. Fails BY NAME if the dialog moves or the functions
+    change shape — a silently-empty grammar would be the old defect back."""
+    p = os.path.join(HERE, 'build-room.html')
+    if not os.path.exists(p):
+        raise SystemExit('FAIL grammar: scripts/build-room.html not found at '
+                         '%s — the review sheet embeds the dialog\'s own '
+                         'parseLen/arch and cannot be generated without it' % p)
+    src = io.open(p, encoding='utf-8').read()
+    out = []
+    for name, arg in (('parseLen', 's'), ('arch', 'n')):
+        m = re.search(r'function %s\(%s\)\{[\s\S]*?\n  \}' % (name, arg), src)
+        if not m:
+            raise SystemExit('FAIL grammar: could not extract function %s '
+                             'from scripts/build-room.html — the dialog '
+                             'changed shape; update dialog_grammar_js '
+                             '(and takeoff-vectors.html, which extracts the '
+                             'same way)' % name)
+        out.append(m.group(0))
+    return '\n  '.join(out)
+
+
 def badge(src, flag):
     if flag == 'assumed':
         return '<span class="b asm">ASSUMED</span>'
@@ -1783,7 +1798,9 @@ def apply_patch(data, patch):
         if old_in is None:
             errs.append((name, 'old %r does not parse' % (e.get('old'),)))
             continue
-        if cur_in is None or abs(cur_in - old_in) > TOL:
+        # `old` comes back from the sheet at arch()'s tenth-of-an-inch
+        # display precision, never exact — see DISPLAY_TOL.
+        if cur_in is None or abs(cur_in - old_in) > DISPLAY_TOL:
             errs.append((name, 'old is %s but the file currently says %s — '
                                'the patch was written against a different '
                                'take-off; regenerate the sheet and re-review'
@@ -1990,7 +2007,8 @@ def html_report(ck, lock, path, photos=None):
     if uris:
         h.append('<script type="application/json" id="photodata">%s</script>'
                  % json.dumps(uris).replace('</', '<\\/'))
-    h.append('<script>%s</script>' % JS)
+    h.append('<script>%s</script>'
+             % JS.replace('/*@GRAMMAR@*/', dialog_grammar_js()))
     h.append('</body></html>')
     return '\n'.join(h)
 
@@ -2137,8 +2155,10 @@ def selftest():
         fails += 1
 
     # ---- the patch path: what the review sheet's copy box emits ------------
-    def pcase(label, patch_body, want_ok, want_word=None, check=None):
-        data = room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
+    def pcase(label, patch_body, want_ok, want_word=None, check=None,
+              quarter=False):
+        w = '38 1/4"' if quarter else '38"'
+        data = room(doors=[{'run': 0, 'w': {'v': w, 'src': 'pen x'},
                             'at': {'assumed': '6"', 'reason': 'no position'},
                             'hinge': 'near'}])
         patch = {'patch': 1, 'job': 'selftest'}
@@ -2177,6 +2197,17 @@ def selftest():
                     'new': {'assumed': '8\'6"', 'reason': 'still unmeasured'}}]},
         True, None,
         lambda d, n, rv: d['rooms'][0]['ceiling'].get('reason') == 'still unmeasured')
+    fails += pcase(
+        'tenth-rounded old (what the sheet displays) matches a 1/4" value',
+        # The sheet shows every value through arch(), rounded to 0.1", and
+        # emits THAT string as `old` — so a stored 38 1/4" comes back as
+        # 38.2" or 38.3". Staleness is judged at DISPLAY_TOL; comparing at
+        # TOL once made every value finer than a tenth unpatchable.
+        {'edits': [{'room': 'T', 'field': 'doors[0].w',
+                    'old': '3\'-2.3"', 'new': {'v': '38 1/4"', 'src': 'pen tape'}}]},
+        True, None,
+        lambda d, n, rv: n == 1,
+        quarter=True)
     fails += pcase(
         'old that does not match the file is refused (stale patch)',
         {'edits': [{'room': 'T', 'field': 'ceiling', 'old': '9\'0"',

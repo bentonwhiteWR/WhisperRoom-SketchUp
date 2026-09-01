@@ -1,0 +1,8 @@
+{
+  "patch": 1,
+  "job": "repro-quarter-inch",
+  "edits": [
+    {"room": "rm", "field": "runs[1]", "old": "10'-0.5\"",
+     "new": {"v": "10' 1\"", "src": "stated tape"}}
+  ]
+}

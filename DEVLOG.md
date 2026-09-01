@@ -2,6 +2,58 @@
 
 ## 2026-08-31
 
+### 1.12.6 — patch flow fixed for fractions finer than a tenth; grammar third copy removed; five eval-scorer defects (code review)
+
+The seven review findings handed off from the 1.12.x lanes, routed to a
+Fixer. VERSION 1.12.5 -> **1.12.6**. No Ruby touched (`rbparse` not needed).
+
+- **`--apply-patch` refused every value finer than 0.1" — the review-sheet
+  flow was broken for ordinary carpentry fractions.** The sheet displays
+  values through `arch()` (rounded to a tenth) and emits that string as the
+  patch's `old`; the staleness check compared it against the exact stored
+  value with `TOL` (0.02"), so a stored `38 1/4"` could NEVER be patched —
+  10 of the 15 non-zero sixteenths fail, ¼" and ¾" included (verified
+  arithmetically). Reproduced end-to-end in
+  `.forge/fixer/repro-quarter-inch/`: the refusal even printed *"old is
+  12'-6.2\" but the file currently says 12'-6.2\""*. Staleness is now
+  judged at `DISPLAY_TOL` (0.05" + eps — half the display quantum): anything
+  the sheet showed matches; a real change of one sixteenth (0.0625") still
+  refuses (both proven live). This also absorbs the JS/Python tie-rounding
+  split (JS `Math.round` shows 150.25 as 6.3", Python `round` as 6.2" —
+  both match now). New selftest case pins it.
+- **The review sheet no longer carries a third copy of the length grammar.**
+  Its page script's `parseLen`/`arch` are now extracted verbatim by text
+  from `scripts/build-room.html` at generation time (`dialog_grammar_js`,
+  the same extraction `takeoff-vectors.html` uses), so "the grammar lives
+  in exactly two places" is true again. Extraction failure refuses by name.
+  Verified: generated sheet's embedded functions pass all 25 parity vectors
+  in `scripts/takeoff-vectors.json` under Node, page script syntax-checked.
+- **`scripts/eval-floorplan.py`, five defects, all reproduced first:**
+  (1) checker output was decoded with the locale (cp1252) — em-dashes
+  mangled to `â€"` in the relayed log and the ledger, curly quotes could
+  raise; now pinned `encoding='utf-8'`. (2) a room that was never measured
+  recorded worst error **0.00"** — a perfect-looking score for an unbuilt
+  room (reproduced live via a phantom-room truth); worst is now `—` with a
+  loud UNMEASURED line whenever any room has no vertex readback. (3) a
+  `WR_TAKEOFF_CHECK`-pinned run never said so; it now prints CHECKER PINNED
+  and stamps `[checker PINNED: path]` into every ledger row it records.
+  (4) `--json` printed nothing on refusal and score-fail verdicts; every
+  outcome now emits a blob (and the normal blob gained `verdict`/
+  `worst_vertex_err_in`/`unmeasured_rooms`). (5) `summarize_refusal`
+  raised `IndexError` on an empty checker log.
+- Full 19-case eval suite re-run live through the bridge after the changes;
+  every verdict matches the 20:05 sweep (synthetic-selfcross's PROBE→PASS
+  is 1.12.4's landed check, confirmed intact). Known gap, pre-existing and
+  NOT fixed here: `synthetic-headroom` is still `probe: true` but 1.12.3
+  moved its refusal into `build-takeoff.rb`, and the scorer treats a
+  builder-side refusal as a fatal bridge error — the case exits 1 and
+  records **no ledger row**. Flipping it needs a decision about whether
+  `expects.refusal` should match builder refusals; routed onward in
+  `.forge/fixer/HANDOFF.md`.
+- Deliberately left: the review-sheet 3D viewer's per-`pointermove` WebGL
+  backing-store reallocation — a performance smell nobody has ever observed
+  as slow; do not optimise unobserved behaviour.
+
 ### 1.12.5 — manifest hidden-walk sees component instances too (code review)
 
 `/code-review` on the 1.12.0–1.12.3 diff: `proposal-package.rb`'s

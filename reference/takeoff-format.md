@@ -160,7 +160,10 @@ python scripts/takeoff-check.py clients/<job>/takeoff.json --apply-patch patch.j
 ```
 
 which refuses by name any edit whose `old` no longer matches the file (stale
-patch) or whose `new` has no source, rewrites `takeoff.json` only when every
+patch — matching is at the sheet's own display precision, a tenth of an inch,
+because `old` is the displayed string; a stored `38 1/4"` shown as `3'-2.3"`
+still matches, while a real change of even a sixteenth refuses) or whose
+`new` has no source, rewrites `takeoff.json` only when every
 edit applies cleanly, and re-runs the full check — so a patched value passes
 the same closure/corner/src invariants as a hand-typed one. Editing a run
 replaces its value and drops any old `parts` chain (the number changed; a

@@ -89,3 +89,20 @@ recorded so they cannot be lost; the reproducing case pins each one.
 | 2026-08-31 20:05 | synthetic-headroom | PROBE | 0.00" | built (probe): feature missing: 1 x bulkhead in truth, 0 built |
 | 2026-08-31 20:05 | synthetic-sliver | PASS | 0.00" | clean |
 | 2026-08-31 20:13 | synthetic-selfcross | PASS | — | refused by name as designed: revisits the corner; self-touches |
+| 2026-08-31 20:27 | s609-3190f | PASS | 0.00" | clean |
+| 2026-08-31 20:27 | s609-3190gh | PASS | 0.00" | clean |
+| 2026-08-31 20:27 | s609-3190gh-baseline | FAIL | 20.00" | max vertex error 20.00" > 2.00"; ceiling off by 9.00"; door 0 position is assumed in truth but the model carries no "door 0 at ASSUMED" note — an unflagged assumption scores as a failure even when the number is right; door 1 position is assumed in truth but the model carries no "door 1 at ASSUMED" note — an unflagged assumption scores as a failure even when the number is right; feature missing: 2 x heater in truth, 0 built; feature missing: 1 x bulkhead in truth, 0 built |
+| 2026-08-31 20:27 | s609-3190j | PASS | 0.00" | clean |
+| 2026-08-31 20:27 | synthetic-clean | PASS | 0.00" | clean |
+| 2026-08-31 20:27 | synthetic-clearwidth | PASS | 0.00" | clean |
+| 2026-08-31 20:27 | synthetic-clearwidth-trap | PASS | 24.00" | planted defect detected (checker-silent by design): max vertex error 24.00" > 0.10"; feature missing: 2 x heater in truth, 0 built |
+| 2026-08-31 20:27 | synthetic-cornerdoor | PASS | — | refused by name as designed: touches the corner; overlap |
+| 2026-08-31 20:27 | synthetic-jog | PASS | 0.00" | clean |
+| 2026-08-31 20:27 | synthetic-missing | PASS | — | refused by name as designed: no position on run 0; noceil ceiling |
+| 2026-08-31 20:27 | synthetic-nasty | PASS | 0.00" | clean |
+| 2026-08-31 20:27 | synthetic-nasty-t2 | PASS | 0.00" | clean |
+| 2026-08-31 20:27 | synthetic-nonclosing | PASS | — | refused by name as designed: runs do not close |
+| 2026-08-31 20:27 | synthetic-selfcross | PASS | — | refused by name as designed: revisits the corner; self-touches |
+| 2026-08-31 20:27 | synthetic-sliver | PASS | 0.00" | clean |
+| 2026-08-31 20:27 | synthetic-unflagged | PASS | 0.00" | planted defect detected (checker-silent by design): door 0 position is assumed in truth but the model carries no "door 0 at ASSUMED" note — an unflagged assumption scores as a failure even when the number is right |
+| 2026-08-31 20:27 | synthetic-units | PASS | 0.00" | clean |

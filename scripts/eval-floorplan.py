@@ -69,6 +69,14 @@ def fail(msg, code=2):
     sys.exit(code)
 
 
+def emit_json(want_json, obj):
+    # --json must produce a blob on EVERY outcome — refusals and score-fail
+    # verdicts included; a machine consumer that gets silence cannot tell a
+    # refusal from a crash.
+    if want_json:
+        print(json.dumps(obj, indent=2))
+
+
 def load_case(case):
     d = case if os.path.isdir(case) else os.path.join(ROOT, 'eval', 'floorplans', case)
     if not os.path.isdir(d):
@@ -90,9 +98,19 @@ def load_case(case):
 def run_checker(takeoff):
     # WR_TAKEOFF_CHECK overrides the checker path — used when the working-tree
     # checker is mid-edit by someone else and the eval must pin a known build.
-    chk = os.environ.get('WR_TAKEOFF_CHECK') or os.path.join(HERE, 'takeoff-check.py')
+    # A pinned run says so out loud (and record_row stamps the ledger): a run
+    # silently scoring a stale checker is exactly the unaccounted-for result
+    # this scorer exists to prevent.
+    pin = os.environ.get('WR_TAKEOFF_CHECK')
+    chk = pin or os.path.join(HERE, 'takeoff-check.py')
+    if pin:
+        print('  CHECKER PINNED  WR_TAKEOFF_CHECK=%s' % pin)
+    # encoding pinned to utf-8: the checker reconfigures its stdout to utf-8,
+    # and text=True alone decodes with the locale (cp1252 here), which mangles
+    # the checker's em-dashes and can raise outright on curly quotes.
     r = subprocess.run([sys.executable, chk, takeoff],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True,
+                       encoding='utf-8', errors='replace')
     return r.returncode, r.stdout + r.stderr
 
 
@@ -235,6 +253,11 @@ def expected_jambs(poly, run, a, b, axis):
 
 
 def record_row(case, verdict, worst, detail):
+    pin = os.environ.get('WR_TAKEOFF_CHECK')
+    if pin:
+        # The ledger must say which checker scored the row — a silently
+        # pinned (possibly stale) checker would make the row unaccountable.
+        detail = '%s [checker PINNED: %s]' % (detail, pin)
     row = ('| %s | %s | %s | %s | %s |\n'
            % (time.strftime('%Y-%m-%d %H:%M'),
               os.path.basename(str(case).rstrip('/\\')), verdict,
@@ -265,6 +288,10 @@ def main(argv):
                 record_row(case, 'FAIL', None,
                            'checker ACCEPTED a take-off this case expects it '
                            'to refuse — the refusal has been un-fixed')
+            emit_json(want_json, {'case': case, 'mode': 'refusal',
+                                  'verdict': 'FAIL',
+                                  'detail': 'checker accepted a take-off this '
+                                            'case expects it to refuse'})
             fail('%s: expected the checker to refuse, and it accepted. The '
                  'named refusal IS this case\'s pass condition.' % case, 1)
         missing = [p for p in expects['refusal'] if p.lower() not in log.lower()]
@@ -274,6 +301,9 @@ def main(argv):
                 record_row(case, 'FAIL', None,
                            'refused, but not by the expected name(s): %s'
                            % '; '.join(missing))
+            emit_json(want_json, {'case': case, 'mode': 'refusal',
+                                  'verdict': 'FAIL', 'missing': missing,
+                                  'detail': summarize_refusal(log)})
             fail('%s: checker refused, but these expected phrases are absent: '
                  '%s' % (case, '; '.join(missing)), 1)
         print('  PASS  %s — checker refused by name, nothing built (that is '
@@ -282,6 +312,9 @@ def main(argv):
             record_row(case, 'PASS', None,
                        'refused by name as designed: %s'
                        % '; '.join(expects['refusal']))
+        emit_json(want_json, {'case': case, 'mode': 'refusal',
+                              'verdict': 'PASS',
+                              'refused_by': expects['refusal']})
         return 0
     if code != 0:
         print(log)
@@ -291,10 +324,18 @@ def main(argv):
             if record:
                 record_row(case, 'PROBE', None,
                            'checker refused (probe): ' + summarize_refusal(log))
+            emit_json(want_json, {'case': case, 'mode': 'probe',
+                                  'verdict': 'PROBE',
+                                  'detail': 'checker refused: '
+                                            + summarize_refusal(log)})
             return 0
         if record:
             record_row(case, 'FAIL', None,
                        'checker refused unexpectedly: ' + summarize_refusal(log))
+        emit_json(want_json, {'case': case, 'mode': 'score',
+                              'verdict': 'FAIL',
+                              'detail': 'checker refused unexpectedly: '
+                                        + summarize_refusal(log)})
         fail('%s: checker refused the take-off — nothing was built. If this '
              'case EXPECTS refusal, say so in case.json.' % case, 1)
     lock = takeoff.replace('.json', '.lock.json')
@@ -304,7 +345,9 @@ def main(argv):
     built = {r['name']: r for r in build_and_read(lock, None)}
 
     results = []
-    worst = 0.0
+    worst = None        # None until a room is actually measured — an
+                        # unmeasured room must never read as a 0.00" score
+    unmeasured = []
     failed = False
     print('')
     print('EVAL  %s   (tolerances per truth.json; deterministic floor %.1f")'
@@ -317,7 +360,11 @@ def main(argv):
         results.append(s)
         ok = not s['errors']
         failed = failed or not ok
-        worst = max(worst, s.get('max_vertex_err_in') or 0.0)
+        if s.get('max_vertex_err_in') is not None:
+            worst = max(worst, s['max_vertex_err_in']) if worst is not None \
+                else s['max_vertex_err_in']
+        else:
+            unmeasured.append(s['room'])
         print('  %-4s %-10s vertex %5s\"  jamb %5s\"  ceiling %5s\"  unflagged %d'
               % ('PASS' if ok else 'FAIL', s['room'],
                  s.get('max_vertex_err_in', '—'),
@@ -327,6 +374,14 @@ def main(argv):
         for e in s['errors']:
             print('         %s' % e)
     print('')
+    if unmeasured:
+        # A room with no vertex readback has no error figure at all. Worst
+        # becomes '—' for the whole run (it previously stayed 0.00", which
+        # read as a perfect score — the silent-plausible-wrong class).
+        worst = None
+        print('  UNMEASURED %d room(s): %s — no vertex readback, so this run '
+              'has NO worst-error figure (recorded as "—", never 0.00")'
+              % (len(unmeasured), ', '.join(unmeasured)))
     detail = '; '.join(e for s in results for e in s['errors']) or 'clean'
 
     if expects.get('score_fail'):
@@ -340,6 +395,9 @@ def main(argv):
             if record:
                 record_row(case, 'FAIL', worst,
                            'planted defect went UNDETECTED — scored clean')
+            emit_json(want_json, {'case': case, 'mode': 'score_fail',
+                                  'verdict': 'FAIL', 'results': results,
+                                  'detail': 'planted defect went undetected'})
             return 1
         missing = [p for p in expects['score_fail']
                    if p.lower() not in detail.lower()]
@@ -350,6 +408,9 @@ def main(argv):
                 record_row(case, 'FAIL', worst,
                            'scorer failed for the wrong reason; expected: %s '
                            '— got: %s' % ('; '.join(missing), detail))
+            emit_json(want_json, {'case': case, 'mode': 'score_fail',
+                                  'verdict': 'FAIL', 'missing': missing,
+                                  'results': results, 'detail': detail})
             return 1
         print('  PASS  %s — planted defect DETECTED by the scorer (checker '
               'was silent by design): %s' % (case, detail))
@@ -357,10 +418,16 @@ def main(argv):
             record_row(case, 'PASS', worst,
                        'planted defect detected (checker-silent by design): '
                        + detail)
+        emit_json(want_json, {'case': case, 'mode': 'score_fail',
+                              'verdict': 'PASS', 'results': results,
+                              'detail': detail})
         return 0
 
     if want_json:
-        print(json.dumps({'case': case, 'results': results}, indent=2))
+        print(json.dumps({'case': case, 'results': results,
+                          'verdict': 'PASS' if not failed else 'FAIL',
+                          'worst_vertex_err_in': worst,
+                          'unmeasured_rooms': unmeasured}, indent=2))
     if probe:
         print('  PROBE %s — built and scored; verdict above is informational'
               % case)
@@ -374,7 +441,10 @@ def main(argv):
 
 def summarize_refusal(log):
     lines = [ln.strip() for ln in log.splitlines() if 'FAIL' in ln]
-    s = '; '.join(lines) or log.strip().splitlines()[-1]
+    tail = log.strip().splitlines()
+    # An empty checker log (checker crashed before printing, or was killed)
+    # must summarize, not raise — this feeds the ledger's FAIL rows.
+    s = '; '.join(lines) or (tail[-1] if tail else '(checker produced no output)')
     return s[:400]
 
 

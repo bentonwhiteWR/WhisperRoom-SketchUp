@@ -1,0 +1,36 @@
+{
+  "job": "repro-quarter-inch",
+  "title": "Fixer repro: a 1/4\" value the sheet displays rounded",
+  "anchor": "authored repro — values invented for the reproduction only",
+  "rooms": [
+    {
+      "name": "rm",
+      "runs": [
+        {
+          "v": "12' 6 1/2\"",
+          "src": "stated tape re-measure 31 Aug",
+          "d": "E"
+        },
+        {
+          "d": "S",
+          "v": "10'",
+          "src": "stated repro"
+        },
+        {
+          "v": "12' 6 1/2\"",
+          "src": "stated tape re-measure 31 Aug",
+          "d": "W"
+        },
+        {
+          "d": "N",
+          "v": "10'",
+          "src": "stated repro"
+        }
+      ],
+      "ceiling": {
+        "v": "8'",
+        "src": "stated repro"
+      }
+    }
+  ]
+}
