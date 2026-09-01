@@ -1072,6 +1072,15 @@ CSS = """
     border-radius:3px;border:1px solid var(--rule);background:var(--card);
     color:var(--ink-2);cursor:pointer}
   .edform button.save{background:var(--accent);border-color:var(--accent);color:#fff}
+  .rnote{margin:8px 0 4px;padding:9px 11px;border:1px solid var(--warn);
+    border-left-width:3px;border-radius:4px;background:var(--warn-bg)}
+  .rnote label{display:block;font-family:Consolas,monospace;font-size:9.5px;
+    letter-spacing:.11em;text-transform:uppercase;color:var(--warn);margin-bottom:5px}
+  .rnote textarea{width:100%;min-height:64px;resize:vertical;border:1px solid var(--rule);
+    border-radius:3px;background:var(--field);color:var(--ink);padding:7px 9px;
+    font-family:Consolas,ui-monospace,monospace;font-size:11.5px;line-height:1.5}
+  .rnote .hint{font-family:Consolas,monospace;font-size:10px;color:var(--ink-3);
+    margin-top:5px}
   #patchsec{border:1px solid var(--rule);border-radius:6px;background:var(--card);
     margin-bottom:18px;padding:12px 14px}
   #patchsec textarea{width:100%;min-height:120px;resize:vertical;border:1px solid var(--rule);
@@ -1132,7 +1141,7 @@ JS = r"""
   // structured JSON that takeoff-check.py --apply-patch consumes directly —
   // never prose, because re-interpreting prose is the transcription step this
   // whole sheet exists to remove.
-  var state = { edits: [], review: {} };
+  var state = { edits: [], review: {}, notes: {} };
   var $patch = document.getElementById('patchbox');
   var $counts = document.getElementById('fcounts');
 
@@ -1144,14 +1153,25 @@ JS = r"""
     renderPatch();
   }
   function renderPatch() {
-    var any = state.edits.length || Object.keys(state.review).length;
+    var notes = {}, nn = 0, rk;
+    for (rk in state.notes) {
+      if (state.notes[rk] && state.notes[rk].trim()) {
+        notes[rk] = state.notes[rk].trim(); nn++;
+      }
+    }
+    var any = state.edits.length || Object.keys(state.review).length || nn;
     if (!any) {
-      $patch.value = '(no edits and no room decisions yet — click a dashed '
+      $patch.value = '(no edits, notes or room decisions yet — click a dashed '
         + 'value to change it, or APPROVE / NEEDS CHANGES on a room)';
     } else {
-      $patch.value = JSON.stringify({
-        patch: 1, job: LOCK.job, review: state.review, edits: state.edits
-      }, null, 2);
+      var out = { patch: 1, job: LOCK.job, review: state.review,
+                  edits: state.edits };
+      // Notes are prose and go nowhere near --apply-patch, which ignores the
+      // key. They exist so a change that is NOT a number — move the door to
+      // the other wall, this partition is gone — reaches the model builder
+      // in the reviewer's own words instead of being lost in a screenshot.
+      if (nn) out.notes = notes;
+      $patch.value = JSON.stringify(out, null, 2);
     }
     if ($counts) {
       var a = 0, n = 0, k;
@@ -1159,8 +1179,47 @@ JS = r"""
         if (state.review[k] === 'approved') a++; else n++;
       }
       $counts.textContent = ' · ' + state.edits.length + ' edit(s), '
-        + a + ' approved, ' + n + ' needs-changes';
+        + nn + ' note(s), ' + a + ' approved, ' + n + ' needs-changes';
     }
+  }
+
+  // Every room gets a note box, revealed by NEEDS CHANGES. A verdict with no
+  // way to say WHAT is wrong sends the reviewer back to prose in chat, which
+  // is the transcription hop this sheet exists to remove.
+  var noteBoxes = {};
+  document.querySelectorAll('section.room[data-room]').forEach(function (sec) {
+    var room = sec.getAttribute('data-room');
+    var d = document.createElement('div');
+    d.className = 'rnote';
+    d.hidden = true;
+    var lab = document.createElement('label');
+    lab.textContent = 'What needs to change in ' + room + '?';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'e.g. the door on the north wall opens the other way; '
+      + 'the west partition is gone; the alcove is deeper than drawn.
+'
+      + 'A number you can measure is better entered by clicking the dashed '
+      + 'value above — that becomes a checked edit instead of prose.';
+    ta.setAttribute('aria-label', 'Requested changes for ' + room);
+    var hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = 'Goes into the patch box at the bottom, under "notes".';
+    d.appendChild(lab); d.appendChild(ta); d.appendChild(hint);
+    sec.appendChild(d);
+    noteBoxes[room] = { box: d, ta: ta };
+    ta.addEventListener('input', function () {
+      state.notes[room] = ta.value;
+      renderPatch();
+    });
+  });
+
+  function syncNote(room) {
+    var nb = noteBoxes[room];
+    if (!nb) return;
+    var want = state.review[room] === 'needs-changes'
+      || !!(state.notes[room] && state.notes[room].trim());
+    nb.box.hidden = !want;
+    return nb;
   }
 
   document.querySelectorAll('.rv button').forEach(function (b) {
@@ -1173,6 +1232,8 @@ JS = r"""
         var on = state.review[room] === x.getAttribute('data-st');
         x.className = on ? (x.getAttribute('data-st') === 'approved' ? 'on-a' : 'on-n') : '';
       });
+      var nb = syncNote(room);
+      if (nb && state.review[room] === 'needs-changes') nb.ta.focus();
       renderPatch();
     });
   });
@@ -1704,7 +1765,7 @@ JS = r"""
     });
     cv.addEventListener('pointermove', function (e) {
       if (!drag) return;
-      st.az = drag.az + (e.clientX - drag.x) * 0.45;
+      st.az = drag.az - (e.clientX - drag.x) * 0.45;
       st.el = Math.max(-15, Math.min(88, drag.el + (e.clientY - drag.y) * 0.35));
       draw();
     });
@@ -1719,8 +1780,8 @@ JS = r"""
     cv.tabIndex = 0;
     cv.addEventListener('keydown', function (e) {
       var step = e.shiftKey ? 15 : 5, used = true;
-      if (e.key === 'ArrowLeft') st.az -= step;
-      else if (e.key === 'ArrowRight') st.az += step;
+      if (e.key === 'ArrowLeft') st.az += step;
+      else if (e.key === 'ArrowRight') st.az -= step;
       else if (e.key === 'ArrowUp') st.el = Math.min(88, st.el + step);
       else if (e.key === 'ArrowDown') st.el = Math.max(-15, st.el - step);
       else if (e.key === 'r' || e.key === 'R') {
@@ -2264,7 +2325,9 @@ def html_report(ck, lock, path, photos=None):
              '<div class="how">paste it back and run:  python '
              'scripts/takeoff-check.py %s --apply-patch patch.json'
              '<br>every edit carries its measured-vs-assumed source — the page '
-             'will not record one without it</div></div>' % esc(path))
+             'will not record one without it'
+             '<br>numbers apply automatically; anything you typed under '
+             '"notes" is for a person to read and act on</div></div>' % esc(path))
 
     h.append('<footer><span class="hint">%d room%s ready%s · %d assumed value%s '
              'will be flagged in the model<span id="fcounts"></span></span></footer>'
@@ -2723,6 +2786,12 @@ def main(argv):
             return 1
         for rname, st in sorted(review.items()):
             print('  %-9s %s' % (st.upper(), rname))
+        pnotes = patch.get('notes') or {}
+        if isinstance(pnotes, dict) and pnotes:
+            print('  reviewer notes — prose, NOT applied; act on these by hand:')
+            for rname in sorted(pnotes):
+                for ln in str(pnotes[rname]).splitlines() or ['']:
+                    print('    %-9s %s' % (rname, ln.rstrip()))
         print('  %d edit(s) applied; rewriting %s and re-running the full '
               'check.' % (n, path))
         with io.open(path, 'w', encoding='utf-8', newline='\n') as f:
