@@ -1,0 +1,102 @@
+
+==========================================================================
+BOOTH FROM LINK — MDL 7272 S
+  slots    8 outer translated from the design
+    E0     46PanelCBL                <- STDWL46 CBL
+    E1     22PanelSolid              <- STDWL22
+    N0     46PanelCBL                <- STDWL46 CBL
+    N1     22PanelSolid              <- STDWL22
+    S0     Right46Door               <- STDWL46 DRFRM R
+    S1     22PanelSolid              <- STDWL22
+    W0     46PanelSolid              <- STDWL46
+    W1     22PanelSolid              <- STDWL22
+
+  COMPARE THESE AGAINST THE BUILDER'S "YOUR BOOTH" PANEL:
+    Door         Front (S0)
+    Window       (none)
+    Ventilation  (none)
+    Cable wall   Right (E0), Back (N0)
+
+  ROOF-MOUNTED VENTILATION (rv = 1)
+    WALLS: BUILT, and built correctly. This booth's vent walls are
+           CABLE walls — the ducts move to the roof — and that is what
+           is standing in the model. They are listed under "Cable wall"
+           above. No vent hardware, no duct covers, no EFS on the walls.
+    ROOF UNIT: NOT BUILT. RM7272.skp exists on the parts share, but where it
+           seats on the roof is not sourced, and this tool does not
+           invent placement numbers. Nothing roof-side is in this model.
+    So: a COMPLETE set of walls for a roof-mounted booth, MISSING the
+    roof assembly. Not a booth that was merely "skipped" — and not a
+    finished booth either. Do not send this drawing out as complete.
+  NOT built, by name and by reason (1):
+    rv: the ROOF UNIT only (RM7272.skp) — seating not sourced. The cable walls a roof-mounted booth ships with ARE built.
+==========================================================================
+
+==============================================================================
+BUILD FROM COMPONENTS — MDL 7272 S   Sound Booth · 6'×6'
+  exterior 74.0" x 74.0"   interior 70.0" x 70.0"
+  height   Standard, 81 in panels
+  parts    P:/Sketchup/NewMasterComponentList
+==============================================================================
+
+  FACE_OUT = false  — if EVERY part is reversed, flip that one constant.
+
+  SLOT             COMPONENT               SLOT in  PART in  FIT         PANEL     FACING    BELOW WALL
+  ----------------------------------------------------------------------------------------------------
+  N0               46PanelCBL               46.000   46.000  exact       1.0000    Y- IN     
+  N-seal0          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y+ OUT    
+  N1               22PanelSolid             22.000   22.000  exact       1.0000    Y- IN     
+  S0               Right46Door              46.000   46.000  exact       1.0000    Y+ IN·bulk 
+                     votes: bulk +782.1 / -223.2   floor +0.0 / -0.0   panel w 1.000..47.000 of part 46.000
+  S-seal0          MidWallSeamSeal           7.750    7.750  n/a         0.0000    Y- OUT    
+  S1               22PanelSolid             22.000   22.000  exact       1.0000    Y+ IN     
+  E0               46PanelCBL               46.000   46.000  exact       1.0000    X- IN     
+  E-seal0          MidWallSeamSeal           7.750    7.750  n/a         0.0000    X+ OUT    
+  E1               22PanelSolid             22.000   22.000  exact       1.0000    X- IN     
+  W0               46PanelSolid             46.000   46.000  exact       1.0000    X+ IN     
+  W-seal0          MidWallSeamSeal           7.750    7.750  n/a         0.0000    X- OUT    
+  W1               22PanelSolid             22.000   22.000  exact       1.0000    X+ IN     
+  SW corner seal   CornerSeamSeal            4.875    4.875  n/a         0.0000    Y+ IN     
+                     votes: bulk +51.4 / -0.0   floor +0.0 / -0.0   panel w -0.000..4.875 of part 4.875
+  SE corner seal   CornerSeamSeal            4.875    4.875  n/a         0.0000    Y+ IN     
+                     votes: bulk +51.4 / -0.0   floor +0.0 / -0.0   panel w -0.000..4.875 of part 4.875
+  NW corner seal   CornerSeamSeal            4.875    4.875  n/a         0.0000    Y- IN     
+                     votes: bulk +51.4 / -0.0   floor +0.0 / -0.0   panel w -0.000..4.875 of part 4.875
+  NE corner seal   CornerSeamSeal            4.875    4.875  n/a         0.0000    Y- IN     
+                     votes: bulk +51.4 / -0.0   floor +0.0 / -0.0   panel w -0.000..4.875 of part 4.875
+    STD7248FL SIDE L                             contact  1.0000  ->     1.00    1.00   -1.00  to   48.97   73.00    2.11   edge 0.261
+    STD7224FL SIDE R                             contact  1.0000  ->    49.03    1.00   -1.00  to   86.97   73.00    2.11   edge 0.782
+  DECK FL: deck mirrored across YZ for this model (74 x 74)
+    STD7248CL SIDE L                             contact  2.1080  ->     1.00    1.00   78.89  to   49.00   73.00   82.00   edge 0.261
+    STD7224CL SIDE R                             contact  2.1080  ->    49.00    1.00   78.89  to   73.00   73.00   82.00   edge 0.782
+  DECK CL: deck mirrored across YZ for this model (74 x 74)
+    STDSS CL6                  joint   49.00  datum  0.0000  ->    45.75    2.00   79.25  to   52.25   72.00   81.00
+    STDSS FL6                  joint   49.00  datum -1.0000  ->    45.41    1.00   -1.00  to   52.59   73.00    0.69
+  lighting BoothLighting.skp x2
+  deck     FL 2 (2 tile(s), 48 + 24); CL 2 (2 tile(s), 48 + 24); CL seals 1 (STDSS CL6 x1); FL seals 1 (STDSS FL6 x1)
+
+  ---- overlays: foam, duct covers, options ----------------------------------
+  FOAM  measures 24.00 x 48.00 x 2.00 (w x h x t, matched err 0.00) — one sheet per panel, centred, interior face
+    N0     -> N0         13.00   70.00   16.50 to   37.00   72.00   64.50
+    E0     -> E0         70.00   13.00   16.50 to   72.00   37.00   64.50
+    W0     -> W0          2.00   13.00   16.50 to    4.00   37.00   64.50
+  DUCT COVERS: no qualifying 40/46 in vent walls on this booth.
+  ---- overlays end ----------------------------------------------------------
+
+  ------------------------------------------------------------
+  placed 27 component instances.
+  5 part(s) carry bulk beyond their wall panel (a leaf, a housing,
+  a trim) and were oriented so that bulk faces OUT of the booth — measured
+  from each part's own geometry, marked ·bulk in the FACING column. Parts
+  authored either way round therefore come out the same. If one of THOSE
+  faces the wrong way, the part itself points its bulk into the booth.
+  ------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+model path (must be empty): ''
+top-level entities created and erased: 1
+entities left behind after the erase (must be []): []
+  slot E0   built as 46PanelCBL
+  slot N0   built as 46PanelCBL
+PASS — both former vent slots built cable walls.

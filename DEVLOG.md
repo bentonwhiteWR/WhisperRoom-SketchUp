@@ -2,6 +2,88 @@
 
 ## 2026-08-31
 
+### 1.12.11 — a roof-mounted booth built vent walls, and called it "out of scope"
+
+Reported by a Researcher tracing roof-mount ventilation, then reproduced live
+before anything was changed. A booth-builder share link carrying roof-mounted
+ventilation (`rv=1`) built the booth with the **wrong walls**, silently.
+
+**Root cause.** `booth-builder.html`'s `applyRoofVent()` rewrites every ` VNT`
+pack to ` CBL` — a cable wall, because the ducts move to the roof — *before*
+the share link is serialised, and its own comment calls it "the same swap the
+production RM BOM does". So a roof-mount link arrives already carrying
+`STDWL46 CBL`. `scripts/booth-from-link.rb`'s `component_for` had no `CBL`
+branch at all. The pack was untranslatable, the slot was left unassigned, and
+`build-booth-components.rb`'s `guess_component` refilled it from the layout's
+own `:sk => 'VNT'`. The booth built vent walls.
+
+**Why it was worse than a plain bug.** The console printed exactly one line
+about roof mounting — `rv: roof-mounted vent (out of scope per GOAL)` — which
+reads as "we skipped the roof unit". What had actually happened was "we drew
+walls the customer is not buying". A wrong drawing wearing the costume of a
+known limitation is the failure class this project has spent the day removing.
+The overlay pass compounded it: duct covers key on the assigned component name,
+so the booth also got four duct covers it does not ship with.
+
+**The fix, three parts.**
+
+1. `component_for` gained a `CBL` branch: `<w>PanelCBL` / `ENH <w>PanelCBL`.
+   The library carries exactly the four vent-capable widths and their `_HX`
+   twins — `40PanelCBL`, `46PanelCBL`, `ENH 35.5PanelCBL`, `ENH 41.5PanelCBL`
+   (observed by listing `P:/Sketchup/NewMasterComponentList`). No `_VSS` /
+   `_EFS` / `_CP` suffix is ever appended: those name vent hardware a cable
+   wall does not have, and on a roof-mounted booth the EFS is on the roof.
+
+2. **The half-apply fence**, `RM_HALF_APPLY_ABORTS`. Roof mounting is one
+   change made in two places, and either half alone builds a booth that does
+   not exist: cable walls with no roof unit is a booth with no ventilation,
+   and a roof unit over vent walls is ventilation twice over. Both render as a
+   perfectly normal booth. On an `rv=1` link every layout slot the model
+   ventilates must carry a `CBL` pack; anything else is refused by name before
+   any geometry. That slot count is the model's vent-set count — cross-checked
+   for all 50 layout keys against the catalogue's own `vents` figure in
+   `models.json`, which agreed on every one — and it is the number the portal
+   calls `layout.ventSets`.
+
+3. **The message says what actually happened.** The roof geometry genuinely is
+   still not built (`RM<model>.skp` exists, its seating on the roof is not
+   sourced, and this tool does not invent placement numbers), but the console
+   now says plainly that the walls ARE built and built correctly as cable
+   walls, that what is missing is the roof assembly and nothing else, and that
+   the drawing is therefore not complete. Cable walls also appear as their own
+   row in the "COMPARE THESE AGAINST THE BUILDER'S YOUR BOOTH PANEL" summary.
+
+**`rv` and `CBL` are kept distinct.** `rv` is a bare `0|1` and is the only
+thing that says roof-mounted. A cable wall is a legitimate product on its own,
+so a `CBL` pack with `rv=0` builds without complaint and is noted, never
+treated as evidence of a roof unit.
+
+**Proved by building it.** `.forge/fixer/roof-vent-cbl/repro-rm-cbl.py` decodes
+a self-contained `#d=` roof-mount link, builds the booth inside the running
+SketchUp, reads back the component on each vent slot and erases everything it
+made by entityID — build, inspect and erase in ONE bridge job, behind an
+in-Ruby Untitled-model guard. Before the fix, `MDL 7272 S` slots N0 and E0 both
+built `46VNT`. After it they build `46PanelCBL`; the Enhanced variant builds
+`46PanelCBL` outside and `ENH 41.5PanelCBL` inside; a hand-edited half-applied
+link builds nothing and refuses by name. The duct covers disappeared on their
+own (31 component instances down to 27). `scripts/rbtest-boothlink-cbl.py` is
+the offline regression test — 22 checks through SketchUp's own CRuby, and it
+was mutation-checked: deleting the `CBL` branch fails seven of them with `nil`.
+
+The guard earned its keep during this work: between two runs minutes apart the
+active model became Benton's `Master Component List.skp` and the job refused by
+name instead of building into it. Twice.
+
+Also: `booth-from-link.rb`'s autorun is now guarded with `$wr_no_autorun` /
+`$wr_suppress_autorun` like every other tool script's. It was not, so any test
+harness loading the file got `UI.inputbox` — which is a large part of why this
+defect was traced from source rather than run.
+
+**Not done, deliberately:** the roof unit itself. Its placement is unsourced
+and blocked on a measurement from Benton. `.forge/GOAL.md` still lists `rv` as
+out of scope and `booth-from-link.rb` no longer cites it as the reason — that
+GOAL line is now stale and wants an owner's edit.
+
 ### 1.12.10 — the door swing arc was drawn on the wrong side of the wall
 
 Benton, looking at real rooms: *"all of the door swings are the wrong way. The

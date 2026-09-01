@@ -19,8 +19,17 @@
 #
 # The payload contract (from booth-builder.html's designPayload()):
 #   m  'MDL 7272'   v 'S'|'E'    hx/vs/ef/cs/rp  0|1   a { slotId => pack }
-#   packs: 'STDWL46' | 'STDWL46 VNT' | 'STDWL46 DRFRM R' | 'STDWL46 WDO3236'
-#          | 'WA STDDRFRM L' | 'STDWL40 NV'
+#   packs: 'STDWL46' | 'STDWL46 VNT' | 'STDWL46 CBL' | 'STDWL46 DRFRM R'
+#          | 'STDWL46 WDO3236' | 'WA STDDRFRM L' | 'STDWL40 NV'
+#
+# A ' CBL' pack is a CABLE WALL, and it reaches us two ways that must not be
+# confused. A customer can specify a cable wall on any booth. Separately, a
+# ROOF-MOUNTED booth (rv = 1) carries every one of its vent walls as a cable
+# wall, because booth-builder.html's applyRoofVent() does that swap — "the same
+# swap the production RM BOM does", its own words — BEFORE the link is
+# serialised. So the substitution is already done by the time the payload
+# reaches us: never redo it here, and never infer roof-mounted ventilation from
+# the presence of CBL packs. rv is the only thing that says roof-mounted.
 #
 # Beyond the walls, the OPTION PARTS now come through too: desk (dk/dl/ds/dox),
 # MJP jack panel (jp/ms), the elevated floor (ep, or the ad ADA bundle's
@@ -34,7 +43,16 @@
 # the step (sp — StepFront.skp exists but its placement is not sourced end to
 # end; see wr-overlays.rb's header), bass traps (bt) and the Audimute package
 # (ac) — no .skp exists for either — the studio light (sl, no fixture .skp),
-# and the roof-mounted vent (rv, out of scope per GOAL).
+# and the ROOF UNIT of a roof-mounted booth (rv — RM<model>.skp exists on the
+# share, but where it seats on the roof is not sourced, so nothing is placed).
+#
+# ROOF-MOUNTED VENTILATION, precisely. On an rv = 1 booth the WALLS are built
+# correctly and completely: the former vent walls are cable walls, which is what
+# such a booth actually ships with. What is missing is the roof assembly and
+# nothing else. That distinction used to be lost — the console said only "out of
+# scope", while the untranslated CBL packs silently fell back to VENT walls, so
+# a wrong booth wore the costume of a known limitation. RM_HALF_APPLY_ABORTS
+# below is the fence that keeps the two halves from parting company again.
 #
 # STANDARD: anything unrecognised is reported and falls back to the slot's
 # default part rather than silently vanishing.
@@ -76,6 +94,29 @@ module WR_BoothLink
   #         emitting a Standard name in place of an Enhanced one. Flip this if
   #         a partial Enhanced booth is wanted to look at.
   ENH_MISSING_ABORTS = true
+
+  # What to do when a ROOF-MOUNTED booth's vent-wall swap arrives half applied.
+  #
+  # Roof-mounted ventilation is one change made in two places: the ducts move to
+  # a roof unit, and every vent wall becomes a cable wall. Either half without
+  # the other is a booth that does not exist:
+  #
+  #   cable walls, no roof unit   -> a booth with NO ventilation at all
+  #   roof unit, vent walls kept  -> ventilation twice over
+  #
+  # Both render as a perfectly plausible booth, which is why this is a refusal
+  # and not a warning. The check is on the payload, where the evidence is: on an
+  # rv = 1 booth EVERY layout slot the model ventilates must carry a CBL pack.
+  # The count of those slots is the model's vent-set count — cross-checked for
+  # all 50 layout keys against the catalogue's own `vents` figure in
+  # whisperroom-catalog/data/models.json, which agreed on every one (observed,
+  # 2026-08-31), and it is the same number the portal calls layout.ventSets and
+  # holds to the invariant (VNT + CBL) === ventSets.
+  #
+  # true  — refuse the build and name every slot that disagrees.
+  # false — build anyway, still naming them. Flip this only to look at a booth
+  #         you already know is half-swapped.
+  RM_HALF_APPLY_ABORTS = true
 
   # ------------------------------------------------------------------- input --
 
@@ -205,6 +246,21 @@ module WR_BoothLink
       n += '_EFS' if o[:efs]
       n += '_CP'  if o[:casters]
       n
+    when /\ASTDWL(\d+)\s+CBL\b/i
+      # CABLE WALL. Named '<w>PanelCBL' / 'ENH <w>PanelCBL' — not '<w>CBL' —
+      # and the library carries exactly the four, each with an _HX twin:
+      # 40PanelCBL, 46PanelCBL, ENH 35.5PanelCBL, ENH 41.5PanelCBL (observed
+      # 2026-08-31 by listing P:/Sketchup/NewMasterComponentList). Those are the
+      # widths that can be vent walls, which is the same set, because a cable
+      # wall is what a vent wall becomes under roof-mounted ventilation.
+      #
+      # NO OPTION SUFFIXES, deliberately. _VSS / _EFS / _CP name silencer and
+      # caster hardware that lives on a VENT wall; a cable wall has none of it,
+      # and no such file exists. On a roof-mounted booth the EFS is on the roof
+      # (the portal suppresses the wall-side EFS outright), so appending it here
+      # would compose both a filename that cannot exist and a wrong product.
+      w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
+      w && "#{p}#{w}PanelCBL"
     when /\ASTDWL(\d+)\s+NV\b/i
       w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
       w && "#{p}#{w}NV"
@@ -261,6 +317,66 @@ module WR_BoothLink
     hit ? [hit, nil] : [nil, "#{want}.skp"]
   end
 
+  # ------------------------------------------------- roof-mount half-apply --
+  #
+  # The layout data is the same file build_booth reads, and it is loaded fresh
+  # here for the same reason build_booth reloads it: rebalance_walls edits the
+  # loaded polygons in place. Only :id and :sk are read, so this cannot disturb
+  # a later build.
+  DATA = File.join(File.dirname(__FILE__), 'wr-booth-data.rb')
+
+  # The OUTER-shell slot ids this model ventilates. Inner (IEP) slots mirror
+  # them and are excluded so nothing is counted twice on an Enhanced booth.
+  # Returns nil - not [] - when the layout cannot be read, so "no vent slots"
+  # and "could not tell" stay distinguishable.
+  def self.vent_slot_ids(key)
+    return nil unless File.exist?(DATA)
+    load DATA
+    spec = WR_BOOTH_DATA::BOOTHS[key]
+    return nil if spec.nil?
+    (spec[:parts] || []).select { |p| p[:k] == 'panel' && p[:sk] == 'VNT' && p[:sh] != 'in' }
+                        .map { |p| p[:id].to_s }
+  rescue StandardError
+    nil
+  end
+
+  # Named without Ruby's predicate '?' on purpose: scripts/rbtest.py's
+  # method_source lifts a method by matching `def self.<name>\b`, and a name
+  # ending in '?' leaves no word boundary there. A test that cannot lift the
+  # real method has to copy it, and a copy drifts — which is the whole reason
+  # this defect was traced from source rather than run. See
+  # scripts/rbtest-boothlink-cbl.py.
+  def self.cbl_pack(pack)
+    pack.to_s =~ /\sCBL\b/i ? true : false
+  end
+
+  # Returns [] when the roof-mount swap is whole (or the booth is not roof
+  # mounted), and a list of named complaints otherwise. Nothing here infers roof
+  # mounting from the packs: `roof` comes from rv and rv alone, because a cable
+  # wall is a legitimate product on a booth with ordinary wall ventilation.
+  def self.roof_vent_complaints(roof, key, packs)
+    return [] unless roof
+    slots = vent_slot_ids(key)
+    if slots.nil?
+      return ["the layout for #{key} could not be read, so the roof-mount " \
+              'vent-wall swap could not be checked at all']
+    end
+    if slots.empty?
+      return ["#{key} has no vent walls in its layout, so rv = 1 (roof-mounted " \
+              'ventilation) cannot be what this booth is']
+    end
+    bad = slots.reject { |sid| cbl_pack(packs[sid]) }
+    return [] if bad.empty?
+    got = slots.length - bad.length
+    ["#{got} of #{slots.length} vent slot(s) carry a cable-wall (CBL) pack; a " \
+     'roof-mounted booth must carry one on every single one'] +
+      bad.map do |sid|
+        pk = packs[sid].to_s
+        "  #{sid}: #{pk.empty? ? '(no pack in the link at all)' : pk.inspect} " \
+        '— expected a CBL pack here'
+      end
+  end
+
   # ---------------------------------------------------------- cross-check --
   #
   # The portal's own words for each wall, from booth-layouts.json — identical on
@@ -272,11 +388,16 @@ module WR_BoothLink
   WALL_WORD = { 'N' => 'Back', 'S' => 'Front', 'E' => 'Right', 'W' => 'Left' }.freeze
 
   def self.summarise_placement(assign)
-    kinds = { 'Door' => [], 'Window' => [], 'Ventilation' => [] }
+    kinds = { 'Door' => [], 'Window' => [], 'Ventilation' => [], 'Cable wall' => [] }
     assign.sort.each do |slot, name|
       next if slot.end_with?('i')     # the inner shell mirrors the outer one
+      # CBL is tested before VNT for the same reason wr-overlays' kind_of does
+      # it: a cable wall is not a vent wall, and on a roof-mounted booth every
+      # wall in this row is a cable wall. Listing them is how a reader sees at a
+      # glance whether the roof-mount swap arrived whole.
       k = if name =~ /Door/i then 'Door'
           elsif name =~ /WDO/i then 'Window'
+          elsif name =~ /CBL/i then 'Cable wall'
           elsif name =~ /VNT/i then 'Ventilation'
           end
       next if k.nil?
@@ -366,6 +487,42 @@ module WR_BoothLink
       puts format('    %-6s %-24s  <- %s', s, n, packs[s])
     end
     summarise_placement(assign)
+    # ---- roof-mounted ventilation: say exactly what was and was not built ----
+    roof = payload['rv'].to_i == 1
+    rm_bad = roof_vent_complaints(roof, key, packs)
+    if roof
+      puts ''
+      puts '  ROOF-MOUNTED VENTILATION (rv = 1)'
+      puts '    WALLS: BUILT, and built correctly. This booth\'s vent walls are'
+      puts '           CABLE walls — the ducts move to the roof — and that is what'
+      puts '           is standing in the model. They are listed under "Cable wall"'
+      puts '           above. No vent hardware, no duct covers, no EFS on the walls.'
+      puts '    ROOF UNIT: NOT BUILT. RM' + payload['m'].to_s.sub(/\AMDL\s+/i, '') +
+           '.skp exists on the parts share, but where it'
+      puts '           seats on the roof is not sourced, and this tool does not'
+      puts '           invent placement numbers. Nothing roof-side is in this model.'
+      puts '    So: a COMPLETE set of walls for a roof-mounted booth, MISSING the'
+      puts '    roof assembly. Not a booth that was merely "skipped" — and not a'
+      puts '    finished booth either. Do not send this drawing out as complete.'
+    elsif packs.any? { |_s, pk| cbl_pack(pk) }
+      # Not an error: a cable wall is a product in its own right. Said out loud
+      # so nobody reads CBL walls as evidence of roof-mounted ventilation, in
+      # either direction.
+      puts ''
+      puts '  This booth has CABLE wall(s) and rv = 0 — the link does not claim'
+      puts '  roof-mounted ventilation. Built as specified; a cable wall is a'
+      puts '  product on its own. Nothing was inferred about the roof.'
+    end
+    unless rm_bad.empty?
+      puts ''
+      puts '!' * 74
+      puts '  ROOF-MOUNTED VENTILATION IS HALF APPLIED IN THIS LINK:'
+      rm_bad.each { |x| puts "    #{x}" }
+      puts '  A roof-mounted booth turns EVERY vent wall into a cable wall. A booth'
+      puts '  with some of each is a booth that ships with ventilation twice over'
+      puts '  or not at all, and both of those render as a perfectly normal booth.'
+      puts '!' * 74
+    end
     unless no_opts.empty?
       puts ''
       puts "  VSS/EFS/caster options NOT appended to #{no_opts.length} Enhanced vent(s) — by design."
@@ -418,12 +575,38 @@ module WR_BoothLink
     refused << 'bt: bass traps (no .skp exists — Benton to author)' if payload['bt'].to_i == 1
     refused << 'ac: Audimute panels (no .skp exists — Benton to author)' if payload['ac'].to_i == 1
     refused << 'sl: studio light (no fixture .skp exists — Benton to author)' if payload['sl'].to_i == 1
-    refused << 'rv: roof-mounted vent (out of scope per GOAL)' if payload['rv'].to_i == 1
+    # NOT "rv: out of scope". The walls of a roof-mounted booth DO build now,
+    # and correctly; what is refused is the roof assembly alone, and for a
+    # sourcing reason, not a scoping one. The old wording let a booth with the
+    # wrong walls read as a booth that was merely missing a roof unit.
+    if payload['rv'].to_i == 1
+      refused << 'rv: the ROOF UNIT only (RM' +
+                 payload['m'].to_s.sub(/\AMDL\s+/i, '') + '.skp) — seating not ' \
+                 'sourced. The cable walls a roof-mounted booth ships with ARE built.'
+    end
     unless refused.empty?
       puts "  NOT built, by name and by reason (#{refused.length}):"
       refused.each { |x| puts "    #{x}" }
     end
     puts '=' * 74
+
+    # THE ROOF-MOUNT REFUSAL. A half-applied roof-mount swap is refused before
+    # any geometry, on Standard and Enhanced alike — see RM_HALF_APPLY_ABORTS.
+    if RM_HALF_APPLY_ABORTS && !rm_bad.empty?
+      # The console line goes FIRST. UI.messagebox is the last statement of the
+      # refusal for a human at the Ruby Console, but under the bridge it raises,
+      # so a refusal recorded only after it would be missing from exactly the
+      # transcript a test reads.
+      puts '  ROOF-MOUNT BUILD REFUSED - the vent-wall swap is half applied. Nothing was placed.'
+      UI.messagebox("This link says ROOF-MOUNTED VENTILATION (rv = 1), but its vent walls " \
+                    "do not all agree:\n\n" + rm_bad.join("\n") +
+                    "\n\nNOTHING WAS BUILT. A roof-mounted booth turns every vent wall into " \
+                    "a cable wall. Half of that swap builds a booth that is either " \
+                    "double-ventilated or not ventilated at all, and both look right in a " \
+                    "render.\n\nFull detail is in the Ruby Console. To build anyway, set " \
+                    'RM_HALF_APPLY_ABORTS = false in booth-from-link.rb.')
+      return
+    end
 
     # THE REFUSAL. An Enhanced booth that is missing parts is not built at all.
     # See ENH_MISSING_ABORTS at the top of the module for why, and for how to
@@ -504,8 +687,13 @@ module WR_BoothLink
   end
 end
 
+# The autorun is guarded like every other tool script's ($wr_no_autorun /
+# $wr_suppress_autorun, see wr-bridge-lib.rb's WRB.tool). It was not, which meant
+# this file could only ever be loaded by a human at the Ruby Console: any test
+# harness loading it got UI.inputbox, which the bridge refuses. That is why the
+# CBL defect below was traced from source for a day instead of being run once.
 begin
-  WR_BoothLink.run
+  WR_BoothLink.run unless $wr_no_autorun || $wr_suppress_autorun
 rescue Exception => e
   puts ''
   puts "FAILED: #{e.class}: #{e.message}"

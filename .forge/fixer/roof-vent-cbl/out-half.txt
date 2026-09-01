@@ -1,0 +1,50 @@
+
+==========================================================================
+BOOTH FROM LINK — MDL 7272 S
+  slots    8 outer translated from the design
+    E0     46VNT                     <- STDWL46 VNT
+    E1     22PanelSolid              <- STDWL22
+    N0     46PanelCBL                <- STDWL46 CBL
+    N1     22PanelSolid              <- STDWL22
+    S0     Right46Door               <- STDWL46 DRFRM R
+    S1     22PanelSolid              <- STDWL22
+    W0     46PanelSolid              <- STDWL46
+    W1     22PanelSolid              <- STDWL22
+
+  COMPARE THESE AGAINST THE BUILDER'S "YOUR BOOTH" PANEL:
+    Door         Front (S0)
+    Window       (none)
+    Ventilation  Right (E0)
+    Cable wall   Back (N0)
+
+  ROOF-MOUNTED VENTILATION (rv = 1)
+    WALLS: BUILT, and built correctly. This booth's vent walls are
+           CABLE walls — the ducts move to the roof — and that is what
+           is standing in the model. They are listed under "Cable wall"
+           above. No vent hardware, no duct covers, no EFS on the walls.
+    ROOF UNIT: NOT BUILT. RM7272.skp exists on the parts share, but where it
+           seats on the roof is not sourced, and this tool does not
+           invent placement numbers. Nothing roof-side is in this model.
+    So: a COMPLETE set of walls for a roof-mounted booth, MISSING the
+    roof assembly. Not a booth that was merely "skipped" — and not a
+    finished booth either. Do not send this drawing out as complete.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ROOF-MOUNTED VENTILATION IS HALF APPLIED IN THIS LINK:
+    1 of 2 vent slot(s) carry a cable-wall (CBL) pack; a roof-mounted booth must carry one on every single one
+      E0: "STDWL46 VNT" — expected a CBL pack here
+  A roof-mounted booth turns EVERY vent wall into a cable wall. A booth
+  with some of each is a booth that ships with ventilation twice over
+  or not at all, and both of those render as a perfectly normal booth.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  NOT built, by name and by reason (1):
+    rv: the ROOF UNIT only (RM7272.skp) — seating not sourced. The cable walls a roof-mounted booth ships with ARE built.
+==========================================================================
+  ROOF-MOUNT BUILD REFUSED - the vent-wall swap is half applied. Nothing was placed.
+
+----------------------------------------------------------------------
+model path (must be empty): ''
+top-level entities created and erased: 0
+entities left behind after the erase (must be []): []
+build raised: WhisperRoom::Bridge::ModalBlocked: UI.messagebox("This link says ROOF-MOUNTED VENTILATION (rv = 1), but its vent walls do not all agree:\n\n1 of 2 vent slot(s) carry a cable-wall (CBL) pack; a roof-mounted booth must carry one on every single one\n  E0: \"STDWL46 VNT\" — expected a CBL pack here\n\nNOTHING WAS BUILT. A roof-mounted booth turns every vent wall into a cable wall. Half of that swap builds a booth that is either double-ventilated or not ventilated at all, and both look right in a render.\n\nFull detail is in the Ruby Console. To build anyway, set RM_HALF_APPLY_ABORTS = false in booth-from-link.rb.") — a job tried to open a modal dialog. The bridge blocks these so SketchUp cannot freeze waiting for a click nobody is there to give. Pass modal:"allow" if a human is sitting in front of SketchUp and means to answer it.
+PASS — the half-applied roof-mount link was refused and nothing was built.

@@ -1,56 +1,61 @@
-# Fixer HANDOFF — the door swing arc drew on the wrong side (2026-08-31)
-
-Goal reconfirmed against `.forge/GOAL.md` before writing this: the mission is
-the floor-plan intake pipeline, and this is a defect in what that pipeline
-draws — `scripts/build-takeoff.rb` calls the same `WR_BuildRoom.door`, so
-every take-off room built since the winding convention landed had its swings
-backwards. The **Untitled-model rule** was enforced in code on every live job.
-Plugin `scripts/wr_tools/VERSION` 1.12.9 → **1.12.10**.
+# HANDOFF — roof-mounted ventilation, the wall half (plugin 1.12.11)
 
 ## Produced
 
-| file | what |
-|---|---|
-| `scripts/build-room.rb` | The fix, in `self.door`. The arc's sweep sign now comes from the leaf's own tip (`cz = vec.x*tipv.y - vec.y*tipv.x`) instead of the hinge side, so the arc ends at the leaf tip by construction, for both windings and both hinge sides. |
-| `scripts/rbtest-doorswing.py` | New offline reproduction and regression test. Lifts `signed_area`, `outward` and `door` verbatim from `build-room.rb`, runs them on a stubbed Geom, 18 assertions over 2 windings x 2 hinge sides. Mutation-checked: restore the old sign and the 4 clockwise assertions fail. |
-| `.forge/fixer/door-swing-arc.md` | Symptom, root cause, how to re-trigger it, blast radius. |
-| `DEVLOG.md`, `scripts/wr_tools/VERSION` | 1.12.10. |
+- `scripts/booth-from-link.rb` — the `CBL` branch in `component_for`, the
+  `RM_HALF_APPLY_ABORTS` fence (`vent_slot_ids`, `cbl_pack`,
+  `roof_vent_complaints`), the corrected console message, a `Cable wall` row in
+  the placement summary, and an autorun now guarded like every other tool
+  script's.
+- `scripts/rbtest-boothlink-cbl.py` — offline regression test, 22 checks,
+  mutation-checked.
+- `.forge/fixer/roof-vent-cbl/repro-rm-cbl.py` — the live reproduction. Three
+  modes: default, `--enh`, `--half`. Re-runnable, self-contained, cleans up
+  after itself.
+- `.forge/fixer/roof-vent-cbl/NOTES.md` — symptom, root cause, before/after
+  evidence.
+- `.forge/fixer/roof-vent-cbl/out-std.txt`, `out-half.txt` — the passing
+  console transcripts.
+- `DEVLOG.md` entry, `scripts/wr_tools/VERSION` at 1.12.11.
 
-## Read-first
+## Read first
 
-1. `.forge/fixer/door-swing-arc.md` — the whole thing in one page.
-2. The comment above the arc block in `scripts/build-room.rb` `self.door`. It
-   says why a flipped sign was the wrong fix.
+1. `.forge/fixer/roof-vent-cbl/NOTES.md`.
+2. `scripts/booth-from-link.rb` — the module header (the `CBL` paragraph and
+   the roof-mount paragraph) and `RM_HALF_APPLY_ABORTS`.
+3. `.forge/researcher/roof-mount-ventilation.md` §6 for the risks this fix
+   closes (R1, R3) and the ones it does not (R4 model gating, R5 VSS naming,
+   R6 HX, R7 the portal's ceiling-height under-report).
 
 ## Assumptions
 
-- **observed:** the bug is winding-dependent, not hinge-dependent. Both
-  clockwise cases fail and both counter-clockwise cases pass on the old code
-  (`python scripts/rbtest-doorswing.py` on the pre-fix file, 4 failures).
-- **observed:** nothing else in the tree draws a swing arc from a fixed sign.
-  `scripts/takeoff-check.py`'s plan SVG and 3D review view draw the opening
-  but neither leaf nor arc; `scripts/auto-dimension.rb` and
-  `scripts/wr-overlays.rb` draw neither; `scripts/csusb-rooms.rb`,
-  `scripts/csusb-106.rb` and `scripts/dowaly-kuwait-tv.rb` carry an explicit
-  measured `:swing => :in/:out` per door.
-- **observed:** the scratch model was left exactly as found — 172 entities and
-  the same ten pre-existing eval groups, read back after the last job.
-- **reported, not verified:** those ten groups are somebody else's debris. I
-  did not touch them.
+- **observed:** the reproduction and all three passing modes, run live in
+  SketchUp against an Untitled model; the eight `*PanelCBL*.skp` files on
+  `P:/Sketchup/NewMasterComponentList`; the agreement, on all 50 layout keys,
+  between the outer-shell `:sk => 'VNT'` slot count and the catalogue's `vents`
+  figure.
+- **derived:** that an Enhanced roof-mount link was previously refused outright
+  by `ENH_MISSING_ABORTS` rather than mis-built. It follows from the code path
+  and matches the Researcher; it was not run before the fix.
+- **reported:** the portal-side behaviour of `applyRoofVent`, `rmSupported` and
+  the `rv` payload shape — read from `booth-builder.html` by the Researcher and
+  spot-checked here, not exercised in a browser.
+- **not checked:** every model other than `MDL 7272`. The translation is width
+  driven and the only vent-capable widths are 40 and 46, so the coverage is
+  believed complete, but only 7272 was built.
 
 ## Open questions
 
-1. **Existing SketchUp files already carry wrong arcs.** Anything built before
-   1.12.10 has its swings outside the wall and rebuilding is the only fix
-   shipped here. A retrofit tool that finds `Swing n` groups on `WR-Doors-Leaf`
-   and re-draws them against their leaf would close that; nobody asked for one.
-2. **The eval suite still has not been built and scored since the 1.12.9
-   format change** — the gap the Builder flagged. I did not close it: the
-   active model flipped to Benton's `Master Component List.skp` repeatedly
-   while I worked (my guard refused three separate jobs), and a 26-case suite
-   needs a longer clear window than I had. The commands are in
-   `.forge/builder/HANDOFF.md` and they are still the right ones.
-3. Model safety, learned the hard way and worth carrying: do build, photograph
-   and erase in **one** Ruby job. Three jobs was tried first and the model
-   changed between the shot and the cleanup, which shot the wrong window and
-   left eight entities behind.
+1. `.forge/GOAL.md` still lists `rv` as out of scope, and
+   `scripts/booth-from-link.rb` no longer cites the GOAL as its reason. That
+   line is stale; an owner should edit it. **Not edited here, by instruction.**
+2. The roof unit is unbuilt and blocked on Benton's measurement: is
+   `RM<model>.skp` one complete assembly, and where does it seat? When it
+   lands, extend `roof_vent_complaints` to assert a roof set per former vent
+   slot — the fence covers only the wall half today.
+3. `4230 / 4242 / 4848` have no RM part and the portal will not emit `rv` for
+   them. A hand-edited link that does is not specifically refused; it would
+   build cable walls and no roof unit. Worth a named refusal when the roof work
+   lands, not before — a size table added now could drift.
+4. Pre-existing, unrelated: `scripts/rbtest-lights.py` fails, identically with
+   and without this change (verified by stashing). Left alone.
