@@ -4,7 +4,139 @@
 
 Fourteen versions, 1.14.1 through 1.19.2. Two of them were fixing my own
 mistakes; both are written up below rather than quietly folded into a later
-change.
+change. Then a full read-only audit of 1.19.2, and 1.19.3 in the evening
+closing two of its findings — those two come first.
+
+### Two audit findings closed: the lights harness, and shading undone by every scene switch — 1.19.3
+
+The evening after the full audit (next section), Benton picked two of its
+findings — 13 and 3 — for a Fixer. One version bump. Everything else in the
+ranking stays open until he picks again.
+
+**The lights harness had been red since 1.10.0, and the message hid why.**
+`rbtest-lights.py` lifts `wr-drop-lights.rb`'s methods into its own Ruby
+transcript and supplies the constants they use from a hand-kept `SCALARS` list.
+1.10.0 (31 Aug) multiplied `layer_lumens` by a new `LUMEN_GAIN`; the list was
+last touched at 1.9.9, so the lifted method raised
+`NameError: uninitialized constant WR_DropLights::LUMEN_GAIN` on its first
+call, on every one of the **53 commits** from there to 1.19.2. Nobody saw the
+name because `rbparse.rb_eval` never read it: on a non-zero status from
+`rb_eval_string_protect` it raised a bare *"the check harness itself raised
+inside Ruby"* and threw `$!` away. That is what the 31 Aug entry and this
+morning's Open decisions mean by *"fails identically ... left alone; not
+diagnosed"* — an error with no content is not a lead, so it was carried.
+
+Two changes. `LUMEN_GAIN` is on the list, and the `lm` expectation is re-pinned
+at what the tool actually WRITES to V-Ray — **20000,40000,10000,7000,5000,8000**,
+`LUMEN_GAIN` × the product figures — rather than dividing the gain back out, so
+a change to that eyeballed calibration shows up here by name instead of hiding
+behind a tidy product number. And `rb_eval` now evaluates a second protected
+snippet that reads `$!` and raises with the class, the message and the first
+backtrace line (`... -- NameError: uninitialized constant
+WR_DropLights::LUMEN_GAIN / at eval:466:in 'layer_lumens'`). The class comes
+from `inspect` because the bare VM has no `Object#class`; every branch of the
+diagnostic rescues so it can never be the thing that raises; it is still a
+`RuntimeError`, so no caller changes. **Observed by me on the tree: 43 + 10
+checks PASS**, and the 1.19.2 harness under the new `rb_eval` names the
+constant.
+
+**Shading: the same defect as 1.9.12, one property over.** The image lane
+pushes the wr-shading contract (shadows off, AO off, Light 80 / Dark 45) once,
+before the image rows. But every plate `proposal-scenes.rb` makes stores its
+own shadow info and rendering options — `use_shadow_info` /
+`use_rendering_options` both true, which is also SketchUp's default for a
+hand-made scene — and `pages.selected_page =` puts the page's own shadows, AO,
+ground and horizon straight back over the model: after the push, before
+`write_image`. So the plain image shipped with the scene's shadows while the
+log said *"shadows off"*. In 1.9.12 the identical mechanism put the light TAGS
+back, and `export_pages` learned to re-hide `cfg['hide_tags']` after every
+switch; the shadow half of that page restore was never given the same
+treatment.
+
+`export_pages` now takes `cfg['after_switch']`, a callable run after the page
+switch and the tag re-hide and before `view.refresh` / `write_image`, rescued
+so a hook failure names the page instead of killing the batch. `run()`'s own
+path passes none, so the standalone tool is unchanged. `proposal-package.rb`
+hangs `shade_reapply` on it through a new `image_cfg` (a method of its own so
+the harness can prove the hook is wired, not only honoured); per row it
+re-forces the contract, reads it back and logs
+`shading re-applied after switching to <scene>: shadows off, AO off`, with any
+key that would not take marked bad. No-op when SHADING is unticked. Render
+lane untouched.
+
+**`apply`, not `push` — that choice is load-bearing.** `WR_Shading.push`
+snapshots and then applies; `pop` writes the snapshot back. A per-row push
+would snapshot the already-contracted state, and `pop` would then "restore"
+the contract instead of the model. `apply` only writes and reads back and
+leaves `@shade_saved` alone, so `unit_shade_pop` still puts back exactly what
+was there before the batch.
+
+`rbtest-proposal.py` gained `shade1`–`shade4`: the REAL `export_pages`, the
+REAL `WR_Shading.push/apply/pop` and the REAL `image_cfg` / `shade_reapply`,
+with a fake Page that re-applies its stored options on selection and a fake
+view that records the model's shading at the moment of the write. **Observed
+by me through `.forge/fixer/repro-shading-contract.py`, which swaps the 1.19.2
+files back in one at a time:** against the old `export-scenes.rb`, shade1,
+shade2 and shade4 FAIL — `write_image` saw
+`{:shadows=>true, :ao=>true, :light=>60, :dark=>30}` and the log had no
+read-back — and shade3 passes, because `pop` was never the defect; against the
+old `proposal-package.rb` the lift fails by name. On the tree, **107 checks
+ok**. The Fixer reports every other offline harness green after the `rb_eval`
+change; I re-ran lights and proposal myself, and `rbparse.py` parses all 66.
+
+**What is still assumed, and how to close it.** That a live SketchUp `Page`
+with those two flags set re-applies them on `selected_page=` is the documented
+Page contract and the mechanism seen live for tags at 1.9.12 — but it has not
+been seen live for shadows, and the fake models it. If SketchUp did not, the
+fix is one harmless extra write per row. Also assumed: `view.refresh` after
+the re-apply is enough for `write_image` to see it, the same ordering the tag
+re-hide already relies on. Benton's five-minute check closes both: one scene
+with shadows ON, SHADING ticked, export as Image, look for shadows (expect
+none), and look in the log for the per-row *"shading re-applied after
+switching to ..."* line. If shadows are still there, that line is the first
+thing to read — it says what the model held at the write.
+
+### The 1 Sep full audit
+
+Benton: *"We finally got the SketchUp plugin working pretty good ... run a full
+audit on the entire SketchUp plugin as well as our skills ... review all the
+changes ... Look for areas of improvement with the things that are broken that
+need to be fixed."*
+
+Four Auditors read 1.19.2 (commit 14197b9) in parallel, read-only — A plugin
+core and distribution, B proposal package and render lane, C booth geometry
+and dimensioning, D take-off pipeline, skills and docs — against `CLAUDE.md`
+and `reference/sketchup-drawing.md`, with pure Ruby executed through
+`rbparse.py` where a derived finding could be made an observed one. The
+consolidated ranking is `.forge/auditor/full-audit-2026-09-01.md`; the
+evidence is in the four lane files beside it
+(`full-audit-A-plugin-core.md`, `-B-proposal-render.md`,
+`-C-booth-geometry.md`, `-D-takeoff-skills-docs.md`, each with a `HANDOFF-*`).
+It was published as an artifact and emailed to Benton.
+
+The shape: **22 ranked findings, 10 of them HIGH**, ordered by probability ×
+cost with silent failures above loud ones and customer-facing above internal;
+every finding carries file:line, the trigger, the failure, a provenance word
+and a fix direction. The three prior audits (15 Aug scripts, 30 Aug proposal
+package, 28 Aug render lane and lighting) are re-checked finding by finding,
+and a "what is solid" list records what was verified clean. The findings are
+not repeated here; the file is the record. What it leaves with Benton is five
+decisions, listed under Open decisions below: the 7272/7296 window-panel end,
+a private home for client proposal configs, the provenance channel for
+assumed values now that in-model text is off, the scope of the Untitled guard,
+and running `probe-vray-color.rb` once.
+
+One thing found on the way in: this machine's installed plugin read **1.12.9**
+against a repo at **1.19.2**. `install-plugin.py` was run by hand and both
+SketchUp 2024 and 2026 now carry 1.19.2, with both skills byte-identical to
+the repo. The reason is the audit's finding 10: the update check runs once per
+SketchUp session with its flag set before the request (so a failed request
+never retries), memoises the version it fetched, and never compares the
+installed copy against the local checkout. The last install here was the
+panel's own Update-now at 21:30 on 31 Aug; SketchUp was never restarted after
+it and was closed for all fourteen pushes on 1 Sep; and because this machine
+reads its tool scripts live from the checkout, nothing ever looked stale from
+here. The redesign is on the Next steps list.
 
 ### The render lane was writing linear pixels — 1.19.0
 
@@ -183,43 +315,67 @@ left alone only because it renders correctly.
 
 ## Next steps
 
-1. **Look at a freshly built room and drag a dimension.** 1.17.0 is unrun in
-   SketchUp. It should stay tied to its wall with extension lines following to
-   whichever side. If the console reports dimensions as `loose`, the vertex
-   tolerance in `auto-dimension.rb` (`ATTACH_TOL`, 0.02") needs widening — say
-   the number. Also say whether 20/48/33 standoffs read right.
-2. **Pull a 7296 from a booth link and look at the ceiling hinges and the MJP.**
-   If the 7296 ceiling now reads mirrored the OTHER way rather than right, the
-   reading was wrong: put `'CL'` back in `MIRROR_DECK_KINDS` and add
-   `STD7248CL SIDE L/R` to `YAW_180_FILES`, which composes to a mirror-Y. If
-   only one MJP face is right, `MJP_SPIN180` splits per call site.
-3. **Take a real floor plan through the take-off sheet end to end.** The notes
-   box, the clickable plan dimensions, the closure warning, the unit toggle and
-   the zoom have all shipped and NONE has been clicked by a person.
-4. **Optional, retires code:** render by hand, leave the VFB open, run
-   `probe-vray-color.rb`. It saves the same frame six ways and measures each.
-   If `image(:do_color_correct => true)` or `change_srgb(true)` already reads
-   ~0.35, that is a native fix and `wr-png-srgb.rb` can retire for that call.
-   If all six read ~0.16, the API cannot bake the display transform and the
-   post-process stays permanent. Either way the batch is correct today.
+0. **Benton's five-minute check on 1.19.3.** One scene with shadows ON,
+   SHADING ticked in the proposal package, export as Image. Expect no shadows
+   and a `shading re-applied after switching to <scene>: shadows off, AO off`
+   line per row. That is the only part of today's fix not proven offline.
+1. **Door dimensions are never drawn on any room this workspace builds**
+   (finding 6). `auto-dimension.rb` walks `model.entities` only; both room
+   builders nest the `WR-Doors` openings two groups deep, so `doors_on` returns
+   `[]` and the report prints "0 door(s) dimensioned" among healthy numbers.
+   Same fix carries the 1.17.0 leftovers: pass an InstancePath for a nested
+   vertex, print the `loose` count as a warning line, erase jamb
+   ConstructionPoints in `clear_dims`.
+2. **An image-only batch rewrites a never-toggled saved model, then reports
+   "Model restored"** (finding 4). Seed both snapshots from the as-found state,
+   or refuse on a saved never-toggled model with a Yes/No listing the four
+   changes. The 30 Aug readiness step "run on a never-toggled model and
+   inspect it" has still never happened.
+3. **`CLAUDE.md`'s headline tells a fresh session to hand-build the artifact
+   the take-off skill forbids** (finding 8). Put the two-path rule — stated
+   numbers go through the take-off pipeline, estimation only when there are
+   none — at the top of `CLAUDE.md`, not inside the estimation section.
+4. **The sRGB re-encoder's only double-correct guard is a chunk V-Ray does not
+   write** (finding 9). Refuse by name above a stated before-mean threshold
+   instead of only logging it, so a V-Ray that starts saving corrected pixels
+   cannot ship a twice-curved render marked `ok`.
+5. **Redesign the update check** (finding 10). Check on every `ready` /
+   `rescan` with a throttle, set the flag only after a 200, read VERSION from
+   disk, and add a zero-network "checkout is newer than the installed plugin —
+   reinstall" comparison. This is why this machine sat at 1.12.9.
+
+These are the audit's unblocked fixes; Benton has not yet picked among them.
+The blocked ones (findings 1, 2, 5, 7) wait on the decisions below.
 
 ## Open decisions
 
-- **`#3=` vocabulary code 9** (the 7" WA companion): the guide gives a SKU
-  column but not what the real `#d=` payload carries there. Emitted verbatim;
-  downstream reports it untranslatable and falls to the slot default, loudly.
-  Needs an answer from whoever owns the format.
-- **The guide's own fully-loaded example sets `wd`=1 with a plain DRFRM wall
-  byte.** We follow the wall map and build the standard frame, warning loudly.
-  Same question, same owner.
-- **Neither link path applies the §4.1 normaliser** (nv killing vs/ef/rv,
-  ADA-whole, dl forcing dox off). Deliberate — both forms of one design must
-  build identically — but adding one is a both-paths decision.
-- **`rbtest-lights.py` fails on clean HEAD**, and did before any of today's
-  work (`the check harness itself raised inside Ruby`). Left alone; not
-  diagnosed.
-- **The MJP still passes a guessed 8.0 into `axes_for`** — the same defect that
-  stood the desk on edge. Renders correctly today, so untouched.
+The five the audit leaves with Benton. Each blocks a HIGH finding.
+
+- **7272 / 7296 side wall.** On a real booth, taking the door wall as
+  reference, does the 46" window panel sit at the door end or the far end?
+  The two build paths currently draw it at opposite ends and both print
+  `exact` (finding 1). Asked since 27 Aug.
+- **Where client proposal configs and renders live.** The private
+  `whisperroom-proposals` repo, or a gitignored folder here. The proposal
+  skill currently points at a tracked path in this public repo (finding 2).
+- **How an assumed value is carried in the model now that text is off**
+  (1.17.0). Attribute dictionaries on the feature group is the suggested
+  channel; the eval scorer, the review-sheet sentence and three docs still
+  expect `Sketchup::Text` (finding 7).
+- **Untitled-guard scope.** Universal in `build-takeoff` / `build-room`, which
+  never have a reason to write into a saved file, and bridge-only for the
+  panel tools deliberately run into client rooms — that is the recommendation
+  (finding 5).
+- **Run `probe-vray-color.rb` once.** Render by hand, leave the VFB open, run
+  it; it saves the same frame six ways and measures each. ~0.35 from any of
+  them means a native fix and `wr-png-srgb.rb` retires for that call; ~0.16
+  from all six means the post-step is permanent (finding 9). The batch is
+  correct either way today.
+
+The three `#3=` format questions from this morning (vocabulary code 9, the
+guide's `wd`=1 example, the §4.1 normaliser) still stand with whoever owns the
+portal format; they are written up under 1.18.0 above and are not Benton's to
+answer.
 
 ## 2026-08-31
 

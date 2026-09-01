@@ -29,31 +29,16 @@ emailed to him.
    probability × cost, silent failures above loud ones, customer-facing above internal.
 
 ## Now
-**Audit complete, 1 Sep 2026 evening.** Consolidated ranking at
-`.forge/auditor/full-audit-2026-09-01.md` (22 entries, 10 HIGH), published as an artifact and
-emailed to Benton. Next move is Benton's: answer the five decisions in that file, then a Fixer
-mission on findings 3, 4, 6, 8, 9, 10, 13, 14 (unblocked) and 1, 2, 5, 7 (once decided).
+**Fixer mission, 1 Sep 2026 evening — Benton picked two from the ranking:**
+1. `scripts/rbtest-lights.py` is stale against 1.10.0 (`LUMEN_GAIN`); make it green and make
+   `scripts/rbparse.py` surface the real Ruby exception message (consolidated finding 13,
+   lane B finding 1).
+2. The image lane's shading contract is undone by every proposal-scene switch; re-apply it
+   after each page switch inside the export loop (consolidated finding 3, lane B finding 2).
+One VERSION bump. Documenter closes with a DEVLOG entry. Everything else in the ranking
+stays open until Benton picks next.
 
-The four lanes, each with its own file under `.forge/auditor/`:
-- **A — plugin core & distribution**: `wr_tools.rb`, `wr_tools/main.rb`, `panel.html`,
-  `wr_bridge.rb`, `defaults.json`, `icon-map.json`, `install-plugin.py`, the update
-  banner / VERSION mechanism, `sketchup-bridge.py`, `wr-bridge-lib.rb`.
-- **B — proposal package & render lane**: `proposal-package.rb`, `wr-png-srgb.rb`,
-  `probe-vray-color.rb`, `wr-scene-walls.rb`, `wr-mode.rb`, `wr-materials-swap.rb`,
-  `export-scenes.rb`, `proposal-scenes.rb`, `image-qa.py`, `wr-drop-lights.rb`,
-  `wr-lower-walls.rb`, `wr-sun-aim.rb`, `wr-preflight.rb`, and the `rbtest-lights.py`
-  failure.
-- **C — booth geometry & dimensioning**: `build-booth-components.rb`, `wr-deck.rb`,
-  `booth-from-link.rb`, `wr-overlays.rb`, `wr-roof-vent.rb`, `wr-booth-data.rb`,
-  `auto-dimension.rb`, `dimension-booth.rb`, `dimension-selection.rb`,
-  `build-booth.rb`, `wr-split-walls.rb`, `wr-name-walls.rb`.
-- **D — take-off pipeline, skills & docs**: `takeoff-check.py`, `build-takeoff.rb`,
-  `build-room.rb` / `.html`, `eval-floorplan.py`, `reference/takeoff-format.md`,
-  `skills/whisperroom-takeoff/SKILL.md`, `skills/whisperroom-proposal/SKILL.md`,
-  `reference/proposal-playbook.md`, `proposals/build-v2.js`, `CLAUDE.md` consistency
-  with the code it describes, `check-doc-paths.py`.
-
-Orchestrator consolidates, publishes the artifact, emails Benton.
+Audit consolidated at `.forge/auditor/full-audit-2026-09-01.md`; lane files under `.forge/auditor/`.
 
 ## Facts established by the orchestrator, 1 Sep 2026
 - Repo is at `14197b9`, clean, in sync with `origin/main` (observed).
@@ -76,7 +61,7 @@ Orchestrator consolidates, publishes the artifact, emails Benton.
   is a finding.
 
 ## Out of scope
-- Fixing anything. A Fixer mission follows once Benton picks from the ranked list.
+- Any finding other than the two above. Benton picks the next batch.
 - Render look development and V-Ray settings tuning (parked at
   `.forge/GOAL-prev-render-lookdev.md`).
 - The one-off client scripts (`csusb-*.rb`, `smith-studio.rb`, `uthsc-audiology-rooms.rb`,

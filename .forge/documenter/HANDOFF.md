@@ -1,67 +1,58 @@
-# Documenter HANDOFF — 2026-08-26 session close (supersedes the 2026-08-24 handoff)
-
-Docs only. **No `.rb` touched, `scripts/wr_tools/VERSION` not bumped** (still 1.6.32), `P:` and
-`WhisperRoomQuote` read only. Nothing was run in SketchUp and no Ruby was executed.
+# HANDOFF — Documenter, 1 Sep 2026 evening (DEVLOG for 1.19.3 and the full audit)
 
 ## Produced
 
-- **`DEVLOG.md`** — one new entry, `### SESSION CLOSE - plugin 1.6.32, and the first three fixes
-  ever confirmed in a built model`, inserted at the top of the existing `## 2026-08-26` heading,
-  above the `### 1.6.32` entry. `git diff --numstat` reports **112 insertions, 0 deletions**, so
-  it is a pure insertion by construction, not by inspection. It states explicitly that it
-  supersedes the earlier `SESSION CLOSE - plugin 1.6.29` entry lower in the same day, which was
-  left standing as the record of that moment.
-  - **No per-version entry was written.** Fixers had already written `1.6.30`, `1.6.31` and
-    `1.6.32` entries tonight; I checked the headings before writing and duplicated none of them.
-    What was missing was only the session-level record, so that is all I added.
-- **`.forge/GOAL.md`** — **replaced, not appended.** It now carries exactly one Mission, one
-  Done-means, one **Now**, one Out-of-scope, a compressed Settled block that points at the
-  write-ups instead of restating their derivations, and History. The previous Now carried three
-  stacked missions' worth of instruction; the new one names three things and says why each is
-  next. Finished work moved to History as one or two lines.
-- **This file.**
+- `DEVLOG.md`, `## 2026-09-01` section, DEVLOG-only change (no source edit, no VERSION
+  bump — VERSION stays 1.19.3):
+  - New `### Two audit findings closed: the lights harness, and shading undone by every
+    scene switch — 1.19.3` at the top of the section, above the 1.19.0 render-lane entry.
+  - New `### The 1 Sep full audit` directly after it.
+  - The section intro sentence extended so it no longer stops at 1.19.2.
+  - `## Next steps` and `## Open decisions` replaced (not appended): next steps are the
+    five unblocked audit fixes Benton has not picked plus his five-minute shading check;
+    open decisions are the audit's five. The three `#3=` format questions are kept as one
+    trailing line, since they are open with the portal's owner, not Benton.
+- Committed with the orchestrator's `.forge/GOAL.md` edit and `.forge/ROLE-documenter-library.md`
+  as `DEVLOG 2026-09-01: 1.19.3 and the full audit`, pushed to `origin/main`.
+  `.forge/auditor/eval-run/` and `.forge/auditor/proposal-run/` left untracked on purpose.
 
-## Read first
+## Read-first (what I verified myself, not relayed)
 
-1. `DEVLOG.md`, the new `SESSION CLOSE - plugin 1.6.32` entry — specifically its second
-   paragraph, **WHAT BENTON ACTUALLY SAW, AND WHAT HE DID NOT**. That is the single most valuable
-   distinction in the record and the one most likely to be flattened by the next reader.
-2. `.forge/GOAL.md` **Now** — three items, in order, and the two defective component files.
-3. `.forge/fixer/HANDOFF.md` — still the live technical handoff. My open-items list was checked
-   against it item by item rather than taken from the brief.
+- `python scripts/rbtest-lights.py` — PASS 43 + PASS 10, exit 0 (observed).
+- `python scripts/rbtest-proposal.py` — 107 checks ok incl. shade1–4, exit 0 (observed).
+- `python .forge/fixer/repro-shading-contract.py` — with the 1.19.2 `export-scenes.rb`
+  swapped in, shade1/shade2/shade4 FAIL and shade3 ok; with the 1.19.2
+  `proposal-package.rb`, the lift fails by name; with the 1.19.2 `rbtest-lights.py` under
+  the new `rbparse.py`, the error names `WR_DropLights::LUMEN_GAIN`; real tree green
+  (observed). So "red on 1.19.2, green now" is observed, not the Fixer's word.
+- `python scripts/rbparse.py` — 66 files parse (observed).
+- `git log -S LUMEN_GAIN -- scripts/wr-drop-lights.rb` — introduced in 722992c, 1.10.0,
+  **2026-08-31**; `rbtest-lights.py` last touched f80ae5b, 1.9.9, 2026-08-30; 53 commits
+  between 1.10.0 and 14197b9 (observed). **The brief and the Fixer's code comment in
+  `scripts/rbparse.py` say the harness sat red "for two weeks"; the git history says about
+  a day, across 53 commits.** The DEVLOG carries the dated fact. The stale "two weeks" in
+  the `rbparse.py` comment is a source file, so I did not touch it — one-line fix for
+  whoever next edits that file.
+- Audit shape re-counted from `.forge/auditor/full-audit-2026-09-01.md`: 22 numbered
+  findings, HIGH on 1–10 (9 is "HIGH-latent"), five decisions (observed).
 
 ## Assumptions
 
-- **I re-derived every number in the entry rather than transcribing it.** **observed:**
-  `_face-levels.tsv` is 380,767 bytes / 6,625 lines with **1,761** `ENH` rows (re-counted);
-  `_component-probe.tsv` exists and is dated 2026-08-26 17:26; `ENH 8418 FL` measures **17.9375**
-  in `_enhanced-probe.tsv`; `.forge/builder/replay-iep-deck.py:879` still asserts zero `ENH` rows
-  and is therefore stale; `WIDTH-AXIS-FAMILY-2026-08-26.md` states **174 of 194**; `VERSION` reads
-  1.6.32; `main` == `origin/main` with a clean tree at `412aa8a`.
-- **Every verification claim in the entry is attributed, never asserted as mine.** The harness
-  results (`verify-tray.py`, `verify-deck-pitch.py`, `verify-ceiling-cue.py`, `verify-84126.py`,
-  `verify-vent-yaw.py`) are **reported** — I did not run them, and the entry says a harness
-  agreed rather than that the fix is verified. Benton's in-model confirmations are stated plainly
-  because they are first-hand reports from him and the entry names them as such.
-- The 370-part count for `probe-components.rb` is **reported** from
-  `.forge/fixer/PROBE-COMPONENT-FILES-2026-08-26.md` and the fixer handoff; I did not recount the
-  share. Likewise the 99-pair / 56-no-flip `_HX` figures and the 20-line blast radius of 1.6.32.
-- **assumed:** that the fixer handoff's open-item list is complete. I verified each item in my
-  brief against it and found all of them, but I did not audit for items present in the code and
-  absent from both.
+- "Published as an artifact and emailed to Benton" for the audit is **reported** (the
+  orchestrator's previous GOAL.md text); I did not see the artifact or the email.
+- The Fixer's statement that every other offline harness is green after the `rb_eval`
+  change is **reported**; I re-ran only lights, proposal, the repro and rbparse.
+- The timeline behind the 1.12.9 gap (Update-now at 21:30 on 31 Aug, no restart, SketchUp
+  closed for the 1 Sep pushes) is **reported** from Auditor A via the consolidated report.
+- Live SketchUp Page behaviour on `selected_page=` for shadow info / rendering options
+  remains **assumed** (as the Fixer states); the DEVLOG says so and names Benton's check.
 
-## Open questions
+## Open-questions
 
-- **`.forge/fixer/HANDOFF.md` open items 5, 6 and 7 are decisions still waiting on Benton** — the
-  four-booth flip, bounding-box width-axis resolution, and the portal's stale angled view on 14
-  models. I recorded them nowhere in GOAL's Now, because none of them is a next step until he
-  green-lights one. They live in the fixer handoff and should stay findable there.
-- **`.forge/fixer/HANDOFF.md` item 8** — `RightWADoorWithRamp_HX` has no non-HX twin under that
-  name (its twin carries SketchUp's `#1` duplicate suffix), so any name-keyed lookup misses it.
-  Flagged there, never investigated, and I did not promote it.
-- **I compressed GOAL's Settled block substantially** to hold it to one screen, replacing several
-  derivations with pointers into `DEVLOG.md` and the fixer write-ups. If a future agent finds a
-  settled fact it needs and cannot find its reasoning, that reasoning is in the named file — but
-  the compression is a judgment I made and it could have cut something load-bearing.
-- The wall-lift table with its four provenance rows was dropped from GOAL in favour of a
-  three-reading summary in **Now**. The full table survives in `DEVLOG.md` under the 1.6.28 entry.
+- Benton's five-minute check (one scene, shadows ON, SHADING ticked, export as Image; look
+  for shadows and the per-row "shading re-applied" log line) is the only thing standing
+  between "harness green" and "fixed in the model". Recorded as Next steps item 0.
+- The `#3=` open questions and the MJP guessed-8.0 (`axes_for`) item dropped out of the
+  Open decisions block by the brief's instruction; the former survive as one line, the
+  latter lives in the audit as finding 20. If Benton wants them back in the block, that is
+  a two-line edit.
