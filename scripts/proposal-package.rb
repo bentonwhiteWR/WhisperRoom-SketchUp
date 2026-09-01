@@ -3,7 +3,9 @@
 # @rank 0
 #
 # One button for a proposal's whole image set. Lists every scene in the model,
-# lets each one be marked Skip / Image / Render, picks an output folder, and
+# lets each one be marked Skip / Image / Render AND choose which whole walls
+# that scene hides (the WALLS column, since 1.15.0 — Benton: "It should be in
+# the same UI, next to mode"), picks an output folder, and
 # writes `<Scene Name>.png` (plain SketchUp export) or `<Scene Name> render.png`
 # (V-Ray) into that folder — leaving the model exactly as it was. Since 1.10.7
 # every batch also writes `manifest.json` beside the images: scene name, export
@@ -94,6 +96,11 @@ begin
   load File.join(File.dirname(__FILE__), 'wr-preflight.rb')   # pulls in wr-mode.rb,
   load File.join(File.dirname(__FILE__), 'export-scenes.rb')  # wr-materials-swap.rb,
   load File.join(File.dirname(__FILE__), 'wr-folder.rb')      # wr-shading.rb
+  # The per-scene wall hiding lives here now, next to MODE, because that is
+  # where the operator is when they decide a shot needs the back wall gone.
+  # wr-scene-walls.rb stays a standalone tool as well; this reuses its
+  # inventory/apply so there is ONE mechanism, not two that can disagree.
+  load File.join(File.dirname(__FILE__), 'wr-scene-walls.rb')
 ensure
   $wr_no_autorun = wr_pp_autorun_was
 end
@@ -2752,6 +2759,60 @@ module WR_ProposalPackage
       end
     end
 
+    # ---- per-scene wall hiding, in this window ------------------------------
+    #
+    # A scene's hidden walls can only be read or written while THAT scene is
+    # selected — the state lives on the page, and selecting a page is what
+    # asserts it. So opening the picker selects the scene, and closing it puts
+    # the operator back where they were. Anything else would either read the
+    # wrong scene's walls or silently move them off the row they were working
+    # on.
+    d.add_action_callback('wallsopen') do |_c, n|
+      next if busy?(d, 'wallsopen')
+      begin
+        pg = model.pages.to_a[n.to_i - 1]
+        raise "scene #{n} is gone — hit Rescan" if pg.nil?
+        @walls_return ||= model.pages.selected_page
+        model.pages.selected_page = pg
+        units = WR_SceneWalls.inventory(model).map do |u|
+          { 'key' => u[:key], 'room' => u[:room], 'wall' => u[:wall],
+            'side' => u[:side].to_s, 'hidden' => u[:hidden] ? true : false,
+            'mixed' => u[:mixed] ? true : false }
+        end
+        warn = WR_SceneWalls.pages_not_saving_hidden(model).include?(pg.name.to_s)
+        d.execute_script('wallsShow(' + { 'n' => n.to_i, 'scene' => pg.name.to_s,
+                                          'units' => units, 'warn' => warn }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    d.add_action_callback('wallsapply') do |_c, payload|
+      next if busy?(d, 'wallsapply')
+      begin
+        req   = JSON.parse(payload.to_s)
+        picks = {}
+        (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
+        ok, msg = WR_SceneWalls.apply(model, picks)
+        d.execute_script('wallsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        log(d, msg, ok ? 'dim' : 'bad')
+      rescue StandardError => e
+        d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    d.add_action_callback('wallsclose') do |_c, _p|
+      begin
+        if @walls_return && @walls_return.valid?
+          model.pages.selected_page = @walls_return
+        end
+      rescue StandardError => e
+        puts "  could not restore the scene you were on: #{e.class}: #{e.message}"
+      ensure
+        @walls_return = nil
+      end
+    end
+
     d.add_action_callback('browse') do |_c, cur|
       begin
         start = cur.to_s.strip.delete('"')
@@ -2858,6 +2919,34 @@ module WR_ProposalPackage
   mark { background:#ffe3a8; color:inherit; border-radius:2px; }
 
   .seg { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  /* per-scene wall hiding */
+  .wbtn { font:inherit; font-size:11px; padding:3px 9px; border:1px solid var(--line);
+    border-radius:3px; background:var(--surface); color:var(--muted); cursor:pointer;
+    white-space:nowrap; }
+  .wbtn:hover { border-color:var(--accent); color:var(--accent); }
+  #wwrap { display:none; position:fixed; inset:0; background:rgba(20,24,28,.44);
+    align-items:center; justify-content:center; z-index:50; }
+  #wcard { background:var(--surface); border:1px solid var(--line); border-radius:6px;
+    width:min(520px,92vw); max-height:82vh; display:flex; flex-direction:column;
+    box-shadow:0 10px 34px rgba(0,0,0,.28); }
+  #wtitle { font-weight:650; padding:12px 14px 8px; font-size:13px; }
+  #wbody { overflow:auto; padding:0 14px; flex:1 1 auto; }
+  .wroom { margin-bottom:10px; }
+  .wrh { font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); margin:6px 0 3px; }
+  .wrow { display:flex; align-items:center; gap:8px; padding:3px 2px; font-size:12px;
+    cursor:pointer; }
+  .wrow:hover { background:var(--soft); }
+  .wside { color:var(--muted); font-size:11px; }
+  .wmix { color:var(--accent); font-size:10.5px; margin-left:auto; }
+  .wnone { font-size:12px; color:var(--muted); line-height:1.5; }
+  .wmsg { padding:8px 14px; font-size:11.5px; color:var(--muted); }
+  .wmsg.ok  { color:#2c6e49; }
+  .wmsg.bad { color:#b03027; }
+  #wfoot { display:flex; gap:8px; padding:10px 14px 12px; border-top:1px solid var(--line); }
+  #wfoot button { font:inherit; font-size:12px; padding:5px 13px; border:1px solid var(--line);
+    border-radius:3px; background:var(--surface); cursor:pointer; }
+  #wfoot button.prim { background:var(--accent); border-color:var(--accent); color:#fff; }
   .seg button { font:inherit; font-size:11px; padding:3px 9px; border:0; background:var(--surface);
                 color:var(--muted); cursor:pointer; border-left:1px solid var(--line); }
   .seg button:first-child { border-left:0; }
@@ -2953,7 +3042,7 @@ module WR_ProposalPackage
   </div>
   <div class="bodyy"><div class="wrap"><table>
     <thead><tr>
-      <th>#</th><th>SCENE</th><th>MODE</th><th>FILE IT WILL WRITE</th><th></th>
+      <th>#</th><th>SCENE</th><th>MODE</th><th>WALLS</th><th>FILE IT WILL WRITE</th><th></th>
     </tr></thead>
     <tbody id="body"></tbody>
   </table></div></div>
@@ -3035,6 +3124,17 @@ module WR_ProposalPackage
   Windows forbids become &ldquo;-&rdquo;, and a V-Ray scene gets &ldquo; render&rdquo; added.
   Size the SketchUp window to the aspect you want before exporting.</div>
 
+<div id="wwrap">
+  <div id="wcard">
+    <div id="wtitle"></div>
+    <div id="wbody"></div>
+    <div id="wmsg" class="wmsg"></div>
+    <div id="wfoot">
+      <button id="wapply" class="prim">APPLY TO THIS SCENE</button>
+      <button id="wcancel">CANCEL</button>
+    </div>
+  </div>
+</div>
 <script>
 (function () {
   "use strict";
@@ -3043,7 +3143,9 @@ module WR_ProposalPackage
 
   function g(id){ return document.getElementById(id); }
   var $q=g("q"), $b=g("body"), $count=g("count"), $pick=g("picksum"),
-      $log=g("log"), $pmsg=g("pmsg"), $pfill=g("pfill");
+      $log=g("log"), $pmsg=g("pmsg"), $pfill=g("pfill"),
+      $wrap=g("wwrap"), $wtitle=g("wtitle"), $wbody=g("wbody"),
+      $wmsg=g("wmsg"), $wapply=g("wapply"), $wcancel=g("wcancel");
 
   function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;")
     .replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")
@@ -3103,6 +3205,7 @@ module WR_ProposalPackage
         "<td><span class='seg'>"+
           segBtn(r,"skip","Skip")+segBtn(r,"image","Image")+segBtn(r,"render","Render")+
         "</span></td>"+
+        "<td><button class='wbtn' data-walls='"+r.n+"' title='Choose which whole walls this scene hides'>Hide walls</button></td>"+
         "<td class='file' title='"+esc(r.file)+"'>"+fh+"</td>"+
         "<td class='go'><button data-go='"+r.n+"' title='Go to this scene'>&#8594;</button></td></tr>";
     }).join("");
@@ -3112,6 +3215,13 @@ module WR_ProposalPackage
         if(window.sketchup && sketchup.mark)
           sketchup.mark(JSON.stringify({ n:+el.getAttribute("data-n"),
                                          mode:el.getAttribute("data-mode") }));
+      });
+    });
+    Array.prototype.forEach.call($b.querySelectorAll("[data-walls]"), function(el){
+      el.addEventListener("click", function(e){
+        e.stopPropagation();
+        if(running) return;
+        wallsOpen(+el.getAttribute("data-walls"));
       });
     });
     Array.prototype.forEach.call($b.querySelectorAll("[data-go]"), function(el){
@@ -3206,6 +3316,84 @@ module WR_ProposalPackage
 
   // Ruby pushes fresh rows + filenames after every mark / bulk / fill change,
   // so the FILE column always shows what the export will actually write.
+  // ---- per-scene wall hiding, inline under the row ------------------------
+  // The picker is a MODAL over this window rather than a row expansion: the
+  // scene list is filterable and scrollable, and a panel anchored to a row
+  // that can scroll out from under it is how you end up applying walls to a
+  // scene you are not looking at.
+  var wallsN = 0, wallsUnits = [], wallsPicks = {};
+  function wallsOpen(n){
+    wallsN = n; wallsPicks = {};
+    $wtitle.textContent = "Loading scene " + n + "…";
+    $wbody.innerHTML = "";
+    $wmsg.textContent = ""; $wmsg.className = "wmsg";
+    $wrap.style.display = "flex";
+    if(window.sketchup && sketchup.wallsopen) sketchup.wallsopen(String(n));
+  }
+  function wallsClose(){
+    $wrap.style.display = "none";
+    wallsN = 0; wallsUnits = []; wallsPicks = {};
+    if(window.sketchup && sketchup.wallsclose) sketchup.wallsclose("");
+  }
+  window.wallsFail = function (msg) {
+    $wtitle.textContent = "Could not read the walls";
+    $wmsg.textContent = msg; $wmsg.className = "wmsg bad";
+  };
+  window.wallsShow = function (d) {
+    wallsUnits = d.units || [];
+    $wtitle.textContent = "Walls hidden in “" + d.scene + "”";
+    if(!wallsUnits.length){
+      $wbody.innerHTML = "<p class='wnone'>No named walls in this model. The picker "
+        + "lists a wall by its name (“Wall 3”). A room drawn by hand or by an "
+        + "older script has unnamed wall groups — run <b>Name walls for the scene "
+        + "picker</b> once, then come back.</p>";
+      return;
+    }
+    var byRoom = {}, order = [];
+    wallsUnits.forEach(function(u){
+      if(!byRoom[u.room]){ byRoom[u.room] = []; order.push(u.room); }
+      byRoom[u.room].push(u);
+    });
+    $wbody.innerHTML = order.map(function(room){
+      return "<div class='wroom'><div class='wrh'>" + esc(room) + "</div>"
+        + byRoom[room].map(function(u){
+            var side = u.side ? " <span class='wside'>" + esc(u.side) + "</span>" : "";
+            return "<label class='wrow'><input type='checkbox' data-key='"
+              + esc(u.key) + "'" + (u.hidden ? " checked" : "") + ">"
+              + "<span>Wall " + u.wall + side + "</span>"
+              + (u.mixed ? "<span class='wmix'>pieces disagree — ticking sets them all</span>" : "")
+              + "</label>";
+          }).join("") + "</div>";
+    }).join("");
+    // Ticked = hidden in this scene. Every wall is sent on Apply, not just the
+    // ones touched, so a box UNticked here reliably SHOWS that wall again.
+    Array.prototype.forEach.call($wbody.querySelectorAll("input[data-key]"), function(el){
+      el.addEventListener("change", function(){
+        wallsPicks[el.getAttribute("data-key")] = el.checked;
+      });
+    });
+    $wmsg.className = "wmsg" + (d.warn ? " bad" : "");
+    $wmsg.textContent = d.warn
+      ? "This scene does not save hidden objects, so walls will NOT come back on it. "
+        + "Apply turns that on for you."
+      : "Ticked = hidden when this scene exports.";
+  };
+  window.wallsDone = function (r) {
+    $wmsg.textContent = r.msg;
+    $wmsg.className = "wmsg" + (r.ok ? " ok" : " bad");
+    if(r.ok) setTimeout(wallsClose, 900);
+  };
+  $wapply.addEventListener("click", function(){
+    var picks = {};
+    Array.prototype.forEach.call($wbody.querySelectorAll("input[data-key]"), function(el){
+      picks[el.getAttribute("data-key")] = el.checked;
+    });
+    if(window.sketchup && sketchup.wallsapply)
+      sketchup.wallsapply(JSON.stringify({ n: wallsN, picks: picks }));
+  });
+  $wcancel.addEventListener("click", wallsClose);
+  $wrap.addEventListener("click", function(e){ if(e.target === $wrap) wallsClose(); });
+
   window.applyState = function (st) { ST = st; drawMats(); draw(); };
   window.setDir = function (d) { g("dir").value = d; };
 
