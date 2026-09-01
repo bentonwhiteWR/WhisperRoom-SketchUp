@@ -27,6 +27,10 @@ recorded so they cannot be lost; the reproducing case pins each one.
   single 7-vertex two-lobe floor face with no message. Fix belongs in
   `scripts/takeoff-check.py` (self-intersection check on the walked
   polygon). The exact silent-wrong-geometry class of 31 Aug.
+  **FIXED, 1.12.4** — `polygon_self_touch` in `takeoff-check.py` refuses
+  revisited corners, doubling-back runs and crossing non-adjacent runs by
+  name after closure; the case is flipped to
+  `expects: {"refusal": [...]}` and the ledger row above records the PASS.
 - **F2 — impossible bulkhead silently dropped** (`synthetic-headroom`).
   Bulkhead head 9'0" above an 8'0" ceiling: `scripts/build-takeoff.rb`
   `build_feature` hits `return if ... z1 - z0 <= TOL` (~line 317) and the
@@ -84,3 +88,4 @@ recorded so they cannot be lost; the reproducing case pins each one.
 | 2026-08-31 20:05 | synthetic-selfcross | PROBE | 0.00" | built (probe): clean |
 | 2026-08-31 20:05 | synthetic-headroom | PROBE | 0.00" | built (probe): feature missing: 1 x bulkhead in truth, 0 built |
 | 2026-08-31 20:05 | synthetic-sliver | PASS | 0.00" | clean |
+| 2026-08-31 20:13 | synthetic-selfcross | PASS | — | refused by name as designed: revisits the corner; self-touches |

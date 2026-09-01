@@ -2,6 +2,38 @@
 
 ## 2026-08-31
 
+### 1.12.4 — self-touching polygons refuse by name (eval F1), and the clear-width residual named
+
+Fix for the eval sweep's F1 in `scripts/takeoff-check.py`; VERSION 1.12.3 ->
+**1.12.4**. No Ruby touched.
+
+- **F1 fixed.** Closure to 0.00" was necessary but not sufficient: seven runs
+  that sum to zero can revisit a corner, and the pinched two-lobe result
+  validated, built, and read back from SketchUp as a single 7-vertex floor
+  face with no message (`eval/floorplans/synthetic-selfcross/`, bridge
+  read-back). New `polygon_self_touch` runs after closure and refuses by
+  name: a revisited corner, a run doubling straight back over its
+  neighbour, and non-adjacent runs that cross or touch (segment distance
+  <= TOL). Stale locks are deleted as with every refusal, and the 3D
+  viewer's ear-clipper can no longer receive a self-touching polygon (the
+  sheet only draws from a lock). Case flipped to
+  `expects: {"refusal": ["revisits the corner", "self-touches"]}` in
+  `eval/gen-plans.py` (regenerated) and the PASS row recorded in
+  `eval/RESULTS.md`. Selftest: +4 cases (selfcross probe geometry, crossing
+  runs, doubling back, and an honest L-room still passing), plus a
+  render-the-sheet case so a format-string crash in the CSS/JS constants
+  (RESULTS.md F4) can never again pass selftest.
+- **The clear-width residual (synthetic-clearwidth-trap) is NOT closed, on
+  purpose.** A single wrong number with no parts chain is internally
+  consistent and no validator over a single-source take-off can catch it —
+  judgement and the shape of the real fix (vector-PDF cross-check as a
+  second measurement source; the review sheet's photo comparison as the
+  human second source when no vector plan exists) recorded in
+  `.forge/builder/HANDOFF-review-sheet.md`. Shipping a per-run
+  "wall-to-wall" attestation was considered and rejected: the 31 Aug
+  transcriber BELIEVED 17'3" was the width and would have attested it — a
+  checkbox that makes the checker look safer than it is.
+
 ### 1.12.3 — two silent impossibilities in the take-off builder now refuse by name (F2/F3)
 
 Found by the eval-loop Builder's probe case

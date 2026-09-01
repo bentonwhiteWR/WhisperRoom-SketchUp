@@ -231,6 +231,72 @@ def norm_value(ck, path, obj, required=True, allow_default=False):
             'parts': parts, 'note': obj.get('note')}
 
 
+def _seg_dist(p1, p2, p3, p4):
+    """Minimum distance between segments p1p2 and p3p4, inches."""
+    def sub(a, b):
+        return (a[0] - b[0], a[1] - b[1])
+
+    def cross(a, b):
+        return a[0] * b[1] - a[1] * b[0]
+
+    d1 = cross(sub(p4, p3), sub(p1, p3))
+    d2 = cross(sub(p4, p3), sub(p2, p3))
+    d3 = cross(sub(p2, p1), sub(p3, p1))
+    d4 = cross(sub(p2, p1), sub(p4, p1))
+    if ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0)):
+        return 0.0   # proper crossing
+
+    def psd(p, a, b):
+        ax, ay = b[0] - a[0], b[1] - a[1]
+        den = ax * ax + ay * ay
+        t = 0.0 if den == 0 else max(0.0, min(1.0, ((p[0] - a[0]) * ax + (p[1] - a[1]) * ay) / den))
+        return math.hypot(p[0] - (a[0] + ax * t), p[1] - (a[1] + ay * t))
+
+    return min(psd(p1, p3, p4), psd(p2, p3, p4), psd(p3, p1, p2), psd(p4, p1, p2))
+
+
+def polygon_self_touch(pts, runs):
+    """A failure message if the closed walk touches or crosses itself,
+    else None. Closing to 0.00" is necessary but NOT sufficient: seven runs
+    that sum to zero can still revisit a corner, and SketchUp will happily
+    build the pinched two-lobe result as a single floor face with no message
+    anywhere (eval/floorplans/synthetic-selfcross, confirmed by bridge
+    read-back, 31 Aug 2026). That is the silent-wrong-geometry class this
+    whole checker exists to refuse by name."""
+    v = pts[:-1]
+    n = len(v)
+    # A revisited corner — the pinch. Runs i-1/i and j-1/j all meet there.
+    for i in range(n):
+        for j in range(i + 1, n):
+            if math.hypot(v[i][0] - v[j][0], v[i][1] - v[j][1]) <= TOL:
+                return ('the outline revisits the corner at (%s, %s) — the '
+                        'end of run %d lands where run %d started. The runs '
+                        'sum to zero but the room self-touches (a pinched '
+                        'two-lobe outline), which is what a scrambled or '
+                        'misordered chain looks like; fix the take-off, do '
+                        'not build'
+                        % (arch(v[j][0]), arch(v[j][1]), (j - 1) % n, i))
+    # A run that immediately doubles back over its neighbour: a zero-width
+    # sliver of wall, always a transcription error.
+    for i in range(n):
+        a, b = DIR[runs[i]['d']], DIR[runs[(i + 1) % n]['d']]
+        if a[0] == -b[0] and a[1] == -b[1]:
+            return ('run %d (%s) doubles straight back over run %d (%s) — a '
+                    'zero-width sliver; two opposite runs in a row cannot '
+                    'both be wall faces'
+                    % ((i + 1) % n, runs[(i + 1) % n]['d'], i, runs[i]['d']))
+    # Non-adjacent wall runs that cross or touch.
+    for i in range(n):
+        for j in range(i + 1, n):
+            if j == i + 1 or (i == 0 and j == n - 1):
+                continue   # neighbours share a corner by construction
+            if _seg_dist(v[i], v[(i + 1) % n], v[j], v[(j + 1) % n]) <= TOL:
+                return ('runs %d and %d cross or touch each other — the '
+                        'outline is self-intersecting, not a room; fix the '
+                        'take-off, do not build' % (i, j))
+    return None
+
+
 def polygon(runs):
     """[(x, y)] interior vertices from normalized runs, or None if a direction
     is bad. Closure is the caller's check — same walk as WR_BuildRoom.polygon."""
@@ -287,8 +353,13 @@ def check_room(ck, room, idx):
                     % (arch(abs(ex)), arch(abs(ey))))
             pts = None
         else:
-            ck.ok('%s polygon' % name, '%d runs, closes to %.2f"'
-                  % (len(runs), math.hypot(ex, ey)))
+            touch = polygon_self_touch(pts, runs)
+            if touch:
+                ck.fail('%s polygon' % name, touch)
+                pts = None
+            else:
+                ck.ok('%s polygon' % name, '%d runs, closes to %.2f", '
+                      'no self-intersection' % (len(runs), math.hypot(ex, ey)))
         out['polygon'] = [[round(x, 4), round(y, 4)] for x, y in pts[:-1]] \
             if pts else None
     else:
@@ -1974,6 +2045,39 @@ def selftest():
                     {'d': 'W', 'v': '9\'8"', 'src': 'pen x'},
                     {'d': 'N', 'v': '8\'', 'src': 'pen x'}]),
          False, 'polygon'),
+        ('THE SELFCROSS PROBE: runs sum to zero but revisit a corner — '
+         'fails by name, does not build',
+         room(runs=[{'d': 'N', 'v': '5\'', 'src': 'pen x'},
+                    {'d': 'E', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '20\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'E', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '5\'', 'src': 'pen x'}]),
+         False, 'revisits'),
+        ('non-adjacent runs that cross fail by name',
+         room(runs=[{'d': 'E', 'v': '20\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '20\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '10\'', 'src': 'pen x'}]),
+         False, 'cross'),
+        ('a run doubling straight back fails by name',
+         room(runs=[{'d': 'E', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '4\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '5\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '6\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '5\'', 'src': 'pen x'}]),
+         False, 'doubles'),
+        ('an honest L-shaped room still passes',
+         room(runs=[{'d': 'E', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '5\'', 'src': 'pen x'},
+                    {'d': 'E', 'v': '2\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '5\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '12\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '10\'', 'src': 'pen x'}]),
+         True, None),
         ('door with no at fails by name',
          room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
                       'hinge': 'near'}]), False, 'door 0 at'),
@@ -2021,7 +2125,9 @@ def selftest():
             fails += 1
     # Flag bookkeeping: the assumed-at case must put exactly the door at (and
     # the defaulted door height) in the inventory, nothing else.
-    ck, _ = check_file(cases[5][1], 'selftest')
+    asm_case = [c for c in cases
+                if c[0].startswith('door with assumed at')][0]
+    ck, _ = check_file(asm_case[1], 'selftest')
     inv = sorted(a['path'] for a in ck.assumed)
     want = ['T door 0 at', 'T door 0 height']
     ok = inv == want
@@ -2076,6 +2182,21 @@ def selftest():
         {'edits': [{'room': 'T', 'field': 'ceiling', 'old': '9\'0"',
                     'new': {'v': '8\'6"', 'src': 'pen tape'}}]},
         False, 'different')
+    # The review sheet must at least render — an unescaped % in the CSS/JS
+    # constants once crashed every invocation of this file at import time
+    # (eval RESULTS.md F4); rendering here makes that class of break loud.
+    ck_h, lock_h = check_file(room(), 'selftest')
+    try:
+        page = html_report(ck_h, lock_h, 'selftest')
+        ok_h = page.startswith('<!DOCTYPE html') and 'lockdata' in page
+    except Exception as e:
+        page, ok_h = '', False
+        print('       html_report raised %s: %s' % (type(e).__name__, e))
+    print('%-4s review sheet renders (%d chars)'
+          % ('PASS' if ok_h else 'FAIL', len(page)))
+    if not ok_h:
+        fails += 1
+
     # apply_patch only applies; check_file judges what the edit did. Prove
     # the pair: a run edit keeps its direction, and the polygon it reopens
     # fails the full check by name.

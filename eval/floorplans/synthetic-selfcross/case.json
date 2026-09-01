@@ -1,3 +1,8 @@
 {
-  "probe": true
+  "expects": {
+    "refusal": [
+      "revisits the corner",
+      "self-touches"
+    ]
+  }
 }

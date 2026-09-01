@@ -388,8 +388,8 @@ case(
                {'d': 'N', **V('10\'')}, {'d': 'E', **V('10\'')},
                {'d': 'S', **V('5\'')}],
       'ceiling': V('8\'')}],
-    expects='probe',
-    readme="""PROBE CASE. Seven runs that sum to zero — the closure check
+    expects={'refusal': ['revisits the corner', 'self-touches']},
+    readme="""WAS A PROBE CASE, now an expected refusal. Seven runs that sum to zero — the closure check
 passes — but the walk revisits (0,60): the polygon self-touches, which is
 what a scrambled run order looks like after a bad transcription. Neither the
 checker nor the builder was written with this in mind.
@@ -401,7 +401,13 @@ point) with no message anywhere — a physically meaningless "room" of the
 exact 31 Aug silent class. The fix belongs in `scripts/takeoff-check.py`
 (a self-intersection/repeated-vertex check on the walked polygon), which is
 owned by another Builder; recorded in eval/RESULTS.md, not fixed here. When
-that check lands, flip this case to `expects: {"refusal": [...]}`.""",
+that check lands, flip this case to `expects: {"refusal": [...]}`.
+
+**FIXED (1.12.3, 31 Aug 2026):** `takeoff-check.py` now runs
+`polygon_self_touch` after closure — revisited corners, doubling-back runs
+and crossing non-adjacent runs each fail by name and delete any stale lock.
+This case is flipped to the expected refusal; a future PASS-turned-FAIL
+here means the refusal got un-fixed.""",
 )
 
 # --- 11. synthetic-headroom -------------------------------------------------

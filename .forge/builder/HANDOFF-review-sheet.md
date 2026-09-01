@@ -33,6 +33,39 @@
 - Approval status is echoed by `--apply-patch` but not stored in
   takeoff.json — it is workflow state, not measurement.
 
+## Judgement — the clear-width residual (synthetic-clearwidth-trap)
+
+The trap is real and my checker does not catch it: a 15'-0" clear width
+transcribed as the wall width with no parts chain and no declared
+obstructions is internally consistent, so it validates clean and builds a
+plausible room 24" too small. **No invariant over a single-source take-off
+can close this** — a validator checks consistency, and a lone wrong number
+is consistent. What would actually close it, sized:
+
+1. **Vector-PDF cross-check (the real fix — a full Builder slice, ~a day).**
+   The only mechanical second measurement source. On S609-3 the PDF vectors
+   reproduce the field measurements to 1–2" from one anchor. Shape: scale
+   the PDF line geometry from the take-off's named anchor (PyMuPDF), match
+   each run to its nearest parallel wall-line pair, refuse by name above
+   ~3" disagreement. Hard parts are wall-face identification among
+   furniture/fixture linework and rotated plans. Make the pass REQUIRED
+   whenever `sources` lists a vector PDF/DWG — "the exact geometry was in
+   the job folder and nothing pointed at it" was a named 31 Aug root cause.
+   `eval/gen-plans.py` already emits vector PDFs derived from authored
+   truth, so the loop can score this the day it exists.
+2. **Cheap interim guard (an evening, not built — out of my scope order):**
+   fail, or loudly flag, any job whose `sources` list a `.pdf`/`.dwg` while
+   no value carries a `plan-vector` src. It validates nothing but makes
+   ignoring the second source impossible to do silently.
+3. **Per-run "wall-to-wall, nothing intervening" attestation — recommend
+   AGAINST.** The 31 Aug transcriber believed 17'3" WAS the width; they
+   would attest it. Ritual that makes the checker look safer than it is.
+   Same for "require a chain when obstructions are declared": the trap
+   take-off omits the obstructions too, so the same silence defeats it.
+4. **When no vector plan exists** the second source is a human, and the
+   review sheet's photo-beside-ledger comparison is that check made cheap.
+   There is no mechanical substitute for a photo-only job.
+
 ## Open-questions
 - Whether the PUBLISHED artifact should carry the photos is cleared for UIC
   (Benton, 31 Aug) but is a per-client decision — keep `--embed-photos`
