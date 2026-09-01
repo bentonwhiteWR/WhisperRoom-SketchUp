@@ -118,6 +118,27 @@ re-derived from pixels downstream). Its pure half is covered here:
 The impure half — collect_annotations, page_hidden_tags, write_manifest —
 touches the SketchUp API and is live-verified per .forge/builder/HANDOFF.md.
 
+THE SHADING HALF (1.19.3)
+-------------------------
+Full audit 1 Sep 2026, lane B finding 2: the image lane pushed the wr-shading
+contract ONCE before the rows, and every proposal scene (use_shadow_info and
+use_rendering_options both true) put its own shadows and AO back on
+selection, before write_image. Same class as the 1.9.12 tag defect, and the
+log said "shadows off" the whole time. export_pages now runs
+cfg['after_switch'] between the switch and write_image; image_cfg hangs
+shade_reapply on it.
+
+    shade1    a page that stores shadows ON / AO ON is written with the
+              contract (shadows off, AO off, Light 80 / Dark 45)
+    shade2    a page that stores nothing is too
+    shade3    WR_Shading.pop after the batch restores EXACTLY the pre-push
+              state -- per-row apply() does not corrupt the snapshot
+    shade4    the log carries a per-row read-back, by scene name
+
+Checked against the old code, RUN not assumed, 1 Sep 2026: with the 1.19.2
+export-scenes.rb (no hook) shade1, shade2 and shade4 FAIL; with the 1.19.2
+proposal-package.rb the lift itself fails by name (no shade_reapply).
+
 HARNESS LIMIT WORTH KNOWING. The barebones CRuby VM rbparse boots out of
 SketchUp's DLL has no Object#class -- `1.class` raises NoMethodError in it.
 proposal-package.rb interpolates e.class into every failure message, so any
@@ -134,6 +155,7 @@ import rbtest   # noqa: E402  - reuse method_source (safe: main() is guarded)
 
 SRC = os.path.join(HERE, 'proposal-package.rb')
 EXP = os.path.join(HERE, 'export-scenes.rb')
+SHD = os.path.join(HERE, 'wr-shading.rb')
 
 
 def const_line(name, src=None):
@@ -145,11 +167,12 @@ def const_line(name, src=None):
     raise SystemExit('%s: no constant %s' % (os.path.basename(src), name))
 
 
-def const_block(name):
+def const_block(name, src=None):
     """A constant whose definition runs over more than one line, verbatim.
 
     Ends at the first line closing the literal (`.freeze` or `].freeze`)."""
-    lines = open(SRC, encoding='utf-8').read().split('\n')
+    src = src or SRC
+    lines = open(src, encoding='utf-8').read().split('\n')
     out = []
     for ln in lines:
         if not out and not re.match(r'^  %s\s*=' % re.escape(name), ln):
@@ -157,10 +180,17 @@ def const_block(name):
         out.append(ln)
         if '.freeze' in ln or (out and ln.rstrip().endswith(']')):
             return '\n'.join(out)
-    raise SystemExit('proposal-package.rb: no constant %s' % name)
+    raise SystemExit('%s: no constant %s' % (os.path.basename(src), name))
 
 
 FIXTURE = r'''
+# The bare VM lacks Integer#to_i (as it lacks Object#class); wr-shading.rb's
+# dark_value calls it on the default. Core semantics put back, rbtest.py
+# SHIMS style, so the lifted method runs exactly as written.
+class Integer
+  def to_i; self; end
+end
+
 module WR_ProposalPackage
 %(idle_state)s
 %(done_state)s
@@ -214,6 +244,10 @@ module WR_ProposalPackage
 
 %(manifest_rows)s
 
+%(shade_reapply)s
+
+%(image_cfg)s
+
   # ---- 1.9.6: the LIFECYCLE half. Everything above this line is a pure
   # helper; every defect of the last month lived below it. The audit of
   # 30 Aug 2026 put it plainly: this suite passed 64/64 while the render lane
@@ -244,8 +278,12 @@ module WR_ProposalPackage
     def class; 'FakeError'; end
   end
 
-  # The dialog. Every log line in the real file is rescued; here it is a sink.
-  def self.log(_dlg, _text, _cls); nil; end
+  # The dialog. Every log line in the real file is rescued; here it is
+  # recorded, so a check can assert what the log TOLD the operator (shade4).
+  def self.log(_dlg, text, _cls)
+    (@log_lines ||= []) << text.to_s
+    nil
+  end
 
   class FakeLayer
     attr_reader :name
@@ -267,6 +305,61 @@ module WR_ProposalPackage
   class FakeModel
     attr_reader :layers
     def initialize(layers); @layers = layers; end
+  end
+
+  # 1.19.3 -- enough of a model for export_pages to run. THE ONE BEHAVIOUR
+  # THAT MATTERS is FakePages#selected_page=: a page that stores rendering
+  # options and shadow info (every plate proposal-scenes.rb makes) writes
+  # them back over the model when it is selected. That is the documented
+  # Page contract, observed live for tags in 1.9.12, and it is what undid the
+  # shading contract on every row. FakeView records the model's shading at
+  # the moment of write_image -- the only moment that matters.
+  class FakePage
+    attr_reader :name
+    def initialize(name, ro, si)
+      @name = name
+      @ro   = ro     # nil = use_rendering_options false
+      @si   = si     # nil = use_shadow_info false
+    end
+    def apply_to(model)
+      model.rendering_options.merge!(@ro) if @ro
+      model.shadow_info.merge!(@si)       if @si
+    end
+  end
+  class FakePages
+    attr_reader :selected_page
+    def initialize(model); @model = model; end
+    def selected_page=(pg)
+      @selected_page = pg
+      pg.apply_to(@model) if pg
+    end
+  end
+  class FakeView
+    attr_reader :captured
+    def initialize(model); @model = model; @captured = {}; end
+    def vpwidth;  2169; end
+    def vpheight; 859;  end
+    def refresh;  nil;  end
+    def write_image(opts)
+      base = File.basename(opts[:filename].to_s, '.png')
+      @captured[base] = { :shadows => @model.shadow_info['DisplayShadows'],
+                          :ao      => @model.rendering_options['AmbientOcclusion'],
+                          :light   => @model.shadow_info['Light'],
+                          :dark    => @model.shadow_info['Dark'] }
+      true
+    end
+  end
+  class FakeSceneModel
+    attr_reader :rendering_options, :shadow_info, :pages, :active_view,
+                :layers, :options
+    def initialize(ro, si)
+      @rendering_options = ro
+      @shadow_info       = si
+      @pages       = FakePages.new(self)
+      @active_view = FakeView.new(self)
+      @layers      = FakeLayers.new({})
+      @options     = { 'PageOptions' => { 'TransitionTime' => 1 } }
+    end
   end
 
   # Stub renderers for read_signal: one answers, one raises, one is bare.
@@ -708,6 +801,61 @@ module WR_ProposalPackage
           r2['groups_hidden'].nil? && r3['groups_hidden'].nil?
     out << (ok5 ? 'mr5 ok' : "mr5 FAIL #{mr.map { |r| r['groups_hidden'] }.inspect}")
 
+    # ================================================================
+    # 1.19.3 -- THE SHADING CONTRACT SURVIVES THE SCENE SWITCH (full audit
+    # 1 Sep 2026, lane B finding 2). unit_shade_push runs once before the
+    # first image row; every plate proposal-scenes.rb makes stores its own
+    # shadow info and rendering options, so selecting it put ITS shadows and
+    # AO straight back over the contract before write_image -- the 1.9.12
+    # tag defect, one property over -- while the log said "shadows off".
+    # export_pages now runs cfg['after_switch'] between the switch and
+    # write_image, and image_cfg hangs shade_reapply on it. The real
+    # export_pages, the real push/apply/pop and the real image_cfg run here;
+    # only SketchUp is faked.
+    # ================================================================
+    before_si = { 'DisplayShadows' => true, 'UseSunForAllShading' => true,
+                  'Light' => 60, 'Dark' => 30 }
+    before_ro = { 'DrawGround' => true, 'DrawHorizon' => true,
+                  'DisplayFog' => false, 'DisplayWatermarks' => true,
+                  'AmbientOcclusion' => true }
+    sm = FakeSceneModel.new(before_ro.dup, before_si.dup)
+    # S1 is a proposal-scenes.rb plate: shadows ON and AO ON saved into the
+    # scene. S2 stores nothing (use_* false) -- the one case the old code
+    # got right, kept so a regression that breaks BOTH is told apart from
+    # one that breaks the storing page alone.
+    s1 = FakePage.new('S1', { 'AmbientOcclusion' => true, 'DrawGround' => true },
+                            { 'DisplayShadows' => true, 'Light' => 60, 'Dark' => 30 })
+    s2 = FakePage.new('S2', nil, nil)
+    @cfg = { 'dir' => 'C:/out', 'width' => '1200', 'height' => '900' }
+    @log_lines = []
+    @shade_saved = WR_Shading.push(sm, WR_Shading::KEEP, WR_Shading::DEF_DARK)
+    sm.pages.selected_page = s1          # unit_image's own early switch
+    plan = [{ :page => s1, :n => 1, :base => '01' },
+            { :page => s2, :n => 2, :base => '02' }]
+    WR_ExportScenes.export_pages(sm, plan, image_cfg([], nil))
+    want = { :shadows => false, :ao => false, :light => 80, :dark => 45 }
+    w1 = sm.active_view.captured['01']
+    out << (w1 == want ? 'shade1 ok' :
+            "shade1 FAIL a scene that stores shadow info won over the contract " \
+            "at write_image: #{w1.inspect}")
+    w2 = sm.active_view.captured['02']
+    out << (w2 == want ? 'shade2 ok' :
+            "shade2 FAIL the non-storing scene was written with #{w2.inspect}")
+    # Per-row re-apply must not corrupt the pre-batch snapshot: pop puts back
+    # EXACTLY what was there before push, including the keys every switch
+    # and every re-apply wrote over in between.
+    WR_Shading.pop(sm, @shade_saved)
+    okP = sm.shadow_info == before_si && sm.rendering_options == before_ro
+    out << (okP ? 'shade3 ok' :
+            "shade3 FAIL pop did not restore the pre-batch state: " \
+            "si #{sm.shadow_info.inspect} ro #{sm.rendering_options.inspect}")
+    # ...and the log names the read-back per row, by scene, so it tells the
+    # truth about what each file was written with.
+    okL = @log_lines.any? { |l| l =~ /S1.*shadows off.*AO off/ } &&
+          @log_lines.any? { |l| l =~ /S2.*shadows off.*AO off/ }
+    out << (okL ? 'shade4 ok' :
+            "shade4 FAIL no per-row read-back in the log: #{@log_lines.inspect}")
+
     out.join(' | ')
   end
 end
@@ -716,6 +864,33 @@ module WR_ExportScenes
 %(height_consts)s
 
 %(out_height)s
+
+%(export_pages)s
+end
+
+# wr-shading.rb's contract, lifted verbatim: the constants apply() writes and
+# push()/pop() snapshot, so shade3 tests the real snapshot, not a stand-in.
+module WR_Shading
+%(shd_transparency)s
+%(shd_light)s
+%(shd_dark)s
+%(shd_keys)s
+%(shd_keep)s
+
+%(shd_dark_value)s
+
+%(shd_shadow_want)s
+
+%(shd_apply)s
+
+%(shd_push)s
+
+%(shd_pop)s
+end
+
+# export_pages sets the status bar after every switch.
+module Sketchup
+  def self.status_text=(_v); nil; end
 end
 
 (begin
@@ -748,7 +923,9 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'bn1 ok | bn2 ok | bn3 ok | bn4 ok | bn5 ok | bn6 ok | bn7 ok | '
           'dd1 ok | dd2 ok | dd3 ok | dd4 ok | dd5 ok | dd6 ok | '
           'st1 ok | st2 ok | st3 ok | st4 ok | '
-          'mr1 ok | mr2 ok | mr3 ok | mr4 ok | mr5 ok')
+          'mr1 ok | mr2 ok | mr3 ok | mr4 ok | mr5 ok | '
+          # 1.19.3 -- the shading contract survives the scene switch.
+          'shade1 ok | shade2 ok | shade3 ok | shade4 ok')
 
 
 def main():
@@ -796,6 +973,21 @@ def main():
         'dim_display':       rbtest.method_source(SRC, 'dim_display'),
         'shown_annot_tags':  rbtest.method_source(SRC, 'shown_annot_tags'),
         'manifest_rows':     rbtest.method_source(SRC, 'manifest_rows'),
+        # 1.19.3 -- the shading contract across scene switches: the real
+        # export loop, the real contract, and the real wiring between them.
+        'shade_reapply':     rbtest.method_source(SRC, 'shade_reapply'),
+        'image_cfg':         rbtest.method_source(SRC, 'image_cfg'),
+        'export_pages':      rbtest.method_source(EXP, 'export_pages'),
+        'shd_transparency':  const_block('TRANSPARENCY', SHD),
+        'shd_light':         const_line('DEF_LIGHT', SHD),
+        'shd_dark':          const_line('DEF_DARK', SHD),
+        'shd_keys':          const_line('SHADOW_KEYS', SHD),
+        'shd_keep':          const_line('KEEP', SHD),
+        'shd_dark_value':    rbtest.method_source(SHD, 'dark_value'),
+        'shd_shadow_want':   rbtest.method_source(SHD, 'shadow_want'),
+        'shd_apply':         rbtest.method_source(SHD, 'apply'),
+        'shd_push':          rbtest.method_source(SHD, 'push'),
+        'shd_pop':           rbtest.method_source(SHD, 'pop'),
     }
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)

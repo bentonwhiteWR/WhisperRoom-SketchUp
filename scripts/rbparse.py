@@ -96,11 +96,44 @@ def boot():
     return lib
 
 
+# What a failed protected eval leaves behind, read back through `$!`. The
+# exception's `inspect` carries its class name (`#<NameError: ...>`) without
+# needing Object#class, which this minimal VM does not define -- the same
+# reason HARNESS above formats with e.message only. Every branch rescues so
+# the diagnostic itself can never be the thing that raises.
+ERRINFO = '''
+(begin
+  e = $!
+  if e.nil?
+    "(no exception recorded)"
+  else
+    ins = (e.inspect rescue nil).to_s
+    cls = ins =~ /\\A#<([A-Za-z0-9_:]+)[:>]/ ? Regexp.last_match(1) : "Exception"
+    msg = (e.message rescue "(message unreadable)")
+    bt  = ((e.backtrace || []).first rescue nil)
+    bt ? "#{cls}: #{msg}\\n  at #{bt}" : "#{cls}: #{msg}"
+  end
+rescue Exception
+  "(exception unreadable)"
+end).dup
+'''
+
+
 def rb_eval(lib, src):
     st = ctypes.c_int(0)
     val = lib.rb_eval_string_protect(src.encode("utf-8"), ctypes.byref(st))
     if st.value != 0:
-        raise RuntimeError("the check harness itself raised inside Ruby")
+        # Surface the REAL Ruby exception. Until 1.19.3 this raised a bare
+        # "the check harness itself raised inside Ruby", which is how
+        # rbtest-lights.py sat red for two weeks over an unlifted constant
+        # nobody could see the name of.
+        st2 = ctypes.c_int(0)
+        dv = lib.rb_eval_string_protect(ERRINFO.encode("utf-8"), ctypes.byref(st2))
+        detail = "(exception unreadable)"
+        if st2.value == 0:
+            d = ctypes.c_uint64(dv)
+            detail = lib.rb_string_value_cstr(ctypes.byref(d)).decode("utf-8", "replace")
+        raise RuntimeError("the check harness itself raised inside Ruby -- " + detail)
     v = ctypes.c_uint64(val)
     return lib.rb_string_value_cstr(ctypes.byref(v)).decode("utf-8", "replace")
 

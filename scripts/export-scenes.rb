@@ -28,6 +28,13 @@
 # explicit height so its image rows and its V-Ray render rows come out the
 # same shape (defect D4, 30 Aug 2026).
 #
+# AFTER EVERY PAGE SWITCH, NOT BEFORE THE LOOP. Selecting a page puts back its
+# own saved tags, rendering options and shadow info. cfg['hide_tags'] is
+# re-hidden after each switch for that reason, and cfg['after_switch'] -- a
+# callable taking (model, page) -- runs at the same point so a caller can
+# re-force whatever else the page just undid. proposal-package.rb re-applies
+# the wr-shading contract through it (1.19.3).
+#
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/export-scenes.rb"
 
 require 'sketchup.rb'
@@ -266,6 +273,23 @@ module WR_ExportScenes
           ro['DrawGround']  = false
           ro['DrawHorizon'] = false
           ro['DisplayFog']  = false
+        end
+
+        # A scene that stores rendering options and shadow info (every plate
+        # proposal-scenes.rb makes, and SketchUp's default for a hand-made
+        # one) re-applies BOTH on activation, exactly as it re-applies its
+        # tags above. Anything a caller pushed before this loop -- the
+        # wr-shading contract in proposal-package.rb -- is undone by the
+        # switch it just made, so the caller gets this hook, between the
+        # switch and write_image, to put it back and read it back (1.19.3).
+        # run()'s own path passes none.
+        after = cfg['after_switch']
+        if after.respond_to?(:call)
+          begin
+            after.call(model, p[:page])
+          rescue StandardError => e
+            puts "  after_switch hook raised on #{p[:page].name}: #{e.message}"
+          end
         end
 
         view.refresh

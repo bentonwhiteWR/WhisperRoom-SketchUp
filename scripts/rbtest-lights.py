@@ -293,7 +293,12 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'FIXTURE_FACES_MAX', 'REF_ROOM_SQFT', 'REF_BOOTH_SQFT',
            'AREA_SCALE_MIN', 'AREA_SCALE_MAX', 'PENDANT_AFF', 'SCONCE_AFF',
            'SCONCE_STANDOFF', 'RIM_OUT', 'RIM_TILT', 'FOAM_OFFSET',
-           'EXPO_ISO', 'EXPO_FACTORY_ISO', 'EXPO_EV']
+           'EXPO_ISO', 'EXPO_FACTORY_ISO', 'EXPO_EV',
+           # 1.10.0 added LUMEN_GAIN to layer_lumens; this list was not
+           # updated and the whole harness raised NameError on every commit
+           # from then to 1.19.2. Anything layer_lumens multiplies by must be
+           # lifted here, or the suite is red for a reason the log hides.
+           'LUMEN_GAIN']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT']
 BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'LIGHT_LAYERS']
 
@@ -557,6 +562,13 @@ __METHODS__
     # correction any more: in Luminous Power mode intensity IS the output.
     # Brightness multiplies, the enclosure trim multiplies room roles only,
     # and the booth roles never trim.
+    #
+    # Since 1.10.0 every figure is ALSO multiplied by LUMEN_GAIN (10.0, the
+    # eyeballed calibration in wr-drop-lights.rb). The expectation below is
+    # pinned at what the tool actually WRITES to V-Ray -- 2000 lm of product
+    # spec goes out as 20000 -- rather than dividing the gain back out, so
+    # a change to the calibration shows up here by name instead of hiding
+    # behind a tidy product number.
     out << 'lm ' + [layer_lumens(2000.0, 1.0, 1.0),
                     layer_lumens(2000.0, 2.0, 1.0),
                     layer_lumens(2000.0, 0.5, 1.0),
@@ -717,7 +729,9 @@ EXPECT = ' | '.join([
     'noisy 48.0,36.0;48.0,108.0;144.0,36.0;144.0,108.0 fb0',
     'kr 1.000,0.695,0.431 1.000,0.755,0.552 1.000,1.000,1.000 '
     '0.791,0.855,1.000 1.000,0.266,0.000',
-    'lm 2000,4000,1000,700,500,800',
+    # 21b: LUMEN_GAIN x (2000, 2000x2, 2000x0.5, 2000x0.35, 2000x0.25,
+    # 800 untrimmed) -- the written values, not the product table.
+    'lm 20000,40000,10000,7000,5000,8000',
     'as 1.000,1.667,0.500,3.000,1.250,1.000',
     'lt roles7 inst11 visroles3 visfix5 k6 room10800 booth1200 units1',
     'ko 4000,3700,3200,3500,5500,4500,4000',

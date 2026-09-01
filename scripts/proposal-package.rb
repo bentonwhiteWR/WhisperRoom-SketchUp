@@ -33,7 +33,10 @@
 #     lights cannot brighten a plain export; this contract is what makes one
 #     read well. One checkbox turns it off; it is pushed after the draft swap
 #     and popped before anything else changes mode, so it never leaks into a
-#     mode snapshot.
+#     mode snapshot. It is RE-APPLIED after every scene switch inside the
+#     export loop (1.19.3) -- a proposal scene stores its own shadow info and
+#     rendering options and puts them back on selection, which silently undid
+#     the contract on every row before that.
 #   - THE V-RAY LANE IS GATED, NOT ASSUMED. probe-vray.rb has now been run
 #     live (27 Aug 2026, SketchUp 2026): VRay::Context.active is NON-NIL even
 #     cold, `state` returned :idleInitialized, and the DR pair in_process? /
@@ -1586,6 +1589,49 @@ module WR_ProposalPackage
     log(dlg, 'shading contract restored', 'dim')
   end
 
+  # RE-APPLIED AFTER EVERY SCENE SWITCH, NOT JUST PUSHED ONCE (1.19.3).
+  #
+  # unit_shade_push runs once, before the first image row. But every plate
+  # proposal-scenes.rb makes stores its own rendering options and shadow info
+  # (use_rendering_options / use_shadow_info both true -- SketchUp's default
+  # for a hand-made scene too), and selecting such a page puts ITS shadows,
+  # ambient occlusion, ground and horizon straight back over the contract --
+  # the mechanism that put the light tags back in 1.9.12, one property over.
+  # So the plain image went out with the scene's shadows while the log said
+  # "shadows off". export_pages now calls this between each `selected_page =`
+  # and write_image (cfg['after_switch']); it re-forces the contract and logs
+  # what the row will ACTUALLY be written with.
+  #
+  # WR_Shading.apply, not push: apply only writes and reads back. push would
+  # snapshot the already-contracted state, and pop would then "restore" the
+  # contract instead of the model. @shade_saved is untouched here, so
+  # unit_shade_pop still puts back exactly what was there before the batch.
+  def self.shade_reapply(model, dlg, page)
+    return unless @shade_saved
+    stuck = WR_Shading.apply(model, @shade_saved[:dark])
+    onoff = lambda { |v| v == true ? 'on' : (v == false ? 'off' : v.inspect) }
+    sh = (model.shadow_info['DisplayShadows'] rescue :unreadable)
+    ao = (model.rendering_options['AmbientOcclusion'] rescue :unreadable)
+    name = (page.name rescue '?')
+    log(dlg, "shading re-applied after switching to #{name}: " \
+             "shadows #{onoff.call(sh)}, AO #{onoff.call(ao)}",
+        stuck.empty? ? 'dim' : 'bad')
+    stuck.each { |s| log(dlg, "  would not take: #{s}", 'bad') }
+  rescue StandardError => e
+    log(dlg, "shading re-apply failed after switching to #{(page.name rescue '?')}: " \
+             "#{e.class}: #{e.message} -- this row exports as the scene sits", 'bad')
+  end
+
+  # The export_pages config for one image row. A method of its own so the
+  # harness can prove the hook is WIRED, not only that export_pages honours
+  # one. shade_reapply is a no-op when SHADING is unticked (@shade_saved nil).
+  def self.image_cfg(hide, dlg)
+    { 'dir' => @cfg['dir'], 'width' => @cfg['width'],
+      'height' => @cfg['height'], 'bg' => 'Opaque', 'over' => 'Yes',
+      'hide_tags' => hide,
+      'after_switch' => lambda { |m, pg| shade_reapply(m, dlg, pg) } }
+  end
+
   def self.unit_image(model, dlg, p)
     plan = [{ :page => p[:page], :n => p[:n], :base => p[:base] }]
     # D4: an EXPLICIT height, so an image row and a render row of the same
@@ -1607,9 +1653,9 @@ module WR_ProposalPackage
     # does not go through export_pages at all.
     hide = WR_Mode::LIGHT_TAGS.dup
     hide.concat(ANNOT_TAGS) if @client_safe
-    cfg  = { 'dir' => @cfg['dir'], 'width' => @cfg['width'],
-             'height' => @cfg['height'], 'bg' => 'Opaque', 'over' => 'Yes',
-             'hide_tags' => hide }
+    # ...and the shading contract rides the same hook (after_switch), for the
+    # same reason: the scene puts its own shadow info back on selection.
+    cfg  = image_cfg(hide, dlg)
     # RECORD WHAT IS HIDDEN ON THIS SCENE BEFORE EXPORTING IT. Selecting the
     # page applies its saved per-entity hidden state — the per-scene wall
     # hiding (wr-scene-walls.rb, verified live 31 Aug 2026) — and
