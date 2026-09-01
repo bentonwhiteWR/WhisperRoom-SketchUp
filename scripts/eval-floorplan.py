@@ -44,8 +44,10 @@ authors on purpose (spec §B4: "cases 4 and 5 score behavior, not inches"):
         and the verdict is recorded verbatim. Exit 0 either way — a probe
         has no pass condition until its README assigns one.
 
-Scratch models only (GOAL rule): build-takeoff replaces its own room groups
-by name and touches nothing else, but do not aim this at client work.
+Scratch models only, and now ENFORCED rather than asked for: every build job
+carries a guard that raises inside SketchUp, before any geometry is created,
+unless the active model is Untitled — naming the model it refused. The run
+also erases the groups it created and reads back to confirm they are gone.
 """
 import io
 import json
@@ -114,21 +116,106 @@ def run_checker(takeoff):
     return r.returncode, r.stdout + r.stderr
 
 
+# Top-level groups THIS process built, [entityID, name]. Registered at build
+# time and erased by the cleanup pass in main()'s finally, so a run that
+# fails, refuses or raises still takes its debris with it.
+_BUILT = []
+
+# The scratch-model fence. `.forge/GOAL.md` has said "scratch models only,
+# never run bridge jobs against live client work" since the mission started
+# and nothing enforced it; on 31 Aug 2026 a suite run was very nearly issued
+# while Benton had RoofMountedVentilation.skp open and dirty, which would have
+# dropped 26 case rooms into his unsaved work.
+#
+# The check has to be INSIDE the job, not a separate probe before it. The
+# active model can change between two bridge calls — it changed under this
+# session in the minutes between one agent reading the model and the next —
+# so a Python-side pre-flight proves only what was true a moment ago.
+# SketchUp's Ruby is single-threaded, so a guard in the same job as the build
+# is atomic with it: the model cannot change between the assert and the first
+# entity created. An Untitled model is one whose `path` is empty.
+SCRATCH_GUARD = (
+    "_m = Sketchup.active_model\n"
+    "if !_m.path.to_s.strip.empty?\n"
+    "  raise \"refusing to build: the active model is a SAVED file - \" \\\n"
+    "        \"title #{_m.title.inspect}, path #{_m.path.inspect}. That is \" \\\n"
+    "        \"the window in front of you now. The eval suite builds and \" \\\n"
+    "        \"erases geometry and runs only against an Untitled scratch \" \\\n"
+    "        \"model. Open a new model in SketchUp and re-run; do not \" \\\n"
+    "        \"switch models on anyone's behalf while they are working.\"\n"
+    "end\n")
+
+
 def build_and_read(lock, room_names):
+    """Build the lock's rooms and read them back. Returns (rooms, created_ids)
+    where created_ids are the top-level groups THIS call added — the only
+    entities the cleanup pass is allowed to touch."""
     br = import_module('sketchup-bridge')
     names_rb = 'nil' if room_names is None else \
         '[' + ', '.join(json.dumps(n) for n in room_names) + ']'
     job = (
+        SCRATCH_GUARD +
+        "_before = Sketchup.active_model.entities.grep(Sketchup::Group)"
+        ".map(&:entityID)\n"
         "load File.join(WhisperRoom::Tools::SCRIPTS_DIR, 'wr-bridge-lib.rb')\n"
         "WRB.tool('build-takeoff')\n"
         "WR_BuildTakeoff.build_from(%s)\n"
-        "WRB.takeoff_readback(%s)\n" % (json.dumps(lock.replace('\\', '/')),
-                                        names_rb))
+        "_after = Sketchup.active_model.entities.grep(Sketchup::Group)\n"
+        "{'rooms' => WRB.takeoff_readback(%s),\n"
+        " 'created' => _after.reject { |g| _before.include?(g.entityID) }\n"
+        "               .map { |g| [g.entityID, g.name.to_s] }}\n"
+        % (json.dumps(lock.replace('\\', '/')), names_rb))
     r = br.submit(job, timeout=120, label='eval-floorplan')
     if r.get('status') != 'ok':
         fail('bridge job failed: %s\n%s' % (r.get('status'),
                                             r.get('error') or r.get('output', '')), 1)
-    return r['value']
+    v = r['value']
+    created = v.get('created') or []
+    _BUILT.extend(created)
+    return v['rooms'], created
+
+
+def cleanup_built():
+    """Erase exactly the groups this run created, then READ BACK to confirm
+    they are gone. Do not skip the read-back and do not widen the scope.
+
+    Both halves are paid for. A previous session's handoff reported its seven
+    trial groups erased and read back empty, and on 31 Aug 2026 they were
+    still sitting in the scratch model — a cleanup claim that did not hold is
+    the same failure class as a wrong dimension that validates. And the debris
+    is somebody else's until proven otherwise, so this erases by entityID
+    captured at build time, never by name and never everything that looks like
+    a room."""
+    created = list(_BUILT)
+    del _BUILT[:]
+    if not created:
+        return
+    br = import_module('sketchup-bridge')
+    ids = '[' + ', '.join(str(int(c[0])) for c in created) + ']'
+    job = (
+        "_want = %s\n"
+        "_m = Sketchup.active_model\n"
+        "_hit = _m.entities.grep(Sketchup::Group)"
+        ".select { |g| _want.include?(g.entityID) }\n"
+        "_named = _hit.map { |g| [g.entityID, g.name.to_s] }\n"
+        "_m.entities.erase_entities(_hit) unless _hit.empty?\n"
+        "_left = _m.entities.grep(Sketchup::Group)"
+        ".select { |g| _want.include?(g.entityID) }\n"
+        "{'erased' => _named,\n"
+        " 'left' => _left.map { |g| [g.entityID, g.name.to_s] }}\n" % ids)
+    r = br.submit(job, timeout=120, label='eval-floorplan cleanup')
+    if r.get('status') != 'ok':
+        print('  CLEANUP FAILED — %s built group(s) may still be in the model: '
+              '%s' % (len(created), ', '.join(c[1] for c in created)))
+        return
+    left = r['value'].get('left') or []
+    if left:
+        print('  CLEANUP INCOMPLETE — %d group(s) survived the erase and are '
+              'still in the model: %s'
+              % (len(left), ', '.join('%s (#%s)' % (n, i) for i, n in left)))
+    else:
+        print('  cleanup: %d built group(s) erased, read back gone'
+              % len(r['value'].get('erased') or []))
 
 
 def nearest(p, pts):
@@ -268,7 +355,7 @@ def record_row(case, verdict, worst, detail):
     print('  recorded in eval/RESULTS.md')
 
 
-def main(argv):
+def _main(argv):
     if not argv:
         fail(__doc__)
     case = argv[0]
@@ -342,7 +429,8 @@ def main(argv):
 
     rooms_truth = truth['rooms']
     names = room_filter or [r['room'] for r in rooms_truth]
-    built = {r['name']: r for r in build_and_read(lock, None)}
+    rooms_built, _created = build_and_read(lock, None)
+    built = {r['name']: r for r in rooms_built}
 
     results = []
     worst = None        # None until a room is actually measured — an
@@ -446,6 +534,16 @@ def summarize_refusal(log):
     # must summarize, not raise — this feeds the ledger's FAIL rows.
     s = '; '.join(lines) or (tail[-1] if tail else '(checker produced no output)')
     return s[:400]
+
+
+def main(argv):
+    """Every exit path runs the cleanup — a refusal, a scoring failure, a
+    bridge fault and a raise all leave the scratch model as they found it.
+    fail() exits through SystemExit, so the finally still fires."""
+    try:
+        return _main(argv)
+    finally:
+        cleanup_built()
 
 
 if __name__ == '__main__':

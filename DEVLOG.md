@@ -2,6 +2,143 @@
 
 ## 2026-08-31
 
+### 1.12.9 — the run winding is a rule the checker can see; D1-D5 closed
+
+The blind-transcription trial's real yield was five documentation defects
+(`eval/RESULTS.md`, D1-D5): places where the written protocol was silent and
+seven isolated transcribers all had to guess. They all guessed the same way,
+which is luck, not safety. Four of the five are now enforced in
+`scripts/takeoff-check.py` rather than merely written down.
+
+**D2, the dangerous one: run winding and start corner.** Runs are now defined
+as a **clockwise** walk of the interior starting at the **northwest-most**
+corner, so run 0 always heads `E` along the northernmost wall. Nothing
+downstream could recover this: `build-takeoff.rb` reads its mitre sense from
+the signed area and builds either winding without complaint, so a
+counter-clockwise run list closes, validates and produces a clean, plausible
+room. And a counter-clockwise list is exactly what a **mirrored** read of the
+plan produces, because swapping east for west reverses the walk.
+
+Measured, not argued: `eval/floorplans/blind-a-office/takeoff.json` with east
+and west swapped, and the same room walked the other way round, BOTH validate
+clean against the committed checker — exit 0, lock written, ready to build.
+Both now refuse by name (`office winding`). The checker refuses an undeclared
+counter-clockwise walk, a clockwise walk starting at the wrong corner, a bare
+`"ccw"` with no reason, and a declaration that contradicts the geometry.
+
+The escape exists for the same reason `assumed` does. The real UIC 3190J IS
+transcribed counter-clockwise, and rightly: the one measured door position on
+that job is a vertical pen chain running north corner to near jamb down the
+west wall, and forcing the convention would restate that pen number as a
+subtraction. It now declares itself, per room, with the reason recorded:
+`"winding": {"order": "ccw", "reason": "..."}`. Its geometry is untouched, so
+`s609-3190j` scores against the same truth polygon as before.
+
+**D1 — `at` never named its corner.** It is the corner where the run STARTS,
+along the run's own travel direction: a run heading `E` is dimensioned from
+its west end, `S` from its north end, `W` from its east end, `N` from its
+south end. That is what `build-takeoff.rb` has always done (it offsets from
+`pts[i]` toward `pts[i+1]`); nothing said so. The checker now prints it in
+words for every door - `8'-10" from the north end of run 1 (the run heads S)`
+- which on the real job matches the plan note verbatim, and the review sheet
+carries the same phrase.
+
+**D3 — `parts` may now hang off an `{"assumed": ...}` value** and is summed
+either way. `blind-f-mech`'s transcriber assumed a total FROM a chain and had
+to bury the arithmetic in the reason string where nothing could verify it. An
+assumption with recorded arithmetic is a checkable assumption.
+
+**D4 — `hinge` is mandatory and no longer defaults silently.** It was
+`d.get('hinge') == 'far' ? 'far' : 'near'`, so a missing hinge quietly became
+`near` and read as measured - the same defect class as the dialog's invented
+`at:36"`. Missing or unknown now fails by name; `{"assumed": "near",
+"reason": ...}` and `{"v": "far", "src": "pen IMG_7595"}` are both legal. All
+29 doors in the 27 committed take-offs already state it, so nothing broke.
+
+**D5 — closure-derived values had no defined provenance** and were recorded
+three different ways across the trial. Ruling: a wall whose length is whatever
+makes the polygon close is NOT a measurement - closure gives it that value by
+construction, so the closure check confirms nothing about it. It is
+`"src": "derived closure"` with a note naming the runs that force it, it flags
+as DERIVED, and it gets a tape put on it. The enforceable half: two
+`derived closure` runs on one axis fail by name, because closure forces
+exactly one unknown per axis and with two, neither is determined.
+
+Non-numeric recorded guesses (assumed hinge, declared winding) land in the
+lock's new `flag_inventory` rather than `assumed_inventory`, because
+`build-takeoff.rb` formats every entry of the latter as a length for its
+in-model note and `near` is not a length. They print on the console report;
+**they do not yet reach the model as a note** - that is a `build-takeoff.rb`
+change, owned by another lane, and it is not done.
+
+Backward compatibility, checked rather than assumed: all 26 eval cases and the
+client take-off run through the checker with exactly their prior exit codes -
+the five refusal cases still refuse with their expected phrases, the rest still
+validate. The only file that needed migrating was 3190J, and the migration is
+one declaration, no geometry.
+
+`--selftest` is 48 cases, 17 of them new here, including the mirrored
+L-room and the window with no sill.
+
+**Not verified, and named as such:** no case has been built and scored in
+SketchUp since this change. Benton had his own files open and the scratch
+model was not safe to write to, so the live build-and-score step was
+deliberately not run rather than run against the wrong model. The
+checker-level evidence above is real; the bridge-level evidence is absent.
+`.forge/builder/HANDOFF.md` carries the exact commands that close it.
+
+#### 1.12.9, same release — the retired band sill, and the window sill that shared its name
+
+Fallout from 1.12.8, in files that Builder did not own. Walls now build as one
+solid floor to ceiling, so the room-level `sill` — the height they used to be
+SPLIT at — reads nothing. It is now **refused by name**, not quietly ignored:
+no committed take-off used it, so this breaks nothing, and a format that still
+advertises a field nothing reads is how the next transcriber loses an
+afternoon. `HOUSE` drops its 48" default and the patch vocabulary drops the
+room-level `sill` field with it.
+
+The real bug was the name collision underneath. A **window's** `sill` — how
+high it sits off the floor — was optional, and a window without one was
+invented twice over, *differently*: the review sheet read
+`f.sill_in != null ? f.sill_in : (room.sill_in || 48)` and drew it from the
+retired band sill at 48", while `build-takeoff.rb` reads
+`(f['sill_in'] || 0.0)` and builds it from the floor at 0". One missing
+number, two silent placements, disagreeing with each other — an invented
+placement arriving through a name collision, which is the exact class this
+mission exists to eliminate.
+
+Demonstrated before fixing, the way D2 was: `synthetic-nasty`'s take-off with
+the window's `sill` deleted validates clean against the committed checker,
+exit 0, lock written — and the lock carries no `sill_in` on the window and an
+unflagged `sill_in: 48.0` on the room. It now fails by name
+(`adjacent feature 0 (window) sill — missing`). A window's sill is required:
+measured, or `{"assumed": ..., "reason": ...}`. Both windows in the eval set
+already state it, so nothing broke. The sheet's fallback now matches the
+builder's (0", not 48") so the two can never draw a window in different
+places again.
+
+#### 1.12.9, same release — the eval suite refuses to build into a saved model
+
+`.forge/GOAL.md` has said "scratch models only" since the mission started and
+nothing enforced it. On 31 Aug a suite run was nearly issued while Benton had
+`RoofMountedVentilation.skp` open and dirty; 26 case rooms would have landed
+in his unsaved work.
+
+The guard is INSIDE the Ruby job, not a Python pre-flight, and that distinction
+is the whole point: the active model changed under this session in the minutes
+between one agent reading it and the next, so a check from the Python side is
+stale by the time the job runs. SketchUp's Ruby is single-threaded, so a guard
+in the same job as the build is atomic with it. It raises before any geometry
+exists and names the model it refused - title and path - so nobody has to hunt
+for which window was in front. Proven both ways by read-only bridge job.
+
+`scripts/eval-floorplan.py` also cleans up after itself now: it captures the
+entityIDs of the top-level groups its own build created, erases exactly those
+in `main()`'s `finally` (so a refusal, a scoring failure or a raise all take
+their debris with them), and READS BACK to confirm they are gone rather than
+assuming. Scoped by entityID captured at build time, never by name and never
+everything that looks like a room - the scratch model is shared.
+
 ### 1.12.8 — walls build as ONE solid, floor to ceiling; the two-band split is gone
 
 Benton, 31 Aug: *"Why are you still building these walls with 'two parts'.

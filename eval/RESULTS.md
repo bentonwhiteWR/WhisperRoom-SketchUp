@@ -148,27 +148,81 @@ equivalent work) — transcription is not where the 45 minutes went.
 
 Documentation defects the blind transcribers surfaced (a transcriber going
 wrong by following the docs is a doc bug; these six followed them and had
-to guess):
+to guess). **All five are addressed in plugin 1.12.9; each entry below
+carries what changed and whether it is now ENFORCED or only DOCUMENTED. The
+rows in the table have NOT been re-run since — see the note under it.**
 
 - **D1 — `at` never says which corner.** "corner -> near jamb" does not
   name the run's start corner; all seven guessed start-corner-in-travel-
   direction and happened to match the builder. One different guess flips a
   door to the wrong end of its wall and nothing would catch it.
+  **RULED AND DOCUMENTED, 1.12.9** — `at` is measured from the corner where
+  its run STARTS, along that run's travel direction (`E` from the west end,
+  `S` from the north end, `W` from the east end, `N` from the south end);
+  that is what `build-takeoff.rb` always did. Normative in
+  `reference/takeoff-format.md` and `skills/whisperroom-takeoff/SKILL.md`.
+  Not directly enforceable — it is a semantic definition — so the checker
+  makes it *checkable by a reader* instead: it prints the anchor in words for
+  every door (`8'-10" from the north end of run 1 (the run heads S)`), the
+  lock carries it as `at_from`, and the review sheet's ledger repeats it. On
+  the real UIC job that printed line matches the plan note verbatim.
 - **D2 — no winding/start-corner convention for runs.** Nothing says start
   top-left, walk clockwise. All seven happened to; the scorer compares in
   the room's own frame, so a different-but-congruent walk would score as
   wildly wrong. Convention belongs in `reference/takeoff-format.md`.
+  **ENFORCED, 1.12.9.** Runs are a CLOCKWISE walk starting at the
+  NORTHWEST-most corner, so run 0 heads `E`. `check_winding` in
+  `scripts/takeoff-check.py` refuses by name an undeclared counter-clockwise
+  walk, a clockwise walk starting at the wrong corner, a bare `"ccw"` with no
+  reason, and a declaration that contradicts the geometry. A room genuinely
+  transcribed the other way declares it per room with a reason —
+  `"winding": {"order": "ccw", "reason": "..."}` — which is what the real UIC
+  3190J now does (its pen door chain runs north corner to near jamb down the
+  west wall; forcing the convention would restate that pen number as a
+  subtraction). Its geometry is unchanged, so `s609-3190j` still scores
+  against the same truth polygon.
+  **The proof this was a live landmine, not a tidiness point:**
+  `blind-a-office`'s take-off with east and west swapped (a mirrored read of
+  the plan) and the same room walked the other way round BOTH validated clean
+  against the committed checker — exit 0, closure 0.00", no
+  self-intersection, lock written, ready to build. Both now refuse by name.
+  That is the silent-wrong-geometry family of the 31 Aug failure, and the
+  blind trial surfaced it where review had not.
 - **D3 — `parts` cannot attach to an `{assumed}` value** (found by
   blind-f). When a total is honestly assumed FROM a chain (15" + 15'-2" +
   15"), the arithmetic can only live in the reason string, where the
   checker cannot verify it.
+  **ENFORCED, 1.12.9** — `check_parts` now runs on `{"assumed": ...}` values
+  as well as `{v, src}` ones, summed to the same exact tolerance. An
+  assumption reached by chain arithmetic is a checkable assumption. Purely
+  permissive: no committed file changed behaviour.
 - **D4 — no assumed-escape for enums.** `hinge` is near/far with no way to
   flag "not stated"; all seven wrote `near`, most of them from a drawn
   leaf, at least one admittedly arbitrarily.
+  **ENFORCED, 1.12.9** — `norm_enum` accepts `"near"`, `{"v": "far", "src":
+  ...}` and `{"assumed": "near", "reason": ...}`, and refuses a missing or
+  unknown hinge BY NAME. The old code was `'far' if hinge == 'far' else
+  'near'`, so a missing hinge silently became `near` and read as measured —
+  the dialog's `at:36"` defect in enum form. All 29 doors across the 27
+  committed take-offs already state it, so nothing broke. Recorded
+  non-numeric guesses land in the lock's new `flag_inventory`; they reach the
+  console report and the review sheet but **not yet an in-model note** —
+  that is a `build-takeoff.rb` change, another lane's file, NOT DONE.
 - **D5 — closure-derived values have no defined provenance.** An unlabeled
   wall whose length is forced by closure was recorded three different
   ways across the trial (pen-sourced sum with a note, `assumed`, omitted
   from `parts`); the docs never say which is right.
+  **RULED, AND HALF-ENFORCED, 1.12.9** — the ruling: a value forced by
+  closure is NOT a measurement, because closure gives it that value by
+  construction and so confirms nothing about it. Record it as
+  `"src": "derived closure"` with a note naming the runs that force it;
+  `derived` is a new `SRC_KINDS` member and it FLAGS, so it reaches the
+  review sheet and the model as DERIVED and gets a tape put on it. The
+  enforceable half: two `derived closure` runs on one axis fail by name —
+  closure forces exactly one unknown per axis, and with two, any pair summing
+  to the same total closes and neither of them is determined. What is only
+  documented: nothing can tell that a value CALLED `pen` was in fact forced
+  by closure.
 
 | date | case | verdict | worst vertex err | detail |
 |---|---|---|---|---|
@@ -179,6 +233,16 @@ to guess):
 | 2026-08-31 20:48 | blind-e-studio | PASS | 0.00" | clean |
 | 2026-08-31 20:54 | blind-f-mech | PASS | 0.00" | clean |
 | 2026-08-31 20:54 | blind-g-lounge | PASS | — | refused by name as designed: not close |
+
+**No row has been re-scored since plugin 1.12.9 (the D1–D5 format change).**
+The suite builds real geometry and Benton had his own files open, so the live
+build-and-score step was deliberately not run rather than run against the
+wrong model. What IS verified for 1.12.9: `takeoff-check.py --selftest` 45/45,
+and all 26 cases plus `clients/uic-daley-library/takeoff.json` producing
+exactly their prior checker exit codes — the five refusal cases still
+refusing with their expected phrases, the rest still validating. The
+bridge-level half is open; the commands that close it are in
+`.forge/builder/HANDOFF.md`.
 
 Row detail beyond the table: blind-d-workshop's door had NO position on the
 plan; the transcriber recorded `{"assumed": "100\""}` (scaled from pixels,

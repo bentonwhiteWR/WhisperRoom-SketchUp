@@ -58,6 +58,7 @@
     },
     {
       "name": "3190J",
+      "winding": {"order": "ccw", "reason": "walked counter-clockwise on purpose, and declared so it cannot be mistaken for a mirrored read: the only MEASURED door position on this job is the vertical pen chain on IMG_7595, which runs north corner -> near jamb down the west (corridor) wall. A clockwise walk from the northwest corner would put that wall's run travelling north from the south corner, forcing the pen 8'10\" to be restated as a subtraction (14'4\" - 8'10\" - 38\") and turning the one hard number on the job into arithmetic. Geometry is unchanged; only the starting corner and travel direction differ."},
       "runs": [
         {"d": "W", "v": "8'1\"", "src": "pen IMG_7595",
          "note": "the pen chain is drawn along the south edge; rectangular per print, applied wall to wall"},

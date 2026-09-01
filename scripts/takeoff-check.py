@@ -78,9 +78,34 @@ DISPLAY_TOL = 0.05 + 1e-9   # patch staleness, inches. The sheet's `old` is
 PART_TOL = 0.001    # parts are stated numbers; a mismatch is a transcription
                     # error, not noise, so the tolerance is float dust only
 DIR = {'E': (1, 0), 'W': (-1, 0), 'N': (0, 1), 'S': (0, -1)}
-SRC_KINDS = ('pen', 'plan-vector', 'stated', 'assumed', 'default')
+SRC_KINDS = ('pen', 'plan-vector', 'stated', 'derived', 'assumed', 'default')
 FEATURE_TYPES = ('heater', 'bulkhead', 'window')
-HOUSE = {'thick': 4.0, 'door_h': 80.0, 'sill': 48.0}
+# The room-level `sill` that used to live here was the height walls were
+# SPLIT at for the two-band construction. Walls have built as one solid
+# since 1.12.8 and nothing reads it; a room-level sill is now refused by
+# name rather than silently defaulted (see check_room).
+HOUSE = {'thick': 4.0, 'door_h': 80.0}
+HINGE_CHOICES = ('near', 'far')
+
+# The house winding convention. Runs are a CLOCKWISE walk of the interior
+# starting at the northwest-most corner, so run 0 always heads E along the
+# northernmost wall. Nothing downstream can recover this: build-takeoff.rb
+# derives its mitre sense from the signed area and mitres either winding
+# happily, so a counter-clockwise run list — which is exactly what a mirrored
+# read of the plan produces, since swapping east for west reverses the walk —
+# builds a clean, plausible, mirrored room with no message anywhere. All seven
+# blind transcribers in the 31 Aug 2026 trial guessed this convention right and
+# none of them could have read it anywhere (eval/RESULTS.md, defect D2).
+WINDING_ORDERS = ('cw', 'ccw')
+# The corner run 0 must start at, per winding: (max-y, then min-x) for cw,
+# (max-y, then max-x) for ccw.
+WINDING_START = {'cw': ('NW', -1), 'ccw': ('NE', 1)}
+
+# The corner `at` is measured from, named for a reader, per run direction.
+# `at` is ALWAYS the run's start corner in travel direction — build-takeoff.rb
+# offsets from pts[i] along (pts[i+1] - pts[i]) — but the format never said so
+# (defect D1), so the checker now says it out loud for every door.
+RUN_START_END = {'E': 'west', 'W': 'east', 'N': 'south', 'S': 'north'}
 
 
 # ---------------------------------------------------------------- grammar --
@@ -141,7 +166,13 @@ class Check:
 
     def __init__(self):
         self.errors = []     # invariant failures — any one blocks the lock
-        self.assumed = []    # the ASSUMED/DEFAULT inventory
+        self.assumed = []    # the ASSUMED/DEFAULT/DERIVED inventory — numeric
+                             # values only, because build-takeoff.rb renders
+                             # each one's value_in as a dimension in the model
+        self.nonnum = []     # the same inventory for values that are not
+                             # lengths: an assumed hinge, a declared winding.
+                             # Kept apart so the builder's numeric note
+                             # formatting never sees a string (see report).
         self.infos = []      # passing checks worth printing (chains closed…)
 
     def fail(self, name, msg):
@@ -153,6 +184,93 @@ class Check:
     def flag(self, path, kind, value_in, reason):
         self.assumed.append({'path': path, 'kind': kind,
                              'value_in': value_in, 'reason': reason})
+
+    def flag_text(self, path, kind, value, reason):
+        """Flag a non-numeric recorded guess — a hinge, a winding. Same
+        review discipline, separate list: the model note the builder places
+        formats value_in as inches, and 'near' is not inches."""
+        self.nonnum.append({'path': path, 'kind': kind,
+                            'value': value, 'reason': reason})
+
+
+def check_parts(ck, path, obj, v):
+    """`parts` on any value object -> [floats] or None, checked to sum to v.
+
+    Available on an {"assumed": ...} value as well as a {"v", "src"} one
+    (defect D3): a transcriber who assumes a total FROM a chain — 15" +
+    15'-2" + 15" on blind-f-mech — was previously forced to bury the
+    arithmetic in the reason string, where nothing could verify it. An
+    assumption whose arithmetic is recorded is a checkable assumption."""
+    if 'parts' not in obj:
+        return None
+    parts = []
+    bad = False
+    for k, p in enumerate(obj['parts']):
+        pv = parse_len(p)
+        if pv is None:
+            ck.fail('%s parts[%d]' % (path, k), 'part %r does not parse' % (p,))
+            bad = True
+        else:
+            parts.append(pv)
+    if bad:
+        return parts
+    total = sum(parts)
+    if abs(total - v) > PART_TOL:
+        ck.fail('%s parts' % path,
+                'parts %s sum to %s but the value is %s — the chain does not '
+                'close; one of these numbers is transcribed wrong'
+                % (' + '.join(arch(p) for p in parts), arch(total), arch(v)))
+    else:
+        ck.ok('%s parts' % path, '%s = %s — chain closes exactly'
+              % (' + '.join(arch(p) for p in parts), arch(v)))
+    return parts
+
+
+def norm_enum(ck, path, obj, choices, what):
+    """A closed-vocabulary value -> {'value', 'flag', 'reason'} or None.
+
+    Accepts the bare string ("near"), a sourced object ({"v": "far", "src":
+    "pen IMG_7595"}), or a recorded guess ({"assumed": "near", "reason":
+    ...}) — defect D4: an enum had no way to say "I had to assume this", so
+    every transcriber wrote a bare `near`, at least one of them admittedly
+    arbitrarily, and it read as measured. A missing or unknown value now
+    fails by name instead of silently becoming the first choice."""
+    if obj is None:
+        ck.fail(path, '%s not stated — one of %s, or a recorded guess: '
+                      '{"assumed": "%s", "reason": "..."}'
+                % (what, '/'.join(choices), choices[0]))
+        return None
+    if isinstance(obj, str):
+        if obj not in choices:
+            ck.fail(path, '%r is not one of %s' % (obj, '/'.join(choices)))
+            return None
+        return {'value': obj, 'flag': None, 'reason': None}
+    if not isinstance(obj, dict):
+        ck.fail(path, '%r is not a %s value' % (obj, what))
+        return None
+    if 'assumed' in obj:
+        val = obj['assumed']
+        if val not in choices:
+            ck.fail(path, 'assumed %r is not one of %s' % (val, '/'.join(choices)))
+            return None
+        reason = str(obj.get('reason', '')).strip()
+        if not reason:
+            ck.fail(path, 'assumed %s with no reason — a recorded assumption '
+                          'is legal, a silent one is not' % what)
+            return None
+        ck.flag_text(path, 'assumed', val, reason)
+        return {'value': val, 'flag': 'assumed', 'reason': reason}
+    val = obj.get('v')
+    if val not in choices:
+        ck.fail(path, '%r is not one of %s' % (val, '/'.join(choices)))
+        return None
+    src = str(obj.get('src', '')).strip()
+    kind = src.split(' ', 1)[0] if src else ''
+    if kind not in SRC_KINDS:
+        ck.fail(path, 'src %r missing or not one of %s — where did this %s '
+                      'come from?' % (src, '/'.join(SRC_KINDS), what))
+        return None
+    return {'value': val, 'flag': None, 'reason': obj.get('note')}
 
 
 def norm_value(ck, path, obj, required=True, allow_default=False):
@@ -182,7 +300,7 @@ def norm_value(ck, path, obj, required=True, allow_default=False):
             return None
         ck.flag(path, 'assumed', v, reason)
         return {'in': v, 'src': 'assumed', 'flag': 'assumed', 'reason': reason,
-                'parts': None, 'note': obj.get('note')}
+                'parts': check_parts(ck, path, obj, v), 'note': obj.get('note')}
     if 'v' not in obj:
         ck.fail(path, 'no v and no assumed — nothing to build from')
         return None
@@ -213,29 +331,20 @@ def norm_value(ck, path, obj, required=True, allow_default=False):
             return None
         flag = 'default'
         ck.flag(path, 'default', v, str(reason))
-    parts = None
-    if 'parts' in obj:
-        parts = []
-        bad = False
-        for k, p in enumerate(obj['parts']):
-            pv = parse_len(p)
-            if pv is None:
-                ck.fail('%s parts[%d]' % (path, k), 'part %r does not parse' % (p,))
-                bad = True
-            else:
-                parts.append(pv)
-        if not bad:
-            total = sum(parts)
-            if abs(total - v) > PART_TOL:
-                ck.fail('%s parts' % path,
-                        'parts %s sum to %s but v is %s — the chain does not '
-                        'close; one of these numbers is transcribed wrong'
-                        % (' + '.join(arch(p) for p in parts),
-                           arch(total), arch(v)))
-            else:
-                ck.ok('%s parts' % path,
-                      '%s = %s — chain closes exactly'
-                      % (' + '.join(arch(p) for p in parts), arch(v)))
+    elif kind == 'derived':
+        # Defect D5. A value forced by the closure of the other runs, or by
+        # arithmetic on stated numbers, is NOT a measurement: nothing confirms
+        # it independently, because closure gives it whatever value makes the
+        # walk close. It is legal, it is common, and it flags — so it reaches
+        # the review sheet and the model as DERIVED rather than passing as pen.
+        if not (reason and str(reason).strip()):
+            ck.fail(path, 'src "derived" must name what it was derived from '
+                          '(note or reason) — e.g. "derived closure" with a '
+                          'note naming the runs that force it')
+            return None
+        flag = 'derived'
+        ck.flag(path, 'derived', v, str(reason))
+    parts = check_parts(ck, path, obj, v)
     return {'in': v, 'src': src, 'flag': flag,
             'reason': str(reason) if reason else None,
             'parts': parts, 'note': obj.get('note')}
@@ -322,6 +431,105 @@ def polygon(runs):
     return pts
 
 
+def signed_area(pts):
+    """Shoelace over the closed walk, square inches. Negative = clockwise in
+    the model frame (N = +y) — the same sense build-takeoff.rb reads to pick
+    its mitre direction."""
+    v = pts[:-1]
+    n = len(v)
+    return sum(v[i][0] * v[(i + 1) % n][1] - v[(i + 1) % n][0] * v[i][1]
+               for i in range(n)) / 2.0
+
+
+def check_winding(ck, name, pts, runs, decl):
+    """The D2 invariant: runs walk CLOCKWISE from the northwest-most corner.
+
+    Returns the declared order ('cw'/'ccw') for the lock. Refuses by name a
+    walk that runs the other way undeclared, and one that starts at the wrong
+    corner. A room genuinely transcribed the other way round — the real UIC
+    job's 3190J, whose pen door chain is measured off the north corner of the
+    west wall — stays legal by DECLARING it with a reason, the same discipline
+    `assumed` uses: guessing is legal, guessing silently is not."""
+    want = 'cw'
+    if decl is not None:
+        if isinstance(decl, str):
+            if decl not in WINDING_ORDERS:
+                ck.fail('%s winding' % name,
+                        'winding %r is not one of %s'
+                        % (decl, '/'.join(WINDING_ORDERS)))
+                return None
+            if decl == 'ccw':
+                ck.fail('%s winding' % name,
+                        'a counter-clockwise walk must be declared with a '
+                        'reason, not just named: {"order": "ccw", "reason": '
+                        '"..."}. Clockwise is the convention; departing from '
+                        'it is a judgment call and gets recorded like one')
+                return None
+            want = decl
+        elif isinstance(decl, dict):
+            want = decl.get('order')
+            if want not in WINDING_ORDERS:
+                ck.fail('%s winding' % name, 'order %r is not one of %s'
+                        % (want, '/'.join(WINDING_ORDERS)))
+                return None
+            reason = str(decl.get('reason', '')).strip()
+            if want == 'ccw' and not reason:
+                ck.fail('%s winding' % name,
+                        'winding "ccw" with no reason — say why this room is '
+                        'walked against the convention')
+                return None
+            if want == 'ccw':
+                ck.flag_text('%s winding' % name, 'declared', 'ccw', reason)
+        else:
+            ck.fail('%s winding' % name, 'winding must be "cw" or '
+                                         '{"order": ..., "reason": ...}')
+            return None
+
+    area = signed_area(pts)
+    got = 'ccw' if area > 0 else 'cw'
+    if got != want:
+        if want == 'cw':
+            ck.fail('%s winding' % name,
+                    'the runs walk COUNTER-CLOCKWISE. The convention is a '
+                    'clockwise walk starting at the northwest-most corner, so '
+                    'run 0 heads E along the northernmost wall. Nothing '
+                    'downstream can tell a deliberate counter-clockwise walk '
+                    'from a MIRRORED read of the plan — swapping east for west '
+                    'reverses the walk, closes just as cleanly, and the builder '
+                    'mitres either winding without complaint. Rewrite the runs '
+                    'clockwise from the northwest corner, or, if this room '
+                    'really is transcribed the other way on purpose, declare '
+                    'it: "winding": {"order": "ccw", "reason": "..."}')
+        else:
+            ck.fail('%s winding' % name,
+                    'declared "ccw" but the runs walk CLOCKWISE — the '
+                    'declaration and the geometry disagree; one of them is '
+                    'wrong')
+        return None
+
+    v = pts[:-1]
+    top = max(p[1] for p in v)
+    corner, sense = WINDING_START[want]
+    xs = [p[0] for p in v if abs(p[1] - top) <= TOL]
+    want_x = max(xs) if sense > 0 else min(xs)
+    if abs(pts[0][1] - top) > TOL or abs(pts[0][0] - want_x) > TOL:
+        ck.fail('%s winding' % name,
+                'run 0 starts at (%s, %s), which is not the %s-most corner of '
+                'the outline (that corner is at (%s, %s)). A %s walk starts '
+                'there by convention — `at` on every door is measured from its '
+                'run\'s start corner, and the run indices are how the review '
+                'sheet, the patch format and the scorer name a wall, so the '
+                'start corner is part of the geometry, not a free choice'
+                % (arch(pts[0][0]), arch(pts[0][1]), corner,
+                   arch(want_x), arch(top), want.upper()))
+        return None
+    ck.ok('%s winding' % name,
+          '%s from the %s corner — run 0 heads %s%s'
+          % (want.upper(), corner, runs[0]['d'],
+             ' (declared exception)' if want == 'ccw' else ''))
+    return want
+
+
 def check_room(ck, room, idx):
     """Validate one room; returns the normalized lock dict (some fields may be
     None when the room is failing — the lock is only written on exit 0)."""
@@ -370,10 +578,28 @@ def check_room(ck, room, idx):
             else:
                 ck.ok('%s polygon' % name, '%d runs, closes to %.2f", '
                       'no self-intersection' % (len(runs), math.hypot(ex, ey)))
+                out['winding'] = check_winding(ck, name, pts, runs,
+                                               room.get('winding'))
         out['polygon'] = [[round(x, 4), round(y, 4)] for x, y in pts[:-1]] \
             if pts else None
     else:
         out['polygon'] = None
+
+    # D5, the enforceable half: closure forces exactly ONE unknown run per
+    # axis. Two runs on the same axis both claiming to be closure-derived
+    # means the arithmetic is underdetermined and the pair could be anything
+    # that sums right — a closing polygon built on nothing.
+    for axis, letters in (('east-west', 'EW'), ('north-south', 'NS')):
+        by_closure = [i for i, r in enumerate(runs)
+                      if r['d'] in letters and r['flag'] == 'derived'
+                      and 'closure' in (r['src'] or '').lower()]
+        if len(by_closure) > 1:
+            ck.fail('%s runs' % name,
+                    'runs %s are all "derived closure" on the %s axis, but '
+                    'closure forces exactly one unknown per axis — with two, '
+                    'any pair summing to the same total closes and none of '
+                    'them is determined. Measure or state all but one'
+                    % (', '.join(str(i) for i in by_closure), axis))
 
     # Ceiling — mandatory. The constraint that disqualifies a booth fastest.
     ceil = norm_value(ck, '%s ceiling' % name, room.get('ceiling'))
@@ -390,10 +616,17 @@ def check_room(ck, room, idx):
                     % (run_i, len(runs)))
             continue
         w = norm_value(ck, '%s width' % path, d.get('w'))
+        # D1: name the corner. `at` is the distance from the corner where the
+        # run STARTS, measured along the run's own travel direction — which,
+        # with the winding pinned, is a specific compass corner of the room.
+        anchor = 'the %s end of run %d (the run heads %s)' % (
+            RUN_START_END[runs[run_i]['d']], run_i, runs[run_i]['d'])
+        hinge = norm_enum(ck, '%s hinge' % path, d.get('hinge'),
+                          HINGE_CHOICES, 'hinge')
         if 'at' not in d or d.get('at') is None:
             ck.fail('%s at' % path,
-                    'no position on run %d. Measure corner -> near jamb, or '
-                    'mark it assumed with a reason.' % run_i)
+                    'no position on run %d. Measure from %s to the near jamb, '
+                    'or mark it assumed with a reason.' % (run_i, anchor))
             continue
         at = norm_value(ck, '%s at' % path, d.get('at'))
         h = norm_value(ck, '%s height' % path, d.get('h'), required=False)
@@ -403,7 +636,7 @@ def check_room(ck, room, idx):
                  'reason': 'standard leaf, not measured', 'parts': None,
                  'note': None}
             ck.flag('%s height' % path, 'default', h['in'], h['reason'])
-        if w is None or at is None or h is None:
+        if w is None or at is None or h is None or hinge is None:
             continue
         run_len = runs[run_i]['in']
         if w['in'] <= 0:
@@ -419,12 +652,15 @@ def check_room(ck, room, idx):
                     'shrink it' % (run_i, arch(at['in']), arch(w['in']),
                                    arch(run_len)))
             continue
+        ck.ok('%s at' % path, '%s from %s to the near jamb'
+              % (arch(at['in']), anchor))
         doors.append({'run': run_i, 'at_in': at['in'], 'at_src': at['src'],
                       'at_flag': at['flag'], 'at_reason': at['reason'],
+                      'at_from': anchor,
                       'w_in': w['in'], 'w_src': w['src'], 'w_flag': w['flag'],
                       'h_in': h['in'], 'h_src': h['src'], 'h_flag': h['flag'],
                       'h_reason': h['reason'],
-                      'hinge': 'far' if d.get('hinge') == 'far' else 'near'})
+                      'hinge': hinge['value'], 'hinge_flag': hinge['flag']})
     # Door overlap on a shared run.
     spans = {}
     for dd in doors:
@@ -459,7 +695,16 @@ def check_room(ck, room, idx):
                          ('length' if t != 'window' else 'width', True),
                          ('depth', t == 'heater'),
                          ('head', t == 'bulkhead'),
-                         ('sill', False)):
+                         # A window's sill is how high it sits off the
+                         # floor and is REQUIRED — measured, or assumed
+                         # with a reason. It used to be optional, and a
+                         # window without one was invented twice over,
+                         # differently: the review sheet drew it from the
+                         # room's retired band sill (48") while
+                         # build-takeoff.rb built it from the floor
+                         # (`f['sill_in'] || 0.0`). One missing number,
+                         # two silent placements that disagreed.
+                         ('sill', t == 'window')):
             if not req and key not in f:
                 continue
             nv = norm_value(ck, '%s %s' % (path, key), f.get(key), required=req)
@@ -483,9 +728,17 @@ def check_room(ck, room, idx):
         feats.append(ff)
     out['features'] = feats
 
-    for key in ('thick', 'sill'):
-        nv = norm_value(ck, '%s %s' % (name, key), room.get(key), required=False)
-        out[key + '_in'] = nv['in'] if nv else HOUSE[key]
+    nv = norm_value(ck, '%s thick' % name, room.get('thick'), required=False)
+    out['thick_in'] = nv['in'] if nv else HOUSE['thick']
+    if 'sill' in room:
+        ck.fail('%s sill' % name,
+                'a room-level `sill` is no longer a thing. It was the height '
+                'walls were SPLIT at for the two-band construction, and walls '
+                'have built as one solid floor-to-ceiling since 1.12.8 — '
+                'nothing reads this. If you meant how high a WINDOW sits off '
+                'the floor, that is `sill` on the window feature itself; the '
+                'two are unrelated numbers that used to share a name. '
+                'Delete it.')
 
     org = room.get('origin')
     if org is not None:
@@ -535,6 +788,11 @@ def check_file(data, path='takeoff.json'):
         'interpretations': data.get('interpretations'),
         'rooms': rooms,
         'assumed_inventory': ck.assumed,
+        # Non-numeric recorded guesses (assumed hinge, declared winding). Kept
+        # out of assumed_inventory because build-takeoff.rb formats every entry
+        # there as a length for its in-model note; these need their own note
+        # pass on the builder side before they reach the model.
+        'flag_inventory': ck.nonnum,
     }
     return ck, lock
 
@@ -551,12 +809,21 @@ def print_report(ck, lock, path):
         print('  FAIL  %-28s %s' % (name, msg))
     print('')
     if ck.assumed:
-        print('  ASSUMED / DEFAULT — %d value(s), confirm before quoting:' % len(ck.assumed))
+        print('  ASSUMED / DEFAULT / DERIVED — %d value(s), confirm before '
+              'quoting:' % len(ck.assumed))
         for a in ck.assumed:
             print('    %s %s — %s (%s)' % (a['kind'].upper(), a['path'],
                                            arch(a['value_in']), a['reason']))
     else:
-        print('  ASSUMED / DEFAULT — none. Every value is measured or stated.')
+        print('  ASSUMED / DEFAULT / DERIVED — none. Every value is measured '
+              'or stated.')
+    if ck.nonnum:
+        print('')
+        print('  RECORDED NON-NUMERIC GUESSES — %d, confirm before quoting:'
+              % len(ck.nonnum))
+        for a in ck.nonnum:
+            print('    %s %s — %s (%s)' % (a['kind'].upper(), a['path'],
+                                           a['value'], a['reason']))
     print('')
     if ck.errors:
         print('  %d invariant(s) failed — no lock file written; nothing builds '
@@ -1266,7 +1533,11 @@ JS = r"""
           text: 'bulkhead, head ' + arch(f.head_in), cls: 'dim2'
         });
       } else if (f.type === 'window') {
-        var sill = f.sill_in != null ? f.sill_in : (room.sill_in || 48);
+        // sill_in is required on a window, so this is never null. The
+        // fallback matches build-takeoff.rb (`|| 0.0`) rather than the
+        // retired room band sill, so the sheet can never draw a window
+        // somewhere the model would not build it.
+        var sill = f.sill_in != null ? f.sill_in : 0;
         box(o, g.u, f.width_in, inw, 1, Math.min(sill, ceil), ceil, m);
         labels.push({
           p: [o[0] + g.u[0] * f.width_in / 2, o[1] + g.u[1] * f.width_in / 2,
@@ -1570,6 +1841,8 @@ def badge(src, flag):
         return '<span class="b asm">ASSUMED</span>'
     if flag == 'default':
         return '<span class="b def">DEFAULT</span>'
+    if flag == 'derived':
+        return '<span class="b def">DERIVED</span>'
     kind = (src or '').split(' ', 1)[0]
     if kind == 'plan-vector':
         return '<span class="b vec">VECTOR</span>'
@@ -1641,7 +1914,7 @@ def room_ledger(room):
 
     def add(nv_in, src, flag, reason, target, note, parts=None):
         img = _img_of(src)
-        if flag in ('assumed', 'default'):
+        if flag in ('assumed', 'default', 'derived'):
             rows.append(('(%s %s)' % (flag, arch(nv_in)), target,
                          reason or note, None, flag))
             return
@@ -1659,7 +1932,8 @@ def room_ledger(room):
     for j, d in enumerate(room.get('doors') or []):
         add(d['w_in'], d['w_src'], d['w_flag'], None, 'door %d width' % j, None)
         add(d['at_in'], d['at_src'], d['at_flag'], d.get('at_reason'),
-            'door %d position' % j, None)
+            'door %d position (from %s)'
+            % (j, d.get('at_from') or 'the run\'s start corner'), None)
     for j, f in enumerate(room.get('features') or []):
         for key in ('from', 'length', 'width', 'depth', 'head', 'sill'):
             if (key + '_in') in f:
@@ -1762,7 +2036,7 @@ def apply_patch(data, patch):
         field = str(e.get('field') or '')
         m = FIELD_RE.match(field)
         container = key = None
-        if field in ('ceiling', 'thick', 'sill'):
+        if field in ('ceiling', 'thick'):
             container, key = room, field
         elif m:
             kind, idx, sub = m.group(1), int(m.group(2)), m.group(3)
@@ -1779,7 +2053,7 @@ def apply_patch(data, patch):
                 container, key = lst[idx], sub
         if container is None:
             errs.append((name, 'field %r is not editable — one of: runs[i], '
-                               'ceiling, thick, sill, doors[j].at/.w/.h, '
+                               'ceiling, thick, doors[j].at/.w/.h, '
                                'features[j].from/.length/.width/.depth/.head/.sill'
                          % (field,)))
             continue
@@ -1792,8 +2066,8 @@ def apply_patch(data, patch):
             # edit this exists for.
             if key == 'h':
                 cur_in = HOUSE['door_h']
-            elif key in ('thick', 'sill'):
-                cur_in = HOUSE[key]
+            elif key == 'thick':
+                cur_in = HOUSE['thick']
         old_in = parse_len(e.get('old'))
         if old_in is None:
             errs.append((name, 'old %r does not parse' % (e.get('old'),)))
@@ -2096,6 +2370,141 @@ def selftest():
                     {'d': 'W', 'v': '12\'', 'src': 'pen x'},
                     {'d': 'N', 'v': '10\'', 'src': 'pen x'}]),
          True, None),
+
+        # ---- D2, the winding convention. The blind trial's dangerous gap:
+        # seven transcribers all guessed clockwise-from-northwest and nothing
+        # written down told them to. A walk the other way closes, mitres and
+        # builds clean, and is indistinguishable from a mirrored read.
+        ('THE MIRROR: the same L-room walked counter-clockwise closes and '
+         'self-intersects nowhere, but is refused by name as undeclared '
+         'winding',
+         room(runs=[{'d': 'S', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'E', 'v': '12\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '5\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '2\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '5\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '10\'', 'src': 'pen x'}]),
+         False, 'COUNTER-CLOCKWISE'),
+        ('a counter-clockwise rectangle is refused by name',
+         room(runs=[{'d': 'S', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'E', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '10\'', 'src': 'pen x'}]),
+         False, 'COUNTER-CLOCKWISE'),
+        ('a counter-clockwise walk DECLARED with a reason passes (the real '
+         'UIC 3190J, whose pen door chain is measured off the north corner)',
+         room(winding={'order': 'ccw', 'reason': 'pen chain runs the other way'},
+              runs=[{'d': 'W', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'E', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '8\'', 'src': 'pen x'}]),
+         True, None),
+        ('a bare "ccw" with no reason is refused — declaring is a judgment '
+         'call and gets recorded like one',
+         room(winding='ccw',
+              runs=[{'d': 'W', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'E', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '8\'', 'src': 'pen x'}]),
+         False, 'must be declared with a reason'),
+        ('a declaration that contradicts the geometry is refused by name',
+         room(winding={'order': 'ccw', 'reason': 'wrong'}), False,
+         'the declaration and the geometry disagree'),
+        ('a clockwise walk that starts at the wrong corner is refused by name',
+         room(runs=[{'d': 'S', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'N', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'E', 'v': '10\'', 'src': 'pen x'}]),
+         False, 'not the NW-most corner'),
+
+        # ---- D3: parts on an assumed value.
+        ('an ASSUMED total may now carry the chain that justifies it, and the '
+         'chain is checked',
+         room(runs=[{'d': 'E', 'assumed': '17\'8"',
+                     'reason': 'no wall-to-wall total on the plan; 15" + '
+                               '15\'2" + 15" between the heaters',
+                     'parts': ['15"', '15\'2"', '15"']},
+                    {'d': 'S', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '17\'8"', 'src': 'pen x'},
+                    {'d': 'N', 'v': '8\'', 'src': 'pen x'}]), True, None),
+        ('an ASSUMED total whose chain does not sum fails by name',
+         room(runs=[{'d': 'E', 'assumed': '17\'8"',
+                     'reason': 'chain arithmetic',
+                     'parts': ['15"', '15\'2"', '12"']},
+                    {'d': 'S', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '17\'8"', 'src': 'pen x'},
+                    {'d': 'N', 'v': '8\'', 'src': 'pen x'}]),
+         False, 'the chain does not close'),
+
+        # ---- D5: closure-derived provenance.
+        ('a closure-derived run is legal, flagged DERIVED, and needs a note',
+         room(runs=[{'d': 'E', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '10\'', 'src': 'derived closure',
+                     'note': 'unlabelled on the plan; forced by run 0'},
+                    {'d': 'N', 'v': '8\'', 'src': 'pen x'}]), True, None),
+        ('a derived value with nothing naming the derivation fails by name',
+         room(runs=[{'d': 'E', 'v': '10\'', 'src': 'pen x'},
+                    {'d': 'S', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '10\'', 'src': 'derived closure'},
+                    {'d': 'N', 'v': '8\'', 'src': 'pen x'}]),
+         False, 'must name what it was derived from'),
+        ('TWO closure-derived runs on one axis are underdetermined and fail '
+         'by name',
+         room(runs=[{'d': 'E', 'v': '10\'', 'src': 'derived closure',
+                     'note': 'forced'},
+                    {'d': 'S', 'v': '8\'', 'src': 'pen x'},
+                    {'d': 'W', 'v': '10\'', 'src': 'derived closure',
+                     'note': 'forced'},
+                    {'d': 'N', 'v': '8\'', 'src': 'pen x'}]),
+         False, 'closure forces exactly one unknown per axis'),
+
+        # ---- D4: the enum assumed-escape.
+        ('a door with no hinge fails by name instead of silently becoming '
+         '"near"',
+         room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
+                      'at': {'v': '36"', 'src': 'pen x'}}]),
+         False, 'hinge not stated'),
+        ('a door whose hinge had to be guessed is legal when recorded',
+         room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
+                      'at': {'v': '36"', 'src': 'pen x'},
+                      'hinge': {'assumed': 'near',
+                                'reason': 'no leaf drawn on the plan'}}]),
+         True, None),
+        ('an assumed hinge with no reason fails by name',
+         room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
+                      'at': {'v': '36"', 'src': 'pen x'},
+                      'hinge': {'assumed': 'near'}}]),
+         False, 'assumed hinge with no reason'),
+        ('a hinge read off a drawn leaf may carry its source',
+         room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
+                      'at': {'v': '36"', 'src': 'pen x'},
+                      'hinge': {'v': 'far', 'src': 'pen x'}}]), True, None),
+        ('an unknown hinge value fails by name',
+         room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
+                      'at': {'v': '36"', 'src': 'pen x'},
+                      'hinge': 'left'}]),
+         False, "'left' is not one of near/far"),
+
+        # ---- the retired band sill, and the window sill that shared its name.
+        ('THE NAME COLLISION: a window with no sill fails by name instead of '
+         'being invented twice — the sheet drew it at the room band sill 48", '
+         'build-takeoff.rb built it at the floor 0"',
+         room(features=[{'type': 'window', 'run': 0,
+                         'from': {'v': '2\'', 'src': 'pen x'},
+                         'width': {'v': '4\'', 'src': 'pen x'}}]),
+         False, 'window) sill'),
+        ('a window sill that had to be guessed is legal when recorded',
+         room(features=[{'type': 'window', 'run': 0,
+                         'from': {'v': '2\'', 'src': 'pen x'},
+                         'width': {'v': '4\'', 'src': 'pen x'},
+                         'sill': {'assumed': '30"',
+                                  'reason': 'no sill height on the plan'}}]),
+         True, None),
+        ('a room-level sill — the retired wall-band split height — is refused '
+         'by name, not silently ignored',
+         room(sill={'v': '48"', 'src': 'pen x'}), False, 'no longer a thing'),
+
         ('door with no at fails by name',
          room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
                       'hinge': 'near'}]), False, 'door 0 at'),

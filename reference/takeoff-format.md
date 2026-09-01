@@ -9,7 +9,7 @@ next to it; `--html` also writes the one-page review sheet); built by
 example: `clients/uic-daley-library/takeoff.json` — the real 31 Aug 2026 job,
 which exercises every feature below.
 
-Two rules generate everything else, each mapped to a confirmed failure:
+Three rules generate everything else, each mapped to a confirmed failure:
 
 1. **Chains carry their arithmetic.** On the 31 Aug job the pen chain
    `10" + 17'3" + 10" = 18'11"` closed exactly and nothing checked it;
@@ -20,6 +20,16 @@ Two rules generate everything else, each mapped to a confirmed failure:
    only as an explicit `{"assumed": ..., "reason": ...}` — and it is flagged
    on the review sheet, in the build report, and as a text note in the model
    at the feature itself.
+3. **The walk has one direction and one starting corner.** Runs are a
+   **clockwise** walk of the interior starting at the **northwest-most
+   corner**, so run 0 always heads `E` along the northernmost wall. Nothing
+   downstream recovers this: `build-takeoff.rb` reads its mitre sense from the
+   signed area and builds either winding without complaint, so a
+   counter-clockwise run list closes, validates and produces a clean plausible
+   room — and a counter-clockwise list is exactly what a **mirrored** read of
+   the plan produces, because swapping east for west reverses the walk. The
+   checker refuses an undeclared counter-clockwise walk, and a clockwise walk
+   that starts at the wrong corner, both by name.
 
 ## Values
 
@@ -30,7 +40,12 @@ Every dimension is an object, one of:
 {"v": "18'11\"", "parts": ["10\"", "17'3\"", "10\""],    // chain with its
  "src": "pen IMG_7594", "note": "17'3\" is between the heaters"}  // arithmetic
 {"assumed": "6\"", "reason": "no position on plan; ..."} // recorded guess
+{"assumed": "17'8\"", "parts": ["15\"", "15'2\"", "15\""],   // an assumption
+ "reason": "no wall-to-wall total anywhere on the plan; this is the pen clear
+            width plus the two heater depths"}                // with its arithmetic
 {"v": "96\"", "src": "default", "note": "8'-0\" house default, not measured"}
+{"v": "12'6\"", "src": "derived closure",                     // forced by the
+ "note": "unlabelled on the plan; forced by run 0"}           // other runs
 ```
 
 - `v` / `assumed` / `parts[]` entries use the dialog grammar (`parseLen`,
@@ -43,11 +58,47 @@ Every dimension is an object, one of:
   `pen` (hand-written field measurement — name the image),
   `plan-vector` (from PDF/DWG geometry — name the anchor),
   `stated` (client email/text/other statement — name it),
-  `assumed` (requires `reason`), `default` (requires a note naming the
-  default). Only `assumed`/`default` flag; everything else is a measurement
-  with a named source.
-- `parts` must sum to `v` **exactly** (float dust only) — a mismatch is a
-  transcription error, not noise, and fails by name.
+  `derived` (arithmetic on other numbers on this plan — requires a note or
+  reason naming what it came from), `assumed` (requires `reason`), `default`
+  (requires a note naming the default). `assumed`, `default` and `derived`
+  all flag; `pen`, `plan-vector` and `stated` are measurements with a named
+  source and do not.
+- `parts` must sum to the value **exactly** (float dust only) — a mismatch is
+  a transcription error, not noise, and fails by name. `parts` may hang off an
+  `{"assumed": ...}` value as well as a `{v, src}` one: an assumption reached
+  by honest chain arithmetic is a *checkable* assumption, and burying the
+  arithmetic in the reason string puts it where nothing can verify it.
+
+### `derived` — the closure-forced value
+
+An unlabelled wall whose length is whatever makes the polygon close is
+**not a measurement**. Closure gives it that value by construction, so the
+closure check confirms nothing about it. Record it as
+`"src": "derived closure"` with a note naming the runs that force it. It
+flags, so it reaches the review sheet and the model as DERIVED and gets a
+tape put on it like any other unconfirmed number.
+
+Two `derived closure` runs on the same axis fail by name: closure forces
+exactly one unknown per axis, and with two, any pair summing to the same
+total closes and neither is determined.
+
+### Enums
+
+`hinge` is `"near"` or `"far"`. It obeys the never-invent rule like every
+other value: a missing or unknown hinge **fails by name** — it does not
+quietly become `near`. Three legal forms:
+
+```jsonc
+"hinge": "near"                                    // stated, read off the plan
+"hinge": {"v": "far", "src": "pen IMG_7595"}       // stated, source named
+"hinge": {"assumed": "near", "reason": "no leaf drawn"}   // recorded guess
+```
+
+Recorded non-numeric guesses (an assumed hinge, a declared winding) land in
+the lock's `flag_inventory` rather than `assumed_inventory`, because the
+builder formats every entry of the latter as a length for its in-model note.
+They print on the console report and the review sheet; **they do not yet get
+an in-model note** — that is a `build-takeoff.rb` change and is not done.
 
 ## File shape
 
@@ -69,36 +120,92 @@ Every dimension is an object, one of:
   "name": "3190G+H",              // unique — it names the model group
   "runs": [ {"d": "E", ...value}, ... ],   // d in E/S/W/N, model coords
                                             // (N = +y); polygon must CLOSE
-                                            // to 0.02" or nothing builds
+                                            // to 0.02" or nothing builds.
+                                            // CLOCKWISE from the NW-most
+                                            // corner — run 0 heads E.
+  "winding": {"order": "ccw",     // optional; ONLY to declare a deliberate
+              "reason": "..."},   // departure from the convention, and the
+                                  // reason is required
   "ceiling": <value>,             // MANDATORY. May be assumed-with-reason.
   "doors": [ {
       "run": 2,                   // index into runs
-      "at": <value>,              // corner -> near jamb. MANDATORY: measured
-                                  // or assumed-with-reason; absent fails by
-                                  // name. May not touch a corner (< 0.02"
-                                  // clearance) — that refusal replaces the
-                                  // old silent leaf-in-solid-wall defect.
+      "at": <value>,              // distance from the corner where THIS RUN
+                                  // STARTS, measured along the run's own
+                                  // travel direction, to the near jamb.
+                                  // MANDATORY: measured or assumed-with-
+                                  // reason; absent fails by name. May not
+                                  // touch a corner (< 0.02" clearance) —
+                                  // that refusal replaces the old silent
+                                  // leaf-in-solid-wall defect.
       "w": <value>,               // opening width
       "h": <value>,               // optional; omitted = 80" flagged DEFAULT
-      "hinge": "near" | "far"
+      "hinge": "near" | "far"     // MANDATORY; or {"assumed", "reason"}
   } ],
   "features": [                   // flagged massing on WR-Obstruction —
                                   // footprint honesty, not furniture
     {"type": "heater",  "run": 1, "from": <v>, "length": <v>, "depth": <v>},
     {"type": "bulkhead","run": 0, "from": <v>, "length": <v>,  // thickness
          "head": <v>},            // underside height; builds head..ceiling
-    {"type": "window",  "run": 0, "from": <v>, "width": <v>, "sill": <v>}
+    {"type": "window",  "run": 0, "from": <v>, "width": <v>,
+         "sill": <v>}             // REQUIRED: height off the floor
   ],
   "origin": [x, y],               // optional true offset, inches; omitted =
                                   // rooms placed side by side with a 48" gap
-  "thick": <value>, "sill": <value>,   // optional; house defaults 4" / 48"
+  "thick": <value>,               // optional; house default 4"
   "notes": ["..."]                // free text, echoed on the review sheet
 }
 ```
 
+### Winding, the start corner, and what `at` is measured from
+
+These three are one rule, because `at` has no meaning without the other two.
+
+- **Run 0 starts at the northwest-most corner** — the vertex that is furthest
+  north, and among those, furthest west — and the walk goes **clockwise**, so
+  run 0 heads `E` along the northernmost wall. The checker refuses any other
+  start corner by name.
+- **`at` is measured from the corner where its run starts**, along that run's
+  own travel direction. A run heading `E` is dimensioned from its **west**
+  end; heading `S`, from its **north** end; heading `W`, from its **east**
+  end; heading `N`, from its **south** end. This is what `build-takeoff.rb`
+  has always done — it offsets from `pts[i]` toward `pts[i+1]` — and the
+  checker now prints the corner in words for every door, so a reader can
+  check the transcription against the pen chain without deriving it.
+- Benton's own convention (`CLAUDE.md`) is *corner → near jamb*. This says
+  **which** corner.
+
+**Declaring the other winding.** A plan whose pen chains all run the other way
+may be transcribed counter-clockwise — but it must say so, with a reason, per
+room:
+
+```jsonc
+"winding": {"order": "ccw", "reason": "the only measured door position is a
+            vertical pen chain running north corner -> near jamb down the west
+            wall; a clockwise walk would force that pen number to be restated
+            as a subtraction"}
+```
+
+That is the real UIC 3190J, and it is the worked example. The escape exists
+for the same reason `assumed` does: the judgment call is legitimate, making it
+silently is not. A counter-clockwise walk with no declaration, a bare
+`"ccw"` with no reason, and a declaration that contradicts the geometry all
+fail by name. Declaring `ccw` moves the required start corner to the
+northeast-most vertex, so run 0 heads `W`.
+
 Massing conventions (representation constants, not measurements — they are
 not flagged): heater massing is 24" tall; the ceiling slab is 4" thick;
 windows build 1" deep from sill to ceiling.
+
+**There is no room-level `sill`, and one in a file fails by name.** It used to
+be the height walls were SPLIT at for the two-band construction; walls have
+built as one solid floor-to-ceiling since 1.12.8 and nothing reads it. A
+window's `sill` — how high it sits off the floor — is a different number that
+happened to share the name, it lives on the window feature, and it is
+**required**: measured, or assumed with a reason. It was optional until
+1.12.9, and a window without one got invented twice over, differently — the
+review sheet drew it at the room's retired 48" band sill while
+`build-takeoff.rb` built it from the floor at 0". One missing number, two
+silent placements that disagreed with each other.
 
 Reserved, explicitly not in v1: curved/angled walls (runs are rectilinear
 E/S/W/N, matching `WR_BuildRoom::DIR`), multi-floor, wall openings other
@@ -111,7 +218,8 @@ photos / PDF                       agent (or Gabe) transcribes — minutes
    -> clients/<job>/takeoff.json
 python scripts/takeoff-check.py clients/<job>/takeoff.json --html
    -> fails BY NAME (open chain, parts mismatch, missing door position,
-      missing ceiling, corner door, missing src...), or writes
+      missing ceiling, corner door, missing src, undeclared counter-clockwise
+      walk, wrong start corner, missing hinge...), or writes
       takeoff.lock.json + takeoff.review.html
 Gabe reads the review sheet — 2-3 min, answers the ASSUMED flags
 SketchUp: load scripts/build-takeoff.rb, pick the lock file
@@ -152,7 +260,7 @@ The copy box emits a structured patch, never prose:
 }
 ```
 
-`field` is one of `runs[i]`, `ceiling`, `thick`, `sill`, `doors[j].at/.w/.h`,
+`field` is one of `runs[i]`, `ceiling`, `thick`, `doors[j].at/.w/.h`,
 `features[j].from/.length/.width/.depth/.head/.sill`. Apply it with
 
 ```
