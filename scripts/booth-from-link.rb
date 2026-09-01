@@ -43,8 +43,9 @@
 # the step (sp — StepFront.skp exists but its placement is not sourced end to
 # end; see wr-overlays.rb's header), bass traps (bt) and the Audimute package
 # (ac) — no .skp exists for either — the studio light (sl, no fixture .skp),
-# and the ROOF UNIT of a roof-mounted booth (rv — RM<model>.skp exists on the
-# share, but where it seats on the roof is not sourced, so nothing is placed).
+# and the ROOF UNIT of a roof-mounted booth (rv — the part exists on the share
+# and has now been measured, but its seating is not confirmed; wr-roof-vent.rb
+# names the part, the ceiling it needs, and every blocker, per booth).
 #
 # ROOF-MOUNTED VENTILATION, precisely. On an rv = 1 booth the WALLS are built
 # correctly and completely: the former vent walls are cable walls, which is what
@@ -74,6 +75,10 @@ require 'json'
 
 # The folder field is a dropdown of folders used before, plus a Browse entry.
 load File.join(File.dirname(__FILE__), 'wr-folder.rb')
+
+# What a roof-mounted booth's roof unit is, how much ceiling it needs, and every
+# reason it is not seated yet. Read its header before changing anything rv.
+load File.join(File.dirname(__FILE__), 'wr-roof-vent.rb')
 
 module WR_BoothLink
   PREF = 'WR_BoothLink'.freeze
@@ -489,7 +494,26 @@ module WR_BoothLink
     summarise_placement(assign)
     # ---- roof-mounted ventilation: say exactly what was and was not built ----
     roof = payload['rv'].to_i == 1
-    rm_bad = roof_vent_complaints(roof, key, packs)
+    rm_bad = roof_vent_complaints(roof, key, packs) +
+             WR_RoofVent.impossible_roof_link(key, roof)
+    # THE HEIGHT A ROOM MUST GIVE. Printed on every booth, because it is the
+    # constraint that disqualifies a booth faster than floor area does
+    # (CLAUDE.md) and this tool never used to say it at all. On a roof-mounted
+    # booth the roof unit is ADDED — the portal's fit card does not add it, and
+    # under-reports an RM booth's ceiling by 10 to 16.5 in as a result.
+    ch = WR_RoofVent.ceiling_required(key, variant, hx, roof,
+                                      opts[:vss] ? true : false)
+    puts ''
+    if ch[:unit] > 0
+      puts format('  CEILING THE ROOM MUST GIVE: %s (%.2f in) — %.2f booth install ' \
+                  'clearance', WR_RoofVent.ft(ch[:total]), ch[:total], ch[:booth])
+      puts format('    + %.2f in of roof unit (%s).', ch[:unit], ch[:why])
+      puts '    The booth builder portal does NOT add the roof unit to its fit card,'
+      puts '    so its figure for this booth is low by that amount.'
+    else
+      puts format('  CEILING THE ROOM MUST GIVE: %s (%.2f in) install clearance.',
+                  WR_RoofVent.ft(ch[:total]), ch[:total])
+    end
     if roof
       puts ''
       puts '  ROOF-MOUNTED VENTILATION (rv = 1)'
@@ -497,10 +521,15 @@ module WR_BoothLink
       puts '           CABLE walls — the ducts move to the roof — and that is what'
       puts '           is standing in the model. They are listed under "Cable wall"'
       puts '           above. No vent hardware, no duct covers, no EFS on the walls.'
-      puts '    ROOF UNIT: NOT BUILT. RM' + payload['m'].to_s.sub(/\AMDL\s+/i, '') +
-           '.skp exists on the parts share, but where it'
-      puts '           seats on the roof is not sourced, and this tool does not'
-      puts '           invent placement numbers. Nothing roof-side is in this model.'
+      rm_part = WR_RoofVent.part_name(key, opts[:vss] ? true : false)
+      puts '    ROOF UNIT: NOT BUILT. The part is ' +
+           (rm_part ? "#{rm_part}.skp on the parts share" : 'not on the share at all') +
+           '.'
+      WR_RoofVent.roof_unit_blockers(key, variant, hx, opts[:efs],
+                                     opts[:vss] ? true : false).each do |b|
+        puts "           - #{b}"
+      end
+      WR_RoofVent.seating_note.each { |l| puts "             #{l}" }
       puts '    So: a COMPLETE set of walls for a roof-mounted booth, MISSING the'
       puts '    roof assembly. Not a booth that was merely "skipped" — and not a'
       puts '    finished booth either. Do not send this drawing out as complete.'
@@ -516,7 +545,7 @@ module WR_BoothLink
     unless rm_bad.empty?
       puts ''
       puts '!' * 74
-      puts '  ROOF-MOUNTED VENTILATION IS HALF APPLIED IN THIS LINK:'
+      puts '  THIS ROOF-MOUNTED LINK DOES NOT DESCRIBE A BOOTH THAT CAN EXIST:'
       rm_bad.each { |x| puts "    #{x}" }
       puts '  A roof-mounted booth turns EVERY vent wall into a cable wall. A booth'
       puts '  with some of each is a booth that ships with ventilation twice over'
@@ -580,9 +609,13 @@ module WR_BoothLink
     # sourcing reason, not a scoping one. The old wording let a booth with the
     # wrong walls read as a booth that was merely missing a roof unit.
     if payload['rv'].to_i == 1
-      refused << 'rv: the ROOF UNIT only (RM' +
-                 payload['m'].to_s.sub(/\AMDL\s+/i, '') + '.skp) — seating not ' \
-                 'sourced. The cable walls a roof-mounted booth ships with ARE built.'
+      # The VSS booth wants the VSS part. All 22 models have one — do NOT borrow
+      # the portal's ART rule (RM_VSS_SET, only 60 and 72), which would name the
+      # flat part on 20 of them. See wr-roof-vent.rb's header.
+      refused << 'rv: the ROOF UNIT only (' +
+                 (WR_RoofVent.part_name(key, opts[:vss] ? true : false) ||
+                  "no RM part for #{key}") + '.skp) — seating not confirmed, ' \
+                 'see above. The cable walls a roof-mounted booth ships with ARE built.'
     end
     unless refused.empty?
       puts "  NOT built, by name and by reason (#{refused.length}):"
@@ -597,9 +630,9 @@ module WR_BoothLink
       # refusal for a human at the Ruby Console, but under the bridge it raises,
       # so a refusal recorded only after it would be missing from exactly the
       # transcript a test reads.
-      puts '  ROOF-MOUNT BUILD REFUSED - the vent-wall swap is half applied. Nothing was placed.'
-      UI.messagebox("This link says ROOF-MOUNTED VENTILATION (rv = 1), but its vent walls " \
-                    "do not all agree:\n\n" + rm_bad.join("\n") +
+      puts '  ROOF-MOUNT BUILD REFUSED - see the reason(s) above. Nothing was placed.'
+      UI.messagebox("This link says ROOF-MOUNTED VENTILATION (rv = 1), but it does not " \
+                    "describe a booth that can exist:\n\n" + rm_bad.join("\n") +
                     "\n\nNOTHING WAS BUILT. A roof-mounted booth turns every vent wall into " \
                     "a cable wall. Half of that swap builds a booth that is either " \
                     "double-ventilated or not ventilated at all, and both look right in a " \

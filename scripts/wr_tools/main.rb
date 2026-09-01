@@ -60,7 +60,7 @@ module WhisperRoom
     # exporters share.
     SKIP     = ['wr_tools.rb', 'wr-booth-data.rb', 'wr-shading.rb',
                 'wr-folder.rb', 'wr-deck.rb', 'wr-overlays.rb',
-                'wr-bridge-lib.rb'].freeze
+                'wr-roof-vent.rb', 'wr-bridge-lib.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5
 

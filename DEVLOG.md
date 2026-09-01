@@ -2,6 +2,85 @@
 
 ## 2026-08-31
 
+### 1.13.0 — the roof unit measured, the ceiling requirement shipped, the seating still Benton's
+
+The other half of roof-mounted ventilation. 1.12.11 fixed the walls; this is
+what was learned about the roof assembly, and what could be shipped without
+inventing a placement number.
+
+**All 44 per-model roof parts were measured, live.** `RM<model>.skp` and
+`RM<model>VSS.skp` were loaded as definitions into an Untitled scratch model,
+their face boxes read, and every definition purged and the purge read back
+(`.forge/builder/roof-vent/measure-rm.py`, `measure-rm-faces.py`). The face box
+and the plain definition box agreed to the thousandth of an inch on all 44, so
+nothing is inflated by a fused annotation.
+
+**Benton's offsets half confirm, and that is the headline.** He gave both edges
+of both axes, which fixes the part's size by arithmetic, so the numbers were
+checkable.
+
+- **Front and back: exact, on all 22.** Every part measures `nominal - 8.000`
+  front to back, and the 84 series measures `nominal - 6.000`. 4 in and 3 in a
+  side, precisely as stated.
+- **That also settles the reference face**, which he had not answered: the
+  offsets are taken off the booth's **nominal** footprint — the model number in
+  inches — which is neither the exterior (nominal + 2) nor the interior
+  (nominal - 2).
+- **Left and right do not.** Exactly one model of 22 (`9696`) measures 3.125 in
+  a side. Fourteen measure 3.250, four measure 1.625 (every one of them 84 in
+  wide), two measure 2.943 and one measures 3.000.
+
+So **nothing roof-side is placed**. Seating the part today would mean choosing a
+left/right number Benton did not give, and placement is not ours to invent
+(`CLAUDE.md`). One piece of evidence may settle it in a sentence: 21 of the 22
+parts are authored with their geometry moved to the origin, but `RM102186.skp`
+sits at `(3.250, 4.000, 0)` in its own file — exactly its own per-side offsets.
+That un-recentred file is authored in booth-nominal coordinates, centred on the
+nominal footprint. If "centre it on the nominal footprint" is the rule, every
+part is already right and the placement is a few lines.
+
+**What did ship.**
+
+1. `scripts/wr-roof-vent.rb`, a new library (no SketchUp API, so the offline
+   test runs the whole file). It carries the 22 models with a roof part, the
+   measured table, the part naming, the ceiling requirement, and every blocker.
+
+2. **The ceiling a room must give is now printed on every booth**, which this
+   tool never said at all. On a roof-mounted booth the roof unit is **added** —
+   an `MDL 7272 S` roof-mount booth needs 7'-9.3" (93.31 in), not the 6'-11" the
+   catalogue quotes. Benton's stated unit height and the measured parts disagree
+   in both directions, so the code takes the **larger** and names which it took:
+   a flat unit is quoted at the measured 10.3125 rather than the stated 10, and
+   a VSS unit at the stated 16.5 rather than the 10.3125 most of those files
+   measure. Under-reporting ceiling is the one error that must not happen.
+   (The portal's own fit card still does not add the roof unit at all; that is
+   in `WhisperRoomQuote`, read-only from here, and is routed to Benton.)
+
+3. **The VSS naming trap is closed.** The portal's ART tables give a VSS variant
+   only to 60 and 72 (`RM_VSS_SET`); the per-model PARTS have one on all 22. A
+   VSS roof booth names `RM<model>VSS.skp`, and the test asserts it for all 22.
+
+4. **Art scenery can never reach a build.** `RM60`, `RM72_VSS`, `RM144_BACK`,
+   `RMVentilationIntakeBox`, the `*SideView` composites and the rest are matched
+   by name pattern, not by an exclusion list, so a newly exported `_BACK` file
+   is excluded the day it lands.
+
+5. **Three new named refusals.** An HX roof booth (no `RM*_HX.skp` exists), an
+   EFS roof booth (Benton's word was "might be directly on the right edge" — the
+   difference between 0 in and about 3 in), and the unconfirmed seating are each
+   named per booth rather than guessed at. And `rv = 1` on `4230 / 4242 / 4848 /
+   127 LP`, which have no roof part, is now **refused outright**: those links
+   arrive with their vent walls already swapped to cable walls, so building one
+   produces a booth with no ventilation at all.
+
+**Verified.** `scripts/rbtest-roofvent.py` — 72 checks, mutation-checked four
+ways. Live in SketchUp through the bridge, five modes of
+`.forge/builder/roof-vent/live-rm-report.py` (default, `--hx`, `--efs`, `--vss`,
+`--nopart`), each building, inspecting and erasing in one job, each reporting an
+empty model path and nothing left behind. The 1.12.11 reproduction still passes
+in both its modes. `scripts/rbtest-lights.py` fails identically with and without
+this change (verified by stashing) and was left alone.
+
 ### 1.12.11 — a roof-mounted booth built vent walls, and called it "out of scope"
 
 Reported by a Researcher tracing roof-mount ventilation, then reproduced live
