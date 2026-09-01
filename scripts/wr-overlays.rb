@@ -818,6 +818,14 @@ module WR_Overlays
           # along the wall and depth out from it — pick the axes; whatever is
           # left over is vertical. Passing an invented height here is what
           # stood the work surface up on edge against the wall.
+          #
+          # DeskSmall.skp MEASURES 30.00 x 12.18 x 14.75 (Benton's build log,
+          # 1 Sep 2026) — so the part IS authored lying down; it was only ever
+          # placed wrong. The old guessed 20" height scored |14.75-20| = 5.25
+          # against |12.18-20| = 7.82 and so chose the 14.75 DEPTH as the
+          # vertical axis, leaving 12.18 as the depth. Dropping the guess
+          # scores only the real numbers and the part lands 30 wide, 14.75
+          # deep, 12.18 tall. Benton, on the rebuild: "desk looks good now".
           ax = axes_for(gx[:e], dk[:w], nil, dk[:d])
           z_top = DESK_SURFACE_Z + (DESK_TOP_IS_STRIP ? DESK_STRIP_PROUD : 0.0)
           t = { :run => fr0[:run], :naxis => fr0[:naxis],

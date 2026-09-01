@@ -224,15 +224,17 @@ __METHODS__
     ax = axes_for([2.13, 22.97, 47.88], 24.0, 48.0, 2.0)
     out << format('axes w%d h%d t%d', ax[:wi], ax[:hi], ax[:ti])
     # The desk rule: height is NOT supplied, so the two MEASURED numbers pick
-    # their axes and the LEFTOVER axis is vertical. Extents below are a
-    # wall-mounted desk authored with width on x, depth on y and its (small,
-    # unmeasured) vertical extent on z — the answer must be w0 t1, h2, and it
-    # must NOT depend on how tall the part happens to be. Both rows are the
-    # same part at two different heights and both must land identically;
-    # under the old guessed-20 height the taller row flipped depth into the
-    # vertical slot and stood the work surface on edge against the wall.
-    a1 = axes_for([30.0, 14.0, 6.0], 30.0, nil, 14.0)
-    a2 = axes_for([30.0, 14.0, 26.0], 30.0, nil, 14.0)
+    # their axes and the LEFTOVER axis is vertical.
+    #
+    # Row 1 is DeskSmall.skp's REAL extents, 30.00 x 12.18 x 14.75, read off
+    # Benton's build log 1 Sep 2026. The answer must be width=30 (axis 0),
+    # depth=14.75 (axis 2), vertical=12.18 (axis 1) — i.e. 012. The old
+    # guessed 20" height picked 021 on these very numbers, standing the work
+    # surface up against the wall, which is the defect Benton photographed.
+    # Row 2 is the same part with a tall vertical extent: the answer must not
+    # move, because how tall the part is has no bearing on which axis is up.
+    a1 = axes_for([30.00, 12.18, 14.75], 30.0, nil, 14.0)
+    a2 = axes_for([30.00, 26.00, 14.75], 30.0, nil, 14.0)
     out << format('desk axes %d%d%d %d%d%d', a1[:wi], a1[:hi], a1[:ti],
                   a2[:wi], a2[:hi], a2[:ti])
 
@@ -308,7 +310,7 @@ EXPECT = (
     ' | mjp auto W1'
     ' | mjp E1 W1'
     ' | axes w1 h2 t0'
-    ' | desk axes 021 021'
+    ' | desk axes 012 012'
     ' | cp const 4.75 0.75 5.50 sum-ok'
     ' | cp lift off 0.00 0.00 on 5.75'
     ' | cp names CP4872,CP7248 SIDE,CP7224 SIDE,CP9648 SIDE,CP9624 CTR,'
