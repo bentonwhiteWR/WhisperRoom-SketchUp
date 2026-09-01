@@ -17,6 +17,7 @@
 
 require 'sketchup.rb'
 require 'json'
+require 'fileutils'
 
 module WhisperRoom
   module Tools
@@ -567,8 +568,59 @@ module WhisperRoom
 
     LIST_SEP = '|'.freeze
 
+    # ---------------------------------------------------------- shop defaults --
+    #
+    # A preference lives in the Windows registry, per user, so Benton's slots
+    # and stars have never reached anyone else's panel. defaults.json fixes
+    # that: it ships INSIDE the plugin folder, so install-plugin.py carries it
+    # to every machine, and it is the value a key takes when that user has
+    # never set one.
+    #
+    # The layering is: this user's own choice, else the shop default, else the
+    # code's fallback. Personal settings therefore still win and are never
+    # overwritten by an update — someone who has arranged their own slots keeps
+    # them; someone who has never touched a slot gets Benton's.
+    #
+    # Written by "Save my setup as the shop default" in the panel, which writes
+    # the file into the REPO CHECKOUT. It is a normal tracked file after that:
+    # commit and push it, and it reaches Gabe on his next Update now. Nothing
+    # about it is automatic, deliberately — one person's layout becoming
+    # everyone's is a decision, not a side effect of clicking around.
+    DEFAULTS_FILE = File.join(File.dirname(__FILE__), 'defaults.json').freeze
+
+    # Where "Save as shop default" writes. The repo copy when there is one,
+    # because that is the copy git tracks; the installed copy is a dead end
+    # that the next install overwrites.
+    def self.defaults_source
+      return DEFAULTS_FILE if bundled?
+      File.join(File.dirname(SCRIPTS_DIR), 'scripts/wr_tools/defaults.json')
+    end
+
+    def self.shop_defaults
+      return @shop if @shop
+      @shop = {}
+      begin
+        if File.file?(DEFAULTS_FILE)
+          h = JSON.parse(File.read(DEFAULTS_FILE))
+          @shop = h if h.is_a?(Hash)
+        end
+      rescue Exception => e
+        puts "WR Tools: defaults.json could not be read (#{e.class}) - ignoring it."
+        @shop = {}
+      end
+      @shop
+    end
+
+    # A sentinel no stored value can equal, so "never set" is distinguishable
+    # from "set to empty" — an empty list IS a choice and must not be refilled
+    # from the shop defaults on every launch.
+    UNSET = "\u0000wr-unset".freeze
+
     def self.read_pref(key, fallback = '')
-      Sketchup.read_default(PREF_KEY, key, fallback).to_s
+      v = Sketchup.read_default(PREF_KEY, key, UNSET)
+      return v.to_s unless v.to_s == UNSET
+      d = shop_defaults[key.to_s]
+      d.nil? ? fallback.to_s : d.to_s
     rescue Exception
       begin
         Sketchup.write_default(PREF_KEY, key, fallback.to_s)
@@ -576,6 +628,47 @@ module WhisperRoom
         nil
       end
       fallback.to_s
+    end
+
+    # Everything this panel remembers about how it is arranged. Recents are
+    # left out on purpose: they are one person's history, not a shop setting.
+    SHOP_KEYS = %w[slots slot_icons pinned ui_collapsed ui_dev].freeze
+
+    # Snapshot this user's arrangement into defaults.json in the repo.
+    # Returns [ok, message] — the message is shown to the operator verbatim.
+    def self.save_shop_defaults
+      out = {}
+      SHOP_KEYS.each do |k|
+        v = Sketchup.read_default(PREF_KEY, k, UNSET)
+        out[k] = v.to_s unless v.to_s == UNSET
+      end
+      # Per-script settings travel too: they are keyed set_<script>_<setting>
+      # and are exactly the "I always run it this way" knowledge worth sharing.
+      scan.each do |sc|
+        (sc['settings'] || []).each do |st|
+          k = "set_#{sc['id']}_#{st['key']}"
+          v = Sketchup.read_default(PREF_KEY, k, UNSET)
+          out[k] = v.to_s unless v.to_s == UNSET
+        end
+      end
+      path = defaults_source
+      if bundled?
+        return [false, 'No repo checkout on this machine, so there is nowhere ' \
+                       'to save a shop default that git could carry. Saving it ' \
+                       'into the installed plugin would be erased by the next ' \
+                       'install.']
+      end
+      begin
+        FileUtils.mkdir_p(File.dirname(path))
+        File.open(path, 'w') { |f| f.write(JSON.pretty_generate(out) + "\n") }
+      rescue Exception => e
+        return [false, "Could not write #{path}: #{e.class}: #{e.message}"]
+      end
+      @shop = nil
+      [true, "Saved #{out.size} setting(s) to #{path}. COMMIT AND PUSH it — " \
+             'until you do, it is only on this machine. Anyone who has never ' \
+             'set these keeps getting the old defaults, and anyone who HAS ' \
+             'arranged their own panel keeps theirs.']
     end
 
     def self.write_pref(key, value)
@@ -1368,6 +1461,11 @@ module WhisperRoom
       # click that caused it.
       d.add_action_callback('collapse')  { |_c, list| set_collapsed(list) }
       d.add_action_callback('devtools')  { |_c, on| set_dev_shown(on.to_s == 'true') }
+      d.add_action_callback('shopdefaults') do |_c|
+        ok, msg = save_shop_defaults
+        UI.messagebox(msg)
+        puts (ok ? '  ' : '  FAILED: ') + msg
+      end
       d.add_action_callback('folder')  { |_c| UI.openURL('file:///' + SCRIPTS_DIR) }
       d.add_action_callback('console') { |_c| Sketchup.send_action('showRubyPanel:') }
       d.set_on_closed { @dlg = nil }

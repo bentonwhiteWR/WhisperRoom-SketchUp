@@ -549,6 +549,10 @@
 
   /* ------------------------------------------------------------- footer -- */
 
+  .shopdef { margin-left: auto; font: inherit; font-size: 9.5px; letter-spacing: .08em;
+    padding: 3px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 3px;
+    background: transparent; color: inherit; opacity: .6; cursor: pointer; }
+  .shopdef:hover { opacity: 1; border-color: #ee6216; color: #ee6216; }
   .foot {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 10px;
@@ -737,6 +741,8 @@
     <button class="sw" role="switch" aria-checked="false" id="devsw"><i></i></button>
     <span>Show developer &amp; workshop tools</span>
     <span class="hint">search finds them anyway</span>
+    <button class="shopdef" id="shopdef"
+      title="Write this panel's slots, stars and per-script settings into the repo as the defaults everyone gets">SAVE AS SHOP DEFAULT</button>
   </div>
 
   <!-- rename sheet -->
@@ -1602,6 +1608,9 @@
 
   document.getElementById("rescan").addEventListener("click", function () { sketchup.rescan(); });
   document.getElementById("folder").addEventListener("click", function () { sketchup.folder(); });
+  document.getElementById("shopdef").addEventListener("click", function () {
+    if (window.sketchup && sketchup.shopdefaults) sketchup.shopdefaults();
+  });
   document.getElementById("console").addEventListener("click", function () { sketchup.console(); });
 
   // The dev/workshop switch is panel furniture, so it is stored in preferences

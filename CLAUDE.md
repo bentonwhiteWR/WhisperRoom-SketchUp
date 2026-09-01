@@ -327,6 +327,15 @@ ramps to the clearance rules above, tags, materials, and dimension entities.
   `whisperroom-proposal` until the installer took the job over. A changed skill
   reaches another machine the same way as a script: push, then `git pull` +
   `install-plugin.py` there (the panel's **Update now** does both).
+- **Panel settings can ship as everyone's defaults.** Slots, stars, collapsed
+  sections and per-script settings normally live per-user in the Windows
+  registry and never travel. `scripts/wr_tools/defaults.json` is the shop copy:
+  the panel's **SAVE AS SHOP DEFAULT** button (footer) writes this machine's
+  arrangement into it, and `install-plugin.py` carries it like any other
+  `wr_tools/` file. A key falls back to the shop default only when that user
+  has never set one, so nobody's own layout is overwritten by an update.
+  **It is only a default once it is committed and pushed** — the button writes
+  the file, nothing more.
 - **Client material stays out of this repo — it is public.** Renders, proposal PDFs and
   per-client configs live in the private `whisperroom-proposals` repo.
 
