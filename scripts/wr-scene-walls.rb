@@ -158,6 +158,79 @@ module WR_SceneWalls
     out
   end
 
+  # ------------------------------------------------- pick it in the model --
+  #
+  # "Wall 4" means nothing until you have gone digging for it (Benton, 1 Sep
+  # 2026). So the picker works the other way round too: click the wall in the
+  # viewport and let the model say which one it is, or click a row and have
+  # the model show you.
+  #
+  # Both directions match on ENTITY IDs through the containment tree, because
+  # what the operator has selected is rarely the exact group the inventory
+  # holds — clicking once selects the room or the Walls container, and
+  # double-clicking in selects something under the wall.
+
+  # Every entity id at or under ent, to a sane depth.
+  def self.subtree_ids(ent, out = {}, depth = 0)
+    out[ent.entityID] = true
+    return out if depth > 5
+    ents = nil
+    ents = ent.entities if ent.respond_to?(:entities)
+    ents = ent.definition.entities if ents.nil? && ent.respond_to?(:definition)
+    (ents || []).each do |c|
+      next unless c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance)
+      subtree_ids(c, out, depth + 1)
+    end
+    out
+  rescue StandardError
+    out
+  end
+
+  # Wall keys the current model selection points at. Empty is a real answer
+  # and the caller says so rather than guessing.
+  def self.keys_for_selection(model)
+    return [] unless @units
+    sel = model.selection.to_a.select do |e|
+      e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+    end
+    return [] if sel.empty?
+    raw = {}
+    sel.each { |e| raw[e.entityID] = true }
+    under = {}
+    sel.each { |e| subtree_ids(e, under) }
+    hits = []
+    @units.each do |key, u|
+      u[:pieces].each do |g|
+        next unless g.valid?
+        # selected the wall, the Walls container or the whole room ...
+        hit = under[g.entityID]
+        # ... or picked something inside the wall.
+        hit ||= subtree_ids(g).keys.any? { |id| raw[id] }
+        if hit
+          hits << key
+          break
+        end
+      end
+    end
+    hits.uniq
+  end
+
+  # The other direction: show me which one Wall 4 is.
+  def self.reveal(model, key)
+    u = @units && @units[key]
+    return [false, 'that wall is stale — hit Refresh'] unless u
+    live = u[:pieces].select { |g| g.valid? }
+    return [false, 'that wall is no longer in the model'] if live.empty?
+    model.selection.clear
+    model.selection.add(live)
+    begin
+      model.active_view.zoom(live)
+    rescue StandardError
+      nil                       # zoom is a nicety; the selection is the point
+    end
+    [true, "#{u[:room]} Wall #{u[:wall]} selected in the model."]
+  end
+
   # --------------------------------------------------------------- apply --
 
   # Set the hidden flag on every piece of every named wall, then save ONLY

@@ -2801,6 +2801,29 @@ module WR_ProposalPackage
       end
     end
 
+    # Click the wall in the viewport, then this — because "Wall 4" means
+    # nothing until you have gone digging for it.
+    d.add_action_callback('wallspick') do |_c, _p|
+      next if busy?(d, 'wallspick')
+      begin
+        keys = WR_SceneWalls.keys_for_selection(model)
+        d.execute_script('wallsPicked(' + { 'keys' => keys }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # And the other way: show me which one this row is.
+    d.add_action_callback('wallsreveal') do |_c, key|
+      next if busy?(d, 'wallsreveal')
+      begin
+        ok, msg = WR_SceneWalls.reveal(model, key.to_s)
+        d.execute_script('wallsNote(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
     d.add_action_callback('wallsclose') do |_c, _p|
       begin
         if @walls_return && @walls_return.valid?
@@ -2934,8 +2957,13 @@ module WR_ProposalPackage
   .wroom { margin-bottom:10px; }
   .wrh { font-size:10px; letter-spacing:.1em; text-transform:uppercase;
     color:var(--muted); margin:6px 0 3px; }
-  .wrow { display:flex; align-items:center; gap:8px; padding:3px 2px; font-size:12px;
-    cursor:pointer; }
+  .wrow { display:flex; align-items:center; gap:8px; padding:3px 2px; font-size:12px; }
+  .wrow label { display:flex; align-items:center; gap:8px; cursor:pointer; flex:1 1 auto; }
+  .wfind { font:inherit; font-size:10px; letter-spacing:.06em; padding:2px 7px;
+    border:1px solid var(--line); border-radius:3px; background:var(--surface);
+    color:var(--muted); cursor:pointer; }
+  .wfind:hover { border-color:var(--accent); color:var(--accent); }
+  .wgap { flex:1 1 auto; }
   .wrow:hover { background:var(--soft); }
   .wside { color:var(--muted); font-size:11px; }
   .wmix { color:var(--accent); font-size:10.5px; margin-left:auto; }
@@ -3130,6 +3158,8 @@ module WR_ProposalPackage
     <div id="wbody"></div>
     <div id="wmsg" class="wmsg"></div>
     <div id="wfoot">
+      <button id="wpick" title="Select the wall in the model, then press this">USE MY SELECTION</button>
+      <span class="wgap"></span>
       <button id="wapply" class="prim">APPLY TO THIS SCENE</button>
       <button id="wcancel">CANCEL</button>
     </div>
@@ -3145,7 +3175,8 @@ module WR_ProposalPackage
   var $q=g("q"), $b=g("body"), $count=g("count"), $pick=g("picksum"),
       $log=g("log"), $pmsg=g("pmsg"), $pfill=g("pfill"),
       $wrap=g("wwrap"), $wtitle=g("wtitle"), $wbody=g("wbody"),
-      $wmsg=g("wmsg"), $wapply=g("wapply"), $wcancel=g("wcancel");
+      $wmsg=g("wmsg"), $wapply=g("wapply"), $wcancel=g("wcancel"),
+      $wpick=g("wpick");
 
   function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;")
     .replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")
@@ -3358,11 +3389,13 @@ module WR_ProposalPackage
       return "<div class='wroom'><div class='wrh'>" + esc(room) + "</div>"
         + byRoom[room].map(function(u){
             var side = u.side ? " <span class='wside'>" + esc(u.side) + "</span>" : "";
-            return "<label class='wrow'><input type='checkbox' data-key='"
+            return "<div class='wrow'><label><input type='checkbox' data-key='"
               + esc(u.key) + "'" + (u.hidden ? " checked" : "") + ">"
-              + "<span>Wall " + u.wall + side + "</span>"
+              + "<span>Wall " + u.wall + side + "</span></label>"
               + (u.mixed ? "<span class='wmix'>pieces disagree — ticking sets them all</span>" : "")
-              + "</label>";
+              + "<button class='wfind' data-find='" + esc(u.key)
+              + "' title='Select this wall in the model so you can see it'>SHOW ME</button>"
+              + "</div>";
           }).join("") + "</div>";
     }).join("");
     // Ticked = hidden in this scene. Every wall is sent on Apply, not just the
@@ -3372,12 +3405,38 @@ module WR_ProposalPackage
         wallsPicks[el.getAttribute("data-key")] = el.checked;
       });
     });
+    Array.prototype.forEach.call($wbody.querySelectorAll("[data-find]"), function(el){
+      el.addEventListener("click", function(){
+        if(window.sketchup && sketchup.wallsreveal)
+          sketchup.wallsreveal(el.getAttribute("data-find"));
+      });
+    });
     $wmsg.className = "wmsg" + (d.warn ? " bad" : "");
     $wmsg.textContent = d.warn
       ? "This scene does not save hidden objects, so walls will NOT come back on it. "
         + "Apply turns that on for you."
       : "Ticked = hidden when this scene exports.";
   };
+  window.wallsPicked = function (r) {
+    var keys = r.keys || {}, n = 0;
+    // ADDS to what is already ticked — picking a second wall must not
+    // silently untick the first.
+    Array.prototype.forEach.call($wbody.querySelectorAll("input[data-key]"), function(el){
+      if(keys.indexOf(el.getAttribute("data-key")) >= 0){ el.checked = true; n++; }
+    });
+    $wmsg.className = "wmsg" + (n ? " ok" : " bad");
+    $wmsg.textContent = n
+      ? n + " wall(s) ticked from your selection. Apply to save them into this scene."
+      : "Nothing in your selection matched a named wall. Click the wall itself in "
+        + "the model — or the room, or its Walls group — then press this again.";
+  };
+  window.wallsNote = function (r) {
+    $wmsg.className = "wmsg" + (r.ok ? "" : " bad");
+    $wmsg.textContent = r.msg;
+  };
+  $wpick.addEventListener("click", function(){
+    if(window.sketchup && sketchup.wallspick) sketchup.wallspick("");
+  });
   window.wallsDone = function (r) {
     $wmsg.textContent = r.msg;
     $wmsg.className = "wmsg" + (r.ok ? " ok" : " bad");

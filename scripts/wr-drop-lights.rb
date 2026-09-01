@@ -758,6 +758,31 @@ module WR_DropLights
     (base_lm * 1.0) * (mult * 1.0) * (trim * 1.0) * LUMEN_GAIN
   end
 
+  # ---- per-layer overrides from the settings panel -------------------------
+  #
+  # The rig's seven roles are a designed palette, not a pile of lights, so the
+  # panel does not let you rebuild them — it SCALES them. Every layer carries
+  # its own intensity multiplier and its own Kelvin nudge on top of the table,
+  # which is what "make our own lights and set those to be used" needs without
+  # throwing away the numbers in .forge/researcher/interior-lighting-design.md.
+  #
+  # A layer switched OFF comes through here as scale 0.0. It is still CREATED
+  # and it emits nothing — the deliberately safe reading, because skipping the
+  # call would change control flow through `place` for every caller and this
+  # file cannot be run outside SketchUp. The report says which layers are dark.
+  def self.role_scale(role, opts)
+    o = opts[:layers] && opts[:layers][role.to_s]
+    return 1.0 unless o
+    return 0.0 unless o['on']
+    v = o['scale'].to_f
+    v <= 0.0 ? 1.0 : v
+  end
+
+  def self.role_kelvin_delta(role, opts)
+    o = opts[:layers] && opts[:layers][role.to_s]
+    o ? o['kdelta'].to_i : 0
+  end
+
   # Global Kelvin offset from the Warmth answer. Warm = the table as written;
   # Neutral = every layer +500 K. It SHIFTS the palette; it never flattens it.
   def self.layer_kelvin(base_k, offset)
@@ -2378,22 +2403,307 @@ module WR_DropLights
   # An existing ceiling this tool does not own is BORROWED either way and this
   # answer does not touch it -- 'No' means "do not add one", never "delete the
   # one that is there."
-  def self.ask
-    @last ||= ['Normal', 'Warm', 'Yes']
-    res = UI.inputbox(
-      ['Brightness', 'Warmth', 'Add ceiling'],
-      @last,
-      ['Normal|Dim|Bright', 'Warm|Neutral', 'Yes|No'],
-      'Drop Interior Lights')
-    return nil unless res
-    @last = res
-    { :mult    => BRIGHT[res[0]] || 1.0,
-      :bright  => res[0],
-      :warmth  => res[1],
-      :koffset => res[1] == 'Neutral' ? 500 : 0,
-      :ceiling => res[2].to_s != 'No',
-      :density => :soft }
+  # ---- the settings panel ------------------------------------------------
+  #
+  # This replaced a three-dropdown UI.inputbox. Benton, 1 Sep 2026: "we can
+  # more customize it and just click in kind of hope it works, which is kind
+  # of what happens right now." Three presets of one word each is not enough
+  # information to predict a render, and there was nowhere to keep a setup
+  # that worked.
+  #
+  # So: real numbers, every layer individually adjustable, and NAMED SETUPS
+  # saved on the machine (Sketchup.write_default, so they survive a restart
+  # and are per-user, not per-model). "Replicate a light source" is a preset —
+  # dial a layer in once, save it, and every later room gets the same rig.
+  PRESET_KEY = 'presets'.freeze
+  PRESET_DICT = 'WR_DropLights'.freeze
+
+  def self.default_settings
+    layers = {}
+    LIGHT_LAYERS.each_key do |role|
+      layers[role.to_s] = { 'on' => true, 'scale' => 1.0, 'kdelta' => 0 }
+    end
+    { 'mult' => 1.0, 'koffset' => 0, 'ceiling' => true,
+      'density' => 'soft', 'layers' => layers }
   end
+
+  def self.read_presets
+    raw = Sketchup.read_default(PRESET_DICT, PRESET_KEY, '{}').to_s
+    h = JSON.parse(raw)
+    h.is_a?(Hash) ? h : {}
+  rescue StandardError
+    {}
+  end
+
+  def self.write_presets(h)
+    Sketchup.write_default(PRESET_DICT, PRESET_KEY, h.to_json)
+    true
+  rescue StandardError => e
+    puts "  could not save presets: #{e.class}: #{e.message}"
+    false
+  end
+
+  # Settings hash (string keys, straight off the dialog) -> the opts hash the
+  # rig has always taken. ONE conversion, so the engine never learns about the
+  # panel and the panel never learns about the engine.
+  def self.opts_from(st)
+    layers = {}
+    (st['layers'] || {}).each do |role, o|
+      layers[role.to_s] = { 'on' => o['on'] ? true : false,
+                            'scale' => o['scale'].to_f,
+                            'kdelta' => o['kdelta'].to_i }
+    end
+    m = st['mult'].to_f
+    m = 1.0 if m <= 0.0
+    { :mult    => m,
+      :bright  => format('x%.2f', m),
+      :warmth  => st['koffset'].to_i.zero? ? 'Warm' : "#{st['koffset'].to_i}K",
+      :koffset => st['koffset'].to_i,
+      :ceiling => st['ceiling'] ? true : false,
+      :density => st['density'].to_s == 'showroom' ? :showroom : :soft,
+      :layers  => layers }
+  end
+
+  def self.ask
+    st = show_settings
+    st && opts_from(st)
+  end
+
+  # A modal HtmlDialog: the run must not start until the operator has decided,
+  # which is what UI.inputbox gave for free and a modeless panel does not.
+  # The answer comes back through @settings_result; nil means cancelled.
+  def self.show_settings
+    st = @last_settings || default_settings
+    @settings_result = nil
+    dlg = UI::HtmlDialog.new(
+      :dialog_title    => 'Interior lighting',
+      :preferences_key => 'WR_DropLightsSettings',
+      :scrollable      => true, :resizable => true,
+      :width           => 470, :height => 660,
+      :min_width       => 380, :min_height => 420,
+      :style           => UI::HtmlDialog::STYLE_DIALOG)
+    dlg.set_html(settings_html(st, read_presets))
+
+    dlg.add_action_callback('drop') do |_c, payload|
+      begin
+        @settings_result = JSON.parse(payload.to_s)
+        @last_settings = @settings_result
+      rescue StandardError => e
+        puts "  could not read the settings: #{e.class}: #{e.message}"
+        @settings_result = nil
+      end
+      dlg.close
+    end
+    dlg.add_action_callback('cancel') { |_c, _p| @settings_result = nil; dlg.close }
+    dlg.add_action_callback('savepreset') do |_c, payload|
+      begin
+        req = JSON.parse(payload.to_s)
+        name = req['name'].to_s.strip
+        raise 'a preset needs a name' if name.empty?
+        h = read_presets
+        h[name] = req['settings']
+        write_presets(h)
+        dlg.execute_script('presetsAre(' + h.to_json + ', ' + name.to_json + ')')
+      rescue StandardError => e
+        dlg.execute_script('note(' + "#{e.class}: #{e.message}".to_json + ', true)')
+      end
+    end
+    dlg.add_action_callback('delpreset') do |_c, name|
+      h = read_presets
+      h.delete(name.to_s)
+      write_presets(h)
+      dlg.execute_script('presetsAre(' + h.to_json + ', ' + ''.to_json + ')')
+    end
+
+    dlg.show_modal
+    @settings_result
+  end
+
+  def self.settings_html(st, presets)
+    rows = LIGHT_LAYERS.map do |role, spec|
+      { 'role' => role.to_s, 'label' => spec[:label],
+        'kelvin' => spec[:kelvin], 'lumens' => spec[:lumens],
+        'booth' => BOOTH_ROLES.include?(role) }
+    end
+    <<-HTML
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+:root{--bg:#f4f5f6;--card:#fff;--ink:#1c2327;--muted:#66727a;
+  --line:#e2e6e9;--accent:#ee6216}
+*{box-sizing:border-box;margin:0}
+body{font:12.5px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg);
+  color:var(--ink);padding:12px 14px 66px}
+h2{font-size:13px;margin:0 0 2px}
+.sub{color:var(--muted);font-size:11.5px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:5px;
+  padding:10px 12px;margin-bottom:10px}
+.lab{font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--muted);display:block;margin-bottom:6px}
+.grid{display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center}
+input[type=number],input[type=text],select{font:inherit;padding:3px 6px;
+  border:1px solid var(--line);border-radius:3px;background:var(--card);
+  color:var(--ink);width:100%}
+input[type=range]{width:100%}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th{text-align:left;font-size:9px;letter-spacing:.1em;color:var(--muted);
+  font-weight:600;padding:0 0 4px}
+td{padding:3px 4px 3px 0;border-top:1px solid var(--line)}
+td.num input{width:62px}
+.bth{color:var(--muted);font-size:10px}
+.row{display:flex;gap:8px;align-items:center}
+button{font:inherit;font-size:11.5px;padding:4px 11px;border:1px solid var(--line);
+  border-radius:3px;background:var(--card);cursor:pointer}
+button.prim{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.foot{position:fixed;left:0;right:0;bottom:0;background:var(--card);
+  border-top:1px solid var(--line);padding:9px 14px;display:flex;gap:8px;align-items:center}
+.gap{flex:1 1 auto}
+.note{font-size:11px;color:var(--muted);margin-top:6px}
+.note.bad{color:#b03027}
+</style></head><body>
+<h2>Interior lighting</h2>
+<div class="sub">Seven layers, scaled &mdash; not rebuilt. Save a setup you like
+as a preset and every later room can use the same rig.</div>
+
+<div class="card">
+  <span class="lab">Saved setups</span>
+  <div class="row">
+    <select id="psel" style="flex:1 1 auto"></select>
+    <button id="pload">LOAD</button>
+    <button id="pdel">DELETE</button>
+  </div>
+  <div class="row" style="margin-top:7px">
+    <input id="pname" type="text" placeholder="name this setup" style="flex:1 1 auto">
+    <button id="psave">SAVE</button>
+  </div>
+  <div id="note" class="note"></div>
+</div>
+
+<div class="card">
+  <span class="lab">Whole rig</span>
+  <div class="grid">
+    <span>Brightness</span>
+    <input id="mult" type="range" min="0.1" max="4" step="0.05">
+    <input id="multn" type="number" min="0.1" max="4" step="0.05" style="width:70px">
+    <span>Warmth</span>
+    <input id="koff" type="range" min="-1000" max="1500" step="50">
+    <input id="koffn" type="number" min="-1000" max="1500" step="50" style="width:70px">
+  </div>
+  <div class="row" style="margin-top:9px">
+    <label><input id="ceil" type="checkbox"> Add a ceiling if the room has none</label>
+  </div>
+  <div class="row" style="margin-top:6px">
+    <span class="lab" style="margin:0">Grid</span>
+    <select id="dens" style="width:auto">
+      <option value="soft">Soft &mdash; spacing = ceiling height</option>
+      <option value="showroom">Showroom &mdash; spacing = height / 2</option>
+    </select>
+  </div>
+  <div class="note">Warmth shifts every layer together, in Kelvin, on top of its
+  own temperature. 0 leaves the palette as designed.</div>
+</div>
+
+<div class="card">
+  <span class="lab">The seven layers</span>
+  <table><thead><tr><th>ON</th><th>LAYER</th><th>INTENSITY</th><th>KELVIN</th></tr></thead>
+  <tbody id="lrows"></tbody></table>
+  <div class="note">Intensity multiplies that layer's own lumens; Kelvin nudges
+  only that layer. A layer switched off is still placed but emits nothing, and
+  the run report says so.</div>
+</div>
+
+<div class="foot">
+  <button id="reset">RESET TO DESIGNED</button>
+  <span class="gap"></span>
+  <button id="cancel">CANCEL</button>
+  <button id="go" class="prim">DROP THE LIGHTS</button>
+</div>
+
+<script>
+var ROWS = #{rows.to_json};
+var DEFAULTS = #{default_settings.to_json};
+var ST = #{st.to_json};
+var PRESETS = #{presets.to_json};
+function g(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;")
+  .replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function note(m, bad){ g("note").textContent = m || "";
+  g("note").className = "note" + (bad ? " bad" : ""); }
+window.note = note;
+
+function drawLayers(){
+  g("lrows").innerHTML = ROWS.map(function(r){
+    var o = (ST.layers && ST.layers[r.role]) || { on:true, scale:1, kdelta:0 };
+    return "<tr><td><input type='checkbox' data-on='"+esc(r.role)+"'"
+      + (o.on ? " checked" : "") + "></td>"
+      + "<td>" + esc(r.label)
+      + (r.booth ? " <span class='bth'>booth only</span>" : "")
+      + "<div class='bth'>" + r.lumens + " lm &middot; " + r.kelvin + " K</div></td>"
+      + "<td class='num'><input type='number' step='0.05' min='0' data-scale='"
+      + esc(r.role) + "' value='" + (+o.scale || 1) + "'></td>"
+      + "<td class='num'><input type='number' step='50' min='-1500' max='1500' data-kd='"
+      + esc(r.role) + "' value='" + (+o.kdelta || 0) + "'></td></tr>";
+  }).join("");
+}
+function drawPresets(sel){
+  var names = Object.keys(PRESETS).sort();
+  g("psel").innerHTML = names.length
+    ? names.map(function(n){ return "<option"+(n===sel?" selected":"")+">"+esc(n)+"</option>"; }).join("")
+    : "<option value=''>(none saved yet)</option>";
+}
+window.presetsAre = function(h, sel){ PRESETS = h; drawPresets(sel);
+  note(sel ? "Saved: "+sel : "Preset list updated."); };
+
+function paint(){
+  g("mult").value = ST.mult; g("multn").value = ST.mult;
+  g("koff").value = ST.koffset; g("koffn").value = ST.koffset;
+  g("ceil").checked = !!ST.ceiling;
+  g("dens").value = ST.density || "soft";
+  drawLayers();
+}
+function collect(){
+  var layers = {};
+  ROWS.forEach(function(r){
+    layers[r.role] = {
+      on: g("lrows").querySelector("[data-on='"+r.role+"']").checked,
+      scale: parseFloat(g("lrows").querySelector("[data-scale='"+r.role+"']").value) || 0,
+      kdelta: parseInt(g("lrows").querySelector("[data-kd='"+r.role+"']").value, 10) || 0
+    };
+  });
+  return { mult: parseFloat(g("multn").value) || 1,
+           koffset: parseInt(g("koffn").value, 10) || 0,
+           ceiling: g("ceil").checked,
+           density: g("dens").value,
+           layers: layers };
+}
+function pair(a, b){
+  g(a).addEventListener("input", function(){ g(b).value = g(a).value; });
+  g(b).addEventListener("input", function(){ g(a).value = g(b).value; });
+}
+pair("mult","multn"); pair("koff","koffn");
+g("reset").addEventListener("click", function(){
+  ST = JSON.parse(JSON.stringify(DEFAULTS)); paint();
+  note("Back to the designed rig.");
+});
+g("pload").addEventListener("click", function(){
+  var n = g("psel").value;
+  if(!PRESETS[n]){ note("Nothing saved under that name.", true); return; }
+  ST = JSON.parse(JSON.stringify(PRESETS[n])); paint(); note("Loaded: "+n);
+});
+g("psave").addEventListener("click", function(){
+  var n = g("pname").value.trim();
+  if(!n){ note("Give the setup a name first.", true); return; }
+  sketchup.savepreset(JSON.stringify({ name:n, settings: collect() }));
+});
+g("pdel").addEventListener("click", function(){
+  var n = g("psel").value;
+  if(n) sketchup.delpreset(n);
+});
+g("cancel").addEventListener("click", function(){ sketchup.cancel(""); });
+g("go").addEventListener("click", function(){ sketchup.drop(JSON.stringify(collect())); });
+paint(); drawPresets("");
+</script></body></html>
+    HTML
+  end
+
 
   # ==== WHAT WAS ACTUALLY WRITTEN INTO V-RAY ===============================
   # `layers` is { role => report-hash } for the FIRST light of each layer,
@@ -2636,7 +2946,8 @@ module WR_DropLights
         else
           d, plug = create_light(ctx, spec[:u], spec[:v])
         end
-        kelv = layer_kelvin(spec[:kelvin], opts[:koffset])
+        kelv = layer_kelvin(spec[:kelvin],
+                            opts[:koffset] + role_kelvin_delta(role, opts))
         rpt = configure_light(scene, plug, role, lumens, kelv)
         t = Geom::Transformation.translation(Geom::Point3d.new(*pt))
         if FACE_FLIP != 0.0
@@ -2694,7 +3005,8 @@ module WR_DropLights
           end
           pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
                 bb.max.z - BOOTH_DROP]
-          lm = layer_lumens(LIGHT_LAYERS[:booth][:lumens], opts[:mult], 1.0)
+          lm = layer_lumens(LIGHT_LAYERS[:booth][:lumens], opts[:mult],
+                            role_scale(:booth, opts))
           place.call(:booth, pt, lm)
           puts "  #{name}: selected booth — 1 interior light at #{fmt(pt)}, #{lm.round} lm"
           next
@@ -2792,7 +3104,7 @@ module WR_DropLights
         lm_of = lambda do |role|
           sp = LIGHT_LAYERS[role]
           k = sp[:budget] == :room ? room_k * room_trim : booth_k
-          layer_lumens(sp[:lumens], opts[:mult], k)
+          layer_lumens(sp[:lumens], opts[:mult], k * role_scale(role, opts))
         end
 
         # ---- ROLE 1 — ceiling ambient, and the room's visible light source --
