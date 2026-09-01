@@ -1,0 +1,55 @@
+{
+  "job": "synthetic-selfcross",
+  "title": "Eval fixture: closes arithmetically but self-touches — probe: refusal or silent garbage?",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "selfcross",
+      "runs": [
+        {
+          "d": "N",
+          "v": "5'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "E",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "20'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "E",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "5'",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8'",
+        "src": "stated synthetic (authored)"
+      }
+    }
+  ]
+}

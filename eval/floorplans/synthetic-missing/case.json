@@ -1,0 +1,8 @@
+{
+  "expects": {
+    "refusal": [
+      "no position on run 0",
+      "noceil ceiling"
+    ]
+  }
+}

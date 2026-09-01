@@ -1,0 +1,46 @@
+{
+  "generated_by": "eval/gen-plans.py — truth authored first, plan derived from it",
+  "rooms": [
+    {
+      "room": "clear",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          204.0,
+          0.0
+        ],
+        [
+          204.0,
+          -120.0
+        ],
+        [
+          0.0,
+          -120.0
+        ]
+      ],
+      "ceiling_in": 96.0,
+      "doors": [
+        {
+          "run": 1,
+          "w_in": 36.0,
+          "jambs_in": [
+            42.0,
+            78.0
+          ],
+          "expect_flag": null
+        }
+      ],
+      "features": [
+        {
+          "type": "heater",
+          "count": 2
+        }
+      ]
+    }
+  ]
+}

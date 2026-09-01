@@ -1,62 +1,87 @@
-# Builder HANDOFF — per-scene whole-wall hiding (2026-08-31)
+# Builder HANDOFF — floor-plan intake step 8: adversarial eval set + the loop ran (2026-08-31)
 
-Benton's ask, verbatim in the assignment: hide an ENTIRE wall per scene in
-the proposal package, walls "grouped in 'walls - Shown' / 'walls - hidden'",
-picked per scene, restored on the next scene. Built as approved. Plugin at
-**1.12.0**. Prior handoff preserved at
-`.forge/builder/HANDOFF-floorplan-intake.md`.
+Goal reconfirmed against `.forge/GOAL.md` before writing this: Done-means 2
+and 4 (eval set materially enlarged, iteration measured and recorded).
+Spec: `.forge/scoper/floorplan-intake.md` step 8 / §B4, AC-15/16. Prior
+slice's handoff preserved at `.forge/builder/HANDOFF-intake-slice1.md`;
+the proposal-manifest one at `HANDOFF-proposal-manifest.md`. Plugin at
+**1.12.1**.
+
+Everything here ran LIVE (SketchUp 2026, bridge listening): 35 dated rows
+now in `eval/RESULTS.md` across four timestamps — the loop, not one batch.
 
 ## Produced
 
 | file | what |
 |---|---|
-| `scripts/wr-scene-walls.rb` | The picker. Two columns per Benton — Shown / Hidden in the CURRENT scene — one chip per whole wall (all pieces of a run: bands, header, opening, leaf, swing). Apply sets entity hidden flags and saves ONLY hidden state into the scene (`page.update(PAGE_USE_HIDDEN_OBJECTS \| PAGE_USE_HIDDEN_GEOMETRY)` — camera untouched, verified). Frame-change observer reloads the lists when a scene tab is clicked. Selection fallback buttons for unnamed geometry. Names scenes that don't save hidden objects, with a one-click fix. |
-| `scripts/wr-name-walls.rb` | Retrofit: names unnamed wall solids "Wall 1..N" so the picker lists hand-built rooms. Recognition copied from wr-lower-walls (leaf, vertical extrusion, tag rules) plus a proportion rule (taller than its thinnest plan dimension) so an untagged floor slab is never named a wall. Names only — no geometry, no re-parenting. Dry run by default, per wr-split-walls precedent. |
-| `scripts/proposal-package.rb` | Manifest image rows now carry `groups_hidden`: group paths hidden when that row's scene exported, read live right after the scene switch, in both lanes. Field-note added; `null` = not recorded, `[]` = nothing hidden. |
-| `scripts/rbtest-proposal.py` | mr5: groups_hidden pass-through. Suite 100% green. |
-| `scripts/wr_tools/VERSION` | 1.11.0 -> **1.12.0**. |
-| `DEVLOG.md` | 1.12.0 entry. |
+| `eval/gen-plans.py` | Case generator. Truth authored FIRST as exact inches; takeoff fixture, truth.json, vector `input/plan.pdf` + warped `input/photo.png` all derived from it. Deterministic (JSON + PNG byte-identical; PDF differs only in its clock-salted trailer /ID). `--list` for the roster. |
+| `eval/floorplans/synthetic-{nonclosing,missing,cornerdoor}/` | Refusal cases — pass = checker refuses BY NAME; a FAIL row later means a refusal was silently un-fixed. |
+| `eval/floorplans/synthetic-{nasty,jog,units,clearwidth,sliver}/` | Tier-1 exact-build cases (L-room + parts chain + heaters + bulkhead + two ceilings; jogged wall; unit-format torture incl. unicode primes and 8.833' dust; clear-width chain done right; door 0.03" off the corner — probe promoted after it survived). All 0.00". |
+| `eval/floorplans/synthetic-clearwidth-trap/` | 31-Aug-shaped: clear width transcribed as wall width, no chain — validates CLEAN, builds 24.00" wrong; pass = the SCORER catches it. Do not "fix" its takeoff. |
+| `eval/floorplans/synthetic-unflagged/` | Right number, fabricated `pen` src; 0.00" geometry, fails on provenance (missing ASSUMED note). Do not "fix". |
+| `eval/floorplans/synthetic-{selfcross,headroom}/` | Probes that found defects F1–F3 (see below); READMEs carry the live verdicts and the flip-to-refusal instruction for when the checks land. |
+| `eval/floorplans/synthetic-nasty-t2/` | Tier-2 harness: scores `../synthetic-nasty/takeoff-t2.json`, a BLIND transcription of the generated photo (see Assumptions). |
+| `scripts/eval-floorplan.py` | Now understands `expects.refusal` (named-refusal = pass), `expects.score_fail` (planted defect must be detected), `probe`; records ledger rows for refusals too; `WR_TAKEOFF_CHECK` env pins a checker path; extra-feature check; worst-vertex default no longer 99". |
+| `eval/RESULTS.md` | Verdict legend + Findings F1–F4 + 30 new dated rows. |
+| `scripts/wr_tools/VERSION` | 1.12.0 -> **1.12.1** (eval-floorplan.py changed). |
+| `DEVLOG.md` | 1.12.1 entry. |
 
 ## Read-first
 
-1. `scripts/wr-scene-walls.rb` header — the mechanism (scenes save
-   per-entity hidden state, nested included) and why the two groups are
-   dialog columns, not container groups (scenes do not save parentage).
-2. `DEVLOG.md` 1.12.0 — what was proven live vs not.
+1. `eval/RESULTS.md` — the findings block, then the rows: 18:45 (prior
+   slice) → 19:59 (adversarial sweep, checker pinned) → 20:03–20:04
+   (sliver promoted; tier-2 blind run) → 20:05 (full suite against the
+   fixed working-tree checker).
+2. `eval/floorplans/synthetic-clearwidth-trap/README.md` and
+   `synthetic-selfcross/README.md` — why deliberately wrong fixtures are
+   committed and what each verdict means.
+3. `eval/gen-plans.py` header — the truth-first rule and the case taxonomy.
+
+## Defects found, NOT fixed here (owned by concurrent lanes)
+
+- **F1** `scripts/takeoff-check.py`: a closed-but-self-touching polygon
+  (runs sum to zero, walk revisits a vertex) validates; SketchUp builds a
+  pinched two-lobe floor face silently. Wants a self-intersection check.
+  Repro: `python scripts/eval-floorplan.py synthetic-selfcross`.
+- **F2** `scripts/build-takeoff.rb` ~317: bulkhead head ≥ ceiling →
+  massing silently dropped (`return if z1 - z0 <= TOL`). Should refuse by
+  name (checker is the right place).
+- **F3** door h > ceiling builds the leaf through the ceiling plane,
+  silently. Repro for both: `... synthetic-headroom`.
+- **F4** (resolved mid-session): working-tree takeoff-check.py crashed on
+  import for a while (unescaped `%` in its CSS, in-flight edit); scored
+  against the committed checker via `WR_TAKEOFF_CHECK` until the fix
+  landed, then re-ran the whole suite unpinned — identical behavior.
+- When F1–F3 get fixed, flip `synthetic-selfcross` / `synthetic-headroom`
+  from `probe` to `expects.refusal` in `eval/gen-plans.py` and regenerate.
 
 ## Assumptions
 
-- **observed (live, SketchUp 2026 via bridge, this session):** nested wall
-  groups' hidden flags round-trip through scene selection both directions;
-  `page.update(384)` leaves the page camera alone; a real headless
-  proposal batch exported scene 01 with two walls of 3190J hidden and
-  wrote their 10 piece paths into that row's `groups_hidden` while scene
-  02 wrote `[]`; the control batch after unhiding differed only in that
-  room's pixels (diff bbox confined to the room cluster) and wrote `[]`;
-  picker inventory/apply, retrofit scan+name, dialog HTML boot
-  (`sketchup.ready` fired), observer teardown on close.
-- **assumed:** SketchUp versions older than 2020 fall back to
-  `PAGE_USE_HIDDEN` (16) — the constant guard is written but only 2026 was
-  exercised.
-- **derived:** existing scenes save hidden objects by default
-  (`use_hidden_objects?` true on both eval scenes); the warning banner +
-  fix path for scenes with it off is written but was never triggered by a
-  real off scene.
+- **observed:** every ledger row 19:59 onward — I ran them through the
+  live bridge; model cleaned after (only `3190G+H, 3190J, 3190F, clean`
+  room groups remain, verified by read-back).
+- **observed:** tier-2 was genuinely blind — a fresh subagent got ONLY
+  `eval/floorplans/synthetic-nasty/input/photo.png` and
+  `reference/takeoff-format.md`, with explicit instructions to read
+  nothing else, start each room top-left walking E (clockwise), doors
+  `at` = distance from the run's start corner, never invent (record
+  `{"assumed":…}` instead). Result: 0.00" everywhere, zero assumptions.
+  One run, one case — a sample, not a distribution.
+- **derived:** the 24.00" trap error and 0.004" units-case dust match the
+  authored arithmetic exactly.
+- **assumed:** PDF plan drawings are legible enough for humans; verified
+  by eye on `synthetic-nasty` only (label collisions were fixed there).
 
-## Open-questions / not live-proven
+## Open-questions
 
-1. **Nobody has clicked the picker.** The dialog loads and its JS runs
-   (verified), but chip-moving, Apply from the mouse, and the fix-pages
-   button need one human pass.
-2. **Render lane with hidden walls.** The image lane is pixel-proven; the
-   render lane records `groups_hidden` from the same scene switch, but no
-   V-Ray render with hidden walls has been run.
-3. **The headless-batch modal.** Driving proposal-package.rb via the bridge
-   leaves finish's summary `UI.messagebox` open on screen (its timer runs
-   after the bridge job's modal muzzle is gone). I dismissed two by
-   WM_CLOSE via PowerShell. A human-driven batch is unaffected. If a
-   future agent drives a batch headless, keep a messagebox stub alive for
-   the batch's whole life, not just the submitting job.
-4. Scratch model left clean: nothing hidden on either scene, marks back to
-   skip, probe geometry erased, stray rename reverted. The eval scorer was
-   rebuilding rooms concurrently throughout; entity counts are its.
+1. F1–F3 fixes + flipping the two probe cases (checker/build-takeoff
+   Builders' lanes).
+2. Spec steps 7 (panel "Build from take-off…" button) and 9 (protocol
+   docs, `reference/floorplan-intake.md`, scale-estimation pointer, skill
+   update) remain unbuilt — unchanged from the prior handoff.
+3. Tier-2 coverage is one case; s609-3190gh's fresh-transcription half of
+   AC-16 (from the REAL photos by an agent that hasn't seen the fixture)
+   is still open — the harness pattern (`case.json` pointing at a
+   `takeoff-t2.json`) now exists to copy.
+4. `scripts/takeoff-check.py` was still working-tree-modified by its
+   owner when this shipped; my commit does not stage it.

@@ -1,0 +1,41 @@
+{
+  "generated_by": "eval/gen-plans.py — truth authored first, plan derived from it",
+  "rooms": [
+    {
+      "room": "sliver",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          144.0,
+          0.0
+        ],
+        [
+          144.0,
+          -120.0
+        ],
+        [
+          0.0,
+          -120.0
+        ]
+      ],
+      "ceiling_in": 96.0,
+      "doors": [
+        {
+          "run": 0,
+          "w_in": 36.0,
+          "jambs_in": [
+            0.03,
+            36.03
+          ],
+          "expect_flag": null
+        }
+      ],
+      "features": []
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "truth": "../synthetic-clearwidth/truth.json",
+  "expects": {
+    "score_fail": [
+      "max vertex error",
+      "feature missing"
+    ]
+  }
+}

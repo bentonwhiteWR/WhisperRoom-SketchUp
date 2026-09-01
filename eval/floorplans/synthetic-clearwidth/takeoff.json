@@ -1,0 +1,99 @@
+{
+  "job": "synthetic-clearwidth",
+  "title": "Eval fixture: 15'0\" is clear width between cabinets; wall is 17'0\" — correct transcription",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "clear",
+      "runs": [
+        {
+          "d": "E",
+          "v": "17'0\"",
+          "parts": [
+            "12\"",
+            "15'0\"",
+            "12\""
+          ],
+          "src": "stated synthetic (authored)",
+          "note": "15'0\" is CLEAR WIDTH between the two cabinets, not the wall"
+        },
+        {
+          "d": "S",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "17'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8'",
+        "src": "stated synthetic (authored)"
+      },
+      "doors": [
+        {
+          "run": 1,
+          "at": {
+            "v": "42\"",
+            "src": "stated synthetic (authored)"
+          },
+          "w": {
+            "v": "36\"",
+            "src": "stated synthetic (authored)"
+          },
+          "h": {
+            "v": "80\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        }
+      ],
+      "features": [
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {
+            "v": "0\"",
+            "src": "stated synthetic (authored)"
+          },
+          "length": {
+            "v": "12\"",
+            "src": "stated synthetic (authored)"
+          },
+          "depth": {
+            "v": "24\"",
+            "src": "stated synthetic (authored)"
+          },
+          "note": "cabinet massed as heater type — footprint honesty"
+        },
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {
+            "v": "16'",
+            "src": "stated synthetic (authored)"
+          },
+          "length": {
+            "v": "12\"",
+            "src": "stated synthetic (authored)"
+          },
+          "depth": {
+            "v": "24\"",
+            "src": "stated synthetic (authored)"
+          }
+        }
+      ]
+    }
+  ]
+}

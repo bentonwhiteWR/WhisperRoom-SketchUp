@@ -1,0 +1,58 @@
+{
+  "job": "synthetic-clearwidth-trap",
+  "title": "Eval fixture: same plan mis-transcribed: 15'0\" as the wall width, no chain — checker-silent",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "clear",
+      "runs": [
+        {
+          "d": "E",
+          "v": "15'0\"",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "15'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8'",
+        "src": "stated synthetic (authored)"
+      },
+      "doors": [
+        {
+          "run": 1,
+          "at": {
+            "v": "42\"",
+            "src": "stated synthetic (authored)"
+          },
+          "w": {
+            "v": "36\"",
+            "src": "stated synthetic (authored)"
+          },
+          "h": {
+            "v": "80\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        }
+      ]
+    }
+  ]
+}

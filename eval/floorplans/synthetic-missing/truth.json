@@ -1,0 +1,64 @@
+{
+  "generated_by": "eval/gen-plans.py — truth authored first, plan derived from it",
+  "rooms": [
+    {
+      "room": "nodoorpos",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          120.0,
+          0.0
+        ],
+        [
+          120.0,
+          -96.0
+        ],
+        [
+          0.0,
+          -96.0
+        ]
+      ],
+      "ceiling_in": 102.0,
+      "doors": [
+        {
+          "run": 0,
+          "w_in": 36.0,
+          "jambs_in": null,
+          "expect_flag": "assumed"
+        }
+      ],
+      "features": []
+    },
+    {
+      "room": "noceil",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          108.0,
+          0.0
+        ],
+        [
+          108.0,
+          -108.0
+        ],
+        [
+          0.0,
+          -108.0
+        ]
+      ],
+      "ceiling_in": null,
+      "doors": [],
+      "features": []
+    }
+  ]
+}

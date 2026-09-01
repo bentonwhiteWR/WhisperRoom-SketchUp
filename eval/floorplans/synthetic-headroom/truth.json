@@ -1,0 +1,46 @@
+{
+  "generated_by": "eval/gen-plans.py — truth authored first, plan derived from it",
+  "rooms": [
+    {
+      "room": "headroom",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          144.0,
+          0.0
+        ],
+        [
+          144.0,
+          -120.0
+        ],
+        [
+          0.0,
+          -120.0
+        ]
+      ],
+      "ceiling_in": 96.0,
+      "doors": [
+        {
+          "run": 1,
+          "w_in": 36.0,
+          "jambs_in": [
+            30.0,
+            66.0
+          ],
+          "expect_flag": null
+        }
+      ],
+      "features": [
+        {
+          "type": "bulkhead",
+          "count": 1
+        }
+      ]
+    }
+  ]
+}

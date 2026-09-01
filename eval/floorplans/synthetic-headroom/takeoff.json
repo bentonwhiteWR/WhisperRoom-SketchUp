@@ -1,0 +1,76 @@
+{
+  "job": "synthetic-headroom",
+  "title": "Eval fixture: bulkhead head above ceiling + door taller than ceiling — probe",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "headroom",
+      "runs": [
+        {
+          "d": "E",
+          "v": "12'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "12'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8'",
+        "src": "stated synthetic (authored)"
+      },
+      "doors": [
+        {
+          "run": 1,
+          "at": {
+            "v": "30\"",
+            "src": "stated synthetic (authored)"
+          },
+          "w": {
+            "v": "36\"",
+            "src": "stated synthetic (authored)"
+          },
+          "h": {
+            "v": "8'6\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        }
+      ],
+      "features": [
+        {
+          "type": "bulkhead",
+          "run": 0,
+          "from": {
+            "v": "24\"",
+            "src": "stated synthetic (authored)"
+          },
+          "length": {
+            "v": "60\"",
+            "src": "stated synthetic (authored)"
+          },
+          "head": {
+            "v": "9'0\"",
+            "src": "stated synthetic (authored)"
+          }
+        }
+      ]
+    }
+  ]
+}

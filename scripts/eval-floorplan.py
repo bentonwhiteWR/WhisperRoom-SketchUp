@@ -28,6 +28,22 @@ A case directory holds:
                     features:[{type, count}], ...}]}
     README.md      what the case exercises, where truth came from
 
+case.json may also carry expectations — the negative cases the generator
+authors on purpose (spec §B4: "cases 4 and 5 score behavior, not inches"):
+
+    {"expects": {"refusal": ["runs do not close"]}}
+        The checker MUST refuse, and every listed phrase must appear in its
+        output. PASS = the named refusal; anything that builds is FAIL.
+        These rows exist so a future change cannot silently un-fix a refusal.
+    {"expects": {"score_fail": ["max vertex error"]}}
+        The take-off validates and builds, but scoring MUST fail with every
+        listed phrase — a planted defect (mis-transcription, fabricated
+        provenance) that only the scorer can catch. PASS = defect detected.
+    {"probe": true}
+        Behavior unknown when authored; the run reports whatever happened
+        and the verdict is recorded verbatim. Exit 0 either way — a probe
+        has no pass condition until its README assigns one.
+
 Scratch models only (GOAL rule): build-takeoff replaces its own room groups
 by name and touches nothing else, but do not aim this at client work.
 """
@@ -63,15 +79,20 @@ def load_case(case):
     truthp = os.path.normpath(os.path.join(d, cfg.get('truth', 'truth.json')))
     if not os.path.exists(takeoff):
         fail('%s: no take-off at %s' % (case, takeoff))
-    if not os.path.exists(truthp):
+    truth = None
+    if os.path.exists(truthp):
+        truth = json.load(open(truthp, encoding='utf-8'))
+    elif not cfg.get('expects', {}).get('refusal'):
         fail('%s: no truth.json' % case)
-    truth = json.load(open(truthp, encoding='utf-8'))
-    return d, takeoff, truth, cfg.get('rooms')
+    return d, takeoff, truth, cfg
 
 
 def run_checker(takeoff):
-    r = subprocess.run([sys.executable, os.path.join(HERE, 'takeoff-check.py'),
-                        takeoff], capture_output=True, text=True)
+    # WR_TAKEOFF_CHECK overrides the checker path — used when the working-tree
+    # checker is mid-edit by someone else and the eval must pin a known build.
+    chk = os.environ.get('WR_TAKEOFF_CHECK') or os.path.join(HERE, 'takeoff-check.py')
+    r = subprocess.run([sys.executable, chk, takeoff],
+                       capture_output=True, text=True)
     return r.returncode, r.stdout + r.stderr
 
 
@@ -178,12 +199,19 @@ def score_room(truth, built):
     for f in built.get('features') or []:
         t = f['name'].split(' ')[0].lower()
         built_types[t] = built_types.get(t, 0) + 1
+    truth_types = {}
     for tf in truth.get('features') or []:
-        want = int(tf.get('count', 1))
+        truth_types[tf['type']] = truth_types.get(tf['type'], 0) \
+            + int(tf.get('count', 1))
+        want = truth_types[tf['type']]
         got = built_types.get(tf['type'], 0)
         if got < want:
             out['errors'].append('feature missing: %d x %s in truth, %d built'
                                  % (want, tf['type'], got))
+    for t, got in sorted(built_types.items()):
+        if got > truth_types.get(t, 0):
+            out['errors'].append('feature extra: %d x %s built, truth has %d'
+                                 % (got, t, truth_types.get(t, 0)))
     return out
 
 
@@ -206,20 +234,69 @@ def expected_jambs(poly, run, a, b, axis):
     return (min(j0, j1), max(j0, j1))
 
 
+def record_row(case, verdict, worst, detail):
+    row = ('| %s | %s | %s | %s | %s |\n'
+           % (time.strftime('%Y-%m-%d %H:%M'),
+              os.path.basename(str(case).rstrip('/\\')), verdict,
+              ('%.2f"' % worst) if worst is not None else '—', detail))
+    ledger = os.path.join(ROOT, 'eval', 'RESULTS.md')
+    with io.open(ledger, 'a', encoding='utf-8', newline='\n') as f:
+        f.write(row)
+    print('  recorded in eval/RESULTS.md')
+
+
 def main(argv):
     if not argv:
         fail(__doc__)
     case = argv[0]
     record = '--record' in argv
     want_json = '--json' in argv
-    cased, takeoff, truth, room_filter = load_case(case)
+    cased, takeoff, truth, cfg = load_case(case)
+    expects = cfg.get('expects') or {}
+    probe = bool(cfg.get('probe'))
+    room_filter = cfg.get('rooms')
 
     code, log = run_checker(takeoff)
+    if expects.get('refusal'):
+        # A passing NEGATIVE case: the checker must refuse, by these names.
+        if code == 0:
+            print(log)
+            if record:
+                record_row(case, 'FAIL', None,
+                           'checker ACCEPTED a take-off this case expects it '
+                           'to refuse — the refusal has been un-fixed')
+            fail('%s: expected the checker to refuse, and it accepted. The '
+                 'named refusal IS this case\'s pass condition.' % case, 1)
+        missing = [p for p in expects['refusal'] if p.lower() not in log.lower()]
+        print(log)
+        if missing:
+            if record:
+                record_row(case, 'FAIL', None,
+                           'refused, but not by the expected name(s): %s'
+                           % '; '.join(missing))
+            fail('%s: checker refused, but these expected phrases are absent: '
+                 '%s' % (case, '; '.join(missing)), 1)
+        print('  PASS  %s — checker refused by name, nothing built (that is '
+              'the pass condition)' % case)
+        if record:
+            record_row(case, 'PASS', None,
+                       'refused by name as designed: %s'
+                       % '; '.join(expects['refusal']))
+        return 0
     if code != 0:
         print(log)
+        if probe:
+            print('  PROBE %s — checker refused; verdict recorded, see the '
+                  'case README' % case)
+            if record:
+                record_row(case, 'PROBE', None,
+                           'checker refused (probe): ' + summarize_refusal(log))
+            return 0
+        if record:
+            record_row(case, 'FAIL', None,
+                       'checker refused unexpectedly: ' + summarize_refusal(log))
         fail('%s: checker refused the take-off — nothing was built. If this '
-             'case EXPECTS refusal, that refusal is the result; read the '
-             'names above.' % case, 1)
+             'case EXPECTS refusal, say so in case.json.' % case, 1)
     lock = takeoff.replace('.json', '.lock.json')
 
     rooms_truth = truth['rooms']
@@ -240,7 +317,7 @@ def main(argv):
         results.append(s)
         ok = not s['errors']
         failed = failed or not ok
-        worst = max(worst, s.get('max_vertex_err_in', 99.0))
+        worst = max(worst, s.get('max_vertex_err_in') or 0.0)
         print('  %-4s %-10s vertex %5s\"  jamb %5s\"  ceiling %5s\"  unflagged %d'
               % ('PASS' if ok else 'FAIL', s['room'],
                  s.get('max_vertex_err_in', '—'),
@@ -250,18 +327,55 @@ def main(argv):
         for e in s['errors']:
             print('         %s' % e)
     print('')
+    detail = '; '.join(e for s in results for e in s['errors']) or 'clean'
+
+    if expects.get('score_fail'):
+        # A planted defect the CHECKER cannot see (it validated clean) that
+        # the scorer must catch — the 31-Aug-shaped silent-wrong-geometry
+        # class. PASS = scoring failed with every expected phrase.
+        if not failed:
+            print('  FAIL  %s — the planted defect built and scored CLEAN. '
+                  'The scorer missed it; that is the silent 31 Aug failure '
+                  'mode.' % case)
+            if record:
+                record_row(case, 'FAIL', worst,
+                           'planted defect went UNDETECTED — scored clean')
+            return 1
+        missing = [p for p in expects['score_fail']
+                   if p.lower() not in detail.lower()]
+        if missing:
+            print('  FAIL  %s — scoring failed, but not for the planted '
+                  'reason(s): missing %s' % (case, '; '.join(missing)))
+            if record:
+                record_row(case, 'FAIL', worst,
+                           'scorer failed for the wrong reason; expected: %s '
+                           '— got: %s' % ('; '.join(missing), detail))
+            return 1
+        print('  PASS  %s — planted defect DETECTED by the scorer (checker '
+              'was silent by design): %s' % (case, detail))
+        if record:
+            record_row(case, 'PASS', worst,
+                       'planted defect detected (checker-silent by design): '
+                       + detail)
+        return 0
+
     if want_json:
         print(json.dumps({'case': case, 'results': results}, indent=2))
+    if probe:
+        print('  PROBE %s — built and scored; verdict above is informational'
+              % case)
+        if record:
+            record_row(case, 'PROBE', worst, 'built (probe): ' + detail)
+        return 0
     if record:
-        row = ('| %s | %s | %s | %.2f" | %s |\n'
-               % (time.strftime('%Y-%m-%d %H:%M'), os.path.basename(case.rstrip('/\\')),
-                  'PASS' if not failed else 'FAIL', worst,
-                  '; '.join(e for s in results for e in s['errors']) or 'clean'))
-        ledger = os.path.join(ROOT, 'eval', 'RESULTS.md')
-        with io.open(ledger, 'a', encoding='utf-8', newline='\n') as f:
-            f.write(row)
-        print('  recorded in eval/RESULTS.md')
+        record_row(case, 'PASS' if not failed else 'FAIL', worst, detail)
     return 1 if failed else 0
+
+
+def summarize_refusal(log):
+    lines = [ln.strip() for ln in log.splitlines() if 'FAIL' in ln]
+    s = '; '.join(lines) or log.strip().splitlines()[-1]
+    return s[:400]
 
 
 if __name__ == '__main__':

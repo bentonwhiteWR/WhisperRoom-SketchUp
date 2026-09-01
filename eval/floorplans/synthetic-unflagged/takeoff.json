@@ -1,0 +1,58 @@
+{
+  "job": "synthetic-unflagged",
+  "title": "Eval fixture: right number, fabricated source — must fail on provenance, not geometry",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "unflag",
+      "runs": [
+        {
+          "d": "E",
+          "v": "12'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "12'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8'",
+        "src": "stated synthetic (authored)"
+      },
+      "doors": [
+        {
+          "run": 0,
+          "at": {
+            "v": "36\"",
+            "src": "pen plan.pdf"
+          },
+          "w": {
+            "v": "36\"",
+            "src": "stated synthetic (authored)"
+          },
+          "h": {
+            "v": "80\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        }
+      ]
+    }
+  ]
+}

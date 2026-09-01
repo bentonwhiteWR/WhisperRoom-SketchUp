@@ -1,0 +1,99 @@
+{
+  "generated_by": "eval/gen-plans.py — truth authored first, plan derived from it",
+  "rooms": [
+    {
+      "room": "ell",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          220.0,
+          0.0
+        ],
+        [
+          220.0,
+          -96.0
+        ],
+        [
+          120.0,
+          -96.0
+        ],
+        [
+          120.0,
+          -156.0
+        ],
+        [
+          0.0,
+          -156.0
+        ]
+      ],
+      "ceiling_in": 105.0,
+      "doors": [
+        {
+          "run": 4,
+          "w_in": 36.0,
+          "jambs_in": [
+            30.0,
+            66.0
+          ],
+          "expect_flag": null
+        }
+      ],
+      "features": [
+        {
+          "type": "heater",
+          "count": 2
+        },
+        {
+          "type": "bulkhead",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "room": "adjacent",
+      "source": "authored by eval/gen-plans.py — exact by construction",
+      "tolerance_in": 0.1,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          120.0,
+          0.0
+        ],
+        [
+          120.0,
+          -156.0
+        ],
+        [
+          0.0,
+          -156.0
+        ]
+      ],
+      "ceiling_in": 98.0,
+      "doors": [
+        {
+          "run": 0,
+          "w_in": 38.0,
+          "jambs_in": [
+            40.0,
+            78.0
+          ],
+          "expect_flag": null
+        }
+      ],
+      "features": [
+        {
+          "type": "window",
+          "count": 1
+        }
+      ]
+    }
+  ]
+}

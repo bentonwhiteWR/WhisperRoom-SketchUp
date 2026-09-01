@@ -1,0 +1,4 @@
+{
+  "takeoff": "../synthetic-nasty/takeoff-t2.json",
+  "truth": "../synthetic-nasty/truth.json"
+}

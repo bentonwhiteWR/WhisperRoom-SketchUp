@@ -1,0 +1,90 @@
+{
+  "job": "synthetic-cornerdoor",
+  "title": "Eval fixture: door at the corner, door overrunning the far corner, two doors overlapping",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "corner",
+      "runs": [
+        {
+          "d": "E",
+          "v": "14'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "14'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8'",
+        "src": "stated synthetic (authored)"
+      },
+      "doors": [
+        {
+          "run": 0,
+          "at": {
+            "v": "0\"",
+            "src": "stated synthetic (authored)"
+          },
+          "w": {
+            "v": "36\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        },
+        {
+          "run": 1,
+          "at": {
+            "v": "8'0\"",
+            "src": "stated synthetic (authored)"
+          },
+          "w": {
+            "v": "36\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        },
+        {
+          "run": 2,
+          "at": {
+            "v": "20\"",
+            "src": "stated synthetic (authored)"
+          },
+          "w": {
+            "v": "38\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        },
+        {
+          "run": 2,
+          "at": {
+            "v": "40\"",
+            "src": "stated synthetic (authored)"
+          },
+          "w": {
+            "v": "38\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "far"
+        }
+      ]
+    }
+  ]
+}

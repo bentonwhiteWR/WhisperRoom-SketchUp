@@ -2,6 +2,44 @@
 
 ## 2026-08-31
 
+### 1.12.1 — adversarial eval set: the loop actually ran, and it found things
+
+Floor-plan intake spec step 8. New: `eval/gen-plans.py` (authors 12
+synthetic cases — truth as exact inches FIRST, then the take-off fixture
+and a PyMuPDF vector plan + rasterized "phone photo" derived from it;
+deterministic, JSON byte-identical across runs). Changed:
+`scripts/eval-floorplan.py` (case.json `expects.refusal` /
+`expects.score_fail` / `probe` semantics, refusals now get ledger rows,
+`WR_TAKEOFF_CHECK` checker-path pin, extra-feature check, worst-vertex
+default fix). VERSION 1.12.0 -> **1.12.1**.
+
+- **The cases are designed to make the pipeline fail**, split by what a
+  failure means: refusal cases (nonclosing chain, missing door position /
+  ceiling, corner + overlapping doors) where the named refusal IS the pass
+  and a future FAIL means a refusal got un-fixed; planted-defect cases
+  (`clearwidth-trap`: 15'0" clear width transcribed as the wall width, no
+  chain recorded — validates CLEAN, builds a room 24.00" wrong, only the
+  scorer catches it; `unflagged`: right number with a fabricated pen src —
+  0.00" geometry, fails on provenance) — both are the 31 Aug silent class,
+  now measured; and tier-1 exact builds (L-room, jog, unit-format torture
+  incl. unicode primes and 8.833' decimal dust) that all scored 0.00".
+- **Three probes, three verdicts, all live** (SketchUp 2026 bridge):
+  `selfcross` — a closed-but-pinched polygon builds a two-lobe floor face
+  with no message anywhere (DEFECT F1, checker's to fix); `headroom` — a
+  bulkhead above the ceiling is silently dropped at build-takeoff.rb:317
+  and an 8'6" door builds through an 8'0" ceiling (F2, F3); `sliver` — a
+  door 0.03" off the corner SURVIVED with exact jambs, promoted to a
+  locked tier-1 case. F1–F3 are recorded in `eval/RESULTS.md` findings,
+  NOT fixed here — those files belong to concurrent lanes.
+- **Tier 2 ran for real**: a fresh agent given only the generated photo
+  and `reference/takeoff-format.md` (never the truth) transcribed
+  `synthetic-nasty` blind — 0.00" on every dimension, zero invented
+  values (`synthetic-nasty-t2`).
+- The ledger now has 35 dated rows across four timestamps — generate,
+  score, fix, re-score — including a mid-session pin to the committed
+  checker while the working-tree copy was broken by an in-flight edit
+  (F4, resolved when that lane's fix landed, whole suite re-run against it).
+
 ### 1.12.0 — hide WHOLE walls per scene, and the proposal package says which
 
 Benton: "we need to be sure that we can 'hide a wall' in the proposal

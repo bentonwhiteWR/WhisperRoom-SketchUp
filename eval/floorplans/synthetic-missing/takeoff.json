@@ -1,0 +1,75 @@
+{
+  "job": "synthetic-missing",
+  "title": "Eval fixture: door with no position + room with no ceiling — both must fail by name",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "nodoorpos",
+      "runs": [
+        {
+          "d": "E",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "8'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "8'",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8'6\"",
+        "src": "stated synthetic (authored)"
+      },
+      "doors": [
+        {
+          "run": 0,
+          "w": {
+            "v": "36\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        }
+      ]
+    },
+    {
+      "name": "noceil",
+      "runs": [
+        {
+          "d": "E",
+          "v": "9'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "9'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "9'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "9'",
+          "src": "stated synthetic (authored)"
+        }
+      ]
+    }
+  ]
+}

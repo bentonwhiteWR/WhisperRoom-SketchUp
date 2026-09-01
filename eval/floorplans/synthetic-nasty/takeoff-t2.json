@@ -1,0 +1,90 @@
+{
+  "job": "synthetic-nasty-t2",
+  "title": "SYNTHETIC EVAL PLAN - synthetic-nasty (blind transcription, trial t2)",
+  "sources": ["input/photo.png"],
+  "anchor": "pen 18'4\" ell top-wall chain (10\" | 16'8\" | 10\")",
+  "interpretations": [
+    "Walk order per house protocol: each room starts at its top-left corner heading E, then clockwise; run 0 is the top wall.",
+    "The 'heater from 17'6\" length 10\" depth 10\"' label sits at the ell/adjacent gap; assigned to ell run 0 (top wall) because 17'6\" + 10\" = 18'4\" lands exactly on the ell's NE corner, matching the dashed box drawn at that corner.",
+    "The bulkhead dashed box is drawn vertically along the ell's upper right wall, so it is placed on ell run 1 (the 8' S-going run); from 12\" + length 72\" = 84\" fits inside the 96\" run.",
+    "The window dashed box is drawn along the adjacent room's left (west) wall, lower half, so it is on adjacent run 3 (the N-going run starting at the bottom-left corner); from 24\" measured from that bottom-left corner matches the drawn box.",
+    "Ell door: run 4 (bottom wall) is walked W from the bottom of the 5' jog; '@ 30\"' taken as start-corner -> near jamb, which matches the drawn gap. Swing line is anchored at the jamb nearer that corner, so hinge = near.",
+    "Adjacent door: on run 0 walked E from the top-left corner; '@ 40\"' -> near jamb, matching the drawn gap. Swing line anchored at the left jamb (the start-corner side), so hinge = near.",
+    "Adjacent room top and bottom walls are each labeled 10'; sides each labeled 13' - plain rectangle."
+  ],
+  "rooms": [
+    {
+      "name": "ell",
+      "runs": [
+        {"d": "E", "v": "18'4\"", "parts": ["10\"", "16'8\"", "10\""], "src": "pen photo.png", "note": "16'8\" is the middle segment between the two 10\" heater returns at each end of the top wall"},
+        {"d": "S", "v": "8'", "src": "pen photo.png"},
+        {"d": "W", "v": "8'4\"", "src": "pen photo.png"},
+        {"d": "S", "v": "5'", "src": "pen photo.png"},
+        {"d": "W", "v": "10'", "src": "pen photo.png"},
+        {"d": "N", "v": "13'", "src": "pen photo.png"}
+      ],
+      "ceiling": {"v": "8'9\"", "src": "pen photo.png", "note": "CLG 8'-9\" note in room"},
+      "doors": [
+        {
+          "run": 4,
+          "at": {"v": "30\"", "src": "pen photo.png", "note": "plan states door 36\" @ 30\"; measured from the run's start corner (right end of the bottom wall, at the base of the 5' jog)"},
+          "w": {"v": "36\"", "src": "pen photo.png"},
+          "h": {"v": "80\"", "src": "pen photo.png"},
+          "hinge": "near"
+        }
+      ],
+      "features": [
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {"v": "0\"", "src": "pen photo.png"},
+          "length": {"v": "10\"", "src": "pen photo.png"},
+          "depth": {"v": "10\"", "src": "pen photo.png"}
+        },
+        {
+          "type": "heater",
+          "run": 0,
+          "from": {"v": "17'6\"", "src": "pen photo.png"},
+          "length": {"v": "10\"", "src": "pen photo.png"},
+          "depth": {"v": "10\"", "src": "pen photo.png"}
+        },
+        {
+          "type": "bulkhead",
+          "run": 1,
+          "from": {"v": "12\"", "src": "pen photo.png"},
+          "length": {"v": "72\"", "src": "pen photo.png"},
+          "head": {"v": "8'3\"", "src": "pen photo.png"}
+        }
+      ],
+      "notes": ["L-shaped room; notch is at the bottom-right (8'4\" W x 5' S jog)."]
+    },
+    {
+      "name": "adjacent",
+      "runs": [
+        {"d": "E", "v": "10'", "src": "pen photo.png"},
+        {"d": "S", "v": "13'", "src": "pen photo.png"},
+        {"d": "W", "v": "10'", "src": "pen photo.png"},
+        {"d": "N", "v": "13'", "src": "pen photo.png"}
+      ],
+      "ceiling": {"v": "8'2\"", "src": "pen photo.png", "note": "CLG 8'-2\" note in room"},
+      "doors": [
+        {
+          "run": 0,
+          "at": {"v": "40\"", "src": "pen photo.png", "note": "plan states door 38\" @ 40\"; measured from the run's start corner (top-left corner) to the near jamb"},
+          "w": {"v": "38\"", "src": "pen photo.png"},
+          "h": {"v": "80\"", "src": "pen photo.png"},
+          "hinge": "near"
+        }
+      ],
+      "features": [
+        {
+          "type": "window",
+          "run": 3,
+          "from": {"v": "24\"", "src": "pen photo.png"},
+          "width": {"v": "60\"", "src": "pen photo.png"},
+          "sill": {"v": "30\"", "src": "pen photo.png"}
+        }
+      ]
+    }
+  ]
+}

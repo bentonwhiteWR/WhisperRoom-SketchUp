@@ -1,0 +1,7 @@
+{
+  "expects": {
+    "refusal": [
+      "runs do not close"
+    ]
+  }
+}

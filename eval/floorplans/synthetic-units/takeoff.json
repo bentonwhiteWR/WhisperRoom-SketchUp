@@ -1,0 +1,58 @@
+{
+  "job": "synthetic-units",
+  "title": "Eval fixture: mixed 8'10\" / 8'-10\" / 106\" / 8.833' / unicode / ft-in — all one room",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "units",
+      "runs": [
+        {
+          "d": "E",
+          "v": "8'10\"",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "110",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "8.833'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "9′2″",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8.5'",
+        "src": "stated synthetic (authored)"
+      },
+      "doors": [
+        {
+          "run": 0,
+          "at": {
+            "v": "2' 6 1/2\"",
+            "src": "stated synthetic (authored)"
+          },
+          "w": {
+            "v": "3ft",
+            "src": "stated synthetic (authored)"
+          },
+          "h": {
+            "v": "6ft 8in",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        }
+      ]
+    }
+  ]
+}

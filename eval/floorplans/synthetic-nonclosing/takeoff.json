@@ -1,0 +1,40 @@
+{
+  "job": "synthetic-nonclosing",
+  "title": "Eval fixture: chain 4\" open — pass is the checker refusing by name, nothing builds",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "nonclose",
+      "runs": [
+        {
+          "d": "E",
+          "v": "12'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "11'8\"",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "N",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8'6\"",
+        "src": "stated synthetic (authored)"
+      }
+    }
+  ]
+}

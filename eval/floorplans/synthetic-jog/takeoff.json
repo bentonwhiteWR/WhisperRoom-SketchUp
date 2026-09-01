@@ -1,0 +1,73 @@
+{
+  "job": "synthetic-jog",
+  "title": "Eval fixture: wall that returns (8-run jog) with a parts chain on the far wall",
+  "sources": [
+    "input/plan.pdf",
+    "input/photo.png"
+  ],
+  "anchor": "authored — truth set in eval/gen-plans.py before the plan was drawn; the plan is derived from the truth",
+  "rooms": [
+    {
+      "name": "jog",
+      "runs": [
+        {
+          "d": "E",
+          "v": "8'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "2'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "E",
+          "v": "4'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "S",
+          "v": "8'",
+          "src": "stated synthetic (authored)"
+        },
+        {
+          "d": "W",
+          "v": "12'",
+          "parts": [
+            "8'",
+            "4'"
+          ],
+          "src": "stated synthetic (authored)",
+          "note": "south wall overall; segments oppose the jogged north wall"
+        },
+        {
+          "d": "N",
+          "v": "10'",
+          "src": "stated synthetic (authored)"
+        }
+      ],
+      "ceiling": {
+        "v": "8'",
+        "src": "stated synthetic (authored)"
+      },
+      "doors": [
+        {
+          "run": 3,
+          "at": {
+            "v": "12\"",
+            "src": "stated synthetic (authored)"
+          },
+          "w": {
+            "v": "36\"",
+            "src": "stated synthetic (authored)"
+          },
+          "h": {
+            "v": "80\"",
+            "src": "stated synthetic (authored)"
+          },
+          "hinge": "near"
+        }
+      ]
+    }
+  ]
+}
