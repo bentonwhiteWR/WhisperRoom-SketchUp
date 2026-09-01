@@ -837,7 +837,7 @@ def print_report(ck, lock, path):
 
 # ------------------------------------------------------------ review html --
 
-def _sval(room_name, field, old_arch, flag):
+def _sval(room_name, field, inches, flag, suffix=''):
     """Attributes that make one SVG dimension text editable, or '' when the
     text is not a single editable value (a chain breakdown, say).
 
@@ -846,11 +846,14 @@ def _sval(room_name, field, old_arch, flag):
     step when it is edited. Assumed values are clickable like any other —
     they are the ones most worth correcting — and carry data-assumed so the
     drawing can say so before it is clicked."""
+    a = ' data-in="%.4f"' % inches
+    if suffix:
+        a += ' data-suffix="%s"' % esc(suffix)
     if not field:
-        return ''
-    return (' class="sval%s" data-room="%s" data-field="%s" data-old="%s"'
-            % (' asm' if flag in ('assumed', 'default', 'derived') else '',
-               esc(room_name), esc(field), esc(old_arch)))
+        return a          # still reformats on the unit toggle, just not clickable
+    return a + (' class="sval%s" data-room="%s" data-field="%s" data-old="%s"'
+                % (' asm' if flag in ('assumed', 'default', 'derived') else '',
+                   esc(room_name), esc(field), esc(arch(inches))))
 
 
 def _svg_room(room):
@@ -915,8 +918,8 @@ def _svg_room(room):
                     rot = ' transform="rotate(-90 %.1f %.1f)"' % (stx, sty)
                 out.append('<text x="%.1f" y="%.1f" font-size="%g" '
                            'fill="var(--accent)" text-anchor="middle"%s%s>%s</text>'
-                           % (stx, sty, fs, rot, _sval(room['name'], field,
-                                                      arch(v), flag),
+                           % (stx, sty, fs, rot,
+                              _sval(room['name'], field, v, flag),
                               esc(arch(v))))
                 cur += v
     for dj, dd in enumerate(room.get('doors') or []):
@@ -934,8 +937,9 @@ def _svg_room(room):
         out.append('<text x="%.1f" y="%.1f" font-size="6.5" fill="var(--%s)" '
                    'text-anchor="middle"%s>%s</text>'
                    % (mx, my, 'warn' if dd['at_flag'] else 'ink-2',
-                      _sval(room['name'], 'doors[%d].w' % dj,
-                            arch(dd['w_in']), dd.get('w_flag')), esc(lab)))
+                      _sval(room['name'], 'doors[%d].w' % dj, dd['w_in'],
+                            dd.get('w_flag'),
+                            ' ASSUMED at' if dd['at_flag'] else ''), esc(lab)))
     for f in room.get('features') or []:
         i = f['run']
         if i + 1 >= len(pts):
@@ -1013,8 +1017,8 @@ CSS = """
   .room h2 .mono{color:var(--ink-3);font-weight:400;font-size:11px}
   .roomgrid{display:grid;grid-template-columns:1fr;gap:0}
   @media(min-width:760px){.roomgrid{grid-template-columns:minmax(0,1fr) 340px}}
-  .plan{padding:14px;display:grid;place-items:center;background:var(--bg)}
-  .plan svg{width:100%;height:auto;max-width:560px}
+  .plan{background:var(--bg)}
+  .plan svg{width:560px;height:auto;max-width:none}
   .facts{padding:12px 14px;border-left:1px solid var(--rule)}
   table{width:100%;border-collapse:collapse;margin-bottom:12px}
   td{padding:3px 0;font-size:11.5px;vertical-align:top}
@@ -1078,6 +1082,22 @@ CSS = """
     color:var(--ink-2);cursor:pointer}
   .rv button.on-a{background:var(--ok);border-color:var(--ok);color:#fff}
   .rv button.on-n{background:var(--warn);border-color:var(--warn);color:#fff}
+  .units{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .units .lab{margin:0}
+  .useg{display:inline-flex;border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+  .useg button{font-family:Consolas,monospace;font-size:9.5px;letter-spacing:.09em;
+    padding:3px 10px;border:0;background:var(--card);color:var(--ink-2);cursor:pointer}
+  .useg button.on{background:var(--accent);color:#fff;font-weight:700}
+  .planbar{display:flex;align-items:center;gap:5px;padding:6px 8px 0}
+  .planbar button{font-family:Consolas,monospace;font-size:11px;min-width:24px;
+    padding:2px 7px;border:1px solid var(--rule);border-radius:3px;
+    background:var(--card);color:var(--ink-2);cursor:pointer}
+  .planbar button:hover{border-color:var(--accent);color:var(--accent)}
+  .planbar .zlvl{font-family:Consolas,monospace;font-size:10px;color:var(--ink-3)}
+  .planview{overflow:auto;max-height:60vh;padding:8px 14px 14px;
+    display:flex;justify-content:center}
+  .planview svg{flex:0 0 auto}
+  #patchsec .why{margin:2px 0 8px;font-size:11.5px;color:var(--ink-2);line-height:1.5}
   .val{cursor:pointer;border-bottom:1px dashed var(--ink-3)}
   /* A dimension on the plan is the same value as the one in the callout
      column, so it gets the same affordance: dashed = click me, orange bold
@@ -1091,8 +1111,14 @@ CSS = """
   .val:hover{border-bottom-color:var(--accent);color:var(--accent)}
   .val.edited{color:var(--accent);font-weight:700;border-bottom:1px solid var(--accent)}
   .was{color:var(--ink-3);text-decoration:line-through;margin-left:5px;font-size:10.5px}
-  .edform{margin:6px 0 8px;padding:9px 10px;border:1px solid var(--accent);border-radius:4px;
-    background:var(--bg);font-size:11px}
+  /* The edit form FLOATS. It used to be inserted into the flow, which pushed
+     the drawing and everything below it down the moment you clicked a value —
+     you lost your place in the thing you were checking. Fixed position means
+     clicking a dimension moves nothing on the page. */
+  .edform{position:fixed;z-index:60;width:270px;padding:10px 11px;
+    border:1px solid var(--accent);border-radius:5px;background:var(--card);
+    box-shadow:0 8px 26px rgba(0,0,0,.28);font-size:11px}
+  .edback{position:fixed;inset:0;z-index:55;background:transparent}
   .edform label{display:block;margin:5px 0 2px;font-size:9.5px;letter-spacing:.1em;
     text-transform:uppercase;color:var(--ink-3);font-family:Consolas,monospace}
   .edform input,.edform select{width:100%;padding:4px 7px;border:1px solid var(--rule);
@@ -1346,6 +1372,65 @@ JS = r"""
     });
   });
 
+  // ---------------------------------------------------------------- units --
+  // Every dimension on the page carries data-in, its value in inches, so the
+  // toggle is a re-render rather than a second set of strings that could
+  // disagree with the first. data-suffix keeps a trailing note (the door
+  // label's " ASSUMED at") out of the number.
+  var UNITS = 'ftin';
+  function fmtLen(n) {
+    if (UNITS === 'in') {
+      var r = Math.round(n * 10) / 10;
+      return (r % 1 === 0 ? r : r.toFixed(1)) + '"';
+    }
+    return arch(n);
+  }
+  function retext() {
+    document.querySelectorAll('[data-in]').forEach(function (el) {
+      var v = parseFloat(el.getAttribute('data-in'));
+      if (isNaN(v)) return;
+      el.textContent = fmtLen(v) + (el.getAttribute('data-suffix') || '');
+    });
+  }
+  document.querySelectorAll('.useg button[data-unit]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      UNITS = b.getAttribute('data-unit');
+      document.querySelectorAll('.useg button').forEach(function (x) {
+        setCls(x, 'on', x === b);
+      });
+      retext();
+    });
+  });
+
+  // ----------------------------------------------------------------- zoom --
+  // Scaling the SVG's width inside a scrolling viewport, rather than
+  // transforming it, keeps the scrollbars honest about how big it now is.
+  document.querySelectorAll('.plan').forEach(function (plan) {
+    var svg = plan.querySelector('svg'), bar = plan.querySelector('.planbar');
+    if (!svg || !bar) return;
+    var base = 560, z = 1;
+    function paint() {
+      svg.style.width = Math.round(base * z) + 'px';
+      bar.querySelector('.zlvl').textContent = Math.round(z * 100) + '%';
+    }
+    bar.querySelectorAll('button[data-zoom]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var k = b.getAttribute('data-zoom');
+        if (k === 'in') z = Math.min(6, z * 1.25);
+        else if (k === 'out') z = Math.max(0.4, z / 1.25);
+        else z = 1;
+        paint();
+      });
+    });
+    plan.querySelector('.planview').addEventListener('wheel', function (e) {
+      if (!e.ctrlKey) return;            // plain scroll still scrolls the page
+      e.preventDefault();
+      z = Math.max(0.4, Math.min(6, z * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
+      paint();
+    }, { passive: false });
+    paint();
+  });
+
   // ------------------------------------------------------------ inline edit --
   // A value shows up twice: as a dimension ON THE PLAN and as a row in the
   // callout column. They are ONE value, so an edit to either must move both —
@@ -1363,20 +1448,38 @@ JS = r"""
     // className is a read-only SVGAnimatedString there — never assign it.
     if (on) { el.classList.add(name); } else { el.classList.remove(name); }
   }
-  function paintField(room, field, txt, edited) {
+  function paintField(room, field, inches, edited) {
     (views[keyOf(room, field)] || []).forEach(function (el) {
-      // The door label on the plan is "38\" ASSUMED at" — swap only the
-      // number, never the trailing note.
-      var oldArch = el.getAttribute('data-old');
-      var cur = el.textContent;
-      el.textContent = cur.indexOf(oldArch) === 0
-        ? txt + cur.slice(oldArch.length) : txt;
+      el.setAttribute('data-in', inches);
+      el.textContent = fmtLen(inches) + (el.getAttribute('data-suffix') || '');
       setCls(el, 'edited', edited);
     });
   }
 
-  var openForm = null;
-  function closeForm() { if (openForm) { openForm.remove(); openForm = null; } }
+  var openForm = null, openBack = null;
+  function closeForm() {
+    if (openForm) { openForm.remove(); openForm = null; }
+    if (openBack) { openBack.remove(); openBack = null; }
+  }
+  // Put the popover beside what was clicked, then pull it back inside the
+  // viewport. It is fixed-position, so this is the whole of the layout work
+  // and nothing else on the page moves.
+  function placeForm(f, el) {
+    var r = el.getBoundingClientRect(), pad = 8;
+    f.style.visibility = 'hidden';
+    f.style.left = '0px'; f.style.top = '0px';
+    var w = f.offsetWidth, hgt = f.offsetHeight;
+    var left = r.left + r.width / 2 - w / 2;
+    var top = r.bottom + 6;
+    if (top + hgt > innerHeight - pad) top = Math.max(pad, r.top - hgt - 6);
+    left = Math.max(pad, Math.min(left, innerWidth - w - pad));
+    f.style.left = Math.round(left) + 'px';
+    f.style.top = Math.round(top) + 'px';
+    f.style.visibility = '';
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeForm();
+  });
   document.querySelectorAll('.val, .sval').forEach(function (span) {
     register(span);
     var isSvg = span.classList.contains('sval');
@@ -1405,15 +1508,15 @@ JS = r"""
         + '<div class="row"><button class="save">SAVE</button>'
         + '<button class="cancel">CANCEL</button>'
         + (existing ? '<button class="drop">REMOVE EDIT</button>' : '') + '</div>';
-      if (isSvg) {
-        // An SVG <text> cannot contain a <div>; drop the form just below the
-        // drawing so it opens next to the dimension that was clicked.
-        var plan = span.closest('.plan') || span.closest('section.room');
-        plan.parentNode.insertBefore(f, plan.nextSibling);
-      } else {
-        span.parentElement.appendChild(f);
-      }
-      openForm = f;
+      // One home for the popover whichever kind of value was clicked, so an
+      // SVG dimension and a table row behave identically.
+      var back = document.createElement('div');
+      back.className = 'edback';
+      back.addEventListener('click', closeForm);
+      document.body.appendChild(back);
+      document.body.appendChild(f);
+      openForm = f; openBack = back;
+      placeForm(f, span);
       var $v = f.querySelector('.fv'), $e = f.querySelector('.err');
       if (existing) {
         $v.value = existing['new'].v !== undefined
@@ -1428,16 +1531,17 @@ JS = r"""
           $e.hidden = false; return;
         }
         recordEdit(room, field, oldArch, { v: raw, src: EDIT_SRC });
-        paintField(room, field, arch(inches), true);
+        paintField(room, field, inches, true);
         (views[keyOf(room, field)] || []).forEach(function (el) {
           if (el.classList.contains('sval')) return;   // no strikethrough in SVG
           var was = el.parentElement.querySelector('.was[data-for="' + field + '"]');
           if (!was) {
             was = document.createElement('span');
             was.className = 'was'; was.setAttribute('data-for', field);
+            was.setAttribute('data-in', parseLen(oldArch));
             el.after(was);
           }
-          was.textContent = oldArch;
+          was.textContent = fmtLen(parseLen(oldArch));
         });
         closeForm();
       });
@@ -1445,7 +1549,7 @@ JS = r"""
       var drop = f.querySelector('.drop');
       if (drop) drop.addEventListener('click', function () {
         recordEdit(room, field, oldArch, null);
-        paintField(room, field, oldArch, false);
+        paintField(room, field, parseLen(oldArch), false);
         (views[keyOf(room, field)] || []).forEach(function (el) {
           if (el.classList.contains('sval')) return;
           var was = el.parentElement.querySelector('.was[data-for="' + field + '"]');
@@ -2145,8 +2249,9 @@ def val_span(room_name, field, inches):
     """An editable value: the page turns these into edit forms whose output
     lands in the structured patch box."""
     a = arch(inches)
-    return ('<span class="val" data-room="%s" data-field="%s" data-old="%s">%s'
-            '</span>' % (esc(room_name), esc(field), esc(a), esc(a)))
+    return ('<span class="val" data-in="%.4f" data-room="%s" data-field="%s" '
+            'data-old="%s">%s</span>'
+            % (inches, esc(room_name), esc(field), esc(a), esc(a)))
 
 
 # ---------------------------------------------------------------- the patch --
@@ -2301,7 +2406,14 @@ def html_report(ck, lock, path, photos=None):
          '<div class="srcline">source: %s%s%s</div></header>' % (
              esc(path),
              esc(' · images ' + ', '.join(lock['sources'])) if lock and lock.get('sources') else '',
-             esc(' · anchor: ' + lock['anchor']) if lock and lock.get('anchor') else '')]
+             esc(' · anchor: ' + lock['anchor']) if lock and lock.get('anchor') else ''),
+         # Clients mix the two on one plan, so the sheet reads either way on
+         # demand. It re-renders EVERY dimension on the page — drawing, table
+         # and chain alike — because a sheet showing half in inches is worse
+         # than one showing all of the wrong unit.
+         '<div class="units"><span class="lab">SHOW DIMENSIONS AS</span>'
+         '<span class="useg"><button data-unit="ftin" class="on">FT &amp; IN</button>'
+         '<button data-unit="in">INCHES</button></span></div>']
 
     if ck.assumed:
         h.append('<div class="inv"><span class="tag">%d ASSUMED / DEFAULT VALUE%s '
@@ -2385,14 +2497,23 @@ def html_report(ck, lock, path, photos=None):
                         % esc(note) if note else ''))
         h.append('</table></div></div>')
 
-        h.append('<div class="roomgrid"><div class="plan">%s</div><div class="facts">'
+        # Big plans need a magnifier, not a squint. The SVG scales inside a
+        # scrolling viewport, so zooming never reflows the page around it.
+        h.append('<div class="roomgrid"><div class="plan">'
+                 '<div class="planbar"><button data-zoom="out" title="Zoom out">'
+                 '&minus;</button><button data-zoom="in" title="Zoom in">+</button>'
+                 '<button data-zoom="fit" title="Fit the plan to the panel">FIT</button>'
+                 '<span class="zlvl">100%%</span></div>'
+                 '<div class="planview">%s</div></div><div class="facts">'
                  % _svg_room(room))
         h.append('<span class="lab">Stated values — click one to change it</span><table>')
         for i, r in enumerate(room['runs']):
             extra = ''
             if r.get('parts'):
-                extra = ('<br>= ' + ' + '.join(arch(p) for p in r['parts'])
-                         + (' — ' + esc(r['note']) if r.get('note') else ''))
+                extra = ('<br>= ' + ' + '.join(
+                    '<span class="ln" data-in="%.4f">%s</span>' % (p, esc(arch(p)))
+                    for p in r['parts'])
+                    + (' — ' + esc(r['note']) if r.get('note') else ''))
             elif r.get('note'):
                 extra = ' — ' + esc(r['note'])
             h.append('<tr><td class="k">run %d (%s)</td><td class="v">%s %s%s</td></tr>'
@@ -2445,8 +2566,12 @@ def html_report(ck, lock, path, photos=None):
                      'arrows step · R resets</div></div>' % esc(name))
         h.append('</section>')
 
-    h.append('<div id="patchsec"><span class="lab">Review patch — structured, '
-             'not prose</span>'
+    h.append('<div id="patchsec"><span class="lab">STEP 3 — COPY THIS AND PASTE '
+             'IT BACK TO CLAUDE</span>'
+             '<p class="why">Everything you changed or noted above is collected '
+             'here. Hit COPY PATCH, paste it into the chat, and Claude applies '
+             'the numbers and acts on the notes. Nothing you did on this page '
+             'reaches the model until this text goes back.</p>'
              '<textarea id="patchbox" readonly spellcheck="false"></textarea>'
              '<div class="row"><button id="copybtn">COPY PATCH</button>'
              '<span class="copied"></span></div>'

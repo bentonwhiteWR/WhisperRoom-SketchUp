@@ -5,6 +5,31 @@ description: Turn a client floor plan — phone photo of a marked-up printout, P
 
 # WhisperRoom floor-plan take-off
 
+> ## STOP — THE REVIEW SHEET IS GENERATED, NEVER HAND-WRITTEN
+>
+> **You do not write the review artifact. You run this command:**
+>
+> ```
+> python scripts/takeoff-check.py clients/<job>/takeoff.json --html
+> ```
+>
+> It writes `clients/<job>/takeoff.review.html`. **That file IS the artifact.**
+> Publish it with the Artifact tool exactly as generated.
+>
+> **NEVER** hand-build a review page, an HTML summary, a table of dimensions,
+> a "here is what I read off the plan" artifact, or any other bespoke page.
+> A hand-made one has no editable dimensions, no closure check, no patch box
+> and no way back into the model — it looks like the real thing and is a dead
+> end. This has already happened once with the rules in context; if you are
+> about to write HTML for a take-off, you are doing it wrong.
+>
+> The ONE permitted edit to the generated file: to publish it as an Artifact,
+> strip the wrapper the publisher supplies — keep everything from `<title>`
+> onward and drop the trailing `</body></html>`. Change nothing else. If the
+> sheet needs to look or behave differently, **fix
+> `scripts/takeoff-check.py` and regenerate**; a change made to the output
+> file is erased by the next run and never reaches Gabe.
+
 **Normative schema and full procedure: `reference/takeoff-format.md` in the
 WhisperRoom-SketchUp repo. Read it before writing a take-off — this skill is the
 short form.** Worked example: `clients/uic-daley-library/takeoff.json`, the real
@@ -19,6 +44,16 @@ short form.** Worked example: `clients/uic-daley-library/takeoff.json`, the real
   right number as the wrong thing (a clear width transcribed as the wall width).
   Never estimate a dimension that is written on the plan, and never "sanity-check"
   a stated number against a pixel scale and blend the two.
+- **A hand sketch is allowed to be imprecise, and you are allowed to proceed.**
+  Benton, 1 Sep 2026: a hand drawing "doesn't necessarily need to be 100%
+  precise ... there's always gonna be some user error, so some assumptions are
+  okay. Just note when the assumptions are made." Do not stall a job demanding
+  exactness a pen sketch cannot give. Take the number, get the room standing,
+  and record every gap as `{"assumed": ..., "reason": ...}` so it flags on the
+  sheet and gets a note in the model. **The rule that does not bend is that an
+  assumption is never silent** — a guessed number with no reason is refused by
+  name, and that refusal is the point. Assumed-and-labelled is fine; invented
+  and quiet is the defect.
 - **No usable numbers on the plan.** Only then estimate scale from one named
   anchor per `reference/scale-estimation.md`. The failure mode is opposite — one
   scale error spreads over every dimension — so the output is a **range with a
@@ -47,7 +82,15 @@ lock, so an unchecked take-off cannot reach the model.
 
 ## What Gabe sees on the review sheet
 
-Full detail in `reference/takeoff-format.md`; the four things that matter:
+Full detail in `reference/takeoff-format.md`; the things that matter:
+
+- **A unit toggle in the header — FT & IN / INCHES.** Clients mix the two on one
+  plan, so the sheet re-renders every dimension on demand: drawing, table and
+  chain together. Nothing is half-converted.
+- **Zoom on every plan** — `+` / `−` / `FIT`, or Ctrl+scroll over the drawing.
+  Big plans get read, not squinted at.
+- **The edit box floats.** Clicking a dimension opens a popover over the page;
+  nothing below it moves. Esc or a click outside closes it.
 
 - **Click a dimension on the plan, or the same value in the callout column** —
   either opens the edit box, and saving repaints both. The drawing and the table
@@ -62,6 +105,9 @@ Full detail in `reference/takeoff-format.md`; the four things that matter:
 - **NEEDS CHANGES opens a note box** for what is not a number (a door swinging
   the wrong way, a partition that is gone). Notes ride in the patch under
   `notes`, are never auto-applied, and `--apply-patch` echoes them.
+- **The bottom of the sheet is STEP 3: copy the patch, paste it back to
+  Claude.** Nothing done on the page reaches the model until that text comes
+  back. Say so when you hand the artifact over.
 
 ## Record chains with their parts
 
