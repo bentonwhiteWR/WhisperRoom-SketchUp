@@ -2,6 +2,66 @@
 
 ## 2026-08-31
 
+### 1.12.10 — the door swing arc was drawn on the wrong side of the wall
+
+Benton, looking at real rooms: *"all of the door swings are the wrong way. The
+door is mostly shown inside the room, but the swing outline is on the outside."*
+He was reading it exactly right — the leaf and the arc were on opposite sides
+of the wall, and the leaf was the one that was correct.
+
+**Root cause.** In `scripts/build-room.rb`, `self.door` built the leaf toward
+`inward`, the negated outward normal from `outward(pts, i, ccw)`, so the leaf
+genuinely knew which side of the wall the room was on. The arc did not. It
+rotated the closed-jamb vector about Z by a sign taken from the hinge side
+alone — `(hinge == 'far') ? -1.0 : 1.0` — and that rotation always lands on the
+**left-hand normal of the run**, whichever hinge side it is. The left-hand
+normal is the room interior only when the polygon winds counter-clockwise.
+
+**Why it went from intermittent to universal.** Room winding used to be
+arbitrary, so the arc was right in some rooms and wrong in others. 1.12.9
+landed the clockwise-from-northwest convention and `takeoff-check.py` now
+enforces it, so every room winds the same way and every door is wrong the same
+way. A coin-flip bug became "all of them" — which is why it surfaced today.
+
+**The fix is not a flipped sign.** A sign flip would fix clockwise rooms and
+break counter-clockwise ones, and a legitimately counter-clockwise room exists
+in the corpus: room 3190J in `clients/uic-daley-library/takeoff.json` declares
+`"winding": {"order": "ccw", ...}` for a real reason. The arc now takes its
+sweep direction from the **leaf's own tip** — the sign is the Z component of
+the cross product of the closed-jamb vector and the tip vector — so the arc
+ends where the leaf ends **by construction**. The two cannot disagree, for
+either winding or either hinge side, without the leaf itself being wrong.
+
+**Proved twice.** `scripts/rbtest-doorswing.py` is new: it boots SketchUp's own
+CRuby through `rbparse.py`, lifts `signed_area`, `outward` and `door` verbatim
+out of `build-room.rb`, and runs them against a stubbed Geom. For both windings
+times both hinge sides it asserts the arc ends at the leaf tip, starts at the
+closed jamb, and has its midpoint on the interior side of the wall plane. On
+the old code the four clockwise assertions FAIL — the arc endpoint lands 36"
+outside the wall while the leaf tip lands 36" inside — and the counter-clockwise
+ones pass, which is the reported symptom exactly. On the new code all 18 pass.
+
+Then it was looked at. A four-run test room with a door on every wall and
+hinges alternating near/far was built into an Untitled scratch model,
+photographed top-down, and erased, before and after the change. Before: four
+brown leaves inside the room, four arcs outside the walls. After: leaf and arc
+together inside, on both windings. Images are scratch, not committed.
+
+`scripts/build-takeoff.rb` calls the same `WR_BuildRoom.door`, so the take-off
+pipeline is fixed by the same change. Nothing else in the tree draws a swing
+arc from a fixed sign: the review sheet's plan SVG and 3D view in
+`scripts/takeoff-check.py` draw the opening but no arc, and the per-client
+scripts `scripts/csusb-rooms.rb`, `scripts/csusb-106.rb` and
+`scripts/dowaly-kuwait-tv.rb` carry an explicit measured `:swing => :in/:out`
+per door rather than deriving one.
+
+**Model safety.** Every live job asserted `Sketchup.active_model.path` empty
+*inside the Ruby*, refused by name otherwise, and did build, photograph and
+erase in one single-threaded job — because a three-job version was tried first
+and the active model changed to Benton's `Master Component List.skp` between
+the shot and the cleanup. It refused, correctly, and left eight entities
+behind; they were erased under a model-GUID guard and read back gone.
+
 ### 1.12.9 — the run winding is a rule the checker can see; D1-D5 closed
 
 The blind-transcription trial's real yield was five documentation defects

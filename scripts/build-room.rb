@@ -280,13 +280,29 @@ module WR_BuildRoom
     end
 
     # Swing arc, from the closed jamb round to the open leaf.
+    #
+    # The sweep direction comes from the LEAF's own tip, so the two cannot
+    # disagree: the arc ends where the leaf ends, by construction. It used to
+    # come from the hinge side alone -- `(hinge == 'far') ? -1.0 : 1.0` -- and
+    # rotating the jamb vector that way always lands on the LEFT-hand normal
+    # of the run, which is the room interior only when the polygon winds
+    # counter-clockwise. Rooms wind clockwise by convention (enforced in
+    # takeoff-check.py from 1.12.9), so every door drew its leaf inside and
+    # its arc outside; a room that legitimately winds the other way, like
+    # 3190J in clients/uic-daley-library/takeoff.json, was the one that
+    # happened to be right. Flipping the sign would just move the bug to the
+    # other winding. Reported by Benton and fixed 31 Aug 2026; the offline
+    # reproduction is scripts/rbtest-doorswing.py.
     ag = parent.entities.add_group
     begin
       closed = (hinge == 'far') ? j0 : j1
       vec = closed - pivot
+      tipv = tip - pivot                       # perpendicular to vec, by build
+      cz = (vec.x * tipv.y) - (vec.y * tipv.x) # +Z component of vec x tipv
+      sweep = cz < 0 ? -1.0 : 1.0
       steps = 12
       arc = (0..steps).map do |k|
-        ang = (Math::PI / 2.0) * k / steps * ((hinge == 'far') ? -1.0 : 1.0)
+        ang = (Math::PI / 2.0) * k / steps * sweep
         tr = Geom::Transformation.rotation(pivot, Z_AXIS, ang)
         pivot.offset(vec).transform(tr)
       end

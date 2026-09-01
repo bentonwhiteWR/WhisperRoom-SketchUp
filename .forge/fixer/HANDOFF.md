@@ -1,58 +1,56 @@
-# Fixer HANDOFF — review-lane defects routed 31 Aug 2026 (1.12.6)
+# Fixer HANDOFF — the door swing arc drew on the wrong side (2026-08-31)
+
+Goal reconfirmed against `.forge/GOAL.md` before writing this: the mission is
+the floor-plan intake pipeline, and this is a defect in what that pipeline
+draws — `scripts/build-takeoff.rb` calls the same `WR_BuildRoom.door`, so
+every take-off room built since the winding convention landed had its swings
+backwards. The **Untitled-model rule** was enforced in code on every live job.
+Plugin `scripts/wr_tools/VERSION` 1.12.9 → **1.12.10**.
 
 ## Produced
-- `scripts/takeoff-check.py` — (P1) patch staleness now judged at
-  `DISPLAY_TOL` (0.05"+eps, half of arch()'s 0.1" display quantum) instead
-  of `TOL`; every value the sheet ever showed is patchable, a real change of
-  one sixteenth still refuses. New selftest case pins it. (P2) the review
-  sheet's page script no longer carries a third grammar copy —
-  `dialog_grammar_js()` extracts `parseLen`/`arch` verbatim from
-  `scripts/build-room.html` at generation time, refusing by name if the
-  dialog changes shape.
-- `scripts/eval-floorplan.py` — (P3) checker subprocess decoded as UTF-8;
-  unmeasured rooms record worst "—" (never 0.00") plus a loud UNMEASURED
-  line; `WR_TAKEOFF_CHECK` pin printed and stamped into every ledger row;
-  `--json` emits a blob on refusal/score-fail/probe verdicts too;
-  `summarize_refusal` survives an empty log.
-- `scripts/wr_tools/VERSION` 1.12.5 -> 1.12.6; `DEVLOG.md` entry;
-  `reference/takeoff-format.md` + `.forge/scoper/floorplan-intake.md`
-  wording updated (grammar-in-two-places is true again; staleness precision
-  documented).
-- Repros with READMEs: `.forge/fixer/repro-quarter-inch/`,
-  `.forge/fixer/repro-unmeasured/`.
-- `eval/RESULTS.md`: 17 new rows, full suite re-run live post-change; all
-  verdicts match the 20:05 sweep.
+
+| file | what |
+|---|---|
+| `scripts/build-room.rb` | The fix, in `self.door`. The arc's sweep sign now comes from the leaf's own tip (`cz = vec.x*tipv.y - vec.y*tipv.x`) instead of the hinge side, so the arc ends at the leaf tip by construction, for both windings and both hinge sides. |
+| `scripts/rbtest-doorswing.py` | New offline reproduction and regression test. Lifts `signed_area`, `outward` and `door` verbatim from `build-room.rb`, runs them on a stubbed Geom, 18 assertions over 2 windings x 2 hinge sides. Mutation-checked: restore the old sign and the 4 clockwise assertions fail. |
+| `.forge/fixer/door-swing-arc.md` | Symptom, root cause, how to re-trigger it, blast radius. |
+| `DEVLOG.md`, `scripts/wr_tools/VERSION` | 1.12.10. |
 
 ## Read-first
-- `DEVLOG.md` 1.12.6 entry — the full account.
-- `.forge/fixer/repro-quarter-inch/README.md` — the P1 mechanism in two
-  commands.
+
+1. `.forge/fixer/door-swing-arc.md` — the whole thing in one page.
+2. The comment above the arc block in `scripts/build-room.rb` `self.door`. It
+   says why a flipped sign was the wrong fix.
 
 ## Assumptions
-- observed: every fix reproduced failing first, then passing (P1 end-to-end
-  with a generated sheet's own `data-old`; P3's unmeasured-room case through
-  the live bridge with the committed pre-fix scorer, then the fixed one).
-- observed: generated sheet's embedded grammar passes all 25 parity vectors
-  under Node; page script `node --check` clean; `--selftest` 0 failures.
-- observed: model restored — groups after cleanup exactly the pre-work set
-  ('', 3190F, 3190G+H, 3190J, adjacent, clean, ell, sliver, units); nothing
-  saved. Client images verified gitignored (`git check-ignore` on
-  clients/uic-daley-library/plans/*).
-- derived: 10 of 15 non-zero sixteenths failed the old TOL check (¼" and ¾"
-  included) — recomputed, matches the reviewer's report.
-- assumed: no consumer depends on `--json`'s old shape (keys were only
-  added, never removed/renamed).
 
-## Open-questions
-- `synthetic-headroom` records NO ledger row: still `probe: true`, but
-  1.12.3 moved its refusal into `build-takeoff.rb`, and the scorer treats a
-  builder-side refusal as a fatal bridge error (exit 1, nothing recorded).
-  Pre-existing, not mine to half-land: needs a decision whether
-  `expects.refusal` should match builder refusals, then the case flipped
-  per its README. Until then the suite silently drops one case from the
-  ledger.
-- Review-sheet 3D viewer reallocates its WebGL backing store on every
-  pointermove — flagged by review, deliberately NOT touched: a performance
-  smell in behaviour nobody has ever observed as slow.
-- Existing generated sheets (e.g. the UIC review html) predate 1.12.6; they
-  work unchanged — the fix is checker-side — so no regeneration was done.
+- **observed:** the bug is winding-dependent, not hinge-dependent. Both
+  clockwise cases fail and both counter-clockwise cases pass on the old code
+  (`python scripts/rbtest-doorswing.py` on the pre-fix file, 4 failures).
+- **observed:** nothing else in the tree draws a swing arc from a fixed sign.
+  `scripts/takeoff-check.py`'s plan SVG and 3D review view draw the opening
+  but neither leaf nor arc; `scripts/auto-dimension.rb` and
+  `scripts/wr-overlays.rb` draw neither; `scripts/csusb-rooms.rb`,
+  `scripts/csusb-106.rb` and `scripts/dowaly-kuwait-tv.rb` carry an explicit
+  measured `:swing => :in/:out` per door.
+- **observed:** the scratch model was left exactly as found — 172 entities and
+  the same ten pre-existing eval groups, read back after the last job.
+- **reported, not verified:** those ten groups are somebody else's debris. I
+  did not touch them.
+
+## Open questions
+
+1. **Existing SketchUp files already carry wrong arcs.** Anything built before
+   1.12.10 has its swings outside the wall and rebuilding is the only fix
+   shipped here. A retrofit tool that finds `Swing n` groups on `WR-Doors-Leaf`
+   and re-draws them against their leaf would close that; nobody asked for one.
+2. **The eval suite still has not been built and scored since the 1.12.9
+   format change** — the gap the Builder flagged. I did not close it: the
+   active model flipped to Benton's `Master Component List.skp` repeatedly
+   while I worked (my guard refused three separate jobs), and a 26-case suite
+   needs a longer clear window than I had. The commands are in
+   `.forge/builder/HANDOFF.md` and they are still the right ones.
+3. Model safety, learned the hard way and worth carrying: do build, photograph
+   and erase in **one** Ruby job. Three jobs was tried first and the model
+   changed between the shot and the cleanup, which shot the wrong window and
+   left eight entities behind.
