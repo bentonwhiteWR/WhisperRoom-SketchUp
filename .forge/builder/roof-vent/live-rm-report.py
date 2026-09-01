@@ -16,11 +16,14 @@ geometry in one of Benton's files, refuse by name unless the active model is
 Untitled, and erase by the entityIDs captured at build time, reading back to
 confirm the erase happened.
 
-PASS means, per mode:
-  (default) the ceiling line reads 93.31 in and the seating blocker is named
-  --hx      93.31 becomes 103.31 and HX is named as a blocker
-  --efs     EFS is named as a blocker rather than an edge being chosen
-  --vss     the roof unit is quoted at 16.5, not the 10.3125 the file measures
+PASS means, per mode (updated for plugin 1.14.0, where the unit is SEATED —
+Benton settled the seating and the HX question on 31 Aug 2026):
+  (default) the ceiling line reads 93.31 in and RM7272 is seated, centred
+  --hx      93.31 becomes 103.31 and the SAME part is seated on the higher roof
+  --efs     EFS changes nothing: the seating is keyed to model width, and the
+            console says so rather than choosing an edge
+  --vss     the roof unit is quoted from the MEASURED VSS part, not the stated
+            16.5 — on 7272 that is 10.499
   --nopart  NOTHING is built and the link is refused by name
 """
 import base64
@@ -99,20 +102,22 @@ def variant(argv):
     p = json.loads(json.dumps(BASE))
     if '--hx' in argv:
         p['hx'] = 1
-        return p, ['103.31 in', 'RM7272_HX.skp'], False
+        return p, ['103.31 in', 'RM7272.skp goes on the roof',
+                   'roof measured at booth-local z 92.0000'], False
     if '--efs' in argv:
         p['ef'] = 1
-        return p, ['EFS (ef = 1)', 'might'], False
+        return p, ['SEATED CENTRED', 'RM7272.skp goes on the roof'], False
     if '--vss' in argv:
         p['vs'] = 1
-        return p, ['+ 16.50 in of roof unit', 'RM7272VSS.skp'], False
+        return p, ['+ 10.50 in of roof unit', 'RM7272VSS.skp goes on the roof'], False
     if '--nopart' in argv:
         p['m'] = 'MDL 4242'
         # 4242 ventilates one wall; the roof-mount fence needs that slot to
         # carry a cable-wall pack, so the ONLY complaint is the missing part.
         p['a'] = {'N0': 'STDWL40 CBL', 'S0': 'STDWL40 DRFRM R'}
         return p, ['has no roof part', 'NO ventilation at all'], True
-    return p, ['93.31 in', 'seating is not confirmed', 'RM7272.skp'], False
+    return p, ['93.31 in', 'SEATED CENTRED', 'RM7272.skp goes on the roof',
+               'left 3.250 / right 3.250'], False
 
 
 def main():

@@ -39,6 +39,13 @@
 #               centred in plan on the carpet floor. The Standard booth's
 #               perimeter strips have NO component and NO art — reported
 #               missing, never faked.
+#   ROOF UNIT   payload rv (+ vs for the VSS twin). RM<model>.skp — the whole
+#               roof assembly, both boxes and every duct, as ONE part — seated
+#               on the booth's roof. Centred on the booth's NOMINAL footprint,
+#               except the four 84-in-wide models which go flush RIGHT (+x).
+#               The rule, whose side +x is, and what is still refused (HX) all
+#               live in scripts/wr-roof-vent.rb's header; this file only
+#               applies it.
 #   CASTER      payload cs. The wheeled tray the whole booth sits down into:
 #   PLATE       one CP plate per floor-deck tile — the plate set tiles
 #               one-for-one with the floor deck (observed, WhisperRoomQuote
@@ -933,6 +940,16 @@ module WR_Overlays
       end
     end
 
+    # ------------------------------------------ roof-mounted ventilation --
+    #
+    # BEFORE the caster plate, so the booth lift (which is applied once to the
+    # group's own transformation) carries the roof unit up with everything
+    # else. Placed only when wr-roof-vent has NO blockers left — an HX booth
+    # or a model with no part is refused there, by name, and nothing is drawn.
+    if ov['roof_vent']
+      placed += place_roof_unit(model, booth, key, spec, cfg, cache, t_opt, warns)
+    end
+
     # --------------------------------------- caster plate + the booth lift --
     if ov['casters_plate']
       placed += place_casters(model, booth, key, spec, cfg, cache,
@@ -950,6 +967,113 @@ module WR_Overlays
 
     puts '  ---- overlays end ' + '-' * 58
     [placed, warns]
+  end
+
+  # ---- the roof unit of a roof-mounted (rv = 1) booth ---------------------
+  #
+  # RM<model>.skp is the complete roof assembly — both boxes, every duct — and
+  # needs seating, not assembling (Benton, 31 Aug 2026). So this is a pure
+  # translation: the part is authored the right way up and with its width on x
+  # and its depth on y, matching the booth (observed on all 44 files by
+  # .forge/builder/roof-vent/measure-rm.py).
+  #
+  # PLAN comes from WR_RoofVent.seat, which is the only place the rule lives.
+  #
+  # Z IS MEASURED, NOT ASSUMED, and that is the whole of the HX handling.
+  # Benton, 31 Aug 2026: "These RM components just sit on the ceiling. Albeit,
+  # 10 in higher since the roof is 10 in higher." So the unit sits on whatever
+  # the booth's roof actually came out at — the highest thing in the booth
+  # group, in booth-local coordinates — and a Standard, an Enhanced and a
+  # height-extended booth all seat correctly with no per-case constant and no
+  # `+ 10 if hx` branch. The 10 is already in the geometry: an HX booth is
+  # built from 91 in panels instead of 81 (build-booth-components). The panel
+  # top is printed alongside the measured roof so the two can be compared.
+  def self.place_roof_unit(model, booth, key, spec, cfg, cache, layer, warns)
+    dry = cfg['dry'] ? true : false
+    ov  = cfg['overlay'] || {}
+    vss = ov['roof_vss'] ? true : false
+    efs = ov['roof_efs'] ? true : false
+
+    puts ''
+    puts '  ---- roof-mounted ventilation: the roof unit ' + '-' * 31
+
+    blockers = WR_RoofVent.roof_unit_blockers(key, spec[:eiw] ? 'E' : 'S',
+                                              cfg['hx'] ? true : false, efs, vss)
+    unless blockers.empty?
+      blockers.each do |b|
+        puts "    ROOF UNIT NOT PLACED — #{b}"
+        warns << "roof unit NOT placed: #{b}"
+      end
+      return 0
+    end
+
+    name = WR_RoofVent.part_name(key, vss)
+    defn = WR_BuildBoothComponents.load_def(model, cfg['dir'], name, cache)
+    if defn.nil?
+      warns << "#{name}.skp not found in #{cfg['dir']} — roof unit NOT placed"
+      puts "    ROOF UNIT NOT PLACED — #{name}.skp is not in #{cfg['dir']}"
+      return 0
+    end
+    gx = geom_extents(defn)
+    if gx.nil?
+      warns << "#{name}.skp holds no measurable faces — roof unit NOT placed"
+      puts "    ROOF UNIT NOT PLACED — #{name}.skp holds no measurable faces"
+      return 0
+    end
+
+    # Cross-check the live part against the table wr-roof-vent reports its
+    # ceiling figure from. A silent disagreement here would mean the ceiling
+    # requirement printed on the drawing is not the part standing in it.
+    row = WR_RoofVent::MEASURED[WR_RoofVent.digits(key)]
+    want = row && row[vss ? :vss : :flat]
+    if want && (0..2).any? { |i| (gx[:e][i] - want[i]).abs > 0.01 }
+      warns << format('%s.skp measures %.3f x %.3f x %.4f live, where MEASURED ' \
+                      'in wr-roof-vent.rb says %.3f x %.3f x %.4f. The part was ' \
+                      're-exported or the table is stale — re-run measure-rm.py. ' \
+                      'Seated off the LIVE measurement.',
+                      name, gx[:e][0], gx[:e][1], gx[:e][2], *want)
+    end
+
+    seat = WR_RoofVent.seat(key, spec[:w], spec[:h], gx[:e][0], gx[:e][1])
+    if seat[:error]
+      warns << "roof unit NOT placed: #{seat[:error]}"
+      puts "    ROOF UNIT NOT PLACED — #{seat[:error]}"
+      return 0
+    end
+
+    # The roof, measured. Children of a group report bounds in the group's own
+    # coordinates, which is exactly the frame seat[:x] / seat[:y] are in.
+    roof_z = nil
+    booth.entities.each do |e|
+      z = (e.bounds.max.z.to_f rescue nil)
+      roof_z = z if z && (roof_z.nil? || z > roof_z)
+    end
+    if roof_z.nil?
+      warns << 'the booth group is empty, so there is no measured roof to ' \
+               'seat the roof unit on — NOT placed'
+      puts '    ROOF UNIT NOT PLACED — nothing in the booth group to measure a roof from'
+      return 0
+    end
+    nominal_roof = WR_Deck::DECK_TOP_Z + (cfg['hx'] ? 91.0 : 81.0)
+    puts format('    roof measured at booth-local z %.4f (panel tops are at ' \
+                '%.2f; the ceiling slab sits above them)', roof_z, nominal_roof)
+
+    puts format('    %-12s %.3f x %.3f x %.4f in', name, *gx[:e])
+    puts format('    %s: %.1f x %.1f nominal footprint, left %.3f / right ' \
+                '%.3f, front %.3f / back %.3f',
+                seat[:rule], spec[:w] - 2.0 * WR_RoofVent::NOMINAL_INSET,
+                spec[:h] - 2.0 * WR_RoofVent::NOMINAL_INSET,
+                seat[:left], seat[:right], seat[:front], seat[:back])
+    WR_RoofVent.seating_note(key, vss, efs).each { |l| puts "    #{l}" }
+    return 0 if dry
+
+    tr = Geom::Transformation.translation(
+      Geom::Vector3d.new(seat[:x] - gx[:lo][0],
+                         seat[:y] - gx[:lo][1],
+                         roof_z  - gx[:lo][2]))
+    at = add(booth, defn, tr, "#{name} roof unit", layer)
+    puts "    #{at}"
+    1
   end
 
   # Lay the EFP slab flat, centred in plan, bottom on the carpet floor.

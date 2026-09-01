@@ -2,6 +2,67 @@
 
 ## 2026-08-31
 
+### 1.14.0 — the roof unit is seated
+
+Benton answered every open question from 1.13.0, so `rv = 1` now builds a
+complete booth: the cable walls it already built, plus `RM<model>.skp` sitting
+on the roof.
+
+**The rule, in two lines.** Centre the unit on the booth's NOMINAL footprint —
+the model number in inches, 1 in inboard of the exterior per side ("Yes on
+almost all") — except the four 84-in-WIDE models (`4284`, `6084`, `8484`,
+`10284`), which go flush RIGHT: *"The left side should have the gap of 3.25, and
+no gap on the right side."* The arithmetic closes exactly, which is what makes
+the exception believable: each of those four parts measures 80.750 in against an
+84 in nominal, so 3.250 + 80.750 + 0 = 84.000. Centring had been splitting that
+same slack into the 1.625 a side that looked wrong against his earlier 3.125.
+
+**"Right" is +x, and it was proved with a picture, not an assertion.** A
+mirrored orientation passes every arithmetic check ever written and puts the
+unit on the wrong side of four booth models. The convention comes from the
+codebase — `booth-from-link.rb`'s `WALL_WORD` (`E => Right`, the portal's own
+word on all 25 layouts) and `wr-booth-data.rb`, which puts E panels at high x —
+and then `.forge/builder/roof-vent/seat-shot.py` built the booths live and
+photographed them. Measured off the 8484 front elevation at 12.22 px/in: booth
+exterior 86.0 in, nominal 84.0 in, `RM8484` 80.75 in, **gap LEFT 3.27 in, gap
+RIGHT 0.00 in**. The `7272` control gives 3.27 on both sides. The door (hand R,
+front wall) is on the left of every elevation and the bottom of every top view,
+so the orientation is fixed inside the same frame.
+
+**HX booths take the same part, and no code says so.** Benton: *"No HX
+components for RM. These RM components just sit on the ceiling. Albeit, 10 in
+higher since the roof is 10 in higher."* The missing `RM<model>_HX.skp` was
+never a gap. `wr-overlays` seats the unit on the booth's MEASURED roof plane, so
+the 10 in falls out of the geometry — an HX booth is built from 91 in panels
+instead of 81 — with no `+ 10 if hx` branch anywhere. Verified live: roof plane
+z 92.000 instead of 82.000, ceiling requirement 103.31 in instead of 93.31 in.
+
+**The ceiling requirement now quotes the MEASURED part.** It used to take the
+larger of stated and measured, which was right while the VSS files were
+suspected of being unauthored. Benton confirmed the VSS parts are correct as
+authored, so the stated 16.5 in is a drawing figure for the tallest case, and
+quoting it on the 16 models whose VSS part measures 10.3125 was over-reporting
+the one constraint that disqualifies a booth fastest. The six that genuinely
+measure taller (`4260`, `4284`, `4872`, `4896`, `6060`, `7272`) are unchanged.
+
+**Still refused, by name.** `rv = 1` on `4230` / `4242` / `4848` / `127 LP` —
+no part exists, and such a link is not harmless, because its vent walls arrive
+already swapped to cable walls. Plus a new guard: a part that does not fit its
+booth's nominal footprint refuses rather than hanging over an edge.
+
+**For Benton to correct if it is wrong:** the shift is keyed to MODEL WIDTH —
+those four, always — and is NOT conditional on the EFS flag. He gave EFS as the
+reason but named all four models unconditionally, and hedged *"I think those are
+the 84 size booths for the most part."* So a `6084` with no EFS is shifted too.
+Every roof-mounted build prints that in the console, in those words.
+
+`scripts/rbtest-roofvent.py` grew from 72 to 137 checks and is mutation-checked;
+mirroring the flush-right shift fails 17 of them, and the mutation table is in
+its docstring. `.forge/roof-vent-placement.md` is rewritten to record the
+resolution. Files: `scripts/wr-roof-vent.rb`, `scripts/wr-overlays.rb`,
+`scripts/build-booth-components.rb`, `scripts/booth-from-link.rb`,
+`scripts/rbtest-roofvent.py`, `.forge/builder/roof-vent/seat-shot.py`.
+
 ### 1.13.0 — the roof unit measured, the ceiling requirement shipped, the seating still Benton's
 
 The other half of roof-mounted ventilation. 1.12.11 fixed the walls; this is

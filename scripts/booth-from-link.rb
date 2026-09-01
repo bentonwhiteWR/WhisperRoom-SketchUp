@@ -494,6 +494,13 @@ module WR_BoothLink
     summarise_placement(assign)
     # ---- roof-mounted ventilation: say exactly what was and was not built ----
     roof = payload['rv'].to_i == 1
+    # Every reason the roof unit cannot be seated on THIS booth. Computed ONCE,
+    # here, because three things downstream have to agree about it: the console
+    # block, the "NOT built" list, and whether the overlay pass is asked to
+    # place the part at all. They disagreed once and the tool announced it was
+    # building a part it had just refused.
+    rm_block = roof ? WR_RoofVent.roof_unit_blockers(key, variant, hx, opts[:efs],
+                                                     opts[:vss] ? true : false) : []
     rm_bad = roof_vent_complaints(roof, key, packs) +
              WR_RoofVent.impossible_roof_link(key, roof)
     # THE HEIGHT A ROOM MUST GIVE. Printed on every booth, because it is the
@@ -522,17 +529,28 @@ module WR_BoothLink
       puts '           is standing in the model. They are listed under "Cable wall"'
       puts '           above. No vent hardware, no duct covers, no EFS on the walls.'
       rm_part = WR_RoofVent.part_name(key, opts[:vss] ? true : false)
-      puts '    ROOF UNIT: NOT BUILT. The part is ' +
-           (rm_part ? "#{rm_part}.skp on the parts share" : 'not on the share at all') +
-           '.'
-      WR_RoofVent.roof_unit_blockers(key, variant, hx, opts[:efs],
-                                     opts[:vss] ? true : false).each do |b|
-        puts "           - #{b}"
+      if rm_block.empty?
+        # This is the PLAN, printed before build_booth runs. The overlay pass
+        # prints what actually landed, including a refusal if the .skp is not
+        # on the share — so read the two together rather than this alone.
+        puts '    ROOF UNIT: TO BE SEATED. ' +
+             "#{rm_part}.skp goes on the roof — the whole"
+        puts '           assembly, both boxes and every duct, as one part. Its plan'
+        puts '           position and the measured roof it sits on are printed by the'
+        puts '           overlay pass below; the rule it is seated by is:'
+        WR_RoofVent.seating_note(key, opts[:vss] ? true : false,
+                                 opts[:efs] ? true : false).each do |l|
+          puts "             #{l}"
+        end
+      else
+        puts '    ROOF UNIT: NOT BUILT. The part is ' +
+             (rm_part ? "#{rm_part}.skp on the parts share" : 'not on the share at all') +
+             '.'
+        rm_block.each { |b| puts "           - #{b}" }
+        puts '    So: a COMPLETE set of walls for a roof-mounted booth, MISSING the'
+        puts '    roof assembly. Not a booth that was merely "skipped" — and not a'
+        puts '    finished booth either. Do not send this drawing out as complete.'
       end
-      WR_RoofVent.seating_note.each { |l| puts "             #{l}" }
-      puts '    So: a COMPLETE set of walls for a roof-mounted booth, MISSING the'
-      puts '    roof assembly. Not a booth that was merely "skipped" — and not a'
-      puts '    finished booth either. Do not send this drawing out as complete.'
     elsif packs.any? { |_s, pk| cbl_pack(pk) }
       # Not an error: a cable wall is a product in its own right. Said out loud
       # so nobody reads CBL walls as evidence of roof-mounted ventilation, in
@@ -592,11 +610,20 @@ module WR_BoothLink
       'efp'           => payload['ep'].to_i == 1 || payload['ad'].to_i == 1,
       'efp_from_ada'  => payload['ad'].to_i == 1,
       'casters_plate' => payload['cs'].to_i == 1,           # CP plate set + 4.75 in booth lift
-      'step'          => payload['sp'].to_i == 1            # refused by name downstream
+      'step'          => payload['sp'].to_i == 1,           # refused by name downstream
+      # The ROOF UNIT of a roof-mounted booth. rv, and rv alone, says roof
+      # mounted — never the presence of CBL packs (see the file header). vs
+      # picks the VSS twin; ef is passed for REPORTING only, because the
+      # seating is keyed to model width and not to the EFS flag
+      # (wr-roof-vent.rb).
+      'roof_vent'     => roof && rm_block.empty?,
+      'roof_vss'      => opts[:vss] ? true : false,
+      'roof_efs'      => opts[:efs] ? true : false
     }
     built_opts = { 'desk' => 'desk', 'mjp' => 'MJP jack panel',
                    'efp' => 'elevated floor',
-                   'casters_plate' => 'caster plate (CP set + 4.75 in booth lift)'
+                   'casters_plate' => 'caster plate (CP set + 4.75 in booth lift)',
+                   'roof_vent' => 'roof unit (RM assembly, seated on the roof)'
                  }.select { |k, _| overlay[k] }.values
     puts "  option parts to build: #{built_opts.join(', ')}" unless built_opts.empty?
     refused = []
@@ -604,18 +631,22 @@ module WR_BoothLink
     refused << 'bt: bass traps (no .skp exists — Benton to author)' if payload['bt'].to_i == 1
     refused << 'ac: Audimute panels (no .skp exists — Benton to author)' if payload['ac'].to_i == 1
     refused << 'sl: studio light (no fixture .skp exists — Benton to author)' if payload['sl'].to_i == 1
-    # NOT "rv: out of scope". The walls of a roof-mounted booth DO build now,
-    # and correctly; what is refused is the roof assembly alone, and for a
-    # sourcing reason, not a scoping one. The old wording let a booth with the
-    # wrong walls read as a booth that was merely missing a roof unit.
+    # The ROOF UNIT now BUILDS (Benton settled the seating on 31 Aug 2026), so
+    # this is a refusal only in the one case wr-roof-vent still names: a model
+    # with no RM part at all. Listing it unconditionally, as this used to,
+    # would understate a booth that is now complete.
+    #
+    # The VSS booth wants the VSS part. All 22 models have one — do NOT borrow
+    # the portal's ART rule (RM_VSS_SET, only 60 and 72), which would name the
+    # flat part on 20 of them. See wr-roof-vent.rb's header.
     if payload['rv'].to_i == 1
-      # The VSS booth wants the VSS part. All 22 models have one — do NOT borrow
-      # the portal's ART rule (RM_VSS_SET, only 60 and 72), which would name the
-      # flat part on 20 of them. See wr-roof-vent.rb's header.
-      refused << 'rv: the ROOF UNIT only (' +
-                 (WR_RoofVent.part_name(key, opts[:vss] ? true : false) ||
-                  "no RM part for #{key}") + '.skp) — seating not confirmed, ' \
-                 'see above. The cable walls a roof-mounted booth ships with ARE built.'
+      rm_name = WR_RoofVent.part_name(key, opts[:vss] ? true : false)
+      WR_RoofVent.roof_unit_blockers(key, variant, hx, opts[:efs],
+                                     opts[:vss] ? true : false).each do |b|
+        refused << "rv: the ROOF UNIT only (#{rm_name || 'no RM part'}.skp) " \
+                   "— #{b} The cable walls a roof-mounted booth ships with " \
+                   'ARE built.'
+      end
     end
     unless refused.empty?
       puts "  NOT built, by name and by reason (#{refused.length}):"
