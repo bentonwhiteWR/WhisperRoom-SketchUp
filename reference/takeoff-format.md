@@ -241,12 +241,32 @@ too), and per-room APPROVE / NEEDS CHANGES.
   (1600 px long edge). Off by default: publishing the sheet sends the image
   to claude.ai, which is a per-client decision. Either way the sheet file is
   gitignored (`*.review.html`) — **client images are never committed**.
-- Every stated value on the sheet is editable, and an edit **requires** its
-  source (`pen`/`stated`/`plan-vector`, or `assumed` + reason) — an edit
-  with no source is the dialog's invented `at:36"` again and the page
-  refuses to record it.
+- **Every dimension is editable in BOTH places it appears** — as a run or
+  door dimension ON THE PLAN, and as a row in the callout column. They are
+  one value: click either, and saving repaints both, so the drawing can
+  never drift from the table beside it. Assumed dimensions draw italic and
+  are clickable like any other; they are the ones most worth correcting.
+- **The edit form is one box.** It does not ask how the value was measured,
+  because on this sheet the answer is always the same — the reviewer
+  corrected it here — so the patch stamps
+  `"src": "stated corrected on the review sheet"`. `--apply-patch`'s rule
+  that no measurement claim lands without a source is unchanged; the source
+  is simply known in advance instead of typed 40 times.
+- **Editing one wall does not rewrite the opposite wall.** Both are measured
+  and real rooms are not square, so copying a number nobody measured would
+  be the invention this whole pipeline exists to stop. Instead the room
+  shows a live warning naming both totals and the difference — the same
+  closure rule `takeoff-check.py` refuses on, moved to where the edit is
+  made. A chain whose parts stop summing to its overall warns the same way.
+- **NEEDS CHANGES opens a note box** under that room for anything that is
+  not a number — a door swinging the other way, a partition that is gone.
+  Notes ride along in the patch under `notes` and are for a person to read;
+  `--apply-patch` ignores the key and echoes them so they cannot be dropped
+  silently.
 
-The copy box emits a structured patch, never prose:
+The copy box emits a structured patch. The numbers are structured, never
+prose; the `notes` key is the one place prose is allowed, and it is never
+applied automatically:
 
 ```jsonc
 {
@@ -255,8 +275,9 @@ The copy box emits a structured patch, never prose:
   "review": {"3190G+H": "approved", "3190J": "needs-changes"},
   "edits": [
     {"room": "3190J", "field": "ceiling", "old": "8'-9\"",
-     "new": {"v": "8'10\"", "src": "stated Gabe tape 1 Sep"}}
-  ]
+     "new": {"v": "8'10\"", "src": "stated corrected on the review sheet"}}
+  ],
+  "notes": {"3190J": "door swings the other way — hinge is on the corridor side"}
 }
 ```
 

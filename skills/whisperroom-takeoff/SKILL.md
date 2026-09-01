@@ -34,7 +34,8 @@ photos / PDF  ->  clients/<job>/takeoff.json        (you transcribe — minutes)
 python scripts/takeoff-check.py clients/<job>/takeoff.json --html
     -> fails BY NAME, or writes takeoff.lock.json + takeoff.review.html
 Gabe reads the review sheet, answers the ASSUMED flags
-    -> the sheet's copy box emits a structured patch (never prose)
+    -> clicks any dimension — on the plan OR in the callout column — to fix it
+    -> the sheet's copy box emits a structured patch (+ free-text notes)
 python scripts/takeoff-check.py clients/<job>/takeoff.json --apply-patch patch.json
     -> refuses stale or sourceless edits by name; clean edits re-run the full check
 SketchUp: load scripts/build-takeoff.rb, pick the lock file
@@ -43,6 +44,24 @@ SketchUp: load scripts/build-takeoff.rb, pick the lock file
 
 Nothing builds from `takeoff.json` directly — `build-takeoff.rb` consumes only the
 lock, so an unchecked take-off cannot reach the model.
+
+## What Gabe sees on the review sheet
+
+Full detail in `reference/takeoff-format.md`; the four things that matter:
+
+- **Click a dimension on the plan, or the same value in the callout column** —
+  either opens the edit box, and saving repaints both. The drawing and the table
+  cannot disagree.
+- **One box, no source questions.** The patch stamps
+  `"src": "stated corrected on the review sheet"` for him. The rule that no
+  measurement claim lands without a source is intact; the answer is just known.
+- **Editing one wall does NOT rewrite the opposite wall.** Both are measured and
+  rooms are not square, so the sheet warns instead — naming both totals and the
+  difference — rather than copying a number nobody measured. Same for a chain
+  whose parts stop summing.
+- **NEEDS CHANGES opens a note box** for what is not a number (a door swinging
+  the wrong way, a partition that is gone). Notes ride in the patch under
+  `notes`, are never auto-applied, and `--apply-patch` echoes them.
 
 ## Record chains with their parts
 
