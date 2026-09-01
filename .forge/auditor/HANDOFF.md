@@ -1,50 +1,31 @@
-# HANDOFF — Auditor, lighting inconsistency (2026-08-28)
+# HANDOFF — Full audit, 1 Sep 2026 (plugin 1.19.2, commit 14197b9)
 
 ## Produced
+- `.forge/auditor/full-audit-2026-09-01.md` — the consolidated ranking across all four
+  lanes (22 entries, 10 HIGH), the five decisions Benton owns, prior-audit tally, what is
+  solid. Start here.
+- Lane reports with full evidence: `full-audit-A-plugin-core.md`,
+  `full-audit-B-proposal-render.md`, `full-audit-C-booth-geometry.md`,
+  `full-audit-D-takeoff-skills-docs.md`, each with its own `HANDOFF-<lane>.md`.
+- Orchestrator actions on the machine: installed plugin brought 1.12.9 → 1.19.2 for
+  SketchUp 2024 and 2026; skills re-synced. No source edits, no VERSION bump.
 
-- `.forge/auditor/lighting-inconsistency-2026-08-28.md` — ranked root-cause analysis of
-  Benton's "drop in your lights is HIGHLY inconsistent" complaint. Ten candidate
-  mechanisms (C1-C10), each with file/line, the symptom it produces, likelihood, and a
-  under-five-minute live check. Top three: (C1) scenes re-apply stored `WR Lights`
-  visibility + sun on every activation (`proposal-scenes.rb:221,223` sets
-  use_hidden_layers/use_shadow_info true; render lane toggles mode BEFORE selecting the
-  page — `proposal-package.rb:708` vs `:813`), overriding the mode toggle, the sun aim,
-  and placement's tag-forcing; (C2) the dialog's Brightness/Warmth/exposure are printed
-  advice only — real emission is the shared per-model Asset Editor slider, observed at
-  30,000 lm (10× spec) during 27 Aug debugging; (C3) exposure stays at EV 14.2 unless
-  hand-set, making interior frames 30-60× dark. Together these explain the observed
-  28 Aug pair (dark blue booth interior vs warm overview) as sky-only illumination at
-  sun exposure. Recommendation: close the RENDER-time seam (preflight + make scenes and
-  the light tag agree + run the §3.3 writability probe), not a fifth placement-time fix.
-- This file.
-
-READ-ONLY pass: no code, no VERSION bump, nothing outside `.forge/auditor/`.
-
-## Read-first
-
-1. `.forge/auditor/lighting-inconsistency-2026-08-28.md` — §2 (the ranked table) and §6
-   (gaps). §5 is the recommended fix, for the Builder AFTER a greenlight.
-2. `.forge/researcher/vray-light-creation.md` Part 2 — Probe A2 is still un-run and still
-   the decisive one-paste test for the hidden-tag suspect.
-3. `.forge/researcher/interior-lighting-design.md` §3.3 — the writability probe that
-   decides whether Brightness/Warmth/EV can ever be real controls.
+## Read-first (for a Fixer)
+1. The consolidated file, findings 1–10. Findings 1, 2, 5 and 7 are blocked on Benton's
+   decisions 1–4 respectively; findings 3, 4, 6, 8, 9, 10 are fixable now.
+2. Per finding, the lane report has file:line, trigger, provenance and fix direction.
+3. Before touching `ASSIGN` (finding 1), read `.forge/builder/HANDOFF-booth-matrix.md`
+   finding 5 and `HANDOFF.md` (root, 27 Aug) — this has flipped three times; do not flip
+   it on reasoning.
 
 ## Assumptions
-
-- The 28 Aug dark-interior / warm-overview render pair is as relayed in the assignment;
-  the PNGs were not re-examined here.
-- "V-Ray excludes hidden-tag lights" is reported (Chaos docs/forum), never confirmed live.
-- SketchUp behavior for a tag created after a scene was captured (shown or hidden on
-  activation) is unknown here — C1's live check answers it per model.
-- `Geom::BoundingBox#contains?` boundary inclusivity at DROP=0.0 (C7) untested.
-- No runtime verification of any kind — no SketchUp/ruby.exe on this machine.
+- No SketchUp, V-Ray or ruby.exe: every SketchUp-API behaviour is derived from code and
+  the documented API. Findings 3, 4, 6 and 15 each carry a five-minute live check.
+- Builder/Fixer handoffs and the DEVLOG are treated as reported.
+- The 31 Aug bridge logs, heartbeat and reflog on this machine are complete.
 
 ## Open-questions
-
-- Benton's characterization of "inconsistent" (asked, unanswered) — §2's symptom column
-  maps his eventual answer straight onto a candidate.
-- Probe A2 result (hidden tag) and the §3.3 probe result (intensity/EV writability) —
-  both ~3 minutes at the desk, both fork the fix design.
-- Per-scene check: does the dark-render scene's Tags tray show `WR Lights` hidden and a
-  different Shadows time than the overview scene? (C1 confirmed/killed in two clicks.)
-- The real booth tray thickness (BOOTH_DROP=6" is assumed) — needs Benton's tape measure.
+- Decisions 1–5 in the consolidated file.
+- Whether `Sketchup.read_default` accepts the NUL sentinel (finding 15) — one console line.
+- Whether a `Page` with `use_shadow_info` re-applies `DisplayShadows` on `selected_page=`
+  (finding 3) — documented, not observed here.
