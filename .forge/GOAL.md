@@ -84,7 +84,7 @@ returned each scene's own state. So per-scene wall hiding needs no per-wall tags
 the state. This is why both existing scripts went to half-walls: with one shared `WR-Room` tag,
 hiding whole walls per scene looked impossible, so they cut geometry instead.
 
-**In flight (three lanes, all on Fable):**
+**In flight:**
 1. Builder — per-scene whole-wall hiding, the two-group interface, manifest records which walls
    were hidden per image, plus a retrofit for existing rooms. Keep `wr-lower-walls.rb`: Benton
    asked for the curb today and a fully-missing wall shows the camera empty space.
@@ -135,8 +135,19 @@ Benton: *"the mockups are very good for review before we just send them to scrip
 - No silent fallback: a job that cannot run fails **by name**.
 - **Never invent a placement number.** Every derived dimension carries number, tolerance,
   and named anchor — the rule already written in `reference/scale-estimation.md`.
-- Never run bridge jobs against live client work — scratch models only. Do not write into
-  `C:\Users\bento\Desktop\ProposalFiles\`.
+- **ENFORCED IN CODE, not merely asked for: build only into an UNTITLED model.** Benton
+  keeps his own files open, and `Sketchup.active_model` is whichever window has focus. On
+  31 Aug the active model was his booth component library (`RoofMountedVentilation.skp` on
+  `Z:`, 433 entities, unsaved) while two Builders ran live. Nothing was written into it
+  (checked: all 42 top-level groups were his own `MDL ... S (components)`), but only by
+  timing. **The guard must live INSIDE the Ruby job**, in the same single-threaded execution
+  as the build — a pre-flight check from the Python side is already stale by the time the
+  job runs, which was demonstrated the same hour when the active model changed between two
+  checks minutes apart. Assert `Sketchup.active_model.path` is empty and **refuse by name**
+  otherwise. Never open, create or switch models on Benton's behalf: no Untitled model
+  active means BLOCKED, and say so. Do not write into Benton's Desktop ProposalFiles folder.
+  This rule was prose-only all day while the code targeted whatever was active — the same
+  defect class as the mission itself: a rule asking for care loses to code that refuses.
 - Commit and push every change.
 
 ## Out of scope
