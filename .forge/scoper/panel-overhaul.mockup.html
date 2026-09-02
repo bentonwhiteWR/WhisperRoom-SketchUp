@@ -1,0 +1,911 @@
+<title>WhisperRoom Panel Overhaul</title>
+<style>
+  /* Review page tokens. Warm drafting-room neutrals with a slight orange bias;
+     one accent, the brand orange. The panel frame has its own token set below
+     so it can be matched 1:1 by a Builder against panel.html. */
+  :root {
+    --ground: #f3f1ee; --surface: #ffffff; --ink: #1f2326; --muted: #6b7278;
+    --faint: #a0a6ab; --line: #dfdbd5; --line2: #ebe8e3; --accent: #ee6216;
+    --accent-soft: #fdeee3; --good: #2f7d4f; --good-bg: #e7f3ec; --warn: #9a6b00;
+    --warn-bg: #fdf4dd; --code-bg: #eeebe6; --mark: #ffe3a8;
+    /* the panel's own tokens, copied from scripts/wr_tools/panel.html */
+    --p-bg: #f2f3f4; --p-surface: #ffffff; --p-ink: #20262a; --p-muted: #68737b;
+    --p-faint: #9aa4ab; --p-line: #e0e4e7; --p-line2: #eceef0; --p-rail: #e6e9eb;
+    --p-hover: #f7f2ee; --p-accent: #ee6216; --p-accent-soft: #fdeee3; --p-swoff: #ccd3d8;
+    --p-knob: #ffffff; --p-warn: #9a6b00; --p-warn-bg: #fdf4dd; --p-scrim: rgba(15,18,20,.45);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #1f2224; --surface: #282c2f; --ink: #e8e6e2; --muted: #9aa1a6;
+      --faint: #6f777d; --line: #3a3f43; --line2: #33383c; --accent: #f47b35;
+      --accent-soft: #453227; --good: #7cc99a; --good-bg: #24342b; --warn: #e3b34c;
+      --warn-bg: #3a3423; --code-bg: #1a1d1f; --mark: #6a5320;
+      --p-bg: #24292d; --p-surface: #2d3338; --p-ink: #e7eaec; --p-muted: #9aa5ad;
+      --p-faint: #6b767e; --p-line: #3b4247; --p-line2: #343b40; --p-rail: #383f45;
+      --p-hover: #343a3f; --p-accent: #f47b35; --p-accent-soft: #453227; --p-swoff: #4a5359;
+      --p-knob: #ffffff; --p-warn: #e3b34c; --p-warn-bg: #3a3423; --p-scrim: rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #1f2224; --surface: #282c2f; --ink: #e8e6e2; --muted: #9aa1a6;
+    --faint: #6f777d; --line: #3a3f43; --line2: #33383c; --accent: #f47b35;
+    --accent-soft: #453227; --good: #7cc99a; --good-bg: #24342b; --warn: #e3b34c;
+    --warn-bg: #3a3423; --code-bg: #1a1d1f; --mark: #6a5320;
+    --p-bg: #24292d; --p-surface: #2d3338; --p-ink: #e7eaec; --p-muted: #9aa5ad;
+    --p-faint: #6b767e; --p-line: #3b4247; --p-line2: #343b40; --p-rail: #383f45;
+    --p-hover: #343a3f; --p-accent: #f47b35; --p-accent-soft: #453227; --p-swoff: #4a5359;
+    --p-knob: #ffffff; --p-warn: #e3b34c; --p-warn-bg: #3a3423; --p-scrim: rgba(0,0,0,.55);
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--ground); color: var(--ink);
+         font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  #sprite, #sprite2 { position: absolute; width: 0; height: 0; overflow: hidden; }
+  code, .mono { font: 12px/1.45 Consolas, "Cascadia Mono", ui-monospace, monospace; }
+  code { background: var(--code-bg); border-radius: 3px; padding: 0 4px; }
+  a { color: var(--accent); }
+  button { font: inherit; cursor: pointer; }
+
+  /* ------------------------------------------------------------- page --- */
+  .head { padding: 26px 24px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .head .eyebrow { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+  .head h1 { font-size: 24px; font-weight: 650; letter-spacing: -.01em; margin: 4px 0 6px; text-wrap: balance; }
+  .head p { color: var(--muted); max-width: 72ch; }
+  .head .meta { margin-top: 8px; font-size: 12px; color: var(--faint); }
+
+  .controls { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line);
+              padding: 10px 24px; display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; color: var(--muted); padding: 6px 12px; font-size: 12.5px; font-weight: 600; border-right: 1px solid var(--line); }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .ctl-lab { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-right: 8px; }
+
+  .wrap { display: flex; gap: 32px; align-items: flex-start; padding: 22px 24px 60px; max-width: 1180px; margin: 0 auto; }
+  .left { position: sticky; top: 64px; flex: 0 0 auto; }
+  .left .cap { font-size: 12px; color: var(--muted); margin-top: 10px; max-width: 430px; }
+  .left .cap b { color: var(--ink); }
+  .legend { margin-top: 12px; font-size: 12px; color: var(--muted); display: grid; gap: 4px; max-width: 430px; }
+  .legend .k { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -3px; margin-right: 6px; border: 1px dotted var(--accent); }
+  .legend .k2 { display: inline-block; padding: 0 4px; border: 1px dashed var(--warn); border-radius: 3px; color: var(--warn); font-size: 10px; font-weight: 700; margin-right: 6px; }
+  .right { flex: 1 1 520px; min-width: 0; max-width: 640px; }
+
+  /* ---------------------------------------------------- review sections --- */
+  .sec { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px 14px; margin-bottom: 14px; }
+  .sec .num { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--accent); }
+  .sec h2 { font-size: 16px; font-weight: 650; margin: 2px 0 6px; }
+  .sec p { color: var(--muted); font-size: 13.5px; }
+  .sec ul { color: var(--muted); font-size: 13.5px; padding-left: 18px; margin-top: 6px; }
+  .sec li { margin: 3px 0; }
+  .sec .today { font-size: 12.5px; color: var(--muted); border-left: 3px solid var(--line); padding: 2px 10px; margin: 10px 0; }
+  .sec .today b { color: var(--ink); font-weight: 600; }
+  .sec .ill { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--warn); border: 1px dashed var(--warn); border-radius: 3px; padding: 0 5px; vertical-align: 2px; margin-left: 4px; }
+  .decide { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+  .decide label.r { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 5px 12px; border: 1px solid var(--line); border-radius: 20px; cursor: pointer; }
+  .decide label.r input { accent-color: var(--accent); margin: 0; }
+  .decide label.r.ok:has(input:checked) { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+  .decide label.r.no:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .decide textarea { flex: 1 1 100%; min-height: 44px; font: 13px/1.4 inherit; font-family: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--ground); color: var(--ink); resize: vertical; }
+  .decide textarea:focus { outline: none; border-color: var(--accent); }
+  .variants { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .variants label { display: block; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 12.5px; color: var(--muted); }
+  .variants label b { display: block; color: var(--ink); font-size: 13px; }
+  .variants label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .variants input { accent-color: var(--accent); margin-right: 5px; }
+  @media (max-width: 560px) { .variants { grid-template-columns: 1fr; } }
+
+  .icongrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 10px; }
+  .icongrid div { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); padding: 5px 6px; border: 1px dotted var(--line); border-radius: 6px; }
+  .icongrid .w { width: 26px; height: 26px; flex: 0 0 auto; border-radius: 6px; background: var(--p-rail); display: flex; align-items: center; justify-content: center; color: var(--p-ink); }
+  .icongrid .w svg { width: 18px; height: 18px; }
+  .icongrid span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .copy { background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; padding: 16px 18px; margin-top: 8px; }
+  .copy h2 { font-size: 16px; margin-bottom: 4px; }
+  .copy p { color: var(--muted); font-size: 13px; }
+  .copy textarea { width: 100%; min-height: 220px; margin-top: 10px; font: 12px/1.45 Consolas, ui-monospace, monospace; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--code-bg); color: var(--ink); resize: vertical; }
+  .copy .row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+  .copy .btn { background: var(--accent); color: #fff; border: 0; border-radius: 7px; padding: 7px 14px; font-weight: 600; }
+  .copy .btn.alt { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .copy .st { font-size: 12px; color: var(--muted); }
+
+  @media (max-width: 900px) { .wrap { flex-direction: column; } .left { position: static; } }
+
+  /* =========================================================== THE PANEL ===
+     Everything under .pf is the proposed panel. Sizes are real pixels: the
+     frame is the HtmlDialog (430 x 640 default, 330 minimum). */
+  .pf { background: var(--p-bg); color: var(--p-ink); font: 12.5px/1.4 "Segoe UI", system-ui, sans-serif;
+        display: flex; flex-direction: column; overflow: hidden; border-radius: 6px;
+        border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0,0,0,.18); position: relative; }
+  .pf ::-webkit-scrollbar { width: 9px; } .pf ::-webkit-scrollbar-thumb { background: var(--p-swoff); border-radius: 5px; }
+  .pf .gl { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .pf .ico { width: 20px; height: 20px; }
+
+  .p-top { display: flex; align-items: center; gap: 6px; padding: 7px 8px 5px 10px; flex: 0 0 auto; }
+  .p-brand { font-weight: 650; font-size: 13px; display: flex; align-items: center; gap: 7px; margin-right: auto; white-space: nowrap; }
+  .p-brand::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--p-accent); }
+  .p-ver { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; color: var(--p-faint); padding: 3px 6px; border-radius: 4px; border: 1px solid transparent; background: none; white-space: nowrap; cursor: default; }
+  .p-ver.new { color: var(--p-accent); border-color: var(--p-accent); cursor: pointer; }
+  .p-ib { width: 26px; height: 26px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--p-muted); display: flex; align-items: center; justify-content: center; padding: 0; }
+  .p-ib:hover, .p-ib.on { background: var(--p-surface); border-color: var(--p-line); color: var(--p-ink); }
+
+  .p-menu { position: absolute; right: 8px; top: 34px; z-index: 20; background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 8px;
+            box-shadow: 0 8px 22px rgba(0,0,0,.18); min-width: 228px; padding: 5px; font-size: 12px; }
+  .p-menu div { padding: 6px 9px; border-radius: 5px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .p-menu div:hover { background: var(--p-hover); }
+  .p-menu hr { border: 0; border-top: 1px solid var(--p-line2); margin: 4px 2px; }
+  .p-menu .hint { margin-left: auto; color: var(--p-faint); font-size: 10.5px; }
+  .p-menu .sw { margin-left: auto; }
+
+  .p-cmd { margin: 0 8px 6px; position: relative; flex: 0 0 auto; }
+  .p-cmd input { width: 100%; padding: 7px 28px 7px 30px; font: inherit; color: var(--p-ink); background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 8px; outline: none; }
+  .p-cmd input:focus { border-color: var(--p-accent); }
+  .p-cmd .lens { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--p-faint); pointer-events: none; }
+  .p-cmd .x { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border: 0; background: transparent; color: var(--p-faint); border-radius: 4px; display: none; }
+  .p-cmd.has .x { display: block; }
+
+  .p-link { margin: 0 8px 6px; padding: 7px 10px; border: 1px solid var(--p-accent); border-radius: 8px; background: var(--p-accent-soft); display: flex; gap: 8px; align-items: center; cursor: pointer; flex: 0 0 auto; }
+  .p-link .gl { color: var(--p-accent); width: 16px; height: 16px; flex: 0 0 auto; }
+  .p-link b { font-size: 12px; display: block; } .p-link span { font-size: 11px; color: var(--p-muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .p-tabs { display: flex; gap: 2px; margin: 0 8px; flex: 0 0 auto; border-bottom: 1px solid var(--p-line); }
+  .p-tabs button { border: 0; background: none; font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--p-faint); padding: 5px 9px 5px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .p-tabs button[aria-selected="true"] { color: var(--p-ink); border-bottom-color: var(--p-accent); }
+  .p-tabs .n { margin-left: 5px; font-size: 10px; font-weight: 700; color: var(--p-faint); }
+  .p-tabs .chips { margin-left: auto; display: flex; gap: 4px; align-items: center; min-width: 0; overflow: hidden; padding: 3px 0; }
+
+  /* update: ONE line, not a banner */
+  .p-upd { display: flex; align-items: center; gap: 8px; margin: 6px 8px 0; padding: 4px 6px 4px 9px; border: 1px solid var(--p-accent); border-radius: 6px; font-size: 11.5px; flex: 0 0 auto; }
+  .p-upd b { color: var(--p-accent); white-space: nowrap; }
+  .p-upd .sp { color: var(--p-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .p-upd .go { margin-left: auto; border: 0; background: var(--p-accent); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; border-radius: 5px; padding: 3px 9px; white-space: nowrap; }
+  .p-upd .x { border: 0; background: none; color: var(--p-faint); padding: 0 2px; font-size: 13px; }
+
+  .p-state { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 6px 8px 0; flex: 0 0 auto; }
+  .p-state .cap { font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--p-faint); margin-right: 2px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--p-accent); background: var(--p-accent-soft); border: 1px solid var(--p-accent); border-radius: 20px; padding: 0 8px 0 6px; cursor: pointer; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--p-accent); flex: 0 0 auto; }
+
+  .p-scroll { flex: 1 1 auto; overflow-y: auto; padding: 0 8px 10px; position: relative; }
+  .sect { display: flex; align-items: center; gap: 7px; font-size: 10.5px; font-weight: 700; letter-spacing: .12em; color: var(--p-faint); margin: 12px 2px 4px; cursor: pointer; user-select: none; }
+  .sect:first-child { margin-top: 6px; }
+  .sect .n { font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  .sect .cv { margin-left: auto; font-size: 9px; }
+  .sect.closed .cv { transform: rotate(-90deg); }
+  .sect.closed + .group { display: none; }
+  .pf.B .sect { position: sticky; top: 0; background: var(--p-bg); z-index: 2; margin-top: 0; padding: 9px 2px 4px; }
+  .pf.B .group { margin-bottom: 8px; }
+  .group { background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 9px; overflow: hidden; }
+
+  /* workbench tiles: the pinned tools as a grid, not eleven rows */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 4px; padding: 6px; }
+  .tile { position: relative; border: 1px solid var(--p-line2); border-radius: 7px; background: var(--p-bg); padding: 7px 3px 5px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; text-align: center; }
+  .tile:hover { border-color: var(--p-accent); background: var(--p-hover); }
+  .tile .ico { width: 22px; height: 22px; }
+  .tile .lab { font-size: 10px; line-height: 1.15; max-height: 34.5px; overflow: hidden; color: var(--p-ink); font-weight: 600; width: 100%; }
+  .tile .un { position: absolute; top: 1px; right: 3px; font-size: 10px; color: var(--p-faint); display: none; }
+  .tile:hover .un { display: block; }
+  .tile .dlg { position: absolute; top: 3px; left: 4px; width: 9px; height: 9px; color: var(--p-faint); fill: none; stroke: currentColor; stroke-width: 1.5; }
+
+  .recent { display: flex; gap: 4px; padding: 6px 8px 8px; flex-wrap: wrap; align-items: center; }
+  .recent .cap { font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--p-faint); margin-right: 2px; }
+  .rc { font: inherit; font-size: 11px; font-weight: 600; color: var(--p-ink); background: var(--p-bg); border: 1px solid var(--p-line); border-radius: 20px; padding: 1px 9px; cursor: pointer; white-space: nowrap; }
+  .rc:hover { border-color: var(--p-accent); color: var(--p-accent); }
+
+  .row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; position: relative; border-top: 1px solid var(--p-line2); }
+  .row:first-child { border-top: 0; }
+  .row:hover, .row.sel { background: var(--p-hover); }
+  .row .iw { width: 26px; height: 26px; flex: 0 0 auto; border-radius: 6px; background: var(--p-rail); display: flex; align-items: center; justify-content: center; color: var(--p-ink); }
+  .row .iw .ico { width: 18px; height: 18px; }
+  .iw.ill { outline: 1px dotted var(--p-accent); outline-offset: -1px; }
+  .iw .mg { font-size: 10px; font-weight: 800; letter-spacing: .02em; color: var(--p-accent); }
+  .row .body { flex: 1 1 auto; min-width: 0; display: block; }
+  .row .t { font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; }
+  .row .t .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .b { display: block; color: var(--p-muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pf.compact .row { padding: 3px 8px; }
+  .pf.compact .row .iw { width: 22px; height: 22px; } .pf.compact .row .iw .ico { width: 16px; height: 16px; }
+  .pf.compact .row .b { display: none; }
+  .pf.compact .row .t { font-size: 12px; font-weight: 500; }
+  .row .dlg { flex: 0 0 auto; color: var(--p-faint); width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+  .row .run { display: none; flex: 0 0 auto; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; color: var(--p-accent); }
+  .row:hover .run { display: block; } .row:hover .dlg { display: none; }
+  .tag { flex: 0 0 auto; font-size: 9px; font-weight: 700; letter-spacing: .08em; border-radius: 4px; padding: 0 4px; }
+  .tag.new { color: var(--p-accent); border: 1px solid currentColor; }
+  .tag.dev { color: var(--p-muted); border: 1px solid var(--p-line); background: var(--p-rail); }
+  .tag.tab { color: var(--p-ink); background: var(--p-accent-soft); border: 1px solid var(--p-accent); }
+  .star { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 0; border-radius: 5px; padding: 0; background: transparent; color: var(--p-faint); opacity: 0; flex: 0 0 auto; }
+  .row:hover .star, .star.on { opacity: 1; } .star.on { color: var(--p-accent); } .star.on .gl { fill: currentColor; }
+  .star .gl { width: 12px; height: 12px; }
+  .row.ab { padding-left: 5px; } .row.ab::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .row.ab.on::before { background: var(--p-accent); } .row.ab.on .iw { background: var(--p-accent-soft); } .row.ab.on .iw .ico { color: var(--p-accent); }
+  .row.ab .stat { flex: 0 0 auto; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--p-faint); } .row.ab.on .stat { color: var(--p-accent); }
+  .sw { position: relative; width: 30px; height: 17px; border: 0; border-radius: 9px; background: var(--p-swoff); flex: 0 0 auto; padding: 0; }
+  .sw i { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--p-knob); transition: left .12s; }
+  .sw[aria-checked="true"] { background: var(--p-accent); } .sw[aria-checked="true"] i { left: 15px; }
+  .gear { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--p-faint); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+  .gear:hover { color: var(--p-ink); background: var(--p-rail); } .gear .gl { width: 12px; height: 12px; }
+  .settings { padding: 6px 10px 9px 39px; display: grid; gap: 5px; border-top: 1px dashed var(--p-line); background: var(--p-bg); }
+  .settings label { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--p-muted); }
+  .settings label span { flex: 0 0 auto; min-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+  .settings input, .settings select { flex: 1 1 auto; min-width: 0; font: inherit; font-size: 11px; padding: 2px 6px; border: 1px solid var(--p-line); border-radius: 5px; background: var(--p-surface); color: var(--p-ink); }
+  mark { background: var(--mark); color: inherit; border-radius: 2px; }
+
+  .browse { margin: 10px 2px 4px; display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; color: var(--p-muted); cursor: pointer; padding: 7px 10px; border: 1px dashed var(--p-line); border-radius: 8px; }
+  .browse:hover { color: var(--p-ink); border-color: var(--p-accent); }
+  .browse .cv { margin-left: auto; font-size: 9px; }
+
+  .slots { display: flex; gap: 5px; padding: 8px; flex-wrap: wrap; }
+  .slot { width: 32px; height: 32px; border: 1px solid var(--p-line); border-radius: 7px; background: var(--p-bg); color: var(--p-muted); display: flex; align-items: center; justify-content: center; font-size: 11px; padding: 0; }
+  .slot .ico { width: 18px; height: 18px; }
+  .barlab { display: flex; align-items: baseline; gap: 7px; padding: 8px 10px 0; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--p-accent); }
+  .barlab span { font-weight: 400; letter-spacing: .02em; text-transform: none; color: var(--p-faint); font-size: 10.5px; }
+  .slots + .barlab { border-top: 1px solid var(--p-line); margin-top: 4px; }
+  .slotnote { font-size: 11px; color: var(--p-muted); padding: 2px 10px 9px; }
+  .empty { color: var(--p-muted); text-align: center; padding: 26px 12px; }
+  .pf .bund { font-size: 10.5px; color: var(--p-faint); text-align: center; padding: 10px 6px 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<svg id="sprite" xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true">
+<!-- WhisperRoom icon system. 24 grid, 20 live area, 1.8 centred stroke,
+     round caps/joins. Graphite = currentColor; #ee6216 marks the one
+     element the tool creates or changes. Generated - see
+     .forge/builder-icons/HANDOFF.md -->
+  <defs>
+    <symbol id="wr-room-takeoff" viewBox="0 0 24 24"><title>Build a room from a take-off</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9.5 19.5H4.5V4.5h15v15h-4.5"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 19.5V14 M15 14a5.5 5.5 0 0 1-5.5 5.5"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-link" viewBox="0 0 24 24"><title>Build the customer's booth (share link)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 3.5h12v11h-12z M11 14.5v-5h4.5"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16.2 15.6l1.2-1.2a2.2 2.2 0 0 1 3.1 3.1l-1.2 1.2"/>
+      <path d="M18.4 17.8l-1.2 1.2a2.2 2.2 0 0 1-3.1-3.1l1.2-1.2"/>
+      <path d="M15.9 18.1l2.2-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-parts" viewBox="0 0 24 24"><title>Build a booth from real parts</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 5.5h11.5v13H4z M8.2 5.5v13"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 5.5h1.5v13H19z M18 12h-1.6 M17.4 10.8L16.2 12l1.2 1.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-blockout" viewBox="0 0 24 24"><title>Block-out booth (plain boxes, fast)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 6.5h12.5v12H3.5z M12.2 18.5v-6.2h3.8"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19.3 4v5 M16.8 6.5h5" stroke-linejoin="round"/>
+    </g>
+    </symbol>
+    <symbol id="wr-dim-room" viewBox="0 0 24 24"><title>Dimension the room</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 3.4h15v8.6h-15z"/>
+      <path d="M9.5 3.4v8.6 M14.5 3.4v8.6" stroke-width="1.2"/>
+      <path d="M4.5 12.6v1.6 M9.5 12.6v1.6 M14.5 12.6v1.6 M19.5 12.6v1.6" stroke-width="1.2"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 15.8h15 M4.9 16.9l1.7-2.2 M9.9 16.9l1.7-2.2 M14.9 16.9l1.7-2.2 M4.5 19.6h15 M4.9 20.7l1.7-2.2 M18.5 20.7l1.7-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-dim-booth" viewBox="0 0 24 24"><title>Dimension the booth (catalogue figures)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 3.4h11.5v9.2h-11.5z M12.4 12.6v-5.4h3.6"/>
+      <path d="M17.6 4.4h3.6v3.6h-3.6z" stroke-width="1.4"/>
+      <path d="M18.5 6.2h1.8" stroke-width="1.2"/>
+      <path d="M4.5 14v2.1 M16 14v2.1" stroke-width="1.2"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 17.6h12.5 M4.6 18.7l1.8-2.2 M14.1 18.7l1.8-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-dim-selection" viewBox="0 0 24 24"><title>Measure whatever is selected</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.4 3.4h13.8v13.8H3.4z" stroke-dasharray="2.8 2.4"/>
+      <path d="M7.4 6.2l4.2-1 2.6 3.2-1 4.4-4.6.6-2.4-3.4z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.6 19.2h13.4 M5.2 20.3l1.8-2.2 M15.6 20.3l1.8-2.2 M20.4 4.4v11.6 M19.3 5.4l2.2-1.6 M19.3 15l2.2-1.6"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scenes-proposal" viewBox="0 0 24 24"><title>Set up the five proposal plates</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5.15 7.6h11.4v10.2 M6.4 6.35h11.4v8.9 M7.65 5.1h11.4v7.6 M8.9 3.85h11.4v6.3"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 9h11.4v11.2H4z M6.4 12.8h6.6v5.2h-6.6z M11.3 18v-3h1.7"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scenes-list" viewBox="0 0 24 24"><title>List and number the scenes</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.2 6.5h1.8 M4.2 12h1.8 M4.2 17.5h1.8"/>
+      <path d="M8.4 6.5h7.6 M8.4 12h7.6 M8.4 17.5h7.6" stroke-width="1.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18.2 4.6h2.4v14.8h-2.4"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scenes-export" viewBox="0 0 24 24"><title>Export the proposal plates</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 4.5h10v8h-10z M9.5 8.5h10v8h-10z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.5 17.5v3.6 M12.3 19l2.2 2.2 2.2-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-view-export" viewBox="0 0 24 24"><title>Export just this view</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 5.5h15v10h-15z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 17v4 M9.8 18.8l2.2 2.2 2.2-2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-art-angled" viewBox="0 0 24 24"><title>Component art - Iso30 angles</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.4 8.6l6.6 3.8v7.2" stroke-width="1.4"/>
+      <path d="M7.7 7.6l6.6 3.8v7.2" stroke-width="1.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 6.6l7 4v7.4l-7-4z"/>
+    </g>
+    </symbol>
+    <symbol id="wr-art-flat" viewBox="0 0 24 24"><title>Component art - flat views</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 4.5h15v15h-15z"/>
+    </g>
+    <path d="M4.5 4.5h7.5v7.5h-7.5z M12 12h7.5v7.5h-7.5z" fill="currentColor" stroke="none" opacity=".22"/>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 6.5h6v11h-6z"/>
+    </g>
+    </symbol>
+    <symbol id="wr-art-elevations" viewBox="0 0 24 24"><title>Component art - six elevations</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 4.5h11v15h-11z M8.2 4.5v15 M11.9 4.5v15"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16.8 12h4.7 M19.3 9.8l2.2 2.2-2.2 2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-art-orbit" viewBox="0 0 24 24"><title>Orbit a part for the assembly manual</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.5 7.5h7v8.5h-7z M13 16v-4h2.5"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.8 11.5C2.8 15.2 7 17.8 12 17.8c5 0 9.2-2.6 9.2-6.3"/>
+      <path d="M21.2 11.5l-1.9.7 M21.2 11.5l-.4 2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-explode" viewBox="0 0 24 24"><title>Explode an assembly</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 7h4v12h-4z M16.5 7h4v12h-4z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 4h4v12h-4z"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scene-parts" viewBox="0 0 24 24"><title>Save each scene's part as a .skp</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 7.5V4h3.5 M16.5 4H20v3.5 M4 16.5V20h3.5 M16.5 20H20v-3.5"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 7.8l3.6 2.1v4.2L12 16.2l-3.6-2.1V9.9z M8.4 9.9l3.6 2.1 3.6-2.1 M12 12v4.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-names-replace" viewBox="0 0 24 24"><title>Find and replace names</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 4.5h6l7 7-6.5 6.5-7-7z"/>
+      <path d="M7 7.5m-1.1 0a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0-2.2 0"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 4.8h5.8 M18.8 2.8l2 2-2 2 M20.8 9.2H15 M17 7.2l-2 2 2 2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-materials-merge" viewBox="0 0 24 24"><title>Merge two materials into one</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.9 12m-5.4 0a5.4 5.4 0 1 0 10.8 0a5.4 5.4 0 1 0-10.8 0"/>
+      <path d="M15.1 12m-5.4 0a5.4 5.4 0 1 0 10.8 0a5.4 5.4 0 1 0-10.8 0"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 7.58A5.4 5.4 0 0 1 12 16.42 5.4 5.4 0 0 1 12 7.58z"/>
+    </g>
+    </symbol>
+    <symbol id="wr-scenes-import" viewBox="0 0 24 24"><title>Import a .skp and keep its scenes</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.4 3.4h6.6v8.8H3.4z"/>
+      <path d="M9.6 10h11v10.6h-11z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.2 10V7.6h2.7V10 M13.5 10V7.6h2.7V10 M16.8 10V7.6h2.7V10"/>
+    </g>
+    </symbol>
+    <symbol id="wr-probe-components" viewBox="0 0 24 24"><title>Probe Component Files</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.5 10.5m-5.8 0a5.8 5.8 0 1 0 11.6 0a5.8 5.8 0 1 0-11.6 0"/>
+      <path d="M14.7 14.7l4.6 4.6"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.5 7.5v4.8 M8.2 12.3h4.6"/>
+    </g>
+    </symbol>
+    <symbol id="wr-probe-levels" viewBox="0 0 24 24"><title>Probe Face Levels</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5.5 3.5h8v17h-8z"/>
+      <path d="M5.5 8h8 M5.5 12.5h8 M5.5 17h8" stroke-width="1.2"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15.6 8h4.6 M18.4 6.4l1.8 1.6-1.8 1.6"/>
+    </g>
+    </symbol>
+    <symbol id="wr-diag-favourites" viewBox="0 0 24 24"><title>Diag Favourites</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.8 8.5h5v7h-5z M8.6 8.5h5v7h-5z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.4 8.5h5v7h-5z M15.7 12l1.4 1.5 2.7-3.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-rooms-csusb" viewBox="0 0 24 24"><title>CSUSB rooms (one-off job)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 4.5h9v6.6h-9z M3.5 12.9h9v6.6h-9z"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.6 8.4h6.2v7.2h-6.2z M16.2 10.8h3 M16.2 13.2h3"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-preset-small" viewBox="0 0 24 24"><title>Build Booth MDL 4260 S</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.4 3.4h17.2v17.2H3.4z" stroke-dasharray="2.6 2.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6.6 10.6h6.4v7.4H6.6z M10.8 18v-3.6h2.2"/>
+    </g>
+    </symbol>
+    <symbol id="wr-booth-preset-large" viewBox="0 0 24 24"><title>Build Booth MDL 96168 S</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.4 3.4h17.2v17.2H3.4z" stroke-dasharray="2.6 2.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 6.4h12v11.6H6z M13.6 18v-5.6h4.4"/>
+    </g>
+    </symbol>
+    <symbol id="wr-jig-pendant" viewBox="0 0 24 24"><title>Pendant Curing Jig</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 18.6h18"/>
+      <path d="M5 18.6l1.6-2.2h10.8l1.6 2.2" stroke-width="1.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7.6 16.4h8.8 M10 16.4V11a2 2 0 0 1 4 0v5.4"/>
+    </g>
+    </symbol>
+    <symbol id="wr-jig-tube-stand" viewBox="0 0 24 24"><title>Tube Drying Stand</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 18.6h18"/>
+      <path d="M5 18.6l1.6-2.2h10.8l1.6 2.2" stroke-width="1.4"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 16.4h10 M9 16.4V7.8 M12 16.4V7.8 M15 16.4V7.8"/>
+    </g>
+    </symbol>
+    <symbol id="wr-ghost" viewBox="0 0 24 24"><title>(reserve - ghost/reference geometry)</title>
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 6.5h11v11h-11z" stroke-dasharray="2.6 2.2"/>
+    </g>
+    <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.5 3.5h11v11"/>
+    </g>
+    </symbol>
+  </defs>
+</svg>
+
+
+<!-- Illustrative placeholders for the 24 tools that draw wr-default today, plus the
+     three de-duplications. Same 24-grid / 1.8 stroke / one-orange-subject rules as the
+     real sprite. These are BRIEFS drawn in a hurry, not final art. -->
+<svg id="sprite2" aria-hidden="true">
+  <defs>
+    <symbol id="wr-default" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5h13v13h-13z M13.5 18.5v-6h4"/></g></symbol>
+    <symbol id="wr-x-takeoff" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h9l3.5 3.5v13.5H6z M15 3.5V7h3.5"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11h6v6H9z M12.5 17v-2.5H15"/></g></symbol>
+    <symbol id="wr-x-reorient" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 8.5h11v11h-11z"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5.5a5.5 5.5 0 0 1 5.5 5.5v2.5 M17.2 11.2l2.3 2.3 2.3-2.3"/></g></symbol>
+    <symbol id="wr-x-prefix" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6h9 M11 12h9 M11 18h9"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 19l3-11 3 11 M4.9 15h3.2"/></g></symbol>
+    <symbol id="wr-x-probe-place" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5h15v15h-15z"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 6v2.5 M12 15.5V18 M6 12h2.5 M15.5 12H18"/></g></symbol>
+    <symbol id="wr-x-mode" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5h15v13h-15z M12 5.5v13"/></g><g fill="#ee6216" stroke="none"><path d="M12.9 6.4h5.7v11.2h-5.7z"/></g></symbol>
+    <symbol id="wr-x-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5h9v9h-9z"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="7" r="2.6"/><path d="M17 2v1.3 M17 10.7V12 M12 7h1.3 M20.7 7H22 M13.5 3.5l.9.9 M19.6 9.6l.9.9 M13.5 10.5l.9-.9 M19.6 4.4l.9-.9"/></g></symbol>
+    <symbol id="wr-x-lights" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5h15v15h-15z"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5v3 M9.5 10.5a2.5 2.5 0 0 1 5 0c0 1.5-1.2 2-1.2 3.2h-2.6c0-1.2-1.2-1.7-1.2-3.2z M10.8 16h2.4"/></g></symbol>
+    <symbol id="wr-x-materials" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5h9v9h-9z"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 10.5h9v9h-9z M13.5 13.5h3v3h-3z"/></g></symbol>
+    <symbol id="wr-x-preflight" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v17H6z M12 8h3.5 M12 12h3.5 M12 16h3.5"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.3 8l.9.9 1.6-1.8 M8.3 12l.9.9 1.6-1.8 M8.3 16l.9.9 1.6-1.8"/></g></symbol>
+    <symbol id="wr-x-pack" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 8.5h12v11h-12z M4.5 12.5h12"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4.5h6v6 M20 4.5l-5 5"/></g></symbol>
+    <symbol id="wr-x-scene-walls" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5v15h15V4.5"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.4 2.4"><path d="M4.5 4.5h15"/></g></symbol>
+    <symbol id="wr-x-name-walls" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5h15v15h-15z"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5h8l1.5 2-1.5 2H8z"/></g></symbol>
+    <symbol id="wr-x-lower-walls" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5h15 M4.5 19.5V4.5 M19.5 19.5V4.5" stroke-dasharray="2.4 2.4"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5V13h15v6.5 M12 4.5v6 M9.5 8l2.5 2.5L14.5 8"/></g></symbol>
+    <symbol id="wr-x-split-walls" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 4.5h13v15h-13z"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12.5h19" stroke-dasharray="3 2"/></g></symbol>
+    <symbol id="wr-x-lookdev" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5h15v15h-15z M9.5 4.5v15 M14.5 4.5v15 M4.5 9.5h15 M4.5 14.5h15"/></g><g fill="#ee6216" stroke="none"><path d="M10.4 10.4h3.2v3.2h-3.2z"/></g></symbol>
+    <symbol id="wr-x-probe-color" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5l6-6 M9 15l4.5-4.5"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3.5s4 4.2 4 7a4 4 0 0 1-8 0c0-2.8 4-7 4-7z"/></g></symbol>
+    <symbol id="wr-x-probe-vray" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5l5.5-5.5"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="9.5" r="5.5"/><path d="M11.5 7.5l2.5 5 2.5-5"/></g></symbol>
+    <symbol id="wr-x-probe-enh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5h11v15h-11z"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 7.5h-4v9h4 M17.5 12h3"/></g></symbol>
+    <symbol id="wr-x-probe-seal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 8.5v11h15v-11"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5h17 M12 4v5"/></g></symbol>
+    <symbol id="wr-x-names-bulk" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6h5 M4.5 12h5 M4.5 18h5"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 4h6l1.5 2-1.5 2h-6z M12.5 10h6l1.5 2-1.5 2h-6z M12.5 16h6l1.5 2-1.5 2h-6z"/></g></symbol>
+    <symbol id="wr-x-name-one" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5h9v10h-9z" stroke-dasharray="2.4 2.4"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3.5h7.5l2 2.5-2 2.5H11z"/></g></symbol>
+    <symbol id="wr-x-package" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5h5v5h-5z M10 6.5h5v5h-5z M3.5 13h5v5h-5z M10 13h5v5h-5z"/></g><g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 8.5h3v10h-3z M20.5 13.5h-4 M18 11.5l-2 2 2 2"/></g></symbol>
+    <symbol id="g-lens" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+    <symbol id="g-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></symbol>
+    <symbol id="g-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+    <symbol id="g-star" viewBox="0 0 16 16"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.2L8 11.5 4.2 13.5l.7-4.2-3.1-3 4.3-.6z"/></symbol>
+    <symbol id="g-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4"/><path d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6L3.3 3.3"/></symbol>
+    <symbol id="g-dialog" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12"/></symbol>
+    <symbol id="g-rescan" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></symbol>
+    <symbol id="g-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="g-console" viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></symbol>
+    <symbol id="g-save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z M8 3v6h7V3 M8 21v-7h8v7"/></symbol>
+  </defs>
+</svg>
+
+<div class="head">
+  <div class="eyebrow">Scoper mockup · 1 Sep 2026 · plugin 1.19.3</div>
+  <h1>WhisperRoom Panel Overhaul</h1>
+  <p>The panel as proposed, drawn at the real HtmlDialog size with the real 55 tools read from
+     their script headers. Three variants share one direction; pick one, then approve or mark
+     each section. Nothing here is in a script yet. The box at the bottom collects every choice
+     and note for pasting back.</p>
+  <div class="meta">Spec: <code>.forge/scoper/panel-overhaul.md</code> · current panel screenshots beside it.</div>
+</div>
+
+<div class="controls">
+  <div><span class="ctl-lab">Variant</span>
+    <span class="seg" id="varseg">
+      <button data-v="A" aria-pressed="true">A · Workbench</button>
+      <button data-v="B" aria-pressed="false">B · Dense list</button>
+      <button data-v="C" aria-pressed="false">C · Palette first</button>
+    </span></div>
+  <div><span class="ctl-lab">Width</span>
+    <span class="seg" id="wseg">
+      <button data-w="330" aria-pressed="false">330 min</button>
+      <button data-w="430" aria-pressed="true">430 default</button>
+      <button data-w="520" aria-pressed="false">520</button>
+    </span></div>
+  <div><span class="ctl-lab">Show</span>
+    <span class="seg" id="sseg">
+      <button data-s="upd" aria-pressed="true">Update line</button>
+      <button data-s="dev" aria-pressed="false">Dev tools</button>
+    </span></div>
+</div>
+
+<div class="wrap">
+  <div class="left">
+    <div class="pf" id="pf" style="width:430px;height:640px"></div>
+    <div class="cap">Type in the search box, switch tabs, flip a switch, open the <b>⋯</b> menu,
+      click a section header to collapse it. Tiles and rows do not run anything here.</div>
+    <div class="legend">
+      <div><span class="k"></span>dotted icon well = placeholder glyph for a tool that draws the generic icon today (brief in spec §7)</div>
+      <div><span class="k2">ILLUSTRATIVE</span>recent list, the pending 1.19.4, and which abilities are on are made-up working state</div>
+    </div>
+  </div>
+
+  <div class="right" id="right"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var TOOLS = [{"name": "proposal-package.rb", "title": "Proposal package", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-scenes-proposal", "dialog": true, "rank": 0, "blurb": "One button for a proposal's whole image set. Lists every scene in the model, lets each one be marked Skip / Image / Render AND choose which whole walls that scene hides (the WALLS column, since 1.15.0 — Benton: \"It should be in", "fresh": true}, {"name": "export-scenes.rb", "title": "Export the proposal plates", "cat": "Scenes and images", "tab": "tools", "shelf": null, "icon": "wr-scenes-export", "dialog": true, "rank": 3, "blurb": "Batch-export scenes to PNG. The proposal-plate exporter: opaque backgrounds, into ProposalFiles, named for the plate order that proposal-v2.json expects.", "fresh": true}, {"name": "auto-dimension.rb", "title": "Dimension the room", "cat": "Add dimensions", "tab": "tools", "shelf": null, "icon": "wr-dim-room", "dialog": true, "rank": null, "blurb": "Chain-dimension a room to the house standard: every in-line wall run on all four sides, an overall outside the chain, and every door off its wall corner.", "fresh": true, "ability": {"label": "Dimensioned", "blurb": "Chain-dimension the room; switch off to remove what it drew.", "settings": []}}, {"name": "booth-from-link.rb", "title": "Build the customer's booth (share link)", "cat": "Build the booth", "tab": "tools", "shelf": null, "icon": "wr-booth-link", "dialog": true, "rank": 1, "blurb": "Paste a booth-builder share link, get that exact booth built from the real components. The customer's own arrangement — model, door hand, windows, vents, VSS/EFS, height extension — not a guess at it.", "fresh": true}, {"name": "build-room.rb", "title": "Draw floor plan", "cat": "Draw the room", "tab": "tools", "shelf": null, "icon": "wr-room-takeoff", "dialog": true, "rank": null, "blurb": "Type a room, get it built and dimensioned.", "fresh": true}, {"name": "build-takeoff.rb", "title": "Build from take-off", "cat": "Draw the room", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": null, "blurb": "Every room in a validated take-off lock file, built in one go — polygons, doors, per-room ceiling slabs, obstruction massing, dimensions, and an every value somebody guessed listed on the console report. The model itself", "fresh": true}, {"name": "probe-vray-color.rb", "title": "Probe V-Ray colour settings", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 90, "blurb": "Dumps the V-Ray colour/gamma path to the Ruby Console. Renders nothing and changes NO setting — but since run 3 it is no longer strictly write-free: when a rendered frame is sitting in the VFB it saves up to six small test", "fresh": true}, {"name": "wr-drop-lights.rb", "title": "Drop Interior Lights", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": false, "rank": 3, "blurb": "wr-drop-lights.rb — a layered showroom lighting rig for each selected room.", "fresh": true}, {"name": "wr-scene-walls.rb", "title": "Hide walls per scene", "cat": "Scenes and images", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 5, "blurb": "Pick which WHOLE walls are hidden on the scene you are looking at. Click a scene tab, move walls between the two groups — \"Shown in this scene\" and \"HIDDEN in this scene\" — hit Apply, and that scene remembers. Click the", "fresh": true}, {"name": "build-booth-components.rb", "title": "Build a booth from real parts", "cat": "Build the booth", "tab": "tools", "shelf": null, "icon": "wr-booth-parts", "dialog": true, "rank": 2, "blurb": "Builds a booth out of the REAL component .skp files instead of extruded boxes.", "fresh": true}, {"name": "wr-lower-walls.rb", "title": "Lower selected walls to a curb (EDITS MODEL)", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 7, "blurb": "Cut the walls YOU SELECTED down to a short curb, so a camera can look over them into the room. The cut-off tops go on their own tag, WR-Room-Cutaway, which a scene hides — so the walls are \"lowered\" per scene and the model", "fresh": true}, {"name": "wr-split-walls.rb", "title": "Split existing walls at sill (LEGACY, EDITS MODEL)", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 6, "blurb": "SUPERSEDED, 31 Aug 2026 — KEPT, NOT WIRED INTO ANYTHING NEW. build-room.rb and build-takeoff.rb no longer band walls: a wall is ONE solid, floor to ceiling, and a whole wall is hidden per scene by wr-scene-walls.rb (a SketchUp scene remembers per-entity hidden state, so", "fresh": true}, {"name": "wr-name-walls.rb", "title": "Name walls for the scene picker", "cat": "Scenes and images", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 6, "blurb": "ONE-TIME RETROFIT, sibling of wr-split-walls.rb. \"Hide walls per scene\" (wr-scene-walls.rb) lists a wall by its NAME — \"Wall 3\", the way build-room.rb and build-takeoff.rb have always named them. A room drawn by", "fresh": false}, {"name": "wr-materials-swap.rb", "title": "Swap draft / render materials", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 3, "blurb": "The ONE place that knows how a drafting material and a render material trade places. wr-mode.rb calls this for the materials half of Draft <-> Render; it is also a small panel command in its own right for fixing one job's fills or", "fresh": false}, {"name": "wr-mode.rb", "title": "Toggle Draft / Render mode", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 1, "blurb": "Draft <-> Render, one press. \"Draft\" is the model built to be measured: drafting materials, every WhisperRoom dimension tag visible. \"Render\" is the model built to be photographed: whatever V-Ray materials are filling", "fresh": false}, {"name": "wr-preflight.rb", "title": "Pre-render checklist", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 4, "blurb": "READ-ONLY until you press something. Five checks that catch the mistakes that come from switching draft <-> render by hand and from memory: a dimension string left on, a floor still wearing drafting white, a camera", "fresh": false}, {"name": "lookdev-matrix.rb", "title": "Look-development matrix (dev)", "cat": "V-Ray renders", "tab": "tools", "shelf": "dev", "icon": "wr-default", "dialog": true, "rank": 9, "blurb": "lookdev-matrix.rb — render a MATRIX OF SMALL THUMBNAILS so a look can be art-directed at seconds per guess instead of minutes.", "fresh": false}, {"name": "wr-sun-aim.rb", "title": "Light It From Here", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 2, "blurb": "wr-sun-aim.rb — snap the SUN to the camera's current view. THE MODEL NEVER MOVES.", "fresh": false}, {"name": "proposal-scenes.rb", "title": "Set up the five proposal plates", "cat": "Scenes and images", "tab": "tools", "shelf": null, "icon": "wr-scenes-proposal", "dialog": true, "rank": 1, "blurb": "Create the five proposal plates as scenes, in order, each carrying its own camera, tag visibility and style. Then export-scenes.rb turns them into correctly-named PNGs and the filenames drop straight into proposal-v2.json.", "fresh": false, "ability": {"label": "Proposal scenes", "blurb": "Create the five proposal plates; switch off to remove them.", "settings": []}}, {"name": "wr-pack-export.rb", "title": "Export the client pack", "cat": "V-Ray renders", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 5, "blurb": "The one-button export. A ROUTER, not a renderer: it walks the five proposal plates in order and sends each one down the lane it is marked for.", "fresh": false}, {"name": "uthsc-audiology-rooms.rb", "title": "UTHSC Audiology rooms 1-4", "cat": "Draw the room", "tab": "client", "shelf": null, "icon": "wr-default", "dialog": true, "rank": null, "blurb": "uthsc-audiology-rooms.rb — the four rooms University of Tennessee Health Science Center marked 1 / 2 / 3 / 4 on their suite plan.", "fresh": false}, {"name": "angled-component-art.rb", "title": "Component art — Iso30 angles", "cat": "Component art (web catalog)", "tab": "tools", "shelf": null, "icon": "wr-art-angled", "dialog": true, "rank": null, "blurb": "The Iso30 component library: every part shot at four fixed angled cameras on one shared canvas, so a web page can composite a whole booth by translation alone. Built to ANGLED-RENDER-BRIEF.md in WhisperRoomQuote\\tools\\sketchup-scene-export\\.", "fresh": false}, {"name": "build-booth.rb", "title": "Block-out booth (plain boxes, fast)", "cat": "Build the booth", "tab": "tools", "shelf": null, "icon": "wr-booth-blockout", "dialog": true, "rank": 3, "blurb": "Pick a booth from a dropdown and build it. This replaces the one-script-per- booth arrangement — new booths appear in the list as soon as the data file is regenerated, with no new script and no SketchUp restart.", "fresh": false}, {"name": "list-scenes.rb", "title": "List Scenes", "cat": "Scenes and images", "tab": "tools", "shelf": null, "icon": "wr-scenes-list", "dialog": true, "rank": 2, "blurb": "Every scene with its NUMBER, in a window you can search, sort and tick — so \"scenes 1-40\" can be typed into the exporters knowing what it covers. Two hundred scenes named \"(Left46Door)\" are impossible to count by eye, and", "fresh": false}, {"name": "bulk-name-after-scenes.rb", "title": "Bulk Name After Scenes", "cat": "Tidy up the model", "tab": "tools", "shelf": null, "icon": "wr-names-replace", "dialog": true, "rank": 2, "blurb": "The whole gap list in one window. Every scene that has no component of its name is resolved to a best-guess part, the pairings are shown as a TABLE, and only the rows you tick are applied.", "fresh": false}, {"name": "dimension-booth.rb", "title": "Dimension the booth (catalogue figures)", "cat": "Add dimensions", "tab": "tools", "shelf": null, "icon": "wr-dim-booth", "dialog": true, "rank": null, "blurb": "Select a WhisperRoom. It works out WHICH model it is, dimensions it to the catalogue figures, and labels the drawing with the model name.", "fresh": false, "ability": {"label": "Dimensioned booth", "blurb": "Select a booth: it works out which model, dimensions it and labels it. Switch off to remove.", "settings": [{"key": "height", "kind": "choice", "default": "Auto", "label": "Panel height", "choices": ["Auto", "Standard", "Enhanced"]}, {"key": "vents", "kind": "text", "default": "auto", "label": "Vented faces: auto, none, or e.g. \"N E\"", "choices": []}, {"key": "gap", "kind": "number", "default": "24", "label": "Standoff (in)", "choices": []}, {"key": "rise", "kind": "number", "default": "36", "label": "Label above booth (in)", "choices": []}]}}, {"name": "probe-placement.rb", "title": "Probe placement of what's selected", "cat": "Build the booth", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": 9, "blurb": "Assemble something correctly by hand, select it, run this. It writes down exactly where every component sits and how it is turned, so a build script can be made to reproduce it.", "fresh": false}, {"name": "name-selection-after-scene.rb", "title": "Name Selection After Scene", "cat": "Tidy up the model", "tab": "tools", "shelf": null, "icon": "wr-names-replace", "dialog": false, "rank": 1, "blurb": "Point at a part, get it named after the scene. Activate the scene, click the component, run this. That is the whole tool.", "fresh": false}, {"name": "save-scene-components.rb", "title": "Save Scene Components", "cat": "Component art (web catalog)", "tab": "tools", "shelf": null, "icon": "wr-scene-parts", "dialog": true, "rank": null, "blurb": "One .skp per scene. Each scene is aimed at a component; this walks the scene list, works out which component each one is looking at, and saves that component's definition to its own file named after the SCENE.", "fresh": false}, {"name": "booth-4260-s.rb", "title": "Build Booth MDL 4260 S", "cat": null, "tab": "client", "shelf": "archive", "icon": "wr-booth-preset-small", "dialog": false, "rank": null, "blurb": "GENERATED by scripts/gen-booth.py — regenerate, don't hand-edit.", "fresh": false}, {"name": "booth-96168-s.rb", "title": "Build Booth MDL 96168 S", "cat": null, "tab": "client", "shelf": "archive", "icon": "wr-booth-preset-large", "dialog": false, "rank": null, "blurb": "GENERATED by scripts/gen-booth.py — regenerate, don't hand-edit.", "fresh": false}, {"name": "csusb-106.rb", "title": "CSUSB Chaparral 106", "cat": "Draw the room", "tab": "client", "shelf": null, "icon": "wr-default", "dialog": true, "rank": null, "blurb": "csusb-106.rb — build CSUSB Chaparral Hall room 106 in SketchUp", "fresh": false}, {"name": "csusb-rooms.rb", "title": "CSUSB rooms (one-off, delivered)", "cat": null, "tab": "client", "shelf": "archive", "icon": "wr-rooms-csusb", "dialog": false, "rank": null, "blurb": "csusb-rooms.rb — build CSUSB Chaparral 117 + University Hall 056 in SketchUp", "fresh": false}, {"name": "dowaly-kuwait-tv.rb", "title": "Dowaly / Kuwait TV — three 4872 E", "cat": "Draw the room", "tab": "client", "shelf": null, "icon": "wr-default", "dialog": true, "rank": null, "blurb": "dowaly-kuwait-tv.rb — the Kuwait Television commentary room with three MDL 4872 E booths, drawn as a top-view layout.", "fresh": false}, {"name": "fvrl-podcast-alcove.rb", "title": "FVRL podcast booth — alcove fit plan", "cat": "Draw the room", "tab": "client", "shelf": null, "icon": "wr-default", "dialog": true, "rank": null, "blurb": "fvrl-podcast-alcove.rb — the Fort Vancouver Regional Library podcast booth alcove, with the MDL 96120 E footprint and its REQUIRED CLEARANCES drawn as real geometry so the fit question answers itself on the page.", "fresh": false}, {"name": "prefix-scenes.rb", "title": "Prefix Every Scene", "cat": "Tidy up the model", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": null, "blurb": "prefix-scenes.rb — put a prefix on the FRONT of every scene name in the model. Built for \"ENH\", which is what it is defaulted to, but the prefix is a field so the same button does \"STD \", \"REV B \" or anything else.", "fresh": false}, {"name": "probe-enhanced.rb", "title": "Probe Enhanced Components", "cat": null, "tab": "tools", "shelf": "dev", "icon": "wr-default", "dialog": true, "rank": null, "blurb": "  load \"C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/probe-enhanced.rb\"", "fresh": false}, {"name": "probe-vray.rb", "title": "Probe V-Ray API", "cat": "V-Ray renders", "tab": "tools", "shelf": "dev", "icon": "wr-default", "dialog": true, "rank": 7, "blurb": "probe-vray.rb — find out what the V-Ray Ruby API actually offers in THIS SketchUp, in this session, on this licence.", "fresh": false}, {"name": "smith-studio.rb", "title": "David Smith — studio room", "cat": "Draw the room", "tab": "client", "shelf": null, "icon": "wr-default", "dialog": true, "rank": null, "blurb": "smith-studio.rb — build David Smith's studio room in SketchUp", "fresh": false}, {"name": "elevation-export.rb", "title": "Component art — six elevations", "cat": "Component art (web catalog)", "tab": "tools", "shelf": null, "icon": "wr-art-elevations", "dialog": true, "rank": null, "blurb": "Straight-on orthographic views of every scene's component — front, back, left, right, top, bottom — at ONE shared scale across the whole run.", "fresh": false}, {"name": "export-component-art.rb", "title": "Scene PIctures", "cat": "Component art (web catalog)", "tab": "tools", "shelf": null, "icon": "wr-art-flat", "dialog": true, "rank": null, "blurb": "One transparent PNG per scene, for the whole model, in one pass — the art handoff for the orchestrator's new component style.", "fresh": false}, {"name": "probe-seam-seal.rb", "title": "Probe Ceiling Seam Seal Fit", "cat": null, "tab": "tools", "shelf": "dev", "icon": "wr-default", "dialog": true, "rank": null, "blurb": "THE CROSS-SECTION of a ceiling seam seal and of the ceiling panel edge it registers into, printed side by side on the same Z scale.", "fresh": false}, {"name": "reorient-model.rb", "title": "Make this view the Front", "cat": "Draw the room", "tab": "tools", "shelf": null, "icon": "wr-default", "dialog": true, "rank": null, "blurb": "reorient-model.rb — spin a whole model onto the world axes so SketchUp's Front view actually shows the front, WITHOUT re-aiming a single scene.", "fresh": false}, {"name": "dimension-selection.rb", "title": "Measure whatever is selected", "cat": "Add dimensions", "tab": "tools", "shelf": null, "icon": "wr-dim-selection", "dialog": true, "rank": null, "blurb": "Select a WhisperRoom, switch this on, get its LENGTH, WIDTH and HEIGHT.", "fresh": false, "ability": {"label": "Dimensioned selection", "blurb": "Length, width and height of whatever is selected. Switch off to remove them.", "settings": [{"key": "where", "kind": "choice", "default": "Outside", "label": "the box  Where the dimensions sit", "choices": ["Outside", "On"]}, {"key": "gap", "kind": "number", "default": "12", "label": "Standoff (in)", "choices": []}]}}, {"name": "explode-view.rb", "title": "Exploded View", "cat": "Component art (web catalog)", "tab": "tools", "shelf": null, "icon": "wr-explode", "dialog": true, "rank": null, "blurb": "Pull an assembly apart for an assembly-manual illustration, and put it back.", "fresh": false, "ability": {"label": "Exploded", "blurb": "Pull the selected assembly apart; switch off to put it back.", "settings": [{"key": "mode", "kind": "choice", "default": "Axis", "label": "Direction", "choices": ["Axis", "Radial", "Vertical"]}, {"key": "spread", "kind": "number", "default": "60", "label": "Spread (%)", "choices": []}, {"key": "fan", "kind": "number", "default": "150", "label": "Fan (%)", "choices": []}]}}, {"name": "export-this-view.rb", "title": "Export just this view", "cat": "Scenes and images", "tab": "tools", "shelf": null, "icon": "wr-view-export", "dialog": true, "rank": 4, "blurb": "Save what is on screen right now as one PNG, named after the current scene.", "fresh": false}, {"name": "diag-favourites.rb", "title": "Favourites diagnostic (dev)", "cat": null, "tab": "tools", "shelf": "dev", "icon": "wr-diag-favourites", "dialog": false, "rank": null, "blurb": "diag-favourites.rb — why does starring a script not stick?", "fresh": false}, {"name": "find-replace-names.rb", "title": "Find and Replace Names", "cat": "Tidy up the model", "tab": "tools", "shelf": null, "icon": "wr-names-replace", "dialog": true, "rank": null, "blurb": "Find-and-replace across scene names, component definition names, tag names or material names. Built for the job of cleaning up a naming scheme after the fact — turning every \" (2)\" into \"_HX\", stripping a prefix off two hundred", "fresh": false}, {"name": "merge-materials.rb", "title": "Merge Materials", "cat": "Tidy up the model", "tab": "tools", "shelf": null, "icon": "wr-materials-merge", "dialog": true, "rank": null, "blurb": "Point every face, edge, group and instance that uses one material at another one, then delete the emptied material. One material to edit instead of five.", "fresh": false}, {"name": "merge-scenes.rb", "title": "Import a .skp and keep its scenes", "cat": "Tidy up the model", "tab": "tools", "shelf": null, "icon": "wr-scenes-import", "dialog": true, "rank": null, "blurb": "Bring one .skp into another AND keep the incoming file's scenes.", "fresh": false}, {"name": "orbit-export.rb", "title": "Orbit Export", "cat": "Component art (web catalog)", "tab": "tools", "shelf": null, "icon": "wr-art-orbit", "dialog": true, "rank": null, "blurb": "Photograph a part — or every part of an assembly — from every angle, in one run, and write a manifest describing what came out.", "fresh": false}, {"name": "pendant-jig.rb", "title": "Pendant Curing Jig", "cat": null, "tab": "tools", "shelf": "workshop", "icon": "wr-jig-pendant", "dialog": true, "rank": null, "blurb": "A 3D-printable jig that holds a pendant's metal housing square and centres the polycarbonate tube in it while the adhesive cures.", "fresh": false}, {"name": "probe-components.rb", "title": "Probe Component Files", "cat": null, "tab": "tools", "shelf": "dev", "icon": "wr-probe-components", "dialog": true, "rank": null, "blurb": "Loads every .skp in a folder, measures it, and writes a table. This is the step that has to happen BEFORE a booth can be assembled from real components instead of extruded boxes.", "fresh": false}, {"name": "probe-levels.rb", "title": "Probe Face Levels", "cat": null, "tab": "tools", "shelf": "dev", "icon": "wr-probe-levels", "dialog": true, "rank": null, "blurb": "For each part, the HEIGHTS OF ITS HORIZONTAL FACES and how much area sits at each one. That is how a floor panel's perimeter strip gets measured, and a bounding box cannot do it.", "fresh": false}, {"name": "tube-drying-stand.rb", "title": "Tube Drying Stand", "cat": null, "tab": "tools", "shelf": "workshop", "icon": "wr-jig-tube-stand", "dialog": true, "rank": null, "blurb": "A 3D-printable rack that stands polycarbonate tubes upright while the epoxy cures, sized to drop into a 92 x 135 mm silicone tray. Open diamond-lattice walls, a ledge under each pocket to catch the tube, and four small corner", "fresh": false}];
+
+  // ---- proposed constants (the spec names each) ----
+  var ORDER = ["Draw the room", "Build the booth", "Add dimensions", "Scenes and images",
+               "V-Ray renders", "Component art (web catalog)", "Tidy up the model"];
+  var SHELF = { dev: "Developer probes", workshop: "Workshop (3D printing)", archive: "One-off & superseded" };
+  var SHELF_ORDER = ["dev", "workshop", "archive"];
+  var MORE = "More scripts", TOOLBAR = "SketchUp toolbars", PINNED = "Pinned";
+  // From scripts/wr_tools/defaults.json (the shop default), slot order.
+  var PINNED_LIST = ["booth-from-link.rb", "build-booth-components.rb", "angled-component-art.rb",
+    "elevation-export.rb", "save-scene-components.rb", "list-scenes.rb", "wr-mode.rb", "wr-sun-aim.rb",
+    "wr-drop-lights.rb", "proposal-package.rb", "build-room.rb"];
+  var SLOT_ICONS = ["link","booth-door","cube","scenes","save","layers","swap","gear","grid","doc","-","-","door","-","-","-","-","-"];
+  var BARS = [{ name: "WhisperRoom", label: "WhisperRoom" }, { name: "WhisperRoom V-Ray", label: "V-Ray" }, { name: "WhisperRoom Tech", label: "Tech" }];
+  // ILLUSTRATIVE: main.rb already ships `recent` (last 5 run); the panel never draws it.
+  var RECENT = ["booth-from-link.rb", "dimension-booth.rb", "proposal-scenes.rb", "wr-mode.rb", "wr-pack-export.rb"];
+  // Proposed icon coverage for the 24 wr-default tools + 3 de-duplications. Client one-offs
+  // get a two-letter monogram instead of art.
+  var NEW_ICONS = {
+    "build-takeoff.rb": "wr-x-takeoff", "reorient-model.rb": "wr-x-reorient", "prefix-scenes.rb": "wr-x-prefix",
+    "probe-placement.rb": "wr-x-probe-place", "wr-mode.rb": "wr-x-mode", "wr-sun-aim.rb": "wr-x-sun",
+    "wr-drop-lights.rb": "wr-x-lights", "wr-materials-swap.rb": "wr-x-materials", "wr-preflight.rb": "wr-x-preflight",
+    "wr-pack-export.rb": "wr-x-pack", "wr-scene-walls.rb": "wr-x-scene-walls", "wr-name-walls.rb": "wr-x-name-walls",
+    "wr-lower-walls.rb": "wr-x-lower-walls", "wr-split-walls.rb": "wr-x-split-walls", "lookdev-matrix.rb": "wr-x-lookdev",
+    "probe-vray-color.rb": "wr-x-probe-color", "probe-vray.rb": "wr-x-probe-vray", "probe-enhanced.rb": "wr-x-probe-enh",
+    "probe-seam-seal.rb": "wr-x-probe-seal", "bulk-name-after-scenes.rb": "wr-x-names-bulk",
+    "name-selection-after-scene.rb": "wr-x-name-one", "proposal-package.rb": "wr-x-package"
+  };
+  var MONOGRAM = { "csusb-106.rb": "CS", "uthsc-audiology-rooms.rb": "UT", "dowaly-kuwait-tv.rb": "DK",
+                   "fvrl-podcast-alcove.rb": "FV", "smith-studio.rb": "DS" };
+
+  var st = { variant: "A", width: 430, tab: "tools", q: "", dev: false, upd: true, menu: false,
+             browse: false, on: { "proposal-scenes.rb": true, "dimension-booth.rb": true },
+             collapsed: { "SketchUp toolbars": true }, open: {}, pinned: PINNED_LIST.slice() };
+
+  var $pf = document.getElementById("pf");
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function hl(t, term) { var s = esc(t); if (!term) return s; var i = s.toLowerCase().indexOf(esc(term).toLowerCase()); if (i < 0) return s; var n = esc(term).length; return s.slice(0, i) + "<mark>" + s.slice(i, i + n) + "</mark>" + s.slice(i + n); }
+  function use(cls, id) { return '<svg class="' + cls + '"><use href="#' + id + '" xlink:href="#' + id + '"/></svg>'; }
+  function byName(n) { for (var i = 0; i < TOOLS.length; i++) if (TOOLS[i].name === n) return TOOLS[i]; return null; }
+  function isPinned(n) { return st.pinned.indexOf(n) >= 0; }
+  function iconOf(s) {
+    if (MONOGRAM[s.name]) return { html: '<span class="mg">' + MONOGRAM[s.name] + "</span>", ill: true };
+    if (NEW_ICONS[s.name]) return { html: use("ico", NEW_ICONS[s.name]), ill: true };
+    var have = s.icon && document.getElementById(s.icon);
+    return { html: use("ico", have ? s.icon : "wr-default"), ill: false };
+  }
+  function well(s, extra) { var ic = iconOf(s); return '<span class="iw' + (ic.ill ? " ill" : "") + (extra || "") + '">' + ic.html + "</span>"; }
+  function sectionOf(s) { if (s.shelf && SHELF[s.shelf]) return SHELF[s.shelf]; return s.cat || MORE; }
+  function tabOf(s) { return s.tab === "client" ? "client" : "tools"; }
+  function shelfRank(n) { for (var i = 0; i < SHELF_ORDER.length; i++) if (SHELF[SHELF_ORDER[i]] === n) return i; return -1; }
+  function rank(n) { if (n === PINNED) return -1; var i = ORDER.indexOf(n); if (i >= 0) return i; if (n === TOOLBAR) return 900; var sh = shelfRank(n); if (sh >= 0) return 800 + sh; if (n === MORE) return 700; return 600; }
+  function cmpSection(a, b) { var ra = rank(a), rb = rank(b); if (ra !== rb) return ra - rb; return a < b ? -1 : (a > b ? 1 : 0); }
+  function rankOf(s) { var r = s.rank; return (typeof r === "number" && isFinite(r)) ? r : null; }
+  function cmpRow(a, b) { var ra = rankOf(a), rb = rankOf(b); if (ra !== null && rb !== null && ra !== rb) return ra - rb; if (ra !== null && rb === null) return -1; if (ra === null && rb !== null) return 1; var A = a.title.toLowerCase(), B = b.title.toLowerCase(); return A < B ? -1 : (A > B ? 1 : 0); }
+  function tabCount(id) { var n = 0; TOOLS.forEach(function (s) { if (s.shelf && !st.dev) return; if (tabOf(s) === id) n++; }); return n; }
+  function boothLink(t) { return /booth-builder\?d=[A-Za-z0-9_-]+|#d=[A-Za-z0-9_-]{20,}|#3=[A-Za-z0-9_-]{10,}/.test(t) ? t : null; }
+
+  // ---- rows ----
+  function star(n) { var p = isPinned(n); return '<button class="star' + (p ? " on" : "") + '" data-pin="' + esc(n) + '" title="' + (p ? "Take off the toolbar" : "Put on a WhisperRoom toolbar") + '">' + use("gl", "g-star") + "</button>"; }
+  function tagsFor(s, term) {
+    var h = "";
+    if (s.fresh) h += '<span class="tag new">NEW</span>';
+    if (s.shelf) h += '<span class="tag dev">DEV</span>';
+    if (term && tabOf(s) !== st.tab) h += '<span class="tag tab">' + (tabOf(s) === "client" ? "CLIENT" : "TOOLS") + "</span>";
+    return h;
+  }
+  function actionRow(s, term) {
+    return '<div class="row" title="' + esc(s.name + " — click to run") + '">' + well(s) +
+      '<span class="body"><span class="t"><span class="nm">' + hl(s.title, term) + "</span>" + tagsFor(s, term) + "</span>" +
+      '<span class="b">' + hl(s.blurb, term) + "</span></span>" +
+      (s.dialog ? use("dlg", "g-dialog") : "") + '<span class="run">RUN &#9656;</span>' + star(s.name) + "</div>";
+  }
+  function abilityRow(s, term) {
+    var a = s.ability, on = !!st.on[s.name], sets = a.settings || [];
+    var fields = sets.map(function (t) {
+      var inp = t.kind === "choice" ? "<select>" + t.choices.map(function (c) { return "<option>" + esc(c) + "</option>"; }).join("") + "</select>"
+                                    : '<input type="text" value="' + esc(t["default"]) + '">';
+      return "<label><span>" + esc(t.label) + "</span>" + inp + "</label>";
+    }).join("");
+    return '<div class="row ab' + (on ? " on" : "") + '" data-ab="' + esc(s.name) + '">' + well(s) +
+      '<span class="body"><span class="t"><span class="nm">' + hl(s.title, term) + "</span>" + tagsFor(s, term) + "</span>" +
+      '<span class="b">' + hl(a.blurb || s.blurb, term) + "</span></span>" +
+      '<span class="stat">' + (on ? "ON" : "OFF") + "</span>" +
+      (sets.length ? '<button class="gear" data-g="' + esc(s.name) + '" title="Settings">' + use("gl", "g-gear") + "</button>" : "") +
+      '<button class="sw" role="switch" aria-checked="' + on + '" data-sw="' + esc(s.name) + '"><i></i></button>' + star(s.name) + "</div>" +
+      (st.open[s.name] && sets.length ? '<div class="settings">' + fields + "</div>" : "");
+  }
+  function ghostRow() {
+    return '<div class="row ab" data-ab="ghost"><span class="iw">' + use("ico", "wr-ghost") + '</span><span class="body"><span class="t"><span class="nm">Reference geometry</span></span><span class="b">Show the ghost parts and leader lines every script draws for reference.</span></span><span class="stat">OFF</span><button class="sw" role="switch" aria-checked="false" data-sw="ghost"><i></i></button></div>';
+  }
+  function rowFor(s, term) { return s.ability ? abilityRow(s, term) : actionRow(s, term); }
+
+  function tiles() {
+    var h = '<div class="tiles">';
+    st.pinned.forEach(function (n) {
+      var s = byName(n); if (!s) return;
+      var ic = iconOf(s);
+      h += '<div class="tile" title="' + esc(s.title + " — click to run") + '">' + (s.dialog ? use("dlg", "g-dialog") : "") +
+           '<span class="iw' + (ic.ill ? " ill" : "") + '" style="width:28px;height:28px">' + ic.html + "</span>" +
+           '<span class="lab">' + esc(s.title) + "</span><span class=\"un\" data-pin=\"" + esc(n) + "\" title=\"Take off the toolbar\">&#10005;</span></div>";
+    });
+    return h + "</div>";
+  }
+  function recentStrip() {
+    return '<div class="recent"><span class="cap">RECENT</span>' + RECENT.map(function (n) { var s = byName(n); return s ? '<button class="rc" title="' + esc(s.title) + '">' + esc(s.title.length > 22 ? s.title.slice(0, 20) + "…" : s.title) + "</button>" : ""; }).join("") + "</div>";
+  }
+  function sectHead(name, count, label) {
+    var shut = !!st.collapsed[name];
+    return '<div class="sect' + (shut ? " closed" : "") + '" data-sec="' + esc(name) + '"><span class="nm">' + esc(label || name).toUpperCase() + '</span><span class="n">' + count + '</span><span class="cv">&#9662;</span></div>';
+  }
+  function slotsHTML() {
+    var h = "";
+    BARS.forEach(function (b, bi) {
+      h += '<div class="barlab">' + b.label + "<span>" + b.name + "</span></div><div class=\"slots\">";
+      for (var seat = 0; seat < 6; seat++) {
+        var i = bi * 6 + seat, n = st.pinned[i], s = n ? byName(n) : null;
+        h += '<button class="slot" title="' + (s ? esc(s.title) + " — click to change" : b.label + " " + (seat + 1) + " is empty") + '">' + (s ? iconOf(s).html : (seat + 1)) + "</button>";
+      }
+      h += "</div>";
+    });
+    return h + '<div class="slotnote">Each row is one real toolbar. Missing one? View &rsaquo; Toolbars, tick it by name.</div>';
+  }
+
+  function listHTML(term) {
+    var t = term.toLowerCase();
+    var groups = {}, names = [];
+    function push(sec, s) { if (!groups[sec]) { groups[sec] = []; names.push(sec); } groups[sec].push(s); }
+    TOOLS.forEach(function (s) {
+      if (t) { var hay = (s.title + " " + s.name + " " + s.blurb + (s.ability ? " " + s.ability.label + " " + s.ability.blurb : "")).toLowerCase(); if (hay.indexOf(t) < 0) return; }
+      if (s.shelf && !st.dev && !t) return;
+      if (!t && tabOf(s) !== st.tab) return;   // a search ignores the tab; hits off-tab get a tag
+      push(sectionOf(s), s);
+    });
+    var ghostIn = (!t || "reference geometry ghost".indexOf(t) >= 0) && (st.tab === "tools" || t);
+    if (ghostIn) { if (!groups["Add dimensions"]) { groups["Add dimensions"] = []; names.push("Add dimensions"); } }
+    names.sort(cmpSection);
+    var h = "";
+    names.forEach(function (c) {
+      var items = groups[c].slice().sort(cmpRow);
+      var shut = !t && st.collapsed[c];
+      var count = items.length + (c === "Add dimensions" && ghostIn ? 1 : 0);
+      h += sectHead(c, count).replace(' closed', shut ? ' closed' : '') + '<div class="group">' + items.map(function (s) { return rowFor(s, term); }).join("") + (c === "Add dimensions" && ghostIn ? ghostRow() : "") + "</div>";
+    });
+    if (!h) h = '<div class="empty">Nothing matches &ldquo;' + esc(term) + '&rdquo;</div>';
+    return h;
+  }
+
+  function scrollHTML() {
+    var term = st.q.trim(), link = boothLink(term), h = "";
+    if (link) return "";
+    var v = st.variant;
+    if (!term && st.tab === "tools") {
+      if (v === "A") { h += sectHead(PINNED, st.pinned.length, "Pinned · on the toolbars") + '<div class="group">' + tiles() + recentStrip() + "</div>"; }
+      if (v === "C") { h += '<div class="group" style="margin-top:6px">' + recentStrip() + "</div>" + sectHead(PINNED, st.pinned.length, "Pinned · on the toolbars") + '<div class="group">' + tiles() + "</div>"; }
+    }
+    if (v === "C" && !term && st.tab === "tools") {
+      h += '<div class="browse" id="browse">' + (st.browse ? "Hide the full list" : "Browse all " + tabCount("tools") + " tools by category") + '<span class="cv">' + (st.browse ? "&#9662;" : "&#9656;") + "</span></div>";
+      if (st.browse) h += listHTML(term);
+    } else {
+      h += listHTML(term);
+    }
+    if (!term && st.tab === "tools") h += sectHead(TOOLBAR, "18 slots") + '<div class="group">' + slotsHTML() + "</div>";
+    return h;
+  }
+
+  function chipsHTML() {
+    var on = Object.keys(st.on).filter(function (k) { return st.on[k]; });
+    if (!on.length) return '<span class="cap">IN THIS MODEL</span><span style="font-size:11px;color:var(--p-faint)">nothing drawn by the panel</span>';
+    return '<span class="cap">IN THIS MODEL</span>' + on.map(function (k) { var s = byName(k); return '<button class="chip" data-chip="' + esc(k) + '">' + esc(s ? s.ability.label : k) + "</button>"; }).join("");
+  }
+
+  function render() {
+    var term = st.q.trim(), link = boothLink(term);
+    $pf.className = "pf " + st.variant + (st.variant === "B" ? " compact" : "");
+    var h = '<div class="p-top"><span class="p-brand">WhisperRoom</span>' +
+      '<button class="p-ver' + (st.upd ? " new" : "") + '" title="' + (st.upd ? "v1.19.4 is available" : "WhisperRoom Tools v1.19.3") + '">v1.19.3</button>' +
+      '<button class="p-ib' + (st.menu ? " on" : "") + '" id="more" title="Rescan, folders, console, developer tools, shop default">' + use("gl", "g-more") + "</button></div>";
+    if (st.menu) h += '<div class="p-menu" id="menu">' +
+      '<div>' + use("gl", "g-rescan") + 'Rescan the scripts folder</div>' +
+      '<div>' + use("gl", "g-folder") + 'Open the scripts folder</div>' +
+      '<div>' + use("gl", "g-console") + 'Ruby Console</div><hr>' +
+      '<div data-m="dev">Show developer &amp; workshop tools<button class="sw" role="switch" aria-checked="' + st.dev + '"><i></i></button></div>' +
+      '<div><span style="color:var(--p-faint);font-size:11px">search finds them either way</span></div><hr>' +
+      '<div>' + use("gl", "g-save") + 'Save this layout as the shop default…<span class="hint">writes defaults.json</span></div></div>';
+    h += '<div class="p-cmd' + (term ? " has" : "") + '">' + use("gl lens", "g-lens") + '<input id="q" placeholder="Search tools — or paste a booth-builder link" autocomplete="off" spellcheck="false" value="' + esc(st.q) + '"><button class="x" id="qx">&#10005;</button></div>';
+    if (link) h += '<div class="p-link">' + use("gl", "g-link") + '<div style="min-width:0"><b>Build this booth design</b><span>' + esc(term) + "</span></div></div>";
+    h += '<div class="p-tabs"><button role="tab" data-tab="tools" aria-selected="' + (st.tab === "tools") + '">Tools<span class="n">' + tabCount("tools") + '</span></button>' +
+         '<button role="tab" data-tab="client" aria-selected="' + (st.tab === "client") + '">Client drawings<span class="n">' + tabCount("client") + "</span></button></div>";
+    if (st.upd) h += '<div class="p-upd"><b>v1.19.4 available</b><span class="sp">git pull &amp;&amp; install-plugin.py</span><button class="go">Update now</button><button class="x" id="updx" title="Not now">&#10005;</button></div>';
+    h += '<div class="p-state">' + chipsHTML() + "</div>";
+    h += '<div class="p-scroll" id="scroll">' + scrollHTML() + "</div>";
+    $pf.innerHTML = h;
+    wire();
+  }
+
+  function wire() {
+    var q = document.getElementById("q");
+    q.addEventListener("input", function () { var pos = q.selectionStart; st.q = q.value; render(); var nq = document.getElementById("q"); nq.focus(); try { nq.setSelectionRange(pos, pos); } catch (e) {} });
+    document.getElementById("qx").addEventListener("click", function () { st.q = ""; render(); document.getElementById("q").focus(); });
+    document.getElementById("more").addEventListener("click", function () { st.menu = !st.menu; render(); });
+    var m = document.getElementById("menu");
+    if (m) m.querySelector('[data-m="dev"]').addEventListener("click", function () { st.dev = !st.dev; syncShow(); render(); });
+    var ux = document.getElementById("updx"); if (ux) ux.addEventListener("click", function () { st.upd = false; syncShow(); render(); });
+    each(".p-tabs [data-tab]", function (b) { b.addEventListener("click", function () { st.tab = b.dataset.tab; st.menu = false; render(); }); });
+    each(".sect[data-sec]", function (el) { el.addEventListener("click", function () { st.collapsed[el.dataset.sec] = !st.collapsed[el.dataset.sec]; render(); }); });
+    each("[data-sw]", function (el) { el.addEventListener("click", function (e) { e.stopPropagation(); if (el.dataset.sw === "ghost") return; st.on[el.dataset.sw] = !st.on[el.dataset.sw]; render(); }); });
+    each(".row[data-ab]", function (el) { el.addEventListener("click", function () { if (el.dataset.ab === "ghost") return; st.on[el.dataset.ab] = !st.on[el.dataset.ab]; render(); }); });
+    each("[data-g]", function (el) { el.addEventListener("click", function (e) { e.stopPropagation(); st.open[el.dataset.g] = !st.open[el.dataset.g]; render(); }); });
+    each(".settings select, .settings input", function (el) { el.addEventListener("click", function (e) { e.stopPropagation(); }); });
+    each("[data-pin]", function (el) { el.addEventListener("click", function (e) { e.stopPropagation(); var n = el.dataset.pin, i = st.pinned.indexOf(n); if (i >= 0) st.pinned.splice(i, 1); else if (st.pinned.length < 18) st.pinned.push(n); render(); }); });
+    each("[data-chip]", function (el) { el.addEventListener("click", function () { var r = $pf.querySelector('.row[data-ab="' + el.dataset.chip + '"]'); if (r) r.scrollIntoView({ block: "center" }); }); });
+    var br = document.getElementById("browse"); if (br) br.addEventListener("click", function () { st.browse = !st.browse; render(); });
+  }
+  function each(sel, f) { Array.prototype.forEach.call($pf.querySelectorAll(sel), f); }
+
+  // ---- page controls ----
+  function seg(id, attr, f) { Array.prototype.forEach.call(document.querySelectorAll("#" + id + " button"), function (b) { b.addEventListener("click", function () { f(b.dataset[attr], b); }); }); }
+  seg("varseg", "v", function (v) { st.variant = v; st.browse = false; pressOnly("varseg", "v", v); render(); syncReview(); });
+  seg("wseg", "w", function (w) { st.width = +w; pressOnly("wseg", "w", w); $pf.style.width = w + "px"; render(); syncReview(); });
+  seg("sseg", "s", function (s, b) { if (s === "upd") st.upd = !st.upd; if (s === "dev") st.dev = !st.dev; syncShow(); render(); });
+  function pressOnly(id, attr, v) { Array.prototype.forEach.call(document.querySelectorAll("#" + id + " button"), function (b) { b.setAttribute("aria-pressed", String(b.dataset[attr] === String(v))); }); }
+  function syncShow() { Array.prototype.forEach.call(document.querySelectorAll("#sseg button"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.s === "upd" ? st.upd : st.dev)); }); }
+
+  // ---- review sections ----
+  var SECTIONS = [
+    { id: "direction", title: "The direction, and which variant",
+      body: "<p>Keep the shop-drawing look, the two tabs, and every callback into main.rb. Change the <b>shape</b> of the TOOLS tab so the ten tools a draftsman runs fifty times a day sit in one screen, and the forty-five that run once a month sit under them in the order a job happens. The three variants differ only in how hard they lean on that split.</p>" +
+        '<div class="variants" id="varpick">' +
+        '<label><input type="radio" name="variant" value="A" checked><b>A · Workbench</b>Pinned tools as a tile grid + a recent strip, then the categories at today\'s row height. Recommended.</label>' +
+        '<label><input type="radio" name="variant" value="B"><b>B · Dense list</b>No tile grid; single-line rows, sticky category headers, stars inline. Most tools per screen, least help for a new user.</label>' +
+        '<label><input type="radio" name="variant" value="C"><b>C · Palette first</b>Recent + pinned only; the full categorised list is a disclosure. Fewest things on screen; relies on search and memory.</label></div>' +
+        '<div class="today"><b>Today:</b> the Pinned group repeats 11 full rows above the same 11 rows in their categories, so 38 tools take 49 rows, and the first real tool sits ~200 px down at 640 tall (observed in the screenshots beside the spec).</div>' },
+    { id: "header", title: "Header: one top bar, an overflow menu, no footer",
+      body: "<p>Rescan, Open folder, Ruby Console, the developer-tools switch and SAVE AS SHOP DEFAULT move into one <b>⋯</b> menu. The footer goes. The header drops from five stacked bands to three (top bar, search, tabs), and the state chips only take a line when something is on.</p>" +
+        '<div class="today"><b>Today:</b> the footer\'s SAVE AS SHOP DEFAULT button is clipped at the default 430 px width and at 330 (observed: it reads "SAVE AS DEFA"). Three icon buttons in the top bar are each used a few times a month.</div>' },
+    { id: "update", title: "The update notice as one line",
+      body: "<p>The banner becomes a single 26 px line: <b>v1.19.4 available · Update now · ✕</b>. Dismissing it is per panel open; the version pill stays orange until the update lands, so the signal never disappears. The git command moves into the pill's tooltip.</p>" +
+        '<div class="today"><b>Today:</b> a three-line banner (~60 px) whose Update button clips at 330 px (observed), shown on every open while an update is pending.</div>' },
+    { id: "pinned", title: "Pinned tools as a workbench grid, plus Recent",
+      body: "<p>The starred tools draw as icon tiles in slot order — the same eleven tools, one sixth the height — with a strip of the last five tools run under them. <code>recent</code> is already in the payload from main.rb and has never been drawn. Tiles run on click; hover shows the un-star. Variant B has no grid (stars stay inline in the list); variant C makes the grid the whole front page.</p>" +
+        '<p>Needs the icon slice first: a tile with the generic glyph and a two-line label is worse than a row.</p><span class="ill">ILLUSTRATIVE: the recent list</span>' },
+    { id: "density", title: "Row density",
+      body: "<p>Rows go from 50 px to ~42 px by trimming padding and the icon well, keeping the one-line blurb. A <b>Compact rows</b> option (title only, blurb in the tooltip, ~30 px) is what variant B shows; in A and C it would be a switch in the ⋯ menu, stored as a panel pref like the collapse state.</p>" +
+        '<div class="today"><b>Today:</b> ~8 rows visible at 640 tall once the header is paid for.</div>' },
+    { id: "order", title: "Category order, with V-Ray renders in the pipeline",
+      body: "<p>Draw the room → Build the booth → Add dimensions → Scenes and images → <b>V-Ray renders</b> → Component art (web catalog) → Tidy up the model. V-Ray sits after Scenes because that is when a job reaches it; component art is its own pipeline and stays after. Shelves and toolbars still trail.</p>" +
+        '<div class="today"><b>Today:</b> "V-Ray renders" is absent from <code>ORDER</code>, so its 12 tools sort after Tidy up the model (audit A11, observed).</div>' },
+    { id: "search", title: "Search: off-tab hits labelled, #3= links recognised",
+      body: "<p>A hit from the other tab carries a <b>CLIENT</b> or <b>TOOLS</b> tag beside its title (try typing <code>csusb</code>). Pasting a <code>#3=</code> share link — the format booth-from-link.rb has read since 1.18.0 — shows the Build this booth design bar, as <code>#d=</code> does today.</p>" +
+        '<div class="today"><b>Today:</b> the code comment promises the label; none is drawn (A11). <code>#3=</code> links are treated as a search term and find nothing (A6).</div>' },
+    { id: "icons", title: "Icon coverage: 24 new glyphs, monograms for client one-offs, three de-duplications",
+      body: "<p>Every V-Ray tool, five probes, build-takeoff, reorient, prefix-scenes get a purpose glyph in the house style (orange marks the thing the tool changes). The five client one-offs get a <b>two-letter monogram</b> instead of art — a client name is more distinguishable than any picture, and it costs no drawing. Three tools that share an icon today get their own. Until the art exists, the fallback becomes the <i>category's</i> glyph rather than the generic one, so no two categories look alike.</p>" +
+        '<p>The glyphs drawn here are briefs, not finals <span class="ill">ILLUSTRATIVE</span>. The spec lists each with its motif.</p><div class="icongrid" id="icongrid"></div>' +
+        '<div class="today"><b>Today:</b> 24 of 55 tools draw the same generic glyph; the whole V-Ray section is uniform (observed).</div>' },
+    { id: "toolbar", title: "The SketchUp toolbars section: unchanged, collapsed by default",
+      body: "<p>Three bars, 18 slots, the pending-at-next-launch honesty, the slot editor sheet — all kept as built. It ships collapsed in the shop default (one entry in <code>ui_collapsed</code>), since it is plumbing that gets touched once a month.</p>" },
+    { id: "copy", title: "Title and blurb copy pass",
+      body: "<p>Not a design change, but the list reads unevenly and it is the same file edit as any header change: <code>Scene PIctures</code> (typo), <code>Build Booth MDL 4260 S</code> versus <code>Build the customer's booth</code>, blurbs that open with the filename (<code>wr-sun-aim.rb — snap the SUN…</code>) where the filename is already in the tooltip. The spec lists the ~12 lines.</p>" },
+    { id: "plan", title: "Build plan: five slices, each shippable and checkable on its own",
+      body: "<ul><li><b>Slice 1 — panel.html only, no Ruby.</b> Category order, off-tab tags, <code>#3=</code> link, one-line update, overflow menu, footer removed, density trim. Ships as 1.20.0.</li>" +
+        "<li><b>Slice 2 — icons.</b> 22 new symbols + monogram rule + category fallback, icon-map.json entries. No Ruby.</li>" +
+        "<li><b>Slice 3 — workbench.</b> Tile grid + recent strip (payload already carries <code>recent</code>). No Ruby.</li>" +
+        "<li><b>Slice 4 — one Ruby line.</b> Cache <code>scan</code> in <code>refresh_fav_labels</code>: 18 full rescans per star click become one. Plus a <code>uipref</code> callback for the compact-rows switch.</li>" +
+        "<li><b>Slice 5 — header copy pass</b> across ~12 scripts (label-only edits, filenames untouched).</li></ul>" }
+  ];
+  var rev = {};
+  var $right = document.getElementById("right");
+  $right.innerHTML = SECTIONS.map(function (s, i) {
+    return '<div class="sec" data-id="' + s.id + '"><div class="num">§' + (i + 1) + '</div><h2>' + s.title + "</h2>" + s.body +
+      '<div class="decide"><label class="r ok"><input type="radio" name="d-' + s.id + '" value="approve">Approve</label>' +
+      '<label class="r no"><input type="radio" name="d-' + s.id + '" value="needs-changes">Needs changes</label>' +
+      '<textarea placeholder="Notes for the Builder — what to keep, what to change" data-note="' + s.id + '"></textarea></div></div>';
+  }).join("") +
+  '<div class="copy"><h2>Copy back</h2><p>Everything above, as JSON. Paste it into the chat and the Builder works from it.</p>' +
+  '<textarea id="out" readonly></textarea><div class="row"><button class="btn" id="copybtn">Copy to clipboard</button><button class="btn alt" id="selbtn">Select all</button><span class="st" id="cst"></span></div></div>';
+
+  // icon grid in §8
+  (function () {
+    var g = document.getElementById("icongrid"), h = "";
+    Object.keys(NEW_ICONS).forEach(function (n) { var s = byName(n); if (!s) return; h += '<div><span class="w">' + use("ico", NEW_ICONS[n]) + '</span><span class="t" title="' + esc(s.title) + '">' + esc(s.title) + "</span></div>"; });
+    Object.keys(MONOGRAM).forEach(function (n) { var s = byName(n); if (!s) return; h += '<div><span class="w"><span class="mg" style="font-size:10px;font-weight:800;color:var(--p-accent)">' + MONOGRAM[n] + '</span></span><span class="t" title="' + esc(s.title) + '">' + esc(s.title) + "</span></div>"; });
+    g.innerHTML = h;
+  }());
+
+  function collect() {
+    var out = { mockup: "panel-overhaul.mockup.html", date: new Date().toISOString().slice(0, 10), variant: st.variant, width_viewed: st.width, sections: {} };
+    SECTIONS.forEach(function (s) {
+      var d = document.querySelector('input[name="d-' + s.id + '"]:checked');
+      var n = document.querySelector('textarea[data-note="' + s.id + '"]').value.trim();
+      out.sections[s.id] = { decision: d ? d.value : "undecided", note: n };
+    });
+    document.getElementById("out").value = JSON.stringify(out, null, 2);
+  }
+  function syncReview() { var r = document.querySelector('#varpick input[value="' + st.variant + '"]'); if (r) r.checked = true; collect(); }
+  $right.addEventListener("change", function (e) {
+    if (e.target.name === "variant") { st.variant = e.target.value; st.browse = false; pressOnly("varseg", "v", st.variant); render(); }
+    collect();
+  });
+  $right.addEventListener("input", collect);
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var ta = document.getElementById("out"), s = document.getElementById("cst");
+    function ok() { s.textContent = "Copied."; }
+    function fail() { ta.focus(); ta.select(); s.textContent = "Clipboard blocked here — the text is selected, press Ctrl+C."; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(ok, fail); else fail();
+  });
+  document.getElementById("selbtn").addEventListener("click", function () { var ta = document.getElementById("out"); ta.focus(); ta.select(); });
+
+  render();
+  collect();
+}());
+</script>

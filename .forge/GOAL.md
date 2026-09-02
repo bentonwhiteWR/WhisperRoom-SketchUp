@@ -29,16 +29,20 @@ emailed to him.
    probability × cost, silent failures above loud ones, customer-facing above internal.
 
 ## Now
-**Fixer mission, 1 Sep 2026 evening — Benton picked two from the ranking:**
-1. `scripts/rbtest-lights.py` is stale against 1.10.0 (`LUMEN_GAIN`); make it green and make
-   `scripts/rbparse.py` surface the real Ruby exception message (consolidated finding 13,
-   lane B finding 1).
-2. The image lane's shading contract is undone by every proposal-scene switch; re-apply it
-   after each page switch inside the export loop (consolidated finding 3, lane B finding 2).
-One VERSION bump. Documenter closes with a DEVLOG entry. Everything else in the ranking
-stays open until Benton picks next.
+**Scoper mission, 1 Sep 2026 late — panel UI overhaul, design step DONE; awaiting Benton's review.** Mockup artifact: https://claude.ai/code/artifact/51bab851-4821-4179-ae24-af6a47c8ec5a · spec `.forge/scoper/panel-overhaul.md`. Builder slice 1 waits on his variant pick and section verdicts.
 
-Audit consolidated at `.forge/auditor/full-audit-2026-09-01.md`; lane files under `.forge/auditor/`.
+Original brief: Benton asked
+"what about a UI overhaul on the sketchup plugin?" and then "Did you make an artifact for the
+UI overhaul?" No direction has been given beyond that; the Scoper inventories the current
+panel, proposes a direction, and delivers a viewable mockup with approve/edit controls and a
+copy-back box (house rule: mockup before scripts). No panel code changes in this mission.
+The mockup must absorb the audit's structural panel findings (consolidated finding 22 / lane A
+A11): 24 of 56 tools draw the default icon, "V-Ray renders" missing from the category order,
+off-tab search hits unlabelled, 18 full rescans per star click. Constraint that does not move:
+the panel runs in SketchUp's embedded CEF (ES5 JavaScript only, no external resources).
+
+1.19.3 shipped earlier tonight (lights harness, shading re-apply). Audit ranking at
+`.forge/auditor/full-audit-2026-09-01.md`.
 
 ## Facts established by the orchestrator, 1 Sep 2026
 - Repo is at `14197b9`, clean, in sync with `origin/main` (observed).
