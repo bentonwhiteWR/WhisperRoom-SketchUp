@@ -129,11 +129,16 @@
 
   /* ------------------------------------------------------------ top bar -- */
 
+  /* Three bands above the list, not five. The top bar is 34 px: brand,
+     version, and ONE more-button. Rescan / folder / console / the dev switch /
+     the shop-default button used to hold a bar and a footer between them for
+     controls that get pressed once a month; they live in the ... menu now, and
+     the footer that clipped at 430 is gone. */
   .top {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 9px 10px 7px;
+    padding: 4px 8px 3px 10px;
     flex: 0 0 auto;
   }
   /* The version, in the top bar beside the icon buttons. Quiet by default;
@@ -174,24 +179,61 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px; height: 28px;
+    width: 26px; height: 26px;
     border: 1px solid transparent;
     border-radius: 6px;
     background: transparent;
     color: var(--muted);
     cursor: pointer;
     flex: 0 0 auto;
+    padding: 0;
   }
-  .iconbtn:hover { background: var(--surface); border-color: var(--line); color: var(--ink); }
+  .iconbtn:hover, .iconbtn.on { background: var(--surface); border-color: var(--line); color: var(--ink); }
   .iconbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* The ... menu. An in-page popover, not a native menu: it closes on an
+     outside click or Escape, and it sits above the list (z-index 20, under
+     the sheets at 30). Position is against the viewport — the body is the
+     dialog — so it hangs off the button whatever the list is doing. */
+  .menu {
+    display: none;
+    position: absolute; right: 8px; top: 34px; z-index: 20;
+    min-width: 232px; max-width: calc(100% - 16px);
+    padding: 5px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .18);
+    font-size: 12px;
+    color: var(--ink);
+  }
+  .menu.on { display: block; }
+  .menu .mi {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 9px;
+    border-radius: 5px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .menu .mi:hover { background: var(--hover); }
+  .menu .mi .gl { color: var(--muted); flex: 0 0 auto; }
+  .menu .mi .sw { margin-left: auto; width: 26px; height: 15px; }
+  .menu .mi .sw i { width: 11px; height: 11px; }
+  .menu .mi .sw[aria-checked="true"] i { left: 13px; }
+  .menu .mi .hint { margin-left: auto; color: var(--faint); font-size: 10.5px; white-space: nowrap; }
+  .menu .sub {
+    padding: 0 9px 5px 33px;
+    color: var(--faint); font-size: 10.5px;
+  }
+  .menu hr { border: 0; border-top: 1px solid var(--line2); margin: 4px 2px; }
 
   /* -------------------------------------------------------- command bar -- */
 
-  .cmd { margin: 0 10px 8px; position: relative; flex: 0 0 auto; }
+  .cmd { margin: 0 8px 5px; position: relative; flex: 0 0 auto; }
   .cmd input {
     width: 100%;
-    padding: 8px 30px 8px 32px;
-    font: inherit;
+    padding: 6px 28px 6px 30px;
+    font: inherit; line-height: 1.3;
     color: var(--ink);
     background: var(--surface);
     border: 1px solid var(--line);
@@ -201,7 +243,7 @@
   .cmd input::placeholder { color: var(--faint); }
   .cmd input:focus { border-color: var(--accent); }
   .cmd .lens {
-    position: absolute; left: 10px; top: 50%;
+    position: absolute; left: 9px; top: 50%;
     transform: translateY(-50%);
     color: var(--faint);
     pointer-events: none;
@@ -223,8 +265,8 @@
   /* A pasted booth-builder link is a command, not a search term. */
   .linkgo {
     display: none;
-    margin: 0 10px 8px;
-    padding: 9px 11px;
+    margin: 0 8px 6px;
+    padding: 7px 10px;
     border: 1px solid var(--accent);
     border-radius: 8px;
     background: var(--accent-soft);
@@ -252,14 +294,14 @@
      not looking at must not be able to hide a result. */
 
   .tabs {
-    display: flex; gap: 2px; margin: 0 10px 8px; flex: 0 0 auto;
+    display: flex; gap: 2px; margin: 0 8px; flex: 0 0 auto;
     border-bottom: 1px solid var(--line);
   }
   .tabs button {
     appearance: none; border: 0; background: none; cursor: pointer;
-    font: inherit; font-size: 11.5px; font-weight: 600;
+    font: inherit; font-size: 11px; font-weight: 600;
     letter-spacing: .06em; text-transform: uppercase;
-    color: var(--faint); padding: 7px 10px 6px;
+    color: var(--faint); padding: 4px 9px;
     border-bottom: 2px solid transparent; margin-bottom: -1px;
   }
   .tabs button:hover { color: var(--ink); }
@@ -271,44 +313,54 @@
     font-weight: 700; color: var(--faint);
   }
 
-  /* The update banner. Quiet by design: an update is worth telling you about
-     once, not shouting about every time the panel opens. */
+  /* The update notice. ONE line, not a banner: an update is worth telling you
+     about, not worth the first tool row every time the panel opens. The X
+     hides it for this panel session only — the version pill stays orange and
+     clicking it brings the line back, so dismissing is never forgetting. */
   .upd {
-    display: none; margin: 0 10px 8px; padding: 7px 10px;
+    display: none; align-items: center; gap: 8px;
+    margin: 5px 8px 0; padding: 2px 6px 2px 9px;
     border: 1px solid var(--accent); border-radius: 6px;
-    font-size: 11.5px; line-height: 1.45; flex: 0 0 auto;
+    font-size: 11.5px; line-height: 1.4; flex: 0 0 auto;
+    min-width: 0;
   }
-  .upd.on { display: block; }
-  .upd b { color: var(--accent); }
+  .upd.on { display: flex; }
+  .upd b { color: var(--accent); white-space: nowrap; }
+  .upd .sp {
+    color: var(--muted); min-width: 0; flex: 1 1 auto;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .upd .go {
     appearance: none; border: 0; cursor: pointer; font: inherit;
-    font-size: 11px; font-weight: 700; letter-spacing: .04em;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
     background: var(--accent); color: #fff;
-    border-radius: 5px; padding: 4px 10px; margin-top: 6px;
+    border-radius: 5px; padding: 3px 9px; margin-left: auto;
+    line-height: 1.4; white-space: nowrap; flex: 0 0 auto;
   }
   .upd .go[disabled] { opacity: .5; cursor: default; }
-  .upd code {
-    font-size: 11px; opacity: .85;
-    display: block; margin-top: 3px; word-break: break-all;
+  .upd .x {
+    appearance: none; border: 0; background: none; cursor: pointer;
+    color: var(--faint); font-size: 13px; line-height: 1; padding: 0 2px; flex: 0 0 auto;
   }
+  .upd .x:hover { color: var(--ink); }
 
   .statebar {
-    display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
-    margin: 0 10px 8px;
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+    margin: 5px 8px 0;
     flex: 0 0 auto;
   }
   .statebar .cap {
-    font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+    font-size: 10px; font-weight: 700; letter-spacing: .1em;
     color: var(--faint); margin-right: 2px;
   }
   .chip {
     display: inline-flex; align-items: center; gap: 5px;
-    font: inherit; font-size: 11.5px; font-weight: 600;
+    font: inherit; font-size: 11px; font-weight: 600;
     color: var(--accent);
     background: var(--accent-soft);
     border: 1px solid var(--accent);
     border-radius: 20px;
-    padding: 1px 9px 1px 7px;
+    padding: 0 8px 0 6px;
     cursor: pointer;
     max-width: 100%;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -317,21 +369,21 @@
     content: ""; width: 6px; height: 6px; border-radius: 50%;
     background: var(--accent); flex: 0 0 auto;
   }
-  .statebar .none { font-size: 11.5px; color: var(--faint); }
+  .statebar .none { font-size: 11px; color: var(--faint); }
 
   /* --------------------------------------------------------------- list -- */
 
-  .scroll { flex: 1 1 auto; overflow-y: auto; padding: 0 10px 12px; }
+  .scroll { flex: 1 1 auto; overflow-y: auto; padding: 0 8px 10px; }
 
   .sect {
     display: flex; align-items: center; gap: 7px;
     font-size: 10.5px; font-weight: 700; letter-spacing: .12em;
     color: var(--faint);
-    margin: 14px 2px 5px;
+    margin: 12px 2px 3px;
     cursor: pointer;
     user-select: none;
   }
-  .sect:first-child { margin-top: 6px; }
+  .sect:first-child { margin-top: 5px; }
   .sect .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sect .n  { font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
   .sect .cv { margin-left: auto; font-size: 9px; transition: transform .12s; }
@@ -341,15 +393,17 @@
   .group {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 9px;
     overflow: hidden;
   }
 
+  /* Comfortable rows: ~42 px, one-line blurb kept. The 15 Aug row was 50 px;
+     what came off is padding and the icon well, not information. */
   .row {
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 7px 9px;
+    gap: 8px;
+    padding: 5px 8px;
     cursor: pointer;
     position: relative;
     border-top: 1px solid var(--line2);
@@ -358,12 +412,13 @@
   .row:hover, .row.sel { background: var(--hover); }
 
   .row .iw {
-    width: 30px; height: 30px; flex: 0 0 auto;
-    border-radius: 7px;
+    width: 26px; height: 26px; flex: 0 0 auto;
+    border-radius: 6px;
     background: var(--rail);
     display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
   }
-  .row .iw .ico { width: 20px; height: 20px; color: var(--ink); }
+  .row .iw .ico { width: 18px; height: 18px; color: var(--ink); }
 
   /* display:block on both is load-bearing, not tidiness. The row is built from
      <span>s, and overflow/text-overflow do nothing on an inline box — leave
@@ -371,7 +426,7 @@
      right edge at 330 px instead of ellipsizing. Observed, at 330. */
   .row .body  { flex: 1 1 auto; min-width: 0; display: block; }
   .row .t {
-    font-weight: 600;
+    font-weight: 600; font-size: 12.5px;
     display: flex; align-items: center; gap: 6px;
     min-width: 0;
   }
@@ -379,7 +434,7 @@
   .row .b {
     display: block;
     color: var(--muted);
-    font-size: 11.5px;
+    font-size: 11px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
@@ -389,23 +444,27 @@
          fill: none; stroke: currentColor; stroke-width: 1.5; }
   .run {
     display: none; flex: 0 0 auto;
-    font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
     color: var(--accent);
   }
   .row:hover .run { display: block; }
   .row:hover .dlg { display: none; }
 
-  .pill-new, .badge-dev {
+  /* NEW is recency, DEV is a shelf, and the tab tag says a search hit lives
+     on the OTHER tab — it is drawn only while a term is typed, because with no
+     term the list never shows an off-tab script in the first place. */
+  .pill-new, .badge-dev, .badge-tab {
     flex: 0 0 auto;
     font-size: 9px; font-weight: 700; letter-spacing: .08em;
     border-radius: 4px; padding: 0 4px;
   }
   .pill-new { color: var(--accent); border: 1px solid currentColor; }
   .badge-dev { color: var(--muted); border: 1px solid var(--line); background: var(--rail); }
+  .badge-tab { color: var(--ink); border: 1px solid var(--accent); background: var(--accent-soft); }
 
   .star {
     display: flex; align-items: center; justify-content: center;
-    width: 24px; height: 24px;
+    width: 22px; height: 22px;
     border: 0; border-radius: 5px; padding: 0;
     background: transparent;
     color: var(--faint);
@@ -414,7 +473,7 @@
     flex: 0 0 auto;
   }
   .row:hover .star, .star.on { opacity: 1; }
-  .star .gl { width: 13px; height: 13px; }
+  .star .gl { width: 12px; height: 12px; }
   .star.on { color: var(--accent); }
   .star.on .gl { fill: currentColor; }
   .star:hover { background: var(--rail); color: var(--accent); }
@@ -425,7 +484,7 @@
 
   /* The whole ability row is the switch — see wire(). It gets the same pointer
      and the same hover as an action row, because it is just as clickable. */
-  .row.ab { padding-left: 6px; }
+  .row.ab { padding-left: 5px; }
   .row.ab::before {
     content: ""; position: absolute; left: 0; top: 0; bottom: 0;
     width: 3px; background: transparent;
@@ -442,25 +501,26 @@
 
   .sw {
     position: relative;
-    width: 32px; height: 18px;
+    width: 30px; height: 17px;
     border: 0; border-radius: 9px;
     background: var(--swoff);
     cursor: pointer;
     flex: 0 0 auto;
+    padding: 0;
     transition: background .12s;
   }
   .sw i {
     position: absolute; top: 2px; left: 2px;
-    width: 14px; height: 14px;
+    width: 13px; height: 13px;
     border-radius: 50%;
     background: var(--knob);
     transition: left .12s;
   }
   .sw[aria-checked="true"] { background: var(--accent); }
-  .sw[aria-checked="true"] i { left: 16px; }
+  .sw[aria-checked="true"] i { left: 15px; }
 
   .gearbtn {
-    width: 24px; height: 24px; padding: 0;
+    width: 22px; height: 22px; padding: 0;
     border: 0; border-radius: 5px;
     background: transparent;
     color: var(--faint);
@@ -469,25 +529,28 @@
     flex: 0 0 auto;
   }
   .gearbtn:hover { color: var(--ink); background: var(--rail); }
-  .gearbtn .gl { width: 13px; height: 13px; stroke-width: 1.5; }
+  .gearbtn .gl { width: 12px; height: 12px; stroke-width: 1.5; }
 
   .settings {
-    padding: 6px 10px 10px 39px;
+    padding: 6px 10px 9px 39px;
     display: grid;
-    gap: 6px;
+    gap: 5px;
     border-top: 1px dashed var(--line);
     background: var(--bg);
   }
   .settings label {
     display: flex; align-items: center; gap: 8px;
-    font-size: 11.5px;
+    font-size: 11px;
     color: var(--muted);
   }
-  .settings label span { flex: 0 0 auto; min-width: 92px; }
+  .settings label span {
+    flex: 0 0 auto; min-width: 92px; max-width: 150px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .settings input, .settings select {
     flex: 1 1 auto; min-width: 0;
-    font: inherit; font-size: 11.5px;
-    padding: 3px 6px;
+    font: inherit; font-size: 11px;
+    padding: 2px 6px;
     border: 1px solid var(--line);
     border-radius: 5px;
     background: var(--surface);
@@ -546,28 +609,6 @@
     font-size: 11px; color: var(--warn); background: var(--warn-bg);
     border-radius: 6px; padding: 4px 9px; margin: 0 9px 9px;
   }
-
-  /* ------------------------------------------------------------- footer -- */
-
-  .shopdef { margin-left: auto; font: inherit; font-size: 9.5px; letter-spacing: .08em;
-    padding: 3px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 3px;
-    background: transparent; color: inherit; opacity: .6; cursor: pointer; }
-  .shopdef:hover { opacity: 1; border-color: #ee6216; color: #ee6216; }
-  .foot {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 10px;
-    border-top: 1px solid var(--line);
-    background: var(--bg);
-    font-size: 11.5px;
-    color: var(--muted);
-    flex: 0 0 auto;
-    cursor: pointer;
-    user-select: none;
-  }
-  .foot .sw { width: 26px; height: 15px; }
-  .foot .sw i { width: 11px; height: 11px; }
-  .foot .sw[aria-checked="true"] i { left: 13px; }
-  .foot .hint { margin-left: auto; color: var(--faint); white-space: nowrap; }
 
   /* -------------------------------------------------------------- sheets --
      Both editors are bottom sheets rather than centred modals: at 330 px a
@@ -700,21 +741,19 @@
   <symbol id="g-pencil" viewBox="0 0 16 16"><path d="M11.2 2.3l2.5 2.5-8 8-3.2.7.7-3.2z"/><path d="M10 3.5l2.5 2.5"/></symbol>
   <symbol id="g-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4"/><path d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6L3.3 3.3"/></symbol>
   <symbol id="g-dialog" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12"/></symbol>
+  <symbol id="g-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></symbol>
+  <symbol id="g-save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z M8 3v6h7V3 M8 21v-7h8v7"/></symbol>
 </svg>
 
   <div class="top">
     <span class="brand">WhisperRoom</span>
     <button class="ver" id="ver" title="Version"></button>
-    <button class="iconbtn" id="rescan" title="Rescan the scripts folder">
-      <svg class="gl"><use href="#g-rescan" xlink:href="#g-rescan"/></svg>
-    </button>
-    <button class="iconbtn" id="folder" title="Open the scripts folder">
-      <svg class="gl"><use href="#g-folder" xlink:href="#g-folder"/></svg>
-    </button>
-    <button class="iconbtn" id="console" title="Ruby Console">
-      <svg class="gl"><use href="#g-console" xlink:href="#g-console"/></svg>
+    <button class="iconbtn" id="more" title="Rescan, folder, console, developer tools, shop default"
+            aria-haspopup="true" aria-expanded="false">
+      <svg class="gl"><use href="#g-more" xlink:href="#g-more"/></svg>
     </button>
   </div>
+  <div class="menu" id="menu" role="menu"></div>
 
   <div class="cmd">
     <svg class="gl lens"><use href="#g-lens" xlink:href="#g-lens"/></svg>
@@ -736,14 +775,6 @@
   <div class="statebar" id="statebar"></div>
   <div class="note" id="note"></div>
   <div class="scroll" id="scroll"></div>
-
-  <div class="foot" id="foot">
-    <button class="sw" role="switch" aria-checked="false" id="devsw"><i></i></button>
-    <span>Show developer &amp; workshop tools</span>
-    <span class="hint">search finds them anyway</span>
-    <button class="shopdef" id="shopdef"
-      title="Write this panel's slots, stars and per-script settings into the repo as the defaults everyone gets">SAVE AS SHOP DEFAULT</button>
-  </div>
 
   <!-- rename sheet -->
   <div class="sheetovl" id="rovl">
@@ -797,13 +828,17 @@
 
   // THE CATEGORY ORDER IS THE ORDER A JOB HAPPENS IN, and it is fixed rather
   // than alphabetical or newest-first. Read top to bottom it is the pipeline:
-  // room, booth, dimensions, scenes, art, tidy-up. Newest-first was worse than
-  // it looked — editing any script silently re-ordered the category it sat in,
-  // and re-running install-plugin.py re-ordered everything at once. Recency is
-  // the NEW pill's job now.
+  // room, booth, dimensions, scenes, render, art, tidy-up. Newest-first was
+  // worse than it looked — editing any script silently re-ordered the category
+  // it sat in, and re-running install-plugin.py re-ordered everything at once.
+  // Recency is the NEW pill's job now.
+  //
+  // A category missing from this list sorts AFTER every listed one. "V-Ray
+  // renders" was missing for three weeks and its twelve tools sat under Tidy
+  // up — which put rendering after clean-up, backwards for the proposal loop.
   var ORDER = ["Draw the room", "Build the booth", "Add dimensions",
-               "Scenes and images", "Component art (web catalog)",
-               "Tidy up the model"];
+               "Scenes and images", "V-Ray renders",
+               "Component art (web catalog)", "Tidy up the model"];
   // Two tabs. A script declares "# @tab client" to sit on the second one;
   // everything else defaults to "tools", so no existing script needed editing
   // and a typo lands on the DEFAULT tab rather than vanishing into one nobody
@@ -843,9 +878,10 @@
   var $upd      = document.getElementById("upd");
   var $ver      = document.getElementById("ver");
   var $sprite   = document.getElementById("sprite");
-  var $foot     = document.getElementById("foot");
-  var $devsw    = document.getElementById("devsw");
+  var $more     = document.getElementById("more");
+  var $menu     = document.getElementById("menu");
   var noteTimer = null;
+  var updHidden = false;      // the update line's X — page state, never a pref
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -883,9 +919,12 @@
   }
   function isPinned(name) { return (DATA.pinned || []).indexOf(name) >= 0; }
 
-  // A pasted booth-builder link is a command, not a search term.
+  // A pasted booth-builder link is a command, not a search term. Three
+  // formats, the same three booth-from-link.rb reads: the query form, the
+  // long "#d=" hash and the short "#3=" hash it has understood since 1.18.0
+  // (audit A6: the panel treated a #3= link as a search and found nothing).
   function boothLink(t) {
-    return /booth-builder\?d=[A-Za-z0-9_-]+|#d=[A-Za-z0-9_-]{20,}/.test(t) ? t : null;
+    return /booth-builder\?d=[A-Za-z0-9_-]+|#d=[A-Za-z0-9_-]{20,}|#3=[A-Za-z0-9_-]{10,}/.test(t) ? t : null;
   }
 
   function note(msg, bad) {
@@ -1140,29 +1179,38 @@
   }
 
   function drawUpdate() {
-    // The pill and the banner are drawn together on purpose: a version that
-    // said "up to date" beside a banner that said otherwise would be worse
+    // The pill and the notice are drawn together on purpose: a version that
+    // said "up to date" beside a notice that said otherwise would be worse
     // than either alone.
     $ver.textContent = "v" + (DATA.version || "?");
     $ver.className = DATA.update ? "ver new" : "ver";
     $ver.title = DATA.update
-      ? "v" + DATA.update + " is available - click for details"
+      ? "v" + DATA.update + " is available — click for details"
       : "WhisperRoom Tools v" + (DATA.version || "?");
-    if (!DATA.update) { $upd.className = "upd"; $upd.innerHTML = ""; return; }
-    $upd.className = "upd on";
-    // One button, and it runs the two commands you would type anyway. Where
-    // there is no git checkout to pull into there is nothing to press, so the
-    // banner says so rather than offering a button that cannot work.
-    $upd.innerHTML = "<b>Update available — v" + esc(DATA.update) + "</b> " +
-      "(you have v" + esc(DATA.version || "?") + "). " +
-      (DATA.can_update
-        ? "<button class=\"go\" id=\"updgo\">Update now</button>" +
-          "<code>git pull &amp;&amp; python scripts/install-plugin.py</code>"
-        : "No git checkout here, so run this where the repo is cloned:" +
-          "<code>git pull &amp;&amp; python scripts/install-plugin.py</code>");
+    // The X hides the line until the panel is next opened. The pill stays
+    // orange and brings it back — dismissing is not the same as forgetting.
     $ver.onclick = function () {
-      if (DATA.update) $upd.scrollIntoView({ block: "nearest" });
+      if (!DATA.update) return;
+      updHidden = false;
+      drawUpdate();
     };
+    if (!DATA.update || updHidden) { $upd.className = "upd"; $upd.innerHTML = ""; return; }
+    $upd.className = "upd on";
+    // One line. One button, and it runs the two commands you would type
+    // anyway. Where there is no git checkout to pull into there is nothing to
+    // press, so the line says so rather than offering a button that cannot
+    // work.
+    $upd.innerHTML = "<b>v" + esc(DATA.update) + " available</b>" +
+      (DATA.can_update
+        ? '<span class="sp" title="What Update now runs">git pull &amp;&amp; install-plugin.py</span>' +
+          '<button class="go" id="updgo">Update now</button>'
+        : '<span class="sp" title="git pull &amp;&amp; python scripts/install-plugin.py, where the repo is cloned">' +
+          "— no git checkout here; update where the repo is cloned</span>") +
+      '<button class="x" id="updx" title="Hide until the panel is next opened">&#10005;</button>';
+    document.getElementById("updx").addEventListener("click", function () {
+      updHidden = true;
+      drawUpdate();
+    });
     var b = document.getElementById("updgo");
     if (!b) return;
     b.addEventListener("click", function () {
@@ -1173,6 +1221,87 @@
       if (window.sketchup && sketchup.update) sketchup.update();
     });
   }
+
+  // ------------------------------------------------------------- the menu --
+  //
+  // Everything that used to be a top-bar button or a footer control. None of
+  // it is daily work: rescan is for a script you just added, the folder and
+  // the console are for writing one, the dev switch shows the shelves, and
+  // the shop default is a once-a-month commit. Built here rather than in the
+  // markup so the shelf count is live.
+
+  function shelvedCount() {
+    return (DATA.scripts || []).filter(function (s) { return !!s.shelf; }).length;
+  }
+
+  function drawMenu() {
+    var n = shelvedCount();
+    $menu.innerHTML =
+      '<div class="mi" data-m="rescan">' + useSvg("gl", "g-rescan") + "Rescan the scripts folder</div>" +
+      '<div class="mi" data-m="folder">' + useSvg("gl", "g-folder") + "Open the scripts folder</div>" +
+      '<div class="mi" data-m="console">' + useSvg("gl", "g-console") + "Ruby Console</div>" +
+      "<hr>" +
+      '<div class="mi" data-m="dev" role="menuitemcheckbox">Show developer &amp; workshop tools' +
+        '<button class="sw" role="switch" tabindex="-1" id="devsw" aria-checked="' +
+        (DATA.dev ? "true" : "false") + '"><i></i></button></div>' +
+      '<div class="sub">' + (n ? n + " on the shelves — " : "") + "search finds them either way</div>" +
+      "<hr>" +
+      '<div class="mi" data-m="shopdefaults" title="Write this panel\'s slots, stars and collapsed sections into the repo as the defaults everyone gets">' +
+        useSvg("gl", "g-save") + "Save this layout as the shop default…" +
+        '<span class="hint">writes defaults.json</span></div>';
+    Array.prototype.forEach.call($menu.querySelectorAll(".mi[data-m]"), function (el) {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
+        menuAction(el.dataset.m);
+      });
+    });
+  }
+
+  function menuAction(m) {
+    if (m === "dev") {
+      // Panel furniture: stored in preferences and redrawn here rather than
+      // round-tripping through a Ruby render — the list would scroll out from
+      // under the click that caused it. The menu stays open so the switch is
+      // seen to flip.
+      DATA.dev = !DATA.dev;
+      document.getElementById("devsw").setAttribute("aria-checked", DATA.dev ? "true" : "false");
+      if (window.sketchup && sketchup.devtools) sketchup.devtools(DATA.dev ? "true" : "false");
+      drawTabs();
+      draw();
+      return;
+    }
+    closeMenu();
+    if (!window.sketchup) return;
+    if (m === "rescan")            sketchup.rescan();
+    else if (m === "folder")       sketchup.folder();
+    else if (m === "console")      sketchup.console();
+    else if (m === "shopdefaults" && sketchup.shopdefaults) sketchup.shopdefaults();
+  }
+
+  function menuOpen() { return $menu.className.indexOf("on") >= 0; }
+  function openMenu() {
+    $menu.className = "menu on";
+    $more.className = "iconbtn on";
+    $more.setAttribute("aria-expanded", "true");
+  }
+  function closeMenu() {
+    $menu.className = "menu";
+    $more.className = "iconbtn";
+    $more.setAttribute("aria-expanded", "false");
+  }
+
+  $more.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (menuOpen()) closeMenu(); else openMenu();
+  });
+  // Outside click closes it. The menu's own items stop propagation, so the
+  // only clicks that reach here from inside it are on the switch row's gaps —
+  // and those already toggled and returned.
+  document.addEventListener("click", function (e) {
+    if (!menuOpen()) return;
+    if ($menu.contains(e.target) || $more.contains(e.target)) return;
+    closeMenu();
+  });
 
   function shelfRank(name) {
     for (var i = 0; i < SHELF_ORDER.length; i++) {
@@ -1255,14 +1384,27 @@
     return s.name + " · modified " + s.ago + (extra ? " · " + extra : "");
   }
 
+  // The small marks after a title. The tab tag is drawn only while a term is
+  // typed: a search ignores the tab, so a hit can come from the one you are
+  // not looking at, and it must never look like it lives here.
+  function tagsFor(s, term) {
+    if (!s) return "";
+    var h = "";
+    if (s.fresh) h += '<span class="pill-new">NEW</span>';
+    if (s.shelf) h += '<span class="badge-dev">DEV</span>';
+    if (term && tabOf(s) !== tab) {
+      h += '<span class="badge-tab">' + (tabOf(s) === "client" ? "CLIENT" : "TOOLS") + "</span>";
+    }
+    return h;
+  }
+
   function actionRow(s, i, term) {
     return '<div class="row' + (i === sel ? " sel" : "") + '" data-i="' + i +
              '" title="' + esc(tip(s, "click to run")) + '">' +
              '<span class="iw">' + icon(s.icon) + "</span>" +
              '<span class="body">' +
                '<span class="t"><span class="nm">' + hl(s.title, term) + "</span>" +
-                 (s.fresh ? '<span class="pill-new">NEW</span>' : "") +
-                 (s.shelf ? '<span class="badge-dev">DEV</span>' : "") + "</span>" +
+                 tagsFor(s, term) + "</span>" +
                '<span class="b">' + (s.blurb ? hl(s.blurb, term) : "") + "</span>" +
              "</span>" +
              (s.dialog ? '<svg class="dlg"><use href="#g-dialog" xlink:href="#g-dialog"/></svg>' : "") +
@@ -1304,7 +1446,7 @@
              '<span class="iw">' + icon(a.icon || (s ? s.icon : null)) + "</span>" +
              '<span class="body">' +
                '<span class="t"><span class="nm">' + hl(title, term) + "</span>" +
-                 (s && s.shelf ? '<span class="badge-dev">DEV</span>' : "") + "</span>" +
+                 tagsFor(s, term) + "</span>" +
                '<span class="b">' + (blurb ? hl(blurb, term) : "") + "</span>" +
              "</span>" +
              '<span class="stat">' + (a.on_now ? "ON" : "OFF") + "</span>" +
@@ -1594,6 +1736,7 @@
     if (e.key !== "Escape") return;
     if (renaming)          { e.preventDefault(); closeRename(); }
     else if (editing >= 0) { e.preventDefault(); closeEditor(); }
+    else if (menuOpen())   { e.preventDefault(); closeMenu(); }
   });
   $clear.addEventListener("click", function () { $q.value = ""; sel = -1; draw(); $q.focus(); });
 
@@ -1605,24 +1748,6 @@
     }
   }
   $linkgo.addEventListener("click", function () { buildLink($q.value.trim()); });
-
-  document.getElementById("rescan").addEventListener("click", function () { sketchup.rescan(); });
-  document.getElementById("folder").addEventListener("click", function () { sketchup.folder(); });
-  document.getElementById("shopdef").addEventListener("click", function () {
-    if (window.sketchup && sketchup.shopdefaults) sketchup.shopdefaults();
-  });
-  document.getElementById("console").addEventListener("click", function () { sketchup.console(); });
-
-  // The dev/workshop switch is panel furniture, so it is stored in preferences
-  // and redrawn here rather than round-tripping through a Ruby render — the
-  // list would scroll out from under the click that caused it.
-  $foot.addEventListener("click", function () {
-    DATA.dev = !DATA.dev;
-    $devsw.setAttribute("aria-checked", DATA.dev ? "true" : "false");
-    $foot.classList.toggle("on", DATA.dev);
-    if (window.sketchup && sketchup.devtools) sketchup.devtools(DATA.dev ? "true" : "false");
-    draw();
-  });
 
   // Ruby is the source of truth for every switch position; the optimistic flip
   // on click only makes the switch feel immediate, and this render corrects it.
@@ -1640,9 +1765,8 @@
 
       collapsed = {};
       (DATA.collapsed || []).forEach(function (c) { collapsed[c] = true; });
-      $devsw.setAttribute("aria-checked", DATA.dev ? "true" : "false");
-      $foot.classList.toggle("on", !!DATA.dev);
 
+      drawMenu();
       drawTabs();
       drawUpdate();
       drawState();
