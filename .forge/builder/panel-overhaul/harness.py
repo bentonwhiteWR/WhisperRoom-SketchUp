@@ -187,7 +187,25 @@ PROOF_EDITOR = "document.querySelector('.slot[data-s]').click();"
 PROOF_LINK = (LINK + "window.__T=['linkgo',document.getElementById('linkgo').style.display];"
               "document.getElementById('linkgo').click();")
 
+PROOF_TILES = ("function rows(){var ys={};Array.prototype.forEach.call(document.querySelectorAll('.tile'),"
+               "function(t){ys[Math.round(t.getBoundingClientRect().top)]=1;});return Object.keys(ys).length;}"
+               "window.__T=['tiles',document.querySelectorAll('.tile').length,'tileRows',rows(),"
+               "'recentChips',document.querySelectorAll('.rc').length,"
+               "'pinnedRowsInCats',document.querySelectorAll('#scroll .row').length];"
+               "document.querySelector('.tile .un').click();"
+               "document.querySelector('.rc').click();"
+               "document.querySelector('.tile[data-run]').click();"
+               "document.querySelector('.sect[data-sec=Pinned]').click();"
+               "window.__T.push('pinnedAfterHeaderClick',document.querySelector('.sect[data-sec=Pinned]').className);"
+               + q("csusb") + "window.__T.push('tilesInSearch',document.querySelectorAll('.tile').length,"
+               "'recentInSearch',document.querySelectorAll('.rc').length);"
+               + q("") + CLIENT + "window.__T.push('tilesOnClient',document.querySelectorAll('.tile').length,"
+               "'recentOnClient',document.querySelectorAll('.rc').length);")
+
 MEASURES = [
+    ("p-tiles-430", dict(), PROOF_TILES, 430),
+    ("p-tiles-330", dict(), PROOF_TILES, 330),
+    ("p-tiles-520", dict(), PROOF_TILES, 520),
     ("p-menu", dict(update="1.19.4"), PROOF_MENU, 430),
     ("p-upd", dict(update="1.19.4"), PROOF_UPD, 430),
     ("p-editor", dict(), PROOF_EDITOR, 430),

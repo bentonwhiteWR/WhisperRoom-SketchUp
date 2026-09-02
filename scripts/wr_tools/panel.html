@@ -397,6 +397,88 @@
     overflow: hidden;
   }
 
+  /* ------------------------------------------------------- the workbench --
+     The starred tools as a grid of icon tiles, not eleven full rows. Same
+     tools, same slot order, one sixth the height: the daily ten fit in one
+     screen with the categories starting right under them. Tiles are the
+     TOOLS, not toolbar faces — see the note above bars() — so this is not
+     the "rival favourites row" of 14 Aug coming back. */
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+    gap: 4px;
+    padding: 6px;
+  }
+  .tile {
+    position: relative;
+    border: 1px solid var(--line2);
+    border-radius: 7px;
+    background: var(--bg);
+    padding: 7px 3px 5px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    cursor: pointer;
+    text-align: center;
+    min-width: 0;
+  }
+  .tile:hover { border-color: var(--accent); background: var(--hover); }
+  .tile .iw {
+    width: 28px; height: 28px; flex: 0 0 auto;
+    border-radius: 7px;
+    background: var(--rail);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
+  }
+  .tile .iw .ico { width: 20px; height: 20px; }
+  .tile .iw .mg { font-size: 11px; }
+  /* Up to three lines of title at 10 px. Long titles are the weak point of a
+     tile; the spec's @short header is the clean fix if this proves too tight. */
+  .tile .lab {
+    font-size: 10px; line-height: 1.15; font-weight: 600;
+    max-height: 34.5px; overflow: hidden;
+    color: var(--ink); width: 100%;
+    overflow-wrap: break-word;
+  }
+  .tile .un {
+    position: absolute; top: 1px; right: 3px;
+    border: 0; background: none; padding: 0 2px;
+    font-size: 10px; line-height: 1.4; color: var(--faint);
+    cursor: pointer;
+    display: none;
+  }
+  .tile:hover .un { display: block; }
+  .tile .un:hover { color: var(--accent); }
+  .tile .dlg { position: absolute; top: 3px; left: 4px; width: 9px; height: 9px; }
+  /* A pinned ability is a switch, here too: the tile shows its state and a
+     click flips it, the same as its row. */
+  .tile.ab.on { border-color: var(--accent); }
+  .tile.ab.on .iw { background: var(--accent-soft); }
+  .tile.ab.on .iw .ico { color: var(--accent); }
+  .tiles .none { grid-column: 1 / -1; font-size: 11px; color: var(--faint); padding: 8px 4px; text-align: center; }
+
+  /* The last five tools run, from main.rb's `recent` — shipped since 15 Aug,
+     drawn for the first time here. Per user, never a shop default. */
+  .recent {
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+    padding: 4px 8px 8px;
+  }
+  .recent .cap {
+    font-size: 10px; font-weight: 700; letter-spacing: .1em;
+    color: var(--faint); margin-right: 2px;
+  }
+  .rc {
+    font: inherit; font-size: 11px; font-weight: 600;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 1px 9px;
+    cursor: pointer;
+    white-space: nowrap;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rc:hover { border-color: var(--accent); color: var(--accent); }
+
   /* Comfortable rows: ~42 px, one-line blurb kept. The 15 Aug row was 50 px;
      what came off is padding and the icon well, not information. */
   .row {
@@ -1486,6 +1568,53 @@
            (open[a.id] && sets.length ? '<div class="settings">' + fields + "</div>" : "");
   }
 
+  // ----------------------------------------------------------- workbench --
+  //
+  // The pinned tools in slot order, as tiles. A tile runs its script; a
+  // pinned ability's tile flips the ability instead, exactly as its row does,
+  // because "run" on an ability script is not what a click on it means.
+
+  function tiles() {
+    var h = '<div class="tiles">';
+    var n = 0;
+    (DATA.pinned || []).forEach(function (name) {
+      var s = byName(name);
+      if (!s) return;
+      n++;
+      var a = abilityFor(name);
+      var on = !!(a && a.on_now);
+      h += '<div class="tile' + (a ? " ab" + (on ? " on" : "") : "") + '"' +
+             (a ? ' data-flip="' + esc(a.id) + '"' : ' data-run="' + esc(s.file) + '"') +
+             ' title="' + esc(a ? tip(s, (on ? "ON" : "OFF") + " — click to switch")
+                                 : tip(s, "click to run")) + '">' +
+             (s.dialog ? '<svg class="dlg"><use href="#g-dialog" xlink:href="#g-dialog"/></svg>' : "") +
+             '<span class="iw">' + icon(s.icon, s.cat) + "</span>" +
+             '<span class="lab">' + esc(s.title) + "</span>" +
+             '<button class="un" data-n="' + esc(name) +
+               '" title="Take off the SketchUp toolbar">&#10005;</button>' +
+           "</div>";
+    });
+    if (!n) h += '<div class="none">Star a tool to put it here and on a WhisperRoom toolbar.</div>';
+    return h + "</div>";
+  }
+
+  // Up to five chips. Abilities are left out: they are switches, and the
+  // last thing switched is already on the state strip.
+  function recentStrip() {
+    var names = (DATA.recent || []).filter(function (n) {
+      return byName(n) && !abilityFor(n);
+    }).slice(0, 5);
+    if (!names.length) return "";
+    var h = '<div class="recent"><span class="cap">RECENT</span>';
+    names.forEach(function (n) {
+      var s = byName(n);
+      var t = s.title.length > 22 ? s.title.slice(0, 20) + "…" : s.title;
+      h += '<button class="rc" data-run="' + esc(s.file) + '" title="' +
+           esc(tip(s, "click to run")) + '">' + esc(t) + "</button>";
+    });
+    return h + "</div>";
+  }
+
   // --------------------------------------------------------- state strip --
 
   function drawState() {
@@ -1566,29 +1695,31 @@
       push(a.cat || MORE, { s: null, a: a });
     });
 
-    // Pinned: the starred tools, as their own canonical rows, in slot order.
-    if (!link && (tab === "tools" || t)) {
-      (DATA.pinned || []).forEach(function (n) {
-        var s = byName(n);
-        if (!s) return;
-        var a = abilityFor(n);
-        if (!hit(s, a)) return;
-        push(PINNED, { s: s, a: a });
-      });
-    }
-
     names.sort(cmpSection);
 
     var h = "";
     var idx = 0;
     view = [];
+
+    // The workbench: pinned tiles and the Recent strip, TOOLS-tab furniture
+    // with no search term. During a search every pinned tool is already a hit
+    // in its own category, so the grid would only repeat the answer.
+    if (!link && tab === "tools" && !t) {
+      var pn = (DATA.pinned || []).filter(function (n) { return !!byName(n); }).length;
+      var pshut = collapsed[PINNED];
+      h += '<div class="sect' + (pshut ? " closed" : "") + '" data-sec="' + esc(PINNED) + '">' +
+             '<span class="nm">PINNED &middot; ON THE TOOLBARS</span>' +
+             '<span class="n">' + pn + "</span>" +
+             '<span class="cv">&#9662;</span>' +
+           "</div>" +
+           '<div class="group">' + tiles() + recentStrip() + "</div>";
+    }
     names.forEach(function (c) {
       var items = groups[c];
-      // Pinned keeps slot order — that IS its meaning. An ability's row sorts
-      // on its script, so a ranked category orders switches and actions
-      // together; the one built-in ability has no script and no rank, so it
-      // falls in with the alphabetical tail.
-      if (c !== PINNED) items.sort(function (x, y) {
+      // An ability's row sorts on its script, so a ranked category orders
+      // switches and actions together; the one built-in ability has no script
+      // and no rank, so it falls in with the alphabetical tail.
+      items.sort(function (x, y) {
         return cmpRow(x.s || { title: x.a.label }, y.s || { title: y.a.label });
       });
       // A search opens everything it matched; the saved collapse state comes
@@ -1686,10 +1817,25 @@
         flipAbility(el.querySelector(".sw"));
       });
     });
-    Array.prototype.forEach.call($scroll.querySelectorAll(".star[data-n]"), function (el) {
+    // The star on a row and the X on a tile are the same toggle.
+    Array.prototype.forEach.call($scroll.querySelectorAll(".star[data-n], .un[data-n]"), function (el) {
       el.addEventListener("click", function (e) {
         e.stopPropagation();
         sketchup.pin(el.dataset.n);
+      });
+    });
+    // Tiles and Recent chips run by FILE, like a row does through view[].
+    Array.prototype.forEach.call($scroll.querySelectorAll("[data-run]"), function (el) {
+      el.addEventListener("click", function () { sketchup.run(el.dataset.run); });
+    });
+    // A pinned ability's tile flips the same switch as its row; the row's
+    // optimistic flip covers every .sw with that id, and Ruby's render
+    // corrects the tile with everything else.
+    Array.prototype.forEach.call($scroll.querySelectorAll(".tile[data-flip]"), function (el) {
+      el.addEventListener("click", function () {
+        var on = !el.classList.contains("on");
+        el.classList.toggle("on", on);
+        sketchup.ability(el.dataset.flip, on ? "true" : "false");
       });
     });
     Array.prototype.forEach.call($scroll.querySelectorAll(".star[data-r]"), function (el) {
