@@ -1,95 +1,95 @@
 # GOAL
 
 ## Mission
-**Fix audit finding 1 — the two booth build paths draw mirrored side walls on the
-6060 / 6084 / 7272 / 7296.** Benton, 2 Sep 2026: "I would like to fix 1. the mirrored
-walls bugs. Use fable." Silent, customer-facing: both builds close exactly and print
-`exact`, so the window, vent and seam land at opposite ends of the side wall depending
-on which panel button was pressed.
+**Fix the standard deck (floor + ceiling) orientation on the 72-series.** Benton,
+2 Sep 2026, checking 1.19.10 builds in SketchUp:
 
-Benton's steer on how to settle the correct arrangement (2 Sep): panel order **depends on
-the floor and ceiling layout**, and the **booth builder** (`booth-builder.html` in the
-WhisperRoomQuote repo) renders all three accurately — drive it headlessly and read the
-truth off it rather than asking him to adjudicate from a wall-only drawing.
+> The 6060, 6084 are correct. The 7272 has both of its floor components and ceiling
+> components flipped the wrong ways. The hinges are all in the center, they should be
+> on the sides. The 7296 ceilings are correct, but the floors need to be flipped since
+> hinges are in the center, just like the 7272.
+
+This is NOT the side-wall panel-order bug shipped in 1.19.10 — that commit never touched
+`scripts/wr-deck.rb` (verified: `git log -- scripts/wr-deck.rb` stops at 1.19.2). It is
+the per-model deck mirror, `MIRROR_DECK_KINDS` in `scripts/wr-deck.rb:836-841`.
+
+## The state of the table today
+```
+MIRROR_DECK_KINDS = {
+  [74.0, 74.0] => %w[FL CL],   # MDL 7272 S/E
+  [98.0, 74.0] => %w[FL]       # MDL 7296 S/E — ceiling excluded
+}
+```
+Line up Benton's three verdicts against it:
+
+| model | kind | mirrored today? | Benton says |
+|---|---|---|---|
+| 7272 | FL | yes | wrong |
+| 7272 | CL | yes | wrong |
+| 7296 | FL | yes | wrong |
+| 7296 | CL | **no** | **right** |
+
+**Every mirrored entry is wrong and the one unmirrored entry is right.** The leading
+hypothesis is therefore that the mirror is doing harm wherever it is applied and the
+table should be empty. It is a hypothesis, not a finding — see below.
 
 ## Done means
-1. The correct wide-panel end is established **from the booth builder's own rendering**,
-   for both families, with the floor panel seams and ceiling panel seams shown alongside
-   the wall panels — not inferred from `wr-booth-data.rb` alone.
-2. One owner for E/W panel order. Today `ASSIGN` (`scripts/build-booth-components.rb:1312-1400`)
-   swaps slot ids while `gen-booth.py`'s `SWAP_TWO_PANEL_SIDE_WALL` swaps positions; they
-   compose to a double swap on the standalone path and no swap on the share-link path.
-   Either the E/W entries leave `ASSIGN`, or `ASSIGN` is keyed on position.
-3. A pinned offline test, one case per catalogue key, asserting the standalone build and
-   the share-link build put the wide panel at the same end. No such case exists today —
-   that is why the 27 Aug regression never tripped anything.
-4. The 50-key golden booth-matrix baseline is regenerated. It was captured through
-   `ASSIGN` (`scripts/rbtest-live-booth.py:235`), so it currently records the defect as
-   expected output.
-5. `scripts/wr_tools/VERSION` bumped, committed and pushed.
+1. The axis question is settled before the table is edited. `wr-deck.rb:798-801` is
+   explicit that a mirror is not a rotation and that the two land differently, and it
+   names the alternative outcome directly: "IF THE 7296 CEILING NOW COMES OUT MIRRORED
+   THE OTHER WAY rather than right, this reading was wrong and the fix is the other
+   mirror, not none." Benton's tell — hinges land in the CENTER, they belong on the
+   SIDES — is a single-axis reflection about the deck seam. Show from the tile plan and
+   the hinge geometry (`hinge_runs`, `wr-deck.rb:162`) that removing the current mirror
+   moves the hinge run from the seam to the outer wall, rather than assuming it.
+2. `MIRROR_DECK_KINDS` carries whatever the evidence supports, with the losing
+   alternative left documented in the comment the way the file already does it. This
+   file has been flipped four times in an evening before; the comment is what stops a
+   fifth.
+3. The offline harnesses stay green: `scripts/rbparse.py`, `scripts/rbtest-*.py`,
+   `.forge/builder/replay-iep-deck.py` if it still runs.
+4. `scripts/wr_tools/VERSION` bumped, DEVLOG entry, committed and pushed.
 
-## Now — 2 Sep 2026, DECIDED
-
-**Benton's ruling, 2 Sep 2026 — the booth builder's layout is correct for all four models.**
-Reviewing the headless captures at
-https://claude.ai/code/artifact/52672c8d-40f9-445a-a592-d5712e44c217 he stated the invariant:
-
-> Looking top-down, the larger floor component is on the left, the door is on the bottom
-> (south) side, and on the left wall the lower piece — the one toward the door — is always
-> the bigger wall. Same logic for the 6060.
-
-So: **the wide floor section, the door frame, and the wide side-wall panel all sit at the
-same end — the door end — on every split-run model.** One rule, both families, both side
-walls. This supersedes the 28 Aug built-booth ruling that produced commit `a886105`.
-
-Consequences:
-- `MDL 6060 S/E` and `MDL 6084 S` in `scripts/wr-booth-data.rb` are **wrong** and must move
-  to 40" at y 2–42, 16" at y 44–60. `gen-booth.py`'s `SWAP_TWO_PANEL_SIDE_WALL = {40,16}`
-  (added in `a886105`) is reverted.
-- `MDL 7272 S/E` and `MDL 7296 S` are already right in the data (46" at y 2–48); only the
-  standalone `ASSIGN` path is wrong there.
-
-Fixer on fable owns the change. The Researcher's evidence and seam figures are at
-`.forge/researcher/booth-builder-panel-order.md`; its baton is `.forge/researcher/HANDOFF.md`.
-
-## Facts established, 2 Sep 2026 (orchestrator, observed)
-Read straight out of the part polygons in `scripts/wr-booth-data.rb`:
-
-| model | door-end panel | far-end panel | vent slot |
-|---|---|---|---|
-| 7272 S/E, 7296 S | 46" (`E0`) | 22" (`E1`) | `E0` = door end |
-| 6060 S/E, 6084 S | 16" (`E1`) | 40" (`E0`) | `E0` = far end |
-
-Two things follow. **The data file already uses opposite wide-panel conventions between the
-two families.** And **slot ids run in opposite directions** — `E0` is the door-end slot on
-the 7272 and the far-end slot on the 6060 — which is the mechanism by which an id-keyed
-`ASSIGN` and a position-keyed generator fight.
-
-The door frame (`S0`, DRFRM) is always at the low-x end of the south wall: x 2..48 on the
-7272, x 2..42 on the 6060 (observed).
+## Now — 2 Sep 2026
+Fixer on fable owns the change. Nothing else in flight.
 
 ## Rules that bind this work
-- **Read `WhisperRoomQuote`, never write it.** Scratch scripts that drive its
-  `booth-builder.html` live in the scratchpad or `.forge/<role>/`, never in that repo.
-- No SketchUp, no V-Ray, no `ruby.exe` here. `scripts/rbparse.py` boots SketchUp's own
-  CRuby DLL and gives a real syntax check plus pure-Ruby evaluation; run it before any
-  commit touching `.rb`. `scripts/rbcheck.py` is a bracket counter, not a parser.
+- No SketchUp and no `ruby.exe` here. `scripts/rbparse.py` boots SketchUp's own CRuby
+  DLL and gives a real syntax check; run it before any commit touching `.rb`.
+  `scripts/rbcheck.py` is a bracket counter, not a parser — a clean run there is not
+  evidence.
+- Only SketchUp can confirm this one. Say plainly what is unverified and hand Benton a
+  short check list per model and per kind.
+- **Read `WhisperRoomQuote`, never write it.**
 - Never invent a placement number. Never recommend a booth model.
 - Push to `bentonwhiteWR/WhisperRoom-SketchUp` as part of finishing, not batched later.
 
 ## Out of scope
-- The other 21 audit findings at `.forge/auditor/full-audit-2026-09-01.md`. Benton picks
-  the next batch.
-- The two owed batches, parked until finding 1 lands: the take-off docs slice
-  (`skills/whisperroom-takeoff/SKILL.md`, `reference/takeoff-format.md`, DEVLOG for
-  1.19.4–1.19.9, `.forge/builder/HANDOFF-takeoff-sheet.md`) and the six panel
-  reuse/simplification cleanups on the 1.19.4–1.19.8 diff.
-- The one-off client scripts and the 3D-print jigs.
+- The side-wall panel order shipped in 1.19.10. Benton has confirmed 6060 and 6084 read
+  correctly; his 7272/7296 report is about the deck, not the walls.
+- `YAW_180_FILES` and the measured-yaw rule. The mirror sits on top of them and the two
+  are deliberately separable — do not retune the yaw to chase this.
+- The 19 open booth-builder audit findings; Benton has not picked a batch.
+- The other 20 plugin audit findings at `.forge/auditor/full-audit-2026-09-01.md`.
+- The two owed batches: the take-off docs slice and the six panel cleanups.
 
 ## History
-2026-09-01 — Full read-only audit of the plugin and skills shipped; 22 ranked findings at
-`.forge/auditor/full-audit-2026-09-01.md`. Panel overhaul 1.19.4–1.19.8 and the take-off
-review sheet 1.19.9 both shipped and installed.
+2026-09-02 — 72-series deck hinges-in-the-center fixed and shipped as 1.19.11: the
+per-model mirror was a reflection of X on decks that tile along X, so it moved every
+SIDE bracket line to the seam; `MIRROR_DECK_KINDS` emptied, no mirror of any axis needed
+now that 1.19.10 put the 46 in side panel on the low half where the parts are authored.
+Unverified in SketchUp; check list in `.forge/fixer/HANDOFF.md`.
+2026-09-02 — Audit finding 1 (mirrored side walls) fixed and shipped as 1.19.10. One
+owner for panel order, wide panel at the door end on all four split-run models; pinned
+both-paths test at `scripts/rbtest-side-wall-order.py`. Benton confirmed 6060/6084 in
+SketchUp. The 50-key golden booth-matrix baseline still records the old behaviour —
+8 `dry/` + 2 `build/` keys will report CHANGED, see
+`.forge/builder/booth-matrix/STALE-1.19.10-side-wall-order.md`.
+2026-09-02 — Read-only audit of the booth builder (desktop + mobile) delivered as an
+artifact; 19 findings in six batches at `.forge/auditor/booth-builder/`. Awaiting
+Benton's pick.
+2026-09-01 — Full read-only audit of the plugin and skills; 22 findings at
+`.forge/auditor/full-audit-2026-09-01.md`.
 2026-09-01 — Floor-plan intake mission parked at `.forge/GOAL-prev-floorplan-intake.md`.
 2026-08-31 — Render look-development mission parked at `.forge/GOAL-prev-render-lookdev.md`.
 2026-08-30 — Portal-parity / proposal-package mission parked at `.forge/GOAL-prev-portal-vray-mission.md`.

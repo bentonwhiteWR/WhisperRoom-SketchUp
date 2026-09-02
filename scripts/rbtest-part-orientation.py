@@ -334,6 +334,54 @@ def test_duct_face():
             '    %s' % pairs]
 
 
+# ---------------------------------------------------------------------------
+# 4. THE 72-SERIES DECK MIRROR IS GONE - wr-deck.rb, MIRROR_DECK_KINDS.
+#
+# Benton, 2026-09-02, off 1.19.10: 7272 floor + ceiling and 7296 floor had the
+# hinges in the CENTER; 7296 ceiling (the one deck not mirrored) was right.
+# The mirror was scaling(-1, 1, 1) = a reflection of X, and both decks tile
+# along X, so it reflected every SIDE tile across the tiling axis and sent its
+# bracket line from the outer wall to the seam. Root cause and axis argument:
+# .forge/fixer/ROOTCAUSE-deck-mirror-72-2026-09-02.md.
+#
+# Three things are pinned, each read out of the SOURCE rather than assumed:
+#   a. the table is empty;
+#   b. the mirror line still reflects X, so the documented alternative in the
+#      comment ("a Y question wants scaling(1, -1, 1)") stays truthful;
+#   c. the reason no mirror of ANY axis is needed now: on the 7272 and 7296
+#      the generated layout puts the 46 in side panel (E0/W0) on the LOW half
+#      of Y, where every 72-series floor part is authored with its 24.125 in
+#      big-wall gap (33% along). Both sides of that comparison agree.
+# ---------------------------------------------------------------------------
+DECK_RB = os.path.join(HERE, 'wr-deck.rb')
+DATA_RB = os.path.join(HERE, 'wr-booth-data.rb')
+
+
+def test_deck_mirror():
+    out = ['4. 72-SERIES DECK MIRROR (MIRROR_DECK_KINDS)', '']
+    src = open(DECK_RB, encoding='utf-8').read()
+    m = re.search(r'MIRROR_DECK_KINDS\s*=\s*\{(.*?)\}\.freeze', src, re.S)
+    body = '' if m is None else re.sub(r'#.*', '', m.group(1)).strip()
+    ck('MIRROR_DECK_KINDS is defined in wr-deck.rb', m is not None, True)
+    ck('MIRROR_DECK_KINDS is EMPTY (no 72-series deck is mirrored)', body, '')
+    ck('the deck mirror line still reflects X (comment alternative is honest)',
+       'Geom::Transformation.scaling(ORIGIN, -1, 1, 1) * tr if mirror' in src, True)
+
+    data = open(DATA_RB, encoding='utf-8').read()
+    for model in ('MDL 7272 S', 'MDL 7272 E', 'MDL 7296 S', 'MDL 7296 E'):
+        i = data.find("'%s' =>" % model)
+        j = data.find("\n    '", i + 1)
+        chunk = data[i:j]
+        for wall in ('E0', 'W0'):
+            mm = re.search(r":id=>'%s'.*?:poly=>\[\[[\d.]+,([\d.]+)\],\[[\d.]+,([\d.]+)\],"
+                           r"\[[\d.]+,([\d.]+)\]" % wall, chunk)
+            ys = sorted(float(v) for v in mm.groups()) if mm else []
+            ck('%s %s: 46 in side panel on the LOW half of Y (y 2..48)' % (model, wall),
+               (ys[0], ys[-1]) if ys else None, (2.0, 48.0))
+    out.append('  table body: %r' % body)
+    return out
+
+
 def main():
     blocks = []
     blocks.append(test_ceilings())
@@ -341,6 +389,7 @@ def main():
     gen, swapped = test_generated_scope()
     blocks.append(gen)
     blocks.append(test_duct_face())
+    blocks.append(test_deck_mirror())
 
     for b in blocks:
         print('\n'.join(b))

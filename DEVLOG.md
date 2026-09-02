@@ -2,6 +2,44 @@
 
 ## 2026-09-02
 
+### 72-series standard deck: hinges in the center — the deck mirror was the wrong axis — 1.19.11
+
+Benton, off 1.19.10 builds: MDL 7272 floor and ceiling and MDL 7296 floor had
+the hinges in the CENTER of the deck instead of on the sides; the 7296 ceiling,
+6060 and 6084 were right. Every deck still in `MIRROR_DECK_KINDS` was one he
+called wrong and the one deck it did not touch was the one he called right.
+
+**Root cause.** The table applied `scaling(ORIGIN, -1, 1, 1)` — a reflection of
+X — to decks that tile along X. Every 72-series SIDE part has X as its short
+axis and that is where `bracket_edge` measures its hinge line (0.2612 for
+STD7248FL SIDE L/R, 0.7823 for STD7224FL SIDE R, `_face-levels.tsv`), so the
+mirror reflected each tile ACROSS the tiling axis and sent the bracket line
+from the outer wall to the seam. Y was never touched.
+
+**What the 2026-08-31 "mirror it, not 180" was really about.** The hinge
+stations along the long edge: every 72-series floor part carries its 24.125 in
+(46 in wall) gap at 33% along, the LOW half of Y, and the layout then put the
+46 in side panel on the HIGH half — a Y mismatch that 1.10.5 answered with an
+X mirror. 1.19.10 moved the walls instead (wide panel at the door end, E0/W0 at
+y 2..48 on the 7272 and 7296), so panels and walls now agree on Y with no
+transform at all. Table emptied; the pre-registered alternative in the comment
+is now "a Y question wants `scaling(1, -1, 1)` on the entry, never the X mirror
+and never `YAW_180_FILES`". The stale `0.218` for STD7224FL SIDE R in the
+placement comment corrected to the live 0.782.
+
+- `scripts/wr-deck.rb` — `MIRROR_DECK_KINDS = {}`; comment carries the axis
+  argument and the history; table registered in the reload list.
+- `scripts/rbtest-part-orientation.py` — section 4 pins the empty table, the
+  X-mirror line (so the comment's alternative stays honest) and the 7272/7296
+  E0/W0-on-the-low-half fact that makes no mirror necessary. 46 checks pass.
+- Root cause and per-tile derivation: `.forge/fixer/ROOTCAUSE-deck-mirror-72-2026-09-02.md`.
+
+**Unverified in SketchUp**, as always for a deck. Residual, out of scope: the
+7296's high floor tile `STD7248FL SIDE R` is indistinguishable from SIDE L by
+probe and is yawed by the measured rule, so its long-edge gap pattern may land
+at the north end while the walls put the 46 in panel south. Check list in
+`.forge/fixer/HANDOFF.md`.
+
 ### Audit finding 1 closed: the two booth build paths drew mirrored side walls — 1.19.10
 
 Benton picked finding 1 off the 1 Sep audit for a Fixer on fable. The four

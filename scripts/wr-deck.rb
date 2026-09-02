@@ -62,7 +62,7 @@ module WR_Deck
      SEAL_NAME SEAL_FL_NAME SEAL_DATUM_LIFT SEAL_FL_DATUM_LIFT
      SEAL_LEN_TOL SEAL_LEN_INSET
      SIDE_R_SMALL_WALL_AT_LOW_END LOW_END_PANEL_IS_TURNED
-     YAW_180_FILES MIRROR_DECK_SIZES SIZE_TOL].each do |c|
+     YAW_180_FILES MIRROR_DECK_SIZES MIRROR_DECK_KINDS SIZE_TOL].each do |c|
     remove_const(c) if const_defined?(c, false)
   end
 
@@ -789,54 +789,73 @@ module WR_Deck
   YAW_180_FILES = %w[STD4260CL STD4260FL
                      STD4872CL STD4872FL].freeze
 
-  # PER-MODEL MIRROR, BY EXTERIOR FOOTPRINT.
+  # PER-MODEL MIRROR, BY EXTERIOR FOOTPRINT. EMPTY SINCE 1.19.11, ON PURPOSE.
+  #
+  # THE HISTORY, because this table has been flipped back and forth and the
+  # comment is what stops the next flip.
   #
   # Benton, 2026-08-31: "The model 7272, the floors and ceilings are incorrect
   # as far as the hinge positioning. So they need to be mirrored. Not
   # necessarily flipped 180 degrees but just flat out mirrored."
   #
-  # A MIRROR IS NOT A ROTATION and the two are not interchangeable here. A 180
-  # yaw sends the hinge to the diagonally opposite corner; a mirror sends it
-  # across one axis and leaves the other alone. On a square deck those land in
-  # different places, which is the whole distinction he is drawing.
+  # 1.10.5 answered that with a mirror across the YZ plane (x -> -x) on the
+  # 7272 and 7296 decks. 1.19.2 took the 7296 ceiling back out of it. Benton,
+  # 2026-09-02, off 1.19.10 builds: 7272 floor AND ceiling wrong, 7296 floor
+  # wrong, 7296 ceiling right, 6060 and 6084 right. "The hinges are all in the
+  # center, they should be on the sides." Every entry the table still carried
+  # was one he called wrong; the one deck it did not touch was the one he
+  # called right.
   #
-  # KEYED ON THE MODEL, NOT THE FILE, and that is forced rather than chosen. A
-  # 7272 deck is tiled from STD7248 and STD7224 parts that OTHER 72-series
-  # booths also use, so a filename exception like YAW_180_FILES above would
-  # mirror those booths too. The exterior footprint is the narrowest key
-  # available in what WR_Deck.build is handed: 74.0 x 74.0 is MDL 7272 S and E
-  # and nothing else in wr-booth-data.rb (checked).
+  # WHY THE X MIRROR PUTS THE HINGES IN THE CENTER -- derived from the tile
+  # plan and the probe, not from that pattern:
   #
-  # NOTE 7272 IS THE BOOTH THE MEASURED YAW RULE WAS TUNED AGAINST -- its
-  # comment above says "the booth Benton signed off on does not move." It moves
-  # now. The yaw rule is unchanged and still reproduces what it did; this is a
-  # mirror applied on top of it, so if the tuning is later revisited the two
-  # are separable.
-  # 74x74 = MDL 7272 S/E, 98x74 = MDL 7296 S/E. Each checked against
-  # wr-booth-data.rb: no other model carries either footprint.
-  # PER KIND, since 1 Sep 2026. The mirror used to apply to FL and CL alike,
-  # because the two were wrong together on the 7272. They are not wrong
-  # together on the 7296.
+  #   * Both decks tile along X (plan: 7272 is 72 x 72 after the inset and
+  #     takes 48 + 24 with the 72 cross number on H; 7296 is 96 x 72 and takes
+  #     48 + 48). So the seam between SIDE tiles is a line of constant X, and
+  #     the two outer walls the SIDE tiles serve are at low X and high X.
+  #   * bracket_edge is measured across each part's SHORT axis, which is X on
+  #     every 72-series SIDE part (_face-levels.tsv: short_axis X). STD7248FL
+  #     SIDE L and SIDE R read 0.2612, STD7224FL SIDE R reads 0.7823. So at
+  #     the low end the bracket line sits toward low X (the outer wall) and at
+  #     the high end toward high X (the other outer wall). The measured half
+  #     turn leaves both 7272 tiles unturned and turns only the 7296's high
+  #     tile, and in every case the bracket line ends up at the outer wall.
+  #   * scaling(ORIGIN, -1, 1, 1) reflects X and leaves Y alone. On a tile
+  #     whose short axis is X that is a reflection ACROSS THE TILING AXIS: it
+  #     sends 0.2612 to 0.7388 on the low tile and the high tile's bracket
+  #     back toward the seam. That is "hinges in the center" on every tile it
+  #     touches, which is exactly the three decks he reported and not the one
+  #     he did not.
   #
-  # Benton, 1 Sep 2026, off a booth pulled in from a booth link: "need to
-  # mirror flip the standard ceilings of a 7296". Its FLOOR is right and has
-  # been since 1.10.5; only the ceiling is not. Mirroring an already-mirrored
-  # tile a second time across the same plane is the identity, so the change
-  # that answers him is to STOP mirroring the 7296 ceiling — the tile then
-  # sits where the handed-part rule put it, which is the arrangement the 7272
-  # ceiling already gets right.
+  # Removing it therefore moves the hinge run from the seam back to the outer
+  # wall. It cannot move anything along Y, because it never touched Y.
   #
-  # 7272 keeps both. Benton has reported its ceiling correct since the handed
-  # rule landed and it is not in this report.
+  # WHAT THE 2026-08-31 REPORT WAS ACTUALLY ABOUT, and why it no longer needs
+  # a mirror of any axis: the hinge stations along the LONG edge. Every
+  # 72-series floor part is authored with its 24.125 in gap (the 46 in wall)
+  # centred 33% along, i.e. on the LOW half of Y (big_wall_fraction, and
+  # reference/floor-ceiling-geometry.md). The layout at the time put the 46 in
+  # side panel on the HIGH half (the layout_big_on_low? comment records it),
+  # so the pockets did not line up with the walls -- a Y mismatch, which a
+  # mirror of Y would have answered and a mirror of X could not. 1.19.10 moved
+  # the walls instead: wide panel at the door end, and on the 7272 and 7296
+  # that is E0/W0 = 46 in at y 2..48, the LOW half, where the panels already
+  # put it. Both sides of that comparison now agree with no transform at all.
   #
-  # IF THE 7296 CEILING NOW COMES OUT MIRRORED THE OTHER WAY rather than
-  # right, this reading was wrong and the fix is the other mirror, not none:
-  # put 'CL' back below and add STD7248CL SIDE L/R to YAW_180_FILES, which
-  # composes to a mirror-Y. One line either way, which is why it is a table.
-  MIRROR_DECK_KINDS = {
-    [74.0, 74.0] => %w[FL CL].freeze,   # MDL 7272 S/E
-    [98.0, 74.0] => %w[FL].freeze       # MDL 7296 S/E — ceiling excluded
-  }.freeze
+  # IF BENTON NEXT REPORTS THE HINGES ON THE SIDES BUT THE WIDE/NARROW SLOT
+  # PATTERN AT THE WRONG END, that is a Y question and the answer is a mirror
+  # of Y for that (size, kind): put the entry back below AND change the
+  # scaling line in build to scaling(ORIGIN, 1, -1, 1). Not the X mirror
+  # again, and not YAW_180_FILES -- a half turn moves the bracket line to the
+  # seam as well.
+  #
+  # KEYED ON THE MODEL, NOT THE FILE, because a 7272 deck is tiled from
+  # STD7248 and STD7224 parts that other 72-series booths also use. 74x74 is
+  # MDL 7272 S/E and 98x74 is MDL 7296 S/E; no other model in wr-booth-data.rb
+  # carries either footprint. Entries are [w, h] => %w[FL CL] subsets, and
+  # mirror_deck? and the scaling line in build are kept so an entry is again
+  # one line.
+  MIRROR_DECK_KINDS = {}.freeze
   SIZE_TOL = 0.51
 
   def self.mirror_deck?(spec, kind = nil)
@@ -1108,7 +1127,7 @@ module WR_Deck
       # consistent end of the part's short axis, reported as a fraction along it:
       #
       #     STD7248FL SIDE L   0.261      STD9648FL SIDE   0.737
-      #     STD7224FL SIDE R   0.218      STD9648CL SIDE   0.737
+      #     STD7224FL SIDE R   0.782      STD9648CL SIDE   0.737
       #     STD10242FL SIDE    0.240      STD6018FL SIDE R 0.216
       #     STD8442FL SIDE     0.266      every CTR        0.500
       #
@@ -1117,8 +1136,10 @@ module WR_Deck
       # turn whenever the bracket line would otherwise end up inboard.
       #
       # This reproduces the confirmed 7272 exactly — at 0.261 the low tile stays
-      # unturned and the high tile still turns — so the booth Benton signed off on
-      # does not move. It is the 96 series that flips, which is the whole point.
+      # unturned, and at 0.782 (the live _face-levels.tsv figure; an earlier copy
+      # of this comment said 0.218) the high tile is unturned too — so the booth
+      # Benton signed off on does not move. It is the 96 series that flips,
+      # which is the whole point.
       #
       # ORIENTATION IS READ OFF THE FLOOR PART, FOR BOTH DECKS.
       # reference/floor-ceiling-geometry.md records the invariant: floor and
