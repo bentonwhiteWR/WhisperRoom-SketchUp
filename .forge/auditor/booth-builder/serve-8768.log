@@ -1,0 +1,1 @@
+audit stub on 8768 { FAIL: false, SLOW: 0, DROP: true }

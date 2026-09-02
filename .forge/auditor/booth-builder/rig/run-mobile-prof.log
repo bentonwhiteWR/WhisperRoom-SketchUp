@@ -1,0 +1,41 @@
+run 0: drawn 49916ms idle 53450ms bytes 9184619 reqs 138
+wrote C:\Users\bento\Documents\Claude\Sketchup\.forge\auditor\booth-builder\out\mobile-prof.json
+ setOpt vss off           task   147.9ms  script     1.2  layout    7.4 (7)  long []  req 1/111B
+  setOpt studioLight on    task  1924.3ms  script     0.5  layout      6 (7)  long [851]  req 0/0B
+  setOpt studioLight off   task   667.2ms  script     0.2  layout   10.5 (7)  long []  req 0/0B
+  view top                 task   291.3ms  script     0.3  layout   65.8 (2)  long []  req 9/67157B
+  view elev                task     226ms  script     0.2  layout   16.1 (2)  long []  req 13/31240B
+  view iso                 task   733.5ms  script     2.2  layout   10.3 (6)  long []  req 1/111B
+  iso corner rotate        task  1597.5ms  script     0.9  layout   12.8 (8)  long [751,92]  req 6/551652B
+  rung roof-off            task  1119.1ms  script     2.8  layout   11.3 (3)  long []  req 2/254652B
+  rung roof-on             task  3126.2ms  script       2  layout   23.5 (7)  long [71,2551]  req 0/0B
+  room eye on              task    2378ms  script    34.8  layout  127.6 (15)  long [131,50,895]  req 0/0B
+  room eye off             task   137.8ms  script     4.8  layout    1.5 (2)  long []  req 1/111B
+  open gallery             task   502.8ms  script     0.6  layout   89.6 (17)  long []  req 18/126735B
+  close gallery            task   111.9ms  script       0  layout    0.2 (1)  long []  req 0/0B
+  setModel MDL 96120       task   673.4ms  script       0  layout   11.8 (3)  long []  req 106/574923B
+  setModel MDL 6084        task   606.5ms  script     0.2  layout   10.7 (3)  long []  req 17/33016B
+  setModel MDL 4848        task   735.7ms  script     0.2  layout   11.4 (3)  long []  req 3/27771B
+  setModel MDL 7272        task  1206.3ms  script     0.4  layout   22.4 (5)  long []  req 58/0B
+  mem 1 MDL 4848 heap 4.08MB nodes 1920 listeners 380 rss 2287MB
+  mem 2 MDL 6084 heap 4.08MB nodes 2127 listeners 413 rss 2150MB
+  mem 3 MDL 96120 heap 4.09MB nodes 2432 listeners 445 rss 2147MB
+  mem 4 MDL 7272 heap 4.08MB nodes 1508 listeners 317 rss 2560MB
+  mem 5 MDL 4872 heap 4.08MB nodes 1293 listeners 289 rss 2243MB
+  mem 6 MDL 6060 heap 4.13MB nodes 1847 listeners 382 rss 2863MB
+  mem 7 MDL 7296 heap 4.19MB nodes 2418 listeners 467 rss 2897MB
+  mem 8 MDL 8484 heap 4.15MB nodes 2349 listeners 460 rss 2911MB
+  mem 9 MDL 4848 heap 4.1MB nodes 2070 listeners 410 rss 3124MB
+  mem 10 MDL 6084 heap 4.2MB nodes 1911 listeners 411 rss 2805MB
+  mem 11 MDL 96120 heap 4.27MB nodes 1694 listeners 379 rss 3087MB
+  mem 12 MDL 7272 heap 4.47MB nodes 1765 listeners 379 rss 3130MB
+  mem 13 MDL 4872 heap 4.29MB nodes 1585 listeners 347 rss 2547MB
+  mem 14 MDL 6060 heap 4.3MB nodes 1410 listeners 315 rss 2687MB
+  mem 15 MDL 7296 heap 4.3MB nodes 1262 listeners 283 rss 2808MB
+  mem 16 MDL 8484 heap 4.31MB nodes 1268 listeners 283 rss 2739MB
+  mem 17 MDL 4848 heap 4.36MB nodes 1115 listeners 282 rss 2799MB
+  mem 18 MDL 6084 heap 4.48MB nodes 1092 listeners 283 rss 2975MB
+  mem 19 MDL 96120 heap 4.31MB nodes 1082 listeners 283 rss 3007MB
+  mem 20 MDL 7272 heap 4.41MB nodes 1130 listeners 283 rss 2964MB
+detached 0 canvasObjs 20 imgs 3 canvasesAlive 3 / 458
+wrote C:\Users\bento\Documents\Claude\Sketchup\.forge\auditor\booth-builder\out\mobile-prof.json

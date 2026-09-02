@@ -1,0 +1,671 @@
+{
+  "boot:cold": {
+    "counts": {
+      "render": 1,
+      "rebuild": 1,
+      "resolveLayout": 12,
+      "paintIso": 1,
+      "redrawIso": 0,
+      "bb2DrawRoomStage": 2,
+      "renderLayoutSvg": 0,
+      "renderElevationSvg": 0,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "galleryHtml": 1,
+      "!bb2RecRows": "missing",
+      "bbWithScratch": 0,
+      "updateBoothPrice": 0,
+      "preloadElevArt": 1,
+      "applyFormIntent": 0,
+      "applyPackage": 0,
+      "bb2CommitModel": 0,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6
+    },
+    "timers": {
+      "st": 6,
+      "raf": 0,
+      "si": 1
+    },
+    "api": [
+      "/api/booth-iso-geometry",
+      "/api/booth-layouts",
+      "/api/engage"
+    ],
+    "appText": "WhisperRoom\nDesign Your Booth\nBooth\nMDL 7296 S\n6'×8' · Standard (single-wall)\nCh"
+  },
+  "boot:product": {
+    "counts": {
+      "render": 4,
+      "rebuild": 2,
+      "resolveLayout": 41,
+      "paintIso": 4,
+      "redrawIso": 0,
+      "bb2DrawRoomStage": 5,
+      "renderLayoutSvg": 0,
+      "renderElevationSvg": 0,
+      "fitStageToColumn": 5,
+      "computeFitHtml": 8,
+      "bb2SideHtml": 4,
+      "bb2Card3Html": 4,
+      "galleryHtml": 0,
+      "!bb2RecRows": "missing",
+      "bbWithScratch": 0,
+      "updateBoothPrice": 0,
+      "preloadElevArt": 1,
+      "applyFormIntent": 1,
+      "applyPackage": 0,
+      "bb2CommitModel": 0,
+      "fitVerdictB": 16,
+      "bb2EffRoom": 21
+    },
+    "timers": {
+      "st": 3,
+      "raf": 0,
+      "si": 1
+    },
+    "api": [
+      "/api/booth-iso-geometry",
+      "/api/booth-layouts",
+      "/api/engage"
+    ],
+    "appText": "WhisperRoom\nDesign Your Booth\nBooth\nMDL 7272 S\n6'×6' · Standard (single-wall)\nCh"
+  },
+  "boot:product+acc": {
+    "counts": {
+      "render": 4,
+      "rebuild": 2,
+      "resolveLayout": 42,
+      "paintIso": 4,
+      "redrawIso": 0,
+      "bb2DrawRoomStage": 5,
+      "renderLayoutSvg": 0,
+      "renderElevationSvg": 0,
+      "fitStageToColumn": 5,
+      "computeFitHtml": 8,
+      "bb2SideHtml": 4,
+      "bb2Card3Html": 4,
+      "galleryHtml": 0,
+      "!bb2RecRows": "missing",
+      "bbWithScratch": 0,
+      "updateBoothPrice": 0,
+      "preloadElevArt": 1,
+      "applyFormIntent": 1,
+      "applyPackage": 0,
+      "bb2CommitModel": 0,
+      "fitVerdictB": 16,
+      "bb2EffRoom": 21
+    },
+    "timers": {
+      "st": 4,
+      "raf": 0,
+      "si": 1
+    },
+    "api": [
+      "/api/booth-iso-geometry",
+      "/api/booth-layouts",
+      "/api/engage"
+    ],
+    "appText": "WhisperRoom\nDesign Your Booth\nBooth\nMDL 7272 S\n6'×6' · Standard (single-wall)\nCh"
+  },
+  "boot:package": {
+    "counts": {
+      "render": 4,
+      "rebuild": 2,
+      "resolveLayout": 41,
+      "paintIso": 4,
+      "redrawIso": 0,
+      "bb2DrawRoomStage": 5,
+      "renderLayoutSvg": 0,
+      "renderElevationSvg": 0,
+      "fitStageToColumn": 5,
+      "computeFitHtml": 8,
+      "bb2SideHtml": 4,
+      "bb2Card3Html": 4,
+      "galleryHtml": 0,
+      "!bb2RecRows": "missing",
+      "bbWithScratch": 0,
+      "updateBoothPrice": 0,
+      "preloadElevArt": 1,
+      "applyFormIntent": 1,
+      "applyPackage": 1,
+      "bb2CommitModel": 0,
+      "fitVerdictB": 16,
+      "bb2EffRoom": 21
+    },
+    "timers": {
+      "st": 4,
+      "raf": 0,
+      "si": 1
+    },
+    "api": [
+      "/api/booth-iso-geometry",
+      "/api/booth-layouts",
+      "/api/engage"
+    ],
+    "appText": "WhisperRoom\nDesign Your Booth\nBooth\nVoice Over Basic\nMDL 4848 S · 4'×4'\nChange\nI"
+  },
+  "boot:hash": {
+    "counts": {
+      "render": 1,
+      "rebuild": 0,
+      "resolveLayout": 25,
+      "paintIso": 1,
+      "redrawIso": 0,
+      "bb2DrawRoomStage": 5,
+      "renderLayoutSvg": 0,
+      "renderElevationSvg": 0,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "galleryHtml": 0,
+      "!bb2RecRows": "missing",
+      "bbWithScratch": 0,
+      "updateBoothPrice": 0,
+      "preloadElevArt": 1,
+      "applyFormIntent": 0,
+      "applyPackage": 0,
+      "bb2CommitModel": 0,
+      "fitVerdictB": 33,
+      "bb2EffRoom": 43
+    },
+    "timers": {
+      "st": 6,
+      "raf": 3,
+      "si": 1
+    },
+    "api": [
+      "/api/booth-iso-geometry",
+      "/api/booth-layouts",
+      "/api/engage"
+    ],
+    "appText": "WhisperRoom\nDesign Your Booth\nBooth\nMDL 7272 S\n6'×6' · Standard (single-wall)\nCh"
+  },
+  "boot:room": {
+    "counts": {
+      "render": 1,
+      "rebuild": 1,
+      "resolveLayout": 21,
+      "paintIso": 1,
+      "redrawIso": 0,
+      "bb2DrawRoomStage": 5,
+      "renderLayoutSvg": 0,
+      "renderElevationSvg": 0,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "galleryHtml": 1,
+      "!bb2RecRows": "missing",
+      "bbWithScratch": 0,
+      "updateBoothPrice": 0,
+      "preloadElevArt": 1,
+      "applyFormIntent": 0,
+      "applyPackage": 0,
+      "bb2CommitModel": 0,
+      "fitVerdictB": 33,
+      "bb2EffRoom": 43
+    },
+    "timers": {
+      "st": 8,
+      "raf": 3,
+      "si": 1
+    },
+    "api": [
+      "/api/booth-iso-geometry",
+      "/api/booth-layouts",
+      "/api/engage"
+    ],
+    "appText": "WhisperRoom\nDesign Your Booth\nBooth\nMDL 7296 S\n6'×8' · Standard (single-wall)\nCh"
+  },
+  "perAction": {
+    "setOpt vss on": {
+      "render": 1,
+      "resolveLayout": 12,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 1,
+      "__raf": 0,
+      "__api": []
+    },
+    "setOpt vss off": {
+      "render": 1,
+      "resolveLayout": 12,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setOpt heightExt on": {
+      "render": 1,
+      "rebuild": 1,
+      "resolveLayout": 13,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 0,
+      "__raf": 0,
+      "__api": [
+        "/api/engage"
+      ]
+    },
+    "setVariant E": {
+      "render": 1,
+      "rebuild": 1,
+      "resolveLayout": 13,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setVariant S": {
+      "render": 1,
+      "rebuild": 1,
+      "resolveLayout": 13,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setFoam Blue": {
+      "render": 1,
+      "rebuild": 1,
+      "resolveLayout": 13,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setView top": {
+      "render": 1,
+      "resolveLayout": 8,
+      "paintIso": 1,
+      "renderLayoutSvg": 1,
+      "fitStageToColumn": 1,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 4,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setView elev": {
+      "render": 1,
+      "resolveLayout": 8,
+      "paintIso": 1,
+      "renderElevationSvg": 2,
+      "fitStageToColumn": 1,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 4,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "rotate 1 (elev)": {
+      "render": 1,
+      "resolveLayout": 8,
+      "paintIso": 1,
+      "renderElevationSvg": 1,
+      "fitStageToColumn": 1,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 4,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setView iso": {
+      "render": 1,
+      "resolveLayout": 12,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setHinge L": {
+      "render": 1,
+      "rebuild": 1,
+      "resolveLayout": 13,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setWide true": {
+      "render": 1,
+      "resolveLayout": 16,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 3,
+      "__raf": 0,
+      "__api": []
+    },
+    "setModel 7296": {
+      "render": 1,
+      "rebuild": 1,
+      "resolveLayout": 16,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "preloadElevArt": 1,
+      "bb2CommitModel": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setModel 4848": {
+      "render": 1,
+      "resolveLayout": 15,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 2,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 4,
+      "bb2EffRoom": 6,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "setRoomDim wFt 12": {
+      "resolveLayout": 3,
+      "bb2DrawRoomStage": 1,
+      "computeFitHtml": 1,
+      "fitVerdictB": 2,
+      "bb2EffRoom": 3,
+      "__st": 0,
+      "__raf": 2,
+      "__api": []
+    },
+    "setRoomDim lFt 14": {
+      "resolveLayout": 9,
+      "bb2DrawRoomStage": 2,
+      "computeFitHtml": 1,
+      "fitVerdictB": 29,
+      "bb2EffRoom": 33,
+      "__st": 2,
+      "__raf": 3,
+      "__api": []
+    },
+    "addWindow": {
+      "render": 1,
+      "resolveLayout": 21,
+      "paintIso": 1,
+      "bb2DrawRoomStage": 3,
+      "fitStageToColumn": 2,
+      "computeFitHtml": 2,
+      "bb2SideHtml": 1,
+      "bb2Card3Html": 1,
+      "fitVerdictB": 32,
+      "bb2EffRoom": 39,
+      "__st": 3,
+      "__raf": 1,
+      "__api": []
+    },
+    "openGallery": {
+      "galleryHtml": 1,
+      "__st": 0,
+      "__raf": 0,
+      "__api": []
+    },
+    "closeGallery": {
+      "__st": 0,
+      "__raf": 0,
+      "__api": [
+        "/api/engage"
+      ]
+    }
+  },
+  "leak": {
+    "listenersBefore": {
+      "window": 5,
+      "document": 39,
+      "document.body": 0
+    },
+    "listenersAfter": {
+      "window": 5,
+      "document": 39,
+      "document.body": 0
+    },
+    "nodesBefore": 455,
+    "nodesAfter": 451,
+    "work": {
+      "render": 65,
+      "rebuild": 10,
+      "resolveLayout": 1173,
+      "paintIso": 65,
+      "bb2DrawRoomStage": 184,
+      "renderLayoutSvg": 5,
+      "renderElevationSvg": 10,
+      "fitStageToColumn": 119,
+      "computeFitHtml": 130,
+      "bb2SideHtml": 65,
+      "bb2Card3Html": 65,
+      "galleryHtml": 10,
+      "preloadElevArt": 10,
+      "bb2CommitModel": 10,
+      "fitVerdictB": 680,
+      "bb2EffRoom": 1099,
+      "__st": 161,
+      "__raf": 75
+    },
+    "globals": {
+      "bodyChildren": 21,
+      "sizepops": 0,
+      "movebars": 0,
+      "coach": 0,
+      "galleries": 1
+    }
+  },
+  "hostile:product=constructor": {
+    "appText": "Failed to load: Cannot read properties of undefined (reading 'variants')",
+    "model": "undefined | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": ""
+  },
+  "hostile:product=__proto__": {
+    "appText": "Failed to load: Cannot read properties of undefined (reading 'variants')",
+    "model": "undefined | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": ""
+  },
+  "hostile:hash m=constructor": {
+    "appText": "Failed to load: Cannot read properties of undefined (reading 'S')",
+    "model": "constructor | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoiY29uc3RydWN0b3IifQ"
+  },
+  "hostile:hash m=toString": {
+    "appText": "Failed to load: Cannot read properties of undefined (reading 'S')",
+    "model": "toString | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoidG9TdHJpbmcifQ"
+  },
+  "hostile:hash rm object dims": {
+    "appText": "WhisperRoom Design Your Booth Booth MDL 7272 S 6'×6' · Standard (single-wall) Change Interior: 70″ × 70″ · Exterior: 74″",
+    "model": "MDL 7272 | room={\"wFt\":{\"x\":1},\"wIn\":\"\",\"lFt\":[1,2],\"lIn\":\"\",\"cFt\":\"<img src=x onerror=window.__xss=1>\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoiTURMIDcyNzIiLCJ2IjoiUyIsImgiOiJSIiwiZiI6IkdyYXkiL"
+  },
+  "hostile:hash rm extra keys": {
+    "appText": "WhisperRoom Design Your Booth Booth MDL 7272 S 6'×6' · Standard (single-wall) Change Interior: 70″ × 70″ · Exterior: 74″",
+    "model": "MDL 7272 | room={\"wFt\":\"12\",\"wIn\":\"\",\"lFt\":\"10\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\",\"zz\":\"<b>x</b>\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoiTURMIDcyNzIiLCJ2IjoiUyIsImgiOiJSIiwiZiI6IkdyYXkiL"
+  },
+  "hostile:hash pk=constructor": {
+    "appText": "WhisperRoom Design Your Booth Booth constructor undefined undefined · 6'×6' Change Interior: 70″ × 70″ · Exterior: 74″ ×",
+    "model": "MDL 7272 | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoiTURMIDcyNzIiLCJ2IjoiUyIsImgiOiJSIiwiZiI6IkdyYXkiL"
+  },
+  "hostile:hash a pack xss": {
+    "appText": "WhisperRoom Design Your Booth Booth MDL 7272 S 6'×6' · Standard (single-wall) Change Interior: 70″ × 70″ · Exterior: 74″",
+    "model": "MDL 7272 | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoiTURMIDcyNzIiLCJ2IjoiUyIsImgiOiJSIiwiZiI6IkdyYXkiL"
+  },
+  "hostile:hash junk": {
+    "appText": "WhisperRoom Design Your Booth Booth MDL 7296 S 6'×8' · Standard (single-wall) Change Interior: 70″ × 94″ · Exterior: 74″",
+    "model": "MDL 7296 | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoiTURMIDcyOTYiLCJ2IjoiUyIsImgiOiJSIiwiZiI6IkdyYXkiL"
+  },
+  "hostile:product xss": {
+    "appText": "WhisperRoom Design Your Booth Booth MDL 7296 S 6'×8' · Standard (single-wall) Change Interior: 70″ × 94″ · Exterior: 74″",
+    "model": "MDL 7296 | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoiTURMIDcyOTYiLCJ2IjoiUyIsImgiOiJSIiwiZiI6IkdyYXkiL"
+  },
+  "hostile:page attr": {
+    "appText": "WhisperRoom Design Your Booth Booth MDL 7272 S 6'×6' · Standard (single-wall) Change Interior: 70″ × 70″ · Exterior: 74″",
+    "model": "MDL 7272 | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoiTURMIDcyNzIiLCJ2IjoiUyIsImgiOiJSIiwiZiI6IkdyYXkiL"
+  },
+  "hostile:page proto-relative": {
+    "appText": "WhisperRoom Design Your Booth Booth MDL 7272 S 6'×6' · Standard (single-wall) Change Interior: 70″ × 70″ · Exterior: 74″",
+    "model": "MDL 7272 | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": "<span>Starting from <b>MDL 7272 S</b><span id=\"bbStartPrice\"></span></span><a href=\"https://www.whisperroom.com//evil.example/x\">← Back to whisperroom.com//evil.example/x</a><button type=\"button\" clas",
+    "hash": "#d=eyJtIjoiTURMIDcyNzIiLCJ2IjoiUyIsImgiOiJSIiwiZiI6IkdyYXkiL"
+  },
+  "hostile:src": {
+    "appText": "WhisperRoom Design Your Booth Booth MDL 7296 S 6'×8' · Standard (single-wall) Change Interior: 70″ × 94″ · Exterior: 74″",
+    "model": "MDL 7296 | room={\"wFt\":\"\",\"wIn\":\"\",\"lFt\":\"\",\"lIn\":\"\",\"cFt\":\"\",\"cIn\":\"\"}",
+    "xss": false,
+    "startBar": null,
+    "hash": "#d=eyJtIjoiTURMIDcyOTYiLCJ2IjoiUyIsImgiOiJSIiwiZiI6IkdyYXkiL"
+  },
+  "mobile:boot": {
+    "counts": {
+      "render": 4,
+      "rebuild": 2,
+      "resolveLayout": 41,
+      "paintIso": 4,
+      "redrawIso": 0,
+      "bb2DrawRoomStage": 5,
+      "renderLayoutSvg": 0,
+      "renderElevationSvg": 0,
+      "fitStageToColumn": 5,
+      "computeFitHtml": 8,
+      "bb2SideHtml": 4,
+      "bb2Card3Html": 4,
+      "galleryHtml": 0,
+      "!bb2RecRows": "missing",
+      "bbWithScratch": 0,
+      "updateBoothPrice": 0,
+      "preloadElevArt": 1,
+      "applyFormIntent": 1,
+      "applyPackage": 0,
+      "bb2CommitModel": 0,
+      "fitVerdictB": 16,
+      "bb2EffRoom": 21
+    },
+    "timers": {
+      "st": 3,
+      "raf": 0,
+      "si": 1
+    }
+  },
+  "mobile:sheet+opt": {
+    "render": 1,
+    "resolveLayout": 12,
+    "paintIso": 1,
+    "bb2DrawRoomStage": 2,
+    "fitStageToColumn": 2,
+    "computeFitHtml": 2,
+    "bb2SideHtml": 1,
+    "bb2Card3Html": 1,
+    "fitVerdictB": 4,
+    "bb2EffRoom": 6,
+    "__st": 1,
+    "__raf": 1
+  }
+}

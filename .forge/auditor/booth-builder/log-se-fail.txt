@@ -1,0 +1,15 @@
+=== device iPhone SE 375x667 scenario fail base http://127.0.0.1:8769
+t=1500ms {"app":"Loading booth designer…","hasState":true,"model":"MDL 7296","layouts":false,"gallery":false,"view":"top","buttons":0}
+  shot se-fail-fail-t1500.png
+t=4000ms {"app":"Loading booth designer…","hasState":true,"model":"MDL 7296","layouts":false,"gallery":false,"view":"top","buttons":0}
+  shot se-fail-fail-t4000.png
+t=8000ms {"app":"Customize Your Booth | Done | Booth | MDL 7296 S | 6'×8' · Standard (single-wall) | Change | Interior: 70″ × 94″ · Exterior: 74″ × 9","hasState":true,"model":"MDL 7296","layouts":true,"gallery":true,"view":"iso","buttons":61}
+  shot se-fail-fail-t8000.png
+t=15000ms {"app":"Customize Your Booth | Done | Booth | MDL 7296 S | 6'×8' · Standard (single-wall) | Change | Interior: 70″ × 94″ · Exterior: 74″ × 9","hasState":true,"model":"MDL 7296","layouts":true,"gallery":true,"view":"iso","buttons":61}
+  shot se-fail-fail-t15000.png
+errors: ["http 404 http://127.0.0.1:8769/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)"]
+  tap nav Quote @ 313,641 size 125x53 hit: button.bb-mq
+  tap submit @ 188,520 size 335x44 hit: button.copy-btn
+  quote under outage: {"requested":false,"sending":true,"toast":"","modal":true}
+  shot se-fail-fail-quote.png
+page errors/warnings: ["http 404 http://127.0.0.1:8769/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)"]

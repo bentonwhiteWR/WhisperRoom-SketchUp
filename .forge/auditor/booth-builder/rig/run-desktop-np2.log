@@ -1,0 +1,43 @@
+run 0: drawn 2996ms idle 6563ms bytes 9184383 reqs 136
+run 1: drawn 2477ms idle 6054ms bytes 9183329 reqs 136
+  setOpt vss on            task   775.5ms  script     0.1  layout    1.7 (10)  long [429]  req 2/667988B
+  setOpt vss off           task   152.6ms  script     0.5  layout    1.4 (8)  long []  req 1/111B
+  setOpt studioLight on    task   309.8ms  script       0  layout    1.3 (8)  long []  req 0/0B
+  setOpt studioLight off   task   242.6ms  script       0  layout    1.6 (8)  long []  req 0/0B
+  view top                 task    60.2ms  script     0.4  layout   26.7 (3)  long []  req 9/515043B
+  view elev                task    19.9ms  script       0  layout    3.6 (3)  long []  req 13/625004B
+  view iso                 task   195.9ms  script       0  layout      1 (7)  long []  req 0/0B
+  iso corner rotate        task     496ms  script     1.5  layout    1.4 (9)  long [170]  req 7/551763B
+  rung roof-off            task   773.7ms  script     2.2  layout    1.2 (9)  long [404]  req 2/663584B
+  rung roof-on             task   305.4ms  script     2.8  layout    1.3 (8)  long []  req 0/0B
+  room eye on              task    68.6ms  script     2.1  layout    5.9 (10)  long []  req 0/0B
+  room eye off             task    11.4ms  script     0.2  layout    0.1 (2)  long []  req 0/0B
+  open gallery             task    68.9ms  script       0  layout    9.5 (14)  long []  req 43/1241388B
+  close gallery            task     2.7ms  script       0  layout      0 (1)  long []  req 0/0B
+  setModel MDL 96120       task   732.3ms  script     0.1  layout    1.7 (9)  long [332]  req 105/6348838B
+  setModel MDL 6084        task   527.1ms  script     0.5  layout    1.5 (8)  long [192]  req 107/6356822B
+  setModel MDL 4848        task   300.9ms  script     0.1  layout    1.4 (8)  long [111]  req 3/105636B
+  setModel MDL 7272        task   208.5ms  script       0  layout    1.2 (8)  long []  req 9/429558B
+  mem 1 MDL 4848 heap 4MB nodes 812 listeners 253 rss 2952MB
+  mem 2 MDL 6084 heap 4.11MB nodes 818 listeners 254 rss 2947MB
+  mem 3 MDL 96120 heap 4.02MB nodes 818 listeners 254 rss 2930MB
+  mem 4 MDL 7272 heap 4.02MB nodes 818 listeners 254 rss 3092MB
+  mem 5 MDL 4872 heap 4.02MB nodes 820 listeners 258 rss 2450MB
+  mem 6 MDL 6060 heap 4.07MB nodes 826 listeners 270 rss 3278MB
+  mem 7 MDL 7296 heap 4.16MB nodes 828 listeners 274 rss 3179MB
+  mem 8 MDL 8484 heap 4.04MB nodes 833 listeners 284 rss 3062MB
+  mem 9 MDL 4848 heap 4.04MB nodes 827 listeners 283 rss 3123MB
+  mem 10 MDL 6084 heap 4.13MB nodes 833 listeners 284 rss 2896MB
+  mem 11 MDL 96120 heap 4.1MB nodes 833 listeners 284 rss 1718MB
+  mem 12 MDL 7272 heap 4.1MB nodes 833 listeners 284 rss 1752MB
+  mem 13 MDL 4872 heap 4.2MB nodes 833 listeners 284 rss 1770MB
+  mem 14 MDL 6060 heap 4.11MB nodes 833 listeners 284 rss 1783MB
+  mem 15 MDL 7296 heap 4.11MB nodes 833 listeners 284 rss 1789MB
+  mem 16 MDL 8484 heap 4.2MB nodes 833 listeners 284 rss 1828MB
+  mem 17 MDL 4848 heap 4.08MB nodes 827 listeners 283 rss 2184MB
+  mem 18 MDL 6084 heap 4.14MB nodes 833 listeners 284 rss 2284MB
+  mem 19 MDL 96120 heap 4.24MB nodes 833 listeners 284 rss 2290MB
+  mem 20 MDL 7272 heap 4.15MB nodes 833 listeners 284 rss 2214MB
+detached 0 canvasObjs 20 imgs 3 canvasesAlive 3 / 473
+wrote C:\Users\bento\Documents\Claude\Sketchup\.forge\auditor\booth-builder\out\desktop-np2.json
+CHAIN2DONE

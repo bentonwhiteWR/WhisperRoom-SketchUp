@@ -1,0 +1,63 @@
+=== device Desktop 1440x900 scenario desk base http://127.0.0.1:8766
+landing {"model":"MDL 7296","variant":"S","view":"iso","sheet":false,"gallery":true,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot desk-desk-01-landing.png
+  layout[landing] {"innerW":1440,"innerH":900,"docScrollW":1440,"docScrollH":900,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+picked {"model":"MDL 6084","variant":"S","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot desk-desk-02-picked.png
+  layout[picked] {"innerW":1440,"innerH":900,"docScrollW":1440,"docScrollH":900,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-03-top.png
+  layout[top] {"innerW":1440,"innerH":900,"docScrollW":1440,"docScrollH":900,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-04-elev.png
+  layout[elev] {"innerW":1440,"innerH":900,"docScrollW":1440,"docScrollH":900,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-05-iso.png
+  layout[iso] {"innerW":1440,"innerH":900,"docScrollW":1440,"docScrollH":900,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  click Enhanced
+variant E
+  click Add-ons
+  shot desk-desk-06-addons.png
+  click Draw your room
+  shot desk-desk-07-roompop.png
+  layout[roompop] {"innerW":1440,"innerH":900,"docScrollW":1440,"docScrollH":900,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  click quote CTA
+quote {"model":"MDL 6084","variant":"E","view":"iso","sheet":false,"gallery":false,"quoteModal":true,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot desk-desk-08-quote.png
+  layout[quote] {"innerW":1440,"innerH":900,"docScrollW":1440,"docScrollH":900,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  quote field font sizes: 13px,13px,13px,13px,13px
+  layout[w1200] {"innerW":1200,"innerH":800,"docScrollW":1200,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w1200.png
+  layout[w1100] {"innerW":1100,"innerH":800,"docScrollW":1100,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w1100.png
+  layout[w1023] {"innerW":1023,"innerH":800,"docScrollW":1023,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w1023.png
+  layout[w950] {"innerW":950,"innerH":800,"docScrollW":950,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w950.png
+  layout[w900] {"innerW":900,"innerH":800,"docScrollW":900,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w900.png
+  layout[w820] {"innerW":820,"innerH":800,"docScrollW":820,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w820.png
+  layout[w768] {"innerW":768,"innerH":800,"docScrollW":768,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w768.png
+  layout[w640] {"innerW":640,"innerH":800,"docScrollW":640,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w640.png
+  layout[w560] {"innerW":560,"innerH":800,"docScrollW":560,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w560.png
+  layout[w480] {"innerW":480,"innerH":800,"docScrollW":480,"docScrollH":800,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  shot desk-desk-09-w480.png
+page errors/warnings: ["http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)","http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)","http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)"]

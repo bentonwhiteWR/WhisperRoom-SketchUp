@@ -1,0 +1,6761 @@
+{
+ "profile": "desktop",
+ "product": "MDL 7272 S",
+ "runs": [
+  {
+   "run": 0,
+   "wallToDrawn_ms": 2975,
+   "nav": {
+    "ttfb": 15,
+    "responseEnd": 44,
+    "domInteractive": 364,
+    "dcl": 365,
+    "load": 2552,
+    "transferSize": 310391,
+    "decodedBodySize": 930695,
+    "encodedBodySize": 310091
+   },
+   "paints": {
+    "first-paint": 364,
+    "first-contentful-paint": 364
+   },
+   "lcp": {
+    "t": 1096,
+    "size": 11750,
+    "tag": "DIV",
+    "id": "",
+    "cls": "bb-fit-hint",
+    "url": ""
+   },
+   "firstAppPaint_ms": 545.6000000089407,
+   "firstCanvasDraw_ms": 2419.1000000089407,
+   "boothDrawn_ms": 2996,
+   "networkIdle_ms": 6563,
+   "state": {
+    "model": "MDL 7272",
+    "view": "iso",
+    "variant": "S"
+   },
+   "longtasksDuringLoad": [
+    {
+     "t": 388.3,
+     "d": 622,
+     "phase": "load"
+    },
+    {
+     "t": 1170.4,
+     "d": 1382,
+     "phase": "load"
+    },
+    {
+     "t": 2598.2,
+     "d": 346,
+     "phase": "load"
+    }
+   ],
+   "network": {
+    "total": {
+     "n": 136,
+     "bytes": 9184383
+    },
+    "by": {
+     "html": {
+      "n": 1,
+      "bytes": 310325,
+      "failed": 0
+     },
+     "font/css": {
+      "n": 3,
+      "bytes": 73208,
+      "failed": 0
+     },
+     "js": {
+      "n": 4,
+      "bytes": 321828,
+      "failed": 0
+     },
+     "api-json": {
+      "n": 3,
+      "bytes": 9684,
+      "failed": 0
+     },
+     "image": {
+      "n": 122,
+      "bytes": 8469338,
+      "failed": 0
+     },
+     "other": {
+      "n": 3,
+      "bytes": 0,
+      "failed": 0
+     }
+    },
+    "images": [
+     {
+      "url": "/assets/booth-art/floor-lip.webp?v=24",
+      "bytes": 15299,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/ceil-lip.webp?v=24",
+      "bytes": 15941,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-efs-side-left.webp?v=24",
+      "bytes": 17869,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-efs-side-right.webp?v=24",
+      "bytes": 18641,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-efs-side-left.webp?v=24",
+      "bytes": 20365,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-efs-side-right.webp?v=24",
+      "bytes": 21463,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-side-left.webp?v=24",
+      "bytes": 17923,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-side-right.webp?v=24",
+      "bytes": 17691,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-side-left.webp?v=24",
+      "bytes": 18435,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-side-right.webp?v=24",
+      "bytes": 20963,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-efs-side-left-cp.webp?v=24",
+      "bytes": 16053,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-efs-side-right-cp.webp?v=24",
+      "bytes": 16739,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-efs-side-left-cp.webp?v=24",
+      "bytes": 18419,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-efs-side-right-cp.webp?v=24",
+      "bytes": 20361,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-side-left-cp.webp?v=24",
+      "bytes": 14695,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-side-right-cp.webp?v=24",
+      "bytes": 15373,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-side-left-cp.webp?v=24",
+      "bytes": 17251,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-side-right-cp.webp?v=24",
+      "bytes": 19433,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/ramp-top.webp?v=24",
+      "bytes": 24089,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/ramp-side.webp?v=24",
+      "bytes": 11301,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/seal-corner.webp?v=24",
+      "bytes": 13391,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/seal-mid.webp?v=24",
+      "bytes": 21421,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/step-front.webp?v=24",
+      "bytes": 28565,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/step-side.webp?v=24",
+      "bytes": 11157,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/desk-small.webp?v=24",
+      "bytes": 26729,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/desk-large.webp?v=24",
+      "bytes": 34299,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/mjp.webp?v=24",
+      "bytes": 5669,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-31-wdo1648.webp?v=24",
+      "bytes": 57749,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-wdo2630.webp?v=24",
+      "bytes": 78402,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-wdo2636.webp?v=24",
+      "bytes": 74304,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-wdo2642.webp?v=24",
+      "bytes": 68810,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-wdo2648.webp?v=24",
+      "bytes": 63427,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-43-wdo2636.webp?v=24",
+      "bytes": 81210,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-43-wdo2648.webp?v=24",
+      "bytes": 70430,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-wdo3230.webp?v=24",
+      "bytes": 87584,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-wdo3236.webp?v=24",
+      "bytes": 81224,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-wdo3242.webp?v=24",
+      "bytes": 74762,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-wdo3248.webp?v=24",
+      "bytes": 69602,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-7.webp?v=24",
+      "bytes": 19413,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-16.webp?v=24",
+      "bytes": 43425,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-19.webp?v=24",
+      "bytes": 50853,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-22.webp?v=24",
+      "bytes": 59395,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-28.webp?v=24",
+      "bytes": 73808,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-31.webp?v=24",
+      "bytes": 80656,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40.webp?v=24",
+      "bytes": 105544,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-43.webp?v=24",
+      "bytes": 112614,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46.webp?v=24",
+      "bytes": 121158,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-nv.webp?v=24",
+      "bytes": 105176,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-cbl.webp?v=24",
+      "bytes": 105686,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt.webp?v=24",
+      "bytes": 98614,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-cp.webp?v=24",
+      "bytes": 87450,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-vss.webp?v=24",
+      "bytes": 90496,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-vss-cp.webp?v=24",
+      "bytes": 81132,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-efs.webp?v=24",
+      "bytes": 84488,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-efs-cp.webp?v=24",
+      "bytes": 85480,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-vss-efs.webp?v=24",
+      "bytes": 90584,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-vss-efs-cp.webp?v=24",
+      "bytes": 79178,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-nv.webp?v=24",
+      "bytes": 120576,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-cbl.webp?v=24",
+      "bytes": 121106,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt.webp?v=24",
+      "bytes": 113672,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-cp.webp?v=24",
+      "bytes": 101016,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-vss.webp?v=24",
+      "bytes": 104230,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-vss-cp.webp?v=24",
+      "bytes": 94402,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-efs.webp?v=24",
+      "bytes": 111060,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-efs-cp.webp?v=24",
+      "bytes": 103624,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-vss-efs.webp?v=24",
+      "bytes": 103362,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-vss-efs-cp.webp?v=24",
+      "bytes": 91858,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-front.webp?v=24",
+      "bytes": 71886,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-back.webp?v=24",
+      "bytes": 74972,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-left.webp?v=24",
+      "bytes": 29065,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-right.webp?v=24",
+      "bytes": 28851,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-vss-front.webp?v=24",
+      "bytes": 72170,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-vss-back.webp?v=24",
+      "bytes": 75008,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-vss-left.webp?v=24",
+      "bytes": 41975,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-vss-right.webp?v=24",
+      "bytes": 37555,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-40-left.webp?v=24",
+      "bytes": 93994,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-40-right.webp?v=24",
+      "bytes": 93740,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-46-left.webp?v=24",
+      "bytes": 103924,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-46-right.webp?v=24",
+      "bytes": 105116,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-wa-left.webp?v=24",
+      "bytes": 102972,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-wa-right.webp?v=24",
+      "bytes": 102946,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-wa-ramp-left.webp?v=24",
+      "bytes": 95358,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-wa-ramp-right.webp?v=24",
+      "bytes": 95288,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-30.webp?v=24",
+      "bytes": 1216,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-42.webp?v=24",
+      "bytes": 13107,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-48.webp?v=24",
+      "bytes": 16743,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-60.webp?v=24",
+      "bytes": 8247,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-72.webp?v=24",
+      "bytes": 24133,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-84.webp?v=24",
+      "bytes": 25651,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-96.webp?v=24",
+      "bytes": 31033,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-102.webp?v=24",
+      "bytes": 10921,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-120.webp?v=24",
+      "bytes": 12937,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-126.webp?v=24",
+      "bytes": 13159,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-144.webp?v=24",
+      "bytes": 15331,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-168.webp?v=24",
+      "bytes": 17943,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-186.webp?v=24",
+      "bytes": 31893,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-192.webp?v=24",
+      "bytes": 28985,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp?v=15",
+      "bytes": 359268,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp?v=15",
+      "bytes": 76252,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-extl.webp?v=15",
+      "bytes": 201514,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp?v=15",
+      "bytes": 277642,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp?v=15",
+      "bytes": 58815,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-extr.webp?v=15",
+      "bytes": 143950,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp?v=15",
+      "bytes": 50773,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp?v=15",
+      "bytes": 74156,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp?v=15",
+      "bytes": 46399,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/foam-gray-iso30-intr.png?v=15",
+      "bytes": 158928,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp?v=15",
+      "bytes": 21419,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/foam-gray-iso30-intl.png?v=15",
+      "bytes": 133487,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp?v=15",
+      "bytes": 51399,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp?v=15",
+      "bytes": 28995,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp?v=15",
+      "bytes": 2872,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp?v=15",
+      "bytes": 59103,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp?v=15",
+      "bytes": 31471,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp?v=15",
+      "bytes": 402724,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp?v=15",
+      "bytes": 75140,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-intr.webp?v=15",
+      "bytes": 201862,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-iso30-intl.webp?v=15",
+      "bytes": 280788,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp?v=15",
+      "bytes": 57821,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-intl.webp?v=15",
+      "bytes": 143078,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp?v=15",
+      "bytes": 69976,
+      "phase": "load"
+     },
+     {
+      "url": "https://cdn.prod.website-files.com/675b3ebac52cdeef9e630d58/679aa01c37d9bcef0048ce78_7272%20S%20-%200.avif",
+      "bytes": 38292,
+      "phase": "load"
+     }
+    ],
+    "largest": [
+     {
+      "url": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp?v=15",
+      "bytes": 402724,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp?v=15",
+      "bytes": 359268,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/booth-builder?product=MDL%207272%20S",
+      "bytes": 310325,
+      "enc": "gzip",
+      "mime": "text/html"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-iso30-intl.webp?v=15",
+      "bytes": 280788,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp?v=15",
+      "bytes": 277642,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-intr.webp?v=15",
+      "bytes": 201862,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-extl.webp?v=15",
+      "bytes": 201514,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/foam-gray-iso30-intr.png?v=15",
+      "bytes": 158928,
+      "enc": "",
+      "mime": "image/png"
+     },
+     {
+      "url": "/assets/iso-render.js",
+      "bytes": 149048,
+      "enc": "gzip",
+      "mime": "text/javascript"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-extr.webp?v=15",
+      "bytes": 143950,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-intl.webp?v=15",
+      "bytes": 143078,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/foam-gray-iso30-intl.png?v=15",
+      "bytes": 133487,
+      "enc": "",
+      "mime": "image/png"
+     },
+     {
+      "url": "/assets/layout-render.js",
+      "bytes": 127370,
+      "enc": "gzip",
+      "mime": "text/javascript"
+     },
+     {
+      "url": "/assets/booth-art/wall-46.webp?v=24",
+      "bytes": 121158,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-cbl.webp?v=24",
+      "bytes": 121106,
+      "enc": "",
+      "mime": "image/webp"
+     }
+    ]
+   },
+   "scriptTimeline": [
+    {
+     "name": "https://fonts.googleapis.com/css2",
+     "start": 22,
+     "end": 332,
+     "size": 878,
+     "type": "link"
+    },
+    {
+     "name": "/assets/layout-render.js",
+     "start": 22,
+     "end": 51,
+     "size": 127445,
+     "type": "script"
+    },
+    {
+     "name": "/assets/iso30-manifest.js",
+     "start": 22,
+     "end": 48,
+     "size": 40780,
+     "type": "script"
+    },
+    {
+     "name": "/assets/iso-render.js",
+     "start": 22,
+     "end": 55,
+     "size": 149123,
+     "type": "script"
+    },
+    {
+     "name": "/assets/engage.js",
+     "start": 22,
+     "end": 37,
+     "size": 4782,
+     "type": "script"
+    },
+    {
+     "name": "/api/booth-iso-geometry",
+     "start": 363,
+     "end": 373,
+     "size": 6723,
+     "type": "fetch"
+    },
+    {
+     "name": "/api/booth-layouts",
+     "start": 363,
+     "end": 372,
+     "size": 3001,
+     "type": "fetch"
+    },
+    {
+     "name": "/api/engage",
+     "start": 538,
+     "end": 687,
+     "size": 300,
+     "type": "beacon"
+    }
+   ],
+   "domImages": [
+    {
+     "kind": "img",
+     "src": "https://cdn.prod.website-files.com/675b3ebac52cdeef9e630d58/679aa01c37d9bcef0048ce78_7272%20S%20-%200.avif",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 62,
+     "ch": 48,
+     "visible": true
+    },
+    {
+     "kind": "img",
+     "src": "https://cdn.prod.website-files.com/675b3ebac52cdeef9e630d58/679aa01c37d9bcef0048ce78_7272%20S%20-%200.avif",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Cpath%20d%3D%22M22%202%2039%209.5%2022%2017%205%209.5Z%22%20fill%3D%22%235a5d63%22%2F%3E%3Cpath%20d%3D%22M5%209.5%2022%2017v15L5%2024.5Z%22%20fill%3D%22%2342454b%22%2F%3E%3Cpath%20d%3D%22M39%209.5%2022%2017v15l17-7.5Z%22%20fill%3D%22%23333639%22%2F%3E%3Cpath%20d%3D%22M11%2015.6%2016.6%2018v8.6L11%2024.2Z%22%20fill%3D%22%23ee6216%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Crect%20x%3D%228%22%20y%3D%222%22%20width%3D%2228%22%20height%3D%2222%22%20fill%3D%22none%22%20stroke%3D%22%2342454b%22%20stroke-width%3D%222.6%22%2F%3E%3Cpath%20d%3D%22M17%2024h10%22%20stroke%3D%22%23e9e4da%22%20stroke-width%3D%223.4%22%2F%3E%3Cpath%20d%3D%22M18%2024v8a8%208%200%200%200%208-8%22%20fill%3D%22none%22%20stroke%3D%22%23ee6216%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Crect%20x%3D%227%22%20y%3D%224%22%20width%3D%2230%22%20height%3D%2226%22%20fill%3D%22%2342454b%22%2F%3E%3Crect%20x%3D%2211%22%20y%3D%229%22%20width%3D%228%22%20height%3D%2221%22%20fill%3D%22%23ee6216%22%2F%3E%3Crect%20x%3D%2223%22%20y%3D%229%22%20width%3D%2210%22%20height%3D%228%22%20fill%3D%22%239fb6cc%22%2F%3E%3Cpath%20d%3D%22M23%2021h10M23%2024h10M23%2027h10%22%20stroke%3D%22%236e7680%22%20stroke-width%3D%221.6%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Cpath%20d%3D%22M22%202%2039%209.5%2022%2017%205%209.5Z%22%20fill%3D%22%235a5d63%22%2F%3E%3Cpath%20d%3D%22M5%209.5%2022%2017v15L5%2024.5Z%22%20fill%3D%22%2342454b%22%2F%3E%3Cpath%20d%3D%22M39%209.5%2022%2017v15l17-7.5Z%22%20fill%3D%22%23333639%22%2F%3E%3Cpath%20d%3D%22M11%2015.6%2016.6%2018v8.6L11%2024.2Z%22%20fill%3D%22%23ee6216%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 44,
+     "ch": 34,
+     "visible": true
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Crect%20x%3D%228%22%20y%3D%222%22%20width%3D%2228%22%20height%3D%2222%22%20fill%3D%22none%22%20stroke%3D%22%2342454b%22%20stroke-width%3D%222.6%22%2F%3E%3Cpath%20d%3D%22M17%2024h10%22%20stroke%3D%22%23e9e4da%22%20stroke-width%3D%223.4%22%2F%3E%3Cpath%20d%3D%22M18%2024v8a8%208%200%200%200%208-8%22%20fill%3D%22none%22%20stroke%3D%22%23ee6216%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 44,
+     "ch": 34,
+     "visible": true
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Crect%20x%3D%227%22%20y%3D%224%22%20width%3D%2230%22%20height%3D%2226%22%20fill%3D%22%2342454b%22%2F%3E%3Crect%20x%3D%2211%22%20y%3D%229%22%20width%3D%228%22%20height%3D%2221%22%20fill%3D%22%23ee6216%22%2F%3E%3Crect%20x%3D%2223%22%20y%3D%229%22%20width%3D%2210%22%20height%3D%228%22%20fill%3D%22%239fb6cc%22%2F%3E%3Cpath%20d%3D%22M23%2021h10M23%2024h10M23%2027h10%22%20stroke%3D%22%236e7680%22%20stroke-width%3D%221.6%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 44,
+     "ch": 34,
+     "visible": true
+    },
+    {
+     "kind": "img",
+     "src": "https://cdn.prod.website-files.com/675b3ebac52cdeef9e630d58/679aa01c37d9bcef0048ce78_7272%20S%20-%200.avif",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "canvas",
+     "src": "bbRoomCanvas",
+     "nw": 1084,
+     "nh": 870,
+     "cw": 1084,
+     "ch": 870,
+     "visible": true
+    },
+    {
+     "kind": "canvas",
+     "src": "bbIsoCanvas",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 782,
+     "ch": 782,
+     "visible": true
+    },
+    {
+     "kind": "canvas",
+     "src": "bbIsoMarks",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 782,
+     "ch": 782,
+     "visible": true
+    },
+    {
+     "kind": "canvas",
+     "src": "bbIsoDims",
+     "nw": 1,
+     "nh": 1,
+     "cw": 782,
+     "ch": 782,
+     "visible": true
+    },
+    {
+     "kind": "canvas",
+     "src": "bbIsoAnim",
+     "nw": 300,
+     "nh": 150,
+     "cw": 782,
+     "ch": 782,
+     "visible": true
+    }
+   ],
+   "canvases": {
+    "count": 53,
+    "px": 43186772,
+    "sizes": [
+     [
+      "1080x1080",
+      33
+     ],
+     [
+      "300x150",
+      12
+     ],
+     [
+      "1084x790",
+      4
+     ],
+     [
+      "247x739",
+      4
+     ]
+    ]
+   },
+   "getImageData": {
+    "calls": 0,
+    "px": 0
+   },
+   "drawImageStats": {
+    "load": {
+     "n": 524,
+     "px": 90732205.40793107,
+     "img": 168,
+     "cv": 356
+    }
+   },
+   "drawImage": [
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intr.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-iso30-intl.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intl.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp",
+     "nw": 213,
+     "nh": 314,
+     "dw": 95,
+     "dh": 147,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intr.png",
+     "nw": 365,
+     "nh": 923,
+     "dw": 162,
+     "dh": 410,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intl.png",
+     "nw": 297,
+     "nh": 961,
+     "dw": 132,
+     "dh": 425,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 414,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 344,
+     "dw": 525,
+     "dh": 305,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intr.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-iso30-intl.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intl.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp",
+     "nw": 213,
+     "nh": 314,
+     "dw": 95,
+     "dh": 147,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intr.png",
+     "nw": 365,
+     "nh": 923,
+     "dw": 162,
+     "dh": 410,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intl.png",
+     "nw": 297,
+     "nh": 961,
+     "dw": 132,
+     "dh": 425,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 414,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 344,
+     "dw": 525,
+     "dh": 305,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intr.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-iso30-intl.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intl.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp",
+     "nw": 213,
+     "nh": 314,
+     "dw": 95,
+     "dh": 147,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intr.png",
+     "nw": 365,
+     "nh": 923,
+     "dw": 162,
+     "dh": 410,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intl.png",
+     "nw": 297,
+     "nh": 961,
+     "dw": 132,
+     "dh": 425,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 414,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 344,
+     "dw": 525,
+     "dh": 305,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intr.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-iso30-intl.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intl.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp",
+     "nw": 213,
+     "nh": 314,
+     "dw": 95,
+     "dh": 147,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intr.png",
+     "nw": 365,
+     "nh": 923,
+     "dw": 162,
+     "dh": 410,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intl.png",
+     "nw": 297,
+     "nh": 961,
+     "dw": 132,
+     "dh": 425,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 414,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": true,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 344,
+     "dw": 525,
+     "dh": 305,
+     "onscreen": true,
+     "phase": "load"
+    }
+   ],
+   "metrics": {
+    "nodes": 755,
+    "listeners": 200,
+    "heapUsedMB": 3.2,
+    "heapTotalMB": 10.3,
+    "docs": 4,
+    "frames": 4,
+    "layoutCount": 24,
+    "styleCount": 508,
+    "script_s": 0.373,
+    "layout_s": 0.139,
+    "style_s": 0.039,
+    "task_s": 3.515
+   },
+   "trace": {
+    "traceSpan_ms": 6565,
+    "mainThreadTask_ms": 3137.8,
+    "byName": {
+     "RunTask": {
+      "n": 3726,
+      "ms": 3137.8
+     },
+     "ThreadControllerImpl::RunTask": {
+      "n": 3722,
+      "ms": 2432.8
+     },
+     "RunMicrotasks": {
+      "n": 51,
+      "ms": 2011.4
+     },
+     "v8.callFunction": {
+      "n": 36,
+      "ms": 1748
+     },
+     "EventDispatch": {
+      "n": 198,
+      "ms": 1400.5
+     },
+     "BlinkScheduler_PerformMicrotaskCheckpoint": {
+      "n": 3504,
+      "ms": 636.3
+     },
+     "AsyncTask Run": {
+      "n": 191,
+      "ms": 376.2
+     },
+     "FunctionCall": {
+      "n": 36,
+      "ms": 367.2
+     },
+     "TimerBase::run": {
+      "n": 22,
+      "ms": 348.3
+     },
+     "TimerFire": {
+      "n": 2,
+      "ms": 346.4
+     },
+     "Commit": {
+      "n": 226,
+      "ms": 311.7
+     },
+     "Canvas2DResourceProvider::ProduceCanvasResource": {
+      "n": 663,
+      "ms": 283.7
+     },
+     "DecodingImageGenerator::getPixels": {
+      "n": 24,
+      "ms": 261.4
+     },
+     "Decode LazyPixelRef": {
+      "n": 24,
+      "ms": 261.3
+     },
+     "ImageFrameGenerator::decodeAndScale": {
+      "n": 24,
+      "ms": 261.2
+     },
+     "ImageFrameGenerator::decode": {
+      "n": 24,
+      "ms": 260.6
+     },
+     "ImageDecoder::DecodeFrameBufferAtIndex": {
+      "n": 24,
+      "ms": 260.6
+     },
+     "Decode Image": {
+      "n": 24,
+      "ms": 260.4
+     },
+     "LocalFrameView::UpdateStyleAndLayout": {
+      "n": 14618,
+      "ms": 189.4
+     },
+     "Document::UpdateStyleAndLayout": {
+      "n": 17049,
+      "ms": 187.1
+     },
+     "WebFrameWidgetImpl::UpdateLifecycle": {
+      "n": 226,
+      "ms": 184.5
+     },
+     "Blink.ForcedStyleAndLayout.UpdateTime": {
+      "n": 17042,
+      "ms": 155.3
+     },
+     "LocalFrameView::layout": {
+      "n": 32,
+      "ms": 140.3
+     },
+     "Layout": {
+      "n": 32,
+      "ms": 140.2
+     },
+     "Blink.Layout.UpdateTime": {
+      "n": 24,
+      "ms": 139.3
+     },
+     "LocalFrameView::performLayout": {
+      "n": 32,
+      "ms": 139.2
+     },
+     "LocalFrameView::RunPaintLifecyclePhase": {
+      "n": 231,
+      "ms": 101.5
+     },
+     "Paint": {
+      "n": 448,
+      "ms": 89
+     },
+     "InlineNode::ShapeTextIncludingFirstLine": {
+      "n": 358,
+      "ms": 86.9
+     },
+     "Blink.Paint.UpdateTime": {
+      "n": 226,
+      "ms": 82.4
+     }
+    },
+    "compile_ms": {
+     "?": 6.1,
+     "http://127.0.0.1:8791/booth-builder?product=MDL%207272%20S": 5.5,
+     "http://127.0.0.1:8791/assets/layout-render.js": 0,
+     "http://127.0.0.1:8791/assets/engage.js": 0,
+     "http://127.0.0.1:8791/assets/iso30-manifest.js": 0,
+     "http://127.0.0.1:8791/assets/iso-render.js": 0
+    },
+    "evaluate_ms": {
+     "http://127.0.0.1:8791/booth-builder?product=MDL%207272%20S": 12.6,
+     "inline": 1.6,
+     "http://127.0.0.1:8791/assets/iso-render.js": 0.8,
+     "http://127.0.0.1:8791/assets/engage.js": 0.7,
+     "http://127.0.0.1:8791/assets/iso30-manifest.js": 0.5,
+     "http://127.0.0.1:8791/assets/layout-render.js": 0.5
+    },
+    "topFunctions": {
+     "showDoorCoach booth-builder?product=MDL%207272%20S:7434": {
+      "n": 1,
+      "ms": 346.3
+     },
+     "im.onload iso-render.js:3914": {
+      "n": 24,
+      "ms": 18.8
+     },
+     "PerformanceObserver.observe.type :4": {
+      "n": 1,
+      "ms": 0.6
+     },
+     "(anon) :8": {
+      "n": 1,
+      "ms": 0.4
+     },
+     "PerformanceObserver.observe.type :6": {
+      "n": 3,
+      "ms": 0.4
+     },
+     "PerformanceObserver.observe.type :5": {
+      "n": 1,
+      "ms": 0.3
+     },
+     "(anon) booth-builder?product=MDL%207272%20S:6303": {
+      "n": 1,
+      "ms": 0.2
+     },
+     "(anon) :13": {
+      "n": 1,
+      "ms": 0.1
+     },
+     "(anon) booth-builder?product=MDL%207272%20S:7291": {
+      "n": 1,
+      "ms": 0.1
+     },
+     "(anon) pptr:evaluate;C%3A%5CUsers%5Cbento%5CDocuments%5CClaude%5CSketchup%5C.forge%5Cauditor%5Cbooth-builder%5Crig%5Cperf.js%3A211%3A16:1": {
+      "n": 1,
+      "ms": 0
+     },
+     "(anon) :0": {
+      "n": 1,
+      "ms": 0
+     }
+    },
+    "longTasks": [
+     {
+      "start_ms": 388.7,
+      "dur_ms": 625,
+      "top": "Layout  89.1ms",
+      "children": [
+       "Layout  89.1ms",
+       "ParseHTML  3.3ms",
+       "UpdateLayoutTree  2.4ms",
+       "ParseHTML  1.9ms",
+       "Layout  1.8ms"
+      ]
+     },
+     {
+      "start_ms": 1170.8,
+      "dur_ms": 1413,
+      "top": "EventDispatch  1380.4ms",
+      "children": [
+       "EventDispatch  1380.4ms",
+       "Decode Image  40.6ms",
+       "Decode Image  32.2ms",
+       "Decode Image  27.4ms",
+       "Decode Image  26.6ms"
+      ]
+     },
+     {
+      "start_ms": 2598.5,
+      "dur_ms": 346.3,
+      "top": "TimerFire  346.3ms",
+      "children": [
+       "TimerFire  346.3ms",
+       "FunctionCall showDoorCoach:7434 346.3ms",
+       "Layout  3.2ms",
+       "UpdateLayoutTree  0.4ms",
+       "ParseHTML  0.3ms"
+      ]
+     }
+    ],
+    "forcedLayouts": {
+     "count": 17,
+     "total_ms": 99.4,
+     "by": {
+      "render booth-builder?product=MDL%207272%20S:8210": {
+       "n": 4,
+       "ms": 94.2
+      },
+      "positionDoorCoach booth-builder?product=MDL%207272%20S:7431": {
+       "n": 1,
+       "ms": 3.2
+      },
+      "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657": {
+       "n": 5,
+       "ms": 1
+      },
+      "render booth-builder?product=MDL%207272%20S:7854": {
+       "n": 3,
+       "ms": 0.5
+      },
+      "fitStageToColumn booth-builder?product=MDL%207272%20S:7169": {
+       "n": 2,
+       "ms": 0.3
+      },
+      "bb2DrawRoomStage booth-builder?product=MDL%207272%20S:6390": {
+       "n": 1,
+       "ms": 0.2
+      },
+      "(anon) booth-builder?product=MDL%207272%20S:9937": {
+       "n": 1,
+       "ms": 0.1
+      }
+     },
+     "examples": [
+      {
+       "t": 402.2,
+       "us": 89066,
+       "fn": "render booth-builder?product=MDL%207272%20S:8210",
+       "dirty": 210,
+       "stack": [
+        "render:8210",
+        "rebuild:3716",
+        "applyFormIntent:4529",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 499.4,
+       "us": 233,
+       "fn": "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657",
+       "dirty": 8,
+       "stack": [
+        "bb2MonitorShift:6657",
+        "bb2ApplyMonitorShift:6677",
+        "bb2ApplyRoomPad:6719",
+        "bb2DrawRoomStage:6394",
+        "bb2AfterRender:13451"
+       ]
+      },
+      {
+       "t": 502.4,
+       "us": 228,
+       "fn": "render booth-builder?product=MDL%207272%20S:7854",
+       "dirty": 7,
+       "stack": [
+        "render:7854",
+        "rebuild:3716",
+        "applyFormIntent:4551",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 509.5,
+       "us": 1637,
+       "fn": "render booth-builder?product=MDL%207272%20S:8210",
+       "dirty": 210,
+       "stack": [
+        "render:8210",
+        "rebuild:3716",
+        "applyFormIntent:4551",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 514.5,
+       "us": 189,
+       "fn": "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657",
+       "dirty": 8,
+       "stack": [
+        "bb2MonitorShift:6657",
+        "bb2ApplyMonitorShift:6677",
+        "bb2ApplyRoomPad:6719",
+        "bb2DrawRoomStage:6394",
+        "bb2AfterRender:13451"
+       ]
+      },
+      {
+       "t": 515.9,
+       "us": 160,
+       "fn": "render booth-builder?product=MDL%207272%20S:7854",
+       "dirty": 7,
+       "stack": [
+        "render:7854",
+        "applyFormIntent:4559",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 520.6,
+       "us": 1844,
+       "fn": "render booth-builder?product=MDL%207272%20S:8210",
+       "dirty": 210,
+       "stack": [
+        "render:8210",
+        "applyFormIntent:4559",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 526.1,
+       "us": 190,
+       "fn": "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657",
+       "dirty": 8,
+       "stack": [
+        "bb2MonitorShift:6657",
+        "bb2ApplyMonitorShift:6677",
+        "bb2ApplyRoomPad:6719",
+        "bb2DrawRoomStage:6394",
+        "bb2AfterRender:13451"
+       ]
+      },
+      {
+       "t": 527.3,
+       "us": 161,
+       "fn": "render booth-builder?product=MDL%207272%20S:7854",
+       "dirty": 7,
+       "stack": [
+        "render:7854",
+        "boot:13625"
+       ]
+      },
+      {
+       "t": 531.4,
+       "us": 1635,
+       "fn": "render booth-builder?product=MDL%207272%20S:8210",
+       "dirty": 210,
+       "stack": [
+        "render:8210",
+        "boot:13625"
+       ]
+      },
+      {
+       "t": 536.2,
+       "us": 281,
+       "fn": "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657",
+       "dirty": 8,
+       "stack": [
+        "bb2MonitorShift:6657",
+        "bb2ApplyMonitorShift:6677",
+        "bb2ApplyRoomPad:6719",
+        "bb2DrawRoomStage:6394",
+        "bb2AfterRender:13451"
+       ]
+      },
+      {
+       "t": 2543.4,
+       "us": 135,
+       "fn": "fitStageToColumn booth-builder?product=MDL%207272%20S:7169",
+       "dirty": 10,
+       "stack": [
+        "fitStageToColumn:7169",
+        "(anon):9922"
+       ]
+      }
+     ]
+    }
+   },
+   "cpu": null,
+   "errors": []
+  },
+  {
+   "run": 1,
+   "wallToDrawn_ms": 2453,
+   "nav": {
+    "ttfb": 23,
+    "responseEnd": 49,
+    "domInteractive": 117,
+    "dcl": 118,
+    "load": 2163,
+    "transferSize": 310391,
+    "decodedBodySize": 930695,
+    "encodedBodySize": 310091
+   },
+   "paints": {
+    "first-paint": 108,
+    "first-contentful-paint": 108
+   },
+   "lcp": {
+    "t": 820,
+    "size": 11750,
+    "tag": "DIV",
+    "id": "",
+    "cls": "bb-fit-hint",
+    "url": ""
+   },
+   "firstAppPaint_ms": 245.40000000596046,
+   "firstCanvasDraw_ms": 2025.300000011921,
+   "boothDrawn_ms": 2477,
+   "networkIdle_ms": 6054,
+   "state": {
+    "model": "MDL 7272",
+    "view": "iso",
+    "variant": "S"
+   },
+   "longtasksDuringLoad": [
+    {
+     "t": 136.5,
+     "d": 596,
+     "phase": "load"
+    },
+    {
+     "t": 864.7,
+     "d": 1265,
+     "phase": "load"
+    },
+    {
+     "t": 2164.9,
+     "d": 259,
+     "phase": "load"
+    }
+   ],
+   "network": {
+    "total": {
+     "n": 136,
+     "bytes": 9183329
+    },
+    "by": {
+     "html": {
+      "n": 1,
+      "bytes": 310325,
+      "failed": 0
+     },
+     "font/css": {
+      "n": 3,
+      "bytes": 72393,
+      "failed": 0
+     },
+     "js": {
+      "n": 4,
+      "bytes": 321828,
+      "failed": 0
+     },
+     "api-json": {
+      "n": 3,
+      "bytes": 9684,
+      "failed": 0
+     },
+     "image": {
+      "n": 122,
+      "bytes": 8469099,
+      "failed": 0
+     },
+     "other": {
+      "n": 3,
+      "bytes": 0,
+      "failed": 0
+     }
+    },
+    "images": [
+     {
+      "url": "/assets/booth-art/floor-lip.webp?v=24",
+      "bytes": 15299,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/ceil-lip.webp?v=24",
+      "bytes": 15941,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-efs-side-left.webp?v=24",
+      "bytes": 17869,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-efs-side-right.webp?v=24",
+      "bytes": 18641,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-efs-side-left.webp?v=24",
+      "bytes": 20365,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-efs-side-right.webp?v=24",
+      "bytes": 21463,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-side-left.webp?v=24",
+      "bytes": 17923,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-side-right.webp?v=24",
+      "bytes": 17691,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-side-left.webp?v=24",
+      "bytes": 18435,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-side-right.webp?v=24",
+      "bytes": 20963,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-efs-side-left-cp.webp?v=24",
+      "bytes": 16053,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-efs-side-right-cp.webp?v=24",
+      "bytes": 16739,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-efs-side-left-cp.webp?v=24",
+      "bytes": 18419,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-efs-side-right-cp.webp?v=24",
+      "bytes": 20361,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-side-left-cp.webp?v=24",
+      "bytes": 14695,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-vss-side-right-cp.webp?v=24",
+      "bytes": 15373,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-side-left-cp.webp?v=24",
+      "bytes": 17251,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/vent-side-right-cp.webp?v=24",
+      "bytes": 19433,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/ramp-top.webp?v=24",
+      "bytes": 24089,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/ramp-side.webp?v=24",
+      "bytes": 11301,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/seal-corner.webp?v=24",
+      "bytes": 13391,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/seal-mid.webp?v=24",
+      "bytes": 21421,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/step-front.webp?v=24",
+      "bytes": 28565,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/step-side.webp?v=24",
+      "bytes": 11157,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/desk-small.webp?v=24",
+      "bytes": 26729,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/desk-large.webp?v=24",
+      "bytes": 34299,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/mjp.webp?v=24",
+      "bytes": 5669,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-31-wdo1648.webp?v=24",
+      "bytes": 57749,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-wdo2630.webp?v=24",
+      "bytes": 78402,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-wdo2636.webp?v=24",
+      "bytes": 74304,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-wdo2642.webp?v=24",
+      "bytes": 68810,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-wdo2648.webp?v=24",
+      "bytes": 63427,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-43-wdo2636.webp?v=24",
+      "bytes": 81210,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-43-wdo2648.webp?v=24",
+      "bytes": 70430,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-wdo3230.webp?v=24",
+      "bytes": 87584,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-wdo3236.webp?v=24",
+      "bytes": 81224,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-wdo3242.webp?v=24",
+      "bytes": 74762,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-wdo3248.webp?v=24",
+      "bytes": 69602,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-7.webp?v=24",
+      "bytes": 19413,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-16.webp?v=24",
+      "bytes": 43425,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-19.webp?v=24",
+      "bytes": 50853,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-22.webp?v=24",
+      "bytes": 59395,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-28.webp?v=24",
+      "bytes": 73808,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-31.webp?v=24",
+      "bytes": 80656,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40.webp?v=24",
+      "bytes": 105544,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-43.webp?v=24",
+      "bytes": 112614,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46.webp?v=24",
+      "bytes": 121158,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-nv.webp?v=24",
+      "bytes": 105176,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-cbl.webp?v=24",
+      "bytes": 105686,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt.webp?v=24",
+      "bytes": 98614,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-cp.webp?v=24",
+      "bytes": 87450,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-vss.webp?v=24",
+      "bytes": 90496,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-vss-cp.webp?v=24",
+      "bytes": 81132,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-efs.webp?v=24",
+      "bytes": 84488,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-efs-cp.webp?v=24",
+      "bytes": 85480,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-vss-efs.webp?v=24",
+      "bytes": 90584,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-40-vnt-vss-efs-cp.webp?v=24",
+      "bytes": 79178,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-nv.webp?v=24",
+      "bytes": 120576,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-cbl.webp?v=24",
+      "bytes": 121106,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt.webp?v=24",
+      "bytes": 113672,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-cp.webp?v=24",
+      "bytes": 101016,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-vss.webp?v=24",
+      "bytes": 104230,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-vss-cp.webp?v=24",
+      "bytes": 94402,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-efs.webp?v=24",
+      "bytes": 111060,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-efs-cp.webp?v=24",
+      "bytes": 103624,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-vss-efs.webp?v=24",
+      "bytes": 103362,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-vnt-vss-efs-cp.webp?v=24",
+      "bytes": 91858,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-front.webp?v=24",
+      "bytes": 71886,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-back.webp?v=24",
+      "bytes": 74972,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-left.webp?v=24",
+      "bytes": 29065,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-right.webp?v=24",
+      "bytes": 28851,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-vss-front.webp?v=24",
+      "bytes": 72170,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-vss-back.webp?v=24",
+      "bytes": 75008,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-vss-left.webp?v=24",
+      "bytes": 41975,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/rm-7296-vss-right.webp?v=24",
+      "bytes": 37555,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-40-left.webp?v=24",
+      "bytes": 93994,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-40-right.webp?v=24",
+      "bytes": 93740,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-46-left.webp?v=24",
+      "bytes": 103924,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-46-right.webp?v=24",
+      "bytes": 105116,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-wa-left.webp?v=24",
+      "bytes": 102972,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-wa-right.webp?v=24",
+      "bytes": 102946,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-wa-ramp-left.webp?v=24",
+      "bytes": 95358,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/door-wa-ramp-right.webp?v=24",
+      "bytes": 95288,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-30.webp?v=24",
+      "bytes": 1216,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-42.webp?v=24",
+      "bytes": 13107,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-48.webp?v=24",
+      "bytes": 16743,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-60.webp?v=24",
+      "bytes": 8247,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-72.webp?v=24",
+      "bytes": 24133,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-84.webp?v=24",
+      "bytes": 25651,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-96.webp?v=24",
+      "bytes": 31033,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-102.webp?v=24",
+      "bytes": 10921,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-120.webp?v=24",
+      "bytes": 12937,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-126.webp?v=24",
+      "bytes": 13159,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-144.webp?v=24",
+      "bytes": 15331,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-168.webp?v=24",
+      "bytes": 17943,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-186.webp?v=24",
+      "bytes": 31893,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art/cp-192.webp?v=24",
+      "bytes": 28985,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp?v=15",
+      "bytes": 359268,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp?v=15",
+      "bytes": 76252,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-extl.webp?v=15",
+      "bytes": 201514,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp?v=15",
+      "bytes": 277642,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp?v=15",
+      "bytes": 58815,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-extr.webp?v=15",
+      "bytes": 143950,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp?v=15",
+      "bytes": 50773,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp?v=15",
+      "bytes": 74156,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp?v=15",
+      "bytes": 46399,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/foam-gray-iso30-intr.png?v=15",
+      "bytes": 158928,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp?v=15",
+      "bytes": 21419,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/foam-gray-iso30-intl.png?v=15",
+      "bytes": 133487,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp?v=15",
+      "bytes": 51399,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp?v=15",
+      "bytes": 28995,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp?v=15",
+      "bytes": 2872,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp?v=15",
+      "bytes": 59103,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp?v=15",
+      "bytes": 31471,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp?v=15",
+      "bytes": 402724,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp?v=15",
+      "bytes": 75140,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-intr.webp?v=15",
+      "bytes": 201862,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-iso30-intl.webp?v=15",
+      "bytes": 280788,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp?v=15",
+      "bytes": 57821,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-intl.webp?v=15",
+      "bytes": 143078,
+      "phase": "load"
+     },
+     {
+      "url": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp?v=15",
+      "bytes": 69976,
+      "phase": "load"
+     },
+     {
+      "url": "https://cdn.prod.website-files.com/675b3ebac52cdeef9e630d58/679aa01c37d9bcef0048ce78_7272%20S%20-%200.avif",
+      "bytes": 38053,
+      "phase": "load"
+     }
+    ],
+    "largest": [
+     {
+      "url": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp?v=15",
+      "bytes": 402724,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp?v=15",
+      "bytes": 359268,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/booth-builder?product=MDL%207272%20S",
+      "bytes": 310325,
+      "enc": "gzip",
+      "mime": "text/html"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-iso30-intl.webp?v=15",
+      "bytes": 280788,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp?v=15",
+      "bytes": 277642,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-intr.webp?v=15",
+      "bytes": 201862,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-extl.webp?v=15",
+      "bytes": 201514,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/foam-gray-iso30-intr.png?v=15",
+      "bytes": 158928,
+      "enc": "",
+      "mime": "image/png"
+     },
+     {
+      "url": "/assets/iso-render.js",
+      "bytes": 149048,
+      "enc": "gzip",
+      "mime": "text/javascript"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-extr.webp?v=15",
+      "bytes": 143950,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/wall-22-iso30-intl.webp?v=15",
+      "bytes": 143078,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art-iso30/foam-gray-iso30-intl.png?v=15",
+      "bytes": 133487,
+      "enc": "",
+      "mime": "image/png"
+     },
+     {
+      "url": "/assets/layout-render.js",
+      "bytes": 127370,
+      "enc": "gzip",
+      "mime": "text/javascript"
+     },
+     {
+      "url": "/assets/booth-art/wall-46.webp?v=24",
+      "bytes": 121158,
+      "enc": "",
+      "mime": "image/webp"
+     },
+     {
+      "url": "/assets/booth-art/wall-46-cbl.webp?v=24",
+      "bytes": 121106,
+      "enc": "",
+      "mime": "image/webp"
+     }
+    ]
+   },
+   "scriptTimeline": [
+    {
+     "name": "https://fonts.googleapis.com/css2",
+     "start": 30,
+     "end": 83,
+     "size": 878,
+     "type": "link"
+    },
+    {
+     "name": "/assets/layout-render.js",
+     "start": 30,
+     "end": 61,
+     "size": 127445,
+     "type": "script"
+    },
+    {
+     "name": "/assets/iso30-manifest.js",
+     "start": 30,
+     "end": 57,
+     "size": 40780,
+     "type": "script"
+    },
+    {
+     "name": "/assets/iso-render.js",
+     "start": 30,
+     "end": 64,
+     "size": 149123,
+     "type": "script"
+    },
+    {
+     "name": "/assets/engage.js",
+     "start": 30,
+     "end": 44,
+     "size": 4782,
+     "type": "script"
+    },
+    {
+     "name": "/api/booth-iso-geometry",
+     "start": 115,
+     "end": 125,
+     "size": 6723,
+     "type": "fetch"
+    },
+    {
+     "name": "/api/booth-layouts",
+     "start": 116,
+     "end": 125,
+     "size": 3001,
+     "type": "fetch"
+    },
+    {
+     "name": "/api/engage",
+     "start": 242,
+     "end": 487,
+     "size": 300,
+     "type": "beacon"
+    }
+   ],
+   "domImages": [
+    {
+     "kind": "img",
+     "src": "https://cdn.prod.website-files.com/675b3ebac52cdeef9e630d58/679aa01c37d9bcef0048ce78_7272%20S%20-%200.avif",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 62,
+     "ch": 48,
+     "visible": true
+    },
+    {
+     "kind": "img",
+     "src": "https://cdn.prod.website-files.com/675b3ebac52cdeef9e630d58/679aa01c37d9bcef0048ce78_7272%20S%20-%200.avif",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Cpath%20d%3D%22M22%202%2039%209.5%2022%2017%205%209.5Z%22%20fill%3D%22%235a5d63%22%2F%3E%3Cpath%20d%3D%22M5%209.5%2022%2017v15L5%2024.5Z%22%20fill%3D%22%2342454b%22%2F%3E%3Cpath%20d%3D%22M39%209.5%2022%2017v15l17-7.5Z%22%20fill%3D%22%23333639%22%2F%3E%3Cpath%20d%3D%22M11%2015.6%2016.6%2018v8.6L11%2024.2Z%22%20fill%3D%22%23ee6216%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Crect%20x%3D%228%22%20y%3D%222%22%20width%3D%2228%22%20height%3D%2222%22%20fill%3D%22none%22%20stroke%3D%22%2342454b%22%20stroke-width%3D%222.6%22%2F%3E%3Cpath%20d%3D%22M17%2024h10%22%20stroke%3D%22%23e9e4da%22%20stroke-width%3D%223.4%22%2F%3E%3Cpath%20d%3D%22M18%2024v8a8%208%200%200%200%208-8%22%20fill%3D%22none%22%20stroke%3D%22%23ee6216%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Crect%20x%3D%227%22%20y%3D%224%22%20width%3D%2230%22%20height%3D%2226%22%20fill%3D%22%2342454b%22%2F%3E%3Crect%20x%3D%2211%22%20y%3D%229%22%20width%3D%228%22%20height%3D%2221%22%20fill%3D%22%23ee6216%22%2F%3E%3Crect%20x%3D%2223%22%20y%3D%229%22%20width%3D%2210%22%20height%3D%228%22%20fill%3D%22%239fb6cc%22%2F%3E%3Cpath%20d%3D%22M23%2021h10M23%2024h10M23%2027h10%22%20stroke%3D%22%236e7680%22%20stroke-width%3D%221.6%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Cpath%20d%3D%22M22%202%2039%209.5%2022%2017%205%209.5Z%22%20fill%3D%22%235a5d63%22%2F%3E%3Cpath%20d%3D%22M5%209.5%2022%2017v15L5%2024.5Z%22%20fill%3D%22%2342454b%22%2F%3E%3Cpath%20d%3D%22M39%209.5%2022%2017v15l17-7.5Z%22%20fill%3D%22%23333639%22%2F%3E%3Cpath%20d%3D%22M11%2015.6%2016.6%2018v8.6L11%2024.2Z%22%20fill%3D%22%23ee6216%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 44,
+     "ch": 34,
+     "visible": true
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Crect%20x%3D%228%22%20y%3D%222%22%20width%3D%2228%22%20height%3D%2222%22%20fill%3D%22none%22%20stroke%3D%22%2342454b%22%20stroke-width%3D%222.6%22%2F%3E%3Cpath%20d%3D%22M17%2024h10%22%20stroke%3D%22%23e9e4da%22%20stroke-width%3D%223.4%22%2F%3E%3Cpath%20d%3D%22M18%2024v8a8%208%200%200%200%208-8%22%20fill%3D%22none%22%20stroke%3D%22%23ee6216%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 44,
+     "ch": 34,
+     "visible": true
+    },
+    {
+     "kind": "img",
+     "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2044%2034%22%3E%3Crect%20x%3D%227%22%20y%3D%224%22%20width%3D%2230%22%20height%3D%2226%22%20fill%3D%22%2342454b%22%2F%3E%3Crect%20x%3D%2211%22%20y%3D%229%22%20width%3D%228%22%20height%3D%2221%22%20fill%3D%22%23ee6216%22%2F%3E%3Crect%20x%3D%2223%22%20y%3D%229%22%20width%3D%2210%22%20height%3D%228%22%20fill%3D%22%239fb6cc%22%2F%3E%3Cpath%20d%3D%22M23%2021h10M23%2024h10M23%2027h10%22%20stroke%3D%22%236e7680%22%20stroke-width%3D%221.6%22%2F%3E%3C%2Fsvg%3E",
+     "nw": 194,
+     "nh": 150,
+     "cw": 44,
+     "ch": 34,
+     "visible": true
+    },
+    {
+     "kind": "img",
+     "src": "https://cdn.prod.website-files.com/675b3ebac52cdeef9e630d58/679aa01c37d9bcef0048ce78_7272%20S%20-%200.avif",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 0,
+     "ch": 0,
+     "visible": false
+    },
+    {
+     "kind": "canvas",
+     "src": "bbRoomCanvas",
+     "nw": 1084,
+     "nh": 870,
+     "cw": 1084,
+     "ch": 870,
+     "visible": true
+    },
+    {
+     "kind": "canvas",
+     "src": "bbIsoCanvas",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 782,
+     "ch": 782,
+     "visible": true
+    },
+    {
+     "kind": "canvas",
+     "src": "bbIsoMarks",
+     "nw": 1080,
+     "nh": 1080,
+     "cw": 782,
+     "ch": 782,
+     "visible": true
+    },
+    {
+     "kind": "canvas",
+     "src": "bbIsoDims",
+     "nw": 1,
+     "nh": 1,
+     "cw": 782,
+     "ch": 782,
+     "visible": true
+    },
+    {
+     "kind": "canvas",
+     "src": "bbIsoAnim",
+     "nw": 300,
+     "nh": 150,
+     "cw": 782,
+     "ch": 782,
+     "visible": true
+    }
+   ],
+   "canvases": {
+    "count": 53,
+    "px": 43186772,
+    "sizes": [
+     [
+      "1080x1080",
+      33
+     ],
+     [
+      "300x150",
+      12
+     ],
+     [
+      "1084x790",
+      4
+     ],
+     [
+      "247x739",
+      4
+     ]
+    ]
+   },
+   "getImageData": {
+    "calls": 0,
+    "px": 0
+   },
+   "drawImageStats": {
+    "load": {
+     "n": 524,
+     "px": 90732205.40793107,
+     "img": 168,
+     "cv": 356
+    }
+   },
+   "drawImage": [
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intr.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-iso30-intl.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intl.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp",
+     "nw": 213,
+     "nh": 314,
+     "dw": 95,
+     "dh": 147,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intr.png",
+     "nw": 365,
+     "nh": 923,
+     "dw": 162,
+     "dh": 410,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intl.png",
+     "nw": 297,
+     "nh": 961,
+     "dw": 132,
+     "dh": 425,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 414,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 344,
+     "dw": 525,
+     "dh": 305,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intr.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-iso30-intl.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intl.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp",
+     "nw": 213,
+     "nh": 314,
+     "dw": 95,
+     "dh": 147,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intr.png",
+     "nw": 365,
+     "nh": 923,
+     "dw": 162,
+     "dh": 410,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intl.png",
+     "nw": 297,
+     "nh": 961,
+     "dw": 132,
+     "dh": 425,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 414,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 344,
+     "dw": 525,
+     "dh": 305,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intr.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-iso30-intl.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intl.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp",
+     "nw": 213,
+     "nh": 314,
+     "dw": 95,
+     "dh": 147,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intr.png",
+     "nw": 365,
+     "nh": 923,
+     "dw": 162,
+     "dh": 410,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intl.png",
+     "nw": 297,
+     "nh": 961,
+     "dw": 132,
+     "dh": 425,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 414,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 344,
+     "dw": 525,
+     "dh": 305,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-intr.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intr.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intr.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-iso30-intl.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-intl.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-intl.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-intfar.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/duct-hi-iso30-intr.webp",
+     "nw": 213,
+     "nh": 314,
+     "dw": 95,
+     "dh": 147,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intr.png",
+     "nw": 365,
+     "nh": 923,
+     "dw": 162,
+     "dh": 410,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/foam-gray-iso30-intl.png",
+     "nw": 297,
+     "nh": 961,
+     "dw": 132,
+     "dh": 425,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/door-46-right-iso30-extl.webp",
+     "nw": 693,
+     "nh": 1590,
+     "dw": 306,
+     "dh": 703,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extl.webp",
+     "nw": 128,
+     "nh": 1369,
+     "dw": 57,
+     "dh": 605,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extl.webp",
+     "nw": 338,
+     "nh": 1452,
+     "dw": 150,
+     "dh": 642,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-mid-iso30-extr.webp",
+     "nw": 106,
+     "nh": 1380,
+     "dw": 47,
+     "dh": 610,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-22-iso30-extr.webp",
+     "nw": 270,
+     "nh": 1486,
+     "dw": 120,
+     "dh": 656,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extl.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extnear.webp",
+     "nw": 130,
+     "nh": 1359,
+     "dw": 58,
+     "dh": 601,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/seal-corner-iso30-extr.webp",
+     "nw": 85,
+     "nh": 1382,
+     "dw": 38,
+     "dh": 611,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 413,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/floor-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 345,
+     "dw": 525,
+     "dh": 306,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/flseal-72-iso30-intr.webp",
+     "nw": 449,
+     "nh": 287,
+     "dw": 398,
+     "dh": 253,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/wall-46-vnt-iso30-extr.webp",
+     "nw": 548,
+     "nh": 1662,
+     "dw": 242,
+     "dh": 735,
+     "onscreen": false,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7248-iso30-intr.webp",
+     "nw": 771,
+     "nh": 414,
+     "dw": 681,
+     "dh": 367,
+     "onscreen": true,
+     "phase": "load"
+    },
+    {
+     "src": "/assets/booth-art-iso30/ceil-7224-iso30-extl.webp",
+     "nw": 594,
+     "nh": 344,
+     "dw": 525,
+     "dh": 305,
+     "onscreen": true,
+     "phase": "load"
+    }
+   ],
+   "metrics": {
+    "nodes": 1461,
+    "listeners": 302,
+    "heapUsedMB": 6.6,
+    "heapTotalMB": 11.8,
+    "docs": 5,
+    "frames": 4,
+    "layoutCount": 23,
+    "styleCount": 542,
+    "script_s": 0.267,
+    "layout_s": 0.106,
+    "style_s": 0.033,
+    "task_s": 3.233
+   },
+   "trace": {
+    "traceSpan_ms": 6054,
+    "mainThreadTask_ms": 2740.6,
+    "byName": {
+     "RunTask": {
+      "n": 3663,
+      "ms": 2740.6
+     },
+     "ThreadControllerImpl::RunTask": {
+      "n": 3641,
+      "ms": 2073.8
+     },
+     "RunMicrotasks": {
+      "n": 50,
+      "ms": 1869.4
+     },
+     "v8.callFunction": {
+      "n": 37,
+      "ms": 1526.7
+     },
+     "EventDispatch": {
+      "n": 188,
+      "ms": 1266.8
+     },
+     "BlinkScheduler_PerformMicrotaskCheckpoint": {
+      "n": 3241,
+      "ms": 608.4
+     },
+     "AsyncTask Run": {
+      "n": 191,
+      "ms": 286.1
+     },
+     "DecodingImageGenerator::getPixels": {
+      "n": 24,
+      "ms": 283.8
+     },
+     "Decode LazyPixelRef": {
+      "n": 24,
+      "ms": 283.7
+     },
+     "ImageFrameGenerator::decodeAndScale": {
+      "n": 24,
+      "ms": 283.6
+     },
+     "ImageFrameGenerator::decode": {
+      "n": 24,
+      "ms": 283
+     },
+     "ImageDecoder::DecodeFrameBufferAtIndex": {
+      "n": 24,
+      "ms": 283
+     },
+     "Decode Image": {
+      "n": 24,
+      "ms": 282.8
+     },
+     "FunctionCall": {
+      "n": 37,
+      "ms": 260.9
+     },
+     "TimerBase::run": {
+      "n": 21,
+      "ms": 260.5
+     },
+     "TimerFire": {
+      "n": 2,
+      "ms": 259.5
+     },
+     "Commit": {
+      "n": 226,
+      "ms": 258.3
+     },
+     "Canvas2DResourceProvider::ProduceCanvasResource": {
+      "n": 662,
+      "ms": 235.7
+     },
+     "WebFrameWidgetImpl::UpdateLifecycle": {
+      "n": 226,
+      "ms": 150.3
+     },
+     "LocalFrameView::UpdateStyleAndLayout": {
+      "n": 11746,
+      "ms": 142
+     },
+     "Document::UpdateStyleAndLayout": {
+      "n": 17048,
+      "ms": 133.7
+     },
+     "Blink.ForcedStyleAndLayout.UpdateTime": {
+      "n": 17042,
+      "ms": 110.5
+     },
+     "Blink.Layout.UpdateTime": {
+      "n": 23,
+      "ms": 105.6
+     },
+     "LocalFrameView::layout": {
+      "n": 29,
+      "ms": 105.5
+     },
+     "Layout": {
+      "n": 29,
+      "ms": 105.5
+     },
+     "LocalFrameView::performLayout": {
+      "n": 29,
+      "ms": 104.9
+     },
+     "LocalFrameView::RunPaintLifecyclePhase": {
+      "n": 230,
+      "ms": 80.7
+     },
+     "Paint": {
+      "n": 445,
+      "ms": 72
+     },
+     "Blink.Paint.UpdateTime": {
+      "n": 226,
+      "ms": 66.5
+     },
+     "InlineNode::ShapeTextIncludingFirstLine": {
+      "n": 300,
+      "ms": 63.9
+     }
+    },
+    "compile_ms": {
+     "?": 6.5,
+     "http://127.0.0.1:8791/booth-builder?product=MDL%207272%20S": 5.9,
+     "http://127.0.0.1:8791/assets/layout-render.js": 0,
+     "http://127.0.0.1:8791/assets/engage.js": 0,
+     "http://127.0.0.1:8791/assets/iso30-manifest.js": 0,
+     "http://127.0.0.1:8791/assets/iso-render.js": 0
+    },
+    "evaluate_ms": {
+     "http://127.0.0.1:8791/booth-builder?product=MDL%207272%20S": 13.3,
+     "inline": 1.2,
+     "http://127.0.0.1:8791/assets/iso-render.js": 0.8,
+     "http://127.0.0.1:8791/assets/engage.js": 0.7,
+     "http://127.0.0.1:8791/assets/iso30-manifest.js": 0.5,
+     "http://127.0.0.1:8791/assets/layout-render.js": 0.5
+    },
+    "topFunctions": {
+     "showDoorCoach booth-builder?product=MDL%207272%20S:7434": {
+      "n": 1,
+      "ms": 259.4
+     },
+     "(anon) :8": {
+      "n": 1,
+      "ms": 0.3
+     },
+     "PerformanceObserver.observe.type :6": {
+      "n": 3,
+      "ms": 0.3
+     },
+     "im.onload iso-render.js:3914": {
+      "n": 24,
+      "ms": 0.3
+     },
+     "PerformanceObserver.observe.type :5": {
+      "n": 2,
+      "ms": 0.2
+     },
+     "(anon) booth-builder?product=MDL%207272%20S:6303": {
+      "n": 1,
+      "ms": 0.1
+     },
+     "PerformanceObserver.observe.type :4": {
+      "n": 1,
+      "ms": 0.1
+     },
+     "(anon) :13": {
+      "n": 1,
+      "ms": 0.1
+     },
+     "(anon) booth-builder?product=MDL%207272%20S:7291": {
+      "n": 1,
+      "ms": 0.1
+     },
+     "(anon) pptr:evaluate;C%3A%5CUsers%5Cbento%5CDocuments%5CClaude%5CSketchup%5C.forge%5Cauditor%5Cbooth-builder%5Crig%5Cperf.js%3A211%3A16:1": {
+      "n": 1,
+      "ms": 0.1
+     },
+     "(anon) :0": {
+      "n": 1,
+      "ms": 0
+     }
+    },
+    "longTasks": [
+     {
+      "start_ms": 136.5,
+      "dur_ms": 599.6,
+      "top": "Layout  60.7ms",
+      "children": [
+       "Layout  60.7ms",
+       "ParseHTML  3.9ms",
+       "UpdateLayoutTree  2.1ms",
+       "ParseHTML  1.4ms",
+       "Layout  1.3ms"
+      ]
+     },
+     {
+      "start_ms": 864.7,
+      "dur_ms": 1288.8,
+      "top": "EventDispatch  1265.5ms",
+      "children": [
+       "EventDispatch  1265.5ms",
+       "Decode Image  43.4ms",
+       "Decode Image  39.1ms",
+       "Decode Image  31.5ms",
+       "Decode Image  27.4ms"
+      ]
+     },
+     {
+      "start_ms": 2165,
+      "dur_ms": 259.4,
+      "top": "TimerFire  259.4ms",
+      "children": [
+       "TimerFire  259.4ms",
+       "FunctionCall showDoorCoach:7434 259.4ms",
+       "Layout  2.9ms",
+       "UpdateLayoutTree  0.4ms",
+       "ParseHTML  0.2ms"
+      ]
+     }
+    ],
+    "forcedLayouts": {
+     "count": 17,
+     "total_ms": 68.3,
+     "by": {
+      "render booth-builder?product=MDL%207272%20S:8210": {
+       "n": 4,
+       "ms": 64.2
+      },
+      "positionDoorCoach booth-builder?product=MDL%207272%20S:7431": {
+       "n": 1,
+       "ms": 2.9
+      },
+      "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657": {
+       "n": 5,
+       "ms": 0.5
+      },
+      "render booth-builder?product=MDL%207272%20S:7854": {
+       "n": 3,
+       "ms": 0.4
+      },
+      "fitStageToColumn booth-builder?product=MDL%207272%20S:7169": {
+       "n": 2,
+       "ms": 0.2
+      },
+      "bb2DrawRoomStage booth-builder?product=MDL%207272%20S:6390": {
+       "n": 1,
+       "ms": 0.2
+      },
+      "(anon) booth-builder?product=MDL%207272%20S:9937": {
+       "n": 1,
+       "ms": 0.1
+      }
+     },
+     "examples": [
+      {
+       "t": 149.9,
+       "us": 60698,
+       "fn": "render booth-builder?product=MDL%207272%20S:8210",
+       "dirty": 210,
+       "stack": [
+        "render:8210",
+        "rebuild:3716",
+        "applyFormIntent:4529",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 215.6,
+       "us": 105,
+       "fn": "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657",
+       "dirty": 8,
+       "stack": [
+        "bb2MonitorShift:6657",
+        "bb2ApplyMonitorShift:6677",
+        "bb2ApplyRoomPad:6719",
+        "bb2DrawRoomStage:6394",
+        "bb2AfterRender:13451"
+       ]
+      },
+      {
+       "t": 218,
+       "us": 180,
+       "fn": "render booth-builder?product=MDL%207272%20S:7854",
+       "dirty": 7,
+       "stack": [
+        "render:7854",
+        "rebuild:3716",
+        "applyFormIntent:4551",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 223.1,
+       "us": 1122,
+       "fn": "render booth-builder?product=MDL%207272%20S:8210",
+       "dirty": 210,
+       "stack": [
+        "render:8210",
+        "rebuild:3716",
+        "applyFormIntent:4551",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 226.5,
+       "us": 103,
+       "fn": "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657",
+       "dirty": 8,
+       "stack": [
+        "bb2MonitorShift:6657",
+        "bb2ApplyMonitorShift:6677",
+        "bb2ApplyRoomPad:6719",
+        "bb2DrawRoomStage:6394",
+        "bb2AfterRender:13451"
+       ]
+      },
+      {
+       "t": 227.3,
+       "us": 96,
+       "fn": "render booth-builder?product=MDL%207272%20S:7854",
+       "dirty": 7,
+       "stack": [
+        "render:7854",
+        "applyFormIntent:4559",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 229.8,
+       "us": 1344,
+       "fn": "render booth-builder?product=MDL%207272%20S:8210",
+       "dirty": 210,
+       "stack": [
+        "render:8210",
+        "applyFormIntent:4559",
+        "boot:13580"
+       ]
+      },
+      {
+       "t": 233.5,
+       "us": 106,
+       "fn": "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657",
+       "dirty": 8,
+       "stack": [
+        "bb2MonitorShift:6657",
+        "bb2ApplyMonitorShift:6677",
+        "bb2ApplyRoomPad:6719",
+        "bb2DrawRoomStage:6394",
+        "bb2AfterRender:13451"
+       ]
+      },
+      {
+       "t": 234.3,
+       "us": 91,
+       "fn": "render booth-builder?product=MDL%207272%20S:7854",
+       "dirty": 7,
+       "stack": [
+        "render:7854",
+        "boot:13625"
+       ]
+      },
+      {
+       "t": 237.5,
+       "us": 1018,
+       "fn": "render booth-builder?product=MDL%207272%20S:8210",
+       "dirty": 210,
+       "stack": [
+        "render:8210",
+        "boot:13625"
+       ]
+      },
+      {
+       "t": 240.5,
+       "us": 94,
+       "fn": "bb2MonitorShift booth-builder?product=MDL%207272%20S:6657",
+       "dirty": 8,
+       "stack": [
+        "bb2MonitorShift:6657",
+        "bb2ApplyMonitorShift:6677",
+        "bb2ApplyRoomPad:6719",
+        "bb2DrawRoomStage:6394",
+        "bb2AfterRender:13451"
+       ]
+      },
+      {
+       "t": 2123.1,
+       "us": 139,
+       "fn": "fitStageToColumn booth-builder?product=MDL%207272%20S:7169",
+       "dirty": 10,
+       "stack": [
+        "fitStageToColumn:7169",
+        "(anon):9922"
+       ]
+      }
+     ]
+    }
+   },
+   "cpu": null,
+   "errors": []
+  }
+ ],
+ "conditions": {
+  "viewport": "1440x900 @1x",
+  "cpuThrottle": "none",
+  "network": "localhost, unthrottled"
+ },
+ "cacheDisabled": true,
+ "profiler": false,
+ "gpu": false,
+ "server": "gzip on text types; flags tdArt+angled+bb2 ON",
+ "has": {
+  "bb2": true,
+  "iso": true,
+  "models": [
+   "MDL 4230",
+   "MDL 4242",
+   "MDL 4260",
+   "MDL 4284",
+   "MDL 4848",
+   "MDL 4872",
+   "MDL 4896",
+   "MDL 6060",
+   "MDL 6084",
+   "MDL 7272",
+   "MDL 7296",
+   "MDL 8484",
+   "MDL 9696",
+   "MDL 10284",
+   "MDL 84102",
+   "MDL 84126",
+   "MDL 96120",
+   "MDL 96144",
+   "MDL 96168",
+   "MDL 96192",
+   "MDL 102102",
+   "MDL 102126",
+   "MDL 102144",
+   "MDL 102168",
+   "MDL 102186"
+  ]
+ },
+ "interactions": [
+  {
+   "name": "setOpt vss on",
+   "err": null,
+   "wall_to_next_frame_ms": 786.9,
+   "task_ms": 775.5,
+   "script_ms": 0.1,
+   "layout_ms": 1.7,
+   "style_ms": 2,
+   "layouts": 10,
+   "styleRecalcs": 12,
+   "nodesDelta": -464,
+   "listenersDelta": -63,
+   "longtasks": [
+    429
+   ],
+   "longtaskTotal_ms": 429,
+   "requests": 2,
+   "reqBytes": 667988,
+   "imgReqs": 2,
+   "cpu": null
+  },
+  {
+   "name": "setOpt vss off",
+   "err": null,
+   "wall_to_next_frame_ms": 181.2,
+   "task_ms": 152.6,
+   "script_ms": 0.5,
+   "layout_ms": 1.4,
+   "style_ms": 1.2,
+   "layouts": 8,
+   "styleRecalcs": 10,
+   "nodesDelta": 623,
+   "listenersDelta": 101,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 1,
+   "reqBytes": 111,
+   "imgReqs": 0,
+   "cpu": null
+  },
+  {
+   "name": "setOpt studioLight on",
+   "err": null,
+   "wall_to_next_frame_ms": 329.3,
+   "task_ms": 309.8,
+   "script_ms": 0,
+   "layout_ms": 1.3,
+   "style_ms": 1.1,
+   "layouts": 8,
+   "styleRecalcs": 10,
+   "nodesDelta": -143,
+   "listenersDelta": -19,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 0,
+   "reqBytes": 0,
+   "imgReqs": 0,
+   "cpu": null
+  },
+  {
+   "name": "setOpt studioLight off",
+   "err": null,
+   "wall_to_next_frame_ms": 268.6,
+   "task_ms": 242.6,
+   "script_ms": 0,
+   "layout_ms": 1.6,
+   "style_ms": 1.3,
+   "layouts": 8,
+   "styleRecalcs": 10,
+   "nodesDelta": 623,
+   "listenersDelta": 101,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 0,
+   "reqBytes": 0,
+   "imgReqs": 0,
+   "cpu": null
+  },
+  {
+   "name": "view top",
+   "err": null,
+   "wall_to_next_frame_ms": 83.5,
+   "task_ms": 60.2,
+   "script_ms": 0.4,
+   "layout_ms": 26.7,
+   "style_ms": 2.8,
+   "layouts": 3,
+   "styleRecalcs": 9,
+   "nodesDelta": 682,
+   "listenersDelta": 82,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 9,
+   "reqBytes": 515043,
+   "imgReqs": 9,
+   "cpu": null
+  },
+  {
+   "name": "view elev",
+   "err": null,
+   "wall_to_next_frame_ms": 42.7,
+   "task_ms": 19.9,
+   "script_ms": 0,
+   "layout_ms": 3.6,
+   "style_ms": 1.3,
+   "layouts": 3,
+   "styleRecalcs": 5,
+   "nodesDelta": 706,
+   "listenersDelta": 85,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 13,
+   "reqBytes": 625004,
+   "imgReqs": 13,
+   "cpu": null
+  },
+  {
+   "name": "view iso",
+   "err": null,
+   "wall_to_next_frame_ms": 191.5,
+   "task_ms": 195.9,
+   "script_ms": 0,
+   "layout_ms": 1,
+   "style_ms": 0.9,
+   "layouts": 7,
+   "styleRecalcs": 10,
+   "nodesDelta": -527,
+   "listenersDelta": -68,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 0,
+   "reqBytes": 0,
+   "imgReqs": 0,
+   "cpu": null
+  },
+  {
+   "name": "iso corner rotate",
+   "err": null,
+   "wall_to_next_frame_ms": 466.9,
+   "task_ms": 496,
+   "script_ms": 1.5,
+   "layout_ms": 1.4,
+   "style_ms": 1,
+   "layouts": 9,
+   "styleRecalcs": 11,
+   "nodesDelta": -1972,
+   "listenersDelta": -270,
+   "longtasks": [
+    170
+   ],
+   "longtaskTotal_ms": 170,
+   "requests": 7,
+   "reqBytes": 551763,
+   "imgReqs": 6,
+   "cpu": null
+  },
+  {
+   "name": "rung roof-off",
+   "err": null,
+   "wall_to_next_frame_ms": 679.7,
+   "task_ms": 773.7,
+   "script_ms": 2.2,
+   "layout_ms": 1.2,
+   "style_ms": 1,
+   "layouts": 9,
+   "styleRecalcs": 11,
+   "nodesDelta": 237,
+   "listenersDelta": 43,
+   "longtasks": [
+    404
+   ],
+   "longtaskTotal_ms": 404,
+   "requests": 2,
+   "reqBytes": 663584,
+   "imgReqs": 2,
+   "cpu": null
+  },
+  {
+   "name": "rung roof-on",
+   "err": null,
+   "wall_to_next_frame_ms": 226.9,
+   "task_ms": 305.4,
+   "script_ms": 2.8,
+   "layout_ms": 1.3,
+   "style_ms": 1,
+   "layouts": 8,
+   "styleRecalcs": 10,
+   "nodesDelta": 623,
+   "listenersDelta": 101,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 0,
+   "reqBytes": 0,
+   "imgReqs": 0,
+   "cpu": null
+  },
+  {
+   "name": "room eye on",
+   "err": null,
+   "wall_to_next_frame_ms": 44.3,
+   "task_ms": 68.6,
+   "script_ms": 2.1,
+   "layout_ms": 5.9,
+   "style_ms": 1.4,
+   "layouts": 10,
+   "styleRecalcs": 15,
+   "nodesDelta": -831,
+   "listenersDelta": -138,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 0,
+   "reqBytes": 0,
+   "imgReqs": 0,
+   "cpu": null
+  },
+  {
+   "name": "room eye off",
+   "err": null,
+   "wall_to_next_frame_ms": 33.8,
+   "task_ms": 11.4,
+   "script_ms": 0.2,
+   "layout_ms": 0.1,
+   "style_ms": 0.3,
+   "layouts": 2,
+   "styleRecalcs": 5,
+   "nodesDelta": 2,
+   "listenersDelta": 0,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 0,
+   "reqBytes": 0,
+   "imgReqs": 0,
+   "cpu": null
+  },
+  {
+   "name": "open gallery",
+   "err": null,
+   "wall_to_next_frame_ms": 31.4,
+   "task_ms": 68.9,
+   "script_ms": 0,
+   "layout_ms": 9.5,
+   "style_ms": 0.6,
+   "layouts": 14,
+   "styleRecalcs": 2,
+   "nodesDelta": 661,
+   "listenersDelta": 92,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 43,
+   "reqBytes": 1241388,
+   "imgReqs": 0,
+   "cpu": null
+  },
+  {
+   "name": "close gallery",
+   "err": null,
+   "wall_to_next_frame_ms": 27.3,
+   "task_ms": 2.7,
+   "script_ms": 0,
+   "layout_ms": 0,
+   "style_ms": 0.3,
+   "layouts": 1,
+   "styleRecalcs": 2,
+   "nodesDelta": 0,
+   "listenersDelta": 0,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 0,
+   "reqBytes": 0,
+   "imgReqs": 0,
+   "cpu": null
+  },
+  {
+   "name": "setModel MDL 96120",
+   "err": null,
+   "wall_to_next_frame_ms": 769.4,
+   "task_ms": 732.3,
+   "script_ms": 0.1,
+   "layout_ms": 1.7,
+   "style_ms": 1,
+   "layouts": 9,
+   "styleRecalcs": 11,
+   "nodesDelta": -638,
+   "listenersDelta": -76,
+   "longtasks": [
+    332
+   ],
+   "longtaskTotal_ms": 332,
+   "requests": 105,
+   "reqBytes": 6348838,
+   "imgReqs": 105,
+   "cpu": null,
+   "modelAfter": "MDL 96120"
+  },
+  {
+   "name": "setModel MDL 6084",
+   "err": null,
+   "wall_to_next_frame_ms": 551.3,
+   "task_ms": 527.1,
+   "script_ms": 0.5,
+   "layout_ms": 1.5,
+   "style_ms": 1.1,
+   "layouts": 8,
+   "styleRecalcs": 11,
+   "nodesDelta": 752,
+   "listenersDelta": 115,
+   "longtasks": [
+    192
+   ],
+   "longtaskTotal_ms": 192,
+   "requests": 107,
+   "reqBytes": 6356822,
+   "imgReqs": 105,
+   "cpu": null,
+   "modelAfter": "MDL 6084"
+  },
+  {
+   "name": "setModel MDL 4848",
+   "err": null,
+   "wall_to_next_frame_ms": 305.5,
+   "task_ms": 300.9,
+   "script_ms": 0.1,
+   "layout_ms": 1.4,
+   "style_ms": 0.9,
+   "layouts": 8,
+   "styleRecalcs": 11,
+   "nodesDelta": 217,
+   "listenersDelta": 45,
+   "longtasks": [
+    111
+   ],
+   "longtaskTotal_ms": 111,
+   "requests": 3,
+   "reqBytes": 105636,
+   "imgReqs": 2,
+   "cpu": null,
+   "modelAfter": "MDL 4848"
+  },
+  {
+   "name": "setModel MDL 7272",
+   "err": null,
+   "wall_to_next_frame_ms": 189.7,
+   "task_ms": 208.5,
+   "script_ms": 0,
+   "layout_ms": 1.2,
+   "style_ms": 0.9,
+   "layouts": 8,
+   "styleRecalcs": 10,
+   "nodesDelta": -1194,
+   "listenersDelta": -179,
+   "longtasks": [],
+   "longtaskTotal_ms": 0,
+   "requests": 9,
+   "reqBytes": 429558,
+   "imgReqs": 8,
+   "cpu": null,
+   "modelAfter": "MDL 7272"
+  }
+ ],
+ "memory": {
+  "series": [
+   {
+    "i": 0,
+    "model": "MDL 7272",
+    "heapMB": 4,
+    "nodes": 818,
+    "listeners": 254,
+    "chromeRssMB": 2974
+   },
+   {
+    "i": 1,
+    "model": "MDL 4848",
+    "heapMB": 4,
+    "nodes": 812,
+    "listeners": 253,
+    "docs": 4,
+    "chromeRssMB": 2952
+   },
+   {
+    "i": 2,
+    "model": "MDL 6084",
+    "heapMB": 4.11,
+    "nodes": 818,
+    "listeners": 254,
+    "docs": 4,
+    "chromeRssMB": 2947
+   },
+   {
+    "i": 3,
+    "model": "MDL 96120",
+    "heapMB": 4.02,
+    "nodes": 818,
+    "listeners": 254,
+    "docs": 4,
+    "chromeRssMB": 2930
+   },
+   {
+    "i": 4,
+    "model": "MDL 7272",
+    "heapMB": 4.02,
+    "nodes": 818,
+    "listeners": 254,
+    "docs": 4,
+    "chromeRssMB": 3092
+   },
+   {
+    "i": 5,
+    "model": "MDL 4872",
+    "heapMB": 4.02,
+    "nodes": 820,
+    "listeners": 258,
+    "docs": 4,
+    "chromeRssMB": 2450
+   },
+   {
+    "i": 6,
+    "model": "MDL 6060",
+    "heapMB": 4.07,
+    "nodes": 826,
+    "listeners": 270,
+    "docs": 4,
+    "chromeRssMB": 3278
+   },
+   {
+    "i": 7,
+    "model": "MDL 7296",
+    "heapMB": 4.16,
+    "nodes": 828,
+    "listeners": 274,
+    "docs": 4,
+    "chromeRssMB": 3179
+   },
+   {
+    "i": 8,
+    "model": "MDL 8484",
+    "heapMB": 4.04,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 3062
+   },
+   {
+    "i": 9,
+    "model": "MDL 4848",
+    "heapMB": 4.04,
+    "nodes": 827,
+    "listeners": 283,
+    "docs": 4,
+    "chromeRssMB": 3123
+   },
+   {
+    "i": 10,
+    "model": "MDL 6084",
+    "heapMB": 4.13,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 2896
+   },
+   {
+    "i": 11,
+    "model": "MDL 96120",
+    "heapMB": 4.1,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 1718
+   },
+   {
+    "i": 12,
+    "model": "MDL 7272",
+    "heapMB": 4.1,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 1752
+   },
+   {
+    "i": 13,
+    "model": "MDL 4872",
+    "heapMB": 4.2,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 1770
+   },
+   {
+    "i": 14,
+    "model": "MDL 6060",
+    "heapMB": 4.11,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 1783
+   },
+   {
+    "i": 15,
+    "model": "MDL 7296",
+    "heapMB": 4.11,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 1789
+   },
+   {
+    "i": 16,
+    "model": "MDL 8484",
+    "heapMB": 4.2,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 1828
+   },
+   {
+    "i": 17,
+    "model": "MDL 4848",
+    "heapMB": 4.08,
+    "nodes": 827,
+    "listeners": 283,
+    "docs": 4,
+    "chromeRssMB": 2184
+   },
+   {
+    "i": 18,
+    "model": "MDL 6084",
+    "heapMB": 4.14,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 2284
+   },
+   {
+    "i": 19,
+    "model": "MDL 96120",
+    "heapMB": 4.24,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 2290
+   },
+   {
+    "i": 20,
+    "model": "MDL 7272",
+    "heapMB": 4.15,
+    "nodes": 833,
+    "listeners": 284,
+    "docs": 4,
+    "chromeRssMB": 2214
+   }
+  ],
+  "snapshot": {
+   "file": "C:\\Users\\bento\\Documents\\Claude\\Sketchup\\.forge\\auditor\\booth-builder\\out\\desktop-np2-heap.heapsnapshot",
+   "nodeCount": 136345,
+   "detachedNodes": 0,
+   "detachedBytesSelf": 0,
+   "detachedKinds": [],
+   "canvasRelatedObjects": 20,
+   "imageElements": 3,
+   "topSelfSize": [
+    {
+     "name": "system / JSArrayBufferData",
+     "n": 280,
+     "MB": 143.4
+    },
+    {
+     "name": "system / ExternalStringData",
+     "n": 250,
+     "MB": 2.86
+    },
+    {
+     "name": "code",
+     "n": 17004,
+     "MB": 1.69
+    },
+    {
+     "name": "blink::NetworkResourcesData::ResourceData",
+     "n": 4782,
+     "MB": 1.31
+    },
+    {
+     "name": "array",
+     "n": 11195,
+     "MB": 0.64
+    },
+    {
+     "name": "string",
+     "n": 26189,
+     "MB": 0.33
+    },
+    {
+     "name": "object shape",
+     "n": 4869,
+     "MB": 0.27
+    },
+    {
+     "name": "Object",
+     "n": 6070,
+     "MB": 0.22
+    },
+    {
+     "name": "blink::ImmutableCSSPropertyValueSet",
+     "n": 1420,
+     "MB": 0.22
+    },
+    {
+     "name": "blink::ImageResource",
+     "n": 71,
+     "MB": 0.2
+    },
+    {
+     "name": "system / FunctionTemplateInfo",
+     "n": 3243,
+     "MB": 0.2
+    },
+    {
+     "name": "Array",
+     "n": 11031,
+     "MB": 0.17
+    },
+    {
+     "name": "closure",
+     "n": 4711,
+     "MB": 0.13
+    },
+    {
+     "name": "blink::StyleRule",
+     "n": 1321,
+     "MB": 0.11
+    },
+    {
+     "name": "system / WeakArrayList",
+     "n": 389,
+     "MB": 0.09
+    },
+    {
+     "name": "number",
+     "n": 12562,
+     "MB": 0.09
+    },
+    {
+     "name": "blink::ComputedStyleBase::StyleSurroundData",
+     "n": 200,
+     "MB": 0.06
+    },
+    {
+     "name": "system / PropertyCell",
+     "n": 3118,
+     "MB": 0.06
+    },
+    {
+     "name": "system / DoubleStringCache",
+     "n": 1,
+     "MB": 0.05
+    },
+    {
+     "name": "blink::CSSVariableData",
+     "n": 1025,
+     "MB": 0.05
+    },
+    {
+     "name": "system / ArrayList",
+     "n": 91,
+     "MB": 0.05
+    },
+    {
+     "name": "blink::ComputedStyle",
+     "n": 624,
+     "MB": 0.04
+    },
+    {
+     "name": "blink::ComputedStyleBase::StyleBoxData",
+     "n": 234,
+     "MB": 0.04
+    },
+    {
+     "name": "PerformanceResourceTiming",
+     "n": 251,
+     "MB": 0.03
+    },
+    {
+     "name": "blink::CachedMatchedProperties",
+     "n": 263,
+     "MB": 0.03
+    }
+   ]
+  },
+  "canvasesCreated": {
+   "count": 473,
+   "alive": 3,
+   "alivePx": 2154480,
+   "byPhase": {
+    "load": 53,
+    "setOpt vss on": 24,
+    "setOpt vss off": 14,
+    "setOpt studioLight on": 16,
+    "setOpt studioLight off": 14,
+    "view iso": 14,
+    "iso corner rotate": 14,
+    "rung roof-off": 18,
+    "rung roof-on": 15,
+    "room eye on": 3,
+    "setModel MDL 96120": 13,
+    "setModel MDL 6084": 12,
+    "setModel MDL 4848": 11,
+    "setModel MDL 7272": 12,
+    "memory": 240
+   }
+  },
+  "getImageData": {
+   "calls": 7,
+   "px": 1724108
+  },
+  "drawImageStats": {
+   "load": {
+    "n": 524,
+    "px": 90732205.40793107,
+    "img": 168,
+    "cv": 356
+   },
+   "setOpt vss on": {
+    "n": 155,
+    "px": 26323042.283371642,
+    "img": 49,
+    "cv": 106
+   },
+   "setOpt vss off": {
+    "n": 132,
+    "px": 23849451.351982746,
+    "img": 42,
+    "cv": 90
+   },
+   "setOpt studioLight on": {
+    "n": 133,
+    "px": 24700021.351982746,
+    "img": 42,
+    "cv": 91
+   },
+   "setOpt studioLight off": {
+    "n": 132,
+    "px": 23849451.351982746,
+    "img": 42,
+    "cv": 90
+   },
+   "view iso": {
+    "n": 131,
+    "px": 22683051.351982746,
+    "img": 42,
+    "cv": 89
+   },
+   "iso corner rotate": {
+    "n": 82,
+    "px": 37671775.095990695,
+    "img": 18,
+    "cv": 64
+   },
+   "rung roof-off": {
+    "n": 194,
+    "px": 40662948.91901818,
+    "img": 48,
+    "cv": 146
+   },
+   "rung roof-on": {
+    "n": 133,
+    "px": 67916948.89916335,
+    "img": 20,
+    "cv": 113
+   },
+   "room eye on": {
+    "n": 1,
+    "px": 1166400,
+    "img": 0,
+    "cv": 1
+   },
+   "setModel MDL 96120": {
+    "n": 78,
+    "px": 13793199.05789111,
+    "img": 25,
+    "cv": 53
+   },
+   "setModel MDL 6084": {
+    "n": 61,
+    "px": 12394969.780096212,
+    "img": 18,
+    "cv": 43
+   },
+   "setModel MDL 4848": {
+    "n": 36,
+    "px": 10943736.553584214,
+    "img": 9,
+    "cv": 27
+   },
+   "setModel MDL 7272": {
+    "n": 61,
+    "px": 13177375.095990691,
+    "img": 18,
+    "cv": 43
+   },
+   "memory": {
+    "n": 1172,
+    "px": 252109661.45959345,
+    "img": 342,
+    "cv": 830
+   }
+  },
+  "drawImageByPhase": {
+   "load": 168,
+   "setOpt vss on": 49,
+   "setOpt vss off": 42,
+   "setOpt studioLight on": 42,
+   "setOpt studioLight off": 42,
+   "view iso": 42,
+   "iso corner rotate": 18,
+   "rung roof-off": 48,
+   "rung roof-on": 20,
+   "setModel MDL 96120": 25,
+   "setModel MDL 6084": 18,
+   "setModel MDL 4848": 9,
+   "setModel MDL 7272": 18,
+   "memory": 342
+  }
+ },
+ "errors": []
+}

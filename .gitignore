@@ -49,3 +49,12 @@ __pycache__/
 # Rebuild with .forge/researcher/tools/serve.js + capture.js; the numbers
 # read off them live in .forge/researcher/booth-builder-panel-order.md.
 .forge/researcher/builder-captures/
+
+# Booth-builder audit raw captures — 870 MB of Chrome traces and heap snapshots
+# plus 47 MB of device screenshots, all regenerable from the rig beside them
+# (.forge/auditor/booth-builder/rig/). The per-run summary JSONs are small and
+# ARE tracked; the findings read off all of it live in
+# .forge/auditor/booth-builder/perf-desktop-mobile.md and mobile-behaviour.md.
+.forge/auditor/booth-builder/out/*.trace.json
+.forge/auditor/booth-builder/out/*.heapsnapshot
+.forge/auditor/booth-builder/mobile-shots/

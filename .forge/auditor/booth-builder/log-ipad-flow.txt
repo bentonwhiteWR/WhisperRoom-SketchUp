@@ -1,0 +1,51 @@
+=== device iPad Mini 768x1024 scenario flow base http://127.0.0.1:8766
+landing {"model":"MDL 7296","variant":"S","view":"iso","sheet":false,"gallery":true,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot ipad-flow-01-landing.png
+  layout[landing] {"innerW":768,"innerH":1024,"docScrollW":768,"docScrollH":1024,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[landing] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":false,"coveredBy":"button."}]
+  gallery controls: ["button:button.x \"✕\" 44x44@57","button:button.galskip \"Skip — start me with the 6'×\" 237x44@158","button:button. \"All44\" 228x44@217","button:button. \"Packages19\" 228x44@217","button:button. \"Sizes25\" 228x44@217","button:button.gcard \"Voice Over Basic4' x 4' Stan\" 167x200@309","button:button.gcard \"Voice Over Deluxe4' x 4' Enh\" 167x200@309","button:button.gcard \"Audiology Basic4' x 6' Stand\" 167x200@309","button:button.gcard \"Audiology Deluxe6' x 6' Stan\" 167x200@309","button:button.gcard \"Office Booth3.5' x 3.5' Stan\" 167x214@519","button:button.gcard \"Work From Home Booth4' x 6' \" 167x214@519","button:button.gcard \"Drum Booth8' x 8' Enhanced (\" 167x214@519","button:button.gcard \"Audiology Basic Plus4' x 6' \" 167x214@519","button:button.gcard \"Audiology Compact4' x 4' Sta\" 167x214@743","button:button.gcard \"Audiology Ultra6' x 6' Enhan\" 167x214@743","button:button.gcard \"Audiology Premium6' x 8' Sta\" 167x214@743","button:button.gcard \"Creator Basic6' x 6' Standar\" 167x214@743","button:button.gcard \"Creator Deluxe6' x 6' Enhanc\" 167x214@966","button:button.gcard \"Practice Basic6' x 6' Standa\" 167x214@966","button:button.gcard \"Practice Deluxe6' x 6' Enhan\" 167x214@966","button:button.gcard \"Recording Studio8' x 10' Sta\" 167x214@966","button:button.gcard \"Drum Studio8' x 12' Enhanced\" 167x214@1190","button:button.gcard \"Meeting Booth6' x 8' Standar\" 167x214@1190","button:button.gcard \"Maker Space8' x 8' Standard \" 167x214@1190","button:button.gcard \"MDL 42303.5'×2.5' · Standard\" 167x185@1439","button:button.gcard \"MDL 42423.5'×3.5' · Standard\" 167x185@1439","button:button.gcard \"MDL 48484'×4' · Standard (si\" 167x185@1439","button:button.gcard \"MDL 42603.5'×5' · Standard (\" 167x185@1439","button:button.gcard \"MDL 48724'×6' · Standard (si\" 167x171@1634","button:button.gcard \"MDL 42843.5'×7' · Standard (\" 167x171@1634"]
+  tap Sizes tab @ 615,239 size 228x44 hit: button.
+  shot ipad-flow-02-gallery-sizes.png
+  tap card MDL 6084 @ 119,512
+after pick {"model":"MDL 6084","variant":"S","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot ipad-flow-03-picked.png
+  layout[booth] {"innerW":768,"innerH":1024,"docScrollW":768,"docScrollH":1024,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[booth] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":true,"coveredBy":null}]
+  stage controls: ["button:button.vswbtn.active \"Angled\" 243x44@102","button:button.vswbtn \"Floor plan\" 243x44@102","button:button.vswbtn \"Walk-around\" 243x44@102","button:button.bb-peek.r1 \"Lift the ceiling and see ins\" 121x44@168","button:button.bb-face.bb2-cface \"Front-right\" 68x76@843","button:button. \"Rotate view left\" 44x44@877","button:button. \"Zoom out\" 44x44@877","button:button. \"Zoom in\" 44x44@877","button:button. \"Rotate view right\" 44x44@877","button:button.bb2-roomeye \"Show the room\" 34x44@1058","button:button.bb2-fit-cta \"✥ Draw your room\" 107x44@1112","button:button.bb-roomfit-done \"✥ Draw your room\" 738x48@1172","button:button.bb-roomfit-done.sec \"Done\" 738x49@1228"]
+  nav controls: ["button:button. \"Customize\" 256x53@971","button:button.bb-mq \"Room fit\" 256x53@971","button:button.bb-mq \"Quote\" 256x53@971"]
+  tap view top @ 384,124 size 243x44 hit: span.
+  shot ipad-flow-04-floorplan.png
+  layout[top] {"innerW":768,"innerH":1024,"docScrollW":768,"docScrollH":1024,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[top] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Wall labels\"","w":121,"h":21,"reachable":true,"coveredBy":null}]
+  tap view elev @ 633,124 size 243x44 hit: span.
+  shot ipad-flow-05-walkaround.png
+  layout[elev] {"innerW":768,"innerH":1024,"docScrollW":768,"docScrollH":1024,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[elev] <44px: 0  <40px: 0
+  small: []
+  elev controls: ["button:button.vswbtn \"Angled\" 243x44@102","button:button.vswbtn \"Floor plan\" 243x44@102","button:button.vswbtn.active \"Walk-around\" 243x44@102","button:button.bb-rot.bb-rot-l \"Previous side\" 44x76@505","button:button.bb-rot.bb-rot-r \"Next side\" 44x76@505","button:button. \"Rotate to the previous side\" 44x44@889","button:button. \"Zoom out\" 44x44@889","button:button. \"Zoom in\" 44x44@889","button:button. \"Rotate to the next side\" 44x44@889","button:button.bb2-roomeye \"Show the room\" 34x44@1058","button:button.bb2-fit-cta \"✥ Draw your room\" 107x44@1112","button:button.bb-roomfit-done \"✥ Draw your room\" 738x48@1172","button:button.bb-roomfit-done.sec \"Done\" 738x49@1228"]
+  tap view iso @ 135,124 size 243x44 hit: span.
+  shot ipad-flow-06-angled.png
+  layout[iso] {"innerW":768,"innerH":1024,"docScrollW":768,"docScrollH":1024,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[iso] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":true,"coveredBy":null}]
+  canvas box {"x":11,"y":150,"w":746,"h":811}
+!! scenario threw: ReferenceError: state is not defined
+    at evaluate (evaluate at S.flow (C:\Users\bento\Documents\Claude\Sketchup\.forge\auditor\booth-builder\drive.js:168:34), <anonymous>:0:18)
+    at #evaluate (C:\Users\bento\Documents\Claude\WhisperRoomQuote\node_modules\puppeteer-core\lib\cjs\puppeteer\cdp\ExecutionContext.js:222:56)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async ExecutionContext.evaluate (C:\Users\bento\Documents\Claude\WhisperRoomQuote\node_modules\puppeteer-core\lib\cjs\puppeteer\cdp\ExecutionContext.js:117:16)
+    at async IsolatedWorld.evaluate (C:\Users\bento\Documents\Claude\WhisperRoomQuote\node_modules\puppeteer-core\lib\cjs\puppeteer\cdp\IsolatedWorld.js:124:16)
+    at async CdpFrame.evaluate (C:\Users\bento\Documents\Claude\WhisperRoomQuote\node_modules\puppeteer-core\lib\cjs\puppeteer\api\Frame.js:353:20)
+    at async CdpPage.evaluate (C:\Users\bento\Documents\Claude\WhisperRoomQuote\node_modules\puppeteer-core\lib\cjs\puppeteer\api\Page.js:841:20)
+    at async S.flow (C:\Users\bento\Documents\Claude\Sketchup\.forge\auditor\booth-builder\drive.js:168:23)
+    at async C:\Users\bento\Documents\Claude\Sketchup\.forge\auditor\booth-builder\drive.js:338:9
+  shot ipad-flow-ERROR.png
+page errors/warnings: ["http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)","http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)"]

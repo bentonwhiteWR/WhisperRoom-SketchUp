@@ -1,0 +1,22 @@
+'use strict';
+const puppeteer = require('C:/Users/bento/Documents/Claude/WhisperRoomQuote/node_modules/puppeteer');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+(async () => {
+  const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox', '--disable-gpu'] });
+  const page = await browser.newPage();
+  await page.emulate({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1', viewport: { width: 375, height: 667, deviceScaleFactor: 2, isMobile: true, hasTouch: true } });
+  await page.goto('about:blank');
+  await page.goto('http://127.0.0.1:8766/booth-builder?product=MDL%207272%20S', { waitUntil: 'networkidle0', timeout: 60000 });
+  await page.waitForFunction(() => typeof state !== 'undefined' && !document.querySelector('#app > .loading')); await sleep(1500);
+  const h0 = await page.evaluate(() => history.length);
+  const tap = async (sel, re) => { const h = await page.evaluateHandle((sel, src) => Array.from(document.querySelectorAll(sel)).find(e => e.getBoundingClientRect().width > 0 && new RegExp(src, 'i').test(e.textContent)) || null, sel, re); const el = h.asElement(); if (!el) return console.log('no', re); await el.evaluate(e => e.scrollIntoView({ block: 'center' })); const b = await el.boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await sleep(900); };
+  await tap('.bb-customize button', 'Customize');
+  await tap('.side .pill2 button', 'Enhanced'); await tap('.side .pill2 button', 'Standard'); await tap('.side .pill2 button', '^Left'); await tap('.side .pill2 button', '^Right'); await tap('.side .pill2 button', 'Studio');
+  await tap('.side button', 'Done'); await tap('.viewswitch .vswbtn', 'Floor plan'); await tap('.viewswitch .vswbtn', 'Angled');
+  const h1 = await page.evaluate(() => history.length);
+  console.log('history.length before', h0, 'after 8 taps', h1);
+  await page.goBack({ waitUntil: 'load', timeout: 10000 }).catch(e => console.log('goBack:', e.message.slice(0, 80)));
+  await sleep(1000);
+  console.log('after Back: url', await page.evaluate(() => location.href.slice(0, 70)), 'still on builder:', await page.evaluate(() => typeof state !== 'undefined'));
+  await browser.close();
+})();

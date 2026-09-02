@@ -1,0 +1,42 @@
+run 0: drawn 2823ms idle 6367ms bytes 9184384 reqs 136
+run 1: drawn 3077ms idle 6642ms bytes 9183320 reqs 136
+run 2: drawn 3140ms idle 6705ms bytes 9183311 reqs 136
+  setOpt vss on            task  2053.5ms  script     0.1  layout    2.1 (4)  long []  req 2/667988B
+  setOpt vss off           task  1007.2ms  script     0.8  layout    2.9 (8)  long []  req 1/111B
+  setOpt studioLight on    task    1285ms  script     0.1  layout    2.6 (8)  long []  req 0/0B
+  setOpt studioLight off   task   882.8ms  script     1.1  layout    2.7 (8)  long []  req 1/111B
+  view top                 task    74.6ms  script     0.4  layout   39.3 (3)  long []  req 9/515043B
+  view elev                task    30.1ms  script     0.1  layout    4.2 (3)  long []  req 13/625004B
+  view iso                 task   243.2ms  script       0  layout    1.5 (7)  long []  req 0/0B
+  iso corner rotate        task   667.5ms  script     1.6  layout    1.3 (9)  long [197]  req 6/551652B
+  rung roof-off            task  1487.3ms  script     2.6  layout    2.2 (9)  long [934]  req 2/663584B
+  rung roof-on             task   340.9ms  script     2.8  layout    2.5 (8)  long []  req 0/0B
+  room eye on              task    61.5ms  script     3.1  layout   15.3 (10)  long []  req 0/0B
+  room eye off             task    11.2ms  script     0.2  layout    0.1 (2)  long []  req 0/0B
+  open gallery             task     173ms  script     0.7  layout   15.9 (14)  long []  req 44/1241445B
+  close gallery            task     7.5ms  script       0  layout    0.1 (1)  long []  req 0/0B
+  setModel MDL 96120       task   884.1ms  script     0.1  layout    2.7 (9)  long [445]  req 105/6348838B
+  setModel MDL 6084        task   551.3ms  script     0.2  layout    1.6 (8)  long [215]  req 17/1364988B
+  setModel MDL 4848        task     461ms  script     0.1  layout    2.1 (8)  long [175]  req 3/105645B
+  setModel MDL 7272        task   276.6ms  script       0  layout    1.2 (8)  long []  req 9/429558B
+  mem 1 MDL 4848 heap 3.99MB nodes 812 listeners 253 rss 2741MB
+  mem 2 MDL 6084 heap 4.1MB nodes 818 listeners 254 rss 3106MB
+  mem 3 MDL 96120 heap 4.01MB nodes 818 listeners 254 rss 3281MB
+  mem 4 MDL 7272 heap 4.01MB nodes 818 listeners 254 rss 3299MB
+  mem 5 MDL 4872 heap 4.01MB nodes 820 listeners 258 rss 2909MB
+  mem 6 MDL 6060 heap 4.06MB nodes 826 listeners 270 rss 2467MB
+  mem 7 MDL 7296 heap 4.15MB nodes 828 listeners 274 rss 1479MB
+  mem 8 MDL 8484 heap 4.02MB nodes 833 listeners 284 rss 1507MB
+  mem 9 MDL 4848 heap 4.03MB nodes 827 listeners 283 rss 1507MB
+  mem 10 MDL 6084 heap 4.12MB nodes 833 listeners 284 rss 1582MB
+  mem 11 MDL 96120 heap 4.09MB nodes 833 listeners 284 rss 1627MB
+  mem 12 MDL 7272 heap 4.09MB nodes 833 listeners 284 rss 1629MB
+  mem 13 MDL 4872 heap 4.18MB nodes 833 listeners 284 rss 1662MB
+  mem 14 MDL 6060 heap 4.09MB nodes 833 listeners 284 rss 2013MB
+  mem 15 MDL 7296 heap 4.1MB nodes 833 listeners 284 rss 2030MB
+  mem 16 MDL 8484 heap 4.19MB nodes 833 listeners 284 rss 2080MB
+  mem 17 MDL 4848 heap 4.07MB nodes 827 listeners 283 rss 2061MB
+TargetCloseError: Protocol error (HeapProfiler.collectGarbage): Session closed. Most likely the page has been closed.
+    at CdpCDPSession.send (C:\Users\bento\Documents\Claude\WhisperRoomQuote\node_modules\puppeteer-core\lib\cjs\puppeteer\cdp\CDPSession.js:64:35)
+    at gc (C:\Users\bento\Documents\Claude\Sketchup\.forge\auditor\booth-builder\rig\perf.js:253:40)
+    at C:\Users\bento\Documents\Claude\Sketchup\.forge\auditor\booth-builder\rig\perf.js:264:13

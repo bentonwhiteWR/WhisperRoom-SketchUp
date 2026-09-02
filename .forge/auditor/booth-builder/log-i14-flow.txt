@@ -1,0 +1,105 @@
+=== device iPhone 14 Pro Max 430x932 scenario flow base http://127.0.0.1:8766
+landing {"model":"MDL 7296","variant":"S","view":"iso","sheet":false,"gallery":true,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot i14-flow-01-landing.png
+  layout[landing] {"innerW":430,"innerH":932,"docScrollW":430,"docScrollH":932,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[landing] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":false,"coveredBy":"div.bb-gal-inner"}]
+  gallery controls: ["button:button.x \"✕\" 44x44@16","button:button.galskip \"Skip — start me with the 6'×\" 237x44@118","button:button. \"All44\" 127x44@177","button:button. \"Packages19\" 127x44@177","button:button. \"Sizes25\" 127x44@177","button:button.gcard \"Voice Over Basic4' x 4' Stan\" 192x219@269","button:button.gcard \"Voice Over Deluxe4' x 4' Enh\" 192x219@269","button:button.gcard \"Audiology Basic4' x 6' Stand\" 192x219@497","button:button.gcard \"Audiology Deluxe6' x 6' Stan\" 192x219@497","button:button.gcard \"Office Booth3.5' x 3.5' Stan\" 192x219@726","button:button.gcard \"Work From Home Booth4' x 6' \" 192x219@726","button:button.gcard \"Drum Booth8' x 8' Enhanced (\" 192x219@954","button:button.gcard \"Audiology Basic Plus4' x 6' \" 192x219@954","button:button.gcard \"Audiology Compact4' x 4' Sta\" 192x219@1183","button:button.gcard \"Audiology Ultra6' x 6' Enhan\" 192x219@1183","button:button.gcard \"Audiology Premium6' x 8' Sta\" 192x219@1412","button:button.gcard \"Creator Basic6' x 6' Standar\" 192x219@1412","button:button.gcard \"Creator Deluxe6' x 6' Enhanc\" 192x219@1640","button:button.gcard \"Practice Basic6' x 6' Standa\" 192x219@1640","button:button.gcard \"Practice Deluxe6' x 6' Enhan\" 192x219@1869","button:button.gcard \"Recording Studio8' x 10' Sta\" 192x219@1869","button:button.gcard \"Drum Studio8' x 12' Enhanced\" 192x219@2098","button:button.gcard \"Meeting Booth6' x 8' Standar\" 192x219@2098","button:button.gcard \"Maker Space8' x 8' Standard \" 192x219@2326","button:button.gcard \"MDL 42303.5'×2.5' · Standard\" 192x190@2580","button:button.gcard \"MDL 42423.5'×3.5' · Standard\" 192x190@2580","button:button.gcard \"MDL 48484'×4' · Standard (si\" 192x190@2780","button:button.gcard \"MDL 42603.5'×5' · Standard (\" 192x190@2780","button:button.gcard \"MDL 48724'×6' · Standard (si\" 192x190@2981","button:button.gcard \"MDL 42843.5'×7' · Standard (\" 192x190@2981"]
+  tap Sizes tab @ 345,199 size 127x44 hit: button.
+  shot i14-flow-02-gallery-sizes.png
+  tap card MDL 6084 @ 114,466
+after pick {"model":"MDL 6084","variant":"S","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot i14-flow-03-picked.png
+  layout[booth] {"innerW":430,"innerH":932,"docScrollW":430,"docScrollH":932,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[booth] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":true,"coveredBy":null}]
+  stage controls: ["button:button.vswbtn.active \"Angled\" 130x44@109","button:button.vswbtn \"Floor plan\" 130x44@109","button:button.vswbtn \"Walk-around\" 130x44@109","button:button.bb-peek.r1 \"Lift the ceiling and see ins\" 121x44@175","button:button.bb-face.bb2-cface \"Front-right\" 68x76@751","button:button. \"Rotate view left\" 44x44@785","button:button. \"Zoom out\" 44x44@785","button:button. \"Zoom in\" 44x44@785","button:button. \"Rotate view right\" 44x44@785","button:button.bb2-roomeye \"Show the room\" 34x44@970","button:button.bb2-fit-cta \"✥ Draw your room\" 107x44@1027","button:button.bb-roomfit-done \"✥ Draw your room\" 400x48@1105","button:button.bb-roomfit-done.sec \"Done\" 400x49@1161"]
+  nav controls: ["button:button. \"Customize\" 143x53@879","button:button.bb-mq \"Room fit\" 143x53@879","button:button.bb-mq \"Quote\" 143x53@879"]
+  tap view top @ 215,131 size 130x44 hit: span.
+  shot i14-flow-04-floorplan.png
+  layout[top] {"innerW":430,"innerH":932,"docScrollW":430,"docScrollH":932,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[top] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Wall labels\"","w":121,"h":21,"reachable":true,"coveredBy":null}]
+  tap view elev @ 351,131 size 130x44 hit: span.
+  shot i14-flow-05-walkaround.png
+  layout[elev] {"innerW":430,"innerH":932,"docScrollW":430,"docScrollH":932,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[elev] <44px: 2  <40px: 0
+  small: []
+  elev controls: ["button:button.vswbtn \"Angled\" 130x44@109","button:button.vswbtn \"Floor plan\" 130x44@109","button:button.vswbtn.active \"Walk-around\" 130x44@109","button:button.bb-rot.bb-rot-l \"Previous side\" 40x64@357","button:button.bb-rot.bb-rot-r \"Next side\" 40x64@357","button:button. \"Rotate to the previous side\" 44x44@592","button:button. \"Zoom out\" 44x44@592","button:button. \"Zoom in\" 44x44@592","button:button. \"Rotate to the next side\" 44x44@592","button:button.bb2-roomeye \"Show the room\" 34x44@970","button:button.bb2-fit-cta \"✥ Draw your room\" 107x44@1027","button:button.bb-roomfit-done \"✥ Draw your room\" 400x48@1105","button:button.bb-roomfit-done.sec \"Done\" 400x49@1161"]
+  tap view iso @ 79,131 size 130x44 hit: span.
+  shot i14-flow-06-angled.png
+  layout[iso] {"innerW":430,"innerH":932,"docScrollW":430,"docScrollH":932,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[iso] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":true,"coveredBy":null}]
+  canvas box {"x":11,"y":157,"w":408,"h":712}
+  swipe on canvas: before {"corner":"FR","scrollY":0,"zoom":null,"rung":null} after {"corner":"FR","scrollY":0,"stageScroll":0}
+  pinch on canvas: {"vvScale":1,"zoom":null,"zoomEl":{}}
+  shot i14-flow-07-after-pinch.png
+  dbl-tap canvas: vvScale 1 sel null
+  shot i14-flow-08-after-dbltap.png
+  tap nav Customize @ 72,906 size 143x53 hit: button.
+customize {"model":"MDL 6084","variant":"S","view":"iso","sheet":true,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot i14-flow-09-customize.png
+  layout[sheet] {"innerW":430,"innerH":932,"docScrollW":430,"docScrollH":932,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[sheet] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":false,"coveredBy":"button.x"}]
+  sheet controls: ["button:button.x \"Done\" 65x44@219","button:button.pickbtn \"MDL 6084 S5'×7' · Standard (\" 372x80@326","button:button.active \"Standard\" 86x44@473","button:button. \"Enhanced\" 91x44@473","button:button.iso-info \"How quiet is it? What Standa\" 123x44@524","button:button.accrow \"DoorStandard\" 235x44@579","button:button. \"Left\" 55x44@579","button:button.active \"Right\" 63x44@579","button:button.accrow \"Structural Modsnone yet▸\" 400x44@624","button:button.accrow \"Access & Mobilitynone yet▸\" 400x44@668","button:button.accrow \"Ventilation UpgradesStandard\" 400x44@712","button:button.accrow \"Acousticsnone yet▸\" 400x44@756","button:button.accrow \"Lighting\" 217x44@802","button:button.active \"Standard\" 86x44@802","button:button. \"Studio\" 70x44@802","button:button.accrow \"Functional Add-onsnone yet▸\" 400x44@847","div.sw.active \"Gray foam\" 48x48@905","div.sw \"Orange foam\" 48x48@905","div.sw \"Blue foam\" 48x48@905","div.sw \"Purple foam\" 48x48@905","div.sw \"Burgundy foam\" 48x48@905","button:button.accrow \"Your boothsummary · share li\" 400x44@966"]
+  tap Enhanced @ 355,495 size 91x44 hit: button.
+  variant now E
+  shot i14-flow-10-enhanced.png
+  tap Add-ons row @ 215,869 size 400x44 hit: button.accrow
+  shot i14-flow-11-addons.png
+  sheet controls after addons: ["button:button.x \"Done\" 65x44@219","button:button.pickbtn \"MDL 6084 E5'×7' · Enhanced (\" 372x80@58","button:button. \"Standard\" 86x44@205","button:button.active \"Enhanced\" 91x44@205","button:button.iso-info \"How quiet is it? What Standa\" 123x44@256","button:button.accrow \"DoorStandard\" 235x44@311","button:button. \"Left\" 55x44@311","button:button.active \"Right\" 63x44@311","button:button.accrow \"Structural Modsnone yet▸\" 400x44@356","button:button.accrow \"Access & Mobilitynone yet▸\" 400x44@400","button:button.accrow \"Ventilation UpgradesStandard\" 400x44@444","button:button.accrow \"Acousticsnone yet▸\" 400x44@488","button:button.accrow \"Lighting\" 217x44@534","button:button.active \"Standard\" 86x44@534","button:button. \"Studio\" 70x44@534","button:button.accrow \"Functional Add-onsnone yet▸\" 400x44@579","button:button.addchip \"＋ Desk\" 74x44@626","input:checkbox. \"\" 44x44@716","div.sw.active \"Gray foam\" 48x48@796","div.sw \"Orange foam\" 48x48@796","div.sw \"Blue foam\" 48x48@796","div.sw \"Purple foam\" 48x48@796","div.sw \"Burgundy foam\" 48x48@796","button:button.accrow \"Your boothsummary · share li\" 400x44@857"]
+  addon rows: ["DIV.optrow \"Multi Jack PanelCable passthrough — plac\" 372x61","LABEL.t \"Multi Jack PanelCable passthrough — plac\" 318x45","INPUT. \"\" 44x44"]
+  tap option toggle @ 66,648 size 74x44 hit: button.addchip
+  option before {"casters":false,"light":false,"desk":false,"step":false} after {"casters":false,"light":false,"desk":false,"step":false}
+  shot i14-flow-12-option.png
+  tap sheet Done @ 382,577 size 65x44 hit: button.x
+after Done {"model":"MDL 6084","variant":"E","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  tap nav Room fit @ 215,906 size 143x53 hit: button.bb-mq
+roomfit {"model":"MDL 6084","variant":"E","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":true,"loading":null,"toast":"","gate":false}
+  shot i14-flow-13-roomfit.png
+  layout[roomfit] {"innerW":430,"innerH":932,"docScrollW":430,"docScrollH":932,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[roomfit] <44px: 2  <40px: 2
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":false,"coveredBy":"div.bb-backdrop"},{"el":"button.bb2-roomeye \"Show the room\"","w":34,"h":44,"reachable":true,"coveredBy":null}]
+  roomfit controls: ["button:button.x \"Done\" 65x44@954","button:button.iso-info \"How quiet is it? What Standa\" 123x44@990","button:button. \"Left\" 55x44@1045","button:button.accrow \"Lighting\" 217x44@1268","input:checkbox. \"\" 44x44@1450","button:button.bb-peek.r1 \"Lift the ceiling and see ins\" 121x44@175","button:button. \"Rotate view left\" 44x44@785","button:button. \"Zoom in\" 44x44@785","button:button.bb2-roomeye \"Show the room\" 34x44@675","button:button.bb2-fit-cta \"✥ Draw your room\" 107x44@732","button:button.bb-roomfit-done \"✥ Draw your room\" 400x48@810","button:button.bb-roomfit-done.sec \"Done\" 400x49@866","button:button.bb-mq \"Room fit\" 143x53@879"]
+  tap Draw your room @ 309,754 size 107x44 hit: button.bb2-fit-cta
+  shot i14-flow-14-roompop.png
+  roompop controls: ["button:button.x \"Done\" 65x44@954","button:button.iso-info \"How quiet is it? What Standa\" 123x44@990","button:button. \"Left\" 55x44@1045","button:button.accrow \"Lighting\" 217x44@1268","button:button.accrow \"Functional Add-onsnone yet▸\" 400x44@1313","input:checkbox. \"\" 44x44@1450","button:button.vswbtn \"Walk-around\" 130x44@109","button:button.bb-peek.r1 \"Lift the ceiling and see ins\" 121x44@175","button:button.bb-face.bb2-cface \"Front-right\" 68x76@751","button:button. \"Rotate view left\" 44x44@785","button:button. \"Zoom in\" 44x44@785","button:button.bb2-roomeye \"Show the room\" 34x44@970","button:button.bb2-fit-cta \"✥ Draw your room\" 107x44@1027","button:button.bb-roomfit-done \"✥ Draw your room\" 400x48@1105","button:button.bb-roomfit-done.sec \"Done\" 400x49@1161","div.bb-backdrop \"\" 430x932@0","button:button.bb-mq \"Room fit\" 143x53@879","button:button.bb-mq \"Quote\" 143x53@879","div.sizepop \"Draw your roomTell us the ro\" 288x407@318","input:number. \"Width feet\" 44x44@388","input:number. \"Width inches\" 44x44@388","input:number. \"Length feet\" 44x44@441","input:number. \"Length inches\" 44x44@441","button:button.st \"Ceiling: 1 foot less\" 30x44@494","input:number. \"Ceiling feet\" 44x44@494","input:number. \"Ceiling inches\" 44x44@494","button:button.st \"Ceiling: 1 foot more\" 30x44@494","button:button.hot \"Draw my room\" 260x44@581"]
+  room inputs found: true true true Width feet:number:numeric:12px | Width inches:number:numeric:12px | Length feet:number:numeric:12px | Length inches:number:numeric:12px | Ceiling feet:number:numeric:12px | Ceiling inches:number:numeric:12px
+  shot i14-flow-15-room-typed.png
+  values after typing (14in typed into Width inches): 10,14,12,,, state.room {"wFt":"","wIn":"","lFt":"","lIn":"","cFt":"","cIn":""}
+  keyboard-clearance: input bottom vs viewport {"top":441,"bottom":485,"innerH":932}
+  tap Draw my room @ 152,603 size 260x44 hit: button.hot
+after room {"model":"MDL 6084","variant":"E","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false} {"room":{"wFt":"10","wIn":"14","lFt":"12","lIn":"","cFt":"","cIn":""},"showRoom":true,"fitText":["✥11′ 2″ × 12′ room✓ Fits · 3′ 10″ to spare✥ marks a movable ","✥11′ 2″ × 12′ room✓ Fits · 3′ 10″ to spare","✥11′ 2″ × 12′ room","✥ marks a movable part — a tool that places or moves somethi","It fits comfortably.Space needed 7′ 4″ × 7′ 7.5″ · your room","Space needed 7′ 4″ × 7′ 7.5″ · your room 11′ 2″ × 12′ · abou"]}
+  shot i14-flow-16-room-drawn.png
+  tap view top (with room) @ 215,131 size 130x44 hit: span.
+  shot i14-flow-16b-room-floorplan.png
+  tap view iso (with room) @ 79,131 size 130x44 hit: span.
+  layout[room] {"innerW":430,"innerH":932,"docScrollW":430,"docScrollH":932,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[room] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":true,"coveredBy":null}]
+  tap nav Quote @ 358,906 size 143x53 hit: button.bb-mq
+quote {"model":"MDL 6084","variant":"E","view":"iso","sheet":false,"gallery":false,"quoteModal":true,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot i14-flow-17-quote.png
+  layout[quote] {"innerW":430,"innerH":932,"docScrollW":430,"docScrollH":932,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[quote] <44px: 2  <40px: 2
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":false,"coveredBy":"li."},{"el":"a \"Schedule a call\"","w":85,"h":15,"reachable":true,"coveredBy":null}]
+  quote controls: ["button:button.x \"Close\" 44x44@16","input:text.fi \"Your name *\" 390x44@299","input:email.fi \"Email *\" 390x44@351","input:tel.fi \"Phone\" 191x44@403","input:text.fi \"Company\" 191x44@403","input:text.hp \"\" 4x44@-9999","button:submit.copy-btn \"Request my quote →\" 390x44@532","a. \"Schedule a call\" 85x15@660"]
+  quote fields: 5 name, email, phone, organization, Anything we should know? (room size, timeline…), website
+  field font-size (iOS auto-zoom if <16px): 16px,16px,16px,16px,16px
+  shot i14-flow-18-quote-filled.png
+  tap submit @ 215,554 size 390x44 hit: button.copy-btn
+  requested: {"requested":true,"sending":false,"toast":"Design sent — we’ll be in touch!"}
+  shot i14-flow-19-quote-sent.png
+  final url hash length 503 errors: 8
+page errors/warnings: ["http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)","http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)","http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)","http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)"]

@@ -1,0 +1,32 @@
+=== device iPhone SE 375x667 scenario rotate base http://127.0.0.1:8766
+portrait {"model":"MDL 7272","variant":"S","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot se-rotate-r1-portrait.png
+landscape {"model":"MDL 7272","variant":"S","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":true}
+  shot se-rotate-r2-landscape.png
+  layout[landscape] {"innerW":667,"innerH":375,"docScrollW":667,"docScrollH":375,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+gate dismissed {"model":"MDL 7272","variant":"S","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot se-rotate-r3-landscape-escape.png
+  layout[landscape-escape] {"innerW":667,"innerH":375,"docScrollW":667,"docScrollH":662,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  targets[landscape-escape] <44px: 1  <40px: 1
+  small: [{"el":"label.bb-tog \"Dimensions\"","w":115,"h":21,"reachable":true,"coveredBy":null}]
+  shot se-rotate-r3b-landscape-escape-full.png
+  landscape controls: ["div.stage \"WhisperRoomMDL 7272 SInterio\" 647x598@10","button:button. \"Customize\" 222x53@322","button:button.bb-mq \"Room fit\" 222x53@322","button:button.bb-mq \"Quote\" 222x53@322"]
+  reach {"innerH":375,"scrollH":662,"nav":{"top":321,"bottom":375,"h":54},"canvas":{"top":220,"bottom":509,"h":289}}
+  tap Customize (landscape) @ 111,349 size 222x53 hit: button.
+   {"model":"MDL 7272","variant":"S","view":"iso","sheet":true,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot se-rotate-r4-landscape-sheet.png
+  layout[landscape-sheet] {"innerW":667,"innerH":375,"docScrollW":667,"docScrollH":662,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+  tap Done @ 619,194 size 65x44 hit: button.x
+  tap Quote (landscape) @ 556,349 size 222x53 hit: button.bb-mq
+   {"model":"MDL 7272","variant":"S","view":"iso","sheet":false,"gallery":false,"quoteModal":true,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot se-rotate-r5-landscape-quote.png
+  layout[landscape-quote] {"innerW":667,"innerH":375,"docScrollW":667,"docScrollH":662,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+back to portrait {"model":"MDL 7272","variant":"S","view":"iso","sheet":false,"gallery":false,"quoteModal":false,"roomfit":false,"loading":null,"toast":"","gate":false}
+  shot se-rotate-r6-portrait-again.png
+  layout[portrait-again] {"innerW":375,"innerH":667,"docScrollW":375,"docScrollH":667,"vvScale":1}
+  no horizontal spill (0 clipped-only)
+page errors/warnings: ["http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)","http 404 http://127.0.0.1:8766/api/engage","error: Failed to load resource: the server responded with a status of 404 (Not Found)"]
