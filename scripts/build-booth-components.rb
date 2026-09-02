@@ -1289,77 +1289,46 @@ module WR_BuildBoothComponents
   # inventing a customer's choice.
   #
   # ============================================================================
-  # THE E/W SWAP, AND WHY IT IS DONE HERE RATHER THAN IN THE LAYOUT
+  # ASSIGN NAMES PARTS. IT NEVER MOVES THEM.
   #
-  # The generated layout puts the BIG run on the high half of each E and W wall
-  # and the short one on the low half, on all four split-run booths — 6060, 6084,
-  # 7272, 7296. The door is on S at the low end, and the deck panels' own hinge
-  # slots (24.125 in) sit on the LOW half. So the panels have always disagreed
-  # with the layout, and the panels are right: the big wall belongs at the door
-  # end. Benton reported the same thing independently.
+  # Which END of a wall a slot sits at is owned by scripts/gen-booth.py and the
+  # wr-booth-data.rb it writes - nowhere else. Every name below is the width of
+  # the slot it is assigned to, and scripts/rbtest-side-wall-order.py fails the
+  # moment one is not. That test exists because until 1.19.10 this table
+  # deliberately put the 22 in the 46 slot and the 46 in the 22 slot on the
+  # 7272 / 7296 (and 16/40 on the 6060 / 6084) so that rebalance_walls would
+  # re-walk the wall and swap the two ends. At the same time gen-booth.py was
+  # swapping POSITIONS on the 6060 / 6084 (1.7.10). The two composed into a
+  # double swap on this standalone path and no swap on booth-from-link.rb's
+  # path, which never reads ASSIGN: a 7272 built from the panel button had its
+  # window and vent at the far end from the door, a 6060 built from a share
+  # link had its vent at the far end, and both printed `exact` (audit
+  # 2026-09-01 finding 1).
   #
-  # Swapping the two names end-for-end fixes it without touching generated data.
-  # The slot polygons still carry the module widths, so the big part lands in the
-  # short slot and vice versa — which is precisely what rebalance_walls exists
-  # for. It re-walks each wall from the real part widths, and short+2+big sums to
-  # the same interior run as big+2+short, so the wall closes exactly and the seam
-  # seal shifts along by the difference. That shift is 24 in on all four booths:
-  # 46/22 on the 7272 and 7296, 40/16 on the 6060 and 6084.
-  #
-  # All four are swapped below. Every other model is symmetric on E and W — the
-  # 96168 is 46+46, the 102126 is 40+16+40 — so there is nothing to reverse.
+  # Benton's ruling, 2026-09-02: the wide floor section, the door frame and the
+  # wide side-wall panel all sit at the door end on every split-run model. The
+  # generated data now says exactly that on all four booths, both shells, so
+  # there is nothing here to reverse. The 6060 / 6084 / 7296 E and W slots are
+  # gone from this table altogether - guess_component composes the same
+  # 40VNT / 40PanelSolid / 16PanelSolid / 46PanelSolid / 22PanelSolid names from
+  # the slot's kind and run, and a guessed slot is reported as guessed, which is
+  # the honest outcome for a wall nobody has specified. The 7272 keeps its E/W
+  # entries because they carry CHOICES the guess cannot make - the VSS vent
+  # variant and the 32x36 window - now keyed to the slot of their own width.
   # ============================================================================
   ASSIGN = {
-    # 6060 — E and W run 40 + seal + 16. E0 is the layout's vent slot, so the
-    # vent moves with the 40 to the door end. '40VNT' is not a choice being made
-    # here: it is the exact name guess_component already produced for that slot,
-    # written out only because the slot is being relocated.
-    'MDL 6060 S' => {
-      'E0' => '16PanelSolid',
-      'E1' => '40VNT',
-      'W0' => '16PanelSolid',
-      'W1' => '40PanelSolid'
-    },
-    # 6084 — same 40 + seal + 16 runs, and both walls are plain solids: this
-    # booth's vents are both on N. The swap moves only the seam.
-    'MDL 6084 S' => {
-      'E0' => '16PanelSolid',
-      'E1' => '40PanelSolid',
-      'W0' => '16PanelSolid',
-      'W1' => '40PanelSolid'
-    },
     'MDL 7272 S' => {
       'N0' => '46VNT_VSS',        # vent wall, VSS
       'N1' => '22PanelSolid',
       'S0' => 'Right46Door',      # right-hand door, at the data's own end of the wall
       'S1' => '22PanelSolid',
-      # E and W swapped: the 46 in part takes slot 1 (y 2..24), the 22 in panel
-      # slot 0 (y 26..72). Window and vent stay opposite each other.
-      'E0' => '22PanelSolid',
-      'E1' => '46VNT_VSS',        # second vent slot, VSS
-      'W0' => '22PanelSolid',
-      'W1' => '46Panel3236WDO'    # 32x36 window, opposite the E vent
-    },
-    # 7296 carries the identical 46/22 inversion on E and W. Both walls are plain
-    # solids here — no window or vent has been specified for this booth — so the
-    # swap moves only the seam, from 24 in off the north end to 24 in off the
-    # door end, and puts the 46 in run where the deck hinges expect it. N and S
-    # are deliberately absent: they resolve by guess to 46VNT, Right46Door and
-    # 46PanelSolid, all of which exist in the library.
-    'MDL 7296 S' => {
-      'E0' => '22PanelSolid',
-      'E1' => '46PanelSolid',
-      'W0' => '22PanelSolid',
-      'W1' => '46PanelSolid'
+      'E0' => '46VNT_VSS',        # second vent slot, VSS - the 46 slot, door end
+      'E1' => '22PanelSolid',
+      'W0' => '46Panel3236WDO',   # 32x36 window, opposite the E vent - door end
+      'W1' => '22PanelSolid'
     },
 
     # ------------------------------------------------------------- ENHANCED --
-    #
-    # The same four booths in Enhanced. The E/W swap is a property of the
-    # LAYOUT, not of the variant - the generated data puts the big run on the
-    # high half of E and W on every 6060/6084/7272/7296 whichever shell you are
-    # looking at - so an Enhanced build needs the identical reversal or its
-    # walls disagree with the deck hinges exactly as the Standard ones did.
     #
     # Each entry names BOTH shells: the outer slot keeps its Standard part and
     # the '<slot>i' inner slot takes the ENH twin. Written out rather than
@@ -1371,33 +1340,15 @@ module WR_BuildBoothComponents
     # Note '46VNT_VSS' has no '_VSS' on its inner twin: Enhanced takes no vent
     # option variants - Benton, 2026-08-24, 'the 35.5 VNT wall fits them all for
     # the inner walls'.
-    'MDL 6060 E' => {
-      'E0' => '16PanelSolid',   'E0i' => 'ENH 11.5PanelSolid',
-      'E1' => '40VNT',          'E1i' => 'ENH 35.5VNT',
-      'W0' => '16PanelSolid',   'W0i' => 'ENH 11.5PanelSolid',
-      'W1' => '40PanelSolid',   'W1i' => 'ENH 35.5PanelSolid'
-    },
-    'MDL 6084 E' => {
-      'E0' => '16PanelSolid',   'E0i' => 'ENH 11.5PanelSolid',
-      'E1' => '40PanelSolid',   'E1i' => 'ENH 35.5PanelSolid',
-      'W0' => '16PanelSolid',   'W0i' => 'ENH 11.5PanelSolid',
-      'W1' => '40PanelSolid',   'W1i' => 'ENH 35.5PanelSolid'
-    },
     'MDL 7272 E' => {
       'N0' => '46VNT_VSS',      'N0i' => 'ENH 41.5VNT',
       'N1' => '22PanelSolid',   'N1i' => 'ENH 17.5PanelSolid',
       'S0' => 'Right46Door',    'S0i' => 'ENH Right41.5Door',
       'S1' => '22PanelSolid',   'S1i' => 'ENH 17.5PanelSolid',
-      'E0' => '22PanelSolid',   'E0i' => 'ENH 17.5PanelSolid',
-      'E1' => '46VNT_VSS',      'E1i' => 'ENH 41.5VNT',
-      'W0' => '22PanelSolid',   'W0i' => 'ENH 17.5PanelSolid',
-      'W1' => '46Panel3236WDO', 'W1i' => 'ENH 41.5Panel3236WDO'
-    },
-    'MDL 7296 E' => {
-      'E0' => '22PanelSolid',   'E0i' => 'ENH 17.5PanelSolid',
-      'E1' => '46PanelSolid',   'E1i' => 'ENH 41.5PanelSolid',
-      'W0' => '22PanelSolid',   'W0i' => 'ENH 17.5PanelSolid',
-      'W1' => '46PanelSolid',   'W1i' => 'ENH 41.5PanelSolid'
+      'E0' => '46VNT_VSS',      'E0i' => 'ENH 41.5VNT',
+      'E1' => '22PanelSolid',   'E1i' => 'ENH 17.5PanelSolid',
+      'W0' => '46Panel3236WDO', 'W0i' => 'ENH 41.5Panel3236WDO',
+      'W1' => '22PanelSolid',   'W1i' => 'ENH 17.5PanelSolid'
     }
   }.freeze
 

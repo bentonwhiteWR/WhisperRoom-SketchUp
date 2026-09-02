@@ -113,10 +113,15 @@ __CONSTS__
 
 __METHODS__
 
-  # MDL 7272 E, panels only, polygons straight out of wr-booth-data.rb with
-  # the E/W widths as rebalance_walls leaves them (the ASSIGN swap puts the
-  # 46 on E1/W1): outer E0 22 at y 2..24, E1 46 at y 26..72; inner E0i 17.5
-  # at 4.25..21.75, E1i 41.5 at 28.25..69.75 (17.5 + 6.5 seal + 41.5 = 65.5).
+  # MDL 7272 E, panels only. A SYNTHETIC arrangement: the N/S polygons are
+  # straight out of wr-booth-data.rb, but the E/W walls are the pre-1.19.10
+  # ASSIGN-swapped ones (22 at the door end, 46 at the far end) that no build
+  # path produces any more - since 1.19.10 the 46 sits at y 2..48 on both
+  # paths (scripts/rbtest-side-wall-order.py). Kept as-is because every
+  # expectation below is the overlay geometry relative to THESE polygons, and
+  # that geometry does not depend on which end the wide panel is at:
+  # outer E0 22 at y 2..24, E1 46 at y 26..72; inner E0i 17.5 at 4.25..21.75,
+  # E1i 41.5 at 28.25..69.75 (17.5 + 6.5 seal + 41.5 = 65.5).
   def self.fixture_7272e
     [
       { :id => 'N0', :name => '46VNT_VSS',      :inner => false,

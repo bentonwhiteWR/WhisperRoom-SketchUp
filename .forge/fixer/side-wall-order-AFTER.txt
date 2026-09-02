@@ -1,0 +1,21 @@
+SIDE-WALL ORDER - the panel at the DOOR end of each side wall (outer shell)
+
+  key          path        E wall, door end             W wall, door end            
+  MDL 6060 S   standalone  E0 40VNT y 2..42             W0 40PanelSolid y 2..42     
+  MDL 6060 S   link        E0 40VNT y 2..42             W0 40PanelSolid y 2..42     
+  MDL 6060 E   standalone  E0 40VNT y 2..42             W0 40PanelSolid y 2..42     
+  MDL 6060 E   link        E0 40VNT y 2..42             W0 40PanelSolid y 2..42     
+  MDL 6084 S   standalone  E0 40PanelSolid y 2..42      W0 40PanelSolid y 2..42     
+  MDL 6084 S   link        E0 40PanelSolid y 2..42      W0 40PanelSolid y 2..42     
+  MDL 6084 E   standalone  E0 40PanelSolid y 2..42      W0 40PanelSolid y 2..42     
+  MDL 6084 E   link        E0 40PanelSolid y 2..42      W0 40PanelSolid y 2..42     
+  MDL 7272 S   standalone  E0 46VNT_VSS y 2..48         W0 46Panel3236WDO y 2..48   
+  MDL 7272 S   link        E0 46VNT y 2..48             W0 46PanelSolid y 2..48     
+  MDL 7272 E   standalone  E0 46VNT_VSS y 2..48         W0 46Panel3236WDO y 2..48   
+  MDL 7272 E   link        E0 46VNT y 2..48             W0 46PanelSolid y 2..48     
+  MDL 7296 S   standalone  E0 46PanelSolid y 2..48      W0 46PanelSolid y 2..48     
+  MDL 7296 S   link        E0 46PanelSolid y 2..48      W0 46PanelSolid y 2..48     
+  MDL 7296 E   standalone  E0 46PanelSolid y 2..48      W0 46PanelSolid y 2..48     
+  MDL 7296 E   link        E0 46PanelSolid y 2..48      W0 46PanelSolid y 2..48     
+
+437 checks PASS

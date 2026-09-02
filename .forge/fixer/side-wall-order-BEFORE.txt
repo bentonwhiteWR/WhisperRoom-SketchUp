@@ -1,0 +1,470 @@
+SIDE-WALL ORDER - the panel at the DOOR end of each side wall (outer shell)
+
+  key          path        E wall, door end             W wall, door end            
+  MDL 6060 S   standalone  E1 40VNT y 2..42             W1 40PanelSolid y 2..42     
+  MDL 6060 S   link        E1 16PanelSolid y 2..18      W1 16PanelSolid y 2..18     
+  MDL 6060 E   standalone  E1 40VNT y 2..42             W1 40PanelSolid y 2..42     
+  MDL 6060 E   link        E1 16PanelSolid y 2..18      W1 16PanelSolid y 2..18     
+  MDL 6084 S   standalone  E1 40PanelSolid y 2..42      W1 40PanelSolid y 2..42     
+  MDL 6084 S   link        E1 16PanelSolid y 2..18      W1 16PanelSolid y 2..18     
+  MDL 6084 E   standalone  E1 40PanelSolid y 2..42      W1 40PanelSolid y 2..42     
+  MDL 6084 E   link        E1 16PanelSolid y 2..18      W1 16PanelSolid y 2..18     
+  MDL 7272 S   standalone  E0 22PanelSolid y 2..24      W0 22PanelSolid y 2..24     
+  MDL 7272 S   link        E0 46VNT y 2..48             W0 46PanelSolid y 2..48     
+  MDL 7272 E   standalone  E0 22PanelSolid y 2..24      W0 22PanelSolid y 2..24     
+  MDL 7272 E   link        E0 46VNT y 2..48             W0 46PanelSolid y 2..48     
+  MDL 7296 S   standalone  E0 22PanelSolid y 2..24      W0 22PanelSolid y 2..24     
+  MDL 7296 S   link        E0 46PanelSolid y 2..48      W0 46PanelSolid y 2..48     
+  MDL 7296 E   standalone  E0 22PanelSolid y 2..24      W0 22PanelSolid y 2..24     
+  MDL 7296 E   link        E0 46PanelSolid y 2..48      W0 46PanelSolid y 2..48     
+
+  rebalance_walls MOVED panels:
+    MDL 6060 E   standalone  rebalanced E1       40VNT                    2.000..42.000  (slot was 2.000..18.000)
+    MDL 6060 E   standalone  rebalanced E-seal0  seal shifted +24.000 in along the wall
+    MDL 6060 E   standalone  rebalanced E0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)
+    MDL 6060 E   standalone  rebalanced W1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)
+    MDL 6060 E   standalone  rebalanced W-seal0  seal shifted +24.000 in along the wall
+    MDL 6060 E   standalone  rebalanced W0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)
+    MDL 6060 E   standalone  rebalanced E1i      ENH 35.5VNT              4.250..39.750  (slot was 4.250..15.750)
+    MDL 6060 E   standalone  rebalanced E-seal0i seal shifted +24.000 in along the wall
+    MDL 6060 E   standalone  rebalanced E0i      ENH 11.5PanelSolid       46.250..57.750  (slot was 22.250..57.750)
+    MDL 6060 E   standalone  rebalanced W1i      ENH 35.5PanelSolid       4.250..39.750  (slot was 4.250..15.750)
+    MDL 6060 E   standalone  rebalanced W-seal0i seal shifted +24.000 in along the wall
+    MDL 6060 E   standalone  rebalanced W0i      ENH 11.5PanelSolid       46.250..57.750  (slot was 22.250..57.750)
+    MDL 6060 S   standalone  rebalanced E1       40VNT                    2.000..42.000  (slot was 2.000..18.000)
+    MDL 6060 S   standalone  rebalanced E-seal0  seal shifted +24.000 in along the wall
+    MDL 6060 S   standalone  rebalanced E0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)
+    MDL 6060 S   standalone  rebalanced W1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)
+    MDL 6060 S   standalone  rebalanced W-seal0  seal shifted +24.000 in along the wall
+    MDL 6060 S   standalone  rebalanced W0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)
+    MDL 6084 E   standalone  rebalanced E1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)
+    MDL 6084 E   standalone  rebalanced E-seal0  seal shifted +24.000 in along the wall
+    MDL 6084 E   standalone  rebalanced E0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)
+    MDL 6084 E   standalone  rebalanced W1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)
+    MDL 6084 E   standalone  rebalanced W-seal0  seal shifted +24.000 in along the wall
+    MDL 6084 E   standalone  rebalanced W0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)
+    MDL 6084 E   standalone  rebalanced E1i      ENH 35.5PanelSolid       4.250..39.750  (slot was 4.250..15.750)
+    MDL 6084 E   standalone  rebalanced E-seal0i seal shifted +24.000 in along the wall
+    MDL 6084 E   standalone  rebalanced E0i      ENH 11.5PanelSolid       46.250..57.750  (slot was 22.250..57.750)
+    MDL 6084 E   standalone  rebalanced W1i      ENH 35.5PanelSolid       4.250..39.750  (slot was 4.250..15.750)
+    MDL 6084 E   standalone  rebalanced W-seal0i seal shifted +24.000 in along the wall
+    MDL 6084 E   standalone  rebalanced W0i      ENH 11.5PanelSolid       46.250..57.750  (slot was 22.250..57.750)
+    MDL 6084 S   standalone  rebalanced E1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)
+    MDL 6084 S   standalone  rebalanced E-seal0  seal shifted +24.000 in along the wall
+    MDL 6084 S   standalone  rebalanced E0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)
+    MDL 6084 S   standalone  rebalanced W1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)
+    MDL 6084 S   standalone  rebalanced W-seal0  seal shifted +24.000 in along the wall
+    MDL 6084 S   standalone  rebalanced W0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)
+    MDL 7272 E   standalone  rebalanced E0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)
+    MDL 7272 E   standalone  rebalanced E-seal0  seal shifted -24.000 in along the wall
+    MDL 7272 E   standalone  rebalanced E1       46VNT_VSS                26.000..72.000  (slot was 50.000..72.000)
+    MDL 7272 E   standalone  rebalanced W0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)
+    MDL 7272 E   standalone  rebalanced W-seal0  seal shifted -24.000 in along the wall
+    MDL 7272 E   standalone  rebalanced W1       46Panel3236WDO           26.000..72.000  (slot was 50.000..72.000)
+    MDL 7272 E   standalone  rebalanced E0i      ENH 17.5PanelSolid       4.250..21.750  (slot was 4.250..45.750)
+    MDL 7272 E   standalone  rebalanced E-seal0i seal shifted -24.000 in along the wall
+    MDL 7272 E   standalone  rebalanced E1i      ENH 41.5VNT              28.250..69.750  (slot was 52.250..69.750)
+    MDL 7272 E   standalone  rebalanced W0i      ENH 17.5PanelSolid       4.250..21.750  (slot was 4.250..45.750)
+    MDL 7272 E   standalone  rebalanced W-seal0i seal shifted -24.000 in along the wall
+    MDL 7272 E   standalone  rebalanced W1i      ENH 41.5Panel3236WDO     28.250..69.750  (slot was 52.250..69.750)
+    MDL 7272 S   standalone  rebalanced E0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)
+    MDL 7272 S   standalone  rebalanced E-seal0  seal shifted -24.000 in along the wall
+    MDL 7272 S   standalone  rebalanced E1       46VNT_VSS                26.000..72.000  (slot was 50.000..72.000)
+    MDL 7272 S   standalone  rebalanced W0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)
+    MDL 7272 S   standalone  rebalanced W-seal0  seal shifted -24.000 in along the wall
+    MDL 7272 S   standalone  rebalanced W1       46Panel3236WDO           26.000..72.000  (slot was 50.000..72.000)
+    MDL 7296 E   standalone  rebalanced E0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)
+    MDL 7296 E   standalone  rebalanced E-seal0  seal shifted -24.000 in along the wall
+    MDL 7296 E   standalone  rebalanced E1       46PanelSolid             26.000..72.000  (slot was 50.000..72.000)
+    MDL 7296 E   standalone  rebalanced W0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)
+    MDL 7296 E   standalone  rebalanced W-seal0  seal shifted -24.000 in along the wall
+    MDL 7296 E   standalone  rebalanced W1       46PanelSolid             26.000..72.000  (slot was 50.000..72.000)
+    MDL 7296 E   standalone  rebalanced E0i      ENH 17.5PanelSolid       4.250..21.750  (slot was 4.250..45.750)
+    MDL 7296 E   standalone  rebalanced E-seal0i seal shifted -24.000 in along the wall
+    MDL 7296 E   standalone  rebalanced E1i      ENH 41.5PanelSolid       28.250..69.750  (slot was 52.250..69.750)
+    MDL 7296 E   standalone  rebalanced W0i      ENH 17.5PanelSolid       4.250..21.750  (slot was 4.250..45.750)
+    MDL 7296 E   standalone  rebalanced W-seal0i seal shifted -24.000 in along the wall
+    MDL 7296 E   standalone  rebalanced W1i      ENH 41.5PanelSolid       28.250..69.750  (slot was 52.250..69.750)
+    MDL 7296 S   standalone  rebalanced E0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)
+    MDL 7296 S   standalone  rebalanced E-seal0  seal shifted -24.000 in along the wall
+    MDL 7296 S   standalone  rebalanced E1       46PanelSolid             26.000..72.000  (slot was 50.000..72.000)
+    MDL 7296 S   standalone  rebalanced W0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)
+    MDL 7296 S   standalone  rebalanced W-seal0  seal shifted -24.000 in along the wall
+    MDL 7296 S   standalone  rebalanced W1       46PanelSolid             26.000..72.000  (slot was 50.000..72.000)
+
+125 of 473 checks FAILED:
+  MDL 6060 E E out: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6060 E E out: the WIDE slot is at the door end
+      got  'E0'
+      want 'E1'
+  MDL 6060 E E in: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6060 E E in: the WIDE slot is at the door end
+      got  'E0i'
+      want 'E1i'
+  MDL 6060 E W out: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6060 E W out: the WIDE slot is at the door end
+      got  'W0'
+      want 'W1'
+  MDL 6060 E W in: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6060 E W in: the WIDE slot is at the door end
+      got  'W0i'
+      want 'W1i'
+  MDL 6060 S E out: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6060 S E out: the WIDE slot is at the door end
+      got  'E0'
+      want 'E1'
+  MDL 6060 S W out: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6060 S W out: the WIDE slot is at the door end
+      got  'W0'
+      want 'W1'
+  MDL 6084 E E out: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6084 E E out: the WIDE slot is at the door end
+      got  'E0'
+      want 'E1'
+  MDL 6084 E E in: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6084 E E in: the WIDE slot is at the door end
+      got  'E0i'
+      want 'E1i'
+  MDL 6084 E W out: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6084 E W out: the WIDE slot is at the door end
+      got  'W0'
+      want 'W1'
+  MDL 6084 E W in: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6084 E W in: the WIDE slot is at the door end
+      got  'W0i'
+      want 'W1i'
+  MDL 6084 S E out: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6084 S E out: the WIDE slot is at the door end
+      got  'E0'
+      want 'E1'
+  MDL 6084 S W out: slot ids ascend with y (slot 0 at the door end)
+      got  [1, 0]
+      want [0, 1]
+  MDL 6084 S W out: the WIDE slot is at the door end
+      got  'W0'
+      want 'W1'
+  MDL 84102 E: door frame S0 (DRFRM) sits on the low-y wall
+      got  ('S2', True)
+      want ('S0', True)
+  MDL 84102 S: door frame S0 (DRFRM) sits on the low-y wall
+      got  ('S2', True)
+      want ('S0', True)
+  MDL 84126 E: door frame S0 (DRFRM) sits on the low-y wall
+      got  ('S1', True)
+      want ('S0', True)
+  MDL 84126 S: door frame S0 (DRFRM) sits on the low-y wall
+      got  ('S1', True)
+      want ('S0', True)
+  ASSIGN['MDL 6060 S']['E0'] = '16PanelSolid': nominal 16 matches its slot 40
+      got  False
+      want True
+  ASSIGN['MDL 6060 S']['E1'] = '40VNT': nominal 40 matches its slot 16
+      got  False
+      want True
+  ASSIGN['MDL 6060 S']['W0'] = '16PanelSolid': nominal 16 matches its slot 40
+      got  False
+      want True
+  ASSIGN['MDL 6060 S']['W1'] = '40PanelSolid': nominal 40 matches its slot 16
+      got  False
+      want True
+  ASSIGN['MDL 6084 S']['E0'] = '16PanelSolid': nominal 16 matches its slot 40
+      got  False
+      want True
+  ASSIGN['MDL 6084 S']['E1'] = '40PanelSolid': nominal 40 matches its slot 16
+      got  False
+      want True
+  ASSIGN['MDL 6084 S']['W0'] = '16PanelSolid': nominal 16 matches its slot 40
+      got  False
+      want True
+  ASSIGN['MDL 6084 S']['W1'] = '40PanelSolid': nominal 40 matches its slot 16
+      got  False
+      want True
+  ASSIGN['MDL 7272 S']['E0'] = '22PanelSolid': nominal 22 matches its slot 46
+      got  False
+      want True
+  ASSIGN['MDL 7272 S']['E1'] = '46VNT_VSS': nominal 46 matches its slot 22
+      got  False
+      want True
+  ASSIGN['MDL 7272 S']['W0'] = '22PanelSolid': nominal 22 matches its slot 46
+      got  False
+      want True
+  ASSIGN['MDL 7272 S']['W1'] = '46Panel3236WDO': nominal 46 matches its slot 22
+      got  False
+      want True
+  ASSIGN['MDL 7296 S']['E0'] = '22PanelSolid': nominal 22 matches its slot 46
+      got  False
+      want True
+  ASSIGN['MDL 7296 S']['E1'] = '46PanelSolid': nominal 46 matches its slot 22
+      got  False
+      want True
+  ASSIGN['MDL 7296 S']['W0'] = '22PanelSolid': nominal 22 matches its slot 46
+      got  False
+      want True
+  ASSIGN['MDL 7296 S']['W1'] = '46PanelSolid': nominal 46 matches its slot 22
+      got  False
+      want True
+  ASSIGN['MDL 6060 E']['E0'] = '16PanelSolid': nominal 16 matches its slot 40
+      got  False
+      want True
+  ASSIGN['MDL 6060 E']['E0i'] = 'ENH 11.5PanelSolid': nominal 11.5 matches its slot 35.5
+      got  False
+      want True
+  ASSIGN['MDL 6060 E']['E1'] = '40VNT': nominal 40 matches its slot 16
+      got  False
+      want True
+  ASSIGN['MDL 6060 E']['E1i'] = 'ENH 35.5VNT': nominal 35.5 matches its slot 11.5
+      got  False
+      want True
+  ASSIGN['MDL 6060 E']['W0'] = '16PanelSolid': nominal 16 matches its slot 40
+      got  False
+      want True
+  ASSIGN['MDL 6060 E']['W0i'] = 'ENH 11.5PanelSolid': nominal 11.5 matches its slot 35.5
+      got  False
+      want True
+  ASSIGN['MDL 6060 E']['W1'] = '40PanelSolid': nominal 40 matches its slot 16
+      got  False
+      want True
+  ASSIGN['MDL 6060 E']['W1i'] = 'ENH 35.5PanelSolid': nominal 35.5 matches its slot 11.5
+      got  False
+      want True
+  ASSIGN['MDL 6084 E']['E0'] = '16PanelSolid': nominal 16 matches its slot 40
+      got  False
+      want True
+  ASSIGN['MDL 6084 E']['E0i'] = 'ENH 11.5PanelSolid': nominal 11.5 matches its slot 35.5
+      got  False
+      want True
+  ASSIGN['MDL 6084 E']['E1'] = '40PanelSolid': nominal 40 matches its slot 16
+      got  False
+      want True
+  ASSIGN['MDL 6084 E']['E1i'] = 'ENH 35.5PanelSolid': nominal 35.5 matches its slot 11.5
+      got  False
+      want True
+  ASSIGN['MDL 6084 E']['W0'] = '16PanelSolid': nominal 16 matches its slot 40
+      got  False
+      want True
+  ASSIGN['MDL 6084 E']['W0i'] = 'ENH 11.5PanelSolid': nominal 11.5 matches its slot 35.5
+      got  False
+      want True
+  ASSIGN['MDL 6084 E']['W1'] = '40PanelSolid': nominal 40 matches its slot 16
+      got  False
+      want True
+  ASSIGN['MDL 6084 E']['W1i'] = 'ENH 35.5PanelSolid': nominal 35.5 matches its slot 11.5
+      got  False
+      want True
+  ASSIGN['MDL 7272 E']['E0'] = '22PanelSolid': nominal 22 matches its slot 46
+      got  False
+      want True
+  ASSIGN['MDL 7272 E']['E0i'] = 'ENH 17.5PanelSolid': nominal 17.5 matches its slot 41.5
+      got  False
+      want True
+  ASSIGN['MDL 7272 E']['E1'] = '46VNT_VSS': nominal 46 matches its slot 22
+      got  False
+      want True
+  ASSIGN['MDL 7272 E']['E1i'] = 'ENH 41.5VNT': nominal 41.5 matches its slot 17.5
+      got  False
+      want True
+  ASSIGN['MDL 7272 E']['W0'] = '22PanelSolid': nominal 22 matches its slot 46
+      got  False
+      want True
+  ASSIGN['MDL 7272 E']['W0i'] = 'ENH 17.5PanelSolid': nominal 17.5 matches its slot 41.5
+      got  False
+      want True
+  ASSIGN['MDL 7272 E']['W1'] = '46Panel3236WDO': nominal 46 matches its slot 22
+      got  False
+      want True
+  ASSIGN['MDL 7272 E']['W1i'] = 'ENH 41.5Panel3236WDO': nominal 41.5 matches its slot 17.5
+      got  False
+      want True
+  ASSIGN['MDL 7296 E']['E0'] = '22PanelSolid': nominal 22 matches its slot 46
+      got  False
+      want True
+  ASSIGN['MDL 7296 E']['E0i'] = 'ENH 17.5PanelSolid': nominal 17.5 matches its slot 41.5
+      got  False
+      want True
+  ASSIGN['MDL 7296 E']['E1'] = '46PanelSolid': nominal 46 matches its slot 22
+      got  False
+      want True
+  ASSIGN['MDL 7296 E']['E1i'] = 'ENH 41.5PanelSolid': nominal 41.5 matches its slot 17.5
+      got  False
+      want True
+  ASSIGN['MDL 7296 E']['W0'] = '22PanelSolid': nominal 22 matches its slot 46
+      got  False
+      want True
+  ASSIGN['MDL 7296 E']['W0i'] = 'ENH 17.5PanelSolid': nominal 17.5 matches its slot 41.5
+      got  False
+      want True
+  ASSIGN['MDL 7296 E']['W1'] = '46PanelSolid': nominal 46 matches its slot 22
+      got  False
+      want True
+  ASSIGN['MDL 7296 E']['W1i'] = 'ENH 41.5PanelSolid': nominal 41.5 matches its slot 17.5
+      got  False
+      want True
+  rebalance_walls moved nothing on either path
+      got  [('MDL 6060 E', 'standalone', 'rebalanced E1       40VNT                    2.000..42.000  (slot was 2.000..18.000)'), ('MDL 6060 E', 'standalone', 'rebalanced E-seal0  seal shifted +24.000 in along the wall'), ('MDL 6060 E', 'standalone', 'rebalanced E0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)'), ('MDL 6060 E', 'standalone', 'rebalanced W1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)'), ('MDL 6060 E', 'standalone', 'rebalanced W-seal0  seal shifted +24.000 in along the wall'), ('MDL 6060 E', 'standalone', 'rebalanced W0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)'), ('MDL 6060 E', 'standalone', 'rebalanced E1i      ENH 35.5VNT              4.250..39.750  (slot was 4.250..15.750)'), ('MDL 6060 E', 'standalone', 'rebalanced E-seal0i seal shifted +24.000 in along the wall'), ('MDL 6060 E', 'standalone', 'rebalanced E0i      ENH 11.5PanelSolid       46.250..57.750  (slot was 22.250..57.750)'), ('MDL 6060 E', 'standalone', 'rebalanced W1i      ENH 35.5PanelSolid       4.250..39.750  (slot was 4.250..15.750)'), ('MDL 6060 E', 'standalone', 'rebalanced W-seal0i seal shifted +24.000 in along the wall'), ('MDL 6060 E', 'standalone', 'rebalanced W0i      ENH 11.5PanelSolid       46.250..57.750  (slot was 22.250..57.750)'), ('MDL 6060 S', 'standalone', 'rebalanced E1       40VNT                    2.000..42.000  (slot was 2.000..18.000)'), ('MDL 6060 S', 'standalone', 'rebalanced E-seal0  seal shifted +24.000 in along the wall'), ('MDL 6060 S', 'standalone', 'rebalanced E0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)'), ('MDL 6060 S', 'standalone', 'rebalanced W1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)'), ('MDL 6060 S', 'standalone', 'rebalanced W-seal0  seal shifted +24.000 in along the wall'), ('MDL 6060 S', 'standalone', 'rebalanced W0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)'), ('MDL 6084 E', 'standalone', 'rebalanced E1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)'), ('MDL 6084 E', 'standalone', 'rebalanced E-seal0  seal shifted +24.000 in along the wall'), ('MDL 6084 E', 'standalone', 'rebalanced E0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)'), ('MDL 6084 E', 'standalone', 'rebalanced W1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)'), ('MDL 6084 E', 'standalone', 'rebalanced W-seal0  seal shifted +24.000 in along the wall'), ('MDL 6084 E', 'standalone', 'rebalanced W0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)'), ('MDL 6084 E', 'standalone', 'rebalanced E1i      ENH 35.5PanelSolid       4.250..39.750  (slot was 4.250..15.750)'), ('MDL 6084 E', 'standalone', 'rebalanced E-seal0i seal shifted +24.000 in along the wall'), ('MDL 6084 E', 'standalone', 'rebalanced E0i      ENH 11.5PanelSolid       46.250..57.750  (slot was 22.250..57.750)'), ('MDL 6084 E', 'standalone', 'rebalanced W1i      ENH 35.5PanelSolid       4.250..39.750  (slot was 4.250..15.750)'), ('MDL 6084 E', 'standalone', 'rebalanced W-seal0i seal shifted +24.000 in along the wall'), ('MDL 6084 E', 'standalone', 'rebalanced W0i      ENH 11.5PanelSolid       46.250..57.750  (slot was 22.250..57.750)'), ('MDL 6084 S', 'standalone', 'rebalanced E1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)'), ('MDL 6084 S', 'standalone', 'rebalanced E-seal0  seal shifted +24.000 in along the wall'), ('MDL 6084 S', 'standalone', 'rebalanced E0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)'), ('MDL 6084 S', 'standalone', 'rebalanced W1       40PanelSolid             2.000..42.000  (slot was 2.000..18.000)'), ('MDL 6084 S', 'standalone', 'rebalanced W-seal0  seal shifted +24.000 in along the wall'), ('MDL 6084 S', 'standalone', 'rebalanced W0       16PanelSolid             44.000..60.000  (slot was 20.000..60.000)'), ('MDL 7272 E', 'standalone', 'rebalanced E0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)'), ('MDL 7272 E', 'standalone', 'rebalanced E-seal0  seal shifted -24.000 in along the wall'), ('MDL 7272 E', 'standalone', 'rebalanced E1       46VNT_VSS                26.000..72.000  (slot was 50.000..72.000)'), ('MDL 7272 E', 'standalone', 'rebalanced W0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)'), ('MDL 7272 E', 'standalone', 'rebalanced W-seal0  seal shifted -24.000 in along the wall'), ('MDL 7272 E', 'standalone', 'rebalanced W1       46Panel3236WDO           26.000..72.000  (slot was 50.000..72.000)'), ('MDL 7272 E', 'standalone', 'rebalanced E0i      ENH 17.5PanelSolid       4.250..21.750  (slot was 4.250..45.750)'), ('MDL 7272 E', 'standalone', 'rebalanced E-seal0i seal shifted -24.000 in along the wall'), ('MDL 7272 E', 'standalone', 'rebalanced E1i      ENH 41.5VNT              28.250..69.750  (slot was 52.250..69.750)'), ('MDL 7272 E', 'standalone', 'rebalanced W0i      ENH 17.5PanelSolid       4.250..21.750  (slot was 4.250..45.750)'), ('MDL 7272 E', 'standalone', 'rebalanced W-seal0i seal shifted -24.000 in along the wall'), ('MDL 7272 E', 'standalone', 'rebalanced W1i      ENH 41.5Panel3236WDO     28.250..69.750  (slot was 52.250..69.750)'), ('MDL 7272 S', 'standalone', 'rebalanced E0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)'), ('MDL 7272 S', 'standalone', 'rebalanced E-seal0  seal shifted -24.000 in along the wall'), ('MDL 7272 S', 'standalone', 'rebalanced E1       46VNT_VSS                26.000..72.000  (slot was 50.000..72.000)'), ('MDL 7272 S', 'standalone', 'rebalanced W0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)'), ('MDL 7272 S', 'standalone', 'rebalanced W-seal0  seal shifted -24.000 in along the wall'), ('MDL 7272 S', 'standalone', 'rebalanced W1       46Panel3236WDO           26.000..72.000  (slot was 50.000..72.000)'), ('MDL 7296 E', 'standalone', 'rebalanced E0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)'), ('MDL 7296 E', 'standalone', 'rebalanced E-seal0  seal shifted -24.000 in along the wall'), ('MDL 7296 E', 'standalone', 'rebalanced E1       46PanelSolid             26.000..72.000  (slot was 50.000..72.000)'), ('MDL 7296 E', 'standalone', 'rebalanced W0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)'), ('MDL 7296 E', 'standalone', 'rebalanced W-seal0  seal shifted -24.000 in along the wall'), ('MDL 7296 E', 'standalone', 'rebalanced W1       46PanelSolid             26.000..72.000  (slot was 50.000..72.000)'), ('MDL 7296 E', 'standalone', 'rebalanced E0i      ENH 17.5PanelSolid       4.250..21.750  (slot was 4.250..45.750)'), ('MDL 7296 E', 'standalone', 'rebalanced E-seal0i seal shifted -24.000 in along the wall'), ('MDL 7296 E', 'standalone', 'rebalanced E1i      ENH 41.5PanelSolid       28.250..69.750  (slot was 52.250..69.750)'), ('MDL 7296 E', 'standalone', 'rebalanced W0i      ENH 17.5PanelSolid       4.250..21.750  (slot was 4.250..45.750)'), ('MDL 7296 E', 'standalone', 'rebalanced W-seal0i seal shifted -24.000 in along the wall'), ('MDL 7296 E', 'standalone', 'rebalanced W1i      ENH 41.5PanelSolid       28.250..69.750  (slot was 52.250..69.750)'), ('MDL 7296 S', 'standalone', 'rebalanced E0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)'), ('MDL 7296 S', 'standalone', 'rebalanced E-seal0  seal shifted -24.000 in along the wall'), ('MDL 7296 S', 'standalone', 'rebalanced E1       46PanelSolid             26.000..72.000  (slot was 50.000..72.000)'), ('MDL 7296 S', 'standalone', 'rebalanced W0       22PanelSolid             2.000..24.000  (slot was 2.000..48.000)'), ('MDL 7296 S', 'standalone', 'rebalanced W-seal0  seal shifted -24.000 in along the wall'), ('MDL 7296 S', 'standalone', 'rebalanced W1       46PanelSolid             26.000..72.000  (slot was 50.000..72.000)')]
+      want []
+  MDL 6060 E E out: standalone and link put the same widths at the same y
+      got  [(2.0, 42.0, 40.0), (44.0, 60.0, 16.0)]
+      want [(2.0, 18.0, 16.0), (20.0, 60.0, 40.0)]
+  MDL 6060 E E out: LINK puts the wide panel (40) at the door end
+      got  20.0
+      want 2.0
+  MDL 6060 E E in: standalone and link put the same widths at the same y
+      got  [(4.25, 39.75, 35.5), (46.25, 57.75, 11.5)]
+      want [(4.25, 15.75, 11.5), (22.25, 57.75, 35.5)]
+  MDL 6060 E E in: LINK puts the wide panel (35.5) at the door end
+      got  22.25
+      want 4.25
+  MDL 6060 E W out: standalone and link put the same widths at the same y
+      got  [(2.0, 42.0, 40.0), (44.0, 60.0, 16.0)]
+      want [(2.0, 18.0, 16.0), (20.0, 60.0, 40.0)]
+  MDL 6060 E W out: LINK puts the wide panel (40) at the door end
+      got  20.0
+      want 2.0
+  MDL 6060 E W in: standalone and link put the same widths at the same y
+      got  [(4.25, 39.75, 35.5), (46.25, 57.75, 11.5)]
+      want [(4.25, 15.75, 11.5), (22.25, 57.75, 35.5)]
+  MDL 6060 E W in: LINK puts the wide panel (35.5) at the door end
+      got  22.25
+      want 4.25
+  MDL 6060 S E out: standalone and link put the same widths at the same y
+      got  [(2.0, 42.0, 40.0), (44.0, 60.0, 16.0)]
+      want [(2.0, 18.0, 16.0), (20.0, 60.0, 40.0)]
+  MDL 6060 S E out: LINK puts the wide panel (40) at the door end
+      got  20.0
+      want 2.0
+  MDL 6060 S W out: standalone and link put the same widths at the same y
+      got  [(2.0, 42.0, 40.0), (44.0, 60.0, 16.0)]
+      want [(2.0, 18.0, 16.0), (20.0, 60.0, 40.0)]
+  MDL 6060 S W out: LINK puts the wide panel (40) at the door end
+      got  20.0
+      want 2.0
+  MDL 6084 E E out: standalone and link put the same widths at the same y
+      got  [(2.0, 42.0, 40.0), (44.0, 60.0, 16.0)]
+      want [(2.0, 18.0, 16.0), (20.0, 60.0, 40.0)]
+  MDL 6084 E E out: LINK puts the wide panel (40) at the door end
+      got  20.0
+      want 2.0
+  MDL 6084 E E in: standalone and link put the same widths at the same y
+      got  [(4.25, 39.75, 35.5), (46.25, 57.75, 11.5)]
+      want [(4.25, 15.75, 11.5), (22.25, 57.75, 35.5)]
+  MDL 6084 E E in: LINK puts the wide panel (35.5) at the door end
+      got  22.25
+      want 4.25
+  MDL 6084 E W out: standalone and link put the same widths at the same y
+      got  [(2.0, 42.0, 40.0), (44.0, 60.0, 16.0)]
+      want [(2.0, 18.0, 16.0), (20.0, 60.0, 40.0)]
+  MDL 6084 E W out: LINK puts the wide panel (40) at the door end
+      got  20.0
+      want 2.0
+  MDL 6084 E W in: standalone and link put the same widths at the same y
+      got  [(4.25, 39.75, 35.5), (46.25, 57.75, 11.5)]
+      want [(4.25, 15.75, 11.5), (22.25, 57.75, 35.5)]
+  MDL 6084 E W in: LINK puts the wide panel (35.5) at the door end
+      got  22.25
+      want 4.25
+  MDL 6084 S E out: standalone and link put the same widths at the same y
+      got  [(2.0, 42.0, 40.0), (44.0, 60.0, 16.0)]
+      want [(2.0, 18.0, 16.0), (20.0, 60.0, 40.0)]
+  MDL 6084 S E out: LINK puts the wide panel (40) at the door end
+      got  20.0
+      want 2.0
+  MDL 6084 S W out: standalone and link put the same widths at the same y
+      got  [(2.0, 42.0, 40.0), (44.0, 60.0, 16.0)]
+      want [(2.0, 18.0, 16.0), (20.0, 60.0, 40.0)]
+  MDL 6084 S W out: LINK puts the wide panel (40) at the door end
+      got  20.0
+      want 2.0
+  MDL 7272 E E out: standalone and link put the same widths at the same y
+      got  [(2.0, 24.0, 22.0), (26.0, 72.0, 46.0)]
+      want [(2.0, 48.0, 46.0), (50.0, 72.0, 22.0)]
+  MDL 7272 E E out: STANDALONE puts the wide panel (46) at the door end
+      got  26.0
+      want 2.0
+  MDL 7272 E E in: standalone and link put the same widths at the same y
+      got  [(4.25, 21.75, 17.5), (28.25, 69.75, 41.5)]
+      want [(4.25, 45.75, 41.5), (52.25, 69.75, 17.5)]
+  MDL 7272 E E in: STANDALONE puts the wide panel (41.5) at the door end
+      got  28.25
+      want 4.25
+  MDL 7272 E W out: standalone and link put the same widths at the same y
+      got  [(2.0, 24.0, 22.0), (26.0, 72.0, 46.0)]
+      want [(2.0, 48.0, 46.0), (50.0, 72.0, 22.0)]
+  MDL 7272 E W out: STANDALONE puts the wide panel (46) at the door end
+      got  26.0
+      want 2.0
+  MDL 7272 E W in: standalone and link put the same widths at the same y
+      got  [(4.25, 21.75, 17.5), (28.25, 69.75, 41.5)]
+      want [(4.25, 45.75, 41.5), (52.25, 69.75, 17.5)]
+  MDL 7272 E W in: STANDALONE puts the wide panel (41.5) at the door end
+      got  28.25
+      want 4.25
+  MDL 7272 S E out: standalone and link put the same widths at the same y
+      got  [(2.0, 24.0, 22.0), (26.0, 72.0, 46.0)]
+      want [(2.0, 48.0, 46.0), (50.0, 72.0, 22.0)]
+  MDL 7272 S E out: STANDALONE puts the wide panel (46) at the door end
+      got  26.0
+      want 2.0
+  MDL 7272 S W out: standalone and link put the same widths at the same y
+      got  [(2.0, 24.0, 22.0), (26.0, 72.0, 46.0)]
+      want [(2.0, 48.0, 46.0), (50.0, 72.0, 22.0)]
+  MDL 7272 S W out: STANDALONE puts the wide panel (46) at the door end
+      got  26.0
+      want 2.0
+  MDL 7296 E E out: standalone and link put the same widths at the same y
+      got  [(2.0, 24.0, 22.0), (26.0, 72.0, 46.0)]
+      want [(2.0, 48.0, 46.0), (50.0, 72.0, 22.0)]
+  MDL 7296 E E out: STANDALONE puts the wide panel (46) at the door end
+      got  26.0
+      want 2.0
+  MDL 7296 E E in: standalone and link put the same widths at the same y
+      got  [(4.25, 21.75, 17.5), (28.25, 69.75, 41.5)]
+      want [(4.25, 45.75, 41.5), (52.25, 69.75, 17.5)]
+  MDL 7296 E E in: STANDALONE puts the wide panel (41.5) at the door end
+      got  28.25
+      want 4.25
+  MDL 7296 E W out: standalone and link put the same widths at the same y
+      got  [(2.0, 24.0, 22.0), (26.0, 72.0, 46.0)]
+      want [(2.0, 48.0, 46.0), (50.0, 72.0, 22.0)]
+  MDL 7296 E W out: STANDALONE puts the wide panel (46) at the door end
+      got  26.0
+      want 2.0
+  MDL 7296 E W in: standalone and link put the same widths at the same y
+      got  [(4.25, 21.75, 17.5), (28.25, 69.75, 41.5)]
+      want [(4.25, 45.75, 41.5), (52.25, 69.75, 17.5)]
+  MDL 7296 E W in: STANDALONE puts the wide panel (41.5) at the door end
+      got  28.25
+      want 4.25
+  MDL 7296 S E out: standalone and link put the same widths at the same y
+      got  [(2.0, 24.0, 22.0), (26.0, 72.0, 46.0)]
+      want [(2.0, 48.0, 46.0), (50.0, 72.0, 22.0)]
+  MDL 7296 S E out: STANDALONE puts the wide panel (46) at the door end
+      got  26.0
+      want 2.0
+  MDL 7296 S W out: standalone and link put the same widths at the same y
+      got  [(2.0, 24.0, 22.0), (26.0, 72.0, 46.0)]
+      want [(2.0, 48.0, 46.0), (50.0, 72.0, 22.0)]
+  MDL 7296 S W out: STANDALONE puts the wide panel (46) at the door end
+      got  26.0
+      want 2.0

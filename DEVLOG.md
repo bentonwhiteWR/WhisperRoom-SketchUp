@@ -1,5 +1,104 @@
 # DEVLOG
 
+## 2026-09-02
+
+### Audit finding 1 closed: the two booth build paths drew mirrored side walls — 1.19.10
+
+Benton picked finding 1 off the 1 Sep audit for a Fixer on fable. The four
+split-run booths — MDL 6060, 6084, 7272, 7296 — have side walls of exactly two
+unequal panels (40+16, 46+22), and the two ways of reaching
+`WR_BuildBoothComponents.build_booth` put the wide one at **opposite ends**.
+Both builds closed exactly and printed `exact` on every panel, so nothing
+complained; the window, the vent and the seam seal simply sat at the far end
+of the booth on one button and the door end on the other.
+
+**Root cause, one sentence:** `ASSIGN` swapped slot *names* by id while
+`gen-booth.py`'s 28 Aug `SWAP_TWO_PANEL_SIDE_WALL` swapped slot *positions*,
+and because the generated data had `E0` at the door end on the 72-series and
+at the far end on the 60-series after that swap, the two composed into a
+double swap on the standalone path (7272 mirrored) and no swap on the
+share-link path, which never reads `ASSIGN` (6060 mirrored). An id-keyed
+table and a position-keyed generator cannot agree across both families
+whichever arrangement is right.
+
+**The ruling** (Benton, 2 Sep, off headless captures of the booth builder's
+floor / ceiling / wall rendering): *the wide floor section, the door frame and
+the wide side-wall panel all sit at the same end — the door end — on every
+split-run model.* Both families, both side walls, both shells. That supersedes
+the 28 Aug built-booth ruling behind `a886105`. The 7272/7296 data already
+said so; the 6060/6084 data said the opposite.
+
+**What changed.**
+- `scripts/gen-booth.py` — `SWAP_TWO_PANEL_SIDE_WALL`, `swap_side_wall` and
+  the `outer_lengths` plumbing that fed the inner shell's copy of the
+  predicate are gone. The plain S→N walk lays slot 0 — the wide slot on every
+  one of these layouts — down first from the door wall, so there is no swap
+  step. **This file is now the only owner of which end a panel sits at.**
+- `scripts/wr-booth-data.rb` — **regenerated** with `gen-booth.py --all`, not
+  hand-edited. 72 lines moved in exactly the four 60-series blocks (6060 S,
+  6060 E out+in, 6084 S, 6084 E out+in), and the result is content-identical
+  to the file as it stood before `a886105` (diff with CR stripped: empty).
+  Nothing else in `a886105` — the ceiling half-turn in `wr-deck.rb`, the duct
+  cover sign in `wr-overlays.rb` — is touched; only its data swap is undone.
+- `scripts/build-booth-components.rb` — `ASSIGN` names parts; it never moves
+  them. The 6060 / 6084 / 7296 E and W entries are **deleted** (they were the
+  exact names `guess_component` composes, written out only to relocate the
+  slot; a guessed slot is now reported as guessed, which is honest for a wall
+  nobody specified). The 7272 keeps its E/W entries because they carry
+  *choices* — the VSS vent and the 32×36 window — re-keyed to the slot of
+  their own width: `E0 => 46VNT_VSS`, `W0 => 46Panel3236WDO`, `E1/W1 =>
+  22PanelSolid`, and the ENH twins likewise. `rebalance_walls` now has nothing
+  to do on any of the eight keys.
+- **`scripts/rbtest-side-wall-order.py`, new — the pin that was missing on
+  27 Aug.** Boots SketchUp's CRuby through `rbparse.py`, lifts `ASSIGN`,
+  `guess_component`, `rebalance_walls`, `component_for`, `v3_snap`, `v3_sku`
+  and their constants verbatim, `load`s the data file, and for **all 50 keys**
+  runs build_booth's pass 1 twice — once with `ASSIGN[key]`, once with the
+  catalogue-default `#3=` slot map the link path would carry — then hands the
+  rows to the real `rebalance_walls` and reads back where every E/W panel
+  landed. 437 checks: slot ids ascend from the door end on every wall and
+  shell; the wide slot is at the door end; every `ASSIGN` E/W name is the width
+  of its slot; the two paths put the same widths at the same y everywhere;
+  nothing is rebalanced. The one stand-in is classify()'s measured width,
+  replaced by the nominal the name declares. **On the unfixed tree it fails
+  125 of 473 and its `MOVED` list reproduces the 30 Aug live transcript
+  line-for-line** (`rebalanced E1 40VNT 2.000..42.000 (slot was
+  2.000..18.000)`) — `.forge/fixer/side-wall-order-BEFORE.txt` / `-AFTER.txt`.
+  Mutation-checked: the 7272 names swapped back → 5 fails; the 6060 E-wall ids
+  reversed in the data → 1 fail.
+- `scripts/rbtest-part-orientation.py` — section 2 no longer imports the
+  deleted predicate; it pins that the predicate stays out of `gen-booth.py`
+  and that **no** side wall in the generated data carries a reversed slot
+  order. 35 checks (was 45). Section 1's 84/96/102 boundary is untouched.
+- `scripts/rbtest-overlays.py` — comment only: its 7272 E fixture is the old
+  ASSIGN-swapped arrangement, now labelled synthetic; the overlay geometry it
+  pins does not depend on which end the wide panel is at.
+
+**The golden booth-matrix baseline was NOT regenerated** — no SketchUp here,
+and a live capture cannot be hand-edited honestly.
+`.forge/builder/booth-matrix/STALE-1.19.10-side-wall-order.md` names the eight
+`dry/` keys and two `build/` keys that record the defect, and the exact lines
+the next live run should show instead. `rbtest-live-booth.py diff` will report
+those eight as CHANGED; that is the expected result. Any other key moving is a
+finding.
+
+**Offline harnesses on this tree, all observed:** `rbparse.py` 66 files parse;
+`rbtest.py`, `rbtest-overlays.py` (27), `rbtest-boothlink-v3.py`,
+`rbtest-boothlink-cbl.py`, `rbtest-doorswing.py`, `rbtest-roofvent.py`,
+`rbtest-lights.py` (green — 1.19.3 fixed it, it is not the known red the
+brief expected), `rbtest-proposal.py`, `rbtest-srgb.py` (29),
+`rbtest-takeoff.py`, `rbtest-live-booth.py selftest` (20),
+`takeoff-check.py --selftest` all 0 failures; `rbtest-part-orientation.py` 35;
+`rbtest-side-wall-order.py` 437.
+
+**UNRUN IN SKETCHUP.** What only a live build can confirm: that
+`wall_slab` measures the 46VNT_VSS / 46Panel3236WDO parts at 46 and the ENH
+twins at 41.5 (the harness assumes nominal), that the placed window and vent
+therefore land at y 2..48 on a real 7272, and that the standalone 6060 —
+which now guesses all four side-wall names — resolves every one in the
+library. Benton's eye on one built 6060 S and one 7272 S, top-down, is the
+close-out.
+
 ## 2026-09-01
 
 Fourteen versions, 1.14.1 through 1.19.2. Two of them were fixing my own

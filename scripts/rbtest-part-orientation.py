@@ -15,10 +15,13 @@ between the two is a real risk and is stated in the report rather than hidden.
      is reachable the fixture is CROSS-CHECKED against it and a disagreement
      FAILS. It is never silently trusted and never silently skipped.
 
-  2. THE 40/16 SIDE WALL SWAP - gen-booth.py's swap_side_wall, imported and
-     exercised directly, plus a scope check over the GENERATED
-     scripts/wr-booth-data.rb: exactly four model blocks may carry the swapped
-     order and every other side wall in the catalogue must be where it was.
+  2. SIDE WALL ORDER - the 2026-08-28 40/16 swap (swap_side_wall) is GONE
+     from gen-booth.py since 1.19.10: Benton's 2026-09-02 ruling puts the
+     wide panel at the door end on every split-run model, which is what the
+     plain S->N walk already produces. This section pins that the predicate
+     stays gone and that NO side wall in the GENERATED wr-booth-data.rb
+     carries a reversed slot order any more. The end-to-end pin (both build
+     paths, every key) is scripts/rbtest-side-wall-order.py.
 
   3. THE DUCT COVER FACE SIGN - wr-overlays.rb FACE_ROOM[:duct], read out of
      the source. It is a one-constant fact and it is pinned as one.
@@ -229,33 +232,25 @@ def test_ceilings():
 
 
 # ---------------------------------------------------------------------------
-# 2. THE 40/16 SIDE WALL SWAP
+# 2. SIDE WALL ORDER
 # ---------------------------------------------------------------------------
 
 def test_swap_predicate():
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        'genbooth', os.path.join(HERE, 'gen-booth.py'))
-    gb = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(gb)
-    f = gb.swap_side_wall
+    """The 40/16 positional swap must stay out of the generator.
 
-    out = ['THE 40/16 SIDE WALL SWAP - gen-booth.py swap_side_wall', '']
-    cases = [
-        (('E', [40.0, 16.0]), True,  'MDL 6060 / 6084 E wall - the reported defect'),
-        (('W', [16.0, 40.0]), True,  'order-independent: it is a SET of lengths'),
-        (('E', [46.0, 22.0]), False, 'MDL 7272 / 7296 - same shape, NOT reported, NOT swapped'),
-        (('E', [46.0, 46.0]), False, 'MDL 96144 side wall - equal, nothing to swap'),
-        (('W', [40.0, 16.0, 40.0]), False, 'MDL 102144 side wall - three panels'),
-        (('N', [40.0, 16.0]), False, 'an N wall is never swapped'),
-        (('S', [40.0, 16.0]), False, 'an S wall is never swapped'),
-        (('E', [40.0]), False, 'a single-panel side wall'),
-        (('E', []), False, 'no lengths at all (the inner-shell no-data path)'),
-    ]
-    for (side, lengths), want, why in cases:
-        got = f(side, lengths)
-        ck('swap_side_wall(%r, %r) - %s' % (side, lengths, why), got, want)
-        out.append('    %-30s -> %-5s   %s' % ('%s %s' % (side, lengths), got, why))
+    1.7.10 added SWAP_TWO_PANEL_SIDE_WALL / swap_side_wall to reverse the
+    slot->position pairing on the 6060 / 6084 side walls. 1.19.10 removed it
+    on Benton's 2 Sep ruling; an id-keyed ASSIGN and a position-keyed
+    generator can never agree across both families, so position has exactly
+    one owner - the generator's plain walk - and no swap step at all.
+    """
+    src = io.open(os.path.join(HERE, 'gen-booth.py'), encoding='utf-8').read()
+    code = '\n'.join(l for l in src.splitlines() if not l.lstrip().startswith('#'))
+    out = ['SIDE WALL ORDER - gen-booth.py carries no positional swap', '']
+    for token in ('SWAP_TWO_PANEL_SIDE_WALL', 'def swap_side_wall', 'pairs.reverse()'):
+        ck('gen-booth.py code (comments stripped) does not contain %r' % token,
+           token in code, False)
+        out.append('    %-28s absent' % token)
     return out
 
 
@@ -293,7 +288,7 @@ def side_walls():
 
 def test_generated_scope():
     walls = side_walls()
-    out = ['THE GENERATED DATA - which side walls actually carry the swap', '']
+    out = ['THE GENERATED DATA - no side wall carries a reversed slot order', '']
     ck('wr-booth-data.rb has side walls to check at all', len(walls) > 0, True)
 
     swapped = set()
@@ -309,20 +304,13 @@ def test_generated_scope():
             out.append('    %-12s %s %-3s  slot order reversed, lengths %s'
                        % (model, wall, shell, lens))
 
-    ck('exactly the two reported models carry the swap, both shells, both side walls',
-       sorted({m for m, _w, _s in swapped}),
-       ['MDL 6060 E', 'MDL 6060 S', 'MDL 6084 E', 'MDL 6084 S'])
-    # 6060 S and 6084 S are Standard-only: E out + W out = 2 each.
-    # 6060 E and 6084 E carry an IEP shell too: E/W x out/in = 4 each.
-    # 2 + 2 + 4 + 4 = 12, and the two shells of a model must always agree or
-    # the inner shell sits inside a mirrored outer one.
-    ck('and on those models it is E and W, out and in, with nothing left over',
-       len(swapped), 12)
-    for model in ('MDL 6060 E', 'MDL 6084 E'):
-        for wall in ('E', 'W'):
-            ck('%s %s: outer and inner shell swapped together' % (model, wall),
-               ((model, wall, 'out') in swapped, (model, wall, 'in') in swapped),
-               (True, True))
+    ck('NO model carries a reversed side-wall slot order (2026-09-02 ruling: '
+       'slot 0, the wide slot, at the door end on every split-run model)',
+       sorted({m for m, _w, _s in swapped}), [])
+    ck('and that holds on every wall and both shells - nothing left over',
+       len(swapped), 0)
+    if not swapped:
+        out.append('    (none - every two-panel side wall walks slot 0 first from the door end)')
 
     return out, swapped
 
