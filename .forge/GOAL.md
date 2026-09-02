@@ -1,82 +1,96 @@
 # GOAL
 
 ## Mission
-**Full audit of the WhisperRoom SketchUp plugin and the two drawing skills, 1 Sep 2026,
-at plugin 1.19.2 (commit 14197b9).** Benton: "We finally got the SketchUp plugin working
-pretty good ... run a full audit on the entire SketchUp plugin as well as our skills ...
-review all the changes ... Look for areas of improvement with the things that are broken
-that need to be fixed."
+**Fix audit finding 1 — the two booth build paths draw mirrored side walls on the
+6060 / 6084 / 7272 / 7296.** Benton, 2 Sep 2026: "I would like to fix 1. the mirrored
+walls bugs. Use fable." Silent, customer-facing: both builds close exactly and print
+`exact`, so the window, vent and seam land at opposite ends of the side wall depending
+on which panel button was pressed.
 
-This is a READ-ONLY review. Auditors report; nothing gets fixed in this mission. The
-deliverable is one ranked findings document Benton can act on, published as an artifact and
-emailed to him.
+Benton's steer on how to settle the correct arrangement (2 Sep): panel order **depends on
+the floor and ceiling layout**, and the **booth builder** (`booth-builder.html` in the
+WhisperRoomQuote repo) renders all three accurately — drive it headlessly and read the
+truth off it rather than asking him to adjudicate from a wall-only drawing.
 
 ## Done means
-1. Every file under `scripts/` that the panel can run, plus `scripts/wr_tools/`,
-   `scripts/install-plugin.py`, both `skills/*/SKILL.md`, and the reference docs they cite,
-   has been read by an Auditor against `CLAUDE.md` and `reference/sketchup-drawing.md`.
-2. Every finding carries file:line, the concrete trigger, the failure it causes, a
-   provenance tag (observed / derived / assumed), and a fix direction.
-3. The prior audits (`.forge/auditor/script-audit.md` 15 Aug,
-   `.forge/auditor/proposal-package-audit-2026-08-30.md`,
-   `.forge/auditor/lighting-inconsistency-2026-08-28.md`) are re-checked: each earlier
-   finding is marked FIXED / STILL OPEN / REGRESSED with evidence.
-4. Every offline harness (`rbparse.py`, `takeoff-check.py --selftest`, every `rbtest-*.py`)
-   has been run and its result recorded. Baseline run by the orchestrator 1 Sep:
-   all pass EXCEPT `scripts/rbtest-lights.py`, which raises
-   "the check harness itself raised inside Ruby" — root cause owed.
-5. One consolidated report at `.forge/auditor/full-audit-2026-09-01.md`, ranked by
-   probability × cost, silent failures above loud ones, customer-facing above internal.
+1. The correct wide-panel end is established **from the booth builder's own rendering**,
+   for both families, with the floor panel seams and ceiling panel seams shown alongside
+   the wall panels — not inferred from `wr-booth-data.rb` alone.
+2. One owner for E/W panel order. Today `ASSIGN` (`scripts/build-booth-components.rb:1312-1400`)
+   swaps slot ids while `gen-booth.py`'s `SWAP_TWO_PANEL_SIDE_WALL` swaps positions; they
+   compose to a double swap on the standalone path and no swap on the share-link path.
+   Either the E/W entries leave `ASSIGN`, or `ASSIGN` is keyed on position.
+3. A pinned offline test, one case per catalogue key, asserting the standalone build and
+   the share-link build put the wide panel at the same end. No such case exists today —
+   that is why the 27 Aug regression never tripped anything.
+4. The 50-key golden booth-matrix baseline is regenerated. It was captured through
+   `ASSIGN` (`scripts/rbtest-live-booth.py:235`), so it currently records the defect as
+   expected output.
+5. `scripts/wr_tools/VERSION` bumped, committed and pushed.
 
-## Now — 1 Sep 2026, late night, both build lanes shipped
-- **Panel overhaul (variant A): DONE.** 1.19.4–1.19.8 on main and installed (1.19.8 handoff
-  `.forge/builder/HANDOFF-panel-overhaul.md`). A background code-review's "Reuse angle" left
-  6 reuse/simplification findings on the panel diff (favourite_at in build_ui still un-cached;
-  dev/compact pref duplication; tile vs row flipAbility drift; glyph literal in tiles();
-  recentStrip JS truncation vs CSS; make-icons label-merge duplication) — cleanup, not bugs;
-  batch to a Sonnet simplify pass later.
-- **Take-off review sheet redesign: SHIPPED as 1.19.9** (44077b2), installed. 3D viewer always
-  open per Benton; sheet self-contained. OWED (batch to ONE Sonnet Documenter after the
-  1:30am reset): the docs slice (skills/whisperroom-takeoff/SKILL.md + reference/takeoff-format.md
-  — the D-4 note lines, `derived` in src vocab, the two new lock keys), the DEVLOG entries for
-  1.19.4–1.19.9, and `.forge/builder/HANDOFF-takeoff-sheet.md`.
-- **COST FIX applied:** sub-agents spawn on Sonnet by default now (memory `subagent-cost-control`);
-  caching was already 97% so it was never the lever — model + volume was. Session hit 100% at
-  ~$61; resets 1:30am ET.
+## Now — 2 Sep 2026, DECIDED
 
-Audit ranking still open at `.forge/auditor/full-audit-2026-09-01.md`.
+**Benton's ruling, 2 Sep 2026 — the booth builder's layout is correct for all four models.**
+Reviewing the headless captures at
+https://claude.ai/code/artifact/52672c8d-40f9-445a-a592-d5712e44c217 he stated the invariant:
 
-## Facts established by the orchestrator, 1 Sep 2026
-- Repo is at `14197b9`, clean, in sync with `origin/main` (observed).
-- The installed plugin was **1.12.9** against a repo at **1.19.2**; `install-plugin.py`
-  was run and the installed copy now reads 1.19.2 for SketchUp 2024 and SketchUp 2026
-  (observed). Both skills in `~/.claude/skills/` now match the repo byte-for-byte
-  (observed). SketchUp was not running, so no restart is pending.
-- The Update-now mechanism evidently did not keep this machine current across a day of
-  fourteen versions — Auditor A owns why.
+> Looking top-down, the larger floor component is on the left, the door is on the bottom
+> (south) side, and on the left wall the lower piece — the one toward the door — is always
+> the bigger wall. Same logic for the 6060.
+
+So: **the wide floor section, the door frame, and the wide side-wall panel all sit at the
+same end — the door end — on every split-run model.** One rule, both families, both side
+walls. This supersedes the 28 Aug built-booth ruling that produced commit `a886105`.
+
+Consequences:
+- `MDL 6060 S/E` and `MDL 6084 S` in `scripts/wr-booth-data.rb` are **wrong** and must move
+  to 40" at y 2–42, 16" at y 44–60. `gen-booth.py`'s `SWAP_TWO_PANEL_SIDE_WALL = {40,16}`
+  (added in `a886105`) is reverted.
+- `MDL 7272 S/E` and `MDL 7296 S` are already right in the data (46" at y 2–48); only the
+  standalone `ASSIGN` path is wrong there.
+
+Fixer on fable owns the change. The Researcher's evidence and seam figures are at
+`.forge/researcher/booth-builder-panel-order.md`; its baton is `.forge/researcher/HANDOFF.md`.
+
+## Facts established, 2 Sep 2026 (orchestrator, observed)
+Read straight out of the part polygons in `scripts/wr-booth-data.rb`:
+
+| model | door-end panel | far-end panel | vent slot |
+|---|---|---|---|
+| 7272 S/E, 7296 S | 46" (`E0`) | 22" (`E1`) | `E0` = door end |
+| 6060 S/E, 6084 S | 16" (`E1`) | 40" (`E0`) | `E0` = far end |
+
+Two things follow. **The data file already uses opposite wide-panel conventions between the
+two families.** And **slot ids run in opposite directions** — `E0` is the door-end slot on
+the 7272 and the far-end slot on the 6060 — which is the mechanism by which an id-keyed
+`ASSIGN` and a position-keyed generator fight.
+
+The door frame (`S0`, DRFRM) is always at the low-x end of the south wall: x 2..48 on the
+7272, x 2..42 on the 6060 (observed).
 
 ## Rules that bind this work
-- Auditors write ONLY under `.forge/auditor/`. No source edits, no VERSION bump.
-- No SketchUp, no V-Ray, no `ruby.exe` on this machine. `scripts/rbparse.py` boots
-  SketchUp's own CRuby DLL and can evaluate pure-Ruby snippets; use it to turn a derived
-  finding into an observed one where the code is pure.
-- A finding with no trigger path is noise. Rank by probability × cost.
-- Build only into an Untitled model — any script that writes to `Sketchup.active_model`
-  without that guard is a finding.
-- Never invent a placement number; never recommend a booth model — code that does either
-  is a finding.
+- **Read `WhisperRoomQuote`, never write it.** Scratch scripts that drive its
+  `booth-builder.html` live in the scratchpad or `.forge/<role>/`, never in that repo.
+- No SketchUp, no V-Ray, no `ruby.exe` here. `scripts/rbparse.py` boots SketchUp's own
+  CRuby DLL and gives a real syntax check plus pure-Ruby evaluation; run it before any
+  commit touching `.rb`. `scripts/rbcheck.py` is a bracket counter, not a parser.
+- Never invent a placement number. Never recommend a booth model.
+- Push to `bentonwhiteWR/WhisperRoom-SketchUp` as part of finishing, not batched later.
 
 ## Out of scope
-- Any finding other than the two above. Benton picks the next batch.
-- Render look development and V-Ray settings tuning (parked at
-  `.forge/GOAL-prev-render-lookdev.md`).
-- The one-off client scripts (`csusb-*.rb`, `smith-studio.rb`, `uthsc-audiology-rooms.rb`,
-  `dowaly-kuwait-tv.rb`, `fvrl-podcast-alcove.rb`, `booth-4260-s.rb`, `booth-96168-s.rb`)
-  and the 3D-print jigs — drawn once, not maintained.
+- The other 21 audit findings at `.forge/auditor/full-audit-2026-09-01.md`. Benton picks
+  the next batch.
+- The two owed batches, parked until finding 1 lands: the take-off docs slice
+  (`skills/whisperroom-takeoff/SKILL.md`, `reference/takeoff-format.md`, DEVLOG for
+  1.19.4–1.19.9, `.forge/builder/HANDOFF-takeoff-sheet.md`) and the six panel
+  reuse/simplification cleanups on the 1.19.4–1.19.8 diff.
+- The one-off client scripts and the 3D-print jigs.
 
 ## History
-2026-09-01 — Floor-plan intake mission (accuracy + proposal speed) shipped through 1.19.2;
-full text parked at `.forge/GOAL-prev-floorplan-intake.md`.
-2026-08-31 — Render look-development mission parked, `.forge/GOAL-prev-render-lookdev.md`.
-2026-08-30 — Portal-parity / proposal-package mission parked, `.forge/GOAL-prev-portal-vray-mission.md`.
-2026-08-27 — Enhanced/IEP two-shell mission parked at 1.6.32, `.forge/GOAL-prev-iep-mission.md`.
+2026-09-01 — Full read-only audit of the plugin and skills shipped; 22 ranked findings at
+`.forge/auditor/full-audit-2026-09-01.md`. Panel overhaul 1.19.4–1.19.8 and the take-off
+review sheet 1.19.9 both shipped and installed.
+2026-09-01 — Floor-plan intake mission parked at `.forge/GOAL-prev-floorplan-intake.md`.
+2026-08-31 — Render look-development mission parked at `.forge/GOAL-prev-render-lookdev.md`.
+2026-08-30 — Portal-parity / proposal-package mission parked at `.forge/GOAL-prev-portal-vray-mission.md`.
+2026-08-27 — Enhanced/IEP two-shell mission parked at `.forge/GOAL-prev-iep-mission.md`.
