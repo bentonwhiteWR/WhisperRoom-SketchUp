@@ -1,7 +1,7 @@
 # @title Bulk Name After Scenes...
 # @cat Tidy up the model
 # @rank 2
-# @icon names-replace
+# @icon names-bulk
 #
 # The whole gap list in one window. Every scene that has no component of its
 # name is resolved to a best-guess part, the pairings are shown as a TABLE, and

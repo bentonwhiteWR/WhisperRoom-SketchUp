@@ -1,6 +1,7 @@
 # @title UTHSC Audiology rooms 1-4...
 # @tab client
 # @cat Draw the room
+# @icon mono:UT
 #
 # uthsc-audiology-rooms.rb — the four rooms University of Tennessee Health
 # Science Center marked 1 / 2 / 3 / 4 on their suite plan.

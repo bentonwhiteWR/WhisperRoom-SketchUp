@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Look-development matrix">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 4.5h15v15h-15z M9.5 4.5v15 M14.5 4.5v15 M4.5 9.5h15 M4.5 14.5h15"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.4 10.4h3.2v3.2h-3.2z" fill="#ee6216" stroke="none"/>
+  </g>
+</svg>

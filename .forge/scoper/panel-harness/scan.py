@@ -10,6 +10,7 @@ icon_map = json.load(open(WT+"/icon-map.json"))
 def wr_id(s):
     s=(s or "").strip()
     if not s: return None
+    if s.startswith("mono:"): return s
     return s if s.startswith("wr-") else "wr-"+s
 def pretty(b): return " ".join(w.capitalize() for w in re.sub(r"\.rb$","",b,flags=re.I).replace("-"," ").replace("_"," ").split())
 def meta_of(path):

@@ -161,6 +161,7 @@ STATES = [
     ("430-dev-full", dict(dev=True), "", 430, 2600, "light"),
     ("430-compact", dict(update="1.19.4", compact=True), "", 430, 640, "light"),
     ("430-dark", dict(update="1.19.4"), "", 430, 640, "dark"),
+    ("430-editor", dict(), "document.querySelector('.slot[data-s]').click();", 430, 640, "light"),
 ]
 PROOF_MENU = (MENU + "document.querySelector('.mi[data-m=rescan]').click();"
               + MENU + "document.querySelector('.mi[data-m=dev]').click();"

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Toggle draft / render mode">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 5h15v14h-15z M12 5v14"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13 6h5.5v12H13z" fill="#ee6216" stroke="none"/>
+  </g>
+</svg>

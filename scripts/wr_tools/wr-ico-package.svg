@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Proposal package">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 3.5h4.5V8H3.5z M9.5 3.5H14V8H9.5z M3.5 9.5h4.5V14H3.5z M9.5 9.5H14V14H9.5z"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 11h5v9.5h-5z M6 17.5h7.5 M11.5 15.5l2 2-2 2"/>
+  </g>
+</svg>

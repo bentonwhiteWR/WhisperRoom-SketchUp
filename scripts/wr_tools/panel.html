@@ -419,6 +419,12 @@
     color: var(--ink);
   }
   .row .iw .ico { width: 18px; height: 18px; color: var(--ink); }
+  /* A monogram in the well: two initials for a client one-off. Orange because
+     it is the subject of the icon, the way an icon's orange element is. */
+  .iw .mg {
+    font-size: 10px; font-weight: 800; letter-spacing: .02em;
+    color: var(--accent); line-height: 1;
+  }
 
   /* display:block on both is load-bearing, not tidiness. The row is built from
      <span>s, and overflow/text-overflow do nothing on an inline box — leave
@@ -905,13 +911,34 @@
     return '<svg class="' + cls + '"><use href="#' + id + '" xlink:href="#' + id + '"/></svg>';
   }
 
+  // A script with no glyph of its own draws its CATEGORY'S, so the generic
+  // house glyph only ever appears on an uncategorised script. Twenty-four rows
+  // wore wr-default at 1.19.3 and the V-Ray section was a wall of identical
+  // tiles read by title alone.
+  var CAT_ICON = {
+    "Draw the room":               "wr-room-takeoff",
+    "Build the booth":             "wr-booth-blockout",
+    "Add dimensions":              "wr-dim-room",
+    "Scenes and images":           "wr-scenes-list",
+    "V-Ray renders":               "wr-mode",
+    "Component art (web catalog)": "wr-art-flat",
+    "Tidy up the model":           "wr-materials-merge"
+  };
+
   // An icon id resolves against the sprite that is actually loaded. An id with
   // no symbol behind it — a typo in @icon, a map entry ahead of the art, a
-  // missing wr-icons.svg — falls back to the house glyph instead of drawing
-  // nothing at all.
-  function icon(id) {
-    var have = id && document.getElementById(id);
-    return useSvg("ico", have ? id : "wr-default");
+  // missing wr-icons.svg — falls back to the category glyph, then the house
+  // glyph, instead of drawing nothing at all. "mono:CS" is a monogram: the
+  // letters are drawn in the well, for client one-offs (main.rb's wr_id
+  // passes it through untouched).
+  function icon(id, cat) {
+    if (id && id.indexOf("mono:") === 0) {
+      return '<span class="mg">' + esc(id.slice(5, 8)) + "</span>";
+    }
+    var have = id && id !== "wr-default" && document.getElementById(id);
+    if (have) return useSvg("ico", id);
+    var c = cat && CAT_ICON[cat];
+    return useSvg("ico", c && document.getElementById(c) ? c : "wr-default");
   }
 
   function byName(name) {
@@ -1401,7 +1428,7 @@
   function actionRow(s, i, term) {
     return '<div class="row' + (i === sel ? " sel" : "") + '" data-i="' + i +
              '" title="' + esc(tip(s, "click to run")) + '">' +
-             '<span class="iw">' + icon(s.icon) + "</span>" +
+             '<span class="iw">' + icon(s.icon, s.cat) + "</span>" +
              '<span class="body">' +
                '<span class="t"><span class="nm">' + hl(s.title, term) + "</span>" +
                  tagsFor(s, term) + "</span>" +
@@ -1443,7 +1470,7 @@
               : a.label + " — stays on in this model until switched off";
     return '<div class="row ab' + (a.on_now ? " on" : "") + '" data-ab="' + esc(a.id) +
              '" title="' + esc(t) + '">' +
-             '<span class="iw">' + icon(a.icon || (s ? s.icon : null)) + "</span>" +
+             '<span class="iw">' + icon(a.icon || (s ? s.icon : null), a.cat || (s ? s.cat : null)) + "</span>" +
              '<span class="body">' +
                '<span class="t"><span class="nm">' + hl(title, term) + "</span>" +
                  tagsFor(s, term) + "</span>" +

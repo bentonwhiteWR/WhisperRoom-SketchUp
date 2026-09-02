@@ -1,6 +1,7 @@
 # @title FVRL podcast booth — alcove fit plan...
 # @tab client
 # @cat Draw the room
+# @icon mono:FV
 #
 # fvrl-podcast-alcove.rb — the Fort Vancouver Regional Library podcast booth
 # alcove, with the MDL 96120 E footprint and its REQUIRED CLEARANCES drawn as

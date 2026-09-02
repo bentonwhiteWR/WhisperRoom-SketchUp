@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Probe the seam seals">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 9v11h15V9"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 6.5h17 M9.5 14l1.8 1.8 3.4-3.6"/>
+  </g>
+</svg>

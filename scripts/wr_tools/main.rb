@@ -508,6 +508,10 @@ module WhisperRoom
     def self.wr_id(id)
       s = id.to_s.strip
       return nil if s.empty?
+      # "mono:CS" is a two-letter monogram, not a sprite symbol: the panel
+      # draws the letters in the icon well. Client one-offs use it — two
+      # initials beat any picture of a room nobody else will draw again.
+      return s if s.start_with?('mono:')
       s.start_with?('wr-') ? s : "wr-#{s}"
     end
 

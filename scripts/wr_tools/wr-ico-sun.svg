@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Light it from here (sun to camera)">
+  <g fill="none" stroke="#20262a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 10.5h9v9H4z"/>
+  </g>
+  <g fill="none" stroke="#ee6216" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.6 7a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0 M17 2.5v1.5 M17 11v1.5 M12.5 7H14 M20 7h1.5 M13.8 3.8l1.1 1.1 M19.1 9.1l1.1 1.1 M13.8 10.2l1.1-1.1 M19.1 4.9l1.1-1.1"/>
+  </g>
+</svg>

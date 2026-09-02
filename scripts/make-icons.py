@@ -186,9 +186,18 @@ def main():
     print('The plugin globs ico-*.svg, so they are live after the next')
     print('install-plugin.py + SketchUp restart. Labels come from this file via')
     print('ico-labels.txt, written alongside them.')
-    with open(os.path.join(OUT, 'ico-labels.txt'), 'w', encoding='utf-8') as f:
+    # The wr-* lines belong to .forge/builder-icons/gen-icons.py (the
+    # WhisperRoom symbol set); keep them, rewrite only this set's.
+    lp = os.path.join(OUT, 'ico-labels.txt')
+    wr = []
+    if os.path.exists(lp):
+        with open(lp, encoding='utf-8') as f:
+            wr = [l for l in f.read().splitlines() if l.startswith('wr-')]
+    with open(lp, 'w', encoding='utf-8') as f:
         for name, label, _b in ICONS:
             f.write('%s\t%s\n' % (name, label))
+        for l in wr:
+            f.write(l + '\n')
 
 
 if __name__ == '__main__':

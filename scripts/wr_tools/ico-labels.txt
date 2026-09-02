@@ -45,3 +45,54 @@ clock	Timing
 tag	Tag / rename
 text	Text
 drill	Machining / jig
+wr-room-takeoff	Build a room from a take-off
+wr-booth-link	Build the customer's booth (share link)
+wr-booth-parts	Build a booth from real parts
+wr-booth-blockout	Block-out booth (plain boxes, fast)
+wr-dim-room	Dimension the room
+wr-dim-booth	Dimension the booth (catalogue figures)
+wr-dim-selection	Measure whatever is selected
+wr-scenes-proposal	Set up the five proposal plates
+wr-scenes-list	List and number the scenes
+wr-scenes-export	Export the proposal plates
+wr-view-export	Export just this view
+wr-art-angled	Component art - Iso30 angles
+wr-art-flat	Component art - flat views
+wr-art-elevations	Component art - six elevations
+wr-art-orbit	Orbit a part for the assembly manual
+wr-explode	Explode an assembly
+wr-scene-parts	Save each scene's part as a .skp
+wr-names-replace	Find and replace names
+wr-materials-merge	Merge two materials into one
+wr-scenes-import	Import a .skp and keep its scenes
+wr-probe-components	Probe Component Files
+wr-probe-levels	Probe Face Levels
+wr-diag-favourites	Diag Favourites
+wr-rooms-csusb	CSUSB rooms (one-off job)
+wr-booth-preset-small	Build Booth MDL 4260 S
+wr-booth-preset-large	Build Booth MDL 96168 S
+wr-jig-pendant	Pendant Curing Jig
+wr-jig-tube-stand	Tube Drying Stand
+wr-takeoff	Build the room from a take-off
+wr-reorient	Make this view the Front
+wr-prefix	Prefix every scene name
+wr-probe-place	Probe placement of the selection
+wr-mode	Toggle draft / render mode
+wr-sun	Light it from here (sun to camera)
+wr-lights	Drop the interior lights
+wr-materials	Swap draft / render materials
+wr-preflight	Pre-render checklist
+wr-pack	Export the client pack
+wr-scene-walls	Hide walls per scene
+wr-name-walls	Name walls for the scene picker
+wr-lower-walls	Lower selected walls to a curb
+wr-split-walls	Split walls at sill
+wr-lookdev	Look-development matrix
+wr-probe-color	Probe V-Ray colour settings
+wr-probe-vray	Probe V-Ray API
+wr-probe-enh	Probe the Enhanced shell
+wr-probe-seal	Probe the seam seals
+wr-names-bulk	Name parts after their scenes (bulk)
+wr-name-one	Name the selection after its scene
+wr-package	Proposal package
+wr-ghost	(reserve - ghost/reference geometry)
