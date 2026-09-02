@@ -637,7 +637,7 @@ module WhisperRoom
 
     # Everything this panel remembers about how it is arranged. Recents are
     # left out on purpose: they are one person's history, not a shop setting.
-    SHOP_KEYS = %w[slots slot_icons pinned ui_collapsed ui_dev].freeze
+    SHOP_KEYS = %w[slots slot_icons pinned ui_collapsed ui_dev ui_compact].freeze
 
     # Snapshot this user's arrangement into defaults.json in the repo.
     # Returns [ok, message] — the message is shown to the operator verbatim.
@@ -833,11 +833,13 @@ module WhisperRoom
     end
 
     # What slot i currently points at, resolved against what is on disk so a
-    # slot left behind by a deleted script cannot fire a dead button.
-    def self.favourite_at(i)
+    # slot left behind by a deleted script cannot fire a dead button. A caller
+    # that asks for every slot passes one scan in rather than paying for
+    # eighteen — each scan reads every script's header four times.
+    def self.favourite_at(i, list = nil)
       name = slots[i]
       return nil if blank?(name)
-      scan.find { |s| s['name'] == name }
+      (list || scan).find { |s| s['name'] == name }
     end
 
     def self.run_favourite(i)
@@ -989,8 +991,12 @@ module WhisperRoom
     # the panel marks a slot as pending until the next launch confirms it.
     def self.refresh_fav_labels
       return if @fav_cmds.nil?
+      # One scan for all eighteen slots. This used to be eighteen scans of the
+      # whole folder per star click, rename or slot save (~4,400 file reads),
+      # which was the only reason a star felt slow.
+      list = scan
       @fav_cmds.each_with_index do |cmd, i|
-        s = favourite_at(i)
+        s = favourite_at(i, list)
         text = s ? "#{s['title']}  (#{slot_label(i)})" : "#{slot_label(i)} — empty"
         cmd.tooltip = text
         cmd.status_bar_text = s ? "Run #{s['name']}" : 'Assign it in the WhisperRoom panel'
@@ -1342,6 +1348,21 @@ module WhisperRoom
       write_pref('ui_dev', on ? 'true' : 'false')
     end
 
+    # Small panel-furniture switches that live in preferences: title-only rows
+    # today; anything later goes through the same one callback. The whitelist
+    # is the point — the page names a key, Ruby decides whether it is one.
+    UI_PREFS = %w[compact].freeze
+
+    def self.compact?
+      read_pref('ui_compact', 'false') == 'true'
+    end
+
+    def self.set_ui_pref(key, on)
+      k = key.to_s
+      return unless UI_PREFS.include?(k)
+      write_pref("ui_#{k}", on.to_s == 'true' ? 'true' : 'false')
+    end
+
     def self.payload
       # Read the map once per render, not once per launch. Dropping a new
       # icon-map.json in and hitting Rescan has to work, the same way dropping
@@ -1358,7 +1379,7 @@ module WhisperRoom
         # the page: an HtmlDialog has no network guarantee and a file:// fetch
         # out of the dialog is not reliably permitted.
         'sprite' => sprite,
-        'collapsed' => collapsed, 'dev' => dev_shown?,
+        'collapsed' => collapsed, 'dev' => dev_shown?, 'compact' => compact?,
         'scripts' => scan, 'abilities' => abilities,
         'recent' => recent, 'pinned' => pinned, 'note' => @note,
         'slots' => slots, 'slot_icons' => slot_icons,
@@ -1367,11 +1388,10 @@ module WhisperRoom
         # the same way the tooltip above the viewport does.
         'bars' => BARS.map { |b| { 'name' => b[:name], 'label' => b[:label] } },
         'slot_n' => SLOT_N,
-        # What the slots WILL wear, and what the native toolbar is wearing right
-        # now. They differ between saving a slot and the next launch, and the
-        # panel shows that rather than drawing a row that disagrees with the
-        # real one.
-        'faces' => faces(slots, slot_icons),
+        # What the native toolbar is wearing right now, and which slots differ
+        # from what is saved. The panel shows the difference as pending rather
+        # than drawing a row that disagrees with the real one. (The saved
+        # faces themselves used to ship too, as 'faces'; nothing read them.)
         'bound_faces' => faces(bound_slots, bound_icons),
         'bound' => bound_slots,
         'pending' => pending_slots }
@@ -1466,6 +1486,7 @@ module WhisperRoom
       # click that caused it.
       d.add_action_callback('collapse')  { |_c, list| set_collapsed(list) }
       d.add_action_callback('devtools')  { |_c, on| set_dev_shown(on.to_s == 'true') }
+      d.add_action_callback('uipref')    { |_c, key, on| set_ui_pref(key, on) }
       d.add_action_callback('shopdefaults') do |_c|
         ok, msg = save_shop_defaults
         UI.messagebox(msg)

@@ -526,6 +526,16 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
+  /* Compact rows: title only, ~30 px, the blurb moved into the tooltip. A
+     switch in the ... menu, stored as ui_compact the way ui_dev is. */
+  .compact .row { padding: 3px 8px; }
+  .compact .row .iw { width: 22px; height: 22px; border-radius: 5px; }
+  .compact .row .iw .ico { width: 16px; height: 16px; }
+  .compact .row .iw .mg { font-size: 9px; }
+  .compact .row .b { display: none; }
+  .compact .row .t { font-size: 12px; font-weight: 500; }
+  .compact .settings { padding-left: 35px; }
+
   /* The trailing "..." convention, made visible. It meant "opens a dialog
      first" and was invisible to anyone who had not been told. */
   .dlg { flex: 0 0 auto; color: var(--faint); width: 12px; height: 12px;
@@ -912,7 +922,7 @@
 
   var DATA = { dir: "", scripts: [], abilities: [], recent: [], pinned: [],
                slots: [], slot_icons: [], icons: [], pin_n: 6, slot_n: 18,
-               sprite: "", collapsed: [], dev: false };
+               sprite: "", collapsed: [], dev: false, compact: false };
 
   // THE CATEGORY ORDER IS THE ORDER A JOB HAPPENS IN, and it is fixed rather
   // than alphabetical or newest-first. Read top to bottom it is the pipeline:
@@ -1354,6 +1364,10 @@
         '<button class="sw" role="switch" tabindex="-1" id="devsw" aria-checked="' +
         (DATA.dev ? "true" : "false") + '"><i></i></button></div>' +
       '<div class="sub">' + (n ? n + " on the shelves — " : "") + "search finds them either way</div>" +
+      '<div class="mi" data-m="compact" role="menuitemcheckbox">Compact rows' +
+        '<button class="sw" role="switch" tabindex="-1" id="compactsw" aria-checked="' +
+        (DATA.compact ? "true" : "false") + '"><i></i></button></div>' +
+      '<div class="sub">title only; the blurb moves to the tooltip</div>' +
       "<hr>" +
       '<div class="mi" data-m="shopdefaults" title="Write this panel\'s slots, stars and collapsed sections into the repo as the defaults everyone gets">' +
         useSvg("gl", "g-save") + "Save this layout as the shop default…" +
@@ -1379,12 +1393,26 @@
       draw();
       return;
     }
+    if (m === "compact") {
+      // Same shape as the dev switch: the page applies it, Ruby stores it,
+      // no re-render round trip. The key is whitelisted on the Ruby side.
+      DATA.compact = !DATA.compact;
+      document.getElementById("compactsw").setAttribute("aria-checked", DATA.compact ? "true" : "false");
+      applyCompact();
+      if (window.sketchup && sketchup.uipref) sketchup.uipref("compact", DATA.compact ? "true" : "false");
+      draw();
+      return;
+    }
     closeMenu();
     if (!window.sketchup) return;
     if (m === "rescan")            sketchup.rescan();
     else if (m === "folder")       sketchup.folder();
     else if (m === "console")      sketchup.console();
     else if (m === "shopdefaults" && sketchup.shopdefaults) sketchup.shopdefaults();
+  }
+
+  function applyCompact() {
+    document.body.className = DATA.compact ? "compact" : "";
   }
 
   function menuOpen() { return $menu.className.indexOf("on") >= 0; }
@@ -1490,7 +1518,9 @@
   // the blurb its width — so they moved into the tooltip, where they are still
   // one hover away.
   function tip(s, extra) {
-    return s.name + " · modified " + s.ago + (extra ? " · " + extra : "");
+    // Compact rows hide the blurb, so it leads the tooltip there.
+    return (DATA.compact && s.blurb ? s.blurb + "\n" : "") +
+           s.name + " · modified " + s.ago + (extra ? " · " + extra : "");
   }
 
   // The small marks after a title. The tab tag is drawn only while a term is
@@ -1938,6 +1968,7 @@
 
       collapsed = {};
       (DATA.collapsed || []).forEach(function (c) { collapsed[c] = true; });
+      applyCompact();
 
       drawMenu();
       drawTabs();

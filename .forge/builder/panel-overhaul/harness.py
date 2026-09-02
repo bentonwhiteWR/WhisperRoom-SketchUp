@@ -202,7 +202,18 @@ PROOF_TILES = ("function rows(){var ys={};Array.prototype.forEach.call(document.
                + q("") + CLIENT + "window.__T.push('tilesOnClient',document.querySelectorAll('.tile').length,"
                "'recentOnClient',document.querySelectorAll('.rc').length);")
 
+PROOF_COMPACT = (MENU + "document.querySelector('.mi[data-m=compact]').click();"
+                 "window.__T=['bodyClass',document.body.className,"
+                 "'sw',document.getElementById('compactsw').getAttribute('aria-checked'),"
+                 "'rowH',document.querySelector('#scroll .row').getBoundingClientRect().height,"
+                 "'blurbShown',getComputedStyle(document.querySelector('#scroll .row .b')).display,"
+                 "'tipHasBlurb',document.querySelector('#scroll .row').title.split(String.fromCharCode(10)).length>1];"
+                 "document.querySelector('.mi[data-m=compact]').click();"
+                 "window.__T.push('bodyClassAfter',document.body.className,"
+                 "'rowHAfter',document.querySelector('#scroll .row').getBoundingClientRect().height);")
+
 MEASURES = [
+    ("p-compact", dict(update="1.19.4"), PROOF_COMPACT, 430),
     ("p-tiles-430", dict(), PROOF_TILES, 430),
     ("p-tiles-330", dict(), PROOF_TILES, 330),
     ("p-tiles-520", dict(), PROOF_TILES, 520),
