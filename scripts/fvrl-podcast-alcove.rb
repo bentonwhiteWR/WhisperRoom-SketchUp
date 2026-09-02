@@ -3,7 +3,7 @@
 # @cat Draw the room
 # @icon mono:FV
 #
-# fvrl-podcast-alcove.rb — the Fort Vancouver Regional Library podcast booth
+# The Fort Vancouver Regional Library podcast booth
 # alcove, with the MDL 96120 E footprint and its REQUIRED CLEARANCES drawn as
 # real geometry so the fit question answers itself on the page.
 #

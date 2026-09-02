@@ -3,7 +3,7 @@
 # @cat V-Ray renders
 # @rank 7
 #
-# probe-vray.rb — find out what the V-Ray Ruby API actually offers in THIS
+# Find out what the V-Ray Ruby API actually offers in THIS
 # SketchUp, in this session, on this licence.
 #
 #   Extensions > Developer > Ruby Console, then:

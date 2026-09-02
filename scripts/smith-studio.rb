@@ -3,7 +3,7 @@
 # @cat Draw the room
 # @icon mono:DS
 #
-# smith-studio.rb — build David Smith's studio room in SketchUp
+# Build David Smith's studio room in SketchUp
 #
 #   Extensions > Developer > Ruby Console, then:
 #     load "C:/Users/bento/Documents/Claude/Sketchup/scripts/smith-studio.rb"

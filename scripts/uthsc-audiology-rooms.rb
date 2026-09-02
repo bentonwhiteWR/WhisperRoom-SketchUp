@@ -3,7 +3,7 @@
 # @cat Draw the room
 # @icon mono:UT
 #
-# uthsc-audiology-rooms.rb — the four rooms University of Tennessee Health
+# The four rooms University of Tennessee Health
 # Science Center marked 1 / 2 / 3 / 4 on their suite plan.
 #
 #   Extensions > Developer > Ruby Console, then:

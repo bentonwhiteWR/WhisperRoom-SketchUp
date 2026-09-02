@@ -1,6 +1,6 @@
 # @title Favourites diagnostic (dev)
 # @shelf dev
-# diag-favourites.rb — why does starring a script not stick?
+# Why does starring a script not stick?
 #
 # Run in the Ruby Console:
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/diag-favourites.rb"

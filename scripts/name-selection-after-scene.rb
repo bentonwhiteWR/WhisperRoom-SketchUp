@@ -1,4 +1,4 @@
-# @title Name Selection After Scene
+# @title Name the selection after its scene
 # @cat Tidy up the model
 # @rank 1
 #

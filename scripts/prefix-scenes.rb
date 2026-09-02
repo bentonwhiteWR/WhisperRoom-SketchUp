@@ -1,7 +1,7 @@
-# @title Prefix Every Scene...
+# @title Prefix every scene name...
 # @cat Tidy up the model
 #
-# prefix-scenes.rb — put a prefix on the FRONT of every scene name in the
+# Put a prefix on the FRONT of every scene name in the
 # model. Built for "ENH", which is what it is defaulted to, but the prefix is
 # a field so the same button does "STD ", "REV B " or anything else.
 #

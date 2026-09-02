@@ -1,8 +1,8 @@
-# @title Drop Interior Lights
+# @title Drop the interior lights
 # @cat V-Ray renders
 # @rank 3
 #
-# wr-drop-lights.rb — a layered showroom lighting rig for each selected room.
+# A layered showroom lighting rig for each selected room.
 #
 #   Select the room groups (or a booth), press the button, answer one small
 #   pop-up (Density / Brightness / Warmth / Layers / exposure), get:

@@ -3,7 +3,7 @@
 # @cat V-Ray renders
 # @rank 9
 #
-# lookdev-matrix.rb — render a MATRIX OF SMALL THUMBNAILS so a look can be
+# Render a MATRIX OF SMALL THUMBNAILS so a look can be
 # art-directed at seconds per guess instead of minutes.
 #
 # WHY THIS EXISTS

@@ -1,7 +1,7 @@
 # @title Make this view the Front...
 # @cat Draw the room
 #
-# reorient-model.rb — spin a whole model onto the world axes so SketchUp's
+# Spin a whole model onto the world axes so SketchUp's
 # Front view actually shows the front, WITHOUT re-aiming a single scene.
 #
 #   Extensions > Developer > Ruby Console, then:

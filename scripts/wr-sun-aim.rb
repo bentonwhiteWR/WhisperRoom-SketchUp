@@ -1,8 +1,8 @@
-# @title Light It From Here...
+# @title Light it from here (sun to camera)...
 # @cat V-Ray renders
 # @rank 2
 #
-# wr-sun-aim.rb — snap the SUN to the camera's current view. THE MODEL NEVER
+# Snap the SUN to the camera's current view. THE MODEL NEVER
 # MOVES.
 #
 #   Extensions > Developer > Ruby Console, then:

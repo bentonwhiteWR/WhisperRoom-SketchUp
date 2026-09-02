@@ -3,7 +3,7 @@
 # @cat Draw the room
 # @icon mono:CS
 #
-# csusb-106.rb — build CSUSB Chaparral Hall room 106 in SketchUp
+# Build CSUSB Chaparral Hall room 106 in SketchUp
 #
 #   Extensions > Developer > Ruby Console, then:
 #     load "C:/Users/bento/Documents/Claude/Sketchup/scripts/csusb-106.rb"
