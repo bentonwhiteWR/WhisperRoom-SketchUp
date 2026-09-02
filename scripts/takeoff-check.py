@@ -54,6 +54,7 @@ for the JS side). The review sheet this file generates needs the grammar too,
 but carries no third copy: dialog_grammar_js() extracts the dialog's own
 parseLen/arch by text at generation time and embeds that.
 """
+import datetime
 import io
 import json
 import math
@@ -654,13 +655,18 @@ def check_room(ck, room, idx):
             continue
         ck.ok('%s at' % path, '%s from %s to the near jamb'
               % (arch(at['in']), anchor))
+        # The notes and reasons ride into the lock beside each value so the
+        # review sheet can quote what the pen said and why a guess was made
+        # without re-reading takeoff.json. build-takeoff.rb ignores them.
         doors.append({'run': run_i, 'at_in': at['in'], 'at_src': at['src'],
                       'at_flag': at['flag'], 'at_reason': at['reason'],
-                      'at_from': anchor,
+                      'at_note': at['note'], 'at_from': anchor,
                       'w_in': w['in'], 'w_src': w['src'], 'w_flag': w['flag'],
+                      'w_reason': w['reason'], 'w_note': w['note'],
                       'h_in': h['in'], 'h_src': h['src'], 'h_flag': h['flag'],
-                      'h_reason': h['reason'],
-                      'hinge': hinge['value'], 'hinge_flag': hinge['flag']})
+                      'h_reason': h['reason'], 'h_note': h['note'],
+                      'hinge': hinge['value'], 'hinge_flag': hinge['flag'],
+                      'hinge_reason': hinge['reason']})
     # Door overlap on a shared run.
     spans = {}
     for dd in doors:
@@ -716,6 +722,8 @@ def check_room(ck, room, idx):
             ff[key + '_in'] = nv['in']
             ff[key + '_flag'] = nv['flag']
             ff[key + '_src'] = nv['src']
+            ff[key + '_reason'] = nv['reason']
+            ff[key + '_note'] = nv['note']
         if not ok:
             continue
         run_len = runs[run_i]['in'] if run_i < len(runs) else 0
@@ -756,6 +764,17 @@ def ck_has_error(ck, path):
     return any(n == path for n, _ in ck.errors)
 
 
+def checker_version():
+    """The plugin VERSION (scripts/wr_tools/VERSION) — the one place the
+    version lives. Stamped into the lock so a sheet says which checker made
+    it; 'unknown' when the file is not beside this script (a bundled copy)."""
+    p = os.path.join(HERE, 'wr_tools', 'VERSION')
+    try:
+        return io.open(p, encoding='utf-8').read().strip() or 'unknown'
+    except OSError:
+        return 'unknown'
+
+
 def check_file(data, path='takeoff.json'):
     """The whole file -> (Check, lock dict)."""
     ck = Check()
@@ -778,11 +797,35 @@ def check_file(data, path='takeoff.json'):
                                'they are how the model is read back')
         names.add(r['name'])
         rooms.append(r)
+    # Two optional top-level keys the review sheet reads (Benton, 2 Sep 2026,
+    # takeoff-sheet approval Q4/Q5). `transcribed_by` names who read the plan
+    # and shows in the masthead. `embed_photos: true` records, once per job,
+    # the decision that the photos may be inlined into the sheet — the same
+    # decision --embed-photos makes per run — so the agent asks Benton once
+    # instead of every time. Anything but a plain boolean is refused: a
+    # "yes" string is exactly the ambiguity a permission must not have.
+    tb = data.get('transcribed_by')
+    if tb is not None and not (isinstance(tb, str) and tb.strip()):
+        ck.fail('transcribed_by', 'must be a name (a non-empty string), got %r'
+                % (tb,))
+        tb = None
+    ep = data.get('embed_photos')
+    if ep is not None and not isinstance(ep, bool):
+        ck.fail('embed_photos', 'must be true or false (a JSON boolean), got '
+                                '%r — this key records whether the photos may '
+                                'be sent to claude.ai inside the sheet' % (ep,))
+        ep = None
     lock = {
         'format': 1,
         'job': job,
         'title': data.get('title'),
         'source': os.path.basename(path),
+        # When and by what the lock was made — the sheet's masthead names its
+        # date and checker version like any shop document.
+        'generated': datetime.datetime.now().replace(microsecond=0).isoformat(sep=' '),
+        'checker_version': checker_version(),
+        'transcribed_by': tb.strip() if tb else None,
+        'embed_photos': ep,
         'anchor': data.get('anchor'),
         'sources': data.get('sources'),
         'interpretations': data.get('interpretations'),
@@ -2149,23 +2192,36 @@ def badge(src, flag):
 PHOTO_EDGE = 1600   # long edge, px — pen callouts stay legible, page stays small
 PHOTO_QUALITY = 78
 
-IMG_RE = re.compile(r'(IMG_[A-Za-z0-9]+)')
+IMAGE_EXT = re.compile(r'\.(jpe?g|png|webp|gif|bmp|tiff?)$', re.I)
+
+
+def image_sources(sources):
+    """[(key, path)] for every image file named in `sources`, keyed by its
+    bare filename. ANY image name counts — `photo.png`, `scan-2.jpg`,
+    `IMG_7594.jpeg` alike. The old rule only recognised `IMG_*` names, so a
+    scan, a PDF export or anything Gabe saved as `plan.png` silently lost
+    the photo the sheet exists to compare against (audit W1)."""
+    out = []
+    for s in (sources or []):
+        s = str(s)
+        if IMAGE_EXT.search(s):
+            key = os.path.basename(s.replace('\\', '/'))
+            if key not in [k for k, _ in out]:
+                out.append((key, s))
+    return out
 
 
 def load_photos(lock, takeoff_path, embed):
-    """{IMG_name: {'path', 'uri'|None, 'err'|None}} for every image source.
+    """{filename: {'path', 'uri'|None, 'err'|None}} for every image source.
 
     uri is a downsampled JPEG data URI when embed is true and the file is
     readable; otherwise None with err naming why (missing file, no PIL...).
     The photos are gitignored client assets — they reach the sheet only
-    through this explicit flag, and the sheet file itself is gitignored."""
+    through the explicit flag (or the job's own `embed_photos: true`), and
+    the sheet file itself is gitignored."""
     base = os.path.dirname(os.path.abspath(takeoff_path))
     out = {}
-    for s in (lock.get('sources') or []):
-        m = re.search(r'(IMG_[A-Za-z0-9]+)\.(jpe?g|png|webp)$', str(s), re.I)
-        if not m:
-            continue
-        name = m.group(1)
+    for name, s in image_sources(lock.get('sources')):
         rec = {'path': str(s), 'uri': None, 'err': None}
         if embed:
             p = os.path.join(base, str(s).replace('/', os.sep))
@@ -2194,19 +2250,30 @@ def load_photos(lock, takeoff_path, embed):
     return out
 
 
-def _img_of(src):
-    m = IMG_RE.search(str(src or ''))
-    return m.group(1) if m else None
+def _img_of(src, sources):
+    """Which listed image a value's src names — `pen photo.png` -> photo.png,
+    `pen IMG_7594` -> IMG_7594.jpeg (the stem matches too, because the pen
+    sources on the UIC job name the photo without its extension). Longest
+    match wins; None when the src names no listed image."""
+    s = str(src or '').lower()
+    best = None
+    for key, _ in image_sources(sources):
+        stem = os.path.splitext(key)[0]
+        hit = key.lower() in s or re.search(
+            r'(?<![a-z0-9_])' + re.escape(stem.lower()) + r'(?![a-z0-9_])', s)
+        if hit and (best is None or len(key) > len(best)):
+            best = key
+    return best
 
 
-def room_ledger(room):
+def room_ledger(room, sources=None):
     """[(stated, target, note, img, flag)] — every value in the room that
     reads from a photo, so a reader can tick each pen mark against the number
     it became. Assumed values are listed too, marked as NOT on any photo."""
     rows = []
 
     def add(nv_in, src, flag, reason, target, note, parts=None):
-        img = _img_of(src)
+        img = _img_of(src, sources)
         if flag in ('assumed', 'default', 'derived'):
             rows.append(('(%s %s)' % (flag, arch(nv_in)), target,
                          reason or note, None, flag))
@@ -2235,14 +2302,18 @@ def room_ledger(room):
     return rows
 
 
-def room_images(room):
-    """The photo(s) this room reads from — IMG tokens in its measured srcs,
-    most-used first."""
+def room_images(room, sources=None):
+    """The photo(s) this room reads from — the listed images its measured
+    srcs name, most-used first. A job whose srcs name no listed image still
+    gets the job's first image: the comparison is the point of the sheet,
+    and a photo that is listed but never cited is still the plan."""
     counts = {}
-    for stated, target, note, img, flag in room_ledger(room):
+    for stated, target, note, img, flag in room_ledger(room, sources):
         if img:
             counts[img] = counts.get(img, 0) + 1
-    return sorted(counts, key=lambda k: -counts[k])
+    if counts:
+        return sorted(counts, key=lambda k: -counts[k])
+    return [k for k, _ in image_sources(sources)][:1]
 
 
 def val_span(room_name, field, inches):
@@ -2403,10 +2474,15 @@ def html_report(ck, lock, path, photos=None):
          '<div class="wrap">',
          '<header><b>Take-off review</b><span>%s%s</span>' % (
              esc(job), esc(' — ' + lock['title']) if lock and lock.get('title') else ''),
-         '<div class="srcline">source: %s%s%s</div></header>' % (
+         '<div class="srcline">source: %s%s%s%s%s</div></header>' % (
              esc(path),
              esc(' · images ' + ', '.join(lock['sources'])) if lock and lock.get('sources') else '',
-             esc(' · anchor: ' + lock['anchor']) if lock and lock.get('anchor') else ''),
+             esc(' · anchor: ' + lock['anchor']) if lock and lock.get('anchor') else '',
+             esc(' · transcribed by ' + lock['transcribed_by'])
+             if lock and lock.get('transcribed_by') else '',
+             esc(' · generated %s · takeoff-check %s' % (lock.get('generated'),
+                                                        lock.get('checker_version')))
+             if lock else ''),
          # Clients mix the two on one plan, so the sheet reads either way on
          # demand. It re-renders EVERY dimension on the page — drawing, table
          # and chain alike — because a sheet showing half in inches is worse
@@ -2415,17 +2491,28 @@ def html_report(ck, lock, path, photos=None):
          '<span class="useg"><button data-unit="ftin" class="on">FT &amp; IN</button>'
          '<button data-unit="in">INCHES</button></span></div>']
 
-    if ck.assumed:
+    nflag = len(ck.assumed) + len(ck.nonnum)
+    if nflag:
         h.append('<div class="inv"><span class="tag">%d ASSUMED / DEFAULT VALUE%s '
                  '— CONFIRM BEFORE QUOTING</span><ul>'
-                 % (len(ck.assumed), 'S' if len(ck.assumed) != 1 else ''))
+                 % (nflag, 'S' if nflag != 1 else ''))
         for a in ck.assumed:
             h.append('<li><span class="mono">%s</span> — <b>%s %s</b>: %s</li>'
                      % (esc(a['path']), a['kind'].upper(), esc(arch(a['value_in'])),
                         esc(a['reason'])))
+        # The non-numeric guesses — an assumed hinge, a declared winding —
+        # sit in the same list. They used to reach only the console (audit
+        # D-6), so a guessed swing direction passed review looking measured.
+        for a in ck.nonnum:
+            h.append('<li><span class="mono">%s</span> — <b>%s %s</b>: %s</li>'
+                     % (esc(a['path']), a['kind'].upper(), esc(a['value']),
+                        esc(a['reason'])))
+        # What actually happens to a flag: it is on this sheet, in the build
+        # report build-takeoff.rb prints, and in the lock. It is NOT a note
+        # in the model — NOTES_IN_MODEL has been off since 1.17.0 (audit D-4).
         h.append('</ul><p style="margin:8px 0 0;font-size:11px;color:var(--ink-2)">'
-                 'Each of these builds with an ASSUMED note placed in the model at '
-                 'the feature itself. Nothing else on this job is assumed.</p></div>')
+                 'Each of these is flagged here, in the build report and in the '
+                 'lock file. Nothing else on this job is assumed.</p></div>')
     else:
         h.append('<div class="inv none"><span class="tag">NO ASSUMED VALUES</span>'
                  '<p style="margin:8px 0 0;font-size:11px;color:var(--ink-2)">'
@@ -2464,7 +2551,7 @@ def html_report(ck, lock, path, photos=None):
         # on the image — instead every value that reads from this photo is
         # listed against the number it became, and the reviewer ticks pen
         # mark against number instead of recalling it.
-        imgs = room_images(room)
+        imgs = room_images(room, lock.get('sources'))
         primary = imgs[0] if imgs else None
         rec = photos.get(primary) if primary else None
         h.append('<div class="cmp"><div class="ph">')
@@ -2487,7 +2574,7 @@ def html_report(ck, lock, path, photos=None):
                      'room</div>')
         h.append('</div><div class="ledger">'
                  '<span class="lab">Pen callout &rarr; take-off value</span><table>')
-        for stated, target, note, img, flag in room_ledger(room):
+        for stated, target, note, img, flag in room_ledger(room, lock.get('sources')):
             h.append('<tr><td class="k">%s</td><td class="v">%s%s%s</td></tr>'
                      % (esc(stated), esc(target),
                         ' <span style="color:var(--warn)">not on any photo</span>'
@@ -2527,13 +2614,16 @@ def html_report(ck, lock, path, photos=None):
                         ' — ' + esc(c['note']) if c.get('note') else ''))
         for j, dd in enumerate(room.get('doors') or []):
             h.append('<tr><td class="k">door %d</td><td class="v">%s wide %s, '
-                     'at %s %s, height %s %s</td></tr>'
+                     'at %s %s, height %s %s, hinge %s%s</td></tr>'
                      % (j, val_span(name, 'doors[%d].w' % j, dd['w_in']),
                         badge(dd['w_src'], dd['w_flag']),
                         val_span(name, 'doors[%d].at' % j, dd['at_in']),
                         badge(dd['at_src'], dd['at_flag']),
                         val_span(name, 'doors[%d].h' % j, dd['h_in']),
-                        badge(dd['h_src'], dd['h_flag'])))
+                        badge(dd['h_src'], dd['h_flag']),
+                        esc(dd.get('hinge') or '?'),
+                        (' ' + badge(None, 'assumed') + ' — ' + esc(dd['hinge_reason']))
+                        if dd.get('hinge_flag') else ''))
         for j, f in enumerate(room.get('features') or []):
             bits = []
             for key in ('from', 'length', 'width', 'depth', 'head', 'sill'):
@@ -2583,7 +2673,7 @@ def html_report(ck, lock, path, photos=None):
              '"notes" is for a person to read and act on</div></div>' % esc(path))
 
     h.append('<footer><span class="hint">%d room%s ready%s · %d assumed value%s '
-             'will be flagged in the model<span id="fcounts"></span></span></footer>'
+             'flagged in the build report<span id="fcounts"></span></span></footer>'
              % (ready, '' if ready == 1 else 's',
                 ' · %d blocked by named errors' % blocked if blocked else '',
                 len(ck.assumed), '' if len(ck.assumed) == 1 else 's'))
@@ -2986,6 +3076,95 @@ def selftest():
             if not jsok:
                 fails += 1
 
+    # ---- what the sheet carries (takeoff-sheet redesign, 2 Sep 2026) ------
+    def sheet_ok(label, ok, why=''):
+        print('%-4s sheet: %s%s' % ('PASS' if ok else 'FAIL', label,
+                                    '' if ok else ' — ' + str(why)[:200]))
+        return 0 if ok else 1
+
+    # Any image file named in `sources` embeds — not only IMG_* names. The
+    # old rule silently dropped `photo.png`, `scan.jpg`, everything a reviewer
+    # is most likely to save (audit W1).
+    import shutil as _sh
+    import tempfile as _tf
+    td = _tf.mkdtemp(prefix='takeoff-selftest-')
+    try:
+        from PIL import Image as _Im
+        _Im.new('RGB', (40, 30), (200, 120, 40)).save(os.path.join(td, 'plan.png'))
+        pil_ok = True
+    except Exception:
+        pil_ok = False
+    if pil_ok:
+        ph = load_photos({'sources': ['plan.png', 'notes.pdf']},
+                         os.path.join(td, 'takeoff.json'), True)
+        fails += sheet_ok(
+            'a source named plan.png (not IMG_*) embeds; a PDF source does not',
+            'plan.png' in ph and (ph['plan.png']['uri'] or '').startswith(
+                'data:image/jpeg') and 'notes.pdf' not in ph, ph)
+        data_p = room()
+        data_p['sources'] = ['plan.png']
+        for r in data_p['rooms'][0]['runs']:
+            r['src'] = 'pen plan.png'
+        ck_p, lock_p = check_file(data_p, 'selftest')
+        page_p = html_report(ck_p, lock_p, 'selftest', ph)
+        fails += sheet_ok('the sheet shows that photo beside the room',
+                          'data-img="plan.png"' in page_p
+                          and 'id="photodata"' in page_p)
+    else:
+        print('SKIP photo embed check (no PIL on this machine)')
+    _sh.rmtree(td, ignore_errors=True)
+
+    # An assumed hinge reaches the sheet with its reason, outside the lock
+    # JSON (audit D-6: it used to print on the console only).
+    data_hg = room(doors=[{'run': 0, 'w': {'v': '38"', 'src': 'pen x'},
+                           'at': {'v': '36"', 'src': 'pen x'},
+                           'hinge': {'assumed': 'near',
+                                     'reason': 'no leaf drawn on the plan'}}])
+    ck_hg, lock_hg = check_file(data_hg, 'selftest')
+    page_hg = html_report(ck_hg, lock_hg, 'selftest')
+    visible = re.sub(r'<script type="application/json"[^>]*>.*?</script>', '',
+                     page_hg, flags=re.S)
+    fails += sheet_ok(
+        'an assumed hinge is visible on the sheet, flagged, with its reason',
+        re.search(r'hinge[^<]{0,40}<[^>]*>ASSUMED', visible) is not None
+        and 'no leaf drawn on the plan' in visible)
+
+    # The sheet publishes as an Artifact where every outbound request is
+    # blocked, so it must reference nothing outside itself.
+    ext = re.findall(r'(?:src|href)\s*=\s*["\']?\s*(?:https?:)?//'
+                     r'|url\(\s*["\']?\s*(?:https?:)?//|@import\b|<link\b',
+                     page_hg, re.I)
+    fails += sheet_ok('the sheet has no external reference', not ext, ext[:3])
+
+    # Benton, 2 Sep 2026: the 3D view is always open — present in the markup,
+    # never carrying `hidden`, never display:none in the CSS.
+    m3 = re.search(r'<div class="v3d"[^>]*>', page_hg)
+    css_hidden = re.search(r'\.v3d\s*\{[^}]*display\s*:\s*none', page_hg)
+    fails += sheet_ok('the 3D viewer markup is present and not hidden',
+                      m3 is not None and 'hidden' not in m3.group(0)
+                      and css_hidden is None, m3.group(0) if m3 else 'absent')
+
+    # The lock names when and by what it was made; the two optional keys
+    # reach where they are read.
+    fails += sheet_ok('the lock is stamped generated + checker_version',
+                      bool(lock_hg.get('generated'))
+                      and lock_hg.get('checker_version') not in (None, '', 'unknown'),
+                      (lock_hg.get('generated'), lock_hg.get('checker_version')))
+    data_t = room()
+    data_t['transcribed_by'] = 'Gabe'
+    data_t['embed_photos'] = True
+    ck_t, lock_t = check_file(data_t, 'selftest')
+    page_t = html_report(ck_t, lock_t, 'selftest')
+    fails += sheet_ok(
+        'transcribed_by reaches the masthead; embed_photos: true reaches the lock',
+        not ck_t.errors and lock_t['embed_photos'] is True
+        and re.search(r'transcribed by\s*(<b>)?Gabe', page_t) is not None)
+    data_t['embed_photos'] = 'yes'
+    ck_t2, _ = check_file(data_t, 'selftest')
+    fails += sheet_ok('embed_photos: "yes" (not a boolean) is refused by name',
+                      any(n == 'embed_photos' for n, _ in ck_t2.errors),
+                      ck_t2.errors)
+
     # apply_patch only applies; check_file judges what the edit did. Prove
     # the pair: a run edit keeps its direction, and the polygon it reopens
     # fails the full check by name.
@@ -3098,6 +3277,12 @@ def main(argv):
             f.write('\n')
         print('  lock: %s' % lock_path)
     if want_html and lock:
+        # The job may record the embed decision once (`embed_photos: true`)
+        # instead of the operator restating it with the flag every run.
+        if lock.get('embed_photos') is True and not embed:
+            embed = True
+            print('  embed_photos: true in the take-off — photos will be '
+                  'inlined (recorded per-job decision)')
         photos = load_photos(lock, path, embed)
         if embed:
             for name, rec in sorted(photos.items()):
@@ -3109,6 +3294,17 @@ def main(argv):
                           'long edge)' % (rec['path'],
                                           len(rec['uri']) * 3 // 4 // 1024,
                                           PHOTO_EDGE))
+            # Every listed source that is not an image is named too, so a
+            # job whose only source is a PDF cannot look like a job whose
+            # photo embedded.
+            imgs = set(k for k, _ in image_sources(lock.get('sources')))
+            for s in (lock.get('sources') or []):
+                if os.path.basename(str(s).replace('\\', '/')) not in imgs:
+                    print('  source not embedded: %s — not an image file'
+                          % s)
+            if not photos:
+                print('  PHOTO FAIL — no image file is named in "sources"; '
+                      'the sheet has no photo to compare against')
         out = rest[0] if rest else re.sub(r'\.json$', '', path) + '.review.html'
         with io.open(out, 'w', encoding='utf-8', newline='\n') as f:
             f.write(html_report(ck, lock, path, photos))
