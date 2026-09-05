@@ -2,6 +2,48 @@
 
 ## 2026-09-05
 
+### Session handoff — where this left off
+
+**Done this session.**
+
+- Audited the interior lighting rig (`scripts/wr-drop-lights.rb`). It is
+  complete and healthy on every check runnable off-machine: `rbtest-lights.py`
+  passes 43 pure placement checks plus 10 mode-snapshot pins, and
+  `rbparse.py` parses all 66 Ruby files. Booth lighting works two ways — select
+  the booth alone and it gets ONE interior light under the tray plane
+  (`wr-drop-lights.rb:2993`); select the room containing it and the booth is
+  found as an obstruction and gets the full merchandise set, interior plus key
+  at the door face plus rim opposite plus foam graze
+  (`wr-drop-lights.rb:3205`). Selecting both dedupes rather than double-lighting.
+- Verified, on Benton's question, that a floor layout really is painted the
+  white the material swap looks for: `build-room.rb:403/411/415` and
+  `build-takeoff.rb:259/273/277`.
+- Shipped 1.19.12, the loud no-op diagnosis below.
+
+**Next steps, in order.**
+
+1. **On Benton's machine: panel > Update now, then restart SketchUp.** 1.19.12
+   is on `main` but installing is a separate act from pushing.
+2. **Press the Draft/Render toggle once and read the LOG pane.** It now prints
+   a line per slot carrying the SOURCE material, the FILL, and how many
+   surfaces in the model actually carry that source.
+3. **Act on the counts.** A zero count for `WR-Wall-Render` means the walls are
+   not on `0099_LightSteelBlue` — point that slot's SOURCE dropdown at the
+   material the model really uses and set a FILL. Same for `WR-Door-Render`.
+   Paste the log back here if it is not obvious.
+4. **If a slot reports a NON-zero source count with a fill present and still
+   moves nothing, that is a different defect** than the one fixed here. Chase
+   it fresh rather than reopening 1.19.12.
+
+**Open — needs a live machine, not a decision.** The lighting rig has not been
+render-verified since file-version 1.9.9 (`f80ae5b`, six 1600x900 frames). Three
+revisions have landed since that touch brightness and geometry: 1.10.0 made it
+10x brighter, 1.12.8 moved to one solid per wall floor-to-ceiling, and 1.16.0
+added click-a-wall picking. A live press-and-render on a booth-in-room scene
+through `scripts/sketchup-bridge.py` would close it. Nothing is known to be
+wrong; it is simply unproven at current brightness.
+
+
 ### The Draft/Render toggle was silent when it swapped nothing — 1.19.12
 
 Benton, from the Proposal Package window: the Draft <-> Render toggle "doesn't
