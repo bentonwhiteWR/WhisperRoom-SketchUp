@@ -311,13 +311,113 @@ module WR_MaterialsSwap
     result
   end
 
+  # ------------------------------------------------- diagnosing a no-op --
+  #
+  # WHY THIS EXISTS. On 2026-09-05 Benton pressed Draft <-> Render nine times
+  # in the Proposal Package window and the log read, in full:
+  #
+  #     MODE -> DRAFT / MODE -> RENDER / ... (nine of them)
+  #       WR-Floor-Render: 1 surface(s)
+  #
+  # Eight of the nine toggles printed NOTHING after the MODE line, because a
+  # sweep that matched zero surfaces produces an empty counts hash and an empty
+  # problems list, and both log sites only iterated those two. A swap that did
+  # nothing at all was pixel-identical in the log to a swap that worked. That
+  # is exactly the "fail quietly into still-the-wrong-colour and nobody said
+  # so" this file's header forbids, so the empty path now has to explain
+  # itself.
+  #
+  # A zero-match has exactly four causes and the operator cannot tell them
+  # apart by looking at the model:
+  #
+  #   1. the slot's SOURCE names a material no surface in this model carries
+  #      (the usual one -- the room did not come out of build-room.rb, so its
+  #      walls are not on 0099_LightSteelBlue),
+  #   2. the slot has no FILL, so there is nothing to swap TO,
+  #   3. the FILL names a material that is not in this model,
+  #   4. nothing is wrong and the model is simply already in the mode asked
+  #      for -- every surface is already on the render fill.
+  #
+  # Only a per-slot count of what the model ACTUALLY carries separates them,
+  # so that count is the thing reported.
+
+  # The model half: resolve each slot's source and fill, count the surfaces on
+  # each, and check the fill resolves. ONE walk for all six names -- `find`
+  # already visits every entity once, so this costs the same as a swap.
+  #
+  # Returns one row per slot:
+  #   { :slot, :source, :source_count, :fill, :fill_count, :fill_exists }
+  def self.diagnosis(model)
+    rows = SLOT_FOR.values.map do |slot|
+      { :slot => slot, :source => source(model, slot), :fill => fill(model, slot) }
+    end
+    names = (rows.map { |r| r[:source] } + rows.map { |r| r[:fill] })
+            .reject { |n| n.to_s.empty? }.uniq
+    counts = Hash.new(0)
+    unless names.empty?
+      find(model, names).each do |e, _chain|
+        m = e.material
+        counts[m.name] += 1 if m
+      end
+    end
+    rows.each do |r|
+      r[:source_count] = r[:source].empty? ? 0 : counts[r[:source]]
+      r[:fill_count]   = r[:fill].empty?   ? 0 : counts[r[:fill]]
+      # By NAME, like every other lookup in this file -- never a cached object.
+      r[:fill_exists]  = !r[:fill].empty? && !model.materials[r[:fill]].nil?
+    end
+    rows
+  end
+
+  # The pure half: rows in, lines out. No model, no SketchUp API, so
+  # scripts/rbtest-materials-diagnosis.py can run the exact wording an operator
+  # will read, outside SketchUp. Every branch names the slot, its source, its
+  # fill and the two counts, because the counts are what resolve the mystery.
+  def self.diagnose_lines(rows)
+    rows.map do |r|
+      slot = r[:slot].to_s
+      src  = r[:source].to_s
+      fl   = r[:fill].to_s
+      sn   = r[:source_count].to_i
+      fn   = r[:fill_count].to_i
+      if src.empty?
+        "  #{slot}: no SOURCE material is set for this slot, so there is nothing to look for."
+      elsif fl.empty? && sn.zero?
+        # The two-faults-at-once case, and the one Benton hit: the slot is
+        # pointed at a material nothing carries AND has no fill. Say both --
+        # fixing only the fill would still swap nothing.
+        "  #{slot}: 0 surface(s) on #{src.inspect} and no FILL is set. This slot matches nothing and has nowhere to go: set SOURCE to the material this model really uses, then set a FILL."
+      elsif fl.empty?
+        "  #{slot}: #{sn} surface(s) on #{src.inspect}; no FILL is set, so there is nothing to swap them TO. Set this slot's render material."
+      elsif !r[:fill_exists]
+        "  #{slot}: #{sn} surface(s) on #{src.inspect}; fill #{fl.inspect} is NOT a material in this model. Import it, or point the slot at one that is."
+      elsif sn.zero? && fn.zero?
+        "  #{slot}: 0 surface(s) on #{src.inspect} and 0 on #{fl.inspect}. Nothing in this model is on either of this slot's materials, so no toggle can move anything. Set SOURCE to the material this model really uses."
+      elsif sn.zero?
+        "  #{slot}: 0 surface(s) on #{src.inspect}, #{fn} already on #{fl.inspect} - already RENDER for this slot."
+      elsif fn.zero?
+        "  #{slot}: #{sn} surface(s) on #{src.inspect}, 0 on #{fl.inspect} - already DRAFT for this slot."
+      else
+        "  #{slot}: #{sn} surface(s) on #{src.inspect} and #{fn} on #{fl.inspect} - split across both."
+      end
+    end
+  end
+
+  # What a log site calls when a sweep moved nothing.
+  def self.diagnose(model)
+    diagnose_lines(diagnosis(model))
+  end
+
   # -------------------------------------------------------------- reporting --
 
-  def self.report_lines(action, result)
+  # `model` is optional only so an old caller cannot break; pass it — without
+  # it the empty path is back to the single useless line it always printed.
+  def self.report_lines(action, result, model = nil)
     lines = ["MATERIALS — #{action}"]
     counts = result[:applied] || result[:reverted] || {}
     if counts.empty?
       lines << '  nothing on a matching material was found.'
+      lines.concat(diagnose(model)) if model
     else
       counts.each { |slot, n| lines << "  #{slot}: #{n} surface(s)" }
     end
@@ -363,7 +463,7 @@ module WR_MaterialsSwap
     end
     action = res.last.to_s
     result = action.start_with?('Revert') ? to_draft(model) : to_render(model)
-    lines = report_lines(action, result)
+    lines = report_lines(action, result, model)
     puts ''
     lines.each { |l| puts l }
     puts ''

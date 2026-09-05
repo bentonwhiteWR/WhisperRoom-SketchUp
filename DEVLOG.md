@@ -1,5 +1,70 @@
 # DEVLOG
 
+## 2026-09-05
+
+### The Draft/Render toggle was silent when it swapped nothing — 1.19.12
+
+Benton, from the Proposal Package window: the Draft <-> Render toggle "doesn't
+seem to be changing" the materials. His log across NINE presses carried one
+count line in total (`WR-Floor-Render: 1 surface(s)`); eight toggles printed
+nothing at all after their `MODE ->` line.
+
+**Root cause — a reporting gap, not a swap bug.** Both panel log sites
+(`scripts/proposal-package.rb` `unit_mode` and the `togglemode` callback)
+iterate only `mat[:applied] || mat[:reverted]` and `mat[:unmapped] ||
+mat[:left]`. When a sweep matches ZERO surfaces both of those are empty, so
+the loops ran zero times and the log said nothing. A swap that did nothing was
+byte-identical to one that worked. `WR_MaterialsSwap.report_lines` already had
+the `'nothing on a matching material was found.'` line for exactly this, and
+neither panel site called it.
+
+The material chain itself is correct and was NOT touched: `build-room.rb:403/
+411/415` and `build-takeoff.rb:259/273/277` paint `0128_White`,
+`0099_LightSteelBlue`, `0043_SaddleBrown`, and `wr-materials-swap.rb`'s `walk`
+checks groups as themselves so a painted group is found.
+
+**The fix.** `WR_MaterialsSwap` gains the diagnosis, because it owns the slot
+table and must stay the one owner:
+
+- `diagnosis(model)` — resolves each slot's SOURCE and FILL and counts, in ONE
+  reuse of the existing `find` walk, how many surfaces in this model actually
+  carry each of the six names, plus whether the fill resolves to a material
+  here. Lookups stay by NAME.
+- `diagnose_lines(rows)` — pure, rows in / strings out, so the exact sentence
+  an operator reads is runnable outside SketchUp. Separates the four causes of
+  a no-op: no source configured; source matches nothing AND no fill; source
+  matches but no fill; fill names a material not in this model. When both are
+  configured and present it says which mode the slot is ALREADY in rather than
+  implying a swap happened.
+- `report_lines` takes an optional `model` and appends the diagnosis on the
+  empty path; `wr-mode.rb`'s console `report` passes it, so the Ruby Console
+  tells the same story as the panel.
+
+Both proposal-package log sites now log `nothing on a matching material was
+found:` followed by the per-slot lines, in `bad` styling. A SUCCESSFUL swap is
+unchanged — the diagnosis only runs when the counts hash is empty.
+
+Benton's own case now reads, per slot:
+
+    WR-Wall-Render: 0 surface(s) on "0099_LightSteelBlue" and no FILL is set.
+    This slot matches nothing and has nowhere to go: set SOURCE to the
+    material this model really uses, then set a FILL.
+
+- `scripts/wr-materials-swap.rb` — `diagnosis`, `diagnose_lines`, `diagnose`;
+  `report_lines(action, result, model = nil)`
+- `scripts/proposal-package.rb` — both log sites call `diagnose` when empty
+- `scripts/wr-mode.rb` — passes the model into `report_lines`
+- `scripts/rbtest-materials-diagnosis.py` — NEW. Lifts `diagnose_lines`
+  verbatim and runs it on all three slots empty, source-with-no-fill,
+  missing fill, and both healthy directions. 35 checks pass; mutation-checked
+  by returning `[]` (every content check fails, `lines: []` — the bug itself)
+  and by dropping the count from the no-fill branch.
+
+**UNRUN in SketchUp.** `scripts/rbparse.py` passes on all 66 files and the new
+rbtest passes, but neither executes `diagnosis`, which needs a real
+`Sketchup::Model`. What it will say in the window is verified; that it finds
+the right counts in a live model is not.
+
 ## 2026-09-02
 
 ### 72-series standard deck: hinges in the center — the deck mirror was the wrong axis — 1.19.11

@@ -390,7 +390,10 @@ module WR_Mode
   def self.report(result)
     lines = ['']
     lines << "MODE — now #{result[:to].upcase} (was #{(result[:from] || 'unknown').to_s.upcase})"
-    lines.concat(WR_MaterialsSwap.report_lines('materials', result[:materials]))
+    # The model is passed so a zero-match sweep is diagnosed here too -- the
+    # Ruby Console has to tell the same story as the Proposal Package log.
+    lines.concat(WR_MaterialsSwap.report_lines('materials', result[:materials],
+                                               Sketchup.active_model))
     # What the viewport is ACTUALLY showing now, read back from the model
     # rather than echoed from the request — so "shadows OFF" here is a
     # fact, and a key that refused shows up both as ON here and by name in

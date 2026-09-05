@@ -1373,8 +1373,15 @@ module WR_ProposalPackage
     @mode_now = target
     log(dlg, "MODE -> #{target.upcase}", 'dim')
     mat = res[:materials] || {}
-    (mat[:applied] || mat[:reverted] || {}).each do |slot, n|
-      log(dlg, "  #{slot}: #{n} surface(s)", 'dim')
+    counts = mat[:applied] || mat[:reverted] || {}
+    counts.each { |slot, n| log(dlg, "  #{slot}: #{n} surface(s)", 'dim') }
+    # A SWEEP THAT MOVED NOTHING MUST SAY WHY (1.19.12). Before this, an empty
+    # counts hash printed no lines at all, so a batch mode step that swapped
+    # nothing looked exactly like one that worked. WR_MaterialsSwap owns the
+    # slot table, so it owns the explanation too.
+    if counts.empty?
+      log(dlg, '  nothing on a matching material was found:', 'bad')
+      WR_MaterialsSwap.diagnose(model).each { |l| log(dlg, l, 'bad') }
     end
     # Unmapped surfaces named BEFORE the first render — "floor still white"
     # is said here, not discovered in the image.
@@ -2880,8 +2887,13 @@ module WR_ProposalPackage
         res    = WR_Mode.to_mode(model, target)
         log(d, "MODE -> #{target.upcase}", 'dim')
         mat = res[:materials] || {}
-        (mat[:applied] || mat[:reverted] || {}).each do |slot, n|
-          log(d, "  #{slot}: #{n} surface(s)", 'dim')
+        counts = mat[:applied] || mat[:reverted] || {}
+        counts.each { |slot, n| log(d, "  #{slot}: #{n} surface(s)", 'dim') }
+        # The button's whole job is showing what moved -- so it has to show
+        # what did NOT, and why. See unit_mode above; same rule, same owner.
+        if counts.empty?
+          log(d, 'nothing on a matching material was found:', 'bad')
+          WR_MaterialsSwap.diagnose(model).each { |l| log(d, l, 'bad') }
         end
         # Named here, in the window, at the moment you flip -- the whole point
         # of the button is seeing what did and did not swap.
