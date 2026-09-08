@@ -41,3 +41,16 @@
 4. Client name kept as rev 1's (the individual, with the UTHSC sub-line); folder is
    "UTHealthSciences". Say if the cover should carry the institution instead.
 5. Pack is 6.2 MB (rev 1 was 5.3 MB); the plates alone are 4.8 MB, above the 3.6 MB target.
+
+## Status 12:58 — paused for re-exports
+- Benton confirmed the three clipped plans are clipped in the source PNGs (case b). He is
+  re-exporting `Room2Overview.png`, `Room3Overview.png`, `Room4Overview.png`; on disk they still
+  carry 12:12 timestamps. Nothing in the trim/fit logic was changed.
+- `Room1.1R render.png` was re-rendered (12:53); plate `02-room1-1-render.jpg` regenerated from
+  it. Same composition as before (door + window + desk on one face) — the contradiction with the
+  hero / plans / BoothDimensions1.2 for the second Room 1 booth is NOT resolved by it.
+- A rebuilt PDF exists ONLY in the scratchpad (`uths-final.pdf`); it still carries the old clipped
+  plans. The Desktop PDF (12:38 build) is locked by an open viewer and was not replaced.
+- Rebuild is one command once the plans land: regenerate plates 10/13/16 with the flatten+trim
+  script, `node build-v2.js source/proposal-v2.json`, print with headless Chrome, append rev 1
+  pp.13-17, verify.
