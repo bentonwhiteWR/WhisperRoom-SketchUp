@@ -1,5 +1,76 @@
 # DEVLOG
 
+## 2026-09-08
+
+### The MJP was upside down with its back to the room — 1.19.13
+
+Benton, off a 7296 E pulled in through a booth link: the MJP box hung low on
+the wall under the desk with its two cable tails rising into the desk
+underside, a plain black volume with no jack field showing. His words: "needs
+to rotate 180 degrees, as well as flip upside down."
+
+**Why the 1 Sep fix was wrong — read this before touching either constant
+again.** On 1 Sep he said "MJP needs to be flipped 180" and 1.19.2 answered
+with `MJP_SPIN180 = true`, a half turn about the wall normal. That was the
+wrong axis. `MJP.skp` is authored right way up: it measures 8.75 x 3.03 x
+18.38 with z −8.88..9.50 (`P:\...\_component-probe.tsv`, origin_z 8.8839) and
+every horizontal face sits between z 2.125 and 9.5 (`_face-levels.tsv`) — the
+jack box is at the TOP of the part's own +Z and the 18 in of tails hang below
+it, exactly as the portal draws it (`assets/booth-art/mjp.webp`).
+`rotation()` already sends def +Z to world up, so the spin put the box at
+10.69..18.06 off the floor with the tails rising to 29.07. What the 1 Sep
+report was about was the FACING: the jack field is on the part's def −Y face,
+and `FACE_ROOM[:mjp] = +1` pointed def +Y — the closed back — at the room.
+The two half turns were applied to the wrong axis and the right axis was
+never touched. 1.19.2's harnesses were green because neither reached
+`wall_transform`; that gap is closed below.
+
+**The change (`scripts/wr-overlays.rb`).** `MJP_SPIN180 = false`;
+`FACE_ROOM[:mjp] = -1` (same signature and same fix as the duct covers on
+28 Aug); the MJP `axes_for` call passes `nil` for height instead of a guessed
+8.0 — with 18.38 in of tails the guess scored an EXACT tie between "18.38 is
+up" and "18.38 runs along the wall" (`|x−8.39|+|z−8| == |z−8.39|+|x−8|`),
+broken only by float summation order (audit C-6). Relative to 1.19.2 the net
+move is `diag(1,−1,−1)`: one 180 about the in-wall horizontal axis, det +1 —
+a rotation, not a mirror, which is what Benton's two turns compose to.
+`MJP_SPIN180` and `FACE_ROOM[:mjp]` are read only at the two MJP call sites;
+foam, duct, desk keep their own `axes_for` calls and signs; the elevated
+floor never touches any of the three.
+
+**Where it should land now (booth-local, off the booth floor; add 4.75 with
+casters):** box 21.70..29.07 — top at `MJP_TOP_Z`, jack field to the room on
+the interior box and outward on the exterior box; tails hanging 21.70 down to
+10.69. On every wall, both faces.
+
+**Pinned.** `rbtest-part-orientation.py` gains a section that transcribes
+`rotation()` + `wall_transform()` + `axes_for()`, drives it with the measured
+MJP.skp bounds, reads the three constants OUT OF THE SOURCE, and asserts det
++1, box above tails, field out of the wall, and the 21.70..29.07 seating on
+all four walls and both faces — plus that the 1.19.2 settings reproduce the
+screenshot (10.69..18.06, def +Z down), so the check is known to
+discriminate — re-injecting the 1.19.2 settings turns 33 of the 94 checks
+red. `rbparse.py` parses all 66 files; `rbtest-overlays.py` 27 checks green.
+
+**Also in 1.19.13 — the desk drops 3/32 in.** Benton, same day, same link
+import: "the desk needs to lower by 3/32\"". `DESK_SURFACE_Z` is now written
+`32.5 - 3.0 / 32.0` (32.40625) so the anchor and the correction are both
+readable. **The MJP does NOT follow.** `MJP_TOP_Z` is anchored on the literal
+27.25 — the portal derived that from "32.5 minus 5.25" once at QA and then
+fixed it as its own constant (`iso-render.js` `MJP_PLATE_CENTER_IN`); it is a
+wall datum, not a desk offset, and the figures above (box 21.70..29.07, tails
+to 10.69) are unchanged. `DESK_SURFACE_Z` is read at exactly two lines (the
+desk seating and its console line); foam seats on `ph/2`, duct covers on
+`DUCT_PORTS`, the elevated floor on the deck, and the host pickers are
+name/width rules — none of them read a desk height. Both facts are pinned in
+`rbtest-part-orientation.py` (`test_desk_height`, and the MJP_TOP_Z
+independence check); 100 checks.
+
+**UNRUN IN SKETCHUP.** The chain was run as a Python transcription. Benton's
+next link import is the proof; a box that is still upside down means the
+transcription of `Transformation.axes` / `*` order is wrong, not the part.
+Diagnosis, repro and a read-only probe: `.forge/fixer/mjp-orientation-diagnosis.md`,
+`mjp-transform-repro.py`, `probe-mjp-faces.rb`.
+
 ## 2026-09-05
 
 ### Session handoff — where this left off

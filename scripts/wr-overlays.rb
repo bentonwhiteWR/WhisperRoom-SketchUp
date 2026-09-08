@@ -32,7 +32,8 @@
 #               (a product fact, Benton, quoted in the portal source). Same
 #               2.25 in IEP move on Enhanced.
 #   DESK        payload dk/dl/ds/dox. Small 30x14 (may mount outside a
-#               window), large 42x17 (interior only), surface at 32.5.
+#               window), large 42x17 (interior only), surface at 32.5 less
+#               Benton's 3/32 (DESK_SURFACE_Z).
 #   MJP         payload jp/ms. "Multi jack panel" — a pass-through with a box
 #               on BOTH faces of one window/cable wall, plate centre 27.25.
 #   EFP         payload ep (or the ad ADA bundle). The elevated-floor slab,
@@ -129,30 +130,46 @@ module WR_Overlays
   # TOP at 32.5 + 4.84 on the reading that the strip is the part's highest
   # geometry. If a built desk sits visibly high, the .skp does not carry the
   # strip: change DESK_TOP_IS_STRIP to false and the top goes to 32.5.
-  DESK_SURFACE_Z    = 32.5
+  #
+  # LOWERED 3/32 in, Benton, 8 Sep 2026, off a booth-builder-link import:
+  # "the desk needs to lower by 3/32\" on the load booth builder link". The
+  # portal's 32.5 is the anchor and the 3/32 is his fit-check against it, so
+  # it is written as that subtraction and not as 32.40625. This is the DESK
+  # ONLY: the MJP's 27.25 below is its own wall datum and does not follow.
+  DESK_SURFACE_Z    = 32.5 - 3.0 / 32.0
   DESK_STRIP_PROUD  = 4.84
   DESK_TOP_IS_STRIP = true
   DESK_SMALL = { :file => 'DeskSmall', :w => 30.0, :d => 14.0 }.freeze
   DESK_LARGE = { :file => 'DeskLarge', :w => 42.0, :d => 17.0 }.freeze
 
-  # MJP: BOTH BOXES TAKE A HALF TURN IN THE PLANE OF THE WALL.
+  # MJP: NO HALF TURN IN THE PLANE OF THE WALL. THE PART IS AUTHORED RIGHT WAY
+  # UP AND THE 1.19.2 SPIN WAS WHAT TURNED IT UPSIDE DOWN.
   #
-  # Benton, 1 Sep 2026, off a booth pulled in from a booth link: "MJP needs to
-  # be flipped 180". As authored, MJP.skp lands upside down on the wall.
+  # Benton, 1 Sep 2026: "MJP needs to be flipped 180". 1.19.2 read that as a
+  # vertical flip and added this spin about the wall normal. It was the wrong
+  # axis. MJP.skp measures 8.75 x 3.03 x 18.38 with z -8.88..9.50 (P:
+  # _component-probe.tsv) and every horizontal face between z 2.125 and 9.5
+  # (_face-levels.tsv): the jack box is at the TOP of its own +Z and the two
+  # cable tails hang below it, exactly as the portal draws it
+  # (WhisperRoomQuote assets/booth-art/mjp.webp). rotation() already sends
+  # def +Z to world up, so the spin sent the box to 10.69..18.06 off the floor
+  # with the tails rising to 29.07 — Benton, 8 Sep 2026, screenshot of the
+  # unmodified code: "upside down ... needs to rotate 180 degrees, as well as
+  # flip upside down". What the 1 Sep report was about is the FACING, which is
+  # FACE_ROOM[:mjp] below, not this.
   #
-  # This is a spin about the wall NORMAL, not a room flip — the plate stays
-  # flat on its face and only its own orientation changes. It is applied to
-  # the interior AND the exterior box, because they are the same .skp and a
-  # part authored upside down is upside down on both faces. The exterior box's
-  # existing 180-in-plan (room_flip, "the ports need to face the camera") is a
-  # separate move and is unchanged; the two compose.
-  #
-  # IF ONLY ONE FACE COMES OUT RIGHT, this is not one constant but two, and
-  # the call sites below take the flag separately.
-  MJP_SPIN180 = true
+  # The mechanism stays (wall_transform's spin180 argument) so the history is
+  # readable and a genuinely upside-down part could use it; the flag is false.
+  # Pinned by scripts/rbtest-part-orientation.py, which transcribes the whole
+  # chain and asserts box-above-tails on all four walls.
+  MJP_SPIN180 = false
 
-  # MJP. Plate CENTRE at 27.25 off the floor (32.5 desk surface minus 5.25,
-  # Benton QA 2026-06-27). The jack box is 3.64 tall with cable tails hanging
+  # MJP. Plate CENTRE at 27.25 off the floor (Benton QA 2026-06-27; the portal
+  # arrived at it as the 32.5 desk surface minus 5.25 and then FIXED it as its
+  # own constant, iso-render.js MJP_PLATE_CENTER_IN). It is a WALL datum, not
+  # a desk offset: it is a literal here on purpose and does NOT track
+  # DESK_SURFACE_Z — the 8 Sep 2026 3/32 desk drop left it where it was.
+  # The jack box is 3.64 tall with cable tails hanging
   # BELOW it, so the box TOP is the stable datum: geometry top goes at
   # 27.25 + 3.64/2. ASSUMED: the plate spans the box's full height. If the
   # plate lands visibly off, measure the part and set MJP_TOP_Z directly.
@@ -191,7 +208,19 @@ module WR_Overlays
   #
   # FALSIFIED BY: a duct cover that now reads backwards the other way, or one
   # that has moved off its port. Say which booth and which wall.
-  FACE_ROOM = { :foam => 1, :duct => -1, :desk => 1, :mjp => 1 }.freeze
+  #
+  # :mjp is -1 as of 2026-09-08 (1.19.13). Benton, off the unmodified code:
+  # "needs to rotate 180 degrees, as well as flip upside down" — two turns
+  # about two axes. The upside-down half is MJP_SPIN180 above; THIS is the
+  # "rotate 180": with +1 the box showed a plain black back to the room and no
+  # jack field, i.e. MJP.skp's field is on its def -Y face and +1 was burying
+  # it in the wall. Same signature and same fix as :duct. The exterior box's
+  # room_flip composes with it as before, so the field faces OUT on the
+  # outside face too (portal iso-render.js:2808-2828, "the ports need to face
+  # the camera"). Spin OFF + face -1 together are one 180 about the in-wall
+  # horizontal axis relative to 1.19.2 — a proper rotation, det +1, verified
+  # in rbtest-part-orientation.py, not a mirror.
+  FACE_ROOM = { :foam => 1, :duct => -1, :desk => 1, :mjp => -1 }.freeze
 
   # ------------------------------------------------------ caster plate (cs) --
   #
@@ -907,7 +936,12 @@ module WR_Overlays
           warns << "MJP.skp not found in #{dir} — MJP NOT placed"
         else
           gx = geom_extents(md)
-          ax = axes_for(gx[:e], MJP_W, 8.0, MJP_T)
+          # nil height, like the desk: the part is 18.38 tall with its tails
+          # and a guessed 8.0 scored an EXACT tie between "18.38 is up" and
+          # "18.38 runs along the wall" (|x-8.39|+|z-8| == |z-8.39|+|x-8|),
+          # broken only by float summation order. Width and thickness pick the
+          # axes by 9.6 in; the leftover is vertical.
+          ax = axes_for(gx[:e], MJP_W, nil, MJP_T)
           fr0 = slot_frame(host[:poly], centre)
           hf = host_frame(panels, host, centre)
           run_c = (fr0[:r0] + fr0[:r1]) / 2.0

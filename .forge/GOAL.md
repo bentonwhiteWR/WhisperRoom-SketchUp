@@ -1,25 +1,35 @@
 # GOAL
 
 ## Mission
-The Proposal Package panel's Draft <-> Render material swap must never be silent.
-When a toggle moves zero surfaces, the panel log has to say why, in the window,
-naming each slot, the source material it looked for, and what it found instead.
+Build revision 2 of the UT Health Sciences booth-renderings proposal PDF from the
+18 renders in C:\Users\bento\Desktop\ProposalFiles\UTHealthSciences. Same layout
+as rev 1; this revision adds a second booth in Room 1.
 
 ## Done means
-- A DRAFT or RENDER toggle that matches nothing prints a loud, specific line per
-  slot in the Proposal Package log (and in wr-mode's console report), not nothing.
-- The line names the slot, its configured SOURCE material, its configured FILL,
-  and how many surfaces in the model carry that source.
-- scripts/rbparse.py passes; the pure logic has a test in the rbtest family.
-- scripts/wr_tools/VERSION bumped; committed and pushed to main.
+- C:\Users\bento\Desktop\ProposalFiles\UTHealthSciences\UTHealthSciences-Booth-Renderings.pdf
+  exists, US Letter portrait, one render per page, brand orange #ee6216, footer
+  both sides on every page.
+- Page order is Benton's: cover hero (Overview R) -> TopDownOverview -> then each
+  room as render(s) -> booth dimension views -> RoomNOverview top-down LAST.
+  Room 1 carries 1.1 and 1.2; Room 2 puts BoothDimensionsBackside before its
+  top-down.
+- Every dimension callout transcribed exactly from the render, never rounded or
+  inferred. No prices, lead times or freight.
+- The finished PDF is rasterised back with PyMuPDF and EVERY page plus EVERY
+  bottom edge inspected.
+- An explicit list of every caption line that was invented rather than read off a
+  render or lifted from boilerplate.
 
 ## Now
-Fixer: implement the loud no-op in scripts/wr-materials-swap.rb + the two log
-sites in scripts/proposal-package.rb (unit_mode ~line 1371, togglemode ~line 2878).
+Builder: build the pack per the whisperroom-proposal skill and
+reference/proposal-playbook.md.
 
 ## Out of scope
-- Changing which materials build-room.rb paints. VERIFIED CORRECT this session:
-  build-room.rb:403/411/415 and build-takeoff.rb:259/273/277 paint floor
-  0128_White, walls 0099_LightSteelBlue, doors 0043_SaddleBrown. Do not touch.
-- The lighting rig (wr-drop-lights.rb).
-- Any redesign of the slot/fill model.
+- Overwriting anything in C:\Users\bento\Desktop\ProposalFiles\Saravanan Elangovan\.
+- Prices, lead times, freight, STC or the word "soundproof".
+- The MJP / desk overlay fix (separate, uncommitted at 1.19.13, awaiting Benton's
+  SketchUp confirmation). Do not touch scripts/.
+
+## History
+- MJP orientation + 3/32" desk drop fixed in scripts/wr-overlays.rb, 1.19.13,
+  uncommitted, awaiting Benton's confirmation on a live booth-link import.

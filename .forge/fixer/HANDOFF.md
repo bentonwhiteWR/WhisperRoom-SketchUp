@@ -1,27 +1,39 @@
-# HANDOFF — silent Draft/Render toggle (1.19.12)
+# HANDOFF — 1.19.13: MJP orientation fix + desk 3/32 drop (UNCOMMITTED, awaiting Benton)
 
 ## Produced
-- `scripts/wr-materials-swap.rb` — `diagnosis(model)`, pure `diagnose_lines(rows)`,
-  `diagnose(model)`; `report_lines` now takes an optional `model`.
-- `scripts/proposal-package.rb` — `unit_mode` and the `togglemode` callback log the
-  diagnosis when the counts hash is empty.
-- `scripts/wr-mode.rb` — passes `Sketchup.active_model` into `report_lines`.
-- `scripts/rbtest-materials-diagnosis.py` — NEW, 35 checks, passes.
-- `scripts/wr_tools/VERSION` 1.19.11 -> 1.19.12; DEVLOG entry.
+- `scripts/wr-overlays.rb`
+  - `MJP_SPIN180 = false` (:158), `FACE_ROOM[:mjp] = -1` (:212), MJP `axes_for` height `nil`.
+  - `DESK_SURFACE_Z = 32.5 - 3.0 / 32.0` (:139) — Benton 8 Sep 2026, written as anchor minus
+    correction, commented with its origin. `MJP_TOP_Z` (:177) untouched and its comment now
+    says it is a wall datum that does NOT track the desk.
+- `scripts/rbtest-part-orientation.py` — `test_mjp_chain` (chain transcribed, 8 wall/face
+  cases, 1.19.2 settings reproduce the defect, `MJP_TOP_Z` independence) and
+  `test_desk_height` (expression read from source, evaluates to 32.40625, anchor-minus form,
+  read on exactly two code lines). 100 checks; three red-injections tried and each caught.
+- `scripts/wr_tools/VERSION` 1.19.13 (one bump for both changes). `DEVLOG.md` 2026-09-08 entry.
+- `.forge/fixer/mjp-orientation-diagnosis.md`, `mjp-transform-repro.py`, `probe-mjp-faces.rb`.
+- NOT committed, NOT pushed.
 
 ## Read-first
-- `scripts/wr-materials-swap.rb` header "diagnosing a no-op" — why each branch exists.
-- `.forge/GOAL.md` — the out-of-scope fence (build-room's materials were verified
-  correct and not touched).
+- `DEVLOG.md` top entry — why the 1 Sep axis was wrong, and why the MJP did not follow the desk.
+- `scripts/wr-overlays.rb:130-177` — the desk and MJP datums side by side with their reasons.
 
 ## Assumptions
-- Benton's zero-match is the "source matches nothing" case, not a swap defect. The
-  fix makes the model TELL you which it is rather than asserting one.
-- `Sketchup.active_model` is safe to call inside `WR_Mode.report`; it is already
-  called a few lines below.
+- SketchUp `A * B` applies B first; `Transformation.axes` maps def X/Y/Z to its vectors.
+  Derived from foam/desk landing correctly through the same code.
+- The jack field is on MJP.skp's def −Y face — derived from the 8 Sep screenshot, not read
+  off the .skp.
+- The MJP is mounted to the wall on its own datum, not relative to the desk. Evidence: the
+  portal fixes `MJP_PLATE_CENTER_IN = 27.25` as its own constant; Benton's report names only
+  the desk. If he wanted the MJP down 3/32 too, it is one literal (:177) and the harness pin.
 
 ## Open questions
-- UNRUN in SketchUp. `diagnosis` needs a real model; only `diagnose_lines` executed.
-- Next time Benton toggles, the per-slot line will name the material his walls are
-  really on (count 0 tells him the SOURCE is wrong). If a count is NON-zero and the
-  fill is present and it still does not move, that is a different bug and worth a look.
+- **UNRUN IN SKETCHUP.** Benton's next booth-link import checks three things: MJP box at
+  21.70..29.07 booth-local (+4.75 with casters), jack field facing him inside / outward
+  outside, tails hanging to 10.69 — UNCHANGED by the desk drop; and the desk surface at
+  32.40625 (strip top 37.24625).
+- Wall-side uniformity of the MJP is derived, not seen: drag the MJP to another wall's
+  window/cable panel in the booth builder and re-import, or load
+  `.forge/fixer/probe-mjp-faces.rb` and read Part 2.
+- Out of scope, flagged: MJP.skp's box is ~7.4 in tall vs the portal's 3.64, so `MJP_TOP_Z`
+  centres it ~1.9 in below the QA'd 27.25.
