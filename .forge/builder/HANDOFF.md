@@ -63,3 +63,13 @@
   scratchpad `uths-final.pdf`. Full PyMuPDF pass: all pages, all bottom edges, four plan pages.
 - Still unresolved / unruled: second Room 1 booth face contradiction; 7272 manifest groups;
   Backside clipped top-edge text; cover client name; assembly pages retained.
+
+## Status 13:45 — desk-removal rebuild shipped
+- Benton removed the fold-down desk from the product and re-exported 15 of 17 renders. All 17
+  plates regenerated from current sources; five captions rewritten desk-free; MJP still on the
+  wall in every new render so the MJP assembly pages stay.
+- Desktop PDF rewritten 13:43 (6,471,306 bytes, 22 pages), md5 = scratchpad uths-final.pdf.
+- STALE / INCONSISTENT for Benton: `Room1.1R render.png` (12:53) still shows a desk;
+  `TopDownOverview.png` (12:12) still draws desks on all five booths; the new
+  `BoothDimensionsBackside.png` (13:24) still carries a desk on the Room 2 booth.
+- Dimension callouts unchanged from the previous transcription on all five BoothDimensions plates.
