@@ -73,3 +73,13 @@
   `TopDownOverview.png` (12:12) still draws desks on all five booths; the new
   `BoothDimensionsBackside.png` (13:24) still carries a desk on the Room 2 booth.
 - Dimension callouts unchanged from the previous transcription on all five BoothDimensions plates.
+
+## Status 14:02 — final build on the full re-exported set
+- `BoothDimensionsBackside.png` renamed to `BacksideDimensions.png` (13:53); config + plate 09 follow.
+- Desk sweep: gone from `Room1.1R render.png` (13:58), `TopDownOverview.png` (13:56) and
+  `BacksideDimensions.png` (13:53). MJP present on every booth render → MJP assembly pages stay.
+- Room 1.1 face contradiction PERSISTS: hero (13:28) + both plans (13:56) show the first Room 1
+  booth's window/MJP on the face adjoining the door; `Room1.1R` (13:58) and `BoothDimensions1.1`
+  (13:27) show door + window + MJP on one face. Captions make no face claim.
+- Plan edge profiles identical to 13:08/13:27 sets (own walls inside frame). Callouts unchanged.
+- Desktop PDF rewritten 14:01 (6,468,694 bytes, 22 pages), md5 = scratchpad uths-final.pdf.
