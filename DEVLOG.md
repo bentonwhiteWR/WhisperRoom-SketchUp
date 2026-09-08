@@ -71,6 +71,52 @@ transcription of `Transformation.axes` / `*` order is wrong, not the part.
 Diagnosis, repro and a read-only probe: `.forge/fixer/mjp-orientation-diagnosis.md`,
 `mjp-transform-repro.py`, `probe-mjp-faces.rb`.
 
+### Session close — 8 Sep 2026
+
+**Done.** 1.19.13 shipped: the MJP orientation fix above, the 3/32" desk drop,
+and the harness that closes the gap that let 1.19.2 ship wrong. Benton
+confirmed both in SketchUp on a live booth-link import before the push.
+
+Two proposals built off-repo (client material stays out of here, see CLAUDE.md):
+
+- **UT Health Sciences rev 2** — delivered and signed off. 22 pages at
+  `C:\Users\bento\Desktop\ProposalFiles\UTHealthSciences\`. Five rebuilds: the
+  booths lost their desks mid-job, three plan exports were clipped, and
+  `BoothDimensionsBackside.png` was renamed `BacksideDimensions.png`. Config is
+  in that folder's `source\proposal-v2.json`.
+- **Broadcaster General Store** (Gabe's job, built here because he was out of
+  credits) — 9 pages at `C:\Users\bento\Desktop\ProposalFiles\Broadcaster
+  General Store\Broadcaster General Store-Proposal-v2.pdf`. Built and verified
+  but NOT cleared to send; see Open decisions.
+
+**Next steps.**
+
+1. Get the Broadcaster General Store quote link from Gabe
+   (`sales.whisperroom.com/q/W-...`) and settle the booth models. The renders
+   measure 1x 96120 E + 2x 7296 E + 1x 4872 E; Gabe's earlier pack said
+   9696 E + 3x 4872 E. Whichever is right, the other is a real error someone
+   needs to know about. Fix is the cover card `sub` and the section lead in
+   that pack's `source\proposal-v2.json`, then rebuild.
+2. Tell Gabe to pull 1.19.13: `git pull`, `install-plugin.py`, restart — or the
+   panel's **Update now** button.
+3. Optional, cosmetic, only if either pack gets reopened: the top edge of
+   `BacksideDimensions.png` (UTHSC) is clipped, and the radiator-clearance note
+   in the Broadcaster renders reads "sideposition" run together. Both are
+   SketchUp-side re-exports.
+
+**Open decisions.**
+
+- Broadcaster General Store booth models — blocking that pack going out.
+- UTHSC cover names Dr. Saravanan Elangovan with UTHSC as the sub-line; the
+  institution was never promoted to the headline. Not ruled on; shipped as-is.
+- UTHSC `manifest.json` lists an `MDL 7272 S` and an `MDL 7272 E` that appear on
+  no render. Unexplained, not chased.
+
+**Rule learned.** In a multi-booth room the `N.1` / `N.2` renders are DIFFERENT
+booths and will legitimately disagree about which face carries the door and
+window. That is not a pack contradiction — I flagged it as one across four
+rebuilds before Benton corrected it.
+
 ## 2026-09-05
 
 ### Session handoff — where this left off
