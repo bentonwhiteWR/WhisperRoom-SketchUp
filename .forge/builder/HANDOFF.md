@@ -54,3 +54,12 @@
 - Rebuild is one command once the plans land: regenerate plates 10/13/16 with the flatten+trim
   script, `node build-v2.js source/proposal-v2.json`, print with headless Chrome, append rev 1
   pp.13-17, verify.
+
+## Status 13:12 — FINAL pack shipped
+- Benton re-exported all four RoomNOverview.png (13:08). Edge check: every room's own wall now has
+  both faces inside the frame; what touches the frame is the neighbouring room's shared wall lines
+  (and on Room 4's left, a sliver of Room 3's booth). Plates 06/10/13/16 regenerated.
+- Final PDF written to the Desktop (13:10, 6,499,897 bytes, 22 pages), md5-identical to
+  scratchpad `uths-final.pdf`. Full PyMuPDF pass: all pages, all bottom edges, four plan pages.
+- Still unresolved / unruled: second Room 1 booth face contradiction; 7272 manifest groups;
+  Backside clipped top-edge text; cover client name; assembly pages retained.
