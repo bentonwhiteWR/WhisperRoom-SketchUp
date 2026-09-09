@@ -4,7 +4,24 @@
 - `scripts/peoplesspace-alcove.rb` — the room script, `@tab client`. Builds the alcove
   to the two stated interior faces, east side open, cloud + structure + pipes + grille
   massed, MDL 96120 E + ADA placed twice (door south / door north) on WR-Booth-Opt1 /
-  WR-Booth-Opt2, ten scenes in proposal plate order. **Never run.**
+  WR-Booth-Opt2, invented context around it on WR-Context-INVENTED, site-sampled room
+  materials, ten scenes in proposal plate order, and a report HtmlDialog. **Unrun by
+  me** — Benton loaded 1.19.15; nothing since has been executed.
+
+## Changed after Benton ran 1.19.15 (now 1.19.16)
+- **In-model paragraph text is gone.** `Sketchup::Text` has no font-size API, which is
+  why it rendered enormous. Short labels only now, via `add_3d_text` at
+  `LABEL_H = ROOM_W / 64.0`, all on **WR-Notes, off by default** (the WR Lights pattern).
+- **The explanation lives in an HtmlDialog** the build opens — height stack, headroom,
+  caster warning, handedness conflict, palette, the thirteen-item estimated list — with
+  buttons that switch options, labels, dimensions and context. Console `puts` unchanged.
+- **Context added**, all INVENTED, on its own tag: floor 20 ft east, elevator recess in
+  the continuing concrete wall, glass door and room behind the storefront, mullions,
+  deck, pipes carried east. The `-02-dimensioned` and `-05-plan` scenes drop it.
+- **Room materials sampled off the site photo**, deliberately replacing CLAUDE.md's
+  drawing palette for this model (Benton's call). Booth materials untouched.
+  `SITE_MATERIALS = false` restores the drawing palette; `BUILD_CONTEXT = false` drops
+  the context.
 - `.forge/builder/peoplesspace-check.py` — the arithmetic cross-check, independent of the
   Ruby: chain closure, ramp fit, height stack, roof-unit seating. Passes.
 - `DEVLOG.md` entry and `scripts/wr_tools/VERSION` bumped 1.19.14 → 1.19.15.
@@ -36,4 +53,10 @@
    (option 1); answer 5 says the ramp opens against the glass wall, which is the north
    end (option 2). Both are built; Benton picks.
 4. Ramp rise and slope are still unknown — the plate is flat and is not a ramp profile.
-5. The script is UNRUN. Somebody has to `load` it in SketchUp before anything renders.
+5. The script is UNRUN in its current form. Benton loaded 1.19.15; the text fix, the
+   context and the site palette have not been seen in SketchUp by anyone.
+6. The context dimensions (20 ft east, 12 ft glazed room, 84" elevator, 48" mullion
+   spacing) are all invented for the render. If anyone measures the real lobby, replace
+   the `CTX_*` / `EV_*` / `MULL_SP` constants — they are grouped at the top of the file.
+7. The sampled colours carry the photo's lighting. They are a lookdev starting point,
+   not a spec.

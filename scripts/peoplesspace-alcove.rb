@@ -81,6 +81,38 @@
 #   1), so the ramp landing there is acceptable — the 29 7/8" overrun past
 #   the alcove line stopped being a problem when east stopped being a wall.
 #
+# ─── THE PALETTE IS DELIBERATELY NOT THE DRAWING PALETTE ──────────────────
+#   CLAUDE.md's working-drawing palette is floor 0128_White, walls
+#   0099_LightSteelBlue, doors 0043_SaddleBrown. This model does not use it.
+#   Benton, 9 Sep 2026: "Change the material color too to better match this
+#   photo." His call, for this client model, because it is going to render.
+#   The room's colours are MEDIAN RGB SAMPLES off the real site photo
+#   (SITE_RGB below names the pixel box each one came from). The booth keeps
+#   its own materials. SITE_MATERIALS = false restores the drawing palette.
+#
+# ─── THE CONTEXT AROUND THE ALCOVE IS INVENTED ────────────────────────────
+#   Benton, 9 Sep 2026: "build the outside area a bit around it to better
+#   reflect the entire room." Everything beyond the alcove — the floor
+#   running east, the elevator, the glazed room behind the storefront, the
+#   mullions, the deck, the pipes past the alcove line — is INVENTED for a
+#   render. None of it is in the architect's fragment. It is all on the
+#   WR-Context-INVENTED tag so it switches off in one click, and no
+#   dimension touches it. The measured alcove did not move.
+#
+# ─── WHERE THE EXPLANATION LIVES ──────────────────────────────────────────
+#   Benton, 9 Sep 2026, on the first build's in-model text: "this is what the
+#   text looks like whenever you include it. Not ideal, not sure we even need
+#   all that text anyways?" He was right twice. The paragraph notes are gone.
+#
+#   The model now carries SHORT LABELS ONLY — a VIF mark on a stated datum, an
+#   EST mark on an estimated one, the east-limit marker, the unconfirmed
+#   roof-mount — all on the WR-Notes tag, which is OFF by default (the same
+#   pattern as WR Lights) and sized from the room via LABEL_H rather than from
+#   Model Info. The explanation — height stack, headroom, the caster warning,
+#   the handedness conflict, the eleven-item estimated list — is in the report
+#   HtmlDialog the build opens, and in the console puts for anyone at the Ruby
+#   Console. If a label cannot be read at a glance it is the wrong tool.
+#
 # ─── HINGE ────────────────────────────────────────────────────────────────
 #   ASSUMED, both options: hinge on the SOUTH jamb, leaf opens 90 degrees to
 #   the south, so the clear approach along the ramp is from the NORTH — the
@@ -162,6 +194,54 @@ module WR_PeoplesSpace
     "0043_SaddleBrown"    => [139,  69,  19]
   }.freeze
 
+  # ─── SITE PALETTE — sampled off the real photo, NOT the drawing palette ─
+  #
+  # Benton, 9 Sep 2026: "Change the material color too to better match this
+  # photo." This deliberately overrides CLAUDE.md's working-drawing palette
+  # (floor 0128_White, walls 0099_LightSteelBlue) for THIS client model,
+  # because it is going to render rather than be read as a working drawing.
+  # His call, and it applies to the room only — the booth keeps its own
+  # materials. Set SITE_MATERIALS = false to get the drawing palette back.
+  #
+  # Every value below is the MEDIAN RGB of a named pixel box in
+  # scratchpad/peoples/site-photo-materials.png, not a colour from memory.
+  # The photo is not colour-calibrated: its lighting is baked into these
+  # numbers, so they are a starting point for a lookdev pass, not a spec.
+  SITE_MATERIALS = true
+  SITE_RGB = {
+    # name                        sampled box in the photo        median
+    "WR Site Concrete"    => [132, 128, 116],  # x2-28  y95-190   board-formed wall
+    "WR Site Corrugated"  => [175, 151,  57],  # x100-168 y155-205 olive metal wall
+    "WR Site Ceiling"     => [156, 139, 108],  # x120-220 y2-40    perforated deck
+    "WR Site Floor"       => [ 87,  82,  82],  # x2-70  y258-288   dark polished floor
+    "WR Site Mullion"     => [ 92,  89,  82],  # x205-224 y95-215  storefront mullion
+    "WR Site Glass"       => [ 92,  90,  80],  # x190-222 y120-200 through the glass
+    "WR Site Pipe"        => [ 64,  58,  52],  # x30-95 y10-45     exposed pipework
+    "WR Site Panel"       => [215, 214, 217]   # x105-150 y75-92   white grille / unit
+  }.freeze
+
+  # ─── CONTEXT — INVENTED. Nothing out here is measured. ─────────────────
+  #
+  # Benton, 9 Sep 2026: "build the outside area a bit around it to better
+  # reflect the entire room." Context for a render, not a survey. It all goes
+  # on WR-Context-INVENTED so it switches off in one click and so nobody
+  # mistakes it for a take-off. The measured alcove does not move.
+  #
+  # Compass, DERIVED from the two reference images and agreeing with the
+  # take-off: the viewer in both stands EAST looking WEST, so the image's
+  # LEFT is SOUTH (concrete wall, elevator beyond it), its RIGHT is NORTH
+  # (glass storefront with a door, and the room behind it), and the back
+  # wall is WEST (the olive corrugated partition).
+  BUILD_CONTEXT = true
+  CTX_E   = 240.0    # how far east the open area is carried  — INVENTED
+  CTX_N   = 144.0    # depth of the glazed room beyond the storefront — INVENTED
+  EV_W    =  84.0    # elevator opening width  — INVENTED
+  EV_OFF  =  72.0    # its near jamb, east of the alcove line — INVENTED
+  EV_DEEP =  30.0    # shaft depth behind the wall — INVENTED
+  MULL_SP =  48.0    # storefront mullion spacing — INVENTED, and >= the 34"
+                     # the spec allows; the real spacing is not dimensioned
+  GDOOR_W =  36.0    # glass door leaf in the storefront — INVENTED
+
   # ─── door options: near/far jamb on the booth's east face, y ───────────
   # Chains close on 128.75 — proved by .forge/builder/peoplesspace-check.py
   #   opt 1:  1 |  2 | 49 | 71 | 5.75
@@ -238,12 +318,30 @@ module WR_PeoplesSpace
     prism(parent, [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], z0, z1 - z0, name, layer, mat)
   end
 
-  def self.note(parent, text, p, layer)
-    t = parent.entities.add_text(text, p)
-    (t.layer = layer) if t
-    t
+  # A SHORT label, laid flat in the XY plane so it reads on a plan scene.
+  #
+  # Sketchup::Text has no font-size API — its size comes from Model Info and
+  # rendered an order of magnitude too large for a room this size (Benton's
+  # screenshot, 9 Sep 2026). add_3d_text takes a letter height in MODEL UNITS,
+  # so the size is derived from the room instead of set by a global. Anything
+  # that will not fit in a few words does not belong in the model at all: it
+  # goes in the report dialog.
+  LABEL_H = ROOM_W / 64.0        # ~1 3/4" against a 9'-6 3/4" room
+
+  def self.label(parent, text, x, y, z, layer)
+    g = parent.entities.add_group
+    ok = g.entities.add_3d_text(text, TextAlignLeft, "Arial", true, false,
+                                LABEL_H, 0.0, 0.0, true, 0.0)
+    if !ok || g.entities.length.zero?
+      g.erase!
+      return nil
+    end
+    g.transformation = Geom::Transformation.translation(Geom::Vector3d.new(x, y, z))
+    g.name  = "label: #{text}"
+    g.layer = layer
+    g
   rescue StandardError => e
-    puts "  (note skipped: #{e.message})"
+    puts "  (label skipped: #{e.message})"
     nil
   end
 
@@ -288,12 +386,12 @@ module WR_PeoplesSpace
     # partition at the SW corner (the mitre line runs (0,0) -> (-T_PART,-T_CONC)).
     prism(parent,
           [[0, 0], [ROOM_W, 0], [ROOM_W, -T_CONC], [-T_PART, -T_CONC]],
-          0.0, H_CONC, "SOUTH wall — cast concrete, to structure", tags[:room], mats[:wall])
+          0.0, H_CONC, "SOUTH wall — cast concrete, to structure", tags[:room], mats[:concrete])
 
     # WEST partition, 4" outward from x = 0, mitred at both ends.
     prism(parent,
           [[0, 0], [0, ROOM_D], [-T_PART, ROOM_D + T_GLASS], [-T_PART, -T_CONC]],
-          0.0, H_ROOM, "WEST wall — partition (slat wall)", tags[:room], mats[:wall])
+          0.0, H_ROOM, "WEST wall — olive corrugated partition", tags[:room], mats[:olive])
 
     # NORTH glass storefront, 2" outward from y = ROOM_D, mitred at the NW corner.
     prism(parent,
@@ -303,18 +401,13 @@ module WR_PeoplesSpace
     # EAST: NO WALL. A 1/4" floor strip marks the limit of the fragment.
     box(parent, ROOM_W - 1.0, ROOM_W, 0.0, ROOM_D, 0.0, 0.25,
         "EAST — OPEN, limit of the architect's fragment", tags[:notes], mats[:note])
-    note(parent, "EAST SIDE IS OPEN SPACE (Benton, 9 Sep 2026).\n" \
-                 "No wall here. The fragment stops at this line;\n" \
-                 "what lies east of it is not dimensioned.",
-         pt(ROOM_W + 6.0, ROOM_D / 2.0, 1.0), tags[:notes])
+    label(parent, "OPEN - LIMIT OF FRAGMENT", ROOM_W + 3.0, ROOM_D / 2.0, 0.5, tags[:notes])
 
     # acoustic cloud — stops short of the concrete wall by an ESTIMATED 22"
     box(parent, 0.0, ROOM_W, CLOUD_START, ROOM_D, CLOUD_Z, CLOUD_Z + CLOUD_T,
         "ACOUSTIC CLOUD CEILING 9'-5\" VIF", tags[:ceiling], mats[:cloud])
-    note(parent, "ACOUSTIC CLOUD 9'-5\" VIF (stated).\n" \
-                 "Its 22\" setback off the concrete wall is a\n" \
-                 "PIXEL READ of the elevation — ESTIMATED, +/-2\".",
-         pt(4.0, CLOUD_START + 4.0, CLOUD_Z - 2.0), tags[:notes])
+    label(parent, "CLOUD 9'-5\" VIF - SETBACK EST",
+          4.0, CLOUD_START + 3.0, CLOUD_Z - 0.5, tags[:notes])
 
     if BUILD_STRUCT
       box(parent, -T_PART, ROOM_W, -T_CONC, ROOM_D + T_GLASS, STRUCT_Z, STRUCT_Z + 4.0,
@@ -339,31 +432,108 @@ module WR_PeoplesSpace
       g.name     = "pipe #{i + 1} — dia #{PIPE_D}\" ESTIMATED, y #{cy}\" ESTIMATED"
       g.material = mats[:grey]
     end
-    note(parent, "PIPES — BOTTOM OF PIPE 8'-3 1/4\" VIF is STATED on the\n" \
-                 "elevation and is the height that governs a roof-mounted\n" \
-                 "booth. THEIR PLAN POSITION IS AN ESTIMATE: three pipes,\n" \
-                 "dia ~5 1/2\", centres at 3 1/2\" / 10 1/2\" / 17 1/2\" off\n" \
-                 "the concrete face, read off a photo and a pixel read of\n" \
-                 "the elevation (+/-2\"). NOT dimensioned by the architect.",
-         pt(ROOM_W + 6.0, 2.0, PIPE_Z + 12.0), tags[:notes])
+    label(parent, "PIPE 8'-3 1/4\" VIF - PLAN EST", 4.0, 1.0, PIPE_Z - 2.0, tags[:notes])
 
     # west-wall grille — pixel read, projection unknown
     box(parent, GRILLE[:x0], GRILLE[:x1], GRILLE[:y0], GRILLE[:y1],
         GRILLE[:z0], GRILLE[:z1],
         "WEST WALL GRILLE — ESTIMATED (pixel read, projection unknown)",
         tags[:obstr], mats[:grey])
+    label(parent, "GRILLE EST", GRILLE[:x1] + 2.0, GRILLE[:y0], GRILLE[:z0] - 2.0, tags[:notes])
 
-    # the raised floor is NOT modelled as a thickness — it is ours, inside the booth
-    note(parent, "RAISED FLOOR: the band on the architect's elevation is the\n" \
-                 "WHISPERROOM raised floor (ADA package) — 2 3/4\" above the\n" \
-                 "normal WhisperRoom floor, INSIDE the shell (wr-overlays.rb\n" \
-                 "seats the EFP slab on the booth's own deck top). It does NOT\n" \
-                 "lift the booth or the roof unit; it costs 2 3/4\" of INTERIOR\n" \
-                 "headroom: 79 1/2\" - 2 3/4\" = 76 3/4\" (6'-4 3/4\").\n" \
-                 "z = 0 here is LEVEL 01 FF as drawn — ASSUMED to be the top of\n" \
-                 "that floor. Not stated by the architect.",
-         pt(4.0, 4.0, 1.0), tags[:notes])
+    # The raised floor is NOT modelled as a thickness — it is ours, inside the
+    # booth. The whole argument lives in the report dialog, not on the drawing.
+    label(parent, "z=0 = LEVEL 01 FF (ASSUMED)", 4.0, 3.0, 0.5, tags[:notes])
     f
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # CONTEXT — everything here is INVENTED
+  #
+  # Enough of the room beyond the alcove for a render to read as a real
+  # place: the floor carrying on east, the concrete wall continuing with the
+  # elevator recess in it, the storefront continuing with a glass door and a
+  # room behind it, mullions, the deck overhead and the pipes running on.
+  # None of it is in the architect's fragment and none of it is measured.
+  # It all lands on WR-Context-INVENTED. The measured alcove is untouched.
+  # ═══════════════════════════════════════════════════════════════════════
+  def self.build_context(parent, tags, mats)
+    t  = tags[:ctx]
+    ex = ROOM_W + CTX_E                 # east limit of the context
+    ny = ROOM_D + CTX_N                 # north limit (back of the glazed room)
+
+    # floor east of the alcove, and the floor of the room behind the glass
+    box(parent, ROOM_W, ex, -T_CONC, ny, -0.25, 0.0,
+        "CONTEXT floor — open area east (INVENTED)", t, mats[:floor])
+    box(parent, -T_PART, ROOM_W, ROOM_D + T_GLASS, ny, -0.25, 0.0,
+        "CONTEXT floor — room behind the storefront (INVENTED)", t, mats[:floor])
+
+    # the concrete wall carries on east, with the elevator recess in it
+    ev0 = ROOM_W + EV_OFF
+    ev1 = ev0 + EV_W
+    box(parent, ROOM_W, ev0, -T_CONC, 0.0, 0.0, H_CONC,
+        "CONTEXT south wall, west of the elevator (INVENTED)", t, mats[:concrete])
+    box(parent, ev1, ex, -T_CONC, 0.0, 0.0, H_CONC,
+        "CONTEXT south wall, east of the elevator (INVENTED)", t, mats[:concrete])
+    box(parent, ev0, ev1, -T_CONC, 0.0, 96.0, H_CONC,
+        "CONTEXT elevator header (INVENTED)", t, mats[:concrete])
+    box(parent, ev0 - 6.0, ev1 + 6.0, -T_CONC - EV_DEEP, -T_CONC, 0.0, H_CONC,
+        "CONTEXT elevator shaft (INVENTED)", t, mats[:concrete])
+    box(parent, ev0 + 2.0, ev1 - 2.0, -T_CONC - 1.0, -T_CONC, 0.0, 90.0,
+        "CONTEXT elevator doors (INVENTED)", t, mats[:mullion])
+
+    # the storefront carries on east, with a glass door in it
+    gd0 = ROOM_W + 36.0
+    gd1 = gd0 + GDOOR_W
+    box(parent, ROOM_W, gd0, ROOM_D, ROOM_D + T_GLASS, 0.0, H_ROOM,
+        "CONTEXT storefront, west of the door (INVENTED)", t, mats[:glass])
+    box(parent, gd1, ex, ROOM_D, ROOM_D + T_GLASS, 0.0, H_ROOM,
+        "CONTEXT storefront, east of the door (INVENTED)", t, mats[:glass])
+    box(parent, gd0, gd1, ROOM_D, ROOM_D + T_GLASS, 84.0, H_ROOM,
+        "CONTEXT storefront transom over the door (INVENTED)", t, mats[:glass])
+    box(parent, gd0, gd1, ROOM_D, ROOM_D + T_GLASS, 0.0, 84.0,
+        "CONTEXT glass door leaf (INVENTED)", t, mats[:glass])
+
+    # mullions along the whole storefront line — spacing INVENTED, not
+    # dimensioned anywhere; kept at MULL_SP so it never reads as measured
+    x = 0.0
+    while x <= ex - MULL_SP
+      box(parent, x, x + 2.0, ROOM_D - 0.5, ROOM_D + T_GLASS + 0.5, 0.0, H_ROOM,
+          "CONTEXT mullion (INVENTED spacing)", t, mats[:mullion])
+      x += MULL_SP
+    end
+    box(parent, 0.0, ex, ROOM_D - 0.5, ROOM_D + T_GLASS + 0.5, H_ROOM - 3.0, H_ROOM,
+        "CONTEXT storefront head rail (INVENTED)", t, mats[:mullion])
+
+    # back wall of the room behind the storefront
+    box(parent, -T_PART, ex, ny, ny + T_PART, 0.0, H_ROOM,
+        "CONTEXT back wall of the glazed room (INVENTED)", t, mats[:panel])
+
+    # the perforated deck overhead, over everything the alcove slab misses
+    box(parent, ROOM_W, ex, -T_CONC, ny, STRUCT_Z, STRUCT_Z + 4.0,
+        "CONTEXT deck over the open area (INVENTED)", t, mats[:struct])
+    box(parent, -T_PART, ROOM_W, ROOM_D + T_GLASS, ny, STRUCT_Z, STRUCT_Z + 4.0,
+        "CONTEXT deck over the glazed room (INVENTED)", t, mats[:struct])
+
+    # the pipes run on east — same centres and diameter, all still ESTIMATED
+    r  = PIPE_D / 2.0
+    cz = PIPE_Z + r
+    PIPE_CY.each_with_index do |cy, i|
+      g = parent.entities.add_group
+      edges = g.entities.add_circle(pt(ROOM_W, cy, cz), Geom::Vector3d.new(1, 0, 0), r, 16)
+      face  = g.entities.add_face(edges)
+      if face
+        d = face.normal.x > 0 ? CTX_E : -CTX_E
+        face.pushpull(d)
+      end
+      g.name     = "CONTEXT pipe #{i + 1} carried east (INVENTED)"
+      g.layer    = t
+      g.material = mats[:grey]
+    end
+
+    label(parent, "CONTEXT - INVENTED, NOT MEASURED",
+          ROOM_W + 12.0, -T_CONC - 12.0, 0.5, tags[:notes])
+    nil
   end
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -420,24 +590,18 @@ module WR_PeoplesSpace
       box(g, ux0, ux0 + RM_X, uy0, uy0 + RM_Y, BOOTH_H, BOOTH_H + RM_H,
           "RM96120 roof unit — ROOF-MOUNT NOT CONFIRMED ON A QUOTE",
           tags[:roof], mats[:roof])
-      note(g, "ROOF-MOUNTED VENTILATION — UNCONFIRMED.\n" \
-              "Benton, 9 Sep 2026: \"Idk I thought we had it.\" This is a\n" \
-              "client request, not a line on a sales quote. Drawn so the\n" \
-              "height can be checked; get the quote link before it ships.\n" \
-              "Unit top 7'-10 5/8\"; bottom of pipe 8'-3 1/4\" VIF;\n" \
-              "MARGIN 4 5/8\" on the booth as drawn, 3 15/16\" on the\n" \
-              "catalogue 7'-1\" install height.",
-           pt(BX0 + 4.0, BY0 + 4.0, BOOTH_H + RM_H + 3.0), tags[:notes])
+      label(g, "ROOF MOUNT - UNCONFIRMED",
+            BX0 + 3.0, BY0 + 3.0, BOOTH_H + RM_H + 1.0, tags[:notes])
     end
 
-    note(g, "OPTION #{n} — #{o[:label]}\n" \
-            "Door centreline #{format('%.2f', cl)}\" off the concrete face.\n" \
-            "Hinge SOUTH jamb, leaf opens south — ASSUMED, nobody stated it.\n" \
-            "Ramp runs EAST into the open space; toe #{format('%.3f', BX1 + RAMP_PROT)}\",\n" \
-            "which is 2'-5 7/8\" past the alcove line. The ramp CANNOT run\n" \
-            "inward: it needs 45 5/8\" and the alcove leaves 16 3/4\".\n" \
-            "Clear interior 89 1/2\" x 113 1/2\" (client asked for this).",
-         pt(BX1 + 4.0, cl, 30.0), tags[:notes])
+    # Short labels only. The option's full argument — hinge, ramp direction and
+    # the inward-ramp arithmetic — is in the report dialog.
+    label(g, "OPT #{n} - HINGE #{HINGE_AT_SOUTH_JAMB ? 'S' : 'N'} (ASSUMED)",
+          BX1 + 2.0, cl + (RAMP_W_HI / 2.0) + 2.0, 0.5, tags[:notes])
+    label(g, "RAMP EAST - RISE UNKNOWN",
+          BX1 + 2.0, cl - (RAMP_W_HI / 2.0) - LABEL_H - 2.0, 0.5, tags[:notes])
+    label(g, "BOOTH PLACEHOLDER",
+          BX0 + 3.0, BY1 - LABEL_H - 3.0, BOOTH_H + 0.5, tags[:notes])
     g
   end
 
@@ -517,23 +681,24 @@ module WR_PeoplesSpace
     end
     # the margin itself, called out on its own
     dim(ents, pt(sx + 52.0, 0, BOOTH_H + RM_H), pt(sx + 52.0, 0, PIPE_Z), fwd)
-    note(ents.model,
-         "HEIGHT STACK, z = 0 at LEVEL 01 FF (ASSUMED = top of the raised floor).\n" \
-         "  booth as drawn      7'-0 5/16\"   (catalogue install height 7'-1\")\n" \
-         "  + RM96120 roof unit 0'-10 5/16\"  -> top 7'-10 5/8\"\n" \
-         "  BOTTOM OF PIPE      8'-3 1/4\" VIF -> MARGIN 4 5/8\" (3 15/16\" on 7'-1\")\n" \
-         "  ACOUSTIC CLOUD      9'-5\"    VIF\n" \
-         "  CONCRETE STRUCTURE 10'-2\"    VIF\n" \
-         "  WhisperRoom raised floor 2 3/4\" is INSIDE the shell — it does not\n" \
-         "  move the roof. Interior headroom 79 1/2\" - 2 3/4\" = 6'-4 3/4\".",
-         pt(sx, -30.0, 40.0), tags[:notes])
+    # One terse mark per stated height datum, set clear of the chains. The
+    # stack itself, and why the raised floor does not move it, is in the dialog.
+    m = ents.model
+    label(m, "PIPE VIF",   sx +  4.0, -20.0, PIPE_Z,          tags[:notes])
+    label(m, "CLOUD VIF",  sx + 14.0, -20.0, CLOUD_Z,         tags[:notes])
+    label(m, "STRUCT VIF", sx + 24.0, -20.0, STRUCT_Z,        tags[:notes])
+    label(m, "MARGIN 4 5/8\"", sx + 54.0, -20.0, BOOTH_H + RM_H, tags[:notes])
   end
 
   # ═══════════════════════════════════════════════════════════════════════
   # scenes, named in proposal plate order
   # ═══════════════════════════════════════════════════════════════════════
+  # WR-Notes stays OFF in every scene — the same pattern as the WR Lights tag.
+  # The labels are there for whoever switches the tag on; the model opens clean.
   def self.scene(model, name, eye, target, opt_tags, hide, tags)
-    [tags[:dims], tags[:notes]].each { |t| t.visible = true }
+    tags[:dims].visible  = true
+    tags[:notes].visible = false
+    tags[:ctx].visible   = true
     opt_tags.each { |t, vis| t.visible = vis }
     hide.each { |t| t.visible = false }
     cam = model.active_view.camera
@@ -562,16 +727,20 @@ module WR_PeoplesSpace
       pair = { on => true, off => false }
       scene(model, "#{n}-01-exterior",
             pt(ROOM_W + 300.0, -160.0, 150.0), ctr, pair, [tags[:dims], tags[:notes]], tags)
+      # the dimensioned and plan scenes drop the invented context, so a plate
+      # made from either shows only what was measured
       scene(model, "#{n}-02-dimensioned",
-            pt(ROOM_W + 300.0, -200.0, 120.0), ctr, pair, [], tags)
+            pt(ROOM_W + 300.0, -200.0, 120.0), ctr, pair, [tags[:ctx]], tags)
       scene(model, "#{n}-03-side",
             pt(ROOM_W + 460.0, ROOM_D / 2.0, 46.0), ctr, pair, [tags[:dims]], tags)
       scene(model, "#{n}-04-ventilation",
             pt(ROOM_W + 240.0, ROOM_D + 260.0, 230.0), ctr, pair, [tags[:dims]], tags)
-      scene(model, "#{n}-05-plan", nil, nil, pair, [], tags)
+      scene(model, "#{n}-05-plan", nil, nil, pair, [tags[:ctx]], tags)
     end
-    tags[:opt1].visible = true if BUILD_OPT1
-    tags[:opt2].visible = false
+    tags[:opt1].visible  = true if BUILD_OPT1
+    tags[:opt2].visible  = false
+    tags[:notes].visible = false
+    tags[:ctx].visible   = true
   end
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -591,26 +760,62 @@ module WR_PeoplesSpace
       :notes   => tag(model, "WR-Notes",      Sketchup::Color.new(30, 30, 30)),
       :dims    => tag(model, "WR-Dims",       Sketchup::Color.new(238, 98, 22)),
       :opt1    => tag(model, "WR-Booth-Opt1", Sketchup::Color.new(238, 98, 22)),
-      :opt2    => tag(model, "WR-Booth-Opt2", Sketchup::Color.new(238, 140, 60))
+      :opt2    => tag(model, "WR-Booth-Opt2", Sketchup::Color.new(238, 140, 60)),
+      :ctx     => tag(model, "WR-Context-INVENTED", Sketchup::Color.new(170, 120, 90))
     }
+    # OFF by default, like the WR Lights tag. Every remaining text entity lives
+    # here, so the model opens with nothing but geometry and dimensions.
+    tags[:notes].visible = false
 
-    mats = {
-      :floor  => material(model, MAT_FLOOR),
-      :wall   => material(model, MAT_WALL),
-      :door   => material(model, MAT_DOOR),
-      :glass  => plain(model, "WR Glass storefront", [200, 225, 245], 0.35),
-      :cloud  => plain(model, "WR Acoustic cloud",   [245, 245, 245], 0.60),
-      :struct => plain(model, "WR Concrete structure", [150, 150, 150], 0.45),
-      :grey   => plain(model, "WR Obstruction grey", [130, 130, 136], 1.0),
+    mats = if SITE_MATERIALS
+             # Sampled off the site photo. Named so they read sensibly in V-Ray.
+             {
+               :floor    => plain(model, "WR Site Floor",      SITE_RGB["WR Site Floor"], 1.0),
+               :wall     => plain(model, "WR Site Concrete",   SITE_RGB["WR Site Concrete"], 1.0),
+               :concrete => plain(model, "WR Site Concrete",   SITE_RGB["WR Site Concrete"], 1.0),
+               :olive    => plain(model, "WR Site Corrugated", SITE_RGB["WR Site Corrugated"], 1.0),
+               :mullion  => plain(model, "WR Site Mullion",    SITE_RGB["WR Site Mullion"], 1.0),
+               :panel    => plain(model, "WR Site Panel",      SITE_RGB["WR Site Panel"], 1.0),
+               :door     => material(model, MAT_DOOR),
+               :glass    => plain(model, "WR Site Glass",      SITE_RGB["WR Site Glass"], 0.30),
+               :cloud    => plain(model, "WR Site Ceiling",    SITE_RGB["WR Site Ceiling"], 1.0),
+               :struct   => plain(model, "WR Site Ceiling deck", SITE_RGB["WR Site Ceiling"], 1.0),
+               :grey     => plain(model, "WR Site Pipe",       SITE_RGB["WR Site Pipe"], 1.0)
+             }
+           else
+             {
+               :floor    => material(model, MAT_FLOOR),
+               :wall     => material(model, MAT_WALL),
+               :concrete => material(model, MAT_WALL),
+               :olive    => material(model, MAT_WALL),
+               :mullion  => plain(model, "WR Mullion", [120, 120, 126], 1.0),
+               :panel    => plain(model, "WR Panel white", [235, 235, 238], 1.0),
+               :door     => material(model, MAT_DOOR),
+               :glass    => plain(model, "WR Glass storefront", [200, 225, 245], 0.35),
+               :cloud    => plain(model, "WR Acoustic cloud",   [245, 245, 245], 0.60),
+               :struct   => plain(model, "WR Concrete structure", [150, 150, 150], 0.45),
+               :grey     => plain(model, "WR Obstruction grey", [130, 130, 136], 1.0)
+             }
+           end
+    # The booth keeps its own materials in either palette — only the room
+    # changes (Benton, 9 Sep 2026).
+    mats.merge!(
       :booth  => plain(model, "WR Booth placeholder", [225, 225, 228], 1.0),
       :ramp   => plain(model, "WR Ramp placeholder",  [238, 98, 22], 1.0),
       :roof   => plain(model, "WR Roof unit",         [110, 110, 118], 1.0),
       :note   => plain(model, "WR Open edge",         [238, 98, 22], 1.0)
-    }
+    )
 
     room = model.entities.add_group
     room.name = "PEOPLESSPACE ALCOVE — 9'-6 3/4\" x 10'-8 3/4\" VIF"
     build_room(room, tags, mats)
+
+    if BUILD_CONTEXT
+      ctx = model.entities.add_group
+      ctx.name  = "CONTEXT — INVENTED, NOT MEASURED"
+      ctx.layer = tags[:ctx]
+      build_context(ctx, tags, mats)
+    end
 
     build_option(model.entities.add_group, 1, tags, mats) if BUILD_OPT1
     build_option(model.entities.add_group, 2, tags, mats) if BUILD_OPT2
@@ -622,6 +827,8 @@ module WR_PeoplesSpace
     model.active_view.zoom_extents
 
     report
+    show_report(model, tags)
+    true
   rescue StandardError => e
     begin
       model.abort_operation if model
@@ -683,13 +890,318 @@ module WR_PeoplesSpace
     puts "       south and west chains; the architect dimensioned each once."
     puts "   10. Wall thicknesses — cosmetic, built outward, never move a dimension."
     puts "   11. What lies east of the alcove line — open space, extent unknown."
+    puts "   12. EVERYTHING ON WR-Context-INVENTED. The open area east, the elevator,"
+    puts "       the glazed room behind the storefront, the mullions, the deck and the"
+    puts "       pipes past the alcove line are all INVENTED for the render. Switch"
+    puts "       the tag off and what is left is the measured alcove."
+    puts "   13. The room's colours are median RGB samples off the site photo, which"
+    puts "       is not colour-calibrated — its lighting is baked in. A starting point"
+    puts "       for a lookdev pass, not a spec. This palette deliberately replaces"
+    puts "       CLAUDE.md's working-drawing palette; Benton's call, 9 Sep 2026."
     puts ""
     puts "  Chains close: south 1 + 98 + 15.75 = 114.75; west 1 + 122 + 5.75 = 128.75;"
     puts "  door opt 1  1 + 2 + 49 + 71 + 5.75 = 128.75; opt 2  1 + 71 + 49 + 2 + 5.75."
     puts ""
+    puts "  The same material is in the report window this build opens. Short labels"
+    puts "  live in the model on the WR-Notes tag, OFF by default — switch it on from"
+    puts "  that window or from the Tags panel."
+    puts ""
     puts "  THIS SCRIPT WAS NEVER RUN BEFORE YOU RAN IT. Syntax-checked only."
     puts ""
     true
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # THE REPORT DIALOG — the primary surface
+  #
+  # Everything that used to sprawl across the model as 3D paragraphs lives
+  # here: the height stack, the headroom arithmetic, the caster warning, the
+  # handedness conflict and the eleven-item estimated/VIF list. The console
+  # puts above still carries the same material for anyone at the Ruby
+  # Console. The buttons do the next step rather than just closing.
+  # ═══════════════════════════════════════════════════════════════════════
+  def self.show_report(model, tags)
+    d = UI::HtmlDialog.new(
+      :dialog_title    => 'PeoplesSpace alcove — what is measured and what is not',
+      :preferences_key => 'com.whisperroom.peoplesspace',
+      :scrollable      => true,
+      :resizable       => true,
+      :width           => 700,
+      :height          => 640,
+      :min_width       => 460,
+      :min_height      => 360,
+      :style           => UI::HtmlDialog::STYLE_DIALOG
+    )
+    d.set_html(report_html)
+
+    d.add_action_callback('opt') do |_c, n|
+      tags[:opt1].visible = (n.to_i == 1)
+      tags[:opt2].visible = (n.to_i == 2)
+      model.active_view.zoom_extents
+    end
+    d.add_action_callback('labels') do |_c, on|
+      tags[:notes].visible = (on.to_s == 'true')
+    end
+    d.add_action_callback('dims') do |_c, on|
+      tags[:dims].visible = (on.to_s == 'true')
+    end
+    d.add_action_callback('ctx') do |_c, on|
+      tags[:ctx].visible = (on.to_s == 'true')
+    end
+    d.add_action_callback('close') { |_c| d.close }
+    d.show
+    d
+  rescue StandardError => e
+    puts "  (report dialog unavailable: #{e.class}: #{e.message} — the console"
+    puts "   report above carries the same material)"
+    nil
+  end
+
+  def self.report_html
+    r = ramp_inward_report
+    margin_drawn = PIPE_Z - BOOTH_H - RM_H
+    margin_cat   = PIPE_Z - BOOTH_CAT - RM_H
+    headroom     = INT_H - RAISED_FL
+    <<-HTML
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>PeoplesSpace alcove</title>
+<style>
+  :root { --bg:#f4f5f6; --surface:#fff; --ink:#1c2327; --muted:#66727a;
+          --line:#e2e6e9; --accent:#ee6216; --soft:#fdeee4; --bad:#b0402c; }
+  * { box-sizing:border-box; margin:0; }
+  html,body { height:100%; }
+  body { font:13px/1.5 "Segoe UI",system-ui,sans-serif; background:var(--bg);
+         color:var(--ink); display:flex; flex-direction:column; overflow:hidden; }
+  .top { padding:12px 16px 8px; display:flex; gap:8px; align-items:center;
+         flex-wrap:wrap; border-bottom:1px solid var(--line); background:var(--surface); }
+  .top .t { font-weight:650; margin-right:auto; }
+  .btn { font:inherit; font-size:12px; padding:5px 11px; border:1px solid var(--line);
+         border-radius:6px; background:var(--surface); color:var(--ink); cursor:pointer; }
+  .btn:hover { border-color:var(--accent); }
+  .btn.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .wrap { flex:1 1 auto; overflow:auto; padding:14px 16px 18px; }
+  h2 { font-size:12px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--muted); margin:18px 0 7px; }
+  h2:first-child { margin-top:0; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:9px;
+          padding:11px 13px; }
+  .card + .card { margin-top:8px; }
+  .card.flag { border-color:#e3b3a4; background:#fdf6f4; }
+  .hd { font-weight:650; }
+  .hd .n { color:var(--accent); }
+  table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+  td { padding:3px 8px 3px 0; vertical-align:top; }
+  td.v { text-align:right; white-space:nowrap; font-weight:650; }
+  ol { margin:0; padding-left:20px; }
+  ol li { margin:4px 0; }
+  .m { color:var(--muted); }
+  .foot { padding:9px 16px; border-top:1px solid var(--line); background:var(--surface);
+          color:var(--muted); font-size:11.5px; }
+</style></head><body>
+
+<div class="top">
+  <span class="t">PeoplesSpace alcove &mdash; MDL 96120 E + ADA</span>
+  <button class="btn" id="o1">Show option 1</button>
+  <button class="btn" id="o2">Show option 2</button>
+  <button class="btn on" id="cx">Context on</button>
+  <button class="btn" id="lb">Labels off</button>
+  <button class="btn on" id="dm">Dimensions on</button>
+  <button class="btn" id="cl">Close</button>
+</div>
+
+<div class="wrap">
+
+<h2>The number that decides this job</h2>
+<div class="card">
+  <div class="hd">Roof unit to bottom of pipe: <span class="n">#{fmt_in(margin_drawn)}</span>
+    on the booth as drawn, <span class="n">#{fmt_in(margin_cat)}</span> on the catalogue
+    7'-1" install height.</div>
+  <table>
+    <tr><td>booth as drawn + RM96120 roof unit</td>
+        <td class="v">#{fmt_in(BOOTH_H)} + #{fmt_in(RM_H)} = #{fmt_in(BOOTH_H + RM_H)}</td></tr>
+    <tr><td>bottom of pipe <span class="m">(stated, VIF)</span></td>
+        <td class="v">#{fmt_in(PIPE_Z)}</td></tr>
+    <tr><td>acoustic cloud <span class="m">(stated, VIF)</span></td>
+        <td class="v">#{fmt_in(CLOUD_Z)}</td></tr>
+    <tr><td>concrete structure <span class="m">(stated, VIF)</span></td>
+        <td class="v">#{fmt_in(STRUCT_Z)}</td></tr>
+  </table>
+</div>
+<div class="card">
+  <div class="hd">The 2&nbsp;3/4" raised floor does not touch that margin.</div>
+  <p class="m">The band on the architect's elevation is the WhisperRoom ADA raised floor,
+  not the building's. <code>wr-overlays.rb place_efp</code> seats the EFP slab's bottom at
+  <code>WR_Deck::DECK_TOP_Z</code> (0.0) &mdash; the plane the booth walls stand on. It is
+  INSIDE the shell, so the roof unit does not rise. What it costs is interior headroom:
+  #{fmt_in(INT_H)} &minus; #{fmt_in(RAISED_FL)} = <b>#{fmt_in(headroom)}</b>.</p>
+</div>
+<div class="card flag">
+  <div class="hd">Casters would break it.</div>
+  <p class="m"><code>wr-overlays.rb CP_BOOTH_LIFT</code> = 4.75 lifts the WHOLE booth
+  group, which would put the unit top at 99.375 against a 99.25 pipe. Casters are payload
+  <code>cs</code> and are not on this job &mdash; but if a quote ever carries them, this
+  layout stops fitting.</p>
+</div>
+
+<h2>The ramp cannot run inward</h2>
+<div class="card flag">
+  <p>The ramp run is perpendicular to the door face and needs #{fmt_in(RAMP_PROT)}. With
+  the booth shoved hard into a corner the alcove leaves <b>#{fmt_in(r[:free_x])}</b> east
+  and <b>#{fmt_in(r[:free_y])}</b> north &mdash; short by #{fmt_in(r[:short_x])} /
+  #{fmt_in(r[:short_y])}. There is no arrangement of a 98 &times; 122 booth inside
+  114.75 &times; 128.75 that contains it.</p>
+  <p class="m">Drawn running EAST into the open space instead: toe at
+  #{fmt_in(BX1 + RAMP_PROT)}, which is #{fmt_in(BX1 + RAMP_PROT - ROOM_W)} past the alcove
+  line. That is only acceptable because east is open space. Confirm it.</p>
+</div>
+<div class="card flag">
+  <div class="hd">Handedness conflict, unresolved.</div>
+  <p class="m">"South = left" points at option 1 (door at the south end); "opens against
+  the glass wall" points at option 2 (door at the north end). Both are built, on
+  WR-Booth-Opt1 and WR-Booth-Opt2. Pick one.</p>
+</div>
+
+<h2>Context and colour</h2>
+<div class="card flag">
+  <div class="hd">Everything beyond the alcove is INVENTED.</div>
+  <p class="m">The floor running east, the elevator, the glazed room behind the storefront,
+  the mullions, the deck overhead and the pipes past the alcove line are context for a
+  render, not a take-off. They are all on <b>WR-Context-INVENTED</b> &mdash; the button
+  above switches them off, and the dimensioned and plan scenes already drop them. The
+  measured alcove did not move and no dimension changed.</p>
+</div>
+<div class="card">
+  <div class="hd">Compass, and how it maps onto the photos.</div>
+  <p class="m">In both reference images the viewer stands EAST looking WEST, so the
+  image's LEFT is SOUTH &mdash; the board-formed concrete wall, with the elevator beyond
+  it &mdash; its RIGHT is NORTH, the glass storefront with a door and the room behind it,
+  and the back wall is WEST, the olive corrugated partition. That agrees with the
+  take-off's compass; nothing had to be reinterpreted.</p>
+</div>
+<div class="card">
+  <div class="hd">Room palette &mdash; sampled, not remembered.</div>
+  <p class="m">Median RGB of a named pixel box in the site photo. It deliberately replaces
+  CLAUDE.md's working-drawing palette for this model (Benton's call) because this one
+  renders. The photo is not colour-calibrated, so its lighting is baked into these
+  numbers: treat them as the start of a lookdev pass. The booth keeps its own materials.</p>
+  <table>
+    <tr><td>WR Site Concrete <span class="m">board-formed wall</span></td><td class="v">#848074</td></tr>
+    <tr><td>WR Site Corrugated <span class="m">olive metal wall</span></td><td class="v">#AF9739</td></tr>
+    <tr><td>WR Site Ceiling <span class="m">perforated deck</span></td><td class="v">#9C8B6C</td></tr>
+    <tr><td>WR Site Floor <span class="m">dark polished floor</span></td><td class="v">#575252</td></tr>
+    <tr><td>WR Site Mullion <span class="m">storefront framing</span></td><td class="v">#5C5952</td></tr>
+    <tr><td>WR Site Glass <span class="m">through the glazing</span></td><td class="v">#5C5A50</td></tr>
+    <tr><td>WR Site Pipe <span class="m">exposed pipework</span></td><td class="v">#403A34</td></tr>
+    <tr><td>WR Site Panel <span class="m">white grille / unit</span></td><td class="v">#D7D6D9</td></tr>
+  </table>
+</div>
+
+<h2>Everything in this model that is not a measured number</h2>
+<div class="card">
+<ol>
+  <li><b>Roof-mount is not on a sales quote.</b> Client request only. Drawn and labelled
+      UNCONFIRMED. Get the <code>sales.whisperroom.com/q/W-…</code> link before it ships.</li>
+  <li><b>The booth is a placeholder box</b> at the catalogue exterior, not a built booth.
+      Run <code>booth-from-link.rb</code> with a sales link for the real one.</li>
+  <li><b>z = 0 is LEVEL 01 FF taken as the top of the raised floor</b> &mdash; a reading of
+      the elevation, not a statement by the architect.</li>
+  <li><b>Pipe plan position and diameter are ESTIMATED</b> (photo + pixel read, &plusmn;2").
+      Only BOTTOM OF PIPE 8'-3 1/4" VIF is stated.</li>
+  <li><b>The cloud's 22" setback</b> off the concrete wall is a pixel read.</li>
+  <li><b>The west-wall grille box</b> is a pixel read; its projection is unknown.</li>
+  <li><b>Hinge side is ASSUMED</b> &mdash; south jamb in both options. Nobody stated one.</li>
+  <li><b>Ramp rise and slope are unknown.</b> The plate is flat and is not a ramp profile.</li>
+  <li><b>The north (glass) run and the east open edge are DERIVED</b> from the south and
+      west chains; the architect dimensioned each once.</li>
+  <li><b>Wall thicknesses are cosmetic</b> &mdash; built outward from the measured faces
+      and mitred, so they never move a dimension.</li>
+  <li><b>What lies east of the alcove line</b> is open space of unknown extent.</li>
+  <li><b>Everything on WR-Context-INVENTED.</b> The open area east, the elevator, the
+      glazed room behind the storefront, the mullions, the deck and the pipes past the
+      alcove line are context for a render, not a take-off. Switch the tag off and what
+      is left is the measured alcove.</li>
+  <li><b>The room's colours</b> are median RGB samples off the site photo, which is not
+      colour-calibrated &mdash; its lighting is baked in. A starting point for a lookdev
+      pass, not a spec.</li>
+</ol>
+</div>
+
+<h2>Chains close</h2>
+<div class="card">
+  <table>
+    <tr><td>south</td><td class="v">1 + 98 + 15.75 = 114.75</td></tr>
+    <tr><td>west</td><td class="v">1 + 122 + 5.75 = 128.75</td></tr>
+    <tr><td>door, option 1</td><td class="v">1 + 2 + 49 + 71 + 5.75 = 128.75</td></tr>
+    <tr><td>door, option 2</td><td class="v">1 + 71 + 49 + 2 + 5.75 = 128.75</td></tr>
+  </table>
+</div>
+
+</div>
+<div class="foot">Labels live on the WR-Notes tag, off by default. This window changes tag
+visibility only &mdash; it does not touch geometry, and nothing here is undoable because
+nothing here is a model edit.</div>
+
+<script>
+(function () {
+  var lb = document.getElementById('lb'), dm = document.getElementById('dm');
+  var cx = document.getElementById('cx');
+  var labels = false, dims = true, ctx = true;
+  function call(n, a) { if (window.sketchup && sketchup[n]) sketchup[n](a); }
+  document.getElementById('o1').onclick = function () { call('opt', 1); };
+  document.getElementById('o2').onclick = function () { call('opt', 2); };
+  lb.onclick = function () {
+    labels = !labels;
+    lb.textContent = labels ? 'Labels on' : 'Labels off';
+    lb.className = 'btn' + (labels ? ' on' : '');
+    call('labels', labels);
+  };
+  dm.onclick = function () {
+    dims = !dims;
+    dm.textContent = dims ? 'Dimensions on' : 'Dimensions off';
+    dm.className = 'btn' + (dims ? ' on' : '');
+    call('dims', dims);
+  };
+  cx.onclick = function () {
+    ctx = !ctx;
+    cx.textContent = ctx ? 'Context on' : 'Context off';
+    cx.className = 'btn' + (ctx ? ' on' : '');
+    call('ctx', ctx);
+  };
+  document.getElementById('cl').onclick = function () { call('close'); };
+}());
+</script>
+</body></html>
+    HTML
+  end
+
+  # Inches -> an architectural string, for the dialog only. The model's own
+  # dimensions are formatted by SketchUp at full precision.
+  def self.fmt_in(v)
+    neg = v < 0
+    v = v.abs
+    ft = (v / 12.0).floor
+    rem = v - (ft * 12)
+    inch = rem.floor
+    frac = ((rem - inch) * 16.0).round
+    if frac == 16
+      inch += 1
+      frac = 0
+    end
+    if inch == 12
+      ft += 1
+      inch = 0
+    end
+    s = "#{ft}'-#{inch}"
+    if frac > 0
+      n = frac
+      dd = 16
+      while (n % 2).zero?
+        n /= 2
+        dd /= 2
+      end
+      s += " #{n}/#{dd}"
+    end
+    (neg ? "-" : "") + s + "\""
   end
 end
 

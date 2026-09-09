@@ -2,6 +2,53 @@
 
 ## 2026-09-09
 
+### PeoplesSpace: text out of the model, context and site colours in — 1.19.16
+
+Benton ran 1.19.15 and sent a screenshot: the in-model paragraph notes rendered
+as giant 3D text sprawling over the geometry and the dimension strings. "This
+is what the text looks like whenever you include it. Not ideal, not sure we
+even need all that text anyways?" Right on both counts.
+
+**The paragraphs are gone.** `Sketchup::Text` has no font-size API — its size
+comes from Model Info, which is why it came out an order of magnitude too large
+for a 9'-6 3/4" room. What the model carries now is short labels only, built
+with `add_3d_text` at `LABEL_H = ROOM_W / 64.0` so the size is derived from the
+room instead of a global: a `VIF` mark on each stated datum, `EST` on the
+estimated ones, the east-limit marker, `ROOF MOUNT - UNCONFIRMED`, the hinge
+assumption. All of it on **WR-Notes, off by default** — the WR Lights pattern —
+so the model opens clean and the scenes never turn it on.
+
+**The explanation moved to an HtmlDialog** the build opens: the height stack,
+the headroom arithmetic, the caster warning, the handedness conflict, the
+sampled palette and the thirteen-item estimated/VIF list. Its buttons do the
+next step rather than just closing — switch between the two booth options,
+toggle labels, dimensions and context. The console `puts` still carries the
+same material for anyone at the Ruby Console.
+
+**Context around the alcove**, per "build the outside area a bit around it to
+better reflect the entire room": the floor running 20 ft east, the concrete
+wall continuing with an elevator recess, the storefront continuing with a glass
+door and a room behind it, mullions, the deck overhead and the pipes carried
+east. Every bit of it is INVENTED and sits on **WR-Context-INVENTED**, which
+the dimensioned and plan scenes drop, so a plate made from either shows only
+what was measured. The measured alcove did not move and no dimension changed.
+
+**Room colours are now sampled off the real site photo**, which deliberately
+replaces CLAUDE.md's working-drawing palette for this model — Benton's call,
+because it renders. Median RGB of a named pixel box each: concrete #848074,
+olive corrugated #AF9739, perforated deck #9C8B6C, dark floor #575252, mullion
+#5C5952, glazing #5C5A50, pipework #403A34, white panel #D7D6D9. The photo is
+not colour-calibrated, so its lighting is baked in — a lookdev starting point,
+not a spec. The booth keeps its own materials.
+
+The compass reconciles: in both reference images the viewer stands east looking
+west, so the image's left is south (concrete, elevator beyond) and its right is
+north (storefront, glazed room). That is the take-off's compass unchanged.
+
+`python scripts/rbparse.py` valid; `.forge/builder/peoplesspace-check.py` still
+passes, which is the evidence the measured geometry did not move. **Still
+unrun** past Benton's own load of the previous version.
+
 ### PeoplesSpace alcove room script, and the raised floor that was never a blocker — 1.19.15
 
 `scripts/peoplesspace-alcove.rb` (`@tab client`) builds the architect's alcove
