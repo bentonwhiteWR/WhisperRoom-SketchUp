@@ -2,6 +2,44 @@
 
 ## 2026-09-09
 
+### PeoplesSpace alcove room script, and the raised floor that was never a blocker — 1.19.15
+
+`scripts/peoplesspace-alcove.rb` (`@tab client`) builds the architect's alcove
+to the two stated interior faces — 9'-6 3/4" x 10'-8 3/4", both VIF — with the
+east side left OPEN (Benton, 9 Sep 2026), the acoustic cloud, the concrete
+structure, the three pipes and the west-wall grille massed in, and the MDL
+96120 E + ADA booth placed twice: door at the south end and door at the north
+end, each on its own tag with a ramp, a swung leaf and an RM96120 roof unit.
+Ten scenes come out named in proposal plate order.
+
+**The 2 3/4" raised floor does not touch the roof-to-pipe margin.** The band on
+the architect's elevation is the WhisperRoom ADA raised floor, not the
+building's, and `wr-overlays.rb place_efp` seats the EFP slab's bottom at
+`WR_Deck::DECK_TOP_Z` (0.0) — the plane the booth walls stand on. It is INSIDE
+the shell. So the roof unit does not rise: 84.3125 + 10.3125 = 94.625 against a
+99.25 bottom of pipe, margin 4 5/8" (3 15/16" on the catalogue 7'-1" install
+height), exactly as before. What it costs is interior headroom, 79.5 - 2.75 =
+6'-4 3/4". Casters WOULD break it — `CP_BOOTH_LIFT` 4.75 lifts the whole booth
+and would put the unit at 99.375 against the pipe — and casters are not on this
+job.
+
+**The ramp cannot run inward.** Benton asked for it to turn into the alcove
+against the glass wall. The run is perpendicular to the door face and needs
+45.625"; with the booth shoved hard into a corner the alcove leaves 16 3/4"
+east and 6 3/4" north. Short by 28 7/8" / 38 7/8" — there is no arrangement of a
+98 x 122 booth inside 114.75 x 128.75 that contains it. The ramp is drawn
+running EAST into the open space, toe 2'-5 7/8" past the alcove line, which is
+only acceptable because east is open. The script re-derives that arithmetic and
+prints it every run.
+
+Roof-mount is drawn but labelled UNCONFIRMED in the header, in the model and in
+the console: it is a client request, not a line on a sales quote.
+
+`python scripts/rbparse.py` reports the file valid (real CRuby 3.2).
+`.forge/builder/peoplesspace-check.py` cross-checks the chains, the ramp and
+the height stack independently of the Ruby and passes. **The script itself has
+never been run** — no ruby.exe and no SketchUp bridge here.
+
 ### A roof-mounted booth refused to build once its cable walls were moved — 1.19.14
 
 Benton, off an MDL 96120 E, Enhanced, ADA door right, roof mount + VSS, one
