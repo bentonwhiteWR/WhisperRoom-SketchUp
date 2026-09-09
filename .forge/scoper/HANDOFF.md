@@ -1,50 +1,40 @@
-# Handoff — Scoper, floor-plan intake pipeline + eval loop
-
-2026-08-31. **No production code written; SketchUp not running, nothing executed live.**
-Read-only outside `.forge/scoper/` except the archival rename noted below. Prior mission's
-handoff preserved as `.forge/scoper/HANDOFF-light-rig.md`.
+# HANDOFF — Scoper → Builder (PeoplesSpace alcove rework)
 
 ## Produced
-
-| File | What |
-|---|---|
-| `.forge/scoper/floorplan-intake.md` | **The spec.** Take-off-file intake (every value `{v, src}`, chains carry their parts, closure + parts-sum enforced by a standalone checker, ASSUMED propagated into the model), the multi-room builder, the dialog-defect fixes, vector-PDF fast path, documented DWG path, and the two-tier inch-scored eval loop with the S609-3 job captured as the real fixture. Nine ordered steps, slice line after step 6, 17 acceptance criteria. |
-| `.forge/scoper/takeoff-review.mockup.html` | **The UI, viewable.** The check sheet `takeoff-check.py --html` would emit, in `build-room.html`'s own style tokens, populated with the real 3190F/G+H/J job — including what a failure looks like (3190J blocked by name) and the ASSUMED inventory as the loudest block. Open it in a browser. |
-| `.forge/scoper/HANDOFF.md` | this |
+- `clients/peoplesspace/takeoff.json` — stated-measurement take-off, validates clean
+  (`python scripts/takeoff-check.py clients/peoplesspace/takeoff.json --html`); lock and
+  review sheet regenerate from it (gitignored). Four flagged values, all named.
+- `clients/peoplesspace/NOTES.md` — fit arithmetic, the five old callouts reconciled,
+  what the fragment does not tell us, flags, the batched questions for Benton.
+- `.forge/scoper/peoplesspace-room.md` — the Builder spec (geometry, tags, materials,
+  anchors, dimensions, scenes, acceptance criteria).
+- `.forge/scoper/peoplesspace-alcove.mockup.html` — the approved drawing, published at
+  https://claude.ai/code/artifact/90d9a19d-5ac9-44eb-95c2-07f2d08fba94
+- `clients/peoplesspace/plans/` — architect fragments + the marked-up PDF (gitignored).
 
 ## Read-first
-
-1. `.forge/scoper/floorplan-intake.md` — Approach first (the file-not-dialog decision and
-   the honest time table), then Open Questions.
-2. `.forge/scoper/takeoff-review.mockup.html` — what Gabe would actually look at.
-3. `.forge/researcher/floorplan-pipeline-diagnosis.md` — the diagnosis this builds on.
+1. `clients/peoplesspace/NOTES.md` (10 min) — then the spec.
+2. `clients/peoplesspace/takeoff.json` — the numbers, with sources.
+3. `scripts/wr-roof-vent.rb` header and `scripts/booth-from-link.rb` ~line 620 (the
+   Enhanced shell has no ramp component).
 
 ## Assumptions
+- Page top of the architect's plan is north; east side is open. Read from linework and
+  the p.3 photo, not stated by anyone.
+- LEVEL 01 FF 0'-0" is the top of the raised floor; heights are measured from it.
+- Pipe band 0–21" off the concrete wall; grille bottom ~103.7"; cloud starts ~22" off
+  the concrete — all pixel reads of the elevation, ±2".
+- "Left/right" = door end along the booth's front as seen from the open east side.
+- Hinge on the corner-side jamb in both options; leaf 32" in a 49" frame.
+- Booth is MDL 96120 E + ADA off the existing proposal; roof-mount is a client request
+  not yet confirmed with sales.
 
-- **assumed:** Gabe will accept reviewing a generated check sheet instead of typing —
-  nobody has asked him; Q1 is the gate.
-- **observed:** `IMG_7594.jpeg` — I read the photo myself; the 17'3"-between-heaters
-  chain, bulkhead note, 38" doors with no positions, and 8'8"/8'9" ceilings are as the
-  Researcher reported. **reported:** the 3190J/3190F pen readings (IMG_7595/6 not
-  re-read) and the PDF-vector numbers (probe not re-run) — so the mockup's J and F
-  panels, including J's 8'10"-vs-8'1" validation-failure demo, are illustrative of the
-  UI, not a verified transcription of those two photos.
-- **reported:** bridge behavior (drove build-room end to end, `DEVLOG.md:1203`) and
-  PyMuPDF 1.28.2 present — headers read, nothing executed. Pillow availability for the
-  photo-warp nicety is **unverified** and the spec treats it as optional.
-- **assumed:** the concurrent Builder's files (`scripts/proposal-package.rb`,
-  `scripts/check-doc-paths.py`) stay disjoint from this spec's files — they do by
-  design; nothing here touches them.
-
-## Open-questions — approval gates for Benton (none pre-approved; full text in the spec)
-
-- **Q1 — the decision.** Approve the take-off-file shape (agent transcribes → Gabe
-  reviews the check sheet → one click builds all rooms), dialog demoted to quick
-  rectangles? Recommend **yes** — the mockup is what he'd be approving.
-- **Q2.** Unmeasured door position: build with a loud ASSUMED flag rather than refuse?
-  Recommend **build flagged**; refuse only when `at` is absent with no explicit assumption.
-- **Q3.** Pen beats print — model G+H as one room with the bulkhead? Recommend **yes**.
-- **Q4.** Defer scripted DWG (ODA + ezdxf); standardize on the vector-PDF route?
-  Recommend **defer**.
-- **Q5.** Commit client truth/take-off *numbers* (never images) to this public repo,
-  per the `notes.md` precedent? Recommend **yes**, but it is his confidentiality call.
+## Open questions (Benton — one batch, in NOTES.md)
+1. What is east of the alcove line (ramp toe and door stand 1½–2½ ft past it)?
+2. Raised floor thickness / datum / does the booth sit on it?
+3. Is roof-mount agreed with sales — is there a link with rv=1?
+4. Confirm the left/right reading and the hinge side.
+5. Ramp rise and slope source; ramp geometry for an Enhanced shell.
+6. Pipe plan position and grille projection — can the architect supply them?
+Also flagged: pages 2–6 of the proposal that went out carry the subtitle "FORT
+VANCOUVER REGIONAL LIBRARY". Not fixed; the rework must not inherit it.

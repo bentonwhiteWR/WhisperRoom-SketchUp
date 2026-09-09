@@ -1,0 +1,288 @@
+<title>PeoplesSpace Alcove Fit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+:root{
+  --paper:#f8f7f3; --ink:#1e2024; --ink2:#4b4f57; --rule:#c9c6bd; --grid:#e8e5dd;
+  --panel:#ffffff; --orange:#ee6216; --booth:#ebe6dc; --booth-ink:#8f3a0c;
+  --dim:#1e2024; --dim2:#3f6a8c; --flag:#a3480e; --flagbg:#fbe9dc; --wall:#5b5f66; --conc:#d9d6cd;
+  --ok:#2e6b3f; --okbg:#e3efe6; --warn:#8a5a00; --warnbg:#fff1d6; --bad:#9b2a1f; --badbg:#f9e1dd;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#17191d; --ink:#ecebe6; --ink2:#b3b1aa; --rule:#3c3f46; --grid:#23262c;
+  --panel:#1f2227; --booth:#2b2723; --booth-ink:#f0a070; --dim:#ecebe6; --dim2:#8ab6d6;
+  --flag:#f2a36a; --flagbg:#3a2418; --wall:#a4a8b0; --conc:#33363c;
+  --ok:#8fd0a2; --okbg:#1d3325; --warn:#f0c46a; --warnbg:#3a2c0e; --bad:#f09a90; --badbg:#3d1c18;
+}}
+:root[data-theme="dark"]{
+  --paper:#17191d; --ink:#ecebe6; --ink2:#b3b1aa; --rule:#3c3f46; --grid:#23262c;
+  --panel:#1f2227; --booth:#2b2723; --booth-ink:#f0a070; --dim:#ecebe6; --dim2:#8ab6d6;
+  --flag:#f2a36a; --flagbg:#3a2418; --wall:#a4a8b0; --conc:#33363c;
+  --ok:#8fd0a2; --okbg:#1d3325; --warn:#f0c46a; --warnbg:#3a2c0e; --bad:#f09a90; --badbg:#3d1c18;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:14px;line-height:1.45;margin:0;padding:28px 24px 60px}
+main{max-width:1240px;margin:0 auto}
+h1{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;font-weight:600;font-size:30px;margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
+h2{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;font-weight:600;font-size:19px;margin:0 0 10px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--orange);margin-bottom:6px}
+.sub{color:var(--ink2);max-width:70ch;margin:0 0 18px}
+.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.head{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:22px;flex-wrap:wrap}
+.meta{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink2);text-align:right;line-height:1.6}
+.meta b{color:var(--ink);font-weight:500}
+.verdict{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:0 0 24px}
+.v{padding:12px 14px;border-left:3px solid var(--orange);background:var(--panel)}
+.v .k{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:5px}
+.v .n{font-family:"IBM Plex Mono",monospace;font-size:20px;font-weight:500;line-height:1.15}
+.v .d{font-size:12.5px;color:var(--ink2);margin-top:5px}
+.pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:1px 7px;border-radius:2px;margin-left:4px;vertical-align:middle}
+.ok{background:var(--okbg);color:var(--ok)} .warn{background:var(--warnbg);color:var(--warn)} .bad{background:var(--badbg);color:var(--bad)}
+.plans{display:grid;grid-template-columns:1fr;gap:22px;margin-bottom:26px}
+.sheet{background:var(--panel);border:1px solid var(--rule);padding:12px 12px 8px;overflow-x:auto}
+.sheet h2{margin:2px 4px 6px}
+.sheet .cap{font-size:12px;color:var(--ink2);margin:0 4px 8px;max-width:72ch}
+svg{display:block;width:100%;height:auto;font-family:"IBM Plex Mono",monospace}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;margin:10px 4px 4px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:22px;height:0;border-top:2px solid var(--dim)}
+.sw.b{border-top:2px solid var(--orange)} .sw.d2{border-top:2px dashed var(--dim2)} .sw.f{border-top:2px dashed var(--flag)} .sw.w{border-top:6px solid var(--wall)}
+table{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--panel)}
+th,td{border:1px solid var(--rule);padding:6px 9px;text-align:left;vertical-align:top}
+th{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:500}
+td.n{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tw{overflow-x:auto;margin-bottom:22px}
+.tag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:1px 6px;border-radius:2px;white-space:nowrap}
+.tag.stated{background:var(--okbg);color:var(--ok)} .tag.derived{background:var(--warnbg);color:var(--warn)} .tag.assumed{background:var(--flagbg);color:var(--flag)} .tag.observed{background:var(--grid);color:var(--ink2)}
+.note{background:var(--flagbg);border-left:3px solid var(--flag);padding:10px 14px;font-size:13px;margin:0 0 22px;max-width:90ch}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:22px;margin-bottom:22px}
+ul{margin:6px 0 0 18px;padding:0} li{margin:3px 0}
+footer{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink2);border-top:1px solid var(--rule);padding-top:10px;margin-top:30px}
+</style>
+<main>
+<div class="head">
+  <div>
+    <div class="eyebrow">Working drawing · not for the client</div>
+    <h1>PeoplesSpace alcove — MDL 96120 E with ADA, roof-mounted ventilation</h1>
+    <p class="sub">Top-down fit study for the rework. Alcove dimensions are transcribed from the architect's partial plan and elevation and are all marked <b>VIF</b> by the architect — nothing here has been tape-measured by WhisperRoom. The booth is drawn at its catalogue exterior, 8'-2" × 10'-2", door on the open east side, both handednesses the client asked for.</p>
+  </div>
+  <div class="meta">
+    <b>Booth</b> MDL 96120 E · ADA package · roof-mount (client request)<br>
+    <b>Exterior</b> 98.0 × 122.0 in (models.json) · <b>Clear interior</b> 89.5 × 113.5 in (wr-booth-data)<br>
+    <b>Sources</b> architect-plan.png · architect-elevation.png · EST54168 markup 9.4<br>
+    <b>Scale</b> drawn true; read the bar · <b>North</b> page top · Sep 2026
+  </div>
+</div>
+
+<div class="verdict">
+  <div class="v"><div class="k">Depth, north–south</div><div class="n">4 ¾" float <span class="pill ok">fits</span></div><div class="d">128.75 − (1 + 122 + 1) = 4.75". Only with roof-mount: a wall vent on either short wall needs 6" (10" w/ EFS) and would overrun by ¼" (4 ¼").</div></div>
+  <div class="v"><div class="k">Width, east–west</div><div class="n">15 ¾" inside the line <span class="pill warn">ramp runs out</span></div><div class="d">Booth at 1" off the west wall reaches x = 99". Door swing to 133.5", ramp toe to 144.6" — <b>29 ⅞" past the alcove's 9'-6 ¾" line</b>, into whatever is east. Same as the original drawing.</div></div>
+  <div class="v"><div class="k">Height, roof unit under the pipes</div><div class="n">3 ⅞" – 4 ⅝" <span class="pill warn">tight · VIF</span></div><div class="d">RM96120 unit 10 5/16" above the roof. Rule: 85 + 10.31 = 95.3" vs bottom of pipe 99.25". Physical: 84.3 + 10.31 = 94.6". Cloud 113", structure 122". <b>Assumes the 0'-0" datum is the top of the raised floor.</b></div></div>
+  <div class="v"><div class="k">Which way round</div><div class="n">Long axis N–S only</div><div class="d">122" cannot go across 114.75". Door therefore lands on the east (open) long wall; the only choice is south end (option 1) or north end (option 2). Vent walls on this Enhanced layout become cable walls under roof-mount.</div></div>
+</div>
+
+<div class="note"><b>Tolerance and provenance, on the drawing.</b> Alcove 9'-6 ¾" × 10'-8 ¾" and the height stack are <b>stated VIF</b> by the architect — transcribed, ±0, unverified. North wall length is <b>derived</b> (drawn parallel to the south). East edge is the alcove's <b>open side</b>, forced by closure — nothing is drawn there in the fragment. Pipe band 0–21" and grille position are <b>assumed</b> from a pixel read of the elevation, ±2". Booth, ramp and roof-unit geometry are <b>observed</b> from models.json, layout-render.js and wr-roof-vent.rb. Door hinge side and the leaf's position inside the 49" frame are <b>assumed</b> — sales' L/R pack decides.</div>
+
+<div class="plans">
+  <div class="sheet"><h2>Option 1 — door and ramp on the LEFT (south end, beside the concrete wall)</h2><p class="cap">As the architect placed it, and as the original proposal drew it. Viewer at the open east side looking west: the door is on the left of the booth's front. Door centreline 2'-3 ½" north of the concrete wall face.</p><div id="planS"></div>
+    <div class="legend"><span><i class="sw w"></i>wall (thickness cosmetic)</span><span><i class="sw b"></i>booth exterior / ramp</span><span><i class="sw"></i>wall + placement chain</span><span><i class="sw d2"></i>door, datum, roof unit</span><span><i class="sw f"></i>assumed / VIF</span></div></div>
+  <div class="sheet"><h2>Option 2 — door and ramp on the RIGHT (north end, beside the glass wall)</h2><p class="cap">Mirror of the front wall only; the booth stays 1" off the west and south walls. Door centreline 8'-0 ½" north of the concrete wall face (2'-8 ¼" south of the glass line). The ramp lands in front of the storefront's east end.</p><div id="planN"></div>
+    <div class="legend"><span><i class="sw w"></i>wall (thickness cosmetic)</span><span><i class="sw b"></i>booth exterior / ramp</span><span><i class="sw"></i>wall + placement chain</span><span><i class="sw d2"></i>door, datum, roof unit</span><span><i class="sw f"></i>assumed / VIF</span></div></div>
+</div>
+
+<div class="sheet" style="margin-bottom:26px"><h2>Height stack — section looking west, north–south</h2><p class="cap">The bottom of pipe governs, not the cloud or the structure. Heights are from the architect's elevation datum LEVEL 01 FF 0'-0", which the elevation draws at the top of a RAISED FLOOR band of undimensioned thickness. If the datum is actually the slab, every clearance here shrinks by that thickness.</p><div id="section"></div></div>
+
+<div class="two">
+<div>
+<h2>Wall runs — clockwise from the NW corner</h2>
+<div class="tw"><table>
+<tr><th>Run</th><th>Wall</th><th>Heads</th><th>Length</th><th>Inches</th><th>Source</th></tr>
+<tr><td class="n">0</td><td>North — glass storefront</td><td class="n">E</td><td class="n">9'-6 ¾"</td><td class="n">114.75 (114.8)</td><td><span class="tag derived">derived</span> parallel to run 2 in the Revit linework; not dimensioned itself</td></tr>
+<tr><td class="n">1</td><td>East — OPEN edge</td><td class="n">S</td><td class="n">10'-8 ¾"</td><td class="n">128.75 (128.8)</td><td><span class="tag derived">derived closure</span> forced by run 3; no wall in the fragment</td></tr>
+<tr><td class="n">2</td><td>South — cast concrete</td><td class="n">W</td><td class="n">9'-6 ¾" VIF</td><td class="n">114.75 (114.8)</td><td><span class="tag stated">stated</span> architect-plan.png</td></tr>
+<tr><td class="n">3</td><td>West — partition (yellow slat wall)</td><td class="n">N</td><td class="n">10'-8 ¾" VIF</td><td class="n">128.75 (128.8)</td><td><span class="tag stated">stated</span> architect-plan.png</td></tr>
+<tr><td colspan="6">Closure: 114.75 − 114.75 = 0.00" E–W, 128.75 − 128.75 = 0.00" N–S. Closes by construction — the two derived runs are what closes it, so closure confirms nothing about them.</td></tr>
+</table></div>
+</div>
+<div>
+<h2>Placement chains and secondary dimensions</h2>
+<div class="tw"><table>
+<tr><th>Chain</th><th>Segments</th><th>Sum</th><th>Closes on</th></tr>
+<tr><td>South side, west → east</td><td class="n">1 + 98 + 15.75</td><td class="n">114.75</td><td class="n">9'-6 ¾" ✓</td></tr>
+<tr><td>West side, south → north</td><td class="n">1 + 122 + 5.75</td><td class="n">128.75</td><td class="n">10'-8 ¾" ✓</td></tr>
+<tr><td>East wall, opt 1, south → north</td><td class="n">1 + 2 + 49 + 71 + 5.75</td><td class="n">128.75</td><td class="n">10'-8 ¾" ✓</td></tr>
+<tr><td>East wall, opt 2, south → north</td><td class="n">1 + 71 + 49 + 2 + 5.75</td><td class="n">128.75</td><td class="n">10'-8 ¾" ✓</td></tr>
+<tr><td>Ramp, off the booth's east face</td><td class="n">99 + 45.625</td><td class="n">144.625</td><td class="n">29.875 past the line</td></tr>
+<tr><td>Door swing, 49" ADA frame</td><td class="n">99 + 34.5</td><td class="n">133.5</td><td class="n">18.75 past the line</td></tr>
+<tr><td>Door ℄ opt 1 / opt 2, from SW corner</td><td class="n">1 + 2 + 24.5 / 1 + 71 + 24.5</td><td class="n">27.5 / 96.5</td><td class="n">2'-3 ½" / 8'-0 ½"</td></tr>
+</table></div>
+</div>
+</div>
+
+<h2>What the fragment does not tell us</h2>
+<ul>
+<li>What is east of the alcove line — the ramp toe and the open door both stand 1½–2½ ft out there in every option.</li>
+<li>The raised floor: thickness, whether the booth (3,100 lb Enhanced) sits on it, and whether the 0'-0" datum is its top or the slab.</li>
+<li>The pipes' actual plan position and diameter — drawn here as a 21" band off the concrete wall from a pixel read of the elevation.</li>
+<li>The wall grille on the west wall: bottom height (~8'-7 ¾" by pixel read), projection, and whether it is supply or return — it sits over the roof unit.</li>
+<li>Whether the glass wall carries a door at its east end (the photo suggests one) and where its swing goes — it matters for option 2.</li>
+<li>Wall thicknesses (cosmetic here), the concrete wall's east return, and anything about power, the fire-suppression kit location, or how the roof unit exhausts.</li>
+</ul>
+<footer>WhisperRoom-SketchUp · clients/peoplesspace/takeoff.json · take-off checked, lock written · booth model from the existing proposal, not chosen here · no prices</footer>
+</main>
+<script>
+(function(){
+  // ---- geometry, all inches. Alcove interior origin at SW corner, x east, y north.
+  var AW=114.75, AD=128.75;           // stated VIF
+  var BW=98, BD=122;                  // 96120 E exterior (models.json)
+  var IW=89.5, ID=113.5;              // Enhanced clear interior (wr-booth-data eiw/eih)
+  var GAP=1, bx0=GAP, by0=GAP;        // booth 1" off west and south walls
+  var RAMP=45.625, RAMP_D=46, RAMP_F=36, SWING=34.5, FRAME=49, LEAF=32, CORNER=2;
+  var RMW=88, RMD=113.5;              // RM96120 measured plan box (wr-roof-vent.rb)
+  var PIPE=21;                        // assumed pipe band
+  var css=getComputedStyle(document.documentElement);
+  var C=function(n){return css.getPropertyValue(n).trim();};
+  var col={ink:C('--dim'),d2:C('--dim2'),or:C('--orange'),booth:C('--booth'),bi:C('--booth-ink'),flag:C('--flag'),wall:C('--wall'),conc:C('--conc'),grid:C('--grid'),ink2:C('--ink2'),flagbg:C('--flagbg')};
+  var fi=function(n){ // inches -> ft-in string, nearest 1/8
+    var s=n<0?'-':''; n=Math.abs(n); var f=Math.floor(n/12), i=n-f*12; var w=Math.floor(i), fr=Math.round((i-w)*8);
+    if(fr===8){w++;fr=0;} if(w===12){f++;w=0;}
+    var fs={0:'',1:' 1/8',2:' 1/4',3:' 3/8',4:' 1/2',5:' 5/8',6:' 3/4',7:' 7/8'}[fr];
+    if(f===0) return s+w+fs+'"'; return s+f+"'-"+w+fs+'"';
+  };
+  function plan(id, doorEnd){
+    var S=[], FS=3.4; // font size in inches-units
+    var mL=44, mR=64, mB=44, mT=34;
+    var W=AW+RAMP+30, H=AD;
+    var vb=[-mL, -(H+mT), W+mL+mR, H+mT+mB];
+    function X(x){return x;} function Y(y){return -y;}
+    function t(x,y,s,o){o=o||{};return '<text x="'+X(x)+'" y="'+Y(y)+'" font-size="'+(o.fs||FS)+'" fill="'+(o.c||col.ink)+'" text-anchor="'+(o.a||'middle')+'" '+(o.rot?'transform="rotate(-90 '+X(x)+' '+Y(y)+')"':'')+(o.w?' font-weight="500"':'')+'>'+s+'</text>';}
+    function ln(x1,y1,x2,y2,c,w,d){return '<line x1="'+X(x1)+'" y1="'+Y(y1)+'" x2="'+X(x2)+'" y2="'+Y(y2)+'" stroke="'+c+'" stroke-width="'+(w||0.6)+'"'+(d?' stroke-dasharray="'+d+'"':'')+'/>';}
+    function rc(x,y,w,h,f,c,sw,d){return '<rect x="'+X(x)+'" y="'+Y(y+h)+'" width="'+w+'" height="'+h+'" fill="'+f+'" stroke="'+c+'" stroke-width="'+(sw||0.8)+'"'+(d?' stroke-dasharray="'+d+'"':'')+'/>';}
+    // dimension: horizontal (y=const) or vertical (x=const). offset from the measured points to the dim line.
+    function dimH(x1,x2,yRef,off,label,c,stag){ var y=yRef+off; var s=''; s+=ln(x1,yRef+(off>0?1:-1),x1,y+(off>0?2:-2),c,0.4)+ln(x2,yRef+(off>0?1:-1),x2,y+(off>0?2:-2),c,0.4)+ln(x1,y,x2,y,c,0.6);
+      s+=ln(x1-1.5,y-1.5,x1+1.5,y+1.5,c,0.7)+ln(x2-1.5,y-1.5,x2+1.5,y+1.5,c,0.7);
+      var mid=(x1+x2)/2, ty=y+(stag||1.6); s+=t(mid,ty,label,{c:c}); return s;}
+    function dimV(y1,y2,xRef,off,label,c,stag){ var x=xRef+off; var s=''; s+=ln(xRef+(off>0?1:-1),y1,x+(off>0?2:-2),y1,c,0.4)+ln(xRef+(off>0?1:-1),y2,x+(off>0?2:-2),y2,c,0.4)+ln(x,y1,x,y2,c,0.6);
+      s+=ln(x-1.5,y1-1.5,x+1.5,y1+1.5,c,0.7)+ln(x-1.5,y2-1.5,x+1.5,y2+1.5,c,0.7);
+      var mid=(y1+y2)/2, tx=x-(stag||1.6); s+=t(tx,mid,label,{c:c,rot:1}); return s;}
+    // chain: array of segment lengths from a start, horizontal or vertical
+    function chainH(x0,segs,yRef,off,c){var s='',x=x0; segs.forEach(function(sg,i){var lab=fi(sg); var st=sg<10?(i%2?-2.2:1.6):1.6; s+=dimH(x,x+sg,yRef,off,lab,c,st); x+=sg;}); return s;}
+    function chainV(y0,segs,xRef,off,c){var s='',y=y0; segs.forEach(function(sg,i){var lab=fi(sg); var st=sg<10?(i%2?-2.4:1.6):1.6; s+=dimV(y,y+sg,xRef,off,lab,c,st); y+=sg;}); return s;}
+
+    // grid 12"
+    for(var g=0; g<=AW; g+=12) S.push(ln(g,0,g,AD,col.grid,0.3));
+    for(g=0; g<=AD; g+=12) S.push(ln(0,g,AW,g,col.grid,0.3));
+    // walls: W partition 4", S concrete 8" (thickness cosmetic), N glass line
+    S.push(rc(-4,-8,4,AD+8+3,col.wall,col.wall,0.3));
+    S.push('<defs><pattern id="h'+id+'" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="'+col.ink2+'" stroke-width="0.5"/></pattern><pattern id="p'+id+'" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="3" stroke="'+col.flag+'" stroke-width="0.4"/></pattern></defs>');
+    S.push(rc(-4,-8,AW+4,8,'url(#h'+id+')',col.wall,0.6));
+    S.push(t(AW/2,-5.2,'CAST CONCRETE WALL (south) — thickness not dimensioned',{fs:3.4,c:col.ink2}));
+    // glass wall
+    S.push(ln(0,AD,AW,AD,col.wall,1.2)); S.push(ln(0,AD+2,AW,AD+2,col.wall,0.5));
+    for(g=0; g<=AW; g+=34) S.push(rc(g-1,AD-0.5,2,3.5,col.wall,col.wall,0.2));
+    S.push(t(AW/2,AD+4,'GLASS STOREFRONT WALL (north) — mullion spacing not dimensioned',{fs:3.4,c:col.ink2}));
+    // open edge
+    S.push(ln(AW,0,AW,AD,col.flag,0.9,'5 3'));
+    S.push(t(AW+2.5,AD-30,'OPEN SIDE — limit of the fragment, 9\'-6 3/4" line',{fs:3.4,c:col.flag,rot:1,a:'start'}));
+    // pipe band
+    S.push(rc(0,0,AW,PIPE,'url(#p'+id+')',col.flag,0.5,'3 2'));
+
+    // grille on west wall (assumed extent)
+    S.push(rc(0,41,10,48,'none',col.flag,0.5,'3 2')); S.push(t(5,65,'grille above ~8\'-7 3/4"',{fs:2.9,c:col.flag,rot:1}));
+    // booth
+    S.push(rc(bx0,by0,BW,BD,col.booth,col.or,1.2));
+    S.push(rc(bx0+(BW-IW)/2,by0+(BD-ID)/2,IW,ID,'none',col.bi,0.5,'2 2'));
+    S.push(t(bx0+BW/2,by0+BD/2+10,'MDL 96120 E · ADA',{fs:5,c:col.bi,w:1}));
+    S.push(t(bx0+BW/2,by0+BD/2+3,'exterior 8\'-2" × 10\'-2" (98 × 122)',{fs:3.6,c:col.bi}));
+    S.push(t(bx0+BW/2,by0+BD/2-3,'clear interior 7\'-5 1/2" × 9\'-5 1/2" (89.5 × 113.5)',{fs:3.2,c:col.bi}));
+    S.push(t(bx0+BW/2,by0+BD/2-9,'roof unit RM96120 88 × 113.5, +10 5/16" (dashed)',{fs:3.0,c:col.d2}));
+    S.push(t(bx0+BW/2,PIPE+2.5,'3 pipes overhead, E–W, bottom 8\'-3 1/4" VIF · band 0–21" assumed ±2"',{fs:3.2,c:col.flag}));
+    // roof unit centred on nominal footprint (nominal = exterior inset 1")
+    var nx=bx0+1, ny=by0+1, nw=BW-2, nd=BD-2;
+    S.push(rc(nx+(nw-RMW)/2, ny+(nd-RMD)/2, RMW, RMD,'none',col.d2,0.7,'4 2'));
+    // door + ramp
+    var fy0 = doorEnd==='S' ? by0+CORNER : by0+BD-CORNER-FRAME; // frame from
+    var cy = fy0+FRAME/2; var bxE=bx0+BW;
+    S.push(ln(bxE,fy0,bxE,fy0+FRAME,col.d2,2.2));
+    // leaf: hinge at the corner-side jamb of the leaf; leaf occupies the corner-side 32" of the frame (assumed)
+    var hy = doorEnd==='S' ? fy0 : fy0+FRAME; var dir = doorEnd==='S' ? 1 : -1;
+    S.push(ln(bxE,hy,bxE+LEAF,hy,col.d2,1.4));
+    var ax=bxE, ay=hy+dir*LEAF; // closed tip
+    S.push('<path d="M '+X(bxE+LEAF)+' '+Y(hy)+' A '+LEAF+' '+LEAF+' 0 0 '+(doorEnd==='S'?0:1)+' '+X(ax)+' '+Y(ay)+'" fill="none" stroke="'+col.d2+'" stroke-width="0.5" stroke-dasharray="2 2"/>');
+    S.push(t(bxE+LEAF/2, hy+dir*3.5, '32" leaf', {fs:3,c:col.d2}));
+    // swing clearance line
+    S.push(ln(bxE+SWING,fy0-4,bxE+SWING,fy0+FRAME+4,col.d2,0.5,'2 2'));
+    // ramp trapezoid
+    var r='M '+X(bxE)+' '+Y(cy-RAMP_D/2)+' L '+X(bxE)+' '+Y(cy+RAMP_D/2)+' L '+X(bxE+RAMP)+' '+Y(cy+RAMP_F/2)+' L '+X(bxE+RAMP)+' '+Y(cy-RAMP_F/2)+' Z';
+    S.push('<path d="'+r+'" fill="'+col.booth+'" stroke="'+col.or+'" stroke-width="1" opacity="0.9"/>');
+    for(var k=1;k<6;k++){var d=RAMP*k/6, hw=RAMP_D/2+(RAMP_F/2-RAMP_D/2)*k/6; S.push(ln(bxE+d,cy-hw,bxE+d,cy+hw,col.or,0.4));}
+    S.push(t(bxE+RAMP/2, cy+(doorEnd==='S'?-RAMP_D/2-4:RAMP_D/2+2.5), 'ADA ramp 46"→36" × 3\'-9 5/8"', {fs:3,c:col.bi}));
+    // door centreline datum from SW corner (ordinate)
+    S.push(ln(0,cy,bxE+RAMP+8,cy,col.d2,0.4,'6 3'));
+    S.push(t(bxE+RAMP+9, cy-1.2, '℄ door '+fi(cy)+' from SW corner (S face of concrete)', {fs:3,c:col.d2,a:'start'}));
+    // ---- dimensions
+    // south chain (below wall): row1 segments, row2 overall
+    S.push(chainH(0,[GAP,BW,AW-GAP-BW],-8,-8,col.ink));
+    S.push(dimH(0,AW,-8,-19,'9\'-6 3/4" VIF  (114.75)',col.ink));
+    S.push(dimH(bxE,bxE+RAMP,-8,-41,'ramp 3\'-9 5/8"',col.d2));
+    S.push(dimH(AW,bxE+RAMP,-8,-19,'2\'-5 7/8" past line',col.flag));
+    S.push(dimH(bxE,bxE+SWING,-8,-30,'swing 2\'-10 1/2"',col.d2));
+    // west chain
+    S.push(chainV(0,[GAP,BD,AD-GAP-BD],-4,-8,col.ink));
+    S.push(dimV(0,AD,-4,-19,'10\'-8 3/4" VIF  (128.75)',col.ink));
+    // east chain (door wall) beyond ramp
+    var ex=bxE+RAMP+14;
+    var segs = doorEnd==='S' ? [GAP,CORNER,FRAME,BD-CORNER-FRAME,AD-GAP-BD] : [GAP,BD-CORNER-FRAME,FRAME,CORNER,AD-GAP-BD];
+    S.push(chainV(0,segs,ex,6,col.d2));
+    S.push(t(ex+12, AD/2, 'door wall chain, off the concrete face (secondary)', {fs:3,c:col.d2,rot:1}));
+    // north overall (derived)
+    S.push(dimH(0,AW,AD+2,10,'9\'-6 3/4" derived — parallel to south, VIF',col.flag));
+    // north arrow + scale bar
+    var sx=bxE+RAMP+8, sy=AD+14;
+    S.push('<polygon points="'+X(sx+30)+','+Y(sy+2)+' '+X(sx+27)+','+Y(sy-6)+' '+X(sx+33)+','+Y(sy-6)+'" fill="'+col.ink+'"/>'+t(sx+30,sy-10,'N',{fs:4,w:1}));
+    var bx=0, byy=-40; [0,12,24,48].forEach(function(v,i,a){ if(i<a.length-1){S.push(rc(bx+v,byy,a[i+1]-v,2.2,i%2?'none':col.ink,col.ink,0.4));} S.push(t(bx+v,byy-4,v===0?'0':(v/12)+"'",{fs:3.2}));});
+    S.push(t(bx+24,byy+5,'scale bar — inches true',{fs:3,c:col.ink2}));
+    // viewer marker
+    S.push(t(AW+52, 8, '◀ client photo / elevation viewpoint, looking west', {fs:3,c:col.ink2}));
+    document.getElementById(id).innerHTML='<svg viewBox="'+vb.join(' ')+'" role="img" aria-label="Plan of the alcove with the booth placed">'+S.join('')+'</svg>';
+  }
+  plan('planS','S'); plan('planN','N');
+
+  // ---- section looking west: horizontal = y (north to the right), vertical = z
+  (function(){
+    var S=[], FS=2.8; var Z=function(z){return -z;};
+    var vb=[-30,-140,AD+30+120,140+30];
+    function t(x,z,s,o){o=o||{};return '<text x="'+x+'" y="'+Z(z)+'" font-size="'+(o.fs||FS)+'" fill="'+(o.c||col.ink)+'" text-anchor="'+(o.a||'middle')+'"'+(o.w?' font-weight="500"':'')+'>'+s+'</text>';}
+    function ln(x1,z1,x2,z2,c,w,d){return '<line x1="'+x1+'" y1="'+Z(z1)+'" x2="'+x2+'" y2="'+Z(z2)+'" stroke="'+c+'" stroke-width="'+(w||0.6)+'"'+(d?' stroke-dasharray="'+d+'"':'')+'/>';}
+    function rc(x,z,w,h,f,c,sw,d){return '<rect x="'+x+'" y="'+Z(z+h)+'" width="'+w+'" height="'+h+'" fill="'+f+'" stroke="'+c+'" stroke-width="'+(sw||0.8)+'"'+(d?' stroke-dasharray="'+d+'"':'')+'/>';}
+    var BOOTH_H=84.3125, LIFT=85, RM_H=10.3125, BOP=99.25, CLOUD=113, STRUCT=122, GRILLE=103.7;
+    S.push('<defs><pattern id="hs" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="'+col.ink2+'" stroke-width="0.5"/></pattern><pattern id="ps" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="3" stroke="'+col.flag+'" stroke-width="0.4"/></pattern></defs>');
+    // walls
+    S.push(rc(-8,0,8,STRUCT,'url(#hs)',col.wall,0.6)); S.push(t(-4,STRUCT+3,'CONC',{fs:2.8,c:col.ink2}));
+    S.push(rc(AD,0,2,CLOUD,col.wall,col.wall,0.3)); S.push(t(AD+1,CLOUD+3,'GLASS',{fs:2.8,c:col.ink2}));
+    // structure, cloud, pipe
+    S.push(rc(-8,STRUCT,AD+10,6,'url(#hs)',col.wall,0.5)); S.push(t(AD/2,STRUCT+8,'CONCRETE STRUCTURE 10\'-2" VIF',{fs:3.2,c:col.ink2}));
+    S.push(rc(22,CLOUD,AD-22,2.5,col.conc,col.wall,0.5)); S.push(t(AD/2+10,CLOUD+4,'ACOUSTIC CLOUD 9\'-5" VIF — starts ~22" off the concrete (pixel read)',{fs:3.2,c:col.ink2}));
+    [3.5,10.5,17.5].forEach(function(p){S.push('<circle cx="'+p+'" cy="'+Z(BOP+2.75)+'" r="2.75" fill="url(#ps)" stroke="'+col.flag+'" stroke-width="0.6"/>');});
+    S.push(ln(0,BOP,AD,BOP,col.flag,0.5,'4 2')); S.push(t(AD/2+10,BOP+1.5,'BOTTOM OF PIPE 8\'-3 1/4" VIF — governs the roof unit',{fs:3.2,c:col.flag}));
+    // grille (on far wall)
+    S.push(rc(41,GRILLE,48,10,'none',col.flag,0.5,'3 2')); S.push(t(65,GRILLE+3.5,'grille on W wall, bottom ~8\'-7 3/4" (±1.5")',{fs:2.8,c:col.flag}));
+    // raised floor
+    S.push(rc(-8,-14,AD+10,14,'url(#ps)',col.flag,0.5)); S.push(t(AD/2,-8.5,'RAISED FLOOR — thickness not dimensioned; LEVEL 01 FF 0\'-0" drawn at its top',{fs:3.2,c:col.flag}));
+    S.push(ln(-8,0,AD+2,0,col.ink,1));
+    // booth + roof unit
+    S.push(rc(by0,0,BD,BOOTH_H,col.booth,col.or,1.1)); S.push(t(by0+BD/2,40,'MDL 96120 E — 7\'-0 5/16" as drawn, 7\'-1" install clearance',{fs:3.4,c:col.bi,w:1}));
+    var ry=by0+1+(BD-2-RMD)/2; S.push(rc(ry,BOOTH_H,RMD,RM_H,'none',col.d2,0.9,'4 2')); S.push(t(by0+BD/2,BOOTH_H+3.2,'RM96120 roof unit  +10 5/16" (measured off the .skp)',{fs:3,c:col.d2}));
+    S.push(ln(by0,LIFT,by0+BD,LIFT,col.d2,0.4,'2 2'));
+    // margins
+    var mx=AD+14;
+    function dz(z1,z2,x,label,c){return ln(x,z1,x,z2,c,0.6)+ln(x-1.5,z1,x+1.5,z1,c,0.7)+ln(x-1.5,z2,x+1.5,z2,c,0.7)+t(x+3,(z1+z2)/2-1,label,{fs:3,c:c,a:'start'});}
+    S.push(dz(0,BOOTH_H,mx,'7\'-0 5/16" booth',col.ink));
+    S.push(dz(BOOTH_H,BOOTH_H+RM_H,mx+30,'+10 5/16" unit → 7\'-10 5/8"',col.d2));
+    S.push(dz(BOOTH_H+RM_H,BOP,mx+60,'4 5/8" physical · 3 7/8" by the 85" rule',col.flag));
+    S.push(dz(BOP,CLOUD,mx+30,'13 3/4" to the cloud',col.ink2));
+    S.push(dz(CLOUD,STRUCT,mx+30,'9" to structure',col.ink2));
+    S.push(t(AD/2,-24,'Section looking west · horizontal = north–south, concrete wall at left · booth 1" off the concrete',{fs:3.2,c:col.ink2}));
+    document.getElementById('section').innerHTML='<svg viewBox="'+vb.join(' ')+'" role="img" aria-label="Height stack section">'+S.join('')+'</svg>';
+  })();
+})();
+</script>

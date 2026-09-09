@@ -1,0 +1,49 @@
+{
+  "job": "peoplesspace",
+  "title": "PeoplesSpace — booth alcove, MDL 96120 E with ADA package (rework, Sep 2026)",
+  "sources": ["plans/architect-plan.png", "plans/architect-elevation.png",
+              "plans/EST54168-markups-9.4.pdf"],
+  "anchor": "stated 9'-6 3/4\" VIF on the architect's partial plan (architect-plan.png), the alcove's clear width at the concrete wall",
+  "interpretations": [
+    "Every number on the architect's fragment carries VIF (verify in field). They are transcribed exactly and NONE is estimated; the tolerance on this job is whatever the field measure turns out to be, not a scale error.",
+    "Compass: the plan is read with the page's top as north. The concrete (hatched) wall is SOUTH, the thin partition the 10'-8 3/4\" is dimensioned along is WEST, the storefront line with mullions at the top is NORTH (the 'glass wall' the client asked to see), and the EAST side is open in the fragment — nothing is drawn there above the concrete wall's east corner. The client's photo on p.3 of the markup confirms it: viewer stands east looking west, concrete on the left (south), glass on the right (north), yellow slat wall at the back (west).",
+    "Run 0 (north, glass wall) is recorded as DERIVED from the south chain: the Revit linework draws it parallel and the 9'-6 3/4\" is dimensioned once, at the south. Run 1 (east) is the alcove's open edge, not a wall: its length is forced by closure and it is recorded as such. The builder must NOT build a wall on run 1 (see notes).",
+    "The 10'-8 3/4\" VIF is dimensioned on the west side from the north storefront line to the north face of the concrete wall. It is the alcove's clear depth.",
+    "Heights come from the architect's elevation, all VIF: bottom of pipe 8'-3 1/4\", acoustic cloud ceiling 9'-5\", concrete structure 10'-2\", Level 01 FF 0'-0\". The ceiling recorded here is the CLOUD, the surface a person sees; the pipe band is recorded as a bulkhead feature at 8'-3 1/4\" because that is the height that actually governs a roof-mounted booth.",
+    "The pipes (three, per the p.3 photo) run EAST-WEST along the south concrete wall. On the elevation they read end-on as three circles hugging the concrete wall face, occupying roughly the first 21\" north of it (pixel read, +/-2\"). Recorded as a bulkhead on run 3 from the SW corner — an ASSUMED extent with the reason stated.",
+    "The elevation shows LEVEL 01 FF 0'-0\" at the TOP of a band labelled RAISED FLOOR, and the booth is drawn standing on that line. Read literally, the heights are measured from the raised floor's top and the raised floor does not eat into them. This is a reading of a fragment, not a statement by the architect — confirm before it is relied on.",
+    "The original proposal's plan (p.6) carries 10'-8 3/4\" and 9'-6 3/4\" = this alcove's depth and width, identical to the architect's numbers; 3'-9 5/8\" = the ADA ramp projection (45.625\", the quote tool's RAMP_PROT); 11' = booth 10'-2\" + 10\" silencer-box protrusion (122 + 10 = 132, exact); 9' = booth 8'-2\" + a 10\" gap drawn between the booth's back wall and the alcove's back wall (98 + 10 = 108, exact). The 11' and 9' are booth-plus-gap figures, not room measurements, and the 11' overall already exceeded the 10'-8 3/4\" alcove depth on the original drawing."
+  ],
+  "rooms": [
+    {
+      "name": "Alcove",
+      "runs": [
+        {"d": "E", "v": "9'-6 3/4\"", "src": "derived from run 2 — the north storefront line is drawn parallel to the dimensioned south wall in the Revit linework; the 9'-6 3/4\" VIF is dimensioned once, at the south",
+         "note": "NORTH: glass storefront wall (mullions in the linework; client markup 'Include Glass Wall'). Not dimensioned on its own — VIF."},
+        {"d": "S", "v": "10'-8 3/4\"", "src": "derived closure",
+         "note": "EAST: the alcove's OPEN side. Forced by run 3. No wall here in the fragment — the ramp and door swing run out this way. Do not build a wall on this run."},
+        {"d": "W", "v": "9'-6 3/4\"", "src": "stated architect-plan.png — '9\\' - 6 3/4\" VIF', dimensioned below the concrete wall from the west partition face to the concrete wall's east corner",
+         "note": "SOUTH: cast concrete wall (hatched in section). VIF."},
+        {"d": "N", "v": "10'-8 3/4\"", "src": "stated architect-plan.png — '10\\' - 8 3/4\" VIF', dimensioned on the west side from the north storefront line to the concrete wall's north face",
+         "note": "WEST: thin partition, the yellow slat wall in the client's photo. VIF."}
+      ],
+      "ceiling": {"v": "9'-5\"", "src": "stated architect-elevation.png — 'ACOUTIC CLOUD CEILING 9\\' - 5\" VIF'",
+        "note": "Acoustic cloud, VIF. Concrete structure above it is 10'-2\" VIF (same elevation). The cloud does not run the full depth — on the elevation it stops roughly 22\" short of the south concrete wall (pixel read, unconfirmed)."},
+      "doors": [],
+      "features": [
+        {"type": "bulkhead", "run": 3,
+         "from": {"assumed": "0\"", "reason": "the pipes hug the south concrete wall on the elevation and in the p.3 photo; the first pipe reads as touching the wall face. Not dimensioned — VIF."},
+         "length": {"assumed": "21\"", "reason": "three pipes read end-on on the elevation, spanning about 21\" north of the concrete wall face at 6.2 px/in (+/-2\"). Not dimensioned — VIF. This is the band a roof-mounted vent unit must clear."},
+         "head": {"v": "8'-3 1/4\"", "src": "stated architect-elevation.png — 'BOTTOM OF PIPE 8\\' - 3 1/4\" VIF'",
+           "note": "the governing height for a roof-mounted booth; the cloud (9'-5\") and structure (10'-2\") are higher"}}
+      ],
+      "notes": [
+        "OPEN EAST SIDE: run 1 is the alcove's open edge, not a wall. The fragment is cut off there; what lies east (open floor per the photo) is not in what we were sent.",
+        "RAISED FLOOR annotated at the base of the elevation; thickness not dimensioned. Booth (3,100 lb Enhanced per models.json) is drawn sitting on it. Load and thickness are open questions for Benton.",
+        "Supply/return grille on the WEST wall at high level, above the booth: bottom about 8'-7 3/4\" off FF by pixel read (+/-1.5\"), projection unknown. Not modelled by the take-off — the builder should mass it as an obstruction with an ASSUMED note.",
+        "Glass wall (north) may carry a door at its east end per the photo; not in the fragment, not modelled.",
+        "Heights: bottom of pipe 8'-3 1/4\" VIF, acoustic cloud 9'-5\" VIF, concrete structure 10'-2\" VIF, Level 01 FF 0'-0\". All from the architect's elevation."
+      ]
+    }
+  ]
+}
