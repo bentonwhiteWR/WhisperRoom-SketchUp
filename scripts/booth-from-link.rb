@@ -124,15 +124,21 @@ module WR_BoothLink
   #   roof unit, vent walls kept  -> ventilation twice over
   #
   # Both render as a perfectly plausible booth, which is why this is a refusal
-  # and not a warning. The check is on the payload, where the evidence is: on an
-  # rv = 1 booth EVERY layout slot the model ventilates must carry a CBL pack.
-  # The count of those slots is the model's vent-set count — cross-checked for
-  # all 50 layout keys against the catalogue's own `vents` figure in
-  # whisperroom-catalog/data/models.json, which agreed on every one (observed,
-  # 2026-08-31), and it is the same number the portal calls layout.ventSets and
-  # holds to the invariant (VNT + CBL) === ventSets.
+  # and not a warning. The check is on the payload, where the evidence is, and
+  # it is a COUNT: on an rv = 1 booth the NUMBER of CBL packs across the outer
+  # shell must equal the model's vent-set count. It is NOT a check on WHICH
+  # slots they sit on — the booth builder lets a customer drag wall packs
+  # between any two slots of the same module width, so a cable wall may
+  # perfectly well end up on a slot whose layout default is a solid wall.
   #
-  # true  — refuse the build and name every slot that disagrees.
+  # The vent-set count is the number of default VNT slots in the layout —
+  # cross-checked for all 50 layout keys against the catalogue's own `vents`
+  # figure in whisperroom-catalog/data/models.json, which agreed on every one
+  # (observed, 2026-08-31), and against base-bom.json's F01 for all 25 layouts
+  # (observed, 2026-09-09). It is the same number the portal calls
+  # layout.ventSets and holds to the invariant (VNT + CBL) === ventSets.
+  #
+  # true  — refuse the build, with the count and the walls that disagree.
   # false — build anyway, still naming them. Flip this only to look at a booth
   #         you already know is half-swapped.
   RM_HALF_APPLY_ABORTS = true
@@ -725,11 +731,25 @@ module WR_BoothLink
   # Returns nil - not [] - when the layout cannot be read, so "no vent slots"
   # and "could not tell" stay distinguishable.
   def self.vent_slot_ids(key)
+    outer_panels(key) { |p| p[:sk] == 'VNT' }
+  end
+
+  # EVERY outer panel slot, whatever its default kind. This is the set the CBL
+  # count below runs over, and it has to be: booth-builder.html's doSwap moves
+  # wall packs between ANY two slots of the same module width, so a customer who
+  # rearranges their booth can legitimately park a cable wall on a slot whose
+  # layout default is SOLID (observed, booth-builder.html:4360-4405). Counting
+  # only the default VNT slots is what made this tool refuse a buildable design.
+  def self.outer_panel_ids(key)
+    outer_panels(key) { |_p| true }
+  end
+
+  def self.outer_panels(key)
     return nil unless File.exist?(DATA)
     load DATA
     spec = WR_BOOTH_DATA::BOOTHS[key]
     return nil if spec.nil?
-    (spec[:parts] || []).select { |p| p[:k] == 'panel' && p[:sk] == 'VNT' && p[:sh] != 'in' }
+    (spec[:parts] || []).select { |p| p[:k] == 'panel' && p[:sh] != 'in' && yield(p) }
                         .map { |p| p[:id].to_s }
   rescue StandardError
     nil
@@ -760,16 +780,42 @@ module WR_BoothLink
       return ["#{key} has no vent walls in its layout, so rv = 1 (roof-mounted " \
               'ventilation) cannot be what this booth is']
     end
-    bad = slots.reject { |sid| cbl_pack(packs[sid]) }
-    return [] if bad.empty?
-    got = slots.length - bad.length
-    ["#{got} of #{slots.length} vent slot(s) carry a cable-wall (CBL) pack; a " \
-     'roof-mounted booth must carry one on every single one'] +
-      bad.map do |sid|
-        pk = packs[sid].to_s
-        "  #{sid}: #{pk.empty? ? '(no pack in the link at all)' : pk.inspect} " \
-        '— expected a CBL pack here'
-      end
+    # THE RULE IS A COUNT, NOT A POSITION. This used to demand a CBL pack at
+    # each of the layout's OWN vent slot ids, which is an identity check, and it
+    # refused every roof-mounted design whose owner had dragged the cable walls
+    # somewhere else in the booth builder (Benton, 2026-09-09, MDL 96120 E ADA
+    # RM + VSS: "1 of 3 vent slot(s)..." with N0/N2 reading plain STDWL46
+    # because the cable walls had moved). The portal itself holds only
+    # (VNT + CBL) === layout.ventSets — a count over every slot, applyRoofVent
+    # being position-blind (booth-builder.html:3496-3536 and :4195, observed).
+    # The number of default VNT slots IS ventSets: checked against base-bom.json
+    # F01 for all 25 layouts, agreed on every one (observed, 2026-09-09).
+    ids = outer_panel_ids(key)
+    # Falling back to the payload's own keys keeps the check alive if the data
+    # file goes unreadable between the two calls; 'i' ids are the inner IEP
+    # shell, which the portal never serialises.
+    ids = packs.keys.map(&:to_s).reject { |k| k.end_with?('i') }.sort if ids.nil? || ids.empty?
+    have = ids.select { |sid| cbl_pack(packs[sid]) }
+    # Only a SHORTFALL is refused. More cable walls than vent sets is not
+    # something the builder can produce (doSwap moves packs, applyRoofVent only
+    # converts VNT to CBL) and is not the failure this fence exists to catch.
+    return [] if have.length >= slots.length
+    left = ids.select { |sid| packs[sid].to_s =~ /\sVNT\b/i }
+    short = slots.length - have.length - left.length
+    out = ["#{have.length} of this booth's #{slots.length} ventilated wall(s) carry a " \
+           'cable-wall (CBL) pack; a roof-mounted booth carries one on every single ' \
+           'one. WHICH slots they sit on does not matter — walls can be rearranged in ' \
+           'the booth builder — only how many there are.']
+    out << "  cable walls in the link: #{have.empty? ? '(none)' : have.join(', ')}"
+    unless left.empty?
+      out << '  still VENTILATED walls:  ' +
+             left.map { |s| "#{s} #{packs[s].to_s.inspect}" }.join(', ')
+    end
+    if short > 0
+      out << "  #{short} more wall(s) carry neither a vent nor a cable pack at all — " \
+             'this link is short of vent walls outright, not merely half swapped'
+    end
+    out
   end
 
   # ---------------------------------------------------------- cross-check --
@@ -958,6 +1004,10 @@ module WR_BoothLink
       puts '  A roof-mounted booth turns EVERY vent wall into a cable wall. A booth'
       puts '  with some of each is a booth that ships with ventilation twice over'
       puts '  or not at all, and both of those render as a perfectly normal booth.'
+      puts '  This is a COUNT, not a position. The walls may sit anywhere on the'
+      puts '  booth — rearranging them in the booth builder is a normal thing to'
+      puts '  do and does not cause this — but a roof-mounted booth must carry as'
+      puts '  many cable walls as it has ventilated walls.'
       puts '!' * 74
     end
     unless no_opts.empty?
@@ -1057,8 +1107,11 @@ module WR_BoothLink
                     "\n\nNOTHING WAS BUILT. A roof-mounted booth turns every vent wall into " \
                     "a cable wall. Half of that swap builds a booth that is either " \
                     "double-ventilated or not ventilated at all, and both look right in a " \
-                    "render.\n\nFull detail is in the Ruby Console. To build anyway, set " \
-                    'RM_HALF_APPLY_ABORTS = false in booth-from-link.rb.')
+                    "render.\n\nThis is about HOW MANY cable walls the link carries, not " \
+                    "where they sit. Moving the walls around in the booth builder is fine " \
+                    "and does not cause this.\n\nFull detail is in the Ruby " \
+                    "Console. To build anyway, set RM_HALF_APPLY_ABORTS = false in " \
+                    'booth-from-link.rb.')
       return
     end
 

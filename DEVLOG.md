@@ -1,5 +1,74 @@
 # DEVLOG
 
+## 2026-09-09
+
+### A roof-mounted booth refused to build once its cable walls were moved — 1.19.14
+
+Benton, off an MDL 96120 E, Enhanced, ADA door right, roof mount + VSS, one
+structural mod: the booth-builder link tool refused the whole build with
+
+    1 of 3 vent slot(s) carry a cable-wall (CBL) pack; a roof-mounted booth
+    must carry one on every single one
+      N0: "STDWL46" — expected a CBL pack here
+      N2: "STDWL46" — expected a CBL pack here
+
+Leave the walls where the layout puts them and the same design builds. He had
+dragged the cable walls onto other walls in the booth builder, and N0 / N2 read
+a plain solid wall because of it — the cable walls were in the payload the
+whole time, somewhere else.
+
+**Root cause.** `roof_vent_complaints` in `scripts/booth-from-link.rb` called
+`vent_slot_ids(key)`, which returns the layout's DEFAULT VNT slot ids out of
+`scripts/wr-booth-data.rb`, and then demanded a CBL pack at each of THOSE ids.
+That is an identity check on slot position. The product rule is a count.
+
+The portal agrees, and it is the authority here: `applyRoofVent()`
+(`booth-builder.html:4195`) rewrites ' VNT' to ' CBL' on whatever slot holds a
+vent pack and never looks at the slot's id, and `doSwap()` (`:4360-4405`) moves
+wall packs between any two slots of the same module width — so a cable wall on a
+slot whose layout default is SOLID is an ordinary, buildable design. The only
+invariant `applyDesign()` holds is the one its own comment names,
+`(VNT + CBL) === ventSets` (`:3496-3536`). All observed, read from the sibling
+repo; nothing there was changed.
+
+**The fix.** `roof_vent_complaints` now counts CBL packs across EVERY outer
+panel slot the model has (new `outer_panel_ids`, alongside `vent_slot_ids`; both
+route through one `outer_panels` reader) and compares that count against the
+vent-set count. Position is not consulted. The real refusal survives untouched:
+a link carrying fewer cable walls than the booth has ventilated walls — a
+genuinely half-applied swap, leftover VNT walls, or a truncated pack map — is
+still refused before any geometry, and now says which walls are still ventilated
+and how many are missing outright rather than naming the "wrong" slot. Console
+and messagebox both say it is a count and that rearranging walls is fine.
+
+A surplus of cable walls is deliberately NOT refused: the builder cannot produce
+one (doSwap moves packs, applyRoofVent only converts VNT to CBL), and inventing a
+second refusal is how the first one got too strict.
+
+**The vent-set count is sound.** The number of default VNT slots equals
+`base-bom.json`'s `F01` (STD VENTILATION SET, the number the packing list bills
+EFS and VSS off) for all 25 layouts — checked, not assumed.
+
+**Downstream was already correct.** The slot-to-part translation follows the
+PACK, not the layout default: `component_for` matches on the pack string alone,
+and `build-booth-components.rb:2175` places `assign[p[:id]]` per slot id, falling
+back to the layout's `:sk` only for a slot left unassigned. Proven on the real
+data — the moved slots emit `46PanelCBL` / `ENH 41.5PanelCBL` and the vacated
+default vent slots emit `46PanelSolid` / `ENH 41.5PanelSolid`, with no vent part
+anywhere in the booth. There was no second, quieter bug.
+
+**Tests.** `scripts/rbtest-boothlink-cbl.py` group 5 is the reported payload with
+stubbed slot lists; `.forge/fixer/rm-moved-cbl/repro-moved-cbl.py` is the same
+design against the real `wr-booth-data.rb` plus the part-translation check. Six
+checks failed before the change, including the top one reproducing Benton's
+messagebox verbatim; all pass after. `scripts/rbparse.py` clean on all 66 files.
+
+**Unrun, and it matters:** nothing here executed inside SketchUp. There is no
+`ruby.exe` on this machine and no live bridge, so the fence, the data reader and
+the translation were exercised through SketchUp's own CRuby 3.2 outside the
+application. The build itself — `build_booth` placing those parts in a model —
+has not been run against this design.
+
 ## 2026-09-08
 
 ### The MJP was upside down with its back to the room — 1.19.13
