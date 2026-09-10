@@ -42,7 +42,7 @@ WHAT IT ASSERTS
   6. side_slab and aabb_overlap? — the obstruction test.
   7. catalogue_extent and reconcile — the printed cross-check, its 1/4 in
      tolerance and its axis naming.
-  8. ONE AXIS PER WALL (1.38.0): a protrusion on each of the four walls
+  8. ONE AXIS PER WALL (1.40.0): a protrusion on each of the four walls
      extends exactly the bound normal to that wall and never the other
      axis; the shell corners come from the corner seals; each protrusion
      is reported as proud (its own axis) and overhang (the other axis, not

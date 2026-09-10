@@ -1457,7 +1457,7 @@ of that. Nothing of theirs is in my commit.
 
 ---
 
-# HANDOFF — booth dimensions: one axis per wall + set inside the booth (Builder, 10 Sep 2026, 1.38.0)
+# HANDOFF — booth dimensions: one axis per wall + set inside the booth (Builder, 10 Sep 2026, 1.40.0)
 
 Field fix on 1.37.0 after Benton's first run. Unrun in SketchUp.
 
@@ -1470,7 +1470,9 @@ Field fix on 1.37.0 after Benton's first run. Unrun in SketchUp.
   console prints axes legend, every proud/overhang part with inches, and
   the "lives inside the booth" line.
 - `scripts/rbtest-boothdims.py` — 106 checks; mutant list updated.
-- VERSION 1.38.0 (minor: where the entities live changed).
+- VERSION 1.40.0 (minor: where the entities live changed; 1.38.0 was
+  drafted but another agent shipped 1.39.0 first, and the rebase dropped
+  the bump — fixed in a follow-up commit).
 
 ## Decisions
 - Set INSIDE the booth group, not a sibling: the tool already drew in the

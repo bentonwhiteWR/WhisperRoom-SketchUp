@@ -1,7 +1,7 @@
 # DEVLOG
 
 ## 2026-09-10
-### Booth dimensions: a protrusion extends only its own wall's axis, and the set lives inside the booth — 1.38.0
+### Booth dimensions: a protrusion extends only its own wall's axis, and the set lives inside the booth — 1.40.0
 
 Benton, first field run, on a booth with EFS silencers: *"so this is
 really close with the efs. However, sometimes a back wall will have an EFS
