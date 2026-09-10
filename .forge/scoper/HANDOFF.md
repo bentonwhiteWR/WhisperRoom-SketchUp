@@ -1,54 +1,60 @@
-# HANDOFF — Scoper → Benton (approval) → Builder: per-scene ANNOTATIONS, rev 2 (hybrid)
+# HANDOFF — Scoper → Benton (approval) → Builder: click a WhisperRoom, get its dimensions
 
-2026-09-09. Rev 1 (tags only) superseded the same day by the live probe. Prior mission's
-handoff preserved as `.forge/scoper/HANDOFF-peoplesspace.md`.
-**Approval gate: Benton has not approved anything yet.**
+2026-09-10. Prior mission's handoff preserved as `.forge/scoper/HANDOFF-scene-annotations.md`.
+**Approval gate: Benton has not approved anything yet. No code until he points at a variant.**
 
 ## Produced
-- `.forge/scoper/scene-annotations.md` — rev 2 spec: probe output verbatim, why the one
-  FAIL (Untagged cannot be hidden) reshapes the design, the unified-list interaction model,
-  9 ordered steps with file:line, 14 acceptance criteria, manifest fields, open forks.
-- `.forge/scoper/scene-annotations.mockup.html` — rev 2 mockup: one picker with set rows
-  (expandable to their callouts) and loose-callout rows with `all · none`; probe evidence;
-  manifest sample; approve/needs-changes strips; six forks; copy-back JSON. Published:
-  **https://claude.ai/code/artifact/53cfa4ec-b6fd-407e-9377-d2c4ae65cc69** (same URL, v2)
-- `.forge/scoper/probe-scene-annotations.rb` — the probe that was run; keep it, the Builder
-  re-runs it on the acceptance model and pastes the output into the DEVLOG.
+- `.forge/scoper/booth-dimensions-spec.md` — what the reference image is (decoded to an
+  MDL 7296 E), the height figure settled, nine named defects in today's tools, eleven
+  decisions, the identification / extent / anchor / placement rules, ownership and removal,
+  panel wiring, twelve bridge-verified acceptance checks, ten open questions with defaults.
+- `.forge/scoper/booth-dimensions-mockup.html` — standalone, inline SVG, to scale from the
+  7296 E's own numbers: **A** (three dims, height off the rear — recommended), **A′** (height
+  off the side, for a booth against a wall), **B** (optional plan set with interior clear).
+  Rendered in headless Chrome and inspected; no external resources.
+- Nothing under `scripts/` touched; VERSION untouched.
 
 ## Read-first (Builder)
-1. `scene-annotations.md` §"The evidence" and §"Why the FAIL is load-bearing" — the design
-   rests on those ten lines; §"Approach — one list, one rule" is the interaction contract.
-2. `scripts/wr-scene-walls.rb` in full — the shape `wr-scene-annotations.rb` mirrors
-   (do not edit the walls file; the new module carries its own `apply_selection`).
-3. `scripts/proposal-package.rb` 2905–2996 (walls callbacks), 3050–3320 (CSS/markup),
-   3500–3620 (walls modal JS), 449–570 + 2194–2410 (manifest), 1422–1480 (`annot_push`/
-   `annot_pop`, for the client-safe hole in Step 7).
-4. `scripts/wr-mode.rb` 170–200 and 300–345; `scripts/proposal-scenes.rb` 40–70.
-5. Benton's copy-back JSON from the mockup, once it arrives — it overrides the spec's
-   decision table.
+1. Spec §1 (the height), §3 (defects D1–D3 are the load-bearing ones), §6–§7 (extent and
+   anchors) — that is the whole design; §10 is the exit criterion.
+2. `scripts/dimension-booth.rb` 173-330 — keep its identification and `vents_from_model`
+   regexes; discard its `draw`, `HEIGHTS`, `BASE_Z`, `VENT_PROUD`-as-drawn, and the label.
+3. `scripts/auto-dimension.rb` 1.17.0 attachment code (resolve to vertex / ConstructionPoint,
+   count `:loose`) — the precedent for §7.
+4. `scripts/build-booth-components.rb` 2440-2460, 2660-2680, 1262-1270; `scripts/wr-deck.rb`
+   `NAME` / `ENH_NAME` (318, 346); `scripts/wr-overlays.rb` `add` (650) and 1416 — the part
+   names the extent rules key on.
+5. `scripts/proposal-scenes.rb` 40-115 — the tag stays `WR-Dims-Booth`; nothing there changes.
+6. `scripts/sketchup-bridge.py` header — every acceptance check runs through it.
+7. Benton's answers to Q1–Q10 (spec §11), which override the defaults.
 
 ## Assumptions
-- **observed (probe, SketchUp 26.2.243, 9 Sep 2026):** scenes save per-tag visibility
-  (`set_visibility`/`Page#layers`) and per-entity hidden state for screen text, leader text,
-  linear dimensions and 3D-text groups via `page.update(384)`; that mask leaves the camera
-  identical; **Untagged cannot be hidden.**
-- **observed (repo/DEVLOG):** Draft annotation mode hides only `LIGHT_TAGS` after each page
-  switch, so scene state already governs export; `annot_push` hides tags only.
-- **derived:** hand-placed Untagged text goes out on a client-safe image today (tags-only
-  hide + Untagged unhideable) — Step 7 closes it; a tag-only picker could not have reached
-  most of Benton's existing text; `page.update(384)` re-saves wall flags the scene already
-  asserted on open, so no new hazard.
-- **assumed:** most of Benton's existing text is on Untagged (hand-placed text lands on the
-  active tag). If wrong, nothing breaks — sets simply matter more.
-- **reported:** V-Ray ignores SketchUp Text/Dimensions; renders 3D-text geometry when visible.
-- Not verified today: the picker itself (no code exists), the manifest fields, the V-Ray lane.
+- **observed (code):** all three current tools, their tags, colours, settings, placement,
+  `clear` scope; the 7296/96120 data; the part-naming conventions; the 46VNT / door part
+  sizes in `P:\Sketchup\NewMasterComponentList\_component-probe.tsv`; the bridge exists.
+- **derived:** the reference image's three strings = 98 / 74+5.5 / 84.3125 → a 7296 with
+  Enhanced height; 84.3125 = mat underside → tray top from the builder's own datums (mat
+  −1.3125, ceiling top 82.0, tray drop 0.75, tray box 1.75); the current Enhanced height
+  string floats 5/16" at both ends after the 1.33.0 lift; a built 96120 once had its E vent
+  ~6 7/16" proud, so measured geometry and the 5.5" rule can disagree.
+- **reported:** the reference image itself (operator's description — I have not seen it);
+  the `InstancePath` overload of `add_dimension_linear` for nested vertices (API memory —
+  Builder verifies on the bridge first; ConstructionPoint fallback is specified).
+- **assumed:** Benton's usual camera is front-right three-quarter (the proposal plates lead
+  with one); "click a whisperroom" means a pick, not a selection observer.
+- Not verified: anything in a live SketchUp. I cannot run it; the Builder must, via the
+  bridge, on a 7296 E, a 96120 S and a 96120 E.
 
-## Open-questions (for Benton, in the mockup's copy-back)
-1. Q1 separate ANNOTATIONS column (recommended) vs one HIDE… button with Walls/Notes tabs.
-2. Q3 new sets named `WR-Notes-<name>` — prefix editable; sets are optional now.
-3. Q4 Client-safe stays the dropdown default (recommended).
-4. Q7 callouts inside a set behind an expand arrow (recommended) vs always listed.
-5. Q-CS close the Untagged client-safe hole in this build (recommended) vs later with a
-   warning in the dropdown text.
-6. Q6 wording: column header, row-button label.
-Settled, no longer asked: ticked = hidden; single-callout hiding in scope; Untagged never a set.
+## Open-questions (for Benton — the mockup carries the short form)
+1. Q1 height off the rear (A) or the side (A′), or auto by what is behind the booth.
+2. Q2 three only (A) or also the plan/interior set (B).
+3. Q3 was the reference hand-drawn with SketchUp's own tool, or the old tool's output moved.
+4. Q4 drawn geometry vs the 5 1/2" vent rule when they disagree — and whether the builder's
+   vent seating should be fixed to 5 1/2" (separate job).
+5. Q5 Enhanced interior clear height (only if B).
+6. Q6 24" standoff. Q7 pick tool + select-then-button. Q8 clear per booth / Esc = all.
+   Q9 auto-dimension after Booth-from-link (default no). Q10 black confirmed.
+
+## Blockers
+- None for approval. For the build: Q4 decides whether acceptance check 1 is expected to pass
+  clean or to print the mismatch block on the first 7296 E.

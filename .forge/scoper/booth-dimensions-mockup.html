@@ -1,0 +1,215 @@
+<title>Booth Dimensions</title>
+<style>
+  :root{--bg:#f7f6f3;--ink:#1a1a1a;--muted:#5d5d5d;--line:#d9d6cf;--card:#ffffff;--orange:#ee6216;--dim:#111111;--wit:#6b6b6b;--face:#f1f0ec;--face2:#e2e0da;--face3:#cfccc4;--hid:#9a9790}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding-block:28px;padding-inline:20px}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 4px;font-weight:700}
+  h1 span{color:var(--orange)}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:18px}
+  .card h2{font-size:16px;margin:0 0 6px}
+  .card h2 .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--orange);border-radius:4px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+  .card h2 .tag.grey{background:#7a7a7a}
+  .card p{margin:6px 0}
+  .fig{overflow-x:auto;background:#fff;border:1px dashed var(--line);border-radius:6px;margin:10px 0}
+  svg{display:block;max-width:100%;height:auto}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}
+  th{font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  code{font:12px/1.4 Consolas,Menlo,monospace;background:#f0eee9;padding:1px 4px;border-radius:3px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted);margin-top:8px}
+  .legend i{display:inline-block;width:26px;height:0;border-top:2px solid var(--dim);vertical-align:middle;margin-right:6px}
+  .legend i.w{border-top:1px solid var(--wit)}
+  .legend i.h{border-top:1px dashed var(--hid)}
+  .legend i.o{border-top:2px solid var(--orange)}
+  .q{background:#fff7f2;border:1px solid #f4c9ae;border-radius:8px;padding:12px 16px}
+  .q ol{margin:6px 0 0 18px;padding:0}
+  .q li{margin:5px 0}
+  .prov{font-size:12px;color:var(--muted)}
+  .kbd{display:inline-block;border:1px solid #bbb;border-bottom-width:2px;border-radius:4px;padding:0 5px;font:12px Consolas,Menlo,monospace;background:#fafafa}
+</style>
+
+<div class="wrap">
+  <h1>Click a WhisperRoom, get its dimensions <span>— placement mockup</span></h1>
+  <p class="sub">Drawn to scale from the reference image's own booth: an <b>MDL 7296 E</b>, vents on the far (north) face — <b>8' 2" × 6' 7 1/2" × 7' 5/16"</b>. Nothing here is code; it is the look to approve before anything is built. Point at a variant by its letter.</p>
+
+  <div class="card">
+    <h2><span class="tag">A · recommended</span>Three exterior dimensions, exactly as your image</h2>
+    <p>Width along the front ground edge, depth along the right-hand ground edge, height up the <b>right-rear</b> corner. Every witness line starts on a real booth corner. Standoff <b>24"</b> on all three (was 24" before; auto-dimension's room chain moved to 20/33/48 after "way too close to the walls"). The height line stands off the <b>rear</b> of the right-hand face — it never meets the depth line.</p>
+    <div class="fig" id="figA"></div>
+    <div class="legend"><span><i></i>dimension line + slash ticks + text (SketchUp draws these; model-wide style)</span><span><i class="w"></i>witness line, from the corner, past the dimension line</span><span><i class="h"></i>hidden edge: the vent housing on the far face, +5 1/2"</span></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag grey">A′ · alternative</span>Same three, height pushed out to the <em>side</em> instead of the rear</h2>
+    <p>For a booth backed 1" off a wall (the house convention), a rear push buries the height line in the wall. Pushing it sideways keeps it in the room, but it then shares a corner with the depth line, so it goes out 1.5× further (36") and the two witness lines overlap on the ground. <b>Which of A / A′ your reference image is, I could not tell from the description — see Q3.</b> The tool can pick A′ automatically when something sits within 24" behind the booth.</p>
+    <div class="fig" id="figA2"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag grey">B · optional add-on</span>A plan set with the interior clear space — <em>not</em> in your image</h2>
+    <p>The PeoplesSpace pack needed the customer's clear floor space. That is a plan question, so if you want it, it is a <b>second, separate set on its own tag</b> (<code>WR-Dims-Booth-Plan</code>) that a top-down scene shows and the three-quarter scenes hide — never mixed into A. Interior figures come from the catalogue data (<code>:eiw/:eih</code> for Enhanced, <code>:iw/:ih</code> for Standard), not measured. Interior <b>height</b> is 6' 8" for Standard only; the Enhanced figure has never been given (Q5).</p>
+    <div class="fig" id="figB"></div>
+  </div>
+
+  <div class="card">
+    <h2>What each string is, and where the number comes from</h2>
+    <table>
+      <tr><th>String</th><th>Inches</th><th>What it measures on the model</th><th>Provenance</th></tr>
+      <tr><td><b>8' 2"</b></td><td>98.0</td><td>Outer corner seal to outer corner seal across the door wall (X)</td><td>catalogue <code>:w</code> — the built shell should measure the same; the tool measures and compares</td></tr>
+      <tr><td><b>6' 7 1/2"</b></td><td>79.5</td><td>Outer corner seal on the door wall to the <b>outside face of the vent housing</b> on the far wall (Y): 74 + 5.5</td><td>catalogue <code>:h</code> + Benton's 5 1/2" per vented face. <b>Open:</b> a built 96120 once measured 6 7/16" proud on its E vent, not 5 1/2" — Q4</td></tr>
+      <tr><td><b>7' 5/16"</b></td><td>84.3125</td><td>Underside of the 5/16" rubber mat to the top of the IEP ceiling tray. <b>This is 7'-0 5/16"</b> — SketchUp drops the zero inches. It is the drawn Enhanced exterior, the same figure the PeoplesSpace 96120 E renders carried, and it is <em>derived</em> from the builder's own datums: mat −1.3125 → standard ceiling top 82.0 → tray bottom 81.25 → tray top 83.0.</td><td>derived from <code>build-booth-components.rb</code> constants; the catalogue 7'-1" is <em>install clearance</em>, never drawn. Standard reads 6' 11" (83.0)</td></tr>
+    </table>
+    <p class="prov">The tool will <b>measure</b> all three off the built parts and print the catalogue comparison beside them. A mismatch over 1/4" is said out loud, never hidden — the dimension always reads what is drawn, because that is what SketchUp prints on it.</p>
+  </div>
+
+  <div class="card">
+    <h2>How it is used</h2>
+    <div class="grid">
+      <div><b>Click the panel button, then click the booth.</b> The cursor becomes a pick; click any part of a WhisperRoom and the three strings appear. <span class="kbd">Esc</span> cancels. If a booth is already selected when you press the button, it skips the pick.</div>
+      <div><b>No dialog, no settings.</b> No Standard/Enhanced choice (that was a way to draw the wrong height), no vents box, no label above the booth. The console still prints the reconciliation.</div>
+      <div><b>Click it again and it re-measures.</b> Each booth carries its own set; re-running on booth 1 never touches booth 2. A second button, <i>Clear WhisperRoom dimensions</i>, removes one booth's set (pick it) or all of them (<span class="kbd">Esc</span>).</div>
+      <div><b>Tag <code>WR-Dims-Booth</code>, plain black.</b> Same tag name as today, so the proposal package, the ANNOTATIONS picker and client-safe already know it. The orange on today's tag only ever showed under Color-by-Tag; the dimensions themselves have always drawn in the model's dimension colour, which is why your image is black.</div>
+    </div>
+  </div>
+
+  <div class="q">
+    <b>Questions only you can answer (point at a letter or a number):</b>
+    <ol>
+      <li><b>A or A′</b> for the height line — off the rear, or off the side? Or "let the tool choose by what is behind the booth".</li>
+      <li><b>Just the three (A), or A + the plan set (B)?</b> B needs a top-down scene to be worth anything.</li>
+      <li>Was your reference image <b>drawn by hand</b> with SketchUp's own Dimension tool, or the old tool's output that you moved? (Tells us whether its witness lines sit on the geometry — the new tool's will.)</li>
+      <li>When the built model's vent housing stands <b>other than 5 1/2"</b> proud, which wins on the drawing: what is drawn, or the 5 1/2" rule? (Recommended: the dimension reads what is drawn, and the builder gets fixed to seat vents at 5 1/2" if that is the real product.)</li>
+      <li>Only if B: what is the <b>Enhanced interior clear height</b>? (Standard is your 6' 8".)</li>
+      <li>Standoff <b>24"</b> — fine, or further?</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- projection: camera at the south-east, looking north-west, 35 deg up ----------
+  const EL = 35*Math.PI/180, R = Math.SQRT1_2, S = 2.55;
+  function P(x,y,z){ const sx = R*(x+y); const up = Math.sin(EL)*R*(-x+y) + Math.cos(EL)*z; return [sx*S, -up*S]; }
+  function fmt(pt){ return pt[0].toFixed(1)+','+pt[1].toFixed(1); }
+
+  // ---------- booth: MDL 7296 E, vents on N ----------
+  const W=98, D=74, H=84.3125, VP=5.5, DV=D+VP;           // exterior box, vent proud, extent depth
+  const vents=[[2,48],[50,96]], ventH=82;                 // 46VNT housings on the N face, box height
+  const door=[2,48], doorH=81;                            // S0 door frame slot
+
+  function svgBuild(el, drawFn, pad){
+    const parts=[]; const pts=[];
+    const ctx={
+      poly(p3, cls, style){ const pp=p3.map(p=>P(...p)); pp.forEach(p=>pts.push(p)); parts.push('<polygon points="'+pp.map(fmt).join(' ')+'" '+style+'/>'); },
+      line(a,b,style){ const A=P(...a),B=P(...b); pts.push(A,B); parts.push('<line x1="'+A[0].toFixed(1)+'" y1="'+A[1].toFixed(1)+'" x2="'+B[0].toFixed(1)+'" y2="'+B[1].toFixed(1)+'" '+style+'/>'); },
+      raw(s){ parts.push(s); },
+      P, push(p){ pts.push(p); }
+    };
+    drawFn(ctx);
+    let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9; pts.forEach(p=>{minx=Math.min(minx,p[0]);miny=Math.min(miny,p[1]);maxx=Math.max(maxx,p[0]);maxy=Math.max(maxy,p[1]);});
+    pad=pad||46; const vb=[minx-pad,miny-pad,(maxx-minx)+2*pad,(maxy-miny)+2*pad];
+    el.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+vb.map(v=>v.toFixed(0)).join(' ')+'" width="'+Math.round(vb[2])+'" height="'+Math.round(vb[3])+'" font-family="Arial, Helvetica, sans-serif">'+parts.join('')+'</svg>';
+  }
+
+  const F1='fill="#f1f0ec" stroke="#333" stroke-width="1.1" stroke-linejoin="round"';   // top
+  const F2='fill="#e2e0da" stroke="#333" stroke-width="1.1" stroke-linejoin="round"';   // south (front-left)
+  const F3='fill="#cfccc4" stroke="#333" stroke-width="1.1" stroke-linejoin="round"';   // east (front-right)
+  const HID='stroke="#9a9790" stroke-width="1" stroke-dasharray="4 3" fill="none"';
+  const DIM='stroke="#111" stroke-width="1.4" fill="none"';
+  const WIT='stroke="#6b6b6b" stroke-width="0.9" fill="none"';
+
+  // 3D linear dimension: points a,b; offset vector off (inches); text; witness extends 12% past the line
+  function dim(c, a, b, off, text, opts){
+    opts=opts||{};
+    const add=(p,k)=>[p[0]+off[0]*k, p[1]+off[1]*k, p[2]+off[2]*k];
+    const a1=add(a,1), b1=add(b,1);
+    c.line(add(a,0.06), add(a,1.12), WIT); c.line(add(b,0.06), add(b,1.12), WIT);   // witness lines, small gap at the geometry
+    c.line(a1,b1,DIM);
+    // slash ticks in screen space
+    const A=P(...a1),B=P(...b1); const dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy); const ux=dx/L,uy=dy/L;
+    const tick=(pt)=>{ const t=5.5; const sx=(ux-uy)*t, sy=(uy+ux)*t; c.raw('<line x1="'+(pt[0]-sx).toFixed(1)+'" y1="'+(pt[1]-sy).toFixed(1)+'" x2="'+(pt[0]+sx).toFixed(1)+'" y2="'+(pt[1]+sy).toFixed(1)+'" stroke="#111" stroke-width="1.4"/>'); };
+    tick(A); tick(B);
+    // text, screen-aligned, centred on the line, lifted off it
+    const mx=(A[0]+B[0])/2, my=(A[1]+B[1])/2; const nx=-uy, ny=ux; const side=opts.textSide||-1; const gap=opts.textGap||10; const tx=mx+nx*gap*side, ty=my+ny*gap*side;
+    c.raw('<text x="'+tx.toFixed(1)+'" y="'+(ty+4).toFixed(1)+'" font-size="13" font-weight="600" fill="#111" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">'+text+'</text>');
+    c.push([tx-44,ty-12]); c.push([tx+44,ty+12]);
+  }
+  function note(c, p3, text, dxs, dys){ const p=P(...p3); c.raw('<text x="'+(p[0]+dxs).toFixed(1)+'" y="'+(p[1]+dys).toFixed(1)+'" font-size="11" fill="#5d5d5d">'+text+'</text>'); c.push([p[0]+dxs-10,p[1]+dys-12]); c.push([p[0]+dxs+text.length*5.6,p[1]+dys+4]); }
+
+  function booth(c){
+    // vent housings on the far face (mostly hidden from this camera) — hidden edges dashed
+    vents.forEach(([x0,x1])=>{
+      c.poly([[x0,D,0],[x1,D,0],[x1,DV,0],[x0,DV,0]], '', HID);
+      c.line([x1,DV,0],[x1,DV,ventH],HID); c.line([x0,DV,0],[x0,DV,ventH],HID);
+      c.line([x0,DV,ventH],[x1,DV,ventH],HID);
+      c.poly([[x1,D,0],[x1,DV,0],[x1,DV,ventH],[x1,D,ventH]], '', 'fill="#d8d6cf" stroke="#333" stroke-width="1" stroke-linejoin="round"');
+      c.poly([[x0,D,ventH],[x1,D,ventH],[x1,DV,ventH],[x0,DV,ventH]], '', 'fill="#eceae5" stroke="#333" stroke-width="1" stroke-linejoin="round"');
+    });
+    // main box: south face, east face, top
+    c.poly([[0,0,0],[W,0,0],[W,0,H],[0,0,H]], '', F2);
+    c.poly([[W,0,0],[W,D,0],[W,D,H],[W,0,H]], '', F3);
+    c.poly([[0,0,H],[W,0,H],[W,D,H],[0,D,H]], '', F1);
+    // mat + floor seam lines on the visible faces (5/16 mat, 1" floor, walls above)
+    c.line([0,0,1.3125],[W,0,1.3125],'stroke="#333" stroke-width="0.6"'); c.line([W,0,1.3125],[W,D,1.3125],'stroke="#333" stroke-width="0.6"');
+    c.line([0,0,H-1.75],[W,0,H-1.75],'stroke="#333" stroke-width="0.6"'); c.line([W,0,H-1.75],[W,D,H-1.75],'stroke="#333" stroke-width="0.6"');
+    // door frame on the south face (frame only; the swung leaf is deliberately not part of the extent)
+    c.poly([[door[0],0,1.3125],[door[1],0,1.3125],[door[1],0,doorH],[door[0],0,doorH]], '', 'fill="#e8e6e0" stroke="#333" stroke-width="0.9"');
+    c.line([door[0]+3,0,1.3125],[door[0]+3,0,doorH],'stroke="#333" stroke-width="0.6"');
+    c.raw('<circle cx="'+P(door[1]-4,0,40)[0].toFixed(1)+'" cy="'+P(door[1]-4,0,40)[1].toFixed(1)+'" r="1.8" fill="#333"/>');
+    // ground shadow line for orientation
+    note(c,[0,DV,ventH],'vent housings on the far (N) face, +5 1/2" (dashed = hidden)',-150,-10);
+    note(c,[door[1]+3,0,4],'door wall = front',0,0);
+  }
+
+  const G=24;
+  // ---------- A: height off the rear ----------
+  svgBuild(document.getElementById('figA'), c=>{
+    booth(c);
+    dim(c,[0,0,0],[W,0,0],[0,-G,0],"8' 2\"",{textSide:1});
+    dim(c,[W,0,0],[W,DV,0],[G,0,0],"6' 7 1/2\"",{textSide:1});
+    dim(c,[W,DV,0],[W,DV,H],[0,G,0],"7' 5/16\"",{textSide:1,textGap:34});
+    note(c,[W,DV+G,H],'height line stands off the REAR of the right-hand face',10,-8);
+    note(c,[W,DV+G,0],'24" standoff on all three',10,16);
+  });
+  // ---------- A′: height off the side ----------
+  svgBuild(document.getElementById('figA2'), c=>{
+    booth(c);
+    dim(c,[0,0,0],[W,0,0],[0,-G,0],"8' 2\"",{textSide:1});
+    dim(c,[W,0,0],[W,DV,0],[G,0,0],"6' 7 1/2\"",{textSide:1});
+    dim(c,[W,DV,0],[W,DV,H],[1.5*G,0,0],"7' 5/16\"",{textSide:1,textGap:34});
+    note(c,[W+1.5*G,DV,H],'height line 36" out to the SIDE, past the depth line',10,-8);
+    note(c,[W+1.5*G,DV,0],'the two witness lines overlap on the ground here',10,18);
+  });
+
+  // ---------- B: plan set with interior clear (2D, north up) ----------
+  (function(){
+    const s=2.3, ox=90, oy=40; const iw=89.5, ih=65.5;                 // 7296 E inner shell interior
+    const X=x=>ox+x*s, Y=y=>oy+(DV+20-y)*s;                             // y up
+    const p=[]; const L=(x1,y1,x2,y2,st)=>p.push('<line x1="'+X(x1).toFixed(1)+'" y1="'+Y(y1).toFixed(1)+'" x2="'+X(x2).toFixed(1)+'" y2="'+Y(y2).toFixed(1)+'" '+st+'/>');
+    const R=(x0,y0,x1,y1,st)=>p.push('<rect x="'+X(x0).toFixed(1)+'" y="'+Y(y1).toFixed(1)+'" width="'+((x1-x0)*s).toFixed(1)+'" height="'+((y1-y0)*s).toFixed(1)+'" '+st+'/>');
+    const T=(x,y,t,st)=>p.push('<text x="'+X(x).toFixed(1)+'" y="'+Y(y).toFixed(1)+'" '+(st||'')+' font-size="12" font-weight="600" fill="#111" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">'+t+'</text>');
+    const tick=(x,y,horiz)=>{ const t=5; const cx=X(x),cy=Y(y); p.push('<line x1="'+(cx-t).toFixed(1)+'" y1="'+(cy+t).toFixed(1)+'" x2="'+(cx+t).toFixed(1)+'" y2="'+(cy-t).toFixed(1)+'" stroke="#111" stroke-width="1.4"/>'); };
+    // walls + vents + door
+    R(0,0,W,D,'fill="#e2e0da" stroke="#333" stroke-width="1.2"');
+    R(2,2,W-2,D-2,'fill="#fff" stroke="#333" stroke-width="0.8"');
+    vents.forEach(([x0,x1])=>R(x0,D,x1,DV,'fill="#d8d6cf" stroke="#333" stroke-width="1"'));
+    // door opening + swing (leaf out, hinge at the door slot's left jamb) — drawn only for orientation
+    L(door[0],0,door[1],0,'stroke="#fff" stroke-width="3"'); L(door[0],0,door[0],-40,'stroke="#8b4513" stroke-width="2"');
+    p.push('<path d="M '+X(door[0]).toFixed(1)+' '+Y(-40).toFixed(1)+' A '+(40*s).toFixed(1)+' '+(40*s).toFixed(1)+' 0 0 0 '+X(door[0]+40).toFixed(1)+' '+Y(0).toFixed(1)+'" fill="none" stroke="#8b4513" stroke-width="0.8" stroke-dasharray="3 3"/>');
+    // interior clear rectangle (inner shell), dashed
+    const ix0=(W-iw)/2, iy0=(D-ih)/2;
+    R(ix0,iy0,ix0+iw,iy0+ih,'fill="none" stroke="#ee6216" stroke-width="1.2" stroke-dasharray="6 4"');
+    // exterior dims (black, outside)
+    L(0,0,0,-G-8,WIT); L(W,0,W,-G-8,WIT); L(0,-G,W,-G,DIM); tick(0,-G); tick(W,-G); T(W/2,-G-6,"8' 2\"");
+    L(W,0,W+G+8,0,WIT); L(W,DV,W+G+8,DV,WIT); L(W+G,0,W+G,DV,DIM); tick(W+G,0); tick(W+G,DV); T(W+G+16,DV/2,"6' 7 1/2\"",'transform="rotate(-90 '+X(W+G+16).toFixed(1)+' '+Y(DV/2).toFixed(1)+')"');
+    // interior dims (orange, inside, secondary)
+    const ODIM='stroke="#ee6216" stroke-width="1.2" fill="none"', OW='stroke="#ee6216" stroke-width="0.8" fill="none"';
+    const yl=iy0+14; L(ix0,yl,ix0+iw,yl,ODIM); L(ix0,iy0,ix0,yl+6,OW); L(ix0+iw,iy0,ix0+iw,yl+6,OW); T(W/2,yl+4,"7' 5 1/2\" clear",'fill="#ee6216"');
+    const xl=ix0+iw-14; L(xl,iy0,xl,iy0+ih,ODIM); L(ix0+iw,iy0,xl-6,iy0,OW); L(ix0+iw,iy0+ih,xl-6,iy0+ih,OW); T(xl-6,iy0+ih/2,"5' 5 1/2\" clear",'transform="rotate(-90 '+X(xl-6).toFixed(1)+' '+Y(iy0+ih/2).toFixed(1)+')"');
+    p.push('<text x="'+X(0).toFixed(1)+'" y="'+(Y(DV)-12).toFixed(1)+'" font-size="11" fill="#5d5d5d">N ↑  plan, MDL 7296 E — exterior black, interior clear orange (catalogue, not measured)</text>');
+    document.getElementById('figB').innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+(ox*2+W*s+60)+' '+(oy+ (DV+20+G+40)*s)+'" width="'+(ox*2+W*s+60)+'" height="'+(oy+(DV+20+G+40)*s)+'" font-family="Arial, Helvetica, sans-serif">'+p.join('')+'</svg>';
+  })();
+})();
+</script>
