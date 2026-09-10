@@ -565,7 +565,15 @@ module WR_ProposalPackage
     'two_point_view_after_write (image rows only): the flag after ' \
     'view.write_image, read on the page the export went back to; a true -> ' \
     'false change across the write points at write_image. true after the ' \
-    'write does NOT prove the file is two-point - look at its verticals.'
+    'write does NOT prove the file is two-point - look at its verticals.',
+    'transparent_background true means the batch was asked for alpha ' \
+    'backgrounds (plain images: write_image :transparent with sky/ground/fog ' \
+    'off; renders: V-Ray\'s own alpha on save). alpha_channel per row is what ' \
+    'the PNG on disk actually carries (IHDR colour type 6 = RGBA): true, ' \
+    'false, or null if unread. A PROPOSAL PACK WANTS OPAQUE PLATES - flatten ' \
+    'any alpha_channel: true file onto white (scripts/wr-flatten-trim.py) ' \
+    'before building one. Only what the camera sees through is transparent; ' \
+    'modelled room walls stay opaque.'
   ].freeze
 
   # A top-level group/component whose NAME names a booth model. The builders
@@ -657,6 +665,8 @@ module WR_ProposalPackage
       if r && r.key?(:two_point_after)
         row['two_point_view_after_write'] = r[:two_point_after].nil? ? nil : r[:two_point_after]
       end
+      # 1.30.0 — what the PNG on disk carries. null = not read.
+      row['alpha_channel'] = (r && !r[:alpha_channel].nil?) ? r[:alpha_channel] : nil
       row['annotation_tags_shown']  = p[:shown]
       row['annotation_tags_hidden'] = p[:hid]
       row['annotation_note'] = p[:shown_note] if p[:shown_note]
@@ -1381,6 +1391,12 @@ module WR_ProposalPackage
     @annot_saved   = nil
     @annot_saved_entities = nil
     @client_safe   = client_safe
+    # TRANSPARENT BACKGROUND (1.30.0). Per run, default OFF, deliberately
+    # NOT written to the prefs: an opaque/transparent state that silently
+    # carried over from last week is exactly how a client pack would end up
+    # with alpha plates (CLAUDE.md: never drop a transparent PNG into the
+    # pack). The manifest and every row detail say which way it went.
+    @transparent   = (cfg['transp'] == true)
     @mode_note     = nil
     @quality_problems = []
     @srgb_problems = []
@@ -1435,6 +1451,13 @@ module WR_ProposalPackage
     puts "PROPOSAL PACKAGE — #{image_rows.size} image, #{render_rows.size} render -> #{dir}"
     puts "  output size #{out_w}x#{out_h} (both lanes), annotation: " \
          "#{client_safe ? 'HIDDEN (client-safe)' : 'SHOWN (draft)'}"
+    if @transparent
+      puts '  background: TRANSPARENT (alpha) - not for a proposal pack ' \
+           'without flattening first'
+      log(dlg, 'BACKGROUND: TRANSPARENT (alpha channel) on every file this ' \
+               'run writes. A proposal pack wants opaque plates - flatten ' \
+               'onto white (scripts/wr-flatten-trim.py) before building one.', 'bad')
+    end
     # GUARDED, 1.9.2. This was the ONE unguarded dialog call in the launch
     # path, and it sits between `@running = true` and the timer start -- F10's
     # named hazard, OBSERVED on 30 Aug 2026 when a scripted caller passed a
@@ -2022,7 +2045,15 @@ module WR_ProposalPackage
   # one. shade_reapply is a no-op when SHADING is unticked (@shade_saved nil).
   def self.image_cfg(hide, dlg, p = nil)
     { 'dir' => @cfg['dir'], 'width' => @cfg['width'],
-      'height' => @cfg['height'], 'bg' => 'Opaque', 'over' => 'Yes',
+      'height' => @cfg['height'],
+      # 'Transparent' makes export_pages pass :transparent => true to
+      # write_image and switch DrawGround / DrawHorizon / DisplayFog off
+      # after each scene switch, restoring them in its ensure (export-
+      # scenes.rb, unchanged here). The REPORTED contract (ruby.sketchup.com
+      # View#write_image): 'transparent' Boolean, default false, SketchUp 8+.
+      # Nothing in the docs says what the sky and ground do under it, which
+      # is why export_pages turns them off itself.
+      'bg' => (@transparent ? 'Transparent' : 'Opaque'), 'over' => 'Yes',
       'hide_tags' => hide,
       # BOTH re-asserts ride this hook, because the page switch undoes both:
       # the shading contract (1.19.3) and, since 1.20.0, the client-safe
@@ -2102,6 +2133,9 @@ module WR_ProposalPackage
                'open this file and check whether its verticals converge', 'bad')
     end
     if x[:written] > 0
+      alpha = png_alpha(p[:path])
+      det = "image, #{x[:width]}x#{x[:height]} (height #{x[:height_source]})"
+      det += alpha_note(alpha)
       @results << { :file => p[:file], :lane => 'image', :status => 'ok',
                     # :width/:height feed manifest.json — the size the export
                     # ACTUALLY used, not the size that was asked for.
@@ -2110,11 +2144,10 @@ module WR_ProposalPackage
                     :two_point_scene => p[:two_point_scene],
                     :two_point_view  => p[:two_point_view],
                     :two_point_after => p[:two_point_after],
+                    :alpha_channel => alpha,
                     :width => x[:width].to_i, :height => x[:height].to_i,
-                    :detail => "image, #{x[:width]}x#{x[:height]} " \
-                               "(height #{x[:height_source]})" }
-      log(dlg, "ok      #{p[:file]}  (image, #{x[:width]}x#{x[:height]}, " \
-               "height #{x[:height_source]})", 'ok')
+                    :detail => det }
+      log(dlg, "ok      #{p[:file]}  (#{det})", alpha_mismatch?(alpha) ? 'bad' : 'ok')
     else
       @results << { :file => p[:file], :lane => 'image', :status => 'failed',
                     :detail => 'view.write_image returned false' }
@@ -2124,6 +2157,44 @@ module WR_ProposalPackage
     @results << { :file => p[:file], :lane => 'image', :status => 'failed',
                   :detail => "#{e.class}: #{e.message}" }
     log(dlg, "FAILED  #{p[:file]}  (#{e.class}: #{e.message})", 'bad')
+  end
+
+  # WHAT IS ACTUALLY ON DISK (1.30.0). A transparent request is only worth
+  # anything if the PNG carries an alpha channel, and the two lanes reach
+  # that through two different APIs (write_image :transparent; V-Ray's own
+  # alpha on save_vfb_image), neither verified live for this option. So the
+  # file's IHDR is read back: colour type 6 = RGBA, 2 = RGB (wr-png-srgb.rb
+  # already parses it). true / false / nil (unreadable). A requested
+  # transparency that came back RGB, or an unrequested alpha, is logged as
+  # 'bad' and named in the row detail — never quietly 'ok'.
+  def self.png_alpha(path)
+    return nil unless path && File.exist?(path)
+    head = File.binread(path, 33)
+    return nil unless head && head.bytesize >= 33 && head[0, 8].bytes == [137, 80, 78, 71, 13, 10, 26, 10]
+    ct = head[25].ord
+    return true  if ct == 6 || ct == 4
+    return false if ct == 2 || ct == 0 || ct == 3
+    nil
+  rescue Exception
+    nil
+  end
+
+  def self.alpha_mismatch?(alpha)
+    !alpha.nil? && (alpha != (@transparent ? true : false))
+  end
+
+  def self.alpha_note(alpha)
+    want = @transparent ? 'transparent' : 'opaque'
+    got  = alpha.nil? ? 'alpha channel unreadable' :
+           (alpha ? 'alpha channel: YES' : 'alpha channel: no')
+    if alpha_mismatch?(alpha)
+      ", #{want} background was asked for but the file on disk is " \
+        "#{alpha ? 'RGBA - it HAS alpha' : 'RGB - NO alpha'}"
+    elsif @transparent
+      ", transparent background (#{got})"
+    else
+      ''
+    end
   end
 
   # THE RENDER LANE'S SIZE IS OURS NOW (D4, 1.9.3).
@@ -2560,8 +2631,19 @@ module WR_ProposalPackage
       nil
     end
     ok = nil
+    # TRANSPARENT RENDERS (1.30.0): drop :no_alpha rather than set it false.
+    # OBSERVED (F4, 28 Aug 2026): with NO options save_vfb_image wrote a
+    # transparent RGBA plus a .Alpha.png sidecar; :skip_alpha keeps killing
+    # the sidecar and :no_alpha => true is what makes the file opaque.
+    # Omitting the key is the observed path to alpha; passing false to it
+    # is not something this repo has seen accepted. wr-png-srgb.rb's bake
+    # handles RGBA (colour type 6, alpha bytes untouched). Whether V-Ray's
+    # alpha is 0 where only the environment shows depends on the
+    # environment's own alpha setting in the Asset Editor - not touched
+    # here, so the on-disk check after the save is the only proof.
+    save_opts = @transparent ? SAVE_OPTS.reject { |k, _| k == :no_alpha } : SAVE_OPTS
     begin
-      ok = @rend.save_vfb_image(p[:path], SAVE_OPTS)
+      ok = @rend.save_vfb_image(p[:path], save_opts)
     rescue Exception => e
       # An option key this build rejects raises. :apply_color_corrections is
       # the one that could be missing, and losing the whole batch over it
@@ -2569,7 +2651,9 @@ module WR_ProposalPackage
       # save. The row still succeeds; it is just wrong in the way it used to
       # be wrong, and now it is named instead of silent.
       begin
-        ok = @rend.save_vfb_image(p[:path], :skip_alpha => true, :no_alpha => true)
+        fallback = { :skip_alpha => true }
+        fallback[:no_alpha] = true unless @transparent
+        ok = @rend.save_vfb_image(p[:path], fallback)
         @colour_baked = false
         log(dlg, "        #{p[:file]}  :apply_color_corrections was REJECTED by " \
                  "this V-Ray build (#{e.class}) - saved the RAW buffer instead. " \
@@ -2609,6 +2693,8 @@ module WR_ProposalPackage
       side = sidecars(p)
       det += format(', plus %d render-element sidecar(s): %s',
                     side.size, side.join(', ')) unless side.empty?
+      alpha = png_alpha(p[:path])
+      det += alpha_note(alpha)
       @results << { :file => p[:file], :lane => 'render', :status => 'ok',
                     # The size written into /SettingsOutput and read back by
                     # the size gate — det already names where it came from.
@@ -2616,9 +2702,10 @@ module WR_ProposalPackage
                     :annotations_hidden => p[:annotations_hidden],
                     :two_point_scene => p[:two_point_scene],
                     :two_point_view  => p[:two_point_view],
+                    :alpha_channel => alpha,
                     :width => @cfg['width'].to_i, :height => @cfg['height'].to_i,
                     :detail => det }
-      log(dlg, "ok      #{p[:file]}  (#{det})", 'ok')
+      log(dlg, "ok      #{p[:file]}  (#{det})", alpha_mismatch?(alpha) ? 'bad' : 'ok')
       unless side.empty?
         log(dlg, "        #{p[:file]}  these sidecars are NOT in the " \
                  'collision plan and must not go to a client: ' \
@@ -2858,6 +2945,7 @@ module WR_ProposalPackage
              'height'      => @cfg['height'].to_i,
              'size_source' => @size_source.to_s,
              'annotations_hidden_in_images' => (@client_safe ? true : false),
+             'transparent_background' => (@transparent ? true : false),
              'annotation_scope' => 'model-space top level (model.entities) - ' \
                                    'where the WR dimension tools draw',
              'field_notes' => MANIFEST_NOTES,
@@ -4498,6 +4586,14 @@ module WR_ProposalPackage
   <span class="lbl"></span>
   <label class="shadelbl"><b>Per scene</b> is the normal pack: a scene named for its dimensions carries them, and each image shows exactly what its own ANNOTATIONS picker left showing. <b>Client-safe</b> is the deliberate strip-everything pass for a pack that must carry no callouts at all: it hides #{WR_Mode::ANNOT_TAGS.join(', ')}, every WR-Dims-… / WR-Notes-… set in this model, <b>and every loose callout on Untagged</b> — SketchUp will not hide the Untagged tag, so those go one by one (1.20.0) — on every scene, whatever its picker says. Everything is put back at the end. The choice is remembered per user, not per model.</label>
   <span></span>
+
+  <span class="lbl">BACKGROUND</span>
+  <label class="shadelbl"><input type="checkbox" id="transp">
+    Transparent background (alpha channel) — for compositing a booth onto a photo or a slide. <b>Off every time this window opens</b>; it is never remembered.</label>
+  <span></span>
+  <span class="lbl"></span>
+  <label class="shadelbl"><b>Plain images:</b> the sky, ground and fog are switched off for each write and the file carries alpha where the view shows background. <b>V-Ray renders:</b> saved with V-Ray's own alpha instead of the usual opaque save. In both, only what the camera sees THROUGH is transparent — a booth inside a modelled room is opaque wall to wall, so hide the room per scene (WALLS column) if the booth is to float. <b>Not for a proposal pack:</b> the generator wants opaque plates — flatten onto white first (<code>scripts/wr-flatten-trim.py</code>). The manifest records <code>transparent_background</code> and, per file, whether the PNG on disk actually has an alpha channel.</label>
+  <span></span>
 </div></div>
 </div>
 
@@ -5422,7 +5518,8 @@ module WR_ProposalPackage
         width: g("width").value,
         over:  g("over").value,
         shade: g("shade").checked,
-        annot: g("annot").value
+        annot: g("annot").value,
+        transp: g("transp").checked
       }));
   });
 

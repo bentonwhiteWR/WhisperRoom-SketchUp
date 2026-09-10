@@ -960,3 +960,50 @@ It's only going like the flat perspective."
 - If the probe shows step 1 (the scene switch itself) loses two-point,
   scenes do not round-trip it from Ruby and no exporter change helps —
   the honest answer becomes "export two-point plates by hand".
+
+
+---
+
+# HANDOFF — transparent backgrounds (Fixer, 10 Sep 2026, 1.30.0)
+
+## What Benton said
+"also curious if there can be a button for the renders to 'export with
+transparent backgrounds'."
+
+## Decision
+Per-run BACKGROUND checkbox in FOLDER & DETAILS, default OFF, NOT
+remembered (assumed use: compositing; not per scene). Both lanes wired;
+neither verified live. The file on disk is checked after every write
+(IHDR colour type) and a mismatch is logged `bad` and named in the row.
+
+## Changed
+- `scripts/proposal-package.rb`: `transp` in the export payload;
+  `@transparent`; `image_cfg` bg `Transparent`; render lane omits
+  `:no_alpha` (observed path to RGBA, F4 28 Aug); `png_alpha` /
+  `alpha_note` / `alpha_mismatch?`; manifest `transparent_background`
+  + per-row `alpha_channel` + field note; help text names the pack rule.
+- VERSION 1.30.0 (minor: new option + manifest fields).
+
+## Provenance
+- **reported**: `write_image` `transparent` Boolean, default false,
+  SketchUp 8+ (ruby.sketchup.com). No word on sky/ground.
+- **observed** (F4): options-less `save_vfb_image` wrote transparent RGBA
+  + `.Alpha.png` sidecar. `:skip_alpha` kept; `:no_alpha` dropped.
+- **observed in code**: export-scenes.rb turns DrawGround/DrawHorizon/
+  DisplayFog off after the switch and restores in `ensure`; the srgb
+  bake accepts colour type 6.
+- **unknown**: V-Ray environment alpha setting; whether the image-lane
+  restore is clean over a batch (pre-existing path since 6 Aug).
+
+## To verify (Benton) — load-bearing
+1. Tick BACKGROUND; export one image + one render scene. Rows say
+   `alpha channel: YES`. Open the PNGs in a viewer that shows alpha
+   (checkerboard, not white).
+2. Untick; export again; manifest `transparent_background: false`, rows
+   silent about alpha.
+3. Re-open the window: the box is unticked.
+
+## Open
+- The proposal generator / skill are untouched; they already flatten.
+  A pack build could additionally read `alpha_channel` from the manifest
+  and refuse — not done (proposals/ out of scope this pass).

@@ -1,6 +1,67 @@
 # DEVLOG
 
 ## 2026-09-10
+### Transparent backgrounds in the proposal package — 1.30.0
+
+Benton, 10 Sep 2026: *"also curious if there can be a button for the
+renders to 'export with transparent backgrounds'."* **Unrun in
+SketchUp.** `rbparse.py` 71/71, `rbtest-proposal.py` PASS, `node
+--check` on the dialog JS. Minor bump: a new per-run option and two new
+manifest fields.
+
+**Where it lives.** One checkbox, BACKGROUND, under FOLDER & DETAILS
+beside SHADING and ANNOTATION. Per run, not per scene: transparent
+plates are for compositing a booth onto a photo or a slide, which is a
+whole-folder decision, not a scene-by-scene one (**assumed** — he did not
+say what it is for). **Default OFF, and deliberately NOT remembered**
+in the prefs, unlike width/over/shade/annot: today's ANNOTATION lesson
+was a remembered default silently changing what a folder came out as,
+and an alpha plate in a client pack is the failure CLAUDE.md names.
+
+**Two lanes, two APIs, neither verified for this option.**
+- Plain images: `image_cfg` passes `'bg' => 'Transparent'` and
+  export-scenes.rb (unchanged) does what it has done since 6 Aug for its
+  own dialog — `write_image(:transparent => true)` and DrawGround /
+  DrawHorizon / DisplayFog off after each scene switch, put back in its
+  `ensure`. **Reported** (ruby.sketchup.com View#write_image):
+  `transparent` Boolean, default false, SketchUp 8+; the docs say nothing
+  about sky/ground, which is why export_pages switches them off itself.
+  The style restore is that pre-existing code path, not something this
+  change proved.
+- V-Ray renders: `save_vfb_image` without `:no_alpha` (kept
+  `:skip_alpha` so no `.Alpha.png` sidecar). **Observed** (F4, 28 Aug):
+  the no-options save wrote a transparent RGBA — so omitting the key is
+  the seen path to alpha; `:no_alpha => false` has never been tried here
+  and is not used. `wr-png-srgb.rb`'s bake already handles colour type
+  6 with alpha untouched (observed in code). Whether V-Ray's alpha is 0
+  where only the environment shows depends on the Asset Editor's
+  environment alpha setting — not touched, not known.
+
+**The proof is the file.** After every write, both lanes read the PNG's
+IHDR colour type (6 = RGBA) and put `alpha channel: YES/no` in the row
+detail; a mismatch against what was asked for logs `bad` and is named in
+the detail, never a quiet `ok`. `manifest.json` gains top-level
+`transparent_background` and per-row `alpha_channel`, with a field note
+saying a pack wants opaque plates and pointing at
+`scripts/wr-flatten-trim.py`. The proposal generator is not touched and
+receives nothing different unless he ticks the box; the skill/playbook
+already flatten, and the manifest now lets a pack build see the state.
+
+**Limit worth knowing.** Only what the camera sees THROUGH goes
+transparent. A booth inside a modelled room is opaque wall to wall in
+both lanes — hide the room per scene (WALLS column) for a floating
+booth. The help text says so.
+
+**Benton's checks.** Tick BACKGROUND, export one image scene and one
+render scene. Log shows `BACKGROUND: TRANSPARENT` at the top and
+`alpha channel: YES` on each row. Open each PNG in something that shows
+alpha (Photoshop / GIMP / Windows Photos over a dark theme — NOT the
+default white-canvas preview, which hides it): the sky/ground area must
+be checkerboard, not white. If a row says `RGB - NO alpha`, that lane's
+API did not honour the request and the log names which. Then untick,
+export the same two, and confirm the manifest says `false` and the rows
+say nothing about alpha.
+
 
 ### Two-point perspective on the way out of the proposal package — 1.29.0
 
