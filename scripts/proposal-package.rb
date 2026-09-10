@@ -552,7 +552,20 @@ module WR_ProposalPackage
     'hidden one by one. A 3D-text label also appears in groups_hidden as ' \
     '\'label: ...\'. A callout is absent from the image if it is in ' \
     'annotations_hidden OR its tag is in annotation_tags_hidden. null = not ' \
-    'recorded; [] = nothing hidden singly.'
+    'recorded; [] = nothing hidden singly.',
+    'two_point_scene: true when the scene\'s SAVED camera is two-point ' \
+    'perspective (Camera#is_2d?), false when ordinary/parallel, null when the ' \
+    'scene saves no camera or it could not be read. two_point_view_at_export: ' \
+    'the viewport\'s projection at the last moment before the file was ' \
+    'written (image rows: after the scene switch; render rows: after the ' \
+    'settle step). true/false/null as above. scene true + view false means ' \
+    'the plate\'s verticals converge and the scene\'s two-point was lost on ' \
+    'the way out - the Ruby API cannot set two-point (read-only, ' \
+    'api-issue-tracker #88), so this is reported, not repaired. ' \
+    'two_point_view_after_write (image rows only): the flag after ' \
+    'view.write_image, read on the page the export went back to; a true -> ' \
+    'false change across the write points at write_image. true after the ' \
+    'write does NOT prove the file is two-point - look at its verticals.'
   ].freeze
 
   # A top-level group/component whose NAME names a booth model. The builders
@@ -638,6 +651,12 @@ module WR_ProposalPackage
       # groups_hidden: null means NOT RECORDED, [] means nothing was hidden.
       row['annotations_hidden'] = (r && r[:annotations_hidden]) ?
                                     r[:annotations_hidden] : nil
+      # 1.29.0 — the projection record. null = not recorded / unreadable.
+      row['two_point_scene'] = (r && !r[:two_point_scene].nil?) ? r[:two_point_scene] : nil
+      row['two_point_view_at_export'] = (r && !r[:two_point_view].nil?) ? r[:two_point_view] : nil
+      if r && r.key?(:two_point_after)
+        row['two_point_view_after_write'] = r[:two_point_after].nil? ? nil : r[:two_point_after]
+      end
       row['annotation_tags_shown']  = p[:shown]
       row['annotation_tags_hidden'] = p[:hid]
       row['annotation_note'] = p[:shown_note] if p[:shown_note]
@@ -1037,6 +1056,74 @@ module WR_ProposalPackage
     "camera comparison failed (#{e.class})"
   end
 
+  # ------------------------------------------- two-point perspective --
+  #
+  # Benton, 10 Sep 2026: "when we're exporting scenes, it's not saving the
+  # two-point perspective. It's only going like the flat perspective."
+  #
+  # REPORTED (ruby.sketchup.com Sketchup::Camera, read 10 Sep 2026; SketchUp
+  # api-issue-tracker #88, still open): two-point perspective is READ-ONLY
+  # from Ruby. Camera#is_2d? reports it (with center_2d / scale_2d); there
+  # is NO setter. So this file can DETECT a lost two-point and can avoid the
+  # calls suspected of flattening it, but it cannot put it back, and no line
+  # below claims to.
+  #
+  # Three things in this file touch the camera. Two assign a Camera OBJECT
+  # to the view -- the render lane's settling assignment and finish's
+  # restore -- and both are now skipped when the projection they would
+  # replace is already two-point (the scene switch brought it back; a
+  # Camera object carries no way back in). The third is view.write_image
+  # at 1600x900 (the image lane), which this file cannot avoid: it reads
+  # the flag after the switch and again after the write, so the manifest
+  # says per plate what the viewport was when the file was written.
+  #
+  # UNVERIFIED in SketchUp which of the three (if any) drops the flag --
+  # no ruby.exe, no SketchUp here. scripts/probe-two-point.rb runs the same
+  # calls one at a time on a live two-point scene and says which.
+  def self.two_point_of(cam)
+    return nil if cam.nil? || !cam.respond_to?(:is_2d?)
+    cam.is_2d? ? true : false
+  rescue Exception
+    nil
+  end
+
+  # 'two-point' / 'ordinary' / 'unreadable' -- log lines and the manifest.
+  def self.two_point_word(v)
+    v.nil? ? 'unreadable' : (v ? 'two-point' : 'ordinary')
+  end
+
+  # The page's SAVED projection: nil when the page saves no camera.
+  def self.page_two_point(page)
+    return nil unless page && (page.use_camera? rescue false)
+    two_point_of(page.camera)
+  rescue Exception
+    nil
+  end
+
+  # After a scene switch: does the viewport carry the projection the scene
+  # saved? Records both readings on the plan row; a LOST two-point is logged
+  # by name (the row still exports -- a flat plate the log names beats a
+  # missing one nobody explains). Returns the viewport reading.
+  def self.two_point_check(model, dlg, page, p, stage)
+    p[:two_point_scene] = page_two_point(page)
+    v = two_point_of(model.active_view.camera)
+    p[:two_point_view] = v
+    if p[:two_point_scene] == true && v == false
+      log(dlg, "        #{p[:file]}  TWO-POINT PERSPECTIVE LOST #{stage}: " \
+               'the scene is saved in two-point perspective but the ' \
+               'viewport is in ordinary perspective, so the verticals in ' \
+               'this plate will converge. Ruby cannot re-enter two-point ' \
+               '(no API setter) - see scripts/probe-two-point.rb', 'bad')
+    elsif p[:two_point_scene] == true
+      log(dlg, "        #{p[:file]}  two-point perspective held #{stage}", 'dim')
+    end
+    v
+  rescue Exception => e
+    log(dlg, "        #{p[:file]}  could not read the projection " \
+             "(#{e.class}: #{e.message})", 'bad')
+    nil
+  end
+
   # Best-effort READ of V-Ray's configured output size, for the warning in
   # start_run. REPORTED, never observed: /SettingsOutput with img_width /
   # img_height are the V-Ray core names. Every hop is respond_to?-gated and
@@ -1324,6 +1411,7 @@ module WR_ProposalPackage
     @mode_now    = @saved_mode
     @prev_page   = model.pages.selected_page
     @prev_cam    = (model.active_view.camera.clone rescue nil)
+    @prev_2d     = two_point_of(model.active_view.camera)
 
     # Scene transitions OFF for the whole batch, popped in finish. A 1 s
     # camera animation is why a render row captured the previous scene
@@ -1932,16 +2020,19 @@ module WR_ProposalPackage
   # The export_pages config for one image row. A method of its own so the
   # harness can prove the hook is WIRED, not only that export_pages honours
   # one. shade_reapply is a no-op when SHADING is unticked (@shade_saved nil).
-  def self.image_cfg(hide, dlg)
+  def self.image_cfg(hide, dlg, p = nil)
     { 'dir' => @cfg['dir'], 'width' => @cfg['width'],
       'height' => @cfg['height'], 'bg' => 'Opaque', 'over' => 'Yes',
       'hide_tags' => hide,
       # BOTH re-asserts ride this hook, because the page switch undoes both:
       # the shading contract (1.19.3) and, since 1.20.0, the client-safe
-      # per-entity hides annot_push made (annot_reapply).
+      # per-entity hides annot_push made (annot_reapply). The two-point
+      # reading rides it too (1.29.0): this is the last moment before
+      # write_image, so it is the projection the file is written from.
       'after_switch' => lambda { |m, pg|
         shade_reapply(m, dlg, pg)
         annot_reapply(m, dlg, pg)
+        two_point_check(m, dlg, pg, p, 'after the scene switch') if p
       } }
   end
 
@@ -1970,7 +2061,7 @@ module WR_ProposalPackage
     hide.concat(annot_tags(model)) if @client_safe
     # ...and the shading contract rides the same hook (after_switch), for the
     # same reason: the scene puts its own shadow info back on selection.
-    cfg  = image_cfg(hide, dlg)
+    cfg  = image_cfg(hide, dlg, p)
     # RECORD WHAT IS HIDDEN ON THIS SCENE BEFORE EXPORTING IT. Selecting the
     # page applies its saved per-entity hidden state — the per-scene wall
     # hiding (wr-scene-walls.rb, verified live 31 Aug 2026) — and
@@ -1993,12 +2084,32 @@ module WR_ProposalPackage
     ensure
       annot_pop(model, dlg)
     end
+    # THE VIEWPORT AFTER THE WRITE. write_image at a size that is not the
+    # viewport's (1600x900 here, D4) is the one camera-touching call this
+    # lane cannot avoid. If the flag went from two-point to ordinary across
+    # the write, the write did it. If it stayed two-point the file is
+    # PROBABLY two-point -- probably: an offscreen re-derivation that puts
+    # the camera back afterwards would leave the flag alone, and only the
+    # file's own verticals settle that (probe-two-point.rb writes two).
+    # export_pages has already re-selected the operator's previous page, so
+    # this is not the exported scene's viewport any more -- it is the flag
+    # of the page it went back to. Read it as "what write_image left
+    # behind", nothing stronger.
+    p[:two_point_after] = two_point_of(model.active_view.camera)
+    if p[:two_point_view] == true && p[:two_point_after] == false
+      log(dlg, "        #{p[:file]}  the viewport read ordinary perspective " \
+               'after write_image, having read two-point before it - ' \
+               'open this file and check whether its verticals converge', 'bad')
+    end
     if x[:written] > 0
       @results << { :file => p[:file], :lane => 'image', :status => 'ok',
                     # :width/:height feed manifest.json — the size the export
                     # ACTUALLY used, not the size that was asked for.
                     :groups_hidden => p[:groups_hidden],
                     :annotations_hidden => p[:annotations_hidden],
+                    :two_point_scene => p[:two_point_scene],
+                    :two_point_view  => p[:two_point_view],
+                    :two_point_after => p[:two_point_after],
                     :width => x[:width].to_i, :height => x[:height].to_i,
                     :detail => "image, #{x[:width]}x#{x[:height]} " \
                                "(height #{x[:height_source]})" }
@@ -2082,8 +2193,19 @@ module WR_ProposalPackage
     # says which walls this render is missing BY DESIGN.
     p[:groups_hidden] = collect_hidden_groups(model)
     p[:annotations_hidden] = collect_hidden_annotations(model)
+    two_point_check(model, dlg, p[:page], p, 'after the scene switch')
     page_cam = (p[:page].camera rescue nil)
-    if page_cam
+    if page_cam && p[:two_point_scene] == true && p[:two_point_view] == true
+      # A TWO-POINT SCENE THAT THE SWITCH HONOURED IS LEFT ALONE (1.29.0).
+      # The assignment below hands the view a Camera OBJECT, and Ruby has
+      # no way to mark one two-point -- so if this assignment flattens the
+      # projection (unverified; probe-two-point.rb step 3), the scene switch
+      # was the only thing that could have set it and re-assigning would
+      # throw it away. Transitions are off for the batch, so the switch has
+      # already landed; the settle check below still judges eye/target/up.
+      log(dlg, "        #{p[:file]}  two-point scene: keeping the camera the " \
+               'scene switch set (a Camera object cannot be marked two-point)', 'dim')
+    elsif page_cam
       begin
         model.active_view.camera = page_cam
       rescue Exception => e
@@ -2091,6 +2213,9 @@ module WR_ProposalPackage
                  "directly (#{e.class}: #{e.message}) — relying on the " \
                  'scene switch', 'bad')
       end
+      # The assignment happened: read the projection again so the manifest
+      # carries what V-Ray will actually see, and name a loss it caused.
+      two_point_check(model, dlg, p[:page], p, 'after the direct camera assignment')
     end
     model.active_view.refresh
 
@@ -2489,6 +2614,8 @@ module WR_ProposalPackage
                     # the size gate — det already names where it came from.
                     :groups_hidden => p[:groups_hidden],
                     :annotations_hidden => p[:annotations_hidden],
+                    :two_point_scene => p[:two_point_scene],
+                    :two_point_view  => p[:two_point_view],
                     :width => @cfg['width'].to_i, :height => @cfg['height'].to_i,
                     :detail => det }
       log(dlg, "ok      #{p[:file]}  (#{det})", 'ok')
@@ -2846,7 +2973,34 @@ module WR_ProposalPackage
       restore_errs << "scene restore: #{e.class}: #{e.message}"
     end
     begin
-      model.active_view.camera = @prev_cam if @prev_cam
+      # THE OPERATOR'S TWO-POINT VIEW IS NOT FLATTENED BY ITS OWN RESTORE
+      # (1.29.0). @prev_cam is a Camera OBJECT and Ruby cannot mark one
+      # two-point, so if the view was two-point before the run and the
+      # scene restore above already brought two-point back, assigning the
+      # clone can only keep it or lose it -- never improve it. Left alone
+      # in that case. (In two-point mode SketchUp drops the mode the moment
+      # the view orbits, so a two-point view is the scene's own camera or a
+      # pan/zoom of it; the page restore is the closer restore anyway.)
+      # Otherwise the clone goes back as before, and if THAT loses a
+      # two-point the operator had, it is said in the console and the log:
+      # the fix is one click, Camera > Two-Point Perspective, and nothing
+      # in this file can make it for him.
+      if @prev_cam
+        if @prev_2d == true && two_point_of(model.active_view.camera) == true
+          puts '  view restore: the scene restore brought back two-point ' \
+               'perspective; leaving it rather than re-assigning the camera'
+        else
+          model.active_view.camera = @prev_cam
+          if @prev_2d == true && two_point_of(model.active_view.camera) == false
+            msg = 'your view was in two-point perspective before the run ' \
+                  'and the camera restore could not bring it back (no API ' \
+                  'for it): Camera > Two-Point Perspective, or click the ' \
+                  'scene tab'
+            puts "  view restore: #{msg}"
+            log(dlg, "RESTORE NOTE: #{msg}", 'bad')
+          end
+        end
+      end
     rescue Exception => e
       restore_errs << "camera restore: #{e.class}: #{e.message}"
     end

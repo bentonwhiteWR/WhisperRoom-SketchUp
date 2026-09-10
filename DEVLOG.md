@@ -2,6 +2,70 @@
 
 ## 2026-09-10
 
+### Two-point perspective on the way out of the proposal package — 1.29.0
+
+Benton, 10 Sep 2026: *"when we're exporting scenes, it's not saving the
+two-point perspective. It's only going like the flat perspective."*
+**Unrun in SketchUp** — no `ruby.exe`, no SketchUp here. `rbparse.py`
+71/71 (real CRuby 3.2), `rbtest-proposal.py` PASS, `node --check` on
+the dialog JS. Minor bump: a new script and two new manifest fields.
+
+**What the API allows (reported, ruby.sketchup.com read today).**
+`Sketchup::Camera#is_2d?` READS two-point (with `center_2d`,
+`scale_2d`); there is **no setter**, and SketchUp's api-issue-tracker
+#88 ("Missing methods for 2 point perspective") is still open. So
+nothing in Ruby can put a lost two-point back. The whole fix is
+therefore: stop making the calls that can lose it, and say per plate
+whether it was lost.
+
+**The three camera-touching calls in the export path, and their age.**
+None is from today — today's diff touches `selected_page=` only.
+1. Render lane `model.active_view.camera = page_cam` (settling, 1.7.9,
+   28 Aug). Assigns a Camera OBJECT, which has no two-point mark.
+2. `finish`'s `model.active_view.camera = @prev_cam` (27 Aug). Same
+   object assignment, on the operator's own view.
+3. Image lane `view.write_image` at 1600x900 (D4, 1.9.3, 30 Aug) — a
+   size that is not the viewport's, on every image row.
+
+Which of the three actually drops the flag is **unverified**;
+`scripts/probe-two-point.rb` runs them one at a time on a live two-point
+scene and prints the flag after each, plus two PNGs to look at.
+
+**Changed (proposal-package.rb).** `two_point_of` / `page_two_point` /
+`two_point_check` helpers. The image lane reads the flag in
+`after_switch` (the last moment before `write_image`) and again after
+the write. The render lane reads it after the switch and **skips the
+direct camera assignment when the scene saved two-point and the switch
+honoured it** — re-assigning could only keep or lose it. `finish` does
+the same with `@prev_cam` when the scene restore already brought the
+operator's two-point back, and when it has to assign and that flattens
+a two-point view it says so in the console and the log with the one
+click that fixes it. `manifest.json` rows carry `two_point_scene`,
+`two_point_view_at_export` and (image rows) `two_point_view_after_write`,
+with a field note; a lost two-point is a `bad` log line naming the row.
+**Not claimed:** that any of this restores a two-point; that a flag
+reading proves what is in the file.
+
+**PeoplesSpace Revision plates (observed, pixels).** Every pitched-camera
+image-lane plate in `ProposalFiles\PeoplesSpace\Revision\` — 02, 03,
+04, 06, 11 — has converging verticals (02's world-vertical `10' 2"`
+dimension line runs x=336 at y=120 to x=377 at y=650, a 4.4 degree lean).
+They are ordinary perspective. Whether those scenes were SAVED two-point
+is not readable from here (the .skp cannot be parsed without SketchUp);
+the frontal plates 07/08/09/10 are level views where the two look alike.
+
+**Benton's checks, in order.** (1) Click a two-point scene tab, Ruby
+Console, `load ".../scripts/probe-two-point.rb"`; read the table, then
+OPEN the two PNGs it names in `%TEMP%` — parallel verticals in the
+1600x900 file means the image lane is fine, converging means
+`write_image` at a foreign size is the culprit and the next change is to
+export at the viewport's aspect. (2) Run a package with one two-point
+scene in each lane; the log should say `two-point perspective held` per
+row and the manifest rows should read `"two_point_view_at_export": true`.
+(3) After the run, the viewport is still two-point (Camera menu shows it
+ticked).
+
+
 ### Drop the interior lights: fixtures carry their emitters, and borrowed walls — 1.28.0
 
 Benton, 10 Sep 2026: *"the drop in lights function needs tweaking. For

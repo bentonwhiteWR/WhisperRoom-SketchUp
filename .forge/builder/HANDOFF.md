@@ -912,3 +912,51 @@ wall-scan cores each KILLED and reverted. Full account: DEVLOG 1.28.0.
 - Ceiling and walls are borrowed before the grid/fallback refusal, so a
   refused room keeps them until the next press — pre-existing for the
   ceiling, kept consistent.
+
+
+---
+
+# HANDOFF — two-point perspective on export (Fixer, 10 Sep 2026, 1.29.0)
+
+## What Benton said
+"when we're exporting scenes, it's not saving the two-point perspective.
+It's only going like the flat perspective."
+
+## Finding
+- **reported** (ruby.sketchup.com, api-issue-tracker #88 open): two-point
+  is READ-ONLY from Ruby (`Camera#is_2d?`); no setter. Cannot be restored
+  programmatically. The fix is avoidance + detection, never repair.
+- **observed**: three camera-touching calls in the export path, all older
+  than today (28 Aug / 27 Aug / 30 Aug): render-lane `view.camera =
+  page_cam`, finish's `view.camera = @prev_cam`, image-lane `write_image`
+  at 1600x900. Today's diff touches `selected_page=` only.
+- **unverified**: which of the three drops the flag. `probe-two-point.rb`
+  answers it live.
+- **observed**: PeoplesSpace Revision image plates 02/03/04/06/11 have
+  converging verticals (ordinary perspective). Not knowable from here
+  whether those scenes were saved two-point.
+
+## Changed
+- `scripts/proposal-package.rb`: `two_point_of`, `page_two_point`,
+  `two_point_check`; image lane reads the flag in `after_switch` and after
+  the write; render lane skips the direct camera assignment on a two-point
+  scene the switch honoured; finish skips `@prev_cam` when the scene
+  restore already brought two-point back, and names a loss it causes;
+  manifest fields `two_point_scene`, `two_point_view_at_export`,
+  `two_point_view_after_write` + field note.
+- `scripts/probe-two-point.rb` (new, dev shelf).
+- VERSION 1.29.0 (minor: new script, new manifest fields).
+
+## To verify (Benton) — load-bearing
+1. On a two-point scene: `load ".../scripts/probe-two-point.rb"`. OPEN the
+   two PNGs it writes to `%TEMP%`. Converging verticals in the 1600x900
+   one = `write_image` at a foreign size is the culprit; next change is to
+   export at the viewport aspect (drops D4's same-shape promise).
+2. Package run with a two-point scene in each lane: log says `two-point
+   perspective held`, manifest `two_point_view_at_export: true`.
+3. Viewport still two-point after the run.
+
+## Open
+- If the probe shows step 1 (the scene switch itself) loses two-point,
+  scenes do not round-trip it from Ruby and no exporter change helps —
+  the honest answer becomes "export two-point plates by hand".
