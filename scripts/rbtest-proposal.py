@@ -663,6 +663,17 @@ module WR_ProposalPackage
     end
     out << (ev_of_camera(0.0, 8.0).nil? && ev_of_camera(8.0, 0.0).nil? ?
               'ev-guard ok' : 'ev-guard FAIL a zero must not become an EV')
+    # 1.32.0 -- ISO counts. f/8 @ 1/300 @ ISO 3200 (what wr-drop-lights.rb
+    # stamps) is EV 9.23, not 14.23; ISO 100, nil and 0 all leave the
+    # ISO-100 figure alone.
+    e100 = ev_of_camera(8.0, 300.0)
+    e_iso = ev_of_camera(8.0, 300.0, 3200.0)
+    ok_iso = (e_iso - (e100 - 5.0)).abs < 0.0001 &&
+             (e_iso - 9.23).abs < 0.01 &&
+             (ev_of_camera(8.0, 300.0, 100.0) - e100).abs < 0.0001 &&
+             (ev_of_camera(8.0, 300.0, nil) - e100).abs < 0.0001 &&
+             (ev_of_camera(8.0, 300.0, 0) - e100).abs < 0.0001
+    out << (ok_iso ? 'ev-iso ok' : "ev-iso FAIL #{e100} #{e_iso}")
     MODE_CASES.each_with_index do |(saved, want), i|
       got = mode_restore_target(saved)
       out << (got == want ? "mode#{i + 1} ok" : "mode#{i + 1} FAIL got #{got.inspect}")
@@ -1141,7 +1152,7 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'forever ok | seq ok | '
           'cam1 ok | cam2 ok | cam3 ok | cam4 ok | cam5 ok | cam6 ok | '
           'ev1 ok | ev2 ok | ev3 ok | ev4 ok | ev5 ok | ev6 ok | ev7 ok | '
-          'ev8 ok | sh1 ok | sh2 ok | sh3 ok | sh4 ok | ev-guard ok | '
+          'ev8 ok | sh1 ok | sh2 ok | sh3 ok | sh4 ok | ev-guard ok | ev-iso ok | '
           'mode1 ok | mode2 ok | mode3 ok | mode4 ok | '
           'size1 ok | size2 ok | size3 ok | '
           'h1 ok | h2 ok | h3 ok | h4 ok | '

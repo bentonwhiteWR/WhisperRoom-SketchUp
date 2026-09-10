@@ -149,6 +149,13 @@
 #      stamps that tag into every saved scene, and prints,
 #      per layer, the size, units, lumens, Kelvin and RGB actually written
 #      — plus every write that did not stick.
+#   7. Opens the EXPOSURE CLASH window when the camera is not at the
+#      factory ISO: the sun and every V-Ray light this tool did not make,
+#      each with its value now and the value that meters the same at the
+#      stamped camera. Nothing there is written without a tick and a
+#      click. A booth that already carries its own light (every
+#      link-built booth does) does NOT get the rig's interior light on
+#      top — the window names it instead.
 #
 # Lights go in the CURRENT drawing context, never inside the client's room
 # group, so coordinates agree with the selections' own bounding boxes.
@@ -354,7 +361,12 @@ module WR_DropLights
   # single ISO stamp above is Benton's. A tool that quietly retunes a render
   # setting is indistinguishable from a bug in the render.
   NEVER_WRITE = ['/SettingsOutput',       # image size, safe frames — his
-                 '/SunLight',             # sun is his dressing decision
+                 '/SunLight',             # sun is his dressing decision —
+                                          #   the ONE exception is the retune
+                                          #   window (retune_window), which
+                                          #   writes it only on his explicit
+                                          #   click, row by row, after showing
+                                          #   the current and proposed value
                  '/SettingsEnvironment',  # sky, GI and background multipliers
                  '/SettingsImageSampler', # quality — "Medium" is his choice
                  '/CameraPhysical except ISO'].freeze
@@ -2059,6 +2071,303 @@ module WR_DropLights
   end
 
   # ======================================================================
+  # THE EXPOSURE CLASH — what the stamp does to everything it does NOT write
+  #
+  # The stamp is a five-stop camera gain (ISO 100 -> 3200), and it applies
+  # to every emitter in the frame: the V-Ray sun, the light inside every
+  # link-built booth (BoothLighting.skp, build-booth-components.rb
+  # place_booth_lighting) and any light Benton made by hand — all authored
+  # at the factory camera, all now ~32x hot. Benton, 10 Sep 2026: "the sun
+  # at level 1 just totally blows out everything. I have to set it to 0.05
+  # or lower"; 1.0 / 32 = 0.031. The rig's own fixtures were calibrated FOR
+  # the stamped camera, so they are not on this list.
+  #
+  # The design call (10 Sep 2026): the camera STAYS at EXPO_ISO — EV 9.23
+  # came out of the 148-frame sweep and it is what makes every lumen figure
+  # in LIGHT_LAYERS a real product number — and the tool tells him what the
+  # rest of the model now needs, in a window, with the current and the
+  # proposed value side by side, and writes NOTHING unless he ticks a row
+  # and presses the button. That click is the only thing that ever crosses
+  # NEVER_WRITE for /SunLight, and it is itemised before it happens.
+  #
+  # None of this has been run in SketchUp. rbtest-lights.py runs the two
+  # pure methods; the scan, the window and the writes are unproven.
+  # ======================================================================
+
+  # PURE. The camera gain the stamp introduced, as a multiplier: what a
+  # light or the sun tuned at `factory` ISO must be multiplied by to meter
+  # the same again at `now`. 100 -> 3200 is 1/32 (five stops). nil when a
+  # reading is missing or not positive, or when there is no gain (the
+  # camera is at the factory ISO — nothing is hot, and a rig placed for
+  # EXPO_ISO is five stops DARK instead).
+  def self.exposure_ratio(factory, now)
+    return nil unless factory.is_a?(Numeric) && now.is_a?(Numeric)
+    return nil if factory <= 0.0 || now <= 0.0
+    r = (factory * 1.0) / (now * 1.0)
+    (r - 1.0).abs < 1e-6 ? nil : r
+  end
+
+  # PURE. Stops of gain a ratio represents: 1/32 -> 5.0 (positive = the
+  # camera got MORE sensitive, so everything else reads hot).
+  def self.stops_of(ratio)
+    return nil unless ratio.is_a?(Numeric) && ratio > 0.0
+    -(Math.log(ratio) / Math.log(2.0))
+  end
+
+  # PURE. One row per thing that would need retuning:
+  #   [name, kind, current, proposed, note]
+  # `sun` is nil or { :mult => x, :enabled => bool|nil }; `lights` is
+  # [[plugin_name, intensity, enabled, instances], ...]. A disabled emitter,
+  # an unreadable value or a nil ratio gets NO proposal (nil) and a note
+  # saying why — the window never proposes a number it cannot derive.
+  def self.retune_rows(sun, lights, ratio)
+    rows = []
+    why = lambda do |cur, en|
+      if ratio.nil? then 'camera is at the factory ISO — nothing to retune'
+      elsif en == false then 'disabled — left alone'
+      elsif !cur.is_a?(Numeric) then 'value could not be read'
+      end
+    end
+    if sun
+      note = why.call(sun[:mult], sun[:enabled])
+      rows << ['/SunLight', 'sun', sun[:mult],
+               note ? nil : sun[:mult] * ratio, note]
+    end
+    (lights || []).each do |name, cur, en, n|
+      note = why.call(cur, en)
+      note = "#{n} instances share this light" if note.nil? && n.is_a?(Numeric) && n > 1
+      rows << [name, 'light', cur,
+               (ratio && cur.is_a?(Numeric) && en != false) ? cur * ratio : nil,
+               note]
+    end
+    rows
+  end
+
+  # A V-Ray light's definition POINTS AT its scene plugin by name, in the
+  # definition's VRayInfo dictionary (observed live 27 Aug 2026 — the old
+  # seed architecture resolved every seed this way; DEVLOG "a seed is a
+  # pointer, not a light"). '' when it cannot be read.
+  def self.main_plugin_of(e)
+    d = e.respond_to?(:definition) ? e.definition : nil
+    return '' if d.nil?
+    ad = d.attribute_dictionary('VRayInfo')
+    ad ? ad['main_plugin'].to_s : ''
+  rescue StandardError
+    ''
+  end
+
+  # Every V-Ray light in `ents` (recursively) that this tool did NOT make:
+  # no `seed`/`role` attribute, judged a light by vray_light?. This is what
+  # collect_lights deliberately never sees — Benton's hand-made lights and
+  # the one inside every link-built booth. Returns
+  # [{ :ent, :plugin, :path }, ...]; the tool's own fixtures (they carry
+  # `role`) are skipped without being walked into. Never raises.
+  def self.foreign_lights(ents, out, path = [], depth = 0)
+    return if depth > SWEEP_MAX_DEPTH
+    ents.each do |e|
+      next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      next if e.get_attribute(DICT, 'seed') || e.get_attribute(DICT, 'role')
+      here = path + [display_name(e)]
+      if vray_light?(e)
+        out << { :ent => e, :plugin => main_plugin_of(e), :path => here.join(' > ') }
+        next
+      end
+      kids = child_entities(e)
+      foreign_lights(kids, out, here, depth + 1) if kids.respond_to?(:each)
+    end
+  rescue StandardError
+    nil
+  end
+
+  # Read a light plugin's intensity and enabled flag: [intensity, enabled],
+  # either nil when unreadable. Never raises.
+  def self.read_light(scene, name)
+    return [nil, nil] if scene.nil? || name.to_s.empty?
+    pl = (scene[name] rescue nil)
+    return [nil, nil] if pl.nil?
+    [(pl[:intensity] rescue nil), (pl[:enabled] rescue nil)]
+  end
+
+  # The foreign lights of the whole model, one row per PLUGIN (several
+  # instances of one definition share one plugin — BoothLighting.skp is
+  # placed once per ceiling tile): [[name, intensity, enabled, count], ...]
+  # plus the entities whose plugin could not be resolved.
+  def self.foreign_light_rows(model, scene)
+    found = []
+    foreign_lights(model.entities, found)
+    by = {}
+    unresolved = []
+    found.each do |f|
+      if f[:plugin].empty?
+        unresolved << f[:path]
+        next
+      end
+      by[f[:plugin]] ||= 0
+      by[f[:plugin]] += 1
+    end
+    rows = by.map do |name, n|
+      cur, en = read_light(scene, name)
+      [name, cur, en, n]
+    end
+    [rows, unresolved]
+  end
+
+  # THE WINDOW. Shown after every press whose camera is not at the factory
+  # ISO. Lists the sun and every foreign light with its current value and
+  # the value that would meter the same at the stamped camera; every row
+  # is UNTICKED, and nothing is written until he ticks rows and presses
+  # WRITE THE TICKED ROWS. Writes go through write_params / read_param —
+  # inside a scene.change, read back after — and the result is painted
+  # into the window by name. A value that did not stick says so.
+  def self.retune_window(model, scene, expo, booth_notes)
+    iso_now = expo[:iso_after] || expo[:iso_before]
+    if iso_now.nil?
+      puts ''
+      puts '  EXPOSURE CLASH: the camera ISO could not be read (no /CameraPhysical?) ' \
+           '— no retune list; check Asset Editor > Settings > Camera yourself.'
+      return
+    end
+    ratio = exposure_ratio(EXPO_FACTORY_ISO, iso_now)
+    sun_pl = (scene && (scene['/SunLight'] rescue nil))
+    sun = sun_pl ? { :mult => (sun_pl[:intensity_multiplier] rescue nil),
+                     :enabled => (sun_pl[:enabled] rescue nil) } : nil
+    lights, unresolved = foreign_light_rows(model, scene)
+    rows = retune_rows(sun, lights, ratio)
+    stops = stops_of(ratio)
+    puts ''
+    puts '  EXPOSURE CLASH — what else in this model the camera now affects:'
+    if ratio.nil?
+      puts format('    camera ISO reads %s — the factory value, so nothing is hot; ' \
+                  'but a rig placed for ISO %.0f renders ~5 stops DARK at it.',
+                  iso_now.inspect, EXPO_ISO)
+    else
+      puts format('    camera ISO %s = %.1f stops over factory; the sun and every ' \
+                  'light NOT made by this tool read ~%.0fx hot.',
+                  iso_now.inspect, stops, 1.0 / ratio)
+    end
+    rows.each do |name, kind, cur, prop, note|
+      puts format('    %-28s %-5s now %s -> %s%s', name, kind, cur.inspect,
+                  prop.nil? ? '(no proposal)' : format('%.4g', prop),
+                  note ? "  [#{note}]" : '')
+    end
+    unresolved.each { |p| puts "    #{p}: a V-Ray light whose plugin could not be resolved" }
+    booth_notes.each { |l| puts "    #{l}" }
+    puts '    NOTHING above was written. The window lists it; a ticked row is ' \
+         'written only when you press the button there.'
+
+    @retune_dlg = UI::HtmlDialog.new(
+      :dialog_title    => 'Exposure — what else needs retuning',
+      :preferences_key => 'WR_DropLightsRetune',
+      :scrollable      => true, :resizable => true,
+      :width           => 560, :height => 520,
+      :min_width       => 420, :min_height => 320,
+      :style           => UI::HtmlDialog::STYLE_DIALOG)
+    @retune_dlg.set_html(retune_html(iso_now, ratio, stops, rows, unresolved, booth_notes))
+    @retune_dlg.add_action_callback('write') do |_c, payload|
+      lines = []
+      begin
+        req = JSON.parse(payload.to_s)
+        req.each do |r|
+          name = r['name'].to_s
+          key = r['kind'] == 'sun' ? :intensity_multiplier : :intensity
+          val = r['value'].to_f
+          pl = (scene && (scene[name] rescue nil))
+          if pl.nil?
+            lines << "#{name}: plugin not found — nothing written"
+            next
+          end
+          errs = write_params(scene, pl, [[key, val]])
+          stuck, got, err = read_param(pl, key, val, errs[key] || errs[:__scene])
+          lines << if stuck
+                     format('%s[%s] = %.4g — written and read back', name, key, got.to_f)
+                   else
+                     format('%s[%s]: DID NOT STICK (reads %s%s)', name, key, got.inspect,
+                            err ? "; #{err}" : '')
+                   end
+        end
+        lines << 'No row was ticked — nothing written.' if req.empty?
+      rescue StandardError => e
+        lines << "write failed: #{e.class}: #{e.message}"
+      end
+      lines.each { |l| puts "    RETUNE #{l}" }
+      @retune_dlg.execute_script('result(' + lines.to_json + ')')
+    end
+    @retune_dlg.add_action_callback('close') { |_c, _p| @retune_dlg.close }
+    @retune_dlg.show
+  rescue StandardError => e
+    puts "  the retune window could not be shown: #{e.class}: #{e.message} — " \
+         'the console list above is the same information.'
+  end
+
+  def self.retune_html(iso_now, ratio, stops, rows, unresolved, booth_notes)
+    esc = lambda { |t| t.to_s.gsub('&', '&amp;').gsub('<', '&lt;').gsub('>', '&gt;').gsub('"', '&quot;') }
+    head = if ratio.nil?
+             format('The V-Ray camera reads ISO %s, the factory value. Nothing in the ' \
+                    'model is over-exposed by this tool &mdash; but the rig it just ' \
+                    'placed is calibrated for ISO %.0f and will render about five ' \
+                    'stops DARK at this camera. If your renders come out dark, this ' \
+                    'is why: Asset Editor &gt; Settings &gt; Camera &gt; ISO %.0f.',
+                    esc.call(iso_now.inspect), EXPO_ISO, EXPO_ISO)
+           else
+             format('The V-Ray camera is at ISO %s &mdash; %.1f stops more sensitive ' \
+                    'than the factory ISO %.0f this tool found. The rig it placed is ' \
+                    'calibrated for that. Everything ELSE that emits &mdash; the sun ' \
+                    'and any light this tool did not make &mdash; now renders about ' \
+                    '%.0fx hot. Below: each one, its value now, and the value that ' \
+                    'meters the same as before. <b>Nothing is written until you tick ' \
+                    'a row and press the button.</b>',
+                    esc.call(iso_now.inspect), stops, EXPO_FACTORY_ISO, 1.0 / ratio)
+           end
+    trs = rows.each_with_index.map do |(name, kind, cur, prop, note), i|
+      can = !prop.nil?
+      format('<tr><td><input type="checkbox" id="c%d" %s data-name="%s" data-kind="%s"></td>' \
+             '<td>%s</td><td>%s</td><td>%s</td><td>%s</td><td class="note">%s</td></tr>',
+             i, can ? '' : 'disabled', esc.call(name), esc.call(kind), esc.call(name),
+             esc.call(kind), esc.call(cur.inspect),
+             can ? format('<input type="text" id="v%d" value="%.4g" size="8">', i, prop) : '&mdash;',
+             esc.call(note || ''))
+    end.join
+    extra = unresolved.map { |p| "<li>#{esc.call(p)} &mdash; a V-Ray light whose plugin could not be resolved; retune it in the Asset Editor</li>" } +
+            booth_notes.map { |l| "<li>#{esc.call(l)}</li>" }
+    <<-HTML
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{font:13px/1.4 Segoe UI,Arial,sans-serif;margin:14px;color:#222}
+h1{font-size:15px;margin:0 0 8px}
+p{margin:6px 0}
+table{border-collapse:collapse;width:100%;margin:10px 0}
+th,td{border-bottom:1px solid #ddd;padding:4px 6px;text-align:left;vertical-align:top}
+th{background:#f3f3f3;font-weight:600}
+.note{color:#666;font-size:12px}
+button{padding:6px 12px;margin-right:8px}
+#out{white-space:pre-wrap;font-family:Consolas,monospace;font-size:12px;background:#f7f7f7;padding:8px;margin-top:10px;display:none}
+.warn{color:#a04000}
+</style></head><body>
+<h1>Exposure &mdash; what else needs retuning</h1>
+<p>#{head}</p>
+<table><tr><th></th><th>Plugin</th><th>Kind</th><th>Now</th><th>Proposed</th><th></th></tr>#{trs}</table>
+#{extra.empty? ? '' : '<ul>' + extra.join + '</ul>'}
+<p class="warn">The sun is normally never written by this tool. Ticking its row is the one exception, and it is your click, not a default. Ctrl+Z does not undo a V-Ray value: note the &ldquo;Now&rdquo; column before you press.</p>
+<p><button onclick="go()">WRITE THE TICKED ROWS</button><button onclick="sketchup.close()">CLOSE &mdash; write nothing</button></p>
+<div id="out"></div>
+<script>
+function go(){
+  var rows=[]; var i=0;
+  while(document.getElementById('c'+i)){
+    var c=document.getElementById('c'+i);
+    if(c.checked && !c.disabled){
+      var v=document.getElementById('v'+i);
+      rows.push({name:c.getAttribute('data-name'), kind:c.getAttribute('data-kind'), value:v?v.value:''});
+    }
+    i++;
+  }
+  sketchup.write(JSON.stringify(rows));
+}
+function result(lines){ var o=document.getElementById('out'); o.style.display='block'; o.textContent=lines.join('\\n'); }
+</script></body></html>
+    HTML
+  end
+
+  # ======================================================================
   # THE TAG GATE (spec §9 step 2b, auditor finding C1)
   #
   # `WR Lights` read FALSE on the live model three times on 30 Aug, and a
@@ -2560,6 +2869,31 @@ module WR_DropLights
   def self.booth?(ent)
     return true if layer_name(ent).start_with?('WR-Booth')
     child_entities(ent).to_a.any? { |e| layer_name(e).start_with?('WR-Booth') }
+  end
+
+  # The V-Ray lights a booth ALREADY carries that this tool did not make —
+  # BoothLighting.skp from the booth builder, or anything Benton put there.
+  # A light whose plugin reads enabled == false is not counted (it emits
+  # nothing, so the rig's light is still wanted); an unreadable one IS
+  # counted, because the loud failure here is a doubled light, not a
+  # missing one. Returns [[path, plugin, intensity, enabled], ...].
+  def self.booth_own_lights(booth, scene)
+    found = []
+    foreign_lights(child_entities(booth), found)
+    found.map do |f|
+      cur, en = read_light(scene, f[:plugin])
+      en == false ? nil : [f[:path], f[:plugin], cur, en]
+    end.compact
+  rescue StandardError
+    []
+  end
+
+  def self.booth_light_note(bname, own)
+    plugs = own.map { |_, p, _, _| p.empty? ? '(unresolved)' : p }.uniq
+    format('booth "%s" already carries %d light%s of its own (%s) — the rig\'s ' \
+           'interior light was NOT added on top. Retune that one in the window; ' \
+           'delete it if you want the rig\'s 800 lm light instead.',
+           bname, own.size, own.size == 1 ? '' : 's', plugs.join(', '))
   end
 
   # A sibling that is itself a ROOM — it has its own floor child — is never
@@ -3293,7 +3627,7 @@ paint(); drawPresets("");
       erased, reap_pending = erase_lights(stale)
 
       puts ''
-      puts format('Drop Interior Lights 1.31.2 — brightness %s (x%.2f), ' \
+      puts format('Drop Interior Lights 1.32.0 — brightness %s (x%.2f), ' \
                   'warmth %s (%+d K), units 1 (LUMENS), seven roles',
                   opts[:bright], opts[:mult], opts[:warmth], opts[:koffset])
       unless stale.empty?
@@ -3319,6 +3653,7 @@ paint(); drawPresets("");
       ceilings_added = 0
       walls_added = 0
       wall_notes = []   # one line per room, shown in a window when walls were asked for
+      booth_notes = []  # booths whose own light stopped the rig's interior light
       room_lm = 0.0
       booth_lm = 0.0
       press_uuid = format('%d-%06d', Time.now.to_i, rand(1_000_000))
@@ -3439,8 +3774,14 @@ paint(); drawPresets("");
                 bb.max.z - BOOTH_DROP]
           lm = layer_lumens(LIGHT_LAYERS[:booth][:lumens], opts[:mult],
                             role_scale(:booth, opts))
-          place.call(:booth, pt, lm)
-          puts "  #{name}: selected booth — 1 interior light at #{fmt(pt)}, #{lm.round} lm"
+          own = booth_own_lights(s, scene)
+          if own.empty?
+            place.call(:booth, pt, lm)
+            puts "  #{name}: selected booth — 1 interior light at #{fmt(pt)}, #{lm.round} lm"
+          else
+            booth_notes << booth_light_note(name, own)
+            puts "  #{booth_notes.last}"
+          end
           next
         end
 
@@ -3708,11 +4049,24 @@ paint(); drawPresets("");
           # ROLE 6 — the booth is a sealed box: 0.0173 mean, 95.4% near-black
           # with the room lights on and nothing inside (observed). Without
           # this the hero product is a hole in every frame.
+          # BUT NOT ON TOP OF THE BOOTH'S OWN LIGHT. Every link-built booth
+          # already carries BoothLighting.skp, one per ceiling tile
+          # (build-booth-components.rb, default on), and collect_lights never
+          # sees it — so before this check every link booth got TWO interior
+          # emitters per press (.forge/fixer/sun-blowout.md). Where the booth
+          # has a live light of its own, the rig's is not placed and the
+          # window says so; his light is the one that gets retuned there.
           bpt = [cx, cy, bb.max.z - BOOTH_DROP]
-          place.call(:booth, bpt, lm_of.call(:booth))
-          puts format('  %s: booth "%s" interior — %.0f lm at %dK, %s',
-                      name, bname, lm_of.call(:booth),
-                      layer_kelvin(4000, opts[:koffset]), fmt(bpt))
+          own = booth_own_lights(o[:ent], scene)
+          if own.empty?
+            place.call(:booth, bpt, lm_of.call(:booth))
+            puts format('  %s: booth "%s" interior — %.0f lm at %dK, %s',
+                        name, bname, lm_of.call(:booth),
+                        layer_kelvin(4000, opts[:koffset]), fmt(bpt))
+          else
+            booth_notes << booth_light_note(bname, own)
+            puts "  #{name}: #{booth_notes.last}"
+          end
 
           dc = booth_door_center(o)
           if dc.nil?
@@ -3859,6 +4213,11 @@ paint(); drawPresets("");
                       body.join("\n") + "\n\nThe Ruby Console lists every run and " \
                       'what was found on it.')
       end
+      # THE EXPOSURE CLASH WINDOW — every press whose camera is not at the
+      # factory ISO (this press stamped it, or an earlier one did). Lists
+      # the sun and every foreign light with current and proposed values;
+      # writes nothing on its own. See retune_window.
+      retune_window(model, scene, expo, booth_notes)
       puts '  Each drawn fixture (F1 drum, F2 pendant, F3 sconce) is ONE group ' \
            'holding its shell and its emitter: move the group and the light ' \
            'goes with it. Whether a nested emitter still lights the render is ' \

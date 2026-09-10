@@ -1,5 +1,33 @@
 # Blow-out after "Drop the interior lights" — sun AND the booth's own light
 
+> **Update, 1.32.0 (later on 10 Sep 2026) — what changed since this note.** Benton
+> asked whether the dark proposal exports are the same problem and declined to pick a
+> design; the call was made for him: **camera stays at ISO 3200, the tool shows what
+> else needs retuning and writes only on his click.** Built and parse-checked, **not
+> run in SketchUp.**
+>
+> - **Dark exports: two problems, one camera.** A plain image row never goes through
+>   V-Ray (`view.write_image` under the wr-shading contract — `WR_Shading.apply`
+>   writes SketchUp `shadow_info` Light 80 / Dark 45 and turns shadows off,
+>   **observed**; nothing there reads ISO). A dark *V-Ray* row is the stamp seen from
+>   the other side: rig calibrated for 3200, camera put back to 100 by hand → rig ~5
+>   stops dark. Blown = ISO 3200 with sun/booth light at factory; dark = ISO 100 with
+>   the rig placed for 3200. The question that decides it: *plain image rows or
+>   ` render.png` rows?*
+> - **Option 1 ("announce, don't write") shipped as `retune_window`, with an opt-in
+>   write.** After every press whose camera is not at the factory ISO: sun + every
+>   foreign light (`foreign_lights`, resolving plugins via `VRayInfo["main_plugin"]`),
+>   now → proposed (`exposure_ratio` = 100/ISO), all unticked, written only on the
+>   button, each write read back by name. Console gets the same list. `NEVER_WRITE`
+>   stays; the sun row is the itemised exception, on his click.
+> - **Loose end 2 fixed:** `booth_own_lights` — a booth already carrying a live
+>   foreign light does not get role 6. Both paths.
+> - **Loose end 4 fixed:** `proposal-package.rb` `ev_of_camera` takes ISO; the
+>   "camera as configured" line reports 9.23 on a stamped model and shouts when
+>   ISO ≠ 100. Only change to that file.
+> - **Loose end 3 (`LUMEN_GAIN` against an unknown ISO) untouched** — still the
+>   experiment's step 2 question. Verification steps: `.forge/builder/HANDOFF.md`.
+
 Fixer notes, 10 Sep 2026. Diagnosis only. **Nothing under `scripts/` was changed** and no
 lighting default, exposure stamp or sun value was touched. Nothing here was proven by
 execution: there is no `ruby.exe` on this machine and SketchUp / V-Ray cannot be driven

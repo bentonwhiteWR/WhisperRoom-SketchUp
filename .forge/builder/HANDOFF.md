@@ -1114,3 +1114,44 @@ means the tolerance line in the new console output is the next clue.
   (`:no_alpha` is documented). No other V-Ray call was touched.
 - Harness cannot see plugin arity; a stub-renderer test would.
 - Check: one render scene -> `1 exported, 0 FAILED`, PNG on disk.
+---
+
+# Fixer: the exposure clash — 1.32.0 (10 Sep 2026)
+
+Benton: "the drop in lights function is also still breaking other lights
+and the sun" / "this has to do with the exporting images in proposal
+package being dark right?" Diagnosis in `.forge/fixer/sun-blowout.md`
+(updated). **Nothing run in SketchUp.** rbparse 71/71, rbtest-lights 50,
+rbtest-proposal +ev-iso.
+
+## Answer to his question
+Two problems on one camera. A PLAIN image never touches V-Ray (write_image
++ the wr-shading contract) — ISO cannot darken it. A V-Ray plate is dark
+when the camera is at ISO 100 with a rig calibrated for 3200 (e.g. he
+undid the stamp by hand to fix the sun); it is BLOWN when the camera is at
+3200 and the sun / booth light are still at factory. Ask: **"were the dark
+images plain image rows or ` render.png` rows?"**
+
+## What changed (`scripts/wr-drop-lights.rb`, `scripts/proposal-package.rb`)
+- `retune_window` after every press with a non-factory ISO: sun + every
+  foreign V-Ray light, value now → proposed (÷32), all unticked, written
+  only on WRITE THE TICKED ROWS, read back by name. Console gets the list.
+- `booth_own_lights`: a booth that already carries a live V-Ray light
+  (BoothLighting.skp, every link build) does NOT get the rig's role 6.
+- proposal-package: `ev_of_camera` counts ISO; the "camera as configured"
+  log line is honest on a stamped model and shouts when ISO ≠ 100.
+- `exposure_ratio`, `stops_of`, `retune_rows` pure + harness check 28.
+
+## To verify (Benton)
+1. Fresh model, room + link booth, press *Drop the interior lights*. A
+   second window "Exposure — what else needs retuning" should open after
+   the walls window, listing `/SunLight` now 1.0 → 0.03125 and the booth's
+   light(s) with their value ÷ 32. Nothing written yet.
+2. Lights tab: ONE interior light in the booth (his), not two. Console:
+   `booth "…" already carries N light(s) of its own … NOT added on top`.
+3. Tick the sun row, press the button; the window should print
+   `/SunLight[intensity_multiplier] = 0.03125 — written and read back`.
+   Render: sunlit surfaces back where they were at factory. If it says DID
+   NOT STICK, paste the line.
+4. Proposal package on that model: the run log should say `EV 9.23 (f/8.0
+   @ 1/300.0 @ ISO 3200.0, ISO counted)` plus a red ISO line.

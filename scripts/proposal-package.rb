@@ -333,12 +333,26 @@ module WR_ProposalPackage
 
   # PURE. The inverse, used to report the EV that ACTUALLY landed after the
   # write is read back -- never the EV that was asked for.
-  def self.ev_of_camera(f_number, shutter)
+  #
+  # ISO COUNTS (1.32.0). This used to derive EV from f-number and shutter
+  # alone, which is right only at ISO 100 -- and wr-drop-lights.rb stamps
+  # ISO 3200 into every model it touches. On such a model the log said
+  # "EV 14.23" for a camera that is really at EV 9.23, five stops out
+  # (.forge/fixer/sun-blowout.md, loose end 4). A wrong number in the log
+  # is how "the exposure looks fine" gets said about a blown or a dark
+  # render. `iso` is optional so the harness's ISO-100 cases still hold;
+  # a missing or non-positive ISO is treated as 100 and said so by the
+  # caller.
+  def self.ev_of_camera(f_number, shutter, iso = nil)
     return nil unless f_number.is_a?(Numeric) && shutter.is_a?(Numeric)
     f = f_number * 1.0
     sp = shutter * 1.0
     return nil if f <= 0.0 || sp <= 0.0
-    Math.log((f * f) * sp) / Math.log(2.0)
+    ev = Math.log((f * f) * sp) / Math.log(2.0)
+    if iso.is_a?(Numeric) && iso > 0.0
+      ev -= Math.log((iso * 1.0) / 100.0) / Math.log(2.0)
+    end
+    ev
   end
 
   # PURE. F3: where the model goes at the end of a batch. WR_Mode.current
@@ -2011,10 +2025,23 @@ module WR_ProposalPackage
       log(dlg, '        ' + row.map { |k, v| "#{k}=#{v.inspect}" }.join('  '), 'dim')
     end
 
+    iso_read = read[['/CameraPhysical', :ISO]]
     ev = ev_of_camera(read[['/CameraPhysical', :f_number]],
-                      read[['/CameraPhysical', :shutter_speed]])
-    log(dlg, format('        the camera as configured is EV %.2f%s', ev || 0.0,
-                    ev.nil? ? ' (could not be derived)' : ''), 'dim')
+                      read[['/CameraPhysical', :shutter_speed]], iso_read)
+    log(dlg, format('        the camera as configured is EV %.2f%s (f/%s @ 1/%s @ ISO %s%s)',
+                    ev || 0.0, ev.nil? ? ' (could not be derived)' : '',
+                    read[['/CameraPhysical', :f_number]].inspect,
+                    read[['/CameraPhysical', :shutter_speed]].inspect,
+                    iso_read.inspect,
+                    iso_read.is_a?(Numeric) && iso_read > 0.0 ? ', ISO counted' : ' -- ISO unreadable, EV assumes 100'),
+        iso_read.is_a?(Numeric) && (iso_read - 100.0).abs > 0.5 ? 'bad' : 'dim')
+    if iso_read.is_a?(Numeric) && (iso_read - 100.0).abs > 0.5
+      log(dlg, format('        ISO %s is NOT the factory 100: wr-drop-lights.rb stamps 3200 ' \
+                      '(five stops). Its rig is calibrated for that; the sun and any ' \
+                      'other light are ~%.0fx hot unless retuned. If ISO was put back ' \
+                      'to 100 by hand, the rig renders ~5 stops DARK instead.',
+                      iso_read.inspect, iso_read / 100.0), 'bad')
+    end
 
     # OVERRIDES: opt-in, never default, and announced loudly when they are on.
     ov = overrides_triples
@@ -2522,7 +2549,8 @@ module WR_ProposalPackage
     return nil if scene.nil?
     pl = (scene['/CameraPhysical'] rescue nil)
     return nil if pl.nil?
-    ev_of_camera((pl[:f_number] rescue nil), (pl[:shutter_speed] rescue nil))
+    ev_of_camera((pl[:f_number] rescue nil), (pl[:shutter_speed] rescue nil),
+                 (pl[:ISO] rescue nil))
   rescue Exception
     nil
   end
@@ -2551,7 +2579,8 @@ module WR_ProposalPackage
     applied, problems = write_params(scene, triples)
     problems.each { |m| log(dlg, "        #{file}  EXPOSURE: #{m}", 'bad') }
     landed = ev_of_camera(applied['/CameraPhysical[f_number]'],
-                          applied['/CameraPhysical[shutter_speed]'])
+                          applied['/CameraPhysical[shutter_speed]'],
+                          applied['/CameraPhysical[ISO]'])
     log(dlg, format('        %s  EV %.2f (f/%s @ 1/%s, ISO %s)%s',
                     file, landed || ev,
                     applied['/CameraPhysical[f_number]'].inspect,

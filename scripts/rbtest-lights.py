@@ -325,7 +325,7 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'layer_kelvin', 'area_scale', 'ring_points', 'shell_faces', 'fixture_faces',
            'wall_points', 'sconce_points', 'wall_normal', 'far_corner',
            'ceiling_pair', 'face_on_edge?', 'open_edges', 'face_offset',
-           'run_report']
+           'run_report', 'exposure_ratio', 'stops_of', 'retune_rows']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H',
@@ -799,6 +799,35 @@ __METHODS__
                                          r[:faces], r[:hidden],
                                          r[:near] ? format('%.1f', r[:near]) : '-') }.join(' ')
 
+    # 28 -- THE EXPOSURE CLASH (1.32.0). The stamp's ratio: 100 -> 3200 is
+    # 1/32 = five stops; the factory camera (100 -> 100) is NO ratio (nil),
+    # as are nil / zero / negative readings. retune_rows: the sun and a
+    # live light get current x ratio; a disabled light, an unreadable value
+    # and a nil ratio get no proposal and a note; shared instances are
+    # counted in the note. Sun at 1.0 -> 0.03125 is Benton's "0.05 or
+    # lower", derived.
+    er = lambda { |a, b| v = exposure_ratio(a, b); v.nil? ? '-' : format('%.5g', v) }
+    out << 'er ' + [er.call(100.0, 3200.0), er.call(100.0, 100.0), er.call(100, 3200),
+                    er.call(nil, 3200.0), er.call(100.0, 0.0), er.call(-1, 5),
+                    er.call(100.0, 800.0)].join(',') +
+           format(' st%.1f,%.1f,%s', stops_of(1.0 / 32), stops_of(0.125),
+                  stops_of(nil).nil? && stops_of(0.0).nil? ? '-' : 'BAD')
+    rr = retune_rows({ :mult => 1.0, :enabled => true },
+                     [['/Rectangle Light', 30.0, true, 4],
+                      ['/Rectangle Light#1', 30.0, false, 1],
+                      ['/Rectangle Light#2', nil, true, 1],
+                      ['/Sphere Light', 2500.0, nil, 1]], 1.0 / 32)
+    fmt_r = lambda do |rows|
+      rows.map do |n, k, c, p, note|
+        format('%s/%s/%s/%s/%s', n, k, c.inspect,
+               p.nil? ? '-' : format('%.5g', p), note ? note.split(' ')[0] : '')
+      end.join(' ')
+    end
+    out << 'rr3 ' + fmt_r.call(rr)
+    out << 'rr4 ' + fmt_r.call(retune_rows({ :mult => 0.05, :enabled => true },
+                                           [['/Rectangle Light', 30.0, true, 1]], nil)) +
+           ' n' + retune_rows(nil, [], 0.5).size.to_s
+
     out.join(' | ')
   end
 end
@@ -856,6 +885,11 @@ EXPECT = ' | '.join([
     'oe 3 - 3 0 3 - 4',
     'rr W2/0/-/144 W1/0/4.0/180 W1/0/-/144 O0/1/-/180 oe3',
     'rr2 W2/0/- O0/1/4.0 W1/0/- O0/0/-',
+    'er 0.03125,-,0.03125,-,-,-,0.125 st5.0,3.0,-',
+    'rr3 /SunLight/sun/1.0/0.03125/ /Rectangle Light/light/30.0/0.9375/4 '
+    '/Rectangle Light#1/light/30.0/-/disabled /Rectangle Light#2/light/nil/-/value '
+    '/Sphere Light/light/2500.0/78.125/',
+    'rr4 /SunLight/sun/0.05/-/camera /Rectangle Light/light/30.0/-/camera n0',
 ])
 
 # ---- second program: wr-mode.rb's snapshot pins -------------------------

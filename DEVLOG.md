@@ -1,6 +1,70 @@
 # DEVLOG
 
 ## 2026-09-10
+### The exposure clash: retune window, no double booth light, honest EV log — 1.32.0
+
+Benton, 10 Sep 2026: *"the drop in lights function is also still breaking
+other lights and the sun"* and *"this has to do with the exporting images
+in proposal package being dark right? Why cant this get resolved."* Built
+from `.forge/fixer/sun-blowout.md`; **nothing here has run in SketchUp**.
+`rbparse.py` 71/71; `rbtest-lights.py` 47 → 50 PASS; `rbtest-proposal.py`
++1 (`ev-iso`) PASS.
+
+**Are the dark exports the same problem? Two problems, one camera.** A
+plain image never goes through V-Ray — `proposal-package.rb`'s plain lane
+is `view.write_image` under the `wr-shading.rb` contract (SketchUp
+`shadow_info` Light 80 / Dark 45, shadows off; **observed** in
+`WR_Shading.apply`), so `/CameraPhysical[ISO]` cannot touch it. A dark
+*V-Ray* plate is the same camera as the blown sun seen from the other
+side: the rig is calibrated for ISO 3200; set ISO back to 100 by hand (the
+exact undo the console suggests) and the rig renders ~5 stops dark while
+the sun looks right again. Which lane a dark image came out of is the one
+question that decides it, and the window now says both halves.
+
+**The design call, made so he does not have to:** the camera stays at
+`EXPO_ISO` 3200 (the sweep-backed EV 9.23; it is what makes the lumen
+table real) and the tool tells him what the rest of the model now needs.
+`EXPO_ISO`, `EXPO_EV`, the stamp's five guards, `LUMEN_GAIN` and every
+layer figure are untouched.
+
+- **`retune_window`** (`scripts/wr-drop-lights.rb`): after every press
+  whose camera is not at the factory ISO, an HtmlDialog lists `/SunLight`
+  and every V-Ray light this tool did not make (`foreign_lights` — the
+  recursive walk `collect_lights` deliberately never does, resolving each
+  light's plugin through its definition's `VRayInfo["main_plugin"]`), with
+  the value now and the value that meters the same at the stamped camera
+  (`exposure_ratio`: 100 → 3200 = 1/32). Every row is unticked; nothing is
+  written until he ticks rows and presses WRITE THE TICKED ROWS, and each
+  write goes through `write_params` / `read_param` and reports by name
+  whether it stuck. The sun row is the one sanctioned exception to
+  `NEVER_WRITE`, itemised before it happens, on his click only. Console
+  gets the same list.
+- **No double booth light.** Every link-built booth carries
+  `BoothLighting.skp` per ceiling tile (`build-booth-components.rb`,
+  default on) and the rig added its own 800 lm interior light on top —
+  two emitters per press. `booth_own_lights` now looks inside the booth
+  first; where a live foreign light is found, role 6 is **not placed**
+  (both paths: selected booth, booth inside a room) and the window names
+  it. His light is the one that gets retuned; delete it to get the rig's.
+  A light reading `enabled == false` does not count; an unreadable one
+  does (the loud failure is the double, not the gap).
+- **`proposal-package.rb` — the only change there, and it is the EV log
+  line:** `ev_of_camera(f, shutter, iso = nil)` now subtracts
+  `log2(ISO/100)`, so a stamped model logs EV 9.23 instead of 14.23; the
+  line prints f/shutter/ISO and, when ISO is not 100, a `bad` line
+  explaining the five stops both ways. `camera_ev` and `apply_exposure`
+  pass ISO too.
+- Harness: check 28 (`er`, `rr3`, `rr4`) covers the ratio, the stops,
+  disabled / unreadable / factory-ISO rows and shared instances.
+
+Unverified, in order of risk: that `foreign_lights` finds the light inside
+`BoothLighting.skp` (depends on `vray_light?` matching its inner
+definition's dictionaries — the same test that already refuses hand-made
+lights as subjects); that `VRayInfo["main_plugin"]` still resolves on
+V-Ray 7 (it did on 27 Aug); that a write to a light that is not this
+tool's persists the way its own do; that the HtmlDialog opens and its
+`write` callback fires. `LUMEN_GAIN = 10` was set by eye against an
+unknown ISO (sun-blowout.md loose end 3) and is left exactly as it is.
 ### REGRESSION FIX: V-Ray save raised "given 2, expected 1" — every render row failed — 1.31.3
 
 **Observed in the field** (Benton, screenshot): `PROPOSAL PACKAGE — 0
