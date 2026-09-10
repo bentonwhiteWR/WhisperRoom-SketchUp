@@ -700,7 +700,7 @@ module WR_ProposalPackage
       # offer the same flip the Toggle Draft/Render button does — you set the
       # slots here, you should be able to SEE them here.
       'mode'      => WR_Mode.current(model),
-      # UNDO LAST APPLY (1.26.0): what the button would put back, or nil.
+      # UNDO LAST APPLY (1.26.1): what the button would put back, or nil.
       'undo'      => undo_info(model),
       'materials' => (model.materials.map(&:name).sort rescue []) }
   end
@@ -711,7 +711,7 @@ module WR_ProposalPackage
     puts "  could not refresh the window: #{e.class}: #{e.message}"
   end
 
-  # ---- UNDO LAST APPLY (1.26.0) -------------------------------------------
+  # ---- UNDO LAST APPLY (1.26.1) -------------------------------------------
   # Ctrl+Z cannot reverse a scene write (1.25.2), so both scene modules
   # record what their last apply overwrote (WR_SceneWalls.undo_last and
   # its annotations twin) and this window offers to put it back. ONE step:
@@ -3488,7 +3488,7 @@ module WR_ProposalPackage
       push_state(model, d)
     end
 
-    # UNDO LAST APPLY (1.26.0). A live preview is ended first: its restore
+    # UNDO LAST APPLY (1.26.1). A live preview is ended first: its restore
     # would otherwise land on top of what was just put back.
     d.add_action_callback('undolast') do |_c, _p|
       next if busy?(d, 'undolast')
@@ -4378,7 +4378,7 @@ module WR_ProposalPackage
     drawUndo();
   }
 
-  // UNDO LAST APPLY (1.26.0): enabled only when Ruby says there is a
+  // UNDO LAST APPLY (1.26.1): enabled only when Ruby says there is a
   // record for THIS model; the tooltip names what it would put back.
   function drawUndo(){
     var ub = g("undolast"); if(!ub) return;

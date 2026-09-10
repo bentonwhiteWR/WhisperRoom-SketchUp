@@ -2,7 +2,7 @@
 
 ## 2026-09-10
 
-### UNDO LAST APPLY — the way back that Ctrl+Z is not, 1.26.0
+### UNDO LAST APPLY — the way back that Ctrl+Z is not, 1.26.1
 
 Benton: *"add an undo button too, I clicked 'apply to all scenes'
 (annotations). It said I could ctrl+z and that didnt work."* 1.25.2
@@ -46,7 +46,7 @@ The package button is inert while a batch runs, `busy?`-guarded, and
 ends a live preview first so the restore cannot land on top of the put-
 back. One operation per put-back, per-scene names in the log line.
 
-Minor bump (1.26.0): new buttons in three dialogs. `rbparse.py` 3/3,
+Minor bump (1.26.1 — 1.26.0 went to the callout-style tool minutes earlier): new buttons in three dialogs. `rbparse.py` 3/3,
 `rbtest-proposal.py` PASS, `node --check` on all three extracted dialog
 scripts. **Not observed:** that selecting a page inside the put-back
 operation re-asserts its state synchronously before `preview_snapshot`

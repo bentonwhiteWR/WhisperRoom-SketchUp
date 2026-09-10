@@ -343,7 +343,7 @@ module WR_SceneWalls
     return [false, 'No scene is selected — this model has no scenes, or none is active. ' \
                    'Create/select a scene first; there is nothing to save into.'] unless page
     return [false, 'Nothing to apply.'] if picks.nil? || picks.empty?
-    before = snapshot_keys(picks.keys)   # UNDO LAST APPLY (1.26.0)
+    before = snapshot_keys(picks.keys)   # UNDO LAST APPLY (1.26.1)
     model.start_operation('Hide walls per scene', true)
     begin
       r = write_scene(page, picks)
@@ -423,7 +423,7 @@ module WR_SceneWalls
     written = []
     unsaved = []
     gone    = []
-    entries = []                          # UNDO LAST APPLY (1.26.0)
+    entries = []                          # UNDO LAST APPLY (1.26.1)
     model.start_operation('Hide walls on every scene', true)
     begin
       pages.each do |pg|
@@ -453,7 +453,7 @@ module WR_SceneWalls
     [true, msg, { :written => written, :unsaved => unsaved }]
   end
 
-  # ---- UNDO LAST APPLY (1.26.0) -------------------------------------------
+  # ---- UNDO LAST APPLY (1.26.1) -------------------------------------------
   #
   # Ctrl+Z cannot reverse a scene write — page.update is outside SketchUp's
   # undo stack (1.25.2; Benton: "It said I could ctrl+z and that didnt
@@ -945,7 +945,7 @@ module WR_SceneWalls
       push_state(m)
       status(msg)
     end
-    # UNDO LAST APPLY (1.26.0): the way back that Ctrl+Z is not.
+    # UNDO LAST APPLY (1.26.1): the way back that Ctrl+Z is not.
     @dlg.add_action_callback('undolast') do |_c|
       m = Sketchup.active_model
       _ok, msg = undo_last(m)

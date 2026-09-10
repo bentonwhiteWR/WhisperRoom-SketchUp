@@ -1,4 +1,4 @@
-# HANDOFF — Fixer → Benton: UNDO LAST APPLY, 1.26.0
+# HANDOFF — Fixer → Benton: UNDO LAST APPLY, 1.26.1
 
 2026-09-10. Benton: *"add an undo button too"*. Built on a snapshot taken
 before every apply, NOT on SketchUp's undo stack. **Unrun in SketchUp.**
