@@ -1,6 +1,66 @@
 # DEVLOG
 
 ## 2026-09-10
+### Walls default to "On every run" — 1.43.1
+
+Benton: *"default the drop down to be 'on every run' for the walls."* That
+closes his "why did the drop in lights remove the wall checkbox" — nothing
+was removed; the three-way `<select>` sitting at "No" read as gone. The
+control stays as it is; its default is now **all**. Patch bump: no trim
+behaviour changes (below). **Unrun in SketchUp**; `rbparse.py` 74/74,
+`rbtest-lights.py` 54 → 55 checks PASS, two mutants killed.
+
+**Where the default lives — one constant now.** `WALLS_DEFAULT = 'all'` in
+`wr-drop-lights.rb`, read by `default_settings` (what the dialog opens
+with), the dialog's reset button (`DEFAULTS` in the JS), `walls_mode(nil)`
+(a preset saved before 1.28.0 with no walls key) and the JS fallback for
+the same. A preset that *says* `none`, or was saved with the 1.28.0
+checkbox off, still means No — he chose that.
+
+**Will Benton see it, or set it once by hand?** Within a SketchUp session
+the dialog reopens with `@last_settings` — whatever the last press used —
+so a session in which he has already pressed with "No" keeps "No" until
+the tool is reloaded or SketchUp restarts. **After `Update now` and a
+restart he sees "On every run" without touching anything.** Named presets
+are stored per user (`Sketchup.write_default`) but only applied when he
+loads one; a saved preset carrying `none` will put the control back to No
+when loaded — that is the preset's stored value, not a lost default. Nothing
+is stored per model.
+
+**Brightness — the trim does not move; the room does.** `enclosure_trim`
+reads `poly.size`, never the walls mode (1.28.0 design, unchanged), so no
+press lands on a different trim frame than it did. But the *rendered* room
+changes: with walls on every run and the ceiling default also on, the
+default room is a sealed box — sun and sky no longer enter through an open
+side, and the rig bounces off four walls. That is exactly the w4-ceil
+frame the lumen table is quoted for, so it is the rig at its calibrated
+condition, not a new one — **but on a render he previously made with an
+open side and the sun coming in, the default press will now look
+different for that reason alone.** Three things are moving on his next
+render (the ISO rescale, the 8' key, and now the enclosure); test with
+the walls set to No first if the aim is to judge the first two.
+
+**Lifecycle, confirmed in code (observed).** Borrowed walls carry
+`WR_DropLights/kind => wall`; the stale sweep on the next press erases
+them by bounds with the lights and the ceiling (`OWNED_KINDS`, nothing
+mode-specific), `remove_rig!` erases them through `erase_owned!('wall')`,
+`verify_restore!` fails by name if any survive (`after[:walls] > 0`), and
+they are made inside the press's `start_operation`, so a press that raises
+for any other reason hits `abort_operation` and leaves no wall standing.
+`add_walls` runs after the subject-sanity refusals, so a refused subject
+gets no walls at all.
+
+**Console.** The enclosing case was already the fully-described path
+("borrowed N walls on runs … THEY LEAVE WHEN THE LIGHTS DO"); the No
+branch now says "(the default is 'every run')" so the exception reads as
+the exception.
+
+**Benton's check.** `Update now`, restart SketchUp, open the tool: the
+walls dropdown reads **On every run** with nothing touched. Press on a
+room: console `borrowed N walls on runs 1, 2, 3, 4 (every run)`; the
+walls window lists them; the render is a closed box. Press again or
+Remove rig: `verify_restore` clean, no `WR Lights Wall N` left.
+
 ### The key light backs out to 8', aimed at the same spot; the walls control stays until Benton answers — 1.43.0
 
 Benton, with a screenshot of a `Rectangle Light` floating a few feet off

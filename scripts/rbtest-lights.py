@@ -238,6 +238,12 @@ geometry builders (tube / cone_shell / disc_solid touch the SketchUp
 Entities API), add_ceiling, remove_ceilings_verified!, model_probe,
 stamp_exposure!, stamp_tag_into_pages and assert_lights_visible!.
 
+MUTATION-CHECKED 2026-09-10 night (1.43.1, the walls default, same
+protocol): WALLS_DEFAULT 'all' -> 'none' (the old default back; `wd`
+names it); walls_mode(nil) falling to 'none' (an old preset drops the
+control to "No" again). Both KILLED and reverted. NOT coverable here:
+the dialog's JS fallback (DEFAULTS.walls) -- read it, not run.
+
 MUTATION-CHECKED 2026-09-10 night (1.43.0, the key light backed out to
 8', same protocol -- each applied to wr-drop-lights.rb, this test run,
 FAIL confirmed, reverted): ACCENT_OUT 96 -> 42 (the field change
@@ -356,7 +362,7 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'ceiling_pair', 'face_on_edge?', 'open_edges', 'face_offset',
            'run_report', 'exposure_ratio', 'stops_of', 'ev_of',
            'camera_verdict', 'rig_camera_gain', 'accent_tilt',
-           'accent_standoff']
+           'accent_standoff', 'walls_mode', 'default_settings']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
@@ -379,7 +385,7 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            # fixtures. Same rule as LUMEN_GAIN -- anything layer_lumens
            # multiplies by is lifted here.
            'CAMERA_GAIN']
-STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT']
+STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT']
 BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'LIGHT_LAYERS']
 
 
@@ -538,6 +544,17 @@ __METHODS__
     sd = accent_standoff([72.0, 30.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0)
     se = accent_standoff([72.0, 54.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0)
     out << 'ks ' + [sa, sb, sc, sd, se].map { |v| v.nil? ? '-' : format('%.0f', v) }.join(',')
+
+    # 9d -- THE WALLS DEFAULT (1.43.1; Benton: "default the drop down to be
+    # 'on every run'"). default_settings says all; walls_mode: a missing key
+    # (a pre-1.28.0 preset) gets the default, the 1.28.0 checkbox true/false
+    # still means open/none, explicit strings pass, junk is No. The ceiling
+    # default stays on, so the default room is sealed.
+    ds = default_settings
+    out << 'wd ' + [ds['walls'], ds['ceiling'] ? 'cap' : 'open',
+                    walls_mode(nil), walls_mode(true), walls_mode(false),
+                    walls_mode('open'), walls_mode('all'), walls_mode('none'),
+                    walls_mode('junk')].join(',')
 
     # 10 — the light-as-room incident: Benton's 24"-tall rectangle light
     # (a) and a 100 sqin floor (b) are vetoed; 71.9" (c) is still below the
@@ -946,6 +963,7 @@ EXPECT = ' | '.join([
     # 84 -> 116 inside, 78 -> 122 clear -> 78. (d) 30" of room: 42 lands at
     # y=-12, outside -> nil. (e) door at y=54: 42 -> y=12, on the margin -> 42.
     'ks 84,96,78,-,42',
+    'wd all,cap,all,open,none,open,all,none,none',
     'veto 1110 msg1',
     'fbv 0011 list1',
     'lw 1100',

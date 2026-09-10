@@ -3124,9 +3124,23 @@ module WR_DropLights
     LIGHT_LAYERS.each_key do |role|
       layers[role.to_s] = { 'on' => true, 'scale' => 1.0, 'kdelta' => 0 }
     end
-    { 'mult' => 1.0, 'koffset' => 0, 'ceiling' => true, 'walls' => 'none',
+    { 'mult' => 1.0, 'koffset' => 0, 'ceiling' => true, 'walls' => WALLS_DEFAULT,
       'density' => 'soft', 'layers' => layers }
   end
+
+  # THE WALLS DEFAULT (1.43.1). Benton, 10 Sep 2026: "default the drop down
+  # to be 'on every run' for the walls" — after reading the three-way
+  # control sitting at "No" as the wall checkbox having been removed. So
+  # every press now ENCLOSES the room unless he says otherwise; with the
+  # ceiling default also on, the default room is a sealed box lit by the
+  # rig alone, which is exactly the w4-ceil frame the lumen table is quoted
+  # for. Where the default lives, in one place: here. default_settings,
+  # the dialog's reset button (DEFAULTS in the JS), a preset saved before
+  # 1.28.0 with no walls key at all (walls_mode(nil)) and the JS fallback
+  # for the same all read it. A preset that SAYS 'none' or was saved with
+  # the 1.28.0 checkbox off still means No — he chose that. The trim does
+  # not move: enclosure_trim reads poly.size, never the walls mode.
+  WALLS_DEFAULT = 'all'.freeze
 
   def self.read_presets
     raw = Sketchup.read_default(PRESET_DICT, PRESET_KEY, '{}').to_s
@@ -3167,8 +3181,11 @@ module WR_DropLights
   end
 
   # 'none' | 'open' | 'all'. A 1.28.0 preset saved the checkbox as true /
-  # false; true was "open runs only" and stays that.
+  # false; true was "open runs only" and stays that, false is No. A preset
+  # with NO walls key (saved before 1.28.0) gets the shop default — loading
+  # it must not drop the control back to "No" and look removed again.
   def self.walls_mode(v)
+    return WALLS_DEFAULT if v.nil?
     return 'open' if v == true
     m = v.to_s
     m == 'open' || m == 'all' ? m : 'none'
@@ -3378,7 +3395,7 @@ function paint(){
   g("mult").value = ST.mult; g("multn").value = ST.mult;
   g("koff").value = ST.koffset; g("koffn").value = ST.koffset;
   g("ceil").checked = !!ST.ceiling;
-  g("walls").value = (ST.walls === true) ? "open" : (ST.walls || "none");
+  g("walls").value = (ST.walls === true) ? "open" : (ST.walls === false ? "none" : (ST.walls || DEFAULTS.walls));
   g("dens").value = ST.density || "soft";
   drawLayers();
 }
@@ -3612,7 +3629,7 @@ paint(); drawPresets("");
       erased, reap_pending = erase_lights(stale)
 
       puts ''
-      puts format('Drop Interior Lights 1.43.0 — brightness %s (x%.2f), ' \
+      puts format('Drop Interior Lights 1.43.1 — brightness %s (x%.2f), ' \
                   'warmth %s (%+d K), units 1 (LUMENS), seven roles',
                   opts[:bright], opts[:mult], opts[:warmth], opts[:koffset])
       unless stale.empty?
@@ -3867,8 +3884,8 @@ paint(); drawPresets("");
                end
         if mode == 'none'
           unless open_runs.empty?
-            puts format('  %s: "Add walls" is No — run%s %s stay%s open; sky ' \
-                        'comes in and the rig leaves through %s.', name,
+            puts format('  %s: "Add walls" is No (the default is "every run") — run%s %s ' \
+                        'stay%s open; sky comes in and the rig leaves through %s.', name,
                         open_runs.size == 1 ? '' : 's', run_list,
                         open_runs.size == 1 ? 's' : '',
                         open_runs.size == 1 ? 'it' : 'them')

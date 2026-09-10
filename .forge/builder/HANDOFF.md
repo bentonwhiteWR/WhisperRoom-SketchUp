@@ -1752,3 +1752,42 @@ SketchUp.** rbparse 74/74; rbtest-lights 54 + 10 PASS; six mutants killed.
 3. Tight room: expect `KEY PULLED IN — 96 in wanted, only N in fits`, or
    `KEY SKIPPED` with the rim and foam still placed.
 4. Not 8'? `ACCENT_OUT`, one constant; the tilt follows.
+
+
+---
+
+# HANDOFF — walls default "On every run" (Builder, 10 Sep 2026, 1.43.1)
+
+Benton: *"default the drop down to be 'on every run' for the walls."*
+Control unchanged; default `none` → `all`. **Unrun in SketchUp.** rbparse
+74/74; rbtest-lights 55 + 10 PASS; two mutants killed.
+
+## Produced
+- `scripts/wr-drop-lights.rb`: `WALLS_DEFAULT = 'all'`; `default_settings`,
+  `walls_mode(nil)` and the JS fallback (`DEFAULTS.walls`) read it; the
+  "No" console line names the default.
+- `scripts/rbtest-lights.py`: `wd` check pins the default and every
+  `walls_mode` arm. VERSION 1.43.0 → 1.43.1.
+
+## Answers to the four questions
+- **Default lives** in `default_settings` (+ JS fallback + `walls_mode`
+  nil arm). Per-session `@last_settings` overrides it until reload/restart;
+  named presets are per user and apply only when loaded; nothing per model.
+  **He sees it after Update now + restart, no hand step.** A saved preset
+  carrying `none` will still say No when loaded.
+- **Trim: unchanged** — `enclosure_trim(capped, poly.size)` ignores the
+  mode. **Render: changed** — default room is now sealed (walls all +
+  ceiling on): no sun/sky through an open side. Said prominently in the
+  DEVLOG; it is a third variable on his next render.
+- **Lifecycle:** walls are `kind => wall`, swept by bounds on re-press,
+  erased by `remove_rig!`, checked by `verify_restore!`, inside the
+  operation so `abort_operation` drops them on any raise. Nothing
+  mode-specific anywhere.
+- **Console:** enclosing path was already the full description; No branch
+  now flags itself as the non-default.
+
+## Benton's check
+Restart → dropdown reads "On every run" untouched → press → `borrowed 4
+walls … (every run)` → render is a closed box → re-press / Remove rig →
+`verify_restore` clean. To judge the ISO rescale and the 8' key on a
+sun-lit open room as before, set walls to No for that render.
