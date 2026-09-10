@@ -1,3 +1,51 @@
+# HANDOFF — Builder → Benton: uniform callout font & colour, 1.26.0
+
+2026-09-10. New tool `scripts/wr-callout-style.rb` (TOOLS tab, *Tidy up the
+model*): one dialog that puts one font and one colour on every note,
+dimension and 3D label, or just some of them. **Unrun in SketchUp.**
+
+## The truth per kind (reported — ruby.sketchup.com + forum, today)
+- **Notes** (`Sketchup::Text`): font settable **only on SketchUp 2026.2+**
+  (`Text#font=`; you are on 26.2.243, so yes); colour via `material=`.
+- **Dimensions**: colour via `material=` — **font is NOT settable from
+  Ruby**, no version, no options provider. The dialog says so, counts every
+  dimension as a font skip, and names the manual route: *Model Info ›
+  Dimensions › Fonts › Select all dimensions › Update*.
+- **3D labels**: colour only (material on the group). The face is geometry.
+
+## Produced
+- `scripts/wr-callout-style.rb` — dialog: What (kinds, live counts) /
+  Where (whole model default, my selection, one set) / Font / Colour;
+  Apply = one undo; Match-majority links; House default button;
+  last-used values persist per user. Reuses `WR_SceneAnnotations.kind_of`,
+  `each_annotation`, `tag_of` — no second definition of "annotation".
+- `scripts/rbtest-callout-style.py` — 37 checks on the two pure methods,
+  mutation-checked.
+- `VERSION` → **1.26.0** (minor: new tool). DEVLOG entry.
+
+## Assumptions (not observed)
+- `material=` on a `Sketchup::Text` colours the text the way Entity Info's
+  swatch does. Confirmed on the forum for a dimension; text is the same
+  Drawingelement contract. If it colours only the leader, say so.
+- `Sketchup.write_default` round-trips `true`/`false` for bold/italic.
+- Materials named `WR-Callout #hex` show in the materials list; harmless.
+
+## To verify (Benton)
+1. `git pull`, `install-plugin.py`, restart. Panel → TOOLS → *Tidy up the
+   model* → **Uniform callout font & colour**. Header should read your
+   SketchUp version and `text fonts: yes`; the three counts should match
+   what *Hide notes & dimensions per scene* lists.
+2. Leave everything default, press **Apply**. Every note should turn Arial
+   12 orange; every dimension and 3D label should turn orange with the
+   status reading `Skipped N: dimension font is not settable…`. Nothing
+   else in the model should change. **One Ctrl+Z** puts it all back.
+3. Set colour to black, untick Notes, Apply: only dims + labels change.
+4. Select one note, choose *My selection*, size 18 bold, Apply: only that
+   note changes.
+5. Type `#zz` in the hex box and Apply: refused in red, nothing changed.
+
+---
+
 # HANDOFF — Fixer → Benton: Ctrl+Z never undid a scene write, 1.25.2
 
 2026-09-10. Two reports, one cause. **Unrun in SketchUp.**

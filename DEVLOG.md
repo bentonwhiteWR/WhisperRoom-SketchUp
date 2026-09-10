@@ -2,6 +2,61 @@
 
 ## 2026-09-10
 
+### Uniform callout font & colour — 1.26.0
+
+Benton: *"You click it, it will ask you two things. You can change all of
+the text or all of the dimensions font and color ... it could also be an
+all function. By default I would like to have everything the same font and
+the same color, whether that's text or dimensions. But being able to break
+that down in certain situations would also be helpful."*
+
+**New tool `scripts/wr-callout-style.rb`** — TOOLS tab, *Tidy up the
+model*. One dialog: WHAT (notes / dimensions / 3D labels, with live counts),
+WHERE (whole model — the default — / my selection / one set, any tag that
+carries a callout, Untagged first), FONT (name, points, bold, italic) and
+COLOUR (picker + hex + four swatches). Apply is one `start_operation`, so
+Ctrl+Z reverts the whole sweep; the values applied become next time's
+defaults; **Match majority** fills in the font and colour most callouts
+already carry, for pulling stragglers into line.
+
+**What "a callout" is was not redefined.** The sweep calls
+`WR_SceneAnnotations.kind_of` / `each_annotation` / `tag_of` directly
+(loaded as a library under the same `$wr_no_autorun` local-guard the
+picker uses on proposal-scenes.rb), so the per-scene picker and this tool
+can never disagree about which entities they mean.
+
+**What the API allows, per kind — read off ruby.sketchup.com and the
+SketchUp forum today, not remembered:**
+
+| kind | font | colour |
+|---|---|---|
+| text | `Sketchup::Text#font=` — **SketchUp 2026.2+** only; Hash `:name/:size/:bold/:italic`, size in points 1..1000 | `material=` (what Entity Info's swatch sets) |
+| dim | **not settable from Ruby** — no method on `Sketchup::Dimension` in any version, no `DimensionOptions` provider; forum request open since 2015 | `material=` — reported working on a linear dimension |
+| 3d | fixed geometry from `add_3d_text`; only a rebuild changes it | `material=` on the group paints its default-material faces |
+
+So every dimension and 3D label gets **the colour and a counted SKIP for
+the font**, with the manual route in the sentence: *Model Info › Dimensions
+› Fonts, then Select all dimensions › Update.* Nothing is skipped silently
+— the dialog prints touched / font-set / colour-set / skipped-by-reason /
+failed after every sweep, and the console gets the same line. On a
+SketchUp older than 2026.2 the header says so and text gets colour only.
+
+**Defaults.** Last-used per user (`Sketchup.read_default`, quote-stripped
+on write like find-replace-names.rb). Before any are stored: **Arial 12
+regular, brand orange #ee6216**. Arial is what every `add_3d_text` in this
+repo asks for and the proposal brand card's face; orange is what
+`dimension-booth.rb` and `dimension-selection.rb` already declare for their
+callout tags. Black / dark grey / white swatches are one click away for a
+drawing where orange is wrong.
+
+**Verified:** `rbparse.py` 69/69 parse; `node --check` on the dialog JS;
+**new `scripts/rbtest-callout-style.py`** lifts `normalise` (request
+validation — bad hex, size 0, nothing ticked all refused with a sentence)
+and `summary_lines` verbatim and runs them on the CRuby VM, 37 checks,
+mutation-checked (both mutations caught). Minor bump: a new tool script.
+**UNRUN IN SKETCHUP** — the bridge is off on this machine. Click test in
+the HANDOFF.
+
 ### Ctrl+Z is not a way back from a scene write — every promise removed, 1.25.2
 
 Benton, two reports within the hour, 10 Sep 2026: *"I clicked 'apply to
