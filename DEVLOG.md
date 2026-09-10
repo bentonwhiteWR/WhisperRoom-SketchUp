@@ -2,6 +2,47 @@
 
 ## 2026-09-10
 
+### ANNOTATION defaults to Per scene — 1.25.1
+
+Benton exported the PeoplesSpace Revision pack this morning and every image
+came out with no dimensions and no text — on scenes named `InteriorDims`,
+`FrontDims`, `RampDimensions`, `OutletInfo`. Not a defect: the ANNOTATION
+dropdown in FOLDER & DETAILS was on **Client-safe**, the old default, which
+strips everything regardless of what each scene's picker left showing. He
+found the control and said: *set the default to Per scene.*
+
+**How it is persisted, because that decides what the flip can fix.**
+`Sketchup.write_default(PREF, 'annot', …)` — a **per-user registry
+value**, not a model attribute — written through on **every export** from
+whatever the dropdown showed. So a stored `client` cannot be told apart
+from an inherited default, and on Benton's machine it was written by the
+very export that stripped the pack. Saved values are **left alone**: the
+flip only changes what a machine with no stored value gets. **On any
+machine that has already exported, the dropdown has to be set to Per scene
+once by hand; it then sticks.** It is per user, so the PeoplesSpace model
+is not special — every model on that machine reads the same value.
+
+**Changed.** Read-default, rescue fallback and normalisation in `run` →
+`draft`; the write-through maps anything but an explicit `client` to
+`draft`; `client_safe` in `start_run` is now `== 'client'`, so a missing
+value can never strip. Per scene is listed first in the dropdown and both
+labels and the helper paragraph are rewritten: Per scene is the normal pack
+where a dimensioned scene carries its dimensions; Client-safe is the
+deliberate strip-everything pass, with the existing factual detail kept
+(the tag list, Untagged one-by-one, everything put back). The old sentence
+telling him to choose Per scene "only for an internal check print" is gone
+— it would have steered him back into the bug.
+
+**The optional warning — added, because it was six lines and cannot be
+wrong.** When Client-safe is chosen, the first log line of the run names
+the exported scenes whose names match `dim|note|text|label|info|callout`
+and says to cancel and switch if that is wrong. It only logs; it does not
+block or change anything.
+
+Patch bump (1.25.1): a default and copy, no new mechanism. **UNRUN in
+SketchUp** — `rbparse.py` 68/68, `rbtest-proposal.py` passes,
+`node --check` on the dialog JS passes.
+
 ### Build a booth around parts that are not authored yet — 1.25.0
 
 Benton: *"when trying to pull in a 102102 E with WA, it couldn't find a couple

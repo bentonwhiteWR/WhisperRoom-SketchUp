@@ -1,3 +1,37 @@
+# HANDOFF — Builder → Benton: ANNOTATION defaults to Per scene, 1.25.1
+
+2026-09-10. The PeoplesSpace Revision pack exported stripped because the
+ANNOTATION dropdown defaulted to Client-safe. Benton: *set the default to
+Per scene.* Shipped, **unrun in SketchUp**.
+
+## What I found
+- **Persisted per user, not per model**: `Sketchup.write_default(PREF,
+  'annot', …)` in `start_run`, written on every export. A stored `client`
+  is indistinguishable from the old default written through. Left alone.
+- **Consequence you must know:** on this machine the registry already
+  holds `client` (from this morning's export). **Set the dropdown to Per
+  scene once by hand**; it sticks for every model on the machine. A machine
+  that has never exported gets Per scene automatically.
+
+## Changed — `scripts/proposal-package.rb`
+- `run`: read-default / rescue / normalise → `draft`.
+- `start_run`: `client_safe = cfg['annot'] == 'client'`; write-through maps
+  anything else to `draft`; a one-line red log warning names exported
+  scenes matching `dim|note|text|label|info|callout` when Client-safe is on.
+- Dropdown: Per scene first and selected unless `client`; both labels and
+  the helper paragraph rewritten; factual Client-safe detail kept.
+- `VERSION` → **1.25.1** (patch). DEVLOG entry.
+
+## To verify (Benton)
+1. On this machine: open the tool, set ANNOTATION to **Per scene** once.
+   Export `InteriorDims` as an image; open the PNG: dimensions present.
+2. On a machine that has never exported (or after clearing the
+   `WR_ProposalPackage` key): the dropdown should read Per scene on open.
+3. Set Client-safe and export a `*Dims` scene: the log's first line should
+   name it in red; the PNG is stripped, as chosen.
+
+---
+
 # HANDOFF — Builder → Benton: build around parts not authored yet, 1.25.0
 
 2026-09-10. Benton: *"when trying to pull in a 102102 E with WA, it couldn't

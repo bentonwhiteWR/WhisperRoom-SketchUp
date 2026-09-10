@@ -1171,7 +1171,7 @@ module WR_ProposalPackage
       Sketchup.write_default(PREF, 'width', cfg['width'].to_s.delete('"'))
       Sketchup.write_default(PREF, 'over',  cfg['over'].to_s.delete('"'))
       Sketchup.write_default(PREF, 'shade', cfg['shade'] ? 'Yes' : 'No')
-      Sketchup.write_default(PREF, 'annot', cfg['annot'].to_s == 'draft' ? 'draft' : 'client')
+      Sketchup.write_default(PREF, 'annot', cfg['annot'].to_s == 'client' ? 'client' : 'draft')
     rescue Exception
       nil
     end
@@ -1187,7 +1187,24 @@ module WR_ProposalPackage
     # measurable) and draft mode SHOWS dimensions on purpose, so hiding has
     # to be an explicit pass over the tags, not a mode change -- and it is
     # undone in finish, on every exit path.
-    client_safe = cfg['annot'].to_s != 'draft'
+    # PER SCENE IS THE DEFAULT (1.25.1). Benton exported the PeoplesSpace
+    # Revision pack with this on Client-safe -- the old default, written
+    # through to the registry by every export -- and got InteriorDims,
+    # FrontDims, RampDimensions and OutletInfo with no dimensions and no
+    # text. Client-safe is the deliberate strip-everything pass and has to
+    # be chosen; anything else, including a missing value, is Per scene.
+    client_safe = cfg['annot'].to_s == 'client'
+    if client_safe
+      # Named at the top of the log, before any image is written: the pack
+      # that went out stripped had four scene names saying what they held.
+      suspect = (image_rows + render_rows).map { |p| p[:page].name.to_s }
+                                          .select { |nm| nm =~ /dim|note|text|label|info|callout/i }
+      unless suspect.empty?
+        log(dlg, "CLIENT-SAFE will strip every dimension and note from #{suspect.size} " \
+                 "scene(s) whose names say they carry them: #{suspect.join(', ')}. " \
+                 'If that is wrong, cancel and set ANNOTATION to Per scene.', 'bad')
+      end
+    end
 
     # ---- build the unit list. One timer tick does at most one unit.
     units = []
@@ -3274,13 +3291,13 @@ module WR_ProposalPackage
       'Yes'
     end != 'No'
     annot = begin
-      Sketchup.read_default(PREF, 'annot', 'client').to_s
+      Sketchup.read_default(PREF, 'annot', 'draft').to_s
     rescue Exception
-      'client'
+      'draft'
     end
     width = '2400' if width.strip.empty?
     over  = 'Ask' unless ['Ask', 'Overwrite', 'Skip existing'].include?(over)
-    annot = 'client' unless %w[client draft].include?(annot)
+    annot = 'draft' unless %w[client draft].include?(annot)
 
     d = UI::HtmlDialog.new(
       :dialog_title    => "Proposal package — #{title}",
@@ -4089,12 +4106,12 @@ module WR_ProposalPackage
 
   <span class="lbl">ANNOTATION</span>
   <select id="annot">
-    <option value="client"#{annot == 'draft' ? '' : ' selected'}>Client-safe — hide every annotation for the whole run</option>
-    <option value="draft"#{annot == 'draft' ? ' selected' : ''}>Per scene — each scene shows what its picker left showing</option>
+    <option value="draft"#{annot == 'client' ? '' : ' selected'}>Per scene — each scene shows what its ANNOTATIONS picker left showing (normal)</option>
+    <option value="client"#{annot == 'client' ? ' selected' : ''}>Client-safe — strip every dimension and note from every image</option>
   </select>
   <span></span>
   <span class="lbl"></span>
-  <label class="shadelbl">Client-safe hides #{WR_Mode::ANNOT_TAGS.join(', ')}, every WR-Dims-… / WR-Notes-… set in this model, <b>and every loose callout on Untagged</b> — SketchUp will not hide the Untagged tag, so those go one by one (1.20.0). Everything is put back at the end. Choose <b>Per scene</b> only for an internal check print: each image then carries whatever its own ANNOTATIONS picker left showing.</label>
+  <label class="shadelbl"><b>Per scene</b> is the normal pack: a scene named for its dimensions carries them, and each image shows exactly what its own ANNOTATIONS picker left showing. <b>Client-safe</b> is the deliberate strip-everything pass for a pack that must carry no callouts at all: it hides #{WR_Mode::ANNOT_TAGS.join(', ')}, every WR-Dims-… / WR-Notes-… set in this model, <b>and every loose callout on Untagged</b> — SketchUp will not hide the Untagged tag, so those go one by one (1.20.0) — on every scene, whatever its picker says. Everything is put back at the end. The choice is remembered per user, not per model.</label>
   <span></span>
 </div></div>
 </div>
