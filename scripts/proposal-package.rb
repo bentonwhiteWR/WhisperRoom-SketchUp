@@ -2954,6 +2954,33 @@ module WR_ProposalPackage
       'warn' => WR_SceneWalls.pages_not_saving_hidden(model).include?(pg.name.to_s) }
   end
 
+  # The pages an APPLY TO ALL request names, resolved by table index the way
+  # every other callback here does it. A scene deleted since the table was
+  # drawn is simply absent; none left is a refusal that points at Rescan.
+  def self.sweep_pages(model, ns)
+    all = model.pages.to_a
+    pages = (ns || []).map { |n| all[n.to_i - 1] }.compact
+    raise 'none of those scenes exist any more — hit Rescan' if pages.empty?
+    pages
+  end
+
+  # One log line per scene the sweep wrote, so what was rewritten can be
+  # read back afterwards — and a scene that will not re-assert what was
+  # written is called out in red by name, not folded into a count.
+  def self.log_sweep(dlg, ok, msg, det)
+    log(dlg, msg, ok ? 'dim' : 'bad')
+    return unless ok && det
+    unsaved = det[:unsaved] || []
+    (det[:written] || []).each do |nm|
+      if unsaved.include?(nm)
+        log(dlg, "  written, but \"#{nm}\" does not save hidden state — it will " \
+                 'NOT come back on that scene', 'bad')
+      else
+        log(dlg, "  written: \"#{nm}\"", 'dim')
+      end
+    end
+  end
+
   # What run() does about the live-batch flag:
   #   :launch  — nothing running, open the dialog
   #   :reset   — flag set, user confirmed it is stale: clear through FINISH,
@@ -3268,6 +3295,32 @@ module WR_ProposalPackage
       end
     end
 
+    # APPLY TO ALL SCENES (1.22.0). Benton: "would like for there to be an
+    # 'apply to all scenes' button as well." The same picks into every scene
+    # the table is showing, ONE operation so one Ctrl+Z puts every scene
+    # back, confirmed by name first because it replaces the saved answer of
+    # scenes the operator is not looking at. The mechanism is the module's
+    # apply_all — select each page, write_scene, restore — not a second
+    # save path. On "No", nothing is touched and the popover says so.
+    d.add_action_callback('wallsapplyall') do |_c, payload|
+      next if busy?(d, 'wallsapplyall')
+      begin
+        req   = JSON.parse(payload.to_s)
+        picks = {}
+        (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
+        pages = sweep_pages(model, req['ns'])
+        if WR_SceneWalls.confirm_all?(pages, 'wall')
+          ok, msg, det = WR_SceneWalls.apply_all(model, picks, pages)
+          log_sweep(d, ok, msg, det)
+        else
+          ok, msg = false, 'Not applied — nothing was changed.'
+        end
+        d.execute_script('wallsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
     # Click the wall in the viewport, then this — because "Wall 4" means
     # nothing until you have gone digging for it.
     d.add_action_callback('wallspick') do |_c, _p|
@@ -3337,6 +3390,27 @@ module WR_ProposalPackage
         ok, msg = WR_SceneAnnotations.apply(model, picks)
         d.execute_script('annotsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
         log(d, msg, ok ? 'dim' : 'bad')
+      rescue StandardError => e
+        d.execute_script('annotsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # The walls sweep's twin, one column over — same scope, same confirm,
+    # same single undo. See wallsapplyall.
+    d.add_action_callback('annotsapplyall') do |_c, payload|
+      next if busy?(d, 'annotsapplyall')
+      begin
+        req   = JSON.parse(payload.to_s)
+        picks = {}
+        (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
+        pages = sweep_pages(model, req['ns'])
+        if WR_SceneAnnotations.confirm_all?(pages, 'annotation')
+          ok, msg, det = WR_SceneAnnotations.apply_all(model, picks, pages)
+          log_sweep(d, ok, msg, det)
+        else
+          ok, msg = false, 'Not applied — nothing was changed.'
+        end
+        d.execute_script('annotsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
       rescue StandardError => e
         d.execute_script('annotsFail(' + "#{e.class}: #{e.message}".to_json + ')')
       end
@@ -3782,6 +3856,7 @@ module WR_ProposalPackage
       <button id="wselhide" title="Hide whatever is selected in the model on this scene, right now">HIDE SELECTED</button>
       <button id="wselshow" title="Show whatever is selected in the model on this scene, right now">SHOW SELECTED</button>
       <span class="wgap"></span>
+      <button id="wapplyall" title="The same ticks into every scene the table is showing — asks first; one Ctrl+Z undoes it">APPLY TO ALL SCENES</button>
       <button id="wapply" class="prim">APPLY TO THIS SCENE</button>
       <button id="wcancel">CANCEL</button>
     </div>
@@ -3795,6 +3870,7 @@ module WR_ProposalPackage
     <div id="afoot">
       <button id="apick" title="Select the callouts in the model, then press this">USE MY SELECTION</button>
       <span class="wgap"></span>
+      <button id="aapplyall" title="The same ticks into every scene the table is showing — asks first; one Ctrl+Z undoes it">APPLY TO ALL SCENES</button>
       <button id="aapply" class="prim">APPLY TO THIS SCENE</button>
       <button id="acancel">CANCEL</button>
     </div>
@@ -3810,10 +3886,10 @@ module WR_ProposalPackage
   var $q=g("q"), $b=g("body"), $count=g("count"), $pick=g("picksum"),
       $log=g("log"), $pmsg=g("pmsg"), $pfill=g("pfill"),
       $wrap=g("wwrap"), $wtitle=g("wtitle"), $wbody=g("wbody"),
-      $wmsg=g("wmsg"), $wapply=g("wapply"), $wcancel=g("wcancel"),
+      $wmsg=g("wmsg"), $wapply=g("wapply"), $wapplyall=g("wapplyall"), $wcancel=g("wcancel"),
       $wpick=g("wpick"), $wselhide=g("wselhide"), $wselshow=g("wselshow"),
       $awrap=g("awrap"), $atitle=g("atitle"), $abody=g("abody"),
-      $amsg=g("amsg"), $aapply=g("aapply"), $acancel=g("acancel"),
+      $amsg=g("amsg"), $aapply=g("aapply"), $aapplyall=g("aapplyall"), $acancel=g("acancel"),
       $apick=g("apick");
 
   function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;")
@@ -4012,9 +4088,27 @@ module WR_ProposalPackage
   // scene list is filterable and scrollable, and a panel anchored to a row
   // that can scroll out from under it is how you end up applying walls to a
   // scene you are not looking at.
+  // APPLY TO ALL SCENES means the scenes the TABLE is showing — every scene
+  // unless the search box is filtering. That is the bulk bar's SHOWN → rule
+  // one section up, and the narrower of the two readings: a deliberate
+  // filter narrows this too, and the label says how many so nobody has to
+  // remember whether one is on. Ruby confirms by name before writing.
+  function allScope(btn){
+    var all = view.length === ST.rows.length;
+    btn.textContent = all ? "APPLY TO ALL "+ST.rows.length+" SCENES"
+                          : "APPLY TO THE "+view.length+" SHOWN SCENES";
+    btn.disabled = view.length < 2;
+    btn.title = view.length < 2
+      ? "Only this scene is shown — use APPLY TO THIS SCENE"
+      : "The same ticks into "+(all ? "every scene" : "the "+view.length+" scenes the table is showing")
+        +" — asks first; one Ctrl+Z undoes it";
+  }
+  function shownNs(){ return view.map(function(r){ return r.n; }); }
+
   var wallsN = 0, wallsUnits = [], wallsPicks = {};
   function wallsOpen(n){
     wallsN = n; wallsPicks = {};
+    allScope($wapplyall);
     $wtitle.textContent = "Loading scene " + n + "…";
     $wbody.innerHTML = "";
     $wmsg.textContent = ""; $wmsg.className = "wmsg";
@@ -4143,13 +4237,20 @@ module WR_ProposalPackage
     $wmsg.className = "wmsg" + (r.ok ? " ok" : " bad");
     if(r.ok) setTimeout(wallsClose, 900);
   };
-  $wapply.addEventListener("click", function(){
+  function wallsCollect(){
     var picks = {};
     Array.prototype.forEach.call($wbody.querySelectorAll("input[data-key]"), function(el){
       picks[el.getAttribute("data-key")] = el.checked;
     });
+    return picks;
+  }
+  $wapply.addEventListener("click", function(){
     if(window.sketchup && sketchup.wallsapply)
-      sketchup.wallsapply(JSON.stringify({ n: wallsN, picks: picks }));
+      sketchup.wallsapply(JSON.stringify({ n: wallsN, picks: wallsCollect() }));
+  });
+  $wapplyall.addEventListener("click", function(){
+    if(window.sketchup && sketchup.wallsapplyall)
+      sketchup.wallsapplyall(JSON.stringify({ n: wallsN, ns: shownNs(), picks: wallsCollect() }));
   });
   $wcancel.addEventListener("click", wallsClose);
   $wrap.addEventListener("click", function(e){ if(e.target === $wrap) wallsClose(); });
@@ -4170,6 +4271,7 @@ module WR_ProposalPackage
 
   function annotsOpen(n){
     annotsN = n; aPicks = {}; aExp = {};
+    allScope($aapplyall);
     $atitle.textContent = "Loading scene " + n + "…";
     $abody.innerHTML = "";
     $amsg.textContent = ""; $amsg.className = "wmsg";
@@ -4337,7 +4439,7 @@ module WR_ProposalPackage
   $apick.addEventListener("click", function(){
     if(window.sketchup && sketchup.annotspick) sketchup.annotspick("");
   });
-  $aapply.addEventListener("click", function(){
+  function annotsCollect(){
     // EVERY row is sent, not only the ticked ones, so unticking reliably shows
     // again — the walls rule. A member row behind a collapsed set is not in the
     // DOM, so its remembered pick is sent from the state instead of being lost.
@@ -4347,8 +4449,15 @@ module WR_ProposalPackage
       (u.members||[]).forEach(function(m){ picks[m.key] = !!aPicks[m.key]; });
     });
     annotsLoose.forEach(function(it){ picks[it.key] = !!aPicks[it.key]; });
+    return picks;
+  }
+  $aapply.addEventListener("click", function(){
     if(window.sketchup && sketchup.annotsapply)
-      sketchup.annotsapply(JSON.stringify({ n: annotsN, picks: picks }));
+      sketchup.annotsapply(JSON.stringify({ n: annotsN, picks: annotsCollect() }));
+  });
+  $aapplyall.addEventListener("click", function(){
+    if(window.sketchup && sketchup.annotsapplyall)
+      sketchup.annotsapplyall(JSON.stringify({ n: annotsN, ns: shownNs(), picks: annotsCollect() }));
   });
   $acancel.addEventListener("click", annotsClose);
   $awrap.addEventListener("click", function(e){ if(e.target === $awrap) annotsClose(); });

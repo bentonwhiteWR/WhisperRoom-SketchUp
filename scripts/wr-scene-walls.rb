@@ -343,41 +343,122 @@ module WR_SceneWalls
     return [false, 'No scene is selected — this model has no scenes, or none is active. ' \
                    'Create/select a scene first; there is nothing to save into.'] unless page
     return [false, 'Nothing to apply.'] if picks.nil? || picks.empty?
-    gone = []
-    changed = 0
     model.start_operation('Hide walls per scene', true)
     begin
-      picks.each do |key, hide|
-        unit = @units && @units[key]
-        unless unit
-          gone << key
-          next
-        end
-        unit[:pieces].each do |g|
-          next unless g.valid?
-          g.hidden = hide ? true : false
-          changed += 1
-        end
-      end
-      # Make sure this scene will re-assert what we are about to save.
-      if page.respond_to?(:use_hidden_objects=) &&
-         page.respond_to?(:use_hidden_objects?) && !page.use_hidden_objects?
-        page.use_hidden_objects = true rescue nil
-      end
-      page.update(update_mask)
+      r = write_scene(page, picks)
       model.commit_operation
     rescue StandardError => e
       model.abort_operation
       return [false, "Apply failed and was rolled back: #{e.class}: #{e.message}"]
     end
-    msg = "Saved to scene \"#{page.name}\" — #{changed} piece(s) set."
-    msg += " #{gone.size} wall(s) were stale and skipped — hit Refresh." unless gone.empty?
+    msg = "Saved to scene \"#{page.name}\" — #{r[:changed]} piece(s) set."
+    msg += " #{r[:gone].size} wall(s) were stale and skipped — hit Refresh." unless r[:gone].empty?
     off = pages_not_saving_hidden(model)
     unless off.empty?
       msg += " WARNING: scene(s) not saving hidden objects (walls will NOT " \
              "come back on them): #{off.join(', ')}."
     end
     [true, msg]
+  end
+
+  # The write itself, with NO transaction of its own — the caller owns the
+  # operation, which is what lets apply_all put every scene under ONE undo
+  # instead of one per scene. Flags every piece per picks, makes sure the
+  # page will re-assert hidden objects, then snapshots into the page.
+  #
+  # Call it only with `page` SELECTED. page.update records the model's
+  # hidden state as it stands, and selecting the page is what restores that
+  # scene's own state for everything that is NOT a row here (geometry hidden
+  # by hand, say). Writing into an unselected page would stamp the current
+  # scene's hidden state on it for all of those — silently.
+  def self.write_scene(page, picks)
+    gone = []
+    changed = 0
+    picks.each do |key, hide|
+      unit = @units && @units[key]
+      unless unit
+        gone << key
+        next
+      end
+      unit[:pieces].each do |g|
+        next unless g.valid?
+        g.hidden = hide ? true : false
+        changed += 1
+      end
+    end
+    # Make sure this scene will re-assert what we are about to save.
+    if page.respond_to?(:use_hidden_objects=) &&
+       page.respond_to?(:use_hidden_objects?) && !page.use_hidden_objects?
+      page.use_hidden_objects = true rescue nil
+    end
+    page.update(update_mask)
+    saves = !(page.respond_to?(:use_hidden_objects?) && !page.use_hidden_objects?)
+    { :changed => changed, :gone => gone, :saves => saves }
+  end
+
+  # The SAME picks into every page given (default: every scene in the
+  # model), one operation, one Ctrl+Z. Benton, 10 Sep 2026: "would like for
+  # there to be an 'apply to all scenes' button as well."
+  #
+  # This overwrites the saved wall answer of every scene it touches — scenes
+  # the operator set up earlier and is not looking at included — so callers
+  # CONFIRM first (confirm_all?) and this method does not; it is mechanism.
+  # Each page is selected before it is written, for the reason on
+  # write_scene, and the operator is put back on the scene they started on.
+  # Returns [ok, message, { :written => [names], :unsaved => [names] }] —
+  # :unsaved are pages that still refuse to save hidden objects after the
+  # write, so walls will NOT come back on them and the caller must name them.
+  def self.apply_all(model, picks, pages = nil)
+    pages = (pages || model.pages.to_a).select { |pg| pg && pg.valid? }
+    return [false, 'No scenes to write into.'] if pages.empty?
+    return [false, 'Nothing to apply.'] if picks.nil? || picks.empty?
+    start   = model.pages.selected_page
+    written = []
+    unsaved = []
+    gone    = []
+    model.start_operation('Hide walls on every scene', true)
+    begin
+      pages.each do |pg|
+        model.pages.selected_page = pg
+        r = write_scene(pg, picks)
+        written << pg.name.to_s
+        unsaved << pg.name.to_s unless r[:saves]
+        gone |= r[:gone]
+      end
+      model.commit_operation
+    rescue StandardError => e
+      model.abort_operation
+      restore_page(model, start)
+      return [false, 'Apply to every scene failed and was rolled back: ' \
+                     "#{e.class}: #{e.message}"]
+    end
+    restore_page(model, start)
+    msg = "Saved to #{written.size} scene(s) — one Ctrl+Z undoes all of them."
+    msg += " #{gone.size} wall(s) were stale and skipped — hit Refresh." unless gone.empty?
+    unless unsaved.empty?
+      msg += " WARNING: scene(s) not saving hidden objects (walls will NOT " \
+             "come back on them): #{unsaved.join(', ')}."
+    end
+    [true, msg, { :written => written, :unsaved => unsaved }]
+  end
+
+  def self.restore_page(model, page)
+    model.pages.selected_page = page if page && page.valid?
+  rescue StandardError
+    nil
+  end
+
+  # The blast radius, by name, before apply_all runs. A UI.messagebox rather
+  # than a JS confirm(): CEF's HtmlDialog does not reliably show one.
+  def self.confirm_all?(pages, what)
+    names = pages.map { |pg| pg.name.to_s }
+    shown = names.first(12)
+    shown << "… and #{names.size - 12} more" if names.size > 12
+    UI.messagebox("Apply these #{what} picks to #{pages.size} scene(s)?\n\n" \
+                  "#{shown.join("\n")}\n\n" \
+                  "Each of those scenes' saved #{what} answer will be REPLACED " \
+                  "by what is ticked now.\nOne Ctrl+Z puts all of them back.",
+                  MB_YESNO) == IDYES
   end
 
   # The fallback for unnamed geometry: hide/show the SELECTED groups (and
@@ -530,6 +611,7 @@ module WR_SceneWalls
       </div>
       <div id="foot">
         <button id="apply" onclick="applyNow()">Apply to this scene</button>
+        <button onclick="applyAll()" title="The same ticks into EVERY scene in the model — asks first; one Ctrl+Z undoes it">Apply to every scene</button>
         <button onclick="sketchup.refresh()">Refresh</button>
       </div>
       <div id="selrow">
@@ -611,14 +693,16 @@ module WR_SceneWalls
           renderObjects();
         }
         function markDirty() { document.getElementById('apply').className = 'dirty'; }
-        function applyNow() {
+        function collectPicks() {
           // EVERY row is sent, walls and objects alike, not only the touched
           // ones — that is what makes UNticking reliably show again.
           var picks = {};
           S.units.forEach(function (u) { picks[u.key] = !!u.hidden; });
           (S.objects || []).forEach(function (u) { picks[u.key] = !!opicks[u.key]; });
-          sketchup.apply(JSON.stringify(picks));
+          return picks;
         }
+        function applyNow() { sketchup.apply(JSON.stringify(collectPicks())); }
+        function applyAll() { sketchup.applyall(JSON.stringify(collectPicks())); }
         function setState(json) {
           S = JSON.parse(json);
           // Object ticks are re-read from the model on every push, exactly as
@@ -692,6 +776,20 @@ module WR_SceneWalls
       push_state(Sketchup.active_model)
       status(msg)
       puts "WR_SceneWalls: #{msg}" unless ok
+    end
+    # Every scene, one undo, confirmed by name first (see apply_all).
+    @dlg.add_action_callback('applyall') do |_c, payload|
+      picks = JSON.parse(payload) rescue {}
+      m = Sketchup.active_model
+      if confirm_all?(m.pages.to_a, 'wall')
+        _ok, msg, det = apply_all(m, picks)
+        puts "WR_SceneWalls: #{msg}"
+        (det ? det[:written] : []).each { |nm| puts "  written: #{nm}" }
+      else
+        msg = 'Not applied — nothing was changed.'
+      end
+      push_state(m)
+      status(msg)
     end
     @dlg.add_action_callback('ready') do |_c|
       # Also the liveness probe: this only fires if the HTML parsed and the

@@ -1,3 +1,61 @@
+# HANDOFF — Builder → Benton: Apply to all scenes, 1.22.0
+
+2026-09-10, after 1.21.1. Benton: *"would like for there to be an 'apply to
+all scenes' button as well."* Shipped in **both** popovers and **both**
+standalone dialogs, **unrun in SketchUp**.
+
+## Produced
+- `scripts/wr-scene-walls.rb`, `scripts/wr-scene-annotations.rb`:
+  `apply` → wrapper over new `write_scene(page, picks)` (no transaction);
+  `apply_all(model, picks, pages = nil)` → one operation, selects each
+  page, writes, restores the start page, returns
+  `[ok, msg, {:written, :unsaved}]`; `restore_page`; `confirm_all?(pages,
+  what)` (UI.messagebox naming count + scenes + "REPLACED"). Standalone
+  dialogs: **Apply to every scene** button, `collectPicks()` refactor,
+  `applyall` callback.
+- `scripts/proposal-package.rb`: **APPLY TO ALL N SCENES** in `#wfoot` and
+  `#afoot` (non-prim, left of the orange APPLY TO THIS SCENE); `allScope()`
+  sets the label from the table's `view` when a popover opens; `shownNs()`
+  sends the shown indices; `wallsCollect` / `annotsCollect` refactors;
+  Ruby `sweep_pages`, `log_sweep`, `wallsapplyall`, `annotsapplyall`
+  callbacks with `busy?` guards.
+- `scripts/wr_tools/VERSION` → **1.22.0** (minor: new module API + four
+  dialogs). `DEVLOG.md` entry.
+
+## Decisions to know about
+- **Scope = scenes the table is showing** (bulk bar's SHOWN → rule), label
+  says which; greyed when fewer than two are shown. Standalone = every scene.
+- **Each page is selected before it is written** — not optional; see the
+  `write_scene` comment. Writing an unselected page would stamp the current
+  scene's non-row hidden state onto it.
+- **Confirm lives in the callers**, `apply_all` is pure mechanism.
+
+## Assumptions (not observed)
+- `Page#update` is on the undo stack, so `abort_operation` and Ctrl+Z restore
+  page snapshots. Reasoned from how per-scene apply is already undone.
+- `selected_page=` inside an open operation is fine (selection is not an
+  undoable model change). The per-scene path selects outside its operation.
+- `UI.messagebox` from inside an HtmlDialog callback shows modally and
+  returns; `browse` already calls `UI.select_directory` the same way.
+
+## To verify (Benton)
+1. Proposal package → **Hide walls** on scene 1, tick the booth, press
+   **APPLY TO ALL 7 SCENES** (your count). Expect a Yes/No box listing the
+   scenes and saying they will be REPLACED. **Yes** → popover goes green and
+   closes, log shows `Saved to 7 scene(s)…` then one `written: "…"` line
+   per scene. Click through the scenes: booth hidden on all.
+2. **Ctrl+Z once** → booth back on every scene. This is the important one.
+3. Same in **Annotations** with a set ticked.
+4. Type a search that shows 3 scenes, open a popover: label should read
+   `APPLY TO THE 3 SHOWN SCENES` and the box should list only those three.
+5. Press **No** in the box: red "Not applied" message, nothing changed.
+6. Standalone *Hide walls per scene*: **Apply to every scene** → same box,
+   status line reads `Saved to N scene(s)…`, console lists each scene.
+7. Regression: **APPLY TO THIS SCENE** and the standalone **Apply to this
+   scene** behave as before.
+
+---
+
 # HANDOFF — Builder → Benton: Rescan button, 1.21.1
 
 2026-09-10, later. Benton: *"lets add a 'refresh' button on the proposal

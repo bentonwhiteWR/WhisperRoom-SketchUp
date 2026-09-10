@@ -459,61 +459,133 @@ module WR_SceneAnnotations
     return [false, 'No scene is selected — this model has no scenes, or none is active. ' \
                    'Create/select a scene first; there is nothing to save into.'] unless page
     return [false, 'Nothing to apply.'] if picks.nil? || picks.empty?
-    gone      = []
-    sets      = 0
-    items     = 0
-    hid_sets  = 0
-    hid_items = 0
     model.start_operation('Hide notes & dimensions per scene', true)
     begin
-      picks.each do |key, hide|
-        u = @units && @units[key]
-        unless u
-          gone << key
-          next
-        end
-        want = hide ? true : false
-        if u[:layer]
-          l = u[:layer]
-          next unless l.valid?
-          l.visible = !want
-          page.set_visibility(l, !want) if page.respond_to?(:set_visibility)
-          sets += 1
-          hid_sets += 1 if want
-        else
-          e = u[:ent]
-          next unless e && e.valid?
-          e.hidden = want
-          items += 1
-          hid_items += 1 if want
-        end
-      end
-      # Make sure this scene will re-assert what we are about to save — BOTH
-      # halves, since sets ride on tag visibility and callouts on the hidden-
-      # object state.
-      if page.respond_to?(:use_hidden_layers=) &&
-         page.respond_to?(:use_hidden_layers?) && !page.use_hidden_layers?
-        page.use_hidden_layers = true rescue nil
-      end
-      if page.respond_to?(:use_hidden_objects=) &&
-         page.respond_to?(:use_hidden_objects?) && !page.use_hidden_objects?
-        page.use_hidden_objects = true rescue nil
-      end
-      page.update(update_mask)
+      r = write_scene(page, picks)
       model.commit_operation
     rescue StandardError => e
       model.abort_operation
       return [false, "Apply failed and was rolled back: #{e.class}: #{e.message}"]
     end
-    msg = "Saved to scene \"#{page.name}\" — #{hid_sets} set(s) and " \
-          "#{hid_items} callout(s) hidden (#{sets + items} row(s) written)."
-    msg += " #{gone.size} row(s) were stale and skipped — hit Refresh." unless gone.empty?
+    msg = "Saved to scene \"#{page.name}\" — #{r[:hid_sets]} set(s) and " \
+          "#{r[:hid_items]} callout(s) hidden (#{r[:sets] + r[:items]} row(s) written)."
+    msg += " #{r[:gone].size} row(s) were stale and skipped — hit Refresh." unless r[:gone].empty?
     off = pages_not_saving(model)
     unless off.empty?
       msg += ' WARNING: scene(s) not saving hidden tags/objects (callouts will ' \
              "NOT come back on them): #{off.join(', ')}."
     end
     [true, msg]
+  end
+
+  # The write itself, with NO transaction of its own — the caller owns the
+  # operation, which is what lets apply_all put every scene under ONE undo.
+  # Same contract as WR_SceneWalls.write_scene: call it only with `page`
+  # SELECTED, because page.update snapshots the model as it stands and
+  # selecting the page is what restores that scene's own state for
+  # everything that is not a row here.
+  def self.write_scene(page, picks)
+    gone      = []
+    sets      = 0
+    items     = 0
+    hid_sets  = 0
+    hid_items = 0
+    picks.each do |key, hide|
+      u = @units && @units[key]
+      unless u
+        gone << key
+        next
+      end
+      want = hide ? true : false
+      if u[:layer]
+        l = u[:layer]
+        next unless l.valid?
+        l.visible = !want
+        page.set_visibility(l, !want) if page.respond_to?(:set_visibility)
+        sets += 1
+        hid_sets += 1 if want
+      else
+        e = u[:ent]
+        next unless e && e.valid?
+        e.hidden = want
+        items += 1
+        hid_items += 1 if want
+      end
+    end
+    # Make sure this scene will re-assert what we are about to save — BOTH
+    # halves, since sets ride on tag visibility and callouts on the hidden-
+    # object state.
+    if page.respond_to?(:use_hidden_layers=) &&
+       page.respond_to?(:use_hidden_layers?) && !page.use_hidden_layers?
+      page.use_hidden_layers = true rescue nil
+    end
+    if page.respond_to?(:use_hidden_objects=) &&
+       page.respond_to?(:use_hidden_objects?) && !page.use_hidden_objects?
+      page.use_hidden_objects = true rescue nil
+    end
+    page.update(update_mask)
+    saves = !((page.respond_to?(:use_hidden_layers?) && !page.use_hidden_layers?) ||
+              (page.respond_to?(:use_hidden_objects?) && !page.use_hidden_objects?))
+    { :sets => sets, :items => items, :hid_sets => hid_sets,
+      :hid_items => hid_items, :gone => gone, :saves => saves }
+  end
+
+  # The SAME picks into every page given (default: every scene), one
+  # operation, one Ctrl+Z — the walls rule, verbatim; see
+  # WR_SceneWalls.apply_all for why callers confirm first and why each page
+  # is selected before it is written. Returns
+  # [ok, message, { :written => [names], :unsaved => [names] }].
+  def self.apply_all(model, picks, pages = nil)
+    pages = (pages || model.pages.to_a).select { |pg| pg && pg.valid? }
+    return [false, 'No scenes to write into.'] if pages.empty?
+    return [false, 'Nothing to apply.'] if picks.nil? || picks.empty?
+    start   = model.pages.selected_page
+    written = []
+    unsaved = []
+    gone    = []
+    model.start_operation('Hide notes & dimensions on every scene', true)
+    begin
+      pages.each do |pg|
+        model.pages.selected_page = pg
+        r = write_scene(pg, picks)
+        written << pg.name.to_s
+        unsaved << pg.name.to_s unless r[:saves]
+        gone |= r[:gone]
+      end
+      model.commit_operation
+    rescue StandardError => e
+      model.abort_operation
+      restore_page(model, start)
+      return [false, 'Apply to every scene failed and was rolled back: ' \
+                     "#{e.class}: #{e.message}"]
+    end
+    restore_page(model, start)
+    msg = "Saved to #{written.size} scene(s) — one Ctrl+Z undoes all of them."
+    msg += " #{gone.size} row(s) were stale and skipped — hit Refresh." unless gone.empty?
+    unless unsaved.empty?
+      msg += ' WARNING: scene(s) not saving hidden tags/objects (callouts will ' \
+             "NOT come back on them): #{unsaved.join(', ')}."
+    end
+    [true, msg, { :written => written, :unsaved => unsaved }]
+  end
+
+  def self.restore_page(model, page)
+    model.pages.selected_page = page if page && page.valid?
+  rescue StandardError
+    nil
+  end
+
+  # Same prompt as WR_SceneWalls.confirm_all?, inlined so a standalone load
+  # does not need the other tool (the update_mask rule).
+  def self.confirm_all?(pages, what)
+    names = pages.map { |pg| pg.name.to_s }
+    shown = names.first(12)
+    shown << "… and #{names.size - 12} more" if names.size > 12
+    UI.messagebox("Apply these #{what} picks to #{pages.size} scene(s)?\n\n" \
+                  "#{shown.join("\n")}\n\n" \
+                  "Each of those scenes' saved #{what} answer will be REPLACED " \
+                  "by what is ticked now.\nOne Ctrl+Z puts all of them back.",
+                  MB_YESNO) == IDYES
   end
 
   # The immediate buttons: hide/show the SELECTED annotations in this scene,
@@ -629,6 +701,7 @@ module WR_SceneAnnotations
       <div id="move"></div>
       <div id="foot">
         <button id="apply" onclick="applyNow()">Apply to this scene</button>
+        <button onclick="applyAll()" title="The same ticks into EVERY scene in the model — asks first; one Ctrl+Z undoes it">Apply to every scene</button>
         <button onclick="sketchup.pick()">Use my selection</button>
         <button onclick="sketchup.refresh()">Refresh</button>
       </div>
@@ -769,7 +842,7 @@ module WR_SceneAnnotations
           });                                          // Enter is the reflex
         }
         function markDirty() { document.getElementById('apply').className = 'dirty'; }
-        function applyNow() {
+        function collectPicks() {
           // EVERY row is sent, not only the ticked ones, so unticking reliably
           // shows again — the walls rule. A member row behind a collapsed set
           // is not in the DOM, so its remembered pick is sent from the state.
@@ -779,8 +852,10 @@ module WR_SceneAnnotations
             (u.members||[]).forEach(function(m){ out[m.key] = !!picks[m.key]; });
           });
           (S.loose||[]).forEach(function(it){ out[it.key] = !!picks[it.key]; });
-          sketchup.apply(JSON.stringify(out));
+          return out;
         }
+        function applyNow() { sketchup.apply(JSON.stringify(collectPicks())); }
+        function applyAll() { sketchup.applyall(JSON.stringify(collectPicks())); }
         function setState(json) {
           S = JSON.parse(json);
           picks = {};
@@ -856,6 +931,20 @@ module WR_SceneAnnotations
       push_state(Sketchup.active_model)
       status(msg)
       puts "WR_SceneAnnotations: #{msg}" unless ok
+    end
+    # Every scene, one undo, confirmed by name first (see apply_all).
+    @dlg.add_action_callback('applyall') do |_c, payload|
+      picks = JSON.parse(payload) rescue {}
+      m = Sketchup.active_model
+      if confirm_all?(m.pages.to_a, 'annotation')
+        _ok, msg, det = apply_all(m, picks)
+        puts "WR_SceneAnnotations: #{msg}"
+        (det ? det[:written] : []).each { |nm| puts "  written: #{nm}" }
+      else
+        msg = 'Not applied — nothing was changed.'
+      end
+      push_state(m)
+      status(msg)
     end
     @dlg.add_action_callback('ready') do |_c|
       # Also the liveness probe: this only fires if the HTML parsed and the

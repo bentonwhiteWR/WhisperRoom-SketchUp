@@ -2,6 +2,60 @@
 
 ## 2026-09-10
 
+### Apply to all scenes, in both popovers and both standalone dialogs — 1.22.0
+
+Benton: *"would like for there to be an 'apply to all scenes' button as well."*
+He works in the WALLS and ANNOTATIONS popovers of the proposal package, which
+both end in **APPLY TO THIS SCENE**. Now each also has **APPLY TO ALL N
+SCENES**, and the two standalone dialogs (*Hide walls per scene*, *Hide notes
+& dimensions per scene*) have **Apply to every scene**.
+
+**This one is destructive, and the design follows from that.** APPLY TO THIS
+SCENE writes one scene. Apply to all replaces the saved answer of every scene
+it touches — including scenes set up earlier and not on screen. So:
+
+- **Confirmed by name first.** A `UI.messagebox` (not a JS `confirm()`, which
+  CEF does not reliably show) lists the scenes, the count, and says the saved
+  answers will be REPLACED and that one Ctrl+Z puts them all back. "No"
+  touches nothing and the popover says so.
+- **One undo.** The old `apply` opened its own `start_operation`, so a loop
+  over it would nest operations and cost one Ctrl+Z per scene. It is now a
+  thin wrapper over a new transaction-free `write_scene(page, picks)`, and
+  `apply_all(model, picks, pages)` runs the loop inside a single operation
+  with `abort_operation` on any exception. Same shape in both modules.
+- **Each page is SELECTED before it is written.** This is the ordering trap
+  the single-scene write never had: `page.update(mask)` snapshots the model's
+  hidden state *as it stands*, and selecting a page is what restores that
+  scene's own state for everything that is *not* a picker row (geometry hidden
+  by hand). Writing into an unselected page would silently stamp the current
+  scene's hidden state on every other scene. The operator is put back on the
+  scene they started from, whether the sweep commits or aborts.
+- **Scenes that will not save hidden state are named, not counted.** Both
+  writers already force the page's `use_hidden_*` flag on before the
+  snapshot; if that setter fails the page is listed in `:unsaved`, the summary
+  warns by name, and the package log prints a red per-scene line. There is no
+  silent no-op.
+- **Per-scene log.** `log_sweep` writes one `written: "<scene>"` line per
+  scene into the package window's log, so what was rewritten can be read back.
+- **Inert mid-batch.** `next if busy?(d, '…applyall')`, like every sibling.
+
+**What "all" means, and why.** In the popover it is *the scenes the table is
+showing* — every scene unless the search box is filtering. That is the bulk
+bar's `SHOWN →` rule one section up, and it is the narrower reading: a
+deliberate filter narrows this too. The button label says which
+(`APPLY TO ALL 7 SCENES` vs `APPLY TO THE 3 SHOWN SCENES`), it is greyed when
+only one scene is shown, and the confirm lists the names anyway. The
+standalone dialogs have no filter, so there it is literally every scene.
+
+**Standalone dialogs got it because the module made it nearly free**: one
+`applyall` callback each, one button, and `applyNow` refactored into
+`collectPicks()` so both buttons send the identical pick set.
+
+Minor bump (1.22.0): new module API in two modules (`write_scene`,
+`apply_all`, `restore_page`, `confirm_all?`) plus a control in four dialogs.
+**UNRUN in SketchUp** — `rbparse.py` 68/68, `rbtest-proposal.py` passes,
+`node --check` on the extracted dialog JS passes. Syntax and pure logic only.
+
 ### Rescan button in the proposal package — 1.21.1
 
 Benton: *"lets add a 'refresh' button on the proposal package UI at the top
