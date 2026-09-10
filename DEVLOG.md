@@ -2,6 +2,61 @@
 
 ## 2026-09-10
 
+### Ctrl+Z is not a way back from a scene write — every promise removed, 1.25.2
+
+Benton, two reports within the hour, 10 Sep 2026: *"I clicked 'apply to
+all scenes' (annotations). It said I could ctrl+z and that didnt work"*
+and, on drag-to-reorder, *"it does seem to have reset the hidden
+annotations."*
+
+**Root cause, one for both: a scene's saved snapshot is outside SketchUp's
+undo stack.** `Page#update`, `Page#set_visibility` and the
+`use_hidden_*=` flags carry no undo note in the API; the only undo
+statement on `Sketchup::Page` (release notes, 2026.0) covers Axes, Camera,
+RenderingOptions and ShadowInfo — page state was never undoable before
+2026.0 and hidden-entity/tag snapshots are still not listed. Benton's
+field test is the confirmation. So Ctrl+Z after any apply today reverts
+only the entities' hidden **flags** (those are on the stack) and leaves
+every page snapshot as written; the next scene click re-asserts the
+snapshot. That is exactly "didn't work" on apply-to-all — and on a
+drag-to-reorder it is the "reset": the reorder callback writes no
+visibility at all (read end to end: `reorder` → `reorder_scene` →
+`pages.reorder` → `push_state`, reads only), but the log line and the
+verify step both told him to press Ctrl+Z, and Ctrl+Z reached back past
+the reorder to his last apply and unhid its notes in the viewport.
+
+**Shipped in this patch — the corrections only, deliberately first and
+separately.** No behaviour changes.
+- Both `confirm_all?` boxes: "Ctrl+Z will NOT put them back … There is no
+  way back from this button yet." Both `apply_all` messages, all four
+  Apply-to-all button titles (two standalone dialogs, two package
+  popovers) and `allScope()`: same.
+- Reorder log line: "Drag it back to reverse it — do not use Ctrl+Z here".
+  A reorder's honest reverse is the opposite drag.
+- Comments at every "one Ctrl+Z" claim rewritten to say why not.
+
+**What is and is not damaged (for the PeoplesSpace model).** Apply-to-all
+overwrote the per-scene answers of every scene it named, and nothing
+in-session brings those back: re-author them, or reopen the last saved
+`.skp`/`.skb` from before the press. A reorder on its own loses nothing —
+walls, notes, objects, MODE, EV and camera all live on the page object,
+which `Pages#reorder` moves — and a Ctrl+Z after it only unhid flags in
+the viewport; clicking each scene tab re-asserts what it saved. The one
+way that press could have done real harm is if a picker was then opened
+on the unhidden scene and APPLY pressed: the picker reads live flags, so
+the ticks would have shown cleared and APPLY would have snapshotted that.
+
+**Not observed (no SketchUp here).** That `Pages#reorder` itself is
+lossless is reasoned from the docs ("reorder an existing Page object") and
+the code path, not run. The one test that separates the two readings:
+hide a note on a scene, drag that scene's row somewhere else, do **not**
+press Ctrl+Z, click the scene — the note must still be hidden. If it is
+not, `Pages#reorder` is lossy and the drag feature comes out.
+
+Next (1.26.0): an UNDO LAST APPLY that works — snapshot before the
+write, restore on demand — because the confirm box now says there is no
+way back, and that has to stop being true.
+
 ### ANNOTATION defaults to Per scene — 1.25.1
 
 Benton exported the PeoplesSpace Revision pack this morning and every image

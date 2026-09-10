@@ -1,3 +1,46 @@
+# HANDOFF — Fixer → Benton: Ctrl+Z never undid a scene write, 1.25.2
+
+2026-09-10. Two reports, one cause. **Unrun in SketchUp.**
+
+## The finding (observed by reading + your field test)
+- **A scene snapshot is outside SketchUp's undo.** `Page#update`,
+  `set_visibility`, `use_hidden_*=`: no undo note in the API; the only
+  undo statement on `Page` (2026.0 release notes) names Axes, Camera,
+  RenderingOptions, ShadowInfo. Your "ctrl+z didn't work" is the proof.
+- **Ctrl+Z after an apply is worse than nothing:** it reverts the
+  entities' hidden FLAGS (on the stack) and leaves every snapshot as
+  written. The viewport shows the notes back; the next scene click hides
+  them again. If a picker is opened in that state its ticks read cleared,
+  and APPLY then snapshots the cleared state for real.
+- **Drag-to-reorder writes no visibility** (`reorder` → `reorder_scene` →
+  `pages.reorder` → `push_state`; reads only). The "reset" you saw is the
+  Ctrl+Z the log line and my verify step told you to press. Walls,
+  objects, notes, MODE, EV and camera all ride the page object, which
+  `Pages#reorder` moves. Reasoned, not run — see the test below.
+
+## Changed (text only, no behaviour)
+- `scripts/wr-scene-walls.rb`, `scripts/wr-scene-annotations.rb`:
+  `confirm_all?` box, `apply_all` message, Apply-to-every-scene title.
+- `scripts/proposal-package.rb`: both popover Apply-to-all titles,
+  `allScope()`, the reorder log line ("Drag it back to reverse it").
+- `VERSION` → **1.25.2**. DEVLOG entry.
+
+## PeoplesSpace — what is recoverable
+- The apply-to-all you pressed: **gone from the session.** Re-author per
+  scene, or reopen the last `.skp` / `.skb` saved before it.
+- Scenes you only reordered: **nothing lost.** Click each tab; what it
+  saved comes back. Do not press Ctrl+Z after a drag — drag it back.
+
+## To verify (Benton) — the one check that matters
+1. Any model: Hide notes on scene A → tick one note → APPLY. Click
+   another scene, then drag A's row to a new position. **Do not press
+   Ctrl+Z.** Click A: the note is still hidden → reorder is lossless.
+   If it is showing → `Pages#reorder` is lossy: tell me, the drag
+   feature comes out.
+2. APPLY TO ALL: the confirm box now says Ctrl+Z will not put it back.
+
+---
+
 # HANDOFF — Builder → Benton: ANNOTATION defaults to Per scene, 1.25.1
 
 2026-09-10. The PeoplesSpace Revision pack exported stripped because the

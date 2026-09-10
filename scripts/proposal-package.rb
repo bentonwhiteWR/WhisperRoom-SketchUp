@@ -669,7 +669,9 @@ module WR_ProposalPackage
     landed = landed.nil? ? nil : landed + 1
     if landed == to
       [true, "Moved \"#{name}\" from scene #{from} to scene #{to}. " \
-             'Ctrl+Z reverses it.']
+             'Drag it back to reverse it — do not use Ctrl+Z here: scene state ' \
+             'is outside SketchUp\'s undo, so Ctrl+Z reaches back to your last ' \
+             'apply and unhides its walls/notes in the viewport instead.']
     else
       [false, "Asked to move \"#{name}\" to scene #{to}; the model reports it " \
               "at #{landed.inspect}. Table redrawn from the model."]
@@ -3441,7 +3443,8 @@ module WR_ProposalPackage
       push_state(model, d)
     end
 
-    # One drag = one operation = one Ctrl+Z. The table is ALWAYS redrawn
+    # One drag = one operation; its reverse is dragging back, NOT Ctrl+Z
+    # (see reorder_scene). The table is ALWAYS redrawn
     # from the model afterwards (push_state → gather), so row numbers and the
     # FILE column come from where the scene really is, not from the drop.
     d.add_action_callback('reorder') do |_c, payload|
@@ -3557,9 +3560,10 @@ module WR_ProposalPackage
 
     # APPLY TO ALL SCENES (1.22.0). Benton: "would like for there to be an
     # 'apply to all scenes' button as well." The same picks into every scene
-    # the table is showing, ONE operation so one Ctrl+Z puts every scene
-    # back, confirmed by name first because it replaces the saved answer of
-    # scenes the operator is not looking at. The mechanism is the module's
+    # the table is showing, ONE operation (NOT undoable — page.update is
+    # outside SketchUp's undo; see WR_SceneWalls.apply_all), confirmed by
+    # name first because it replaces the saved answer of scenes the operator
+    # is not looking at. The mechanism is the module's
     # apply_all — select each page, write_scene, restore — not a second
     # save path. On "No", nothing is touched and the popover says so.
     d.add_action_callback('wallsapplyall') do |_c, payload|
@@ -4149,7 +4153,7 @@ module WR_ProposalPackage
       <button id="wselhide" title="Hide whatever is selected in the model on this scene, right now">HIDE SELECTED</button>
       <button id="wselshow" title="Show whatever is selected in the model on this scene, right now">SHOW SELECTED</button>
       <span class="wgap"></span>
-      <button id="wapplyall" title="The same ticks into every scene the table is showing — asks first; one Ctrl+Z undoes it">APPLY TO ALL SCENES</button>
+      <button id="wapplyall" title="The same ticks into every scene the table is showing — asks first. Ctrl+Z will NOT undo it.">APPLY TO ALL SCENES</button>
       <button id="wapply" class="prim">APPLY TO THIS SCENE</button>
       <button id="wcancel">CANCEL</button>
     </div>
@@ -4163,7 +4167,7 @@ module WR_ProposalPackage
     <div id="afoot">
       <button id="apick" title="Select the callouts in the model, then press this">USE MY SELECTION</button>
       <span class="wgap"></span>
-      <button id="aapplyall" title="The same ticks into every scene the table is showing — asks first; one Ctrl+Z undoes it">APPLY TO ALL SCENES</button>
+      <button id="aapplyall" title="The same ticks into every scene the table is showing — asks first. Ctrl+Z will NOT undo it.">APPLY TO ALL SCENES</button>
       <button id="aapply" class="prim">APPLY TO THIS SCENE</button>
       <button id="acancel">CANCEL</button>
     </div>
@@ -4449,7 +4453,7 @@ module WR_ProposalPackage
     btn.title = view.length < 2
       ? "Only this scene is shown — use APPLY TO THIS SCENE"
       : "The same ticks into "+(all ? "every scene" : "the "+view.length+" scenes the table is showing")
-        +" — asks first; one Ctrl+Z undoes it";
+        +" — asks first. Ctrl+Z will NOT undo it.";
   }
   function shownNs(){ return view.map(function(r){ return r.n; }); }
 

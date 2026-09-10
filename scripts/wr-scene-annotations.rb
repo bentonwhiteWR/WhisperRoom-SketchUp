@@ -573,7 +573,8 @@ module WR_SceneAnnotations
   end
 
   # The SAME picks into every page given (default: every scene), one
-  # operation, one Ctrl+Z — the walls rule, verbatim; see
+  # operation — the walls rule, verbatim, including that it is NOT undoable
+  # (page.update is outside SketchUp's undo; see WR_SceneWalls.apply_all); see
   # WR_SceneWalls.apply_all for why callers confirm first and why each page
   # is selected before it is written. Returns
   # [ok, message, { :written => [names], :unsaved => [names] }].
@@ -602,7 +603,8 @@ module WR_SceneAnnotations
                      "#{e.class}: #{e.message}"]
     end
     restore_page(model, start)
-    msg = "Saved to #{written.size} scene(s) — one Ctrl+Z undoes all of them."
+    msg = "Saved to #{written.size} scene(s). Ctrl+Z will NOT put them back — " \
+          'a scene snapshot is outside SketchUp\'s undo.'
     msg += " #{gone.size} row(s) were stale and skipped — hit Refresh." unless gone.empty?
     unless unsaved.empty?
       msg += ' WARNING: scene(s) not saving hidden tags/objects (callouts will ' \
@@ -626,7 +628,9 @@ module WR_SceneAnnotations
     UI.messagebox("Apply these #{what} picks to #{pages.size} scene(s)?\n\n" \
                   "#{shown.join("\n")}\n\n" \
                   "Each of those scenes' saved #{what} answer will be REPLACED " \
-                  "by what is ticked now.\nOne Ctrl+Z puts all of them back.",
+                  "by what is ticked now.\n\nCtrl+Z will NOT put them back: a scene's saved " \
+                  "snapshot is outside SketchUp's undo (observed 10 Sep 2026). " \
+                  "There is no way back from this button yet.",
                   MB_YESNO) == IDYES
   end
 
@@ -743,7 +747,7 @@ module WR_SceneAnnotations
       <div id="move"></div>
       <div id="foot">
         <button id="apply" onclick="applyNow()">Apply to this scene</button>
-        <button onclick="applyAll()" title="The same ticks into EVERY scene in the model — asks first; one Ctrl+Z undoes it">Apply to every scene</button>
+        <button onclick="applyAll()" title="The same ticks into EVERY scene in the model — asks first. Ctrl+Z will NOT undo it: scene snapshots are outside SketchUp's undo.">Apply to every scene</button>
         <button onclick="sketchup.pick()">Use my selection</button>
         <button onclick="sketchup.refresh()">Refresh</button>
       </div>

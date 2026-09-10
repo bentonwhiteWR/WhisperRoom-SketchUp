@@ -397,7 +397,12 @@ module WR_SceneWalls
   end
 
   # The SAME picks into every page given (default: every scene in the
-  # model), one operation, one Ctrl+Z. Benton, 10 Sep 2026: "would like for
+  # model), one operation. NOT undoable: page.update is outside SketchUp's
+  # undo stack (Benton, 10 Sep 2026: "It said I could ctrl+z and that didnt
+  # work"; the API's only undo note on Page covers Axes/Camera/
+  # RenderingOptions/ShadowInfo, 2026.0+). Ctrl+Z reverts the pieces'
+  # hidden FLAGS and leaves every snapshot as written, which the next scene
+  # click re-asserts — it looks like nothing happened. Benton, 10 Sep 2026: "would like for
   # there to be an 'apply to all scenes' button as well."
   #
   # This overwrites the saved wall answer of every scene it touches — scenes
@@ -433,7 +438,8 @@ module WR_SceneWalls
                      "#{e.class}: #{e.message}"]
     end
     restore_page(model, start)
-    msg = "Saved to #{written.size} scene(s) — one Ctrl+Z undoes all of them."
+    msg = "Saved to #{written.size} scene(s). Ctrl+Z will NOT put them back — " \
+          'a scene snapshot is outside SketchUp\'s undo.'
     msg += " #{gone.size} wall(s) were stale and skipped — hit Refresh." unless gone.empty?
     unless unsaved.empty?
       msg += " WARNING: scene(s) not saving hidden objects (walls will NOT " \
@@ -457,7 +463,9 @@ module WR_SceneWalls
     UI.messagebox("Apply these #{what} picks to #{pages.size} scene(s)?\n\n" \
                   "#{shown.join("\n")}\n\n" \
                   "Each of those scenes' saved #{what} answer will be REPLACED " \
-                  "by what is ticked now.\nOne Ctrl+Z puts all of them back.",
+                  "by what is ticked now.\n\nCtrl+Z will NOT put them back: a scene's saved " \
+                  "snapshot is outside SketchUp's undo (observed 10 Sep 2026). " \
+                  "There is no way back from this button yet.",
                   MB_YESNO) == IDYES
   end
 
@@ -645,7 +653,7 @@ module WR_SceneWalls
       </div>
       <div id="foot">
         <button id="apply" onclick="applyNow()">Apply to this scene</button>
-        <button onclick="applyAll()" title="The same ticks into EVERY scene in the model — asks first; one Ctrl+Z undoes it">Apply to every scene</button>
+        <button onclick="applyAll()" title="The same ticks into EVERY scene in the model — asks first. Ctrl+Z will NOT undo it: scene snapshots are outside SketchUp's undo.">Apply to every scene</button>
         <button onclick="sketchup.refresh()">Refresh</button>
       </div>
       <div id="selrow">
