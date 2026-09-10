@@ -112,6 +112,20 @@ worked examples in .forge/researcher/interior-lighting-design.md:
      keep-out skip keys on (the live "keep-out: ROOM 2" incident, where
      an L-shaped neighbour room's bounding box punched a hole in this
      room's grid).
+ 26. THE WALL SCAN (1.28.0, "add walls"): face_on_edge? / open_edges —
+     which floor-polygon runs have no wall. On the 12x15 room with 96"
+     walls: runs 0-2 walled (run 0 split at a door, run 1 with its OUTER
+     face 4" out as well), run 3 carrying only a baseboard, a door leaf
+     swung 90 degrees, and nothing else — run 3 alone is open; an inner
+     face within the 1" tolerance closes it, one 2" off does not, a
+     parallel on-plane face that does not OVERLAP the run (the far end of
+     a long wall) does not, and a face overlapping by less than the
+     tolerance does not. The L has six runs and all six must be walled
+     for it to read closed; drop one and that run is named. The truth
+     table pins each of the four tests individually — including the
+     oblique partition off a run's corner, the one face only the parallel
+     test rejects (a swung leaf is also thrown out by the on-plane test,
+     so it alone would let that mutant live; it did, once).
 
 ALSO EXERCISED, from wr-mode.rb (same verbatim-lift protocol, second
 program): the pin_light_tags snapshot pin — leaving render mode with
@@ -217,6 +231,20 @@ geometry builders (tube / cone_shell / disc_solid touch the SketchUp
 Entities API), add_ceiling, remove_ceilings_verified!, model_probe,
 stamp_exposure!, stamp_tag_into_pages and assert_lights_visible!.
 
+MUTATION-CHECKED 2026-09-10 (1.28.0 wall scan, same protocol — each
+mutation applied to wr-drop-lights.rb, this test run, FAIL confirmed,
+reverted): face_on_edge? parallel test dropped (SURVIVED on the first
+pass — the swung-leaf case is also rejected by the on-plane test — and
+the oblique-partition case was added for it; KILLED after); on-plane
+tolerance dropped (the OUTER face 4" out closes a run); overlap test
+forced true (the far end of a long wall closes the near run); z_need
+dropped (a baseboard closes a side); open_edges none? -> any? (every
+walled run reads open). All five KILLED. NOT coverable here:
+existing_walls (the SketchUp face scan feeding these), add_walls,
+find_owned / erase_owned! / find_walls, nested_lights, sweep_point, and
+the `into` container the place lambda now takes — SketchUp-API-side,
+unverified until a live press and a render.
+
 MUTATION-CHECKED 2026-08-27 (UTHSC-incident additions, same protocol):
 grid_points diag mis-charge (keep-out rejections counted as edge);
 in_keepout? forced false; room_structure_child? name match made
@@ -283,7 +311,7 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'param_agrees?', 'in_box?', 'enclosure_trim', 'layer_lumens',
            'layer_kelvin', 'area_scale', 'ring_points', 'shell_faces', 'fixture_faces',
            'wall_points', 'sconce_points', 'wall_normal', 'far_corner',
-           'ceiling_pair']
+           'ceiling_pair', 'face_on_edge?', 'open_edges']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H',
@@ -293,7 +321,7 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'FIXTURE_FACES_MAX', 'REF_ROOM_SQFT', 'REF_BOOTH_SQFT',
            'AREA_SCALE_MIN', 'AREA_SCALE_MAX', 'PENDANT_AFF', 'SCONCE_AFF',
            'SCONCE_STANDOFF', 'RIM_OUT', 'RIM_TILT', 'FOAM_OFFSET',
-           'EXPO_ISO', 'EXPO_FACTORY_ISO', 'EXPO_EV',
+           'EXPO_ISO', 'EXPO_FACTORY_ISO', 'EXPO_EV', 'WALL_TOL', 'WALL_MIN_SHARE',
            # 1.10.0 added LUMEN_GAIN to layer_lumens; this list was not
            # updated and the whole harness raised NameError on every commit
            # from then to 1.19.2. Anything layer_lumens multiplies by must be
@@ -689,6 +717,54 @@ __METHODS__
                     floor_child?('WR-Booth-Deck', 'panel')]
                    .map { |b| b ? '1' : '0' }.join
 
+    # 26 — THE WALL SCAN. Faces are [nx, ny, pts_xy, z_top]; z_need is
+    # halfway up a 96" room (WALL_MIN_SHARE 0.5 -> 48").
+    zn = 96.0 * WALL_MIN_SHARE
+    good = [0.0, 1.0, [[0.0, 0.0], [144.0, 0.0]], 96.0]
+    out << 'foe ' + [face_on_edge?(0.0, 0.0, 144.0, 0.0, good, WALL_TOL, zn),
+                     # (1) perpendicular — an open door leaf
+                     face_on_edge?(0.0, 0.0, 144.0, 0.0,
+                                   [1.0, 0.0, [[36.0, 0.0], [36.0, 36.0]], 80.0], WALL_TOL, zn),
+                     # (2) parallel but the OUTER face, 4" off the run
+                     face_on_edge?(0.0, 0.0, 144.0, 0.0,
+                                   [0.0, 1.0, [[0.0, -4.0], [144.0, -4.0]], 96.0], WALL_TOL, zn),
+                     # (3) on-plane, parallel, but past the end of the run
+                     face_on_edge?(0.0, 0.0, 144.0, 0.0,
+                                   [0.0, 1.0, [[200.0, 0.0], [300.0, 0.0]], 96.0], WALL_TOL, zn),
+                     # (4) a baseboard
+                     face_on_edge?(0.0, 0.0, 144.0, 0.0,
+                                   [0.0, 1.0, [[0.0, 0.0], [144.0, 0.0]], 4.0], WALL_TOL, zn),
+                     # (1) again, the case ONLY the parallel test catches: a
+                     # 45-degree partition starting at the run's own corner
+                     # is on-plane at that corner and overlaps the run in
+                     # projection — the leaf above is also thrown out by (2).
+                     face_on_edge?(0.0, 0.0, 144.0, 0.0,
+                                   [0.7071, -0.7071, [[0.0, 0.0], [50.0, 50.0]], 96.0], WALL_TOL, zn)]
+                    .map { |b| b ? '1' : '0' }.join
+    a3 = [[0.0, 1.0, [[0.0, 0.0], [54.0, 0.0]], 96.0],          # run 0, left of the door
+          [0.0, 1.0, [[90.0, 0.0], [144.0, 0.0]], 96.0],        # run 0, right of the door
+          [-1.0, 0.0, [[144.0, 0.0], [144.0, 180.0]], 96.0],    # run 1 inner
+          [1.0, 0.0, [[148.0, 0.0], [148.0, 180.0]], 96.0],     # run 1 OUTER face
+          [0.0, -1.0, [[0.0, 180.0], [144.0, 180.0]], 96.0],    # run 2
+          [1.0, 0.0, [[0.0, 0.0], [0.0, 180.0]], 4.0],          # run 3: baseboard only
+          [0.0, 1.0, [[0.0, 60.0], [36.0, 60.0]], 80.0],        # run 3: leaf swung open
+          [0.7071, 0.7071, [[0.0, 180.0], [50.0, 130.0]], 96.0]] # run 3: oblique partition off its corner
+    oe = lambda { |poly, faces| r = open_edges(poly, faces, WALL_TOL, zn); r.empty? ? '-' : r.join(',') }
+    lall = [[0.0, 1.0, [[0.0, 0.0], [144.0, 0.0]], 96.0],
+            [1.0, 0.0, [[144.0, 0.0], [144.0, 180.0]], 96.0],
+            [0.0, 1.0, [[72.0, 180.0], [144.0, 180.0]], 96.0],
+            [1.0, 0.0, [[72.0, 108.0], [72.0, 180.0]], 96.0],
+            [0.0, 1.0, [[0.0, 108.0], [72.0, 108.0]], 96.0],
+            [1.0, 0.0, [[0.0, 0.0], [0.0, 108.0]], 96.0]]
+    out << 'oe ' + [oe.call(RECT, a3),
+                    oe.call(RECT, a3 + [[1.0, 0.0, [[0.5, 0.0], [0.5, 180.0]], 96.0]]),
+                    oe.call(RECT, a3 + [[1.0, 0.0, [[2.0, 0.0], [2.0, 180.0]], 96.0]]),
+                    oe.call(RECT, a3[2..4] + [[1.0, 0.0, [[0.0, 0.0], [0.0, 180.0]], 96.0],
+                                              [0.0, 1.0, [[200.0, 0.0], [300.0, 0.0]], 96.0]]),
+                    oe.call(RECT, a3 + [[1.0, 0.0, [[0.0, 179.6], [0.0, 300.0]], 96.0]]),
+                    oe.call(LPOLY, lall),
+                    oe.call(LPOLY, lall[0..3] + lall[5..5])].join(' ')
+
     out.join(' | ')
   end
 end
@@ -742,6 +818,8 @@ EXPECT = ' | '.join([
     'ib 111100',
     'bl 111000000',
     'fc 11100',
+    'foe 100000',
+    'oe 3 - 3 0 3 - 4',
 ])
 
 # ---- second program: wr-mode.rb's snapshot pins -------------------------

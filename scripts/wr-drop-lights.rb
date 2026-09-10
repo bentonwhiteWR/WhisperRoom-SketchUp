@@ -141,9 +141,12 @@
 #      the doors; finds obstructions; places the layers; prints every
 #      number it used. More than ONE fallback for a single subject refuses
 #      that subject by name.
-#   6. Draws the visible fixtures (F1/F2/F3) as its OWN groups around the
-#      emitters, borrows a ceiling for the room if it has none, tags all of
-#      it "WR Lights", stamps that tag into every saved scene, and prints,
+#   6. Draws the visible fixtures (F1/F2/F3) as its OWN groups WITH their
+#      emitters INSIDE them — one thing to move (1.28.0; Benton: "have
+#      these grouped so if I move them, they travel in one component") —
+#      borrows a ceiling for the room if it has none, borrows a WALL on
+#      every run that reads open when asked to, tags all of it "WR Lights",
+#      stamps that tag into every saved scene, and prints,
 #      per layer, the size, units, lumens, Kelvin and RGB actually written
 #      — plus every write that did not stick.
 #
@@ -403,6 +406,21 @@ module WR_DropLights
                          #   ANGLE, and 4" across 2" of pyramid relief is what
                          #   makes the foam self-shadow instead of flatten
   CEIL_NAME     = 'WR Lights Ceiling'.freeze
+  WALL_NAME     = 'WR Lights Wall'.freeze # + " N", N = the floor-polygon run, 1-based
+  WALL_TOL      = 1.0    # in — a VERTICAL face this close to a floor-polygon
+                         #   run, parallel to it and overlapping it, IS the
+                         #   wall on that run. build-room.rb puts a wall's
+                         #   inner face exactly on the interior polygon; 1"
+                         #   forgives a traced plan. See face_on_edge?.
+  WALL_MIN_SHARE = 0.5   # a face must reach at least this far up the room
+                         #   (of z0..z_top) to count as a wall — a baseboard
+                         #   or a sill is not an enclosure.
+
+  # The container kinds this tool draws itself — a fixture group (with its
+  # emitter inside it since 1.28.0), the borrowed ceiling, a borrowed wall.
+  # None of them owns a V-Ray plugin of its own, and all of them are swept
+  # by their world BOUNDS, not their origin (see collect_lights).
+  OWNED_KINDS   = %w[fixture ceiling wall].freeze
 
   BOX_TOL         = 0.0625 # in — 1/16". Bounding-box containment slack for
                            #   the stale sweep: room lights mount FLUSH
@@ -709,6 +727,27 @@ module WR_DropLights
   # Enclosure trim for the ROOM budget only (spec §6). Booth-side roles never
   # trim — the sky was never getting into the booth (observed: capping costs
   # the room view ~1.5 stops and the booth interior 4%).
+  #
+  # `capped` is the CEILING; `walls` is the number of closed SIDES. The two
+  # open arms are the sun-off sweep's w4-open (0.35) and w3-open (0.25)
+  # frames (.forge/builder/HANDOFF-sunoff.md) and there is no wall term once
+  # the room is capped: w4-ceil is the 1.0 reference.
+  #
+  # BORROWED WALLS (1.28.0). A room whose open runs the tool has just walled
+  # is a 4-sided room and `run` passes it as one, so it lands on w4-open when
+  # uncapped and on 1.0 when capped — exactly the frames those two figures
+  # were measured in. Nothing in this table moves for a borrowed wall, and
+  # "open" here has always meant NO CEILING, never a missing side.
+  #
+  # WHAT THE CALLER HAS ALWAYS PASSED, stated so nobody rediscovers it: `run`
+  # passes poly.size — the number of floor-polygon SIDES — not a count of
+  # walls that exist, so a rectangular room drawn with a side left out has
+  # always been trimmed as 4-walled (0.35), and the 0.25 arm is reachable
+  # only by a triangular floor. The 1.28.0 wall scan (existing_walls) CAN
+  # count the open runs and prints them, but that count is deliberately NOT
+  # fed in here: doing so would move every 3-sided uncapped press by half a
+  # stop, and that is a light-budget decision for Benton, not a side effect
+  # of a walls feature.
   def self.enclosure_trim(capped, walls)
     return 1.0 if capped
     walls >= 4 ? TRIM_OPEN4 : TRIM_OPEN3
@@ -857,6 +896,51 @@ module WR_DropLights
     ux = dx / len
     uy = dy / len
     ccw ? [-uy, ux] : [uy, -ux]
+  end
+
+  # ---- borrowed walls: which floor-polygon runs are OPEN? — pure ---------
+  #
+  # A wall stands on run a->b when a VERTICAL face is (1) parallel to the
+  # run, (2) within `tol` of its line, (3) overlapping it along its length by
+  # more than `tol`, and (4) reaching at least z_need. `face` is
+  # [nx, ny, pts_xy, z_top]: the face's plan normal (unit), its vertices
+  # dropped to XY, and its highest point — existing_walls produces those in
+  # world coordinates and does the "is it vertical" test before calling.
+  #   (1) is what keeps an open door leaf, swung 90 degrees into the room,
+  #       from reading as a wall on the run it hangs off.
+  #   (2) is what keeps a wall's OUTER face (4" out) from standing in for an
+  #       inner face that is not there.
+  #   (3) is what keeps the far wall of a room — parallel, and for a square
+  #       room even on-plane with nothing — from ever counting for the near
+  #       run. On-plane AND overlapping is a wall on THIS run; nothing else is.
+  #   (4) is what keeps a baseboard from closing a side.
+  def self.face_on_edge?(ax, ay, bx, by, face, tol, z_need)
+    nx, ny, pts, z_top = face
+    return false if pts.nil? || pts.size < 2
+    return false if z_top * 1.0 < z_need
+    dx = bx - ax
+    dy = by - ay
+    len = Math.sqrt(dx * dx + dy * dy)
+    return false if len < 1e-6
+    ux = dx / len
+    uy = dy / len
+    return false if (nx * ux + ny * uy).abs > 0.05
+    off = ((ax - pts[0][0]) * nx + (ay - pts[0][1]) * ny).abs
+    return false if off > tol
+    ts = pts.map { |p| (p[0] - ax) * ux + (p[1] - ay) * uy }
+    ts.max > tol && ts.min < len - tol
+  end
+
+  # Indices of the polygon runs with NO wall face on them. `faces` is the
+  # list face_on_edge? takes. A room with every run walled answers []; an
+  # L-shaped room needs no special case — its six runs are six runs.
+  def self.open_edges(poly, faces, tol, z_need)
+    n = poly.size
+    (0...n).select do |i|
+      a = poly[i]
+      b = poly[(i + 1) % n]
+      faces.none? { |f| face_on_edge?(a[0], a[1], b[0], b[1], f, tol, z_need) }
+    end
   end
 
   # The polygon corner furthest from (bx, by), pulled `inset` toward the
@@ -1233,9 +1317,43 @@ module WR_DropLights
   # zero faces, and removing it schedules a deferred purge by plugin name
   # that killed the whole rig once already (observed, 1.9.1 — see THE
   # SECOND-PRESS KILL above). So each fixture is its OWN group in the same
-  # drawing context, the light instance is placed separately at the right
-  # offset inside it, and BOTH carry the WR_DropLights dictionary so the
-  # existing recursive world-space sweep removes both. No new sweep logic.
+  # drawing context and the LIGHT INSTANCE IS PLACED INSIDE THAT GROUP —
+  # the other way round from the rule above: the light lives in the
+  # fixture, the fixture never lives in the light.
+  #
+  # ONE THING TO MOVE (1.28.0). Up to 1.27.0 the comment above said the
+  # light was placed "inside" the fixture and the code placed it BESIDE it,
+  # as a sibling in the same entities — Benton dragged a drum and the
+  # emitter stayed on the ceiling ("they are not grouped with the actual
+  # light source"). Now `place` takes the fixture group's entities as its
+  # container, so a fixture is one group holding its shell AND its
+  # emitter(s), and the Move tool carries both.
+  #
+  #   GROUP, NOT COMPONENT — his word was "component", and a group is what
+  #   he means: one thing that travels together. A component definition
+  #   shared by every drum would share ONE nested light instance across all
+  #   of them, and the per-light lumens, Kelvin and up/down pairing (the
+  #   sconce holds two emitters at different heights) live on the light's
+  #   own definition and plugin. The cost of a group: editing one fixture's
+  #   shell does not edit the others. That is the right trade here.
+  #
+  #   DOES A LIGHT STILL EMIT FROM INSIDE A GROUP? Not proven by this tool.
+  #   The evidence that it does: Benton's link-built booths carry
+  #   BoothLighting.skp INSIDE the booth group (build-booth-components.rb,
+  #   place_booth_lighting), and his own report of 10 Sep 2026 is that it
+  #   renders — hot enough to blow out (.forge/fixer/sun-blowout.md). That
+  #   is a V-Ray light emitting from one level down in a group. No render
+  #   has been made of THIS rig with nested emitters, so the first render
+  #   after this change is the test: a lit F1 drum proves it, a dark one
+  #   means the light has to go back beside its fixture.
+  #
+  #   THE SWEEP still finds the fixture (it carries `role`, so
+  #   collect_lights lists it and never walks into it), but a fixture group
+  #   has never carried a plugin name of its own, so erase_lights harvests
+  #   the nested emitters' plugins and definitions off the group BEFORE
+  #   erasing it (nested_lights) and hands them to reap_lights as before.
+  #   A pre-1.28.0 rig — emitters beside their fixtures — is swept exactly
+  #   as it was: its lights are still top-level entries carrying `role`.
   #
   # NO MATERIAL IS EVER CREATED. lookdev-matrix.rb:446 did
   # `materials[X] || materials.add(X)` and its removal path never took the
@@ -1331,7 +1449,10 @@ module WR_DropLights
   # F1 — flush ceiling drum, 18" across, 3.5" deep, OPEN BOTTOM. The emitter
   # disc IS the diffuser, which is how a real flush mount is built, and it is
   # why role 1 is both the general layer and the room's obvious light source.
-  # Returns [group, emitter_z].
+  # Returns [group, emitter_z]. The caller then places the emitter INSIDE
+  # the group (group.entities), at that z — the group's transformation is
+  # the identity ents.add_group gives it, so group coordinates ARE the
+  # drawing-context coordinates the geometry was drawn in.
   def self.build_f1(ents, model, cx, cy, z_ceil, mat)
     g = ents.add_group
     g.name = 'WR Fixture F1 flush drum'
@@ -1451,6 +1572,101 @@ module WR_DropLights
     g
   end
 
+  # ======================================================================
+  # THE BORROWED WALLS (1.28.0) — the walls counterpart of the ceiling.
+  #
+  # Benton: "add a function to 'add walls' to completely enclose the area,
+  # similar to add ceiling." Same lifecycle as the ceiling, on purpose: made
+  # with the rig, owned by dictionary, swept by the next press or by
+  # remove_rig!, and the removal verified by the same independent re-read.
+  #
+  # OPT-IN, DEFAULT OFF — unlike the ceiling. A great many WhisperRoom
+  # drawings are 2- and 3-sided rooms with a wall LEFT OUT so the camera can
+  # see in (sunoff-drive.py's header says so in as many words). Sealing that
+  # room automatically walls the camera out and the frame goes black —
+  # silently, an hour later. So the panel asks, the default is No, and the
+  # checkbox says what it does.
+  #
+  # ONLY THE OPEN RUNS. existing_walls scans the room's own geometry for a
+  # vertical face on each floor-polygon run; a run that has one keeps it and
+  # is not doubled — a borrowed wall on top of a real one would be two
+  # coplanar faces fighting in the render. On an L-shaped room the polygon
+  # has six runs and gets up to six walls; nothing special.
+  #
+  # ONE GROUP PER RUN, NAMED BY RUN, so "Hide walls per scene" lists each
+  # borrowed wall as an object Benton can hide again for one camera.
+  # ======================================================================
+
+  # Which runs of the floor polygon have NO wall the tool does not own.
+  # Same scan as existing_ceiling (the room's descendants, three deep); every
+  # VERTICAL face is dropped to plan and handed to the pure open_edges.
+  # Returns [open_run_indices, error_or_nil]. On an error the answer is
+  # "no run is open" — a scan that breaks must never seal a room by mistake;
+  # a wall NOT added is visible in the render, a camera walled out is not.
+  def self.existing_walls(room, poly, z0, z_top)
+    faces = []
+    z_need = z0 + (z_top - z0) * WALL_MIN_SHARE
+    scan = nil
+    scan = lambda do |ents, tr, depth|
+      next if depth > 3
+      ents.each do |e|
+        if e.is_a?(Sketchup::Face)
+          nrm = e.normal.transform(tr)
+          next if nrm.length < 1e-9
+          nrm.normalize!
+          next if nrm.z.abs > 0.05
+          pts = e.outer_loop.vertices.map { |v| v.position.transform(tr) }
+          faces << [nrm.x, nrm.y, pts.map { |p| [p.x, p.y] }, pts.map(&:z).max]
+        elsif e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+          next if e.get_attribute(DICT, 'role') # never the tool's own
+          kids = child_entities(e)
+          scan.call(kids, tr * e.transformation, depth + 1) if kids.respond_to?(:each)
+        end
+      end
+    end
+    scan.call(child_entities(room), room.transformation, 0)
+    [open_edges(poly, faces, WALL_TOL, z_need), nil]
+  rescue StandardError => e
+    [[], "#{e.class}: #{e.message}"]
+  end
+
+  # Build the borrowed walls: one group per OPEN run, faced floor to wall
+  # top ON the polygon run itself — where build-room.rb puts a real wall's
+  # inner face — front side INTO the room (wall_normal is the inward normal
+  # the sconces already mount by). A single face, like the ceiling: V-Ray
+  # shades both sides of it and a group material paints both. Returns the
+  # groups made; a run whose face would not form is skipped and the caller
+  # counts the shortfall.
+  def self.add_walls(ents, poly, open_idx, z0, z_top, layer, uuid, mat)
+    made = []
+    n = poly.size
+    open_idx.each do |i|
+      a = poly[i]
+      b = poly[(i + 1) % n]
+      nrm = wall_normal(poly, i)
+      next if nrm.nil?
+      g = ents.add_group
+      g.name = format('%s %d', WALL_NAME, i + 1)
+      f = g.entities.add_face([Geom::Point3d.new(a[0], a[1], z0),
+                               Geom::Point3d.new(b[0], b[1], z0),
+                               Geom::Point3d.new(b[0], b[1], z_top),
+                               Geom::Point3d.new(a[0], a[1], z_top)])
+      if f.nil?
+        g.erase! if g.valid?
+        next
+      end
+      f.reverse! if f.normal.x * nrm[0] + f.normal.y * nrm[1] < 0
+      g.material = mat if mat
+      g.layer = layer
+      g.set_attribute(DICT, 'kind', 'wall')
+      g.set_attribute(DICT, 'uuid', uuid)
+      g.set_attribute(DICT, 'role', 'wall')     # so the existing sweep owns it
+      g.set_attribute(DICT, 'run', i + 1)
+      made << g
+    end
+    made
+  end
+
   # An INDEPENDENT probe of the model — the numbers criterion 9 compares.
   # Deliberately reads the model afresh and never a captured value: two
   # separate restores have already lied in this project by trusting their own
@@ -1461,22 +1677,33 @@ module WR_DropLights
       :materials   => model.materials.count,
       :tags        => model.layers.map { |l| l.name.to_s }.sort,
       :top_level   => model.entities.length,
-      :ceilings    => find_ceilings(model).size }
+      :ceilings    => find_ceilings(model).size,
+      :walls       => find_walls(model).size }
   end
 
   # Every entity anywhere carrying WR_DropLights/kind => 'ceiling'.
-  def self.find_ceilings(model, ents = nil, out = nil, depth = 0)
+  def self.find_ceilings(model)
+    find_owned(model, 'ceiling')
+  end
+
+  # Every entity anywhere carrying WR_DropLights/kind => 'wall' (1.28.0).
+  def self.find_walls(model)
+    find_owned(model, 'wall')
+  end
+
+  # Every entity anywhere carrying WR_DropLights/kind => `kind`.
+  def self.find_owned(model, kind, ents = nil, out = nil, depth = 0)
     out ||= []
     ents ||= model.entities
     return out if depth > SWEEP_MAX_DEPTH
     ents.each do |e|
       next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
-      if e.get_attribute(DICT, 'kind') == 'ceiling'
+      if e.get_attribute(DICT, 'kind') == kind
         out << e
         next
       end
       kids = child_entities(e)
-      find_ceilings(model, kids, out, depth + 1) if kids.respond_to?(:each)
+      find_owned(model, kind, kids, out, depth + 1) if kids.respond_to?(:each)
     end
     out
   rescue StandardError
@@ -1488,9 +1715,18 @@ module WR_DropLights
   # Returns [ok?, lines].
   # Erase every tool-owned ceiling. Returns how many groups went.
   def self.erase_ceilings!(model)
-    gs = find_ceilings(model)
+    erase_owned!(model, 'ceiling', 'Remove WR Lights ceiling')
+  end
+
+  # Erase every tool-owned borrowed wall (1.28.0). Returns how many went.
+  def self.erase_walls!(model)
+    erase_owned!(model, 'wall', 'Remove WR Lights walls')
+  end
+
+  def self.erase_owned!(model, kind, opname)
+    gs = find_owned(model, kind)
     return 0 if gs.empty?
-    model.start_operation('Remove WR Lights ceiling', true)
+    model.start_operation(opname, true)
     n = 0
     gs.each do |g|
       next unless g.valid?
@@ -1516,6 +1752,10 @@ module WR_DropLights
       fails << format('%d entit%s still carries WR_DropLights/kind => ceiling',
                       after[:ceilings], after[:ceilings] == 1 ? 'y' : 'ies')
     end
+    if after[:walls] > 0
+      fails << format('%d entit%s still carries WR_DropLights/kind => wall',
+                      after[:walls], after[:walls] == 1 ? 'y' : 'ies')
+    end
     if after[:materials] != before[:materials]
       fails << format('materials.count is %d, was %d before the press — ' \
                       'this is the check that catches the 37th material',
@@ -1534,24 +1774,25 @@ module WR_DropLights
       fails << format('the model holds %d top-level entities, was %d before '                       'the press', after[:top_level], before[:top_level])
     end
     if fails.empty?
-      lines << format('  restore verified by an INDEPENDENT re-read — '                       'definitions %d, materials %d, %d tags, %d top-level '                       'entities, and nothing anywhere carries the ceiling '                       'stamp.%s', after[:definitions], after[:materials],
+      lines << format('  restore verified by an INDEPENDENT re-read — '                       'definitions %d, materials %d, %d tags, %d top-level '                       'entities, and nothing anywhere carries the ceiling '                       'or wall stamp.%s', after[:definitions], after[:materials],
                       after[:tags].size, after[:top_level],
-                      n.nil? ? '' : format(' %d ceiling group%s erased.',
+                      n.nil? ? '' : format(' %d borrowed surface%s erased.',
                                            n, n == 1 ? '' : 's'))
       return [true, lines]
     end
     lines << '  REFUSED — the restore DID NOT verify:'
     fails.each { |f| lines << "    #{f}" }
-    lines << '    Delete the group named ' + CEIL_NAME.inspect +
-             ' by hand and check the Materials browser.'
+    lines << '    Delete the groups named ' + CEIL_NAME.inspect + ' and ' +
+             (WALL_NAME + ' N').inspect + ' by hand and check the Materials browser.'
     [false, lines]
   end
 
-  # Erase the ceilings and verify in one call — the shape the negative test
-  # exercises, and the one a caller with nothing else to remove wants.
+  # Erase the borrowed surfaces — ceilings AND walls, since 1.28.0 — and
+  # verify in one call: the shape the negative test exercises, and the one
+  # a caller with nothing else to remove wants.
   def self.remove_ceilings_verified!(model, before)
-    n = erase_ceilings!(model)
-    return [true, ['  no tool-owned ceiling in this model — nothing to remove.']] if n.zero?
+    n = erase_ceilings!(model) + erase_walls!(model)
+    return [true, ['  no tool-owned ceiling or wall in this model — nothing to remove.']] if n.zero?
     verify_restore!(model, before, n)
   end
 
@@ -1562,14 +1803,19 @@ module WR_DropLights
     found = []
     collect_lights(model.entities, IDENT, found, 0, [])
     ceilings = find_ceilings(model).size
+    walls = find_walls(model).size
     model.start_operation('Remove Interior Lights', true)
     pend = []
     n = 0
     found.each do |e, _|
       next unless e.respond_to?(:valid?) && e.valid?
-      next if e.get_attribute(DICT, 'kind') == 'ceiling'
+      kind = e.get_attribute(DICT, 'kind').to_s
+      next if kind == 'ceiling' || kind == 'wall'
       pname = e.get_attribute(DICT, 'plugin').to_s
       defn = e.respond_to?(:definition) ? e.definition : nil
+      # A fixture's emitters live INSIDE it (1.28.0): take their plugin
+      # names before the group goes, or the reap has nothing to delete.
+      nested = kind == 'fixture' ? nested_lights(e) : []
       begin
         e.erase!
         n += 1
@@ -1577,6 +1823,7 @@ module WR_DropLights
         next
       end
       pend << [pname, defn] unless pname.empty?
+      nested.each { |pn, df| pend << [pn, df] unless pn.empty? }
     end
     model.commit_operation
     ctx, = vray_context
@@ -1588,6 +1835,7 @@ module WR_DropLights
     # the first run of this refused itself with "1 entity is still on
     # the tag", which was its own ceiling).
     erased_ceilings = erase_ceilings!(model)
+    erased_walls = erase_walls!(model)
     # THE TAG COMES BACK OFF, when this tool is the one that put it on and
     # nothing is left standing on it. Both conditions matter: a tag the model
     # already had is Benton's, and a tag with something on it would take that
@@ -1624,9 +1872,11 @@ module WR_DropLights
       end
     end
     ok, lines = verify_restore!(model, before)
-    { 'erased' => n, 'ceilings' => ceilings, 'plugins_deleted' => gone,
+    { 'erased' => n, 'ceilings' => ceilings, 'walls' => walls,
+      'plugins_deleted' => gone,
       'plugins_left' => left, 'ceiling_verified' => ok, 'lines' => lines,
       'ceiling_groups_erased' => erased_ceilings,
+      'wall_groups_erased' => erased_walls,
       'tag_removed' => tag_removed, 'tag_note' => tag_note }
   end
 
@@ -1920,6 +2170,28 @@ module WR_DropLights
   # the cap is reported, never swallowed.
   SWEEP_MAX_DEPTH = 12
 
+  # WHERE A THING IS, for the containment test. A light instance is placed
+  # by its origin, so its world origin is the light. A fixture group, the
+  # ceiling and a borrowed wall are drawn IN PLACE inside a group whose
+  # transformation is the identity ents.add_group gave it — their origin is
+  # (0, 0, 0) in the drawing context, wherever the geometry is. The live
+  # verification room (.forge/builder/rig-build-results.json) happened to
+  # stand at (0,0)-(240,192), so (0,0,0) fell inside its box and the sweep
+  # found every fixture and the ceiling by luck; on a room anywhere else
+  # the sweep would have left them and a re-press would have stacked a
+  # second set (derived, 1.28.0 — not seen live). So an owned container is
+  # located by the centre of its WORLD BOUNDS, which is inside the room by
+  # construction and follows the group when Benton moves it.
+  def self.sweep_point(e, tr, wt)
+    if OWNED_KINDS.include?(e.get_attribute(DICT, 'kind').to_s)
+      bb = world_bounds(e, tr)
+      return bb.center if bb.valid?
+    end
+    wt.origin
+  rescue StandardError
+    wt.origin
+  end
+
   def self.collect_lights(ents, tr, out, depth = 0, over = [])
     if depth > SWEEP_MAX_DEPTH
       over << true
@@ -1935,8 +2207,10 @@ module WR_DropLights
       # 'seed' is the attribute EVERY version of this tool has written,
       # including the seed-based ones — so a re-press after the upgrade
       # still finds and replaces pre-1.8.0 lights instead of doubling them.
+      # A fixture group is listed here and NOT walked into: its emitters
+      # (inside it since 1.28.0) go when it goes — see erase_lights.
       if e.get_attribute(DICT, 'seed') || e.get_attribute(DICT, 'role')
-        out << [e, wt.origin]
+        out << [e, sweep_point(e, tr, wt)]
         next # never walk into a light
       end
       kids = child_entities(e)
@@ -2002,6 +2276,24 @@ module WR_DropLights
   # Erase the replaced lights' INSTANCES. Returns [erased, pending], where
   # pending is [[plugin_name, definition], ...] for reap_lights to finish
   # once the new rig is in place. Nothing V-Ray-side happens here.
+  # The emitters nested inside a fixture group (1.28.0 — the light travels
+  # WITH its fixture). Returns [[plugin_name, definition], ...] so the
+  # fixture's V-Ray plugins are reaped with it; a pre-1.28.0 fixture holds
+  # none and answers []. Never raises.
+  def self.nested_lights(g)
+    out = []
+    kids = child_entities(g)
+    return out unless kids.respond_to?(:each)
+    kids.each do |e|
+      next unless e.is_a?(Sketchup::ComponentInstance)
+      next unless e.get_attribute(DICT, 'role')
+      out << [e.get_attribute(DICT, 'plugin').to_s, e.definition]
+    end
+    out
+  rescue StandardError
+    []
+  end
+
   def self.erase_lights(lights)
     erased = 0
     pending = []
@@ -2013,17 +2305,23 @@ module WR_DropLights
       pname = e.get_attribute(DICT, 'plugin').to_s
       kind = e.get_attribute(DICT, 'kind').to_s
       defn = e.respond_to?(:definition) ? e.definition : nil
+      # A fixture's emitters go with it, and their plugins must be reaped
+      # with it: read them off the group BEFORE it is erased, because after
+      # erase! its children are gone and their attributes with them.
+      nested = kind == 'fixture' ? nested_lights(e) : []
       begin
         e.erase!
         erased += 1
       rescue StandardError
         next
       end
-      # A FIXTURE GROUP AND THE BORROWED CEILING never owned a V-Ray plugin,
-      # so they are not "left behind" when none is deleted for them — counting
-      # them as left behind made a clean sweep report 6 orphans it had not
-      # created (observed, 1.9.9 first live press).
-      next if kind == 'fixture' || kind == 'ceiling'
+      nested.each { |pn, df| pending << [pn, df] }
+      # A FIXTURE GROUP AND THE BORROWED CEILING (and a borrowed wall) never
+      # owned a V-Ray plugin of their own, so they are not "left behind" when
+      # none is deleted for them — counting them as left behind made a clean
+      # sweep report 6 orphans it had not created (observed, 1.9.9 first
+      # live press). The fixture's NESTED emitters were queued just above.
+      next if OWNED_KINDS.include?(kind)
       pending << [pname, defn]
     end
     [erased, pending]
@@ -2423,7 +2721,7 @@ module WR_DropLights
     LIGHT_LAYERS.each_key do |role|
       layers[role.to_s] = { 'on' => true, 'scale' => 1.0, 'kdelta' => 0 }
     end
-    { 'mult' => 1.0, 'koffset' => 0, 'ceiling' => true,
+    { 'mult' => 1.0, 'koffset' => 0, 'ceiling' => true, 'walls' => false,
       'density' => 'soft', 'layers' => layers }
   end
 
@@ -2460,6 +2758,7 @@ module WR_DropLights
       :warmth  => st['koffset'].to_i.zero? ? 'Warm' : "#{st['koffset'].to_i}K",
       :koffset => st['koffset'].to_i,
       :ceiling => st['ceiling'] ? true : false,
+      :walls   => st['walls'] ? true : false, # absent in a pre-1.28.0 preset -> No
       :density => st['density'].to_s == 'showroom' ? :showroom : :soft,
       :layers  => layers }
   end
@@ -2591,6 +2890,12 @@ as a preset and every later room can use the same rig.</div>
     <label><input id="ceil" type="checkbox"> Add a ceiling if the room has none</label>
   </div>
   <div class="row" style="margin-top:6px">
+    <label><input id="walls" type="checkbox"> Add walls on the open sides</label>
+  </div>
+  <div class="note">Walls close every side of the floor polygon that has no wall
+  &mdash; a 3-sided room becomes a box. Put the camera INSIDE first, or hide the
+  borrowed wall on that scene afterwards. They leave with the lights.</div>
+  <div class="row" style="margin-top:6px">
     <span class="lab" style="margin:0">Grid</span>
     <select id="dens" style="width:auto">
       <option value="soft">Soft &mdash; spacing = ceiling height</option>
@@ -2656,6 +2961,7 @@ function paint(){
   g("mult").value = ST.mult; g("multn").value = ST.mult;
   g("koff").value = ST.koffset; g("koffn").value = ST.koffset;
   g("ceil").checked = !!ST.ceiling;
+  g("walls").checked = !!ST.walls;
   g("dens").value = ST.density || "soft";
   drawLayers();
 }
@@ -2671,6 +2977,7 @@ function collect(){
   return { mult: parseFloat(g("multn").value) || 1,
            koffset: parseInt(g("koffn").value, 10) || 0,
            ceiling: g("ceil").checked,
+           walls: g("walls").checked,
            density: g("dens").value,
            layers: layers };
 }
@@ -2743,8 +3050,12 @@ paint(); drawPresets("");
                 layers.keys.count { |r| LIGHT_LAYERS[r][:visible] }, layers.size)
     puts format('  room budget spent %.0f lm; booth budget spent %.0f lm.',
                 extra[:room_lm], extra[:booth_lm])
-    puts format('  enclosure: %s, %d walls -> room trim x%.2f (booth roles never trim)',
-                extra[:capped] ? 'CAPPED' : 'OPEN', extra[:walls], extra[:trim])
+    puts format('  enclosure: %s, %d sides%s -> room trim x%.2f (booth roles never trim)',
+                extra[:capped] ? 'CAPPED' : 'OPEN', extra[:walls],
+                extra[:walls_added].to_i > 0 ?
+                  format(' (%d borrowed wall%s)', extra[:walls_added],
+                         extra[:walls_added] == 1 ? '' : 's') : '',
+                extra[:trim])
     puts format('  fixture geometry added %d faces (budget %d, %d segments/circle)',
                 extra[:faces], FIXTURE_FACES_MAX, SEG)
     if extra[:faces] > FIXTURE_FACES_MAX
@@ -2868,7 +3179,7 @@ paint(); drawPresets("");
       erased, reap_pending = erase_lights(stale)
 
       puts ''
-      puts format('Drop Interior Lights 1.9.9 — brightness %s (x%.2f), ' \
+      puts format('Drop Interior Lights 1.28.0 — brightness %s (x%.2f), ' \
                   'warmth %s (%+d K), units 1 (LUMENS), seven roles',
                   opts[:bright], opts[:mult], opts[:warmth], opts[:koffset])
       unless stale.empty?
@@ -2892,6 +3203,7 @@ paint(); drawPresets("");
       layers_rep = {}
       fixture_faces = 0
       ceilings_added = 0
+      walls_added = 0
       room_lm = 0.0
       booth_lm = 0.0
       press_uuid = format('%d-%06d', Time.now.to_i, rand(1_000_000))
@@ -2939,7 +3251,12 @@ paint(); drawPresets("");
       # ONE V-Ray light per call — each light gets its own plugin, so its own
       # brightness, colour and visibility. Creating a light is a V-Ray-scene
       # change and V-Ray's scene is NOT on SketchUp's undo stack.
-      place = lambda do |role, pt, lumens, extra_tr = nil|
+      # `into` is the Entities the instance lands in: nil = the drawing
+      # context (the invisible roles), a fixture group's own entities for
+      # the roles that have a fixture — so the emitter travels with it
+      # (1.28.0). Same coordinates either way: a fresh group's
+      # transformation is the identity.
+      place = lambda do |role, pt, lumens, extra_tr = nil, into = nil|
         spec = LIGHT_LAYERS[role]
         if spec[:emitter] == :sphere
           d, plug = create_sphere(ctx, spec[:u] / 2.0)
@@ -2956,7 +3273,7 @@ paint(); drawPresets("");
                                                 FACE_FLIP.degrees)
         end
         t = t * extra_tr if extra_tr
-        inst = ents.add_instance(d, t)
+        inst = (into || ents).add_instance(d, t)
         if inst.nil?
           raise "add_instance failed (#{role}) — the V-Ray light was " \
                 'created but could not be placed in the model.'
@@ -3093,6 +3410,42 @@ paint(); drawPresets("");
                  '— no ceiling added, and the open-room trims apply.'
           end
         end
+        # ---- THE BORROWED WALLS (1.28.0) — see existing_walls / add_walls --
+        open_runs, wall_err = existing_walls(s, poly, z0, info[:z_top])
+        run_list = open_runs.map { |i| i + 1 }.join(', ')
+        if wall_err
+          puts "  #{name}: the wall scan raised #{wall_err} — no run is read " \
+               'as open and no wall is borrowed.'
+        elsif open_runs.empty?
+          puts "  #{name}: every one of the #{poly.size} floor-polygon runs " \
+               'already has a wall — nothing to borrow.'
+        elsif !opts[:walls]
+          puts format('  %s: run%s %s read%s OPEN (no wall face on the floor ' \
+                      'polygon there). "Add walls" was No, so %s left open — ' \
+                      'sky comes in and the rig leaves through it.',
+                      name, open_runs.size == 1 ? '' : 's', run_list,
+                      open_runs.size == 1 ? 's' : '',
+                      open_runs.size == 1 ? 'it is' : 'they are')
+        else
+          made = add_walls(ents, poly, open_runs, z0, info[:z_top], layer,
+                           press_uuid, borrow_material(model, ['WR Wall', 'Wall']))
+          walls_added += made.size
+          puts format('  %s: borrowed %d wall%s on run%s %s, floor to %.0f", ' \
+                      'named "%s N" so "Hide walls per scene" can open one ' \
+                      'back up for a camera. THEY LEAVE WHEN THE LIGHTS DO, ' \
+                      'with the ceiling, verified the same way.',
+                      name, made.size, made.size == 1 ? '' : 's',
+                      open_runs.size == 1 ? '' : 's', run_list,
+                      info[:z_top], WALL_NAME)
+          if made.size < open_runs.size
+            puts format('  %s: ** %d open run%s could not be faced — still open.',
+                        name, open_runs.size - made.size,
+                        open_runs.size - made.size == 1 ? '' : 's')
+          end
+        end
+        # poly.size, as it has always been — see enclosure_trim: a room
+        # with its open runs borrowed IS a 4-sided room, and the open-run
+        # count is printed above, not fed into the trim.
         walls_n = poly.size
         trim = enclosure_trim(capped, walls_n)
         room_trim = trim
@@ -3130,7 +3483,7 @@ paint(); drawPresets("");
         pair.each do |p|
           fg, ez = build_f1(ents, model, p[0], p[1], info[:z_top], fx_mat)
           stamp_own.call(fg, :f1)
-          place.call(:ceiling, [p[0], p[1], ez], lm_of.call(:ceiling))
+          place.call(:ceiling, [p[0], p[1], ez], lm_of.call(:ceiling), nil, fg.entities)
         end
         puts format('  %s: floor %.0f sq ft against the %.0f sq ft reference '                     'room -> room roles x%.2f, and the enclosure trim is x%.2f',
                     name, area / 144.0, REF_ROOM_SQFT, room_k, room_trim)
@@ -3146,7 +3499,7 @@ paint(); drawPresets("");
            !in_keepout?(pc[0], pc[1], keepouts)
           fg, ez = build_f2(ents, model, pc[0], pc[1], info[:z_top], z0, fx_mat)
           stamp_own.call(fg, :f2)
-          place.call(:pendant, [pc[0], pc[1], ez], lm_of.call(:pendant))
+          place.call(:pendant, [pc[0], pc[1], ez], lm_of.call(:pendant), nil, fg.entities)
           puts format('  %s: pendant — F2 cord-hung drum (16"), shade bottom ' \
                       '%.0f" AFF at (%.0f, %.0f), %.0f lm at %dK',
                       name, PENDANT_AFF, pc[0], pc[1], lm_of.call(:pendant),
@@ -3184,8 +3537,8 @@ paint(); drawPresets("");
             fg, e = build_f3(ents, model, wx, wy, nrm[0], nrm[1],
                              z0 + SCONCE_AFF, fx_mat)
             stamp_own.call(fg, :f3)
-            place.call(:sconce, [e[0], e[1], e[2]], lm_of.call(:sconce))
-            place.call(:sconce, [e[0], e[1], e[3]], lm_of.call(:sconce))
+            place.call(:sconce, [e[0], e[1], e[2]], lm_of.call(:sconce), nil, fg.entities)
+            place.call(:sconce, [e[0], e[1], e[3]], lm_of.call(:sconce), nil, fg.entities)
           end
           puts format('  %s: sconces — %d x F3 up/down cylinder (5") at %.0f" ' \
                       'AFF on wall run %d, TWO spheres each (%.0f lm up, ' \
@@ -3320,6 +3673,7 @@ paint(); drawPresets("");
                          { :room_lm => room_lm, :booth_lm => booth_lm,
                            :capped => capped_any, :walls => walls_any,
                            :trim => trim_any, :faces => fixture_faces,
+                           :walls_added => walls_added,
                            :mat_before => mat_before,
                            :mat_after => probe_after[:materials] })
       puts ''
@@ -3348,7 +3702,19 @@ paint(); drawPresets("");
                     'to take the whole rig away with a verified removal.',
                     ceilings_added, ceilings_added == 1 ? '' : 's')
       end
-      puts '  Ctrl+Z removes the lights, the fixtures and the ceiling in one ' \
+      if walls_added > 0
+        puts format('  %d borrowed wall%s stand%s in the model on the same ' \
+                    'terms as the ceiling. If a camera is now outside the box, ' \
+                    'hide that "%s N" group on that scene (Hide walls per scene ' \
+                    'lists it under Objects).', walls_added,
+                    walls_added == 1 ? '' : 's', walls_added == 1 ? 's' : '',
+                    WALL_NAME)
+      end
+      puts '  Each drawn fixture (F1 drum, F2 pendant, F3 sconce) is ONE group ' \
+           'holding its shell and its emitter: move the group and the light ' \
+           'goes with it. Whether a nested emitter still lights the render is ' \
+           'PROVEN ONLY BY A RENDER — a lit drum settles it.'
+      puts '  Ctrl+Z removes the lights, the fixtures, the ceiling and the walls in one ' \
            'step (their V-Ray plugins may linger in the Asset Editor — a ' \
            're-press deletes the ones it replaces).'
     rescue StandardError => e

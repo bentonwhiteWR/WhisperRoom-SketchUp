@@ -2,6 +2,105 @@
 
 ## 2026-09-10
 
+### Drop the interior lights: fixtures carry their emitters, and borrowed walls — 1.28.0
+
+Benton, 10 Sep 2026: *"the drop in lights function needs tweaking. For
+one, the lights that are made, like the ceiling lights, they are not
+'grouped' with the actual light source. Please have these grouped so if
+i move them, they travel in one component. Also, add a function to 'add
+walls' to completely enclose the area, similar to add ceiling."* Built,
+**unrun in SketchUp** — no `ruby.exe`, no V-Ray here. `rbparse.py` clean
+(real CRuby 3.2), `rbtest-lights.py` 45 + 10 PASS, five mutants killed.
+
+**1. One thing to move.** Up to 1.27.0 the fixture comment said the
+emitter was placed "inside" its fixture group and the code placed it
+BESIDE it — `place` always wrote into `ents`, the same entities the
+fixture group sat in, so the drum and its light were siblings and the
+Move tool took one without the other (**observed** by reading; the
+rig-build record's "each inside a stamped fixture group" was loose).
+Now `place` takes a container and the F1/F2/F3 call sites hand it
+`fg.entities`: each fixture is **one group holding its shell and its
+emitter(s)** (the sconce holds two). A **group**, not a component — a
+shared component definition would share one nested light across every
+copy, and the per-light lumens / Kelvin / up-down pairing live on each
+light's own definition and plugin. Cost: editing one shell does not edit
+the others.
+
+**Does a V-Ray light still emit from inside a group?** Not proven by
+this tool. **Reported** evidence it does: `BoothLighting.skp` sits inside
+every link-built booth group and Benton's own complaint the same day is
+that it renders hot (`.forge/fixer/sun-blowout.md`). The first render
+after this change is the test; the console says so at the end of every
+press.
+
+**The stale sweep still finds them, and a latent hole is closed.**
+`collect_lights` lists a fixture group (it carries `role`) and never
+walks into it; `erase_lights` now harvests the nested emitters' plugin
+names and definitions off the group **before** `erase!` (`nested_lights`)
+and queues them for `reap_lights`, so the second press deletes their
+plugins exactly as before. A pre-1.28.0 rig sweeps as it always did.
+While there: owned containers (fixture, ceiling, wall) were located by
+their **origin**, which for a group drawn in place is (0,0,0) in the
+drawing context — the live verification room stood at (0,0)-(240,192),
+so the origin fell inside its box by luck (**observed** in
+rig-build-results.json). On a room anywhere else a re-press would have
+stacked a second set of fixtures and a second ceiling (**derived**, not
+seen live). `sweep_point` now uses the world **bounds centre** for those
+kinds; light instances are still their origin.
+
+**2. Borrowed walls.** Same lifecycle as the ceiling: made with the rig,
+owned by `WR_DropLights/kind => wall` (+ `role`, `uuid`, `run`), swept by
+the next press or `remove_rig!`, removal verified by the same independent
+re-read (`model_probe` gains `:walls`; `verify_restore!` refuses on one
+left behind). `find_ceilings` / `erase_ceilings!` became wrappers over
+`find_owned` / `erase_owned!`; `remove_ceilings_verified!` now clears both.
+- **Opt-in, default OFF**, unlike the ceiling: WhisperRoom drawings are
+  often 2-3 sided so the camera can see in, and sealing that room
+  automatically walls the camera out and the frame goes black. The
+  checkbox says so ("Put the camera INSIDE first").
+- **Only the open runs.** `existing_walls` scans the room's own geometry
+  three deep for a vertical face on each floor-polygon run — parallel,
+  within `WALL_TOL` 1" of the run, overlapping it, reaching half the room
+  height (`WALL_MIN_SHARE`). Pure cores `face_on_edge?` / `open_edges`,
+  harness check 26. A run with a wall is never doubled (two coplanar faces
+  would fight in the render). L-shaped room: six runs, nothing special.
+- One group per open run, `"WR Lights Wall N"`, N = the run number the
+  sconce lines already use, so **Hide walls per scene** lists each one
+  under Objects and Benton can open a side back up for one camera. Faced
+  floor to `z_top` on the polygon run itself (where build-room.rb puts a
+  real wall's inner face), front side inward via `wall_normal`, one face
+  (V-Ray shades both sides), same borrowed material and tag as the ceiling.
+
+**`enclosure_trim` and the light budget — what changed: nothing
+numerically, and here is why.** "Open" in that table has always meant
+**no ceiling**; the wall count only picks between w4-open 0.35 and
+w3-open 0.25. A room whose open runs have just been walled IS a
+4-sided room and `run` passes it as one, so it lands on w4-open uncapped
+and 1.0 capped — the frames those figures were measured in
+(HANDOFF-sunoff). Found while there, stated in the comment so nobody
+rediscovers it: `run` has always passed `poly.size` (polygon SIDES), not
+a count of walls that exist, so a rectangle drawn with a side left out
+has always been trimmed as 4-walled and the 0.25 arm is reachable only by
+a triangular floor. The new scan prints the open runs but is deliberately
+NOT fed into the trim — that would move every 3-sided uncapped press by
+half a stop, which is Benton's light-budget call, not a side effect.
+
+**Not touched:** the ISO stamp, `LUMEN_GAIN`, every `LIGHT_LAYERS`
+figure, `/SunLight`, and the sun. Pre-existing quirk kept for
+consistency: the ceiling (and now walls) are borrowed before the
+grid/fallback refusal, so a refused room keeps them until the next press.
+
+**To verify (Benton), in order:** (1) press on a room, select an F1 drum
+and Move it — the light widget must travel with it (Outliner: the group
+holds a Rectangle Light); render — the drum must be LIT. A dark drum means
+nested emitters do not export and the light goes back beside its fixture.
+(2) Press again: same instance count, "N V-Ray plugins deleted, 0 left
+behind" — the second press has to reap the nested plugins. (3) Tick "Add
+walls on the open sides" on a 3-sided room: a "WR Lights Wall N" group
+appears on the open run only; render from INSIDE — not over-bright (the
+trim did not move); `WR_DropLights.remove_rig!(Sketchup.active_model)` —
+"restore verified", walls and ceiling gone.
+
 ### SUN column in the proposal package — 1.27.0
 
 Benton: *"I want to take a look at saving the sun from the light from

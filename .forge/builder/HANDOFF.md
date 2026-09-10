@@ -840,3 +840,75 @@ dialogs plus a new module API), `DEVLOG.md` entry.
   a decision about the shared-definition hazard first.
 - **All three of this session's changes (1.20.1, 1.20.2, 1.21.0) are
   unverified by Benton.**
+
+---
+
+# HANDOFF — Builder → Benton: fixtures carry their lights, borrowed walls, 1.28.0
+
+2026-09-10. Built, **unrun in SketchUp** — no `ruby.exe`, no V-Ray on this
+machine. `python scripts/rbparse.py` clean (real CRuby 3.2 parse),
+`python scripts/rbtest-lights.py` 45 + 10 PASS, five mutants on the new
+wall-scan cores each KILLED and reverted. Full account: DEVLOG 1.28.0.
+
+## Produced
+- `scripts/wr-drop-lights.rb` — emitters placed INSIDE their F1/F2/F3
+  fixture groups (`place` takes a container); `nested_lights` so the sweep
+  reaps them; `sweep_point` locates owned containers by bounds centre (a
+  latent re-press-doubles-the-rig hole on any room not at the origin);
+  `existing_walls` / `add_walls` / `find_walls` / `erase_walls!`;
+  `find_owned` / `erase_owned!` behind the ceiling wrappers; panel checkbox
+  **Add walls on the open sides**, default OFF; `enclosure_trim` comment
+  states what the caller has always passed and why the open-run count is
+  not fed in.
+- `scripts/rbtest-lights.py` — check 26 (`face_on_edge?` truth table +
+  `open_edges` on the rectangle, the L, tolerance and overlap edges).
+- `scripts/wr_tools/VERSION` 1.27.0 → **1.28.0** (minor: a new user-facing
+  function and a structural change to what a press builds).
+
+## Read first
+- `wr-drop-lights.rb`, the comment block above `disc_solid` ("ONE THING
+  TO MOVE") — group vs component, the nesting evidence, and the sweep.
+- The comment above `enclosure_trim` — nothing moved, and the `poly.size`
+  fact.
+
+## Assumptions
+- **reported**: a V-Ray light nested one level inside a group still
+  exports and emits — from `BoothLighting.skp` inside link-built booths
+  rendering hot (sun-blowout.md). Never rendered with THIS rig.
+- **assumed**: `Entities#add_group` leaves the group at the identity
+  transformation, so an instance added to `group.entities` with drawing-
+  context coordinates lands where the same coordinates would in `ents`.
+  Standard SketchUp behaviour; not probed here.
+- **assumed**: `Group#bounds` is parent-space, so `world_bounds(e, tr)`
+  with the parent's world transform is the world box (the same call the
+  obstruction scan already relies on).
+- **derived**: the origin hole — fixture and ceiling groups sit at (0,0,0)
+  and the verification room happened to contain it.
+
+## To verify (Benton) — the load-bearing checks
+1. **Moved fixture takes its light, and still renders lit.** Press on a
+   room. Outliner: `WR Fixture F1 flush drum` holds a `Rectangle Light`.
+   Move the drum — the light widget moves with it. **Render**: the drum is
+   lit. A dark drum = nested emitters do not export → tell me, the light
+   goes back beside its fixture (one-line revert per call site).
+2. **Second press reaps the nested plugins.** Press again: same instance
+   count, console `swept the replaced rig: N V-Ray plugins deleted, 0 left
+   behind`. Asset Editor Lights tab shows no orphan lights.
+3. **Walls.** 3-sided room, tick *Add walls on the open sides*: exactly
+   one `WR Lights Wall N` group, on the open run, floor to wall top;
+   console names the run. Render from INSIDE: not over-bright (the trim
+   line should still read `4 sides (1 borrowed wall) -> room trim x1.00`
+   with a ceiling, `x0.35` without). Then
+   `WR_DropLights.remove_rig!(Sketchup.active_model)` → `restore verified`,
+   no `WR Lights Wall` left. Hide walls per scene should list the borrowed
+   wall under Objects.
+4. Pre-existing rig from before 1.28.0 in a model: one press must replace
+   it cleanly (its lights are siblings and sweep as before).
+
+## Open
+- `assert_lights_visible!` (unused by `run`; the lookdev harness has its
+  own) counts TOP-LEVEL light instances only, so with nested emitters its
+  `expect` arm would undercount. Left as is; flagged.
+- Ceiling and walls are borrowed before the grid/fallback refusal, so a
+  refused room keeps them until the next press — pre-existing for the
+  ceiling, kept consistent.
