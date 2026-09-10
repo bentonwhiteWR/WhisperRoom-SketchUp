@@ -1253,8 +1253,26 @@ module WR_ProposalPackage
       nil
     end
     failing = (pf || []).select { |r| r['status'] == 'fail' }
+    # THE DIMENSION-TAGS ROW DOES NOT BLOCK THIS EXPORT (1.30.1). Benton,
+    # 10 Sep 2026: "ignore the dimensions flags off for preflight." Since
+    # 1.20.0 each scene carries whatever its own ANNOTATIONS picker left
+    # showing and Per scene is the default, so a visible WR-Dims tag at
+    # export time is the normal, intended state - a modal on every press
+    # for it contradicts the tool's own default. The row still exists in
+    # the Pre-render checklist window and in wr-pack-export.rb, where a
+    # dimension left on before a V-Ray render is worth a look; here it is
+    # one dim line in the log, and the run does not stop.
+    dims_row = failing.find { |r| r['id'] == 'dims' }
+    failing  = failing.reject { |r| r['id'] == 'dims' }
+    if dims_row
+      log(dlg, "preflight: dimension tags visible (#{dims_row['detail']}) - "                'not blocking: each scene shows what its ANNOTATIONS picker '                'left on (Per scene), or nothing at all (Client-safe)', 'dim')
+    end
     unless failing.empty?
-      lines = failing.map { |r| "  - #{r['label']}: #{r['detail']}" }.join("\n")
+      # Each row's label is the thing that MUST be true ("Floor off drafting
+      # white") and its detail is why it is not - so "label: detail" read as
+      # "Dimension tags off: Visible: WR-Dims", a contradiction on screen.
+      # Say which is which.
+      lines = failing.map { |r| "  - #{r['label']} - FAILED: #{r['detail']}" }.join("\n")
       go = UI.messagebox("Preflight found #{failing.size} issue(s):\n\n#{lines}\n\n" \
                          'Continue the export anyway?', MB_YESNO)
       return unless go == IDYES

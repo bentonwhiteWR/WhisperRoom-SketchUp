@@ -125,7 +125,9 @@ module WR_PackExport
 
     failing = (pf_rows || []).select { |r| r['status'] == 'fail' }
     unless failing.empty?
-      lines = failing.map { |r| "  - #{r['label']}: #{r['detail']}" }.join("\n")
+      # label = what must be true, detail = why it is not (wr-preflight.rb
+      # ROWS); "label: detail" read as a contradiction. Say which is which.
+      lines = failing.map { |r| "  - #{r['label']} - FAILED: #{r['detail']}" }.join("\n")
       go = UI.messagebox("Preflight found #{failing.size} issue(s):\n\n#{lines}\n\n" \
                          'Continue the export anyway?', MB_YESNO)
       unless go == IDYES

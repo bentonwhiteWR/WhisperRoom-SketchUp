@@ -1007,3 +1007,17 @@ neither verified live. The file on disk is checked after every write
 - The proposal generator / skill are untouched; they already flatten.
   A pack build could additionally read `alpha_channel` from the manifest
   and refuse — not done (proposals/ out of scope this pass).
+
+
+---
+
+# HANDOFF — preflight dims row demoted (Fixer, 10 Sep 2026, 1.30.1)
+
+- Not inverted: `ROWS` labels are the required state, details the
+  failure reason; the modal's `label: detail` produced the contradiction.
+  All six rows share the shape; only the two modal composers changed
+  (`label - FAILED: detail`).
+- `proposal-package.rb` no longer blocks on `dims`; logs a dim line.
+  `wr-preflight.rb` untouched (window + Fix intact); `wr-pack-export.rb`
+  still blocks on it, wording fixed.
+- Check: WR-Dims visible, Export, no modal.

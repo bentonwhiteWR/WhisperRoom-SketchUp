@@ -1,6 +1,40 @@
 # DEVLOG
 
 ## 2026-09-10
+### Preflight: the dimension-tags row no longer blocks the proposal package — 1.30.1
+
+Benton, 10 Sep 2026, after pressing Export: *"ignore the dimensions
+flags off for preflight."* The modal read `Dimension tags off: Visible:
+WR-Dims, WR-Dims-Doors` — and stopped him on every press. **Unrun in
+SketchUp.** `rbparse.py` 71/71, `rbtest-proposal.py` PASS, `node
+--check` ok. Patch bump: no new surface, one row demoted, wording.
+
+**Is the check inverted?** No — **observed** by reading
+`wr-preflight.rb`: every `ROWS` label is the state that must be TRUE
+("Dimension tags off", "Floor off drafting white", "Camera on a saved
+scene", "No geometry outside walls") and a failing row's detail is WHY
+it is not ("Visible: WR-Dims…", "3 of 4 still on 0128_White", "the view
+has drifted…"). `check_dims` selects the visible WR-Dims tags and fails
+when any are — correct. The contradiction was the two consumers'
+modal composer, `"label: detail"`, which glued an assertion to its
+negation. **All six rows have the same shape**; none was changed. Both
+composers (`proposal-package.rb`, `wr-pack-export.rb`) now print
+`label - FAILED: detail`.
+
+**The row itself.** Interpretation chosen: **not removed, demoted to a
+log line in the proposal package only.** Since 1.20.0 each scene shows
+what its own ANNOTATIONS picker left on and Per scene is the default,
+so visible dimension tags at export are the intended state and a modal
+for them contradicts the tool's own default. The package now filters
+`id == 'dims'` out of the blocking list and writes one dim log line
+(`preflight: dimension tags visible (...) - not blocking`). The row
+stays in the Pre-render checklist window and in wr-pack-export.rb,
+where a dimension left on before a hand V-Ray render is still worth a
+glance and its Fix button still works.
+
+**Benton's check:** with WR-Dims visible, press Export — no modal; the
+log's first lines carry the dim `preflight:` note.
+
 ### Transparent backgrounds in the proposal package — 1.30.0
 
 Benton, 10 Sep 2026: *"also curious if there can be a button for the
