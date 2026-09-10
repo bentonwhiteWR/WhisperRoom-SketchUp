@@ -1670,3 +1670,40 @@ Second field fix. Unrun in SketchUp.
 Same booth → Dimension: `8' 7 1/2"` × `6' 7 1/2"`, height `7' 4 3/4"`
 with `4 7/16" … is plate` (or his figure with `3 3/4"`). Read the
 `vent box:` lines. Worst failure: `*** … had no readable faces`.
+
+
+---
+
+# HANDOFF — Floor slot "[Color M00]": shop default now pickable in both pickers (Fixer, 10 Sep 2026, 1.42.1)
+
+Unrun in SketchUp.
+
+## Found
+- `[Color M00]` is nowhere in the repo. The house default is `0128_White`
+  everywhere (`wr-materials-swap.rb` DRAFT_FLOOR; no registry key, no
+  `defaults.json` entry carries a material name). The slot source is a
+  PER-MODEL attribute (`WR_MaterialsSwap` dict, `src:WR-Floor-Render`);
+  Benton's NewTemplate has `[Color M00]` stored there. Walls/Door right
+  because their keys are empty. Toggle draft/render reads the same key —
+  same complaint, one storage.
+- Neither picker offered `0128_White` on a model that lacked it, so the
+  slot could not be reset from the window. The Swap script's inputbox could
+  also STORE an unpicked entry for a slot whose source was not in its list.
+
+## Changed
+- `scripts/proposal-package.rb` drawMats: house default always listed and
+  marked; gone source marked; `<option value='…'>` (single quotes — no
+  backslash in the heredoc).
+- `scripts/wr-materials-swap.rb`: `src_choices(mats, current, house)` pure;
+  `ask` uses it per slot.
+- `scripts/rbtest-materials-diagnosis.py` 42 checks; `scripts/jstest-proposal-dialog.js`
+  reads matbody back for Benton's slot state. VERSION 1.42.1.
+
+## Benton's check
+Pull (scripts only; Update now clears the banner). Open Proposal package on
+NewTemplate: Floor should still read `[Color M00]` (marked "not in this
+model") with `0128_White (shop default — not in this model yet)` in the
+list. Pick it, save the template. Floor then reads `0128_White` with the
+"shop default" tooltip; Toggle draft/render on a Build-room model swaps the
+floor. On a model built by Build room the Floor slot reads `0128_White`
+with no mark.

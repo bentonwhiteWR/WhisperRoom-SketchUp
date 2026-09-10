@@ -1,6 +1,55 @@
 # DEVLOG
 
 ## 2026-09-10
+### Floor slot reads "[Color M00]": the shop default could not be picked — 1.42.1
+
+Benton, on `NewTemplate`, Proposal package → MATERIALS FOR THE V-RAY PASS:
+*"then change the default here for floor to the 0128_White. Right now, it
+cant find the Color M00. Same with toggle draft mode i believe."* Floor
+read `[Color M00]`; Walls `0099_LightSteelBlue` and Door `0043_SaddleBrown`
+were right.
+
+**Where the name comes from (observed).** Nowhere in the repo. The default
+IS `0128_White` — `wr-materials-swap.rb` `DRAFT_FLOOR`, and no registry key
+or `defaults.json` entry carries a material name. A slot's draft material is
+a PER-MODEL attribute (`WR_MaterialsSwap` dict, key `src:WR-Floor-Render`,
+1.9.10) and falls back to the house name only when that attribute is empty.
+So `[Color M00]` is stored in that model — and since it is a template, in
+every model made from it. Walls and Door are right because their keys are
+empty. The toggle reads the same attribute (`wr-mode.rb` → `to_render` →
+`slot_for` → `source`), which is why it "can't find" it too: the diagnosis
+line says `0 surface(s) on "[Color M00]"`. Same storage, one fix.
+
+**Why it could not be put back (observed, fixed).** Both pickers listed only
+the materials IN the model. A model that never had `0128_White` had no way
+to choose it, so the slot could not be reset from the window. The Proposal
+dialog now always offers the shop default (marked *shop default — not in
+this model yet*) alongside a gone source (marked *not in this model*);
+options carry an explicit value so the mark never becomes the stored name.
+Picking the house name clears the override (`set_source` stores `''`) and
+the next Revert creates the material (`drafting_material`).
+
+**The path that could have written it (observed, closed).** The Swap
+script's own `UI.inputbox` built each FROM dropdown from bare model
+materials; a dropdown can only return one of its entries, and `run` stores
+whatever comes back — the one place in the toolset that could store a
+source the operator never picked. `src_choices` (pure) now puts the current
+source and the house name in every list. Whether that is how the template
+got `[Color M00]`, or someone picked it on purpose for a floor that was on
+it, is not knowable from here; both are cured the same way.
+
+**Reaches Benton how.** Scripts only — no `wr_tools/` change but VERSION,
+so a `git pull` is enough on a machine with a repo checkout; the banner
+clears on Update now. The stored value does NOT change by itself: open the
+window on the template, pick `0128_White` for Floor once, save the template.
+Any model already made from it needs the same one pick.
+
+Checks: rbparse clean (74 files); `rbtest-materials-diagnosis.py` 42 (was
+35), mutant dropping the house name caught; `jstest-proposal-dialog.js`
+renders the picker for Benton's exact slot state and reads the options back
+through the heredoc unescape; `rbtest-proposal.py` PASS. **Unrun in
+SketchUp.**
+
 ### Booth dimensions: the vent box, not the assembly box; the caster plate is in the height — 1.42.0
 
 Benton, second field run, a MDL 7296 E on a CP with EFS silencers:

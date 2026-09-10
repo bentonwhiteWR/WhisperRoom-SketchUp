@@ -97,6 +97,7 @@ end
 
 module WR_MaterialsSwap
 @@DIAGNOSE_LINES@@
+@@SRC_CHOICES@@
 end
 
 module Harness
@@ -111,6 +112,12 @@ module Harness
       end
       WR_MaterialsSwap.diagnose_lines(rows).each { |l| out << "#{name}|#{l}" }
     end
+    # src_choices: the FROM dropdown for a slot whose stored source AND house
+    # default are both absent from the model (10 Sep 2026, "[Color M00]").
+    mats = ["0043_SaddleBrown", "0099_LightSteelBlue", "Wood Tiles Shiny 03 100cm"]
+    out << "choices-absent|" + WR_MaterialsSwap.src_choices(mats, "[Color M00]", "0128_White").join("|")
+    out << "choices-present|" + WR_MaterialsSwap.src_choices(mats, "0043_SaddleBrown", "0043_SaddleBrown").join("|")
+    out << "choices-unset|" + WR_MaterialsSwap.src_choices(mats, "", "0128_White").join("|")
     out.join("\n")
   end
 end
@@ -154,6 +161,7 @@ def has(label, lines, needle):
 def main():
     prog = (PROG
             .replace('@@DIAGNOSE_LINES@@', method_source(SWAP, 'diagnose_lines'))
+            .replace('@@SRC_CHOICES@@', method_source(SWAP, 'src_choices'))
             .replace('@@CASES@@', rb_cases()))
     got = rbparse.rb_eval(rbparse.boot(), prog)
     if got.startswith('FAIL '):
@@ -198,6 +206,26 @@ def main():
     e = by.get('healthy-render', [])
     has('healthy-render: says already RENDER', e, 'already RENDER')
 
+    # 6. src_choices -- the inputbox FROM list. A stored source the model no
+    #    longer has stays selectable (it is the default, so it MUST be in the
+    #    list or UI.inputbox returns something else), the house default is
+    #    always offered so the slot can be put back, nothing is duplicated.
+    f = by.get('choices-absent', [''])[0].split('|')
+    ck('choices-absent: current source first (it is the inputbox default)',
+       f[0], '[Color M00]')
+    ck('choices-absent: house default offered though the model lacks it',
+       '0128_White' in f, True)
+    ck('choices-absent: every model material still listed',
+       [m for m in f if m not in ('[Color M00]', '0128_White')],
+       ['0043_SaddleBrown', '0099_LightSteelBlue', 'Wood Tiles Shiny 03 100cm'])
+    g = by.get('choices-present', [''])[0].split('|')
+    ck('choices-present: a source the model has is listed once',
+       g.count('0043_SaddleBrown'), 1)
+    ck('choices-present: still leads the list as the default', g[0], '0043_SaddleBrown')
+    h = by.get('choices-unset', [''])[0].split('|')
+    ck('choices-unset: empty current dropped, house leads', h[0], '0128_White')
+    ck('choices-unset: no empty entry', '' in h, False)
+
     # A slot with no source at all.
     f = by.get('no-source', [])
     ck('no-source: one line', len(f), 1)
@@ -206,6 +234,8 @@ def main():
     # 5. The original complaint: nothing may be blank, everything names a slot.
     allslots = (FLOOR, WALL, DOOR)
     for name, lines in by.items():
+        if name.startswith('choices-'):
+            continue                     # dropdown lists (check 6), not log lines
         for l in lines:
             ck('%s: line is not blank' % name, bool(l.strip()), True)
             ck('%s: line names a slot (%r)' % (name, l[:40]),

@@ -436,17 +436,37 @@ module WR_MaterialsSwap
   # drafting name, and the list is this model's own materials) and the render
   # material it swaps TO. The Proposal Package window writes the same two
   # values, so either surface can set them.
+  # The choices for one slot's FROM dropdown: this model's materials, plus
+  # the slot's current source and the house default whether or not the
+  # model has them. Both MUST be in the list: a UI.inputbox dropdown can only
+  # return one of its own entries, so with bare model materials as the list
+  # a slot whose source the model lacks could not come back as that source,
+  # and `run` stores whatever does come back. (What the box shows for an
+  # out-of-list default was not observed here; that it cannot return it is
+  # enough.) This was the one path in the toolset that could write a source
+  # name the operator never picked -- 10 Sep 2026, a template's floor slot
+  # read "[Color M00]" with 0128_White nowhere in the model to pick instead.
+  # With the house name always offered, picking it stores '' (see
+  # set_source) and to_draft creates the material if the model lacks it, so
+  # a slot can always be put back to the shop default from either picker.
+  # Pure; rbtest-materials-diagnosis.py runs it.
+  def self.src_choices(mats, current, house)
+    ([current.to_s, house.to_s] + mats.map(&:to_s))
+      .reject(&:empty?).uniq
+  end
+
   def self.ask(model)
     mats = (model.materials.map(&:name).sort rescue [])
     fill_list = (['(unset)'] + mats).join('|')
-    src_list  = mats.join('|')
     slots = SLOT_FOR.values
     prompts  = slots.flat_map { |s| ["#{s} from", "#{s} fill"] } + ['Direction']
     current  = slots.flat_map do |s|
       f = fill(model, s)
       [source(model, s), f.empty? ? '(unset)' : f]
     end
-    lists    = slots.flat_map { [src_list, fill_list] } + ['Apply Render|Revert to Draft']
+    lists    = slots.flat_map do |s|
+      [src_choices(mats, source(model, s), DRAFT_FOR[s]).join('|'), fill_list]
+    end + ['Apply Render|Revert to Draft']
     defaults = current + ['Apply Render']
     UI.inputbox(prompts, defaults, lists, 'Materials — Draft / Render')
   end

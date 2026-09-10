@@ -39,9 +39,14 @@ const ST = { rows: [ { n: 1, scene: 'Scene 1', mode: 'image',  file: '1_Scene 1.
                      { n: 2, scene: 'Scene 4', mode: 'render', file: '2_Scene 4 render.png' },
                      { n: 3, scene: 'Scene 2', mode: 'skip',   file: '' },
                      { n: 4, scene: 'Scene 3', mode: 'image',  file: '4_Scene 3.png' } ],
-             slots: [ { slot: 'WR-Floor-Render', draft: '0128_White', house: '0128_White',
-                        missing: false, label: 'Floor', fill: 'x' } ],
-             mode: 'draft', undo: null, materials: ['a', 'b'] };
+             // Benton's 10 Sep 2026 template: the floor slot pinned to a
+             // material the model no longer has, and 0128_White never in it.
+             slots: [ { slot: 'WR-Floor-Render', draft: '[Color M00]', house: '0128_White',
+                        missing: true, label: 'Floor', fill: 'x' },
+                      { slot: 'WR-Wall-Render', draft: '0099_LightSteelBlue', house: '0099_LightSteelBlue',
+                        missing: false, label: 'Walls', fill: '' } ],
+             mode: 'draft', undo: null,
+             materials: ['0043_SaddleBrown', '0099_LightSteelBlue', 'Wood Tiles Shiny 03 100cm'] };
 function prepare(js, fname) {
   let code = js.replace('#{st.to_json}', JSON.stringify(ST))
                .replace('#{fname.to_json}', JSON.stringify(fname));
@@ -83,8 +88,9 @@ function el(id) {
 let failed = 0;
 for (const fname of ['NewTemplate', '']) {          // saved-looking and unsaved
   const asked = [];
-  const document = {
-    getElementById(id) { asked.push(id); return ids.has(id) ? el(id) : null; },
+  const made = {};                                  // one element per id, so innerHTML written by
+  const document = {                                // the script can be read back below
+    getElementById(id) { asked.push(id); return ids.has(id) ? (made[id] || (made[id] = el(id))) : null; },
     querySelectorAll() { return []; }, querySelector() { return null; },
     body: el('body'), addEventListener() {}, execCommand() { return true; },
     createElement() { return el('x'); }
@@ -97,6 +103,23 @@ for (const fname of ['NewTemplate', '']) {          // saved-looking and unsaved
     const missing = need.filter(k => typeof window[k] !== 'function');
     if (missing.length) { failed++; console.log('FAIL (fname=' + JSON.stringify(fname) + '): missing window functions: ' + missing.join(', ')); }
     else console.log('ok   fname=' + JSON.stringify(fname) + ': every script block parsed and ran; ' + need.length + ' Ruby-facing functions present');
+    // The materials FROM picker, as drawn for a slot whose source is gone and
+    // whose house default the model never had: the gone source is still the
+    // selected option (marked), the house default is offered (marked), a
+    // slot whose source is in the model shows no mark, and the note text is
+    // never part of the option VALUE (that is what setsrc stores).
+    const mat = (made['matbody'] || {}).innerHTML || '';
+    const want = [
+      ['gone source stays selected', /<option value='\[Color M00\]' selected>\[Color M00\] \(not in this model\)<\/option>/],
+      ['house default offered and marked', /<option value='0128_White'>0128_White \(shop default \u2014 not in this model yet\)<\/option>/],
+      ['wall slot: in-model source, unmarked', /<option value='0099_LightSteelBlue' selected>0099_LightSteelBlue<\/option>/],
+      ['floor slot: dead source marked with the gone class', /<select class='src gone' data-slot='WR-Floor-Render'/],
+      ['render (fill) picker still offers (unset)', /<option selected>\(unset\)<\/option>/]
+    ];
+    for (const [label, re] of want) {
+      if (re.test(mat)) console.log('ok   matbody: ' + label);
+      else { failed++; console.log('FAIL matbody: ' + label + '\n     html: ' + mat.slice(0, 1200)); }
+    }
   } catch (e) {
     failed++;
     console.log('FAIL (fname=' + JSON.stringify(fname) + '): ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e));

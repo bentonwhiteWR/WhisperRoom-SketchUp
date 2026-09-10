@@ -5401,10 +5401,22 @@ window.onerror = function (msg, src, line) {
       // did not come out of build-room.rb needs to point the slot at its own
       // floor. A source that is no longer in the model is still listed, and
       // marked, rather than silently falling back to the first material.
+      // The shop default is ALWAYS offered too, even when this model does
+      // not have it (10 Sep 2026: a template's floor slot was pinned to a
+      // material the model no longer had, and 0128_White was not in this
+      // list because the model had never had it -- so there was no way to
+      // put the slot back from here). Picking the house name clears the
+      // per-model override (set_source stores ''), and Draft creates the
+      // material on the next revert. Options carry an explicit value so the
+      // "(not in this model)" note never becomes part of the stored name.
       var srcs = ST.materials.slice();
+      if(s.house && srcs.indexOf(s.house) < 0) srcs.unshift(s.house);
       if(s.missing && s.draft && srcs.indexOf(s.draft) < 0) srcs.unshift(s.draft);
       var sopts = srcs.map(function(m){
-        return "<option"+(m===s.draft?" selected":"")+">"+esc(m)+"</option>";
+        var inModel = ST.materials.indexOf(m) >= 0,
+            note = inModel ? "" : (m===s.house ? " (shop default — not in this model yet)"
+                                                : " (not in this model)");
+        return "<option value='"+esc(m)+"'"+(m===s.draft?" selected":"")+">"+esc(m)+note+"</option>";
       }).join("");
       // RIGHT select — the V-Ray material it swaps TO.
       var opts = ["(unset)"].concat(ST.materials).map(function(m){
