@@ -415,6 +415,18 @@ module WR_DropLights
   WALL_MIN_SHARE = 0.5   # a face must reach at least this far up the room
                          #   (of z0..z_top) to count as a wall — a baseboard
                          #   or a sill is not an enclosure.
+  WALL_OUT       = 0.0625 # in — a borrowed wall stands 1/16" OUTSIDE the
+                         #   floor polygon, never on it. On a genuinely open
+                         #   run 1/16" is invisible; on a run that has a real
+                         #   wall — hidden on this scene, or missed by the
+                         #   scan — the borrowed face sits INSIDE that wall's
+                         #   solid, behind its inner face, so two coplanar
+                         #   faces never fight in the render, and when the
+                         #   real wall is hidden the borrowed one is what
+                         #   closes the room. This is what makes "every run"
+                         #   safe to offer.
+  WALL_NEAR      = 12.0  # in — the diagnostics name the nearest parallel
+                         #   face that missed only on distance, out to here
 
   # The container kinds this tool draws itself — a fixture group (with its
   # emitter inside it since 1.28.0), the borrowed ceiling, a borrowed wall.
@@ -914,33 +926,76 @@ module WR_DropLights
   #       room even on-plane with nothing — from ever counting for the near
   #       run. On-plane AND overlapping is a wall on THIS run; nothing else is.
   #   (4) is what keeps a baseboard from closing a side.
-  def self.face_on_edge?(ax, ay, bx, by, face, tol, z_need)
+  # How far a face stands off run a->b, IF it is parallel, tall enough and
+  # overlapping — nil otherwise. The distance test is the caller's, so the
+  # diagnostics can name a face that missed on distance alone.
+  def self.face_offset(ax, ay, bx, by, face, tol, z_need)
     nx, ny, pts, z_top = face
-    return false if pts.nil? || pts.size < 2
-    return false if z_top * 1.0 < z_need
+    return nil if pts.nil? || pts.size < 2
+    return nil if z_top * 1.0 < z_need
     dx = bx - ax
     dy = by - ay
     len = Math.sqrt(dx * dx + dy * dy)
-    return false if len < 1e-6
+    return nil if len < 1e-6
     ux = dx / len
     uy = dy / len
-    return false if (nx * ux + ny * uy).abs > 0.05
-    off = ((ax - pts[0][0]) * nx + (ay - pts[0][1]) * ny).abs
-    return false if off > tol
+    return nil if (nx * ux + ny * uy).abs > 0.05
     ts = pts.map { |p| (p[0] - ax) * ux + (p[1] - ay) * uy }
-    ts.max > tol && ts.min < len - tol
+    return nil unless ts.max > tol && ts.min < len - tol
+    ((ax - pts[0][0]) * nx + (ay - pts[0][1]) * ny).abs
   end
 
-  # Indices of the polygon runs with NO wall face on them. `faces` is the
-  # list face_on_edge? takes. A room with every run walled answers []; an
-  # L-shaped room needs no special case — its six runs are six runs.
-  def self.open_edges(poly, faces, tol, z_need)
+  def self.face_on_edge?(ax, ay, bx, by, face, tol, z_need)
+    off = face_offset(ax, ay, bx, by, face, tol, z_need)
+    return false if off.nil?
+    return false if off > tol
+    true
+  end
+
+  # THE PER-RUN VERDICT, and everything the console says about a run comes
+  # from it. Each face is [nx, ny, pts_xy, z_top, hidden?] — hidden? may be
+  # absent (false). One hash per run:
+  #   :walled  a VISIBLE face stands on the run
+  #   :faces   visible faces on it     :hidden  hidden faces on it
+  #   :near    the closest parallel, tall, overlapping face that missed on
+  #            distance alone (inches off the run, within WALL_NEAR), or nil
+  #   :len     the run's length
+  #
+  # A HIDDEN WALL READS OPEN. This is the 1.28.0 defect (Benton: "the walls
+  # arent being made"): Hide walls per scene hides a wall by its entity
+  # flag and the geometry stays, so a WhisperRoom "3-sided" room is a
+  # 4-walled model with a wall hidden — and a scan that counts faces
+  # without asking whether they are hidden judges every run walled and
+  # borrows nothing, silently. The hidden count is kept so the console can
+  # say "1 HIDDEN face on it" rather than just "open".
+  def self.run_report(poly, faces, tol, z_need)
     n = poly.size
-    (0...n).select do |i|
+    (0...n).map do |i|
       a = poly[i]
       b = poly[(i + 1) % n]
-      faces.none? { |f| face_on_edge?(a[0], a[1], b[0], b[1], f, tol, z_need) }
+      vis = 0
+      hid = 0
+      near = nil
+      faces.each do |f|
+        off = face_offset(a[0], a[1], b[0], b[1], f, tol, z_need)
+        next if off.nil?
+        if off <= tol
+          f[4] ? hid += 1 : vis += 1
+        elsif off <= WALL_NEAR && (near.nil? || off < near)
+          near = off
+        end
+      end
+      { :walled => vis > 0, :faces => vis, :hidden => hid, :near => near,
+        :len => Math.sqrt((b[0] - a[0])**2 + (b[1] - a[1])**2) }
     end
+  end
+
+  # Indices of the polygon runs with no VISIBLE wall face on them. A room
+  # with every run walled answers []; an L-shaped room needs no special
+  # case — its six runs are six runs.
+  def self.open_edges(poly, faces, tol, z_need)
+    rep = run_report(poly, faces, tol, z_need)
+    (0...poly.size).select { |i| !rep[i][:walled] }
   end
 
   # The polygon corner furthest from (bx, by), pulled `inset` toward the
@@ -1597,17 +1652,29 @@ module WR_DropLights
   # borrowed wall as an object Benton can hide again for one camera.
   # ======================================================================
 
-  # Which runs of the floor polygon have NO wall the tool does not own.
-  # Same scan as existing_ceiling (the room's descendants, three deep); every
-  # VERTICAL face is dropped to plan and handed to the pure open_edges.
-  # Returns [open_run_indices, error_or_nil]. On an error the answer is
-  # "no run is open" — a scan that breaks must never seal a room by mistake;
-  # a wall NOT added is visible in the render, a camera walled out is not.
+  # Is this entity hidden as the viewport sees it now — its own flag, or
+  # its tag switched off? Never raises.
+  def self.hidden_now?(e)
+    return true if e.respond_to?(:hidden?) && e.hidden?
+    ly = e.respond_to?(:layer) ? e.layer : nil
+    return true if ly && ly.respond_to?(:visible?) && !ly.visible?
+    false
+  rescue StandardError
+    false
+  end
+
+  # The wall scan: what stands on each run of the floor polygon. Same walk
+  # as existing_ceiling (the room's descendants, three deep); every VERTICAL
+  # face is dropped to plan, flagged HIDDEN if it or any container above it
+  # is hidden or on a switched-off tag, and handed to the pure run_report.
+  # Returns [report, error_or_nil]; on an error the report is nil and the
+  # caller borrows nothing on "open runs only" — a scan that breaks must
+  # never seal a room by mistake — and says so.
   def self.existing_walls(room, poly, z0, z_top)
     faces = []
     z_need = z0 + (z_top - z0) * WALL_MIN_SHARE
     scan = nil
-    scan = lambda do |ents, tr, depth|
+    scan = lambda do |ents, tr, depth, hid|
       next if depth > 3
       ents.each do |e|
         if e.is_a?(Sketchup::Face)
@@ -1616,18 +1683,47 @@ module WR_DropLights
           nrm.normalize!
           next if nrm.z.abs > 0.05
           pts = e.outer_loop.vertices.map { |v| v.position.transform(tr) }
-          faces << [nrm.x, nrm.y, pts.map { |p| [p.x, p.y] }, pts.map(&:z).max]
+          faces << [nrm.x, nrm.y, pts.map { |p| [p.x, p.y] }, pts.map(&:z).max,
+                    hid || hidden_now?(e)]
         elsif e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
           next if e.get_attribute(DICT, 'role') # never the tool's own
           kids = child_entities(e)
-          scan.call(kids, tr * e.transformation, depth + 1) if kids.respond_to?(:each)
+          next unless kids.respond_to?(:each)
+          scan.call(kids, tr * e.transformation, depth + 1, hid || hidden_now?(e))
         end
       end
     end
-    scan.call(child_entities(room), room.transformation, 0)
-    [open_edges(poly, faces, WALL_TOL, z_need), nil]
+    scan.call(child_entities(room), room.transformation, 0, hidden_now?(room))
+    [run_report(poly, faces, WALL_TOL, z_need), nil]
   rescue StandardError => e
-    [[], "#{e.class}: #{e.message}"]
+    [nil, "#{e.class}: #{e.message}"]
+  end
+
+  # The console lines for one room's scan — one per run, saying what was
+  # measured, so "nothing to borrow" is never the whole story again.
+  def self.wall_scan_lines(name, poly, rep, z_need)
+    lines = []
+    lines << format('  %s: wall scan — %d floor-polygon runs; a wall is a visible ' \
+                    'vertical face within %.2g" of the run, overlapping it, ' \
+                    'reaching %.0f" or higher:', name, poly.size, WALL_TOL, z_need)
+    rep.each_with_index do |r, i|
+      why = if r[:walled]
+              format('WALLED  %d visible face%s on it%s', r[:faces],
+                     r[:faces] == 1 ? '' : 's',
+                     r[:hidden] > 0 ? format(' (+%d hidden)', r[:hidden]) : '')
+            elsif r[:hidden] > 0
+              format('OPEN    no visible face — %d HIDDEN face%s on it: a wall ' \
+                     'hidden on this scene reads OPEN', r[:hidden],
+                     r[:hidden] == 1 ? '' : 's')
+            elsif r[:near]
+              format('OPEN    no face on it — nearest parallel face is %.2f" off ' \
+                     'the run (tolerance %.2g")', r[:near], WALL_TOL)
+            else
+              'OPEN    no wall face anywhere near it'
+            end
+      lines << format('    run %d  %6.1f"  %s', i + 1, r[:len], why)
+    end
+    lines
   end
 
   # Build the borrowed walls: one group per OPEN run, faced floor to wall
@@ -1645,12 +1741,16 @@ module WR_DropLights
       b = poly[(i + 1) % n]
       nrm = wall_normal(poly, i)
       next if nrm.nil?
+      # WALL_OUT outside the polygon — see the constant: inside a real
+      # wall's solid when there is one, invisible when there is not.
+      ox = -nrm[0] * WALL_OUT
+      oy = -nrm[1] * WALL_OUT
       g = ents.add_group
       g.name = format('%s %d', WALL_NAME, i + 1)
-      f = g.entities.add_face([Geom::Point3d.new(a[0], a[1], z0),
-                               Geom::Point3d.new(b[0], b[1], z0),
-                               Geom::Point3d.new(b[0], b[1], z_top),
-                               Geom::Point3d.new(a[0], a[1], z_top)])
+      f = g.entities.add_face([Geom::Point3d.new(a[0] + ox, a[1] + oy, z0),
+                               Geom::Point3d.new(b[0] + ox, b[1] + oy, z0),
+                               Geom::Point3d.new(b[0] + ox, b[1] + oy, z_top),
+                               Geom::Point3d.new(a[0] + ox, a[1] + oy, z_top)])
       if f.nil?
         g.erase! if g.valid?
         next
@@ -2721,7 +2821,7 @@ module WR_DropLights
     LIGHT_LAYERS.each_key do |role|
       layers[role.to_s] = { 'on' => true, 'scale' => 1.0, 'kdelta' => 0 }
     end
-    { 'mult' => 1.0, 'koffset' => 0, 'ceiling' => true, 'walls' => false,
+    { 'mult' => 1.0, 'koffset' => 0, 'ceiling' => true, 'walls' => 'none',
       'density' => 'soft', 'layers' => layers }
   end
 
@@ -2758,9 +2858,17 @@ module WR_DropLights
       :warmth  => st['koffset'].to_i.zero? ? 'Warm' : "#{st['koffset'].to_i}K",
       :koffset => st['koffset'].to_i,
       :ceiling => st['ceiling'] ? true : false,
-      :walls   => st['walls'] ? true : false, # absent in a pre-1.28.0 preset -> No
+      :walls   => walls_mode(st['walls']),
       :density => st['density'].to_s == 'showroom' ? :showroom : :soft,
       :layers  => layers }
+  end
+
+  # 'none' | 'open' | 'all'. A 1.28.0 preset saved the checkbox as true /
+  # false; true was "open runs only" and stays that.
+  def self.walls_mode(v)
+    return 'open' if v == true
+    m = v.to_s
+    m == 'open' || m == 'all' ? m : 'none'
   end
 
   def self.ask
@@ -2890,11 +2998,17 @@ as a preset and every later room can use the same rig.</div>
     <label><input id="ceil" type="checkbox"> Add a ceiling if the room has none</label>
   </div>
   <div class="row" style="margin-top:6px">
-    <label><input id="walls" type="checkbox"> Add walls on the open sides</label>
+    <span class="lab" style="margin:0">Add walls</span>
+    <select id="walls" style="width:auto">
+      <option value="none">No</option>
+      <option value="open">On the open runs &mdash; a hidden wall counts as open</option>
+      <option value="all">On every run &mdash; completely enclose the room</option>
+    </select>
   </div>
-  <div class="note">Walls close every side of the floor polygon that has no wall
-  &mdash; a 3-sided room becomes a box. Put the camera INSIDE first, or hide the
-  borrowed wall on that scene afterwards. They leave with the lights.</div>
+  <div class="note">A borrowed wall stands 1/16" outside the floor polygon, so
+  on a run that has a real wall it sits inside that wall and shows only when
+  the real one is hidden. The console lists every run and what it found.
+  Put the camera INSIDE first. They leave with the lights.</div>
   <div class="row" style="margin-top:6px">
     <span class="lab" style="margin:0">Grid</span>
     <select id="dens" style="width:auto">
@@ -2961,7 +3075,7 @@ function paint(){
   g("mult").value = ST.mult; g("multn").value = ST.mult;
   g("koff").value = ST.koffset; g("koffn").value = ST.koffset;
   g("ceil").checked = !!ST.ceiling;
-  g("walls").checked = !!ST.walls;
+  g("walls").value = (ST.walls === true) ? "open" : (ST.walls || "none");
   g("dens").value = ST.density || "soft";
   drawLayers();
 }
@@ -2977,7 +3091,7 @@ function collect(){
   return { mult: parseFloat(g("multn").value) || 1,
            koffset: parseInt(g("koffn").value, 10) || 0,
            ceiling: g("ceil").checked,
-           walls: g("walls").checked,
+           walls: g("walls").value,
            density: g("dens").value,
            layers: layers };
 }
@@ -3179,7 +3293,7 @@ paint(); drawPresets("");
       erased, reap_pending = erase_lights(stale)
 
       puts ''
-      puts format('Drop Interior Lights 1.28.0 — brightness %s (x%.2f), ' \
+      puts format('Drop Interior Lights 1.31.2 — brightness %s (x%.2f), ' \
                   'warmth %s (%+d K), units 1 (LUMENS), seven roles',
                   opts[:bright], opts[:mult], opts[:warmth], opts[:koffset])
       unless stale.empty?
@@ -3204,6 +3318,7 @@ paint(); drawPresets("");
       fixture_faces = 0
       ceilings_added = 0
       walls_added = 0
+      wall_notes = []   # one line per room, shown in a window when walls were asked for
       room_lm = 0.0
       booth_lm = 0.0
       press_uuid = format('%d-%06d', Time.now.to_i, rand(1_000_000))
@@ -3411,37 +3526,62 @@ paint(); drawPresets("");
           end
         end
         # ---- THE BORROWED WALLS (1.28.0) — see existing_walls / add_walls --
-        open_runs, wall_err = existing_walls(s, poly, z0, info[:z_top])
+        wrep, wall_err = existing_walls(s, poly, z0, info[:z_top])
+        z_need = z0 + (info[:z_top] - z0) * WALL_MIN_SHARE
+        open_runs = wrep ? (0...poly.size).select { |i| !wrep[i][:walled] } : []
         run_list = open_runs.map { |i| i + 1 }.join(', ')
+        mode = opts[:walls]
         if wall_err
-          puts "  #{name}: the wall scan raised #{wall_err} — no run is read " \
-               'as open and no wall is borrowed.'
-        elsif open_runs.empty?
-          puts "  #{name}: every one of the #{poly.size} floor-polygon runs " \
-               'already has a wall — nothing to borrow.'
-        elsif !opts[:walls]
-          puts format('  %s: run%s %s read%s OPEN (no wall face on the floor ' \
-                      'polygon there). "Add walls" was No, so %s left open — ' \
-                      'sky comes in and the rig leaves through it.',
-                      name, open_runs.size == 1 ? '' : 's', run_list,
-                      open_runs.size == 1 ? 's' : '',
-                      open_runs.size == 1 ? 'it is' : 'they are')
+          puts "  #{name}: ** the wall scan raised #{wall_err} — no run can be " \
+               'judged open.' + (mode == 'all' ? ' "Every run" needs no scan and goes ahead.' : ' Nothing borrowed on "open runs only"; pick "every run" to enclose anyway.')
+          wall_notes << "#{name}: wall scan FAILED (#{wall_err})" +
+                        (mode == 'all' ? '; every run filled regardless' : '; nothing borrowed')
         else
-          made = add_walls(ents, poly, open_runs, z0, info[:z_top], layer,
+          wall_scan_lines(name, poly, wrep, z_need).each { |l| puts l }
+        end
+        fill = case mode
+               when 'all'  then (0...poly.size).to_a
+               when 'open' then open_runs
+               else []
+               end
+        if mode == 'none'
+          unless open_runs.empty?
+            puts format('  %s: "Add walls" is No — run%s %s stay%s open; sky ' \
+                        'comes in and the rig leaves through %s.', name,
+                        open_runs.size == 1 ? '' : 's', run_list,
+                        open_runs.size == 1 ? 's' : '',
+                        open_runs.size == 1 ? 'it' : 'them')
+          end
+        elsif fill.empty?
+          puts "  #{name}: every one of the #{poly.size} runs has a VISIBLE " \
+               'wall — nothing to borrow on "open runs only". If a wall is ' \
+               'hidden on the scene you render, the scan would have said so ' \
+               'above; pick "every run" to enclose regardless.'
+          wall_notes << "#{name}: #{poly.size} runs, all walled — nothing borrowed"
+        else
+          made = add_walls(ents, poly, fill, z0, info[:z_top], layer,
                            press_uuid, borrow_material(model, ['WR Wall', 'Wall']))
           walls_added += made.size
-          puts format('  %s: borrowed %d wall%s on run%s %s, floor to %.0f", ' \
-                      'named "%s N" so "Hide walls per scene" can open one ' \
-                      'back up for a camera. THEY LEAVE WHEN THE LIGHTS DO, ' \
-                      'with the ceiling, verified the same way.',
-                      name, made.size, made.size == 1 ? '' : 's',
-                      open_runs.size == 1 ? '' : 's', run_list,
-                      info[:z_top], WALL_NAME)
-          if made.size < open_runs.size
-            puts format('  %s: ** %d open run%s could not be faced — still open.',
-                        name, open_runs.size - made.size,
-                        open_runs.size - made.size == 1 ? '' : 's')
+          puts format('  %s: borrowed %d wall%s on run%s %s (%s), %.2g" outside ' \
+                      'the polygon, floor to %.0f", named "%s N". THEY LEAVE ' \
+                      'WHEN THE LIGHTS DO, with the ceiling, verified the ' \
+                      'same way.', name, made.size, made.size == 1 ? '' : 's',
+                      fill.size == 1 ? '' : 's', fill.map { |i| i + 1 }.join(', '),
+                      mode == 'all' ? 'every run' : 'the open runs',
+                      WALL_OUT, info[:z_top], WALL_NAME)
+          if made.size < fill.size
+            puts format('  %s: ** %d run%s could not be faced — still open.',
+                        name, fill.size - made.size,
+                        fill.size - made.size == 1 ? '' : 's')
           end
+          wall_notes << format('%s: %d runs — %d walled, %d open (%s) — %d wall%s ' \
+                               'borrowed on run%s %s%s', name, poly.size,
+                               wrep ? wrep.count { |r| r[:walled] } : 0,
+                               open_runs.size, run_list.empty? ? 'none' : run_list,
+                               made.size, made.size == 1 ? '' : 's',
+                               fill.size == 1 ? '' : 's',
+                               fill.map { |i| i + 1 }.join(', '),
+                               made.size < fill.size ? format(' (%d FAILED)', fill.size - made.size) : '')
         end
         # poly.size, as it has always been — see enclosure_trim: a room
         # with its open runs borrowed IS a 4-sided room, and the open-run
@@ -3709,6 +3849,15 @@ paint(); drawPresets("");
                     'lists it under Objects).', walls_added,
                     walls_added == 1 ? '' : 's', walls_added == 1 ? 's' : '',
                     WALL_NAME)
+      end
+      # THE WALLS WINDOW. Benton does not read the console; 1.28.0 borrowed
+      # nothing and said so only there, and that cost a round trip. When
+      # walls were asked for, what the scan decided goes in a window.
+      if opts[:walls] != 'none'
+        body = wall_notes.empty? ? ['no room reached the wall scan (see the console)'] : wall_notes
+        UI.messagebox("Add walls (#{opts[:walls] == 'all' ? 'every run' : 'open runs only'}):\n\n" +
+                      body.join("\n") + "\n\nThe Ruby Console lists every run and " \
+                      'what was found on it.')
       end
       puts '  Each drawn fixture (F1 drum, F2 pendant, F3 sconce) is ONE group ' \
            'holding its shell and its emitter: move the group and the light ' \

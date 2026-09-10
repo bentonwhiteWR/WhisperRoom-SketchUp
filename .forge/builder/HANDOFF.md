@@ -1058,3 +1058,43 @@ neither verified live. The file on disk is checked after every write
   window logs `WINDOW CHANGED` (`bad`); size-mismatch line now `bad`.
 - Check: export once, change the tray layout, export again — the log
   names both window sizes.
+
+---
+
+# HANDOFF — Builder → Benton: borrowed walls now get made, 1.31.2
+
+2026-09-10, on the field report *"the walls arent being made"*. **Unrun in
+SketchUp.** rbparse 71/71, rbtest-lights 47 + 10 PASS, hidden-flag mutant
+reproduces the bug and is killed. DEVLOG 1.31.2 has the full account.
+
+## Cause
+A wall hidden with *Hide walls per scene* keeps its geometry (entity
+`hidden` flag); 1.28.0's scan never checked `hidden?`, judged every run
+walled, borrowed nothing, and said so only on the console. Derived from
+the code path; the one question that would confirm it: **"On that room,
+is the open side a wall you hid (Hide walls per scene / eye icon), or is
+there no wall drawn there at all?"** — "hid" confirms; "no wall drawn"
+means the tolerance line in the new console output is the next clue.
+
+## Fix (`scripts/wr-drop-lights.rb`)
+- `hidden_now?`, `existing_walls` flags hidden faces; `run_report` counts
+  them separately; a hidden wall reads OPEN.
+- `WALL_OUT` 1/16": borrowed walls stand just outside the polygon, so a
+  doubled run buries the borrowed face inside the real wall — no fighting.
+- Add walls select: **No / open runs (hidden counts as open) / every run**.
+  `walls_mode` maps a 1.28.0 `true` to "open".
+- Per-run console lines (`wall_scan_lines`) and an end-of-press window
+  (`wall_notes`) whenever walls were asked for.
+- `scripts/rbtest-lights.py` check 27; `VERSION` 1.31.1 → **1.31.2**
+  (patch: a defect fix plus diagnostics, no new surface beyond the select).
+
+## To verify (Benton)
+1. Press with Add walls = "On the open runs" on the failing room. Console:
+   one line per run; the hidden run reads `OPEN ... HIDDEN face on it`.
+   Window: `<room>: N runs — k walled, m open (…) — m walls borrowed on
+   runs …`. Outliner: `WR Lights Wall N`.
+2. If the window still says all walled: read the console's `nearest
+   parallel face is X" off the run` — that X is the tolerance to move.
+   Pick "On every run" to enclose meanwhile.
+3. Render from inside; then `WR_DropLights.remove_rig!(Sketchup.active_model)`
+   → `restore verified`, no `WR Lights Wall` left.

@@ -1,6 +1,74 @@
 # DEVLOG
 
 ## 2026-09-10
+### Borrowed walls were never made: a hidden wall read as a wall — 1.31.2
+
+Benton, 10 Sep 2026, on 1.28.0: *"the walls arent being made when I
+select them in drop in the lights."* Cause found by reading, fix built,
+**unrun in SketchUp**. `rbparse.py` 71/71, `rbtest-lights.py` 47 + 10
+PASS, two new mutants killed — the first of them reproduces the symptom.
+
+**The cause (derived from the code path, strongest candidate).**
+`existing_walls` counted every vertical face on a floor-polygon run and
+never asked whether it was hidden. `wr-scene-walls.rb` hides a wall by
+its **entity `hidden` flag and the geometry stays** (its own header,
+line 15: "a SketchUp scene saves PER-ENTITY hidden state"). So a
+WhisperRoom "3-sided" room is a 4-walled model with a wall hidden, the
+scan judged every run WALLED, `open_runs` was empty, and the tool printed
+"nothing to borrow" to a console nobody reads. The mutant "hidden flag
+ignored" gives `oe-` — nothing open — on the hidden-wall fixture, which is
+exactly the field report.
+
+Ruled out by reading: the checkbox reached Ruby (`collect()` sends
+`walls`, `opts_from` reads `st['walls']`, `run` reads `opts[:walls]`);
+the sweep runs BEFORE the walls are made in the same press, so it cannot
+take them; `add_face` on a vertical rectangle has no reason to return nil,
+and the nil-guard prints "could not be faced", which he did not report;
+the grid refusal comes after the walls and leaves them standing. The 1"
+tolerance is right for build-room rooms (inner face on the interior
+polygon) — and if it were wrong the new per-run line names the nearest
+miss in inches.
+
+**The fix.** (1) The scan carries a hidden flag per face — the face's own
+`hidden?`, any container above it, or a switched-off tag (`hidden_now?`)
+— and `run_report` counts hidden faces separately: **a hidden wall reads
+OPEN**. (2) Every borrowed wall now stands **`WALL_OUT` = 1/16" outside
+the polygon**: on an open run invisible; on a run with a real wall it
+sits inside that wall's solid behind its inner face, so nothing fights in
+the render and the borrowed wall is what closes the room on the scenes
+where the real one is hidden. (3) "Add walls" is a three-way select:
+**No / On the open runs (a hidden wall counts as open) / On every run —
+completely enclose the room.** A 1.28.0 preset's `true` maps to "open".
+Default stays No.
+
+**Recommendation on semantics.** Keep "open runs" as the primary
+behaviour now that hidden walls count as open — it is what "enclose the
+area" means on his rooms and it never doubles a visible wall. "Every run"
+is offered as the no-judgement fallback, safe because of the 1/16"
+offset; it is not the default because it also buries a wall inside every
+real one, which is harmless but clutters the Outliner.
+
+**Diagnostics — ship regardless.** Per room the console now prints one
+line per run: `run 3  240.0"  OPEN  no visible face — 1 HIDDEN face on
+it: a wall hidden on this scene reads OPEN`, or `WALLED  2 visible faces
+on it`, or `OPEN  nearest parallel face is 4.00" off the run (tolerance
+1")`, then which runs were filled and why any was skipped. When walls
+were asked for at all, a **window** at the end of the press summarises
+per room: runs, walled, open, borrowed, failed. A ticked option can no
+longer do nothing silently.
+
+**Not touched:** exposure stamp, sun, LUMEN_GAIN, layer table,
+`enclosure_trim` (still `poly.size`, still documented).
+
+**To verify (Benton):** *Drop the interior lights*, Add walls = "On the
+open runs", on the room where it failed. Console should list every run;
+the hidden run(s) must read `OPEN ... HIDDEN face`. A window then says
+e.g. `Room: 4 runs — 3 walled, 1 open (3) — 1 wall borrowed on run 3`.
+Outliner: `WR Lights Wall 3`. If the window says all walled and the
+console shows a run he knows is open with `nearest parallel face is X"
+off`, that X is the answer and the tolerance moves; pick "every run"
+meanwhile.
+
 ### Screen-note drift is confirmed, and a changed window is now said out loud — 1.31.1
 
 Benton, shown the clipped `"Cable Passag / for running po"` note on

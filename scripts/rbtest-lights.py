@@ -112,6 +112,13 @@ worked examples in .forge/researcher/interior-lighting-design.md:
      keep-out skip keys on (the live "keep-out: ROOM 2" incident, where
      an L-shaped neighbour room's bounding box punched a hole in this
      room's grid).
+ 27. THE HIDDEN WALL (1.31.2, Benton: "the walls arent being made when I
+     select them"): Hide walls per scene hides a wall by its entity flag
+     and the geometry stays, so 1.28.0's scan judged every run of a
+     "3-sided" room walled and borrowed nothing. run_report carries a
+     hidden flag per face: a run with only a hidden face reads OPEN with
+     hidden 1; the counts, the nearest-miss distance (an outer face 4"
+     out) and the run length are what the console now prints per run.
  26. THE WALL SCAN (1.28.0, "add walls"): face_on_edge? / open_edges —
      which floor-polygon runs have no wall. On the 12x15 room with 96"
      walls: runs 0-2 walled (run 0 split at a door, run 1 with its OUTER
@@ -231,6 +238,12 @@ geometry builders (tube / cone_shell / disc_solid touch the SketchUp
 Entities API), add_ceiling, remove_ceilings_verified!, model_probe,
 stamp_exposure!, stamp_tag_into_pages and assert_lights_visible!.
 
+MUTATION-CHECKED 2026-09-10 evening (1.31.2 hidden-wall fix, same
+protocol): run_report's hidden branch removed so a hidden face counts as
+visible (reproduces the field report exactly — `oe-`, nothing open);
+the near-miss window dropped (the console loses its "nearest face is X"
+off" line). Both KILLED and reverted.
+
 MUTATION-CHECKED 2026-09-10 (1.28.0 wall scan, same protocol — each
 mutation applied to wr-drop-lights.rb, this test run, FAIL confirmed,
 reverted): face_on_edge? parallel test dropped (SURVIVED on the first
@@ -311,7 +324,8 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'param_agrees?', 'in_box?', 'enclosure_trim', 'layer_lumens',
            'layer_kelvin', 'area_scale', 'ring_points', 'shell_faces', 'fixture_faces',
            'wall_points', 'sconce_points', 'wall_normal', 'far_corner',
-           'ceiling_pair', 'face_on_edge?', 'open_edges']
+           'ceiling_pair', 'face_on_edge?', 'open_edges', 'face_offset',
+           'run_report']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H',
@@ -322,6 +336,7 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'AREA_SCALE_MIN', 'AREA_SCALE_MAX', 'PENDANT_AFF', 'SCONCE_AFF',
            'SCONCE_STANDOFF', 'RIM_OUT', 'RIM_TILT', 'FOAM_OFFSET',
            'EXPO_ISO', 'EXPO_FACTORY_ISO', 'EXPO_EV', 'WALL_TOL', 'WALL_MIN_SHARE',
+           'WALL_NEAR', 'WALL_OUT',
            # 1.10.0 added LUMEN_GAIN to layer_lumens; this list was not
            # updated and the whole harness raised NameError on every commit
            # from then to 1.19.2. Anything layer_lumens multiplies by must be
@@ -765,6 +780,25 @@ __METHODS__
                     oe.call(LPOLY, lall),
                     oe.call(LPOLY, lall[0..3] + lall[5..5])].join(' ')
 
+    # 27 — THE HIDDEN WALL (1.31.2, "the walls arent being made"). The same
+    # rectangle with all four inner faces present, run 3's HIDDEN: run 3
+    # must read open with hidden 1, and run_report must carry the
+    # measurements the console prints — visible/hidden counts, the
+    # nearest-miss distance (run 1's outer face at 4" when its inner face
+    # is hidden too), and the run length.
+    hidden3 = a3[0..4] + [[1.0, 0.0, [[0.0, 0.0], [0.0, 180.0]], 96.0, true]]
+    rr = run_report(RECT, hidden3, WALL_TOL, zn)
+    out << 'rr ' + rr.map { |r| format('%s%d/%d/%s/%.0f', r[:walled] ? 'W' : 'O',
+                                       r[:faces], r[:hidden],
+                                       r[:near] ? format('%.1f', r[:near]) : '-',
+                                       r[:len]) }.join(' ') +
+           ' oe' + oe.call(RECT, hidden3)
+    both = [a3[0], a3[1], a3[2][0..3] + [true], a3[3], a3[4]]
+    rr2 = run_report(RECT, both, WALL_TOL, zn)
+    out << 'rr2 ' + rr2.map { |r| format('%s%d/%d/%s', r[:walled] ? 'W' : 'O',
+                                         r[:faces], r[:hidden],
+                                         r[:near] ? format('%.1f', r[:near]) : '-') }.join(' ')
+
     out.join(' | ')
   end
 end
@@ -820,6 +854,8 @@ EXPECT = ' | '.join([
     'fc 11100',
     'foe 100000',
     'oe 3 - 3 0 3 - 4',
+    'rr W2/0/-/144 W1/0/4.0/180 W1/0/-/144 O0/1/-/180 oe3',
+    'rr2 W2/0/- O0/1/4.0 W1/0/- O0/0/-',
 ])
 
 # ---- second program: wr-mode.rb's snapshot pins -------------------------
