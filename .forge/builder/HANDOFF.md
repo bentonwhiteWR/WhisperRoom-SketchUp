@@ -1,3 +1,47 @@
+# HANDOFF — Builder → Benton: pinned tools wear their own icon, 1.39.0
+
+2026-09-10. *"when i set a favorite, can it default to the icon you have
+already created/assigned to it? Just allow me to override if i want to."*
+Built, **unrun in SketchUp**. `main.rb` and `panel.html` changed, so:
+**`git pull` alone shows nothing — run `install-plugin.py` and restart.**
+
+## What changed
+- `scripts/wr_tools/main.rb`: `face_path` step 2 — a slot with no picked
+  icon wears its script's own list icon (`# @icon` / `icon-map.json`), via
+  new `script_icon_file(name)`. Picked icon (step 1) still wins; legacy
+  faces and the numbered star follow.
+- `scripts/wr_tools/panel.html`: the picker's first tile is now "Default —
+  <tool>'s own icon" and previews it; follows the dropdown. Hint reworded.
+- `VERSION` → **1.39.0** (minor; 1.38.0 was sitting uncommitted in the tree
+  for the booth-dimension work). DEVLOG entry.
+
+## Decisions
+- **Unset = stored `-`.** Only those inherit; a chosen icon is never touched
+  (defaults.json precedent). All 11 shipped shop-default slots have explicit
+  icons → unchanged. Self-starred slots with no icon change at next launch.
+- **Reset = pick the first tile.** It saves `-`. No separate "force the
+  number" option — never picked and reset are the same value; said so in
+  the code comment.
+- Script icon goes BEFORE the legacy `FAV_ICONS` faces: those five all have
+  wr- art now, and the wr- icon is the one the list shows.
+
+## Verified (not run)
+`rbparse.py` 74/74. `node --check` on the panel script OK. Offline mirror of
+the fallthrough: 54/62 scripts resolve to `wr-ico-*.svg`; the 8 that do not
+are monograms / no art and behave as before.
+
+## To verify (Benton)
+1. Install + restart. Star a tool with a known list icon (e.g. *List
+   scenes*) into an empty slot: the toolbar button shows that icon after the
+   NEXT restart; the panel's slot tile shows it immediately after restart.
+2. Click that tile: the first picker tile shows the same icon, titled
+   "Default — …". Pick a different icon, Save, restart: override shown.
+3. Open it again, click the first tile, Save, restart: back to the tool's
+   own icon.
+4. Any slot you had already given an icon: unchanged.
+
+---
+
 # HANDOFF — Builder → Benton: the ground lift, 1.33.0
 
 2026-09-10. Benton: *"I think whenever we bring in a booth via the link, its

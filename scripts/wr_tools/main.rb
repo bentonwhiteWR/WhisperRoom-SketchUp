@@ -707,7 +707,10 @@ module WhisperRoom
     # on each. Each SLOT holds two
     # independent things — WHICH script it runs, and WHICH icon it wears — the
     # way a custom button on a Word ribbon does. Both are chosen in the panel's
-    # Toolbar section; neither is hard-coded here.
+    # Toolbar section; neither is hard-coded here. The icon is OPTIONAL: a slot
+    # with no icon of its own wears the icon its script already shows in the
+    # list (icon_of), so pinning a tool gives it its face for free and picking
+    # an icon is an override, not a chore — see face_path.
     #
     # WHY THE ICON HAS TO BE BOUND AT LOAD, AND THE ACTION DOES NOT
     #
@@ -735,8 +738,10 @@ module WhisperRoom
     SLOT_EMPTY = '-'.freeze
 
     # Fallback faces for slots assigned before the library existed. Not a
-    # registry — anything not listed simply starts on the numbered star and the
-    # picker changes it.
+    # registry — anything not listed simply wears its script's own list icon,
+    # or the numbered star if it has none, and the picker changes it. Every
+    # script here now has a wr- icon too, so this table is only reached when
+    # that art is missing from the folder.
     FAV_ICONS = {
       'save-scene-components.rb'  => 'scenecomps',
       'build-booth-components.rb' => 'boothbuild',
@@ -810,7 +815,8 @@ module WhisperRoom
     end
 
     # The star on a script row. It is a shortcut for "put this in the first free
-    # slot" — no icon chosen, so the slot shows its number until one is picked.
+    # slot" — no icon chosen, so the slot wears the script's own list icon
+    # (face_path step 2) until one is picked.
     def self.toggle_pin(name)
       names = slots
       ics   = slot_icons
@@ -919,17 +925,51 @@ module WhisperRoom
       nil
     end
 
+    # The icon a script already wears in the panel list — its own "# @icon"
+    # line, else icon-map.json, else nothing — as a FILE the toolbar can take.
+    # The list draws sprite symbols (wr-<id>) and the toolbar needs an SVG on
+    # disk; make-icons.py writes both from one source, so wr-ico-<id>.svg is the
+    # same picture as <symbol id="wr-<id>">, and icon_file already knows that
+    # spelling. Returns nil for a monogram ("mono:CS" has no file), for
+    # DEFAULT_ICON, or for a script whose art has not been drawn yet, so the
+    # caller falls through to its own defaults rather than to a broken path.
+    #
+    # One header read per call, not a scan: face_path runs for every slot at
+    # load and on every render, and a scan is ~250 file reads.
+    def self.script_icon_file(name)
+      return nil if blank?(name)
+      path = File.join(SCRIPTS_DIR, name.to_s)
+      return nil unless File.file?(path)
+      declared = meta_of(path)[3]
+      id = icon_of(name, declared)
+      return nil if id == DEFAULT_ICON || id.start_with?('mono:')
+      icon_file(id)
+    rescue StandardError
+      nil
+    end
+
     # The FILE a slot's button wears, resolved from an explicit pair of lists so
-    # the same three-step fallback answers for both the live preferences and
+    # the same four-step fallback answers for both the live preferences and
     # what the toolbar was built with.
     #
-    #   1. the library icon the user picked
-    #   2. the legacy per-script face, for slots assigned before the library
-    #   3. the numbered star
+    #   1. the library icon the user picked — an OVERRIDE, and it always wins
+    #   2. the script's own icon, the one its row in the list already shows
+    #   3. the legacy per-script face, for slots assigned before the library
+    #   4. the numbered star
+    #
+    # Step 2 is what makes a freshly pinned tool arrive wearing its own face
+    # (Benton, Sep 2026: "default to the icon you have already assigned to it,
+    # just allow me to override"). It applies ONLY when the slot's stored icon
+    # is SLOT_EMPTY — a picked icon is a deliberate choice and is never
+    # replaced, the same rule defaults.json follows for whole keys. The way
+    # back to the default is the first tile in the panel's picker, which saves
+    # SLOT_EMPTY. That does mean "never picked" and "reset to default" are the
+    # same stored value; there is no way to insist on the bare number for a
+    # script that has art, and nobody has asked for one.
     #
     # THE PANEL MUST USE THIS TOO. It used to draw a bare number whenever no
     # library icon had been picked, while the toolbar quietly fell through to
-    # step 2 and drew the per-script face. Two rules for one slot, so the row in
+    # the per-script face. Two rules for one slot, so the row in
     # the panel did not match the row above the viewport — reported, and fair.
     # Ruby resolves it once now and ships the answer to the panel.
     def self.face_path(i, names, icons)
@@ -941,6 +981,8 @@ module WhisperRoom
       end
       name = names[i]
       unless blank?(name)
+        p = script_icon_file(name)
+        return p if p
         key = FAV_ICONS[name]
         p = key && File.join(dir, "icon-#{key}.svg")
         return p if p && File.exist?(p)

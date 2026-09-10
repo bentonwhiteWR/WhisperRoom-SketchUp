@@ -1,6 +1,47 @@
 # DEVLOG
 
 ## 2026-09-10
+### A pinned tool wears its own icon — 1.39.0
+
+Benton, 10 Sep 2026: *"when i set a favorite, can it default to the icon
+you have already created/assigned to it? Just allow me to override if i
+want to."* Yes. `face_path` in `scripts/wr_tools/main.rb` gained one step
+between "the icon you picked" and the legacy per-script faces: the script's
+own list icon (`icon_of` — its `# @icon` line, else `icon-map.json`),
+resolved to the matching `wr-ico-<id>.svg` on disk through the `icon_file`
+spelling that already existed. `make-icons.py` writes the sprite symbol and
+that file from one source, so the toolbar button and the list row are the
+same picture. New helper `script_icon_file(name)`: one header read, not a
+scan. **Unrun in SketchUp.** `rbparse.py` 74/74; `node --check` on the
+panel script OK; an offline mirror of the fallthrough resolves 54 of 62
+listed scripts to a file (the other 8 are monograms or have no art and fall
+through to the numbered star as before). Minor bump: `main.rb` and
+`panel.html` both changed, so this needs `install-plugin.py` + restart.
+(1.38.0 was in the working tree, uncommitted, for the booth-dimension work
+in flight at the same time; this took the next minor to stay above it.)
+
+**Never clobbers a choice.** Only a slot whose stored icon is `-` inherits.
+A picked icon wins, always — the same rule `defaults.json` follows for whole
+keys. `defaults.json` itself has an explicit icon on all eleven shipped
+slots, so nobody's shop-default row changes. Slots someone starred
+themselves without picking an icon DO change at next launch: numbered star
+→ the tool's own icon. That is the request.
+
+**The way back.** The picker's first tile was "Numbered — the default
+face"; it now previews the selected script's own list icon (drawn by the
+same `icon()` the rows use, redrawn when the dropdown changes) and is titled
+as the default. Saving it stores `-`, which is the reset. Known and
+accepted: "never picked" and "reset" are the same stored value, so there is
+no way to insist on the bare number for a script that has art.
+
+**SAVE AS SHOP DEFAULT** reads raw prefs and records `-` for inherited
+slots, so a shipped default inherits on every machine the same way. Nothing
+about the shop-default layering moved.
+
+**Side note:** `pending_slots` compares stored ids, not faces, so a slot
+inheriting an icon whose map entry later changes repaints at next launch
+without the "changed" badge. Cosmetic; left alone.
+
 ### Open folder: a button on the GOES TO line — 1.37.1
 
 Benton, 10 Sep 2026: *"also add a button that will open a file explorer

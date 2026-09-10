@@ -771,6 +771,8 @@
     display: flex; align-items: center; justify-content: center;
   }
   .ic img { width: 20px; height: 20px; }
+  .ic .ico { width: 20px; height: 20px; color: var(--ink); }
+  .ic .mg  { font-size: 11px; }
   .ic .num { font-size: 11px; color: var(--faint); }
   .ic:hover { border-color: var(--accent); }
   .ic.on { border-color: var(--accent); background: var(--accent-soft); }
@@ -904,9 +906,11 @@
       <div class="fld">WEARS THIS ICON</div>
       <div class="icons" id="edicons"></div>
       <div class="hint">
-        The button runs the new script straight away. A new <b>icon</b> is uploaded
-        to SketchUp&rsquo;s toolbar when the command is created, so it appears the
-        next time SketchUp starts.
+        The first tile is the <b>default</b>: the tool&rsquo;s own icon, the one its
+        row in the list wears. Pick any other to override it; pick the first again
+        to go back. The button runs the new script straight away. A new <b>icon</b>
+        is uploaded to SketchUp&rsquo;s toolbar when the command is created, so it
+        appears the next time SketchUp starts.
       </div>
       <div class="btns">
         <button class="btn" id="edclear">Clear slot</button>
@@ -1190,10 +1194,26 @@
     $ovl.className = "sheetovl on";
   }
 
+  // The first tile is "no override": it saves "-" and Ruby's face_path then
+  // wears the script's own list icon (step 2), or the slot number if the
+  // script has none. So the tile previews THAT — the selected script's list
+  // icon, drawn by the same icon() the rows use — and redraws when the
+  // dropdown changes, because the default face follows the script, not the
+  // slot. It is the way back from an override: one click, Save.
+  function defaultTile() {
+    var name = document.getElementById("edscript").value;
+    var s = name ? byName(name) : null;
+    var own = s && s.icon && s.icon !== "wr-default";
+    var num = '<span class="num">' + ((editing % (DATA.pin_n || 6)) + 1) + "</span>";
+    var face = own ? icon(s.icon, null) : num;
+    var tip = own ? "Default — " + s.title + "'s own icon, the one its row wears"
+                  : "Default — the slot number; this tool has no icon of its own yet";
+    return '<button class="ic' + (editIcon ? "" : " on") + '" data-ic="" title="' +
+           esc(tip) + '">' + face + "</button>";
+  }
+
   function drawIconGrid() {
-    var h = '<button class="ic' + (editIcon ? "" : " on") + '" data-ic="" ' +
-            'title="Numbered — the default face"><span class="num">' +
-            ((editing % (DATA.pin_n || 6)) + 1) + "</span></button>";
+    var h = defaultTile();
     (DATA.icons || []).forEach(function (ic) {
       // ic.file is resolved in Ruby. Older payloads did not carry it, so the
       // legacy filename is still derivable here as a fallback.
@@ -1213,6 +1233,10 @@
   }
 
   function closeEditor() { editing = -1; $ovl.className = "sheetovl"; }
+
+  document.getElementById("edscript").addEventListener("change", function () {
+    if (editing >= 0) drawIconGrid();
+  });
 
   document.getElementById("edcancel").addEventListener("click", closeEditor);
   document.getElementById("edsave").addEventListener("click", function () {
