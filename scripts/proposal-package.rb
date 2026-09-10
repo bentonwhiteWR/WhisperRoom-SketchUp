@@ -734,6 +734,159 @@ module WR_ProposalPackage
     end
   end
 
+  # ------------------------------------------------ prompt for Claude --
+  #
+  # Benton, 10 Sep 2026: "Can it also have a box at the bottom filled with
+  # a 'prompt' to send claude? This would initiate the 'proposal skill' and
+  # any other info/order, etc, location of files, etc."
+  #
+  # Everything the tool KNOWS about a run and the agent would otherwise be
+  # told by hand or have to guess: the folder, the plates in export order
+  # with their lane, the annotation mode, the background, and every warning
+  # the run raised - with provenance kept (a two-point state the tool did
+  # not record says "unknown", never nothing). What the tool cannot know
+  # (revision or not, prior PDF, the hero) is left as a <fill in> line.
+  # Plain text, no markdown: it is pasted into a chat.
+  #
+  # PURE - agent_prompt takes the manifest hash and a facts hash and returns
+  # the string; rbtest-proposal.py covers it (ap1-ap6). The same text is
+  # written to claude-prompt.txt beside manifest.json, so a folder exported
+  # yesterday still has its prompt, and prompt_for(dir) rebuilds one from a
+  # manifest alone (warnings then read "not available", not "none").
+  def self.agent_prompt(m, f = nil)
+    m ||= {}
+    f ||= {}
+    dir    = m['output_dir'].to_s
+    client = f['client'].to_s.strip
+    client = '<client name - fill in>' if client.empty?
+    rows = m['images'].is_a?(Array) ? m['images'] : []
+    l = []
+    l << '/whisperroom-proposal'
+    l << ''
+    l << "Build the WhisperRoom booth-renderings proposal PDF for #{client}."
+    l << "Renders folder (absolute): #{dir.empty? ? '<folder - fill in>' : dir}"
+    l << 'A manifest.json sits in that folder. Per plate it records the scene, ' \
+         'the lane, the size, the walls and annotation sets hidden BY DESIGN, ' \
+         'the two-point-perspective state, and every dimension callout with ' \
+         'its measured value. Read it before captioning: it is the export ' \
+         "tool's own record, not a guess."
+    l << ''
+    l << "Model: #{m['model']} (#{m['model_path']})"
+    l << 'Plates, in export order (the leading number is the scene tab ' \
+         "position; a name ending ' render.png' is a V-Ray render, anything " \
+         'else is a plain SketchUp image):'
+    rows.each do |r|
+      st   = r['status'].to_s
+      lane = r['lane'].to_s == 'render' ? 'V-Ray render' : 'plain image'
+      line = "  #{r['file']}  -  scene '#{r['scene']}', #{lane}"
+      line += ", #{r['width']}x#{r['height']}" if r['width'] && r['height']
+      line += ", STATUS #{st.upcase}: #{r['detail']}" unless st == 'ok'
+      tp = r['two_point_view_at_export']
+      line += if tp.nil?
+                ', two-point perspective: unknown (not recorded)'
+              elsif tp
+                ', two-point perspective: yes'
+              elsif r['two_point_scene'] == true
+                ', TWO-POINT PERSPECTIVE LOST on export (scene saved ' \
+                'two-point, plate is ordinary perspective)'
+              else
+                ', two-point perspective: no (ordinary)'
+              end
+      hid = r['groups_hidden']
+      line += ", #{hid.size} wall(s)/object(s) hidden by design" if hid.is_a?(Array) && !hid.empty?
+      l << line
+    end
+    l << '  (no plates recorded)' if rows.empty?
+    l << ''
+    l << 'Annotation mode: ' +
+         (m['annotations_hidden_in_images'] ?
+            'CLIENT-SAFE - every plate was exported with ALL dimensions and ' \
+            'notes hidden. There are no callouts to transcribe and none may ' \
+            'be invented.' :
+            'PER SCENE - each plate shows what its own scene left visible. ' \
+            'Transcribe callouts exactly as drawn and only where legible.')
+    l << 'Background: ' +
+         (m['transparent_background'] ?
+            'TRANSPARENT (alpha). Flatten every plate onto white before it ' \
+            'goes into a pack (scripts/wr-flatten-trim.py).' :
+            'opaque.')
+    l << ''
+    if f['reconstructed']
+      l << 'Warnings from the export run: NOT AVAILABLE - this prompt was ' \
+           "rebuilt from manifest.json after the fact. Read each row's " \
+           'status and two-point fields in the manifest instead.'
+    else
+      w = []
+      pf = f['preflight']
+      if pf.is_a?(Array)
+        pf.each do |r|
+          next unless r['status'].to_s == 'fail' && r['id'].to_s != 'dims'
+          w << "Preflight '#{r['label']}' FAILED: #{r['detail']}"
+        end
+      end
+      w << "WINDOW CHANGED: #{f['window_changed']}. Screen-anchored notes in " \
+           'earlier plates of this folder may sit differently from these.' if f['window_changed']
+      w << "Size mismatch: #{f['shape_note']}." if f['shape_note']
+      (f['quality'] || []).each { |x| w << "Render quality: #{x}" }
+      (f['srgb'] || []).each { |x| w << "sRGB encode FAILED: #{x} - that file reads dark and is NOT client-ready" }
+      (f['lost'] || []).each { |x| w << "Lost row (no file was written): #{x}" }
+      rows.each { |r| w << "#{r['file']}: #{r['status']} - #{r['detail']}" unless r['status'].to_s == 'ok' }
+      w << "Mode note: #{f['mode_note']}" if f['mode_note']
+      if w.empty?
+        l << 'Warnings from the export run: none recorded.'
+      else
+        l << 'Warnings from the export run - raise each of these with Benton ' \
+             'before writing a caption over it:'
+        w.each { |x| l << "  - #{x}" }
+      end
+    end
+    l << ''
+    l << "Revision: <fill in - 'new pack', or 'revision N of <path to the prior PDF>'>"
+    l << "Hero plate: <fill in, or 'your call'>"
+    l << 'Anything else: <optional>'
+    l << ''
+    l << 'Rules that stand regardless: no prices, lead times or freight; no ' \
+         'left/right spatial claims; transcribe dimension callouts exactly or ' \
+         "leave them out; acoustics only as the website's ASTM E336 dB range, " \
+         "never STC or 'soundproof'; the PDF goes to Desktop/ProposalFiles/" \
+         '<Client>/ and nothing already there is overwritten without being told.'
+    l.join("\n")
+  end
+
+  # The run's own facts for the prompt - the instance state finish has.
+  def self.prompt_facts
+    { 'client'         => @client.to_s,
+      'preflight'      => @preflight,
+      'window_changed' => @window_changed,
+      'shape_note'     => @shape_note,
+      'quality'        => (@quality_problems || []),
+      'srgb'           => (@srgb_problems || []),
+      'lost'           => lost_rows(@plan_files, (@results || []).map { |r| r[:file] }),
+      'mode_note'      => @mode_note }
+  end
+
+  # Write claude-prompt.txt beside manifest.json and hand the text to the
+  # window. Its own rescue: a prompt that cannot be written costs nothing
+  # else, and says so.
+  def self.write_prompt(dir, data, dlg)
+    txt = agent_prompt(data, prompt_facts)
+    File.open(File.join(dir, 'claude-prompt.txt'), 'w') { |f| f.write(txt) }
+    @last_prompt = txt
+    log(dlg, 'claude-prompt.txt written - the PROMPT FOR CLAUDE box below ' \
+             'holds the same text', 'dim')
+  rescue StandardError => e
+    @last_prompt = nil
+    log(dlg, "claude-prompt.txt NOT written: #{e.class}: #{e.message}", 'bad')
+  end
+
+  # Rebuild a prompt from a folder's manifest.json, e.g. in the Ruby Console:
+  #   puts WR_ProposalPackage.prompt_for("Z:/Sketchup/Proposals/Job", "Client")
+  def self.prompt_for(dir, client = '')
+    m = JSON.parse(File.read(File.join(dir.to_s, 'manifest.json')))
+    m['output_dir'] = dir.to_s if m['output_dir'].to_s.empty?
+    agent_prompt(m, { 'client' => client, 'reconstructed' => true })
+  end
+
   # ----------------------------------------------------------------- state --
 
   # each_with_index over model.pages and nothing re-sorts it — the number IS
@@ -1264,6 +1417,12 @@ module WR_ProposalPackage
     # root's. Only WR_Folder remembers `root`.
     @per_model = (cfg['sub'] != false && cfg['sub'].to_s != 'false')
     @root = root
+    # CLIENT NAME (1.35.0) - only ever used in the prompt for Claude.
+    @client = cfg['client'].to_s.strip
+    @preflight = nil
+    @window_changed = nil
+    @shape_note = nil
+    @last_prompt = nil
     dir, dir_note = resolve_dir(root, @per_model, model.title)
     if dir.nil?
       UI.messagebox('Choose a root folder first.')
@@ -1323,6 +1482,7 @@ module WR_ProposalPackage
       puts "  preflight itself failed: #{e.class}: #{e.message}"
       nil
     end
+    @preflight = pf
     failing = (pf || []).select { |r| r['status'] == 'fail' }
     # THE DIMENSION-TAGS ROW DOES NOT BLOCK THIS EXPORT (1.30.1). Benton,
     # 10 Sep 2026: "ignore the dimensions flags off for preflight." Since
@@ -1558,6 +1718,8 @@ module WR_ProposalPackage
         ih = (out_w.to_i * vh / vw.to_f).round
         puts "  plain images: #{out_w}x#{ih} - the window's shape "              "(#{vw}x#{vh}), so screen notes land where they were placed"
         if (ih - out_h.to_i).abs > 2
+          @shape_note = "plain images are #{out_w}x#{ih} (the window's shape, " \
+                        "#{vw}x#{vh}); V-Ray renders are #{out_w}x#{out_h}"
           log(dlg, "plain images will be #{out_w}x#{ih} (the SketchUp window "                    "is #{vw}x#{vh}); V-Ray renders stay #{out_w}x#{out_h}. "                    "Written at the window's shape so screen-anchored notes "                    'land where you placed them. For image and render plates '                    'of ONE shape, make the window '                    "#{out_w}:#{out_h} first (undock trays / resize) and run again.", 'bad')
         end
         # THE WINDOW IS AN INPUT NOW, SO A CHANGED WINDOW IS SAID OUT LOUD
@@ -1568,6 +1730,8 @@ module WR_ProposalPackage
         # no-leader note disagrees with the ones about to be written.
         prev = prior_viewport(dir)
         if prev && (prev[0] != vw || prev[1] != vh)
+          @window_changed = "this folder's earlier plates were written from a " \
+                            "#{prev[0]}x#{prev[1]} window; this run is #{vw}x#{vh}"
           log(dlg, "WINDOW CHANGED: this folder's earlier plates were written "                    "from a #{prev[0]}x#{prev[1]} window; this run is #{vw}x#{vh}. "                    'Screen notes (no leader) will sit differently from those '                    'plates - re-export the whole folder from one window shape '                    'before nudging any note to fit.', 'bad')
         end
         if (ih - out_h.to_i).abs <= 2
@@ -3132,6 +3296,7 @@ module WR_ProposalPackage
              'model_path'  => model.path.to_s,
              'output_root' => @root.to_s,
              'per_model_folder' => (@per_model ? true : false),
+             'output_dir'  => dir,
              'booth_groups' => booth_groups(model),
              'width'       => @cfg['width'].to_i,
              'height'      => @cfg['height'].to_i,
@@ -3154,6 +3319,7 @@ module WR_ProposalPackage
          "#{annots.size} annotation(s)"
     log(dlg, "manifest.json written - #{data['images'].size} image row(s), " \
              "#{annots.size} annotation(s)", 'dim')
+    write_prompt(dir, data, dlg)
   rescue StandardError => e
     puts "  *** manifest.json NOT written: #{e.class}: #{e.message}"
     log(dlg, "MANIFEST NOT WRITTEN: #{e.class}: #{e.message} - the images " \
@@ -3344,6 +3510,13 @@ module WR_ProposalPackage
       log(dlg, l.to_s, bad ? 'bad' : 'dim')
     end
     (@unmapped || []).each { |s| log(dlg, "unmapped  #{s}", 'bad') }
+    if @last_prompt
+      begin
+        dlg.execute_script("showPrompt(#{@last_prompt.to_json})")
+      rescue StandardError
+        nil
+      end
+    end
 
     # D11 -- the closing verdict counts lost rows too, so the window can no
     # longer say 'Done. Model restored.' on a short delivery.
@@ -4773,6 +4946,10 @@ module WR_ProposalPackage
   <label class="shadelbl" id="dest"></label>
   <span></span>
 
+  <span class="lbl">CLIENT</span>
+  <input type="text" id="client" value="#{escAttr(fname)}" style="max-width:320px">
+  <span class="lbl">Goes into the PROMPT FOR CLAUDE after the run, nothing else. Starts as the model's file name; type the client's real name.</span>
+
   <span class="lbl">IMAGES</span>
   <div class="half">
     <span class="lbl">WIDTH</span><input type="text" id="width" value="#{escAttr(width)}">
@@ -4821,6 +4998,22 @@ module WR_ProposalPackage
     <span class="mini" title="Minimise">&minus;</span>
   </div>
   <div class="bodyy"><div class="runlog" id="log"></div></div>
+</div>
+
+<div class="sect" id="promptsect" style="display:none">
+  <div class="hd">
+    <span class="tri">&#9660;</span>
+    <span class="lbl">PROMPT FOR CLAUDE</span>
+    <span class="sum">the same text is saved as claude-prompt.txt in the folder</span>
+    <span class="mini" title="Minimise">&minus;</span>
+  </div>
+  <div class="bodyy">
+    <textarea id="prompt" readonly spellcheck="false" style="width:100%;height:160px;font:11px/1.35 Consolas,monospace;background:#20262a;color:#cdd6da;border:1px solid var(--line);padding:6px;box-sizing:border-box;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+      <button class="btn p" id="copyp">Copy prompt</button>
+      <span id="copymsg" class="lbl" style="font-weight:400;letter-spacing:0">Paste it into a Claude session to start the proposal build. Fill in the &lt;fill in&gt; lines first.</span>
+    </div>
+  </div>
 </div>
 
 <div class="bar">
@@ -5694,6 +5887,26 @@ module WR_ProposalPackage
   window.runFinished = function (msg) {
     running = false; g("cancel").style.display="none"; $pmsg.textContent = msg; draw();
   };
+  // PROMPT FOR CLAUDE (1.35.0). Copy the way list-scenes.rb does: select the
+  // textarea and execCommand("copy"). navigator.clipboard needs a secure
+  // context CEF does not give an HtmlDialog, so it is not relied on. The
+  // return value is shown: a refused copy leaves the text SELECTED and says
+  // "press Ctrl+C", so the button can never silently do nothing.
+  window.showPrompt = function (t) {
+    var ps = g("promptsect"); ps.style.display = ""; ps.classList.add("open");
+    var tri = ps.querySelector(".tri"); if(tri) tri.innerHTML = "&#9660;";
+    g("prompt").value = t;
+    g("copymsg").textContent = "Paste it into a Claude session to start the proposal build. Fill in the <fill in> lines first.";
+  };
+  g("copyp").addEventListener("click", function(){
+    var ta = g("prompt"); ta.removeAttribute("readonly");
+    ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
+    var ok = false;
+    try { ok = document.execCommand("copy") === true; } catch (e) { ok = false; }
+    ta.setAttribute("readonly", "readonly");
+    g("copymsg").textContent = ok ? ("Copied " + ta.value.length + " characters.")
+                                  : "This window refused the copy - the text is selected, press Ctrl+C.";
+  });
 
   // ---- wiring ----
   Array.prototype.forEach.call(document.querySelectorAll("[data-bulk]"), function(el){
@@ -5752,7 +5965,8 @@ module WR_ProposalPackage
         shade: g("shade").checked,
         annot: g("annot").value,
         transp: g("transp").checked,
-        sub:   g("sub").checked
+        sub:   g("sub").checked,
+        client: g("client").value
       }));
   });
 

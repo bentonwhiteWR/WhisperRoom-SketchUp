@@ -1259,3 +1259,20 @@ images plain image rows or ` render.png` rows?"**
   Manifest: `output_root`, `per_model_folder`.
 - Check: saved model → GOES TO shows `<root>/<name>/`, export, PNG in it;
   untick → root.
+
+
+---
+
+# HANDOFF — prompt for Claude (Fixer, 10 Sep 2026, 1.35.0)
+
+- `agent_prompt(manifest, facts)` pure, ap1–ap6 in the harness;
+  `prompt_facts` (preflight, WINDOW CHANGED, size mismatch, quality,
+  sRGB, lost rows, mode note); `write_prompt` → `claude-prompt.txt`;
+  `prompt_for(dir, client)` rebuilds from a manifest (warnings "NOT
+  AVAILABLE", never "none").
+- CLIENT field (seeded with the model name, prompt-only). Manifest
+  `output_dir`. PROMPT FOR CLAUDE section appears after the run; copy via
+  select + execCommand with the result shown, Ctrl+C fallback stated.
+- Two-point per plate keeps provenance: yes / no / unknown / LOST.
+- Check: export, Copy prompt, paste into Notepad; compare to
+  claude-prompt.txt.

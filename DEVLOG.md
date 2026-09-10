@@ -1,6 +1,66 @@
 # DEVLOG
 
 ## 2026-09-10
+### A prompt for Claude at the bottom of the proposal package — 1.35.0
+
+Benton, 10 Sep 2026: *"Can it also have a box at the bottom filled with
+a 'prompt' to send claude? This would initiate the 'proposal skill' and
+any other info/order, etc, location of files, etc. Essentially a copy
+and paste from that box to the claude agent."* **Unrun in SketchUp.**
+`rbparse.py` 71/71, `rbtest-proposal.py` PASS with six new cases
+(ap1–ap6) on the composer, `node --check` ok. Minor bump.
+
+**What the prompt carries.** `/whisperroom-proposal`, the client, the
+resolved folder (absolute) and that `manifest.json` is in it and what
+it records; the model and path; every plate **in export order** with
+scene, lane (V-Ray render / plain image), size, status if not ok, its
+two-point state with provenance kept (`yes` / `no` / `unknown (not
+recorded)` / `TWO-POINT PERSPECTIVE LOST on export`), and how many
+walls/objects were hidden by design; the annotation mode (CLIENT-SAFE
+means no callouts exist and none may be invented; PER SCENE means
+transcribe exactly); the background (transparent plates must be
+flattened); then **the run's own warnings** — a failed preflight row
+(the `dims` row excluded, it is not a warning since 1.30.1, so an
+INCOMPLETE booth from 1.25.0 comes through), WINDOW CHANGED, an
+image/render size mismatch, render-quality and sRGB failures, lost
+rows, non-ok rows, the mode note. What the tool cannot know is a
+`<fill in>` line: revision or not and the prior PDF, the hero, anything
+else. It closes with the caption rules from the skill and playbook
+(no prices/lead times, no left/right, exact callouts, ASTM E336 only,
+output folder, no overwriting). Plain text, no markdown.
+
+**Client name.** The tool had no field for one, and the skill's first
+input is the client. A CLIENT text field sits under GOES TO, seeded
+with the model's file name (the new subfolder name) and used for
+nothing but the prompt — a blank one becomes `<client name - fill in>`
+rather than a wrong name.
+
+**Copy that cannot silently fail.** `list-scenes.rb` already copies by
+selecting a textarea and `document.execCommand("copy")`;
+`navigator.clipboard` needs a secure context an HtmlDialog does not
+have, so it is not relied on. The button reports the return value:
+"Copied N characters." or "This window refused the copy - the text is
+selected, press Ctrl+C." — in the refused case the selection is left
+in place so Ctrl+C works. No Ruby-side clipboard exists in this repo
+and none was invented.
+
+**Persistence and reconstruction.** The same text is written to
+`claude-prompt.txt` beside `manifest.json` on every run (own rescue;
+a failure is one `bad` log line). `manifest.json` gains `output_dir`.
+`WR_ProposalPackage.prompt_for(dir, client)` rebuilds a prompt from a
+folder's manifest alone; its warnings line then reads NOT AVAILABLE
+("rebuilt from manifest.json after the fact") rather than "none", so
+a reconstructed prompt never claims a clean run it cannot know about.
+`agent_prompt(manifest, facts)` is pure and tested; `prompt_facts`
+gathers the run's instance state; `write_prompt` does the file.
+
+**Benton's check.** Run an export, press Copy prompt, paste into
+Notepad: it starts with `/whisperroom-proposal`, names the folder that
+GOES TO showed, lists every exported file in the table's order with
+the right lane, says PER SCENE or CLIENT-SAFE correctly, and carries
+any red lines the log showed. Open `claude-prompt.txt` in the folder:
+same text.
+
 ### Per-model subfolder under a root folder — 1.34.0
 
 Benton, 10 Sep 2026, FOLDER showing `Z:/Sketchup/Proposals`: *"I want

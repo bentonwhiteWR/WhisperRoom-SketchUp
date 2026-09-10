@@ -269,6 +269,8 @@ module WR_ProposalPackage
 
 %(resolve_dir)s
 
+%(agent_prompt)s
+
 %(uniquify)s
 
 %(scene_prefix)s
@@ -1120,6 +1122,41 @@ module WR_ProposalPackage
     d6 = resolve_dir('Z:/Sketchup/Proposals', true, 'Bad:Name?.')
     out << (d6[0] == 'Z:/Sketchup/Proposals/Bad-Name-' ? 'dir6 ok' : 'dir6 FAIL ' + d6.inspect)
 
+    # PROMPT FOR CLAUDE (1.35.0): the composer is pure over the manifest.
+    apm = { 'output_dir' => 'Z:/Sketchup/Proposals/Job', 'model' => 'Job',
+            'model_path' => 'Z:/Job.skp',
+            'images' => [
+              { 'file' => '1_Overview.png', 'scene' => 'Overview', 'lane' => 'image',
+                'status' => 'ok', 'detail' => 'image', 'width' => 1600, 'height' => 842,
+                'two_point_view_at_export' => nil, 'two_point_scene' => nil, 'groups_hidden' => [] },
+              { 'file' => '2_Front render.png', 'scene' => 'Front', 'lane' => 'render',
+                'status' => 'ok', 'detail' => 'V-Ray', 'width' => 1600, 'height' => 900,
+                'two_point_view_at_export' => false, 'two_point_scene' => true }],
+            'annotations_hidden_in_images' => false, 'transparent_background' => false }
+    apf = { 'client' => 'PeopleSpace',
+            'preflight' => [
+              { 'id' => 'complete', 'label' => 'Booth has every part', 'status' => 'fail', 'detail' => 'INCOMPLETE booth' },
+              { 'id' => 'dims', 'label' => 'Dimension tags off', 'status' => 'fail', 'detail' => 'Visible: WR-Dims' }],
+            'window_changed' => nil, 'shape_note' => nil, 'quality' => [], 'srgb' => [],
+            'lost' => [], 'mode_note' => nil }
+    ap = agent_prompt(apm, apf)
+    out << (ap.start_with?('/whisperroom-proposal') && ap.include?('PeopleSpace') &&
+            ap.include?('Z:/Sketchup/Proposals/Job') ? 'ap1 ok' : 'ap1 FAIL ' + ap[0, 120].inspect)
+    i1 = ap.index('1_Overview.png'); i2 = ap.index('2_Front render.png')
+    out << (i1 && i2 && i1 < i2 && ap.include?('V-Ray render') && ap.include?('plain image') ?
+              'ap2 ok' : 'ap2 FAIL order/lane')
+    out << (ap.include?('two-point perspective: unknown') && ap.include?('TWO-POINT PERSPECTIVE LOST') ?
+              'ap3 ok' : 'ap3 FAIL two-point provenance')
+    out << (ap.include?('INCOMPLETE booth') && !ap.include?('Visible: WR-Dims') ?
+              'ap4 ok' : 'ap4 FAIL preflight carry-over')
+    md = ap.split("\n").any? { |x| x.start_with?('#') || x.include?('**') }
+    apc = agent_prompt(apm.merge('annotations_hidden_in_images' => true), apf)
+    out << (!md && apc.include?('CLIENT-SAFE') && ap.include?('PER SCENE') ?
+              'ap5 ok' : 'ap5 FAIL markdown or annotation mode')
+    apr = agent_prompt(apm, { 'client' => '', 'reconstructed' => true })
+    out << (apr.include?('rebuilt from manifest.json') && apr.include?('<client name - fill in>') ?
+              'ap6 ok' : 'ap6 FAIL reconstructed wording')
+
     out.join(' | ')
   end
 end
@@ -1195,7 +1232,8 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'mr1 ok | mr2 ok | mr3 ok | mr4 ok | mr5 ok | mr6 ok | mr7 ok | '
           # 1.19.3 -- the shading contract survives the scene switch.
           'shade1 ok | shade2 ok | shade3 ok | shade4 ok | '
-          'dir1 ok | dir2 ok | dir3 ok | dir4 ok | dir5 ok | dir6 ok')
+          'dir1 ok | dir2 ok | dir3 ok | dir4 ok | dir5 ok | dir6 ok | '
+          'ap1 ok | ap2 ok | ap3 ok | ap4 ok | ap5 ok | ap6 ok')
 
 
 def main():
@@ -1235,6 +1273,7 @@ def main():
         'forbidden':         const_line('FORBIDDEN'),
         'sanitize':          rbtest.method_source(SRC, 'sanitize'),
         'resolve_dir':       rbtest.method_source(SRC, 'resolve_dir'),
+        'agent_prompt':      rbtest.method_source(SRC, 'agent_prompt'),
         'uniquify':          rbtest.method_source(SRC, 'uniquify'),
         'scene_prefix':      rbtest.method_source(SRC, 'scene_prefix'),
         'plan_names':        rbtest.method_source(SRC, 'plan_names'),
