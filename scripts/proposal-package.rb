@@ -104,6 +104,12 @@ begin
   # wr-scene-walls.rb stays a standalone tool as well; this reuses its
   # inventory/apply so there is ONE mechanism, not two that can disagree.
   load File.join(File.dirname(__FILE__), 'wr-scene-walls.rb')
+  # ...and its annotation twin (1.20.0). Same reasoning one column over: the
+  # operator decides a shot needs the ceiling note gone while they are looking
+  # at the scene list, not in another window. wr-scene-annotations.rb stays a
+  # standalone tool too; this reuses its inventory/apply so there is ONE
+  # mechanism, not two that can disagree.
+  load File.join(File.dirname(__FILE__), 'wr-scene-annotations.rb')
   # The sRGB post-encode for the render lane (the dark-file fix — see the
   # THE DARK RENDERS section above save_frame). Pure Ruby, no tool of its own.
   load File.join(File.dirname(__FILE__), 'wr-png-srgb.rb')
@@ -226,6 +232,19 @@ module WR_ProposalPackage
   # (DIM_TAGS + WR-Notes since 1.9.3); named here only so the client-safe
   # image pass and the mode machinery cannot drift apart.
   ANNOT_TAGS = WR_Mode::ANNOT_TAGS
+
+  # ...and since 1.20.0 the family is a PATTERN as well as those five names.
+  # wr-scene-annotations.rb lets Benton create sets — WR-Notes-Plan,
+  # WR-Dims-Booth-Alt — and a set this list had never heard of would sail
+  # straight through the client-safe pass, which is defect D5 verbatim. So
+  # every client-safe site asks the model, not the constant. The constant
+  # remains the floor and the fallback: WR_ProposalScenes.annot_tags rescues
+  # to it, so an unreadable layer collection still hides the five.
+  def self.annot_tags(model)
+    WR_ProposalScenes.annot_tags(model)
+  rescue StandardError
+    ANNOT_TAGS
+  end
 
   # F3 (render-lane audit) -- where a model goes when it started in no mode
   # at all. WR_Mode.current returns 'unknown (never toggled)' on a model with
@@ -496,7 +515,17 @@ module WR_ProposalPackage
     'image is missing BY DESIGN (per-scene wall hiding, wr-scene-walls.rb), ' \
     'not a modelling error. Read from the live model after the row\'s scene ' \
     'was selected. null = not recorded (row failed, skipped, or lost) - ' \
-    'never means nothing was hidden; [] means that.'
+    'never means nothing was hidden; [] means that.',
+    'annotation_tags_hidden: annotation sets (tags) the scene\'s SAVED state ' \
+    'hides - a callout missing from the image is missing BY DESIGN ' \
+    '(per-scene annotation hiding, wr-scene-annotations.rb). null = ' \
+    'unreadable, never means nothing was hidden; [] means that.',
+    'annotations_hidden: single callouts (kind, tag, text) hidden in the ' \
+    'model when this row exported - the same BY DESIGN reading, for items ' \
+    'hidden one by one. A 3D-text label also appears in groups_hidden as ' \
+    '\'label: ...\'. A callout is absent from the image if it is in ' \
+    'annotations_hidden OR its tag is in annotation_tags_hidden. null = not ' \
+    'recorded; [] = nothing hidden singly.'
   ].freeze
 
   # A top-level group/component whose NAME names a booth model. The builders
@@ -539,6 +568,24 @@ module WR_ProposalPackage
     [present - hidden, nil]
   end
 
+  # Which annotation SETS a plate hid by design — the mirror of
+  # shown_annot_tags, and the field a downstream reader needs to tell "that
+  # callout is missing because the scene hides its set" from "the model is
+  # wrong". Same inputs, same honesty rule: nil-with-a-note whenever the
+  # answer cannot be known, never a guessed list.
+  def self.hidden_annot_tags(hidden, use_hidden, present, client_safe)
+    if client_safe
+      return [present, 'batch ran client-safe: every annotation tag was ' \
+                       'hidden in the exported file']
+    end
+    unless use_hidden
+      return [nil, 'unreadable: the scene does not store tag visibility ' \
+                   '(use_hidden_layers off) - the model\'s live state governed']
+    end
+    return [nil, 'unreadable: the scene\'s hidden-tag list could not be read'] if hidden.nil?
+    [present & hidden, nil]
+  end
+
   # Join the planned rows against what the batch actually reported, in export
   # order. A planned row with no result is a LOST row and says so — same
   # doctrine as lost_rows/summary_lines, never a silent omission.
@@ -560,8 +607,14 @@ module WR_ProposalPackage
       row['width']  = (r && r[:width])  ? r[:width]  : nil
       row['height'] = (r && r[:height]) ? r[:height] : nil
       row['groups_hidden'] = (r && r[:groups_hidden]) ? r[:groups_hidden] : nil
-      row['annotation_tags_shown'] = p[:shown]
+      # 1.20.0 — the two annotation-hiding records, same doctrine as
+      # groups_hidden: null means NOT RECORDED, [] means nothing was hidden.
+      row['annotations_hidden'] = (r && r[:annotations_hidden]) ?
+                                    r[:annotations_hidden] : nil
+      row['annotation_tags_shown']  = p[:shown]
+      row['annotation_tags_hidden'] = p[:hid]
       row['annotation_note'] = p[:shown_note] if p[:shown_note]
+      row['annotation_hidden_note'] = p[:hid_note] if p[:hid_note]
       row
     end
   end
@@ -1118,6 +1171,7 @@ module WR_ProposalPackage
     @idle_since       = nil
     @shade_saved   = nil
     @annot_saved   = nil
+    @annot_saved_entities = nil
     @client_safe   = client_safe
     @mode_note     = nil
     @quality_problems = []
@@ -1436,8 +1490,13 @@ module WR_ProposalPackage
     # it back on every exit path including a partial failure.
     saved = {}
     @annot_saved = saved
+    # ...and the SAME discipline, published just as early, for the single
+    # callouts the tag pass cannot reach. See THE UNTAGGED HOLE below.
+    ents = {}
+    @annot_saved_entities = ents
     missing = []
-    ANNOT_TAGS.each do |n|
+    family = annot_tags(model)
+    family.each do |n|
       l = model.layers[n]
       if l.nil?
         missing << n
@@ -1451,6 +1510,55 @@ module WR_ProposalPackage
              (shown.empty? ? ' (none were showing)' : " - #{shown.join(', ')} " \
               'were visible and would have gone out on a client image'), 'dim')
     log(dlg, "        not in this model: #{missing.join(', ')}", 'dim') unless missing.empty?
+
+    # THE UNTAGGED HOLE, CLOSED (1.20.0). Until now this method hid TAGS and
+    # nothing else, and the probe of 9 Sep 2026 settled why that was not
+    # enough: `tag.untagged_can_hide` FAILED -- SketchUp will not hide the
+    # Untagged tag at all. Hand-placed text lands on Untagged, so a note
+    # Benton typed into the model went out on a CLIENT-FACING image while
+    # this log said "CLIENT-SAFE: hid 5 annotation tag(s)" and the manifest
+    # said annotations_hidden_in_images: true. Silently wrong, in front of a
+    # customer, which is the worst failure this file can have.
+    #
+    # So every loose callout -- a Text, a dimension or a `label:` 3D group on
+    # any tag OUTSIDE the family -- is hidden per ENTITY as well, through the
+    # same flag wr-scene-annotations.rb uses. Family tags are skipped: they
+    # are already off above, and flipping their members individually would
+    # only make more to put back.
+    #
+    # CAPTURE BEFORE MUTATE, one entity at a time, exactly as the tags are:
+    # `ents` is published to @annot_saved_entities before the first flip and
+    # filled in place, each entry written before that entity is touched. So a
+    # raise partway through still leaves annot_pop able to put back every
+    # entity it actually moved.
+    #
+    # NOTHING HERE IS EVER SAVED INTO A SCENE. These are live model flags;
+    # only page.update writes them into a page, and this file never calls it.
+    # The scenes' own saved annotation state is untouched by a client-safe run.
+    loose = loose_annotations(model, family)
+    if loose.nil?
+      log(dlg, '        the loose-callout walk could not be read, so text on ' \
+               'Untagged may still be in this image - check it before sending.', 'bad')
+    else
+      was_showing = 0
+      loose.each do |e|
+        ents[e.entityID] = [e, ((e.hidden? rescue false) ? true : false)]  # recorded first...
+        was_showing += 1 unless ents[e.entityID][1]
+        e.hidden = true                                                   # ...then flipped
+      end
+      if loose.empty?
+        log(dlg, '        no loose callouts outside the sets - nothing on ' \
+                 'Untagged to hide.', 'dim')
+      else
+        log(dlg, "        hid #{loose.size} loose callout(s) not on any " \
+                 "annotation set (#{was_showing} were visible and would have " \
+                 'gone out on a client image) - SketchUp cannot hide the ' \
+                 'Untagged tag, so these go one by one. Scope: model space ' \
+                 "and #{WR_SceneAnnotations::DEPTH} container(s) deep; a " \
+                 'callout buried deeper than that is only reached by putting ' \
+                 'it on an annotation set.', 'dim')
+      end
+    end
   rescue StandardError => e
     # TELL THE TRUTH ABOUT WHICH WAY IT FAILED. The old message said only
     # 'annotation may be visible in this image' -- the opposite of the actual
@@ -1459,24 +1567,95 @@ module WR_ProposalPackage
     # be restored by finish, and the ones never reached are still showing, so
     # the image may carry construction annotation after all.
     done = (@annot_saved || {}).size
-    left = ANNOT_TAGS.size - done
+    ents_done = (@annot_saved_entities || {}).size
+    left = (annot_tags(model).size rescue ANNOT_TAGS.size) - done
     log(dlg, "CLIENT-SAFE FAILED PARTWAY for #{file}: #{e.class}: #{e.message}", 'bad')
-    log(dlg, "        #{done} tag(s) were hidden and ARE recorded - finish " \
-             'will put them back. ' \
+    log(dlg, "        #{done} tag(s) and #{ents_done} loose callout(s) were " \
+             'hidden and ARE recorded - finish will put them back. ' \
              "#{left} tag(s) were not reached and are still visible, so " \
              'construction annotation may be in this image. Check the image ' \
              'before sending, and check the tags in the model after the batch.', 'bad')
   end
 
+  # Every loose callout in the model -- a Text, a dimension or a `label:` 3D
+  # group whose tag is NOT in the annotation family, so the tag pass above
+  # cannot reach it. One walk, no mutation. nil (never []) when the walk
+  # itself fails, because "unreadable" and "there were none" are different
+  # answers and the caller says which one it got.
+  def self.loose_annotations(model, family)
+    fam = Array(family)
+    out = []
+    WR_SceneAnnotations.each_annotation(model.entities) do |e, _kind|
+      out << e unless fam.include?(WR_SceneAnnotations.tag_of(e))
+    end
+    out
+  rescue StandardError
+    nil
+  end
+
+  # WHATEVER WAS HIDDEN GOES BACK, on every exit path. Both halves are
+  # restored, and each entry in its own rescue, so one locked tag or one
+  # erased entity cannot strand the rest of the model hidden -- the failure
+  # this method exists to prevent.
   def self.annot_pop(model, dlg)
-    return if @annot_saved.nil?
-    @annot_saved.each do |n, vis|
-      l = model.layers[n]
-      l.visible = vis if l
+    return if @annot_saved.nil? && @annot_saved_entities.nil?
+    failed = []
+    (@annot_saved || {}).each do |n, vis|
+      begin
+        l = model.layers[n]
+        l.visible = vis if l
+      rescue StandardError => e
+        failed << "tag #{n} (#{e.class})"
+      end
+    end
+    (@annot_saved_entities || {}).each do |id, pair|
+      begin
+        e   = pair[0]
+        was = pair[1]
+        next unless e && (e.valid? rescue false)
+        e.hidden = was
+      rescue StandardError => ex
+        failed << "callout #{id} (#{ex.class})"
+      end
+    end
+    unless failed.empty?
+      log(dlg, 'these could NOT be put back and are still hidden in the ' \
+               "model: #{failed.join(', ')}", 'bad')
     end
     @annot_saved = nil
+    @annot_saved_entities = nil
   rescue StandardError => e
-    log(dlg, "annotation tags could not be put back: #{e.class}: #{e.message}", 'bad')
+    log(dlg, "annotation state could not be put back: #{e.class}: #{e.message}", 'bad')
+  end
+
+  # THE IMAGE LANE UNDOES THE ENTITY HIDES AND MUST BE MADE TO REDO THEM.
+  # Selecting a page re-applies that scene's saved per-entity hidden state --
+  # that is the whole mechanism wr-scene-annotations.rb rides on -- so
+  # export_pages' own `pages.selected_page =` puts every callout annot_push
+  # just hid straight back, between the push and write_image. Exactly the
+  # 1.9.12 tag defect and the 1.19.3 shading defect, one property over. So
+  # this rides the same after_switch hook they do. Idempotent by design: it
+  # re-asserts the flag from the record and touches nothing the record does
+  # not name.
+  def self.annot_reapply(model, dlg, page)
+    return if @annot_saved_entities.nil? || @annot_saved_entities.empty?
+    n = 0
+    @annot_saved_entities.each_value do |pair|
+      e = pair[0]
+      next unless e && (e.valid? rescue false)
+      next if (e.hidden? rescue true)
+      e.hidden = true
+      n += 1
+    end
+    # Tags too: export_pages re-hides the ones in cfg['hide_tags'], which is
+    # the same family list, so they are covered there. Only the count is
+    # logged here, and only when the switch actually undid something.
+    log(dlg, "        re-hid #{n} loose callout(s) after the scene switch " \
+             "(#{(page.name rescue '?')})", 'dim') if n > 0
+  rescue StandardError => e
+    log(dlg, 'loose callouts could NOT be re-hidden after the scene switch: ' \
+             "#{e.class}: #{e.message} - text on Untagged may be in this " \
+             'image. Check it before sending.', 'bad')
   end
 
   # AUDIT THE V-RAY SETTINGS. DO NOT OVERWRITE THEM. (1.9.4)
@@ -1636,7 +1815,13 @@ module WR_ProposalPackage
     { 'dir' => @cfg['dir'], 'width' => @cfg['width'],
       'height' => @cfg['height'], 'bg' => 'Opaque', 'over' => 'Yes',
       'hide_tags' => hide,
-      'after_switch' => lambda { |m, pg| shade_reapply(m, dlg, pg) } }
+      # BOTH re-asserts ride this hook, because the page switch undoes both:
+      # the shading contract (1.19.3) and, since 1.20.0, the client-safe
+      # per-entity hides annot_push made (annot_reapply).
+      'after_switch' => lambda { |m, pg|
+        shade_reapply(m, dlg, pg)
+        annot_reapply(m, dlg, pg)
+      } }
   end
 
   def self.unit_image(model, dlg, p)
@@ -1659,7 +1844,9 @@ module WR_ProposalPackage
     # WHICH annotation tags were showing, and it covers the render lane, which
     # does not go through export_pages at all.
     hide = WR_Mode::LIGHT_TAGS.dup
-    hide.concat(ANNOT_TAGS) if @client_safe
+    # The LIVE family (1.20.0): a set Benton made this afternoon is hidden by
+    # tonight's client-safe run. annot_tags rescues to the frozen five.
+    hide.concat(annot_tags(model)) if @client_safe
     # ...and the shading contract rides the same hook (after_switch), for the
     # same reason: the scene puts its own shadow info back on selection.
     cfg  = image_cfg(hide, dlg)
@@ -1672,8 +1859,10 @@ module WR_ProposalPackage
     begin
       model.pages.selected_page = p[:page] if p[:page]
       p[:groups_hidden] = collect_hidden_groups(model)
+      p[:annotations_hidden] = collect_hidden_annotations(model)
     rescue StandardError
       p[:groups_hidden] = nil
+      p[:annotations_hidden] = nil
     end
     begin
       annot_push(model, dlg, p[:file])
@@ -1688,6 +1877,7 @@ module WR_ProposalPackage
                     # :width/:height feed manifest.json — the size the export
                     # ACTUALLY used, not the size that was asked for.
                     :groups_hidden => p[:groups_hidden],
+                    :annotations_hidden => p[:annotations_hidden],
                     :width => x[:width].to_i, :height => x[:height].to_i,
                     :detail => "image, #{x[:width]}x#{x[:height]} " \
                                "(height #{x[:height_source]})" }
@@ -1770,6 +1960,7 @@ module WR_ProposalPackage
     # after the scene switch applied its saved hidden state, so the manifest
     # says which walls this render is missing BY DESIGN.
     p[:groups_hidden] = collect_hidden_groups(model)
+    p[:annotations_hidden] = collect_hidden_annotations(model)
     page_cam = (p[:page].camera rescue nil)
     if page_cam
       begin
@@ -2176,6 +2367,7 @@ module WR_ProposalPackage
                     # The size written into /SettingsOutput and read back by
                     # the size gate — det already names where it came from.
                     :groups_hidden => p[:groups_hidden],
+                    :annotations_hidden => p[:annotations_hidden],
                     :width => @cfg['width'].to_i, :height => @cfg['height'].to_i,
                     :detail => det }
       log(dlg, "ok      #{p[:file]}  (#{det})", 'ok')
@@ -2272,6 +2464,16 @@ module WR_ProposalPackage
       when Sketchup::Text
         out << { 'kind' => 'text', 'tag' => ent_tag(e),
                  'text' => (e.text.to_s rescue '') }
+      when Sketchup::Group
+        # A 3D-text label is real geometry in a group named "label: ...", not
+        # a Text entity (add_3d_text). The WR tools have written them since
+        # 1.19.16 and the manifest could not see one; wr-scene-annotations.rb
+        # hides them per scene, so the manifest has to be able to name them.
+        nm = (e.name.to_s rescue '')
+        if nm =~ WR_SceneAnnotations::LABEL_RE
+          out << { 'kind' => '3d_text', 'tag' => ent_tag(e),
+                   'text' => nm.sub(WR_SceneAnnotations::LABEL_RE, '') }
+        end
       end
     end
     out
@@ -2323,6 +2525,26 @@ module WR_ProposalPackage
     nil
   end
 
+  # Single callouts hidden in the model RIGHT NOW — the per-scene ANNOTATION
+  # record (wr-scene-annotations.rb), the twin of collect_hidden_groups and
+  # read at the same moment, right after the row's scene was selected and
+  # applied its saved state. Tag-hidden sets are NOT in here: they are
+  # reported as annotation_tags_hidden, from the page's own hidden-tag list.
+  # nil (never []) when the walk fails, because a reader must not mistake
+  # "unreadable" for "nothing was hidden".
+  def self.collect_hidden_annotations(model)
+    out = []
+    WR_SceneAnnotations.each_annotation(model.entities) do |e, kind|
+      next unless (e.hidden? rescue false)
+      out << { 'kind' => (kind == '3d' ? '3d_text' : kind),
+               'tag'  => WR_SceneAnnotations.tag_of(e),
+               'text' => WR_SceneAnnotations.text_of(e, kind) }
+    end
+    out
+  rescue StandardError
+    nil
+  end
+
   # Tag names a scene's saved state HIDES, or nil when that cannot be read.
   # Sketchup::Page#layers returning the HIDDEN layers is OBSERVED (31 Aug
   # 2026, SketchUp 2026, scripted run): a scene saved with all four annot
@@ -2356,7 +2578,8 @@ module WR_ProposalPackage
     return if plan.nil? || plan.empty?
     dir = @cfg && @cfg['dir'].to_s
     return if dir.nil? || dir.empty?
-    present = ANNOT_TAGS.select { |n| (model.layers[n] rescue nil) }
+    # The LIVE family, so a set Benton made is reported as one (1.20.0).
+    present = annot_tags(model).select { |n| (model.layers[n] rescue nil) }
     rows = plan.map do |p|
       page  = p[:page]
       scene = begin
@@ -2369,10 +2592,12 @@ module WR_ProposalPackage
       rescue StandardError
         nil
       end
-      shown, note = shown_annot_tags(page_hidden_tags(page), use_h, present,
-                                     @client_safe)
+      hid_tags    = page_hidden_tags(page)
+      shown, note = shown_annot_tags(hid_tags, use_h, present, @client_safe)
+      hid, hnote  = hidden_annot_tags(hid_tags, use_h, present, @client_safe)
       { :file => p[:file], :n => p[:n], :lane => p[:lane], :scene => scene,
-        :shown => shown, :shown_note => note }
+        :shown => shown, :shown_note => note,
+        :hid => hid, :hid_note => hnote }
     end
     annots = collect_annotations(model)
     data = { 'format'      => MANIFEST_FORMAT,
@@ -2453,13 +2678,14 @@ module WR_ProposalPackage
     # ANNOTATION TAGS back BEFORE the mode restore, so the visibilities
     # WR_Mode records into its snapshot are the model's real ones and not the
     # client-safe pass's temporary hiding.
-    if @annot_saved
+    if @annot_saved || @annot_saved_entities
       begin
         annot_pop(model, dlg)
       rescue Exception => e
-        restore_errs << "annotation tag restore: #{e.class}: #{e.message}"
+        restore_errs << "annotation restore: #{e.class}: #{e.message}"
       ensure
         @annot_saved = nil
+        @annot_saved_entities = nil
       end
     end
 
@@ -2994,6 +3220,97 @@ module WR_ProposalPackage
       end
     end
 
+    # ---- per-scene ANNOTATION hiding, in this window (1.20.0) --------------
+    #
+    # The same contract as the walls picker one column over, and for the same
+    # reason: a scene's hidden callouts can only be read or written while THAT
+    # scene is selected, so opening the picker selects the scene and closing it
+    # puts the operator back. @walls_return is deliberately shared — only one
+    # modal can be open at a time, and two return slots could disagree about
+    # where "back" is.
+    d.add_action_callback('annotsopen') do |_c, n|
+      next if busy?(d, 'annotsopen')
+      begin
+        pg = model.pages.to_a[n.to_i - 1]
+        raise "scene #{n} is gone — hit Rescan" if pg.nil?
+        @walls_return ||= model.pages.selected_page
+        model.pages.selected_page = pg
+        st = WR_SceneAnnotations.state_hash(model)
+        warn = WR_SceneAnnotations.pages_not_saving(model).include?(pg.name.to_s)
+        d.execute_script('annotsShow(' + { 'n' => n.to_i, 'scene' => pg.name.to_s,
+                                           'sets' => st['sets'], 'loose' => st['loose'],
+                                           'warn' => warn }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('annotsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    d.add_action_callback('annotsapply') do |_c, payload|
+      next if busy?(d, 'annotsapply')
+      begin
+        req   = JSON.parse(payload.to_s)
+        picks = {}
+        (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
+        ok, msg = WR_SceneAnnotations.apply(model, picks)
+        d.execute_script('annotsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        log(d, msg, ok ? 'dim' : 'bad')
+      rescue StandardError => e
+        d.execute_script('annotsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # Click the callout in the viewport, then this.
+    d.add_action_callback('annotspick') do |_c, _p|
+      next if busy?(d, 'annotspick')
+      begin
+        keys, hint, _others = WR_SceneAnnotations.keys_for_selection(model)
+        d.execute_script('annotsPicked(' +
+                         { 'keys' => keys, 'hint' => hint }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('annotsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # And the other way: show me which one this row is.
+    d.add_action_callback('annotsreveal') do |_c, key|
+      next if busy?(d, 'annotsreveal')
+      begin
+        ok, msg = WR_SceneAnnotations.reveal(model, key.to_s)
+        d.execute_script('annotsNote(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('annotsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # MODEL state, not scene state — the dialog says so, and the message says
+    # by name what it refused to move.
+    d.add_action_callback('annotsmove') do |_c, payload|
+      next if busy?(d, 'annotsmove')
+      begin
+        req = JSON.parse(payload.to_s)
+        ok, msg = WR_SceneAnnotations.move_selection_to_set(model, req['name'])
+        st = WR_SceneAnnotations.state_hash(model)
+        d.execute_script('annotsMoved(' + { 'ok' => ok, 'msg' => msg,
+                                            'sets' => st['sets'],
+                                            'loose' => st['loose'] }.to_json + ')')
+        log(d, msg, ok ? 'dim' : 'bad')
+      rescue StandardError => e
+        d.execute_script('annotsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    d.add_action_callback('annotsclose') do |_c, _p|
+      begin
+        if @walls_return && @walls_return.valid?
+          model.pages.selected_page = @walls_return
+        end
+      rescue StandardError => e
+        puts "  could not restore the scene you were on: #{e.class}: #{e.message}"
+      ensure
+        @walls_return = nil
+      end
+    end
+
     d.add_action_callback('browse') do |_c, cur|
       begin
         start = cur.to_s.strip.delete('"')
@@ -3133,6 +3450,52 @@ module WR_ProposalPackage
   #wfoot button { font:inherit; font-size:12px; padding:5px 13px; border:1px solid var(--line);
     border-radius:3px; background:var(--surface); cursor:pointer; }
   #wfoot button.prim { background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* per-scene annotation hiding — the ANNOTATIONS column's modal. It reuses
+     the walls modal's w* classes wherever the shape is the same; these are
+     only the parts a unified set/callout list needs and walls does not. */
+  #awrap { display:none; position:fixed; inset:0; background:rgba(20,24,28,.44);
+    align-items:center; justify-content:center; z-index:50; }
+  #acard { background:var(--surface); border:1px solid var(--line); border-radius:6px;
+    width:min(560px,94vw); max-height:86vh; display:flex; flex-direction:column;
+    box-shadow:0 10px 34px rgba(0,0,0,.28); }
+  #atitle { font-weight:650; padding:12px 14px 8px; font-size:13px; }
+  #abody { overflow:auto; padding:0 14px; flex:1 1 auto; }
+  #afoot { display:flex; gap:8px; padding:10px 14px 12px; border-top:1px solid var(--line); }
+  #afoot button { font:inherit; font-size:12px; padding:5px 13px; border:1px solid var(--line);
+    border-radius:3px; background:var(--surface); cursor:pointer; }
+  #afoot button.prim { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .wrh .links { margin-left:auto; text-transform:none; letter-spacing:0; font-size:11px; }
+  .wrh .links a { color:var(--muted); cursor:pointer; text-decoration:underline dotted; }
+  .wrh .links a:hover { color:var(--accent); }
+  /* the callout's own text can be long; it truncates with an ellipsis and the
+     full string rides in the title attribute. min-width:0 is what lets a flex
+     child actually shrink — without it the row just overflows the card. */
+  .wrow label { min-width:0; }
+  .wrow .txt { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .wrow .cnt, .wrow .kind { color:var(--muted); font-size:11px; white-space:nowrap; }
+  .wrow .kind { font:10px Consolas,monospace; border:1px solid var(--line);
+    border-radius:3px; padding:0 4px; }
+  .wrow.member { padding-left:22px; }
+  .wrow.member.dis { opacity:.5; }
+  .wrow.member.dis label { cursor:default; }
+  .wrow.member.dis .with { color:var(--accent); font-size:10.5px; margin-left:auto;
+    white-space:nowrap; }
+  .aexp { border:0; background:transparent; color:var(--faint); cursor:pointer;
+    font-size:10px; padding:0 2px; width:16px; }
+  .aexp:hover { color:var(--accent); }
+  .ahint { font-size:11px; color:var(--muted); margin:4px 0 6px 2px; line-height:1.45; }
+  .amove { border-top:1px solid var(--line); margin-top:6px; padding:8px 0 6px;
+    display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .amove .wrh { flex:1 1 100%; margin:0 0 2px; }
+  .amove select, .amove input { font:inherit; font-size:12px; padding:4px 7px;
+    border:1px solid var(--line); border-radius:4px; background:#fff; color:var(--ink); }
+  .amove input { width:120px; display:none; }
+  .amove input.show { display:inline-block; }
+  .amove .prefix { color:var(--faint); font:11.5px Consolas,monospace; display:none; }
+  .amove .prefix.show { display:inline; }
+  .amove button { font:inherit; font-size:11px; padding:4px 10px; border:1px solid var(--line);
+    border-radius:3px; background:var(--surface); cursor:pointer; }
+  .amove .note { flex:1 1 100%; font-size:11px; color:var(--muted); }
   .seg button { font:inherit; font-size:11px; padding:3px 9px; border:0; background:var(--surface);
                 color:var(--muted); cursor:pointer; border-left:1px solid var(--line); }
   .seg button:first-child { border-left:0; }
@@ -3228,7 +3591,7 @@ module WR_ProposalPackage
   </div>
   <div class="bodyy"><div class="wrap"><table>
     <thead><tr>
-      <th>#</th><th>SCENE</th><th>MODE</th><th>WALLS</th><th>FILE IT WILL WRITE</th><th></th>
+      <th>#</th><th>SCENE</th><th>MODE</th><th>WALLS</th><th>ANNOTATIONS</th><th>FILE IT WILL WRITE</th><th></th>
     </tr></thead>
     <tbody id="body"></tbody>
   </table></div></div>
@@ -3277,12 +3640,12 @@ module WR_ProposalPackage
 
   <span class="lbl">ANNOTATION</span>
   <select id="annot">
-    <option value="client"#{annot == 'draft' ? '' : ' selected'}>Client-safe — hide dimensions and notes</option>
-    <option value="draft"#{annot == 'draft' ? ' selected' : ''}>Draft — keep dimensions and notes visible</option>
+    <option value="client"#{annot == 'draft' ? '' : ' selected'}>Client-safe — hide every annotation for the whole run</option>
+    <option value="draft"#{annot == 'draft' ? ' selected' : ''}>Per scene — each scene shows what its picker left showing</option>
   </select>
   <span></span>
   <span class="lbl"></span>
-  <label class="shadelbl">Client-safe hides #{WR_Mode::ANNOT_TAGS.join(', ')} for the whole run and puts every one back at the end. Choose Draft only for an internal check print — those images carry construction dimensions and the ceiling-height note.</label>
+  <label class="shadelbl">Client-safe hides #{WR_Mode::ANNOT_TAGS.join(', ')}, every WR-Dims-… / WR-Notes-… set in this model, <b>and every loose callout on Untagged</b> — SketchUp will not hide the Untagged tag, so those go one by one (1.20.0). Everything is put back at the end. Choose <b>Per scene</b> only for an internal check print: each image then carries whatever its own ANNOTATIONS picker left showing.</label>
   <span></span>
 </div></div>
 </div>
@@ -3323,6 +3686,19 @@ module WR_ProposalPackage
     </div>
   </div>
 </div>
+<div id="awrap">
+  <div id="acard">
+    <div id="atitle"></div>
+    <div id="abody"></div>
+    <div id="amsg" class="wmsg"></div>
+    <div id="afoot">
+      <button id="apick" title="Select the callouts in the model, then press this">USE MY SELECTION</button>
+      <span class="wgap"></span>
+      <button id="aapply" class="prim">APPLY TO THIS SCENE</button>
+      <button id="acancel">CANCEL</button>
+    </div>
+  </div>
+</div>
 <script>
 (function () {
   "use strict";
@@ -3334,7 +3710,10 @@ module WR_ProposalPackage
       $log=g("log"), $pmsg=g("pmsg"), $pfill=g("pfill"),
       $wrap=g("wwrap"), $wtitle=g("wtitle"), $wbody=g("wbody"),
       $wmsg=g("wmsg"), $wapply=g("wapply"), $wcancel=g("wcancel"),
-      $wpick=g("wpick");
+      $wpick=g("wpick"),
+      $awrap=g("awrap"), $atitle=g("atitle"), $abody=g("abody"),
+      $amsg=g("amsg"), $aapply=g("aapply"), $acancel=g("acancel"),
+      $apick=g("apick");
 
   function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;")
     .replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")
@@ -3395,6 +3774,7 @@ module WR_ProposalPackage
           segBtn(r,"skip","Skip")+segBtn(r,"image","Image")+segBtn(r,"render","Render")+
         "</span></td>"+
         "<td><button class='wbtn' data-walls='"+r.n+"' title='Choose which whole walls this scene hides'>Hide walls</button></td>"+
+        "<td><button class='wbtn' data-annots='"+r.n+"' title='Choose which notes and dimensions this scene hides'>Hide notes</button></td>"+
         "<td class='file' title='"+esc(r.file)+"'>"+fh+"</td>"+
         "<td class='go'><button data-go='"+r.n+"' title='Go to this scene'>&#8594;</button></td></tr>";
     }).join("");
@@ -3411,6 +3791,13 @@ module WR_ProposalPackage
         e.stopPropagation();
         if(running) return;
         wallsOpen(+el.getAttribute("data-walls"));
+      });
+    });
+    Array.prototype.forEach.call($b.querySelectorAll("[data-annots]"), function(el){
+      el.addEventListener("click", function(e){
+        e.stopPropagation();
+        if(running) return;
+        annotsOpen(+el.getAttribute("data-annots"));
       });
     });
     Array.prototype.forEach.call($b.querySelectorAll("[data-go]"), function(el){
@@ -3610,6 +3997,205 @@ module WR_ProposalPackage
   });
   $wcancel.addEventListener("click", wallsClose);
   $wrap.addEventListener("click", function(e){ if(e.target === $wrap) wallsClose(); });
+
+  // ---- per-scene ANNOTATION hiding (1.20.0) -------------------------------
+  // ONE LIST, ONE RULE: ticked = hidden when this scene exports — the walls
+  // polarity, deliberately, because the two buttons sit on the same row.
+  //
+  // Two mechanisms under it and the operator never picks between them: a SET
+  // row is a tag (one flag hides every callout on it, at any depth, and the
+  // client-safe pass can find it by name); a CALLOUT row is one entity's own
+  // hidden flag. SketchUp will NOT hide the Untagged tag — proved live, 9 Sep
+  // 2026 — so loose callouts are listed one by one under NOT IN A SET with
+  // all/none links, and there is deliberately no "Untagged" set row: a tick
+  // that silently does nothing is the one outcome this picker forbids.
+  var annotsN = 0, annotsSets = [], annotsLoose = [], aPicks = {}, aExp = {};
+  var AKIND = { text:"text", dim:"dim", "3d":"3D" };
+
+  function annotsOpen(n){
+    annotsN = n; aPicks = {}; aExp = {};
+    $atitle.textContent = "Loading scene " + n + "…";
+    $abody.innerHTML = "";
+    $amsg.textContent = ""; $amsg.className = "wmsg";
+    $awrap.style.display = "flex";
+    if(window.sketchup && sketchup.annotsopen) sketchup.annotsopen(String(n));
+  }
+  function annotsClose(){
+    $awrap.style.display = "none";
+    annotsN = 0; annotsSets = []; annotsLoose = []; aPicks = {}; aExp = {};
+    if(window.sketchup && sketchup.annotsclose) sketchup.annotsclose("");
+  }
+  window.annotsFail = function (msg) {
+    $atitle.textContent = "Could not read the annotations";
+    $amsg.textContent = msg; $amsg.className = "wmsg bad";
+  };
+  function aItemRow(it, member, setHidden){
+    // A member of a TICKED set is greyed and disabled, but its own tick is
+    // KEPT and still sent — so unticking the set brings back exactly the
+    // members that were showing before it was ticked.
+    var dis = member && setHidden;
+    return "<div class='wrow"+(member?" member":"")+(dis?" dis":"")+"'>"+
+      "<label><input type='checkbox' data-akey='"+esc(it.key)+"'"+
+      (aPicks[it.key]?" checked":"")+(dis?" disabled":"")+">"+
+      "<span class='kind'>"+AKIND[it.kind]+"</span>"+
+      "<span class='txt' title='"+esc(it.full)+"'>"+esc(it.text)+"</span>"+
+      (it.tag && it.tag!=="Untagged" ? "<span class='cnt'>"+esc(it.tag)+"</span>" : "")+
+      "</label>"+
+      (dis ? "<span class='with'>hidden with the set</span>" : "")+
+      "<button class='wfind' data-afind='"+esc(it.key)+
+      "' title='Select this callout in the model so you can see it'>SHOW ME</button></div>";
+  }
+  function annotsDraw(){
+    var h = "<div class='wroom'><div class='wrh'>Annotation sets"+
+      "<span class='links'><a data-aall='sets'>all</a> &middot; "+
+      "<a data-anone='sets'>none</a></span></div>";
+    h += annotsSets.length ? annotsSets.map(function(u){
+      var on = !!aPicks[u.key], ex = !!aExp[u.key];
+      var r = "<div class='wrow'><button class='aexp' data-aexp='"+esc(u.key)+
+        "' title='Show the callouts in this set'>"+(ex?"&#9660;":"&#9654;")+"</button>"+
+        "<label><input type='checkbox' data-akey='"+esc(u.key)+"'"+(on?" checked":"")+">"+
+        "<span class='txt'>"+esc(u.name)+"</span>"+
+        "<span class='cnt'>"+esc(u.cnt)+"</span></label>"+
+        "<button class='wfind' data-afind='"+esc(u.key)+
+        "' title='Select everything on this set so you can see it'>SHOW ME</button></div>";
+      if(ex) r += u.members.length
+        ? u.members.map(function(m){ return aItemRow(m, true, on); }).join("")
+        : "<div class='wrow member'><span class='cnt'>nothing on this tag</span></div>";
+      return r;
+    }).join("") : "<div class='ahint'>No WR-Dims / WR-Notes sets in this model yet. "+
+        "Everything is listed below, one callout at a time.</div>";
+    h += "</div><div class='wroom'><div class='wrh'>Not in a set — tick one by one"+
+      "<span class='links'><a data-aall='loose'>all</a> &middot; "+
+      "<a data-anone='loose'>none</a></span></div>";
+    h += annotsLoose.length
+      ? annotsLoose.map(function(it){ return aItemRow(it, false, false); }).join("")
+      : "<div class='ahint'>Nothing loose — every callout in this model is in a set.</div>";
+    h += "<div class='ahint'>SketchUp will not hide Untagged as a group, so these are "+
+      "hidden one at a time (or all at once with the link above). Want them as a "+
+      "reusable set? Select them in the model and move them into one below. "+
+      "Callouts nested deeper than two containers are not listed — a set hides "+
+      "those too, because tag visibility has no depth limit.</div></div>";
+    h += "<div class='amove'><div class='wrh'>Move selection into a set — optional, for every scene</div>"+
+      "<select id='aset'>"+annotsSets.map(function(u){
+        return "<option value='"+esc(u.name)+"'>"+esc(u.name)+"</option>"; }).join("")+
+      "<option value='__new'>New set&hellip;</option></select>"+
+      "<span class='prefix' id='aprefix'>WR-Notes-</span>"+
+      "<input id='anew' placeholder='Plan'>"+
+      "<button id='amovego'>MOVE SELECTION INTO SET</button>"+
+      "<span class='note'>Re-tags the selected text, dimensions and 3D labels. "+
+      "Membership is for every scene; anything that is not an annotation is "+
+      "refused by name.</span></div>";
+    $abody.innerHTML = h;
+    annotsWire();
+  }
+  function annotsWire(){
+    Array.prototype.forEach.call($abody.querySelectorAll("input[data-akey]"), function(el){
+      el.addEventListener("change", function(){
+        aPicks[el.getAttribute("data-akey")] = el.checked;
+        if(el.getAttribute("data-akey").charAt(0)==="t") annotsDraw();
+      });
+    });
+    Array.prototype.forEach.call($abody.querySelectorAll("[data-aexp]"), function(el){
+      el.addEventListener("click", function(){
+        var k = el.getAttribute("data-aexp"); aExp[k] = !aExp[k]; annotsDraw();
+      });
+    });
+    Array.prototype.forEach.call($abody.querySelectorAll("[data-afind]"), function(el){
+      el.addEventListener("click", function(){
+        if(window.sketchup && sketchup.annotsreveal)
+          sketchup.annotsreveal(el.getAttribute("data-afind"));
+      });
+    });
+    Array.prototype.forEach.call($abody.querySelectorAll("[data-aall],[data-anone]"), function(el){
+      el.addEventListener("click", function(){
+        var grp = el.getAttribute("data-aall") || el.getAttribute("data-anone"),
+            on = el.hasAttribute("data-aall");
+        (grp==="sets" ? annotsSets : annotsLoose).forEach(function(u){ aPicks[u.key] = on; });
+        annotsDraw();
+        $amsg.className = "wmsg";
+        $amsg.textContent = (on ? "Every " : "No ") + (grp==="sets" ? "set" : "loose callout") +
+          " ticked. Apply to save that into this scene.";
+      });
+    });
+    var sel = g("aset");
+    if(sel) sel.addEventListener("change", function(){
+      var isNew = sel.value === "__new";
+      g("anew").className = isNew ? "show" : "";
+      g("aprefix").className = "prefix" + (isNew ? " show" : "");
+      if(isNew) g("anew").focus();
+    });
+    var mv = g("amovego");
+    if(mv) mv.addEventListener("click", function(){
+      var v = g("aset").value;
+      var name = v === "__new" ? g("anew").value : v;
+      if(window.sketchup && sketchup.annotsmove)
+        sketchup.annotsmove(JSON.stringify({ name: name }));
+    });
+  }
+  window.annotsShow = function (d) {
+    annotsSets = d.sets || []; annotsLoose = d.loose || [];
+    aPicks = {};
+    annotsSets.forEach(function(u){
+      if(u.hidden) aPicks[u.key] = true;
+      (u.members||[]).forEach(function(m){ if(m.hidden) aPicks[m.key] = true; });
+    });
+    annotsLoose.forEach(function(it){ if(it.hidden) aPicks[it.key] = true; });
+    $atitle.textContent = "Notes & dimensions hidden in “" + d.scene + "”";
+    annotsDraw();
+    $amsg.className = "wmsg" + (d.warn ? " bad" : "");
+    $amsg.textContent = d.warn
+      ? "This scene does not save hidden tags or objects, so callouts will NOT come "
+        + "back on it. Apply turns that on for you."
+      : "Ticked = hidden when this scene exports. Sets hide as one; loose callouts "
+        + "hide one by one — both are saved into this scene only.";
+  };
+  window.annotsPicked = function (r) {
+    var keys = r.keys || [], n = 0;
+    // ADDS to what is already ticked — picking a second callout must not
+    // silently untick the first.
+    keys.forEach(function(k){ aPicks[k] = true; n++; });
+    annotsDraw();
+    $amsg.className = "wmsg" + (n ? " ok" : " bad");
+    $amsg.textContent = n
+      ? n + " callout(s) ticked from your selection." +
+        (r.hint ? " All of them are on " + r.hint + " — tick the set to hide all of them." : "")
+      : "Nothing in your selection is a note, a dimension or a 3D label. Click the "
+        + "callout itself in the model, then press this again.";
+  };
+  window.annotsNote = function (r) {
+    $amsg.className = "wmsg" + (r.ok ? "" : " bad");
+    $amsg.textContent = r.msg;
+  };
+  window.annotsMoved = function (r) {
+    if(r.sets) annotsSets = r.sets;
+    if(r.loose) annotsLoose = r.loose;
+    annotsDraw();
+    $amsg.className = "wmsg" + (r.ok ? " ok" : " bad");
+    $amsg.textContent = r.msg;
+  };
+  window.annotsDone = function (r) {
+    $amsg.textContent = r.msg;
+    $amsg.className = "wmsg" + (r.ok ? " ok" : " bad");
+    if(r.ok) setTimeout(annotsClose, 900);
+  };
+  $apick.addEventListener("click", function(){
+    if(window.sketchup && sketchup.annotspick) sketchup.annotspick("");
+  });
+  $aapply.addEventListener("click", function(){
+    // EVERY row is sent, not only the ticked ones, so unticking reliably shows
+    // again — the walls rule. A member row behind a collapsed set is not in the
+    // DOM, so its remembered pick is sent from the state instead of being lost.
+    var picks = {};
+    annotsSets.forEach(function(u){
+      picks[u.key] = !!aPicks[u.key];
+      (u.members||[]).forEach(function(m){ picks[m.key] = !!aPicks[m.key]; });
+    });
+    annotsLoose.forEach(function(it){ picks[it.key] = !!aPicks[it.key]; });
+    if(window.sketchup && sketchup.annotsapply)
+      sketchup.annotsapply(JSON.stringify({ n: annotsN, picks: picks }));
+  });
+  $acancel.addEventListener("click", annotsClose);
+  $awrap.addEventListener("click", function(e){ if(e.target === $awrap) annotsClose(); });
 
   window.applyState = function (st) { ST = st; drawMats(); draw(); };
   window.setDir = function (d) { g("dir").value = d; };

@@ -1,0 +1,559 @@
+<title>Scene Annotations Picker</title>
+<style>
+  :root { --pg:#f7f4f1; --pg-ink:#1c2327; --pg-muted:#66727a; --pg-faint:#9aa4ab;
+          --pg-line:#e4dfda; --pg-card:#fffdfb; --rv:#ee6216; --rv-bg:#fdf1e9; --rv-ink:#8a3a0e;
+          --ok:#2e7d46; --bad:#b0402c; --mono:Consolas,"Cascadia Mono",monospace; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --pg:#1b1e21; --pg-ink:#e6e3df; --pg-muted:#a5adb3;
+      --pg-faint:#7a838a; --pg-line:#33393e; --pg-card:#23272b; --rv:#f2793a; --rv-bg:#2c211a;
+      --rv-ink:#f4c7a8; --ok:#6fc48a; --bad:#f0a08c; }
+  }
+  :root[data-theme="dark"] { --pg:#1b1e21; --pg-ink:#e6e3df; --pg-muted:#a5adb3;
+      --pg-faint:#7a838a; --pg-line:#33393e; --pg-card:#23272b; --rv:#f2793a; --rv-bg:#2c211a;
+      --rv-ink:#f4c7a8; --ok:#6fc48a; --bad:#f0a08c; }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--pg); color:var(--pg-ink);
+         font:14px/1.5 "Segoe UI",system-ui,sans-serif; padding-block:28px 60px; padding-inline:16px; }
+  .col { max-width:980px; margin:0 auto; display:flex; flex-direction:column; gap:22px; }
+  h1 { font-size:22px; font-weight:650; margin:0; text-wrap:balance; letter-spacing:-.01em; }
+  h2 { font-size:12px; font-weight:650; letter-spacing:.1em; text-transform:uppercase;
+       color:var(--pg-muted); margin:0 0 8px; }
+  p { margin:0; max-width:72ch; }
+  .lede { color:var(--pg-muted); }
+  code { font:12px var(--mono); background:var(--pg-card); border:1px solid var(--pg-line);
+         border-radius:3px; padding:0 4px; }
+  .tag { display:inline-block; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+         padding:1px 7px; border-radius:3px; border:1px solid var(--pg-line); color:var(--pg-muted); vertical-align:middle; }
+  .tag.real { border-color:var(--ok); color:var(--ok); }
+  .tag.ill  { border-color:var(--rv); color:var(--rv); }
+  .tag.obs  { border-color:var(--pg-ink); color:var(--pg-ink); }
+
+  .rv { border:2px dashed var(--rv); border-radius:8px; background:var(--rv-bg); padding:12px 14px;
+        display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; color:var(--rv-ink); }
+  .rv .what { flex:1 1 320px; font-size:13px; }
+  .rv .btns { display:flex; gap:6px; }
+  .rv button, .cb button { font:inherit; font-size:12.5px; padding:5px 12px; border-radius:5px;
+        border:1px solid var(--rv); background:transparent; color:var(--rv-ink); cursor:pointer; }
+  .rv button.on { background:var(--rv); color:#fff; }
+  .rv textarea, .cb textarea { flex:1 1 100%; min-height:34px; border:1px solid var(--pg-line);
+        border-radius:5px; background:var(--pg-card); color:var(--pg-ink); font:13px var(--mono); padding:7px 9px; }
+  .rv textarea::placeholder { color:var(--pg-faint); }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible
+        { outline:2px solid var(--rv); outline-offset:2px; }
+
+  /* evidence */
+  .ev { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px 22px; align-items:start; }
+  .ev pre { font-size:11.5px; }
+  .ev .fail { color:var(--bad); font-weight:600; }
+  .ev .pass { color:var(--ok); }
+  .ev ul { margin:0; padding-left:18px; font-size:13px; display:flex; flex-direction:column; gap:6px; }
+
+  /* ---- SketchUp dialog reproduction: literal tokens from proposal-package.rb ---- */
+  .frame { position:relative; border:1px solid #b9c0c6; border-radius:8px; overflow:hidden;
+           box-shadow:0 8px 28px rgba(0,0,0,.18); background:#f4f5f6; color-scheme:light; }
+  .frame .titlebar { background:#fff; color:#1c2327; font-size:12px; padding:6px 10px;
+           border-bottom:1px solid #e2e6e9; display:flex; gap:8px; align-items:center; }
+  .frame .titlebar .x { margin-left:auto; color:#9aa4ab; }
+  .su { font:12.5px/1.4 "Segoe UI",system-ui,sans-serif; color:#1c2327; background:#f4f5f6;
+        display:flex; flex-direction:column; height:620px; }
+  .su .top { flex:0 0 auto; padding:7px 11px 4px; display:flex; gap:10px; align-items:baseline; }
+  .su .top .t { font-weight:650; } .su .top .c { color:#66727a; font-size:12px; margin-left:auto; }
+  .su .cmd { margin:0 11px 6px; }
+  .su .cmd input { width:100%; padding:6px 9px; font:inherit; color:#1c2327; background:#fff;
+        border:1px solid #e2e6e9; border-radius:8px; outline:none; }
+  .su .bulk { margin:0 11px 6px; padding:5px 9px; background:#fff; border:1px solid #e2e6e9;
+        border-radius:8px; display:flex; gap:8px; align-items:center; }
+  .su .lbl { font-size:10.5px; font-weight:650; letter-spacing:.1em; color:#9aa4ab; }
+  .su .btn { font:inherit; font-size:11.5px; padding:4px 10px; border:1px solid #e2e6e9;
+        border-radius:6px; background:#fff; color:#1c2327; cursor:pointer; white-space:nowrap; }
+  .su .btn.p { background:#ee6216; border-color:#ee6216; color:#fff; font-weight:650; }
+  .su .sect { margin:0 11px 6px; background:#fff; border:1px solid #e2e6e9; border-radius:8px;
+        display:flex; flex-direction:column; min-height:0; }
+  .su .sect.grow { flex:1 1 auto; }
+  .su .hd { padding:5px 9px; display:flex; gap:8px; align-items:center; }
+  .su .hd .tri { color:#9aa4ab; font-size:10px; } .su .hd .sum { color:#66727a; font-size:11.5px; margin-left:auto; }
+  .su .wrap { flex:1 1 auto; overflow:auto; min-height:0; }
+  .su table { width:100%; border-collapse:collapse; }
+  .su th { position:sticky; top:0; background:#fff; text-align:left; font-size:10px; font-weight:650;
+        letter-spacing:.09em; color:#9aa4ab; padding:5px 8px; border-bottom:1px solid #e2e6e9; white-space:nowrap; }
+  .su th.new { color:#ee6216; }
+  .su td { padding:3px 8px; border-top:1px solid #e2e6e9; vertical-align:middle; }
+  .su tr:hover td { background:#f8f4f1; }
+  .su td.n { font-variant-numeric:tabular-nums; color:#66727a; width:1%; white-space:nowrap; }
+  .su td.file { color:#66727a; font-size:11.5px; white-space:nowrap; max-width:190px; overflow:hidden; text-overflow:ellipsis; }
+  .su td.file b { color:#ee6216; font-weight:600; }
+  .su td.go { width:1%; } .su .go button { border:0; background:transparent; color:#9aa4ab; cursor:pointer; font-size:13px; }
+  .su .seg { display:inline-flex; border:1px solid #e2e6e9; border-radius:6px; overflow:hidden; }
+  .su .seg button { font:inherit; font-size:11px; padding:3px 9px; border:0; background:#fff; color:#66727a; cursor:pointer; border-left:1px solid #e2e6e9; }
+  .su .seg button:first-child { border-left:0; }
+  .su .seg .on-skip { background:#eef1f2; font-weight:650; }
+  .su .seg .on-image { background:#e8f0fa; color:#2b5e8f; font-weight:650; }
+  .su .seg .on-render { background:#fdeee4; color:#ee6216; font-weight:650; }
+  .su .wbtn { font:inherit; font-size:11px; padding:3px 9px; border:1px solid #e2e6e9; border-radius:3px;
+        background:#fff; color:#66727a; cursor:pointer; white-space:nowrap; }
+  .su .wbtn:hover, .su .wbtn.lit { border-color:#ee6216; color:#ee6216; }
+  .su .out { margin:0 11px; padding:6px 9px 8px; background:#fff; border:1px solid #e2e6e9; border-radius:8px;
+        display:grid; grid-template-columns:auto 1fr; gap:5px 10px; align-items:center; font-size:12px; }
+  .su .out select { font:inherit; font-size:12px; padding:4px 8px; border:1px solid #e2e6e9; border-radius:6px; background:#fff; color:#1c2327; }
+  .su .out .help { grid-column:2; font-size:11.5px; color:#66727a; }
+  .su .bar { padding:6px 11px 9px; display:flex; gap:8px; align-items:center; }
+  .su .bar .prog { flex:1 1 auto; color:#66727a; font-size:11.5px; }
+
+  /* the modal — #wwrap/#wcard styles, ids prefixed a */
+  #awrap { position:absolute; inset:0; background:rgba(20,24,28,.44); display:flex; align-items:center; justify-content:center; z-index:5; }
+  #acard { background:#fff; border:1px solid #e2e6e9; border-radius:6px; width:min(560px,94%); max-height:94%;
+           display:flex; flex-direction:column; box-shadow:0 10px 34px rgba(0,0,0,.28);
+           font:12.5px/1.4 "Segoe UI",system-ui,sans-serif; color:#1c2327; }
+  #atitle { font-weight:650; padding:12px 14px 8px; font-size:13px; }
+  #abody { overflow:auto; padding:0 14px; flex:1 1 auto; }
+  .wroom { margin-bottom:10px; }
+  .wrh { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#66727a; margin:6px 0 3px; display:flex; gap:10px; align-items:baseline; }
+  .wrh .links { margin-left:auto; text-transform:none; letter-spacing:0; font-size:11px; }
+  .wrh .links a { color:#66727a; cursor:pointer; text-decoration:underline dotted; }
+  .wrh .links a:hover { color:#ee6216; }
+  .wrow { display:flex; align-items:center; gap:8px; padding:3px 2px; font-size:12px; }
+  .wrow:hover { background:#fdeee4; }
+  .wrow label { display:flex; align-items:center; gap:8px; cursor:pointer; flex:1 1 auto; min-width:0; }
+  .wrow .txt { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .wrow .cnt, .wrow .kind { color:#66727a; font-size:11px; white-space:nowrap; }
+  .wrow .kind { font:10px var(--mono); border:1px solid #e2e6e9; border-radius:3px; padding:0 4px; }
+  .wrow.member { padding-left:22px; }
+  .wrow.member.dis { opacity:.5; } .wrow.member.dis label { cursor:default; }
+  .wrow.member.dis .with { color:#ee6216; font-size:10.5px; margin-left:auto; white-space:nowrap; }
+  .exp { border:0; background:transparent; color:#9aa4ab; cursor:pointer; font-size:10px; padding:0 2px; width:16px; }
+  .exp:hover { color:#ee6216; }
+  .wfind { font:inherit; font-size:10px; letter-spacing:.06em; padding:2px 7px; border:1px solid #e2e6e9;
+           border-radius:3px; background:#fff; color:#66727a; cursor:pointer; white-space:nowrap; }
+  .wfind:hover { border-color:#ee6216; color:#ee6216; }
+  .whint { font-size:11px; color:#66727a; margin:4px 0 6px 2px; line-height:1.45; }
+  .amove { border-top:1px solid #e2e6e9; margin-top:6px; padding:8px 0 6px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .amove .wrh { flex:1 1 100%; margin:0 0 2px; }
+  .amove select, .amove input { font:inherit; font-size:12px; padding:4px 7px; border:1px solid #e2e6e9; border-radius:4px; background:#fff; color:#1c2327; }
+  .amove input { width:120px; display:none; } .amove input.show { display:inline-block; }
+  .amove .prefix { color:#9aa4ab; font:11.5px var(--mono); display:none; } .amove .prefix.show { display:inline; }
+  .amove button { font:inherit; font-size:11px; padding:4px 10px; border:1px solid #e2e6e9; border-radius:3px; background:#fff; cursor:pointer; }
+  .amove .note { flex:1 1 100%; font-size:11px; color:#66727a; }
+  .wmsg { padding:8px 14px; font-size:11.5px; color:#66727a; min-height:30px; }
+  .wmsg.ok { color:#2c6e49; } .wmsg.bad { color:#b03027; }
+  #afoot { display:flex; gap:8px; padding:10px 14px 12px; border-top:1px solid #e2e6e9; }
+  #afoot button { font:inherit; font-size:12px; padding:5px 13px; border:1px solid #e2e6e9; border-radius:3px; background:#fff; cursor:pointer; }
+  #afoot button.prim { background:#ee6216; border-color:#ee6216; color:#fff; }
+  #afoot .gap { flex:1 1 auto; }
+
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px 22px; }
+  .grid2 dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13px; }
+  .grid2 dt { color:var(--pg-muted); white-space:nowrap; } .grid2 dd { margin:0; }
+  pre { margin:0; font:12px/1.5 var(--mono); background:var(--pg-card); border:1px solid var(--pg-line);
+        border-radius:6px; padding:12px 14px; overflow-x:auto; }
+  pre .k { color:var(--rv); } pre .c { color:var(--pg-faint); }
+
+  .q { border:1px solid var(--pg-line); border-radius:8px; background:var(--pg-card); padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+  .q .qh { display:flex; gap:10px; align-items:baseline; }
+  .q .qn { font:650 11px var(--mono); color:var(--rv); letter-spacing:.06em; }
+  .q .qt { font-weight:600; } .q .rec { font-size:12px; color:var(--pg-muted); }
+  .q label { display:flex; gap:8px; align-items:flex-start; font-size:13px; cursor:pointer; }
+  .q input[type=radio] { margin-top:4px; accent-color:var(--rv); }
+  .q .edit { display:flex; gap:8px; align-items:center; font-size:13px; flex-wrap:wrap; }
+  .q .edit input[type=text] { font:13px var(--mono); padding:4px 8px; border:1px solid var(--pg-line); border-radius:4px; background:var(--pg); color:var(--pg-ink); width:180px; }
+  .qs { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; }
+  .settled { font-size:13px; color:var(--pg-muted); }
+
+  .cb { border:2px solid var(--rv); border-radius:8px; padding:14px 16px; background:var(--rv-bg); display:flex; flex-direction:column; gap:8px; }
+  .cb h2 { color:var(--rv); } .cb .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .cb textarea { min-height:230px; } .cb .copy { background:var(--rv); color:#fff; } .cb .st { font-size:12.5px; color:var(--rv-ink); }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+
+<div class="col">
+  <header>
+    <h1>Hide notes &amp; dimensions per scene — the ANNOTATIONS column, rev 2</h1>
+    <p class="lede">Rev 1 proposed sets only. The live probe (below) proved both ways of hiding work, and
+    proved one thing does <em>not</em>: SketchUp will not hide Untagged. So this revision is one picker that
+    handles sets and single callouts together, with no sorting required first.
+    <span class="tag real">real</span> = lifted from the shipped tool; <span class="tag obs">observed</span> = the probe;
+    <span class="tag ill">illustrative</span> = example scenes, sets and callouts invented for this page.</p>
+  </header>
+
+  <div class="rv">
+    <span class="what">Orange dashed strips are for Benton and are not part of the dialog. Click around the picker —
+    tick a set, expand it, tick loose callouts, try <em>all</em> / <em>none</em>, USE MY SELECTION, “New set…”.
+    Then answer the questions and copy the box at the bottom back into the chat.</span>
+    <span class="btns"><button data-sec="overall" data-d="approve">Approve overall direction</button><button data-sec="overall" data-d="needs">Needs changes</button></span>
+    <textarea data-note="overall" placeholder="Overall note (optional)"></textarea>
+  </div>
+
+  <section>
+    <h2>What the probe proved <span class="tag obs">observed — SketchUp 26.2.243, 9 Sep 2026</span></h2>
+    <div class="ev">
+      <pre>probe-scene-annotations — SketchUp 26.2.243, mask=384
+TAG PATH
+  <span class="pass">PASS</span> tag.page_layers_lists_hidden_tag
+  <span class="pass">PASS</span> tag.roundtrip_B_A_B — B=true A=false B=true
+  <span class="pass">PASS</span> tag.entities_follow_tag
+  <span class="fail">FAIL tag.untagged_can_hide — Untagged visible? after hide = true</span>
+PER-ENTITY PATH (walls mechanism, page.update(384))
+  <span class="pass">PASS</span> entity.screen_text      B=false A=true
+  <span class="pass">PASS</span> entity.leader_text      B=false A=true
+  <span class="pass">PASS</span> entity.linear_dim       B=false A=true
+  <span class="pass">PASS</span> entity.3d_text_group    B=false A=true
+  <span class="pass">PASS</span> entity.update_mask_leaves_camera</pre>
+      <ul>
+        <li><b>A scene remembers a hidden set</b> (a tag) — hide 300 texts with one tick, reuse it across scenes, and Client-safe knows about it.</li>
+        <li><b>A scene also remembers one hidden callout</b> — screen text, leader text, a dimension, a 3D label — through the exact call the walls picker uses. No sorting first.</li>
+        <li><b>The camera is untouched</b> by that save, same guarantee as walls.</li>
+        <li><b>Untagged cannot be hidden.</b> Most hand-placed text sits on Untagged, so a sets-only picker would have listed empty sets and left the real callouts alone. That is why loose callouts get their own rows — and why the picker never offers an “Untagged” set that would silently do nothing.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>The dialog, picker open on scene 3 <span class="tag ill">scenes, sets, callouts illustrative</span> <span class="tag real">layout, colours, controls</span></h2>
+    <div class="frame">
+      <div class="titlebar">Proposal package<span class="x">&#10005;</span></div>
+      <div class="su">
+        <div class="top"><span class="t">Proposal package — Untitled</span><span class="c">7 scenes · 5 marked</span></div>
+        <div class="cmd"><input value="" placeholder="Search scenes — several words, any order — or a range like 1-5" readonly></div>
+        <div class="bulk"><span class="lbl">SHOWN &rarr;</span><button class="btn">Render</button><button class="btn">Image</button><button class="btn">Skip</button><span class="lbl" style="margin-left:auto">2 render · 3 image · 2 skip</span></div>
+        <div class="sect grow">
+          <div class="hd"><span class="tri">&#9660;</span><span class="lbl">SCENES</span><span class="sum">7 scenes</span></div>
+          <div class="wrap"><table>
+            <thead><tr><th>#</th><th>SCENE</th><th>MODE</th><th>WALLS</th><th class="new" id="colhdr">ANNOTATIONS</th><th>FILE IT WILL WRITE</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table></div>
+        </div>
+        <div class="out">
+          <span class="lbl">ANNOTATION</span>
+          <select id="annotsel">
+            <option>Client-safe — hide every annotation for the whole run</option>
+            <option selected>Per scene — each scene shows what its picker left showing</option>
+          </select>
+          <span class="help" id="cshelp">Client-safe hides the WR-Dims / WR-Notes sets and every loose callout for the whole run and puts each one back at the end. Per scene exports each scene with exactly what its picker left showing.</span>
+        </div>
+        <div class="bar"><span class="prog">Ready.</span><button class="btn">?</button><button class="btn">Close</button><button class="btn p">Export package</button></div>
+
+        <div id="awrap">
+          <div id="acard">
+            <div id="atitle">Notes &amp; dimensions hidden in “03-side”</div>
+            <div id="abody"></div>
+            <div id="amsg" class="wmsg">Ticked = hidden when this scene exports. Sets hide as one; loose callouts hide one by one — both are saved into this scene only.</div>
+            <div id="afoot">
+              <button id="apick" title="Select text or dimensions in the model, then press this">USE MY SELECTION</button>
+              <span class="gap"></span>
+              <button id="aapply" class="prim">APPLY TO THIS SCENE</button>
+              <button id="acancel">CANCEL</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="rv">
+    <span class="what"><b>The picker.</b> One list, one rule. Set rows hide a whole tag; the arrow opens a set to reach
+    single callouts inside it; NOT IN A SET lists every loose callout (Untagged first) with <em>all · none</em> so
+    a batch is still one click. Members grey out while their set is ticked.</span>
+    <span class="btns"><button data-sec="picker" data-d="approve">Approve</button><button data-sec="picker" data-d="needs">Needs changes</button></span>
+    <textarea data-note="picker" placeholder="Note — e.g. rename a button, reorder the groups, show members always"></textarea>
+  </div>
+
+  <section>
+    <h2>What each control does</h2>
+    <div class="grid2">
+      <dl>
+        <dt>Hide notes</dt><dd>Opens the picker for that row and switches the viewport to that scene, like Hide walls. Cancel returns to the scene you were on.</dd>
+        <dt>Set row</dt><dd>Tick = the whole tag hidden in this scene. Saved with the scene's own tag visibility; SketchUp's Tags panel shows the same thing.</dd>
+        <dt>Callout row</dt><dd>Tick = that one text / dimension / 3D label hidden in this scene, saved the way a hidden wall is. Works on Untagged text, which no set can reach.</dd>
+        <dt>all · none</dt><dd>Ticks or unticks every row in that group. NOT IN A SET → all → Apply is the zero-setup batch hide.</dd>
+      </dl>
+      <dl>
+        <dt>USE MY SELECTION</dt><dd>Click callouts in the model first; this ticks their rows. If they all belong to one set it says so and offers the set. Adds, never unticks.</dd>
+        <dt>SHOW ME</dt><dd>Selects and zooms to the set's contents or to that one callout.</dd>
+        <dt>MOVE SELECTION INTO A SET</dt><dd>Optional. Re-tags selected callouts into an existing or new set for reuse across scenes and for Client-safe coverage. Membership is for every scene; walls in the selection are refused by name.</dd>
+        <dt>Export</dt><dd>Nothing new. Both lanes select each scene before capturing it, and a scene re-asserts both its tag state and its hidden callouts. Client-safe hides everything regardless.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <h2>What the manifest will say <span class="tag real">field shape follows groups_hidden</span></h2>
+    <pre><span class="c">// manifest.json, one image row — both kinds of hide read as BY DESIGN, like walls</span>
+{
+  "file": "03-side.png",
+  "scene": "03-side",
+  "lane": "image",
+  "groups_hidden": ["3190J / Walls / Wall 2", "label: VENT"],
+  <span class="k">"annotation_tags_hidden"</span>: ["WR-Notes-Plan", "WR-Dims-Booth"],
+  <span class="k">"annotations_hidden"</span>: [
+    { "kind": "text",             "tag": "Untagged", "text": "Ceiling 8'-0\" — HOUSE DEFAULT, not measured" },
+    { "kind": "linear_dimension", "tag": "Untagged", "text": "4' 0\"" },
+    { "kind": "3d_text",          "tag": "Untagged", "text": "VENT" }
+  ],
+  "annotation_tags_shown": ["WR-Dims", "WR-Dims-Doors", "WR-Notes", "WR-Notes-Vent"]
+}
+<span class="c">// field notes carried inside the file: a callout is absent from the image if it is in</span>
+<span class="c">// annotations_hidden OR its tag is in annotation_tags_hidden. null = unreadable, never</span>
+<span class="c">// means nothing was hidden; [] means that. A 3D label also appears in groups_hidden.</span></pre>
+  </section>
+
+  <div class="rv">
+    <span class="what"><b>The manifest side.</b> Two new fields per image row plus their field notes. Format number stays 1 (additive).</span>
+    <span class="btns"><button data-sec="manifest" data-d="approve">Approve</button><button data-sec="manifest" data-d="needs">Needs changes</button></span>
+    <textarea data-note="manifest" placeholder="Note"></textarea>
+  </div>
+
+  <section>
+    <h2>Calls still open — change any of them</h2>
+    <p class="settled" style="margin-bottom:10px">Settled by the probe, no longer asked: ticked = hidden (walls rule);
+    single-callout hiding is in scope; Untagged is never offered as a set.</p>
+    <div class="qs">
+      <div class="q">
+        <div class="qh"><span class="qn">Q1</span><span class="qt">Its own column, or one “Hide…” button?</span></div>
+        <label><input type="radio" name="q1" value="separate column" checked> Separate ANNOTATIONS column with its own picker (as mocked)</label>
+        <label><input type="radio" name="q1" value="one button, two tabs"> One HIDE… button per row opening a picker with a Walls tab and a Notes tab</label>
+        <div class="rec">Recommended: separate — “similar to walls” is easiest to learn as a twin.</div>
+      </div>
+      <div class="q">
+        <div class="qh"><span class="qn">Q3</span><span class="qt">How new sets are named</span></div>
+        <div class="edit">You type <input type="text" id="q3sample" value="Plan"> → the tag becomes <code id="q3out">WR-Notes-Plan</code></div>
+        <div class="edit">Prefix <input type="text" id="q3prefix" value="WR-Notes-"></div>
+        <div class="rec">Not cosmetic: Client-safe hides the WR-Dims / WR-Notes family, so a set outside it would leak onto a customer image. Sets are optional now — loose callouts need none.</div>
+      </div>
+      <div class="q">
+        <div class="qh"><span class="qn">Q4</span><span class="qt">Default for the ANNOTATION dropdown</span></div>
+        <label><input type="radio" name="q4" value="client-safe default" checked> Client-safe stays the default; choose “Per scene” when a pack should carry notes</label>
+        <label><input type="radio" name="q4" value="per-scene default"> “Per scene” becomes the default</label>
+        <div class="rec">Recommended: keep Client-safe — no-text-on-customer-images should stay opt-out.</div>
+      </div>
+      <div class="q">
+        <div class="qh"><span class="qn">Q7</span><span class="qt">Callouts inside a set</span></div>
+        <label><input type="radio" name="q7" value="behind expand arrow" checked> Behind the set's arrow (as mocked) — the list stays short</label>
+        <label><input type="radio" name="q7" value="always listed"> Always listed under their set</label>
+        <div class="rec">Recommended: behind the arrow. A set of 22 texts is one row until you need one of them.</div>
+      </div>
+      <div class="q">
+        <div class="qh"><span class="qn">Q-CS</span><span class="qt">Client-safe and Untagged text</span></div>
+        <label><input type="radio" name="qcs" value="close it in this build" checked> Close the hole now: Client-safe also hides every loose callout for the run</label>
+        <label><input type="radio" name="qcs" value="later; say so in the dropdown"> Later — the dropdown says Untagged text still exports</label>
+        <div class="rec">Today Client-safe hides tags only, and Untagged cannot be hidden — so a hand-placed note on Untagged goes out on a client-safe image. The probe made that visible; the per-entity path fixes it.</div>
+      </div>
+      <div class="q">
+        <div class="qh"><span class="qn">Q6</span><span class="qt">Wording</span></div>
+        <div class="edit">Column header <input type="text" id="q6col" value="ANNOTATIONS"></div>
+        <div class="edit">Row button <input type="text" id="q6btn" value="Hide notes"></div>
+        <div class="rec">Edits here update the dialog above live.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="cb">
+    <h2>Copy this back into the chat</h2>
+    <span class="st" id="cbst">Nothing chosen yet — approve or note the strips above, then answer the questions.</span>
+    <textarea id="cbout" readonly spellcheck="false"></textarea>
+    <div class="row"><button class="copy" id="cbcopy">Copy</button><span class="st">Paste it into the conversation as-is; it is a patch the next step reads, not prose.</span></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  function g(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+  // ---- illustrative model ------------------------------------------------------
+  var SCENES = [
+    { n:1, scene:"01-exterior",    mode:"render" }, { n:2, scene:"02-dimensioned", mode:"image" },
+    { n:3, scene:"03-side",        mode:"image"  }, { n:4, scene:"04-ventilation", mode:"render" },
+    { n:5, scene:"05-plan",        mode:"image"  }, { n:6, scene:"06-plan-notes",  mode:"skip" },
+    { n:7, scene:"07-check-print", mode:"skip"   }
+  ];
+  var SETS = [
+    { key:"t:WR-Dims",           name:"WR-Dims",           cnt:"14 dimensions", members:[
+        { key:"e:101", kind:"dim", text:"12' 0\"" }, { key:"e:102", kind:"dim", text:"9' 6 3/4\"" }, { key:"e:103", kind:"dim", text:"8' 0\"" } ] },
+    { key:"t:WR-Dims-Doors",     name:"WR-Dims-Doors",     cnt:"6 dimensions",  members:[
+        { key:"e:111", kind:"dim", text:"3' 0\"" }, { key:"e:112", kind:"dim", text:"1' 4\"" } ] },
+    { key:"t:WR-Dims-Booth",     name:"WR-Dims-Booth",     cnt:"8 dimensions",  members:[
+        { key:"e:121", kind:"dim", text:"8' 0\"" }, { key:"e:122", kind:"dim", text:"10' 0\"" }, { key:"e:123", kind:"dim", text:"7' 0 5/16\"" } ] },
+    { key:"t:WR-Dims-Selection", name:"WR-Dims-Selection", cnt:"empty",         members:[] },
+    { key:"t:WR-Notes",          name:"WR-Notes",          cnt:"1 text",        members:[
+        { key:"e:131", kind:"text", text:"Ceiling 8'-0\" — HOUSE DEFAULT, not measured. Confirm before quoting." } ] },
+    { key:"t:WR-Notes-Plan",     name:"WR-Notes-Plan",     cnt:"22 text · 3 labels", members:[
+        { key:"e:141", kind:"text", text:"CLEAR OPENING 36\"" }, { key:"e:142", kind:"text", text:"DOOR SWING" },
+        { key:"e:143", kind:"3d", text:"VENT" }, { key:"e:144", kind:"text", text:"1\" GAP TO WALL" }, { key:"e:145", kind:"text", text:"… 21 more" } ] },
+    { key:"t:WR-Notes-Vent",     name:"WR-Notes-Vent",     cnt:"9 text",        members:[
+        { key:"e:151", kind:"text", text:"EXHAUST 6\" CLEARANCE" }, { key:"e:152", kind:"text", text:"INTAKE" } ] }
+  ];
+  var LOOSE = [
+    { key:"e:201", kind:"text", tag:"Untagged", text:"DESK 42x17 — client to confirm" },
+    { key:"e:202", kind:"text", tag:"Untagged", text:"EXISTING OUTLET" },
+    { key:"e:203", kind:"dim",  tag:"Untagged", text:"4' 0\"" },
+    { key:"e:204", kind:"dim",  tag:"Untagged", text:"2' 3 1/2\"" },
+    { key:"e:205", kind:"3d",   tag:"Untagged", text:"VENT" },
+    { key:"e:206", kind:"text", tag:"Untagged", text:"NORTH" },
+    { key:"e:207", kind:"text", tag:"WR-Booth", text:"MDL 96120 E" }
+  ];
+  // scene 3's saved state (illustrative): two sets and two loose callouts hidden
+  var STATE = {};
+  SCENES.forEach(function(s){ STATE[s.n] = {}; });
+  STATE[1] = { "t:WR-Dims":1,"t:WR-Dims-Doors":1,"t:WR-Dims-Booth":1,"t:WR-Dims-Selection":1,"t:WR-Notes":1,"t:WR-Notes-Plan":1,"t:WR-Notes-Vent":1,"e:201":1,"e:202":1,"e:203":1,"e:204":1,"e:205":1,"e:206":1,"e:207":1 };
+  STATE[3] = { "t:WR-Notes-Plan":1, "t:WR-Dims-Booth":1, "e:201":1, "e:203":1, "e:205":1 };
+  var cur = 3, picks = {}, expanded = {};
+  var KIND = { text:"text", dim:"dim", "3d":"3D" };
+
+  function fileFor(s){ return s.mode==="skip" ? "&mdash;" : esc(s.scene) + (s.mode==="render" ? " <b>render</b>" : "") + ".png"; }
+  function drawRows(){
+    var btn = g("q6btn").value || "Hide notes";
+    g("rows").innerHTML = SCENES.map(function(s){
+      return "<tr><td class='n'>"+s.n+"</td><td>"+esc(s.scene)+"</td>"+
+        "<td><span class='seg'><button class='"+(s.mode==="skip"?"on-skip":"")+"'>Skip</button><button class='"+(s.mode==="image"?"on-image":"")+"'>Image</button><button class='"+(s.mode==="render"?"on-render":"")+"'>Render</button></span></td>"+
+        "<td><button class='wbtn'>Hide walls</button></td>"+
+        "<td><button class='wbtn"+(s.n===cur?" lit":"")+"' data-annots='"+s.n+"' title='Choose which notes and dimensions this scene hides'>"+esc(btn)+"</button></td>"+
+        "<td class='file'>"+fileFor(s)+"</td><td class='go'><button>&#8594;</button></td></tr>";
+    }).join("");
+    Array.prototype.forEach.call(g("rows").querySelectorAll("[data-annots]"), function(el){
+      el.addEventListener("click", function(){ open(+el.getAttribute("data-annots")); });
+    });
+  }
+  function open(n){
+    cur = n; picks = {}; expanded = {};
+    Object.keys(STATE[n]).forEach(function(k){ picks[k] = true; });
+    g("atitle").textContent = "Notes & dimensions hidden in “" + SCENES[n-1].scene + "”";
+    g("awrap").style.display = "flex";
+    msg("Ticked = hidden when this scene exports. Sets hide as one; loose callouts hide one by one — both are saved into this scene only.", "");
+    drawBody(); drawRows();
+  }
+  function msg(t, cls){ g("amsg").textContent = t; g("amsg").className = "wmsg " + (cls||""); }
+  function itemRow(it, member, setHidden){
+    var dis = member && setHidden;
+    return "<div class='wrow"+(member?" member":"")+(dis?" dis":"")+"'><label><input type='checkbox' data-key='"+esc(it.key)+"'"+(picks[it.key]?" checked":"")+(dis?" disabled":"")+">"+
+      "<span class='kind'>"+KIND[it.kind]+"</span><span class='txt' title='"+esc(it.text)+"'>"+esc(it.text)+"</span>"+
+      (it.tag && it.tag!=="Untagged" ? "<span class='cnt'>"+esc(it.tag)+"</span>" : "")+"</label>"+
+      (dis ? "<span class='with'>hidden with the set</span>" : "")+
+      "<button class='wfind' data-find='"+esc(it.key)+"'>SHOW ME</button></div>";
+  }
+  function drawBody(){
+    var prefix = g("q3prefix").value || "WR-Notes-";
+    var h = "<div class='wroom'><div class='wrh'>Annotation sets<span class='links'><a data-all='sets'>all</a> · <a data-none='sets'>none</a></span></div>";
+    h += SETS.map(function(u){
+      var on = !!picks[u.key], ex = !!expanded[u.key];
+      var r = "<div class='wrow'><button class='exp' data-exp='"+esc(u.key)+"' title='Show the callouts in this set'>"+(ex?"&#9660;":"&#9654;")+"</button>"+
+        "<label><input type='checkbox' data-key='"+esc(u.key)+"'"+(on?" checked":"")+"><span class='txt'>"+esc(u.name)+"</span><span class='cnt'>"+esc(u.cnt)+"</span></label>"+
+        "<button class='wfind' data-find='"+esc(u.key)+"' title='Select everything on this set so you can see it'>SHOW ME</button></div>";
+      if(ex) r += u.members.length ? u.members.map(function(m){ return itemRow(m, true, on); }).join("") : "<div class='wrow member'><span class='cnt'>nothing on this tag</span></div>";
+      return r;
+    }).join("") + "</div>";
+    h += "<div class='wroom'><div class='wrh'>Not in a set — tick one by one<span class='links'><a data-all='loose'>all</a> · <a data-none='loose'>none</a></span></div>";
+    h += LOOSE.map(function(it){ return itemRow(it, false, false); }).join("");
+    h += "<div class='whint'>SketchUp will not hide Untagged as a group, so these are hidden one at a time (or all at once with the link above). Want them as a reusable set? Select them in the model and move them into one below.</div></div>";
+    h += "<div class='amove'><div class='wrh'>Move selection into a set — optional, for every scene</div>"+
+         "<select id='aset'>" + SETS.map(function(u){ return "<option value='"+esc(u.key)+"'>"+esc(u.name)+"</option>"; }).join("") + "<option value='__new'>New set…</option></select>"+
+         "<span class='prefix' id='aprefix'>"+esc(prefix)+"</span><input id='anew' placeholder='Plan'>"+
+         "<button id='amove'>MOVE SELECTION INTO SET</button>"+
+         "<span class='note'>Re-tags the selected text, dimensions and 3D labels. Membership is for every scene; walls in the selection are refused by name.</span></div>";
+    g("abody").innerHTML = h;
+    Array.prototype.forEach.call(g("abody").querySelectorAll("input[data-key]"), function(el){
+      el.addEventListener("change", function(){ picks[el.getAttribute("data-key")] = el.checked; if(el.getAttribute("data-key").charAt(0)==="t") drawBody(); });
+    });
+    Array.prototype.forEach.call(g("abody").querySelectorAll("[data-exp]"), function(el){
+      el.addEventListener("click", function(){ var k = el.getAttribute("data-exp"); expanded[k] = !expanded[k]; drawBody(); });
+    });
+    Array.prototype.forEach.call(g("abody").querySelectorAll("[data-find]"), function(el){
+      el.addEventListener("click", function(){
+        var k = el.getAttribute("data-find");
+        msg((k.charAt(0)==="t" ? "Everything on " + k.slice(2) : "That callout") + " is selected in the model and zoomed to. (illustrative)", "");
+      });
+    });
+    Array.prototype.forEach.call(g("abody").querySelectorAll("[data-all],[data-none]"), function(el){
+      el.addEventListener("click", function(){
+        var grp = el.getAttribute("data-all") || el.getAttribute("data-none"), on = el.hasAttribute("data-all");
+        (grp==="sets" ? SETS : LOOSE).forEach(function(u){ picks[u.key] = on; });
+        drawBody();
+        msg((on ? "Every " : "No ") + (grp==="sets" ? "set" : "loose callout") + " ticked. Apply to save that into this scene.", "");
+      });
+    });
+    g("aset").addEventListener("change", function(){
+      var isNew = g("aset").value === "__new";
+      g("anew").className = isNew ? "show" : ""; g("aprefix").className = "prefix" + (isNew ? " show" : "");
+      if(isNew) g("anew").focus();
+    });
+    g("amove").addEventListener("click", function(){
+      var v = g("aset").value, name = v === "__new" ? (g("q3prefix").value||"WR-Notes-") + (g("anew").value||"Plan").trim().replace(/\s+/g,"-") : v.slice(2);
+      var target = null;
+      SETS.forEach(function(u){ if(u.name===name) target = u; });
+      if(!target){ target = { key:"t:"+name, name:name, cnt:"", members:[] }; SETS.push(target); }
+      var moved = LOOSE.splice(0, 2);            // illustrative: "the selection" is the first two loose callouts
+      moved.forEach(function(m){ delete m.tag; target.members.push(m); });
+      target.cnt = target.members.length + " text";
+      drawBody();
+      msg(moved.length + " callout(s) moved into " + name + " — this is for every scene. 1 selected item is not an annotation (Wall 3) and was left alone. (illustrative)", "ok");
+    });
+  }
+  g("apick").addEventListener("click", function(){
+    picks["e:151"] = true; picks["e:152"] = true; expanded["t:WR-Notes-Vent"] = true; drawBody();
+    msg("2 callouts ticked from your selection — both are in WR-Notes-Vent (9 items). Tick the set to hide all of them.", "ok");
+  });
+  g("aapply").addEventListener("click", function(){
+    var st = {}; Object.keys(picks).forEach(function(k){ if(picks[k]) st[k] = 1; }); STATE[cur] = st;
+    var sets = Object.keys(st).filter(function(k){ return k.charAt(0)==="t"; }).length, items = Object.keys(st).length - sets;
+    msg("Saved to scene “" + SCENES[cur-1].scene + "” — " + sets + " set(s) and " + items + " callout(s) hidden. (The real picker closes 0.9 s after this.)", "ok");
+  });
+  g("acancel").addEventListener("click", function(){ g("awrap").style.display = "none"; });
+  g("awrap").addEventListener("click", function(e){ if(e.target === g("awrap")) g("awrap").style.display = "none"; });
+
+  // ---- wording + fork edits feed the dialog live ------------------------------
+  g("q6col").addEventListener("input", function(){ g("colhdr").textContent = g("q6col").value || "ANNOTATIONS"; build(); });
+  g("q6btn").addEventListener("input", function(){ drawRows(); build(); });
+  function q3(){ g("q3out").textContent = (g("q3prefix").value||"") + (g("q3sample").value||"").trim().replace(/\s+/g,"-"); drawBody(); build(); }
+  g("q3sample").addEventListener("input", q3); g("q3prefix").addEventListener("input", q3);
+  Array.prototype.forEach.call(document.querySelectorAll("input[name='qcs']"), function(r){
+    r.addEventListener("change", function(){
+      g("cshelp").textContent = r.value.indexOf("close") === 0
+        ? "Client-safe hides the WR-Dims / WR-Notes sets and every loose callout for the whole run and puts each one back at the end. Per scene exports each scene with exactly what its picker left showing."
+        : "Client-safe hides the WR-Dims / WR-Notes sets only — text on Untagged still exports. Hide it per scene. Per scene exports each scene with exactly what its picker left showing.";
+    });
+  });
+
+  // ---- review layer + copy-back ------------------------------------------------
+  var review = { overall:null, picker:null, manifest:null };
+  Array.prototype.forEach.call(document.querySelectorAll(".rv button[data-sec]"), function(b){
+    b.addEventListener("click", function(){
+      var sec = b.getAttribute("data-sec"); review[sec] = b.getAttribute("data-d");
+      Array.prototype.forEach.call(document.querySelectorAll(".rv button[data-sec='"+sec+"']"), function(o){ o.className = (o===b) ? "on" : ""; });
+      build();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("textarea[data-note], .q input"), function(el){ el.addEventListener("input", build); el.addEventListener("change", build); });
+  function radio(n){ var el = document.querySelector("input[name='"+n+"']:checked"); return el ? el.value : null; }
+  function build(){
+    var notes = {};
+    Array.prototype.forEach.call(document.querySelectorAll("textarea[data-note]"), function(t){ if(t.value.trim()) notes[t.getAttribute("data-note")] = t.value.trim(); });
+    var out = {
+      mockup: "scene-annotations.mockup.html", rev: 2,
+      spec: ".forge/scoper/scene-annotations.md",
+      date: new Date().toISOString().slice(0,10),
+      decision: review.overall,
+      sections: { picker: review.picker, manifest: review.manifest },
+      settled_by_probe: ["ticked = hidden", "single-callout hiding in scope", "Untagged never a set"],
+      questions: {
+        Q1_column: radio("q1"),
+        Q3_set_prefix: g("q3prefix").value, Q3_example: g("q3out").textContent,
+        Q4_dropdown_default: radio("q4"),
+        Q7_set_members: radio("q7"),
+        QCS_client_safe_untagged: radio("qcs"),
+        Q6_column_header: g("q6col").value, Q6_row_button: g("q6btn").value
+      },
+      notes: notes
+    };
+    g("cbout").value = JSON.stringify(out, null, 2);
+    var done = [review.overall, review.picker, review.manifest].filter(Boolean).length;
+    g("cbst").textContent = done ? (done + " of 3 sections answered" + (review.overall ? " — overall: " + review.overall : "")) : "Nothing chosen yet — approve or note the strips above, then answer the questions.";
+  }
+  g("cbcopy").addEventListener("click", function(){
+    var t = g("cbout"); t.select();
+    try { navigator.clipboard.writeText(t.value); } catch(e) { try { document.execCommand("copy"); } catch(e2) {} }
+    g("cbcopy").textContent = "Copied"; setTimeout(function(){ g("cbcopy").textContent = "Copy"; }, 1200);
+  });
+
+  drawRows(); open(3); expanded["t:WR-Notes-Plan"] = true; drawBody(); build();
+})();
+</script>

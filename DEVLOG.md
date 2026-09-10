@@ -2,6 +2,124 @@
 
 ## 2026-09-09
 
+### Per-scene notes & dimensions — the ANNOTATIONS column, and the client-safe hole it closed — 1.20.0
+
+Benton: *"Sometimes I have tons of text I want on one scene, but not another."*
+There is now an **ANNOTATIONS** column beside WALLS in the proposal package, and
+a standalone **Hide notes & dimensions per scene** tool
+(`scripts/wr-scene-annotations.rb`) behind the same mechanism. Spec and mockup
+approved before any code: `.forge/scoper/scene-annotations.md` (rev 2, the
+hybrid picker) — *"cool that works"*, 9 Sep 2026.
+
+**One list, one rule: ticked = hidden when this scene exports** — the walls
+polarity, deliberately, because the two buttons sit on the same row. Under it
+are two mechanisms and the operator never picks between them:
+
+- a **SET** row is a tag in the `WR-Dims*` / `WR-Notes*` family — one flag
+  hides every callout on it at any depth, it is reusable across scenes, and the
+  client-safe pass can find it by name (`layer.visible = false` +
+  `page.set_visibility`);
+- a **CALLOUT** row is one entity's own hidden flag, saved into the scene by
+  the walls' exact call `page.update(384)`.
+
+**The probe is why the design is a hybrid and not a tag picker.**
+`.forge/scoper/probe-scene-annotations.rb`, run live by Benton, verbatim:
+
+```
+probe-scene-annotations — SketchUp 26.2.243, mask=384 (HIDDEN_OBJECTS=256, HIDDEN_GEOMETRY=128, LAYER_VISIBILITY=32)
+TAG PATH (recommended mechanism)
+  PASS tag.page_layers_lists_hidden_tag — A hides ["WR-Notes-Probe"], B hides []
+  PASS tag.roundtrip_B_A_B — B=true A=false B=true (expect true/false/true)
+  PASS tag.entities_follow_tag
+  FAIL tag.untagged_can_hide — Untagged visible? after hide = true
+PER-ENTITY PATH (walls mechanism, page.update(384))
+  PASS entity.screen_text — B hidden?=false A hidden?=true (expect false/true)
+  PASS entity.leader_text — B hidden?=false A hidden?=true (expect false/true)
+  PASS entity.linear_dim — B hidden?=false A hidden?=true (expect false/true)
+  PASS entity.3d_text_group — B hidden?=false A hidden?=true (expect false/true)
+  PASS entity.update_mask_leaves_camera — camera identical before and after
+```
+
+**`tag.untagged_can_hide` FAILED — SketchUp will not hide the Untagged tag.**
+Hand-placed text lands on Untagged, so a tag-only picker would have listed
+empty sets and left Benton's real callouts untouched; and there is deliberately
+no "Untagged" set row, because a tick that silently does nothing is the one
+outcome this picker forbids. Loose callouts are listed individually under
+**Not in a set** with `all · none` links, so the zero-setup batch hide is still
+one click. `entity.update_mask_leaves_camera` is the walls guarantee holding
+for annotations: mask 384 never touches a scene's saved camera.
+
+**THE CLIENT-SAFE HOLE, CLOSED (spec Step 7 — the highest-risk item here).**
+The same FAIL exposed a defect that was already live: `annot_push` hid the five
+frozen `ANNOT_TAGS` and nothing else, so **a note hand-placed on Untagged went
+out on a client-facing image** while the log said `CLIENT-SAFE: hid 5
+annotation tag(s)` and the manifest said `annotations_hidden_in_images: true`.
+Silently wrong, in front of a customer — the worst failure that file can have,
+by its own header. It now hides every loose callout per entity as well, under
+the **D10 capture-before-mutate** discipline verbatim: `@annot_saved_entities`
+is published *before* the first flip and filled in place, one entry written
+before that entity is touched, so a raise partway through is still fully
+restorable. `annot_pop` restores each entity to **what it was** (a callout
+Benton had already hidden stays hidden), each entry in its own rescue so one
+locked tag cannot strand the rest, and `finish` reaches it on every exit path.
+Nothing here is ever written into a scene — only `page.update` does that, and
+this file never calls it.
+
+**And the image lane undid it, which is the 1.9.12 tag defect one property
+over.** `export_pages` selects the page again between the push and
+`write_image`, and selecting a page re-applies that scene's saved per-entity
+hidden state — the very mechanism this feature rides on. So `annot_reapply`
+now rides the same `after_switch` hook the shading contract does (1.19.3),
+re-asserting the hide from the record and touching nothing the record does not
+name.
+
+**The family is a pattern now, not five frozen names.** New sets are named
+`WR-Notes-<name>`, and `WR_ProposalScenes.annot_tags(model)` matches
+`/\AWR-(Dims|Notes)(\z|-)/` live against the model's own tags — rescued to the
+frozen `ANNOT_TAGS`, which stays the floor and the fallback. Every consumer
+reads it live: the client-safe pass, `unit_image`'s re-hide list, the manifest's
+`present` list, `WR_Mode.snapshot`, `to_mode` (which fills a family tag the
+stored snapshot never heard of at that mode's polarity, or a set made this
+afternoon would be governed by nothing) and `wr-preflight`'s dimension check.
+A set outside the family would leak past client-safe — defect D5 verbatim.
+
+**manifest.json (format still 1, additive).** Two new per-row fields with the
+`groups_hidden` doctrine — **null means not recorded, `[]` means nothing was
+hidden**: `annotation_tags_hidden` (the sets the scene's saved state hides) and
+`annotations_hidden` (single callouts, kind/tag/text). Both carry field notes
+inside the file. `collect_annotations` also learned the 3D-text label — a
+`label: …` group is real geometry, not a `Sketchup::Text`, and the manifest
+could not see one.
+
+**Verification.** `scripts/rbtest-proposal.py` runs 116 checks green under
+SketchUp's own CRuby, including nine new ones — `st5-st8` (`hidden_annot_tags`),
+`mr6`/`mr7` (both fields ride the row) and `annot5-7` (the entity half of D10:
+recorded before the flip, restored to what it *was*, re-asserted after the
+scene switch). **Mutation-checked, RUN not assumed:** seven reintroduced bugs,
+each caught by its named check —
+
+    hidden_annot_tags returns [] under client_safe             -> st5
+    hidden_annot_tags guesses a list when hidden is nil        -> st7
+    manifest_rows drops p[:hid]                                -> mr6
+    annotations_hidden defaults to [] instead of nil           -> mr7
+    @annot_saved_entities assigned AFTER the entity loop       -> annot5, annot6
+    annot_pop forces callouts visible instead of restoring     -> annot6
+    annot_reapply made a no-op                                 -> annot7
+
+Every other harness re-run green (13 of them), `python scripts/rbparse.py`
+clean on all 68 files, and both dialogs' JavaScript checked with `node --check`
+against the walls dialog as a known-good control.
+
+**STILL UNRUN IN SKETCHUP.** No bridge from here into the window, so the
+picker itself, the modal, the tag+entity save in one Apply and the client-safe
+sweep are unverified live. `.forge/builder/verify-scene-annotations.rb` is the
+acceptance list as a loadable script: it refuses anywhere but an **Untitled**
+model, builds its own fixture, prints one PASS/FAIL line per check the way the
+probe did, and erases every scene, entity and tag it made in `ensure`.
+
+Panel: `wr-ico-scene-annots.svg` + `icon-map.json` + `ico-labels.txt`.
+`scripts/wr_tools/VERSION` 1.19.16 -> **1.20.0** (new tool script).
+
 ### PeoplesSpace: text out of the model, context and site colours in — 1.19.16
 
 Benton ran 1.19.15 and sent a screenshot: the in-model paragraph notes rendered

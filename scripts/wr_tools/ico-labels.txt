@@ -84,6 +84,7 @@ wr-materials	Swap draft / render materials
 wr-preflight	Pre-render checklist
 wr-pack	Export the client pack
 wr-scene-walls	Hide walls per scene
+wr-scene-annots	Hide notes & dimensions per scene
 wr-name-walls	Name walls for the scene picker
 wr-lower-walls	Lower selected walls to a curb
 wr-split-walls	Split walls at sill

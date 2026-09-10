@@ -63,6 +63,45 @@ module WR_ProposalScenes
   # render mode and by the proposal package's client-safe image pass.
   ANNOT_TAGS = (DIM_TAGS + NOTE_TAGS).freeze
 
+  # THE FAMILY IS A PATTERN, NOT JUST THE FIVE FROZEN NAMES (1.20.0).
+  #
+  # ANNOT_TAGS above is the five names the WR tools themselves write, and it
+  # stays frozen because seven call sites and two test harnesses name it. But
+  # wr-scene-annotations.rb lets Benton MAKE annotation sets — "WR-Notes-Plan",
+  # "WR-Notes-Vent" — and a set outside the family would leak straight past
+  # client-safe, which is defect D5 all over again (a WR-Notes banner went out
+  # on a client image on 30 Aug 2026 because no tag list knew it existed).
+  #
+  # So the family is matched LIVE against the model's own tags: anything named
+  # WR-Dims, WR-Notes, or either with a "-suffix". Every consumer that hides
+  # annotation tags calls annot_tags(model) instead of reading the constant, so
+  # a set created this afternoon is covered by the client-safe pass tonight.
+  ANNOT_RE = /\AWR-(Dims|Notes)(\z|-)/.freeze
+
+  # The five frozen names PLUS every family tag this model actually carries.
+  # Rescued to the constant: an unreadable layer collection must not take the
+  # client-safe pass down with it, and the five are always the right floor.
+  def self.annot_tags(model)
+    (ANNOT_TAGS + model.layers.map { |l| l.name.to_s }.grep(ANNOT_RE)).uniq
+  rescue StandardError
+    ANNOT_TAGS.dup
+  end
+
+  # The tag name a typed set name becomes. A name already in the family is
+  # taken verbatim (so "WR-Dims-Booth" means that tag, not a nested one);
+  # anything else gets the WR-Notes- prefix, because a set outside the family
+  # is a set client-safe cannot see. nil for an empty name — the caller says
+  # so rather than inventing "WR-Notes-".
+  def self.annot_set_name(user)
+    s = user.to_s.strip
+    return nil if s.empty?
+    return s if s =~ ANNOT_RE
+    slug = s.gsub(/[^A-Za-z0-9 _-]/, '').strip.gsub(/[\s_]+/, '-')
+    slug = slug.gsub(/-+/, '-').sub(/\A-+/, '').sub(/-+\z/, '')
+    return nil if slug.empty?
+    "WR-Notes-#{slug}"
+  end
+
   # What 02-dimensioned actually shows: the ROOM dimensions and its doors. The
   # other four plates show none of them.
   #

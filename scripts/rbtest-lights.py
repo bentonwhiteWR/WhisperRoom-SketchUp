@@ -796,6 +796,16 @@ class FakeModel
   def styles; nil; end # snapshot's style read is rescue-guarded
 end
 
+# 1.20.0 -- snapshot reads the LIVE annotation family (a set made by
+# wr-scene-annotations.rb is an annotation tag like any other), so the lift
+# needs the family's owner. It answers with the same two fixture tags, which
+# keeps every check below comparing against exactly what it did before.
+module WR_ProposalScenes
+  def self.annot_tags(_model)
+    WR_Mode::ANNOT_TAGS
+  end
+end
+
 module WR_Mode
   # One dimension tag and one note tag, so the transcript stays short but
   # ANNOT_TAGS is the real two-family list wr-mode.rb manages from 1.9.3 -- the

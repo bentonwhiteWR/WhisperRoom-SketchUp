@@ -47,7 +47,13 @@ module WR_Preflight
 
   # 1. Any WhisperRoom dimension tag still visible.
   def self.check_dims(model)
-    on = WR_Mode::DIM_TAGS.select { |n| l = model.layers[n]; l && l.visible? }
+    # DIM_TAGS plus every live WR-Dims-… set (1.20.0) — a preflight that
+    # cannot see a set Benton made would pass a model with its dimensions on.
+    # This check is about DIMENSIONS specifically (that is what it reports and
+    # what its name says), so WR-Notes* sets are deliberately not folded in —
+    # the client-safe pass in proposal-package.rb is what covers those.
+    dims = WR_ProposalScenes.annot_tags(model).grep(/\AWR-Dims/)
+    on = (WR_Mode::DIM_TAGS + dims).uniq.select { |n| l = model.layers[n]; l && l.visible? }
     if on.empty?
       { 'status' => 'pass', 'detail' => 'All dimension tags are off.' }
     else

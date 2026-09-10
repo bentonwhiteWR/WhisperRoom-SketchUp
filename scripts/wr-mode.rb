@@ -175,7 +175,11 @@ module WR_Mode
     ro_style = (model.styles.selected_style.name rescue nil)
     si = model.shadow_info
     ro = model.rendering_options
-    { 'dims'   => (ANNOT_TAGS + LIGHT_TAGS).each_with_object({}) { |n, h| l = model.layers[n]; h[n] = l ? l.visible? : nil },
+    # THE LIVE FAMILY, not just the five frozen names (1.20.0). A set made
+    # by wr-scene-annotations.rb ("WR-Notes-Plan") is an annotation tag like
+    # any other: it must be remembered by a mode snapshot and hidden by render
+    # mode, or a set would quietly outlive the mode that is supposed to own it.
+    { 'dims'   => (WR_ProposalScenes.annot_tags(model) + LIGHT_TAGS).each_with_object({}) { |n, h| l = model.layers[n]; h[n] = l ? l.visible? : nil },
       'style'  => ro_style,
       'shadow' => WR_Shading::SHADOW_KEYS.each_with_object({}) { |k, h| h[k] = (si[k] rescue nil) },
       'ro'     => RO_KEYS.each_with_object({}) { |k, h| h[k] = (ro[k] rescue nil) } }
@@ -318,6 +322,18 @@ module WR_Mode
       # 2026-08-27 stored its draft snapshot with shadows on). Dim keys are
       # left exactly as the snapshot recorded them.
       pin_policy(target_snap, target)
+
+      # A SET CREATED AFTER THE LAST SNAPSHOT HAS NO KEY IN IT (1.20.0), and
+      # apply_snapshot only writes keys it finds — so a brand-new WR-Notes-Plan
+      # would be governed by nothing and stay showing straight through render
+      # mode. Every live family tag missing from the snapshot is filled at this
+      # mode's polarity: shown in draft, hidden in render. Keys the snapshot
+      # DOES carry are left exactly as it recorded them — that is the
+      # remember-what-was-showing contract, and it still holds.
+      dims = (target_snap['dims'] ||= {})
+      WR_ProposalScenes.annot_tags(model).each do |n|
+        dims[n] = (target == 'draft') unless dims.key?(n)
+      end
 
       stuck = apply_snapshot(model, target_snap)
 

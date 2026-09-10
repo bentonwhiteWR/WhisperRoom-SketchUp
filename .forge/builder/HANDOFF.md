@@ -1,62 +1,84 @@
-# HANDOFF — Builder → Auditor (PeoplesSpace alcove room script)
+# HANDOFF — Builder → Benton: per-scene ANNOTATIONS, rev 2 (hybrid), shipped as 1.20.0
+
+2026-09-09. Spec `.forge/scoper/scene-annotations.md` rev 2, approved by Benton
+("cool that works"). Every one of the spec's nine steps is shipped; step 9
+(live verification) is handed back as a loadable script because there is no
+bridge from the assistant's session into SketchUp.
 
 ## Produced
-- `scripts/peoplesspace-alcove.rb` — the room script, `@tab client`. Builds the alcove
-  to the two stated interior faces, east side open, cloud + structure + pipes + grille
-  massed, MDL 96120 E + ADA placed twice (door south / door north) on WR-Booth-Opt1 /
-  WR-Booth-Opt2, invented context around it on WR-Context-INVENTED, site-sampled room
-  materials, ten scenes in proposal plate order, and a report HtmlDialog. **Unrun by
-  me** — Benton loaded 1.19.15; nothing since has been executed.
 
-## Changed after Benton ran 1.19.15 (now 1.19.16)
-- **In-model paragraph text is gone.** `Sketchup::Text` has no font-size API, which is
-  why it rendered enormous. Short labels only now, via `add_3d_text` at
-  `LABEL_H = ROOM_W / 64.0`, all on **WR-Notes, off by default** (the WR Lights pattern).
-- **The explanation lives in an HtmlDialog** the build opens — height stack, headroom,
-  caster warning, handedness conflict, palette, the thirteen-item estimated list — with
-  buttons that switch options, labels, dimensions and context. Console `puts` unchanged.
-- **Context added**, all INVENTED, on its own tag: floor 20 ft east, elevator recess in
-  the continuing concrete wall, glass door and room behind the storefront, mullions,
-  deck, pipes carried east. The `-02-dimensioned` and `-05-plan` scenes drop it.
-- **Room materials sampled off the site photo**, deliberately replacing CLAUDE.md's
-  drawing palette for this model (Benton's call). Booth materials untouched.
-  `SITE_MATERIALS = false` restores the drawing palette; `BUILD_CONTEXT = false` drops
-  the context.
-- `.forge/builder/peoplesspace-check.py` — the arithmetic cross-check, independent of the
-  Ruby: chain closure, ramp fit, height stack, roof-unit seating. Passes.
-- `DEVLOG.md` entry and `scripts/wr_tools/VERSION` bumped 1.19.14 → 1.19.15.
+**New**
+- `scripts/wr-scene-annotations.rb` — `WR_SceneAnnotations`, the standalone
+  tool and the engine the proposal package's column calls. `inventory`,
+  `apply`, `apply_selection`, `keys_for_selection`, `reveal`,
+  `move_selection_to_set`, `pages_not_saving`, `fix_pages`, and its own
+  `UI::HtmlDialog` mirroring wr-scene-walls'.
+- `scripts/wr_tools/wr-ico-scene-annots.svg` — panel icon.
+- `.forge/builder/verify-scene-annotations.rb` — the live acceptance list,
+  **for Benton to run** (see Open questions).
+
+**Changed**
+- `scripts/proposal-scenes.rb` — `ANNOT_RE`, `annot_tags(model)`,
+  `annot_set_name(user)`. `ANNOT_TAGS` unchanged and still the fallback.
+- `scripts/proposal-package.rb` — the ANNOTATIONS column (header, row button,
+  modal markup/CSS/JS, six `annots*` callbacks), `annot_tags`,
+  **`annot_push` closing the Untagged client-safe hole**, `annot_pop` restoring
+  both halves, `annot_reapply` on the `after_switch` hook,
+  `loose_annotations`, `hidden_annot_tags`, `collect_hidden_annotations`,
+  `collect_annotations` learning the 3D-text label, two `MANIFEST_NOTES`
+  entries, the two new manifest row fields, the relabelled dropdown.
+- `scripts/wr-mode.rb` — `snapshot` reads the live family; `to_mode` fills a
+  family tag the stored snapshot never heard of at that mode's polarity.
+- `scripts/wr-preflight.rb` — `check_dims` sees live `WR-Dims-*` sets.
+- `scripts/rbtest-proposal.py` — st5-st8, mr6, mr7, annot5-7 + the shims.
+- `scripts/rbtest-lights.py` — `WR_ProposalScenes` shim for the lifted
+  `snapshot` (it broke without one; that is the harness doing its job).
+- `scripts/wr_tools/icon-map.json`, `ico-labels.txt`, `VERSION` → 1.20.0.
+- `DEVLOG.md` — the 1.20.0 entry, with the probe output verbatim.
 
 ## Read-first
-1. The header of `scripts/peoplesspace-alcove.rb` — it carries the whole argument
-   (measured / not measured, the height stack, why the ramp cannot run inward, hinge).
-2. `.forge/builder/peoplesspace-check.py` output — run it, it takes a second.
-3. `scripts/wr-overlays.rb` `place_efp` (~line 1168) and `scripts/wr-deck.rb`
-   `DECK_TOP_Z` — the two lines that settle the raised-floor question.
+
+1. `scripts/wr-scene-annotations.rb` header — the two mechanisms, and why the
+   probe's one FAIL makes the tool a hybrid.
+2. `scripts/proposal-package.rb` `annot_push` → "THE UNTAGGED HOLE, CLOSED" —
+   the customer-facing fix and its capture-before-mutate discipline.
+3. `annot_reapply` right below it — why the image lane needed a re-assert.
+4. `scripts/rbtest-proposal.py` docstring "THE ANNOTATION HALF (1.20.0)" — the
+   seven mutations, each run and each caught.
 
 ## Assumptions
-- z = 0 is LEVEL 01 FF taken as the TOP of the raised floor as drawn. A reading of the
-  elevation fragment, not a statement by the architect.
-- Hinge on the SOUTH jamb in both options, leaf opening south so the ramp approach is
-  clear from the glass-wall side. Nobody has stated a hinge side.
-- Pipe plan positions (three, dia 5.5", centres 3.5 / 10.5 / 17.5 off the concrete face)
-  and the cloud's 22" setback and the grille box are pixel reads, ±2".
-- Booth is a PLACEHOLDER BOX at the catalogue exterior — no sales link exists yet.
-- No casters. If a quote ever carries them the roof unit hits the pipe (see below).
+
+- **observed (probe, SketchUp 26.2.243, 9 Sep 2026):** scenes save per-tag
+  visibility and per-entity hidden state for screen text, leader text, linear
+  dimensions and 3D-text groups; mask 384 leaves the camera identical;
+  **Untagged cannot be hidden.**
+- **observed (this build):** 116 checks green in `rbtest-proposal.py` under
+  SketchUp's own CRuby; 13 harnesses green; 68 files parse; both dialogs'
+  JavaScript parses under `node --check`.
+- **derived:** the image lane's page switch undoes a per-entity hide, because
+  that is the same mechanism the feature rides on — hence `annot_reapply`.
+  Not observed live.
+- **assumed:** `page.update(384)` and `page.set_visibility` in one Apply do not
+  interfere. The probe proved each **separately**; the combination is what
+  `scene.set_hidden_per_scene` in the verification script checks.
+- **reported:** V-Ray ignores SketchUp Text/Dimensions and renders 3D-text
+  geometry only when visible. Untested here.
 
 ## Open questions
-1. **The ramp cannot run inward.** It needs 45.625"; the alcove leaves 16.75" east and
-   6.75" north. Drawn running EAST into the open space, toe 2'-5 7/8" past the alcove
-   line. Benton has to accept that or the layout changes.
-2. **Roof-mount is not on a sales quote.** Drawn, labelled UNCONFIRMED everywhere. Get
-   the `sales.whisperroom.com/q/W-…` link before anything ships.
-3. **"Left side" vs "against the glass wall" conflict.** Answer 4 says south = left
-   (option 1); answer 5 says the ramp opens against the glass wall, which is the north
-   end (option 2). Both are built; Benton picks.
-4. Ramp rise and slope are still unknown — the plate is flat and is not a ramp profile.
-5. The script is UNRUN in its current form. Benton loaded 1.19.15; the text fix, the
-   context and the site palette have not been seen in SketchUp by anyone.
-6. The context dimensions (20 ft east, 12 ft glazed room, 84" elevator, 48" mullion
-   spacing) are all invented for the render. If anyone measures the real lobby, replace
-   the `CTX_*` / `EV_*` / `MULL_SP` constants — they are grouped at the top of the file.
-7. The sampled colours carry the photo's lighting. They are a lookdev starting point,
-   not a spec.
+
+1. **Run `.forge/builder/verify-scene-annotations.rb` in an Untitled model and
+   paste the output back.** Until then the picker, the modal, the combined
+   tag+entity save and the client-safe sweep are UNVERIFIED LIVE.
+2. The Scoper's forks were taken at its own recommendation (Benton approved the
+   design as mocked without answering them one by one): **Q1** separate
+   ANNOTATIONS column; **Q3** new sets named `WR-Notes-<name>`; **Q4**
+   Client-safe stays the dropdown default; **Q6** header "ANNOTATIONS", button
+   "Hide notes"; **Q7** set members behind an expand arrow; **Q-CS** the
+   Untagged client-safe hole closed in this build. Any of them is cheap to
+   reverse — say which.
+3. `DEPTH = 2`: a callout buried more than two containers deep is not listed
+   and is not swept by client-safe. A set still hides it (tag visibility has no
+   depth limit) and the log now says so by name. Raise DEPTH if real models
+   bury callouts deeper.
+4. The V-Ray lane with a hidden `label:` group is untested — worth one render
+   in the acceptance run.

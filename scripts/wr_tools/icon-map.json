@@ -46,6 +46,7 @@
   "wr-name-walls.rb": "name-walls",
   "wr-pack-export.rb": "pack",
   "wr-preflight.rb": "preflight",
+  "wr-scene-annotations.rb": "scene-annots",
   "wr-scene-walls.rb": "scene-walls",
   "wr-split-walls.rb": "split-walls",
   "wr-sun-aim.rb": "sun"

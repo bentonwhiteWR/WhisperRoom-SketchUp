@@ -1,57 +1,29 @@
 # GOAL
 
 ## Mission
-Rework the PeoplesSpace MDL 96120 E + ADA layout. Benton drew the original by hand
-before the room-building pipeline existed; the client has returned the proposal marked
-up and the architect has now supplied a partial plan and elevation. Draw their room
-properly in SketchUp so the booth can be placed and re-rendered.
-
-## The numbers we have (from the architect's fragment, all marked VIF)
-- Alcove depth  10'-8 3/4" VIF
-- Alcove width   9'-6 3/4" VIF
-- Bottom of pipe        8'-3 1/4" VIF
-- Acoustic cloud ceiling 9'-5"    VIF
-- Concrete structure    10'-2"    VIF
-- Level 01 FF 0'-0", with a RAISED FLOOR noted on the elevation
-- MDL 96120 E exterior: 8'-2" x 10'-2", install height 7'-1" (models.json, observed)
+Extend the proposal package script's per-scene hiding so it covers ANNOTATIONS — text,
+dimensions, labels, section planes and the like — not just whole walls. Benton: "Sometimes
+I have tons of text I want on one scene, but not another." Same feel as the existing WALLS
+column in proposal-package.rb, driven by wr-scene-walls.rb's proven mechanism.
 
 ## Done means
-- A take-off of the alcove per the whisperroom-takeoff skill: every stated number
-  transcribed, never estimated, chains closed, provenance on each.
-- A clear fit verdict with the arithmetic shown: booth + ADA ramp (45.625") + vent
-  clearance against 9'-6 3/4" x 10'-8 3/4", and roof-mount height against the
-  8'-3 1/4" bottom of pipe.
-- A to-scale dimensioned Artifact of the alcove with the booth placed, per CLAUDE.md's
-  drawing conventions (chain dimensions every wall run, door centrelines, legend).
-- A SketchUp Ruby script under scripts/ that builds the room to the measured interior
-  faces, tagged @tab client.
-- Everything the fragment does NOT tell us named explicitly, not guessed.
-
-## Benton's answers (2026-09-09, verbatim intent)
-1. East of the alcove is OPEN SPACE.
-2. The "RAISED FLOOR" on the architect's elevation is the WhisperRoom raised floor -
-   2.75" above the normal WhisperRoom floor. It is ours, not the building's.
-3. Roof-mount on a sales quote: "Idk I thought we had it" - NOT confirmed. Draw it,
-   label it unconfirmed, and get the quote link before anything ships.
-4. Left/right: go with the projection as drawn (south end = left), per the Scoper's
-   reading. Hinge side still unstated.
-5. Assume ramp geometry exists for the Enhanced shell. THE RAMP RUNS INWARD, not east -
-   on the LEFT side, opening against the GLASS WALL the booth sits next to.
-6. Pipe plan position: estimate it, and say it is an estimate.
+- A Scoper spec + viewable mockup approved by Benton BEFORE any script code is written.
+- Per-scene show/hide of screen text, 3D text, linear/angular dimensions and labels,
+  saved into the scene the same way walls are (page.update with the hidden-state mask),
+  so proposal-package.rb picks it up for free when it selects each scene to export.
+- Grouping that matches how Benton actually works — annotations picked as sets, not one
+  entity at a time — settled with him in the mockup.
+- The proposal-package.rb export manifest records what was hidden by design, the way
+  groups_hidden already does for walls.
+- Verified live in SketchUp, not just reasoned about. Committed and pushed.
 
 ## Now
-Builder: write the SketchUp room script from .forge/scoper/peoplesspace-room.md, with
-the ramp re-arranged to run inward along the glass wall and the 2.75" raised floor
-carried into the height stack.
+Builder implementing the rev 2 hybrid spec (.forge/scoper/scene-annotations.md),
+approved by Benton 9 Sep 2026, then committing and pushing to GitHub.
 
 ## Out of scope
-- Choosing or changing the booth model. It is MDL 96120 E with ADA, off the existing
-  proposal. Sales owns the model.
-- Building the proposal PDF (that comes after the renders exist).
-- Prices, lead times, freight.
+- Rewriting the walls feature; extend/parallel it, don't replace it.
+- Any change to the PeoplesSpace room work (archived: .forge/GOAL.peoplesspace.archive.md).
 
 ## History
-- 1.19.14 shipped: roof-mount (rv) refusal now counts cable walls instead of matching
-  slot ids, so a moved-cable-wall design builds.
-- Ceiling lights were never missing - Draft mode hides the WR Lights tag.
-- Broadcaster General Store proposal - paused.
+- PeoplesSpace MDL 96120 E + ADA alcove take-off — see .forge/GOAL.peoplesspace.archive.md
