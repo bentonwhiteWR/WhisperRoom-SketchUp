@@ -1,5 +1,55 @@
 # DEVLOG
 
+## 2026-09-10
+
+### Create an annotation set from the dialog — no selection required — 1.20.1
+
+Benton: *"We added the dims annotations being able to be hidden. I'd like for
+there to be a way to add an annotation set from here."* The
+**Hide notes & dimensions per scene** dialog (`scripts/wr-scene-annotations.rb`)
+now has a **CREATE SET** control with its own always-visible name field, sitting
+under the existing move row.
+
+**The gap.** The only way to bring a set into existence was
+`move_selection_to_set`, and that method **refuses an empty selection** — rightly,
+because a move that moves nothing is a lie. But that coupled two decisions that
+are not the same one: *this set should exist* and *these callouts belong to it*.
+Naming the sets up front is how a drawing gets planned, so creation is now its
+own mirror-image rule: no selection is required and none is read.
+
+- `WR_SceneAnnotations.create_set(model, user_name)` sits next to
+  `move_selection_to_set` and returns its `[ok, message]` shape, inside
+  `start_operation` / `commit_operation` with `abort_operation` on exception.
+- **One naming rule, still.** It calls `WR_ProposalScenes.annot_set_name` — a
+  name already in the `WR-Dims*` / `WR-Notes*` family verbatim, anything else
+  slugged and prefixed `WR-Notes-`, empty → refused by name. No second rule.
+- **The message reports the tag that actually exists**, not the string that was
+  typed. Saying "created Plan" when the model holds `WR-Notes-Plan` is how
+  someone goes looking in the tag list for something that is not there.
+- **An existing set is a no-op with an honest message**, not an error and
+  certainly not a delete-and-recreate of a tag that may carry three hundred
+  callouts.
+- New `newset` action callback, wired exactly like `move`: `push_state` then
+  `status`, unconditionally. `inventory` already lists a set row for **every**
+  family tag present, members or not, so the new set appears immediately —
+  unticked, because a freshly added tag is visible.
+
+The existing **New set… + MOVE SELECTION INTO SET** flow is untouched and works
+as before. CSS reuses the strip's existing tokens (`.lbl`, `#move input.show`,
+`.prefix.show`); one spacing rule `#move .lbl.two` was added and no colour was
+invented.
+
+**UNRUN IN SKETCHUP.** There is no `ruby.exe` on this machine and the SketchUp
+window cannot be driven from here. `python scripts/rbparse.py` (real CRuby 3.2
+parse) reports **68/68 files parse**, which is a syntax check and nothing more.
+To verify live: open the tool, type `Plan` in the **Create an empty set** field,
+click **CREATE SET** — the status line should read
+`Created WR-Notes-Plan — empty for now…`, a `WR-Notes-Plan` row should appear
+under **Annotation sets** showing `empty` and unticked, and it should be in the
+move dropdown. Click **CREATE SET** again on the same name and it should say it
+already exists and change nothing. Clear the field and click it: "Type a name
+for the set first."
+
 ## 2026-09-09
 
 ### Per-scene notes & dimensions — the ANNOTATIONS column, and the client-safe hole it closed — 1.20.0

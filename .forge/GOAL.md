@@ -18,8 +18,10 @@ column in proposal-package.rb, driven by wr-scene-walls.rb's proven mechanism.
 - Verified live in SketchUp, not just reasoned about. Committed and pushed.
 
 ## Now
-Verified live 9 Sep 2026 — all 30 checks pass in SketchUp 26.2.243. Feature is
-done pending its first real proposal batch.
+Follow-up ask (Benton, 10 Sep 2026): the annotations dialog can move a selection into a
+set, but there is no way to CREATE an annotation set from the dialog on its own. Add
+explicit set creation — name it, it appears as a set row immediately, empty, with no
+selection required. Existing "New set…" + MOVE flow keeps working.
 
 ## Out of scope
 - Rewriting the walls feature; extend/parallel it, don't replace it.

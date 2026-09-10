@@ -397,6 +397,53 @@ module WR_SceneAnnotations
     [true, msg]
   end
 
+  # Make an EMPTY set, with nothing selected. Benton, 10 Sep 2026: "I'd like
+  # for there to be a way to add an annotation set from here."
+  #
+  # WHY THIS IS A SEPARATE CONTROL AND NOT A TWEAK TO MOVE. Until now the only
+  # way to bring a set into existence was to select some callouts and move them
+  # into it, because move_selection_to_set REFUSES an empty selection — and it
+  # should keep refusing, since a move that moves nothing is a lie. But that
+  # coupled two decisions that are not the same one: "this set should exist"
+  # and "these callouts belong to it". Naming the sets up front, before there
+  # is anything to put in them, is how a drawing gets planned; the tag is then
+  # sitting in the list ready to be the active tag or a move target. So the
+  # rule here is the mirror image: NO selection is required, and none is read.
+  #
+  # THE NAME IS NOT THE OPERATOR'S TO FINALISE. annot_set_name is the single
+  # naming rule (proposal-scenes.rb) — a name already in the WR-Dims*/WR-Notes*
+  # family is taken verbatim, anything else is slugged and prefixed WR-Notes-,
+  # because a set outside that family is a set client-safe cannot see (defect
+  # D5). That means the tag created is frequently NOT the string that was
+  # typed, so the message reports the REAL tag name. Saying "created Plan" when
+  # the model now holds "WR-Notes-Plan" is how someone goes looking in the tag
+  # list for something that is not there.
+  #
+  # AN EXISTING SET IS A NO-OP, NOT AN ERROR. It already appears as a set row
+  # (inventory lists every family tag present, members or not), so the honest
+  # answer is "that one is already there" — deleting or recreating a tag that
+  # may carry three hundred callouts to satisfy a button press is not a trade
+  # this tool gets to make.
+  def self.create_set(model, user_name)
+    name = WR_ProposalScenes.annot_set_name(user_name)
+    return [false, 'Type a name for the set first.'] if name.nil?
+    if model.layers[name]
+      return [true, "#{name} already exists — it is in the list above, and " \
+                    'nothing was changed.']
+    end
+    model.start_operation('Create annotation set', true)
+    begin
+      model.layers.add(name)
+      model.commit_operation
+    rescue StandardError => e
+      model.abort_operation
+      return [false, "Create failed and was rolled back: #{e.class}: #{e.message}"]
+    end
+    [true, "Created #{name} — empty for now. It is in the list above and in " \
+           'the move dropdown; select callouts and move them in, or draw with ' \
+           'it as the active tag.']
+  end
+
   # --------------------------------------------------------------- apply --
 
   # picks is { key => true(hide) / false(show) } over BOTH kinds of row, and
@@ -551,6 +598,11 @@ module WR_SceneAnnotations
         #move input.show { display: inline-block; }
         #move .prefix { color: #8a94a0; font: 11.5px Consolas, monospace; display: none; }
         #move .prefix.show { display: inline; }
+        /* The create row is a second full-width block inside the same flex
+           strip — .lbl is already flex 1 1 100%, so it wraps on its own and
+           the move controls above it do not move. Spacing only; no new
+           colours, no new control styling. */
+        #move .lbl.two { margin-top: 10px; }
         #foot { padding: 6px 12px 10px; }
         #foot button, #move button { font: inherit; padding: 6px 12px; margin-right: 6px;
                        border-radius: 4px; border: 1px solid #48505a;
@@ -647,7 +699,18 @@ module WR_SceneAnnotations
             "<option value='__new'>New set&hellip;</option></select>"+
             "<span class='prefix' id='mpre'>WR-Notes-</span>"+
             "<input id='mnew' placeholder='Plan'>"+
-            "<button id='mgo'>MOVE SELECTION INTO SET</button>";
+            "<button id='mgo'>MOVE SELECTION INTO SET</button>"+
+            // The create row. Its own always-visible field rather than
+            // reusing the move dropdown's "New set…": creating a set has
+            // nothing to do with the selection, and making someone pick
+            // "New set…" out of a MOVE control to do it reads as though a
+            // move is about to happen. Same input and button styling as the
+            // row above — the only difference is that this one is never
+            // hidden, hence the class 'show' baked in.
+            "<span class='lbl two'>Create an empty set &mdash; no selection needed</span>"+
+            "<span class='prefix show'>WR-Notes-</span>"+
+            "<input id='cnew' class='show' placeholder='Plan'>"+
+            "<button id='cgo'>CREATE SET</button>";
           wire();
         }
         function wire(){
@@ -691,6 +754,19 @@ module WR_SceneAnnotations
             var name = v === "__new" ? document.getElementById("mnew").value : v;
             sketchup.move(JSON.stringify({ name: name }));
           });
+          var cg = document.getElementById("cgo");
+          if(cg) cg.addEventListener("click", function(){
+            // No field clearing here: create pushes fresh state, render()
+            // rebuilds this strip from scratch, and the new set arrives as a
+            // row. Ruby owns whether the name was usable, so the empty case
+            // is not second-guessed in JS.
+            sketchup.newset(JSON.stringify({
+              name: document.getElementById("cnew").value }));
+          });
+          var cn = document.getElementById("cnew");
+          if(cn) cn.addEventListener("keydown", function(ev){
+            if(ev.key === "Enter" && cg) cg.click();   // typing a name then
+          });                                          // Enter is the reflex
         }
         function markDirty() { document.getElementById('apply').className = 'dirty'; }
         function applyNow() {
@@ -803,6 +879,15 @@ module WR_SceneAnnotations
     @dlg.add_action_callback('move') do |_c, payload|
       req = (JSON.parse(payload.to_s) rescue {})
       _ok, msg = move_selection_to_set(Sketchup.active_model, req['name'])
+      push_state(Sketchup.active_model)
+      status(msg)
+    end
+    @dlg.add_action_callback('newset') do |_c, payload|
+      req = (JSON.parse(payload.to_s) rescue {})
+      _ok, msg = create_set(Sketchup.active_model, req['name'])
+      # push_state unconditionally, success or not: inventory lists every
+      # family tag present, so this is what puts the new (empty) set on
+      # screen as a row — unticked, because nothing on it is hidden yet.
       push_state(Sketchup.active_model)
       status(msg)
     end
