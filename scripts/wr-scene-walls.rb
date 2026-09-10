@@ -129,8 +129,30 @@ module WR_SceneWalls
   # `hidden` is the state of the wall BANDS (a wall with a door has no lower
   # band under the header; the header rides along). `mixed` says the bands
   # disagree with each other — Apply self-heals it either way.
-  def self.inventory(model)
+  # ONE SCAN, TWO LISTS, ONE @units. Every caller goes through here so the
+  # key index is built exactly once — calling inventory and then an object
+  # scan separately would reset @units and strand half the keys.
+  #
+  #   { :walls   => [wall unit, ...],     the named Wall/Header/Door pieces
+  #     :objects => [object unit, ...] }  everything else at the top level
+  def self.scan(model)
     @units = {}
+    # Sequenced on purpose, not written as one hash literal: object_units
+    # reads the @wall_rooms set that wall_units fills, and leaning on
+    # left-to-right evaluation of hash values to enforce that is the kind of
+    # ordering dependency that survives until someone reformats the line.
+    walls = wall_units(model)
+    { :walls => walls, :objects => object_units(model) }
+  end
+
+  # Unchanged contract for every existing caller (proposal-package.rb called
+  # this before objects existed): the walls, and @units freshly built.
+  def self.inventory(model)
+    scan(model)[:walls]
+  end
+
+  def self.wall_units(model)
+    @wall_rooms = {}
     out = []
     roots = model.entities.grep(Sketchup::Group)
     roots.each do |room|
@@ -153,9 +175,89 @@ module WR_SceneWalls
                   :pieces => u[:wall] + u[:extra] }
         @units[key] = unit
         out << unit
+        # This room is spoken for: object_units must not list it again, or
+        # the same container gets two rows with two different answers.
+        @wall_rooms[room.entityID] = true
       end
     end
     out
+  end
+
+  # ------------------------------------------------------------- objects --
+  #
+  # THE BOOTH IS A GROUP, NOT A COMPONENT INSTANCE. Observed 10 Sep 2026 in
+  # Entity Info with Benton's booth selected: header "Group (1 in model)",
+  # Instance "MDL 96120 E (components)", Tag Untagged. So the filter here is
+  # NOT the entity type — it is "a top-level container that is not already a
+  # wall row". Both Sketchup::Group and Sketchup::ComponentInstance qualify;
+  # filtering on type would have listed nothing useful and missed the exact
+  # object he was pointing at.
+  #
+  # TOP LEVEL ONLY, and that is a correctness rule, not laziness. A container
+  # nested inside a ComponentDefinition is PART of that definition, so hiding
+  # it hides it in every placement of the parent — a model-wide change
+  # wearing a per-scene costume. Nested containers stay reachable through the
+  # selection buttons, and both dialogs say so on screen.
+  #
+  # A room that produced wall rows is excluded: its walls are already listed
+  # piece by piece, and a row hiding the whole room on top of them would be
+  # two controls fighting over one set of entities.
+
+  # The name a person would call this thing. Instance name first — that is
+  # what Entity Info shows and what the build tools set — then the definition
+  # name, then nothing, and the caller decides what "nothing" reads as.
+  def self.object_name(e)
+    nm = (e.name.to_s.strip rescue '')
+    return nm unless nm.empty?
+    (e.definition.name.to_s.strip rescue '')
+  rescue StandardError
+    ''
+  end
+
+  def self.object_unit(key, label, items)
+    states = items.map { |e| ((e.hidden? rescue false) ? true : false) }
+    unit = { :key => key, :kind => 'object', :label => label,
+             :count => items.size, :hidden => states.all?,
+             :mixed => states.uniq.size > 1, :pieces => items }
+    @units[key] = unit
+    unit
+  end
+
+  # Objects grouped BY NAME, so three things called "Task chair" are one row
+  # that hides all three and SAYS it is three. Unnamed containers are NOT
+  # collapsed together — one tick hiding every nameless thing in the model is
+  # exactly the silent over-reach this picker forbids — so each gets its own
+  # row carrying its entity id, which is the only thing telling them apart.
+  def self.object_units(model)
+    named = {}
+    order = []
+    solo  = []
+    model.entities.each do |e|
+      next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      next if @wall_rooms && @wall_rooms[e.entityID]
+      nm = object_name(e)
+      if nm.empty?
+        solo << e
+      else
+        order << nm unless named.key?(nm)
+        (named[nm] ||= []) << e
+      end
+    end
+    out = order.sort_by { |n| n.downcase }.map do |nm|
+      object_unit("o:n:#{nm}", nm, named[nm])
+    end
+    solo.each do |e|
+      what = e.is_a?(Sketchup::ComponentInstance) ? 'component' : 'group'
+      out << object_unit("o:e:#{e.entityID}", "unnamed #{what} ##{e.entityID}", [e])
+    end
+    out
+  end
+
+  # What a row calls itself, for the SHOW ME message. The one place a unit
+  # becomes words, so two dialogs cannot describe the same row differently.
+  def self.unit_label(u)
+    return "#{u[:room]} Wall #{u[:wall]}" unless u[:kind] == 'object'
+    u[:count].to_i > 1 ? "#{u[:label]} (#{u[:count]})" : u[:label].to_s
   end
 
   # ------------------------------------------------- pick it in the model --
@@ -228,7 +330,7 @@ module WR_SceneWalls
     rescue StandardError
       nil                       # zoom is a nicety; the selection is the point
     end
-    [true, "#{u[:room]} Wall #{u[:wall]} selected in the model."]
+    [true, "#{unit_label(u)} selected in the model."]
   end
 
   # --------------------------------------------------------------- apply --
@@ -323,17 +425,25 @@ module WR_SceneWalls
 
   # -------------------------------------------------------------- dialog --
 
+  # The one JSON shape both this dialog and the proposal package's popover
+  # build their object rows from, so the two lists cannot drift apart.
+  def self.object_json(u)
+    { 'key' => u[:key], 'label' => u[:label], 'count' => u[:count],
+      'hidden' => u[:hidden] ? true : false, 'mixed' => u[:mixed] ? true : false }
+  end
+
   def self.state_json(model)
-    units = inventory(model)
+    st    = scan(model)
     page  = model.pages.selected_page
     { 'scene'   => page ? page.name.to_s : nil,
       'noscene' => model.pages.count.zero?,
       'off'     => pages_not_saving_hidden(model),
-      'units'   => units.map do |u|
+      'units'   => st[:walls].map do |u|
         { 'key' => u[:key], 'room' => u[:room], 'wall' => u[:wall],
           'side' => u[:side], 'hidden' => u[:hidden], 'mixed' => u[:mixed],
           'pieces' => u[:pieces].size }
-      end }.to_json
+      end,
+      'objects' => st[:objects].map { |u| object_json(u) } }.to_json
   end
 
   def self.html
@@ -368,6 +478,31 @@ module WR_SceneWalls
         #selrow { border-top: 1px solid #3a4048; padding: 8px 12px 4px; }
         .hint { color: #7b8590; font-size: 11px; padding: 2px 12px 8px; }
         #empty { padding: 12px; color: #9aa5b1; display: none; }
+        /* The objects list is deliberately a TICK LIST and not more chips.
+           A chip moving between two columns is the walls idiom and it works
+           because a wall is either up or down; an object row also has to
+           carry a copy count and a SHOW ME, which is exactly the annotations
+           picker's row and it already reads well. Same dark tokens as the
+           rest of this dialog, no new colours. */
+        #objwrap { border-top: 1px solid #3a4048; margin: 4px 12px 0; padding-top: 6px; }
+        .objh { display: flex; align-items: baseline; gap: 10px; font-size: 11px;
+                text-transform: uppercase; letter-spacing: .06em; color: #9aa5b1;
+                margin: 2px 2px 3px; }
+        .objh .links { margin-left: auto; text-transform: none; letter-spacing: 0; }
+        .objh a { color: #9aa5b1; cursor: pointer; text-decoration: underline dotted; }
+        .objh a:hover { color: #e8a06a; }
+        .orow { display: flex; align-items: center; gap: 8px; padding: 3px 2px;
+                font-size: 12px; }
+        .orow:hover { background: #2b3036; }
+        .orow label { display: flex; align-items: center; gap: 8px; cursor: pointer;
+                      flex: 1 1 auto; min-width: 0; }
+        .orow .txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .orow .cnt { color: #8a94a0; font-size: 11px; white-space: nowrap; }
+        .orow .mix { color: #e8a06a; font-size: 10.5px; white-space: nowrap; }
+        .find { font: inherit; font-size: 10px; letter-spacing: .06em; padding: 2px 7px;
+                border: 1px solid #48505a; border-radius: 3px; background: #343b43;
+                color: #dde3ea; cursor: pointer; }
+        .find:hover { border-color: #e8a06a; color: #e8a06a; }
       </style></head><body>
       <div id="bar">Scene: <span id="scene">–</span></div>
       <div id="warn"><span id="warntext"></span>
@@ -381,6 +516,18 @@ module WR_SceneWalls
       </div>
       <div class="hint">Click a wall to move it across. Nothing changes until Apply.
         Clicking a scene tab reloads this list from that scene.</div>
+      <div id="objwrap">
+        <div class="objh">Objects &mdash; booth, furniture, anything that is not a named wall
+          <span class="links"><a data-oall="1">all</a> &middot;
+            <a data-onone="1">none</a></span></div>
+        <div id="objs"></div>
+        <div class="hint">Ticked = hidden when this scene exports &mdash; the opposite
+          arrangement to the wall chips above, because an object is one row and not
+          two columns. TOP-LEVEL objects only: something nested inside a component
+          is not listed here, because hiding it would hide it in every copy of the
+          parent rather than just on this scene. Use the selection buttons below for
+          those.</div>
+      </div>
       <div id="foot">
         <button id="apply" onclick="applyNow()">Apply to this scene</button>
         <button onclick="sketchup.refresh()">Refresh</button>
@@ -393,7 +540,41 @@ module WR_SceneWalls
         model — for walls the picker does not know by name.</div>
       <div id="status"></div>
       <script>
-        var S = { units: [], scene: null };
+        var S = { units: [], objects: [], scene: null };
+        var opicks = {};
+        function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;")
+          .replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")
+          .replace(/'/g,"&#39;"); }
+        function renderObjects() {
+          var box = document.getElementById('objs'), objs = S.objects || [];
+          if (!objs.length) {
+            box.innerHTML = "<div class='orow'><span class='cnt'>nothing at the " +
+              "top level that is not already a wall above</span></div>";
+          } else {
+            box.innerHTML = objs.map(function (u) {
+              return "<div class='orow'><label>" +
+                "<input type='checkbox' data-okey='" + esc(u.key) + "'" +
+                (opicks[u.key] ? " checked" : "") + ">" +
+                "<span class='txt' title='" + esc(u.label) + "'>" + esc(u.label) +
+                "</span>" +
+                (u.count > 1 ? "<span class='cnt'>" + u.count + " copies</span>" : "") +
+                "</label>" +
+                (u.mixed ? "<span class='mix'>copies disagree &mdash; ticking sets them all</span>" : "") +
+                "<button class='find' data-ofind='" + esc(u.key) + "'>SHOW ME</button>" +
+                "</div>";
+            }).join("");
+          }
+          Array.prototype.forEach.call(box.querySelectorAll("input[data-okey]"), function (el) {
+            el.addEventListener("change", function () {
+              opicks[el.getAttribute("data-okey")] = el.checked; markDirty();
+            });
+          });
+          Array.prototype.forEach.call(box.querySelectorAll("[data-ofind]"), function (el) {
+            el.addEventListener("click", function () {
+              sketchup.reveal(el.getAttribute("data-ofind"));
+            });
+          });
+        }
         function render() {
           document.getElementById('scene').textContent =
             S.noscene ? 'NO SCENES IN THIS MODEL' : (S.scene || '(none selected)');
@@ -427,19 +608,36 @@ module WR_SceneWalls
               col.appendChild(b);
             });
           });
+          renderObjects();
         }
         function markDirty() { document.getElementById('apply').className = 'dirty'; }
         function applyNow() {
+          // EVERY row is sent, walls and objects alike, not only the touched
+          // ones — that is what makes UNticking reliably show again.
           var picks = {};
           S.units.forEach(function (u) { picks[u.key] = !!u.hidden; });
+          (S.objects || []).forEach(function (u) { picks[u.key] = !!opicks[u.key]; });
           sketchup.apply(JSON.stringify(picks));
         }
         function setState(json) {
           S = JSON.parse(json);
+          // Object ticks are re-read from the model on every push, exactly as
+          // the wall chips are: the scene on screen is the only truth.
+          opicks = {};
+          (S.objects || []).forEach(function (u) { if (u.hidden) opicks[u.key] = true; });
           document.getElementById('apply').className = '';
           render();
         }
         function setStatus(t) { document.getElementById('status').textContent = t; }
+        document.addEventListener('click', function (ev) {
+          var el = ev.target;
+          if (!el || !el.getAttribute) return;
+          if (el.getAttribute('data-oall') || el.getAttribute('data-onone')) {
+            var on = !!el.getAttribute('data-oall');
+            (S.objects || []).forEach(function (u) { opicks[u.key] = on; });
+            markDirty(); renderObjects();
+          }
+        });
         window.addEventListener('load', function () { sketchup.ready(); });
       </script></body></html>
     HTML
@@ -504,6 +702,13 @@ module WR_SceneWalls
     @dlg.add_action_callback('refresh') do |_c|
       push_state(Sketchup.active_model)
       status('Reloaded.')
+    end
+    # SHOW ME on an object row. The standalone dialog never needed this
+    # before — a wall chip is its own affordance — but an object row has to
+    # be able to say "this one, here".
+    @dlg.add_action_callback('reveal') do |_c, key|
+      _ok, msg = reveal(Sketchup.active_model, key.to_s)
+      status(msg)
     end
     @dlg.add_action_callback('selhide') do |_c|
       _ok, msg = apply_selection(Sketchup.active_model, true)

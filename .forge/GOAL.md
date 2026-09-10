@@ -18,10 +18,18 @@ column in proposal-package.rb, driven by wr-scene-walls.rb's proven mechanism.
 - Verified live in SketchUp, not just reasoned about. Committed and pushed.
 
 ## Now
-Follow-up ask (Benton, 10 Sep 2026): the annotations dialog can move a selection into a
-set, but there is no way to CREATE an annotation set from the dialog on its own. Add
-explicit set creation — name it, it appears as a set row immediately, empty, with no
-selection required. Existing "New set…" + MOVE flow keeps working.
+Follow-ups from Benton, 10 Sep 2026, in order:
+1. DONE 1.20.1 — create an annotation set from the annotations dialog, no selection needed.
+2. DONE 1.20.2 — clicking a scene name in the proposal package goes to that scene.
+3. DONE 1.21.0 — hide whole OBJECTS (booth, furniture) per scene, in the proposal package window.
+   Real bug, seen live 10 Sep 2026: Benton selected the booth, pressed USE MY SELECTION in
+   the popover, got "Nothing in your selection matched a named wall". The popover shares
+   WR_SceneWalls inventory/apply/keys_for_selection/reveal but NOT apply_selection, so
+   from that window nothing but a named wall can be hidden.
+   SCOPE CORRECTION: the booth is a Sketchup::GROUP named "MDL 96120 E (components)", not
+   a ComponentInstance. List top-level groups AND component instances that are not already
+   named-wall rows. "Component instances only" was my misreading and is dead.
+All three are unverified in SketchUp — Benton has not click-tested them yet.
 
 ## Out of scope
 - Rewriting the walls feature; extend/parallel it, don't replace it.

@@ -2,6 +2,80 @@
 
 ## 2026-09-10
 
+### Hide whole OBJECTS per scene, and the popover that could not — 1.21.0
+
+**The bug first, because it is the reason this exists.** Benton, 10 Sep 2026:
+in the proposal package he selected the booth in the viewport, pressed
+**USE MY SELECTION** in the *"Walls hidden in Overview"* popover, and got the
+red *"Nothing in your selection matched a named wall."* Reading the callbacks
+says why. `proposal-package.rb` shares `WR_SceneWalls.inventory`, `.apply`,
+`.keys_for_selection` and `.reveal` — but **not `.apply_selection`**. The
+standalone *Hide walls per scene* dialog has had **Hide selection in this
+scene** / **Show selection in this scene** buttons since 31 Aug; the popover
+never got them. So it was a **shared module with a reduced surface**, and from
+the window where Benton actually works there was no way to hide anything that
+was not a named wall.
+
+**A scope correction I had wrong, recorded so it is not re-made.** The booth is
+a `Sketchup::Group`, not a `ComponentInstance` — Entity Info reads header
+`Group (1 in model)`, Instance `MDL 96120 E (components)`, Tag `Untagged`. An
+earlier framing of this task said "component instances only"; that filter would
+have listed nothing useful and **missed the exact object being pointed at**. The
+filter is not the entity type. It is *"a top-level container that is not already
+a wall row"*, and both `Group` and `ComponentInstance` qualify.
+
+**What shipped, in both dialogs, off one shared module.**
+
+- `WR_SceneWalls.scan(model)` — one pass, `{ :walls, :objects }`, one `@units`
+  key index. `inventory` still returns just the walls, so nothing that called
+  it before had to change. Sequenced explicitly rather than written as a hash
+  literal: `object_units` reads the `@wall_rooms` set `wall_units` fills, and
+  that ordering must not depend on evaluation order of a hash.
+- `object_units` groups top-level containers **by name** — three things called
+  "Task chair" are one row that hides all three and says `3 copies`. Unnamed
+  containers are deliberately **not** collapsed together (one tick hiding every
+  nameless thing in the model is the silent over-reach this picker forbids);
+  each gets its own row carrying its entity id.
+- **Top level only, and that is correctness, not laziness.** A container nested
+  inside a `ComponentDefinition` is *part of* that definition, so hiding it
+  hides it in every placement of the parent — a model-wide change wearing a
+  per-scene costume. Both dialogs say this on screen and point at the selection
+  buttons as the way to reach those.
+- A room that produced wall rows is **excluded** from the object list, so the
+  same container never gets two rows with two different answers.
+- **No second save mechanism.** `apply` already walks `unit[:pieces]` setting
+  `hidden`, so object rows go through it untouched, with the same
+  `page.update(PAGE_USE_HIDDEN_OBJECTS | PAGE_USE_HIDDEN_GEOMETRY)`.
+  `keys_for_selection` and `reveal` absorb them the same way — the only new
+  Ruby on those paths is `unit_label`, so a row is described identically in
+  both windows.
+- **`wallssel`**, a new popover callback pair behind **HIDE SELECTED** /
+  **SHOW SELECTED**, calling the module's existing `apply_selection`. It writes
+  into the scene immediately rather than waiting for APPLY — the standalone
+  dialog's behaviour, and the only thing that can reach a container the list
+  has no row for.
+- The popover's no-named-walls early return **used to swallow the whole body**;
+  the objects section now renders either way. And USE MY SELECTION's red
+  message no longer only says "run Name walls" — it points at HIDE SELECTED.
+
+Two things that now fix Benton's click, not one: selecting the booth and
+pressing **USE MY SELECTION** should tick its new object row (it is in `@units`,
+so `keys_for_selection` finds it), and **HIDE SELECTED** hides it outright.
+
+**UNRUN IN SKETCHUP.** `python scripts/rbparse.py` — 68/68 parse, syntax only;
+it says nothing about the HTML, the JS or the click. To verify, in the proposal
+package: **Hide walls** on a scene → an **Objects** section should list the
+booth as `MDL 96120 E (components)`; tick it, **APPLY TO THIS SCENE**, and the
+booth should vanish on that scene and come back on the next. Then select the
+booth in the viewport and press **USE MY SELECTION** — its row should tick, not
+turn red. Then **HIDE SELECTED** — it should hide immediately. **SHOW ME** on
+the row should select it in the model. Same checks in the standalone
+*Hide walls per scene* dialog, where the objects list sits under the two wall
+columns.
+
+**1.20.1 and 1.20.2 are also still unverified** — Benton has not click-tested
+any of this session's three changes.
+
 ### Click the scene NAME to go to that scene — 1.20.2
 
 Benton, looking at the SCENES table in the proposal package window: *"on the

@@ -2937,6 +2937,23 @@ module WR_ProposalPackage
     true
   end
 
+  # Everything the walls popover needs for one scene, in one place, so the
+  # three callbacks that have to redraw it (open, and either selection
+  # button) cannot send three slightly different shapes. scan() is called
+  # once per payload: it rebuilds WR_SceneWalls' @units key index, and both
+  # apply and keys_for_selection read that index.
+  def self.walls_payload(model, n, pg)
+    st = WR_SceneWalls.scan(model)
+    { 'n' => n.to_i, 'scene' => pg.name.to_s,
+      'units' => st[:walls].map do |u|
+        { 'key' => u[:key], 'room' => u[:room], 'wall' => u[:wall],
+          'side' => u[:side].to_s, 'hidden' => u[:hidden] ? true : false,
+          'mixed' => u[:mixed] ? true : false }
+      end,
+      'objects' => st[:objects].map { |u| WR_SceneWalls.object_json(u) },
+      'warn' => WR_SceneWalls.pages_not_saving_hidden(model).include?(pg.name.to_s) }
+  end
+
   # What run() does about the live-batch flag:
   #   :launch  — nothing running, open the dialog
   #   :reset   — flag set, user confirmed it is stale: clear through FINISH,
@@ -3158,14 +3175,37 @@ module WR_ProposalPackage
         raise "scene #{n} is gone — hit Rescan" if pg.nil?
         @walls_return ||= model.pages.selected_page
         model.pages.selected_page = pg
-        units = WR_SceneWalls.inventory(model).map do |u|
-          { 'key' => u[:key], 'room' => u[:room], 'wall' => u[:wall],
-            'side' => u[:side].to_s, 'hidden' => u[:hidden] ? true : false,
-            'mixed' => u[:mixed] ? true : false }
-        end
-        warn = WR_SceneWalls.pages_not_saving_hidden(model).include?(pg.name.to_s)
-        d.execute_script('wallsShow(' + { 'n' => n.to_i, 'scene' => pg.name.to_s,
-                                          'units' => units, 'warn' => warn }.to_json + ')')
+        d.execute_script('wallsShow(' + walls_payload(model, n, pg).to_json + ')')
+      rescue StandardError => e
+        d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # HIDE / SHOW WHAT IS SELECTED, from this window. THE BUG THIS FIXES
+    # (Benton, 10 Sep 2026): he selected the booth in the viewport, pressed
+    # USE MY SELECTION in this popover and got "Nothing in your selection
+    # matched a named wall" — because the popover shared WR_SceneWalls'
+    # inventory, apply, keys_for_selection and reveal but NOT
+    # apply_selection, so from the proposal package there was no way to hide
+    # anything that was not a named wall. The standalone dialog has had these
+    # two buttons all along; this is the same module method, wired through.
+    #
+    # It writes to the scene IMMEDIATELY rather than waiting for APPLY, which
+    # is what the standalone dialog does too — the selection is transient and
+    # holding it until Apply would mean holding a reference to something the
+    # operator has already clicked away from.
+    d.add_action_callback('wallssel') do |_c, payload|
+      next if busy?(d, 'wallssel')
+      begin
+        req  = JSON.parse(payload.to_s)
+        pg   = model.pages.to_a[req['n'].to_i - 1]
+        raise "scene #{req['n']} is gone — hit Rescan" if pg.nil?
+        ok, msg = WR_SceneWalls.apply_selection(model, req['hide'] ? true : false)
+        # Redraw first, so a row the operator just hid comes back ticked,
+        # then put the outcome in the message strip the redraw cleared.
+        d.execute_script('wallsShow(' + walls_payload(model, req['n'], pg).to_json + ')')
+        d.execute_script('wallsNote(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        log(d, msg, ok ? 'dim' : 'bad')
       rescue StandardError => e
         d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
       end
@@ -3459,6 +3499,11 @@ module WR_ProposalPackage
   #wfoot button { font:inherit; font-size:12px; padding:5px 13px; border:1px solid var(--line);
     border-radius:3px; background:var(--surface); cursor:pointer; }
   #wfoot button.prim { background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* The objects block in the walls popover. Reuses .wrow and .wrh from the
+     rows above it — same list, one more section — so there is nothing new
+     to style beyond the divider. */
+  .wobj { margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+  .wobjnote { font-size:11px; color:var(--muted); line-height:1.45; margin:4px 2px 0; }
   /* per-scene annotation hiding — the ANNOTATIONS column's modal. It reuses
      the walls modal's w* classes wherever the shape is the same; these are
      only the parts a unified set/callout list needs and walls does not. */
@@ -3688,7 +3733,9 @@ module WR_ProposalPackage
     <div id="wbody"></div>
     <div id="wmsg" class="wmsg"></div>
     <div id="wfoot">
-      <button id="wpick" title="Select the wall in the model, then press this">USE MY SELECTION</button>
+      <button id="wpick" title="Tick the rows that match what is selected in the model">USE MY SELECTION</button>
+      <button id="wselhide" title="Hide whatever is selected in the model on this scene, right now">HIDE SELECTED</button>
+      <button id="wselshow" title="Show whatever is selected in the model on this scene, right now">SHOW SELECTED</button>
       <span class="wgap"></span>
       <button id="wapply" class="prim">APPLY TO THIS SCENE</button>
       <button id="wcancel">CANCEL</button>
@@ -3719,7 +3766,7 @@ module WR_ProposalPackage
       $log=g("log"), $pmsg=g("pmsg"), $pfill=g("pfill"),
       $wrap=g("wwrap"), $wtitle=g("wtitle"), $wbody=g("wbody"),
       $wmsg=g("wmsg"), $wapply=g("wapply"), $wcancel=g("wcancel"),
-      $wpick=g("wpick"),
+      $wpick=g("wpick"), $wselhide=g("wselhide"), $wselshow=g("wselshow"),
       $awrap=g("awrap"), $atitle=g("atitle"), $abody=g("abody"),
       $amsg=g("amsg"), $aapply=g("aapply"), $acancel=g("acancel"),
       $apick=g("apick");
@@ -3937,32 +3984,63 @@ module WR_ProposalPackage
   };
   window.wallsShow = function (d) {
     wallsUnits = d.units || [];
-    $wtitle.textContent = "Walls hidden in “" + d.scene + "”";
+    var wallsObjs = d.objects || [];
+    $wtitle.textContent = "Hidden in “" + d.scene + "”";
+    // The objects section renders whether or not there are named walls, so
+    // the no-walls case can no longer swallow the whole body and leave the
+    // booth unreachable — which is how this window ended up with no way to
+    // hide anything but a wall.
+    var wallsHtml;
     if(!wallsUnits.length){
-      $wbody.innerHTML = "<p class='wnone'>No named walls in this model. The picker "
+      wallsHtml = "<p class='wnone'>No named walls in this model. The picker "
         + "lists a wall by its name (“Wall 3”). A room drawn by hand or by an "
         + "older script has unnamed wall groups — run <b>Name walls for the scene "
-        + "picker</b> once, then come back.</p>";
-      return;
+        + "picker</b> once, then come back. Whole objects are listed below "
+        + "either way.</p>";
+    } else {
+      var byRoom = {}, order = [];
+      wallsUnits.forEach(function(u){
+        if(!byRoom[u.room]){ byRoom[u.room] = []; order.push(u.room); }
+        byRoom[u.room].push(u);
+      });
+      wallsHtml = order.map(function(room){
+        return "<div class='wroom'><div class='wrh'>" + esc(room) + "</div>"
+          + byRoom[room].map(function(u){
+              var side = u.side ? " <span class='wside'>" + esc(u.side) + "</span>" : "";
+              return "<div class='wrow'><label><input type='checkbox' data-key='"
+                + esc(u.key) + "'" + (u.hidden ? " checked" : "") + ">"
+                + "<span>Wall " + u.wall + side + "</span></label>"
+                + (u.mixed ? "<span class='wmix'>pieces disagree — ticking sets them all</span>" : "")
+                + "<button class='wfind' data-find='" + esc(u.key)
+                + "' title='Select this wall in the model so you can see it'>SHOW ME</button>"
+                + "</div>";
+            }).join("") + "</div>";
+      }).join("");
     }
-    var byRoom = {}, order = [];
-    wallsUnits.forEach(function(u){
-      if(!byRoom[u.room]){ byRoom[u.room] = []; order.push(u.room); }
-      byRoom[u.room].push(u);
-    });
-    $wbody.innerHTML = order.map(function(room){
-      return "<div class='wroom'><div class='wrh'>" + esc(room) + "</div>"
-        + byRoom[room].map(function(u){
-            var side = u.side ? " <span class='wside'>" + esc(u.side) + "</span>" : "";
-            return "<div class='wrow'><label><input type='checkbox' data-key='"
-              + esc(u.key) + "'" + (u.hidden ? " checked" : "") + ">"
-              + "<span>Wall " + u.wall + side + "</span></label>"
-              + (u.mixed ? "<span class='wmix'>pieces disagree — ticking sets them all</span>" : "")
-              + "<button class='wfind' data-find='" + esc(u.key)
-              + "' title='Select this wall in the model so you can see it'>SHOW ME</button>"
-              + "</div>";
-          }).join("") + "</div>";
-    }).join("");
+    // Objects: the booth, furniture, anything at the top level that is not
+    // already a wall row above. Same checkbox, same data-key, so Apply and
+    // USE MY SELECTION pick them up with no extra wiring.
+    var objHtml = "<div class='wobj'><div class='wrh'>Objects — booth, furniture, "
+      + "anything that is not a named wall</div>";
+    objHtml += wallsObjs.length
+      ? wallsObjs.map(function(u){
+          return "<div class='wrow'><label><input type='checkbox' data-key='"
+            + esc(u.key) + "'" + (u.hidden ? " checked" : "") + ">"
+            + "<span class='txt' title='" + esc(u.label) + "'>" + esc(u.label) + "</span>"
+            + (u.count > 1 ? "<span class='cnt'>" + u.count + " copies</span>" : "")
+            + "</label>"
+            + (u.mixed ? "<span class='wmix'>copies disagree — ticking sets them all</span>" : "")
+            + "<button class='wfind' data-find='" + esc(u.key)
+            + "' title='Select this object in the model so you can see it'>SHOW ME</button>"
+            + "</div>";
+        }).join("")
+      : "<div class='wrow'><span class='cnt'>nothing at the top level that is not "
+        + "already a wall above</span></div>";
+    objHtml += "<div class='wobjnote'>Top-level objects only. Something nested "
+      + "inside a component is not listed here — hiding it would hide it in every "
+      + "copy of the parent, not just on this scene — so select it in the model and "
+      + "use HIDE SELECTED.</div></div>";
+    $wbody.innerHTML = wallsHtml + objHtml;
     // Ticked = hidden in this scene. Every wall is sent on Apply, not just the
     // ones touched, so a box UNticked here reliably SHOWS that wall again.
     Array.prototype.forEach.call($wbody.querySelectorAll("input[data-key]"), function(el){
@@ -3992,8 +4070,9 @@ module WR_ProposalPackage
     $wmsg.className = "wmsg" + (n ? " ok" : " bad");
     $wmsg.textContent = n
       ? n + " wall(s) ticked from your selection. Apply to save them into this scene."
-      : "Nothing in your selection matched a named wall. Click the wall itself in "
-        + "the model — or the room, or its Walls group — then press this again.";
+      : "Nothing in your selection matched a row in this list. If it is nested "
+        + "inside a component or a room, there is no row for it — press HIDE "
+        + "SELECTED instead and it goes straight into this scene.";
   };
   window.wallsNote = function (r) {
     $wmsg.className = "wmsg" + (r.ok ? "" : " bad");
@@ -4002,6 +4081,15 @@ module WR_ProposalPackage
   $wpick.addEventListener("click", function(){
     if(window.sketchup && sketchup.wallspick) sketchup.wallspick("");
   });
+  // These two write into the scene immediately — no APPLY needed — which is
+  // the standalone dialog's behaviour and the only thing that can reach a
+  // container the list does not have a row for.
+  function wallsSel(hide){
+    if(window.sketchup && sketchup.wallssel)
+      sketchup.wallssel(JSON.stringify({ n: wallsN, hide: hide }));
+  }
+  $wselhide.addEventListener("click", function(){ wallsSel(true); });
+  $wselshow.addEventListener("click", function(){ wallsSel(false); });
   window.wallsDone = function (r) {
     $wmsg.textContent = r.msg;
     $wmsg.className = "wmsg" + (r.ok ? " ok" : " bad");

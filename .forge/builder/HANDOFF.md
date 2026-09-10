@@ -104,3 +104,96 @@ To verify: open **Proposal package**, hover a scene name (should turn orange
 and underline), click it (SketchUp should jump to that scene, same as the row's
 `→`). Then start an export and click a name mid-run: nothing should move and
 the log should say the click was ignored because a batch is running.
+
+## Also in this session — hide whole OBJECTS per scene, 1.21.0
+
+The headline is a **bug**, not a feature request. Benton selected the booth,
+pressed **USE MY SELECTION** in the proposal package's walls popover, and got
+*"Nothing in your selection matched a named wall."*
+
+### The shared-vs-duplicated question, answered
+
+**Shared module, reduced surface.** `scripts/proposal-package.rb` (3154-3220)
+calls `WR_SceneWalls.inventory`, `.apply`, `.keys_for_selection` and `.reveal`
+directly — the Ruby engine is genuinely shared, not copied. What is duplicated
+is only the **HTML/JS** (the popover has its own `wallsShow` markup, distinct
+from the standalone dialog's two-column chips). And **`apply_selection` was
+never wired into the popover at all**, which is the whole bug: the standalone
+dialog's *Hide selection in this scene* buttons had no counterpart there.
+
+### A scope correction, stated plainly
+
+I was briefed that Benton had chosen **component instances only**. That was
+wrong and I was told so before writing any code against it — **nothing had to
+be undone**, I was still reading when the correction arrived. Entity Info shows
+the booth as `Group (1 in model)` / Instance `MDL 96120 E (components)`, so an
+instances-only filter would have listed nothing useful and missed the exact
+object in question. Verified in the code myself: `inventory` walks
+`model.entities.grep(Sketchup::Group)` as roots and `each_piece` matches
+`PIECE_RE` group names — top-level ComponentInstances were never looked at at
+all. The shipped filter is type-agnostic: **a top-level container, Group or
+ComponentInstance, that is not already a wall row.**
+
+## Produced
+
+**`scripts/wr-scene-walls.rb`** (the shared engine + standalone dialog)
+- `scan(model)` → `{ :walls, :objects }`, one `@units` index. `inventory`
+  now just `scan(model)[:walls]` — contract unchanged for existing callers.
+- `wall_units` (the old inventory body) now records `@wall_rooms`.
+- `object_units`, `object_name`, `object_unit`, `unit_label`, `object_json`.
+- `reveal` describes a row through `unit_label`, so walls and objects read the
+  same in both windows.
+- `state_json` gains `objects`.
+- Dialog: an **Objects** tick-list under the two wall columns, with copy
+  counts, a mixed-state note, SHOW ME, all/none links, and a new `reveal`
+  action callback (the standalone dialog never had one).
+
+**`scripts/proposal-package.rb`** (the popover)
+- `self.walls_payload(model, n, pg)` — one shape, used by all three callbacks
+  that redraw the popover, so they cannot drift.
+- **`wallssel`** callback + **HIDE SELECTED** / **SHOW SELECTED** buttons,
+  calling the module's existing `apply_selection`. Writes into the scene
+  immediately, matching the standalone dialog.
+- `wallsShow` renders an **Objects** section; the no-named-walls early return
+  no longer swallows the body.
+- USE MY SELECTION's failure message now points at HIDE SELECTED instead of
+  only telling him to run *Name walls*.
+
+**Housekeeping**: `scripts/wr_tools/VERSION` → **1.21.0** (a feature in two
+dialogs plus a new module API), `DEVLOG.md` entry.
+
+## Read first
+- `scripts/wr-scene-walls.rb` — the `objects` comment block above
+  `object_name`: why top-level-only is a correctness rule, and why the booth
+  is a Group.
+- `scripts/proposal-package.rb` — the comment above `wallssel`, which records
+  the bug.
+
+## Assumptions
+- **observed** (by reading): the popover shares the module and lacked
+  `apply_selection`; `inventory`'s roots are top-level Groups only.
+- **derived**: `apply`, `keys_for_selection` and `reveal` absorb object units
+  with no new code, because all three work through `unit[:pieces]` and
+  `@units` — no second save mechanism was added.
+- **assumed**: `Sketchup::Group#name` returns the Instance name Entity Info
+  shows (so the booth row reads `MDL 96120 E (components)`). Not observed in
+  SketchUp. If it comes back blank, the row falls back to the definition name
+  and then to `unnamed group #<id>` — it degrades, it does not break.
+- **assumed**: a top-level container nested-in-a-definition hazard is real
+  (hiding a nested instance affects every placement). Reasoned from how
+  definitions work, not probed.
+
+## Open questions
+- **UNRUN IN SKETCHUP.** `python scripts/rbparse.py` → 68/68 parse. Syntax
+  only. To verify, in the proposal package: **Hide walls** on a scene → an
+  **Objects** section should list the booth as `MDL 96120 E (components)`;
+  tick it, **APPLY TO THIS SCENE**, confirm it vanishes on that scene and
+  returns on the next. Select the booth in the viewport → **USE MY SELECTION**
+  should tick its row rather than turn red. **HIDE SELECTED** should hide it
+  immediately. **SHOW ME** should select it in the model. Repeat in the
+  standalone *Hide walls per scene* dialog.
+- Nested containers are deliberately unlisted. If Benton wants a booth that
+  lives inside a room group to appear as a row, that is a follow-up and needs
+  a decision about the shared-definition hazard first.
+- **All three of this session's changes (1.20.1, 1.20.2, 1.21.0) are
+  unverified by Benton.**
