@@ -1043,3 +1043,18 @@ neither verified live. The file on disk is checked after every write
 - Two-point: one hedged sighting; manifest `two_point_view_at_export` is
   the record to read. Not marked fixed.
 - Check: no-leader note against an edge, export, compare PNG to viewport.
+
+
+---
+
+# HANDOFF — drift confirmed; changed-window warning (Fixer, 10 Sep 2026, 1.31.1)
+
+- **observed** (Benton): plate 05's clipped note IS the drift; he had
+  blamed two-point. Two symptoms, reported separately.
+- Rev2 no-leader notes are unreliable, not once-wrong; the 05 re-export
+  relocated the note by luck. No note-nudging until the folder is
+  re-exported from one window shape.
+- `prior_viewport(dir)` reads the folder's last manifest; a different
+  window logs `WINDOW CHANGED` (`bad`); size-mismatch line now `bad`.
+- Check: export once, change the tray layout, export again — the log
+  names both window sizes.

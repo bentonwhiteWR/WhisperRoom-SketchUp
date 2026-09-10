@@ -1,6 +1,40 @@
 # DEVLOG
 
 ## 2026-09-10
+### Screen-note drift is confirmed, and a changed window is now said out loud — 1.31.1
+
+Benton, shown the clipped `"Cable Passag / for running po"` note on
+PeoplesSpace plate 05 and told it was the drift: *"thats the note im
+talking about. That makes sense i assumed it was 2 point perspective
+and it wasnt."* **Observed**, from the person who placed the text: the
+pack artifact and the "not in the same place" symptom are one defect,
+and it is NOT the two-point one — two symptoms, possibly one cause
+(the fixed-size write), reported separately. **Unrun in SketchUp.**
+`rbparse.py` 71/71, `rbtest-proposal.py` PASS, `node --check` ok.
+Patch bump: one read of the previous manifest and two log lines.
+
+**What this means for the Rev2 pack.** The 13:10 re-export of plate 05
+did not fix that note; it moved it somewhere else. Under 1.9.3–1.30.1
+a no-leader note's place against the geometry depended on the window
+shape at the moment of export, so the same scene can land it somewhere
+else again with no model change. **Every no-leader note in the current
+Rev2 plates is unreliable, not once-wrong**, and any time spent nudging
+a note in the model to make it fit was calibration against a moving
+target. Do not do that work until the folder has been re-exported
+from one window shape under 1.31.x.
+
+**Determinism.** 1.31.0 made the plain lane follow the window — what
+he composed is what is written — which makes the window an INPUT. So:
+the manifest records `viewport` (1.31.0); the size-mismatch line is now
+`bad`, not `dim`; and `start_run` reads the folder's previous
+`manifest.json` and, if that run's window differs from this one, logs
+`WINDOW CHANGED: this folder's earlier plates were written from a WxH
+window; this run is WxH … re-export the whole folder from one window
+shape before nudging any note to fit`. Fully deterministic AND
+faithful is only possible with the window held at one shape — there
+is no viewport resize in the API — so the tool records and warns
+rather than pretending. Not built: any attempt to resize the window.
+
 ### Plain images are written at the window's shape: screen notes stop moving — 1.31.0
 
 Benton, 10 Sep 2026: *"I just ran an image, it was in 2 point

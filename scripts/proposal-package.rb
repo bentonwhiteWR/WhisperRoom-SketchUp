@@ -364,6 +364,20 @@ module WR_ProposalPackage
     plan_files.to_a - result_files.to_a
   end
 
+  # The window the last run in this folder exported from, from its
+  # manifest.json, or nil. Read-only, individually rescued: a folder with
+  # no manifest, or a manifest from before 1.31.0 (no 'viewport'), is nil.
+  def self.prior_viewport(dir)
+    path = File.join(dir.to_s, 'manifest.json')
+    return nil unless File.exist?(path)
+    m = JSON.parse(File.read(path))
+    v = m['viewport']
+    return nil unless v.is_a?(Array) && v.size == 2 && v.all? { |x| x.is_a?(Integer) && x > 0 }
+    v
+  rescue Exception
+    nil
+  end
+
   # THE HONOURED SIZE (1.9.4). V-Ray's own /SettingsOutput if it can be read,
   # otherwise the Width field at ASPECT_W:ASPECT_H. Sets @size_source so every
   # later log line can say WHERE the number came from rather than just quoting
@@ -1481,8 +1495,19 @@ module WR_ProposalPackage
         ih = (out_w.to_i * vh / vw.to_f).round
         puts "  plain images: #{out_w}x#{ih} - the window's shape "              "(#{vw}x#{vh}), so screen notes land where they were placed"
         if (ih - out_h.to_i).abs > 2
-          log(dlg, "plain images will be #{out_w}x#{ih} (the SketchUp window "                    "is #{vw}x#{vh}); V-Ray renders stay #{out_w}x#{out_h}. "                    "Written at the window's shape so screen-anchored notes "                    'land where you placed them. For image and render plates '                    'of ONE shape, make the window '                    "#{out_w}:#{out_h} first (undock trays / resize) and run again.", 'dim')
-        else
+          log(dlg, "plain images will be #{out_w}x#{ih} (the SketchUp window "                    "is #{vw}x#{vh}); V-Ray renders stay #{out_w}x#{out_h}. "                    "Written at the window's shape so screen-anchored notes "                    'land where you placed them. For image and render plates '                    'of ONE shape, make the window '                    "#{out_w}:#{out_h} first (undock trays / resize) and run again.", 'bad')
+        end
+        # THE WINDOW IS AN INPUT NOW, SO A CHANGED WINDOW IS SAID OUT LOUD
+        # (1.31.1). Same scene, same model, different window shape =>
+        # screen notes sit differently against the geometry. The last
+        # run's manifest in this folder carries the window it used; if
+        # this one differs, every earlier plate in the folder with a
+        # no-leader note disagrees with the ones about to be written.
+        prev = prior_viewport(dir)
+        if prev && (prev[0] != vw || prev[1] != vh)
+          log(dlg, "WINDOW CHANGED: this folder's earlier plates were written "                    "from a #{prev[0]}x#{prev[1]} window; this run is #{vw}x#{vh}. "                    'Screen notes (no leader) will sit differently from those '                    'plates - re-export the whole folder from one window shape '                    'before nudging any note to fit.', 'bad')
+        end
+        if (ih - out_h.to_i).abs <= 2
           log(dlg, "plain images: #{out_w}x#{ih}, the window's shape - same as "                    'the V-Ray size', 'dim')
         end
       end
