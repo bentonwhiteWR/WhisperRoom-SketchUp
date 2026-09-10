@@ -1453,3 +1453,42 @@ of that. Nothing of theirs is in my commit.
    the ROOT … does not exist yet; the run creates it".
 2. After a run: press → Explorer shows the model's subfolder with the PNGs and
    manifest.json; log: "Opened … in Explorer." Try a root with a space first.
+
+
+---
+
+# HANDOFF — booth dimensions: one axis per wall + set inside the booth (Builder, 10 Sep 2026, 1.38.0)
+
+Field fix on 1.37.0 after Benton's first run. Unrun in SketchUp.
+
+## Produced
+- `scripts/dimension-whisperroom.rb` — pure section: `BOUND_IX`, `wall_axis`,
+  `outward?`, `further?`; `extent_from_parts` rebuilt as shell (corner
+  seals) → one bound per wall part → union fallback per empty side →
+  `proud` / `overhang` lists. API: set drawn in `inner(inst)` in the
+  booth frame; `owned_in`, `owned_nested`, `clear_for(model, inst)`;
+  console prints axes legend, every proud/overhang part with inches, and
+  the "lives inside the booth" line.
+- `scripts/rbtest-boothdims.py` — 106 checks; mutant list updated.
+- VERSION 1.38.0 (minor: where the entities live changed).
+
+## Decisions
+- Set INSIDE the booth group, not a sibling: the tool already drew in the
+  booth frame, so nesting removes a transform. Verified the hide paths
+  walk nested (each_annotation DEPTH 2; tag-based hide). Known gap:
+  `proposal-package.rb collect_annotations` is top-level only → manifest
+  `annotations` list misses nested sets. One-line fix there (use
+  `WR_SceneAnnotations.each_annotation`), file off-limits to me today.
+- A copied booth keeps a copy of its set; ComponentInstance booths show
+  it on every instance — both printed, neither prevented.
+- `ATTACH_NESTED_VERTICES` still off; its InstancePath would now be
+  relative to the booth's entities and has not been revisited.
+- Roof unit still excluded from the height (EXCLUDE_RE) pending Benton's
+  answer on RM units.
+
+## Benton's check
+Same EFS booth → Dimension: width = seal to seal on the door wall (+5 1/2
+only for a SIDE-wall vent); console `proud:` / `overhang:` lines name the
+silencer. Move tool on the booth: the three strings travel, same numbers.
+Worst failure: `anchors:` line reading anything but `0 loose`, or a
+`*** … landed` line.

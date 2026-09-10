@@ -42,6 +42,12 @@ WHAT IT ASSERTS
   6. side_slab and aabb_overlap? — the obstruction test.
   7. catalogue_extent and reconcile — the printed cross-check, its 1/4 in
      tolerance and its axis naming.
+  8. ONE AXIS PER WALL (1.38.0): a protrusion on each of the four walls
+     extends exactly the bound normal to that wall and never the other
+     axis; the shell corners come from the corner seals; each protrusion
+     is reported as proud (its own axis) and overhang (the other axis, not
+     counted). Benton's EFS hanging off a back wall past the corner made
+     the width read 9' 10 5/8" — the union box of every part.
 
 MUTATION-CHECKED, 10 Sep 2026. Each mutation was applied to
 dimension-whisperroom.rb, this test run, FAIL confirmed, the file restored:
@@ -53,6 +59,7 @@ dimension-whisperroom.rb, this test run, FAIL confirmed, the file restored:
   * floor parts no longer set z0 (walls do)                        -> 4 failures
   * catalogue_extent adds the N face to X                          -> 2 failures
   * reconcile tolerance x10                                        -> 6 failures
+  * walls push all four bounds again (the union box, 1.37.0 rule)  -> 10 failures
 
 The last one first died by crashing the harness (r[0] on an empty list) rather
 than by a FAIL line; the nil guards on those checks exist so a mutant is
@@ -198,6 +205,56 @@ eb = BD.extent_from_bounds([['floor', [0.0, 0.0, 0.0, 62.0, 44.0, 1.0]],
                             ['RM4260 roof unit', [10.0, 10.0, 83.0, 50.0, 30.0, 93.0]]])
 check('group bounds: everything but overlays', [eb[:x1], eb[:y1], eb[:z1], eb[:mode]], [62.0, 44.0, 83.0, :bounds])
 check('group bounds: says so per side', eb[:x0_by], 'GROUP BOUNDS')
+
+# 8 - ONE AXIS PER WALL. Shell 0..44 x 0..44 from the seals; `small` already
+# carries an N0 46VNT standing 4.5 proud (y1 48.5). A fat EFS box on each
+# wall in turn, reaching well past the corners along its wall.
+check('wall_axis: N pushes y1, S y0, E x1, W x0',
+      %w[N S E W].map { |l| BD.wall_axis(l) }, [:y1, :y0, :x1, :x0])
+efs_n = small + [['N1  46VNT_EFS', [2.0, 42.0, 0.0, 60.0, 52.0, 81.0]]]
+en = BD.extent_from_parts(efs_n)
+check('N EFS: extends Y only (y1 52), X untouched (x1 stays 44)',
+      [en[:x0], en[:x1], en[:y0], en[:y1]], [0.0, 44.0, 0.0, 52.0])
+check('N EFS: y1 set by the EFS, x1 still by a corner seal',
+      [en[:y1_by], en[:x1_by]], ['N1  46VNT_EFS', 'SE corner seal'])
+check('N EFS: reported proud 8 on the N wall, beside the 4.5 the plain vent already stood',
+      en[:proud], [['N0  46VNT', 'N', 4.5], ['N1  46VNT_EFS', 'N', 8.0]])
+check('N EFS: reported 16 overhang along X, not counted', en[:overhang], [['N1  46VNT_EFS', 'N', 'X', 16.0]])
+efs_s = small + [['S1  46VNT_EFS', [-20.0, -10.0, 0.0, 40.0, 2.0, 81.0]]]
+es = BD.extent_from_parts(efs_s)
+check('S EFS: extends -Y only (y0 -10), X untouched (x0 stays 0)',
+      [es[:x0], es[:x1], es[:y0], es[:y1]], [0.0, 44.0, -10.0, 48.5])
+check('S EFS: proud 10 on S, overhang 20 along X',
+      [es[:proud], es[:overhang]],
+      [[['N0  46VNT', 'N', 4.5], ['S1  46VNT_EFS', 'S', 10.0]], [['S1  46VNT_EFS', 'S', 'X', 20.0]]])
+efs_e = small + [['E1  46VNT_EFS', [42.0, 2.0, 0.0, 55.0, 70.0, 81.0]]]
+ee = BD.extent_from_parts(efs_e)
+check('E EFS: extends X only (x1 55), Y untouched (y1 stays 48.5)',
+      [ee[:x0], ee[:x1], ee[:y0], ee[:y1]], [0.0, 55.0, 0.0, 48.5])
+check('E EFS: proud 11 on E, overhang 21.5 along Y past the vented y1',
+      [ee[:proud], ee[:overhang]],
+      [[['N0  46VNT', 'N', 4.5], ['E1  46VNT_EFS', 'E', 11.0]], [['E1  46VNT_EFS', 'E', 'Y', 21.5]]])
+efs_w = small + [['W1  46VNT_EFS', [-7.0, -15.0, 0.0, 2.0, 42.0, 81.0]]]
+ew = BD.extent_from_parts(efs_w)
+check('W EFS: extends -X only (x0 -7), Y untouched (y0 stays 0)',
+      [ew[:x0], ew[:x1], ew[:y0], ew[:y1]], [-7.0, 44.0, 0.0, 48.5])
+check('W EFS: proud 7 on W, overhang 15 along Y',
+      [ew[:proud], ew[:overhang]],
+      [[['N0  46VNT', 'N', 4.5], ['W1  46VNT_EFS', 'W', 7.0]], [['W1  46VNT_EFS', 'W', 'Y', 15.0]]])
+check('the plain shell reports only its vent proud, and no overhang',
+      [e2[:proud], e2[:overhang]], [[['N0  46VNT', 'N', 4.5]], []])
+check('the shell is the seals', e2[:shell], { :x0 => 0.0, :y0 => 0.0, :x1 => 44.0, :y1 => 44.0 })
+noseal = [['N0  46VNT', [2.0, 42.0, 0.0, 42.0, 48.5, 81.0]],
+          ['E0  46PanelSolid', [42.0, 2.0, 0.0, 43.0, 42.0, 81.0]],
+          ['W0  46PanelSolid', [1.0, 2.0, 0.0, 2.0, 42.0, 81.0]],
+          ['S1  46PanelSolid', [2.0, 1.0, 0.0, 42.0, 2.0, 81.0]]]
+ns = BD.extent_from_parts(noseal)
+check('no seals: each wall sets its own side and nothing else',
+      [ns[:x0], ns[:x1], ns[:y0], ns[:y1], ns[:shell], ns[:proud]], [1.0, 43.0, 1.0, 48.5, nil, []])
+check('no seals, no wall on one side: the union fills it and says so',
+      BD.extent_from_parts(noseal.first(3))[:y0_by].include?('union used'), true)
+check('the door leaf reaching out the front still moves nothing (S is the door wall, excluded)',
+      BD.extent_from_parts(small)[:y0], 0.0)
 
 # 4 - THE PLACEMENT TABLE (spec §7), door on S, extent 0..98 x 0..79.5 x 0..84.3125
 box = { :x0 => 0.0, :x1 => 98.0, :y0 => 0.0, :y1 => 79.5, :z0 => 0.0, :z1 => 84.3125 }

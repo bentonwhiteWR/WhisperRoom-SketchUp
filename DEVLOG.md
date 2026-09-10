@@ -1,6 +1,67 @@
 # DEVLOG
 
 ## 2026-09-10
+### Booth dimensions: a protrusion extends only its own wall's axis, and the set lives inside the booth — 1.38.0
+
+Benton, first field run, on a booth with EFS silencers: *"so this is
+really close with the efs. However, sometimes a back wall will have an EFS
+hanging over like this. I do not want the front dimensions to be
+accounting for that. It should go to the corner of the booth here, right
+next to door."* His width read `9' 10 5/8"` with the witness line out in
+space past the corner. The 1.37.0 extent was the union box of every voting
+part, so a silencer hanging off the BACK wall past the corner inflated the
+WIDTH — and by symmetry a vent on a side wall inflated the depth.
+
+**Rule now (`extent_from_parts`, pure section):** the corner seals set the
+shell on all four bounds; a wall part may push only the bound normal to
+its own wall (`wall_axis`: N→y1, S→y0, E→x1, W→x0). What a part reaches
+past the shell on that bound is `proud` — the vent housing or silencer
+the string is meant to follow; what it reaches past the extent ALONG its
+wall is `overhang` — reported, never counted. The console prints both per
+part with the inch figure and which of width/depth it touches, so a width
+that shrank from `9' 10 5/8"` is shown to have shrunk because a named
+part on a named wall was attributed to the other axis, never quietly.
+No seals → each wall sets its own side and the console says protrusions
+cannot be told from the shell. The catalogue cross-check is unchanged and
+now compares like with like (`:w` + 5.5 per E/W vent against a width no
+side-wall silencer can no longer inflate).
+
+**The set lives inside the booth** (Benton: *"any way to auto group the
+measurements to the booth?"*). The three dimensions and their
+ConstructionPoints are made in the booth's own entities in the booth's
+frame — the tool already computed everything in that frame and
+transformed it out, so this removes a transform rather than adding one: a
+moved booth carries its strings, a rotated booth's strings run along its
+own walls (spec check 6), the 36 in side push is a booth-frame vector as
+before, ROTATE is untouched (erase inside, redraw inside). Ownership is
+now "owned entities inside this booth"; 1.37.0 sets at model level are
+still swept by `persistent_id`, per booth and by Clear-all. A copied booth
+carries a copy of its set — attached to the copy's geometry so it reads
+right; the next press re-measures. A booth that is a ComponentInstance
+shows the set on every instance; the console says so.
+
+**Verified the consumers before nesting (observed in code):** the
+per-scene ANNOTATIONS picker and client-safe walk nested containers
+(`WR_SceneAnnotations.each_annotation`, `DEPTH = 2`; the set is at depth
+1) and per-scene hiding is by tag (`layer.visible=`), which hides nested
+entities; preflight reads tag visibility. **One consumer misses nested
+strings:** `proposal-package.rb collect_annotations` (line 3146) walks
+`model.entities` top-level only and feeds the manifest's `annotations`
+list, so a nested set will not appear there until that walk uses
+`each_annotation` the way `collect_hidden_annotations` already does —
+one line, in a file another agent owns today. The renders, the hide and
+the client-safe strip are unaffected.
+
+`rbtest-boothdims.py` 106 checks (16 new: `wall_axis`, an EFS on each of
+the four walls extending exactly one bound, proud/overhang reporting,
+no-seal fallback). Mutant "walls push all four bounds again" killed.
+`rbparse.py` 74/74. **Unrun in SketchUp.** Benton's check, same booth: the
+width should now read corner seal to corner seal on the door wall — the
+catalogue `:w` for the model, plus 5 1/2 in only if a vent or silencer is
+on a SIDE wall — against the `9' 10 5/8"` he saw, and the console's
+`proud:` / `overhang:` lines name the silencer and the inches that left
+the width. Then Move the booth: the three strings travel and read the same.
+
 ### A pinned tool wears its own icon — 1.39.0
 
 Benton, 10 Sep 2026: *"when i set a favorite, can it default to the icon

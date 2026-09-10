@@ -188,30 +188,112 @@ module WR_BoothDims
     !(name.to_s =~ NAME_RE).nil?
   end
 
+  # A WALL PART ONLY PUSHES THE BOUND NORMAL TO ITS OWN WALL. Benton, on an
+  # EFS silencer hanging off a back wall past the corner: "I do not want the
+  # front dimensions to be accounting for that. It should go to the corner
+  # of the booth here, right next to door." A protrusion on the N wall
+  # extends Y; a silencer on the W wall extends X; never the other axis,
+  # never both. The corner seals define the shell's corners on all four
+  # bounds; everything a wall part reaches past the shell ALONG its wall is
+  # an overhang, reported and not counted.
+  BOUND_IX = { :x0 => 0, :y0 => 1, :x1 => 3, :y1 => 4 }.freeze
+
+  def self.wall_axis(letter)
+    case letter.to_s.upcase
+    when 'N' then :y1
+    when 'S' then :y0
+    when 'E' then :x1
+    else          :x0
+    end
+  end
+
+  def self.outward?(bound)
+    bound == :x1 || bound == :y1
+  end
+
+  def self.further?(bound, v, cur)
+    outward?(bound) ? v > cur : v < cur
+  end
+
   # The extent, from a list of [name, [x0, y0, z0, x1, y1, z1]] in the
   # booth's own frame. Returns nil when nothing votes on the footprint (the
   # caller falls back to the group bounds and says so). Every side records
   # which part set it, because "E extent 128.44 set by E0 46VNT" is what
   # turns a mismatch into a fix.
   def self.extent_from_parts(parts)
-    ext = nil
+    # 1. The shell: the corner seals, on all four bounds.
+    shell = nil
+    by = {}
+    walls = 0
     parts.each do |name, b|
-      kind = classify(name)
-      next unless kind == :wall || kind == :corner
-      if ext.nil?
-        ext = { :x0 => b[0], :y0 => b[1], :x1 => b[3], :y1 => b[4],
-                :x0_by => name, :y0_by => name, :x1_by => name, :y1_by => name,
-                :z0 => nil, :z1 => nil, :z0_by => nil, :z1_by => nil,
-                :walls => 0, :mode => :parts }
+      next unless classify(name) == :corner
+      walls += 1
+      if shell.nil?
+        shell = { :x0 => b[0], :y0 => b[1], :x1 => b[3], :y1 => b[4] }
+        BOUND_IX.each_key { |k| by[k] = name }
       else
-        if b[0] < ext[:x0] then ext[:x0] = b[0]; ext[:x0_by] = name; end
-        if b[1] < ext[:y0] then ext[:y0] = b[1]; ext[:y0_by] = name; end
-        if b[3] > ext[:x1] then ext[:x1] = b[3]; ext[:x1_by] = name; end
-        if b[4] > ext[:y1] then ext[:y1] = b[4]; ext[:y1_by] = name; end
+        BOUND_IX.each do |k, i|
+          if further?(k, b[i], shell[k]) then shell[k] = b[i]; by[k] = name; end
+        end
       end
-      ext[:walls] += 1
     end
-    return nil if ext.nil?
+    ext = shell ? shell.dup : {}
+    # 2. Wall parts: each may push ONE bound, the one normal to its wall.
+    #    Anything past the shell on that bound is a protrusion (vent
+    #    housing, EFS silencer) and is what the dimension follows.
+    proud = []
+    parts.each do |name, b|
+      next unless classify(name) == :wall
+      walls += 1
+      letter = WALL_RE.match(name.to_s)[1]
+      k = wall_axis(letter)
+      i = BOUND_IX[k]
+      if ext[k].nil? || further?(k, b[i], ext[k])
+        ext[k] = b[i]
+        by[k] = name
+      end
+      if shell
+        d = outward?(k) ? b[i] - shell[k] : shell[k] - b[i]
+        proud << [name, letter, d] if d > 0.01
+      end
+    end
+    return nil if walls.zero?
+    # 3. A side with neither a seal nor a wall part: the union of every
+    #    voter fills it, and the by-name says so.
+    BOUND_IX.each do |k, i|
+      next unless ext[k].nil?
+      parts.each do |name, b|
+        kind = classify(name)
+        next unless kind == :wall || kind == :corner
+        next unless ext[k].nil? || further?(k, b[i], ext[k])
+        ext[k] = b[i]
+        by[k] = "#{name} (no seal or wall on that side — union used)"
+      end
+    end
+    return nil if BOUND_IX.keys.any? { |k| ext[k].nil? }
+    # 4. Overhang: a wall part reaching past the extent ALONG its wall.
+    #    Reported, never counted — it is on the wrong axis to widen anything.
+    overhang = []
+    parts.each do |name, b|
+      next unless classify(name) == :wall
+      letter = WALL_RE.match(name.to_s)[1]
+      along = (letter == 'N' || letter == 'S') ? [:x0, :x1] : [:y0, :y1]
+      along.each do |k|
+        i = BOUND_IX[k]
+        d = outward?(k) ? b[i] - ext[k] : ext[k] - b[i]
+        overhang << [name, letter, k.to_s[0, 1].upcase, d] if d > 0.01
+      end
+    end
+    BOUND_IX.each_key { |k| ext[(k.to_s + '_by').to_sym] = by[k] }
+    ext[:z0] = nil
+    ext[:z1] = nil
+    ext[:z0_by] = nil
+    ext[:z1_by] = nil
+    ext[:walls] = walls
+    ext[:mode] = :parts
+    ext[:shell] = shell
+    ext[:proud] = proud
+    ext[:overhang] = overhang
 
     # Height: floor parts for the bottom, ceiling parts for the top. Walls
     # are out on purpose — a 46VNT box is 81.86 tall and a VSS 82.17, both
@@ -529,6 +611,20 @@ module WR_BoothDims
   end
 
   # ----------------------------------------------------------- ownership --
+  #
+  # THE SET LIVES INSIDE THE BOOTH (Benton, 10 Sep 2026: "any way to auto
+  # group the measurements to the booth?"). The three dimensions and their
+  # ConstructionPoints are made in the booth's own entities, in the booth's
+  # own frame, so the Move tool carries them and a rotated booth's strings
+  # run along its own walls — which is what they did already, only with a
+  # transform in between. Same instinct as wr-drop-lights.rb 1.28.0 putting
+  # the emitter inside its fixture. Ownership is now "owned entities inside
+  # this booth's container"; the persistent_id attribute stays on every
+  # entity for the record and for sweeping the 1.37.0 sets that were drawn
+  # at model level. A copied booth carries a copy of its set (it reads right
+  # — it is attached to the copy's geometry — and the next press re-measures).
+  # A booth that is a ComponentInstance keeps its entities on the definition,
+  # so every instance of that definition shows the set; the console says so.
 
   def self.own(e, pid, corner)
     e.set_attribute(DICT, 'booth', pid)
@@ -545,12 +641,32 @@ module WR_BoothDims
     false
   end
 
-  # Everything this tool ever drew, at the top level. Dimensions and the
+  # Everything this tool drew in one container. Dimensions and the
   # ConstructionPoints they hang on.
-  def self.owned(model)
-    model.entities.to_a.select do |e|
+  def self.owned_in(ents)
+    return [] if ents.nil?
+    ents.to_a.select do |e|
       e.valid? && e.get_attribute(DICT, 'own', false)
     end
+  rescue StandardError
+    []
+  end
+
+  # The 1.37.0 sets, drawn at model level.
+  def self.owned(model)
+    owned_in(model.entities)
+  end
+
+  # Every set inside a top-level group or component.
+  def self.owned_nested(model)
+    out = []
+    model.entities.each do |e|
+      next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      ents = inner(e)
+      next if ents.nil?
+      owned_in(ents).each { |d| out << [ents, d] }
+    end
+    out
   rescue StandardError
     []
   end
@@ -573,14 +689,21 @@ module WR_BoothDims
     true
   end
 
-  # Erase one booth's set. Returns the count.
-  def self.clear_for(model, pid)
-    doomed = owned(model).select { |e| owned_by?(e, pid) }
-    model.entities.erase_entities(doomed) unless doomed.empty?
-    doomed.length
+  # Erase one booth's set: whatever this tool owns inside the booth (a copy's
+  # set carries its source's id, so the container decides, not the id), plus
+  # any 1.37.0 set for this booth still at model level. Returns the count.
+  def self.clear_for(model, inst)
+    ents = inner(inst)
+    doomed = owned_in(ents)
+    ents.erase_entities(doomed) unless doomed.empty?
+    pid = inst.persistent_id
+    legacy = owned(model).select { |e| owned_by?(e, pid) }
+    model.entities.erase_entities(legacy) unless legacy.empty?
+    doomed.length + legacy.length
   end
 
-  # Sets whose booth is gone. Returns the count erased.
+  # Model-level (1.37.0) sets whose booth is gone. A nested set goes with
+  # its booth and never needs this. Returns the count erased.
   def self.clear_orphans(model)
     gone = owned(model).reject { |e| booth_alive?(model, e.get_attribute(DICT, 'booth', nil)) }
     model.entities.erase_entities(gone) unless gone.empty?
@@ -614,22 +737,23 @@ module WR_BoothDims
   end
 
   # Resolve one endpoint. Returns [reference, kind] where kind is :vertex,
-  # :synthetic or :loose. The ConstructionPoint is made in model.entities,
-  # on the tag, owned by the booth, so it is erased with the set.
-  def self.anchor_for(model, inst, parts, local_pt, world_pt, lay, pid, corner)
+  # :synthetic or :loose. The ConstructionPoint is made in the booth's own
+  # entities at the booth-frame point, on the tag, owned by the booth, so it
+  # moves with the booth and is erased with the set.
+  def self.anchor_for(ents, inst, parts, local_pt, lay, pid, corner)
     if ATTACH_NESTED_VERTICES
       v = attach_vertex(inst, parts, local_pt)
       return [v, :vertex] if v
     end
-    cp = model.entities.add_cpoint(world_pt)
+    cp = ents.add_cpoint(local_pt)
     if cp
       cp.layer = lay
       own(cp, pid, corner)
       return [cp, :synthetic]
     end
-    [world_pt, :loose]
+    [local_pt, :loose]
   rescue StandardError
-    [world_pt, :loose]
+    [local_pt, :loose]
   end
 
   # Where a dimension endpoint actually landed, or nil. DimensionLinear#start
@@ -657,6 +781,11 @@ module WR_BoothDims
   # one Ctrl+Z reverses the strings and the corner together.
   def self.dimension(inst, force_corner = nil)
     model = inst.model
+    ents = inner(inst)
+    if ents.nil?
+      puts "DIMENSION WHISPERROOM — \"#{inst.name}\" has no entities to draw into. Nothing drawn."
+      return []
+    end
     kids = named_children(inst)
     parts = kids.map { |n, e| [n, local_box(e), e] }.reject { |_n, b, _e| b.nil? }
     pboxes = parts.map { |n, b, _e| [n, b] }
@@ -680,15 +809,16 @@ module WR_BoothDims
 
     tr = inst.transformation
     to_world = lambda { |p| Geom::Point3d.new(p[0], p[1], p[2]).transform(tr) }
-    to_vec = lambda { |v| Geom::Vector3d.new(v[0], v[1], v[2]).transform(tr) }
     voters = parts.select { |n, _b, _e| [:wall, :corner, :floor, :ceiling].include?(classify(n)) }
                   .map { |n, _b, e| [n, e] }
 
-    # Measured = what the dimension will read: world distance between the
-    # two anchors. On an unscaled booth this equals the frame extent.
+    # Measured = what the dimension will read: the distance between the two
+    # anchors in the booth's own frame, which is where the strings live.
     meas = {}
     lay_out.each do |k, s|
-      meas[k] = to_world.call(s[:a]).distance(to_world.call(s[:b])).to_f
+      pa = Geom::Point3d.new(s[:a][0], s[:a][1], s[:a][2])
+      pb = Geom::Point3d.new(s[:b][0], s[:b][1], s[:b][2])
+      meas[k] = pa.distance(pb).to_f
     end
     # Axis figures for the cross-check, X / Y / Z in the booth frame.
     ax_meas = [(ext[:x1] - ext[:x0]) * 1.0, (ext[:y1] - ext[:y0]) * 1.0, (ext[:z1] - ext[:z0]) * 1.0]
@@ -742,27 +872,25 @@ module WR_BoothDims
     model.start_operation('Dimension WhisperRoom', true)
     begin
       lay = tag(model)
-      removed = clear_for(model, pid)
+      removed = clear_for(model, inst)
       orphans = clear_orphans(model)
       inst.set_attribute(DICT, 'corner', corner)
       [:width, :depth, :height].each do |k|
         s = lay_out[k]
-        wa = to_world.call(s[:a])
-        wb = to_world.call(s[:b])
         la = Geom::Point3d.new(s[:a][0], s[:a][1], s[:a][2])
         lb = Geom::Point3d.new(s[:b][0], s[:b][1], s[:b][2])
-        ra, ka = anchor_for(model, inst, voters, la, wa, lay, pid, corner)
-        rb, kb = anchor_for(model, inst, voters, lb, wb, lay, pid, corner)
-        vec = to_vec.call(s[:off])
+        ra, ka = anchor_for(ents, inst, voters, la, lay, pid, corner)
+        rb, kb = anchor_for(ents, inst, voters, lb, lay, pid, corner)
+        vec = Geom::Vector3d.new(s[:off][0], s[:off][1], s[:off][2])
         d = nil
         begin
-          d = model.entities.add_dimension_linear(ra, rb, vec)
+          d = ents.add_dimension_linear(ra, rb, vec)
         rescue StandardError => e
           puts "  attached dimension refused (#{e.class}: #{e.message}) — drawing loose"
           d = nil
         end
         if d.nil?
-          d = model.entities.add_dimension_linear(wa, wb, vec)
+          d = ents.add_dimension_linear(la, lb, vec)
           ka = kb = :loose
         end
         d.layer = lay
@@ -774,11 +902,11 @@ module WR_BoothDims
         # else is reported, whichever attachment route produced it.
         pa = landed(d.start)
         pb = landed(d.end)
-        if pa.nil? || pa.distance(wa) > CHECK_TOL
-          misses << format('%s start landed %s, wanted %s', k, pa ? pa.to_s : 'nowhere', wa.to_s)
+        if pa.nil? || pa.distance(la) > CHECK_TOL
+          misses << format('%s start landed %s, wanted %s', k, pa ? pa.to_s : 'nowhere', la.to_s)
         end
-        if pb.nil? || pb.distance(wb) > CHECK_TOL
-          misses << format('%s end landed %s, wanted %s', k, pb ? pb.to_s : 'nowhere', wb.to_s)
+        if pb.nil? || pb.distance(lb) > CHECK_TOL
+          misses << format('%s end landed %s, wanted %s', k, pb ? pb.to_s : 'nowhere', lb.to_s)
         end
         kinds << ka << kb
         made << d
@@ -808,6 +936,23 @@ module WR_BoothDims
       puts format('    Y %9.4f .. %9.4f   set by "%s" / "%s"', ext[:y0], ext[:y1], ext[:y0_by], ext[:y1_by])
       puts format('    Z %9.4f .. %9.4f   set by "%s" / "%s"', ext[:z0], ext[:z1], ext[:z0_by], ext[:z1_by])
       puts '    *** no floor/ceiling parts — the height is off the WALLS and is not the booth height' if ext[:height_from_walls]
+      wid_ax = (front == 'N' || front == 'S') ? 'X' : 'Y'
+      puts format('    axes: %s is the width (along the %s door wall), %s the depth', wid_ax, front, wid_ax == 'X' ? 'Y' : 'X')
+      if ext[:shell].nil?
+        puts '    no corner seals in this booth — protrusions cannot be told from the shell; each wall sets its own side'
+      elsif (ext[:proud] || []).empty?
+        puts '    no wall part stands proud of the corner seals'
+      else
+        ext[:proud].each do |nm, letter, d|
+          ax = (letter == 'N' || letter == 'S') ? 'Y' : 'X'
+          puts format('    proud: "%s" on the %s wall stands %s beyond the corner seals — extends %s (the %s) only',
+                      nm, letter, arch(d), ax, ax == wid_ax ? 'width' : 'depth')
+        end
+      end
+      (ext[:overhang] || []).each do |nm, letter, ax, d|
+        puts format('    overhang: "%s" on the %s wall reaches %s past the shell along %s — NOT counted in the %s; it is not on that wall',
+                    nm, letter, arch(d), ax, ax == wid_ax ? 'width' : 'depth')
+      end
     end
     puts format('  width   %-12s  depth   %-12s  height  %-12s   (MEASURED — what is drawn)',
                 arch(meas[:width]), arch(meas[:depth]), arch(meas[:height]))
@@ -843,6 +988,11 @@ module WR_BoothDims
     misses.each { |m| puts "  *** #{m}" }
     puts format('  %d dimension(s) on %s for booth %s%s', made.length, TAG, pid,
                 removed > 0 ? format(' (replaced %d)', removed) : '')
+    puts '  the set lives INSIDE the booth: the Move tool carries it; a copied booth carries a copy (re-run to re-measure)'
+    if inst.respond_to?(:definition) && (inst.definition.count_instances rescue 1) > 1
+      puts format('  *** this booth is a component with %d instances — every instance now shows this set',
+                  inst.definition.count_instances)
+    end
     puts format('  removed %d orphan(s) whose booth is gone', orphans) if orphans > 0
     unless blockers.empty?
       puts format('  *** %s side blocked by %s — the height and depth strings sit inside it; ' \
@@ -873,16 +1023,20 @@ module WR_BoothDims
     model = Sketchup.active_model
     model.start_operation('Clear WhisperRoom dimensions', true)
     if inst
-      n = clear_for(model, inst.persistent_id)
+      n = clear_for(model, inst)
       model.commit_operation
       puts "CLEAR — removed #{n} entity(ies) of booth dimensions from \"#{inst.name}\""
     else
+      nested = owned_nested(model)
+      nested.group_by { |ents, _d| ents }.each do |ents, pairs|
+        ents.erase_entities(pairs.map { |_e, d| d })
+      end
       mine = owned(model)
       old = old_tool_entities(model)
       model.entities.erase_entities(mine + old) unless (mine + old).empty?
       model.commit_operation
-      puts format('CLEAR — removed %d entity(ies) from this tool and %d from the retired dimension-booth.rb',
-                  mine.length, old.length)
+      puts format('CLEAR — removed %d entity(ies) from this tool (%d inside booths, %d at model level) and %d from the retired dimension-booth.rb',
+                  nested.length + mine.length, nested.length, mine.length, old.length)
     end
     true
   rescue StandardError => e
