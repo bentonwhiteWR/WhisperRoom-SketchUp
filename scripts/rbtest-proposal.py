@@ -95,8 +95,8 @@ reintroduced bugs makes the named check FAIL:
 
 WHAT THIS HALF STILL DOES NOT PROVE. start_run itself is not executed here --
 only the gate it now calls. step / step_body's re-entrancy split, finish's
-restore ORDER and its two messagebox sites, and plan_names / uniquify /
-sanitize (the FILE-column contract) remain uncovered. And nothing offline can
+restore ORDER and its two messagebox sites remain uncovered (plan_names /
+uniquify / sanitize, the FILE-column contract, are covered since 1.26.2: pn1-6). And nothing offline can
 prove the real UI::HtmlDialog path: no batch has ever been started from the
 dialog's own Export button.
 
@@ -262,6 +262,16 @@ module WR_ProposalPackage
 %(render_size_gate)s
 
 %(lost_rows)s
+
+%(forbidden)s
+
+%(sanitize)s
+
+%(uniquify)s
+
+%(scene_prefix)s
+
+%(plan_names)s
 
 %(summary_lines)s
 
@@ -768,6 +778,30 @@ module WR_ProposalPackage
     out << (lost_rows(nil, %%w[a]) == [] ? 'lost2 ok' : 'lost2 FAIL')
     out << (lost_rows(%%w[a], %%w[a]) == [] ? 'lost3 ok' : 'lost3 FAIL')
 
+    # SCENE NUMBER PREFIX (1.26.2): the table number in front of the file,
+    # padded to the scene count's width, before the collision map.
+    pn = plan_names([{ 'n' => 1, 'scene' => 'Overview', 'mode' => 'image' },
+                     { 'n' => 2, 'scene' => 'Plan', 'mode' => 'render' },
+                     { 'n' => 3, 'scene' => 'Spare', 'mode' => 'skip' }])
+    out << (pn[1] == '1_Overview.png' && pn[2] == '2_Plan render.png' ?
+              'pn1 ok' : 'pn1 FAIL ' + pn.inspect)
+    out << (!pn.key?(3) ? 'pn2 ok' : 'pn2 FAIL a skipped scene got a file')
+    many = (1..13).map { |i| { 'n' => i, 'scene' => 'S' + i.to_s, 'mode' => 'image' } }
+    pm = plan_names(many)
+    out << (pm[1] == '01_S1.png' && pm[10] == '10_S10.png' && pm[13] == '13_S13.png' ?
+              'pn3 ok' : 'pn3 FAIL ' + pm.inspect)
+    out << (pm.values.sort == (1..13).map { |i| pm[i] } ?
+              'pn4 ok' : 'pn4 FAIL the folder does not sort into scene order')
+    pc = plan_names([{ 'n' => 1, 'scene' => '02_Plan', 'mode' => 'image' },
+                     { 'n' => 2, 'scene' => 'Plan', 'mode' => 'image' }])
+    out << (pc[1] == '1_02_Plan.png' && pc[2] == '2_Plan.png' ?
+              'pn5 ok' : 'pn5 FAIL ' + pc.inspect)
+    pe = plan_names([{ 'n' => 1, 'scene' => '???', 'mode' => 'image' },
+                     { 'n' => 2, 'scene' => 'X', 'mode' => 'image' },
+                     { 'n' => 3, 'scene' => 'X', 'mode' => 'image' }])
+    out << (pe[1] == '1_---.png' && pe[2] == '2_X.png' && pe[3] == '3_X.png' ?
+              'pn6 ok' : 'pn6 FAIL ' + pe.inspect)
+
     # ================================================================
     # D10 -- CAPTURE BEFORE MUTATE. annot_push used to assign @annot_saved
     # AFTER the hide loop and nil it in the rescue, so a raise partway
@@ -1118,6 +1152,7 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           # 1.9.6 -- the lifecycle half.
           'gate1 ok | gate2 ok | gate3 ok | gate4 ok | '
           'sum1 ok | sum2 ok | sum3 ok | lost1 ok | lost2 ok | lost3 ok | '
+          'pn1 ok | pn2 ok | pn3 ok | pn4 ok | pn5 ok | pn6 ok | '
           'annot1 ok | annot2 ok | annot3 ok | annot4 ok | '
           'annot5 ok | annot6 ok | annot7 ok | '
           'busy1 ok | busy2 ok | busy3 ok | '
@@ -1167,6 +1202,11 @@ def main():
         'require_render_size': rbtest.method_source(SRC, 'require_render_size'),
         'render_size_gate':  rbtest.method_source(SRC, 'render_size_gate'),
         'lost_rows':         rbtest.method_source(SRC, 'lost_rows'),
+        'forbidden':         const_line('FORBIDDEN'),
+        'sanitize':          rbtest.method_source(SRC, 'sanitize'),
+        'uniquify':          rbtest.method_source(SRC, 'uniquify'),
+        'scene_prefix':      rbtest.method_source(SRC, 'scene_prefix'),
+        'plan_names':        rbtest.method_source(SRC, 'plan_names'),
         'summary_lines':     rbtest.method_source(SRC, 'summary_lines'),
         'annot_push':        rbtest.method_source(SRC, 'annot_push'),
         'annot_pop':         rbtest.method_source(SRC, 'annot_pop'),

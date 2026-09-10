@@ -1,3 +1,33 @@
+# HANDOFF — Fixer → Benton: scene number in front of the file, 1.26.2
+
+2026-09-10. *"one underscore overview"*. Shipped, **unrun in SketchUp**;
+the naming itself is proven offline (`rbtest-proposal.py` pn1-6).
+
+## What you get
+- `1_Overview.png`, `2_Plan render.png` — the table `#` in front, then
+  the scene name. **Padded past nine scenes:** `01_Overview.png` …
+  `13_….png` on PeoplesSpace, because `10_` would otherwise sort between
+  `1_` and `2_` and the folder would not be in order — the thing you
+  asked for. Nine scenes or fewer keep your literal form.
+- FILE IT WILL WRITE shows the real name before you export.
+
+## Know this
+- **Reordering scenes renames the files.** Re-export into the same folder
+  after a drag and the old-numbered files stay next to the new ones —
+  EXISTS? only looks at names it is about to write. Export into a fresh
+  folder after a reorder, or delete the old set by hand.
+- Nothing downstream lists the folder: `build-v2.js` and every
+  `proposal-v2.json` name files explicitly, so nothing breaks; new packs
+  just reference the new names.
+
+## To verify (Benton)
+1. Open the proposal package on PeoplesSpace: the FILE column reads
+   `01_…`, `02_…`. Export two Image rows; the folder shows those names
+   and Explorer sorts them into scene order.
+2. Drag a scene to a new position; the FILE column renumbers with it.
+
+---
+
 # HANDOFF — Fixer → Benton: UNDO LAST APPLY, 1.26.1
 
 2026-09-10. Benton: *"add an undo button too"*. Built on a snapshot taken

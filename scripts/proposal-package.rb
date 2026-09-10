@@ -445,20 +445,42 @@ module WR_ProposalPackage
     final
   end
 
+  # SCENE NUMBER PREFIX (1.26.2). Benton: "add the scene number right in
+  # front of the file name ... one underscore overview ... that way we can
+  # better send that to the proposal since the files will already be in
+  # order." The number is the scene's TABLE number — its position in the
+  # scene tabs, skipped scenes counted — zero-padded to the width the
+  # scene count needs. His literal "1_" is kept for a model of nine scenes
+  # or fewer; past nine, "10_" would sort between "1_" and "2_" and defeat
+  # the ordering he asked for (PeoplesSpace has thirteen), so the intent
+  # wins over the example: "01_Overview.png". Reordering scenes therefore
+  # renames files; a re-export after a reorder leaves the old-numbered
+  # files beside the new ones, because the EXISTS? policy only ever looks
+  # at the names it is about to write.
+  def self.scene_prefix(n, total)
+    width = [total.to_s.length, 1].max
+    format("%0#{width}d_", n.to_i)
+  end
+
   # rows: [{'n'=>Integer, 'scene'=>String, 'mode'=>'skip'|'image'|'render'}]
-  # in pages order. Returns { n => 'file.png' } for every non-skip row.
+  # in pages order. Returns { n => 'NN_file.png' } for every non-skip row.
   # ONE collision map across BOTH lanes, and the " render" suffix goes on
   # AFTER sanitising (the suffix contains no forbidden characters) — so
   # "05-plan" marked render and a scene named "05-plan render" marked image
   # feed the same map and the second one gets "(2)", visibly, in the FILE
-  # column before anything is written.
+  # column before anything is written. The prefix goes on BEFORE the map,
+  # so a scene literally named "02_Plan" at position 1 reads "01_02_Plan"
+  # rather than colliding with scene 2; two scenes sharing a name now
+  # differ by prefix and the "(2)" suffix is only reached if the prefixed
+  # names still collide, which they cannot.
   def self.plan_names(rows)
     used = {}
     out  = {}
     rows.each do |r|
       next if r['mode'] == 'skip'
       base = sanitize(r['scene'])
-      base = "scene-#{r['n']}" if base.empty?
+      base = 'scene' if base.empty?
+      base = scene_prefix(r['n'], rows.size) + base
       base += ' render' if r['mode'] == 'render'
       out[r['n']] = "#{uniquify(base, used)}.png"
     end

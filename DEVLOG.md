@@ -2,6 +2,58 @@
 
 ## 2026-09-10
 
+### Scene number in front of every exported file — 1.26.2
+
+Benton: *"add the scene number right in front of the file name. So I see
+the scene is called overview and it's the first scene, I'd like for it to
+export that into the file called like one underscore overview. That way
+we can better send that to the proposal since the files will already be
+in order."* Shipped, **unrun in SketchUp** — but the naming is pure and
+is now proven offline.
+
+**What it does.** `plan_names` prefixes every planned file with the
+scene's **table number** (its position in the scene tabs, skipped scenes
+counted — "it's the first scene"), an underscore, then the sanitised
+name: `1_Overview.png`, `2_Plan render.png`. The FILE IT WILL WRITE column
+shows the real name because it has always been `plan_names`' output.
+
+**Zero-padding — the intent over the literal example.** `1_` sorts wrong
+past nine files: `10_` lands between `1_` and `2_`, and PeoplesSpace has
+thirteen scenes, so the literal form would break the ordering he asked
+for on the first model he uses it on. The prefix is padded to the width
+the scene count needs (`scene_prefix(n, total)`): nine scenes or fewer
+keep his exact `1_Overview.png`; ten to ninety-nine get `01_Overview.png`.
+
+**Collisions.** The prefix goes on before the collision map, so two
+scenes sharing a name now differ by number (`2_X.png`, `3_X.png`) and a
+scene literally named `02_Plan` at position 1 reads `1_02_Plan.png`
+rather than colliding with scene 2. The `(2)` suffix logic is kept and is
+now unreachable in practice. The render lane's ` render` suffix is
+unchanged and still goes on after the prefix.
+
+**Reordering scenes now renames files — stated plainly.** That is the
+point, but a re-export after a reorder leaves the old-numbered files
+beside the new ones: the EXISTS? policy (Ask / Overwrite / Skip existing)
+only ever looks at the names it is about to write, and nothing here
+deletes what it did not plan. He **will** end up with stale duplicates
+in a folder he reorders and re-exports into. Not solved unasked; the
+clean way out today is a fresh folder per export.
+
+**Downstream — read, nothing broken.** `WhisperRoom Proposals\build-v2.js`
+takes explicit file paths from `proposal-v2.json` (`path.basename` of a
+configured file) and never lists a folder; the proposal skill and every
+example config name files by hand (`renders-web/01-….jpg` — they were
+already numbering by hand, which is what this automates). `manifest.json`
+records whatever name was written.
+
+Patch bump (1.26.2). `rbparse.py` ok, `node --check` ok, and
+**`rbtest-proposal.py` now covers `plan_names` / `uniquify` / `sanitize`**
+(previously listed as uncovered): `pn1-6` — literal `1_`, skipped scene
+gets no file, 13 scenes pad to two digits, the folder sorts into scene
+order, a numeric-looking scene name does not collide, forbidden
+characters and duplicate names. Mutation-checked, run not assumed: with
+the padding forced to one digit, `pn3` and `pn4` FAIL.
+
 ### UNDO LAST APPLY — the way back that Ctrl+Z is not, 1.26.1
 
 Benton: *"add an undo button too, I clicked 'apply to all scenes'
