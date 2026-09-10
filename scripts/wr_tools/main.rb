@@ -62,7 +62,7 @@ module WhisperRoom
     SKIP     = ['wr_tools.rb', 'wr-booth-data.rb', 'wr-shading.rb',
                 'wr-folder.rb', 'wr-deck.rb', 'wr-overlays.rb',
                 'wr-roof-vent.rb', 'wr-bridge-lib.rb',
-                'wr-png-srgb.rb'].freeze
+                'wr-png-srgb.rb', 'wr-scene-sun.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5
 

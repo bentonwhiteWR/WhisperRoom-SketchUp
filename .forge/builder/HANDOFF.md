@@ -1,3 +1,49 @@
+# HANDOFF — Fixer → Benton: SUN column, 1.27.0
+
+2026-09-10. *"saving the sun from the light from here ... reset every time
+we are playing with a scene"*. Built, **unrun in SketchUp**. Needs
+`install-plugin.py` + restart (one `main.rb` SKIP entry).
+
+## What was actually happening (read, not run)
+- Light it from here writes the model's **live** sun only. Every scene
+  **saves its own** sun (shadow settings ticked — the default) and puts it
+  back the moment you click it. Nothing ever saved the aimed sun into a
+  scene. Not "not saving" — saving too well.
+- It is the **SketchUp** sun (direction). V-Ray's sun *intensity* is a
+  different knob (`.forge/fixer/sun-blowout.md`) and is not touched here.
+  If a V-Ray render does not follow the viewport sun, tell me — that is a
+  different complaint.
+
+## The column
+- `☀ Sun` left of WALLS. The card shows the scene's **saved** sun and the
+  sun that was in the **viewport when you opened it** (read before the
+  scene is selected, because selecting is what resets it).
+- **SAVE THAT INTO THIS SCENE** — the viewport sun, into this scene.
+- **AIM FROM THIS SCENE'S CAMERA** — Light it from here from the scene's
+  own camera (offset / match height / height), saved into this scene.
+- **APPLY TO ALL SCENES** — this scene's saved sun into every scene shown.
+  Asks by name. **UNDO LAST APPLY** puts it back; Ctrl+Z will not.
+- FIX SCENES appears when any scene has shadow-settings saving off.
+
+## Produced
+- `scripts/wr-scene-sun.rb` (new library). `scripts/proposal-package.rb`:
+  loads, `sun_payload`, six callbacks, column, card, JS, undo coverage.
+  `scripts/wr_tools/main.rb`: SKIP. `VERSION` → **1.27.0**. DEVLOG.
+
+## To verify (Benton) — "does it stick" is the check
+1. Light it from here on any view. Open the package, `☀ Sun` on scene 3:
+   "In the viewport when this opened" shows that sun; "Saved in this
+   scene" shows the old one. SAVE THAT INTO THIS SCENE. Click scene 1,
+   then scene 3: **the aimed sun is back on 3.** That is the fix.
+2. AIM FROM THIS SCENE'S CAMERA on scene 5: log names the bearing; the
+   viewport sun moves; click away and back — it stays.
+3. APPLY TO ALL from scene 3: confirm; click three tabs — same sun. UNDO
+   LAST APPLY beside Rescan → each has its old sun again.
+4. Do a V-Ray render of a scene you saved: does the sun follow? Tell me
+   either way — it decides whether this closes the complaint.
+
+---
+
 # HANDOFF — Builder → Benton: dimension font settled, 1.26.3
 
 2026-09-10. Your question: *"so it matches all the text, but not the

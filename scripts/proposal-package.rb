@@ -110,6 +110,11 @@ begin
   # standalone tool too; this reuses its inventory/apply so there is ONE
   # mechanism, not two that can disagree.
   load File.join(File.dirname(__FILE__), 'wr-scene-annotations.rb')
+  # SUN column (1.27.0): wr-sun-aim.rb is the aiming maths (it honours
+  # $wr_no_autorun, so no dialog opens); wr-scene-sun.rb is the per-scene
+  # save, a library in wr_tools' SKIP list.
+  load File.join(File.dirname(__FILE__), 'wr-sun-aim.rb')
+  load File.join(File.dirname(__FILE__), 'wr-scene-sun.rb')
   # The sRGB post-encode for the render lane (the dark-file fix — see the
   # THE DARK RENDERS section above save_frame). Pure Ruby, no tool of its own.
   load File.join(File.dirname(__FILE__), 'wr-png-srgb.rb')
@@ -741,7 +746,7 @@ module WR_ProposalPackage
   # so it survives closing a popover and closing this window; it does not
   # survive SketchUp closing, and it is refused on another model.
   def self.undo_mod(model)
-    [WR_SceneWalls, WR_SceneAnnotations].select do |m|
+    [WR_SceneWalls, WR_SceneAnnotations, WR_SceneSun].select do |m|
       m.respond_to?(:undo_summary) && m.undo_summary(model)
     end.max_by { |m| m.last_write[:at] }
   rescue StandardError
@@ -3141,6 +3146,19 @@ module WR_ProposalPackage
   # button) cannot send three slightly different shapes. scan() is called
   # once per payload: it rebuilds WR_SceneWalls' @units key index, and both
   # apply and keys_for_selection read that index.
+  # Everything the sun popover needs for one scene (1.27.0): the scene's
+  # SAVED sun, the sun that was live when the picker opened, and whether
+  # the scene saves shadow settings at all.
+  def self.sun_payload(model, n, pg)
+    off = WR_SceneSun.pages_not_saving(model)
+    { 'n' => n.to_i, 'scene' => pg.name.to_s,
+      'saved' => WR_SceneSun.sun_json(WR_SceneSun.page_sun(pg)),
+      'live'  => WR_SceneSun.sun_json(@sun_live),
+      'warn'  => off.include?(pg.name.to_s),
+      'off'   => off.size,
+      'offset' => WR_SceneSun::DEFAULT_OFFSET, 'elev' => WR_SceneSun::DEFAULT_ELEV }
+  end
+
   def self.walls_payload(model, n, pg)
     st = WR_SceneWalls.scan(model)
     { 'n' => n.to_i, 'scene' => pg.name.to_s,
@@ -3537,6 +3555,120 @@ module WR_ProposalPackage
         model.pages.selected_page = pg if pg
       rescue StandardError => e
         puts "  could not activate scene #{n}: #{e.class}: #{e.message}"
+      end
+    end
+
+    # ---- SUN column (1.27.0) -------------------------------------------------
+    #
+    # Benton: "saving the sun from the light from here ... being reset every
+    # time we are playing with a scene". The sun HE aims lives in the model's
+    # live shadow_info; every scene saves its OWN copy and puts it back when
+    # clicked. wr-scene-sun.rb has the whole reading. The live sun is read
+    # BEFORE the picker selects the scene, because the select is exactly
+    # what overwrites it — that is the value SAVE THE VIEWPORT SUN writes.
+    d.add_action_callback('sunopen') do |_c, n|
+      next if busy?(d, 'sunopen')
+      begin
+        pg = model.pages.to_a[n.to_i - 1]
+        raise "scene #{n} is gone — hit Rescan" if pg.nil?
+        preview_end(model)
+        @sun_live = WR_SceneSun.read_sun(model.shadow_info)
+        @walls_return ||= model.pages.selected_page
+        model.pages.selected_page = pg
+        d.execute_script('sunShow(' + sun_payload(model, n, pg).to_json + ')')
+      rescue StandardError => e
+        d.execute_script('sunFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # The sun that was in the viewport when the picker opened, into this scene.
+    d.add_action_callback('sunsave') do |_c, n|
+      next if busy?(d, 'sunsave')
+      begin
+        pg = model.pages.to_a[n.to_i - 1]
+        raise "scene #{n} is gone — hit Rescan" if pg.nil?
+        raise 'no viewport sun was read when this opened' if @sun_live.nil?
+        ok, msg = WR_SceneSun.apply(model, pg, @sun_live)
+        log(d, msg, ok ? 'dim' : 'bad')
+        push_undo(model, d)
+        d.execute_script('sunDone(' + { 'ok' => ok, 'msg' => msg,
+                                        'saved' => WR_SceneSun.sun_json(WR_SceneSun.page_sun(pg)),
+                                        'warn' => WR_SceneSun.pages_not_saving(model).include?(pg.name.to_s) }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('sunFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # Light it from here, from this scene's own camera, saved into this scene.
+    d.add_action_callback('sunaim') do |_c, payload|
+      next if busy?(d, 'sunaim')
+      begin
+        req = JSON.parse(payload.to_s)
+        pg  = model.pages.to_a[req['n'].to_i - 1]
+        raise "scene #{req['n']} is gone — hit Rescan" if pg.nil?
+        ok, msg = WR_SceneSun.aim(model, pg, req['offset'], req['matchcam'] ? true : false,
+                                  req['elev'])
+        log(d, msg, ok ? 'dim' : 'bad')
+        push_undo(model, d)
+        d.execute_script('sunDone(' + { 'ok' => ok, 'msg' => msg,
+                                        'saved' => WR_SceneSun.sun_json(WR_SceneSun.page_sun(pg)),
+                                        'warn' => WR_SceneSun.pages_not_saving(model).include?(pg.name.to_s) }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('sunFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # This scene's SAVED sun into every scene the table is showing — the
+    # walls sweep's shape: sweep_pages, confirm by name, one operation,
+    # one log line per scene, UNDO LAST APPLY as the way back.
+    d.add_action_callback('sunapplyall') do |_c, payload|
+      next if busy?(d, 'sunapplyall')
+      begin
+        req = JSON.parse(payload.to_s)
+        pg  = model.pages.to_a[req['n'].to_i - 1]
+        raise "scene #{req['n']} is gone — hit Rescan" if pg.nil?
+        sun = WR_SceneSun.page_sun(pg)
+        raise "scene \"#{pg.name}\" has no saved sun yet — aim or save one first" if sun.nil?
+        pages = sweep_pages(model, req['ns'])
+        if WR_SceneSun.confirm_all?(pages, sun)
+          ok, msg, det = WR_SceneSun.apply_all(model, sun, pages)
+          log_sweep(d, ok, msg, det)
+        else
+          ok, msg = false, 'Not applied — nothing was changed.'
+        end
+        push_undo(model, d)
+        d.execute_script('sunDone(' + { 'ok' => ok, 'msg' => msg,
+                                        'saved' => WR_SceneSun.sun_json(WR_SceneSun.page_sun(pg)),
+                                        'warn' => WR_SceneSun.pages_not_saving(model).include?(pg.name.to_s) }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('sunFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    d.add_action_callback('sunfix') do |_c, n|
+      next if busy?(d, 'sunfix')
+      begin
+        ok, msg = WR_SceneSun.fix_pages(model)
+        log(d, msg, ok ? 'dim' : 'bad')
+        pg = model.pages.to_a[n.to_i - 1]
+        d.execute_script('sunNote(' + { 'ok' => ok, 'msg' => msg,
+                                        'warn' => pg ? WR_SceneSun.pages_not_saving(model).include?(pg.name.to_s) : false,
+                                        'off' => WR_SceneSun.pages_not_saving(model).size }.to_json + ')')
+      rescue StandardError => e
+        d.execute_script('sunFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    d.add_action_callback('sunclose') do |_c, _p|
+      @sun_live = nil
+      begin
+        if @walls_return && @walls_return.valid?
+          model.pages.selected_page = @walls_return
+        end
+      rescue StandardError => e
+        puts "  could not restore the scene you were on: #{e.class}: #{e.message}"
+      ensure
+        @walls_return = nil
       end
     end
 
@@ -4006,6 +4138,25 @@ module WR_ProposalPackage
   #afoot button { font:inherit; font-size:12px; padding:5px 13px; border:1px solid var(--line);
     border-radius:3px; background:var(--surface); cursor:pointer; }
   #afoot button.prim { background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* SUN popover (1.27.0): the annotations card's shape, one id over. */
+  #swrap { display:none; position:fixed; inset:0; background:rgba(20,24,28,.44);
+    align-items:center; justify-content:center; z-index:50; }
+  #scard { background:var(--surface); border:1px solid var(--line); border-radius:6px;
+    width:min(560px,94vw); max-height:86vh; display:flex; flex-direction:column;
+    box-shadow:0 10px 34px rgba(0,0,0,.28); }
+  #stitle { font-weight:650; padding:12px 14px 8px; font-size:13px; }
+  #sbody { overflow:auto; padding:0 14px 6px; flex:1 1 auto; font-size:12px; }
+  #sbody .srow { display:flex; gap:8px; align-items:baseline; padding:5px 0; border-top:1px solid var(--line); }
+  #sbody .srow:first-child { border-top:0; }
+  #sbody .slab { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; flex:0 0 150px; }
+  #sbody .sval b { font-weight:650; }
+  #sbody .sctl { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:8px 0 2px; }
+  #sbody .sctl input[type=number] { width:56px; font:inherit; padding:2px 4px; border:1px solid var(--line); border-radius:3px; }
+  #sbody button.wbtn { margin-left:auto; }
+  #sfoot { display:flex; gap:8px; padding:10px 14px 12px; border-top:1px solid var(--line); }
+  #sfoot button { font:inherit; font-size:12px; padding:5px 13px; border:1px solid var(--line);
+    border-radius:3px; background:var(--surface); cursor:pointer; }
+  #sfoot button.prim { background:var(--accent); border-color:var(--accent); color:#fff; }
   .wrh .links { margin-left:auto; text-transform:none; letter-spacing:0; font-size:11px; }
   .wrh .links a { color:var(--muted); cursor:pointer; text-decoration:underline dotted; }
   .wrh .links a:hover { color:var(--accent); }
@@ -4137,7 +4288,7 @@ module WR_ProposalPackage
   </div>
   <div class="bodyy"><div class="wrap"><table>
     <thead><tr>
-      <th>#</th><th>SCENE</th><th>MODE</th><th>WALLS</th><th>ANNOTATIONS</th><th>FILE IT WILL WRITE</th><th></th>
+      <th>#</th><th>SCENE</th><th>MODE</th><th>SUN</th><th>WALLS</th><th>ANNOTATIONS</th><th>FILE IT WILL WRITE</th><th></th>
     </tr></thead>
     <tbody id="body"></tbody>
   </table></div></div>
@@ -4249,6 +4400,20 @@ module WR_ProposalPackage
     </div>
   </div>
 </div>
+<div id="swrap">
+  <div id="scard">
+    <div id="stitle"></div>
+    <div id="sbody"></div>
+    <div id="smsg" class="wmsg"></div>
+    <div id="sfoot">
+      <button id="sfix" title="Turn on shadow-settings saving for every scene that has it off">FIX SCENES</button>
+      <span class="wgap"></span>
+      <button id="sapplyall" title="This scene's saved sun into every scene the table is showing — asks first. Ctrl+Z will NOT undo it; UNDO LAST APPLY will.">APPLY TO ALL SCENES</button>
+      <button id="saim" class="prim" title="Light it from here, from this scene's own camera, saved into this scene">AIM FROM THIS SCENE'S CAMERA</button>
+      <button id="scancel">CLOSE</button>
+    </div>
+  </div>
+</div>
 <script>
 (function () {
   "use strict";
@@ -4263,7 +4428,9 @@ module WR_ProposalPackage
       $wpick=g("wpick"), $wselhide=g("wselhide"), $wselshow=g("wselshow"),
       $awrap=g("awrap"), $atitle=g("atitle"), $abody=g("abody"),
       $amsg=g("amsg"), $aapply=g("aapply"), $aapplyall=g("aapplyall"), $acancel=g("acancel"),
-      $apick=g("apick");
+      $apick=g("apick"),
+      $swrap=g("swrap"), $stitle=g("stitle"), $sbody=g("sbody"), $smsg=g("smsg"),
+      $saim=g("saim"), $sapplyall=g("sapplyall"), $scancel=g("scancel"), $sfix=g("sfix");
 
   function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;")
     .replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")
@@ -4332,6 +4499,7 @@ module WR_ProposalPackage
         "<td><span class='seg'>"+
           segBtn(r,"skip","Skip")+segBtn(r,"image","Image")+segBtn(r,"render","Render")+
         "</span></td>"+
+        "<td><button class='wbtn' data-sun='"+r.n+"' title='Where the sun is for this scene — aim it, save it, or put it on every scene'>&#9728; Sun</button></td>"+
         "<td><button class='wbtn' data-walls='"+r.n+"' title='Choose which whole walls this scene hides'>Hide walls</button></td>"+
         "<td><button class='wbtn' data-annots='"+r.n+"' title='Choose which notes and dimensions this scene hides'>Hide notes</button></td>"+
         "<td class='file' title='"+esc(r.file)+"'>"+fh+"</td>"+
@@ -4344,6 +4512,13 @@ module WR_ProposalPackage
         if(window.sketchup && sketchup.mark)
           sketchup.mark(JSON.stringify({ n:+el.getAttribute("data-n"),
                                          mode:el.getAttribute("data-mode") }));
+      });
+    });
+    Array.prototype.forEach.call($b.querySelectorAll("[data-sun]"), function(el){
+      el.addEventListener("click", function(e){
+        e.stopPropagation();
+        if(running) return;
+        sunOpen(+el.getAttribute("data-sun"));
       });
     });
     Array.prototype.forEach.call($b.querySelectorAll("[data-walls]"), function(el){
@@ -4923,6 +5098,95 @@ module WR_ProposalPackage
   });
   $acancel.addEventListener("click", annotsClose);
   $awrap.addEventListener("click", function(e){ if(e.target === $awrap) annotsClose(); });
+
+  // ---- per-scene SUN (1.27.0) ---------------------------------------------
+  // The third sibling of the walls and annotations pickers. The sun he aims
+  // with Light it from here lives in the model's LIVE shadow settings; every
+  // scene saves its own and puts it back when clicked, so nothing he aimed
+  // ever stuck. Ruby reads the live sun BEFORE selecting the scene (the
+  // select is what overwrites it); this card shows both and saves either.
+  var sunN = 0;
+  function sunFmt(s){
+    if(!s) return "<i>not saved</i>";
+    return "bearing <b>"+(s.az==null?"?":s.az)+"&deg;</b>, height <b>"+(s.el==null?"?":s.el)+"&deg;</b>"
+      + " <span class='cnt'>(north "+(s.north==null?"?":s.north)+"&deg;, "+esc(s.time)+")</span>";
+  }
+  function sunOpen(n){
+    sunN = n;
+    allScope($sapplyall);
+    $sapplyall.title = $sapplyall.title.replace("The same ticks into", "This scene's saved sun into");
+    $stitle.textContent = "Loading scene " + n + "…";
+    $sbody.innerHTML = "";
+    $smsg.textContent = ""; $smsg.className = "wmsg";
+    $swrap.style.display = "flex";
+    if(window.sketchup && sketchup.sunopen) sketchup.sunopen(String(n));
+  }
+  function sunClose(){
+    $swrap.style.display = "none";
+    sunN = 0;
+    if(window.sketchup && sketchup.sunclose) sketchup.sunclose("");
+  }
+  function sunWarn(warn, off){
+    $sfix.style.display = off ? "" : "none";
+    $sfix.textContent = "FIX " + off + " SCENE" + (off===1?"":"S");
+    $smsg.className = "wmsg" + (warn ? " bad" : "");
+    $smsg.textContent = warn
+      ? "This scene does not save shadow settings, so no sun comes back when it is clicked. "
+        + "Saving turns that on for this scene; FIX SCENES turns it on for every scene."
+      : "Aim writes the sun the way Light it from here does — from this scene's camera — "
+        + "and saves it into this scene only. Nothing here touches V-Ray's sun intensity.";
+  }
+  window.sunFail = function (msg) {
+    $stitle.textContent = "Could not read the sun";
+    $smsg.textContent = msg; $smsg.className = "wmsg bad";
+  };
+  window.sunShow = function (d) {
+    $stitle.textContent = "Sun for “" + d.scene + "”";
+    $sbody.innerHTML =
+      "<div class='srow'><span class='slab'>Saved in this scene</span><span class='sval' id='ssaved'>"+sunFmt(d.saved)+"</span></div>"
+      + "<div class='srow'><span class='slab'>In the viewport when this opened</span><span class='sval'>"+sunFmt(d.live)+"</span>"
+      + (d.live ? "<button class='wbtn' id='ssave' title='The sun you set with Light it from here, saved into this scene'>SAVE THAT INTO THIS SCENE</button>" : "")
+      + "</div>"
+      + "<div class='sctl'><span class='slab'>Aim from the camera</span>"
+      + "<label>offset <input type='number' id='soff' step='5' value='"+esc(d.offset)+"'>&deg; to one side</label>"
+      + "<label><input type='checkbox' id='smatch' checked> match the camera's height</label>"
+      + "<label>or height <input type='number' id='selev' step='5' min='5' max='85' value='"+esc(d.elev)+"'>&deg;</label>"
+      + "</div>";
+    var sv = g("ssave");
+    if(sv) sv.addEventListener("click", function(){
+      if(window.sketchup && sketchup.sunsave) sketchup.sunsave(String(sunN));
+    });
+    var sm = g("smatch"), se = g("selev");
+    if(sm && se){ se.disabled = sm.checked; sm.addEventListener("change", function(){ se.disabled = sm.checked; }); }
+    sunWarn(d.warn, d.off);
+  };
+  window.sunDone = function (r) {
+    $smsg.textContent = r.msg;
+    $smsg.className = "wmsg" + (r.ok ? " ok" : " bad");
+    var ss = g("ssaved"); if(ss && r.saved !== undefined) ss.innerHTML = sunFmt(r.saved);
+    if(r.warn === false) { $smsg.className = "wmsg" + (r.ok ? " ok" : " bad"); }
+  };
+  window.sunNote = function (r) {
+    $smsg.textContent = r.msg;
+    $smsg.className = "wmsg" + (r.ok ? " ok" : " bad");
+    $sfix.style.display = r.off ? "" : "none";
+    $sfix.textContent = "FIX " + r.off + " SCENE" + (r.off===1?"":"S");
+  };
+  $saim.addEventListener("click", function(){
+    var sm = g("smatch"), so = g("soff"), se = g("selev");
+    if(window.sketchup && sketchup.sunaim)
+      sketchup.sunaim(JSON.stringify({ n: sunN, offset: so ? +so.value : 30,
+                                       matchcam: sm ? sm.checked : true, elev: se ? +se.value : 35 }));
+  });
+  $sapplyall.addEventListener("click", function(){
+    if(window.sketchup && sketchup.sunapplyall)
+      sketchup.sunapplyall(JSON.stringify({ n: sunN, ns: shownNs() }));
+  });
+  $sfix.addEventListener("click", function(){
+    if(window.sketchup && sketchup.sunfix) sketchup.sunfix(String(sunN));
+  });
+  $scancel.addEventListener("click", sunClose);
+  $swrap.addEventListener("click", function(e){ if(e.target === $swrap) sunClose(); });
 
   window.applyState = function (st) { ST = st; drawMats(); draw(); };
   window.setDir = function (d) { g("dir").value = d; };

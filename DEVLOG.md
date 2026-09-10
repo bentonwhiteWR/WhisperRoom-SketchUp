@@ -2,6 +2,84 @@
 
 ## 2026-09-10
 
+### SUN column in the proposal package — 1.27.0
+
+Benton: *"I want to take a look at saving the sun from the light from
+here. It's seemingly being reset every time we are playing with a scene.
+I think it seems they're not saving where the sun is. It'd be nice if
+there was a column in the proposal package next to walls, maybe to the
+left of walls, and a sun icon — if you click on that you could set the sun
+and apply it to all scenes, or you could change the sun's location for
+that one specific scene."* Built, **unrun in SketchUp**.
+
+**Diagnosed first, by reading — and the prior candidate was the wrong way
+round.** The suspicion was scenes with "shadow settings" unticked. It is
+the opposite: the scenes save shadow settings *too well*. The sun is
+SketchUp's `ShadowInfo` (direction = `NorthAngle` + `ShadowTime` +
+`Latitude`/`Longitude`/`TZOffset`), and it lives twice — the model's live
+copy (the viewport now) and each page's own saved copy. **Light it from
+here (`wr-sun-aim.rb`) writes the live copy only**; its header says so in
+its own words ("edits the model's live shadow_info only"). Every scene
+the proposal tools make has `use_shadow_info = true`
+(`proposal-scenes.rb:276`; SketchUp's default for a hand-made scene too),
+so clicking any tab puts *that scene's* stale saved sun straight back over
+the aimed one — the same mechanism `proposal-package.rb` already documents
+for shadows-on/off at 1.19.3. Nothing ever wrote the aimed sun *into* a
+scene. So this is not the banner-and-fix pattern; the column is the fix
+(the banner and one-click fix exist too, for the rarer unticked case).
+
+**It is the SketchUp sun, not V-Ray's.** "Where the sun is" and "reset
+every time we play with a scene" describe `ShadowInfo`; V-Ray's
+`/SunLight` intensity does not move on a scene click. Nothing in this
+column touches V-Ray — no `/SunLight`, no intensity multiplier — per
+`.forge/fixer/sun-blowout.md`, which records that knob as his and the ISO
+3200 stamp as the reason it reads hot. Whether V-Ray's sun *follows*
+SketchUp's shadow settings (Chaos' default; **reported**, never probed
+here) decides whether a render moves with this; the viewport certainly
+does. If a real render does not follow, the complaint is the V-Ray sun
+and this column is not the answer — say so and it comes back to me.
+
+**What it does.** `scripts/wr-scene-sun.rb`, a library (SKIP list) —
+the third sibling of the walls and annotations modules, same shape:
+`read_sun` / `page_sun` (a page's saved sun read off its own
+`shadow_info`, never guessed from the live model), `write_scene` (page
+SELECTED: the five keys into `model.shadow_info`, `use_shadow_info` on,
+`page.update(PAGE_USE_SHADOWINFO)` — SketchUp's own "update scene: shadow
+settings"), `apply`, `apply_all` (one operation, per-scene log, the walls
+sweep's `confirm_all?`), `aim` (Light it from here from the scene's OWN
+camera — `page.camera` handed to `WR_SunAim` in place of the view, so a
+transition still animating cannot feed it a half-way camera — then saved
+into the scene), `pages_not_saving` / `fix_pages`, and the one-step
+`undo_last` record so **UNDO LAST APPLY covers sun writes too**.
+
+The column sits **left of WALLS**: a `☀ Sun` button per row opens a card
+that shows the scene's SAVED sun (bearing / height / north / time), the
+sun that was **live in the viewport when the card opened** — read by Ruby
+*before* selecting the scene, because the select is exactly what
+overwrites it — with **SAVE THAT INTO THIS SCENE**; the Light-it-from-here
+controls (offset to one side, match the camera's height or a height in
+degrees) behind **AIM FROM THIS SCENE'S CAMERA**; and **APPLY TO ALL
+SCENES**, which copies *this scene's saved sun* into every scene the
+table shows (confirm by name, one undo record, one log line per scene).
+`busy?`-guarded, inert during an export, `preview_end` before opening.
+
+**Stated, not hidden.** `page.update(PAGE_USE_SHADOWINFO)` snapshots the
+whole shadow block — `DisplayShadows`, `Light`, `Dark` included — as it
+stands; this column does not change those, and the export lane's shading
+contract re-forces them per row anyway. `aim` is two operations (the aim
+owns its own); the sun write is the recorded one. `wr_tools/main.rb`
+gained one SKIP entry, so **this one needs `install-plugin.py` and a
+restart** — until then the panel may list `wr-scene-sun.rb` as a button
+that does nothing.
+
+Minor bump (1.27.0). `rbparse.py` 4/4 (package, sun, sun-aim, main),
+`rbtest-proposal.py` PASS, `node --check` on the dialog script. **Not
+observed:** that `Page#shadow_info` returns the page's saved copy for an
+unselected page (documented; a nil reads as "not saved", never a guess);
+that `PAGE_USE_SHADOWINFO` writes what "Update scene" writes; and — the
+one that matters — that a scene saved this way puts its sun back on the
+next click.
+
 ### Dimension font: settled — model-wide, no Ruby surface; the tool now says the exact value and opens the panel — 1.26.3
 
 Benton, on 1.26.0: *"so it matches all the text, but not the dimensions. No
