@@ -110,12 +110,82 @@ Every other harness re-run green (13 of them), `python scripts/rbparse.py`
 clean on all 68 files, and both dialogs' JavaScript checked with `node --check`
 against the walls dialog as a known-good control.
 
-**STILL UNRUN IN SKETCHUP.** No bridge from here into the window, so the
-picker itself, the modal, the tag+entity save in one Apply and the client-safe
-sweep are unverified live. `.forge/builder/verify-scene-annotations.rb` is the
-acceptance list as a loadable script: it refuses anywhere but an **Untitled**
-model, builds its own fixture, prints one PASS/FAIL line per check the way the
-probe did, and erases every scene, entity and tag it made in `ensure`.
+**VERIFIED LIVE, 9 Sep 2026 — ALL 30 CHECKS PASS.** Benton ran
+`.forge/builder/verify-scene-annotations.rb` in an Untitled SketchUp 26.2.243
+model (mask=384, plugin 1.20.0). The script refuses anywhere but an
+**Untitled** model, builds its own fixture, prints one PASS/FAIL line per
+check the way the probe did, and erases every scene, entity and tag it made in
+`ensure`. It was written while nothing had been run in the window; the run
+below closed that gap.
+
+Three results are worth naming, because each was an assumption before the run:
+
+- `clientsafe.reapply_survives_the_scene_switch` PASS — *"the switch undid it:
+  true — reapply put it back: true"*. **The defect this build guessed at was
+  real.** `export_pages` re-selecting the page between `annot_push` and
+  `write_image` DID undo the client-safe entity hides, exactly as derived from
+  the 1.9.12 and 1.19.3 precedents, and `annot_reapply` on the `after_switch`
+  hook is what stops a hand-placed note going out on a customer image. This
+  was the highest-risk item in the build and it is now observed, not reasoned.
+- `scene.set_hidden_per_scene` + `scene.loose_text_per_scene` both PASS in one
+  Apply — the two mechanisms coexisting was the last standing assumption from
+  the probe, which had only proven them separately.
+- `clientsafe.everything_put_back_as_found` PASS — before and after hashes
+  identical, including `loose2` which Benton's fixture had hidden already. The
+  D10 capture-before-mutate discipline holds for entities as well as tags: a
+  callout that was already hidden stays hidden.
+
+Also observed in the same run: camera byte-identical after Apply,
+`batch.wall_untouched` (the walls feature is unaffected), the Untagged tag
+never offered as a set row, `move_selection_to_set` naming what it refused
+("Not an annotation and left alone: VERIFY Wall 1"), and both manifest
+collectors returning rows. Full console output pasted below.
+
+```
+verify-scene-annotations - SketchUp 26.2.243, mask=384, plugin 1.20.0
+  PASS inventory.loose_lists_untagged - loose=4 sets=["WR-Notes-VerifyPlan"]
+  PASS inventory.no_untagged_set_row - sets are ["WR-Notes-VerifyPlan"]
+  PASS inventory.set_lists_its_members
+  PASS inventory.wall_is_not_an_annotation
+  PASS apply.returns_ok - Saved to scene "WR-Verify-A" - 0 set(s) and 1 callout(s) hidden (8 row(s) written).
+  PASS camera.byte_identical_after_apply
+  PASS scene.loose_text_per_scene - B hidden?=false A hidden?=true (expect false/true)
+  PASS scene.linear_dim_per_scene - B=false A=true
+  PASS scene.3d_label_per_scene - B=false A=true
+  PASS scene.set_hidden_per_scene - tag visible? B=true A=false (expect true/false)
+  PASS scene.page_layers_names_the_set
+  PASS scene.member_flag_survives_the_set - tag visible?=true m1 hidden?=true m2 hidden?=false
+  PASS batch.all_loose_hidden - 4 loose callout(s)
+  PASS batch.wall_untouched
+  PASS batch.none_shows_them_again
+  PASS selection.keys_and_set_hint - keys=["e:2694", "e:2695"] hint="WR-Notes-VerifyPlan"
+  PASS selection.wall_is_not_an_annotation - keys=[] others=1
+  PASS reveal.selects_the_callout
+  PASS move.moves_annotations_only - 1 callout(s) moved into WR-Notes-VerifyPlan - that is for every scene. Not an annotation and left alone: VERIFY Wall 1.
+  PASS move.names_what_it_refused
+  PASS pages.names_the_scene_that_will_not_save - ["WR-Verify-B"]
+  PASS pages.apply_turns_saving_back_on
+  PASS clientsafe.hides_untagged_callouts - loose1=true dim=true lab=true
+  PASS clientsafe.hides_the_set_tag
+  PASS clientsafe.leaves_geometry_alone
+  PASS clientsafe.record_published_before_the_flip - 4 callout(s) recorded
+  PASS clientsafe.reapply_survives_the_scene_switch - the switch undid it: true - reapply put it back: true
+  PASS clientsafe.everything_put_back_as_found - before={"loose1"=>false, "loose2"=>true, "dim"=>false, "lab"=>false, "tag"=>true, "wall"=>false} after=<identical>
+  PASS manifest.collect_hidden_annotations - 1 row(s): {"kind"=>"text", "tag"=>"Layer0", "text"=>"VERIFY loose one"}
+  PASS manifest.collect_annotations_sees_the_3d_label - ["text", "linear_dimension", "3d_text"]
+ALL 30 CHECKS PASS
+```
+
+**What this run does NOT cover.** No image was exported, so the client-safe
+sweep is proven at the method level and not by inspecting a rendered PNG; the
+V-Ray lane is untouched by this run; and nobody has yet clicked the
+ANNOTATIONS column in the real dialog - every check above drives the library
+methods directly. The first real proposal batch is the remaining evidence.
+
+A benign console artefact, worth knowing so it is not mistaken for a fault: a
+second `load` of the scripts prints `already initialized constant` warnings for
+`WR_ProposalScenes` and `WR_SceneAnnotations` constants. Re-loading a file that
+defines constants always does that in Ruby; it is noise, not a defect.
 
 Panel: `wr-ico-scene-annots.svg` + `icon-map.json` + `ico-labels.txt`.
 `scripts/wr_tools/VERSION` 1.19.16 -> **1.20.0** (new tool script).

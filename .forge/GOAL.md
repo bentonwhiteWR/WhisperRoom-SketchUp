@@ -18,8 +18,8 @@ column in proposal-package.rb, driven by wr-scene-walls.rb's proven mechanism.
 - Verified live in SketchUp, not just reasoned about. Committed and pushed.
 
 ## Now
-Builder implementing the rev 2 hybrid spec (.forge/scoper/scene-annotations.md),
-approved by Benton 9 Sep 2026, then committing and pushing to GitHub.
+Verified live 9 Sep 2026 — all 30 checks pass in SketchUp 26.2.243. Feature is
+done pending its first real proposal batch.
 
 ## Out of scope
 - Rewriting the walls feature; extend/parallel it, don't replace it.
