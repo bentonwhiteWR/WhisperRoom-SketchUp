@@ -1,6 +1,61 @@
 # DEVLOG
 
 ## 2026-09-10
+### REGRESSION FIX: empty scene table — the whole dialog script failed to parse — 1.35.1
+
+Benton, 10 Sep 2026: *"ugh i think its broken. None of the scenes are
+loading now."* Four scene tabs, an empty SCENES table, no count, GOES
+TO blank, status `Ready.` Patch bump. **Display-only, nothing exported
+is affected**: since 1.34.0 the window could not export at all (the
+Export button's listener never attached), and every run before 1.34.0
+went through code this bug did not exist in.
+
+**Cause, named — by RUNNING the script, not reading it.** The dialog is
+a `<<-HTML` heredoc, i.e. a Ruby double-quoted string: `\\` becomes
+`\` and any other `\X` becomes `X` before the browser sees a byte.
+1.34.0's `updateDest()` wrote `g("dir").value.replace(/\\/g, "/")
+.replace(/\/+$/, "")` into the source; the browser received
+`.replace(/\/g, "/").replace(//+$/, "")` — an unterminated regex
+followed by a line comment. One SyntaxError, and the ENTIRE main script
+block is dead: no `draw()`, no count, no `updateDest()`, no listeners.
+The static markup and the literal `Ready.` are what was left, which is
+exactly what a model with no scenes looks like. `state(model)`,
+`push_state`, the unsaved-model path, `agent_prompt` — all ruled out:
+the script never got as far as any of them, on a saved or an unsaved
+model alike. Source now carries four and two backslashes, so the
+browser gets `/\\/g` and `/\/+$/`.
+
+**Why the three checks passed.** `node --check` parsed the script as
+it sits in the .rb — where `/\\/g` is a perfectly valid regex — never
+as the heredoc delivers it. rbparse is Ruby syntax; rbtest never loads
+the dialog. **New check that would have caught it, and now runs:**
+`node scripts/jstest-proposal-dialog.js` extracts every `<script>`
+block, applies Ruby's heredoc escape rules, substitutes `ST` and
+`FNAME` with realistic values, and RUNS the init path under a fake DOM
+whose `getElementById` returns null for any id the HTML does not
+contain — then asserts the Ruby-facing functions (`applyState`,
+`setDir`, `showPrompt`, `logLine`, `runStarted`, `runFinished`) exist.
+Run against the broken file it fails on the exact line; against the
+fix it passes, for a saved and an unsaved model name. It is now part
+of the check list for any change to this dialog — and it REPLACES the
+old "node --check on the extracted script" step for this file: the
+text inside the heredoc is not JavaScript until Ruby has unescaped it,
+so that raw check was never valid here, and on the corrected line
+(`/\\\\/g` in source) it now reports a false error. Only the
+unescaped text is worth parsing.
+
+**Failure made visible.** A separate first `<script>` block installs
+`window.onerror`: if the main block fails to parse or throws at init,
+the status line reads `WINDOW SCRIPT FAILED (line N): <message>` and
+the empty table gets a red row saying it is NOT a model with no
+scenes. Those two states no longer look the same.
+
+**Benton's check.** Open the package on `NewTemplate` (unsaved, four
+scenes): four rows, `4 scenes · …` in the header, GOES TO showing the
+root with the not-saved note. Then on a saved model: GOES TO shows
+`<root>/<name>/`. Status line reads `Ready.` in both — if it ever
+reads `WINDOW SCRIPT FAILED`, that line number is the bug report.
+
 ### A prompt for Claude at the bottom of the proposal package — 1.35.0
 
 Benton, 10 Sep 2026: *"Can it also have a box at the bottom filled with

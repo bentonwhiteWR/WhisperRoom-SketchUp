@@ -5074,6 +5074,21 @@ module WR_ProposalPackage
   </div>
 </div>
 <script>
+// A WINDOW WHOSE SCRIPT FAILED MUST NOT LOOK LIKE A MODEL WITH NO SCENES
+// (1.35.1). 10 Sep 2026: a regex the heredoc unescaped into /\/g made the
+// main script below a SyntaxError; the table stayed empty and the status
+// line said "Ready." This block is separate so it survives that, and it
+// writes the error where "Ready." was.
+window.onerror = function (msg, src, line) {
+  var e = document.getElementById("pmsg");
+  if (e) e.textContent = "WINDOW SCRIPT FAILED (line " + line + "): " + msg +
+                         " - nothing in this window will work; report this line.";
+  var b = document.getElementById("body");
+  if (b && !b.innerHTML) b.innerHTML = "<tr><td colspan='7' style='color:#c0392b'>The window's script failed - see the status line. This is NOT a model with no scenes.</td></tr>";
+  return false;
+};
+</script>
+<script>
 (function () {
   "use strict";
   var ST = #{st.to_json};
@@ -5854,7 +5869,7 @@ module WR_ProposalPackage
   // path is written out under the field and redrawn on every change.
   var FNAME = #{fname.to_json};
   function updateDest(){
-    var r = g("dir").value.replace(/\\/g, "/").replace(/\/+$/, "");
+    var r = g("dir").value.replace(/\\\\/g, "/").replace(/\\/+$/, "");
     var on = g("sub").checked, t;
     if(!r) t = "Choose a root folder first.";
     else if(!on) t = "Files go to:  " + r;

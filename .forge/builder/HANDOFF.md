@@ -1276,3 +1276,19 @@ images plain image rows or ` render.png` rows?"**
 - Two-point per plate keeps provenance: yes / no / unknown / LOST.
 - Check: export, Copy prompt, paste into Notepad; compare to
   claude-prompt.txt.
+
+
+---
+
+# HANDOFF — empty scene table regression (Fixer, 10 Sep 2026, 1.35.1)
+
+- **observed by execution**: the `<<-HTML` heredoc unescapes `\\`->`\`
+  and `\X`->`X`; 1.34.0's regexes reached the browser as `/\/g` and
+  `//+$/`; SyntaxError killed the whole main script. Display-only.
+- Fix: four/two backslashes in source; `window.onerror` block before the
+  main script writes the failure into the status line + table.
+- New check: `node scripts/jstest-proposal-dialog.js` (heredoc unescape
+  + fake DOM run + Ruby-facing function assert). Fails on the old file,
+  passes on the fix. Add it to every dialog change.
+- Check: NewTemplate shows 4 rows and GOES TO; a saved model shows
+  `<root>/<name>/`.
