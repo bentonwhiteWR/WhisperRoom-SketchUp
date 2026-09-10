@@ -3150,6 +3150,49 @@ module WR_ProposalPackage
       push_state(model, d)
     end
 
+    # RESCAN (1.21.1). Benton: "a 'refresh' button ... so it loads in newly
+    # added scenes". Three error paths in this window had said "hit Rescan"
+    # since 1.19 without any such button existing. The rebuild is the same
+    # push_state every mark / bulk / fill change already does, and it loses
+    # NOTHING the operator set in this window -- checked, not assumed: MODE
+    # and EV live on the page (set_mode / set_ev), the slot fills live on the
+    # model (WR_MaterialsSwap), and the folder, width, overwrite, shading,
+    # annotation selectors, search text, section collapse states and the log
+    # are DOM that applyState never touches. The payload is the scene list the
+    # window was showing, so the log can say WHAT changed rather than only
+    # that a refresh happened. Refused mid-batch like every sibling: the model
+    # must not be re-read under a running export.
+    d.add_action_callback('rescan') do |_c, payload|
+      next if busy?(d, 'rescan')
+      begin
+        old = (JSON.parse(payload.to_s) rescue [])
+        old = [] unless old.is_a?(Array)
+        old = old.map(&:to_s)
+        now = model.pages.to_a.map { |pg| pg.name.to_s }
+        added = now - old
+        gone  = old - now
+        msg = "RESCAN: #{now.length} scene(s) in the model"
+        msg += " -- new: #{added.join(', ')}" unless added.empty?
+        msg += " -- no longer in the model: #{gone.join(', ')}" unless gone.empty?
+        if added.empty? && gone.empty?
+          msg += if now.length == old.length
+                   ' -- no change to the scene list'
+                 else
+                   # Array#- is by name, so a deleted DUPLICATE of a surviving
+                   # name shows up only as a count change. Say so.
+                   " -- count went from #{old.length} to #{now.length} "                    '(scenes sharing a name)'
+                 end
+        end
+        log(d, msg, 'dim')
+        if !added.empty? && !gone.empty?
+          log(d, '  a renamed scene reads as one gone and one new; its MODE '                  'is stored on the scene itself and survives the rename.', 'dim')
+        end
+      rescue StandardError => e
+        puts "  rescan failed: #{e.class}: #{e.message}"
+      end
+      push_state(model, d)
+    end
+
     d.add_action_callback('activate') do |_c, n|
       next if busy?(d, 'activate')
       begin
@@ -3621,6 +3664,8 @@ module WR_ProposalPackage
 <div class="top">
   <span class="t">#{escHtml(title)}</span>
   <span class="c" id="count"></span>
+  <button class="btn" id="rescan"
+          title="Re-read the model's scene list — picks up scenes added, renamed or deleted since this window opened. Your MODE picks, folder, search and log all stay.">Rescan</button>
 </div>
 
 <div class="cmd">
@@ -3891,6 +3936,9 @@ module WR_ProposalPackage
     // button's disabled state is refreshed here instead — the batch owns the
     // model's mode while it runs.
     var mb = g("modebtn"); if(mb) mb.disabled = running;
+    // Rescan too: Ruby's busy? guard would refuse it anyway, but a greyed
+    // button says so before the click rather than after.
+    var rb = g("rescan"); if(rb) rb.disabled = running;
   }
 
   function drawMats(){
@@ -4352,6 +4400,13 @@ module WR_ProposalPackage
       var m = s.querySelector(".mini");
       if(m){ m.innerHTML = open?"&minus;":"&plus;"; m.title = open?"Minimise":"Expand"; }
     });
+  });
+  g("rescan").addEventListener("click", function(){
+    if(running) return;
+    // The scene names this window is showing go up with the request, so the
+    // log can name what the rescan found rather than just "refreshed".
+    if(window.sketchup && sketchup.rescan)
+      sketchup.rescan(JSON.stringify(ST.rows.map(function(r){ return r.scene; })));
   });
   g("helpb").addEventListener("click", function(){
     document.body.classList.toggle("showhelp");

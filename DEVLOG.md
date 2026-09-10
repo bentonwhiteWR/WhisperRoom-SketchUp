@@ -2,6 +2,49 @@
 
 ## 2026-09-10
 
+### Rescan button in the proposal package — 1.21.1
+
+Benton: *"lets add a 'refresh' button on the proposal package UI at the top
+right or somewhere. So it loads in newly added scenes for example."*
+
+**It was already being promised.** Three error paths in `proposal-package.rb`
+(`wallsopen`, `wallssel`, `annotsopen`) have raised *"scene N is gone — hit
+Rescan"* since the popovers were built, and there was no such button anywhere
+in the window. Grepping the file for "Rescan" found only those three raises.
+So the operator was being sent to a control that did not exist; the button is
+named **Rescan** so those messages now point at something real.
+
+**What it does.** A `rescan` callback that calls the existing `push_state` —
+the same `gather(model)` rebuild every mark / bulk / fill change already
+triggers — and logs what it found: the scene count, the names that are new,
+the names no longer in the model, or "no change". The window sends up the
+scene names it was showing so the log can say *what* changed rather than only
+that a refresh happened.
+
+**The risk that mattered: does a rescan lose work?** Checked in the code, not
+assumed. No:
+
+- MODE (Skip / Image / Render) and EV are stored on the page itself
+  (`set_mode` / `set_ev`, `page.set_attribute(DICT, …)`); `gather` reads them
+  back. A rescan cannot lose a pick, and a *renamed* scene keeps its mode.
+- Material slot fills live on the model (`WR_MaterialsSwap`) and `drawMats`
+  redraws from there.
+- Folder, width, overwrite, shading and annotation selectors, the search
+  box, section collapse states and the run log are DOM that `applyState`
+  never touches. The search filter is simply re-applied to the new rows.
+
+**Guards.** `next if busy?(d, 'rescan')` like every sibling callback, and the
+button is greyed while a batch runs. The walls and annotations popovers are
+`position:fixed; inset:0` overlays, so the header — and the button — is not
+reachable while one is open; a rescan cannot pull an index out from under
+a popover. A scene deleted in SketchUp simply drops off the table.
+
+**Placement.** Header row, right of the `N scenes · x render · y image`
+count, using the existing `.btn` class. No new CSS, no new colour.
+
+**UNRUN in SketchUp** — `python scripts/rbparse.py` 68/68, syntax only.
+Patch bump: one control in one dialog, no new module API.
+
 ### Hide whole OBJECTS per scene, and the popover that could not — 1.21.0
 
 **The bug first, because it is the reason this exists.** Benton, 10 Sep 2026:

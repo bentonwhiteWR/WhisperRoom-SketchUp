@@ -1,3 +1,56 @@
+# HANDOFF — Builder → Benton: Rescan button, 1.21.1
+
+2026-09-10, later. Benton: *"lets add a 'refresh' button on the proposal
+package UI at the top right or somewhere. So it loads in newly added scenes."*
+Shipped, **unrun in SketchUp**.
+
+## Produced — `scripts/proposal-package.rb`
+- **Rescan** button in the `.top` header row, right of the scene count.
+  Existing `.btn` class; no new CSS, no new colour.
+- `rescan` action callback (above `activate`): `busy?` guard, then diffs the
+  scene names the window sent up against `model.pages`, logs the result
+  (`RESCAN: N scene(s) … new: … / no longer in the model: … / no change`),
+  then `push_state`. Rebuild is the existing one — nothing new touches the
+  model.
+- `draw()` greys the button while `running`; the click handler also returns
+  early on `running`.
+- `scripts/wr_tools/VERSION` → **1.21.1** (patch: one control, one dialog).
+- `DEVLOG.md` entry.
+
+## The four risk questions, answered by reading (observed)
+1. **MODE picks live on the page** — `set_mode` writes
+   `page.set_attribute(DICT,'mode')`, `gather` reads `mode_of(page)`. A
+   rescan cannot lose them; a renamed scene keeps its mode. EV likewise.
+2. **Other state**: slot fills are on the model (`WR_MaterialsSwap`, redrawn
+   by `drawMats`); folder / width / over / shade / annot inputs, the search
+   box, the `.sect.open` classes and `$log` are DOM that `applyState`
+   (`ST = st; drawMats(); draw();`) never touches. The search filter is
+   simply re-applied to the new rows.
+3. **Inert mid-batch**: `next if busy?(d, 'rescan')`, plus the greyed button.
+4. **Deleted scene / open popover**: `#wwrap` and `#awrap` are
+   `position:fixed; inset:0` overlays, so the header button cannot be pressed
+   while a popover is open — blocked, not handled. A deleted scene drops
+   off the table on rescan, which is exactly what the three "hit Rescan"
+   raises were asking for. Those raises existed before the button did.
+
+## Known edge (stated, not fixed)
+- Scene-name diff uses `Array#-`, so deleting one of two scenes that share a
+  name logs only a count change ("count went from X to Y (scenes sharing a
+  name)"). The table itself is always right — it is rebuilt by index.
+
+## To verify (Benton)
+1. Open **Proposal package**. Set a few MODE picks, type something in the
+   search box, minimise the MATERIALS section, browse to a folder.
+2. In SketchUp add a scene (View › Animation › Add Scene) and rename another.
+3. Press **Rescan** (header, right). Expect: the new scene appears as a row,
+   the renamed one shows its new name **with its MODE intact**, the search
+   text, folder and collapsed section are untouched, and the log reads
+   `RESCAN: N scene(s) in the model -- new: … -- no longer in the model: …`.
+4. Start an export and press Rescan mid-run: button is grey; if it somehow
+   fires, the log says it was ignored because a batch is running.
+
+---
+
 # HANDOFF — Builder → Benton: create an annotation set from the dialog, 1.20.1
 
 2026-09-10. Follow-up to 1.20.0. Benton: *"We added the dims annotations being
