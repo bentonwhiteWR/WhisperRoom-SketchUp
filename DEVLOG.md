@@ -1,6 +1,105 @@
 # DEVLOG
 
 ## 2026-09-10
+### The ISO stamp is gone; its five stops now ride on the fixtures — 1.41.0
+
+**This reverses a decision made earlier today (1.32.0).** Benton, after
+seeing the exposure-clash window on every press and asking why it was
+there: *"Since renders look good without the iso level."* A real render
+beats the reasoning that kept the stamp, so: `wr-drop-lights.rb` **no
+longer writes `/CameraPhysical` ISO** — not 3200, not anything. The camera
+is V-Ray's factory f/8 @ 1/300 @ ISO 100 unless Benton moves it, and
+`NEVER_WRITE` now lists `/CameraPhysical` whole. **Unrun in SketchUp**;
+`rbparse.py` 74/74, `rbtest-lights.py` 50 → 52 checks PASS, six mutants
+killed (list in the harness header).
+
+**Why the stamp went, in one line.** It was five stops of camera gain that
+applied to everything in the frame; the rig was calibrated for it, the
+V-Ray sun (1.0) and the light inside every link-built booth were not, and
+both rendered 32x hot on every model the tool had touched
+(`.forge/fixer/sun-blowout.md`). The 1.32.0 answer was a window that
+offered to retune the sun and those lights; Benton did not want a window,
+he wanted the camera left alone.
+
+**The factor, derived, and the double-count question.** The rig's look
+was calibrated at f/8 @ 1/300 @ ISO 3200 = EV 9.23. The factory camera is
+EV 14.23. Same look at a camera five stops less sensitive needs 2^5 = 32x
+the output, so **`CAMERA_GAIN = 32.0`** is a new named constant in
+`layer_lumens`, beside `LUMEN_GAIN = 10.0`. Whether 32 double-counts
+turns on which camera `LUMEN_GAIN` was tuned at (31 Aug, by eye, one day
+after the stamp shipped — sun-blowout.md loose end 3). The record cannot
+prove it; the reasoning taken: the stamp fired on the first press of every
+model from 1.9.9 on, his tuning press was 31 Aug, and on 10 Sep his models
+still blew the sun out at 1.0 — which only ISO 3200 does — so he was at
+3200 when he judged x10, and the full 32 is owed on top. **Every figure
+written is now product lumens x 320.** A "2,000 lm" drum leaves as
+640,000; the 800 lm booth light as 256,000. Those are not spec-sheet
+lumens and the UNITS section of the file, the constant's comment and the
+console all say so, per press. `LIGHT_LAYERS` is untouched — the product
+numbers stay the product numbers.
+
+**If the reading is wrong** — if the renders he approved were at ISO 100 —
+the first render after 1.41.0 shows every drawn fixture as a white blob
+and the room five stops hot. The fix is one number, `CAMERA_GAIN` back to
+`1.0`; nothing else moved. If it is right, the render matches what he saw
+at 3200 with the sun at ~0.03, but with the sun at 1.0 and the booth
+light untouched — which is the point.
+
+**Models that already carry the stamp — a real population.** Every model
+he pressed the tool in between 30 Aug and today has ISO 3200 and the
+`exposure_stamped` record. `read_exposure` reads f/ISO/shutter and the
+record; pure `camera_verdict` sorts the model into five cases:
+
+| ISO | record | verdict | what the press does |
+|---|---|---|---|
+| 100 | none | `factory` | normal; rig at x32; console: nothing to retune |
+| 100 | present | `stale_record` | stamp was undone by hand; record deleted |
+| 3200 | present | `legacy_stamped` | **Yes/No**: put ISO back to 100? Yes → written, read back, record cleared, rig at x32, "set the sun back to 1.0 if you lowered it". No → camera left; rig placed at **x1** (`rig_camera_gain` compensates 32 x 100/3200) so it meters exactly as before on that model; console says the sun/booth light stay 32x hot there |
+| 3200 | none | `user_iso` | his; left alone; rig at x32; console: "5.0 stops HOT" |
+| other | any | `user_iso` | his; left alone; rig at x32; console gives the stops |
+| unreadable | — | `unreadable` | rig at x32; console says to check the Asset Editor |
+
+The undo is the one `/CameraPhysical` write left in the file, on his click,
+only where the record proves this tool made the 3200, read back by name.
+The compensation is for exactly that camera: the harness caught the first
+draft compensating for any ISO it was told to, and the guard now lives in
+the pure function (`cg` check), not only in the caller.
+
+**Removed:** `stamp_exposure!` and its five guards, `EXPO_ISO`, `EXPO_EV`,
+`retune_window`, `retune_html`, `retune_rows`, `foreign_light_rows`, the
+window's `write` callback. **Kept:** `foreign_lights`, `read_light`,
+`booth_own_lights` (the no-double-booth-light check from 1.32.0 stands —
+the booth's own light is now simply right at the factory camera, and the
+note says so), `exposure_ratio`, `stops_of` (the console's stops line).
+**Added:** `read_exposure`, `ev_of` (EV with ISO counted: 14.23 / 9.23
+pinned), `camera_verdict`, `rig_camera_gain`, `undo_legacy_stamp!`,
+`ask_undo_legacy_stamp`, `layer_lumens(…, cam = CAMERA_GAIN)`.
+
+**Consumers checked.** `wr-preflight.rb`, `wr-mode.rb`, `wr_bridge.rb`,
+`booth-from-link.rb`: nothing reads the dictionary key or the ISO.
+`lookdev-matrix.rb` writes ISO inside a sweep with capture/restore — dev
+tool, not a normal press, untouched. **`proposal-package.rb` needs two
+edits I may not make (file owned by another agent today):** lines 343–351,
+the comment on `ev_of_camera` says the tool "stamps ISO 3200 into every
+model it touches" — false from 1.41.0; and lines 2270–2274, the `bad` log
+line on a non-100 ISO says "wr-drop-lights.rb stamps 3200 … Its rig is
+calibrated for that" — now it should say the ISO is a legacy stamp or
+Benton's own, and that the rig is placed for ISO 100 (or, on a kept
+legacy stamp, at 1/32). The EV arithmetic there (ISO counted) is still
+right and stays.
+
+**Benton's check, fresh model:** press the tool, render with the sun at
+1.0 and nothing else touched. Before 1.41.0 that render was blown white
+(sun 32x hot) and needed the sun at 0.03–0.05; now the sunlit surfaces
+meter as they do in an untouched model and the fixtures glow as they did
+at 3200. The console's CAMERA block reads `ISO 100.0 = EV 14.23` and
+"Nothing to retune". Worst failure, and what it means: fixtures blown
+white with the sun fine → `CAMERA_GAIN` was double-counted, set it to
+1.0; fixtures barely visible with the sun fine → the rescale did not
+reach V-Ray (read the per-layer "written" lines — they should be ~x320
+the product figure). **Stamped model:** the Yes/No appears once; after
+Yes, the sun he had lowered needs to go back to 1.0 by hand.
+
 ### Booth dimensions: a protrusion extends only its own wall's axis, and the set lives inside the booth — 1.40.0
 
 Benton, first field run, on a booth with EFS silencers: *"so this is

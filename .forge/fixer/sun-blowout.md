@@ -1,5 +1,37 @@
 # Blow-out after "Drop the interior lights" — sun AND the booth's own light
 
+> **Update, 1.41.0 (10 Sep 2026, later still) — the stamp is gone.** Benton,
+> after the 1.32.0 window appeared on every press: *"Since renders look good
+> without the iso level."* Option C below — "not recommended" in this note —
+> is what shipped, on his decision, with the rescale it warned about done in
+> the same change. Built and parse-checked, harness green, **not run in
+> SketchUp.** Details: DEVLOG 1.41.0, `.forge/builder/HANDOFF.md`.
+>
+> - **`wr-drop-lights.rb` writes no `/CameraPhysical` key on any press.**
+>   `stamp_exposure!`, its five guards, `EXPO_ISO`, `EXPO_EV`, the retune
+>   window and `retune_rows` are deleted. `NEVER_WRITE` lists
+>   `/CameraPhysical` whole.
+> - **The rig is rescaled, not left dark.** `CAMERA_GAIN = 32.0` (2^5, the
+>   stamp's five stops moved onto the fixtures) multiplies `layer_lumens`
+>   alongside `LUMEN_GAIN = 10`. Written figures are product x 320 and are
+>   documented as not-spec-sheet numbers. Without this the "dark exports"
+>   symptom in the 1.32.0 note above would have come back on every model.
+> - **Loose end 3 resolved by reasoning, not proof:** `LUMEN_GAIN` is read
+>   as tuned at ISO 3200 (stamp fired on every first press from 1.9.9; his
+>   x10 press was the next day; his 10 Sep sun blow-out shows his models at
+>   3200). If wrong, the first render has white-blob fixtures and the fix is
+>   `CAMERA_GAIN = 1.0`.
+> - **Models already stamped** (ISO 3200 + `exposure_stamped`): one Yes/No
+>   to put ISO back to 100 (written, read back, record cleared). No → rig
+>   compensated to x1 on that model, sun still 32x hot there, said so.
+>   ISO 100 + a record → record deleted. Any other ISO → his, reported in
+>   stops, never touched.
+> - **Sun at 1.0 and `BoothLighting.skp` are now right as authored.** The
+>   double-booth-light fix (loose end 2) stands.
+> - **`proposal-package.rb` lines 343–351 and 2270–2274** still say the tool
+>   stamps 3200 — not edited (file owned by another agent); named in the
+>   DEVLOG.
+
 > **Update, 1.32.0 (later on 10 Sep 2026) — what changed since this note.** Benton
 > asked whether the dark proposal exports are the same problem and declined to pick a
 > design; the call was made for him: **camera stays at ISO 3200, the tool shows what

@@ -1494,3 +1494,64 @@ only for a SIDE-wall vent); console `proud:` / `overhang:` lines name the
 silencer. Move tool on the booth: the three strings travel, same numbers.
 Worst failure: `anchors:` line reading anything but `0 loose`, or a
 `*** … landed` line.
+
+
+---
+
+# HANDOFF — the ISO stamp removed, fixtures rescaled x32 (Builder, 10 Sep 2026, 1.41.0)
+
+Benton: *"Since renders look good without the iso level."* Reverses the
+1.32.0 decision (camera kept at 3200 + retune window). **Unrun in
+SketchUp.** rbparse 74/74; rbtest-lights 52 + 10 PASS; six mutants killed.
+
+## Produced
+- `scripts/wr-drop-lights.rb` — no `/CameraPhysical` write on any press.
+  `CAMERA_GAIN = 32.0` beside `LUMEN_GAIN = 10.0`; written = product x 320.
+  `read_exposure` / `ev_of` / `camera_verdict` / `rig_camera_gain` /
+  `undo_legacy_stamp!` / `ask_undo_legacy_stamp` / `print_exposure_report`.
+  Removed: `stamp_exposure!`, `EXPO_ISO`, `EXPO_EV`, `retune_window`,
+  `retune_html`, `retune_rows`, `foreign_light_rows`. UNITS header
+  rewritten to say what the numbers mean now.
+- `scripts/rbtest-lights.py` — checks 28b–28e (`ev`, `cv`, `cg`, `lc`);
+  `lm` re-pinned at x320; mutation record in the header.
+- `scripts/wr_tools/VERSION` 1.40.0 → 1.41.0 (minor: every render is lit
+  differently).
+- `.forge/fixer/sun-blowout.md` — 1.41.0 note at the top.
+
+## Decisions
+- **32x on top of LUMEN_GAIN 10**, not instead of it. Reasoning in the
+  `CAMERA_GAIN` comment and the DEVLOG: the stamp fired on every first
+  press from 1.9.9, his x10 press was the next day, and his 10 Sep sun
+  blow-out proves his models sat at 3200. Confidence: moderate — the
+  record cannot prove which camera he judged x10 at. One constant back to
+  1.0 if the first render says otherwise.
+- **Legacy-stamped models** (ISO 3200 + this tool's record): one Yes/No,
+  before the operation opens. Yes → ISO 100 written and read back, record
+  cleared. No → rig at x1 (compensated to exactly the old rig), sun still
+  32x hot there, console says so. Compensation exists for that one camera
+  only; a user-set ISO is never countered.
+- `stale_record` (ISO 100 + record): record deleted silently-but-printed.
+- `proposal-package.rb` NOT edited (owned elsewhere): lines 343–351
+  (comment) and 2270–2274 (the `bad` log line) still say the tool stamps
+  3200. Named in the DEVLOG.
+
+## Not verified (cannot be, here)
+- That `UI.messagebox(msg, MB_YESNO)` with a message this long renders
+  readably on Windows 11 (same call shape as `dimension-whisperroom.rb`).
+- That the ISO 100 write persists — same `write_params` / `read_param`
+  path as the old stamp, which did persist on 30 Aug.
+- Whether the rig at x320 clips. The 30 Aug rig-build frames at 3200 /
+  gain 1 metered 0.12–0.20 mean; x10 was Benton's; x32 on top of that is
+  what the physics says reproduces the x10 look at ISO 100. Not rendered.
+
+## Benton's check
+1. **Fresh model**, room + link booth, press, render, sun at 1.0. Expect:
+   no blow-out, fixtures lit, booth light normal. Console CAMERA block
+   `ISO 100.0 = EV 14.23`, "Nothing to retune", no window.
+2. **A model pressed before today**: the Yes/No appears. Yes → console
+   `LEGACY STAMP UNDONE … ISO 3200 -> 100`; set the sun back to 1.0 by
+   hand; render should match (1). No → render looks exactly as it did on
+   that model, sun still needs ~0.03.
+3. **If fixtures render as white blobs in (1)**: `CAMERA_GAIN` → `1.0`,
+   nothing else. If they are barely there: read the per-layer lines — the
+   written figure should be ~320x the table.

@@ -89,32 +89,45 @@
 # file performs itself — kelvin_rgb, sourced in its own comment.
 #
 # ===========================================================================
-# UNITS — LUMENS, AGAINST A CONSIDERED INTERIOR EXPOSURE
+# UNITS — LUMENS-MODE FIGURES, TUNED FOR THE FACTORY CAMERA (1.41.0)
 #
-# SUPERSEDED at 1.9.9, and the correction is the foundation of this rewrite.
-# Up to 1.9.8 this file said the units enum was unproven and stayed on
-# V-Ray's default scalar, with an area correction it called "the weakest
-# link in this file". Both are gone:
+# SUPERSEDED at 1.41.0, and the correction is the second one this section
+# has carried. From 1.9.9 to 1.40.0 this file wrote ONE V-Ray camera
+# setting — /CameraPhysical ISO 100 -> 3200, five stops of pure ISO gain,
+# once per model — so that every figure in LIGHT_LAYERS could be a real
+# product lumen number at an interior exposure (f/8 @ 1/300 @ ISO 3200 =
+# EV 9.23, the one arm of the 148-frame sun-off sweep where the fixtures
+# alone served both cameras). That stamp is GONE. Benton, 10 Sep 2026,
+# after seeing what it did to everything it did not write — the V-Ray sun
+# at 1.0 and the light inside every link-built booth, both authored at the
+# factory camera, both 32x hot at ISO 3200 (.forge/fixer/sun-blowout.md):
+# "Since renders look good without the iso level." The camera is his; this
+# tool now reads it and never writes it.
 #
 #   units = 1   Luminous Power (Lumens). intensity is TOTAL OUTPUT and is
-#               SIZE-INDEPENDENT, so the area term has nothing to correct
-#               and REF_INTENSITY / REF_AREA / REF_LUMENS / AREA_NORMALIZED
-#               are all deleted — four constants going away together.
+#               SIZE-INDEPENDENT (unchanged since 1.9.9).
 #
-# What made lumens usable is the exposure. V-Ray's factory physical camera
-# is f/8 @ 1/300 @ ISO 100 = EV 14.23, which is a FULL-SUN EXTERIOR
-# exposure (observed). A 40 fc interior wants EV 8.8-9.1 by photometry
-# (L = rho*E/pi, EV = log2(L*8), derived), and the one arm of the 148-frame
-# sun-off sweep where the fixtures alone served both cameras was EV 9.5
-# (observed). Three lines converge, so this tool writes ONE interior
-# exposure — f/8 @ 1/300 @ ISO 3200 = EV 9.23, exactly five stops of pure
-# ISO gain — ONCE, and then leaves the camera alone forever. See
-# stamp_exposure! for the five guards on that write.
+# WHAT THE NUMBERS MEAN NOW — read this before quoting one. V-Ray's factory
+# physical camera is f/8 @ 1/300 @ ISO 100 = EV 14.23, a FULL-SUN EXTERIOR
+# exposure (observed). A real 2,000 lm fixture at that camera is nearly
+# black. So the rig's look, calibrated at EV 9.23, is kept by moving the
+# five stops OFF the camera and ONTO the fixtures: every figure this tool
+# writes is
 #
-# The payoff is that every number in LIGHT_LAYERS is now a real product
-# number: 2,000 lm 18" flush mount, 1,200 lm drum pendant, 600 lm sconce,
-# 2,800 lm track head, 1,600 lm wall washer, 800 lm booth light, 400 lm
-# graze strip. Benton can hold each against a product page.
+#     LIGHT_LAYERS[:lumens]  x  LUMEN_GAIN (10, by eye)  x  CAMERA_GAIN (32)
+#
+# i.e. x320 the product figure. A "2,000 lm" ceiling drum goes to V-Ray as
+# 640,000; the 800 lm booth light as 256,000. THOSE ARE NOT LUMENS A
+# FIXTURE COULD CARRY ON A SPEC SHEET. They are what this V-Ray build needs
+# at its factory camera to look like a lit interior. The product figure is
+# the table entry; the written figure is the table entry x 320; the console
+# prints both, per layer, every press. Nobody should ever read the written
+# number back into a proposal.
+#
+# LIGHT_LAYERS itself is untouched: 2,000 lm 18" flush mount, 1,200 lm drum
+# pendant, 600 lm sconce, 2,800 lm track head, 1,600 lm wall washer, 800 lm
+# booth light, 400 lm graze strip — still the numbers Benton can hold
+# against a product page. Only what leaves for V-Ray changed.
 #
 # ===========================================================================
 # ===========================================================================
@@ -125,8 +138,10 @@
 #      light: its own dropped lights, any V-Ray light, and anything tagged
 #      "WR Lights" are refused as subjects by name.
 #   2. Pops the settings dialog — TWO dropdowns, Brightness and Warmth.
-#      The exposure question is gone: exposure is written ONCE as a
-#      documented default (see stamp_exposure!), never asked per press.
+#      There is no exposure question and no exposure write: the camera is
+#      READ (read_exposure) and reported, never written. The one exception
+#      is the undo of this tool's OWN legacy ISO stamp, offered as a
+#      Yes/No on a model that still carries it (see undo_legacy_stamp!).
 #   3. Checks the V-Ray light API is really there — VRay, VRay::Command,
 #      create_rectangle_light, VRay::Color, VRay::Context.active — and
 #      refuses BY NAME, before anything is placed, if any piece is missing.
@@ -149,13 +164,13 @@
 #      stamps that tag into every saved scene, and prints,
 #      per layer, the size, units, lumens, Kelvin and RGB actually written
 #      — plus every write that did not stick.
-#   7. Opens the EXPOSURE CLASH window when the camera is not at the
-#      factory ISO: the sun and every V-Ray light this tool did not make,
-#      each with its value now and the value that meters the same at the
-#      stamped camera. Nothing there is written without a tick and a
-#      click. A booth that already carries its own light (every
-#      link-built booth does) does NOT get the rig's interior light on
-#      top — the window names it instead.
+#   7. Reports the camera it found: at the factory ISO 100 the sun at 1.0,
+#      the light inside a link-built booth and this rig all meter right
+#      together, and nothing else needs touching. At any other ISO the
+#      console says how many stops off the rig (and the sun) now read.
+#      A booth that already carries its own light (every link-built booth
+#      does) does NOT get the rig's interior light on top — the console
+#      names it instead.
 #
 # Lights go in the CURRENT drawing context, never inside the client's room
 # group, so coordinates agree with the selections' own bounding boxes.
@@ -191,7 +206,8 @@
 #
 # SUPERSEDED at 1.9.9: the rig HAS now been rendered — six 1600x900 frames,
 # .forge/builder/rig-build-results.json. REF_INTENSITY and AREA_NORMALIZED
-# no longer exist to be judged; the exposure is settled at EV 9.23.
+# no longer exist to be judged. (Those frames were shot at ISO 3200 — the
+# camera 1.41.0 no longer writes; the fixtures carry that gain now.)
 #
 # python scripts/rbparse.py proves this file parses (the same CRuby 3.2
 # SketchUp ships) and python scripts/rbtest-lights.py RUNS the whole pure
@@ -346,34 +362,36 @@ module WR_DropLights
   FACE_FLIP       = 0.0    # degrees about X applied to every light. 0 =
                            #   the created light already faces DOWN.
 
-  # --- the exposure stamp (spec §4) ---------------------------------------
-  # ONE interior exposure, written ONCE, ISO ONLY, and only from the factory
-  # ISO. f/8 @ 1/300 @ ISO 3200 = EV 9.23. Five stops off V-Ray's factory
-  # full-sun-exterior default, and 0.13 stops from the photometric target for
-  # a 40 fc interior at rho = 0.50 (derived, spec §4).
-  EXPO_ISO         = 3200.0
-  EXPO_FACTORY_ISO = 100.0
-  EXPO_EV          = 9.23
-  EXPO_F           = 8.0     # NEVER written — read back and asserted unmoved
-  EXPO_SHUTTER     = 300.0   # NEVER written — read back and asserted unmoved
+  # --- the camera: READ, never written (1.41.0) ------------------------
+  # Versions 1.9.9 through 1.40.0 wrote /CameraPhysical ISO 100 -> 3200 once
+  # per model (the "exposure stamp"). That write is gone; see the UNITS
+  # section. These constants exist so the tool can RECOGNISE a model the
+  # old stamp already touched and say what that means:
+  EXPO_FACTORY_ISO = 100.0   # V-Ray's default; f/8 @ 1/300 @ 100 = EV 14.23
+  EXPO_LEGACY_ISO  = 3200.0  # what the retired stamp wrote; EV 9.23, the
+                             #   camera the rig's LOOK was calibrated at
+  EXPO_F           = 8.0     # factory f-number, for the EV line only
+  EXPO_SHUTTER     = 300.0   # factory shutter, for the EV line only
 
-  # THE NEVER-WRITE LIST, with the reason at the site. Everything outside the
-  # single ISO stamp above is Benton's. A tool that quietly retunes a render
-  # setting is indistinguishable from a bug in the render.
+  # THE NEVER-WRITE LIST, with the reason at the site. Every render setting
+  # is Benton's. A tool that quietly retunes a render setting is
+  # indistinguishable from a bug in the render.
   NEVER_WRITE = ['/SettingsOutput',       # image size, safe frames — his
-                 '/SunLight',             # sun is his dressing decision —
-                                          #   the ONE exception is the retune
-                                          #   window (retune_window), which
-                                          #   writes it only on his explicit
-                                          #   click, row by row, after showing
-                                          #   the current and proposed value
+                 '/SunLight',             # sun is his dressing decision
                  '/SettingsEnvironment',  # sky, GI and background multipliers
                  '/SettingsImageSampler', # quality — "Medium" is his choice
-                 '/CameraPhysical except ISO'].freeze
+                 '/CameraPhysical'].freeze # f-number, shutter, ISO — all his.
+                                          #   The ONE exception: putting ISO
+                                          #   back to 100 on a model where
+                                          #   the record proves THIS TOOL
+                                          #   wrote 3200, and only on his
+                                          #   Yes (undo_legacy_stamp!).
 
   # --- the reference room the lumen table is quoted for (spec §6) ----------
-  # "Lumens are for a capped room, sun off, EV 9.23, Brightness = Normal, in
-  # the 192 sq ft reference room; THEY SCALE WITH FLOOR AREA via the budget."
+  # "Lumens are for a capped room, sun off, Brightness = Normal, in the
+  # 192 sq ft reference room; THEY SCALE WITH FLOOR AREA via the budget."
+  # (The spec said "EV 9.23" here; since 1.41.0 that exposure lives in
+  # CAMERA_GAIN, not the camera — the look is the same, the camera is not.)
   # Without this a 20'x16' room gets a 16'x12' room's light and meters 0.74
   # stops under (observed: mean luminance 0.093 on the first live frame).
   REF_ROOM_SQFT  = 192.0
@@ -787,38 +805,72 @@ module WR_DropLights
     k
   end
 
-  # What ONE instance of a layer actually gets written, in lumens. This is the
-  # whole of the intensity calculation now: no area term, no reference light,
-  # no scalar anchor. In Luminous Power mode intensity IS the output.
-  # THE RIG RENDERS ~10x DIMMER THAN ITS OWN LUMEN TABLE SAYS.
+  # What ONE instance of a layer actually gets written, in lumens-mode
+  # units. Three factors on the product figure, each named, each with its
+  # own evidence, none of them a design number:
   #
-  # Measured by eye, Benton, 2026-08-31, on a real press: the pendant landed
-  # in V-Ray at 750 lm and "7500 looked more acceptable"; the sconce landed at
-  # 187.5 and 1870.5 "looked much better". Both are exactly x10, and both are
-  # the SPHERE roles, which is where he happened to look.
+  #   LUMEN_GAIN   10.0   by eye — Benton, 2026-08-31, on a real press: the
+  #                       pendant landed in V-Ray at 750 lm and "7500 looked
+  #                       more acceptable"; the sconce at 187.5 and 1870.5
+  #                       "looked much better". Both exactly x10, both the
+  #                       SPHERE roles, which is where he happened to look;
+  #                       the five rectangle roles ride the same factor on
+  #                       his "everything was quite too dim to begin with".
+  #   CAMERA_GAIN  32.0   derived — the five stops the retired ISO stamp
+  #                       used to supply at the camera, moved onto the
+  #                       fixtures (1.41.0). 3200 / 100 = 32 = 2^5. The
+  #                       rig's look was calibrated at ISO 3200 (the sweep,
+  #                       the 30 Aug rig-build renders, and LUMEN_GAIN's
+  #                       tuning press — see below); at ISO 100 the same
+  #                       look needs 32x the output.
   #
-  # WHY THIS IS A SEPARATE CONSTANT AND NOT A BIGGER TABLE. LIGHT_LAYERS'
-  # :lumens are real product numbers -- the file's own contract is that every
-  # visible figure is one a client could hold against a product page. Ten-xing
-  # the table would quietly break that and leave nobody able to tell a
-  # calibration fudge from a spec. So the table stays honest and the
-  # discrepancy lives here, in one number, named, with the evidence for it.
+  # WHICH CAMERA WAS LUMEN_GAIN TUNED AT? This decides whether CAMERA_GAIN
+  # double-counts, and the record cannot prove it, so here is the reasoning
+  # and the one render that settles it. The stamp fired on the first press
+  # of every model from 1.9.9 (30 Aug) on; his tuning press was 31 Aug on
+  # 1.10.0, so his camera was at 3200 unless he had hand-reset it — and on
+  # 10 Sep his models still blew the sun out at 1.0, which only ISO 3200
+  # does, so he was not in the habit of resetting. Reading taken: gain 10
+  # was judged at ISO 3200, and the full 32 is owed on top of it. IF THAT
+  # IS WRONG — if his approved renders were at ISO 100 — the very first
+  # render after 1.41.0 shows every drawn fixture (drum, pendant, sconce)
+  # as a white blob and the room five stops hot, and the fix is ONE
+  # number: CAMERA_GAIN back to 1.0 (nothing else moved). If it is right,
+  # the render matches what he saw at ISO 3200 with the sun at 0.03 — but
+  # with the sun at 1.0 and the booth light untouched, which is the point.
   #
-  # It is a CALIBRATION, not a design figure: it says the units this rig
-  # writes do not land where a lumen should in this scene. If the real cause
-  # is ever found -- V-Ray's unit interpretation, or the physical camera's
-  # exposure, which proposal-package.rb already documents as the dominant
-  # lever -- this is the number that goes back to 1.0.
-  #
-  # NOT ALL SEVEN ROLES WERE EYEBALLED. Two spheres were. The five rectangle
-  # roles are carried along on the same factor because Benton's report was
-  # "everything was quite too dim to begin with", and because lumens is total
-  # flux -- emitter size changes the softness of a shadow, not how much light
-  # leaves it. If the rects come out hot, this is the knob.
-  LUMEN_GAIN = 10.0
+  # WHY THREE CONSTANTS AND NOT A BIGGER TABLE. LIGHT_LAYERS' :lumens are
+  # real product numbers -- the file's own contract is that every visible
+  # figure is one a client could hold against a product page. Folding
+  # x320 into the table would quietly break that and leave nobody able to
+  # tell a calibration from a spec. So the table stays honest and the
+  # discrepancy lives here, in named numbers, with the evidence for each.
+  LUMEN_GAIN  = 10.0
+  CAMERA_GAIN = 32.0
 
-  def self.layer_lumens(base_lm, mult, trim)
-    (base_lm * 1.0) * (mult * 1.0) * (trim * 1.0) * LUMEN_GAIN
+  # `cam` is the camera factor for THIS press: CAMERA_GAIN on a factory
+  # camera (every fresh model), or rig_camera_gain's compensated value on a
+  # model still carrying the legacy ISO 3200 stamp where the undo was
+  # declined — there the rig is placed at 1/32 so it meters exactly as it
+  # always did on that model.
+  def self.layer_lumens(base_lm, mult, trim, cam = CAMERA_GAIN)
+    (base_lm * 1.0) * (mult * 1.0) * (trim * 1.0) * LUMEN_GAIN * (cam * 1.0)
+  end
+
+  # PURE. The camera factor for a press. `compensate` is true only for the
+  # legacy-stamp-kept case, and even then the compensation exists for
+  # exactly ONE camera — the ISO this tool used to write: the rig is scaled
+  # by 100/3200 so a model the old stamp put at 3200 gets the rig it always
+  # had (32 x 100/3200 = 1.0). On every other camera — factory, or an ISO
+  # Benton set himself, compensate flag or not — the rig is placed at its
+  # ISO-100 figures and the console says how far off the camera is, because
+  # an ISO he chose is meant to move everything. (The harness caught the
+  # first draft compensating for any ISO it was told to; the guard lives
+  # here, not only in the caller.)
+  def self.rig_camera_gain(iso, compensate)
+    return CAMERA_GAIN unless compensate && iso.is_a?(Numeric) && iso > 0.0
+    return CAMERA_GAIN unless param_agrees?(EXPO_LEGACY_ISO, iso)
+    CAMERA_GAIN * EXPO_FACTORY_ISO / (iso * 1.0)
   end
 
   # ---- per-layer overrides from the settings panel -------------------------
@@ -1993,113 +2045,174 @@ module WR_DropLights
   end
 
   # ======================================================================
-  # THE EXPOSURE STAMP (spec §4) — narrow, loud, once.
+  # THE CAMERA — read, judged, reported; written only to undo itself.
   #
-  # Five guards, and every one of them is here because the alternative is a
-  # tool that quietly retunes Benton's camera:
-  #   1. ISO ONLY. Never f_number, never shutter, never anything in
-  #      /SettingsOutput, /SunLight or /SettingsEnvironment (NEVER_WRITE).
-  #   2. ONCE. The stamp is recorded in the model's own dictionary; a second
-  #      press writes nothing and says so.
-  #   3. ONLY FROM FACTORY ISO 100. Anything else means Benton set it:
-  #      report the value and leave it alone.
-  #   4. LOUD, WITH ITS UNDO, by name.
-  #   5. READ BACK after the transaction, and refused by name if it did not
-  #      stick — and f_number and shutter are read back too, to PROVE they
-  #      did not move.
+  # 1.9.9 - 1.40.0 stamped /CameraPhysical ISO 3200 here, once per model,
+  # behind five guards. 1.41.0 removed the stamp (see UNITS). What remains:
+  #   read_exposure     reads f / ISO / shutter and this tool's own record
+  #   camera_verdict    PURE — sorts the model into one of five cases
+  #   undo_legacy_stamp!  the one write left: ISO back to 100, only on a
+  #                     model whose record proves this tool wrote 3200, and
+  #                     only on Benton's Yes. Read back; refused by name if
+  #                     it did not stick.
+  # A model Benton stamped before 1.41.0 still carries ISO 3200 and the
+  # `exposure_stamped` record; that population is real (every model he
+  # pressed the tool in between 30 Aug and today) and is the reason the
+  # verdict has a :legacy_stamped arm.
   # ======================================================================
-  def self.stamp_exposure!(model, scene)
-    r = { :wrote => false, :reason => nil }
+  def self.read_exposure(model, scene)
+    r = { :iso => nil, :f => nil, :sh => nil, :record => nil, :readable => false }
+    r[:record] = (model.get_attribute(DICT, 'exposure_stamped') rescue nil)
+    cp = (scene && (scene['/CameraPhysical'] rescue nil))
+    return r if cp.nil?
+    r[:f]   = (cp[:f_number] rescue nil)
+    r[:iso] = (cp[:ISO] rescue nil)
+    r[:sh]  = (cp[:shutter_speed] rescue nil)
+    r[:readable] = r[:iso].is_a?(Numeric)
+    r[:ev] = ev_of(r[:f], r[:sh], r[:iso])
+    r
+  end
+
+  # PURE. EV of a physical camera, ISO counted:
+  #   EV = log2(f^2 * shutter) - log2(ISO / 100)
+  # f/8 @ 1/300 @ ISO 100 = 14.23 (the factory camera, observed); @ 3200 =
+  # 9.23 (the retired stamp). nil when any reading is missing or not positive.
+  def self.ev_of(f, sh, iso)
+    return nil unless f.is_a?(Numeric) && sh.is_a?(Numeric) && iso.is_a?(Numeric)
+    return nil if f <= 0.0 || sh <= 0.0 || iso <= 0.0
+    (Math.log((f * 1.0) * f * sh) - Math.log((iso * 1.0) / EXPO_FACTORY_ISO)) / Math.log(2.0)
+  end
+
+  # PURE. What this press does about the camera, from the ISO it read and
+  # this tool's own dictionary record:
+  #   :unreadable      no /CameraPhysical or no numeric ISO — report, nothing else
+  #   :factory         ISO 100 and no record — the normal case from 1.41.0 on
+  #   :stale_record    ISO 100 but a record — the stamp was undone by hand
+  #                    (the console used to say how); the record is moot
+  #   :legacy_stamped  ISO 3200 AND a record — this tool wrote it; offer the undo
+  #   :user_iso        any other ISO, or 3200 with NO record — Benton's own
+  #                    setting; never touched, reported in stops
+  def self.camera_verdict(iso, record)
+    return :unreadable unless iso.is_a?(Numeric) && iso > 0.0
+    at_factory = param_agrees?(EXPO_FACTORY_ISO, iso)
+    at_legacy  = param_agrees?(EXPO_LEGACY_ISO, iso)
+    if at_factory then record ? :stale_record : :factory
+    elsif at_legacy && record then :legacy_stamped
+    else :user_iso
+    end
+  end
+
+  # THE UNDO. Writes ISO 100, reads it back, and clears the record only if
+  # the write stuck. f-number and shutter are read back too, to prove they
+  # did not move. Returns the report hash it was given, extended.
+  def self.undo_legacy_stamp!(model, scene, r)
     cp = (scene && (scene['/CameraPhysical'] rescue nil))
     if cp.nil?
-      r[:reason] = 'no /CameraPhysical plugin in the V-Ray scene — exposure left alone'
+      r[:undo] = 'no /CameraPhysical plugin — nothing written'
       return r
     end
-    r[:f_before]   = (cp[:f_number] rescue nil)
-    r[:iso_before] = (cp[:ISO] rescue nil)
-    r[:sh_before]  = (cp[:shutter_speed] rescue nil)
-    prev = model.get_attribute(DICT, 'exposure_stamped')
-    if prev
-      r[:reason] = "already stamped (#{prev}) — a second press writes nothing"
-      return r
-    end
-    unless param_agrees?(EXPO_FACTORY_ISO, r[:iso_before])
-      r[:reason] = format('ISO reads %s, not the factory %.0f — you have set ' \
-                          'this yourself, so it is left exactly as it is',
-                          r[:iso_before].inspect, EXPO_FACTORY_ISO)
-      return r
-    end
-    errs = write_params(scene, cp, [[:ISO, EXPO_ISO]])
-    stuck, got, err = read_param(cp, :ISO, EXPO_ISO, errs[:ISO] || errs[:__scene])
-    r[:iso_after] = got
-    r[:f_after]   = (cp[:f_number] rescue nil)
-    r[:sh_after]  = (cp[:shutter_speed] rescue nil)
-    r[:moved_f]  = !param_agrees?(r[:f_before], r[:f_after])
-    r[:moved_sh] = !param_agrees?(r[:sh_before], r[:sh_after])
+    errs = write_params(scene, cp, [[:ISO, EXPO_FACTORY_ISO]])
+    stuck, got, err = read_param(cp, :ISO, EXPO_FACTORY_ISO, errs[:ISO] || errs[:__scene])
+    f_after  = (cp[:f_number] rescue nil)
+    sh_after = (cp[:shutter_speed] rescue nil)
+    r[:moved] = !param_agrees?(r[:f], f_after) || !param_agrees?(r[:sh], sh_after)
     if stuck
-      r[:wrote] = true
-      model.set_attribute(DICT, 'exposure_stamped',
-                          format('ISO %.0f, %s', EXPO_ISO,
-                                 Time.now.strftime('%Y-%m-%d %H:%M:%S')))
+      r[:iso] = got
+      r[:ev] = ev_of(f_after, sh_after, got)
+      model.delete_attribute(DICT, 'exposure_stamped')
+      r[:record] = nil
+      r[:undone] = true
+      r[:undo] = format('ISO %.0f -> %.0f, written and read back; the stamp record is cleared',
+                        EXPO_LEGACY_ISO, EXPO_FACTORY_ISO)
     else
-      r[:reason] = "the ISO write DID NOT STICK#{err ? " (#{err})" : ''}"
+      r[:undo] = format('the ISO write DID NOT STICK (reads %s%s) — the record is kept',
+                        got.inspect, err ? "; #{err}" : '')
     end
     r
   end
 
-  def self.print_exposure_report(r)
+  # The question, on a legacy-stamped model only. Yes = undo. Anything else
+  # = keep, and the rig is compensated. Returns true on Yes.
+  def self.ask_undo_legacy_stamp(r)
+    msg = format("This model's V-Ray camera is at ISO %.0f, and the model carries " \
+                 "this tool's own record of writing it (%s).\n\n" \
+                 "Since 1.41.0 the tool leaves the camera at V-Ray's factory ISO %.0f " \
+                 "and places its lights for that. At ISO %.0f the V-Ray sun at 1.0 and " \
+                 "the light inside a link-built booth render about 32x hot.\n\n" \
+                 "Put ISO back to %.0f now?\n\n" \
+                 "YES — ISO %.0f is written and read back, the record is cleared, and " \
+                 "the rig is placed at its ISO-%.0f figures. Set the sun back to 1.0 " \
+                 "yourself if you had lowered it.\n" \
+                 "NO — the camera stays at %.0f; the rig is placed at 1/32 so it meters " \
+                 "exactly as it did before on this model; the sun and booth light stay " \
+                 "32x hot here until you change ISO yourself.",
+                 EXPO_LEGACY_ISO, r[:record].to_s, EXPO_FACTORY_ISO, EXPO_LEGACY_ISO,
+                 EXPO_FACTORY_ISO, EXPO_FACTORY_ISO, EXPO_FACTORY_ISO, EXPO_LEGACY_ISO)
+    UI.messagebox(msg, MB_YESNO) == IDYES
+  rescue StandardError => e
+    puts "  the undo question could not be shown (#{e.class}: #{e.message}) — treated as NO"
+    false
+  end
+
+  # Console report for every case. `cam` is the camera factor the rig was
+  # placed at, so the line about what the numbers mean is never implicit.
+  def self.print_exposure_report(r, verdict, cam)
     puts ''
-    puts '  EXPOSURE — the ONE V-Ray setting this tool writes, and it writes'
-    puts '  it once. ISO only: f-number and shutter never move.'
-    if r[:wrote]
-      puts format('    /CameraPhysical ISO  %s  ->  %.0f', r[:iso_before].inspect, EXPO_ISO)
-      puts format('    f/%s @ 1/%s @ ISO %.0f = EV %.2f — an interior exposure.',
-                  r[:f_after].to_s, r[:sh_after].to_s, EXPO_ISO, EXPO_EV)
-      puts '    TO UNDO: Asset Editor > Settings > Camera > ISO, back to 100.'
-      puts format('    f-number read back %s (was %s) and shutter %s (was %s) — %s',
-                  r[:f_after].inspect, r[:f_before].inspect,
-                  r[:sh_after].inspect, r[:sh_before].inspect,
-                  (r[:moved_f] || r[:moved_sh]) ?
-                    '** ONE OF THEM MOVED — that is a BUG **' :
-                    'both unmoved, as promised')
-    else
-      puts "    nothing written — #{r[:reason]}"
-      puts format('    camera reads f/%s @ 1/%s @ ISO %s',
-                  r[:f_before].inspect, r[:sh_before].inspect, r[:iso_before].inspect)
+    puts '  CAMERA — read, never written (the ISO stamp is gone since 1.41.0).'
+    puts format('    /CameraPhysical reads f/%s @ 1/%s @ ISO %s%s',
+                r[:f].inspect, r[:sh].inspect, r[:iso].inspect,
+                r[:ev] ? format(' = EV %.2f', r[:ev]) : '')
+    case verdict
+    when :unreadable
+      puts '    the ISO could not be read (no /CameraPhysical?) — the rig is placed ' \
+           'for the factory ISO 100; check Asset Editor > Settings > Camera yourself.'
+    when :factory
+      puts format('    the factory ISO %.0f: the sun at 1.0, a link-built booth\'s own ' \
+                  'light and this rig all meter right together. Nothing to retune.',
+                  EXPO_FACTORY_ISO)
+    when :stale_record
+      puts format('    the factory ISO %.0f, but the model carried this tool\'s old ' \
+                  'stamp record (%s) — the stamp was undone by hand. Record cleared; ' \
+                  'nothing else to do.', EXPO_FACTORY_ISO, r[:record].to_s)
+    when :legacy_stamped
+      if r[:undone]
+        puts "    LEGACY STAMP UNDONE on your Yes: #{r[:undo]}"
+        puts format('    camera now f/%s @ 1/%s @ ISO %s%s — %s',
+                    r[:f].inspect, r[:sh].inspect, r[:iso].inspect,
+                    r[:ev] ? format(' = EV %.2f', r[:ev]) : '',
+                    r[:moved] ? '** f-number or shutter MOVED — that is a BUG **' :
+                                'f-number and shutter unmoved, as promised')
+        puts '    If you had lowered the sun to ~0.03-0.05 for this camera, put it back to 1.0.'
+      else
+        puts format('    LEGACY STAMP KEPT (%s): ISO %.0f is what versions 1.9.9-1.40.0 ' \
+                    'wrote. %s', r[:record].to_s, EXPO_LEGACY_ISO,
+                    r[:undo] ? "The undo failed: #{r[:undo]}." : 'You answered No.')
+        puts format('    The rig is placed at 1/32 of its ISO-100 figures (camera factor ' \
+                    '%.4g) so it meters exactly as it did before on this model. The sun ' \
+                    'and any light inside a booth are still ~32x hot at this ISO — ' \
+                    'Asset Editor > Settings > Camera > ISO %.0f fixes all of it, then ' \
+                    're-press.', cam, EXPO_FACTORY_ISO)
+      end
+    when :user_iso
+      st = stops_of(exposure_ratio(EXPO_FACTORY_ISO, r[:iso]))
+      puts format('    ISO %s is not the factory %.0f and there is %s — it is yours, ' \
+                  'left alone. The rig is placed at its ISO-100 figures, so it (and the ' \
+                  'sun) read %.1f stops %s at this camera.',
+                  r[:iso].inspect, EXPO_FACTORY_ISO,
+                  r[:record] ? "a stamp record (#{r[:record]}) but not the ISO it wrote" :
+                               'no stamp record',
+                  st ? st.abs : 0.0, st && st > 0 ? 'HOT' : 'DARK')
     end
+    puts format('    every figure written = product lumens x %.0f (LUMEN_GAIN, by eye) ' \
+                'x %.4g (camera factor) = x%.4g. Not spec-sheet lumens — see the UNITS ' \
+                'section in this file.', LUMEN_GAIN, cam, LUMEN_GAIN * cam)
     puts format('    NEVER WRITTEN: %s', NEVER_WRITE.join(', '))
   end
 
-  # ======================================================================
-  # THE EXPOSURE CLASH — what the stamp does to everything it does NOT write
-  #
-  # The stamp is a five-stop camera gain (ISO 100 -> 3200), and it applies
-  # to every emitter in the frame: the V-Ray sun, the light inside every
-  # link-built booth (BoothLighting.skp, build-booth-components.rb
-  # place_booth_lighting) and any light Benton made by hand — all authored
-  # at the factory camera, all now ~32x hot. Benton, 10 Sep 2026: "the sun
-  # at level 1 just totally blows out everything. I have to set it to 0.05
-  # or lower"; 1.0 / 32 = 0.031. The rig's own fixtures were calibrated FOR
-  # the stamped camera, so they are not on this list.
-  #
-  # The design call (10 Sep 2026): the camera STAYS at EXPO_ISO — EV 9.23
-  # came out of the 148-frame sweep and it is what makes every lumen figure
-  # in LIGHT_LAYERS a real product number — and the tool tells him what the
-  # rest of the model now needs, in a window, with the current and the
-  # proposed value side by side, and writes NOTHING unless he ticks a row
-  # and presses the button. That click is the only thing that ever crosses
-  # NEVER_WRITE for /SunLight, and it is itemised before it happens.
-  #
-  # None of this has been run in SketchUp. rbtest-lights.py runs the two
-  # pure methods; the scan, the window and the writes are unproven.
-  # ======================================================================
-
-  # PURE. The camera gain the stamp introduced, as a multiplier: what a
-  # light or the sun tuned at `factory` ISO must be multiplied by to meter
-  # the same again at `now`. 100 -> 3200 is 1/32 (five stops). nil when a
-  # reading is missing or not positive, or when there is no gain (the
-  # camera is at the factory ISO — nothing is hot, and a rig placed for
-  # EXPO_ISO is five stops DARK instead).
+  # PURE. The gain a camera at `now` ISO has over `factory`, as the
+  # multiplier a light tuned at `factory` would need to meter the same:
+  # 100 -> 3200 is 1/32. nil when a reading is missing, not positive, or
+  # when there is no gain.
   def self.exposure_ratio(factory, now)
     return nil unless factory.is_a?(Numeric) && now.is_a?(Numeric)
     return nil if factory <= 0.0 || now <= 0.0
@@ -2112,35 +2225,6 @@ module WR_DropLights
   def self.stops_of(ratio)
     return nil unless ratio.is_a?(Numeric) && ratio > 0.0
     -(Math.log(ratio) / Math.log(2.0))
-  end
-
-  # PURE. One row per thing that would need retuning:
-  #   [name, kind, current, proposed, note]
-  # `sun` is nil or { :mult => x, :enabled => bool|nil }; `lights` is
-  # [[plugin_name, intensity, enabled, instances], ...]. A disabled emitter,
-  # an unreadable value or a nil ratio gets NO proposal (nil) and a note
-  # saying why — the window never proposes a number it cannot derive.
-  def self.retune_rows(sun, lights, ratio)
-    rows = []
-    why = lambda do |cur, en|
-      if ratio.nil? then 'camera is at the factory ISO — nothing to retune'
-      elsif en == false then 'disabled — left alone'
-      elsif !cur.is_a?(Numeric) then 'value could not be read'
-      end
-    end
-    if sun
-      note = why.call(sun[:mult], sun[:enabled])
-      rows << ['/SunLight', 'sun', sun[:mult],
-               note ? nil : sun[:mult] * ratio, note]
-    end
-    (lights || []).each do |name, cur, en, n|
-      note = why.call(cur, en)
-      note = "#{n} instances share this light" if note.nil? && n.is_a?(Numeric) && n > 1
-      rows << [name, 'light', cur,
-               (ratio && cur.is_a?(Numeric) && en != false) ? cur * ratio : nil,
-               note]
-    end
-    rows
   end
 
   # A V-Ray light's definition POINTS AT its scene plugin by name, in the
@@ -2186,185 +2270,6 @@ module WR_DropLights
     pl = (scene[name] rescue nil)
     return [nil, nil] if pl.nil?
     [(pl[:intensity] rescue nil), (pl[:enabled] rescue nil)]
-  end
-
-  # The foreign lights of the whole model, one row per PLUGIN (several
-  # instances of one definition share one plugin — BoothLighting.skp is
-  # placed once per ceiling tile): [[name, intensity, enabled, count], ...]
-  # plus the entities whose plugin could not be resolved.
-  def self.foreign_light_rows(model, scene)
-    found = []
-    foreign_lights(model.entities, found)
-    by = {}
-    unresolved = []
-    found.each do |f|
-      if f[:plugin].empty?
-        unresolved << f[:path]
-        next
-      end
-      by[f[:plugin]] ||= 0
-      by[f[:plugin]] += 1
-    end
-    rows = by.map do |name, n|
-      cur, en = read_light(scene, name)
-      [name, cur, en, n]
-    end
-    [rows, unresolved]
-  end
-
-  # THE WINDOW. Shown after every press whose camera is not at the factory
-  # ISO. Lists the sun and every foreign light with its current value and
-  # the value that would meter the same at the stamped camera; every row
-  # is UNTICKED, and nothing is written until he ticks rows and presses
-  # WRITE THE TICKED ROWS. Writes go through write_params / read_param —
-  # inside a scene.change, read back after — and the result is painted
-  # into the window by name. A value that did not stick says so.
-  def self.retune_window(model, scene, expo, booth_notes)
-    iso_now = expo[:iso_after] || expo[:iso_before]
-    if iso_now.nil?
-      puts ''
-      puts '  EXPOSURE CLASH: the camera ISO could not be read (no /CameraPhysical?) ' \
-           '— no retune list; check Asset Editor > Settings > Camera yourself.'
-      return
-    end
-    ratio = exposure_ratio(EXPO_FACTORY_ISO, iso_now)
-    sun_pl = (scene && (scene['/SunLight'] rescue nil))
-    sun = sun_pl ? { :mult => (sun_pl[:intensity_multiplier] rescue nil),
-                     :enabled => (sun_pl[:enabled] rescue nil) } : nil
-    lights, unresolved = foreign_light_rows(model, scene)
-    rows = retune_rows(sun, lights, ratio)
-    stops = stops_of(ratio)
-    puts ''
-    puts '  EXPOSURE CLASH — what else in this model the camera now affects:'
-    if ratio.nil?
-      puts format('    camera ISO reads %s — the factory value, so nothing is hot; ' \
-                  'but a rig placed for ISO %.0f renders ~5 stops DARK at it.',
-                  iso_now.inspect, EXPO_ISO)
-    else
-      puts format('    camera ISO %s = %.1f stops over factory; the sun and every ' \
-                  'light NOT made by this tool read ~%.0fx hot.',
-                  iso_now.inspect, stops, 1.0 / ratio)
-    end
-    rows.each do |name, kind, cur, prop, note|
-      puts format('    %-28s %-5s now %s -> %s%s', name, kind, cur.inspect,
-                  prop.nil? ? '(no proposal)' : format('%.4g', prop),
-                  note ? "  [#{note}]" : '')
-    end
-    unresolved.each { |p| puts "    #{p}: a V-Ray light whose plugin could not be resolved" }
-    booth_notes.each { |l| puts "    #{l}" }
-    puts '    NOTHING above was written. The window lists it; a ticked row is ' \
-         'written only when you press the button there.'
-
-    @retune_dlg = UI::HtmlDialog.new(
-      :dialog_title    => 'Exposure — what else needs retuning',
-      :preferences_key => 'WR_DropLightsRetune',
-      :scrollable      => true, :resizable => true,
-      :width           => 560, :height => 520,
-      :min_width       => 420, :min_height => 320,
-      :style           => UI::HtmlDialog::STYLE_DIALOG)
-    @retune_dlg.set_html(retune_html(iso_now, ratio, stops, rows, unresolved, booth_notes))
-    @retune_dlg.add_action_callback('write') do |_c, payload|
-      lines = []
-      begin
-        req = JSON.parse(payload.to_s)
-        req.each do |r|
-          name = r['name'].to_s
-          key = r['kind'] == 'sun' ? :intensity_multiplier : :intensity
-          val = r['value'].to_f
-          pl = (scene && (scene[name] rescue nil))
-          if pl.nil?
-            lines << "#{name}: plugin not found — nothing written"
-            next
-          end
-          errs = write_params(scene, pl, [[key, val]])
-          stuck, got, err = read_param(pl, key, val, errs[key] || errs[:__scene])
-          lines << if stuck
-                     format('%s[%s] = %.4g — written and read back', name, key, got.to_f)
-                   else
-                     format('%s[%s]: DID NOT STICK (reads %s%s)', name, key, got.inspect,
-                            err ? "; #{err}" : '')
-                   end
-        end
-        lines << 'No row was ticked — nothing written.' if req.empty?
-      rescue StandardError => e
-        lines << "write failed: #{e.class}: #{e.message}"
-      end
-      lines.each { |l| puts "    RETUNE #{l}" }
-      @retune_dlg.execute_script('result(' + lines.to_json + ')')
-    end
-    @retune_dlg.add_action_callback('close') { |_c, _p| @retune_dlg.close }
-    @retune_dlg.show
-  rescue StandardError => e
-    puts "  the retune window could not be shown: #{e.class}: #{e.message} — " \
-         'the console list above is the same information.'
-  end
-
-  def self.retune_html(iso_now, ratio, stops, rows, unresolved, booth_notes)
-    esc = lambda { |t| t.to_s.gsub('&', '&amp;').gsub('<', '&lt;').gsub('>', '&gt;').gsub('"', '&quot;') }
-    head = if ratio.nil?
-             format('The V-Ray camera reads ISO %s, the factory value. Nothing in the ' \
-                    'model is over-exposed by this tool &mdash; but the rig it just ' \
-                    'placed is calibrated for ISO %.0f and will render about five ' \
-                    'stops DARK at this camera. If your renders come out dark, this ' \
-                    'is why: Asset Editor &gt; Settings &gt; Camera &gt; ISO %.0f.',
-                    esc.call(iso_now.inspect), EXPO_ISO, EXPO_ISO)
-           else
-             format('The V-Ray camera is at ISO %s &mdash; %.1f stops more sensitive ' \
-                    'than the factory ISO %.0f this tool found. The rig it placed is ' \
-                    'calibrated for that. Everything ELSE that emits &mdash; the sun ' \
-                    'and any light this tool did not make &mdash; now renders about ' \
-                    '%.0fx hot. Below: each one, its value now, and the value that ' \
-                    'meters the same as before. <b>Nothing is written until you tick ' \
-                    'a row and press the button.</b>',
-                    esc.call(iso_now.inspect), stops, EXPO_FACTORY_ISO, 1.0 / ratio)
-           end
-    trs = rows.each_with_index.map do |(name, kind, cur, prop, note), i|
-      can = !prop.nil?
-      format('<tr><td><input type="checkbox" id="c%d" %s data-name="%s" data-kind="%s"></td>' \
-             '<td>%s</td><td>%s</td><td>%s</td><td>%s</td><td class="note">%s</td></tr>',
-             i, can ? '' : 'disabled', esc.call(name), esc.call(kind), esc.call(name),
-             esc.call(kind), esc.call(cur.inspect),
-             can ? format('<input type="text" id="v%d" value="%.4g" size="8">', i, prop) : '&mdash;',
-             esc.call(note || ''))
-    end.join
-    extra = unresolved.map { |p| "<li>#{esc.call(p)} &mdash; a V-Ray light whose plugin could not be resolved; retune it in the Asset Editor</li>" } +
-            booth_notes.map { |l| "<li>#{esc.call(l)}</li>" }
-    <<-HTML
-<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-body{font:13px/1.4 Segoe UI,Arial,sans-serif;margin:14px;color:#222}
-h1{font-size:15px;margin:0 0 8px}
-p{margin:6px 0}
-table{border-collapse:collapse;width:100%;margin:10px 0}
-th,td{border-bottom:1px solid #ddd;padding:4px 6px;text-align:left;vertical-align:top}
-th{background:#f3f3f3;font-weight:600}
-.note{color:#666;font-size:12px}
-button{padding:6px 12px;margin-right:8px}
-#out{white-space:pre-wrap;font-family:Consolas,monospace;font-size:12px;background:#f7f7f7;padding:8px;margin-top:10px;display:none}
-.warn{color:#a04000}
-</style></head><body>
-<h1>Exposure &mdash; what else needs retuning</h1>
-<p>#{head}</p>
-<table><tr><th></th><th>Plugin</th><th>Kind</th><th>Now</th><th>Proposed</th><th></th></tr>#{trs}</table>
-#{extra.empty? ? '' : '<ul>' + extra.join + '</ul>'}
-<p class="warn">The sun is normally never written by this tool. Ticking its row is the one exception, and it is your click, not a default. Ctrl+Z does not undo a V-Ray value: note the &ldquo;Now&rdquo; column before you press.</p>
-<p><button onclick="go()">WRITE THE TICKED ROWS</button><button onclick="sketchup.close()">CLOSE &mdash; write nothing</button></p>
-<div id="out"></div>
-<script>
-function go(){
-  var rows=[]; var i=0;
-  while(document.getElementById('c'+i)){
-    var c=document.getElementById('c'+i);
-    if(c.checked && !c.disabled){
-      var v=document.getElementById('v'+i);
-      rows.push({name:c.getAttribute('data-name'), kind:c.getAttribute('data-kind'), value:v?v.value:''});
-    }
-    i++;
-  }
-  sketchup.write(JSON.stringify(rows));
-}
-function result(lines){ var o=document.getElementById('out'); o.style.display='block'; o.textContent=lines.join('\\n'); }
-</script></body></html>
-    HTML
   end
 
   # ======================================================================
@@ -2891,8 +2796,9 @@ function result(lines){ var o=document.getElementById('out'); o.style.display='b
   def self.booth_light_note(bname, own)
     plugs = own.map { |_, p, _, _| p.empty? ? '(unresolved)' : p }.uniq
     format('booth "%s" already carries %d light%s of its own (%s) — the rig\'s ' \
-           'interior light was NOT added on top. Retune that one in the window; ' \
-           'delete it if you want the rig\'s 800 lm light instead.',
+           'interior light was NOT added on top. That light was authored for the ' \
+           'factory camera and is right at ISO 100; delete it if you want the ' \
+           'rig\'s 800 lm light instead.',
            bname, own.size, own.size == 1 ? '' : 's', plugs.join(', '))
   end
 
@@ -3119,8 +3025,8 @@ function result(lines){ var o=document.getElementById('out'); o.style.display='b
   # it, which is the difference between a warmth control and the old
   # one-colour-on-everything rig this replaces.
   #
-  # The exposure question is GONE. Exposure is written once, as a documented
-  # default, not asked per press — see stamp_exposure!.
+  # There is no exposure question. The camera is read and reported, never
+  # written — see read_exposure / camera_verdict.
   # ADD CEILING? -- the room's own enclosure is a judgement, not a fact this
   # tool can read. A room drawn as four walls with an open top is a drawing
   # convention, not a statement that the real room has no ceiling, so the tool
@@ -3594,6 +3500,22 @@ paint(); drawPresets("");
     end
     scene = vray_scene(ctx)
 
+    # THE CAMERA, read before anything moves. Never written — except to
+    # undo this tool's own legacy ISO 3200 stamp, on a Yes, on a model
+    # whose record proves it wrote it. The question is asked here, outside
+    # the operation, because a V-Ray value is not on the undo stack anyway.
+    expo = read_exposure(model, scene)
+    verdict = camera_verdict(expo[:iso], expo[:record])
+    case verdict
+    when :legacy_stamped
+      undo_legacy_stamp!(model, scene, expo) if ask_undo_legacy_stamp(expo)
+    when :stale_record
+      model.delete_attribute(DICT, 'exposure_stamped') rescue nil
+    end
+    cam_gain = rig_camera_gain(expo[:iso], verdict == :legacy_stamped && !expo[:undone])
+    opts[:cam_gain] = cam_gain
+    print_exposure_report(expo, verdict, cam_gain)
+
     # THE PROBE, taken BEFORE anything is placed and NEVER from this
     # tool's own capture. It is what the ceiling removal is checked against
     # (spec §8 / criterion 9), and it is the check that would have caught
@@ -3627,7 +3549,7 @@ paint(); drawPresets("");
       erased, reap_pending = erase_lights(stale)
 
       puts ''
-      puts format('Drop Interior Lights 1.32.0 — brightness %s (x%.2f), ' \
+      puts format('Drop Interior Lights 1.41.0 — brightness %s (x%.2f), ' \
                   'warmth %s (%+d K), units 1 (LUMENS), seven roles',
                   opts[:bright], opts[:mult], opts[:warmth], opts[:koffset])
       unless stale.empty?
@@ -3661,11 +3583,6 @@ paint(); drawPresets("");
       capped_any = false
       walls_any = 0
       trim_any = 1.0
-
-      # THE ONE SANCTIONED V-RAY WRITE. Everything else in NEVER_WRITE is
-      # Benton's and is not touched.
-      expo = stamp_exposure!(model, scene)
-      print_exposure_report(expo)
 
       # THE TAG GATE. Forcing the tag visible for the session is necessary
       # and NOT sufficient — a saved scene re-applies its own stored copy on
@@ -3773,7 +3690,7 @@ paint(); drawPresets("");
           pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
                 bb.max.z - BOOTH_DROP]
           lm = layer_lumens(LIGHT_LAYERS[:booth][:lumens], opts[:mult],
-                            role_scale(:booth, opts))
+                            role_scale(:booth, opts), opts[:cam_gain])
           own = booth_own_lights(s, scene)
           if own.empty?
             place.call(:booth, pt, lm)
@@ -3938,7 +3855,8 @@ paint(); drawPresets("");
         lm_of = lambda do |role|
           sp = LIGHT_LAYERS[role]
           k = sp[:budget] == :room ? room_k * room_trim : booth_k
-          layer_lumens(sp[:lumens], opts[:mult], k * role_scale(role, opts))
+          layer_lumens(sp[:lumens], opts[:mult], k * role_scale(role, opts),
+                       opts[:cam_gain])
         end
 
         # ---- ROLE 1 — ceiling ambient, and the room's visible light source --
@@ -4055,7 +3973,7 @@ paint(); drawPresets("");
           # sees it — so before this check every link booth got TWO interior
           # emitters per press (.forge/fixer/sun-blowout.md). Where the booth
           # has a live light of its own, the rig's is not placed and the
-          # window says so; his light is the one that gets retuned there.
+          # console says so; his light is right at the factory camera.
           bpt = [cx, cy, bb.max.z - BOOTH_DROP]
           own = booth_own_lights(o[:ent], scene)
           if own.empty?
@@ -4213,11 +4131,14 @@ paint(); drawPresets("");
                       body.join("\n") + "\n\nThe Ruby Console lists every run and " \
                       'what was found on it.')
       end
-      # THE EXPOSURE CLASH WINDOW — every press whose camera is not at the
-      # factory ISO (this press stamped it, or an earlier one did). Lists
-      # the sun and every foreign light with current and proposed values;
-      # writes nothing on its own. See retune_window.
-      retune_window(model, scene, expo, booth_notes)
+      # Booths that kept their own light (no double interior light) — the
+      # console already named each one at placement; repeat them together
+      # at the end so they are not lost above the layer table.
+      unless booth_notes.empty?
+        puts ''
+        puts '  BOOTH LIGHTS KEPT:'
+        booth_notes.each { |l| puts "    #{l}" }
+      end
       puts '  Each drawn fixture (F1 drum, F2 pendant, F3 sconce) is ONE group ' \
            'holding its shell and its emitter: move the group and the light ' \
            'goes with it. Whether a nested emitter still lights the render is ' \

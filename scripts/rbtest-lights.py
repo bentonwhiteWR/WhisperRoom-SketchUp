@@ -238,6 +238,23 @@ geometry builders (tube / cone_shell / disc_solid touch the SketchUp
 Entities API), add_ceiling, remove_ceilings_verified!, model_probe,
 stamp_exposure!, stamp_tag_into_pages and assert_lights_visible!.
 
+MUTATION-CHECKED 2026-09-10 night (1.41.0, the ISO stamp removed and its
+five stops moved onto the fixtures, same protocol -- each mutation
+applied to wr-drop-lights.rb, this test run, FAIL confirmed, reverted):
+CAMERA_GAIN 32 -> 1.0 (the stamp removed WITHOUT the rescale -- the
+exact "dark exports" regression, every written figure five stops under);
+CAMERA_GAIN -> 10.0 (a plausible-looking wrong factor: `lm` and `cg`
+both name it); rig_camera_gain compensating on every ISO (a user's ISO
+400 gets a quietly countered rig); rig_camera_gain never compensating
+(a legacy-stamped model where the undo was declined gets a rig 32x hot);
+camera_verdict's record test dropped (a 3200 Benton set himself is
+offered an "undo" of a write this tool never made); ev_of forgetting
+the ISO term (3200 reads EV 14.23 again -- loose end 4 reopened).
+All six KILLED. NOT coverable here: read_exposure, undo_legacy_stamp!
+(the one write left, read back by name), ask_undo_legacy_stamp and the
+verdict's wiring into `run` -- SketchUp/V-Ray-API-side, unverified
+until a press on a fresh model and on a model still carrying the stamp.
+
 MUTATION-CHECKED 2026-09-10 evening (1.31.2 hidden-wall fix, same
 protocol): run_report's hidden branch removed so a hidden face counts as
 visible (reproduces the field report exactly — `oe-`, nothing open);
@@ -325,7 +342,8 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'layer_kelvin', 'area_scale', 'ring_points', 'shell_faces', 'fixture_faces',
            'wall_points', 'sconce_points', 'wall_normal', 'far_corner',
            'ceiling_pair', 'face_on_edge?', 'open_edges', 'face_offset',
-           'run_report', 'exposure_ratio', 'stops_of', 'retune_rows']
+           'run_report', 'exposure_ratio', 'stops_of', 'ev_of',
+           'camera_verdict', 'rig_camera_gain']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H',
@@ -335,13 +353,18 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'FIXTURE_FACES_MAX', 'REF_ROOM_SQFT', 'REF_BOOTH_SQFT',
            'AREA_SCALE_MIN', 'AREA_SCALE_MAX', 'PENDANT_AFF', 'SCONCE_AFF',
            'SCONCE_STANDOFF', 'RIM_OUT', 'RIM_TILT', 'FOAM_OFFSET',
-           'EXPO_ISO', 'EXPO_FACTORY_ISO', 'EXPO_EV', 'WALL_TOL', 'WALL_MIN_SHARE',
+           'EXPO_FACTORY_ISO', 'EXPO_LEGACY_ISO', 'EXPO_F', 'EXPO_SHUTTER',
+           'WALL_TOL', 'WALL_MIN_SHARE',
            'WALL_NEAR', 'WALL_OUT',
            # 1.10.0 added LUMEN_GAIN to layer_lumens; this list was not
            # updated and the whole harness raised NameError on every commit
            # from then to 1.19.2. Anything layer_lumens multiplies by must be
            # lifted here, or the suite is red for a reason the log hides.
-           'LUMEN_GAIN']
+           'LUMEN_GAIN',
+           # 1.41.0: the ISO stamp is gone and its five stops moved onto the
+           # fixtures. Same rule as LUMEN_GAIN -- anything layer_lumens
+           # multiplies by is lifted here.
+           'CAMERA_GAIN']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT']
 BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'LIGHT_LAYERS']
 
@@ -799,34 +822,55 @@ __METHODS__
                                          r[:faces], r[:hidden],
                                          r[:near] ? format('%.1f', r[:near]) : '-') }.join(' ')
 
-    # 28 -- THE EXPOSURE CLASH (1.32.0). The stamp's ratio: 100 -> 3200 is
-    # 1/32 = five stops; the factory camera (100 -> 100) is NO ratio (nil),
-    # as are nil / zero / negative readings. retune_rows: the sun and a
-    # live light get current x ratio; a disabled light, an unreadable value
-    # and a nil ratio get no proposal and a note; shared instances are
-    # counted in the note. Sun at 1.0 -> 0.03125 is Benton's "0.05 or
-    # lower", derived.
+    # 28 -- THE CAMERA, READ NOT WRITTEN (1.41.0; the 1.32.0 retune window
+    # and its retune_rows are gone). exposure_ratio / stops_of stay for the
+    # console's "N stops hot/dark" line: 100 -> 3200 is 1/32 = five stops;
+    # the factory camera (100 -> 100) is NO ratio (nil), as are nil / zero /
+    # negative readings.
     er = lambda { |a, b| v = exposure_ratio(a, b); v.nil? ? '-' : format('%.5g', v) }
     out << 'er ' + [er.call(100.0, 3200.0), er.call(100.0, 100.0), er.call(100, 3200),
                     er.call(nil, 3200.0), er.call(100.0, 0.0), er.call(-1, 5),
                     er.call(100.0, 800.0)].join(',') +
            format(' st%.1f,%.1f,%s', stops_of(1.0 / 32), stops_of(0.125),
                   stops_of(nil).nil? && stops_of(0.0).nil? ? '-' : 'BAD')
-    rr = retune_rows({ :mult => 1.0, :enabled => true },
-                     [['/Rectangle Light', 30.0, true, 4],
-                      ['/Rectangle Light#1', 30.0, false, 1],
-                      ['/Rectangle Light#2', nil, true, 1],
-                      ['/Sphere Light', 2500.0, nil, 1]], 1.0 / 32)
-    fmt_r = lambda do |rows|
-      rows.map do |n, k, c, p, note|
-        format('%s/%s/%s/%s/%s', n, k, c.inspect,
-               p.nil? ? '-' : format('%.5g', p), note ? note.split(' ')[0] : '')
-      end.join(' ')
-    end
-    out << 'rr3 ' + fmt_r.call(rr)
-    out << 'rr4 ' + fmt_r.call(retune_rows({ :mult => 0.05, :enabled => true },
-                                           [['/Rectangle Light', 30.0, true, 1]], nil)) +
-           ' n' + retune_rows(nil, [], 0.5).size.to_s
+
+    # 28b -- ev_of, ISO counted: the factory camera f/8 @ 1/300 @ 100 is
+    # EV 14.23 (observed, DEVLOG); the retired stamp's 3200 is 9.23, five
+    # stops under; ISO 800 is three stops; nil on any missing or zero reading.
+    ev = lambda { |f, sh, i| v = ev_of(f, sh, i); v.nil? ? '-' : format('%.2f', v) }
+    out << 'ev ' + [ev.call(8.0, 300.0, 100.0), ev.call(8.0, 300.0, 3200.0),
+                    ev.call(8, 300, 800), ev.call(nil, 300.0, 100.0),
+                    ev.call(8.0, 0.0, 100.0), ev.call(8.0, 300.0, nil)].join(',')
+
+    # 28c -- camera_verdict, the five cases. Factory ISO with no record is
+    # the normal press; factory WITH a record is a hand-undone stamp
+    # (stale); 3200 WITH a record is this tool's own legacy stamp (the
+    # only case that earns the undo question); 3200 WITHOUT a record is
+    # Benton's (user); anything else is his; an unreadable ISO is named.
+    # Integer readings agree with the float constants (param_agrees?).
+    out << 'cv ' + [camera_verdict(100.0, nil), camera_verdict(100.0, 'ISO 3200, 2026-09-10'),
+                    camera_verdict(3200.0, 'ISO 3200, 2026-09-10'), camera_verdict(3200.0, nil),
+                    camera_verdict(3200, 'x'), camera_verdict(400.0, nil),
+                    camera_verdict(400.0, 'x'), camera_verdict(nil, 'x'),
+                    camera_verdict(0.0, nil), camera_verdict('100', nil)].join(',')
+
+    # 28d -- rig_camera_gain. THE FACTOR: a fresh model at the factory ISO
+    # gets CAMERA_GAIN = 32 (five stops, 3200/100 = 2^5); a legacy-stamped
+    # model where the undo was declined is compensated to exactly 1.0, so
+    # that model's rig is the rig it always had; compensation is never
+    # applied to a user ISO (400 -> still 32), and a bad ISO cannot break it.
+    out << 'cg ' + [rig_camera_gain(100.0, false), rig_camera_gain(3200.0, true),
+                    rig_camera_gain(400.0, false), rig_camera_gain(400.0, true),
+                    rig_camera_gain(nil, true), rig_camera_gain(0.0, true)]
+                   .map { |v| format('%.4g', v) }.join(',')
+
+    # 28e -- layer_lumens with the camera factor threaded: the 3-argument
+    # call (every caller before 1.41.0) is the factory-camera figure; the
+    # compensated call reproduces the pre-1.41.0 written value exactly.
+    out << 'lc ' + [layer_lumens(2000.0, 1.0, 1.0),
+                    layer_lumens(2000.0, 1.0, 1.0, rig_camera_gain(3200.0, true)),
+                    layer_lumens(800.0, 1.0, 1.0, 32.0)]
+                   .map { |v| format('%.0f', v) }.join(',')
 
     out.join(' | ')
   end
@@ -868,9 +912,12 @@ EXPECT = ' | '.join([
     'noisy 48.0,36.0;48.0,108.0;144.0,36.0;144.0,108.0 fb0',
     'kr 1.000,0.695,0.431 1.000,0.755,0.552 1.000,1.000,1.000 '
     '0.791,0.855,1.000 1.000,0.266,0.000',
-    # 21b: LUMEN_GAIN x (2000, 2000x2, 2000x0.5, 2000x0.35, 2000x0.25,
-    # 800 untrimmed) -- the written values, not the product table.
-    'lm 20000,40000,10000,7000,5000,8000',
+    # 21b: LUMEN_GAIN x CAMERA_GAIN = x320 on (2000, 2000x2, 2000x0.5,
+    # 2000x0.35, 2000x0.25, 800 untrimmed) -- the values WRITTEN to V-Ray,
+    # not the product table. 1.41.0: the five stops the retired ISO stamp
+    # supplied at the camera now ride on the fixtures. 2000 lm of product
+    # spec leaves as 640,000.
+    'lm 640000,1280000,320000,224000,160000,256000',
     'as 1.000,1.667,0.500,3.000,1.250,1.000',
     'lt roles7 inst11 visroles3 visfix5 k6 room10800 booth1200 units1',
     'ko 4000,3700,3200,3500,5500,4500,4000',
@@ -886,10 +933,11 @@ EXPECT = ' | '.join([
     'rr W2/0/-/144 W1/0/4.0/180 W1/0/-/144 O0/1/-/180 oe3',
     'rr2 W2/0/- O0/1/4.0 W1/0/- O0/0/-',
     'er 0.03125,-,0.03125,-,-,-,0.125 st5.0,3.0,-',
-    'rr3 /SunLight/sun/1.0/0.03125/ /Rectangle Light/light/30.0/0.9375/4 '
-    '/Rectangle Light#1/light/30.0/-/disabled /Rectangle Light#2/light/nil/-/value '
-    '/Sphere Light/light/2500.0/78.125/',
-    'rr4 /SunLight/sun/0.05/-/camera /Rectangle Light/light/30.0/-/camera n0',
+    'ev 14.23,9.23,11.23,-,-,-',
+    'cv factory,stale_record,legacy_stamped,user_iso,legacy_stamped,user_iso,'
+    'user_iso,unreadable,unreadable,unreadable',
+    'cg 32,1,32,32,32,32',
+    'lc 640000,20000,256000',
 ])
 
 # ---- second program: wr-mode.rb's snapshot pins -------------------------
