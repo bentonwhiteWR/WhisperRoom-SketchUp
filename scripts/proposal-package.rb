@@ -3407,6 +3407,15 @@ module WR_ProposalPackage
   td { padding:3px 8px; border-top:1px solid var(--line); vertical-align:middle; }
   tr:hover td { background:#f8f4f1; }
   td.n { font-variant-numeric:tabular-nums; color:var(--muted); width:1%; white-space:nowrap; }
+  /* The scene name is the SECOND way to jump to a scene -- it carries the
+     same data-go hook as the arrow at the end of the row, so the one
+     [data-go] wiring below drives both. A cell that moves the SketchUp
+     camera when it is clicked has to look clickable, hence the pointer and
+     the hover; the underline is hover-only so the column stays a quiet list
+     to read. No new colour -- var(--accent), the same one .go button:hover
+     already uses. */
+  td.sc { cursor:pointer; }
+  td.sc:hover { color:var(--accent); text-decoration:underline; }
   td.file { color:var(--muted); font-size:11.5px; white-space:nowrap; overflow:hidden;
             text-overflow:ellipsis; max-width:210px; }
   td.file b { color:var(--accent); font-weight:600; }
@@ -3769,7 +3778,8 @@ module WR_ProposalPackage
       var fh = r.file ? esc(r.file).replace(/ render(?=( \\(\\d+\\))?\\.png$)/," <b>render</b>") : "&mdash;";
       return "<tr data-n='"+r.n+"'>"+
         "<td class='n'>"+r.n+"</td>"+
-        "<td>"+hl(r.scene,hi)+"</td>"+
+        "<td class='sc' data-go='"+r.n+"' title='Go to this scene in SketchUp'>"+
+          hl(r.scene,hi)+"</td>"+
         "<td><span class='seg'>"+
           segBtn(r,"skip","Skip")+segBtn(r,"image","Image")+segBtn(r,"render","Render")+
         "</span></td>"+
@@ -3800,6 +3810,16 @@ module WR_ProposalPackage
         annotsOpen(+el.getAttribute("data-annots"));
       });
     });
+    // Both the name cell and the arrow button carry data-go, so this one
+    // loop wires both and they cannot drift apart. The arrow sits inside
+    // the ROW but not inside the name CELL, so nothing fires twice; the
+    // existing stopPropagation stays, because it is what keeps a click on
+    // the arrow from also reaching an ancestor handler. The 'running'
+    // check is deliberately NOT duplicated here -- Ruby's
+    // busy?(d, 'activate') guard already refuses the jump mid-batch AND
+    // writes the reason into the log, which is better feedback than a
+    // silent no-op in JS. A click must never move the camera out from
+    // under a running exporter.
     Array.prototype.forEach.call($b.querySelectorAll("[data-go]"), function(el){
       el.addEventListener("click", function(e){
         e.stopPropagation();

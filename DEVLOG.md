@@ -2,6 +2,47 @@
 
 ## 2026-09-10
 
+### Click the scene NAME to go to that scene — 1.20.2
+
+Benton, looking at the SCENES table in the proposal package window: *"on the
+left side where it shows the scene names, if I click the name, have it go to
+that scene in SketchUp."*
+
+Wiring, not mechanism. The name cell was a bare `<td>` with no affordance; it
+now carries the **same `data-go` hook** as the `→` button at the end of the
+row, so the existing `querySelectorAll("[data-go]")` loop drives both and they
+cannot drift apart. No new callback — Ruby's `activate` (already registered,
+already guarded) is untouched.
+
+- `td.sc { cursor:pointer }` and `td.sc:hover { color:var(--accent);
+  text-decoration:underline }`, plus a `title`. Reuses `--accent`, the same
+  variable `.go button:hover` already uses; no new colour value.
+- `hl()` search highlighting still wraps the name inside the cell, `<mark>`
+  and all.
+- **No double fire.** The arrow lives inside the ROW but not inside the name
+  CELL, so a click on it hits one handler; its existing `stopPropagation()`
+  stays as-is. There is no `<tr>`-level click handler at all — checked — so
+  the new cell handler fights nothing, and row behaviour is unchanged.
+- **Checked, not assumed: the name cell had no other job.** It carried only
+  the highlighted name — no drag, no selection, no inline editing — so
+  nothing was clobbered.
+- **Checked, not assumed: it is inert mid-export.** `activate` opens with
+  `next if busy?(d, 'activate')`, and `busy?` returns true whenever
+  `@running` is set, logging *"'activate' was ignored: a batch is running and
+  the model must not change under it"* into the window. The name cell inherits
+  that for free because it calls the same callback. The JS `if(running)
+  return;` used by the mode/walls/notes buttons is deliberately NOT copied
+  here: the Ruby guard says WHY in the log, which beats a silent no-op.
+  Benton clicking a scene name mid-export cannot move the camera out from
+  under the exporter.
+
+**UNRUN IN SKETCHUP.** `python scripts/rbparse.py` — 68/68 parse, syntax only.
+To verify: open **Proposal package**, click a scene NAME in the SCENES table
+— SketchUp should jump to that scene, the same as clicking the row's `→`.
+Hover first: the name should turn orange and underline. Then start an export
+and click a name mid-run — nothing should move, and the log should say the
+click was ignored because a batch is running.
+
 ### Create an annotation set from the dialog — no selection required — 1.20.1
 
 Benton: *"We added the dims annotations being able to be hidden. I'd like for

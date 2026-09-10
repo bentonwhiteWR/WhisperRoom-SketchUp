@@ -63,3 +63,44 @@ here."* Shipped, **unrun in SketchUp** — see Open questions.
 - Should a just-created set be pre-selected in the move dropdown? Left alone
   deliberately — `push_state` rebuilds the strip, and guessing the next action
   was not part of the ask.
+
+## Also in this session — clickable scene name, 1.20.2
+
+`scripts/proposal-package.rb`. Benton: *"on the left side where it shows the
+scene names, if I click the name, have it go to that scene in SketchUp."*
+Wiring only — no new callback, no new mechanism.
+
+- The scene-name cell is now
+  `<td class='sc' data-go='<n>' title='Go to this scene in SketchUp'>` around
+  the unchanged `hl(r.scene,hi)`, so the existing
+  `querySelectorAll("[data-go]")` loop wires it alongside the row's `→`
+  button. Ruby's `activate` callback is untouched.
+- CSS: `td.sc { cursor:pointer }` + `td.sc:hover { color:var(--accent);
+  text-decoration:underline }`. `--accent` is the variable `.go button:hover`
+  already uses; no new colour.
+
+**The two things I was told to check rather than assume — both checked
+(observed, by reading the code):**
+1. **Inert during an export.** `activate` begins `next if busy?(d, 'activate')`
+   (~line 3136) and `busy?` (line 2931) returns true whenever `@running`,
+   logging the reason into the window. The name cell calls the same callback,
+   so it inherits that guard exactly. The JS-side `if(running) return;` used
+   by the mode/walls/notes handlers is intentionally not copied: the Ruby
+   guard explains itself in the log.
+2. **The name cell had no other job.** It was a bare `<td>` holding only the
+   highlighted name. There is no `<tr>`-level click handler anywhere in the
+   dialog, and no drag, selection or inline editing on that column. Nothing
+   was clobbered, and row behaviour is unchanged.
+
+**No double fire**: the `→` button is inside the ROW but not inside the name
+CELL, so one click hits one handler; its existing `stopPropagation()` is left
+as it was.
+
+`scripts/wr_tools/VERSION` → **1.20.2** (patch: markup + CSS wiring inside an
+existing dialog).
+
+**UNRUN IN SKETCHUP.** `python scripts/rbparse.py` → 68/68 parse, syntax only.
+To verify: open **Proposal package**, hover a scene name (should turn orange
+and underline), click it (SketchUp should jump to that scene, same as the row's
+`→`). Then start an export and click a name mid-run: nothing should move and
+the log should say the click was ignored because a batch is running.
