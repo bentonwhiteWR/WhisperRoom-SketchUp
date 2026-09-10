@@ -1,3 +1,43 @@
+# HANDOFF — Builder → Benton: singleton proposal package, 1.22.1
+
+2026-09-10. Benton: *"If i re-click the proposal package right now, it opens
+it again… Id like for that to just act as a refresh."* Shipped, **unrun**.
+
+## The crux, answered (observed by reading)
+`wr_tools/main.rb` `run(path)` → `load path`. A reload reopens the module;
+module ivars survive (`@running` already depends on it). `@dlg` survived
+too — `run()` never checked it. **"Never checked" fix, not "lost handle".
+No `main.rb` change, so no `install-plugin.py` / restart needed** — a
+`git pull` is enough on a machine that loads scripts live from the checkout.
+
+## Produced — `scripts/proposal-package.rb` only
+- `dialog_alive?(dlg)` — `visible?` under `rescue Exception`.
+- `refocus_open_dialog` — `bring_to_front`, log `REFRESHED…`, then clicks
+  the window's Rescan button via `execute_script` (reuses 1.21.1; skipped
+  while the button is disabled). Running batch → forward only, logged.
+- `run()`: singleton check after the no-scenes refusal, before the
+  stale-batch block. `@model` stored beside `@dlg`; a live window on another
+  model is closed and replaced (unless `@running`).
+- `VERSION` → **1.22.1** (patch). DEVLOG entry.
+
+## The five points
+1. Stale/closed window: `visible?` false → opens clean; exceptions → false.
+2. Bring to front: `HtmlDialog#bring_to_front`, same call the walls and
+   annotations dialogs already use (repo precedent; SU 2017+ API).
+3. Refresh reuses Rescan — no second mechanism; log says REFRESHED.
+4. Mid-export: forward only, table untouched, one log line saying so.
+5. Existing duplicates: cannot be closed by this — close them by hand once.
+
+## To verify (Benton)
+1. Open **Proposal package**. Press the tool button again → no second
+   window; the open one comes forward; log shows `REFRESHED …` then a
+   `RESCAN: N scene(s)…` line. Add a scene, press the button: new row.
+2. Close the window. Press the button → opens clean, one window.
+3. Start an export, press the button → comes forward, log says the table
+   was left alone, export continues.
+
+---
+
 # HANDOFF — Builder → Benton: Apply to all scenes, 1.22.0
 
 2026-09-10, after 1.21.1. Benton: *"would like for there to be an 'apply to

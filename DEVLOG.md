@@ -2,6 +2,46 @@
 
 ## 2026-09-10
 
+### Proposal package is a singleton — re-press refreshes, 1.22.1
+
+Benton: *"If i re-click the proposal package right now, it opens it again.
+Sometimes i have multiple copies. Id like for that to just act as a refresh
+for the one already open instead."*
+
+**Why there were duplicates — established before choosing the fix.** The
+panel's `run(path)` in `wr_tools/main.rb` is a plain `load`. Re-loading the
+file *reopens* `module WR_ProposalPackage` rather than replacing it, so
+module ivars survive the reload — `run()` already relies on this for
+`@running` (the stale-batch prompt works across presses). `@dlg` was
+surviving the same way. The handle was never lost; `run()` simply never
+looked at it. So this is the "never checked" fix, it lives entirely in
+`proposal-package.rb`, and **it needs no installer step** — `main.rb` is
+untouched.
+
+**What a re-press does now.**
+- Window alive on this model → `bring_to_front`, log line `REFRESHED — the
+  tool button was pressed while this window was open…`, then Ruby clicks
+  the window's own **Rescan** button (1.21.1) — one refresh mechanism, and
+  the log also says what changed in the scene list.
+- Batch running in it → brought forward only; log says the table was left
+  alone. The model is not re-read under an export.
+- Window closed by the operator → `visible?` is false → opens clean.
+- Window alive but on a different model → its callbacks close over the
+  model they were opened on, so it is closed and a fresh one opens (unless
+  a batch is running, in which case the existing stale-batch prompt owns
+  the decision).
+
+`dialog_alive?` guards for exceptions, not just nil. `bring_to_front` and
+`visible?` are the same two `UI::HtmlDialog` calls `wr-scene-walls.rb` and
+`wr-scene-annotations.rb` already use for their own singletons (SU 2017+
+API; this file targets SketchUp 2026).
+
+**Copies already open cannot be closed by this change** — `@dlg` only ever
+held the *last* window opened. Close the extras by hand once.
+
+Patch bump. **UNRUN in SketchUp** — `rbparse.py` 68/68,
+`rbtest-proposal.py` passes.
+
 ### Apply to all scenes, in both popovers and both standalone dialogs — 1.22.0
 
 Benton: *"would like for there to be an 'apply to all scenes' button as well."*

@@ -3012,6 +3012,58 @@ module WR_ProposalPackage
     @running = false                     # finish sets this; belt and braces
   end
 
+  # ------------------------------------------------------------ singleton --
+  #
+  # Benton, 10 Sep 2026: "If i re-click the proposal package right now, it
+  # opens it again. Sometimes i have multiple copies. Id like for that to
+  # just act as a refresh for the one already open instead."
+  #
+  # WHY there were duplicates — established before choosing a fix. The
+  # panel's run(path) is a plain `load`, and re-loading this file REOPENS
+  # module WR_ProposalPackage rather than replacing it, so module ivars
+  # survive the reload: run() already relies on exactly that for @running
+  # (the stale-batch prompt). @dlg survived the same way. The handle was
+  # never lost; run() simply never looked at it. So this is the
+  # "never checked" fix, and it needs no change in main.rb.
+
+  # Liveness, guarded for exceptions and not just nil: a handle can outlive
+  # its window (closed by the operator) and, in principle, a reloaded
+  # module could hand back a dead object. HtmlDialog#visible? is the API's
+  # own answer and what wr-scene-walls / -annotations already use.
+  def self.dialog_alive?(dlg)
+    return false unless dlg
+    dlg.visible? ? true : false
+  rescue Exception
+    false
+  end
+
+  # The open window, brought forward and refreshed. The refresh IS the
+  # Rescan button (1.21.1), clicked from Ruby: the JS sends up the scene
+  # names it was showing, so the log says what changed, and the button's
+  # own disabled state stands in for the batch guard. A running batch is
+  # brought forward and left alone — the model must not be re-read under it.
+  def self.refocus_open_dialog
+    begin
+      @dlg.bring_to_front
+    rescue StandardError => e
+      puts "  bring_to_front failed: #{e.class}: #{e.message}"
+    end
+    if @running
+      puts 'WR_ProposalPackage: already open and a batch is running — brought ' \
+           'forward, NOT refreshed.'
+      log(@dlg, 'Tool button pressed again while a batch is running — window ' \
+                'brought forward, table left alone.', 'dim')
+      return
+    end
+    puts 'WR_ProposalPackage: already open — refreshed, not reopened.'
+    log(@dlg, 'REFRESHED — the tool button was pressed while this window was ' \
+              'open. Nothing was reopened: same window, same picks, same log.', 'dim')
+    @dlg.execute_script("(function(){ var b = document.getElementById('rescan'); " \
+                        'if (b && !b.disabled) b.click(); })()')
+  rescue StandardError => e
+    puts "  refresh failed: #{e.class}: #{e.message}"
+  end
+
   # ------------------------------------------------------------------ run --
 
   def self.run
@@ -3023,6 +3075,27 @@ module WR_ProposalPackage
                     '(View > Animation > Add Scene), or run ' \
                     "'Set up the five proposal plates'.")
       return
+    end
+
+    # SINGLETON (1.22.1) — see dialog_alive? above. A live window on THIS
+    # model is refreshed, not reopened. A live window on another model
+    # cannot be: its callbacks close over the model they were opened on. It
+    # is closed here and a clean one opens below — unless a batch is running
+    # in it, in which case the stale-batch prompt below owns the decision.
+    if dialog_alive?(@dlg)
+      if @model.equal?(model)
+        refocus_open_dialog
+        return
+      end
+      unless @running
+        puts 'WR_ProposalPackage: the open window belongs to another model — ' \
+             'closing it and opening a fresh one.'
+        begin
+          @dlg.close
+        rescue StandardError
+          nil
+        end
+      end
     end
 
     # Never stomp a live batch — killing its timer would skip FINISH and leave
@@ -3091,7 +3164,8 @@ module WR_ProposalPackage
       :style           => UI::HtmlDialog::STYLE_DIALOG
     )
     d.set_html(html(title, state(model), dir, width, over, shade, annot))
-    @dlg = d   # so a stale-batch reset can reach the last window's log, if any
+    @dlg   = d   # so a stale-batch reset can reach the last window's log, if any
+    @model = model   # the singleton check: this window belongs to THIS model
 
     d.add_action_callback('mark') do |_c, payload|
       next if busy?(d, 'mark')
