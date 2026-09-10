@@ -1791,3 +1791,44 @@ Restart → dropdown reads "On every run" untouched → press → `borrowed 4
 walls … (every run)` → render is a closed box → re-press / Remove rig →
 `verify_restore` clean. To judge the ISO rescale and the 8' key on a
 sun-lit open room as before, set walls to No for that render.
+
+
+---
+
+# HANDOFF — booth interior role removed (Builder, 10 Sep 2026, 1.44.0)
+
+Benton: *"remove the 'booth interior lights' option. It always misses and
+our booths already have them implemented."* Separate commit from 1.43.1
+(walls default) — a role removal deserves its own diff. **Unrun in
+SketchUp.** rbparse 74/74; rbtest-lights 55 + 10 PASS; two mutants killed.
+
+## Produced
+- `scripts/wr-drop-lights.rb`: `:booth` gone from `LIGHT_LAYERS` and
+  `BOOTH_ROLES`; `BOOTH_FC` / `booth_lumens` deleted; both placement
+  branches now report the booth's own light and place nothing;
+  `booth_light_note` rewritten (has-own / has-none); console "six roles";
+  `BOOTH_DROP` comment carries the "always misses" hypothesis.
+- `scripts/rbtest-lights.py`: `lt` pins six roles, ten instances, booth
+  budget 400, `:booth` absent, `BOOTH_ROLES = key+rim+foam`; `lm` drops
+  the booth budget figure. VERSION 1.43.1 → 1.44.0.
+
+## Answers
+- **"Always misses":** derived — `bb.max.z − 6"` on the OUTER bounds; a roof
+  vent/fan/EFS raises the top and the light seats in the tray. Same seating
+  as the foam graze; flagged, not changed.
+- **Kept:** `booth_own_lights`, `foreign_lights`, `read_light`,
+  `main_plugin_of` — reporting line per booth ("carries N of its own" /
+  "carries NONE — will render unlit"). Nothing decides on them.
+- **Positional indexing:** none; all by symbol; panel rows from the table.
+- **Stale sweep:** finds by presence of the `role` attribute, any value →
+  a pre-1.44.0 `:booth` light is erased on the next press or Remove rig.
+- **Renders:** booth interior now his light alone — dimmer than the pair;
+  a third brightness change on top of ISO and the 8' key (and the sealed
+  room from 1.43.1).
+
+## Benton's check
+Press on a room with a link booth → Asset Editor shows ONE light inside
+the booth → console `carries 1 light of its own … the rig places none`.
+On a model from earlier today the old rig light appears under
+`replacing N previously dropped lights`. Do not judge the ISO/key changes
+by the booth interior.

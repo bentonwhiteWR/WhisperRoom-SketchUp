@@ -1,6 +1,76 @@
 # DEVLOG
 
 ## 2026-09-10
+### The rig's booth interior light is gone; a booth is lit by its own — 1.44.0
+
+Benton: *"remove the 'booth interior lights' option. It always misses and
+our booths already have them implemented."* Role `:booth` (800 lm, 12×24
+under the tray, 4000 K) is **deleted** from `LIGHT_LAYERS` and
+`BOOTH_ROLES`; the rig places **nothing** inside a booth. **This reverses
+1.32.0**, which detected the booth's own light and skipped the rig's when
+one was found — a detection that could still be wrong when it failed.
+There is nothing to skip now, so it cannot be. Minor bump: a role left the
+rig. **Unrun in SketchUp**; `rbparse.py` 74/74, `rbtest-lights.py`
+55 → 55 checks PASS (one check removed, one extended), two mutants killed.
+
+**"Always misses" — what the code says (derived, not observed).** The
+light was seated at the booth's bounding-box centre, `bb.max.z −
+BOOTH_DROP` (6"). `bb` is the booth's *outer* bounds, so anything standing
+on the roof — a vent housing, a fan, an EFS silencer, all of which today's
+dimension work found in the assembly box — raises `bb.max.z`, and "6 below
+the top" lands in or above the roof tray instead of in the room. That is
+the likeliest mechanism for a light that emits (the API creates it, the
+console reports it) yet never lights the interior. I cannot confirm it
+from here. **The same seating is used by the foam graze** (`bb.max.z −
+BOOTH_DROP`), so if the graze "misses" on a vented booth, that is where —
+noted at `BOOTH_DROP`, not changed in this pass.
+
+**Removed:** the `:booth` row; `BOOTH_FC` and `booth_lumens` (the design
+budget arithmetic for a role that no longer exists); the placement in both
+branches (selected booth, booth inside a room). A booth selected on its
+own now places nothing and says to select the room it stands in.
+
+**Kept, and why:** `booth_own_lights` / `foreign_lights` / `read_light` /
+`main_plugin_of` — reporting only. Every press prints, per booth, *"carries
+N light(s) of its own (plugin) — that is the interior light; the rig places
+none"*, or, if it finds none, *"carries NO V-Ray light … its interior will
+render unlit"*. That line is what proves on the console that the interior
+is lit by his light and not by nothing; the same information the 1.32.0
+window carried, one line instead of a dialog. `BOOTH_DROP` and
+`REF_BOOTH_SQFT` stay: the foam graze and the booth-relative scaling use
+them.
+
+**Nothing indexes roles by position (observed).** Every call is by symbol
+(`place.call(:key…)`, `role_scale(:foam…)`, `LIGHT_LAYERS[role]`); the
+panel's layer rows come from `LIGHT_LAYERS.each`, so the row disappears
+with the entry; a saved preset carrying a `booth` layer key is ignored
+(`role_scale` looks up by role, extra keys are never read). "Role 6" existed
+only in comments, which are rewritten.
+
+**The stale sweep still removes the old light (observed in code).**
+`collect_lights` keys on the *presence* of the `WR_DropLights/role`
+attribute, not its value, and the sweep is by world bounds of the selected
+subjects. A booth pressed before today carries a `role => "booth"` light
+inside it; the next press with that booth's room (or the booth) selected
+finds it, erases it and deletes its V-Ray plugin with the rest of the rig.
+`remove_rig!` does the same. So the double he asked us to fix clears
+itself on the next press — no manual cleanup.
+
+**Renders — a third brightness change on his next render.** A booth that
+previously had both lights (or the rig's alone, where his was not
+detected) is now lit by `BoothLighting.skp` only — dimmer than the pair.
+With the ISO rescale (1.41.0), the 8' key (1.43.0) and the sealed-room
+default (1.43.1) also new, the booth interior is not a place to judge the
+other changes; judge those on the room and the fixtures.
+
+**Benton's check.** Press the tool on a room holding a link-built booth.
+Lights tab of the Asset Editor: exactly **one** light inside the booth —
+his. Console: `booth "…" carries 1 light of its own (/Rectangle Light…) —
+that is the interior light; the rig places none (1.44.0)`, and the
+`BOOTH INTERIORS` block at the end repeats it. On a model pressed earlier
+today the same press should also print the old rig light among the
+`replacing N previously dropped lights`.
+
 ### Walls default to "On every run" — 1.43.1
 
 Benton: *"default the drop down to be 'on every run' for the walls."* That

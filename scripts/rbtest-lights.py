@@ -29,8 +29,8 @@ worked examples in .forge/researcher/interior-lighting-design.md:
   7. Wall wash: opposite_edge picks the far antiparallel wall; 24" standoff;
      n = clamp(ceil(len/36"), 2, 4); positions centred; culled by keep-outs.
   8. Lumens: 180 sqft x 40 fc / 0.6 = 12,000 lm -> 3,000 each at Soft (4),
-     1,000 each at Showroom (12); Bright x2 / Dim x0.5; booth 24 sqft x
-     30 fc / 0.6 = 1,200.
+     1,000 each at Showroom (12); Bright x2 / Dim x0.5. (The booth-interior
+     budget line went with the role at 1.44.0.)
   9. accent_axis — the rotation axis that tips -Z toward the booth face.
  10. subject_veto — the light-as-room incident guard: a 24"-tall subject
      and a shoebox floor are refused; a 6'+/9sqft+ room passes; the
@@ -238,6 +238,15 @@ geometry builders (tube / cone_shell / disc_solid touch the SketchUp
 Entities API), add_ceiling, remove_ceilings_verified!, model_probe,
 stamp_exposure!, stamp_tag_into_pages and assert_lights_visible!.
 
+MUTATION-CHECKED 2026-09-10 night (1.44.0, the booth interior role
+removed, same protocol): the :booth row put back into LIGHT_LAYERS (`lt`
+counts seven roles, eleven instances, a 1200 booth budget and names
+nobooth0); :booth put back into BOOTH_ROLES (`br` names it). Both KILLED
+and reverted. NOT coverable here: the two placement branches now
+reporting instead of placing, and the stale sweep on a model that still
+carries a pre-1.44.0 :booth light -- SketchUp-side, unverified until a
+press on such a model.
+
 MUTATION-CHECKED 2026-09-10 night (1.43.1, the walls default, same
 protocol): WALLS_DEFAULT 'all' -> 'none' (the old default back; `wd`
 names it); walls_mode(nil) falling to 'none' (an old preset drops the
@@ -352,7 +361,7 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'edge_dist', 'poly_signed_area', 'poly_area', 'poly_centroid',
            'in_keepout?', 'edge_threshold', 'grid_points', 'nearest_edge',
            'opposite_edge', 'wash_points', 'downlight_lumens',
-           'booth_lumens', 'accent_axis', 'subject_veto',
+           'accent_axis', 'subject_veto',
            'fallback_verdict', 'light_words?', 'room_structure_child?',
            'doors_container?', 'door_child_kind', 'tag', 'floor_child?',
            'booth_like?', 'grid_count', 'kelvin_rgb',
@@ -364,7 +373,7 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'camera_verdict', 'rig_camera_gain', 'accent_tilt',
            'accent_standoff', 'walls_mode', 'default_settings']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
-           'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
+           'HEADROOM', 'TARGET_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
            'ACCENT_STEP', 'ACCENT_MARGIN', 'MIN_ROOM_H',
            'MIN_ROOM_AREA', 'BOOTH_SIDE_MIN', 'BOOTH_SIDE_MAX',
@@ -386,7 +395,7 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            # multiplies by is lifted here.
            'CAMERA_GAIN']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT']
-BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'LIGHT_LAYERS']
+BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'LIGHT_LAYERS', 'BOOTH_ROLES']
 
 
 def lift_block(lines, name):
@@ -504,10 +513,9 @@ __METHODS__
     out << 'washK ' + pts_s(wash_points(RECT, 2, [[120.0, 150.0, 132.0, 162.0]]))
 
     a = poly_area(RECT)
-    out << format('lm %d %d %d %d %d',
+    out << format('lm %d %d %d %d',
                   downlight_lumens(a, 4, 1.0), downlight_lumens(a, 12, 1.0),
-                  downlight_lumens(a, 4, 2.0), downlight_lumens(a, 4, 0.5),
-                  booth_lumens(3456.0, 1.0))
+                  downlight_lumens(a, 4, 2.0), downlight_lumens(a, 4, 0.5))
 
     out << format('thr %s %s %s', edge_threshold(48.0, 24.0, 22.5).round(2),
                   edge_threshold(96.0, 36.0, 45.0).round(2),
@@ -714,11 +722,15 @@ __METHODS__
                     area_scale(0.0, REF_ROOM_SQFT)]
                    .map { |v| format('%.3f', v) }.join(',')
 
-    # 21c — THE SEVEN-ROLE LAYER TABLE. Its budgets must total the design
-    # figures, EXACTLY FIVE layers must be visible, and the rig must carry at
-    # least five distinct Kelvins — a single-hue rig is the fault this whole
-    # rewrite exists to fix, so it fails outright here.
-    roles = [:ceiling, :key, :pendant, :sconce, :rim, :booth, :foam]
+    # 21c — THE SIX-ROLE LAYER TABLE (seven until 1.44.0: the 800 lm booth
+    # interior light is GONE — every WhisperRoom carries BoothLighting.skp
+    # already, and the rig's copy "always misses"). Its budgets must total
+    # the design figures, EXACTLY FIVE fixtures must be visible, and the rig
+    # must carry at least five distinct Kelvins — a single-hue rig is the
+    # fault this whole rewrite exists to fix, so it fails outright here.
+    # :booth must be absent from BOTH the table and BOOTH_ROLES, and the
+    # booth budget is the foam graze alone.
+    roles = [:ceiling, :key, :pendant, :sconce, :rim, :foam]
     tot = lambda { |b| roles.select { |r| LIGHT_LAYERS[r][:budget] == b }
                             .inject(0.0) { |a, r| a + LIGHT_LAYERS[r][:lumens] *
                                                   LIGHT_LAYERS[r][:n] *
@@ -730,7 +742,9 @@ __METHODS__
                   roles.count { |r| LIGHT_LAYERS[r][:visible] },
                   roles.select { |r| LIGHT_LAYERS[r][:visible] }
                        .inject(0) { |a, r| a + LIGHT_LAYERS[r][:n] },
-                  kelvins.size, tot.call(:room), tot.call(:booth), UNITS_LUMENS)
+                  kelvins.size, tot.call(:room), tot.call(:booth), UNITS_LUMENS) +
+           format(' nobooth%d br%s', LIGHT_LAYERS.key?(:booth) ? 0 : 1,
+                  BOOTH_ROLES.map(&:to_s).join('+'))
 
     # 21d — the Kelvin offset SHIFTS the palette and never flattens it.
     out << 'ko ' + roles.map { |r| layer_kelvin(LIGHT_LAYERS[r][:kelvin], 500) }
@@ -954,7 +968,7 @@ EXPECT = ' | '.join([
     'washR 126.0,156.0;90.0,156.0;54.0,156.0;18.0,156.0',
     'washL 126.0,156.0;90.0,156.0',
     'washK 90.0,156.0;54.0,156.0;18.0,156.0',
-    'lm 3000 1000 6000 1500 1200',
+    'lm 3000 1000 6000 1500',
     'thr 22.5 36.0 18.0',
     'axis35 0.0,1.0 -1.0,0.0',
     'ko96 96,60,42,6,12 t35.0,58.0,0.0,90.0',
@@ -986,8 +1000,8 @@ EXPECT = ' | '.join([
     # spec leaves as 640,000.
     'lm 640000,1280000,320000,224000,160000,256000',
     'as 1.000,1.667,0.500,3.000,1.250,1.000',
-    'lt roles7 inst11 visroles3 visfix5 k6 room10800 booth1200 units1',
-    'ko 4000,3700,3200,3500,5500,4500,4000',
+    'lt roles6 inst10 visroles3 visfix5 k5 room10800 booth400 units1 nobooth1 brkey+rim+foam',
+    'ko 4000,3700,3200,3500,5500,4000',
     'fx 9.0/0.0 0.0/9.0 -9.0/0.0 -0.0/-9.0 shell64 faces394 budget1',
     'sc 36.0,3.0;108.0,3.0 n0,1',
     'pp 121.5,151.9 96.0,135.0;48.0,135.0',

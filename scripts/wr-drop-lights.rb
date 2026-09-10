@@ -15,9 +15,11 @@
 #     B. a WALL-WASH row on the wall opposite the largest door, 24" off the
 #        wall — vertical light is what the camera sees, and washed walls are
 #        why showrooms photograph as designed.
-#     C. when a booth stands in the room: one INTERIOR light under its tray
-#        ceiling, and one ACCENT light tilted 35 degrees at its door face —
-#        the merchandise layer.
+#     C. when a booth stands in the room: a KEY light 8' off its door face,
+#        a RIM behind it and a FOAM GRAZE inside its foam wall — the
+#        merchandise layer. NOTHING is placed as the booth's own interior
+#        light: every WhisperRoom arrives with BoothLighting.skp already in
+#        it (1.44.0; Benton: "our booths already have them implemented").
 #
 #   Design source: .forge/researcher/interior-lighting-design.md — every
 #   spacing, standoff, footcandle and Kelvin number below traces there.
@@ -117,7 +119,7 @@
 #     LIGHT_LAYERS[:lumens]  x  LUMEN_GAIN (10, by eye)  x  CAMERA_GAIN (32)
 #
 # i.e. x320 the product figure. A "2,000 lm" ceiling drum goes to V-Ray as
-# 640,000; the 800 lm booth light as 256,000. THOSE ARE NOT LUMENS A
+# 640,000; the 400 lm foam graze as 128,000. THOSE ARE NOT LUMENS A
 # FIXTURE COULD CARRY ON A SPEC SHEET. They are what this V-Ray build needs
 # at its factory camera to look like a lit interior. The product figure is
 # the table entry; the written figure is the table entry x 320; the console
@@ -125,9 +127,10 @@
 # number back into a proposal.
 #
 # LIGHT_LAYERS itself is untouched: 2,000 lm 18" flush mount, 1,200 lm drum
-# pendant, 600 lm sconce, 2,800 lm track head, 1,600 lm wall washer, 800 lm
-# booth light, 400 lm graze strip — still the numbers Benton can hold
-# against a product page. Only what leaves for V-Ray changed.
+# pendant, 600 lm sconce, 2,800 lm track head, 1,600 lm wall washer, 400 lm
+# graze strip — still the numbers Benton can hold against a product page.
+# Only what leaves for V-Ray changed. (The 800 lm booth interior light was
+# removed at 1.44.0 — see BOOTH_ROLES.)
 #
 # ===========================================================================
 # ===========================================================================
@@ -250,11 +253,18 @@ module WR_DropLights
                          #   flush light inside it — no cheap, testable way
                          #   to detect a slab is known, so this stays flush
                          #   and the console says so at placement.
-  BOOTH_DROP    = 6.0    # in below the booth's OUTER top for its interior
-                         #   light — a booth IS closed-top, so flush would
-                         #   put the light inside the roof tray; 6" clears
-                         #   it (assumed tray thickness — the pre-flush
-                         #   figure, which Benton has seen emit).
+  BOOTH_DROP    = 6.0    # in below the booth's OUTER top for the foam graze
+                         #   — a booth IS closed-top, so flush would put the
+                         #   light inside the roof tray; 6" clears it
+                         #   (assumed tray thickness — the pre-flush figure,
+                         #   which Benton has seen emit). CAUTION, 1.44.0:
+                         #   bb.max.z is the booth's OUTER bounds, so a roof
+                         #   vent, fan or EFS housing standing on the roof
+                         #   raises it, and "6 below the top" then lands in
+                         #   or above the tray. That is the likeliest reading
+                         #   of the interior light "always missing" (derived,
+                         #   not observed) and it applies to the foam graze
+                         #   too — if the graze misses, this is where.
   EDGE_MIN      = 18.0   # in — absolute floor on distance to any wall
   EDGE_CAP      = 36.0   # in — cap on the edge keep-away (the 2-3' band)
   KEEPOUT_PAD   = 12.0   # in — obstruction footprint inflation (assumed)
@@ -262,7 +272,6 @@ module WR_DropLights
                          #      mount plane minus this (catches a 7' booth
                          #      under an 8' ceiling)
   TARGET_FC     = 40.0   # footcandles on the floor — mid retail band
-  BOOTH_FC      = 30.0   # footcandles inside the booth
   CU            = 0.6    # coefficient of utilization (assumed)
   WASH_STANDOFF = 24.0   # in off the washed wall (low end of sourced 2-3')
   WASH_SPACING  = 1.5    # spacing = this x standoff (sourced 1.2-1.5 band)
@@ -370,18 +379,25 @@ module WR_DropLights
                   :u => 12.0, :v => 36.0, :emitters => 1, :lumens => 1600.0,
                   :kelvin => 5000, :budget => :room, :visible => false,
                   :fixture => nil, :disc => false, :tilt => 60.0, :dir => nil },
-    :booth   => { :label => 'Booth interior', :n => 1, :emitter => :rect,
-                  :u => 12.0, :v => 24.0, :emitters => 1, :lumens => 800.0,
-                  :kelvin => 4000, :budget => :booth, :visible => false,
-                  :fixture => nil, :disc => false, :tilt => nil, :dir => nil },
     :foam    => { :label => 'Foam graze', :n => 1, :emitter => :rect,
                   :u => 4.0, :v => 36.0, :emitters => 1, :lumens => 400.0,
                   :kelvin => 3500, :budget => :booth, :visible => false,
                   :fixture => nil, :disc => false, :tilt => nil, :dir => nil }
   }.freeze
 
-  # Roles that only exist when a booth stands in the room.
-  BOOTH_ROLES = [:key, :rim, :booth, :foam].freeze
+  # Roles that only exist when a booth stands in the room. The rig's own
+  # BOOTH INTERIOR light (role :booth, 800 lm, 12x24 under the tray) was
+  # REMOVED at 1.44.0. Benton, 10 Sep 2026: "remove the 'booth interior
+  # lights' option. It always misses and our booths already have them
+  # implemented." Every link-built WhisperRoom carries BoothLighting.skp
+  # (build-booth-components.rb, one per ceiling tile), so the rig's light
+  # was at best a double and at worst — see BOOTH_DROP — in the roof tray.
+  # 1.32.0 detected his light and skipped the rig's when found; that
+  # detection cannot be wrong now because there is nothing to skip. This
+  # tool places NOTHING inside a booth's interior. The stale sweep still
+  # removes a :booth light a pre-1.44.0 press left behind: collect_lights
+  # keys on the presence of the `role` attribute, not its value.
+  BOOTH_ROLES = [:key, :rim, :foam].freeze
 
   # --- UNITS, and the four constants that went away -----------------------
   # UNITS_SCALAR / REF_INTENSITY / REF_AREA / REF_LUMENS / AREA_NORMALIZED
@@ -790,12 +806,6 @@ module WR_DropLights
     (area_sqin / 144.0 * TARGET_FC / CU / count * mult).round
   end
 
-  # Booth interior: booth footprint x 30 fc / CU, one fixture.
-  # A 24 sqft booth lands at 1,200 lm — the seed's 1,000 lm is in range.
-  def self.booth_lumens(area_sqin, mult)
-    (area_sqin / 144.0 * BOOTH_FC / CU * mult).round
-  end
-
   # Enclosure trim for the ROOM budget only (spec §6). Booth-side roles never
   # trim — the sky was never getting into the booth (observed: capping costs
   # the room view ~1.5 stops and the booth interior 4%).
@@ -905,7 +915,7 @@ module WR_DropLights
 
   # ---- per-layer overrides from the settings panel -------------------------
   #
-  # The rig's seven roles are a designed palette, not a pile of lights, so the
+  # The rig's six roles are a designed palette, not a pile of lights, so the
   # panel does not let you rebuild them — it SCALES them. Every layer carries
   # its own intensity multiplier and its own Kelvin nudge on top of the table,
   # which is what "make our own lights and set those to be used" needs without
@@ -2490,7 +2500,7 @@ module WR_DropLights
     end
     wants = []
     # invisible FIRST, and it is now PER LAYER rather than a constant: five
-    # of the seven roles are visible fixtures, which is the whole point of
+    # of the six roles are visible fixtures, which is the whole point of
     # the redesign. An invisible emitter inside a visible shade would be a
     # fixture that does not glow.
     wants << [:invisible, !spec[:visible]]
@@ -2841,10 +2851,12 @@ module WR_DropLights
 
   # The V-Ray lights a booth ALREADY carries that this tool did not make —
   # BoothLighting.skp from the booth builder, or anything Benton put there.
-  # A light whose plugin reads enabled == false is not counted (it emits
-  # nothing, so the rig's light is still wanted); an unreadable one IS
-  # counted, because the loud failure here is a doubled light, not a
-  # missing one. Returns [[path, plugin, intensity, enabled], ...].
+  # REPORTING ONLY since 1.44.0: the rig places nothing inside a booth, so
+  # this decides nothing; it is kept because "this booth carries N lights
+  # of its own" is the line that proves, on the console, that the interior
+  # is lit by his light and not by nothing. A light whose plugin reads
+  # enabled == false is not counted (it emits nothing); an unreadable one
+  # IS counted. Returns [[path, plugin, intensity, enabled], ...].
   def self.booth_own_lights(booth, scene)
     found = []
     foreign_lights(child_entities(booth), found)
@@ -2857,11 +2869,15 @@ module WR_DropLights
   end
 
   def self.booth_light_note(bname, own)
+    if own.empty?
+      return format('booth "%s" carries NO V-Ray light of its own that this tool can ' \
+                    'see — its interior will render unlit. The rig places nothing ' \
+                    'inside a booth (1.44.0); drop BoothLighting.skp in, or a light ' \
+                    'of your own.', bname)
+    end
     plugs = own.map { |_, p, _, _| p.empty? ? '(unresolved)' : p }.uniq
-    format('booth "%s" already carries %d light%s of its own (%s) — the rig\'s ' \
-           'interior light was NOT added on top. That light was authored for the ' \
-           'factory camera and is right at ISO 100; delete it if you want the ' \
-           'rig\'s 800 lm light instead.',
+    format('booth "%s" carries %d light%s of its own (%s) — that is the interior ' \
+           'light; the rig places none (1.44.0).',
            bname, own.size, own.size == 1 ? '' : 's', plugs.join(', '))
   end
 
@@ -3629,8 +3645,8 @@ paint(); drawPresets("");
       erased, reap_pending = erase_lights(stale)
 
       puts ''
-      puts format('Drop Interior Lights 1.43.1 — brightness %s (x%.2f), ' \
-                  'warmth %s (%+d K), units 1 (LUMENS), seven roles',
+      puts format('Drop Interior Lights 1.44.0 — brightness %s (x%.2f), ' \
+                  'warmth %s (%+d K), units 1 (LUMENS), six roles',
                   opts[:bright], opts[:mult], opts[:warmth], opts[:koffset])
       unless stale.empty?
         puts format('  replacing %d previously dropped light%s - their ' \
@@ -3655,7 +3671,7 @@ paint(); drawPresets("");
       ceilings_added = 0
       walls_added = 0
       wall_notes = []   # one line per room, shown in a window when walls were asked for
-      booth_notes = []  # booths whose own light stopped the rig's interior light
+      booth_notes = []  # per booth: the light it carries of its own (the rig adds none)
       room_lm = 0.0
       booth_lm = 0.0
       press_uuid = format('%d-%06d', Time.now.to_i, rand(1_000_000))
@@ -3754,8 +3770,10 @@ paint(); drawPresets("");
           next
         end
 
-        # A selected booth is merchandise, not a room: it gets the interior
-        # light only.
+        # A selected booth on its own is merchandise, not a room, and since
+        # 1.44.0 the rig places nothing inside a booth: it is reported —
+        # what light it carries of its own — and left alone. Its key, rim
+        # and foam graze come from the ROOM it stands in; select the room.
         if booth?(s)
           bb = s.bounds
           c = Geom::Point3d.new((bb.min.x + bb.max.x) / 2.0,
@@ -3767,18 +3785,9 @@ paint(); drawPresets("");
                  "\"#{display_name(host)}\" — handled with that room."
             next
           end
-          pt = [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0,
-                bb.max.z - BOOTH_DROP]
-          lm = layer_lumens(LIGHT_LAYERS[:booth][:lumens], opts[:mult],
-                            role_scale(:booth, opts), opts[:cam_gain])
-          own = booth_own_lights(s, scene)
-          if own.empty?
-            place.call(:booth, pt, lm)
-            puts "  #{name}: selected booth — 1 interior light at #{fmt(pt)}, #{lm.round} lm"
-          else
-            booth_notes << booth_light_note(name, own)
-            puts "  #{booth_notes.last}"
-          end
+          booth_notes << booth_light_note(name, booth_own_lights(s, scene))
+          puts "  #{name}: selected on its own — nothing placed. #{booth_notes.last}"
+          puts "  #{name}: select the ROOM it stands in to get its key, rim and foam graze."
           next
         end
 
@@ -4044,27 +4053,12 @@ paint(); drawPresets("");
           booth_k = area_scale((bb.max.x - bb.min.x) * (bb.max.y - bb.min.y),
                                REF_BOOTH_SQFT)
 
-          # ROLE 6 — the booth is a sealed box: 0.0173 mean, 95.4% near-black
-          # with the room lights on and nothing inside (observed). Without
-          # this the hero product is a hole in every frame.
-          # BUT NOT ON TOP OF THE BOOTH'S OWN LIGHT. Every link-built booth
-          # already carries BoothLighting.skp, one per ceiling tile
-          # (build-booth-components.rb, default on), and collect_lights never
-          # sees it — so before this check every link booth got TWO interior
-          # emitters per press (.forge/fixer/sun-blowout.md). Where the booth
-          # has a live light of its own, the rig's is not placed and the
-          # console says so; his light is right at the factory camera.
-          bpt = [cx, cy, bb.max.z - BOOTH_DROP]
-          own = booth_own_lights(o[:ent], scene)
-          if own.empty?
-            place.call(:booth, bpt, lm_of.call(:booth))
-            puts format('  %s: booth "%s" interior — %.0f lm at %dK, %s',
-                        name, bname, lm_of.call(:booth),
-                        layer_kelvin(4000, opts[:koffset]), fmt(bpt))
-          else
-            booth_notes << booth_light_note(bname, own)
-            puts "  #{name}: #{booth_notes.last}"
-          end
+          # NO INTERIOR LIGHT (1.44.0) — see BOOTH_ROLES. The booth is a
+          # sealed box (0.0173 mean, 95.4% near-black with the room lights on
+          # and nothing inside, observed) and what lights it is HIS
+          # BoothLighting.skp, reported here so the console proves it.
+          booth_notes << booth_light_note(bname, booth_own_lights(o[:ent], scene))
+          puts "  #{name}: #{booth_notes.last}"
 
           dc = booth_door_center(o)
           if dc.nil?
@@ -4235,7 +4229,7 @@ paint(); drawPresets("");
       # at the end so they are not lost above the layer table.
       unless booth_notes.empty?
         puts ''
-        puts '  BOOTH LIGHTS KEPT:'
+        puts '  BOOTH INTERIORS — lit by the booth\'s own light, never by this rig (1.44.0):'
         booth_notes.each { |l| puts "    #{l}" }
       end
       puts '  Each drawn fixture (F1 drum, F2 pendant, F3 sconce) is ONE group ' \
