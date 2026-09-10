@@ -573,7 +573,8 @@ module WR_ProposalPackage
     'false, or null if unread. A PROPOSAL PACK WANTS OPAQUE PLATES - flatten ' \
     'any alpha_channel: true file onto white (scripts/wr-flatten-trim.py) ' \
     'before building one. Only what the camera sees through is transparent; ' \
-    'modelled room walls stay opaque.'
+    'modelled room walls stay opaque.',
+    "image rows are written at the SketchUp window's aspect (1.31.0): a "     'screen-anchored note (Text with no leader) is placed as a fraction of '     'the frame, so a frame of another shape moves it over other geometry. '     'Leader text, pushpin text, 3D text and dimensions are anchored in the '     'model and do not move. Plates from before 1.31.0 were forced to the '     'V-Ray shape and their screen notes may sit in the wrong place.'
   ].freeze
 
   # A top-level group/component whose NAME names a booth model. The builders
@@ -1469,6 +1470,25 @@ module WR_ProposalPackage
     puts "PROPOSAL PACKAGE — #{image_rows.size} image, #{render_rows.size} render -> #{dir}"
     puts "  output size #{out_w}x#{out_h} (both lanes), annotation: " \
          "#{client_safe ? 'HIDDEN (client-safe)' : 'SHOWN (draft)'}"
+    # THE SHAPE OF THE PLAIN IMAGES, BY NAME (1.31.0). Read the window here
+    # so the log says what the plates will be BEFORE the first one lands,
+    # and how far from the V-Ray size they are.
+    begin
+      vw = model.active_view.vpwidth.to_i
+      vh = model.active_view.vpheight.to_i
+      @viewport = [vw, vh]
+      if vw > 0 && vh > 0 && image_rows.any?
+        ih = (out_w.to_i * vh / vw.to_f).round
+        puts "  plain images: #{out_w}x#{ih} - the window's shape "              "(#{vw}x#{vh}), so screen notes land where they were placed"
+        if (ih - out_h.to_i).abs > 2
+          log(dlg, "plain images will be #{out_w}x#{ih} (the SketchUp window "                    "is #{vw}x#{vh}); V-Ray renders stay #{out_w}x#{out_h}. "                    "Written at the window's shape so screen-anchored notes "                    'land where you placed them. For image and render plates '                    'of ONE shape, make the window '                    "#{out_w}:#{out_h} first (undock trays / resize) and run again.", 'dim')
+        else
+          log(dlg, "plain images: #{out_w}x#{ih}, the window's shape - same as "                    'the V-Ray size', 'dim')
+        end
+      end
+    rescue Exception
+      @viewport = nil
+    end
     if @transparent
       puts '  background: TRANSPARENT (alpha) - not for a proposal pack ' \
            'without flattening first'
@@ -2063,7 +2083,20 @@ module WR_ProposalPackage
   # one. shade_reapply is a no-op when SHADING is unticked (@shade_saved nil).
   def self.image_cfg(hide, dlg, p = nil)
     { 'dir' => @cfg['dir'], 'width' => @cfg['width'],
-      'height' => @cfg['height'],
+      # PLAIN IMAGES ARE WRITTEN AT THE VIEWPORT'S OWN SHAPE (1.31.0).
+      # Benton, 10 Sep 2026: "I know the text I had typed fit in the
+      # drawing, but when it got exported, it was not in the same place."
+      # A screen-anchored note (Sketchup::Text with no leader) is placed as
+      # a fraction of the frame, not at a model point; write a frame of a
+      # different shape and the note lands over different geometry. From
+      # 1.9.3 (D4) to 1.30.1 this lane forced the V-Ray size (1600x900)
+      # whatever the window was, so every screen note in every plain
+      # plate moved. No height here => export-scenes.rb derives it from
+      # view.vpwidth/vpheight ('viewport' in the detail). The V-Ray lane
+      # keeps the Asset Editor size: V-Ray does not draw screen text at
+      # all, so nothing moves there. The two lanes now differ in shape
+      # unless the window is made to match - start_run says so by name.
+      'height' => nil,
       # 'Transparent' makes export_pages pass :transparent => true to
       # write_image and switch DrawGround / DrawHorizon / DisplayFog off
       # after each scene switch, restoring them in its ensure (export-
@@ -2087,9 +2120,9 @@ module WR_ProposalPackage
 
   def self.unit_image(model, dlg, p)
     plan = [{ :page => p[:page], :n => p[:n], :base => p[:base] }]
-    # D4: an EXPLICIT height, so an image row and a render row of the same
-    # scene come out the same shape. Before 1.9.3 only width was passed and
-    # export-scenes.rb derived the height from the SketchUp window.
+    # D4 (1.9.3) passed an EXPLICIT height so an image row and a render row
+    # came out the same shape. WITHDRAWN in 1.31.0: that moved every
+    # screen-anchored note (see image_cfg). The height is the window's now.
     # HIDE THESE AFTER EVERY PAGE SWITCH, NOT BEFORE THE EXPORT.
     #
     # The image lane runs in DRAFT mode, whose policy hides WR_Mode::LIGHT_TAGS
@@ -2962,6 +2995,10 @@ module WR_ProposalPackage
              'width'       => @cfg['width'].to_i,
              'height'      => @cfg['height'].to_i,
              'size_source' => @size_source.to_s,
+             # 1.31.0: width/height above are the V-RAY size. Image rows
+             # carry their own width/height, written at the window's shape.
+             'image_shape' => 'viewport - plain images are written at the SketchUp '                               "window's aspect so screen-anchored notes stay put; "                               "see each image row's width/height",
+             'viewport'    => @viewport,
              'annotations_hidden_in_images' => (@client_safe ? true : false),
              'transparent_background' => (@transparent ? true : false),
              'annotation_scope' => 'model-space top level (model.entities) - ' \
@@ -4578,7 +4615,7 @@ module WR_ProposalPackage
   <span class="lbl">IMAGES</span>
   <div class="half">
     <span class="lbl">WIDTH</span><input type="text" id="width" value="#{escAttr(width)}">
-    <span class="lbl">PX — height follows the viewport aspect. V-Ray renders use the size in the V-Ray Asset Editor.</span>
+    <span class="lbl">PX — plain images: width from the V-Ray Asset Editor when it can be read (this field is the fallback), height follows the SketchUp window's shape so screen notes land where you placed them. V-Ray renders use the Asset Editor size exactly; make the window that shape for plates of one size.</span>
   </div>
   <span></span>
 

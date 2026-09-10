@@ -1021,3 +1021,25 @@ neither verified live. The file on disk is checked after every write
   `wr-preflight.rb` untouched (window + Fix intact); `wr-pack-export.rb`
   still blocks on it, wording fixed.
 - Check: WR-Dims visible, Export, no modal.
+
+
+---
+
+# HANDOFF — screen notes move on export (Fixer, 10 Sep 2026, 1.31.0)
+
+- **observed** cause: `image_cfg` forced the V-Ray height (D4, 1.9.3);
+  `out_height` honours it over the window; nothing read the viewport
+  aspect. V-Ray lane unaffected (no Sketchup::Text in renders).
+- **reported/derived**: only no-leader (`ALeaderNone`) notes move; leader,
+  pushpin, 3D text and dimensions are model-anchored.
+- **observed**: Revision plate 05's no-leader note sits across the door
+  frame; 02's "Outlet on ceiling" block and every bottom-left title block
+  are no-leader too. Re-export before trusting any pre-1.31.0 plate with a
+  no-leader note.
+- Fix: plain lane written at the window's shape (`'height' => nil`);
+  start_run logs plate size vs window vs V-Ray size; manifest `viewport`
+  + `image_shape` + field note; WIDTH label corrected. D4 withdrawn: one
+  shape for both lanes only by making the window the Asset Editor ratio.
+- Two-point: one hedged sighting; manifest `two_point_view_at_export` is
+  the record to read. Not marked fixed.
+- Check: no-leader note against an edge, export, compare PNG to viewport.

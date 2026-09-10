@@ -1,6 +1,81 @@
 # DEVLOG
 
 ## 2026-09-10
+### Plain images are written at the window's shape: screen notes stop moving — 1.31.0
+
+Benton, 10 Sep 2026: *"I just ran an image, it was in 2 point
+perspective. Maybe its good? But I know the text I had typed fit in the
+drawing, but when it got exported, it was not in the same place. thats
+an issue."* **Unrun in SketchUp.** `rbparse.py` 71/71,
+`rbtest-proposal.py` PASS (h1–h4 still hold: an explicit height still
+wins in `out_height`; the package just stops passing one), `node
+--check` ok. Minor bump: the shape of every plain plate changes.
+
+**Cause, confirmed in the code path (observed).** `unit_image` →
+`image_cfg` passed `'height' => @cfg['height']` — the V-Ray Asset
+Editor size (1600x900, `honoured_size`) — and export-scenes.rb's
+`out_height` honours an explicit height over the window
+(`view.vpwidth/vpheight`). So since D4 (1.9.3, 30 Aug) every plain
+plate was a 16:9 frame written from a window of whatever shape the
+trays left it. Nothing reconciled the two: no code read the viewport
+aspect on the package side at all. The V-Ray lane renders at the Asset
+Editor size by design and V-Ray does not draw `Sketchup::Text`, so
+nothing moves there.
+
+**Which text moves (reported, ruby.sketchup.com Sketchup::Text).**
+Leader types are `ALeaderNone`, `ALeaderView`, `ALeaderModel`. A
+no-leader note (the Text tool clicked on empty screen) is positioned in
+the frame, not at a model point — write a frame of another shape and it
+lands over other geometry; that is the mechanism (**derived**: the docs
+do not spell out the coordinate space, and this is unverified live).
+View-leader text has its arrow anchored to a model point with the text
+hung off it; pushpin text, 3D text and dimensions are model geometry.
+So: **no-leader screen notes move; everything with an anchor does not.**
+
+**Evidence in the PeoplesSpace Revision set (observed, pixels).**
+`05_CablePassagePlugs.png`: the no-leader note "Cable Passage Plugs for
+running power and data cables." sits across the door-frame edge inside
+the booth with no leader — the drift symptom (the original pack's
+clipped "Cable Passag / for running po" is the same note one frame
+shape earlier). `02_Overview.png`'s "Outlet on ceiling…" block and
+every plate's bottom-left "WhisperRoom / Exterior Dimensions" block are
+no-leader text too and will have shifted; the leader notes in 04 and 06
+("Outlet around here is perfect", "Will need to double stack…") have
+arrows anchored in the model and stayed put. **Every pre-1.31.0 plate
+carrying a no-leader note should be re-exported before it is trusted.**
+
+**The fix, and the tradeoff.** `image_cfg` passes no height; the plain
+lane is written at `width x (width * vph / vpw)` — the window's own
+shape — so the frame Benton composed is the frame that is written.
+D4's same-shape promise is withdrawn: image plates and V-Ray plates now
+differ in shape unless the window is the Asset Editor's ratio. Faithful
+placement wins over uniform pages (a note pointing at the wrong thing
+is the failure this repo exists to prevent); the two can only both be
+had by making the window that shape by hand — there is no viewport
+resize in the API — and `start_run` now reads `vpwidth/vpheight`, logs
+`plain images will be 1600x842 (the SketchUp window is 2169x1142);
+V-Ray renders stay 1600x900 … make the window 1600:900 first` when they
+differ, and the manifest carries `viewport` and `image_shape`. The
+WIDTH label is corrected too: it said height followed the viewport
+(false since D4, true again now) and did not say the width comes from
+V-Ray when readable. Anyone relying on plain plates being exactly
+1600x900 (the proposal generator fits each plate into a box and the
+playbook trims margins, so not it) needs the window at 16:9.
+
+**Two-point.** His image came out two-point — one hedged observation,
+not recorded as fixed. Since 1.29.0 the manifest says per plate:
+`two_point_scene` / `two_point_view_at_export` (image rows also
+`two_point_view_after_write`). **Read those rather than eyeballing
+verticals.** A `true` there is the viewport's flag at the last moment
+before the write; the file's own verticals remain the proof, and the
+1.31.0 change removes the foreign-size write that was the leading
+suspect for both defects.
+
+**Benton's check.** Place a no-leader note where it just fits against
+an edge, export the scene as a plain image, open the PNG beside the
+viewport: the note sits in the same place against the same geometry,
+and the log's first lines name the plate size and the window size.
+
 ### Preflight: the dimension-tags row no longer blocks the proposal package — 1.30.1
 
 Benton, 10 Sep 2026, after pressing Export: *"ignore the dimensions
