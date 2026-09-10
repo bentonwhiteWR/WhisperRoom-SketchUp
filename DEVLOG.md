@@ -1,6 +1,69 @@
 # DEVLOG
 
 ## 2026-09-10
+### REGRESSION FIX: V-Ray save raised "given 2, expected 1" — every render row failed — 1.31.3
+
+**Observed in the field** (Benton, screenshot): `PROPOSAL PACKAGE — 0
+exported, 0 skipped, 1 FAILED … save_vfb_image raised ArgumentError:
+wrong number of arguments (given 2, expected 1)` with a finished
+1600x900 frame in the VFB. The render succeeded; the save did not.
+**No partial folder**: the failing row is the save itself, so nothing
+was written and nothing earlier in the folder was touched — time lost,
+no work. Patch bump. `rbparse.py` 71/71, `rbtest-proposal.py` PASS,
+`node --check` ok — and see below on why those four greens could not
+have seen this.
+
+**Signature (observed, local docs).**
+`C:\Program Files\Chaos\V-Ray\V-Ray for SketchUp\extension\documentation\VRay\VRayRenderer.html`:
+`save_vfb_image(path, options) => Boolean`, `Options: :skip_alpha,
+:frame_number, :no_alpha, :single_channel, :skip_rgb,
+:write_integer_ids, :multi_channel, :apply_color_corrections`. That is
+a YARD `@option` list — Ruby-3 **keywords** — and Ruby 3 does not
+convert a positional Hash into keywords, so `save_vfb_image(path,
+some_hash)` is two positionals to a one-positional method: exactly the
+error on screen. The braceless `:skip_alpha => true, :no_alpha => true`
+the 30 Aug live check used IS keyword syntax, which is why it worked.
+
+**What actually happened, and since when.** `SAVE_OPTS` (1 Sep) was
+passed as a Hash variable from day one — so the first save call has
+raised at every render since 1 Sep, and the braceless fallback in the
+rescue carried every render while logging a false
+"`:apply_color_corrections` was REJECTED by this V-Ray build
+(ArgumentError)". 1.30.0 (mine) rewrote that fallback as a Hash
+variable too, to drop `:no_alpha` for transparency — and the last
+working call went with it. Both sites now use `**opts`, which is
+keywords to a `**options` method and a positional hash to an
+`options = {}` one, so it is right under either reading.
+Consequence worth knowing: `:apply_color_corrections` will now REACH
+V-Ray for the first time; if this build rejects it, the fallback still
+saves and the log says so — truthfully this time.
+
+**Can the V-Ray lane do transparency?** Yes, by the documented
+`:no_alpha` option: omitting it keeps the alpha channel in the colour
+file (F4 observed exactly that on 28 Aug with no options at all). The
+BACKGROUND text stands. Unverified live under 1.31.3.
+
+**Other V-Ray calls touched in 1.30.0–1.31.x:** none — `git diff
+8fd66e1..HEAD` shows the two `save_vfb_image` sites and nothing else
+that reaches `@rend`, `VRay::` or `ctx`.
+
+**Why the harness did not catch it.** `rbparse.py` is syntax;
+`rbtest-proposal.py` lifts pure methods and never calls into V-Ray;
+`node --check` is JS. None can see arity across the plugin boundary,
+so four greens meant nothing about this line — and were reported as
+if they did. Cheap guard that would have caught it (not built now): a
+stub `VRayRenderer` in `rbtest-proposal.py` with
+`def save_vfb_image(path, **o)` and a test that drives `unit_render`'s
+save through it — a positional Hash raises the same ArgumentError
+under CRuby 3.2 offline.
+
+**What Benton should see.** A package with one render scene ends
+`PROPOSAL PACKAGE — 1 exported, 0 skipped, 0 FAILED`, the row reads
+`ok  1_<scene> render.png (V-Ray 1600x900 …)`, and the PNG is in the
+folder. If the log carries "`:apply_color_corrections` was REJECTED",
+that is now a true statement about this V-Ray build, not the fallback
+masking a Hash.
+
 ### Borrowed walls were never made: a hidden wall read as a wall — 1.31.2
 
 Benton, 10 Sep 2026, on 1.28.0: *"the walls arent being made when I

@@ -2718,8 +2718,20 @@ module WR_ProposalPackage
     # environment's own alpha setting in the Asset Editor - not touched
     # here, so the on-disk check after the save is the only proof.
     save_opts = @transparent ? SAVE_OPTS.reject { |k, _| k == :no_alpha } : SAVE_OPTS
+    # KEYWORDS, NOT A HASH (1.31.3). OBSERVED in the field, 10 Sep 2026:
+    # `save_vfb_image(path, hash)` raises ArgumentError "wrong number of
+    # arguments (given 2, expected 1)" - the frame was rendered, the save
+    # failed, 0 exported. The documented signature (VRayRenderer.html:
+    # "save_vfb_image(path, options)" with an Options: list) is Ruby-3
+    # keywords, and Ruby 3 does not turn a positional Hash into keywords.
+    # The braceless form the 30 Aug live check used (`:skip_alpha => true,
+    # ...`) IS keywords, which is why it worked; the SAVE_OPTS constant
+    # (1 Sep) never did - it raised here and the braceless fallback below
+    # carried every render since, logging a false ":apply_color_corrections
+    # was REJECTED". 1.30.0 turned the fallback into a Hash too, and the
+    # last working call went with it. `**` sends keywords either way.
     begin
-      ok = @rend.save_vfb_image(p[:path], save_opts)
+      ok = @rend.save_vfb_image(p[:path], **save_opts)
     rescue Exception => e
       # An option key this build rejects raises. :apply_color_corrections is
       # the one that could be missing, and losing the whole batch over it
@@ -2729,7 +2741,7 @@ module WR_ProposalPackage
       begin
         fallback = { :skip_alpha => true }
         fallback[:no_alpha] = true unless @transparent
-        ok = @rend.save_vfb_image(p[:path], fallback)
+        ok = @rend.save_vfb_image(p[:path], **fallback)
         @colour_baked = false
         log(dlg, "        #{p[:file]}  :apply_color_corrections was REJECTED by " \
                  "this V-Ray build (#{e.class}) - saved the RAW buffer instead. " \

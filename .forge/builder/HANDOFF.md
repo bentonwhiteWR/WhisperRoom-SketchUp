@@ -1098,3 +1098,19 @@ means the tolerance line in the new console output is the next clue.
    Pick "On every run" to enclose meanwhile.
 3. Render from inside; then `WR_DropLights.remove_rig!(Sketchup.active_model)`
    → `restore verified`, no `WR Lights Wall` left.
+
+
+---
+
+# HANDOFF — V-Ray save arity regression (Fixer, 10 Sep 2026, 1.31.3)
+
+- **observed**: `save_vfb_image(path, hash)` -> ArgumentError (given 2,
+  expected 1). Docs: `save_vfb_image(path, options)` with an Options list
+  = keywords. Both call sites now `**opts`.
+- Pre-existing: the SAVE_OPTS Hash call raised since 1 Sep; the braceless
+  fallback carried every render with a false "apply_color_corrections
+  REJECTED" line. 1.30.0 made the fallback a Hash too -> total failure.
+- No partial folder was written. V-Ray transparency stays possible
+  (`:no_alpha` is documented). No other V-Ray call was touched.
+- Harness cannot see plugin arity; a stub-renderer test would.
+- Check: one render scene -> `1 exported, 0 FAILED`, PNG on disk.
