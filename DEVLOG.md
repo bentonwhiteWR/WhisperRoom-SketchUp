@@ -1,6 +1,34 @@
 # DEVLOG
 
 ## 2026-09-10
+### FOLDER & DETAILS layout: the Browse button and the squeezed help column were one bug — 1.36.1
+
+Benton, 10 Sep 2026: *"browse button doesnt need to eat up all the
+space."* Patch bump; layout only, no wording, default or behaviour
+changed. **Unrun in SketchUp.** `rbparse.py` 71/71, `rbtest-proposal.py`
+PASS, `node scripts/jstest-proposal-dialog.js` PASS (the heredoc-aware
+check; raw `node --check` is superseded for this file).
+
+**One cause, two symptoms (observed in the CSS).** The section is a
+grid `auto 1fr auto`; column 3 sizes to its widest content. 1.35.0
+placed the CLIENT help paragraph in column 3, so that column grew to
+fit a paragraph, the Browse button — also column 3, and grid items
+stretch to their cell by default — filled ~45% of the window, and
+column 2 (`1fr`) was squeezed into the narrow ribbon the SUBFOLDER
+label and the IMAGES help wrapped in. Not deliberate; a placement
+error of mine from earlier today.
+
+**Fix.** The CLIENT help moved to its own row in column 2 (the same
+cell pattern the ANNOTATION help uses; text identical), so column 3
+holds nothing wider than the button; and `.out .btn { justify-self:
+start }` so a button in that grid is never stretched to its cell —
+Browse is the only such button today, the rule covers any other. Path
+field keeps `width:100%` in the `1fr` column and so takes the room.
+
+**Benton's glance.** Open the window: Browse is button-sized beside a
+full-width path field, and the SUBFOLDER / IMAGES help runs across the
+section in a few lines instead of a tall ribbon.
+
 ### REGRESSION FIX: empty scene table — the whole dialog script failed to parse — 1.35.1
 
 Benton, 10 Sep 2026: *"ugh i think its broken. None of the scenes are

@@ -4867,6 +4867,7 @@ module WR_ProposalPackage
   .out .half .lbl { width:auto; }
   .out .half input[type=text] { width:72px; }
   .out .shadelbl { font-size:11.5px; color:var(--muted); }
+  .out .btn { justify-self:start; }
 
   .runlog { flex:1 1 auto; margin:0; background:#20262a; color:#cdd6da;
             border-radius:0 0 8px 8px; font:11px/1.5 Consolas,monospace; padding:7px 10px;
@@ -4948,7 +4949,10 @@ module WR_ProposalPackage
 
   <span class="lbl">CLIENT</span>
   <input type="text" id="client" value="#{escAttr(fname)}" style="max-width:320px">
+  <span></span>
+  <span class="lbl"></span>
   <span class="lbl">Goes into the PROMPT FOR CLAUDE after the run, nothing else. Starts as the model's file name; type the client's real name.</span>
+  <span></span>
 
   <span class="lbl">IMAGES</span>
   <div class="half">

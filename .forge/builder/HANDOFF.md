@@ -1292,3 +1292,14 @@ images plain image rows or ` render.png` rows?"**
   passes on the fix. Add it to every dialog change.
 - Check: NewTemplate shows 4 rows and GOES TO; a saved model shows
   `<root>/<name>/`.
+
+
+---
+
+# HANDOFF — FOLDER & DETAILS layout (Fixer, 10 Sep 2026, 1.36.1)
+
+- Grid `auto 1fr auto`; my 1.35.0 CLIENT help sat in the auto column and
+  widened it: stretched Browse + squeezed column 2. One cause.
+- Help moved to a column-2 row (text unchanged); `.out .btn
+  { justify-self:start }`. Nothing else touched.
+- Check: Browse button-sized, path field fills the row, help text wide.
