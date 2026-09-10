@@ -1639,3 +1639,34 @@ SketchUp.** rbparse 74/74; rbtest-lights 52 + 10 PASS; six mutants killed.
 3. **If fixtures render as white blobs in (1)**: `CAMERA_GAIN` → `1.0`,
    nothing else. If they are barely there: read the per-layer lines — the
    written figure should be ~320x the table.
+
+
+---
+
+# HANDOFF — booth dimensions: vent box not assembly box; caster plate in the height (Builder, 10 Sep 2026, 1.42.0)
+
+Second field fix. Unrun in SketchUp.
+
+## Produced
+- `scripts/dimension-whisperroom.rb` — pure: `LEVEL_TOL`, `PANEL_CLEAR`,
+  `PANEL_THICK`, `level_totals`, `biggest`, `vent_box_level`; `classify`
+  → `:caster`; `EXCLUDE_RE` + `RFU` / `RM<digits>`; `extent_from_parts`
+  plate into z0 with `ext[:plate]`. API: `face_levels`, `vent_box_bound`
+  (bound moves inward to the vent-box face only), console lines
+  `vent box:` / `beyond it:` / `not counted:` / plate INCLUDED;
+  cross-check adds the plate.
+- `scripts/rbtest-boothdims.py` — 127 checks; three new mutants.
+- VERSION 1.42.0.
+
+## What I could not observe
+- The thickness-axis faces of `46Vnt_VSS_EFS_CP`: no probe on disk has
+  them. The rule (largest outboard level = the box) is physical, not
+  tuned, but its first live run is the proof.
+- Where Benton's plate actually sits. Builder datum gives 88.75; his
+  88.0625 = 84.3125 + 3.75 has no model-side source I could find. Both
+  pinned in the harness; console reports the split either way.
+
+## Benton's check
+Same booth → Dimension: `8' 7 1/2"` × `6' 7 1/2"`, height `7' 4 3/4"`
+with `4 7/16" … is plate` (or his figure with `3 3/4"`). Read the
+`vent box:` lines. Worst failure: `*** … had no readable faces`.

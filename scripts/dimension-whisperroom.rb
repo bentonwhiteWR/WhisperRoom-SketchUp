@@ -137,7 +137,12 @@ module WR_BoothDims
   # booth: never vote. The inner IEP shell ("N0i  ENH 41.5VNT") fails WALL_RE
   # on its own — \d+ then \s, and the i is in the way — and mid-wall seals
   # ("N-seal0") never matched it. Both are excluded by construction.
-  EXCLUDE_RE = /\AMISSING|roof unit|caster plate|elevated floor|\AEFP\d/i.freeze
+  # The roof/fan unit under every name it has carried: the overlay's "RM7296
+  # roof unit", a bare "RFU", a bare "RM96". It never sets the footprint —
+  # Benton, 10 Sep 2026: "the side dimensions seem to be catching the edge
+  # of the RFU, but we need to give dimensions of the vent boxes." Whether
+  # it counts toward the HEIGHT is still his call and it is out of both.
+  EXCLUDE_RE = /\AMISSING|roof unit|\bRFU\b|\ARM\d{2,5}\b|elevated floor|\AEFP\d/i.freeze
   CASTER_RE  = /caster plate/i.freeze
   VENT_RE    = /v(?:e)?nt/i.freeze
 
@@ -152,7 +157,9 @@ module WR_BoothDims
   # and nothing is lost.
   def self.classify(name)
     n = name.to_s
-    return nil if n.empty? || n =~ EXCLUDE_RE
+    return nil     if n.empty?
+    return :caster if n =~ CASTER_RE
+    return nil     if n =~ EXCLUDE_RE
     return :floor   if n =~ FLOOR_RE
     return :ceiling if n =~ CEIL_RE
     return :corner  if n =~ CORNER_RE
@@ -186,6 +193,61 @@ module WR_BoothDims
 
   def self.booth_name?(name)
     !(name.to_s =~ NAME_RE).nil?
+  end
+
+  # THE VENT BOX, NOT THE ASSEMBLY BOX. A vent part's bounding box is the
+  # whole assembly — housing, silencer, duct collar, cable-passage plate,
+  # whatever the .skp author left standing proud — and on Benton's 7296 E
+  # on a CP that box reached 15/16 in past the vent box on BOTH vented walls
+  # (8' 8 7/16" and 6' 8 7/16" against his 8' 7 1/2" and 6' 7 1/2"). The
+  # extent of a wall part along its wall normal is therefore read off its
+  # FACES: every wall-parallel face is a [level, area]; the PANEL is the
+  # level carrying the most area; the VENT BOX is the outboard level beyond
+  # the panel carrying the most area; anything further out is a fitting,
+  # reported and not counted. A solid panel has no outboard level and reads
+  # at its own face. No figure in here is a constant of the product.
+  LEVEL_TOL   = 0.0625   # faces within this are one level (a grille, a rim)
+  PANEL_CLEAR = 0.25     # outboard means further than this from the panel
+  PANEL_THICK = 3.0      # a panel's two faces sit within this (wall_slab's bound)
+
+  # [[level, area], ...] -> [[level, total_area], ...] merged within LEVEL_TOL,
+  # sorted by level.
+  def self.level_totals(levels)
+    out = []
+    levels.sort_by { |l, _a| l }.each do |l, a|
+      if !out.empty? && (l - out.last[0]).abs <= LEVEL_TOL
+        out.last[1] += a
+      else
+        out << [l, a]
+      end
+    end
+    out
+  end
+
+  def self.biggest(tot)
+    best = nil
+    tot.each { |la| best = la if best.nil? || la[1] > best[1] }
+    best
+  end
+
+  # out_sign is +1 when outboard is +axis (N, E walls), -1 otherwise.
+  # The PANEL is a band: the level carrying the most area plus every level
+  # of at least half that area within PANEL_THICK of it (a panel has an
+  # inner and an outer face an inch apart, both huge). Its outboard edge is
+  # :panel. Returns { :panel, :box, :box_area, :beyond => [[level, area],
+  # ...] } or nil when there are no faces to read.
+  def self.vent_box_level(levels, out_sign)
+    tot = level_totals(levels)
+    return nil if tot.empty?
+    big = biggest(tot)
+    band = tot.select { |l, a| (l - big[0]).abs <= PANEL_THICK && a >= big[1] * 0.5 }
+    panel = nil
+    band.each { |l, _a| panel = l if panel.nil? || (l - panel) * out_sign > 0.0 }
+    beyond = tot.select { |l, _a| (l - panel) * out_sign > PANEL_CLEAR }
+    return { :panel => panel, :box => panel, :box_area => big[1], :beyond => [] } if beyond.empty?
+    box = biggest(beyond)
+    further = beyond.select { |l, _a| (l - box[0]) * out_sign > LEVEL_TOL }
+    { :panel => panel, :box => box[0], :box_area => box[1], :beyond => further }
   end
 
   # A WALL PART ONLY PUSHES THE BOUND NORMAL TO ITS OWN WALL. Benton, on an
@@ -309,6 +371,19 @@ module WR_BoothDims
         ext[:z1_by] = name
       end
     end
+    # A caster plate is part of how tall the booth is (Benton, 10 Sep 2026,
+    # 7296 E on a CP: "these should be ... 7' 4 1/16""). The plate bottom is
+    # the bottom of the booth; how much it adds below the floor stack is
+    # recorded so the console and the cross-check can say so.
+    floor_z0 = ext[:z0]
+    parts.each do |name, b|
+      next unless classify(name) == :caster
+      if ext[:z0].nil? || b[2] < ext[:z0]
+        ext[:z0] = b[2]
+        ext[:z0_by] = name
+      end
+    end
+    ext[:plate] = (floor_z0 && ext[:z0] < floor_z0) ? floor_z0 - ext[:z0] : nil
     # No deck at all: the walls carry the height, and the report says so.
     if ext[:z0].nil? || ext[:z1].nil?
       parts.each do |name, b|
@@ -537,6 +612,56 @@ module WR_BoothDims
     nil
   end
 
+  # Every face inside a part as [level along axis, area], booth frame, for
+  # faces parallel to the wall (normal along the axis). Nested groups and
+  # components are followed the way build-booth-components.rb's
+  # collect_faces does. axis is 0 for X, 1 for Y.
+  def self.face_levels(ents, tr, axis, out, depth = 0)
+    return if depth > 8 || ents.nil?
+    ents.each do |e|
+      if e.is_a?(Sketchup::Face)
+        n = e.normal.transform(tr)
+        comp = axis.zero? ? n.x.to_f : n.y.to_f
+        next if comp.abs < 0.99
+        v = e.vertices.first
+        next if v.nil?
+        pt = v.position.transform(tr)
+        out << [(axis.zero? ? pt.x.to_f : pt.y.to_f), e.area.to_f]
+      elsif e.is_a?(Sketchup::ComponentInstance)
+        face_levels(e.definition.entities, tr * e.transformation, axis, out, depth + 1)
+      elsif e.is_a?(Sketchup::Group)
+        face_levels(e.entities, tr * e.transformation, axis, out, depth + 1)
+      end
+    end
+  rescue StandardError
+    nil
+  end
+
+  # For a wall part: its box with the outboard bound moved in to the vent
+  # box face, plus what was read. Returns [box, info] where info is nil when
+  # the faces could not be read (box used as it is) or
+  # { :letter, :bound, :box_edge, :face => vent_box_level result }.
+  def self.vent_box_bound(name, part, box)
+    m = WALL_RE.match(name.to_s)
+    return [box, nil] if m.nil?
+    letter = m[1]
+    k = wall_axis(letter)
+    axis = (k == :x0 || k == :x1) ? 0 : 1
+    sign = outward?(k) ? 1.0 : -1.0
+    ents = inner(part)
+    levels = []
+    face_levels(ents, part.transformation, axis, levels)
+    res = vent_box_level(levels, sign)
+    return [box, nil] if res.nil?
+    i = BOUND_IX[k]
+    edge = box[i]
+    # Only ever move the bound INWARD from the assembly box; a face cannot
+    # stand outside the box that contains it, so anything else is a misread.
+    nb = box.dup
+    nb[i] = res[:box] if (edge - res[:box]) * sign > 0.0
+    [nb, { :letter => letter, :bound => k, :box_edge => edge, :face => res }]
+  end
+
   # A top-level thing that is a WhisperRoom, or nil with the reason. Route 1
   # is the name (what build-booth-components, booth-4260-s and build-booth
   # all write); route 2 is the parts inside it.
@@ -546,7 +671,7 @@ module WR_BoothDims
     # A component instance may be unnamed while its definition carries the
     # model — a saved booth re-imported as a component does that.
     return true if inst.respond_to?(:definition) && booth_name?(inst.definition.name)
-    named_children(inst).any? { |n, _e| !classify(n).nil? }
+    named_children(inst).any? { |n, _e| [:wall, :corner, :floor, :ceiling].include?(classify(n)) }
   rescue StandardError
     false
   end
@@ -788,8 +913,19 @@ module WR_BoothDims
     end
     kids = named_children(inst)
     parts = kids.map { |n, e| [n, local_box(e), e] }.reject { |_n, b, _e| b.nil? }
-    pboxes = parts.map { |n, b, _e| [n, b] }
+    # Wall parts are measured to their VENT BOX face, not their assembly box.
+    vent_reads = []
+    pboxes = parts.map do |n, bx, e|
+      if classify(n) == :wall
+        nb, info = vent_box_bound(n, e, bx)
+        vent_reads << [n, info] if info
+        [n, nb]
+      else
+        [n, bx]
+      end
+    end
     names = kids.map { |n, _e| n }
+    excluded = names.select { |n| n =~ EXCLUDE_RE && n !~ CASTER_RE }
 
     ext = extent_from_parts(pboxes)
     if ext.nil?
@@ -834,6 +970,9 @@ module WR_BoothDims
     if key
       spec = specs[key]
       expected = catalogue_extent(spec[:w], spec[:h], faces, !(key =~ /\sE\z/).nil?)
+      # The catalogue height is floor-standing; a booth on a plate is taller
+      # by exactly what its plate adds, so the comparison adds it too.
+      expected[2] += ext[:plate] if ext[:plate]
       mismatch = reconcile(ax_meas, expected, ax_by)
     end
 
@@ -953,13 +1092,33 @@ module WR_BoothDims
         puts format('    overhang: "%s" on the %s wall reaches %s past the shell along %s — NOT counted in the %s; it is not on that wall',
                     nm, letter, arch(d), ax, ax == wid_ax ? 'width' : 'depth')
       end
+      vent_reads.each do |nm, info|
+        f = info[:face]
+        sign = outward?(info[:bound]) ? 1.0 : -1.0
+        box_over = (info[:box_edge] - f[:box]) * sign
+        if f[:beyond].empty? && box_over.abs <= 0.01
+          next if f[:box] == f[:panel]
+          puts format('    vent box: "%s" outer face at %.4f (%.0f sq in), the assembly box agrees', nm, f[:box], f[:box_area])
+        else
+          puts format('    vent box: "%s" outer face at %.4f (%.0f sq in); the assembly box reaches %.4f — the string stops at the VENT BOX, %s further out NOT counted',
+                      nm, f[:box], f[:box_area], info[:box_edge], arch(box_over.abs))
+          f[:beyond].each do |l, a|
+            puts format('      beyond it: a face at %.4f (%.0f sq in) — a fitting, not the box', l, a)
+          end
+        end
+      end
+      wall_names = names.select { |n| classify(n) == :wall }
+      unread = wall_names - vent_reads.map { |n, _i| n }
+      puts format('    *** %d wall part(s) had no readable faces — measured by assembly box: %s', unread.length, unread.join(', ')) unless unread.empty?
+      excluded.each { |n| puts format('    not counted: "%s" — roof/fan unit or overlay, never part of the footprint', n) }
     end
     puts format('  width   %-12s  depth   %-12s  height  %-12s   (MEASURED — what is drawn)',
                 arch(meas[:width]), arch(meas[:depth]), arch(meas[:height]))
     if key
-      puts format('  catalogue %s: %s x %s x %s  (%s, +%s per vented face: %s)', key,
+      puts format('  catalogue %s: %s x %s x %s  (%s, +%s per vented face: %s%s)', key,
                   arch(expected[0]), arch(expected[1]), arch(expected[2]), how_id,
-                  arch(VENT_PROUD), faces.empty? ? 'none' : faces.join(' '))
+                  arch(VENT_PROUD), faces.empty? ? 'none' : faces.join(' '),
+                  ext[:plate] ? format('; height + %s caster plate', arch(ext[:plate])) : '')
       if mismatch.empty?
         puts format('  agrees with the catalogue within %s on all three axes', arch(CAT_TOL))
       else
@@ -975,10 +1134,13 @@ module WR_BoothDims
     puts '  *** EFS parts in this booth: the 5 1/2 in figure is the no-EFS rule, so the catalogue line understates' if efs
     casters = names.select { |n| n =~ CASTER_RE }
     unless casters.empty?
-      cp = parts.select { |n, _b, _e| n =~ CASTER_RE }
-      h = cp.map { |_n, b, _e| b[5] - b[2] }.max
-      puts format('  caster plates: %d, %s tall — NOT in the height above (floor underside to ceiling top)',
-                  casters.length, arch(h || 0))
+      if ext[:plate]
+        puts format('  caster plate: %d part(s) — the height INCLUDES it: %s of the %s is plate, below the floor stack (Benton, 10 Sep 2026)',
+                    casters.length, arch(ext[:plate]), arch(meas[:height]))
+      else
+        puts format('  caster plate: %d part(s) found but none stands below the floor stack — the height is floor underside to ceiling top',
+                    casters.length)
+      end
     end
     kn = { :vertex => 0, :synthetic => 0, :loose => 0 }
     kinds.each { |k| kn[k] = (kn[k] || 0) + 1 }

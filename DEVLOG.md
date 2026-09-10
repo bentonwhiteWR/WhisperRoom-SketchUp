@@ -1,6 +1,78 @@
 # DEVLOG
 
 ## 2026-09-10
+### Booth dimensions: the vent box, not the assembly box; the caster plate is in the height — 1.42.0
+
+Benton, second field run, a MDL 7296 E on a CP with EFS silencers:
+*"fyi, these should be 8'7.5" x 6'7.5" by 7'4 1/16"."* The tool drew
+`8' 8 7/16"` × `6' 8 7/16"` × `7' 5/16"` — both ground axes over by exactly
+15/16 in, the height 3 3/4 in short. Then: *"The side dimensions seem to
+be catching the edge of the RFU, but we need to give dimensions of the
+vent boxes."*
+
+**The 15/16 (observed cause, fixed).** A wall part was measured by its
+`bounds` — the whole ASSEMBLY box. `46Vnt_VSS_EFS_CP` boxes `-4.75 ..
+82.3125` against an 81 in panel (`_component-probe.tsv`; the builder's
+own 1.41.1 note says the same): the box is housing + silencer + duct
+collar + plate, and whatever stands proudest sets the string. The extent
+along a wall's normal is now read off the part's FACES
+(`face_levels`, nested like the builder's `collect_faces`): every
+wall-parallel face is a [level, area]; the PANEL is the band of big faces
+(the biggest level plus any of half its area within 3 in — a panel has two
+huge faces an inch apart); the VENT BOX is the outboard level beyond that
+band carrying the most area; anything further out is a fitting. The
+bound moves inward from the assembly box to that face, never outward. The
+console prints, per vented part, the face it chose with its area, how far
+the assembly box reached past it, and every level beyond it with its
+area — so `8' 8 7/16"` becoming `8' 7 1/2"` is shown to be a 30 sq in rim
+at 104.4375 being set aside for an 1800 sq in face at 103.5, not a number
+trimmed. Parts whose faces cannot be read fall back to the box and are
+named with `***`. No product constant was added: the two figures in the
+rule are a sixteenth (faces at one level) and the builder's 3 in panel
+bound. **I could not read the 46Vnt_VSS_EFS_CP part's thickness-axis
+faces from any probe on disk (the TSVs carry z levels only), so which
+face is the 5 1/2 in one and which the 6 7/16 in one is inferred from
+Benton's reading of his screenshot, not observed; the console output of
+his first run after this will show it either way.**
+
+**The RFU / roof unit, explicit.** `EXCLUDE_RE` now also refuses `RFU`
+and `RM<digits>` (the overlay's `RM7296 roof unit` was already out), and
+every excluded part is printed as `not counted: … roof/fan unit or
+overlay`. It never set the shell corners (those are the corner seals),
+the side push (from the extent) or the block-out bounds (same regex) —
+checked. Whether it counts toward the HEIGHT is still Benton's open
+question and it stays out of that too.
+
+**The 3 3/4 (rule reversed, datum flagged).** A caster plate is now part
+of the height: `classify` returns `:caster`, it votes on the bottom only,
+and `ext[:plate]` records how much of the string is plate below the floor
+stack. The console line reads `the height INCLUDES it: 4 7/16" of the
+7' 4 3/4" is plate`, and the catalogue cross-check adds the plate to the
+floor-standing 84.3125 so a CP booth never trips a spurious `***`. **The
+figure itself:** the builder puts the plate bottom 4.75 under the STANDARD
+floor underside (`WR_Overlays.place_casters`, `z_bot = fl_bottom −
+CP_BOOTH_LIFT`, Benton's 27 Aug datum), which on an Enhanced booth is
+4 7/16 under the mat, so a link-built 7296 E on a CP will read
+**`7' 4 3/4"` (88.75)** — 11/16 over Benton's `7' 4 1/16"`, which is the
+drawn 84.3125 + exactly 3.75. I have no model-side explanation for 3.75
+and did not manufacture one: the tool reads whichever the model has and
+says how much is plate. Both datums are pinned in the harness (88.75 with
+the builder's plate, 88.0625 with a plate 3.75 under the mat) so the gap
+is on record. If Benton's 3.75 is right, the fix is the caster datum in
+`wr-overlays.rb`, not this tool.
+
+`rbtest-boothdims.py` 127 checks (21 new: `vent_box_level`,
+`level_totals`, the panel band, the CP fixture on both datums, the RFU
+names, the untrimmed-box reproduction of the reported fault). Three
+mutants killed at 4 failures each. `rbparse.py` 74/74. **Unrun in
+SketchUp.** Benton's check, this exact booth: width `8' 7 1/2"`, depth
+`6' 7 1/2"`, height `7' 4 3/4"` with the console saying `4 7/16" of … is
+plate` — or, if his plate sits where his 7' 4 1/16" implies, that figure
+with `3 3/4"` on the same line. The `vent box:` lines must name the
+1800-ish sq in face at 5 1/2 in and list the fitting beyond it; if the
+string still reads 8' 8 7/16", the `***` fallback line will say the faces
+could not be read and the fix is in `face_levels`.
+
 ### 46Vnt_VSS_EFS_CP refused as "not a wall part": the test now measures the panel — 1.41.1
 
 Benton, with a screenshot: *"Uh we do have the component. Its this

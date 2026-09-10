@@ -42,6 +42,14 @@ WHAT IT ASSERTS
   6. side_slab and aabb_overlap? — the obstruction test.
   7. catalogue_extent and reconcile — the printed cross-check, its 1/4 in
      tolerance and its axis naming.
+  9. THE VENT BOX AND THE CASTER PLATE (1.42.0): a wall part's outboard
+     extent is its vent-box FACE (the outboard level carrying the most
+     area beyond the panel band), never its assembly box; a caster plate
+     is in the height. Fixture: Benton's 7296 E on a CP, 8' 7 1/2" x
+     6' 7 1/2"; the height reads what the plate adds, and the two datums
+     in play (4.75 under the standard floor per the builder; 3.75 under
+     the mat per Benton's 7' 4 1/16") are both pinned so the gap is on
+     record, not hidden.
   8. ONE AXIS PER WALL (1.40.0): a protrusion on each of the four walls
      extends exactly the bound normal to that wall and never the other
      axis; the shell corners come from the corner seals; each protrusion
@@ -60,6 +68,9 @@ dimension-whisperroom.rb, this test run, FAIL confirmed, the file restored:
   * catalogue_extent adds the N face to X                          -> 2 failures
   * reconcile tolerance x10                                        -> 6 failures
   * walls push all four bounds again (the union box, 1.37.0 rule)  -> 10 failures
+  * vent_box_level takes the OUTERMOST level (the assembly edge)    -> 4 failures
+  * caster plate no longer lowers z0                                 -> 4 failures
+  * panel band collapses to one level (panel face becomes the box)   -> 4 failures
 
 The last one first died by crashing the harness (r[0] on an empty list) rather
 than by a FAIL line; the nil guards on those checks exist so a mutant is
@@ -106,7 +117,9 @@ check('an inner corner seal is a corner too (inboard, so it never sets an extrem
 check('a placeholder does not vote',        BD.classify('MISSING  S0  Right46Door.skp'), nil)
 check('a placeholder label does not vote',  BD.classify('MISSING label  S0'), nil)
 check('the roof unit does not vote',        BD.classify('RM7296 roof unit'), nil)
-check('a caster plate does not vote',       BD.classify('CP7296  caster plate'), nil)
+check('a caster plate votes on the height bottom only', BD.classify('CP7296  caster plate'), :caster)
+check('the roof unit under its other names does not vote',
+      ['RFU', 'RM96', 'RM7296 roof unit'].map { |n| BD.classify(n) }, [nil, nil, nil])
 check('an EFP slab does not vote',          BD.classify('EFP7296 elevated floor'), nil)
 check('a STD floor is a floor',             BD.classify('STD9648FL SIDE'), :floor)
 check('a STD ceiling is a ceiling',         BD.classify('STD9648CL SIDE R'), :ceiling)
@@ -169,7 +182,6 @@ parts << ['STD9648CL SIDE', [1.0, 1.0, 81.0, 49.0, 73.0, 82.0]]
 parts << ['STD9648CL SIDE', [49.0, 1.0, 81.0, 97.0, 73.0, 82.0]]
 parts << ['CLi  ENH 9648CL SIDE', [3.25, 3.25, 81.25, 94.75, 70.75, 83.0]]
 parts << ['RM7296 roof unit', [20.0, 20.0, 82.0, 78.0, 54.0, 92.3125]]
-parts << ['CP7296  caster plate', [4.0, 4.0, -4.5625, 94.0, 70.0, -1.3125]]
 parts << ['N0i  ENH 41.5VNT', [4.25, 69.75, 0.0, 45.75, 71.75, 79.5]]
 
 ext = BD.extent_from_parts(parts)
@@ -183,7 +195,7 @@ check('7296 E: z0 was set by the IEP mat',    ext[:z0_by], 'FLi  ENH 9648FL SIDE
 check('7296 E: z1 was set by the IEP tray',   ext[:z1_by], 'CLi  ENH 9648CL SIDE')
 check('7296 E: the open door leaf did not move the front', ext[:y0], 0.0)
 check('7296 E: the roof unit did not raise the top',       ext[:z1] < 90.0, true)
-check('7296 E: the caster plate did not lower the bottom', ext[:z0] > -2.0, true)
+check('7296 E floor-standing: no plate in the height',       ext[:plate], nil)
 check('7296 E: mode is parts',              ext[:mode], :parts)
 check('7296 E: height not from walls',      ext[:height_from_walls], nil)
 
@@ -255,6 +267,84 @@ check('no seals, no wall on one side: the union fills it and says so',
       BD.extent_from_parts(noseal.first(3))[:y0_by].include?('union used'), true)
 check('the door leaf reaching out the front still moves nothing (S is the door wall, excluded)',
       BD.extent_from_parts(small)[:y0], 0.0)
+
+# 9 - THE VENT BOX, NOT THE ASSEMBLY BOX; THE PLATE IN THE HEIGHT.
+# An E-wall vent part read off its faces, booth frame: the panel's two
+# faces at 97 and 98 (3726 sq in each), the vent box's outer face at 103.5,
+# a duct collar rim at 104.4375 and a small bracket at 100.
+lv_e = [[97.0, 3726.0], [98.0, 3726.0], [103.5, 1800.0], [104.4375, 30.0], [100.0, 5.0]]
+ve = BD.vent_box_level(lv_e, 1.0)
+check('vent box: the panel band ends at its OUTER face (98), not its biggest face',
+      ve[:panel], 98.0)
+check('vent box: the outboard level with the most area is the box (103.5)',
+      [ve[:box], ve[:box_area]], [103.5, 1800.0])
+check('vent box: the collar rim beyond it is a fitting, reported',
+      ve[:beyond], [[104.4375, 30.0]])
+check('vent box: a bracket between panel and box is not beyond', ve[:beyond].length, 1)
+lv_w = [[1.0, 3726.0], [0.0, 3726.0], [-5.5, 1800.0], [-6.4375, 30.0], [-2.0, 5.0]]
+vw = BD.vent_box_level(lv_w, -1.0)
+check('vent box on a W wall: outboard is -X, panel outer face 0, box at -5.5, rim beyond',
+      [vw[:panel], vw[:box], vw[:beyond]], [0.0, -5.5, [[-6.4375, 30.0]]])
+vs = BD.vent_box_level([[97.0, 3726.0], [98.0, 3726.0]], 1.0)
+check('a solid panel: no outboard level, the box IS the panel face', [vs[:box], vs[:beyond]], [98.0, []])
+check('grille faces within a sixteenth merge into one level',
+      BD.level_totals([[103.5, 100.0], [103.53, 200.0], [104.0, 1.0]]), [[103.5, 300.0], [104.0, 1.0]])
+check('no faces -> nil', BD.vent_box_level([], 1.0), nil)
+
+# Benton's booth: MDL 7296 E on a CP, door S, vents N and E (EFS), the vent
+# boxes trimmed to their faces the way dimension() does before the extent.
+cp = [['S0  Right46Door',        [2.0, -30.0, 0.0, 48.0, 1.0, 81.0]],
+      ['S1  46PanelSolid',       [50.0, 0.0, 0.0, 96.0, 1.0, 81.0]],
+      ['N0  46Vnt_VSS_EFS_CP',   [2.0, 73.0, -4.75, 60.0, 79.5, 82.3125]],
+      ['N1  46PanelSolid',       [50.0, 73.0, 0.0, 96.0, 74.0, 81.0]],
+      ['E0  46Vnt_VSS_EFS_CP',   [97.0, 2.0, -4.75, 103.5, 60.0, 82.3125]],
+      ['E1  22PanelSolid',       [97.0, 50.0, 0.0, 98.0, 72.0, 81.0]],
+      ['W0  46PanelSolid',       [0.0, 2.0, 0.0, 1.0, 48.0, 81.0]],
+      ['W1  22PanelSolid',       [0.0, 50.0, 0.0, 1.0, 72.0, 81.0]],
+      ['SW corner seal',         [0.0, 0.0, 0.0, 2.0, 2.0, 81.0]],
+      ['SE corner seal',         [96.0, 0.0, 0.0, 98.0, 2.0, 81.0]],
+      ['NW corner seal',         [0.0, 72.0, 0.0, 2.0, 74.0, 81.0]],
+      ['NE corner seal',         [96.0, 72.0, 0.0, 98.0, 74.0, 81.0]],
+      ['STD9648FL SIDE',         [1.0, 1.0, -1.0, 49.0, 73.0, 0.0]],
+      ['STD9648FL SIDE',         [49.0, 1.0, -1.0, 97.0, 73.0, 0.0]],
+      ['FLi  ENH 9648FL SIDE',   [3.25, 3.25, -1.3125, 94.75, 70.75, -1.0]],
+      ['STD9648CL SIDE',         [1.0, 1.0, 81.0, 49.0, 73.0, 82.0]],
+      ['STD9648CL SIDE',         [49.0, 1.0, 81.0, 97.0, 73.0, 82.0]],
+      ['CLi  ENH 9648CL SIDE',   [3.25, 3.25, 81.25, 94.75, 70.75, 83.0]],
+      ['RM7296 roof unit',       [20.0, 20.0, 82.0, 78.0, 54.0, 92.3125]]]
+# The builder's plate: bottom CP_BOOTH_LIFT 4.75 under the STANDARD floor
+# underside (-1.0), i.e. -5.75; rim 5.5 up.
+plate_builder = ['CP9648 SIDE  caster plate', [1.0, 1.0, -5.75, 97.0, 73.0, -0.25]]
+eb = BD.extent_from_parts(cp + [plate_builder])
+check("Benton's 7296 E on a CP: width 8' 7 1/2\" (103.5) — the E vent box, not the assembly",
+      [eb[:x0], eb[:x1], eb[:x1] - eb[:x0]], [0.0, 103.5, 103.5])
+check("Benton's 7296 E on a CP: depth 6' 7 1/2\" (79.5) — the N vent box",
+      [eb[:y0], eb[:y1], eb[:y1] - eb[:y0]], [0.0, 79.5, 79.5])
+check('CP: the silencer foot hanging to -4.75 on the vent parts does not touch the height (walls never vote on z)',
+      eb[:z1], 83.0)
+check('CP: the plate bottom is the bottom of the booth', [eb[:z0], eb[:z0_by]], [-5.75, 'CP9648 SIDE  caster plate'])
+check('CP: plate contribution below the mat is recorded (4.75 under the std floor = 4.4375 under the mat)',
+      eb[:plate], 4.4375)
+check("CP: with the builder's datum the height reads 7' 4 3/4\" (88.75)", eb[:z1] - eb[:z0], 88.75)
+# Benton's figure, 7' 4 1/16" = 88.0625, is the drawn 84.3125 + 3.75: a plate
+# bottom 3.75 under the MAT. Pinned so the 11/16 between the two datums is on
+# record: the tool reads whichever the model has, and says how much is plate.
+plate_benton = ['CP9648 SIDE  caster plate', [1.0, 1.0, -5.0625, 97.0, 73.0, 0.4375]]
+eb2 = BD.extent_from_parts(cp + [plate_benton])
+check("CP: a plate 3.75 under the mat reads Benton's 7' 4 1/16\" (88.0625)", [eb2[:z1] - eb2[:z0], eb2[:plate]], [88.0625, 3.75])
+check('CP: the plate never touches the footprint', [eb[:x0_by], eb[:y0_by]], ['SW corner seal', 'SW corner seal'])
+check('CP: cross-check adds the plate to the catalogue height, so no *** on a plate that is where the builder put it',
+      BD.reconcile([103.5, 79.5, 88.75], [103.5, 79.5, 84.3125 + 4.4375], ['E0', 'N0', 'plate']), [])
+check('CP: catalogue for a 7296 E vented N and E is 103.5 x 79.5 x 84.3125',
+      BD.catalogue_extent(98.0, 74.0, ['E', 'N'], true), [103.5, 79.5, 84.3125])
+check('CP: the untrimmed assembly boxes would have read 104.4375 x 80.4375 — the fault as reported',
+      (lambda {
+        raw = cp.map { |n, bx| n =~ /EFS/ ? [n, (n[0, 1] == 'N' ? [bx[0], bx[1], bx[2], bx[3], 80.4375, bx[5]] : [bx[0], bx[1], bx[2], 104.4375, bx[4], bx[5]])] : [n, bx] }
+        e = BD.extent_from_parts(raw)
+        [e[:x1], e[:y1]]
+      }).call, [104.4375, 80.4375])
+check('a plate on a floor-standing fixture that sits ABOVE the floor underside adds nothing',
+      BD.extent_from_parts(cp + [['CPx  caster plate', [1.0, 1.0, -0.5, 97.0, 73.0, 5.0]]])[:plate], nil)
 
 # 4 - THE PLACEMENT TABLE (spec §7), door on S, extent 0..98 x 0..79.5 x 0..84.3125
 box = { :x0 => 0.0, :x1 => 98.0, :y0 => 0.0, :y1 => 79.5, :z0 => 0.0, :z1 => 84.3125 }
