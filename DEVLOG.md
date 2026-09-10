@@ -2,6 +2,61 @@
 
 ## 2026-09-10
 
+### Live preview in the walls and annotations pickers — 1.24.0
+
+Benton: *"When we are clicking the checkboxes and the annotations when we're
+hidden, they don't actually show that they're hidden until we press Apply to
+the Scene. Once we select a checkbox, go ahead and have it hidden so that we
+can verify before we press Apply to the Scene."*
+
+Both pickers in the proposal package now hide the thing in the viewport the
+moment its row is ticked and show it again on untick. APPLY TO THIS SCENE
+still does the only writing. Walls came along because the shared structure
+made it the same three module methods with a different body — not half-wired.
+
+**The risk is the restore, so that is where the design is.** A preview
+mutates the model before the operator has agreed to anything.
+
+- **Baseline once, at open.** `preview_begin` snapshots every unit's hidden
+  state right after the picker's scan (`walls_payload` / `state_hash` fill
+  `@units`), never per click. Every tick sends the *full* pick set and
+  `preview_show` sets every unit from picks-or-baseline, so the preview is a
+  pure function of (baseline, picks) and repeated toggling cannot drift.
+- **Three exits, one function.** `preview_end` runs from CANCEL and the
+  backdrop click (`wallsclose` / `annotsclose`), from the window's X
+  (`d.set_on_closed`, new — the forgotten one), and from opening another
+  row's picker (`preview_begin` ends the previous one first). It is
+  idempotent. If the operator switched scenes mid-preview, the preview's
+  page is re-selected before the flags go back, so the baseline lands on the
+  scene it belongs to.
+- **APPLY is restore-THEN-apply.** The real `apply` computes the saved
+  answer from the clean baseline with its own operation, exactly as before,
+  and because every row is sent the result equals what was on screen. The
+  preview never calls `page.update` or `page.set_visibility`. HIDE/SHOW
+  SELECTED, APPLY TO ALL and *move into set* — which write immediately — all
+  end the preview first, and the two that keep the picker open re-baseline.
+- **Undo: one step per picker session.** The first preview op is a normal
+  `start_operation`; every later one, including the restore, is
+  `transparent` and merges into it. After CANCEL that step is a net no-op.
+  Tradeoff stated in the code: a transparent op merges into *whatever* the
+  previous step is, so a viewport edit made between ticks would absorb the
+  next toggle. The alternative — holding one operation open across
+  HtmlDialog callbacks — would swallow viewport edits into the preview and
+  undo them on CANCEL, which is worse.
+- **Dirty flag: not avoidable** once a tick has run (any operation flags
+  the model). Open-look-cancel with no tick runs nothing and stays clean.
+- **Viewport redraw:** `model.active_view.refresh` after every show/restore,
+  the file's existing precedent.
+- **Mid-export:** `busy?` guards on both preview callbacks; the JS helpers
+  also return on `running`.
+
+Minor bump (1.24.0): new behaviour in two pickers and three new methods in
+each shared module. **UNRUN in SketchUp** — `rbparse.py` 68/68,
+`rbtest-proposal.py` passes, `node --check` on all three dialogs' JS passes.
+Unobserved: that CEF fires `set_on_closed` on the X while a popover is open
+(it should — it is the dialog, not the popover, that closes), and that a
+transparent operation merges as documented.
+
 ### Drag-to-reorder scenes in the proposal package — 1.23.0
 
 Benton: *"id like to be able to drag and drop scenes to reorder them in the

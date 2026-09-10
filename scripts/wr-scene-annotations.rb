@@ -112,6 +112,48 @@ module WR_SceneAnnotations
     []
   end
 
+  # ---- live preview (1.24.0) ---------------------------------------------
+  #
+  # WR_SceneWalls.preview_* for annotations: sets through tag visibility,
+  # callouts through the entity flag, stored uniformly as "hidden?". No
+  # page.set_visibility and no page.update — both of those are the commit
+  # that Apply owns — and no operation: the caller wraps undo.
+  def self.preview_snapshot
+    snap = {}
+    (@units || {}).each do |key, u|
+      if u[:layer]
+        l = u[:layer]
+        snap[key] = l.valid? ? (l.visible? ? false : true) : nil
+      else
+        e = u[:ent]
+        snap[key] = (e && e.valid?) ? (e.hidden? ? true : false) : nil
+      end
+    end
+    snap
+  end
+
+  def self.preview_show(snap, picks)
+    snap.each do |key, base|
+      u = @units && @units[key]
+      next unless u
+      want = picks.key?(key) ? (picks[key] ? true : false) : base
+      next if want.nil?
+      if u[:layer]
+        l = u[:layer]
+        next unless l.valid?
+        l.visible = !want
+      else
+        e = u[:ent]
+        next unless e && e.valid?
+        e.hidden = want
+      end
+    end
+  end
+
+  def self.preview_restore(snap)
+    preview_show(snap, {})
+  end
+
   def self.fix_pages(model)
     fixed  = []
     failed = []

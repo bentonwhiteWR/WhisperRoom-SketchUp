@@ -1,3 +1,53 @@
+# HANDOFF — Builder → Benton: live preview in the pickers, 1.24.0
+
+2026-09-10. Benton: *"Once we select a checkbox, go ahead and have it hidden
+so that we can verify before we press Apply to the Scene."* Shipped in
+**both** pickers (annotations = the ask; walls fell out of the shared
+structure). **Unrun in SketchUp.**
+
+## Produced
+- `wr-scene-walls.rb`, `wr-scene-annotations.rb`: `preview_snapshot`,
+  `preview_show(snap, picks)`, `preview_restore(snap)` — flags only, no
+  `page.update`, no operation.
+- `proposal-package.rb`: `@preview` state (`preview_begin` / `preview_show`
+  / `preview_end` / `preview_op`), `wallspreview` + `annotspreview`
+  callbacks, `preview_end` hooks in wallsclose, annotsclose, wallsopen,
+  annotsopen, wallssel, wallsapply, wallsapplyall, annotsapply,
+  annotsapplyall, annotsmove, and a new `d.set_on_closed`. JS:
+  `wallsPreview()` / `annotsPreview()` called from every tick path (change,
+  all/none links, USE MY SELECTION). Walls strip text now says the viewport
+  is live.
+- `VERSION` → **1.24.0** (minor). DEVLOG entry.
+
+## Decisions (why)
+- **Restore-then-apply**, not apply-from-preview: keeps `apply` computing
+  from a clean baseline with its own operation, unchanged from before.
+- **Baseline at open, full pick set per tick**: no per-click drift.
+- **Transparent ops after the first**: one undo step per session. Holding
+  an op open across callbacks would eat viewport edits on CANCEL.
+- **Dirty flag after a tick is not avoidable**; no-tick sessions stay clean.
+
+## Assumptions (not observed)
+- `set_on_closed` fires on the X with a popover open (dialog-level event).
+- `start_operation(name, true, false, true)` merges as the API documents.
+- `active_view.refresh` repaints a flag change (existing precedent).
+
+## To verify (Benton) — the restore is the load-bearing check
+1. **Hide notes** on a scene → tick three rows → each vanishes in the
+   viewport as you tick; untick one → it returns.
+2. **CANCEL** → all three back. Reopen the picker: ticks match the scene's
+   saved answer, unchanged. **Ctrl+Z once**: nothing visible should change
+   (the session was one net no-op step).
+3. Tick two → close the whole window with its **X** → both back in the
+   viewport. Reopen the package: saved answer unchanged.
+4. Tick two → **APPLY TO THIS SCENE** → brief flicker is fine; both hidden;
+   switch scene and back: still hidden (saved). Ctrl+Z once → shown again.
+5. Same four steps in **Hide walls**; also tick one, then **HIDE SELECTED**
+   on something else: the previewed tick should NOT have been saved.
+6. Start an export, open a picker (it should refuse) — no preview mid-run.
+
+---
+
 # HANDOFF — Builder → Benton: drag-to-reorder scenes, 1.23.0
 
 2026-09-10. Benton: *"id like to be able to drag and drop scenes to reorder

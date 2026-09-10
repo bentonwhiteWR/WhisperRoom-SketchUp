@@ -486,6 +486,40 @@ module WR_SceneWalls
     [true, "#{items.size} item(s) #{hide ? 'hidden' : 'shown'} in scene \"#{page.name}\"."]
   end
 
+  # ---- live preview (1.24.0) ---------------------------------------------
+  #
+  # The proposal package's pickers show a tick in the viewport BEFORE Apply.
+  # These three read and set the pieces' hidden flags and nothing else: no
+  # page.update (that is a commit), no operation (the caller owns undo).
+  # The snapshot is per PIECE, because a unit can be mixed.
+  def self.preview_snapshot
+    snap = {}
+    (@units || {}).each do |key, u|
+      snap[key] = u[:pieces].map { |g| g.valid? ? (g.hidden? ? true : false) : nil }
+    end
+    snap
+  end
+
+  # Every unit to picks[key] where given, and back to its snapshot where
+  # not — so the same call with {} IS the restore, and repeated calls with
+  # the full pick set cannot drift.
+  def self.preview_show(snap, picks)
+    snap.each do |key, base|
+      u = @units && @units[key]
+      next unless u
+      want = picks.key?(key) ? (picks[key] ? true : false) : nil
+      u[:pieces].each_with_index do |g, i|
+        next unless g.valid?
+        v = want.nil? ? base[i] : want
+        g.hidden = v unless v.nil?
+      end
+    end
+  end
+
+  def self.preview_restore(snap)
+    preview_show(snap, {})
+  end
+
   def self.fix_pages(model)
     fixed = []
     failed = []

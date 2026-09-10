@@ -2984,6 +2984,89 @@ module WR_ProposalPackage
     true
   end
 
+  # ---- live preview in the pickers (1.24.0) -------------------------------
+  #
+  # Benton: "When we are clicking the checkboxes ... they don't actually
+  # show that they're hidden until we press Apply to the Scene. Once we
+  # select a checkbox, go ahead and have it hidden so that we can verify
+  # before we press Apply."
+  #
+  # A preview mutates the model BEFORE the operator has agreed to anything,
+  # so the whole design is about putting it back. @preview is the one
+  # record of a live preview: which picker, which page, and the BASELINE —
+  # snapshotted once when the picker opens, never per click, so toggling a
+  # row twenty times cannot drift. Every tick sends the FULL pick set and
+  # preview_show sets every unit from picks-or-baseline, so the preview is
+  # a pure function of (baseline, picks) and there is nothing to accumulate.
+  #
+  # Exits, all through preview_end: CANCEL and the popover backdrop
+  # (wallsclose / annotsclose), the window's X (set_on_closed), opening
+  # another row's picker (preview_begin ends the last one first), and
+  # APPLY. Apply is restore-THEN-apply: the real apply computes the saved
+  # answer from the clean baseline with its own operation, exactly as it
+  # did before this existed, and since every row is sent the result equals
+  # what was on screen. The preview never calls page.update — a preview
+  # that updates the page has committed.
+  #
+  # Undo: the first preview op is a normal operation, every later one —
+  # including the restore — is TRANSPARENT and merges into it, so a picker
+  # session is ONE undo step, a net no-op after CANCEL. Tradeoff, stated: a
+  # transparent op merges into whatever the previous step is, so a viewport
+  # edit made mid-preview would absorb the next toggle. The alternative —
+  # one operation held open across HtmlDialog callbacks — would swallow any
+  # viewport edit into the preview and undo it on CANCEL, which is worse.
+  # The model IS left modified-flagged by a cancelled preview (any
+  # operation does that); only "open, look, cancel" with no tick avoids it,
+  # because nothing runs until the first tick.
+  def self.preview_mod(kind)
+    kind == :walls ? WR_SceneWalls : WR_SceneAnnotations
+  end
+
+  def self.preview_begin(model, kind, page)
+    preview_end(model)
+    @preview = { :kind => kind, :page => page,
+                 :base => preview_mod(kind).preview_snapshot, :op => false }
+  end
+
+  # One operation, transparent after the first (see above).
+  def self.preview_op(model, pv)
+    model.start_operation('Preview hidden per scene', true, false, pv[:op])
+    begin
+      yield
+      model.commit_operation
+    rescue StandardError
+      model.abort_operation
+      raise
+    end
+    pv[:op] = true
+  end
+
+  def self.preview_show(model, picks)
+    pv = @preview
+    return unless pv
+    preview_op(model, pv) { preview_mod(pv[:kind]).preview_show(pv[:base], picks) }
+    model.active_view.refresh
+  end
+
+  # Put the model back and forget the preview. Idempotent: a second call is
+  # a no-op, so the X and CANCEL can both fire. If the operator switched
+  # scenes mid-preview, the preview's page is selected first — the baseline
+  # belongs to THAT scene, and restoring it onto another would leave the
+  # other scene looking different from what it saves.
+  def self.preview_end(model)
+    pv = @preview
+    return unless pv
+    @preview = nil
+    return unless pv[:op]                 # never ticked: nothing was changed
+    if pv[:page] && pv[:page].valid? && model.pages.selected_page != pv[:page]
+      model.pages.selected_page = pv[:page]
+    end
+    preview_op(model, pv) { preview_mod(pv[:kind]).preview_restore(pv[:base]) }
+    model.active_view.refresh
+  rescue StandardError => e
+    puts "  preview restore failed: #{e.class}: #{e.message}"
+  end
+
   # Everything the walls popover needs for one scene, in one place, so the
   # three callbacks that have to redraw it (open, and either selection
   # button) cannot send three slightly different shapes. scan() is called
@@ -3380,9 +3463,12 @@ module WR_ProposalPackage
       begin
         pg = model.pages.to_a[n.to_i - 1]
         raise "scene #{n} is gone — hit Rescan" if pg.nil?
+        preview_end(model)                # another row's preview, if any
         @walls_return ||= model.pages.selected_page
         model.pages.selected_page = pg
-        d.execute_script('wallsShow(' + walls_payload(model, n, pg).to_json + ')')
+        payload = walls_payload(model, n, pg)   # scan() fills @units first
+        preview_begin(model, :walls, pg)
+        d.execute_script('wallsShow(' + payload.to_json + ')')
       rescue StandardError => e
         d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
       end
@@ -3407,14 +3493,33 @@ module WR_ProposalPackage
         req  = JSON.parse(payload.to_s)
         pg   = model.pages.to_a[req['n'].to_i - 1]
         raise "scene #{req['n']} is gone — hit Rescan" if pg.nil?
+        # HIDE/SHOW SELECTED writes the scene NOW, so the preview must come
+        # off first or its ticks would be snapshotted into the page.
+        preview_end(model)
         ok, msg = WR_SceneWalls.apply_selection(model, req['hide'] ? true : false)
         # Redraw first, so a row the operator just hid comes back ticked,
         # then put the outcome in the message strip the redraw cleared.
-        d.execute_script('wallsShow(' + walls_payload(model, req['n'], pg).to_json + ')')
+        payload = walls_payload(model, req['n'], pg)
+        preview_begin(model, :walls, pg)   # new baseline: the scene changed
+        d.execute_script('wallsShow(' + payload.to_json + ')')
         d.execute_script('wallsNote(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
         log(d, msg, ok ? 'dim' : 'bad')
       rescue StandardError => e
         d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
+      end
+    end
+
+    # Every tick sends the full pick set; nothing is written to the scene.
+    d.add_action_callback('wallspreview') do |_c, payload|
+      next if busy?(d, 'wallspreview')
+      begin
+        req   = JSON.parse(payload.to_s)
+        picks = {}
+        (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
+        preview_show(model, picks)
+      rescue StandardError => e
+        d.execute_script('wallsNote(' + { 'ok' => false,
+          'msg' => "preview failed: #{e.class}: #{e.message}" }.to_json + ')')
       end
     end
 
@@ -3424,6 +3529,7 @@ module WR_ProposalPackage
         req   = JSON.parse(payload.to_s)
         picks = {}
         (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
+        preview_end(model)                # restore-THEN-apply, see preview_*
         ok, msg = WR_SceneWalls.apply(model, picks)
         d.execute_script('wallsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
         log(d, msg, ok ? 'dim' : 'bad')
@@ -3446,6 +3552,7 @@ module WR_ProposalPackage
         picks = {}
         (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
         pages = sweep_pages(model, req['ns'])
+        preview_end(model)                # the sweep selects pages; clean first
         if WR_SceneWalls.confirm_all?(pages, 'wall')
           ok, msg, det = WR_SceneWalls.apply_all(model, picks, pages)
           log_sweep(d, ok, msg, det)
@@ -3482,6 +3589,7 @@ module WR_ProposalPackage
     end
 
     d.add_action_callback('wallsclose') do |_c, _p|
+      preview_end(model)                  # CANCEL / backdrop: put it all back
       begin
         if @walls_return && @walls_return.valid?
           model.pages.selected_page = @walls_return
@@ -3506,9 +3614,11 @@ module WR_ProposalPackage
       begin
         pg = model.pages.to_a[n.to_i - 1]
         raise "scene #{n} is gone — hit Rescan" if pg.nil?
+        preview_end(model)                # another row's preview, if any
         @walls_return ||= model.pages.selected_page
         model.pages.selected_page = pg
-        st = WR_SceneAnnotations.state_hash(model)
+        st = WR_SceneAnnotations.state_hash(model)   # inventory fills @units
+        preview_begin(model, :annots, pg)
         warn = WR_SceneAnnotations.pages_not_saving(model).include?(pg.name.to_s)
         d.execute_script('annotsShow(' + { 'n' => n.to_i, 'scene' => pg.name.to_s,
                                            'sets' => st['sets'], 'loose' => st['loose'],
@@ -3518,12 +3628,27 @@ module WR_ProposalPackage
       end
     end
 
+    # Every tick sends the full pick set; nothing is written to the scene.
+    d.add_action_callback('annotspreview') do |_c, payload|
+      next if busy?(d, 'annotspreview')
+      begin
+        req   = JSON.parse(payload.to_s)
+        picks = {}
+        (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
+        preview_show(model, picks)
+      rescue StandardError => e
+        d.execute_script('annotsNote(' + { 'ok' => false,
+          'msg' => "preview failed: #{e.class}: #{e.message}" }.to_json + ')')
+      end
+    end
+
     d.add_action_callback('annotsapply') do |_c, payload|
       next if busy?(d, 'annotsapply')
       begin
         req   = JSON.parse(payload.to_s)
         picks = {}
         (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
+        preview_end(model)                # restore-THEN-apply, see preview_*
         ok, msg = WR_SceneAnnotations.apply(model, picks)
         d.execute_script('annotsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
         log(d, msg, ok ? 'dim' : 'bad')
@@ -3541,6 +3666,7 @@ module WR_ProposalPackage
         picks = {}
         (req['picks'] || {}).each { |k, v| picks[k] = v ? true : false }
         pages = sweep_pages(model, req['ns'])
+        preview_end(model)                # the sweep selects pages; clean first
         if WR_SceneAnnotations.confirm_all?(pages, 'annotation')
           ok, msg, det = WR_SceneAnnotations.apply_all(model, picks, pages)
           log_sweep(d, ok, msg, det)
@@ -3582,8 +3708,11 @@ module WR_ProposalPackage
       next if busy?(d, 'annotsmove')
       begin
         req = JSON.parse(payload.to_s)
+        pv_page = @preview && @preview[:page]
+        preview_end(model)                # the move re-tags; clean first
         ok, msg = WR_SceneAnnotations.move_selection_to_set(model, req['name'])
         st = WR_SceneAnnotations.state_hash(model)
+        preview_begin(model, :annots, pv_page || model.pages.selected_page)
         d.execute_script('annotsMoved(' + { 'ok' => ok, 'msg' => msg,
                                             'sets' => st['sets'],
                                             'loose' => st['loose'] }.to_json + ')')
@@ -3594,6 +3723,7 @@ module WR_ProposalPackage
     end
 
     d.add_action_callback('annotsclose') do |_c, _p|
+      preview_end(model)                  # CANCEL / backdrop: put it all back
       begin
         if @walls_return && @walls_return.valid?
           model.pages.selected_page = @walls_return
@@ -3643,6 +3773,9 @@ module WR_ProposalPackage
         d.close
       end
     end
+
+    # The window's X while a picker is previewing: the forgotten exit.
+    d.set_on_closed { preview_end(model) }
 
     d.show
     puts 'WR_ProposalPackage: dialog shown.'
@@ -4386,6 +4519,7 @@ module WR_ProposalPackage
     Array.prototype.forEach.call($wbody.querySelectorAll("input[data-key]"), function(el){
       el.addEventListener("change", function(){
         wallsPicks[el.getAttribute("data-key")] = el.checked;
+        wallsPreview();
       });
     });
     Array.prototype.forEach.call($wbody.querySelectorAll("[data-find]"), function(el){
@@ -4398,7 +4532,8 @@ module WR_ProposalPackage
     $wmsg.textContent = d.warn
       ? "This scene does not save hidden objects, so walls will NOT come back on it. "
         + "Apply turns that on for you."
-      : "Ticked = hidden when this scene exports.";
+      : "Ticked = hidden when this scene exports — and hidden in the viewport now, "
+        + "so you can check before Apply. Cancel puts everything back.";
   };
   window.wallsPicked = function (r) {
     var keys = r.keys || {}, n = 0;
@@ -4407,6 +4542,7 @@ module WR_ProposalPackage
     Array.prototype.forEach.call($wbody.querySelectorAll("input[data-key]"), function(el){
       if(keys.indexOf(el.getAttribute("data-key")) >= 0){ el.checked = true; n++; }
     });
+    if(n) wallsPreview();
     $wmsg.className = "wmsg" + (n ? " ok" : " bad");
     $wmsg.textContent = n
       ? n + " wall(s) ticked from your selection. Apply to save them into this scene."
@@ -4435,6 +4571,15 @@ module WR_ProposalPackage
     $wmsg.className = "wmsg" + (r.ok ? " ok" : " bad");
     if(r.ok) setTimeout(wallsClose, 900);
   };
+  // LIVE PREVIEW (1.24.0): every tick sends the whole pick set, so Ruby
+  // sets every row from picks-or-baseline and nothing accumulates. Nothing
+  // is saved until APPLY; CANCEL, the backdrop and the window's X all put
+  // the viewport back.
+  function wallsPreview(){
+    if(running || !wallsN) return;
+    if(window.sketchup && sketchup.wallspreview)
+      sketchup.wallspreview(JSON.stringify({ n: wallsN, picks: wallsCollect() }));
+  }
   function wallsCollect(){
     var picks = {};
     Array.prototype.forEach.call($wbody.querySelectorAll("input[data-key]"), function(el){
@@ -4549,6 +4694,7 @@ module WR_ProposalPackage
       el.addEventListener("change", function(){
         aPicks[el.getAttribute("data-akey")] = el.checked;
         if(el.getAttribute("data-akey").charAt(0)==="t") annotsDraw();
+        annotsPreview();
       });
     });
     Array.prototype.forEach.call($abody.querySelectorAll("[data-aexp]"), function(el){
@@ -4568,6 +4714,7 @@ module WR_ProposalPackage
             on = el.hasAttribute("data-aall");
         (grp==="sets" ? annotsSets : annotsLoose).forEach(function(u){ aPicks[u.key] = on; });
         annotsDraw();
+        annotsPreview();
         $amsg.className = "wmsg";
         $amsg.textContent = (on ? "Every " : "No ") + (grp==="sets" ? "set" : "loose callout") +
           " ticked. Apply to save that into this scene.";
@@ -4611,6 +4758,7 @@ module WR_ProposalPackage
     // silently untick the first.
     keys.forEach(function(k){ aPicks[k] = true; n++; });
     annotsDraw();
+    if(n) annotsPreview();
     $amsg.className = "wmsg" + (n ? " ok" : " bad");
     $amsg.textContent = n
       ? n + " callout(s) ticked from your selection." +
@@ -4637,6 +4785,11 @@ module WR_ProposalPackage
   $apick.addEventListener("click", function(){
     if(window.sketchup && sketchup.annotspick) sketchup.annotspick("");
   });
+  function annotsPreview(){
+    if(running || !annotsN) return;
+    if(window.sketchup && sketchup.annotspreview)
+      sketchup.annotspreview(JSON.stringify({ n: annotsN, picks: annotsCollect() }));
+  }
   function annotsCollect(){
     // EVERY row is sent, not only the ticked ones, so unticking reliably shows
     // again — the walls rule. A member row behind a collapsed set is not in the
