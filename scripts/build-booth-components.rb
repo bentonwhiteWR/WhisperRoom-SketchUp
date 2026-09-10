@@ -2710,6 +2710,12 @@ module WR_BuildBoothComponents
       #
       # Still skipped on a dry run — a dry run places nothing, deck included.
       deck_note = nil
+      # Where the floor stack bottoms out, booth-local, MEASURED off the placed
+      # parts: the standard floor's underside, and under it the IEP mat's on
+      # an Enhanced booth. nil until a floor is placed. The ground pass below
+      # lifts the whole group by exactly this, and refuses by name without it.
+      fl_bottom = nil
+      stack_bottom = nil
       # The standard deck is placed even on an inner-only build, because the
       # IEP deck sits against it and needs its bounds - and then erased again,
       # so what is left is still only the inner shell.
@@ -2756,6 +2762,10 @@ module WR_BuildBoothComponents
         # Where the standard deck landed, per kind, read off the placed parts.
         host = { 'FL' => union_bounds(deck_added['FL']),
                  'CL' => union_bounds(deck_added['CL']) }
+        if host['FL']
+          fl_bottom = host['FL'].min.z.to_f
+          stack_bottom = fl_bottom
+        end
 
         # ---- THE CEILING LIGHT ------------------------------------------
         #
@@ -2798,7 +2808,14 @@ module WR_BuildBoothComponents
         if spec[:eiw] && shell != 'outer'
           before = booth.entities.length
           n, dnotes, dwarns = iep_deck(model, booth, key, spec, cfg['dir'], cache, host)
-          booth.entities.to_a[before..-1].to_a.each { |e| (e.layer = t_deck) rescue nil }
+          iep_added = booth.entities.to_a[before..-1].to_a
+          iep_added.each { |e| (e.layer = t_deck) rescue nil }
+          # The mat goes UNDER the standard floor, so the stack now bottoms
+          # out on it - re-measured, not assumed to be 0.3125 lower.
+          iep_bb = union_bounds(iep_added)
+          if iep_bb && stack_bottom
+            stack_bottom = [stack_bottom, iep_bb.min.z.to_f].min
+          end
           placed += n
           dnotes.each { |x| puts "  IEP deck #{x}" }
           dwarns.each { |x| puts "  IEP DECK: #{x}" }
@@ -2814,15 +2831,16 @@ module WR_BuildBoothComponents
       # cfg['overlay'] carries them from a decoded link. Fenced with its own
       # rescue: the walls and deck are committed work, and a foam bug must not
       # take a built booth down with it.
+      casters_in = false
       if shell == 'all'
         begin
           # The deck bounds ride along (nil on a dry run) so the caster plate
           # can measure where the placed floor's underside really is instead
           # of assuming the nominal slab.
           # A placeholder is not a panel to foam or to hang a desk on.
-          oc, owarn = WR_Overlays.place_all(model, booth, key, spec, cfg,
-                                            rows.reject { |r| r[:absent] },
-                                            cache, defined?(host) ? host : nil)
+          oc, owarn, casters_in = WR_Overlays.place_all(model, booth, key, spec, cfg,
+                                                        rows.reject { |r| r[:absent] },
+                                                        cache, defined?(host) ? host : nil)
           placed += oc
           warn.concat(owarn)
         rescue Exception => e
@@ -2832,6 +2850,50 @@ module WR_BuildBoothComponents
         end
       else
         puts "  overlays (foam, duct covers, options) SKIPPED on a #{shell}-only build"
+      end
+
+      # ---- GROUND THE BOOTH ---------------------------------------------
+      #
+      # THE ONE APPLY SITE for the whole chain (rbtest-overlays.py asserts
+      # it at source level). WR_Overlays.booth_lift says how far: the caster
+      # datum when plates went in, otherwise the floor stack's underside onto
+      # the ground plane - 1.000 on a Standard booth, 1.3125 on an Enhanced
+      # one - MEASURED off the placed deck above. Benton, 2026-09-10:
+      # "whenever we bring in a booth via the link, its too low. It should
+      # be shifted up 1" for standard, or 1 5/16" for enhanced." That is the
+      # slab (z 0..1 in every FL part, reference/floor-ceiling-geometry.md)
+      # plus the IEP mat, which wr-deck's DECK_TOP_Z = 0 hangs into the host
+      # floor. DECK_TOP_Z stays 0 and every booth-local figure printed above
+      # is unchanged: only the GROUP moves, so walls, decks, seals, foam,
+      # options, ramp, plates and placeholders move together, and the
+      # exterior height is untouched.
+      #
+      # A booth with no measured floor is NOT lifted and says so. Lifting it
+      # by a nominal would be a guess standing in for a measurement.
+      if cfg['dry']
+        puts '  GROUND  dry run - nothing to lift. A real build lifts the group so the'
+        puts '          floor stack underside lands on z 0 (WR_Overlays.booth_lift).'
+      elsif stack_bottom.nil?
+        warn << 'NOT LIFTED: no standard floor deck was placed, so the floor underside ' \
+                'could not be measured. The walls stand on z 0 and the floor would hang ' \
+                'into the host floor - fix the deck and rebuild.'
+      else
+        lift = WR_Overlays.booth_lift(casters_in, fl_bottom, stack_bottom)
+        booth.transformation = Geom::Transformation.translation(
+          Geom::Vector3d.new(0, 0, lift)) * booth.transformation
+        puts format('  GROUND  booth lifted %.4f - floor stack underside was %.4f booth-local, ' \
+                    'now %.4f above the ground plane%s.', lift, stack_bottom,
+                    stack_bottom + lift, casters_in ? ' (caster datum)' : '')
+        # Benton's two figures are the CHECK, not the input. A stack that
+        # measures deeper or shallower than slab + mat is named here.
+        unless casters_in
+          expect = (spec[:eiw] && shell != 'outer') ? 1.3125 : 1.0
+          if (lift - expect).abs > 0.01
+            warn << format('GROUND lift %.4f is not the %.4f Benton expects here (1 in Standard, ' \
+                           '1 5/16 in Enhanced): the placed floor stack does not measure slab + ' \
+                           'mat. Check the deck parts before trusting the base.', lift, expect)
+          end
+        end
       end
 
       model.commit_operation unless cfg['dry']

@@ -1,6 +1,67 @@
 # DEVLOG
 
 ## 2026-09-10
+### Booths were sitting an inch into the floor: the ground lift — 1.33.0
+
+Benton: *"I think whenever we bring in a booth via the link, its too low. It
+should be shifted up 1" for standard, or 1 5/16" for enhanced."*
+
+**Cause found, not just corrected (observed).** `wr-deck.rb` places the
+floor deck's *top* on the plane the walls stand on (`DECK_TOP_Z = 0.0`) and
+its own comment says why: "the floor hangs below it, into the host floor.
+That is the low-risk choice and it renders identically." Every FL part is a
+1.000" slab (`reference/floor-ceiling-geometry.md`, measured), so a Standard
+booth's underside sat at −1.000. On an Enhanced booth `iep_deck` puts the
+0.3125" IEP mat *under* the standard floor (`z_target = host.min.z`), so its
+underside sat at −1.3125. Those are Benton's two numbers exactly — the floor
+stack, not a nudge — and they were already known to the caster code:
+`WR_Overlays.booth_lift` lifted the group so the standard floor's underside
+landed 4.75 above the ground *when plates were fitted*, and returned 0.0
+otherwise by a pinned contract written to stop "a lift leaking into the
+default path". Benton has now asked for exactly that lift.
+
+**The fix is the physically honest one, done the low-risk way.** `DECK_TOP_Z`
+stays 0.0 and every booth-local figure and print is unchanged; `build_booth`
+now lifts the whole booth **group** once, after every overlay, by
+`booth_lift(casters_in, fl_bottom, stack_bottom)`:
+
+- no casters → `−stack_bottom`, the floor stack's underside onto z 0 —
+  **1.000 Standard, 1.3125 Enhanced**, *measured* off the placed deck
+  (standard floor bounds, then the IEP mat's), never typed in;
+- casters → `4.75 − fl_bottom`, unchanged (the apply moved out of
+  `place_casters`, which now only reports; `place_all` returns whether the
+  plates went in so a refused set grounds like no casters).
+
+Benton's figures are the **check**: a no-caster lift that is not 1.0 / 1.3125
+within 0.01 is flagged by name. No measured floor → not lifted, said by
+name. Walls, decks, seals, foam, options, the ramp (part of the door
+component), caster plates and the 1.25.0 placeholders all live in the group
+and move together. **Exterior height is untouched** — a translation only.
+
+**Downstream.** `dimension-booth.rb` adds `BASE_Z = −1.0` to the group
+*origin*, so its height dimension follows the lift for free (world 0 on
+Standard; on Enhanced it starts at the standard floor's underside, 5/16
+above the mat — a pre-existing open point, now written down). Booths built
+before 1.33.0 sit low: **re-import to fix**; dimensions drawn earlier are
+model-space and must be redrawn. An Enhanced booth on casters still has the
+mat 5/16 into the tray (pre-existing, unchanged, named).
+
+`rbtest-overlays.py` re-pins: `cp lift off 1.0000 1.3125 -3.25 on 5.75
+5.75`, and the lift-leak scan now requires exactly one apply site, in
+`build_booth`, and none in `wr-overlays`/`wr-deck`. `rbtest-live-booth.py`
+parses the new `GROUND booth lifted` line into `ground_lift` /
+`stack_bottom`, and its `missing` header regex now matches the 1.25.0
+wordings (a regression from that release — it had stopped matching). All
+harnesses pass; `rbparse.py` 71/71. Minor bump: every booth now lands
+higher. **Unrun in SketchUp.**
+
+**Benton's check:** import a Standard and an Enhanced booth from a link, tape
+from the room floor (z 0) to the underside of the floor panel: Standard
+reads **0** (walls' underside at 1"), Enhanced reads **0** to the mat and
+**5/16"** to the standard floor (walls' underside at 1 5/16"). Console line:
+`GROUND booth lifted 1.0000` / `1.3125`. Booth height, floor underside to
+ceiling top, unchanged from before.
+
 ### The exposure clash: retune window, no double booth light, honest EV log — 1.32.0
 
 Benton, 10 Sep 2026: *"the drop in lights function is also still breaking

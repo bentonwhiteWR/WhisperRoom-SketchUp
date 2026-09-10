@@ -25,10 +25,15 @@ WHAT IS EXERCISED — the whole pure section of wr-overlays.rb:
      the CP_* constants. Benton's figures (2026-08-27, direct — they
      supersede the portal's marketing 5 in): net lift 4.75, tray 0.75,
      plate 5.50 derived. The single highest-risk pin here is booth_lift's
-     FALSE branch: a booth without casters must lift 0.0 EXACTLY, because a
-     leak into the default path silently moves every drawing Benton has.
-     main() also asserts, at source level, that the group transform is
-     touched nowhere outside wr-overlays' caster pass.
+     no-caster branch. Until 1.33.0 it had to return 0.0 EXACTLY, so no
+     lift could leak into the default path. Benton reversed that on
+     2026-09-10 ("its too low ... shifted up 1" for standard, or 1 5/16"
+     for enhanced"): the branch now grounds the FLOOR STACK, -stack_bottom,
+     and this pins 1.0000 for a -1.0 slab and 1.3125 for a slab + IEP mat.
+     The caster branch is unchanged and ignores stack_bottom. main() also
+     asserts, at source level, that the group transform is applied in
+     exactly one place - build_booth's ground pass, since 1.33.0 - and
+     nowhere in wr-overlays or wr-deck.
 
 Every expected number below traces to .forge/researcher/portal-part-placement.md
 (the port table, the 2.25 IEP move), to wr-booth-data.rb (the slot polygons),
@@ -247,11 +252,16 @@ __METHODS__
     out << format('cp const %.2f %.2f %.2f %s', CP_BOOTH_LIFT, CP_TRAY_DEPTH,
                   CP_PLATE_HEIGHT,
                   (CP_PLATE_HEIGHT - (CP_BOOTH_LIFT + CP_TRAY_DEPTH)).abs < 1e-9 ? 'sum-ok' : 'SUM-BROKEN')
-    # THE no-regression pin: no casters means ZERO lift, whatever the floor
-    # measures. With casters, a floor underside at -1.0 (the nominal slab
-    # below DECK_TOP_Z 0) lifts 5.75 so the underside lands at 4.75.
-    out << format('cp lift off %.2f %.2f on %.2f', booth_lift(false, -1.0),
-                  booth_lift(false, 3.25), booth_lift(true, -1.0))
+    # THE GROUND PIN (1.33.0). No casters: the floor stack's underside lands
+    # on z 0 - a Standard slab at -1.0 lifts 1.0000, a slab with the IEP mat
+    # under it at -1.3125 lifts 1.3125 (Benton's two figures), and a stack
+    # that somehow sits above the ground comes DOWN to it. With casters the
+    # standard floor's underside lands at 4.75 (5.75 from -1.0) and the mat
+    # is ignored, exactly as before.
+    out << format('cp lift off %.4f %.4f %.2f on %.2f %.2f',
+                  booth_lift(false, -1.0), booth_lift(false, -1.0, -1.3125),
+                  booth_lift(false, 3.25), booth_lift(true, -1.0),
+                  booth_lift(true, -1.0, -1.3125))
     # Plate selection per footprint, one-for-one with the floor tiling:
     # 4872 single; 7272 48+24; 96120 48+24+48; the 84 series' odd 18 middle;
     # a 102 SIDE end. Every expected name exists in the P: library (listed
@@ -317,7 +327,7 @@ EXPECT = (
     ' | axes w1 h2 t0'
     ' | desk axes 012 012'
     ' | cp const 4.75 0.75 5.50 sum-ok'
-    ' | cp lift off 0.00 0.00 on 5.75'
+    ' | cp lift off 1.0000 1.3125 -3.25 on 5.75 5.75'
     ' | cp names CP4872,CP7248 SIDE,CP7224 SIDE,CP9648 SIDE,CP9624 CTR,'
     'CP9648 SIDE,CP8418 CTR,CP10242 SIDE'
     ' | cp fall CP9624 SIDE/CP9624 CTR/CP9624'
@@ -325,27 +335,35 @@ EXPECT = (
 
 
 def lift_leak_check():
-    """The booth lift must be applied in exactly ONE place: wr-overlays'
-    caster pass. If `booth.transformation` appears anywhere else in the
-    builder chain, the no-caster datum can move — which is the regression
-    this whole test file exists to prevent."""
+    """The booth lift must be applied in exactly ONE place: build_booth's
+    ground pass (1.33.0; it was wr-overlays' caster pass before). If
+    `booth.transformation` appears anywhere else in the builder chain, two
+    lifts can stack or the datum can move twice — the regression this whole
+    test file exists to prevent. CP_BOOTH_LIFT stays wr-overlays' alone: the
+    builder asks booth_lift, it never does the caster arithmetic itself."""
     fails = []
     ov = open(SRC, encoding='utf-8').read()
     n = ov.count('booth.transformation')
+    if n != 0:
+        fails.append('wr-overlays.rb touches booth.transformation %d time(s); '
+                     'since 1.33.0 the lift is applied only in build_booth' % n)
+    builder = open(os.path.join(HERE, 'build-booth-components.rb'), encoding='utf-8').read()
+    n = builder.count('booth.transformation')
     # Exactly 2: the read and the write of the single compose-and-assign line
-    # in place_casters ("booth.transformation = ... * booth.transformation").
+    # ("booth.transformation = ... * booth.transformation").
     if n != 2:
-        fails.append('wr-overlays.rb touches booth.transformation %d time(s), '
-                     'expected exactly 2 (one compose-and-assign in '
-                     'place_casters)' % n)
-    if 'booth.transformation' not in ov.split('def self.place_casters')[-1]:
-        fails.append('the booth lift is no longer inside place_casters')
-    for other in ('build-booth-components.rb', 'wr-deck.rb'):
-        body = open(os.path.join(HERE, other), encoding='utf-8').read()
-        for tok in ('booth.transformation', 'CP_BOOTH_LIFT'):
-            if tok in body:
-                fails.append('%s mentions %s — the lift is leaking out of the '
-                             'caster pass' % (other, tok))
+        fails.append('build-booth-components.rb touches booth.transformation %d '
+                     'time(s), expected exactly 2 (one compose-and-assign in the '
+                     'ground pass of build_booth)' % n)
+    if 'booth.transformation' not in builder.split('def self.build_booth')[-1]:
+        fails.append('the booth lift is not inside build_booth')
+    if 'CP_BOOTH_LIFT' in builder:
+        fails.append('build-booth-components.rb mentions CP_BOOTH_LIFT — the caster '
+                     'arithmetic belongs to booth_lift alone')
+    deck = open(os.path.join(HERE, 'wr-deck.rb'), encoding='utf-8').read()
+    for tok in ('booth.transformation', 'CP_BOOTH_LIFT'):
+        if tok in deck:
+            fails.append('wr-deck.rb mentions %s — the lift is leaking into the deck' % tok)
     return fails
 
 

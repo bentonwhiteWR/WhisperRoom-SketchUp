@@ -316,7 +316,15 @@ RE_SEAL = re.compile(
 
 RE_DRY_N = re.compile(r'DRY RUN.*?(\d+) parts would be placed')
 RE_PLACED = re.compile(r'placed (\d+) component instances')
-RE_MISSING_HDR = re.compile(r'\*\*\* (\d+) part\(s\) could not be resolved')
+# Both wordings: 1.25.0 split the header into "resolved to something that is
+# NOT a usable wall part" (hard refusal) and "component file(s) are NOT on the
+# share" (absent, buildable with consent). Both land in `missing`.
+RE_MISSING_HDR = re.compile(r'\*\*\* (\d+) (?:part\(s\) (?:could not be resolved|resolved to something)'
+                            r'|component file\(s\) are NOT on the share)')
+# build-booth-components.rb build_booth, the ground pass (1.33.0):
+#     GROUND  booth lifted 1.0000 - floor stack underside was -1.0000 booth-local, ...
+RE_GROUND = re.compile(r'GROUND\s+booth lifted (?P<lift>-?[\d.]+) - floor stack underside '
+                       r'was (?P<stack>-?[\d.]+) booth-local')
 RE_FLAG_HDR = re.compile(r'\*\*\* (\d+) item\(s\) flagged')
 
 # Named refusals and skips, wherever they are printed from. Substring tests, not
@@ -331,7 +339,11 @@ def parse_stdout(text):
     lines = text.split('\n')
     out = {'deck': [], 'seals': [], 'missing': [], 'flagged': [],
            'refusals': [], 'deck_notes': [], 'guessed': [],
-           'dry_parts': None, 'placed': None, 'reached_end': False}
+           'dry_parts': None, 'placed': None, 'reached_end': False,
+           # The ground lift and the measured floor-stack bottom it came from
+           # (1.33.0). A real build must show 1.0 / -1.0 on a Standard booth
+           # and 1.3125 / -1.3125 on an Enhanced one; None on a dry run.
+           'ground_lift': None, 'stack_bottom': None}
 
     mode = None
     for ln in lines:
@@ -363,6 +375,10 @@ def parse_stdout(text):
         if m:
             out['placed'] = int(m.group(1))
             out['reached_end'] = True
+        m = RE_GROUND.search(ln)
+        if m:
+            out['ground_lift'] = float(m.group('lift'))
+            out['stack_bottom'] = float(m.group('stack'))
 
         if RE_MISSING_HDR.search(ln):
             mode = 'missing'

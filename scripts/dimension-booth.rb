@@ -115,6 +115,13 @@ module WR_DimensionBooth
   # DECK_TOP_Z is ever raised to 1.0 — the physically honest alternative noted in
   # that file — this becomes 0.0 in the same commit, or the height dimension will
   # float an inch off the floor.
+  #
+  # Still -1.0 after 1.33.0, and correctly so: build_booth now lifts the booth
+  # GROUP so the floor underside lands on world z 0, but this figure is added
+  # to the group's ORIGIN (pt below), so it follows the lift for free — on a
+  # Standard booth the dimension starts at world 0. On an Enhanced booth it
+  # starts at the standard floor's underside, 0.3125 above the IEP mat that
+  # actually meets the host floor: an open point that predates the lift.
   BASE_Z = -1.0
 
   # How far above the TOP of the booth the model label floats, in inches.

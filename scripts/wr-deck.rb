@@ -84,6 +84,12 @@ module WR_Deck
   # raised to match, so the floor's underside sits on the host floor at zero
   # alongside the fan. Do that only with the wall placement changed in the same
   # commit, or the walls will float.
+  #
+  # SINCE 1.33.0 THAT HONESTY IS DELIVERED A DIFFERENT WAY: build_booth lifts
+  # the whole booth GROUP by the measured floor-stack depth after everything
+  # is placed (WR_Overlays.booth_lift), so the floor's underside lands on the
+  # host floor at zero while every booth-local figure in this file, and every
+  # print, stays exactly as it was. Leave this at 0.0.
   DECK_TOP_Z = 0.0
 
   # Wall height the ceiling sits on top of. The builder passes its own, so this

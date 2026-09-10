@@ -508,18 +508,40 @@ module WR_Overlays
   end
 
   # How far the whole booth group moves up. THE ONLY PLACE THE LIFT IS
-  # COMPUTED — the SketchUp side applies exactly this, once, to the booth
-  # group's transformation, so there is one function to test and one call
-  # site to read. A booth without casters gets 0.0, ALWAYS: that is the
-  # no-regression contract rbtest-overlays.py pins, because a lift leaking
-  # into the default path silently moves every drawing Benton has.
+  # COMPUTED — build_booth applies exactly this, once, to the booth group's
+  # transformation (the apply moved there from place_casters in 1.33.0 so it
+  # fires on every build, plates or not), so there is one function to test
+  # and one call site to read. rbtest-overlays.py pins both.
   #
-  # fl_bottom is the placed floor deck's measured bottom in booth-local
-  # coordinates (DECK_TOP_Z - 1.0 nominally, so about -1.0): the lift is
-  # whatever puts that underside at CP_BOOTH_LIFT above world z 0.
-  def self.booth_lift(casters, fl_bottom)
-    return 0.0 unless casters
-    CP_BOOTH_LIFT - fl_bottom.to_f
+  # TWO DATUMS, ONE RULE: the bottom of the booth lands on the ground plane.
+  #
+  #   casters     the plate set stands under the STANDARD floor, and Benton's
+  #               measured caster datum (2026-08-27) puts that floor's
+  #               underside CP_BOOTH_LIFT above the ground. Unchanged.
+  #   no casters  the FLOOR STACK's underside lands ON the ground. wr-deck
+  #               places the deck TOP on the wall plane (DECK_TOP_Z = 0), so
+  #               the 1.000 in slab hangs into the host floor, and on an
+  #               Enhanced booth the 0.3125 in IEP mat hangs under that
+  #               again. Benton, 2026-09-10: "whenever we bring in a booth via
+  #               the link, its too low. It should be shifted up 1" for
+  #               standard, or 1 5/16" for enhanced" — exactly that stack, so
+  #               the figure is MEASURED off the placed deck, never typed in.
+  #
+  # Until 1.33.0 the no-caster branch returned 0.0 by contract ("a lift
+  # leaking into the default path silently moves every drawing Benton has").
+  # That contract is now the opposite, on his instruction: every drawing was
+  # sitting an inch (or 1 5/16) into the floor, and the fix IS the move.
+  #
+  # fl_bottom is the placed STANDARD floor's measured underside in booth-local
+  # coordinates (about -1.0). stack_bottom is the underside of the whole floor
+  # stack: the same figure on a Standard booth, the IEP mat's on an Enhanced
+  # one (about -1.3125). The caster branch keeps fl_bottom on purpose — the
+  # 4.75 datum was measured against the standard floor, and on an Enhanced
+  # booth on casters the mat's extra 0.3125 into the tray is an OPEN question
+  # this does not answer (it never did).
+  def self.booth_lift(casters, fl_bottom, stack_bottom = fl_bottom)
+    return CP_BOOTH_LIFT - fl_bottom.to_f if casters
+    -stack_bottom.to_f
   end
 
   # The CP file names to try for one floor-deck tile, best first.
@@ -1032,9 +1054,14 @@ module WR_Overlays
     end
 
     # --------------------------------------- caster plate + the booth lift --
+    casters_in = false
     if ov['casters_plate']
-      placed += place_casters(model, booth, key, spec, cfg, cache,
-                              deck && deck['FL'], warns)
+      n = place_casters(model, booth, key, spec, cfg, cache,
+                        deck && deck['FL'], warns)
+      placed += n
+      # A refused plate set (n = 0, said by name above) means there is NO
+      # caster datum: build_booth grounds the booth like one without casters.
+      casters_in = n > 0
     end
 
     # -------------------------------------------- named refusals, not silent --
@@ -1047,7 +1074,8 @@ module WR_Overlays
     end
 
     puts '  ---- overlays end ' + '-' * 58
-    [placed, warns]
+    # casters_in tells build_booth which booth_lift branch applies.
+    [placed, warns, casters_in]
   end
 
   # ---- the roof unit of a roof-mounted (rv = 1) booth ---------------------
@@ -1395,14 +1423,12 @@ module WR_Overlays
       return 0
     end
 
-    # THE LIFT, applied exactly once, to the group. Instances added to the
-    # group above are in booth-local coordinates and ride along; every bounds
-    # printed before this line is pre-lift.
-    booth.transformation = Geom::Transformation.translation(
-      Geom::Vector3d.new(0, 0, lift)) * booth.transformation
-    puts format('    BOOTH LIFTED %.4f — floor underside now %.2f above the ' \
-                'ground plane (Benton\'s figure; every bounds printed above ' \
-                'is pre-lift, booth-local).', lift, CP_BOOTH_LIFT)
+    # THE LIFT IS NOT APPLIED HERE ANY MORE (1.33.0). build_booth applies
+    # booth_lift exactly once, after every overlay, for casters and no
+    # casters alike, and reads the plate count this returns to pick the
+    # branch. Every bounds printed above is pre-lift, booth-local.
+    puts format('    caster datum: build_booth will lift the booth %.4f so the floor ' \
+                'underside sits %.2f above the ground plane.', lift, CP_BOOTH_LIFT)
     placed
   end
 end

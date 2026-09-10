@@ -1,3 +1,74 @@
+# HANDOFF — Builder → Benton: the ground lift, 1.33.0
+
+2026-09-10. Benton: *"I think whenever we bring in a booth via the link, its
+too low. It should be shifted up 1" for standard, or 1 5/16" for enhanced."*
+**Cause identified; his numbers fall out of it. Unrun in SketchUp.**
+
+## Cause (observed)
+- `wr-deck.rb:76-87`: `DECK_TOP_Z = 0.0` — deck TOP on the wall plane, "the
+  floor hangs below it, into the host floor", with the honest alternative
+  named and deferred.
+- Every FL part is a 1.000" slab z 0→1 (`reference/floor-ceiling-geometry.md`).
+- `iep_deck` (build-booth-components ~1097): IEP mat, 0.3125 thick, placed at
+  `host.min.z` — under the standard floor.
+- So the floor stack bottomed at −1.000 (S) / −1.3125 (E). Not a coincidence.
+- `WR_Overlays.booth_lift` already lifted the group for casters only; its
+  no-caster 0.0 was a pinned contract (`rbtest-overlays.py`).
+
+## Produced
+- `scripts/wr-overlays.rb`: `booth_lift(casters, fl_bottom, stack_bottom =
+  fl_bottom)` — casters unchanged, no casters `−stack_bottom`. `place_casters`
+  no longer applies the transform (reports only). `place_all` returns
+  `[placed, warns, casters_in]`.
+- `scripts/build-booth-components.rb`: measures `fl_bottom` (standard floor
+  bounds) and `stack_bottom` (min with the IEP deck's bounds); a **GROUND**
+  pass after the overlays applies the lift once to the group; flags a
+  no-caster lift ≠ 1.0/1.3125 by name; refuses to lift without a measured
+  floor. `DECK_TOP_Z` untouched.
+- `scripts/rbtest-overlays.py`: pins `1.0000 1.3125 -3.25 on 5.75 5.75`;
+  leak scan inverted (one apply site in `build_booth`, none elsewhere).
+- `scripts/rbtest-live-booth.py`: `ground_lift` / `stack_bottom` fields;
+  `missing` regex fixed for the 1.25.0 wordings (regression from my earlier
+  change today).
+- Comments: `wr-deck.rb` (DECK_TOP_Z), `dimension-booth.rb` (BASE_Z).
+- `VERSION` → **1.33.0** (minor). DEVLOG entry.
+
+## Answers to the three questions
+- **Already drawn?** Yes — every booth built before 1.33.0 sits 1" / 1 5/16"
+  low. Re-import moves everything inside the group (walls, decks, seals,
+  foam, options, ramp, plates, placeholders). Left behind: dimensions from
+  `dimension-booth.rb` / `dimension-selection.rb` (model space — redraw),
+  the room, screen notes, scene cameras.
+- **Ramp / caster plate?** Ramp is geometry inside `…WADoorWithRamp.skp`,
+  inside the group — moves. Plates are placed into the group and the caster
+  lift is the same function's other branch — consistent by construction.
+  Open (pre-existing): Enhanced + casters puts the mat 5/16 into the tray.
+- **Exterior height?** Unchanged: a pure z translation of the group; every
+  booth-local figure and print is identical to before.
+
+## Assumptions (not observed)
+- `Group#transformation=` composes as documented (the caster code used the
+  same line since 1.9.x and Benton has built with casters).
+- `union_bounds` of the IEP deck instances includes the mat's underside (it
+  is the group-space bounds of the placed instances — same call `host`
+  already relies on).
+
+## To verify (Benton)
+1. Link-import a **Standard** booth. Console: `GROUND  booth lifted 1.0000 -
+   floor stack underside was -1.0000 … now 0.0000`. Tape from the room floor
+   to the floor panel's underside: **0**; to the walls' underside: **1"**.
+2. Link-import an **Enhanced** booth: `GROUND  booth lifted 1.3125`. Mat
+   underside on the floor: **0**; standard floor underside: **5/16"**; walls'
+   underside: **1 5/16"**.
+3. Measure overall height, floor underside to ceiling top, on each — must
+   equal the pre-1.33.0 figure (e.g. the 96120 E's drawn 7'-0 5/16").
+4. A casters link: `caster datum: … will lift the booth 5.7500` then
+   `GROUND … (caster datum)`; plate bottoms on the floor as before.
+5. Run *Dimension this booth*: the height dimension should start at the floor,
+   not an inch under it.
+
+---
+
 # HANDOFF — Fixer → Benton: SUN column, 1.27.0
 
 2026-09-10. *"saving the sun from the light from here ... reset every time
