@@ -629,6 +629,53 @@ module WR_ProposalPackage
     end
   end
 
+  # DRAG-TO-REORDER (1.23.0). Benton: "id like to be able to drag and drop
+  # scenes to reorder them in the proposal package" — and, asked what should
+  # move, chose the REAL SketchUp scenes, not a package-only order.
+  #
+  # The mechanism is Sketchup::Pages#reorder(page, new_index), SketchUp
+  # 2025.0+ (ruby.sketchup.com/Sketchup/Pages.html: "used to reorder an
+  # existing Page object inside collection", 0-based, IndexError out of
+  # range). It MOVES the page object, so nothing on it is touched: the
+  # hidden-walls / hidden-annotations snapshots, camera, and the MODE and EV
+  # attributes this tool stores on the page all travel with it. Erase-and-
+  # re-add was never an option — it would have destroyed exactly that state.
+  #
+  # `from` and `to` are 1-based TABLE numbers. The result is re-read from
+  # the model, never assumed from the drop: the log reports where the scene
+  # actually landed. An older SketchUp without #reorder is refused by name.
+  def self.reorder_scene(model, from, to)
+    pages = model.pages
+    unless pages.respond_to?(:reorder)
+      return [false, 'This SketchUp cannot reorder scenes from Ruby — ' \
+                     'Pages#reorder needs SketchUp 2025 or newer. Drag the ' \
+                     'scene tabs in SketchUp instead.']
+    end
+    n = pages.count
+    return [false, "scene #{from} is gone — hit Rescan"] if from < 1 || from > n
+    return [false, "position #{to} is off the end — hit Rescan"] if to < 1 || to > n
+    pg   = pages.to_a[from - 1]
+    name = pg.name.to_s
+    return [true, "\"#{name}\" is already scene #{to} — nothing moved."] if from == to
+    model.start_operation('Reorder scene', true)
+    begin
+      pages.reorder(pg, to - 1)
+      model.commit_operation
+    rescue StandardError => e
+      model.abort_operation
+      return [false, "reorder failed and was rolled back: #{e.class}: #{e.message}"]
+    end
+    landed = pages.to_a.index { |p| p == pg }
+    landed = landed.nil? ? nil : landed + 1
+    if landed == to
+      [true, "Moved \"#{name}\" from scene #{from} to scene #{to}. " \
+             'Ctrl+Z reverses it.']
+    else
+      [false, "Asked to move \"#{name}\" to scene #{to}; the model reports it " \
+              "at #{landed.inspect}. Table redrawn from the model."]
+    end
+  end
+
   def self.slot_rows(model)
     WR_MaterialsSwap::SLOT_FOR.map do |house, slot|
       src = WR_MaterialsSwap.source(model, slot)
@@ -3294,6 +3341,22 @@ module WR_ProposalPackage
       push_state(model, d)
     end
 
+    # One drag = one operation = one Ctrl+Z. The table is ALWAYS redrawn
+    # from the model afterwards (push_state → gather), so row numbers and the
+    # FILE column come from where the scene really is, not from the drop.
+    d.add_action_callback('reorder') do |_c, payload|
+      next if busy?(d, 'reorder')
+      begin
+        req = JSON.parse(payload.to_s)
+        ok, msg = reorder_scene(model, req['from'].to_i, req['to'].to_i)
+        log(d, msg, ok ? 'dim' : 'bad')
+      rescue StandardError => e
+        log(d, "reorder failed: #{e.class}: #{e.message}", 'bad')
+        puts "  reorder failed: #{e.class}: #{e.message}"
+      end
+      push_state(model, d)
+    end
+
     d.add_action_callback('activate') do |_c, n|
       next if busy?(d, 'activate')
       begin
@@ -3638,6 +3701,12 @@ module WR_ProposalPackage
   td { padding:3px 8px; border-top:1px solid var(--line); vertical-align:middle; }
   tr:hover td { background:#f8f4f1; }
   td.n { font-variant-numeric:tabular-nums; color:var(--muted); width:1%; white-space:nowrap; }
+  /* drag-to-reorder (1.23.0): the # cell is the grip; the drop edge is drawn
+     in the accent already used for hover states — no new colour. */
+  tr[draggable="true"] td.n { cursor:grab; }
+  tr.dragging { opacity:.4; }
+  tr.over-above td { border-top:2px solid var(--accent); }
+  tr.over-below td { border-bottom:2px solid var(--accent); }
   /* The scene name is the SECOND way to jump to a scene -- it carries the
      same data-go hook as the arrow at the end of the row, so the one
      [data-go] wiring below drives both. A cell that moves the SketchUp
@@ -4016,10 +4085,18 @@ module WR_ProposalPackage
       return ts.length>0 && ts.every(function(t){ return s.indexOf(t)>=0; });
     });
     var hi=(nums&&nums.only)?[]:ts;
+    // Rows drag only when the table shows EVERY scene and no batch is
+    // running: in a filtered view "drop above scene 5" has no single meaning
+    // in the full list, so rather than guess, the grip is off and the # cell
+    // says why.
+    var canDrag = !running && view.length === ST.rows.length;
+    var grip = canDrag ? "Drag to reorder the SketchUp scenes"
+                       : (running ? "Reordering is off while a batch runs"
+                                  : "Clear the search to drag scenes into a new order");
     $b.innerHTML = view.map(function(r){
       var fh = r.file ? esc(r.file).replace(/ render(?=( \\(\\d+\\))?\\.png$)/," <b>render</b>") : "&mdash;";
-      return "<tr data-n='"+r.n+"'>"+
-        "<td class='n'>"+r.n+"</td>"+
+      return "<tr data-n='"+r.n+"'"+(canDrag ? " draggable='true'" : "")+">"+
+        "<td class='n' title='"+grip+"'>"+r.n+"</td>"+
         "<td class='sc' data-go='"+r.n+"' title='Go to this scene in SketchUp'>"+
           hl(r.scene,hi)+"</td>"+
         "<td><span class='seg'>"+
@@ -4030,6 +4107,7 @@ module WR_ProposalPackage
         "<td class='file' title='"+esc(r.file)+"'>"+fh+"</td>"+
         "<td class='go'><button data-go='"+r.n+"' title='Go to this scene'>&#8594;</button></td></tr>";
     }).join("");
+    if(canDrag) wireDrag();
     Array.prototype.forEach.call($b.querySelectorAll("[data-mode]"), function(el){
       el.addEventListener("click", function(){
         if(running) return;
@@ -4089,6 +4167,52 @@ module WR_ProposalPackage
     // Rescan too: Ruby's busy? guard would refuse it anyway, but a greyed
     // button says so before the click rather than after.
     var rb = g("rescan"); if(rb) rb.disabled = running;
+  }
+
+  // HTML5 drag-and-drop over the rows. The drop sends {from, to} as TABLE
+  // numbers and nothing else: the table is not touched here, because Ruby
+  // pushes a fresh state from the model and that is the only version of
+  // the order that counts. Dropping on the upper half of a row means
+  // "before it", the lower half "after it".
+  var dragN = 0;
+  function clearOver(){
+    Array.prototype.forEach.call($b.querySelectorAll("tr.over-above, tr.over-below"), function(tr){
+      tr.classList.remove("over-above"); tr.classList.remove("over-below");
+    });
+  }
+  function wireDrag(){
+    Array.prototype.forEach.call($b.querySelectorAll("tr[draggable]"), function(tr){
+      tr.addEventListener("dragstart", function(e){
+        dragN = +tr.getAttribute("data-n");
+        tr.classList.add("dragging");
+        try { e.dataTransfer.setData("text/plain", String(dragN)); e.dataTransfer.effectAllowed = "move"; } catch(_){}
+      });
+      tr.addEventListener("dragend", function(){
+        tr.classList.remove("dragging"); clearOver(); dragN = 0;
+      });
+      tr.addEventListener("dragover", function(e){
+        if(!dragN) return;
+        e.preventDefault();
+        var r = tr.getBoundingClientRect(), above = (e.clientY - r.top) < r.height/2;
+        clearOver();
+        tr.classList.add(above ? "over-above" : "over-below");
+      });
+      tr.addEventListener("dragleave", function(){ tr.classList.remove("over-above"); tr.classList.remove("over-below"); });
+      tr.addEventListener("drop", function(e){
+        e.preventDefault();
+        if(!dragN || running) return;
+        var target = +tr.getAttribute("data-n"),
+            r = tr.getBoundingClientRect(), above = (e.clientY - r.top) < r.height/2,
+            from = dragN, to;
+        // Final 1-based position once `from` is lifted out of the list.
+        if(above) to = (from < target) ? target - 1 : target;
+        else      to = (from < target) ? target     : target + 1;
+        clearOver();
+        if(to === from) return;
+        if(window.sketchup && sketchup.reorder)
+          sketchup.reorder(JSON.stringify({ from: from, to: to }));
+      });
+    });
   }
 
   function drawMats(){

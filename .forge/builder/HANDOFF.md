@@ -1,3 +1,60 @@
+# HANDOFF — Builder → Benton: drag-to-reorder scenes, 1.23.0
+
+2026-09-10. Benton: *"id like to be able to drag and drop scenes to reorder
+them"* — the REAL SketchUp scenes, undoable, not a package-only order.
+Shipped, **unrun in SketchUp**.
+
+## Feasibility — the answer is yes, natively
+`Sketchup::Pages#reorder(page, new_index)`, **SketchUp 2025.0+**, verified
+verbatim on ruby.sketchup.com/Sketchup/Pages.html (reported, not run):
+moves an existing page, 0-based, `IndexError` out of range. `Pages#add`'s
+index only places a NEW page; `Page` has no writable index. Nothing in
+`reference/` or the repo's probes had ever touched page order.
+
+Three options, ranked:
+1. **Native `reorder` — built.** Non-destructive by construction.
+2. Package-only export order — certain, declined by Benton, not substituted.
+3. Capture/rebuild/restore — **unsafe**: camera, style, shadow_info,
+   rendering_options, hidden_entities, layers, section planes are readers
+   whose only writer is `Page#update` from the live view; fog and per-page
+   rendering deltas are not enumerable. Rejected.
+
+## Produced — `scripts/proposal-package.rb`
+- `reorder_scene(model, from, to)` beside `gather`: guard for the API,
+  range checks that point at Rescan, one `start_operation('Reorder scene')`,
+  result re-read from the model and reported (`Moved "X" from scene 3 to
+  scene 1. Ctrl+Z reverses it.`).
+- `reorder` callback (`busy?` guarded) → `reorder_scene` → log →
+  `push_state` (always from the model).
+- JS: rows `draggable` only when `!running && view.length === ST.rows.length`;
+  `wireDrag()` with dragstart/over/leave/drop/end; drop computes the final
+  1-based position and sends `{from, to}`; no optimistic reorder.
+- CSS: `cursor:grab` on the `#` cell, `.dragging`, `.over-above`,
+  `.over-below` in `var(--accent)`. No new colour.
+- `VERSION` → **1.23.0** (minor). DEVLOG entry.
+
+## Assumptions (not observed)
+- `pages.reorder(pg, i)` leaves the page at index `i` (docs: "the new
+  position of the page"). If it differs, the log says so and the table is
+  right regardless.
+- The reorder is recorded on the undo stack when wrapped in an operation.
+- CEF in SketchUp 2026's HtmlDialog supports HTML5 drag events on `<tr>`
+  (it is Chromium; the walls dialog already relies on modern DOM APIs).
+
+## To verify (Benton) — the state-survival check is the one that matters
+1. Proposal package: set scene 3 to RENDER, give it hidden walls and a
+   hidden annotation set. Drag its row (grab the `#`) above scene 1.
+   Expect: the table renumbers with it as scene 1, the FILE column
+   renumbers, the log reads `Moved "…" from scene 3 to scene 1`, and the
+   SketchUp scene tabs show the same order.
+2. It still shows RENDER; **Hide walls** and **Hide notes** on its new row
+   show the same ticks; clicking it shows the same camera.
+3. **Ctrl+Z once** → tabs and table back to the old order.
+4. Type a search: `#` cells lose the grab cursor, tooltip says to clear it.
+5. Start an export: no drag while it runs.
+
+---
+
 # HANDOFF — Builder → Benton: singleton proposal package, 1.22.1
 
 2026-09-10. Benton: *"If i re-click the proposal package right now, it opens

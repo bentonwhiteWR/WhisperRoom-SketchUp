@@ -2,6 +2,68 @@
 
 ## 2026-09-10
 
+### Drag-to-reorder scenes in the proposal package — 1.23.0
+
+Benton: *"id like to be able to drag and drop scenes to reorder them in the
+proposal package."* Asked what should move, he chose the **real SketchUp
+scenes** — tabs and table share one order, it lives in the `.skp`, it is
+undoable — and declined a package-only export order. And: *"obviously dont
+want to destroy each scene if that causes an issue."*
+
+**Feasibility first, because the naive way is destructive.** The worry was
+that the API had no move method, so a reorder would mean erase-and-re-add,
+which destroys everything the day's tools write onto a page: hidden walls,
+hidden annotations, hidden objects, camera, MODE and EV. Checked in order:
+`reference/` (nothing on page order), the repo's probe scripts and
+`.forge/builder/` (never probed), then the official API reference.
+
+**Found: `Sketchup::Pages#reorder(page, new_index)`, SketchUp 2025.0.**
+Verbatim from ruby.sketchup.com/Sketchup/Pages.html: *"used to reorder an
+existing Page object inside collection"*, `new_index` 0-based (negatives
+from the end), raises `IndexError` out of range. `Pages#add`'s `index`
+parameter still only positions a *new* page; `Page` has no writable index.
+This file targets SketchUp 2026, so the native, non-destructive move exists
+and nothing else needed weighing. For the record, the other two options:
+
+- *Package-only order*: certain, but he declined it — not substituted.
+- *Capture / rebuild / restore*: rejected on inspection. `Page` exposes
+  `camera`, `style`, `shadow_info`, `rendering_options`, `hidden_entities`,
+  `layers`, `layer_folders`, `active_section_planes` as **readers whose only
+  writer is `update(flags)` from the live view**; there is no way to write a
+  section-plane or style snapshot back onto a page except by re-asserting it
+  in the viewport first, and anything the API does not enumerate (fog and
+  per-page rendering-option deltas, at least) cannot be proven carried. A
+  rebuild that *looks* right until an export is exactly the silent failure
+  to avoid, so it was never a candidate once `reorder` was confirmed.
+
+**What shipped.** HTML5 drag-and-drop on the SCENES rows (the `#` cell is
+the grip; upper half of a row = drop before it, lower half = after).
+The drop sends `{from, to}` as 1-based table numbers and *nothing else*:
+`reorder_scene` wraps `pages.reorder` in one `start_operation` (one Ctrl+Z),
+then the table is redrawn from the model via `push_state` — never from the
+drop — so row numbers and the FILE column (`plan_names`) come from where
+the scene really landed, and the log says where that was.
+
+- **Scene state, MODE, EV:** untouched by construction — the page object
+  moves; nothing is erased or recreated.
+- **Index-keyed references** (`gather` numbers, popover `n`, "scene N is
+  gone" raises): all are re-read from `model.pages` on every callback, so
+  they follow the new order after `push_state`. The popovers are modal
+  overlays, so a drag cannot happen while one holds an index.
+- **Filtered view:** rows do not drag while the search box narrows the
+  table — "above scene 5" has no single meaning in the full list — and the
+  grip tooltip says to clear the search.
+- **Mid-batch:** `busy?` guard, and rows are not draggable while `running`.
+- **Older SketchUp:** `respond_to?(:reorder)` → refused by name, pointing at
+  the scene tabs.
+
+Minor bump (1.23.0): a new capability in the dialog. **UNRUN in SketchUp** —
+`rbparse.py` 68/68, `rbtest-proposal.py` passes, `node --check` on the
+extracted dialog JS passes. Not observed: that `Pages#reorder` lands the page
+at exactly `new_index` (the log reports the actual position either way) and
+that it is recorded on the undo stack (it is wrapped as an operation; the
+Ctrl+Z check is the load-bearing one).
+
 ### Proposal package is a singleton — re-press refreshes, 1.22.1
 
 Benton: *"If i re-click the proposal package right now, it opens it again.
