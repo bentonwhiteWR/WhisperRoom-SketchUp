@@ -1,3 +1,61 @@
+# HANDOFF — Builder → Benton: the step builds from the link, 1.45.0
+
+2026-09-10. Benton: *"1. Yes it does, the front I believe. Ill correct it if
+not"* / *"Use Step. StepFront is old"*. **Unrun in SketchUp.** `Step.skp`
+was NOT measured (bridge not listening); the code measures it at build time.
+
+## The two constants (wr-overlays.rb, next to place_step)
+- `STEP_ALONG_OFFSET = 0.0` — inches along the wall from the door **FRAME**
+  centre. Unconfirmed ruling 10 Sep 2026 (coordinator's reasoning; the
+  portal art anchors on the slot midpoint too). Set it if the step belongs
+  under the leaf. + toward the wall's high end (+X on N/S, +Y on E/W).
+- `STEP_FRONT_AWAY = true` — the part's authored front (+depth end) faces
+  away from the booth. Flip if it comes in back to front.
+
+## Rules built in (with sources)
+- Plan: centred on the frame, 12" out from the door slot's exterior face,
+  44" along (`layout-render.js:2407-2410` `edgeGeom(...).omx = px + pw/2`,
+  `12 * PX`; the part's own 12.000 axis).
+- Vertical: underside on world z 0 via `step_ground_z = -booth_lift(...)`
+  (`layout-render.js` elevation: "Bottom lines up with the bottom of the
+  caster wheels"). Booth-local −1.0 Std / −1.3125 Enh / −5.75 CP.
+- Only with casters (`lib/packing-list.js` "only sold with a CP"; elevation
+  `lift > 0`). No plate → `STEP (sp) not placed: no caster plate went in …`.
+- Ramp wins (`layout.step && !door.rampBaked`; vector step is the ramp's
+  else). `…WithRamp` door → `STEP (sp) not placed: the door is … the ramp
+  wins`.
+
+## Produced
+- `scripts/wr-overlays.rb`: `STEP_NAME/DEPTH/ALONG_OFFSET/FRONT_AWAY`,
+  `step_ground_z`, `step_blockers`, `step_seat` (pure), `place_step`; the
+  header's "does not place" block rewritten as history; the old warn gone.
+- `scripts/build-booth-components.rb`: `host['stack_bottom']` handed to the
+  overlays.
+- `scripts/booth-from-link.rb`: refusal line gone, step listed as built,
+  header no longer names StepFront.
+- `scripts/rbtest-overlays.py`: group 7, five pins; mutation-checked (5/5).
+- `VERSION` → **1.45.0** (minor; the other agent's 1.44.0 landed while this
+  was in flight). DEVLOG entry.
+
+## Assumptions (not observed)
+- `Step.skp` measures like `StepFront.skp` (44 × 12 × 5, tread on top) — an
+  inference from size/date; the placement does not depend on it beyond the
+  depth warning (±1" of 12).
+- `Geom::Transformation.axes` builds the basis from the three vectors as
+  documented; `collect_faces` extents as every other overlay relies on.
+
+## To verify (Benton)
+1. Link with casters + step, plain door → console `STEP  Step.skp …
+   centred on the door FRAME of S0 … threshold 5.75`; step centred on the
+   opening, 12" out, on the room floor, tread ¾" below the threshold.
+2. Same link, no casters → `STEP (sp) not placed: no caster plate went in`.
+3. WA door with ramp + step → `STEP (sp) not placed: the door is
+   RightWADoorWithRamp … the ramp wins`.
+4. Wrong side of the door? `STEP_ALONG_OFFSET`. Back to front?
+   `STEP_FRONT_AWAY`.
+
+---
+
 # HANDOFF — Builder → Benton: 46Vnt_VSS_EFS_CP accepted on its panel, 1.41.1
 
 2026-09-10. Benton: *"Uh we do have the component. Its this

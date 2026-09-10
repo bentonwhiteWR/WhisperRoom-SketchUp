@@ -85,11 +85,12 @@ def lift_const(lines, name):
 METHODS = ['kind_of', 'wears_foam?', 'wears_duct_covers?', 'slot_frame',
            'port_run_pos', 'wall_of', 'host_frame', 'foam_targets',
            'duct_targets', 'desk_accepts_inside?', 'desk_accepts_outside?',
-           'desk_host', 'mjp_host', 'axes_for', 'booth_lift', 'cp_candidates']
+           'desk_host', 'mjp_host', 'axes_for', 'booth_lift', 'cp_candidates',
+           'step_ground_z', 'step_blockers', 'step_seat']
 CONSTS = ['DUCT_PORTS', 'OPPOSITE_WALL']
 # Scalar constants (no .freeze line to anchor on): lifted verbatim as their
 # single assignment line.
-SCALARS = ['CP_BOOTH_LIFT', 'CP_TRAY_DEPTH', 'CP_PLATE_HEIGHT']
+SCALARS = ['CP_BOOTH_LIFT', 'CP_TRAY_DEPTH', 'CP_PLATE_HEIGHT', 'STEP_ALONG_OFFSET']
 
 
 def lift_scalar(lines, name):
@@ -276,6 +277,32 @@ __METHODS__
     ].join(',')
     out << 'cp fall ' + cp_candidates(96, 24, 3, 0).join('/')
 
+    # 7 - THE EXTERIOR STEP (1.45.0). Ground: the step stands where world z 0
+    # lands, i.e. minus the ground lift - 1.0 Standard, 1.3125 Enhanced, 5.75
+    # on casters (the only case that builds). Seat: a 44 x 12 x 5 part in
+    # front of an S-wall door frame centred at x 22 whose exterior face is
+    # y 1: x 0..44, y -11..1 (12 in OUT), z on the ground. N, E, W mirror it.
+    # STEP_ALONG_OFFSET moves it along the wall and is pinned at 0.0 - the
+    # frame datum, an unconfirmed ruling Benton may flip. Blockers: a plain
+    # door with casters is clear; a ramp door, no casters, or no door each
+    # refuse by name.
+    out << format('step ground %.4f %.4f %.4f', step_ground_z(false, -1.0),
+                  step_ground_z(false, -1.0, -1.3125), step_ground_z(true, -1.0))
+    s = step_seat('S', 22.0, 1.0, -5.75, 44.0, 12.0, 5.0)
+    out << format('step S %.2f..%.2f %.2f..%.2f %.2f..%.2f',
+                  s[0][0], s[0][1], s[1][0], s[1][1], s[2][0], s[2][1])
+    n = step_seat('N', 22.0, 103.0, -5.75, 44.0, 12.0, 5.0)
+    e = step_seat('E', 52.0, 103.0, -5.75, 44.0, 12.0, 5.0)
+    w = step_seat('W', 52.0, 1.0, -5.75, 44.0, 12.0, 5.0)
+    out << format('step N y %.2f..%.2f E x %.2f..%.2f W x %.2f..%.2f y %.2f..%.2f',
+                  n[1][0], n[1][1], e[0][0], e[0][1], w[0][0], w[0][1], w[1][0], w[1][1])
+    o = step_seat('S', 22.0, 1.0, -5.75, 44.0, 12.0, 5.0, 3.0)
+    out << format('step offset x %.2f..%.2f const %.1f', o[0][0], o[0][1], STEP_ALONG_OFFSET)
+    out << 'step block ' + [step_blockers('Right46Door', true).length,
+                            step_blockers('RightWADoorWithRamp', true).length,
+                            step_blockers('Right46Door', false).length,
+                            step_blockers(nil, true).length].join('/')
+
     out.join(' | ')
   end
 end
@@ -331,6 +358,11 @@ EXPECT = (
     ' | cp names CP4872,CP7248 SIDE,CP7224 SIDE,CP9648 SIDE,CP9624 CTR,'
     'CP9648 SIDE,CP8418 CTR,CP10242 SIDE'
     ' | cp fall CP9624 SIDE/CP9624 CTR/CP9624'
+    ' | step ground -1.0000 -1.3125 -5.7500'
+    ' | step S 0.00..44.00 -11.00..1.00 -5.75..-0.75'
+    ' | step N y 103.00..115.00 E x 103.00..115.00 W x -11.00..1.00 y 30.00..74.00'
+    ' | step offset x 3.00..47.00 const 0.0'
+    ' | step block 0/1/1/1'
 )
 
 

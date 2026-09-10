@@ -2892,6 +2892,9 @@ module WR_BuildBoothComponents
           if iep_bb && stack_bottom
             stack_bottom = [stack_bottom, iep_bb.min.z.to_f].min
           end
+          # The overlays' step stands on the ground, which is this figure
+          # (step_ground_z) - handed over in the same hash as the deck bounds.
+          host['stack_bottom'] = stack_bottom
           placed += n
           dnotes.each { |x| puts "  IEP deck #{x}" }
           dwarns.each { |x| puts "  IEP DECK: #{x}" }

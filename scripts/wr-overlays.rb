@@ -64,15 +64,11 @@
 #               booth is NOT lifted. The vent-wall _CP art swap is separate
 #               and already handled by booth-from-link.rb.
 #
-# WHAT IT DOES NOT PLACE, ON PURPOSE
-#
-#   STEP (payload sp). Pairs with the caster plate, which now builds — but
-#   the step's own placement is still not portal-sourced end to end. What IS
-#   known: 12 in deep in front of the door (layout-render's step block,
-#   TD_ART.step art measures 44.03 x 12.08), StepFront.skp exists. What is
-#   NOT sourced: its lateral anchor (centred on the door leaf or the frame?)
-#   and which face of the part is the tread. Refused by name until someone
-#   rules on those two, so a guessed step cannot ship inside a correct booth.
+# THE STEP (payload sp) BUILDS SINCE 1.45.0 — see place_step and the STEP_*
+# constants. It was refused by name from 1.9.x to 1.43.0 for want of two
+# rulings (its lateral anchor and its tread face); Benton gave them on
+# 2026-09-10 and named the part: "Use Step. StepFront is old". The history
+# is in the DEVLOG; nothing here should send anyone back to StepFront.skp.
 
 require 'sketchup.rb'
 
@@ -719,6 +715,195 @@ module WR_Overlays
   # the caster plate can read where the placed floor's underside really is;
   # nil on a dry run and from any older caller, and only the caster branch
   # reads it.
+  # ---- the exterior STEP (payload sp) ---------------------------------------
+  #
+  # WHAT IT IS: the part a customer steps up on into a booth that stands on a
+  # caster plate. Sold ONLY with the plate (lib/packing-list.js: "exterior
+  # Step (only sold with a CP)"; the portal's elevation draws it only when
+  # lift > 0). The plate raises the threshold to 4.75 + 1.0 = 5.75 above the
+  # ground; the step stands ON the ground, 5 in tall (StepFront's probe: box
+  # 44 x 12 x 5, tread face at the top), so the tread sits 0.75 under the
+  # threshold. Without a plate a Standard threshold is 1.0 above the ground
+  # and a 5 in step would stand 4 in ABOVE it - so no plate, no step, by name.
+  #
+  # WHERE, IN PLAN (observed, assets/layout-render.js): the art anchors the
+  # step at edgeGeom(door...).omx = px + pw/2 — the midpoint of the door
+  # SLOT's exterior face — 12 in deep outward, 44 in at the door. That is the
+  # door FRAME, not the swung leaf. It is also the coordinator's reasoning
+  # (2026-09-10): the leaf swings, the frame is the opening you step through.
+  # Benton's answer to "leaf or frame" was "Yes it does, the front I believe.
+  # Ill correct it if not" — so the frame is BUILT, and the one number to
+  # change if he corrects it is STEP_ALONG_OFFSET below. The tread face is
+  # the front (his words); STEP_FRONT_AWAY is the one switch for that.
+  #
+  # WHERE, VERTICALLY: its underside on the ground plane — the portal's
+  # elevation: "Bottom lines up with the bottom of the caster wheels". The
+  # ground in booth-local coordinates is wherever build_booth's ground lift
+  # will put world z 0, so step_ground_z is -booth_lift(...) and the step
+  # rides the same one function the booth is lifted by. Standard 1.0 /
+  # Enhanced 1.3125 / casters 5.75 fall out of it; only casters builds.
+  #
+  # RAMP + STEP: the ramp wins and the step is refused by name. The ramp is
+  # geometry inside …WADoorWithRamp.skp and occupies the same 12 in; the
+  # portal never draws both (layout-render.js: `layout.step && !door.rampBaked`,
+  # and the vector step is the else-branch of the ramp). Stacking them would
+  # be a defect that renders as a booth.
+  #
+  # THE PART IS MEASURED AT BUILD TIME (geom_extents), exactly like the EFP
+  # slab: Step.skp has not been probed on this machine (the bridge was not
+  # listening), so nothing about its box is assumed by the placement — its
+  # longest axis goes along the wall, its middle axis out from the wall, its
+  # thinnest axis up. Only the FRONT choice needs a ruling, and that is a
+  # constant.
+  STEP_NAME  = 'Step'.freeze   # Benton, 2026-09-10: "Use Step. StepFront is old"
+  STEP_DEPTH = 12.0            # in, in front of the door; art and part agree
+  # UNCONFIRMED RULING, 2026-09-10: inches ALONG THE WALL from the door FRAME's
+  # centre to the step's centre. 0.0 = centred on the frame (coordinator's
+  # reasoning + the portal art's slot-midpoint anchor). Benton to confirm on
+  # first sight; if the step belongs under the LEAF instead, put the offset
+  # here (+ toward the wall's high end: +X on N/S, +Y on E/W) — nothing else
+  # needs touching.
+  STEP_ALONG_OFFSET = 0.0
+  # UNCONFIRMED RULING, 2026-09-10 (Benton: the tread is "the front"): the
+  # part's FRONT — its +depth end as authored — faces AWAY from the booth.
+  # Flip to false if the step comes in back to front.
+  STEP_FRONT_AWAY = true
+
+  # The booth-local z of the ground plane: where world z 0 lands once
+  # build_booth applies booth_lift. One function, so the step and the lift
+  # cannot disagree.
+  def self.step_ground_z(casters, fl_bottom, stack_bottom = fl_bottom)
+    -booth_lift(casters, fl_bottom, stack_bottom)
+  end
+
+  # Every reason the step is NOT placed, by name; empty means place it.
+  def self.step_blockers(door_name, casters_in)
+    out = []
+    out << 'no door on the outer shell to stand in front of' if door_name.nil?
+    if door_name.to_s =~ /WithRamp/i
+      out << "the door is #{door_name} - the ADA ramp is geometry inside that part " \
+             'and takes the same 12 in; the ramp wins and no step is placed'
+    end
+    unless casters_in
+      out << 'no caster plate went in - the step is only sold with a caster plate ' \
+             '(packing list) and stands 5 in tall against a 1 in threshold without one'
+    end
+    out
+  end
+
+  # The step's target box in booth-local coordinates:
+  #   wall     'N' 'S' 'E' 'W' - the door's wall
+  #   frame_c  the door FRAME's centre along the wall (its slot polygon's
+  #            mid-point after rebalancing)
+  #   face     the wall's exterior face on the door slot (the band's outer edge)
+  #   ground_z step_ground_z
+  #   along / depth / height - the part's measured extents
+  # -> [[x0, x1], [y0, y1], [z0, z1]]
+  def self.step_seat(wall, frame_c, face, ground_z, along, depth, height, offset = STEP_ALONG_OFFSET)
+    c = frame_c + offset
+    run = [c - along / 2.0, c + along / 2.0]
+    out = case wall
+          when 'N' then [face, face + depth]
+          when 'S' then [face - depth, face]
+          when 'E' then [face, face + depth]
+          else          [face - depth, face]
+          end
+    z = [ground_z, ground_z + height]
+    %w[N S].include?(wall) ? [run, out, z] : [out, run, z]
+  end
+
+  # Stand Step.skp in front of the door. panels: the outer rows' {:id,:name,
+  # :poly}; returns the count placed (0 on a refusal, which is in warns).
+  def self.place_step(model, booth, cfg, cache, panels, casters_in, fl_bottom,
+                      stack_bottom, layer, warns)
+    dry = cfg['dry'] ? true : false
+    door = panels.reject { |p| p[:inner] }.find { |p| kind_of(p[:name]) == :door }
+    blockers = step_blockers(door && door[:name], casters_in)
+    unless blockers.empty?
+      blockers.each { |b| warns << "STEP (sp) not placed: #{b}" }
+      return 0
+    end
+    defn = WR_BuildBoothComponents.load_def(model, cfg['dir'], STEP_NAME, cache)
+    if defn.nil?
+      warns << "STEP (sp) not placed: #{STEP_NAME}.skp is not in #{cfg['dir']}"
+      return 0
+    end
+    gx = geom_extents(defn)
+    if gx.nil?
+      warns << "STEP (sp) not placed: #{STEP_NAME}.skp holds no measurable faces"
+      return 0
+    end
+    # Longest axis along the wall, thinnest axis up, the remaining one out.
+    e = gx[:e]
+    ai = (0..2).max_by { |i| e[i] }
+    hi = (0..2).min_by { |i| e[i] }
+    di = ([0, 1, 2] - [ai, hi]).first
+    if (e[di] - STEP_DEPTH).abs > 1.0
+      warns << format('STEP: %s.skp measures %.2f in on its depth axis where the art says ' \
+                      '%.0f - placed at its own measure, CHECK IT', STEP_NAME, e[di], STEP_DEPTH)
+    end
+    wall = wall_of(door[:id])
+    xs = door[:poly].map { |q| q[0].to_f }
+    ys = door[:poly].map { |q| q[1].to_f }
+    frame_c = %w[N S].include?(wall) ? (xs.min + xs.max) / 2.0 : (ys.min + ys.max) / 2.0
+    face = { 'N' => ys.max, 'S' => ys.min, 'E' => xs.max, 'W' => xs.min }[wall]
+    ground = step_ground_z(casters_in, fl_bottom, stack_bottom)
+    box = step_seat(wall, frame_c, face, ground, e[ai], e[di], e[hi])
+
+    # Part axes -> world: along -> X (N/S) or Y (E/W); height -> Z; depth ->
+    # the remainder. Built as a basis, right- or left-handed corrected by a
+    # mirror-free choice of the depth direction, then the front-away rule.
+    run_x = %w[N S].include?(wall)
+    axes = [Geom::Vector3d.new(1, 0, 0), Geom::Vector3d.new(0, 1, 0), Geom::Vector3d.new(0, 0, 1)]
+    target = {}
+    target[ai] = run_x ? Geom::Vector3d.new(1, 0, 0) : Geom::Vector3d.new(0, 1, 0)
+    target[hi] = Geom::Vector3d.new(0, 0, 1)
+    # The depth direction is whatever makes the basis RIGHT-HANDED (e_i =
+    # e_i+1 x e_i+2, cyclically), so the part is turned, never mirrored.
+    target[di] = target[(di + 1) % 3] * target[(di + 2) % 3]
+    rot = Geom::Transformation.axes(Geom::Point3d.new(0, 0, 0), target[0], target[1], target[2])
+    span = lambda do |tr|
+      pts = []
+      [gx[:lo], gx[:hi]].each do |px|
+        [gx[:lo], gx[:hi]].each do |py|
+          [gx[:lo], gx[:hi]].each do |pz|
+            pts << Geom::Point3d.new(px[0], py[1], pz[2]).transform(tr)
+          end
+        end
+      end
+      [[pts.map { |q| q.x.to_f }.min, pts.map { |q| q.x.to_f }.max],
+       [pts.map { |q| q.y.to_f }.min, pts.map { |q| q.y.to_f }.max],
+       [pts.map { |q| q.z.to_f }.min, pts.map { |q| q.z.to_f }.max]]
+    end
+    # Where did the authored FRONT (the +depth end) land: toward or away from
+    # the booth? Outward is -Y on S, +Y on N, +X on E, -X on W.
+    front = Geom::Point3d.new(0, 0, 0)
+    front_v = [0.0, 0.0, 0.0]
+    front_v[di] = 1.0
+    fv = Geom::Vector3d.new(*front_v).transform(rot)
+    outward = { 'N' => [0, 1], 'S' => [0, -1], 'E' => [1, 0], 'W' => [-1, 0] }[wall]
+    faces_away = (fv.x.to_f * outward[0] + fv.y.to_f * outward[1]) > 0
+    if faces_away != STEP_FRONT_AWAY
+      rot = Geom::Transformation.rotation(front, Geom::Vector3d.new(0, 0, 1), 180.degrees) * rot
+    end
+    sp = span.call(rot)
+    tr = Geom::Transformation.translation(
+      Geom::Vector3d.new(box[0][0] - sp[0][0], box[1][0] - sp[1][0], box[2][0] - sp[2][0])) * rot
+    puts format('  STEP  %s.skp %.2f x %.2f x %.2f (along x deep x tall), centred on the door ' \
+                'FRAME of %s%s, %.0f in out from its exterior face, underside on the ground ' \
+                '(booth-local z %.4f, world 0 after the lift); tread %.2f above the ground, ' \
+                'threshold %.2f. Datum: FRAME (unconfirmed ruling 2026-09-10 - ' \
+                'STEP_ALONG_OFFSET); front %s (STEP_FRONT_AWAY).',
+                STEP_NAME, e[ai], e[di], e[hi], door[:id],
+                STEP_ALONG_OFFSET.zero? ? '' : format(' %+.2f in along', STEP_ALONG_OFFSET),
+                e[di], ground, e[hi], fl_bottom - ground + 1.0,
+                STEP_FRONT_AWAY ? 'away from the booth' : 'toward the booth')
+    return 0 if dry
+    at = add(booth, defn, tr, "Step  #{door[:id]}", layer)
+    puts "    #{at}"
+    1
+  end
+
   def self.place_all(model, booth, key, spec, cfg, rows, cache, deck = nil)
     dry = cfg['dry'] ? true : false
     hx  = cfg['hx'] ? true : false
@@ -1064,13 +1249,13 @@ module WR_Overlays
       casters_in = n > 0
     end
 
-    # -------------------------------------------- named refusals, not silent --
+    # ------------------------------------------------- the exterior step --
+    # After the plate, because it needs to know whether the plate went in.
     if ov['step']
-      warns << 'STEP (sp) not built: the caster plate it pairs with now builds, ' \
-               'but the step itself still lacks a ruling on its lateral anchor ' \
-               'and tread face — the portal gives only "12 in deep in front of ' \
-               'the door" (art 44.03 x 12.08). StepFront.skp exists; see the ' \
-               'wr-overlays.rb header before building it.'
+      fl_bottom = deck && deck['FL'] ? deck['FL'].min.z.to_f : WR_Deck::DECK_TOP_Z - 1.0
+      stack_bottom = (deck && deck['stack_bottom']) || fl_bottom
+      placed += place_step(model, booth, cfg, cache, panels, casters_in,
+                           fl_bottom, stack_bottom, t_opt, warns)
     end
 
     puts '  ---- overlays end ' + '-' * 58

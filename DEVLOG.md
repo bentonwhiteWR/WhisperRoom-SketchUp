@@ -1,6 +1,71 @@
 # DEVLOG
 
 ## 2026-09-10
+### The link places the step: Step.skp, 12" in front of the door frame, on the ground — 1.45.0
+
+Refused since 1.9.x for want of two rulings; Benton gave them today. Verbatim:
+*"1. Yes it does, the front I believe. Ill correct it if not"* and *"Use
+Step. StepFront is old"*.
+
+**The part.** `Step.skp` (Benton's word; `StepFront.skp` is legacy and every
+reference to it in the code is now history, not instruction). It could not be
+measured here — the bridge is not listening and there is no SketchUp to
+drive — so **the placement measures the part at build time** (`geom_extents`,
+as the EFP slab does): longest axis along the wall, thinnest up, the third
+out. Nothing about its box is assumed. For the record, `StepFront.skp` probes
+44 × 12 × 5 with the tread face on top; `Step.skp` is 13 bytes and one day
+apart from it (inference only).
+
+**Where (observed, `WhisperRoomQuote/assets/layout-render.js`).** The plan
+anchors the step at `edgeGeom(door…).omx = px + pw/2` — the door **slot's**
+exterior-face midpoint — 12" outward, 44" at the door. That is the **frame**,
+not the leaf, and it agrees with the coordinator's reasoning (the leaf swings;
+the frame is the opening you step through). Benton's centring answer was
+ambiguous, so the frame is built and **`STEP_ALONG_OFFSET`** (`wr-overlays.rb`,
+0.0, commented as an unconfirmed ruling of 10 Sep 2026) is the one number to
+change. The tread is the front (his words): **`STEP_FRONT_AWAY`** is the one
+switch if it comes in back to front. The 12" depth is verified twice — the
+art's `12 * PX` and the part's own 12.000 axis.
+
+**Vertically: on the ground.** The portal's elevation: "Bottom lines up with
+the bottom of the caster wheels." `step_ground_z = −booth_lift(…)` — the same
+one function the 1.33.0 ground lift uses — so the step's underside lands on
+world z 0 whatever the booth is doing: booth-local −1.000 Standard, −1.3125
+Enhanced, −5.75 on casters. Only casters builds: the step is *"only sold with
+a CP"* (`lib/packing-list.js`; the elevation draws it only when `lift > 0`),
+and without a plate a 5" step would stand 4" above a 1" threshold. With the
+plate the threshold is 5.75 and the tread 5.0 — a ¾" lip. **No plate → refused
+by name.**
+
+**Ramp + step: the ramp wins, the step is refused by name.** The ramp is
+geometry inside `…WADoorWithRamp.skp` on the same 12"; the portal never draws
+both (`layout.step && !door.rampBaked`; the vector step is the ramp's
+else-branch). Stacking them would be a defect that renders as a booth.
+
+**Pattern.** `place_step` follows `place_efp` / the caster plate: measured
+extents, one `add`, `WR-Booth-Options` tag, refusals into `warns`, placed
+after the plate (it needs `casters_in`). `build_booth` hands `stack_bottom`
+through the existing `host` hash. `booth-from-link.rb` lists the step under
+"option parts to build" and drops the `sp` refusal line. The `Component_StepFront`
+entry in `angled-component-art.rb` is a portal art-key and is untouched.
+
+`rbtest-overlays.py` pins `step_ground_z` (−1 / −1.3125 / −5.75), the seat on
+all four walls, the offset, and the three blockers; **mutation-checked** —
+five mutants (S side flipped, ground sign, ramp blocker, no-casters blocker,
+offset ignored), each caught by its own line. `rbparse.py` 74/74; every other
+harness passes. Minor bump. **Unrun in SketchUp.**
+
+**Benton's check.** A link with casters and the step ticked, plain door.
+Console: `option parts to build: … caster plate …, exterior step …` then
+`STEP  Step.skp 44.00 x 12.00 x 5.00 (along x deep x tall), centred on the
+door FRAME of S0, 12 in out from its exterior face, underside on the ground
+(booth-local z -5.7500, world 0 after the lift); tread 5.00 above the ground,
+threshold 5.75.` In the model: the step centred on the door opening, its
+outboard face 12" out from the wall, sitting on the room floor, top ¾" under
+the door threshold. If it should sit under the leaf: `STEP_ALONG_OFFSET`. If it
+is back to front: `STEP_FRONT_AWAY`. Same link without casters, or with the
+ADA ramp: no step, and a `STEP (sp) not placed:` line saying which.
+
 ### The rig's booth interior light is gone; a booth is lit by its own — 1.44.0
 
 Benton: *"remove the 'booth interior lights' option. It always misses and
