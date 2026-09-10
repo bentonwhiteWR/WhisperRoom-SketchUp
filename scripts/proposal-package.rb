@@ -123,7 +123,7 @@ ensure
 end
 
 module WR_ProposalPackage
-  %w[DICT PREF FORBIDDEN FOLDER_KEY SLOT_LABEL
+  %w[DICT PREF FORBIDDEN FOLDER_KEY DEFAULT_ROOT SLOT_LABEL
      IDLE_STATE DONE_STATE ERROR_STATE RENDER_TIMEOUT_S UNREADABLE_LIMIT
      START_WINDOW_S STOP_CONFIRM_S CAM_FIELDS
      ASPECT_W ASPECT_H EV_F_NUMBER EV_ISO EV_INTERIOR EV_ROOM EV_MIN EV_MAX
@@ -135,6 +135,12 @@ module WR_ProposalPackage
   DICT       = 'WR_ProposalPackage'.freeze
   PREF       = 'WR_ProposalPackage'.freeze
   FOLDER_KEY = 'package'.freeze
+  # THE ROOT BENTON ASKED FOR (1.34.0): "I want that to be the root folder
+  # by default." Z: is a mapped share and does not exist on every machine
+  # (CLAUDE.md: paths differ per machine), so this is only ever OFFERED,
+  # and only when nothing is remembered yet AND the folder is actually
+  # there. A machine without it starts empty, exactly as before.
+  DEFAULT_ROOT = 'Z:/Sketchup/Proposals'.freeze
 
   # Only what Windows genuinely refuses — export-scenes.rb's rule, verbatim.
   FORBIDDEN = /[<>:"\/\\|?*\x00-\x1f]/.freeze
@@ -462,6 +468,30 @@ module WR_ProposalPackage
   def self.sanitize(s)
     out = s.to_s.strip.gsub(FORBIDDEN, '-')
     out.sub(/[. ]+\z/, '')      # Windows silently drops a trailing dot or space
+  end
+
+  # PER-MODEL SUBFOLDER (1.34.0). Benton: "add a checkbox (on by default)
+  # that will create a folder in that root folder. The folder would be the
+  # file name, and thats where it would save all the renders."
+  #
+  # PURE - exercised by rbtest-proposal.py (dir1-dir6). [folder, note]:
+  # the folder every file goes to, and the sentence that says why, for the
+  # log and the dialog. `title` is Model#title, which is the .skp name
+  # without extension and an EMPTY STRING for a model never saved
+  # (ruby.sketchup.com, read 10 Sep 2026). An unsaved model falls back to
+  # the ROOT and says so - never a folder called "" or "(unsaved)".
+  # The name goes through sanitize, so a title with : ? * or a trailing
+  # dot cannot make a folder Windows refuses or silently renames.
+  def self.resolve_dir(root, per_model, title)
+    r = root.to_s.strip.delete('"').tr('\\', '/').sub(%r{/+\z}, '')
+    return [nil, 'no root folder'] if r.empty?
+    return [r, 'the root folder (per-model subfolder is off)'] unless per_model
+    name = sanitize(title)
+    if name.empty?
+      return [r, 'the ROOT folder - this model is NOT SAVED, so it has no ' \
+                 'file name to make a subfolder from; save it first for one']
+    end
+    ["#{r}/#{name}", "#{name}/ under the root (this model's file name)"]
   end
 
   # First caller gets the base name; later callers get "base (2)", "base (3)".
@@ -1222,9 +1252,21 @@ module WR_ProposalPackage
       return
     end
 
-    dir = cfg['dir'].to_s.strip.delete('"').tr('\\', '/').sub(%r{/+\z}, '')
-    if dir.empty?
-      UI.messagebox('Choose an output folder first.')
+    root = cfg['dir'].to_s.strip.delete('"').tr('\\', '/').sub(%r{/+\z}, '')
+    if root.empty?
+      UI.messagebox('Choose a root folder first.')
+      return
+    end
+    # The FOLDER field is the ROOT (1.34.0); `dir` is where the files go.
+    # Everything below - mkdir, the collision scan, @cfg['dir'], the
+    # manifest and prior_viewport's WINDOW CHANGED read - uses `dir`, so
+    # the previous manifest is read from the model's own folder, not the
+    # root's. Only WR_Folder remembers `root`.
+    @per_model = (cfg['sub'] != false && cfg['sub'].to_s != 'false')
+    @root = root
+    dir, dir_note = resolve_dir(root, @per_model, model.title)
+    if dir.nil?
+      UI.messagebox('Choose a root folder first.')
       return
     end
 
@@ -1373,10 +1415,11 @@ module WR_ProposalPackage
       Sketchup.write_default(PREF, 'over',  cfg['over'].to_s.delete('"'))
       Sketchup.write_default(PREF, 'shade', cfg['shade'] ? 'Yes' : 'No')
       Sketchup.write_default(PREF, 'annot', cfg['annot'].to_s == 'client' ? 'client' : 'draft')
+      Sketchup.write_default(PREF, 'sub',   @per_model ? 'Yes' : 'No')
     rescue Exception
       nil
     end
-    WR_Folder.remember(FOLDER_KEY, dir)
+    WR_Folder.remember(FOLDER_KEY, root)
 
     image_rows  = plan.select { |p| p[:lane] == 'image' }
     render_rows = plan.select { |p| p[:lane] == 'render' }
@@ -1496,6 +1539,12 @@ module WR_ProposalPackage
 
     puts ''
     puts "PROPOSAL PACKAGE — #{image_rows.size} image, #{render_rows.size} render -> #{dir}"
+    puts "  folder: #{dir_note}"
+    # SAID IN THE WINDOW, not only the console: a folder that is not the
+    # one in the FOLDER field is exactly the kind of quiet behaviour that
+    # stripped a whole export earlier today.
+    log(dlg, "files go to #{dir}  (#{dir_note})",
+        (@per_model && dir == root) ? 'bad' : 'dim')
     puts "  output size #{out_w}x#{out_h} (both lanes), annotation: " \
          "#{client_safe ? 'HIDDEN (client-safe)' : 'SHOWN (draft)'}"
     # THE SHAPE OF THE PLAIN IMAGES, BY NAME (1.31.0). Read the window here
@@ -3081,6 +3130,8 @@ module WR_ProposalPackage
              'generated'   => Time.now.strftime('%Y-%m-%d %H:%M'),
              'model'       => model.title.to_s,
              'model_path'  => model.path.to_s,
+             'output_root' => @root.to_s,
+             'per_model_folder' => (@per_model ? true : false),
              'booth_groups' => booth_groups(model),
              'width'       => @cfg['width'].to_i,
              'height'      => @cfg['height'].to_i,
@@ -3728,7 +3779,10 @@ module WR_ProposalPackage
     @results = []
 
     title = model.title.to_s.empty? ? '(unsaved model)' : model.title
+    fname = sanitize(model.title)          # '' for an unsaved model
     dir   = WR_Folder.read_list(FOLDER_KEY).first.to_s
+    # Offer DEFAULT_ROOT only when nothing is remembered and it exists.
+    dir = DEFAULT_ROOT if dir.empty? && (File.directory?(DEFAULT_ROOT) rescue false)
     # read_default EVALS the stored string; a bad one raises SyntaxError, which
     # descends from ScriptError, not StandardError (wr-folder.rb's storage
     # rules) — so these rescue Exception, not a plain rescue.
@@ -3752,6 +3806,15 @@ module WR_ProposalPackage
     rescue Exception
       'draft'
     end
+    # ON BY DEFAULT, and the default REACHES machines that have exported
+    # before: 'sub' was never written until 1.34.0, so read_default's
+    # fallback is what every existing machine gets until the box is
+    # unticked and an export writes 'No'.
+    sub = begin
+      Sketchup.read_default(PREF, 'sub', 'Yes').to_s
+    rescue Exception
+      'Yes'
+    end != 'No'
     width = '2400' if width.strip.empty?
     over  = 'Ask' unless ['Ask', 'Overwrite', 'Skip existing'].include?(over)
     annot = 'draft' unless %w[client draft].include?(annot)
@@ -3767,7 +3830,7 @@ module WR_ProposalPackage
       :min_height      => 480,
       :style           => UI::HtmlDialog::STYLE_DIALOG
     )
-    d.set_html(html(title, state(model), dir, width, over, shade, annot))
+    d.set_html(html(title, state(model), dir, width, over, shade, annot, sub, fname))
     @dlg   = d   # so a stale-batch reset can reach the last window's log, if any
     @model = model   # the singleton check: this window belongs to THIS model
 
@@ -4405,7 +4468,7 @@ module WR_ProposalPackage
 
   # ----------------------------------------------------------------- html --
 
-  def self.html(title, st, dir, width, over, shade, annot)
+  def self.html(title, st, dir, width, over, shade, annot, sub = true, fname = '')
     <<-HTML
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Proposal package</title>
@@ -4698,9 +4761,17 @@ module WR_ProposalPackage
     <span class="mini" title="Minimise">&minus;</span>
   </div>
   <div class="bodyy"><div class="out">
+  <span class="lbl">SUBFOLDER</span>
+  <label class="shadelbl"><input type="checkbox" id="sub"#{sub ? ' checked' : ''}>
+    Put this model's files in a folder named after it, inside FOLDER. The folder is the .skp file name#{fname.empty? ? ' — <b>this model is not saved yet, so it has no name</b>: files go to FOLDER itself until it is' : " (<b>#{escAttr(fname)}</b>)"}. Remembered per user.</label>
+  <span></span>
+
   <span class="lbl">FOLDER</span>
   <input type="text" id="dir" value="#{escAttr(dir)}" style="width:100%">
   <button class="btn" id="browse">Browse&hellip;</button>
+  <span class="lbl">GOES TO</span>
+  <label class="shadelbl" id="dest"></label>
+  <span></span>
 
   <span class="lbl">IMAGES</span>
   <div class="half">
@@ -5584,7 +5655,23 @@ module WR_ProposalPackage
   $swrap.addEventListener("click", function(e){ if(e.target === $swrap) sunClose(); });
 
   window.applyState = function (st) { ST = st; drawMats(); draw(); };
-  window.setDir = function (d) { g("dir").value = d; };
+  window.setDir = function (d) { g("dir").value = d; updateDest(); };
+  // THE ACTUAL DESTINATION, ALWAYS ON SCREEN (1.34.0). FOLDER is a root;
+  // with SUBFOLDER on the files land one level down, so the composed
+  // path is written out under the field and redrawn on every change.
+  var FNAME = #{fname.to_json};
+  function updateDest(){
+    var r = g("dir").value.replace(/\\/g, "/").replace(/\/+$/, "");
+    var on = g("sub").checked, t;
+    if(!r) t = "Choose a root folder first.";
+    else if(!on) t = "Files go to:  " + r;
+    else if(!FNAME) t = "Files go to:  " + r + "   (the ROOT - this model is not saved, so there is no file name for a subfolder)";
+    else t = "Files go to:  " + r + "/" + FNAME + "/";
+    g("dest").textContent = t;
+  }
+  g("dir").addEventListener("input", updateDest);
+  g("sub").addEventListener("change", updateDest);
+  updateDest();
 
   // ---- run feedback, driven from Ruby ----
   window.logLine = function (text, cls) {
@@ -5664,7 +5751,8 @@ module WR_ProposalPackage
         over:  g("over").value,
         shade: g("shade").checked,
         annot: g("annot").value,
-        transp: g("transp").checked
+        transp: g("transp").checked,
+        sub:   g("sub").checked
       }));
   });
 

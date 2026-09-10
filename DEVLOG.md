@@ -1,6 +1,66 @@
 # DEVLOG
 
 ## 2026-09-10
+### Per-model subfolder under a root folder — 1.34.0
+
+Benton, 10 Sep 2026, FOLDER showing `Z:/Sketchup/Proposals`: *"I want
+that to be the root folder by default. But add a checkbox (that is on
+by default) right above it that will create a folder in that root
+folder. The folder would be the file name, and thats where it would
+save all the renders."* **Unrun in SketchUp.** `rbparse.py` 71/71,
+`rbtest-proposal.py` PASS with six new cases (dir1–dir6) on the path
+rule, `node --check` ok. Minor bump: a new option and two manifest
+fields.
+
+**The rule, in one pure method.** `resolve_dir(root, per_model,
+title)` → `[folder, note]`. FOLDER is now the ROOT; with SUBFOLDER on,
+files go to `<root>/<sanitized Model#title>/`. **`Model#title` is the
+.skp name without extension and an empty string for a never-saved
+model** (reported, ruby.sketchup.com) — so an unsaved model (his
+`NewTemplate` today) falls back to the ROOT and says so in three
+places: the checkbox label ("this model is not saved yet, so it has
+no name"), the GOES TO line, and a `bad` log line at export. Chosen
+over refusing (he exports unsaved test models) and over prompting (a
+typed name is not "the file name"). The name goes through `sanitize`,
+so `Bad:Name?.` becomes `Bad-Name-` rather than a folder Windows
+refuses or silently renames (dir6).
+
+**The destination is always on screen.** A `GOES TO` line under the
+FOLDER field shows the composed path — `Files go to: Z:/…/PeoplesSpace
+MDL 96120 E/` — redrawn on every keystroke, Browse pick and checkbox
+change. Kept as a separate line rather than a read-only field so the
+root stays editable in place.
+
+**Persistence.** Root: `WR_Folder` history, as before — but now the
+ROOT is remembered, not the resolved subfolder (otherwise the next
+open would nest another level). Checkbox: pref `sub`, written through
+on export like `annot`. **The on-by-default reaches machines that have
+exported before**, because `sub` was never written until now and
+`read_default`'s fallback is `Yes`; it only becomes `No` once the box
+is unticked and an export runs.
+
+**Default root.** `DEFAULT_ROOT = 'Z:/Sketchup/Proposals'` is offered
+only when nothing is remembered AND the folder exists on this machine
+(Z: is a mapped share; CLAUDE.md's per-machine path trap). Gabe's
+machine without Z: starts empty, exactly as before. Once Benton has
+exported once, his remembered root wins anyway.
+
+**Interactions, checked.** `mkdir_p`, the EXISTS? collision scan,
+`@cfg['dir']`, the manifest and `prior_viewport`'s WINDOW CHANGED read
+all use the resolved folder, so the previous manifest is read from the
+model's own folder — it would have silently gone dead otherwise. The
+manifest gains `output_root` and `per_model_folder`. Downstream, the
+proposal skill reads "whatever folder is given" and the pack builder
+takes a folder path; nothing assumes the root is flat. `proposals/`
+untouched.
+
+**Benton's check.** Open a saved model: SUBFOLDER ticked, GOES TO reads
+`<root>/<model name>/`. Export one scene: the folder exists and the
+PNG and manifest.json are in it; the log's first lines say `files go
+to …`. Untick, export again: GOES TO reads the root and the file lands
+there. On an unsaved model the label and GOES TO both say it has no
+name and the root is used.
+
 ### Washed-out renders: the file was display-corrected twice — 1.33.1
 
 Benton, 10 Sep 2026, VFB beside the saved `2_Scene 4 render.png`:

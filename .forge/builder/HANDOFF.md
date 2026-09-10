@@ -1242,3 +1242,20 @@ images plain image rows or ` render.png` rows?"**
   double-corrected: re-export.
 - Not shipped: option ON + no bake (V-Ray's own corrected save, carries
   all VFB layers) — needs one measured comparison first.
+
+
+---
+
+# HANDOFF — per-model subfolder (Fixer, 10 Sep 2026, 1.34.0)
+
+- `resolve_dir(root, per_model, title)` pure; dir1–dir6 in the harness.
+- Unsaved model (`Model#title` == "") → ROOT, said in label, GOES TO
+  line and a `bad` log line. Not refused, not prompted.
+- FOLDER = root, remembered as root; `sub` pref default Yes reaches
+  machines that exported before (never written until now).
+- `DEFAULT_ROOT` Z:/Sketchup/Proposals offered only if unremembered AND
+  present on the machine.
+- prior_viewport / mkdir / collision / manifest all use the resolved dir.
+  Manifest: `output_root`, `per_model_folder`.
+- Check: saved model → GOES TO shows `<root>/<name>/`, export, PNG in it;
+  untick → root.

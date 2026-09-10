@@ -267,6 +267,8 @@ module WR_ProposalPackage
 
 %(sanitize)s
 
+%(resolve_dir)s
+
 %(uniquify)s
 
 %(scene_prefix)s
@@ -1102,6 +1104,22 @@ module WR_ProposalPackage
     out << (okL ? 'shade4 ok' :
             "shade4 FAIL no per-row read-back in the log: #{@log_lines.inspect}")
 
+    # PER-MODEL SUBFOLDER (1.34.0): resolve_dir is the whole path rule.
+    d1 = resolve_dir('Z:/Sketchup/Proposals', true, 'PeoplesSpace MDL 96120 E')
+    out << (d1[0] == 'Z:/Sketchup/Proposals/PeoplesSpace MDL 96120 E' ?
+              'dir1 ok' : 'dir1 FAIL ' + d1.inspect)
+    d2 = resolve_dir('Z:\\Sketchup\\Proposals\\', true, 'Job')
+    out << (d2[0] == 'Z:/Sketchup/Proposals/Job' ? 'dir2 ok' : 'dir2 FAIL ' + d2.inspect)
+    d3 = resolve_dir('Z:/Sketchup/Proposals', false, 'Job')
+    out << (d3[0] == 'Z:/Sketchup/Proposals' ? 'dir3 ok' : 'dir3 FAIL ' + d3.inspect)
+    d4 = resolve_dir('Z:/Sketchup/Proposals', true, '')      # unsaved model
+    out << (d4[0] == 'Z:/Sketchup/Proposals' && d4[1] =~ /NOT SAVED/ ?
+              'dir4 ok' : 'dir4 FAIL ' + d4.inspect)
+    d5 = resolve_dir('', true, 'Job')
+    out << (d5[0].nil? ? 'dir5 ok' : 'dir5 FAIL ' + d5.inspect)
+    d6 = resolve_dir('Z:/Sketchup/Proposals', true, 'Bad:Name?.')
+    out << (d6[0] == 'Z:/Sketchup/Proposals/Bad-Name-' ? 'dir6 ok' : 'dir6 FAIL ' + d6.inspect)
+
     out.join(' | ')
   end
 end
@@ -1176,7 +1194,8 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'st5 ok | st6 ok | st7 ok | st8 ok | '
           'mr1 ok | mr2 ok | mr3 ok | mr4 ok | mr5 ok | mr6 ok | mr7 ok | '
           # 1.19.3 -- the shading contract survives the scene switch.
-          'shade1 ok | shade2 ok | shade3 ok | shade4 ok')
+          'shade1 ok | shade2 ok | shade3 ok | shade4 ok | '
+          'dir1 ok | dir2 ok | dir3 ok | dir4 ok | dir5 ok | dir6 ok')
 
 
 def main():
@@ -1215,6 +1234,7 @@ def main():
         'lost_rows':         rbtest.method_source(SRC, 'lost_rows'),
         'forbidden':         const_line('FORBIDDEN'),
         'sanitize':          rbtest.method_source(SRC, 'sanitize'),
+        'resolve_dir':       rbtest.method_source(SRC, 'resolve_dir'),
         'uniquify':          rbtest.method_source(SRC, 'uniquify'),
         'scene_prefix':      rbtest.method_source(SRC, 'scene_prefix'),
         'plan_names':        rbtest.method_source(SRC, 'plan_names'),
