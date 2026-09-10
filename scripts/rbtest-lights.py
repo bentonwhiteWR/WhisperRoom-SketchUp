@@ -238,6 +238,18 @@ geometry builders (tube / cone_shell / disc_solid touch the SketchUp
 Entities API), add_ceiling, remove_ceilings_verified!, model_probe,
 stamp_exposure!, stamp_tag_into_pages and assert_lights_visible!.
 
+MUTATION-CHECKED 2026-09-10 night (1.43.0, the key light backed out to
+8', same protocol -- each applied to wr-drop-lights.rb, this test run,
+FAIL confirmed, reverted): ACCENT_OUT 96 -> 42 (the field change
+reverted; `ko96` names it); accent_tilt returning the old fixed 35
+regardless of standoff (at 96" the beam hits the floor short of the
+booth); accent_standoff's margin test dropped (a light body half in the
+wall); its keep-out test dropped (a key inside a sibling booth); its
+walk-back never stepping (one miss = no key, the old behaviour); its
+floor `min` ignored (a key pulled in to 0" -- on the door face). All six
+KILLED. NOT coverable here: the placement wiring and the rotation --
+SketchUp-API-side, unverified until a press and a render.
+
 MUTATION-CHECKED 2026-09-10 night (1.41.0, the ISO stamp removed and its
 five stops moved onto the fixtures, same protocol -- each mutation
 applied to wr-drop-lights.rb, this test run, FAIL confirmed, reverted):
@@ -343,10 +355,12 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'wall_points', 'sconce_points', 'wall_normal', 'far_corner',
            'ceiling_pair', 'face_on_edge?', 'open_edges', 'face_offset',
            'run_report', 'exposure_ratio', 'stops_of', 'ev_of',
-           'camera_verdict', 'rig_camera_gain']
+           'camera_verdict', 'rig_camera_gain', 'accent_tilt',
+           'accent_standoff']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'BOOTH_FC', 'CU', 'WASH_STANDOFF',
-           'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_TILT', 'MIN_ROOM_H',
+           'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
+           'ACCENT_STEP', 'ACCENT_MARGIN', 'MIN_ROOM_H',
            'MIN_ROOM_AREA', 'BOOTH_SIDE_MIN', 'BOOTH_SIDE_MAX',
            'BOOTH_H_MIN', 'BOOTH_H_MAX', 'GRID_SNAP', 'BOX_TOL',
            'UNITS_LUMENS', 'FACE_FLIP', 'TRIM_OPEN4', 'TRIM_OPEN3', 'SEG',
@@ -495,6 +509,35 @@ __METHODS__
 
     out << 'axis35 ' + accent_axis(-1, 0).map { |v| v.round(2) }.join(',') +
            ' ' + accent_axis(0, -3).map { |v| v.round(2) }.join(',')
+
+    # 9b -- THE KEY STANDOFF (1.43.0; Benton: "backed up like 8 ft"). The
+    # shipped constants are pinned by VALUE -- 96" out, aiming 60" below
+    # the mount plane, never closer than 42", 24"-panel margin -- and the
+    # tilt is derived: 42/60 is exactly the old 35 deg, 96/60 is 58 deg,
+    # degenerate inputs aim straight down / straight at the face.
+    out << format('ko96 %.0f,%.0f,%.0f,%.0f,%.0f t%.1f,%.1f,%.1f,%.1f',
+                  ACCENT_OUT, ACCENT_AIM_DROP, ACCENT_MIN, ACCENT_STEP, ACCENT_MARGIN,
+                  accent_tilt(42.0, 60.0), accent_tilt(96.0, 60.0),
+                  accent_tilt(0.0, 60.0), accent_tilt(96.0, 0.0))
+
+    # 9c -- accent_standoff, the walk-back. The 12x15 room (144 x 180), a
+    # booth against the far wall with its door facing -y, door centre at
+    # (72, 96), door normal (0, -1): (a) 96" out lands at y=0 -- ON the
+    # floor edge, inside the 12" margin, so it walks back to 84 (y=12,
+    # exactly the margin); (b) a taller room (y to 300, door at y=200)
+    # fits the full 96; (c) same room with a keep-out band across y
+    # 100..118 in front of the door -- 96/90/84 out land inside it, 78
+    # (y=122) is the first point clear -> 78; (d) a shallow room with only
+    # 30" in front of the door: nil, the key is skipped rather than pulled
+    # in past ACCENT_MIN; (e) 42" exactly available: 42.
+    rect_tall = [[0.0, 0.0], [144.0, 0.0], [144.0, 300.0], [0.0, 300.0]]
+    sa = accent_standoff([72.0, 96.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0)
+    sb = accent_standoff([72.0, 200.0], 0.0, -1.0, rect_tall, [], 96.0, 42.0, 6.0, 12.0)
+    sc = accent_standoff([72.0, 200.0], 0.0, -1.0, rect_tall,
+                         [[0.0, 100.0, 144.0, 118.0]], 96.0, 42.0, 6.0, 12.0)
+    sd = accent_standoff([72.0, 30.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0)
+    se = accent_standoff([72.0, 54.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0)
+    out << 'ks ' + [sa, sb, sc, sd, se].map { |v| v.nil? ? '-' : format('%.0f', v) }.join(',')
 
     # 10 — the light-as-room incident: Benton's 24"-tall rectangle light
     # (a) and a 100 sqin floor (b) are vetoed; 71.9" (c) is still below the
@@ -897,6 +940,12 @@ EXPECT = ' | '.join([
     'lm 3000 1000 6000 1500 1200',
     'thr 22.5 36.0 18.0',
     'axis35 0.0,1.0 -1.0,0.0',
+    'ko96 96,60,42,6,12 t35.0,58.0,0.0,90.0',
+    # (a) 84: y=12 is the first point 12" clear of the near edge. (b) 96.
+    # (c) keep-out spans y 100..118; 96 -> y=104 inside, 90 -> 110 inside,
+    # 84 -> 116 inside, 78 -> 122 clear -> 78. (d) 30" of room: 42 lands at
+    # y=-12, outside -> nil. (e) door at y=54: 42 -> y=12, on the margin -> 42.
+    'ks 84,96,78,-,42',
     'veto 1110 msg1',
     'fbv 0011 list1',
     'lw 1100',

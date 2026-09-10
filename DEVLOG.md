@@ -1,6 +1,62 @@
 # DEVLOG
 
 ## 2026-09-10
+### The key light backs out to 8', aimed at the same spot; the walls control stays until Benton answers — 1.43.0
+
+Benton, with a screenshot of a `Rectangle Light` floating a few feet off
+a booth's door face: *"the booth face lights are just way too close. Can
+these be backed up like 8 ft?"* Asked whether the output should follow:
+*no — just move it.* **Unrun in SketchUp**; `rbparse.py` 74/74,
+`rbtest-lights.py` 52 → 54 checks PASS, six mutants killed.
+
+**What moved.** `ACCENT_OUT` 42 → **96 in**. The lumens did not move
+(`LIGHT_LAYERS[:key]` 2,800 lm, `LUMEN_GAIN`, `CAMERA_GAIN` all untouched),
+so by inverse square the door face gets (42/96)² ≈ **0.19 of the light it
+did — about 5× dimmer** — and he tunes from there by eye: the Key layer's
+own scale in the panel, or the table entry.
+
+**The tilt is now derived, and that is a second variable — said plainly.**
+The old fixed `ACCENT_TILT = 35°` was the museum "30-degree family" aim,
+"assumed within it" for a 3–4' standoff (`interior-lighting-design.md`
+§2.5). It only meant something at 42": the beam axis met the door-face
+plane 42 / tan 35° = **60" below the mount plane** — mid-door on an 8'
+ceiling. Kept at 35° from 96" the axis would meet the face 137" down, i.e.
+**hit the floor 29" short of the booth** (96 · tan 35° = 67" of reach on a
+96" mount plane): a floor pool and a dim face, not "the face light backed
+up". So the *aim point* is the constant now — `ACCENT_AIM_DROP = 60` — and
+the tilt follows the standoff through pure `accent_tilt`: at 96" that is
+atan(96/60) = **58°**; at 42" the same formula returns exactly the old 35°,
+so no old render is reinterpreted. Minor bump for that.
+
+**8' of key needs 8' of room.** The old code tested one point against the
+floor polygon and skipped the key on a miss — and never looked at
+keep-outs or the light's own 24" width, so a point 2" inside the floor
+put half the panel in the wall. Pure `accent_standoff` walks back from 96"
+toward `ACCENT_MIN = 42` in 6" steps and takes the first standoff that is
+inside the floor, `ACCENT_MARGIN = 12"` clear of every edge, and outside
+every keep-out (a sibling booth included). The console prints the standoff
+it got in inches and feet, the tilt, and where the beam meets the face;
+if it pulled in, a `KEY PULLED IN` line says what was wanted, what fit,
+and the (96/got)² brightness consequence; if nothing down to 42" fits, a
+`KEY SKIPPED` line says so and the rim and foam graze still place. Never
+a light in a wall, never a silent skip.
+
+**The walls control — nothing changed, on purpose.** Benton: *"why did the
+drop in lights remove the wall checkbox? Re add that"*. Nothing was
+removed: 1.31.2 made it a three-way `<select>` (No / open runs / every
+run) because a hidden wall counting as open made the two answers
+different. That it reads as "gone" at "No" is a real finding; three
+options are with him and this pass does not guess.
+
+**Benton's check** (with the LUMEN_GAIN question from 1.41.0 still open,
+**test them apart**): on the render he uses to judge the ISO change, the
+key's contribution has *also* dropped ~5×, so a dim booth face there is
+this change, not `CAMERA_GAIN`; white-blob *fixtures* (drum, pendant,
+sconce) are the ISO question, unaffected by this. Console: `key … STANDOFF
+96 in (8.0 ft) … tilted 58 deg … meets the face 60 in below the mount
+plane`. If 8' is not the number: `ACCENT_OUT` in `wr-drop-lights.rb`,
+one constant; the tilt follows it.
+
 ### Floor slot reads "[Color M00]": the shop default could not be picked — 1.42.1
 
 Benton, on `NewTemplate`, Proposal package → MATERIALS FOR THE V-RAY PASS:

@@ -1707,3 +1707,48 @@ list. Pick it, save the template. Floor then reads `0128_White` with the
 "shop default" tooltip; Toggle draft/render on a Build-room model swaps the
 floor. On a model built by Build room the Floor slot reads `0128_White`
 with no mark.
+
+
+---
+
+# HANDOFF — key light backed out to 8' (Builder, 10 Sep 2026, 1.43.0)
+
+Benton: *"the booth face lights are just way too close. Can these be
+backed up like 8 ft?"* — and no compensating output, his call. **Unrun in
+SketchUp.** rbparse 74/74; rbtest-lights 54 + 10 PASS; six mutants killed.
+
+## Produced (`scripts/wr-drop-lights.rb`, `scripts/rbtest-lights.py`, VERSION 1.42.1 → 1.43.0)
+- `ACCENT_OUT` 42 → 96. Lumens, `LUMEN_GAIN`, `CAMERA_GAIN` untouched.
+- `ACCENT_TILT` (fixed 35°) replaced by `ACCENT_AIM_DROP = 60` + pure
+  `accent_tilt(standoff, drop)` = atan(s/d): 35° at 42" (identical to
+  before), **58° at 96"**. Minor bump: this is a second variable moving.
+- `accent_standoff` walk-back (96 → 42 in 6" steps; inside floor, 12" clear
+  of edges, outside keep-outs). Console prints standoff/ft/tilt/aim;
+  `KEY PULLED IN` and `KEY SKIPPED` lines by number.
+- Harness checks `ko96` (constants + tilt) and `ks` (five walk-back cases).
+
+## Decisions
+- Tilt recomputed rather than kept: at 96"/35° the beam axis hits the
+  floor 29" short of the booth on an 8' ceiling. Told plainly in the
+  DEVLOG and here — he is about to judge brightness by eye.
+- Walk-back floor at 42": never closer than the standoff every prior
+  render used; below that the key is skipped and said.
+- Walls control: **not touched** — his answer to the three options is
+  pending.
+
+## Not verified
+- The rotation with a non-35° angle (same `Geom::Transformation.rotation`
+  call, different number).
+- What ~5× dimmer looks like on his render. Not rendered.
+
+## Benton's check — and keep the two experiments apart
+1. Fresh press, render. Key light visibly ~8' off the door face; console
+   `STANDOFF 96 in (8.0 ft) … tilted 58 deg`. Face ~5× dimmer than his
+   last render — expected, tune the Key layer scale.
+2. **The 1.41.0 ISO question is still open** and this change also lowers
+   the key's contribution. On one render: dim *booth face* = this change;
+   white-blob *fixtures* (drum / pendant / sconce) = `CAMERA_GAIN` double
+   counted → set it to 1.0. Judge the fixtures first, the face second.
+3. Tight room: expect `KEY PULLED IN — 96 in wanted, only N in fits`, or
+   `KEY SKIPPED` with the rim and foam still placed.
+4. Not 8'? `ACCENT_OUT`, one constant; the tilt follows.

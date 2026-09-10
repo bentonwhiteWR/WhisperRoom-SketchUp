@@ -266,8 +266,38 @@ module WR_DropLights
   CU            = 0.6    # coefficient of utilization (assumed)
   WASH_STANDOFF = 24.0   # in off the washed wall (low end of sourced 2-3')
   WASH_SPACING  = 1.5    # spacing = this x standoff (sourced 1.2-1.5 band)
-  ACCENT_OUT    = 42.0   # in from the booth door face to the accent light
-  ACCENT_TILT   = 35.0   # degrees from vertical, toward the booth face
+  # --- the key light's standoff and aim (1.43.0) -----------------------
+  # Benton, 10 Sep 2026, with a screenshot of the key floating a few feet
+  # off the door face: "the booth face lights are just way too close. Can
+  # these be backed up like 8 ft?" So 42" -> 96". THE LUMENS DID NOT MOVE
+  # — his call, asked directly: "no, just move it". Inverse square says the
+  # face now gets about (42/96)^2 = 0.19 of what it got, ~5x dimmer, and he
+  # tunes from there by eye (the Key layer's own scale in the panel, or
+  # LIGHT_LAYERS[:key][:lumens]).
+  #
+  # THE TILT IS DERIVED, NOT FIXED. The old ACCENT_TILT = 35 deg was the
+  # museum "30-degree family" aim (interior-lighting-design.md §2.5,
+  # "assumed within it") and it only meant something at 42": a light at the
+  # mount plane, 42" out, tilted 35 deg from vertical has its beam axis
+  # meet the door-face plane 42 / tan(35) = 60" BELOW THE MOUNT PLANE — on
+  # an 8' ceiling that is 36" up the door, mid-height. Keep 35 deg at 96"
+  # and the axis meets the face 137" below the mount plane, i.e. it hits
+  # the FLOOR 29" short of the booth on an 8' ceiling: a floor pool and a
+  # dim face, which is not "the face light backed up". So the aim point is
+  # the constant now and the tilt follows the standoff: at 96" that is
+  # atan(96 / 60) = 58 deg. At 42" the formula gives exactly the old 35, so
+  # nothing about the old rig is reinterpreted. accent_tilt is pure and
+  # pinned in rbtest-lights.py.
+  ACCENT_OUT      = 96.0   # in from the booth door face to the key light (was 42)
+  ACCENT_AIM_DROP = 60.0   # in below the mount plane where the beam axis
+                           #   meets the door face — 42 / tan(35 deg), the
+                           #   spot the old fixed tilt was aiming at
+  ACCENT_MIN      = 42.0   # in — the key is never pulled in closer than the
+                           #   standoff it shipped with for a year of renders
+  ACCENT_STEP     = 6.0    # in — walk-back step when 96" does not fit
+  ACCENT_MARGIN   = 12.0   # in — half the key's 24" panel: the light body
+                           #   must clear the floor edge by this or it sits
+                           #   in a wall
 
   # --- subject sanity — from the light-as-room incident -------------------
   # The first live press selected a 24"-tall V-Ray rectangle light; the
@@ -1105,6 +1135,39 @@ module WR_DropLights
     len = Math.sqrt(dx * dx + dy * dy)
     return nil if len < 1e-9
     [dy / len, -dx / len]
+  end
+
+  # PURE. Tilt from vertical, in degrees, that aims a light `standoff` in
+  # front of the door face at the point `drop` below the mount plane on
+  # that face: atan(standoff / drop). 42 / 60 -> 35.0 (the old fixed
+  # angle); 96 / 60 -> 58.0. A non-positive drop aims straight at the face
+  # (90); a non-positive standoff aims straight down (0).
+  def self.accent_tilt(standoff, drop)
+    return 0.0 if standoff.nil? || standoff * 1.0 <= 0.0
+    return 90.0 if drop.nil? || drop * 1.0 <= 0.0
+    Math.atan((standoff * 1.0) / (drop * 1.0)) * 180.0 / Math::PI
+  end
+
+  # PURE. THE STANDOFF THAT FITS. A key light 8' out needs 8' of room in
+  # front of the door, and many booths sit in tight rooms; the old code
+  # tested one point and skipped the key when it missed. This walks back
+  # from `want` toward `min` in `step`s along the door normal (ux, uy from
+  # the door centre dc) and answers the first standoff whose point is
+  # inside the floor polygon, at least `margin` clear of every floor edge
+  # (the light body is 24" wide) and outside every keep-out. nil when
+  # nothing down to `min` fits. The caller prints which it got and why.
+  def self.accent_standoff(dc, ux, uy, poly, keepouts, want, min, step, margin)
+    d = want * 1.0
+    while d >= min - 1e-9
+      x = dc[0] + ux * d
+      y = dc[1] + uy * d
+      if point_in_poly?(x, y, poly) && edge_dist(x, y, poly) >= margin - 1e-9 &&
+         !in_keepout?(x, y, keepouts)
+        return d
+      end
+      d -= step
+    end
+    nil
   end
 
   # Subject sanity veto: nil when (h, area) is a plausible room, else the
@@ -3549,7 +3612,7 @@ paint(); drawPresets("");
       erased, reap_pending = erase_lights(stale)
 
       puts ''
-      puts format('Drop Interior Lights 1.41.0 — brightness %s (x%.2f), ' \
+      puts format('Drop Interior Lights 1.43.0 — brightness %s (x%.2f), ' \
                   'warmth %s (%+d K), units 1 (LUMENS), seven roles',
                   opts[:bright], opts[:mult], opts[:warmth], opts[:koffset])
       unless stale.empty?
@@ -4003,21 +4066,40 @@ paint(); drawPresets("");
           ux = (dc[0] - cx) / dlen
           uy = (dc[1] - cy) / dlen
 
-          # ROLE 2 — the key, 42" out from the door face, tilted 35 degrees
-          # onto it. This is what gives the booth a defined FRONT instead of
-          # a lit TOP.
-          kpt = [dc[0] + ux * ACCENT_OUT, dc[1] + uy * ACCENT_OUT, z_m]
-          if point_in_poly?(kpt[0], kpt[1], poly)
+          # ROLE 2 — the key, ACCENT_OUT (8') out from the door face, tilted
+          # so its beam axis meets the face ACCENT_AIM_DROP below the mount
+          # plane. This is what gives the booth a defined FRONT instead of
+          # a lit TOP. When 8' of room is not there, the standoff walks back
+          # toward ACCENT_MIN and the console says so by number — never a
+          # light in a wall, never a silent skip.
+          kd = accent_standoff(dc, ux, uy, poly, keepouts, ACCENT_OUT, ACCENT_MIN,
+                               ACCENT_STEP, ACCENT_MARGIN)
+          if kd
+            kpt = [dc[0] + ux * kd, dc[1] + uy * kd, z_m]
+            ktilt = accent_tilt(kd, ACCENT_AIM_DROP)
             rot = Geom::Transformation.rotation(
               Geom::Point3d.new(0, 0, 0),
-              Geom::Vector3d.new(ax[0], ax[1], 0), ACCENT_TILT.degrees)
+              Geom::Vector3d.new(ax[0], ax[1], 0), ktilt.degrees)
             place.call(:key, kpt, lm_of.call(:key), rot)
-            puts format('  %s: key — %.0f lm at %dK, %s, tilted %d deg onto ' \
-                        'the door face', name, lm_of.call(:key),
-                        layer_kelvin(3200, opts[:koffset]), fmt(kpt),
-                        ACCENT_TILT.to_i)
+            puts format('  %s: key — %.0f lm at %dK, %s, STANDOFF %.0f in (%.1f ft) ' \
+                        'from the door face, tilted %.0f deg so the beam axis meets ' \
+                        'the face %.0f in below the mount plane (%.0f in above the ' \
+                        'floor here)', name, lm_of.call(:key),
+                        layer_kelvin(3200, opts[:koffset]), fmt(kpt), kd, kd / 12.0,
+                        ktilt, ACCENT_AIM_DROP, z_m - ACCENT_AIM_DROP)
+            if kd < ACCENT_OUT - 1e-9
+              puts format('  %s: KEY PULLED IN — %.0f in wanted, only %.0f in fits inside ' \
+                          'the floor, %.0f in clear of its edges and outside every ' \
+                          'keep-out. The face gets (%.0f/%.0f)^2 = %.1fx the light it ' \
+                          'would at %.0f in.', name, ACCENT_OUT, kd, ACCENT_MARGIN,
+                          ACCENT_OUT, kd, (ACCENT_OUT / kd)**2, ACCENT_OUT)
+            end
           else
-            puts "  #{name}: the key position lands outside the floor — skipped."
+            puts format('  %s: KEY SKIPPED — no standoff between %.0f and %.0f in in front ' \
+                        'of the door lands inside the floor, %.0f in clear of its edges ' \
+                        'and outside every keep-out. The booth has no key light; the ' \
+                        'rim and foam graze are still placed.', name, ACCENT_OUT,
+                        ACCENT_MIN, ACCENT_MARGIN)
           end
 
           # ROLE 5 — the rim, OPPOSITE the key across the booth, cool against
