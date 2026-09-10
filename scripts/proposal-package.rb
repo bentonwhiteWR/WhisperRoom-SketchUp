@@ -237,20 +237,25 @@ module WR_ProposalPackage
     ['/SettingsRTEngine',      :max_sample_level,        800]
   ].freeze
 
-  # -------------------------------------------- client-safe output (D5) --
+  # ------------------------------------------------- the annotation family --
   #
   # Every tag that carries construction annotation. WR_Mode owns the list
-  # (DIM_TAGS + WR-Notes since 1.9.3); named here only so the client-safe
-  # image pass and the mode machinery cannot drift apart.
+  # (DIM_TAGS + WR-Notes since 1.9.3); named here so the manifest and the
+  # mode machinery cannot drift apart.
   ANNOT_TAGS = WR_Mode::ANNOT_TAGS
 
   # ...and since 1.20.0 the family is a PATTERN as well as those five names.
   # wr-scene-annotations.rb lets Benton create sets — WR-Notes-Plan,
-  # WR-Dims-Booth-Alt — and a set this list had never heard of would sail
-  # straight through the client-safe pass, which is defect D5 verbatim. So
-  # every client-safe site asks the model, not the constant. The constant
-  # remains the floor and the fallback: WR_ProposalScenes.annot_tags rescues
-  # to it, so an unreadable layer collection still hides the five.
+  # WR-Dims-Booth-Alt — and the manifest reports a set he made as one. The
+  # constant remains the floor and the fallback: WR_ProposalScenes.annot_tags
+  # rescues to it, so an unreadable layer collection still names the five.
+  #
+  # WHAT THIS FILE DOES NOT DO ANY MORE (1.47.0). Until 1.46.0 there was a
+  # "Client-safe" annotation mode: a whole-run pass that hid every tag in
+  # this family plus every loose callout on Untagged around each export and
+  # put them back in finish. Benton: "It will never be used" — every image
+  # now carries exactly what its scene's ANNOTATIONS picker left showing,
+  # and nothing here hides or restores an annotation.
   def self.annot_tags(model)
     WR_ProposalScenes.annot_tags(model)
   rescue StandardError
@@ -609,8 +614,9 @@ module WR_ProposalPackage
     'annotation_tags_shown: the tags the scene\'s SAVED state shows - it says ' \
     'a callout\'s tag was visible, NOT that the callout lands inside the ' \
     'camera frame. Match annotations to a scene through their tag.',
-    'annotations_hidden_in_images true means the batch ran client-safe: the ' \
-    'exported files carry NO annotation text regardless of scene state.',
+    'annotations_hidden_in_images: not written since 1.47.0 (the client-safe ' \
+    'mode was removed). In an older manifest, true means that batch hid ' \
+    'every annotation in every exported file regardless of scene state.',
     'width/height null on an image row = not recorded (row failed, was ' \
     'skipped, or was lost) - never a default.',
     'groups_hidden: paths of model groups (e.g. \'3190J / Walls / Wall 2\') ' \
@@ -678,13 +684,10 @@ module WR_ProposalPackage
   # Which annotation tags a given exported plate could show, or nil-with-a-
   # note when that cannot be known. hidden: tag names the scene's saved state
   # hides (nil = unreadable); use_hidden: the scene stores tag visibility at
-  # all; present: the annotation tags that exist in the model; client_safe:
-  # the batch hid every annotation tag for the whole export (D5).
-  def self.shown_annot_tags(hidden, use_hidden, present, client_safe)
-    if client_safe
-      return [[], 'batch ran client-safe: every annotation tag was hidden ' \
-                  'in the exported file']
-    end
+  # all; present: the annotation tags that exist in the model. (Until 1.46.0
+  # a fourth argument said the batch had hidden everything — gone with the
+  # client-safe mode; the scene's own state is the only thing that governs.)
+  def self.shown_annot_tags(hidden, use_hidden, present)
     unless use_hidden
       return [nil, 'unreadable: the scene does not store tag visibility ' \
                    '(use_hidden_layers off) - the model\'s live state governed']
@@ -698,11 +701,7 @@ module WR_ProposalPackage
   # callout is missing because the scene hides its set" from "the model is
   # wrong". Same inputs, same honesty rule: nil-with-a-note whenever the
   # answer cannot be known, never a guessed list.
-  def self.hidden_annot_tags(hidden, use_hidden, present, client_safe)
-    if client_safe
-      return [present, 'batch ran client-safe: every annotation tag was ' \
-                       'hidden in the exported file']
-    end
+  def self.hidden_annot_tags(hidden, use_hidden, present)
     unless use_hidden
       return [nil, 'unreadable: the scene does not store tag visibility ' \
                    '(use_hidden_layers off) - the model\'s live state governed']
@@ -816,11 +815,13 @@ module WR_ProposalPackage
     end
     l << '  (no plates recorded)' if rows.empty?
     l << ''
+    # annotations_hidden_in_images is only ever present in a manifest written
+    # before 1.47.0; a current one has no such field and no such mode.
     l << 'Annotation mode: ' +
          (m['annotations_hidden_in_images'] ?
-            'CLIENT-SAFE - every plate was exported with ALL dimensions and ' \
-            'notes hidden. There are no callouts to transcribe and none may ' \
-            'be invented.' :
+            'CLIENT-SAFE (older manifest, mode since removed) - every plate ' \
+            'was exported with ALL dimensions and notes hidden. There are no ' \
+            'callouts to transcribe and none may be invented.' :
             'PER SCENE - each plate shows what its own scene left visible. ' \
             'Transcribe callouts exactly as drawn and only where legible.')
     l << 'Background: ' +
@@ -1514,7 +1515,7 @@ module WR_ProposalPackage
     dims_row = failing.find { |r| r['id'] == 'dims' }
     failing  = failing.reject { |r| r['id'] == 'dims' }
     if dims_row
-      log(dlg, "preflight: dimension tags visible (#{dims_row['detail']}) - "                'not blocking: each scene shows what its ANNOTATIONS picker '                'left on (Per scene), or nothing at all (Client-safe)', 'dim')
+      log(dlg, "preflight: dimension tags visible (#{dims_row['detail']}) - "                'not blocking: each scene shows what its ANNOTATIONS picker '                'left on', 'dim')
     end
     unless failing.empty?
       # Each row's label is the thing that MUST be true ("Floor off drafting
@@ -1592,7 +1593,6 @@ module WR_ProposalPackage
       Sketchup.write_default(PREF, 'width', cfg['width'].to_s.delete('"'))
       Sketchup.write_default(PREF, 'over',  cfg['over'].to_s.delete('"'))
       Sketchup.write_default(PREF, 'shade', cfg['shade'] ? 'Yes' : 'No')
-      Sketchup.write_default(PREF, 'annot', cfg['annot'].to_s == 'client' ? 'client' : 'draft')
       Sketchup.write_default(PREF, 'sub',   @per_model ? 'Yes' : 'No')
     rescue Exception
       nil
@@ -1602,31 +1602,16 @@ module WR_ProposalPackage
     image_rows  = plan.select { |p| p[:lane] == 'image' }
     render_rows = plan.select { |p| p[:lane] == 'render' }
 
-    # CLIENT-SAFE OUTPUT (D5). 'client' is the default and hides every
-    # ANNOT_TAGS tag for the whole batch; 'draft' is the deliberate opt-out
-    # that keeps the annotated look, for the internal/check-print pass. The
-    # image lane runs in DRAFT mode (that is what makes it flat and
-    # measurable) and draft mode SHOWS dimensions on purpose, so hiding has
-    # to be an explicit pass over the tags, not a mode change -- and it is
-    # undone in finish, on every exit path.
-    # PER SCENE IS THE DEFAULT (1.25.1). Benton exported the PeoplesSpace
-    # Revision pack with this on Client-safe -- the old default, written
-    # through to the registry by every export -- and got InteriorDims,
-    # FrontDims, RampDimensions and OutletInfo with no dimensions and no
-    # text. Client-safe is the deliberate strip-everything pass and has to
-    # be chosen; anything else, including a missing value, is Per scene.
-    client_safe = cfg['annot'].to_s == 'client'
-    if client_safe
-      # Named at the top of the log, before any image is written: the pack
-      # that went out stripped had four scene names saying what they held.
-      suspect = (image_rows + render_rows).map { |p| p[:page].name.to_s }
-                                          .select { |nm| nm =~ /dim|note|text|label|info|callout/i }
-      unless suspect.empty?
-        log(dlg, "CLIENT-SAFE will strip every dimension and note from #{suspect.size} " \
-                 "scene(s) whose names say they carry them: #{suspect.join(', ')}. " \
-                 'If that is wrong, cancel and set ANNOTATION to Per scene.', 'bad')
-      end
-    end
+    # ANNOTATIONS ARE PER SCENE, AND THAT IS THE ONLY BEHAVIOUR (1.47.0).
+    # Every image carries what its scene's ANNOTATIONS picker left showing.
+    # The image lane runs in DRAFT mode (that is what makes it flat and
+    # measurable) and draft mode SHOWS dimensions on purpose. There used to
+    # be a "Client-safe" mode here -- a whole-run strip-everything pass,
+    # written through to the registry by every export -- and it stripped the
+    # PeoplesSpace Revision pack of its InteriorDims / FrontDims /
+    # RampDimensions / OutletInfo text (1.25.1). Benton: "It will never be
+    # used." The dropdown, the stored 'annot' preference and the pass are
+    # gone; cfg['annot'] is ignored if an old dialog still sends it.
 
     # ---- build the unit list. One timer tick does at most one unit.
     units = []
@@ -1656,9 +1641,6 @@ module WR_ProposalPackage
     @seen_running     = false
     @idle_since       = nil
     @shade_saved   = nil
-    @annot_saved   = nil
-    @annot_saved_entities = nil
-    @client_safe   = client_safe
     # TRANSPARENT BACKGROUND (1.30.0). Per run, default OFF, deliberately
     # NOT written to the prefs: an opaque/transparent state that silently
     # carried over from last week is exactly how a client pack would end up
@@ -1687,7 +1669,6 @@ module WR_ProposalPackage
     # ...and out_w/out_h were read by render_size_gate at the SIZE GATE above,
     # BEFORE the gate judged them (D9). @size_source is already set.
     @cfg = { 'dir' => dir, 'width' => out_w.to_s, 'height' => out_h.to_s,
-             'annot' => (client_safe ? 'client' : 'draft'),
              # OVERRIDES ARE OPT-IN AND NEVER DEFAULT (1.9.4). Absent or empty
              # means: touch nothing, render at the operator's own settings.
              'overrides' => (cfg['overrides'] || {}) }
@@ -1723,8 +1704,7 @@ module WR_ProposalPackage
     # stripped a whole export earlier today.
     log(dlg, "files go to #{dir}  (#{dir_note})",
         (@per_model && dir == root) ? 'bad' : 'dim')
-    puts "  output size #{out_w}x#{out_h} (both lanes), annotation: " \
-         "#{client_safe ? 'HIDDEN (client-safe)' : 'SHOWN (draft)'}"
+    puts "  output size #{out_w}x#{out_h} (both lanes), annotations: per scene"
     # THE SHAPE OF THE PLAIN IMAGES, BY NAME (1.31.0). Read the window here
     # so the log says what the plates will be BEFORE the first one lands,
     # and how far from the V-Ray size they are.
@@ -1985,219 +1965,6 @@ module WR_ProposalPackage
     model.active_view.refresh
   end
 
-  # CLIENT-SAFE OUTPUT (D5) -- OBSERVED 30 Aug 2026: pass 1's image rows went
-  # out carrying the room's "20'" and "16'" dimension strings and the ceiling
-  # banner "Ceiling 8'-0" - HOUSE DEFAULT, not measured. Confirm before
-  # quoting." That banner lives on WR-Notes, which until 1.9.3 was in no tag
-  # list at all, so not even RENDER mode hid it.
-  #
-  # WHY THIS IS PER ROW AND NOT ONCE PER BATCH. The obvious design -- hide the
-  # tags at the top of the unit list, restore them in finish -- was WRITTEN,
-  # RUN, AND OBSERVED TO FAIL on 30 Aug 2026: the very next unit is
-  # [:mode, 'draft'], and DRAFT MODE'S WHOLE JOB IS TO SHOW DIMENSIONS, so
-  # WR_Mode turned every one of them straight back on and the plan export came
-  # out fully annotated. Moving the hide after the mode unit fixes the picture
-  # and breaks something worse: WR_Mode snapshots the LIVE tag visibilities
-  # when it leaves a mode, so a batch that was sitting in draft with the dims
-  # hidden would memorise "draft means no dimensions" into the model and keep
-  # it forever.
-  #
-  # So the hide brackets the EXPORT, not the batch. No mode transition ever
-  # happens between a push and its pop, so no snapshot can record the
-  # temporary state. Image rows push and pop around each write_image; render
-  # rows push before render_production (which is what exports the model into
-  # V-Ray) and are popped by finish, because nothing between the first render
-  # row and finish changes mode.
-  #
-  # And it is not redundant with render mode: on a model whose first-ever
-  # toggle happens inside this batch, WR_Mode's render snapshot is seeded from
-  # "whatever was showing", which is everything. Render mode alone does NOT
-  # guarantee a clean frame on a fresh model. This does.
-  def self.annot_push(model, dlg, file)
-    return unless @client_safe
-    return if @annot_saved            # already hidden by an earlier row
-    # CAPTURE BEFORE MUTATE (D10, 1.9.6). @annot_saved used to be assigned
-    # AFTER the hide loop and nil'd by the rescue, so a raise partway through
-    # left N tags already hidden in Benton's model with NO RECORD of what they
-    # were -- annot_pop's `return if @annot_saved.nil?` no-opped, finish's
-    # `if @annot_saved` no-opped, and the tags stayed off through the save and
-    # into the next session. A leaked mutation, which this file's own header
-    # calls the worst failure it can have.
-    #
-    # Now the hash is published to @annot_saved BEFORE the first flip and
-    # filled IN PLACE, one tag at a time, each entry written before that tag
-    # is touched. Whatever was hidden is always recorded, so annot_pop can put
-    # it back on every exit path including a partial failure.
-    saved = {}
-    @annot_saved = saved
-    # ...and the SAME discipline, published just as early, for the single
-    # callouts the tag pass cannot reach. See THE UNTAGGED HOLE below.
-    ents = {}
-    @annot_saved_entities = ents
-    missing = []
-    family = annot_tags(model)
-    family.each do |n|
-      l = model.layers[n]
-      if l.nil?
-        missing << n
-        next
-      end
-      saved[n] = l.visible?   # recorded first...
-      l.visible = false       # ...then flipped
-    end
-    shown = saved.select { |_n, v| v }.keys
-    log(dlg, "CLIENT-SAFE: hid #{saved.size} annotation tag(s) for #{file}" +
-             (shown.empty? ? ' (none were showing)' : " - #{shown.join(', ')} " \
-              'were visible and would have gone out on a client image'), 'dim')
-    log(dlg, "        not in this model: #{missing.join(', ')}", 'dim') unless missing.empty?
-
-    # THE UNTAGGED HOLE, CLOSED (1.20.0). Until now this method hid TAGS and
-    # nothing else, and the probe of 9 Sep 2026 settled why that was not
-    # enough: `tag.untagged_can_hide` FAILED -- SketchUp will not hide the
-    # Untagged tag at all. Hand-placed text lands on Untagged, so a note
-    # Benton typed into the model went out on a CLIENT-FACING image while
-    # this log said "CLIENT-SAFE: hid 5 annotation tag(s)" and the manifest
-    # said annotations_hidden_in_images: true. Silently wrong, in front of a
-    # customer, which is the worst failure this file can have.
-    #
-    # So every loose callout -- a Text, a dimension or a `label:` 3D group on
-    # any tag OUTSIDE the family -- is hidden per ENTITY as well, through the
-    # same flag wr-scene-annotations.rb uses. Family tags are skipped: they
-    # are already off above, and flipping their members individually would
-    # only make more to put back.
-    #
-    # CAPTURE BEFORE MUTATE, one entity at a time, exactly as the tags are:
-    # `ents` is published to @annot_saved_entities before the first flip and
-    # filled in place, each entry written before that entity is touched. So a
-    # raise partway through still leaves annot_pop able to put back every
-    # entity it actually moved.
-    #
-    # NOTHING HERE IS EVER SAVED INTO A SCENE. These are live model flags;
-    # only page.update writes them into a page, and this file never calls it.
-    # The scenes' own saved annotation state is untouched by a client-safe run.
-    loose = loose_annotations(model, family)
-    if loose.nil?
-      log(dlg, '        the loose-callout walk could not be read, so text on ' \
-               'Untagged may still be in this image - check it before sending.', 'bad')
-    else
-      was_showing = 0
-      loose.each do |e|
-        ents[e.entityID] = [e, ((e.hidden? rescue false) ? true : false)]  # recorded first...
-        was_showing += 1 unless ents[e.entityID][1]
-        e.hidden = true                                                   # ...then flipped
-      end
-      if loose.empty?
-        log(dlg, '        no loose callouts outside the sets - nothing on ' \
-                 'Untagged to hide.', 'dim')
-      else
-        log(dlg, "        hid #{loose.size} loose callout(s) not on any " \
-                 "annotation set (#{was_showing} were visible and would have " \
-                 'gone out on a client image) - SketchUp cannot hide the ' \
-                 'Untagged tag, so these go one by one. Scope: model space ' \
-                 "and #{WR_SceneAnnotations::DEPTH} container(s) deep; a " \
-                 'callout buried deeper than that is only reached by putting ' \
-                 'it on an annotation set.', 'dim')
-      end
-    end
-  rescue StandardError => e
-    # TELL THE TRUTH ABOUT WHICH WAY IT FAILED. The old message said only
-    # 'annotation may be visible in this image' -- the opposite of the actual
-    # damage, which was tags left hidden in the MODEL. Both halves are real
-    # and both are now stated: the tags already hidden ARE recorded and WILL
-    # be restored by finish, and the ones never reached are still showing, so
-    # the image may carry construction annotation after all.
-    done = (@annot_saved || {}).size
-    ents_done = (@annot_saved_entities || {}).size
-    left = (annot_tags(model).size rescue ANNOT_TAGS.size) - done
-    log(dlg, "CLIENT-SAFE FAILED PARTWAY for #{file}: #{e.class}: #{e.message}", 'bad')
-    log(dlg, "        #{done} tag(s) and #{ents_done} loose callout(s) were " \
-             'hidden and ARE recorded - finish will put them back. ' \
-             "#{left} tag(s) were not reached and are still visible, so " \
-             'construction annotation may be in this image. Check the image ' \
-             'before sending, and check the tags in the model after the batch.', 'bad')
-  end
-
-  # Every loose callout in the model -- a Text, a dimension or a `label:` 3D
-  # group whose tag is NOT in the annotation family, so the tag pass above
-  # cannot reach it. One walk, no mutation. nil (never []) when the walk
-  # itself fails, because "unreadable" and "there were none" are different
-  # answers and the caller says which one it got.
-  def self.loose_annotations(model, family)
-    fam = Array(family)
-    out = []
-    WR_SceneAnnotations.each_annotation(model.entities) do |e, _kind|
-      out << e unless fam.include?(WR_SceneAnnotations.tag_of(e))
-    end
-    out
-  rescue StandardError
-    nil
-  end
-
-  # WHATEVER WAS HIDDEN GOES BACK, on every exit path. Both halves are
-  # restored, and each entry in its own rescue, so one locked tag or one
-  # erased entity cannot strand the rest of the model hidden -- the failure
-  # this method exists to prevent.
-  def self.annot_pop(model, dlg)
-    return if @annot_saved.nil? && @annot_saved_entities.nil?
-    failed = []
-    (@annot_saved || {}).each do |n, vis|
-      begin
-        l = model.layers[n]
-        l.visible = vis if l
-      rescue StandardError => e
-        failed << "tag #{n} (#{e.class})"
-      end
-    end
-    (@annot_saved_entities || {}).each do |id, pair|
-      begin
-        e   = pair[0]
-        was = pair[1]
-        next unless e && (e.valid? rescue false)
-        e.hidden = was
-      rescue StandardError => ex
-        failed << "callout #{id} (#{ex.class})"
-      end
-    end
-    unless failed.empty?
-      log(dlg, 'these could NOT be put back and are still hidden in the ' \
-               "model: #{failed.join(', ')}", 'bad')
-    end
-    @annot_saved = nil
-    @annot_saved_entities = nil
-  rescue StandardError => e
-    log(dlg, "annotation state could not be put back: #{e.class}: #{e.message}", 'bad')
-  end
-
-  # THE IMAGE LANE UNDOES THE ENTITY HIDES AND MUST BE MADE TO REDO THEM.
-  # Selecting a page re-applies that scene's saved per-entity hidden state --
-  # that is the whole mechanism wr-scene-annotations.rb rides on -- so
-  # export_pages' own `pages.selected_page =` puts every callout annot_push
-  # just hid straight back, between the push and write_image. Exactly the
-  # 1.9.12 tag defect and the 1.19.3 shading defect, one property over. So
-  # this rides the same after_switch hook they do. Idempotent by design: it
-  # re-asserts the flag from the record and touches nothing the record does
-  # not name.
-  def self.annot_reapply(model, dlg, page)
-    return if @annot_saved_entities.nil? || @annot_saved_entities.empty?
-    n = 0
-    @annot_saved_entities.each_value do |pair|
-      e = pair[0]
-      next unless e && (e.valid? rescue false)
-      next if (e.hidden? rescue true)
-      e.hidden = true
-      n += 1
-    end
-    # Tags too: export_pages re-hides the ones in cfg['hide_tags'], which is
-    # the same family list, so they are covered there. Only the count is
-    # logged here, and only when the switch actually undid something.
-    log(dlg, "        re-hid #{n} loose callout(s) after the scene switch " \
-             "(#{(page.name rescue '?')})", 'dim') if n > 0
-  rescue StandardError => e
-    log(dlg, 'loose callouts could NOT be re-hidden after the scene switch: ' \
-             "#{e.class}: #{e.message} - text on Untagged may be in this " \
-             'image. Check it before sending.', 'bad')
-  end
-
   # AUDIT THE V-RAY SETTINGS. DO NOT OVERWRITE THEM. (1.9.4)
   #
   # This method used to be called unit_vray_setup and it wrote eight quality
@@ -2389,14 +2156,12 @@ module WR_ProposalPackage
       # is why export_pages turns them off itself.
       'bg' => (@transparent ? 'Transparent' : 'Opaque'), 'over' => 'Yes',
       'hide_tags' => hide,
-      # BOTH re-asserts ride this hook, because the page switch undoes both:
-      # the shading contract (1.19.3) and, since 1.20.0, the client-safe
-      # per-entity hides annot_push made (annot_reapply). The two-point
-      # reading rides it too (1.29.0): this is the last moment before
-      # write_image, so it is the projection the file is written from.
+      # The shading re-assert rides this hook, because the page switch undoes
+      # the shading contract (1.19.3). The two-point reading rides it too
+      # (1.29.0): this is the last moment before write_image, so it is the
+      # projection the file is written from.
       'after_switch' => lambda { |m, pg|
         shade_reapply(m, dlg, pg)
-        annot_reapply(m, dlg, pg)
         two_point_check(m, dlg, pg, p, 'after the scene switch') if p
       } }
   end
@@ -2416,14 +2181,11 @@ module WR_ProposalPackage
     # write_image and went out in the plain image. Observed in
     # ProposalFiles/test/Scene 1.png, 31 Aug 2026.
     #
-    # annot_push below has the same exposure for the same reason, so the
-    # client-safe tags ride along here too. It stays as well: it is what logs
-    # WHICH annotation tags were showing, and it covers the render lane, which
-    # does not go through export_pages at all.
+    # Only the light tags. Annotation tags are the scene's own business:
+    # whatever its ANNOTATIONS picker saved is what the page switch applies
+    # and what write_image sees (the client-safe strip that used to ride
+    # here went in 1.47.0).
     hide = WR_Mode::LIGHT_TAGS.dup
-    # The LIVE family (1.20.0): a set Benton made this afternoon is hidden by
-    # tonight's client-safe run. annot_tags rescues to the frozen five.
-    hide.concat(annot_tags(model)) if @client_safe
     # ...and the shading contract rides the same hook (after_switch), for the
     # same reason: the scene puts its own shadow info back on selection.
     cfg  = image_cfg(hide, dlg, p)
@@ -2441,14 +2203,9 @@ module WR_ProposalPackage
       p[:groups_hidden] = nil
       p[:annotations_hidden] = nil
     end
-    begin
-      annot_push(model, dlg, p[:file])
-      present = hide.select { |n| model.layers[n] }
-      log(dlg, "re-hiding after the scene switch: #{present.join(', ')}", 'dim') unless present.empty?
-      x = WR_ExportScenes.export_pages(model, plan, cfg)
-    ensure
-      annot_pop(model, dlg)
-    end
+    present = hide.select { |n| model.layers[n] }
+    log(dlg, "re-hiding after the scene switch: #{present.join(', ')}", 'dim') unless present.empty?
+    x = WR_ExportScenes.export_pages(model, plan, cfg)
     # THE VIEWPORT AFTER THE WRITE. write_image at a size that is not the
     # viewport's (1600x900 here, D4) is the one camera-touching call this
     # lane cannot avoid. If the flag went from two-point to ordinary across
@@ -2720,11 +2477,9 @@ module WR_ProposalPackage
       # exposed in the V-Ray for SketchUp toolbars and menus" -- i.e. the
       # toolbar button, export step included. It drives the SAME renderer the
       # poll loop reads (state went :idleDone -> :rendering -> :idleDone on
-      # `VRay::Context.active.renderer` throughout).
-      # Hidden BEFORE render_production, because that call is what exports the
-      # SketchUp model into V-Ray. finish pops it: nothing between here and
-      # there changes mode, so no WR_Mode snapshot can record the hiding.
-      annot_push(model, dlg, p[:file])
+      # `VRay::Context.active.renderer` throughout). What render_production
+      # exports into V-Ray is the scene as saved, annotations included: the
+      # scene's ANNOTATIONS picker decides, nothing is hidden here (1.47.0).
       if defined?(VRay::Command) && VRay::Command.respond_to?(:render_production)
         VRay::Command.render_production(:context => ctx)
       else
@@ -3300,8 +3055,8 @@ module WR_ProposalPackage
         nil
       end
       hid_tags    = page_hidden_tags(page)
-      shown, note = shown_annot_tags(hid_tags, use_h, present, @client_safe)
-      hid, hnote  = hidden_annot_tags(hid_tags, use_h, present, @client_safe)
+      shown, note = shown_annot_tags(hid_tags, use_h, present)
+      hid, hnote  = hidden_annot_tags(hid_tags, use_h, present)
       { :file => p[:file], :n => p[:n], :lane => p[:lane], :scene => scene,
         :shown => shown, :shown_note => note,
         :hid => hid, :hid_note => hnote }
@@ -3323,7 +3078,6 @@ module WR_ProposalPackage
              # carry their own width/height, written at the window's shape.
              'image_shape' => 'viewport - plain images are written at the SketchUp '                               "window's aspect so screen-anchored notes stay put; "                               "see each image row's width/height",
              'viewport'    => @viewport,
-             'annotations_hidden_in_images' => (@client_safe ? true : false),
              'transparent_background' => (@transparent ? true : false),
              'annotation_scope' => 'model-space top level (model.entities) - ' \
                                    'where the WR dimension tools draw',
@@ -3389,20 +3143,6 @@ module WR_ProposalPackage
       restore_errs << "V-Ray restore: #{e.class}: #{e.message}"
     ensure
       @vray_saved = nil
-    end
-
-    # ANNOTATION TAGS back BEFORE the mode restore, so the visibilities
-    # WR_Mode records into its snapshot are the model's real ones and not the
-    # client-safe pass's temporary hiding.
-    if @annot_saved || @annot_saved_entities
-      begin
-        annot_pop(model, dlg)
-      rescue Exception => e
-        restore_errs << "annotation restore: #{e.class}: #{e.message}"
-      ensure
-        @annot_saved = nil
-        @annot_saved_entities = nil
-      end
     end
 
     # F3 -- FIXED 1.9.3. This used to read
@@ -3992,10 +3732,20 @@ module WR_ProposalPackage
     rescue Exception
       'Yes'
     end != 'No'
-    annot = begin
-      Sketchup.read_default(PREF, 'annot', 'draft').to_s
+    # THE RETIRED 'annot' PREFERENCE (1.47.0). Every export until 1.46.0 wrote
+    # this key, and 'client' in it meant "strip every annotation from every
+    # image". Nothing reads it any more. But write_default has no remove, an
+    # older copy of this file would still honour it, and a stored 'client'
+    # with no control to change it is a trap -- so a stored 'client' is
+    # overwritten with 'draft' once, here, and said so on the console.
+    begin
+      if Sketchup.read_default(PREF, 'annot', 'draft').to_s == 'client'
+        Sketchup.write_default(PREF, 'annot', 'draft')
+        puts 'proposal-package: the stored ANNOTATION = Client-safe preference ' \
+             'was reset to Per scene (the Client-safe mode was removed in 1.47.0).'
+      end
     rescue Exception
-      'draft'
+      nil
     end
     # ON BY DEFAULT, and the default REACHES machines that have exported
     # before: 'sub' was never written until 1.34.0, so read_default's
@@ -4008,7 +3758,6 @@ module WR_ProposalPackage
     end != 'No'
     width = '2400' if width.strip.empty?
     over  = 'Ask' unless ['Ask', 'Overwrite', 'Skip existing'].include?(over)
-    annot = 'draft' unless %w[client draft].include?(annot)
 
     d = UI::HtmlDialog.new(
       :dialog_title    => "Proposal package — #{title}",
@@ -4021,7 +3770,7 @@ module WR_ProposalPackage
       :min_height      => 480,
       :style           => UI::HtmlDialog::STYLE_DIALOG
     )
-    d.set_html(html(title, state(model), dir, width, over, shade, annot, sub, fname))
+    d.set_html(html(title, state(model), dir, width, over, shade, sub, fname))
     @dlg   = d   # so a stale-batch reset can reach the last window's log, if any
     @model = model   # the singleton check: this window belongs to THIS model
 
@@ -4708,7 +4457,7 @@ module WR_ProposalPackage
 
   # ----------------------------------------------------------------- html --
 
-  def self.html(title, st, dir, width, over, shade, annot, sub = true, fname = '')
+  def self.html(title, st, dir, width, over, shade, sub = true, fname = '')
     <<-HTML
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Proposal package</title>
@@ -5039,16 +4788,6 @@ module WR_ProposalPackage
   <span class="lbl">SHADING</span>
   <label class="shadelbl"><input type="checkbox" id="shade"#{shade ? ' checked' : ''}>
     Even shading for plain images (shadows off, Light #{WR_Shading::DEF_LIGHT} / Dark #{WR_Shading::DEF_DARK} — the component-art contract). V-Ray scenes are never touched by this.</label>
-  <span></span>
-
-  <span class="lbl">ANNOTATION</span>
-  <select id="annot">
-    <option value="draft"#{annot == 'client' ? '' : ' selected'}>Per scene — each scene shows what its ANNOTATIONS picker left showing (normal)</option>
-    <option value="client"#{annot == 'client' ? ' selected' : ''}>Client-safe — strip every dimension and note from every image</option>
-  </select>
-  <span></span>
-  <span class="lbl"></span>
-  <label class="shadelbl"><b>Per scene</b> is the normal pack: a scene named for its dimensions carries them, and each image shows exactly what its own ANNOTATIONS picker left showing. <b>Client-safe</b> is the deliberate strip-everything pass for a pack that must carry no callouts at all: it hides #{WR_Mode::ANNOT_TAGS.join(', ')}, every WR-Dims-… / WR-Notes-… set in this model, <b>and every loose callout on Untagged</b> — SketchUp will not hide the Untagged tag, so those go one by one (1.20.0) — on every scene, whatever its picker says. Everything is put back at the end. The choice is remembered per user, not per model.</label>
   <span></span>
 
   <span class="lbl">BACKGROUND</span>
@@ -5647,7 +5386,7 @@ window.onerror = function (msg, src, line) {
   //
   // Two mechanisms under it and the operator never picks between them: a SET
   // row is a tag (one flag hides every callout on it, at any depth, and the
-  // client-safe pass can find it by name); a CALLOUT row is one entity's own
+  // manifest reports it by name); a CALLOUT row is one entity's own
   // hidden flag. SketchUp will NOT hide the Untagged tag — proved live, 9 Sep
   // 2026 — so loose callouts are listed one by one under NOT IN A SET with
   // all/none links, and there is deliberately no "Untagged" set row: a tick
@@ -6073,7 +5812,6 @@ window.onerror = function (msg, src, line) {
         width: g("width").value,
         over:  g("over").value,
         shade: g("shade").checked,
-        annot: g("annot").value,
         transp: g("transp").checked,
         sub:   g("sub").checked,
         client: g("client").value

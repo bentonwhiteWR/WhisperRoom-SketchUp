@@ -1935,3 +1935,63 @@ clearing or un-starring any seat the shop fills is a visible no-op.
 The NUL round-trip claim (UNSET unstorable) is derived from the API's shape
 and main.rb's own comment, not observed; the RESET route does not depend on
 it. Nothing has run in SketchUp.
+
+---
+
+# HANDOFF — Client-safe annotation mode removed (Builder, 10 Sep 2026, 1.47.0)
+
+Benton: *"the annotation by default should be set to PER SCENE. Not Client
+Safe. In fact, just remove that completely. It will never be used."*
+**Unrun in SketchUp.** rbparse 74/74; rbtest-proposal PASS (gone1/gone2 new,
+annot1-7 retired); jstest-proposal-dialog PASS; three mutants killed.
+VERSION 1.46.0 -> 1.47.0.
+
+## Produced
+- `scripts/proposal-package.rb`: ANNOTATION row + helper text gone from the
+  dialog; `annot` gone from the export JSON, the prefs read/write and
+  `@cfg`; `annot_push` / `annot_pop` / `annot_reapply` /
+  `loose_annotations` deleted; no push around `export_pages` or before
+  `render_production`; no restore block in `finish`; `unit_image` hides
+  LIGHT_TAGS only; manifest no longer writes `annotations_hidden_in_images`
+  (reader in `agent_prompt` kept for old manifests); `shown_annot_tags` /
+  `hidden_annot_tags` take three arguments; preflight dims line and the
+  console "annotation:" line reworded; the red CLIENT-SAFE scene-name
+  warning gone.
+- Stored `annot` preference: a stored `client` is overwritten with `draft`
+  once when the dialog opens (console says so); nothing reads it.
+- `scripts/proposal-scenes.rb`, `scripts/wr-scene-annotations.rb`: comments
+  only — the family is justified by the picker and the manifest now, not
+  by "leaks past client-safe". No code changed.
+- `scripts/rbtest-proposal.py`, `scripts/jstest-proposal-dialog.js`: see
+  DEVLOG 1.47.0. `.forge/builder/verify-scene-annotations.rb` section 10
+  guarded with `respond_to?(:annot_push)` -> SKIP.
+
+## Boundary decisions
+- KEPT: `ANNOT_TAGS`, `annot_tags(model)`, `ANNOT_RE`, `DIM_TAGS`,
+  `NOTE_TAGS`, `SHOWN_ON_DIMENSIONED`, `collect_hidden_annotations`,
+  `collect_annotations`, per-row `annotation_tags_shown/_hidden` and
+  `annotations_hidden` in the manifest. All per-scene reporting or picker.
+- `wr-pack-export.rb`: no client-safe path exists there (observed).
+- No hidden dependency on client-safe was found beyond the dropdown:
+  render mode hides `ANNOT_TAGS` by its own policy (WR_Mode), the preflight
+  dims check reports visible dimension tags as a non-blocking line, and
+  both are untouched. Nothing else asked `@client_safe`.
+
+## Benton's check (this cannot be run here)
+1. Panel -> Update now (banner 1.47.0), restart SketchUp.
+2. Open the proposal package. FOLDER & DETAILS has no ANNOTATION control.
+   Ruby Console may print one line: `the stored ANNOTATION = Client-safe
+   preference was reset to Per scene` — that is the registry value from
+   this morning being neutralised; it prints once.
+3. Export one scene whose ANNOTATIONS picker shows dimensions, touching no
+   setting. The PNG carries the dimensions. The log has no CLIENT-SAFE
+   line; manifest.json has no `annotations_hidden_in_images` key.
+4. After the batch, the model's WR-Dims* tags are as the scene left them —
+   nothing was hidden, so nothing was restored.
+
+## Not checked
+Nothing has run in SketchUp. The `write_default('annot','draft')` overwrite
+is derived from the API's shape (same call the old code made on every
+export), not observed. Three comment lines naming "the client-safe pass"
+remain in files off-limits to this brief (`dimension-whisperroom.rb:79`,
+`build-booth-components.rb:2201`, `wr-preflight.rb:55`).

@@ -86,6 +86,24 @@ function el(id) {
 }
 
 let failed = 0;
+// EVERY ID THE SCRIPT READS BY LITERAL MUST EXIST IN THE HTML. The export
+// click handler is never fired here (fake DOM, no events), so a `g("x")`
+// inside it on an element the HTML no longer has -- exactly what removing
+// the ANNOTATION row leaves behind if the JSON line is forgotten (1.47.0) --
+// would pass the run below and throw in the window on the Export button.
+// So the literals are checked statically, from the unescaped source.
+{
+  const read = new Set();
+  for (const b of blocks) {
+    const code = prepare(b, 'x');
+    for (const m of code.matchAll(/\b(?:g|byId)\(\s*["']([A-Za-z0-9_-]+)["']\s*\)/g)) read.add(m[1]);
+    for (const m of code.matchAll(/getElementById\(\s*["']([A-Za-z0-9_-]+)["']\s*\)/g)) read.add(m[1]);
+  }
+  const absent = [...read].filter(id => !ids.has(id)).sort();
+  if (absent.length) { failed++; console.log('FAIL ids read by literal but absent from the HTML: ' + absent.join(', ')); }
+  else console.log('ok   every id read by literal (' + read.size + ') exists in the HTML');
+  if (ids.has('annot')) { failed++; console.log('FAIL the ANNOTATION control (id="annot") is back - the Client-safe mode was removed in 1.47.0'); }
+}
 for (const fname of ['NewTemplate', '']) {          // saved-looking and unsaved
   const asked = [];
   const made = {};                                  // one element per id, so innerHTML written by

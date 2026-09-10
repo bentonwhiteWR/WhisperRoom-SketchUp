@@ -17,8 +17,8 @@
 #
 #   SETS are tags in the WR-Dims* / WR-Notes* family. A scene saves per-TAG
 #   visibility, so one flag hides three hundred callouts at every nesting
-#   depth, it is reusable on a dozen scenes, and — the part that matters most
-#   — the proposal package's client-safe pass can find it by name.
+#   depth, it is reusable on a dozen scenes, and the proposal package's
+#   manifest reports it by name.
 #     Apply writes:  layer.visible = false + page.set_visibility(layer, false)
 #
 #   CALLOUTS are single entities. A scene ALSO saves per-ENTITY hidden state
@@ -41,12 +41,11 @@
 # all / none links so a batch hide is still one click, and MOVE SELECTION
 # INTO A SET is there for anyone who wants a reusable set instead.
 #
-# WHY SETS STILL EXIST. Hiding hundreds of callouts with one flag, reusing
-# that across scenes, and being covered by the client-safe pass are all things
-# a tag does that per-entity flags do not. New sets are named WR-Notes-<name>
-# so they stay inside the family every consumer matches live
-# (WR_ProposalScenes.annot_tags) — a set outside it would leak past
-# client-safe, which is defect D5 all over again.
+# WHY SETS STILL EXIST. Hiding hundreds of callouts with one flag and reusing
+# that across scenes are things a tag does that per-entity flags do not. New
+# sets are named WR-Notes-<name> so they stay inside the family every consumer
+# matches live (WR_ProposalScenes.annot_tags) — a set outside it would be
+# invisible to the picker's SET rows and to the manifest.
 #
 # A SCENE THAT DOES NOT SAVE HIDDEN OBJECTS (or hidden tags) cannot put a
 # callout back when it is selected. Scenes save both by default; any that have
@@ -403,7 +402,7 @@ module WR_SceneAnnotations
   # MEMBERSHIP IS FOR EVERY SCENE — this is model state, not scene state, and
   # the dialog says so. Anything selected that is not an annotation is REFUSED
   # BY NAME rather than silently re-tagged: a wall dragged onto WR-Notes would
-  # vanish from every client image the moment client-safe ran.
+  # vanish from every scene that hides that set.
   def self.move_selection_to_set(model, user_name)
     name = WR_ProposalScenes.annot_set_name(user_name)
     return [false, 'Type a name for the set first.'] if name.nil?
@@ -456,8 +455,8 @@ module WR_SceneAnnotations
   # THE NAME IS NOT THE OPERATOR'S TO FINALISE. annot_set_name is the single
   # naming rule (proposal-scenes.rb) — a name already in the WR-Dims*/WR-Notes*
   # family is taken verbatim, anything else is slugged and prefixed WR-Notes-,
-  # because a set outside that family is a set client-safe cannot see (defect
-  # D5). That means the tag created is frequently NOT the string that was
+  # because a set outside that family is a set no consumer can see. That
+  # means the tag created is frequently NOT the string that was
   # typed, so the message reports the REAL tag name. Saying "created Plan" when
   # the model now holds "WR-Notes-Plan" is how someone goes looking in the tag
   # list for something that is not there.

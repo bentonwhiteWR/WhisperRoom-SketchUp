@@ -1,6 +1,91 @@
 # DEVLOG
 
 ## 2026-09-10
+### Client-safe annotation mode removed — per scene is the only behaviour — 1.47.0
+
+Benton: *"Hey the annotation by default should be set to PER SCENE. Not
+Client Safe. In fact, just remove that completely. It will never be
+used."* **Unrun in SketchUp.** rbparse 74/74; rbtest-proposal 133 checks +
+gone2 PASS; jstest-proposal-dialog PASS (67 literal ids resolved); three
+mutants killed. VERSION 1.46.0 -> 1.47.0 (minor: a mode is gone).
+
+**This reverses a documented design.** The client-safe pass was built on
+30 Aug 2026 to prevent defect D5 — the PeoplesSpace plan went out with the
+room's "20'" / "16'" strings and the `Ceiling 8'-0" - HOUSE DEFAULT` banner
+on it — and hardened twice: D10 (capture-before-mutate, 1.9.6) and the
+Untagged hole (loose callouts hidden one by one, 1.20.0). It was correct
+code for a problem that no longer exists in that shape: since 1.20.0 every
+scene carries its own ANNOTATIONS picker, so "what this image must not
+show" is decided per scene, by name, in the model, and saved. A whole-run
+strip on top of that is a second, invisible authority — and on 10 Sep 2026
+it was the one that won, because the dropdown wrote itself to the registry
+on every export and Benton's machine still held `client` from a run that
+morning. The stored value, not the UI default, produced stripped exports.
+D5 is now prevented by the picker, and a stripped image is prevented by
+nothing overriding the picker.
+
+**What went.** `scripts/proposal-package.rb`: the ANNOTATION row in FOLDER
+& DETAILS and its helper text; `annot` in the export JSON; the `annot`
+read/write/validate around the dialog; `client_safe` / `@client_safe` /
+`@annot_saved` / `@annot_saved_entities`; the red "CLIENT-SAFE will strip"
+scene-name warning added earlier today; `annot_push`, `annot_pop`,
+`annot_reapply`, `loose_annotations` (213 lines); the `hide.concat(
+annot_tags)` in `unit_image`; the push around `export_pages` and before
+`render_production`; the restore block in `finish`; the
+`annotations_hidden_in_images` key in the manifest writer; the fourth
+`client_safe` argument of `shown_annot_tags` / `hidden_annot_tags`; the
+"(Client-safe)" clause in the preflight dims log line.
+
+**What stayed, deliberately.** The family — `WR_ProposalScenes::DIM_TAGS`,
+`NOTE_TAGS`, `ANNOT_TAGS`, `ANNOT_RE`, `annot_tags(model)`,
+`SHOWN_ON_DIMENSIONED`, `annot_set_name` — and every consumer that reads
+it: the per-scene picker (`wr-scene-annotations.rb`), the manifest's
+`annotation_tags_shown` / `annotation_tags_hidden` / `annotations_hidden`
+per row (still written; they describe the scene's own state), render
+mode's policy, and `wr-preflight.rb`'s dims check. Comments in
+`proposal-scenes.rb` and `wr-scene-annotations.rb` that justified the
+family by "or it leaks past client-safe" now say what it is actually for.
+
+**The stored `annot` registry value.** `Sketchup.write_default` has no
+remove (DEVLOG 1.46.0). Decision: nothing reads the key any more, AND the
+dialog's open path overwrites a stored `client` with `draft` once and says
+so on the console. Ignoring alone would have been enough for this code;
+the overwrite is there because an older checkout of this file (Gabe before
+`git pull`, a stash, a rollback) would still honour `client`, and a trap
+with no control to disarm it is exactly the thing being removed. Any other
+value is left alone.
+
+**`annotations_hidden_in_images`.** Not written any more. Its
+`MANIFEST_NOTES` line now says so and explains what `true` means in an
+older manifest. `agent_prompt` still reads it — a manifest.json from before
+1.47.0 can be rebuilt into a prompt, and its stripped plates must still be
+described as stripped ("CLIENT-SAFE (older manifest, mode since removed)").
+`proposals/build-v2.js` and the example `proposal-v2.json` never read the
+field (grep, observed). `MANIFEST_FORMAT` stays 1: a reader keyed on the
+field treats absence as false, which is now always true.
+
+**`wr-pack-export.rb`** has no client-safe path (observed): its only
+`client` is the client-name folder. Untouched.
+
+**Harnesses.** `rbtest-proposal.py`: annot1-7 gone with the methods they
+ran; `gone1` (none of the four methods answers `respond_to?`), `gone2`
+(source has no `id="annot"`, no `g("annot")`, no manifest writer key, no
+`@client_safe`); `st1` / `st5` now pin arity 3; `ap5` checks a field-less
+manifest says PER SCENE and an old `true` still says CLIENT-SAFE.
+`jstest-proposal-dialog.js`: every id the script reads by literal must
+exist in the HTML — the export click handler is never fired offline, so a
+forgotten `g("annot")` would have passed the run and thrown on the Export
+button. Mutants, RUN: `annot: g("annot").value` back -> jstest FAIL +
+gone2 FAIL; `client_safe = false` fourth param back -> st1 FAIL (arity -4);
+`annot_push` back -> gone2 FAIL.
+
+**Leftover references, not edited (files off-limits or outside the brief):**
+`scripts/dimension-whisperroom.rb:79`, `scripts/build-booth-components.rb:2201`,
+`scripts/wr-preflight.rb:55` — comments naming "the client-safe pass";
+`.forge/builder/verify-scene-annotations.rb` section 10 is now guarded by
+`respond_to?(:annot_push)` and prints SKIP, so its manifest checks still
+run on a current checkout.
+
 ### Shop defaults actually reach a used panel: per-slot fall-through + "Reset to shop default" — 1.46.0
 
 Benton pushed his layout as the shop default (`07fc2e1`, bump `62bf0d4`).

@@ -79,9 +79,9 @@ V-Ray stubbed (FakeModel / FakeLayer / output_size) so the REAL methods run.
               bottom of the summary (D11)
     lost1-3   lost_rows, the one method the headline and the closing verdict
               both read
-    annot1-4  the hide record is published BEFORE the first tag is flipped,
-              so a partial failure is still restorable (D10)
     busy1-3   the dialog callbacks' running guard (D12 / F5)
+    (annot1-4, the client-safe hide record, were retired with the mode in
+     1.47.0 -- see THE ANNOTATION HALF below.)
 
 Mutation-checked when written -- RUN, not assumed, 30 Aug 2026. Each of these
 reintroduced bugs makes the named check FAIL:
@@ -89,8 +89,6 @@ reintroduced bugs makes the named check FAIL:
     render_size_gate JUDGE-then-READ (the 1.9.4 order)    -> gate1, gate2 FAIL
     render_size_gate refusal deleted                      -> gate3 FAIL
     summary_lines headline counts @results only           -> sum1 FAIL
-    @annot_saved assigned after the hide loop             -> annot1, annot3,
-                                                             annot4 FAIL
     busy? never refuses                                   -> busy1 FAIL
 
 WHAT THIS HALF STILL DOES NOT PROVE. start_run itself is not executed here --
@@ -109,8 +107,9 @@ re-derived from pixels downstream). Its pure half is covered here:
     bn1-7     booth_name? — name-matching only, never derivation
     dd1-6     dim_display — '<>' substitution; a nil measured value leaves
               the raw text (placeholder and all) so absence stays VISIBLE
-    st1-4     shown_annot_tags — client-safe beats everything; an unreadable
-              scene state is nil-with-a-note, never a guessed list
+    st1-4     shown_annot_tags — st1 pins the arity (three arguments: the
+              client-safe fourth must not come back); an unreadable scene
+              state is nil-with-a-note, never a guessed list
     mr1-4     manifest_rows — the plan/results join: a planned row with no
               result is status 'lost' (the D8/D11 doctrine), width/height
               are null unless actually recorded, export order is preserved
@@ -144,40 +143,41 @@ SketchUp's DLL has no Object#class -- `1.class` raises NoMethodError in it.
 proposal-package.rb interpolates e.class into every failure message, so any
 lifted rescue path needs an exception class that answers it (see FakeError).
 
-THE ANNOTATION HALF (1.20.0)
-----------------------------
+THE ANNOTATION HALF (1.20.0, cut down 1.47.0)
+--------------------------------------------
 Per-scene annotation hiding (wr-scene-annotations.rb) added an ANNOTATIONS
-column beside WALLS and -- the part that is customer-facing -- closed a hole
-that was already open: annot_push hid the five frozen ANNOT_TAGS and nothing
-else, and the live probe of 9 Sep 2026 proved SketchUp will NOT hide the
-Untagged tag (`tag.untagged_can_hide` FAIL). So a note hand-placed on
-Untagged went out on a client image while the log said CLIENT-SAFE and the
-manifest said annotations_hidden_in_images: true. Silently wrong, in front of
-a customer.
+column beside WALLS. Until 1.46.0 the package also had a whole-run
+"Client-safe" mode (annot_push / annot_pop / annot_reapply /
+loose_annotations) that hid every annotation tag and every loose callout
+around each export; checks annot1-7 covered its capture-before-mutate and
+restore contracts. Benton, 10 Sep 2026: "just remove that completely. It
+will never be used." The methods, the dropdown, the stored 'annot'
+preference and the manifest's annotations_hidden_in_images field are gone,
+and so are those seven checks. What remains is the per-scene reporting:
 
-    st5-st8   hidden_annot_tags -- the mirror of shown_annot_tags; client-safe
-              means every present tag was hidden, and an unreadable scene
-              state is nil-with-a-note, never a guessed list
+    st5-st8   hidden_annot_tags -- the mirror of shown_annot_tags; st5 pins
+              the arity (three arguments), and an unreadable scene state is
+              nil-with-a-note, never a guessed list
     mr6       annotation_tags_hidden / annotation_hidden_note ride the plan
               row into the manifest
     mr7       annotations_hidden rides the RESULT row, and is null (never [])
               on a row that never recorded it -- the groups_hidden doctrine
-    annot5-7  D10 for the ENTITY half: the loose-callout record is published
-              before the first entity is flipped, annot_pop restores each
-              entity to what it WAS (not to "shown"), and annot_reapply
-              re-asserts the hide after a scene switch undoes it -- without
-              touching anything the record does not name
+    ap5       agent_prompt says PER SCENE for a manifest with no
+              annotations_hidden_in_images field (every manifest from 1.47.0
+              on) and still reads an OLD manifest's true as client-safe
+    gone1     none of the four client-safe methods is defined any more
+    gone2     the ANNOTATION control and the g("annot") read are out of the
+              dialog source (the JS harness proves the script still runs)
 
-Mutation-checked when written -- RUN, not assumed, 9 Sep 2026. Each of these
-reintroduced bugs makes the named check FAIL:
+Mutation-checked when written -- RUN, not assumed, 9 Sep 2026 / 10 Sep 2026.
+Each of these reintroduced bugs makes the named check FAIL:
 
-    hidden_annot_tags returning [] under client_safe        -> st5 FAIL
     hidden_annot_tags guessing a list when hidden is nil    -> st7 FAIL
     manifest_rows dropping p[:hid]                          -> mr6 FAIL
     annotations_hidden defaulting to [] instead of nil      -> mr7 FAIL
-    @annot_saved_entities assigned AFTER the entity loop    -> annot5 FAIL
-    annot_pop forcing entities visible instead of restoring -> annot6 FAIL
-    annot_reapply made a no-op (the switch is not re-asserted) -> annot7 FAIL
+    a client_safe fourth parameter put back                 -> st1 / st5 FAIL
+    annot_push (or any of the four) put back                -> gone1 FAIL
+    `annot: g("annot").value` put back in the export JSON   -> gone2 FAIL
 """
 import os
 import re
@@ -281,10 +281,6 @@ module WR_ProposalPackage
 
 %(summary_lines)s
 
-%(annot_push)s
-
-%(annot_pop)s
-
 %(busy)s
 
 %(booth_name)s
@@ -299,10 +295,6 @@ module WR_ProposalPackage
 
 %(annot_tags)s
 
-%(loose_annotations)s
-
-%(annot_reapply)s
-
 %(shade_reapply)s
 
 %(image_cfg)s
@@ -311,41 +303,19 @@ module WR_ProposalPackage
   # helper; every defect of the last month lived below it. The audit of
   # 30 Aug 2026 put it plainly: this suite passed 64/64 while the render lane
   # was unlaunchable from the button, because nothing here touched start_run's
-  # ordering, summary_lines' reconciliation, annot_push's capture-before-
-  # mutate contract or the dialog callbacks' running guard.
+  # ordering, summary_lines' reconciliation or the dialog callbacks'
+  # running guard.
   #
   # These stubs stand in for SketchUp and V-Ray so the real methods can run.
   ANNOT_TAGS = %%w[T1 T2 T3].freeze
 end
 
-# 1.20.0 -- the annotation family is read LIVE from the model now
-# (WR_ProposalScenes.annot_tags), so annot_push cannot be lifted without it.
-# Here it answers with the same three fixture tags, which keeps every existing
-# annot* check comparing against exactly what it compared against before.
+# 1.20.0 -- the annotation family is read LIVE from the model
+# (WR_ProposalScenes.annot_tags); the lifted annot_tags needs the module.
+# Here it answers with the same three fixture tags.
 module WR_ProposalScenes
   def self.annot_tags(_model)
     WR_ProposalPackage::ANNOT_TAGS
-  end
-end
-
-# ...and the loose-callout walk. The real one is wr-scene-annotations.rb's
-# each_annotation, a depth-bounded model walk; what loose_annotations needs
-# from it is "yield every annotation with its kind" and "what tag is it on",
-# so that is what the stub provides. Everything the CHECKS are about --
-# capture-before-mutate, restore-to-what-it-was, re-assert-after-the-switch --
-# is the real method's own code.
-module WR_SceneAnnotations
-  # The real walk's depth bound. annot_push names it in the log line that
-  # tells the operator how deep the client-safe sweep actually reached, so the
-  # lift needs it.
-  DEPTH = 2
-
-  def self.each_annotation(ents, _depth = 0, &blk)
-    ents.each { |e| blk.call(e, e.kind) }
-  end
-
-  def self.tag_of(e)
-    e.tag
   end
 end
 
@@ -366,7 +336,9 @@ module WR_ProposalPackage
   # ...so the fake layer raises THIS instead, a StandardError subclass that
   # answers `class`. Reopening StandardError itself breaks `raise` in this VM
   # (tried, 30 Aug 2026); a subclass is caught by the same
-  # `rescue StandardError` and leaves the built-in alone.
+  # `rescue StandardError` and leaves the built-in alone. (The annot_push
+  # partial-failure path it was written for went in 1.47.0; the class stays
+  # for any lifted rescue that interpolates e.class.)
   class FakeError < StandardError
     def class; 'FakeError'; end
   end
@@ -395,27 +367,6 @@ module WR_ProposalPackage
     def initialize(h); @h = h; end
     def [](n); @h[n]; end
   end
-  # One loose callout. `boom` raises on the hide, which is how the partial-
-  # failure path (the one D10 is about) is exercised for entities as it
-  # already is for tags.
-  class FakeEnt
-    attr_reader :tag, :kind
-    def initialize(id, tag, hidden, boom = false, kind = 'text')
-      @id     = id
-      @tag    = tag
-      @hidden = hidden
-      @boom   = boom
-      @kind   = kind
-    end
-    def entityID; @id; end
-    def valid?;   true; end
-    def hidden?;  @hidden; end
-    def hidden=(v)
-      raise FakeError, "entity #{@id} is locked" if @boom
-      @hidden = v
-    end
-  end
-
   class FakeModel
     attr_reader :layers, :entities
     def initialize(layers, entities = [])
@@ -820,110 +771,17 @@ module WR_ProposalPackage
               'pn6 ok' : 'pn6 FAIL ' + pe.inspect)
 
     # ================================================================
-    # D10 -- CAPTURE BEFORE MUTATE. annot_push used to assign @annot_saved
-    # AFTER the hide loop and nil it in the rescue, so a raise partway
-    # through left tags hidden in Benton's model with no record of what they
-    # were -- annot_pop no-opped, finish no-opped, and the tags stayed off
-    # into the next session. annot1/annot2 fail if that ordering returns.
+    # 1.47.0 -- THE CLIENT-SAFE MODE IS GONE, AND STAYS GONE. annot1-7 used
+    # to run annot_push / annot_pop / annot_reapply here. Now the check is
+    # that none of the four exists: a method that came back would run
+    # nowhere (no caller) but would read as a live feature to the next
+    # person in this file, which is the half-removal this guards against.
     # ================================================================
-    lay = { 'T1' => FakeLayer.new('T1', true, false),
-            'T2' => FakeLayer.new('T2', true, false),
-            'T3' => FakeLayer.new('T3', true, true) }   # T3 raises on hide
-    fm = FakeModel.new(FakeLayers.new(lay))
-    @client_safe = true
-    @annot_saved = nil
-    annot_push(fm, nil, 'row.png')
-    rec = @annot_saved
-    okA = !rec.nil? && rec['T1'] == true && rec['T2'] == true
-    out << (okA ? 'annot1 ok' :
-            "annot1 FAIL the hide record was lost on a partial failure: #{rec.inspect}")
-    # ...and the record is USABLE: annot_pop puts back what was hidden.
-    out << ((lay['T1'].visible? == false && lay['T2'].visible? == false) ?
-              'annot2 ok' : 'annot2 FAIL the two reachable tags were not hidden')
-    # The property that matters: what was hidden comes BACK. (@annot_saved is
-    # not checked for nil here -- annot_pop's own nil comes after its loop and
-    # T3 raises again on the way back; finish's `ensure @annot_saved = nil`
-    # covers that in production.)
-    annot_pop(fm, nil)
-    okB = lay['T1'].visible? && lay['T2'].visible?
-    out << (okB ? 'annot3 ok' :
-            'annot3 FAIL tags were left hidden in the model after the batch')
-
-    # annot4: the clean path still records every tag and restores every tag.
-    lay2 = { 'T1' => FakeLayer.new('T1', true,  false),
-             'T2' => FakeLayer.new('T2', false, false),
-             'T3' => FakeLayer.new('T3', true,  false) }
-    fm2 = FakeModel.new(FakeLayers.new(lay2))
-    @annot_saved = nil
-    annot_push(fm2, nil, 'row.png')
-    hidden_all = lay2.values.none? { |l| l.visible? }
-    annot_pop(fm2, nil)
-    okC = hidden_all && lay2['T1'].visible? && !lay2['T2'].visible? &&
-          lay2['T3'].visible?
-    out << (okC ? 'annot4 ok' : 'annot4 FAIL clean push/pop did not round-trip')
-
-    # ================================================================
-    # 1.20.0 -- THE SAME DISCIPLINE FOR THE UNTAGGED HOLE. The probe of
-    # 9 Sep 2026 proved SketchUp will not hide the Untagged tag, so
-    # client-safe now hides loose callouts ONE BY ONE as well. That is a
-    # second set of mutations in Benton's model, on entities rather than
-    # tags, and it gets the same three guarantees: recorded before the
-    # flip, restored to what it WAS, and re-asserted after the scene
-    # switch that undoes it.
-    # ================================================================
-    lay3 = { 'T1' => FakeLayer.new('T1', true, false),
-             'T2' => FakeLayer.new('T2', true, false),
-             'T3' => FakeLayer.new('T3', true, false) }
-    e1 = FakeEnt.new(101, 'Untagged', false)          # showing -> must be hidden
-    e2 = FakeEnt.new(102, 'Untagged', true)           # ALREADY hidden by Benton
-    e3 = FakeEnt.new(103, 'WR-Booth', false, true)    # raises on the hide
-    e4 = FakeEnt.new(104, 'T1', false)                # on a SET: the tag pass owns it
-    fm3 = FakeModel.new(FakeLayers.new(lay3), [e1, e2, e3, e4])
-    @client_safe = true
-    @annot_saved = nil
-    @annot_saved_entities = nil
-    annot_push(fm3, nil, 'row.png')
-    rec3 = @annot_saved_entities
-    okD = !rec3.nil? && rec3.key?(101) && rec3.key?(102) && rec3.key?(103) &&
-          !rec3.key?(104) && e1.hidden? && e2.hidden? && !e4.hidden?
-    out << (okD ? 'annot5 ok' :
-            "annot5 FAIL the loose-callout record was lost on a partial " \
-            "failure, or a set member was flipped: #{rec3.inspect}")
-
-    # ...and every one goes back to what it WAS. e2 was hidden BEFORE the
-    # batch and must STAY hidden: "put it back" is not "show everything".
-    annot_pop(fm3, nil)
-    okE = (e1.hidden? == false) && (e2.hidden? == true) &&
-          lay3['T1'].visible? && lay3['T2'].visible?
-    out << (okE ? 'annot6 ok' :
-            "annot6 FAIL restore did not put the callouts back as found: " \
-            "e1=#{e1.hidden?} e2=#{e2.hidden?}")
-
-    # annot7: the image lane's scene switch re-applies the scene's own saved
-    # hidden state, which UNDOES the hide between the push and write_image --
-    # the 1.9.12 tag defect one property over. annot_reapply rides
-    # after_switch and re-asserts it, and touches nothing it did not record.
-    lay4 = { 'T1' => FakeLayer.new('T1', true, false) }
-    e5 = FakeEnt.new(105, 'Untagged', false)
-    e6 = FakeEnt.new(106, 'Untagged', false)
-    fm4 = FakeModel.new(FakeLayers.new(lay4), [e5, e6])
-    @annot_saved = nil
-    @annot_saved_entities = nil
-    annot_push(fm4, nil, 'row.png')
-    outsider = FakeEnt.new(107, 'Untagged', false)    # never in the record
-    e5.hidden = false                                 # <- the scene switch
-    e6.hidden = false
-    annot_reapply(fm4, nil, FakePage.new('S1', nil, nil))
-    okF = e5.hidden? && e6.hidden? && !outsider.hidden?
-    out << (okF ? 'annot7 ok' :
-            "annot7 FAIL the scene switch left loose callouts showing: " \
-            "e5=#{e5.hidden?} e6=#{e6.hidden?} outsider=#{outsider.hidden?}")
-    annot_pop(fm4, nil)
-    # Leave no client-safe record behind: image_cfg's after_switch hook calls
-    # annot_reapply, and the shading checks below read the log line by line.
-    @client_safe = false
-    @annot_saved = nil
-    @annot_saved_entities = nil
+    gone = %%w[annot_push annot_pop annot_reapply loose_annotations].select do |m|
+      respond_to?(m)
+    end
+    out << (gone.empty? ? 'gone1 ok' :
+            "gone1 FAIL client-safe method(s) are back: #{gone.join(', ')}")
 
     # ================================================================
     # D12 (F5, open since 28 Aug) -- the dialog callbacks' running guard.
@@ -968,33 +826,33 @@ module WR_ProposalPackage
               "dd#{i + 1} FAIL got #{got.inspect} want #{want.inspect}")
     end
 
-    st1 = shown_annot_tags(['B'], true, ['A', 'B', 'C'], true)
-    out << ((st1[0] == [] && st1[1].to_s.include?('client-safe')) ?
-              'st1 ok' : "st1 FAIL #{st1.inspect}")
-    st2 = shown_annot_tags(['B'], false, ['A', 'B'], false)
+    # st1: three arguments, not four. The fourth was client_safe (removed
+    # 1.47.0); a caller passing it again is an ArgumentError in SketchUp.
+    st1 = method(:shown_annot_tags).arity
+    out << (st1 == 3 ? 'st1 ok' : "st1 FAIL shown_annot_tags arity #{st1.inspect}, want 3")
+    st2 = shown_annot_tags(['B'], false, ['A', 'B'])
     out << ((st2[0].nil? && st2[1].to_s.include?('use_hidden_layers')) ?
               'st2 ok' : "st2 FAIL #{st2.inspect}")
-    st3 = shown_annot_tags(nil, true, ['A'], false)
+    st3 = shown_annot_tags(nil, true, ['A'])
     out << ((st3[0].nil? && st3[1].to_s.include?('could not be read')) ?
               'st3 ok' : "st3 FAIL #{st3.inspect}")
-    st4 = shown_annot_tags(['B'], true, ['A', 'B', 'C'], false)
+    st4 = shown_annot_tags(['B'], true, ['A', 'B', 'C'])
     out << ((st4 == [['A', 'C'], nil]) ? 'st4 ok' : "st4 FAIL #{st4.inspect}")
 
     # 1.20.0 -- the mirror. shown_annot_tags says what a plate COULD show;
     # hidden_annot_tags says what it hid BY DESIGN, which is what tells a
     # reader "that callout is missing on purpose" from "the model is wrong".
-    ht5 = hidden_annot_tags(['B'], true, ['A', 'B', 'C'], true)
-    out << ((ht5[0] == ['A', 'B', 'C'] && ht5[1].to_s.include?('client-safe')) ?
-              'st5 ok' : "st5 FAIL #{ht5.inspect}")
-    ht6 = hidden_annot_tags(['B'], false, ['A', 'B'], false)
+    ht5 = method(:hidden_annot_tags).arity
+    out << (ht5 == 3 ? 'st5 ok' : "st5 FAIL hidden_annot_tags arity #{ht5.inspect}, want 3")
+    ht6 = hidden_annot_tags(['B'], false, ['A', 'B'])
     out << ((ht6[0].nil? && ht6[1].to_s.include?('use_hidden_layers')) ?
               'st6 ok' : "st6 FAIL #{ht6.inspect}")
-    ht7 = hidden_annot_tags(nil, true, ['A'], false)
+    ht7 = hidden_annot_tags(nil, true, ['A'])
     out << ((ht7[0].nil? && ht7[1].to_s.include?('could not be read')) ?
               'st7 ok' : "st7 FAIL #{ht7.inspect}")
     # A tag the scene hides that this model does not have is NOT reported as
     # hidden -- present & hidden, never hidden alone.
-    ht8 = hidden_annot_tags(['B', 'Z'], true, ['A', 'B', 'C'], false)
+    ht8 = hidden_annot_tags(['B', 'Z'], true, ['A', 'B', 'C'])
     out << ((ht8 == [['B'], nil]) ? 'st8 ok' : "st8 FAIL #{ht8.inspect}")
 
     mplan = [{ :file => '01.png', :n => 1, :lane => 'image', :scene => 'S1',
@@ -1145,7 +1003,7 @@ module WR_ProposalPackage
               { 'file' => '2_Front render.png', 'scene' => 'Front', 'lane' => 'render',
                 'status' => 'ok', 'detail' => 'V-Ray', 'width' => 1600, 'height' => 900,
                 'two_point_view_at_export' => false, 'two_point_scene' => true }],
-            'annotations_hidden_in_images' => false, 'transparent_background' => false }
+            'transparent_background' => false }   # no annotations_hidden_in_images since 1.47.0
     apf = { 'client' => 'PeopleSpace',
             'preflight' => [
               { 'id' => 'complete', 'label' => 'Booth has every part', 'status' => 'fail', 'detail' => 'INCOMPLETE booth' },
@@ -1163,8 +1021,11 @@ module WR_ProposalPackage
     out << (ap.include?('INCOMPLETE booth') && !ap.include?('Visible: WR-Dims') ?
               'ap4 ok' : 'ap4 FAIL preflight carry-over')
     md = ap.split("\n").any? { |x| x.start_with?('#') || x.include?('**') }
+    # A manifest written before 1.47.0 can still say true; the prompt must
+    # still read it as client-safe AND say the mode is gone.
     apc = agent_prompt(apm.merge('annotations_hidden_in_images' => true), apf)
-    out << (!md && apc.include?('CLIENT-SAFE') && ap.include?('PER SCENE') ?
+    out << (!md && apc.include?('CLIENT-SAFE') && apc.include?('mode since removed') &&
+            ap.include?('PER SCENE') && !ap.include?('CLIENT-SAFE') ?
               'ap5 ok' : 'ap5 FAIL markdown or annotation mode')
     apr = agent_prompt(apm, { 'client' => '', 'reconstructed' => true })
     out << (apr.include?('rebuilt from manifest.json') && apr.include?('<client name - fill in>') ?
@@ -1232,15 +1093,13 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'gate1 ok | gate2 ok | gate3 ok | gate4 ok | '
           'sum1 ok | sum2 ok | sum3 ok | lost1 ok | lost2 ok | lost3 ok | '
           'pn1 ok | pn2 ok | pn3 ok | pn4 ok | pn5 ok | pn6 ok | '
-          'annot1 ok | annot2 ok | annot3 ok | annot4 ok | '
-          'annot5 ok | annot6 ok | annot7 ok | '
+          'gone1 ok | '
           'busy1 ok | busy2 ok | busy3 ok | '
           # 1.10.7 -- the manifest's pure half.
           'bn1 ok | bn2 ok | bn3 ok | bn4 ok | bn5 ok | bn6 ok | bn7 ok | '
           'dd1 ok | dd2 ok | dd3 ok | dd4 ok | dd5 ok | dd6 ok | '
           'st1 ok | st2 ok | st3 ok | st4 ok | '
-          # 1.20.0 -- per-scene annotation hiding, and the client-safe hole it
-          # closed.
+          # 1.20.0 -- per-scene annotation hiding (client-safe gone in 1.47.0).
           'st5 ok | st6 ok | st7 ok | st8 ok | '
           'mr1 ok | mr2 ok | mr3 ok | mr4 ok | mr5 ok | mr6 ok | mr7 ok | '
           # 1.19.3 -- the shading contract survives the scene switch.
@@ -1293,8 +1152,6 @@ def main():
         'scene_prefix':      rbtest.method_source(SRC, 'scene_prefix'),
         'plan_names':        rbtest.method_source(SRC, 'plan_names'),
         'summary_lines':     rbtest.method_source(SRC, 'summary_lines'),
-        'annot_push':        rbtest.method_source(SRC, 'annot_push'),
-        'annot_pop':         rbtest.method_source(SRC, 'annot_pop'),
         'busy':              rbtest.method_source(SRC, 'busy'),
         # 1.10.7 -- the manifest's pure half.
         # 'booth_name' (not 'booth_name?'): method_source appends \b and ?
@@ -1302,11 +1159,9 @@ def main():
         'booth_name':        rbtest.method_source(SRC, 'booth_name'),
         'dim_display':       rbtest.method_source(SRC, 'dim_display'),
         'shown_annot_tags':  rbtest.method_source(SRC, 'shown_annot_tags'),
-        # 1.20.0 -- per-scene annotation hiding + the client-safe Untagged fix.
+        # 1.20.0 -- per-scene annotation hiding.
         'hidden_annot_tags': rbtest.method_source(SRC, 'hidden_annot_tags'),
         'annot_tags':        rbtest.method_source(SRC, 'annot_tags'),
-        'loose_annotations': rbtest.method_source(SRC, 'loose_annotations'),
-        'annot_reapply':     rbtest.method_source(SRC, 'annot_reapply'),
         'manifest_rows':     rbtest.method_source(SRC, 'manifest_rows'),
         # 1.19.3 -- the shading contract across scene switches: the real
         # export loop, the real contract, and the real wiring between them.
@@ -1324,6 +1179,21 @@ def main():
         'shd_push':          rbtest.method_source(SHD, 'push'),
         'shd_pop':           rbtest.method_source(SHD, 'pop'),
     }
+    # gone2 (1.47.0) -- the dialog side of the removal, checked on the SOURCE
+    # because the export click handler is never fired offline: an
+    # `id="annot"` element, a `g("annot")` read (a null deref that would kill
+    # the Export button), or the manifest writer's
+    # annotations_hidden_in_images key coming back all fail here by name.
+    src = open(SRC, encoding='utf-8').read()
+    back = [t for t in ('id="annot"', 'g("annot")', "'annotations_hidden_in_images' =>",
+                        '@client_safe', 'def self.annot_push')
+            if t in src]
+    if back:
+        print('  gone2 FAIL client-safe dialog/manifest text is back in %s: %s'
+              % (SRC, ', '.join(back)))
+        return 1
+    print('  gone2 ok - no ANNOTATION control, no g("annot"), no '
+          'annotations_hidden_in_images writer, no @client_safe')
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
     print('classify_render + read_signal + entry guards + exposure, mode '

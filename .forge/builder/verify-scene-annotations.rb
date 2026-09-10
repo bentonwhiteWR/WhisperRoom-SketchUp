@@ -261,6 +261,13 @@ module WR_VerifyAnnotations
       # The pre-existing defect: annot_push hid TAGS only, so a note on
       # Untagged went out on a client image. Everything loose must now be
       # hidden — and everything must come back exactly as found.
+      #
+      # RETIRED 1.47.0: the client-safe mode and annot_push / annot_pop /
+      # annot_reapply were removed at Benton's request ("It will never be
+      # used"). On a current checkout this section is skipped by name so
+      # the manifest checks below still run; the text is kept as the record
+      # of what 1.20.0 proved.
+      if WR_ProposalPackage.respond_to?(:annot_push)
       sel(pa)
       loose1.hidden = false
       loose2.hidden = true            # already hidden BEFORE the batch
@@ -297,6 +304,9 @@ module WR_VerifyAnnotations
       say('clientsafe.everything_put_back_as_found', before == after,
           "before=#{before.inspect} after=#{after.inspect}")
       WR_ProposalPackage.instance_variable_set(:@client_safe, false)
+      else
+        puts '  SKIP clientsafe.* — the client-safe mode was removed in 1.47.0'
+      end
 
       # ---- 11. the manifest collector sees what is hidden --------------
       sel(pa)
