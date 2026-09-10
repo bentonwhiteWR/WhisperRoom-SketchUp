@@ -24,9 +24,9 @@ VERBATIM out of scripts/wr-callout-style.rb on every run, so this harness
 cannot drift from the code it tests. The half that touches the model --
 targets, majority, apply -- is NOT tested here and is UNRUN.
 
-MUTATION-CHECKED when written, and both were run: drop the `font.nil? &&
+MUTATION-CHECKED when written, and all three were run: drop the `font.nil? &&
 hex.nil?` refusal and check 6 fails; drop the skips loop from summary_lines
-and check 10 fails.
+and check 10 fails; drop the `:dim_font` branch and check 11 fails.
 
 Exit 0 when every check passes, 1 otherwise.
 """
@@ -53,10 +53,11 @@ end
 module WR_CalloutStyle
   KINDS = %w[text dim 3d].freeze
   KIND_LABEL = { 'text' => 'notes', 'dim' => 'dimensions', '3d' => '3D labels' }.freeze
-  SKIP_DIM_FONT  = 'dimension font is not settable from Ruby (Model Info > Dimensions > Fonts, then Select all dimensions > Update)'.freeze
+  SKIP_DIM_FONT  = 'dimension font is one MODEL-WIDE setting with no Ruby API (api-issue-tracker #224, open since 2019) — set it once in Model Info > Dimensions > Fonts'.freeze
   SKIP_3D_FONT   = '3D label face is fixed geometry — rebuild the label to change it'.freeze
   SKIP_TEXT_FONT = 'this SketchUp cannot set text fonts (needs 2026.2 or later)'.freeze
 @@NORMALISE@@
+@@FONTLABEL@@
 @@SUMMARY@@
 end
 
@@ -96,11 +97,16 @@ module Harness
     c = { :total => 35, :kinds => { 'text' => 3, 'dim' => 30, '3d' => 2 },
           :font => 3, :color => 35,
           :skips => { WR_CalloutStyle::SKIP_DIM_FONT => 30, WR_CalloutStyle::SKIP_3D_FONT => 2 },
-          :errors => [] }
+          :errors => [],
+          :dim_font => { :name => 'Arial', :size => 12, :bold => false, :italic => false } }
     WR_CalloutStyle.summary_lines(c).each { |l| out << "sum-a|#{l}" }
     c2 = { :total => 4, :kinds => { 'text' => 4, 'dim' => 0, '3d' => 0 }, :color => 3,
            :skips => {}, :errors => ['colour on "x": E: m'] }
     WR_CalloutStyle.summary_lines(c2).each { |l| out << "sum-b|#{l}" }
+    c3 = { :total => 2, :kinds => { 'text' => 0, 'dim' => 2, '3d' => 0 }, :font => 0,
+           :skips => { WR_CalloutStyle::SKIP_DIM_FONT => 2 }, :errors => [],
+           :dim_font => { :name => 'Calibri', :size => 10, :bold => true, :italic => true } }
+    WR_CalloutStyle.summary_lines(c3).each { |l| out << "sum-c|#{l}" }
     out.join("\n")
   end
 end
@@ -131,6 +137,7 @@ def has(label, lines, needle):
 def main():
     prog = (PROG
             .replace('@@NORMALISE@@', method_source(RB, 'normalise'))
+            .replace('@@FONTLABEL@@', method_source(RB, 'font_label'))
             .replace('@@SUMMARY@@', method_source(RB, 'summary_lines')))
     got = rbparse.rb_eval(rbparse.boot(), prog)
     if got.startswith('FAIL '):
@@ -178,13 +185,22 @@ def main():
     has('sum-a: total with kinds', a, 'Touched 35 callout(s) — 3 notes, 30 dimensions, 2 3D labels.')
     has('sum-a: font count', a, 'Font set on 3.')
     has('sum-a: colour count', a, 'Colour set on 35.')
-    has('sum-a: dim skip with the manual route', a, 'Skipped 30: dimension font is not settable from Ruby')
+    has('sum-a: dim skip says model-wide and cites the issue', a,
+        'Skipped 30: dimension font is one MODEL-WIDE setting with no Ruby API (api-issue-tracker #224')
+    # 11. Dimensions in a font sweep: the exact value to type in Model Info,
+    #     and the sentence says it is model-wide, not this scope.
+    has('sum-a: exact Model Info value', a, 'set Model Info > Dimensions > Fonts to Arial 12 regular')
+    has('sum-a: says model-wide, not this scope', a, 'EVERY dimension in the model, not just this scope')
     has('sum-a: 3d skip', a, 'Skipped 2: 3D label face is fixed geometry')
     has('sum-a: undo line', a, 'Ctrl+Z undoes the whole sweep.')
     ck('sum-a: no failure lines', any(l.startswith('FAILED') for l in a), False)
     b = by.get('sum-b', [])
     ck('sum-b: no font line when font was off', any(l.startswith('Font set') for l in b), False)
     has('sum-b: failure surfaced', b, 'FAILED colour on "x": E: m')
+    ck('sum-b: no Model Info line when dims were not in the sweep',
+       any('Model Info' in l for l in b), False)
+    c = by.get('sum-c', [])
+    has('sum-c: bold italic spelled out', c, 'Fonts to Calibri 10 bold italic')
 
     print('rbtest-callout-style: %d check(s), %d failed' % (CHECKS[0], len(FAILS)))
     for f in FAILS:

@@ -26,13 +26,23 @@
 #         :name / :size (points, 1..1000) / :bold / :italic; omitted keys
 #         inherit. Colour is a MATERIAL (Drawingelement#material=), the same
 #         thing Entity Info's swatch sets.
-#   dim   Sketchup::Dimension has NO font method in any version — a request
-#         open since 2015, still open in the 2026.2 docs, and there is no
-#         "DimensionOptions" provider under model.options either. Colour IS
-#         settable: material= on a dimension recolours it (forum, confirmed
-#         working by the asker). So a dimension gets the colour and a
-#         SKIP for the font, with the manual route named: Model Info >
-#         Dimensions > Fonts, then Select all dimensions > Update.
+#   dim   Sketchup::Dimension has NO font method in any version, and the
+#         model-wide setting behind Model Info > Dimensions > Fonts has no
+#         Ruby surface either: model.options documents ONE provider
+#         (UnitsOptions), no release note has ever added another, and
+#         api-issue-tracker #224 "Need 'DimensionsOptions'
+#         Sketchup::OptionsProvider instance" has been OPEN since 12 Mar
+#         2019 (checked 10 Sep 2026). Colour IS settable: material= on a
+#         dimension recolours it (forum, confirmed working by the asker).
+#         So a dimension gets the colour, and for the font the dialog says
+#         the exact value to set in Model Info and opens that panel with
+#         one button (UI.show_model_info). That is the documented route,
+#         not a failure: it IS one model-wide setting, which is the
+#         uniformity Benton asked for — it just cannot be narrowed to a
+#         selection, and the dialog says so rather than implying it can.
+#         options_probe still enumerates every provider at open, so the
+#         day SketchUp adds one it shows up in the header and the console
+#         instead of staying a comment that went stale.
 #   3d    A 3D label is geometry from add_3d_text; its face is fixed at
 #         creation and only a rebuild changes it. Colour is a material on
 #         the group, which paints every default-material face in it (the
@@ -93,7 +103,7 @@ module WR_CalloutStyle
 
   # The reasons a callout is skipped, worded once so the dialog and the
   # console cannot disagree.
-  SKIP_DIM_FONT  = 'dimension font is not settable from Ruby (Model Info > Dimensions > Fonts, then Select all dimensions > Update)'.freeze
+  SKIP_DIM_FONT  = 'dimension font is one MODEL-WIDE setting with no Ruby API (api-issue-tracker #224, open since 2019) — set it once in Model Info > Dimensions > Fonts'.freeze
   SKIP_3D_FONT   = '3D label face is fixed geometry — rebuild the label to change it'.freeze
   SKIP_TEXT_FONT = 'this SketchUp cannot set text fonts (needs 2026.2 or later)'.freeze
 
@@ -272,6 +282,31 @@ module WR_CalloutStyle
     out
   end
 
+  # Every OptionsProvider this SketchUp exposes, and any provider or key
+  # that looks like it carries the dimension font. Expected EMPTY today (see
+  # the header); if a build ever adds one, it is named in the dialog header
+  # and the console rather than left to a stale comment.
+  def self.options_probe(model)
+    names = []
+    hits  = []
+    model.options.each do |prov|
+      n = (prov.name.to_s rescue '?')
+      names << n
+      hits << n if n =~ /dimension/i
+      (prov.keys rescue []).each { |k| hits << "#{n}[#{k}]" if k.to_s =~ /font|text/i }
+    end
+    { 'providers' => names, 'hits' => hits.uniq }
+  rescue StandardError => e
+    { 'providers' => [], 'hits' => [], 'error' => "#{e.class}: #{e.message}" }
+  end
+
+  # The Model Info page name is taken from SketchUp itself so a localized
+  # or renamed page still resolves; 'Dimensions' is the documented English.
+  def self.open_model_info
+    page = (UI.model_info_pages.find { |p| p.to_s =~ /dimension/i } rescue nil) || 'Dimensions'
+    UI.show_model_info(page)
+  end
+
   # ---------------------------------------------------------------- state --
 
   def self.state_hash(model)
@@ -288,6 +323,7 @@ module WR_CalloutStyle
     end
     { 'version'  => Sketchup.version.to_s,
       'can_font' => can_font?,
+      'probe'    => options_probe(model),
       'all'      => count_kinds(all),
       'sel'      => count_kinds(sel),
       'tags'     => order.map { |n| { 'name' => n, 'counts' => tags[n] } },
@@ -308,9 +344,18 @@ module WR_CalloutStyle
     m
   end
 
+  def self.font_label(f)
+    s = "#{f[:name]} #{f[:size]}"
+    s += ' bold' if f[:bold]
+    s += ' italic' if f[:italic]
+    s += ' regular' if !f[:bold] && !f[:italic]
+    s
+  end
+
   # Counters in, the sentences the dialog and the console print out. PURE.
   # counts: { :font => n, :color => n, :skips => { reason => n },
-  #           :errors => [str], :total => n, :kinds => { 'text' => n, ... } }
+  #           :errors => [str], :total => n, :kinds => { 'text' => n, ... },
+  #           :dim_font => font hash when dimensions were in a font sweep }
   def self.summary_lines(c)
     lines = []
     kinds = KINDS.map { |k| n = c[:kinds][k].to_i; n > 0 ? "#{n} #{KIND_LABEL[k]}" : nil }.compact
@@ -318,6 +363,10 @@ module WR_CalloutStyle
     lines << "Font set on #{c[:font]}." if c.key?(:font) && c[:font]
     lines << "Colour set on #{c[:color]}." if c.key?(:color) && c[:color]
     (c[:skips] || {}).each { |reason, n| lines << "Skipped #{n}: #{reason}." }
+    if c[:dim_font]
+      f = c[:dim_font]
+      lines << "To match, set Model Info > Dimensions > Fonts to #{font_label(f)} — one setting for EVERY dimension in the model, not just this scope. The button below opens that panel."
+    end
     (c[:errors] || []).first(5).each { |e| lines << "FAILED #{e}" }
     more = (c[:errors] || []).size - 5
     lines << "...and #{more} more failure(s) — see the Ruby Console." if more > 0
@@ -341,6 +390,7 @@ module WR_CalloutStyle
     c = { :total => items.size, :kinds => count_kinds(items), :skips => Hash.new(0), :errors => [] }
     c[:font]  = 0 if req[:font]
     c[:color] = 0 if req[:hex]
+    c[:dim_font] = req[:font] if req[:font] && req[:kinds].include?('dim')
     fontable = can_font?
 
     model.start_operation('Uniform callout style', true)
@@ -422,7 +472,8 @@ module WR_CalloutStyle
         #status.bad { color: #ffb4a8; }
         #touch { color: #dde3ea; font-size: 12px; padding: 4px 12px 0; }
       </style></head><body>
-      <div id="bar">SketchUp <b id="ver">–</b> · text fonts: <b id="canfont">–</b></div>
+      <div id="bar">SketchUp <b id="ver">–</b> · text fonts: <b id="canfont">–</b><br>
+        dimension font: <b id="dimfont">–</b></div>
 
       <div class="sec">
         <div class="h">What</div>
@@ -431,7 +482,10 @@ module WR_CalloutStyle
           <label><input type="checkbox" id="k_dim" checked onchange="recount()"> Dimensions <span class="cnt" id="c_dim"></span></label>
           <label><input type="checkbox" id="k_3d" checked onchange="recount()"> 3D labels <span class="cnt" id="c_3d"></span></label>
         </div>
-        <div class="row"><span class="note">Dimensions take the colour but not the font — SketchUp gives Ruby no way to set a dimension font. 3D labels take the colour only; their face is geometry.</span></div>
+        <div class="row"><span class="note">Dimensions take the colour here. Their font is ONE model-wide setting
+          (Model Info &rsaquo; Dimensions &rsaquo; Fonts) that Ruby cannot reach — after Apply this window tells
+          you the exact value to set there, and the button opens the panel. It applies to every dimension in the
+          model; a narrower scope cannot limit it. 3D labels take the colour only; their face is geometry.</span></div>
       </div>
 
       <div class="sec">
@@ -478,6 +532,7 @@ module WR_CalloutStyle
         <button id="apply" onclick="applyNow()">Apply</button>
         <button onclick="sketchup.refresh()">Refresh</button>
         <button onclick="useHouse()" title="Arial 12 regular, brand orange">House default</button>
+        <button onclick="sketchup.modelinfo()" title="The one place a dimension font is set — for every dimension in the model">Open Model Info &rsaquo; Dimensions</button>
       </div>
       <div class="hint">One undo step — Ctrl+Z puts every callout back. The values you apply
         become the defaults next time. Match majority fills in whatever most of the
@@ -538,6 +593,10 @@ module WR_CalloutStyle
           S = JSON.parse(json);
           $('ver').textContent = S.version;
           $('canfont').textContent = S.can_font ? 'yes' : 'NO — needs SketchUp 2026.2; colour still works';
+          var pr = S.probe || {};
+          $('dimfont').textContent = (pr.hits && pr.hits.length)
+            ? 'this build exposes ' + pr.hits.join(', ') + ' — not wired, tell Claude'
+            : 'Model Info only (' + (pr.providers||[]).length + ' option providers probed, none carry it)';
           ['text','dim','3d'].forEach(function(k){ $('c_' + k).textContent = '(' + (S.all[k]||0) + ')'; });
           var st = (S.sel.text||0) + (S.sel.dim||0) + (S.sel['3d']||0);
           $('c_sel').textContent = '(' + st + ')';
@@ -603,6 +662,13 @@ module WR_CalloutStyle
     @dlg.set_html(html)
     @dlg.add_action_callback('ready') do |_c|
       push_state(Sketchup.active_model)
+      pr = options_probe(Sketchup.active_model)
+      puts "WR_CalloutStyle: option providers = #{pr['providers'].inspect}; dimension-font hits = #{pr['hits'].inspect}"
+    end
+    @dlg.add_action_callback('modelinfo') do |_c|
+      ok = (open_model_info rescue false)
+      status(ok ? 'Model Info opened — Dimensions > Fonts is the dimension font for the whole model.' :
+                  'Could not open Model Info from here — Window > Model Info > Dimensions.', !ok)
     end
     @dlg.add_action_callback('refresh') do |_c|
       push_state(Sketchup.active_model)

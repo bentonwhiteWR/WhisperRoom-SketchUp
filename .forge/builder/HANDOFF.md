@@ -1,3 +1,43 @@
+# HANDOFF — Builder → Benton: dimension font settled, 1.26.3
+
+2026-09-10. Your question: *"so it matches all the text, but not the
+dimensions. No way to achieve that then, huh?"* **Unrun in SketchUp.**
+
+## The answer (reported, cited in the DEVLOG)
+There is one dimension font per model — Model Info › Dimensions › Fonts —
+and Ruby can neither read nor write it. Not per entity (`Sketchup::Dimension`
+has no font method), and not through `model.options` either: the only
+documented provider is `UnitsOptions`, and the request for a
+`DimensionsOptions` provider (`api-issue-tracker #224`) has been open since
+March 2019. So: the tool sets every NOTE's font, and for DIMENSIONS it now
+tells you the exact value to set once in Model Info and opens that panel.
+That is one setting for every dimension in the model — which is the
+uniformity you asked for — it just cannot be limited to a selection.
+
+## Changed — `scripts/wr-callout-style.rb`
+- Status after Apply, when dimensions are ticked with a font: *To match,
+  set Model Info > Dimensions > Fonts to Arial 12 regular — one setting for
+  EVERY dimension in the model, not just this scope.*
+- New button **Open Model Info › Dimensions** (`UI.show_model_info`).
+- Header line *dimension font: Model Info only (N option providers probed,
+  none carry it)* — a live probe, so if a future SketchUp adds the
+  provider the header says so instead of this note going stale.
+- `VERSION` → **1.26.3** (patch). `rbtest-callout-style.py` 41 checks.
+
+## To verify (Benton)
+1. Open the tool: second header line should read *dimension font: Model
+   Info only (… probed, none carry it)*; the Ruby Console prints the
+   provider names — I expect UnitsOptions, PageOptions, SlideshowOptions,
+   NamedOptions, PrintOptions or similar; if anything with *dimension* in
+   the name appears, tell Claude.
+2. Apply with defaults: the status ends with the *set Model Info >
+   Dimensions > Fonts to Arial 12 regular* line.
+3. Press **Open Model Info › Dimensions**: Model Info should open on the
+   Dimensions page. Set Fonts to Arial 12 there — every dimension follows.
+   If the button opens Model Info on a different page, tell me which.
+
+---
+
 # HANDOFF — Fixer → Benton: scene number in front of the file, 1.26.2
 
 2026-09-10. *"one underscore overview"*. Shipped, **unrun in SketchUp**;

@@ -2,6 +2,62 @@
 
 ## 2026-09-10
 
+### Dimension font: settled — model-wide, no Ruby surface; the tool now says the exact value and opens the panel — 1.26.3
+
+Benton, on 1.26.0: *"so it matches all the text, but not the dimensions. No
+way to achieve that then, huh?"* The coordinator asked for the one surface
+the first pass had not read: `model.options` — the `OptionsManager` /
+`OptionsProvider` pair — and a possible `"DimensionsOptions"` provider
+behind Model Info › Dimensions.
+
+**Checked, and it does not exist (reported, with the citations):**
+- `Sketchup::OptionsProvider` docs (and the `ruby-api-stubs` copy) name
+  ONE provider, `UnitsOptions`, with its four keys. No other provider is
+  documented anywhere in the API.
+- Release notes: the only provider-related lines ever are 2019.2 / 2020.0
+  adding `AreaUnit` / `VolumeUnit` / `AreaPrecision` / `VolumePrecision`
+  to `UnitsOptions`.
+- `api-issue-tracker #224` — *"Need 'DimensionsOptions'
+  Sketchup::OptionsProvider instance to get and set the controls for model
+  wide defaults as seen in the 'Dimensions' panel of the Model Info
+  dialog"* — filed by DanRathbun 12 Mar 2019, **still open** today.
+  Forum, same author: *"There is actually no Sketchup::OptionsProvider
+  instance yet implemented for the 'DimensionOptions'."* Feb 2024 follow-up
+  in the same thread: the workaround is still Model Info.
+- So the dimension font is one **model-wide** setting with **no Ruby
+  read or write**. Neither the per-entity classes nor the options surface
+  reach it. Undo is therefore moot: nothing is written.
+
+**What changed in `scripts/wr-callout-style.rb` so the two-step reads as
+the documented workflow it is, not a failure:**
+- The skip line now says *one MODEL-WIDE setting with no Ruby API
+  (api-issue-tracker #224, open since 2019) — set it once in Model Info >
+  Dimensions > Fonts*.
+- When dimensions are in a font sweep the status adds the **exact value to
+  set** — *set Model Info > Dimensions > Fonts to Arial 12 regular* — and
+  says in the same sentence that it is one setting for EVERY dimension in
+  the model, not just this scope. A narrower scope cannot narrow it, and
+  the dialog never implies it can.
+- **Open Model Info › Dimensions** button: `UI.show_model_info(page)`
+  (API since 6.0), page name taken from `UI.model_info_pages` by match so
+  a renamed or localized page still resolves, `'Dimensions'` as fallback.
+- The What note is rewritten to the same effect.
+- **Runtime probe.** `options_probe` enumerates every provider at open and
+  flags any provider named *dimension* or any key matching *font|text*.
+  Expected empty; the header reads *dimension font: Model Info only (N
+  option providers probed, none carry it)*, and the console gets the
+  provider list. The day a build adds the provider it shows up on screen
+  instead of a comment going stale — and it is deliberately NOT wired
+  blind, because its keys and undo behaviour would be unknown.
+- The current dimension font cannot be REPORTED either — there is no
+  read. Said plainly rather than guessed.
+
+`rbtest-callout-style.py` → **41 checks**, mutation-checked (dropping the
+Model Info branch fails 3). `rbparse.py` all files; `node --check` on the
+dialog JS. Patch bump: wording, one button, a read-only probe. **UNRUN in
+SketchUp** — `UI.show_model_info` from an HtmlDialog callback and the
+probe's provider list are the two things to look at on the first click.
+
 ### Scene number in front of every exported file — 1.26.2
 
 Benton: *"add the scene number right in front of the file name. So I see
