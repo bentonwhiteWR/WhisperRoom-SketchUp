@@ -1528,14 +1528,82 @@ module WR_BuildBoothComponents
     mx = bb.max
     e = [mx.x.to_f - mn.x.to_f, mx.y.to_f - mn.y.to_f, mx.z.to_f - mn.z.to_f]
     want ||= hx ? 91.0 : 81.0
-    hi = (0..2).min_by { |i| (e[i] - want).abs }
-    # A vent housing stands a little proud of 81; anything within 6 in is still
-    # the height axis. Beyond that the part is not a wall part and is reported.
-    return nil if (e[hi] - want).abs > 6.0
+    # The face boxes are collected ONLY if the assembly box fails the test -
+    # for every part that passed before 1.41.1 the block never runs and the
+    # answer is bit-identical to the old rule.
+    ax = height_axis(e, want) do
+      boxes = []
+      collect_faces(defn.entities, IDENTITY, boxes)
+      boxes
+    end
+    return nil if ax.nil?
+    hi, from, boxes = ax
     rest = (0..2).to_a - [hi]
     wi, ti = e[rest[0]] >= e[rest[1]] ? [rest[0], rest[1]] : [rest[1], rest[0]]
     { :e => e, :hi => hi, :wi => wi, :ti => ti, :want => want,
-      :h => e[hi], :w => e[wi], :t => e[ti], :bb => bb }
+      :h => e[hi], :w => e[wi], :t => e[ti], :bb => bb,
+      :height_from => from, :boxes => boxes }
+  end
+
+  # ---------------------------------------------- IS THIS A WALL PART? --
+  #
+  # The test used to be one line: some axis of the ASSEMBLY's bounding box
+  # measures the wall height within BOX_H_TOL. That is a proxy - the thing
+  # that makes a part a wall part is the PANEL inside it, and the assembly
+  # around the panel can carry a fan housing, a silencer stack and a caster
+  # plate. The proxy held until two of those overhangs stacked:
+  #
+  #   46Vnt_VSS_EFS_CP  (Benton, 2026-09-10, refused on N0 and E0)
+  #     panel  1.3125 .. 82.3125 = 81.000 exactly    (_face-levels.tsv)
+  #     box    -4.75  .. 82.3125 = 87.0625           (_component-probe.tsv)
+  #
+  # The VSS/EFS parts hang the silencer foot 1.3125 below the panel (the
+  # plain 46VNT_VSS_EFS boxes 82.3125 for an 81 panel), every _CP part hangs
+  # its 4.75 plate below that, and 1.3125 + 4.75 = 6.0625 is a sixteenth
+  # over the tolerance. Benton: "The wall component is 81. But the EFS hangs
+  # quite a bit lower since its on a CP." Every other 46 in combination
+  # passes; on the 40 in family 40VNT_EFS, 40Vnt_EFS_CP, 40Vnt_VSS_CP and
+  # 40Vnt_VSS_EFS_CP fail the same way, as do both SideVent_VSS_EFS_CP parts
+  # and every _HX twin of all of those - fourteen parts, all measured.
+  #
+  # Widening the tolerance would have admitted this one and moved the edge
+  # to the next combination. So the rule now measures what it means: when
+  # the box fails, the part is a wall part if - and only if - ONE axis has a
+  # planar face spanning the wall height within PANEL_FACE_TOL. On every one
+  # of the fourteen that face is the panel's own big face (its top and
+  # bottom edge faces sit exactly 81 / 91 apart in the probe).
+  #
+  # What a WRONG part now has to look like to get through: either a box
+  # within BOX_H_TOL of the height on some axis - unchanged - or a single
+  # face 80..82 in (90..92 HX) long along exactly one axis. Two qualifying
+  # axes is refused as ambiguous. In the library today the only non-wall
+  # files carrying such a face are RampSideView and Duct Cover, and neither
+  # is a name any pack composes. An Enhanced 79.5 panel offered to a
+  # Standard slot is 1.5 off and stays refused on this branch.
+  #
+  # The box rule is tried FIRST so that every part it accepts is classified
+  # exactly as before (same axes, same :h). rbtest-wall-part.py pins both
+  # branches, the ambiguity refusal and the ENH-in-Standard refusal.
+  BOX_H_TOL      = 6.0   # the assembly box, as it always was
+  PANEL_FACE_TOL = 1.0   # one face, the panel's own; tighter than 1.5 on purpose
+
+  # -> [height axis index, :box | :panel, face boxes or nil], or nil. The
+  # block yields the part's face boxes and is only called when the box fails.
+  def self.height_axis(e, want)
+    hi = (0..2).min_by { |i| (e[i] - want).abs }
+    return [hi, :box, nil] if (e[hi] - want).abs <= BOX_H_TOL
+    boxes = yield
+    ax = panel_axis(boxes, want)
+    ax.nil? ? nil : [ax, :panel, boxes]
+  end
+
+  # The one axis on which some face spans the wall height, or nil when there
+  # is none - or more than one, which no wall part has and a wrong one might.
+  def self.panel_axis(boxes, want)
+    axes = (0..2).select do |i|
+      (boxes || []).any? { |b| ((b[i][1] - b[i][0]) - want).abs <= PANEL_FACE_TOL }
+    end
+    axes.length == 1 ? axes.first : nil
   end
 
   # ------------------------------------------------------------------ placing --
@@ -1711,8 +1779,9 @@ module WR_BuildBoothComponents
   # panel, so centring the slab centres the panel.
   # ============================================================================
   def self.wall_slab(defn, cls)
-    boxes = []
-    collect_faces(defn.entities, IDENTITY, boxes)
+    # Reuse the faces classify already walked when it took the panel route.
+    boxes = cls[:boxes] || []
+    collect_faces(defn.entities, IDENTITY, boxes) if boxes.empty?
     return nil if boxes.empty?
 
     ti = cls[:ti]
@@ -2320,8 +2389,15 @@ module WR_BuildBoothComponents
       want_h = part_height(p, cfg['hx'])
       cls = classify(defn, cfg['hx'], want_h)
       if cls.nil?
-        missing << "#{p[:id]}  #{name} — no axis measures #{cfg['hx'] ? 91 : 81} in, not a wall part"
+        missing << "#{p[:id]}  #{name} — no axis of its box measures #{want_h} in and no " \
+                   "face inside it spans #{want_h} in: not a wall part"
         next
+      end
+      if cls[:height_from] == :panel
+        # Said out loud: this part was accepted on its panel, not its box.
+        puts format('  panel   %-22s box %.4f on the height axis; accepted on an %g in ' \
+                    'face inside it (the assembly hangs %.4f beyond the panel)',
+                    name, cls[:h], want_h, cls[:h] - want_h)
       end
       slab = wall_slab(defn, cls)
       # A part that projects FURTHER from the wall than its frame is wide fools

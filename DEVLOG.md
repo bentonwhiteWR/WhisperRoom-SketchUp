@@ -1,6 +1,74 @@
 # DEVLOG
 
 ## 2026-09-10
+### 46Vnt_VSS_EFS_CP refused as "not a wall part": the test now measures the panel — 1.41.1
+
+Benton, with a screenshot: *"Uh we do have the component. Its this
+Z:\Sketchup\NewMasterComponentList\46Vnt_VSS_EFS_CP.skp"* — refused on `N0`
+and `E0` with *"no axis measures 81 in, not a wall part"*. Then: *"The wall
+component is 81. But the EFS hangs quite a bit lower since its on a CP"* and
+*"it actually only broken for the 46vnt with vss and efs on a CP. The other
+46 combos seem to work … not sure on 40 walls."*
+
+**All three statements are right, and the probe on the share says why
+(observed, `_component-probe.tsv` / `_face-levels.tsv`).** The panel's edge
+faces sit at 1.3125 and 82.3125 — **81.000 exactly** — while the assembly
+boxes −4.75 → 82.3125 = **87.0625**. The old rule compared the *assembly
+box* to 81 within ±6; 87.0625 misses by **a sixteenth**. It is not an
+anomalous component: every VSS/EFS part hangs the silencer foot 1.3125 below
+the panel (`46VNT_VSS_EFS` boxes 82.3125 for an 81 panel), every `_CP` part
+hangs its 4.75 plate below that (`46VntCP` = 81.86 + 4.75), and only the
+combination stacks both. `46Vnt_EFS_CP` (86.06) and `46vnt_VSS_CP` (86.92)
+pass by luck.
+
+**The 40" family is worse, and Benton did not know:** `40VNT_EFS` (no CP at
+all), `40Vnt_EFS_CP`, `40Vnt_VSS_CP`, `40Vnt_VSS_EFS_CP` all fail today
+(87.07–87.20), as do `LeftSideVent_VSS_EFS_CP`, `RightSideVent_VSS_EFS_CP`,
+and every `_HX` twin of all seven — **14 parts of 185 wall parts** on the
+share. The other 171 pass. Full list in the handoff.
+
+**Fix: measure the panel, not the assembly — and only when the box fails.**
+`classify` now asks `height_axis(e, want)`: the box rule first (`BOX_H_TOL`
+6.0, unchanged, so every part it accepts is classified bit-identically —
+the harness proves the face block is never even called for them); if the
+box fails, the part is a wall part iff **exactly one axis carries a planar
+face spanning the wall height within `PANEL_FACE_TOL` 1.0**. On all 14 that
+face is the panel's own. `wall_slab` reuses the faces. The console says
+`panel  46Vnt_VSS_EFS_CP  box 87.0625 …; accepted on an 81 in face inside it`.
+
+**What a wrong part now has to look like to get through:** a box within ±6
+of 81/91 on some axis (unchanged), or a single face 80–82" (90–92" HX) long
+along exactly one axis; two qualifying axes is refused. Library-wide, the
+only non-wall files with such a face are `RampSideView` and `Duct Cover`,
+neither a name any pack composes. An Enhanced 79.5 panel in a Standard slot
+is 1.5 off and stays refused on this route. (A looseness of the *old* box
+branch, unchanged: an 87" CP assembly is inside ±6 of 91 — no pack composes
+a non-HX name for an HX slot, so no name reaches it.)
+
+**Downstream, checked:** `place()` seats the part by its *box top*; across
+all 177 wall parts with an exact pair, box top − panel top is within 0.007",
+so the seat is already the panel's. Not the placeholder path: a present,
+rejected file goes to `missing` (hard refusal), never `absent`; once
+accepted it is an ordinary row, so this builds a normal booth, not INCOMPLETE.
+
+**Library defect found on the way (report only):** `RightSideVent_CP_HX`
+probes identical to `RightSideVent_CP` (8.55 × 46 × 86.61, origin z 4.75) —
+its `_HX` file is the 81" part, unlike `LeftSideVent_CP_HX` (96.61). Benton's
+to fix on the share.
+
+New `scripts/rbtest-wall-part.py` lifts `height_axis` / `panel_axis`
+verbatim: pins the reported part on the panel route, the no-op for passing
+parts (the face block raises if it runs), HX, the floor-deck / ambiguous /
+ENH-in-Standard refusals, the constants; mutation-checked (four mutants,
+each caught). `rbparse.py` 74/74; every existing harness passes. Patch bump.
+**Unrun in SketchUp.**
+
+**Benton's check:** the same link. Console shows `panel  46Vnt_VSS_EFS_CP
+box 87.0625 on the height axis; accepted on an 81 in face inside it (the
+assembly hangs 6.0625 beyond the panel)` for `N0` and `E0`, the table lists
+both with a real FIT figure, no refusal box, and the booth builds with the
+group named `MDL … (components)` — no INCOMPLETE, no orange.
+
 ### The ISO stamp is gone; its five stops now ride on the fixtures — 1.41.0
 
 **This reverses a decision made earlier today (1.32.0).** Benton, after

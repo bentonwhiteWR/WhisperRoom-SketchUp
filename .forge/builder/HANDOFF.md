@@ -1,3 +1,87 @@
+# HANDOFF — Builder → Benton: 46Vnt_VSS_EFS_CP accepted on its panel, 1.41.1
+
+2026-09-10. Benton: *"Uh we do have the component. Its this
+Z:\Sketchup\NewMasterComponentList\46Vnt_VSS_EFS_CP.skp"* / *"The wall
+component is 81. But the EFS hangs quite a bit lower since its on a CP"* /
+*"only broken for the 46vnt with vss and efs on a CP … not sure on 40 walls."*
+**Unrun in SketchUp.**
+
+## What it is (observed — `_component-probe.tsv`, `_face-levels.tsv` on P:/Z:)
+- `46Vnt_VSS_EFS_CP`: box 12.125 × 58.625 × **87.0625**, origin z 4.75 →
+  z −4.75 … 82.3125. Panel edge faces (46 sq in each) at **1.3125 and
+  82.3125 = 81.000**. Caster plate faces at −4.4375 / −3.4375 (266 / 192 sq
+  in). The `_HX` twin: box 97.0625, panel faces 6.0625 / 97.0625 = 91.000.
+- Old rule: `|box − 81| ≤ 6` → 6.0625, refused by 1/16". Not anomalous: the
+  VSS/EFS foot (1.3125 under the panel, seen on `46VNT_VSS_EFS` 82.3125) plus
+  the CP plate (4.75, seen on `46VntCP` 86.6128) simply add past 6.
+
+## The definite list (185 wall parts probed)
+- **FAIL today, accepted after this fix (14):** `40VNT_EFS`, `40VNT_EFS_HX`,
+  `40Vnt_EFS_CP`, `40Vnt_EFS_CP_HX`, `40Vnt_VSS_CP`, `40Vnt_VSS_CP_HX`,
+  `40Vnt_VSS_EFS_CP`, `40Vnt_VSS_EFS_CP_HX`, `46Vnt_VSS_EFS_CP`,
+  `46Vnt_VSS_EFS_CP_HX`, `LeftSideVent_VSS_EFS_CP`, `LeftSideVent_VSS_EFS_CP_HX`,
+  `RightSideVent_VSS_EFS_CP`, `RightSideVent_VSS_EFS_CP_HX`.
+- **40" family, PASS today (8):** `40VNT`, `40VNT_HX`, `40VNT_VSS`,
+  `40VNT_VSS_HX`, `40VNT_VSS_EFS`, `40VNT_VSS_EFS_HX`, `40Vnt_CP`, `40Vnt_CP_HX`.
+- **46" family, PASS today:** everything except the two above (`46VNT`,
+  `_EFS`, `_VSS`, `_VSS_EFS`, `46VntCP`, `46Vnt_EFS_CP`, `46vnt_VSS_CP`, + HX).
+- **Changes under the fix:** exactly the 14. Every other part takes the box
+  route first and is classified bit-identically (harness: the face block
+  raises if it ever runs for them).
+- **Library defect, yours to fix:** `RightSideVent_CP_HX` is the 81" part
+  (probes identical to `RightSideVent_CP`, 86.6128); `LeftSideVent_CP_HX`
+  is 96.6128 as it should be.
+
+## Produced
+- `scripts/build-booth-components.rb`: `height_axis(e, want) { faces }`,
+  `panel_axis(boxes, want)`, `BOX_H_TOL = 6.0`, `PANEL_FACE_TOL = 1.0`;
+  `classify` returns `:height_from` (`:box` / `:panel`) and `:boxes`;
+  `wall_slab` reuses them; the refusal message names both tests; a `panel`
+  console line when the panel route was taken.
+- `scripts/rbtest-wall-part.py` (new): 16 checks, `--src` for mutation runs.
+- `VERSION` → **1.41.1** (patch). DEVLOG entry.
+
+## What a wrong part must now look like to slip through
+A box within ±6 of the height on some axis (unchanged), or ONE planar face
+80–82" (90–92" HX) long on exactly one axis. Library-wide the only non-wall
+files with such a face are `RampSideView(_HX)` and `Duct Cover`, and no pack
+composes those names. ENH 79.5 in a Standard slot: refused (1.5 > 1.0).
+
+## Downstream (checked)
+- `place()` seats `nominal − box top`. Across all 177 wall parts with an
+  exact panel pair, box top − panel top is within 0.007" → the seat is the
+  panel's already. Nothing to change.
+- Not the placeholder path: `classify` nil → `missing` (hard refusal), never
+  `absent`; accepted → ordinary row → a normal, non-INCOMPLETE booth.
+- **For the booth dimension tool (not touched):** these assemblies extend
+  BELOW the panel — 4.75 (CP plate) and up to 6.0625 (VSS+EFS+CP) under the
+  panel's bottom edge — never above it. The panel's top edge is the box top
+  on every wall part; the panel's bottom is NOT the box bottom on any `_CP`,
+  `_EFS` or `_VSS` part. Widths also grow: EFS parts box 51.94 (46 panel) /
+  48.94 (40), VSS+EFS 58.625 / 55.6–56.2. An extent rule that wants the wall
+  should take the height axis from the panel face and the top from the box.
+
+## Assumptions (not observed)
+- The panel's big vertical faces span exactly the 81" between the two edge
+  faces the probe records (derived from the edge faces; the probe lists
+  horizontal faces only). `collect_faces` returns per-face boxes in
+  definition space through nested transforms — the same call `wall_slab`
+  has relied on since the door fix.
+
+## To verify (Benton)
+1. Same link as the screenshot. Console: two `panel   46Vnt_VSS_EFS_CP
+   box 87.0625 … accepted on an 81 in face inside it` lines (N0, E0); no
+   "resolved to something unusable" box.
+2. The parts table lists `N0` and `E0` with a real FIT figure (exact or a
+   small ±) and a PANEL thickness, not NOT FOUND.
+3. The booth builds; Outliner group `MDL … (components)` with no INCOMPLETE,
+   no orange, no `WR-Booth-Missing` tag; the two vents sit flush with their
+   neighbours at the wall top and the plate hangs below.
+4. A 40" booth with `STDWL40 VNT` + EFS (with or without casters) now builds
+   too — it did not before.
+
+---
+
 # HANDOFF — Builder → Benton: pinned tools wear their own icon, 1.39.0
 
 2026-09-10. *"when i set a favorite, can it default to the icon you have
