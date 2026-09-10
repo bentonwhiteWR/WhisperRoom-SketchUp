@@ -1,5 +1,6 @@
 {
-  "slots": "booth-from-link.rb|build-booth-components.rb|angled-component-art.rb|elevation-export.rb|save-scene-components.rb|list-scenes.rb|wr-mode.rb|wr-sun-aim.rb|wr-drop-lights.rb|proposal-package.rb|-|-|build-room.rb|-|-|-|-|-",
-  "slot_icons": "link|booth-door|cube|scenes|save|layers|swap|gear|grid|doc|-|-|door|-|-|-|-|-",
-  "pinned": "booth-from-link.rb|build-booth-components.rb|angled-component-art.rb|elevation-export.rb|save-scene-components.rb|list-scenes.rb|wr-mode.rb|wr-sun-aim.rb|wr-drop-lights.rb|proposal-package.rb|build-room.rb"
+  "slots": "booth-from-link.rb|build-booth-components.rb|angled-component-art.rb|elevation-export.rb|save-scene-components.rb|list-scenes.rb|wr-mode.rb|wr-sun-aim.rb|wr-drop-lights.rb|proposal-package.rb|dimension-whisperroom.rb|-|build-room.rb|dimension-whisperroom.rb|rotate-whisperroom-dimensions.rb|-|-|-",
+  "slot_icons": "link|booth-door|cube|scenes|save|layers|swap|gear|grid|doc|-|-|door|wr-dim-selection|wr-reorient|-|-|-",
+  "pinned": "booth-from-link.rb|build-booth-components.rb|angled-component-art.rb|elevation-export.rb|save-scene-components.rb|list-scenes.rb|wr-mode.rb|wr-sun-aim.rb|wr-drop-lights.rb|proposal-package.rb|dimension-whisperroom.rb|build-room.rb|dimension-whisperroom.rb|rotate-whisperroom-dimensions.rb",
+  "ui_collapsed": ""
 }
