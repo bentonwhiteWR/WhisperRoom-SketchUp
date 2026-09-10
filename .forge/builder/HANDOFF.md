@@ -1367,3 +1367,45 @@ test pass, harness mutation-checked again. Still UNRUN in SketchUp.
 Fastest proof: 7296 E → Dimension → three strings or a `***` block; Rotate →
 `corner FL`; move the booth → re-run → follows. The worst failure shows on the
 `anchors:` line (`loose` > 0) or a `*** … landed` line.
+
+---
+
+# HANDOFF — Open folder button (Builder, 10 Sep 2026, 1.37.1)
+
+Benton: *"also add a button that will open a file explorer folder to the
+location the files are saved."* **Unrun in SketchUp.** rbparse 74/74,
+rbtest-proposal PASS (url1–url4 new), jstest PASS.
+
+## Produced — `scripts/proposal-package.rb`, `scripts/rbtest-proposal.py`
+- **Open folder** button, auto column of the GOES TO row (under Browse, same
+  `.btn`, same 1.36.1 width rule, no new colours).
+- Ruby `openfolder` callback: resolves the live FOLDER + SUBFOLDER through
+  `resolve_dir` (the export's rule) and opens the RESOLVED folder, not the root.
+- Pure `folder_url(path)` → `file:///…` with percent-encoding (docs: openURL
+  encodes nothing since 2019.3). Reuses main.rb's `UI.openURL('file:///'…)`
+  route, made safe for a path with a space.
+- JS `revealLog()` split out of `runStarted` and exposed to Ruby.
+
+## Decisions
+- Folder missing before a run: **not created**. Root exists → root opens +
+  log says the subfolder is not there yet. Nothing exists → nothing opens +
+  log names the missing path. openURL's Boolean is logged. Log forced visible.
+- **Not `busy?`-guarded**: touches neither model nor batch; useful mid-run.
+
+## Assumptions (not observed)
+- `UI.openURL` on a `file:///` URL with `%20` opens Explorer on Windows 11
+  as it does for main.rb's space-free scripts folder. Docs say encoding is
+  the caller's job; behaviour with an encoded URL is not something I ran.
+- `UI.openURL` returning `true` means Windows accepted the URL, not that a
+  window appeared.
+
+## Version
+Main was 1.36.1 when I started and 1.37.0 (the dimension scripts, another
+agent, same working tree) by the time I committed; 1.37.1 is a patch on top
+of that. Nothing of theirs is in my commit.
+
+## To verify (Benton) — two presses
+1. Before any run, SUBFOLDER on: press → Explorer shows the ROOT; log: "Opened
+   the ROOT … does not exist yet; the run creates it".
+2. After a run: press → Explorer shows the model's subfolder with the PNGs and
+   manifest.json; log: "Opened … in Explorer." Try a root with a space first.

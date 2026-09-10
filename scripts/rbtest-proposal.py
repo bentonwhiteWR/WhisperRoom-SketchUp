@@ -269,6 +269,8 @@ module WR_ProposalPackage
 
 %(resolve_dir)s
 
+%(folder_url)s
+
 %(agent_prompt)s
 
 %(uniquify)s
@@ -1122,6 +1124,17 @@ module WR_ProposalPackage
     d6 = resolve_dir('Z:/Sketchup/Proposals', true, 'Bad:Name?.')
     out << (d6[0] == 'Z:/Sketchup/Proposals/Bad-Name-' ? 'dir6 ok' : 'dir6 FAIL ' + d6.inspect)
 
+    # OPEN FOLDER (1.37.1): folder_url is the whole file: URL rule. openURL
+    # does no encoding of its own since 2019.3, so the space is the case.
+    u1 = folder_url('Z:/Sketchup/Proposals/Some Client')
+    out << (u1 == 'file:///Z:/Sketchup/Proposals/Some%%20Client' ? 'url1 ok' : 'url1 FAIL ' + u1.inspect)
+    u2 = folder_url('Z:\\Sketchup\\Proposals\\Job\\')          # pasted Windows path
+    out << (u2 == 'file:///Z:/Sketchup/Proposals/Job' ? 'url2 ok' : 'url2 FAIL ' + u2.inspect)
+    u3 = folder_url('C:/Jobs/#12 100%% Done')                      # URL-breaking chars
+    out << (u3 == 'file:///C:/Jobs/%%2312%%20100%%25%%20Done' ? 'url3 ok' : 'url3 FAIL ' + u3.inspect)
+    u4 = folder_url('C:/Users/bento/Documents/Claude/Sketchup/scripts')   # main.rb's case: untouched
+    out << (u4 == 'file:///C:/Users/bento/Documents/Claude/Sketchup/scripts' ? 'url4 ok' : 'url4 FAIL ' + u4.inspect)
+
     # PROMPT FOR CLAUDE (1.35.0): the composer is pure over the manifest.
     apm = { 'output_dir' => 'Z:/Sketchup/Proposals/Job', 'model' => 'Job',
             'model_path' => 'Z:/Job.skp',
@@ -1233,6 +1246,7 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           # 1.19.3 -- the shading contract survives the scene switch.
           'shade1 ok | shade2 ok | shade3 ok | shade4 ok | '
           'dir1 ok | dir2 ok | dir3 ok | dir4 ok | dir5 ok | dir6 ok | '
+          'url1 ok | url2 ok | url3 ok | url4 ok | '
           'ap1 ok | ap2 ok | ap3 ok | ap4 ok | ap5 ok | ap6 ok')
 
 
@@ -1273,6 +1287,7 @@ def main():
         'forbidden':         const_line('FORBIDDEN'),
         'sanitize':          rbtest.method_source(SRC, 'sanitize'),
         'resolve_dir':       rbtest.method_source(SRC, 'resolve_dir'),
+        'folder_url':        rbtest.method_source(SRC, 'folder_url'),
         'agent_prompt':      rbtest.method_source(SRC, 'agent_prompt'),
         'uniquify':          rbtest.method_source(SRC, 'uniquify'),
         'scene_prefix':      rbtest.method_source(SRC, 'scene_prefix'),

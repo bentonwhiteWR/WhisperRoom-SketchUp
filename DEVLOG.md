@@ -1,6 +1,55 @@
 # DEVLOG
 
 ## 2026-09-10
+### Open folder: a button on the GOES TO line — 1.37.1
+
+Benton, 10 Sep 2026: *"also add a button that will open a file explorer
+folder to the location the files are saved."* One button, **Open folder**,
+in the auto column of the GOES TO row of FOLDER & DETAILS — under Browse,
+same `.btn`, same `justify-self:start` width discipline as 1.36.1, no new
+colours. **Unrun in SketchUp.** `rbparse.py` 74/74, `rbtest-proposal.py`
+PASS (four new checks, url1–url4), `jstest-proposal-dialog.js` PASS. Patch
+bump.
+
+**Which folder.** The RESOLVED destination — what the GOES TO sentence says,
+not the root. The click sends the live FOLDER field and SUBFOLDER box to
+Ruby, which runs them through the same `resolve_dir` the export uses, so the
+sentence and the button cannot name two different places. SUBFOLDER off:
+both are the root, and it still works.
+
+**Before the first run the folder may not exist, and an Open button must not
+make folders.** Destination exists → it opens. Only the root exists → the
+root opens and the log says the subfolder is not there yet and the run
+creates it. Neither → nothing opens and the log says which path is missing.
+No root at all → "choose a root folder first". Every branch writes a log
+line, `UI.openURL`'s own Boolean is read (a `false` is logged as a refusal),
+and the log section is forced visible first — `runStarted`'s reveal is now a
+shared `revealLog()` — so a minimised log cannot swallow the message. This
+button cannot appear to do nothing.
+
+**How it opens.** `UI.openURL('file:///' + path)`, the route `wr_tools/main.rb`
+already uses for the scripts folder. That path never carries a space; a
+client folder does, and the docs (ruby.sketchup.com, read today) say that
+since 2019.3 openURL does no encoding and "the API user is expected to
+provide a valid URL". New pure `folder_url(path)`: backslashes turned,
+trailing slashes dropped, everything outside unreserved + `/` + `:`
+percent-encoded per byte — `Z:/Sketchup/Proposals/Some Client` →
+`file:///Z:/Sketchup/Proposals/Some%20Client`; `#` and `%` in a name are
+covered (url3). Ruby side only, so no heredoc backslash exposure; the JS
+addition has no backslashes at all.
+
+**Not behind `busy?`, on purpose.** It changes nothing in the model and
+nothing in the batch, and watching the files land while a run writes them is
+half the point; by then the folder exists (`start_run` mkdir_p's it).
+
+**Verify (Benton), two presses.** (1) Fresh model, SUBFOLDER on, before any
+run: press it — Explorer opens the ROOT and the log reads "Opened the ROOT …
+does not exist yet; the run creates it". (2) After a run: press it — Explorer
+opens the model's own subfolder with the PNGs and `manifest.json` in it, log
+reads "Opened … in Explorer." A root with a space in it is the case worth
+trying first. If Explorer opens nothing while the log says "Opened", that is
+openURL returning true on a URL Windows ignored — report the exact log line.
+
 ### Click a WhisperRoom, get its dimensions — measured, attached, rotatable — 1.37.0
 
 Benton, 10 Sep 2026: *"I still dont like the way our 'dimension tool' works

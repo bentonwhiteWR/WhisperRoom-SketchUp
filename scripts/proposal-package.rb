@@ -494,6 +494,24 @@ module WR_ProposalPackage
     ["#{r}/#{name}", "#{name}/ under the root (this model's file name)"]
   end
 
+  # OPEN FOLDER (1.37.1). Benton: "add a button that will open a file
+  # explorer folder to the location the files are saved."
+  #
+  # PURE - exercised by rbtest-proposal.py (url1-url4). The URL UI.openURL
+  # wants for a folder. main.rb already opens the scripts folder with
+  # 'file:///' + SCRIPTS_DIR, but that path never carries a space; a client
+  # folder is exactly where a space, a # or a % turns up, and since
+  # SketchUp 2019.3 openURL does NO encoding of its own - "the API user is
+  # expected to provide a valid URL" (ruby.sketchup.com, read 10 Sep 2026).
+  # So everything outside the unreserved set plus / and : is percent-encoded
+  # byte by byte: "Z:/Sketchup/Proposals/Some Client" becomes
+  # "file:///Z:/Sketchup/Proposals/Some%20Client". Backslashes are turned
+  # first, trailing slashes dropped, so a pasted Windows path works too.
+  def self.folder_url(path)
+    p = path.to_s.strip.delete('"').tr('\\', '/').sub(%r{/+\z}, '')
+    'file:///' + p.gsub(%r{[^A-Za-z0-9\-._~/:]}) { |c| c.bytes.map { |b| format('%%%02X', b) }.join }
+  end
+
   # First caller gets the base name; later callers get "base (2)", "base (3)".
   # The FINAL name is what goes into `used`, so a scene literally named
   # "X (2)" cannot silently collide with a numbered one either.
@@ -4602,6 +4620,55 @@ module WR_ProposalPackage
       end
     end
 
+    # OPEN FOLDER (1.37.1). Benton: "add a button that will open a file
+    # explorer folder to the location the files are saved." Opens the
+    # RESOLVED destination - the GOES TO line, not the root - read live off
+    # the FOLDER field and the SUBFOLDER box through the same resolve_dir
+    # the export uses, so the sentence and the button can never name two
+    # different places.
+    #
+    # Deliberately NOT behind busy?: it changes nothing in the model and
+    # nothing in the batch, and watching the files land while a run writes
+    # them is half the point. (Once a run has started the folder exists:
+    # start_run mkdir_p's it before the first export.)
+    #
+    # Before the first run the folder may not exist, and a button labelled
+    # Open must not make folders. So: destination exists - open it; only the
+    # ROOT exists - open the root and say the subfolder is not there yet;
+    # neither - open nothing and say so. Every branch writes a log line, the
+    # log is forced visible, and openURL's own Boolean is read - the button
+    # can never appear to do nothing, which has bitten this tool twice today.
+    d.add_action_callback('openfolder') do |_c, payload|
+      begin
+        p = JSON.parse(payload.to_s)
+        p = {} unless p.is_a?(Hash)
+        per_model = !(p['sub'] == false || p['sub'].to_s == 'false')
+        dir, _note = resolve_dir(p['dir'], per_model, model.title)
+        root = p['dir'].to_s.strip.delete('"').tr('\\', '/').sub(%r{/+\z}, '')
+        d.execute_script('revealLog()')
+        if dir.nil?
+          log(d, 'OPEN FOLDER: choose a root folder first.', 'bad')
+        elsif File.directory?(dir)
+          ok = UI.openURL(folder_url(dir))
+          log(d, ok ? "Opened #{dir} in Explorer." :
+                      "Windows refused to open #{dir} (UI.openURL returned false).",
+              ok ? 'ok' : 'bad')
+        elsif File.directory?(root)
+          ok = UI.openURL(folder_url(root))
+          log(d, ok ? "Opened the ROOT #{root} - #{dir} does not exist yet; " \
+                      'the run creates it.' :
+                      "Windows refused to open #{root} (UI.openURL returned false).",
+              ok ? 'dim' : 'bad')
+        else
+          log(d, "OPEN FOLDER: nothing opened - #{root} does not exist. " \
+                 'Check the FOLDER field, or Browse to a real folder.', 'bad')
+        end
+      rescue StandardError => e
+        puts "  openfolder failed: #{e.class}: #{e.message}"
+        log(d, "OPEN FOLDER failed: #{e.class}: #{e.message}", 'bad')
+      end
+    end
+
     d.add_action_callback('export') do |_c, payload|
       begin
         cfg = JSON.parse(payload)
@@ -4945,7 +5012,7 @@ module WR_ProposalPackage
   <button class="btn" id="browse">Browse&hellip;</button>
   <span class="lbl">GOES TO</span>
   <label class="shadelbl" id="dest"></label>
-  <span></span>
+  <button class="btn" id="openf" title="Open the GOES TO folder in Windows Explorer. Before the first run, when that folder does not exist yet, the ROOT opens instead and the log says so.">Open folder</button>
 
   <span class="lbl">CLIENT</span>
   <input type="text" id="client" value="#{escAttr(fname)}" style="max-width:320px">
@@ -5894,13 +5961,18 @@ window.onerror = function (msg, src, line) {
   window.setProgress = function (pct, msg) {
     $pfill.style.width = pct+"%"; $pmsg.textContent = msg;
   };
-  window.runStarted = function () {
-    running = true; $log.innerHTML="";
-    // Reveal the log AND open it -- a run someone minimised the log for still
-    // needs to show its first line, or a failure scrolls past unseen.
+  // Reveal the log AND open it -- a run someone minimised the log for still
+  // needs to show its first line, or a failure scrolls past unseen. Shared
+  // with OPEN FOLDER (1.37.1), whose only feedback is a log line.
+  function revealLog(){
     var ls = g("logsect"); ls.style.display=""; ls.classList.add("open");
     var lt = ls.querySelector(".tri"); if(lt) lt.innerHTML="&#9660;";
     var lm = ls.querySelector(".mini"); if(lm){ lm.innerHTML="&minus;"; lm.title="Minimise"; }
+  }
+  window.revealLog = revealLog;
+  window.runStarted = function () {
+    running = true; $log.innerHTML="";
+    revealLog();
     g("cancel").style.display=""; $pfill.style.width="0%"; draw();
   };
   window.runFinished = function (msg) {
@@ -5966,6 +6038,13 @@ window.onerror = function (msg, src, line) {
   });
   g("browse").addEventListener("click", function(){
     if(window.sketchup && sketchup.browse) sketchup.browse(g("dir").value);
+  });
+  // OPEN FOLDER (1.37.1): Ruby resolves the destination from these two live
+  // values exactly as updateDest() does, then opens it. No `running` check on
+  // purpose -- see the openfolder callback.
+  g("openf").addEventListener("click", function(){
+    if(window.sketchup && sketchup.openfolder)
+      sketchup.openfolder(JSON.stringify({ dir: g("dir").value, sub: g("sub").checked }));
   });
   g("cancel").addEventListener("click", function(){
     if(window.sketchup && sketchup.cancelrun) sketchup.cancelrun();
