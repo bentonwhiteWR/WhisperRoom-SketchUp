@@ -321,6 +321,7 @@ module WR_SceneAnnotations
     { 'scene'   => page ? page.name.to_s : nil,
       'noscene' => model.pages.count.zero?,
       'off'     => pages_not_saving(model),
+      'undo'    => undo_summary(model),
       'sets'    => inv[:sets].map { |u| set_json(u) },
       'loose'   => inv[:loose].map { |it| item_json(it) } }
   end
@@ -501,6 +502,7 @@ module WR_SceneAnnotations
     return [false, 'No scene is selected — this model has no scenes, or none is active. ' \
                    'Create/select a scene first; there is nothing to save into.'] unless page
     return [false, 'Nothing to apply.'] if picks.nil? || picks.empty?
+    before = snapshot_keys(picks.keys)   # UNDO LAST APPLY (1.26.0)
     model.start_operation('Hide notes & dimensions per scene', true)
     begin
       r = write_scene(page, picks)
@@ -509,6 +511,7 @@ module WR_SceneAnnotations
       model.abort_operation
       return [false, "Apply failed and was rolled back: #{e.class}: #{e.message}"]
     end
+    remember_write(model, 'annotation', [{ :page => page, :name => page.name.to_s, :before => before }])
     msg = "Saved to scene \"#{page.name}\" — #{r[:hid_sets]} set(s) and " \
           "#{r[:hid_items]} callout(s) hidden (#{r[:sets] + r[:items]} row(s) written)."
     msg += " #{r[:gone].size} row(s) were stale and skipped — hit Refresh." unless r[:gone].empty?
@@ -586,10 +589,12 @@ module WR_SceneAnnotations
     written = []
     unsaved = []
     gone    = []
+    entries = []                          # UNDO LAST APPLY (1.26.0)
     model.start_operation('Hide notes & dimensions on every scene', true)
     begin
       pages.each do |pg|
         model.pages.selected_page = pg
+        entries << { :page => pg, :name => pg.name.to_s, :before => snapshot_keys(picks.keys) }
         r = write_scene(pg, picks)
         written << pg.name.to_s
         unsaved << pg.name.to_s unless r[:saves]
@@ -602,15 +607,128 @@ module WR_SceneAnnotations
       return [false, 'Apply to every scene failed and was rolled back: ' \
                      "#{e.class}: #{e.message}"]
     end
+    remember_write(model, 'annotation', entries)
     restore_page(model, start)
     msg = "Saved to #{written.size} scene(s). Ctrl+Z will NOT put them back — " \
-          'a scene snapshot is outside SketchUp\'s undo.'
+          'UNDO LAST APPLY will.'
     msg += " #{gone.size} row(s) were stale and skipped — hit Refresh." unless gone.empty?
     unless unsaved.empty?
       msg += ' WARNING: scene(s) not saving hidden tags/objects (callouts will ' \
              "NOT come back on them): #{unsaved.join(', ')}."
     end
     [true, msg, { :written => written, :unsaved => unsaved }]
+  end
+
+  # ---- UNDO LAST APPLY (1.26.0) -------------------------------------------
+  #
+  # Ctrl+Z cannot reverse a scene write — page.update is outside SketchUp's
+  # undo stack (1.25.2; Benton: "It said I could ctrl+z and that didnt
+  # work"). So every apply RECORDS what it is about to overwrite, and this
+  # puts it back. The record is one entry per written page: the page, its
+  # name, and a snapshot of every written key taken with that page SELECTED
+  # (the same read the picker shows), so putting it back is the write path
+  # with yesterday's answer — nothing new is trusted.
+  #
+  # ONE step, this SketchUp session, this model. It lives on the module, so
+  # it survives closing a picker, the proposal package window, and a script
+  # reload; it does not survive SketchUp closing, a newer apply replaces it,
+  # and putting it back uses it up. Not covered: the selection buttons
+  # (apply_selection), which write whatever is selected, not units.
+  def self.last_write
+    @last_write
+  end
+
+  def self.model_key(model)
+    model.guid
+  rescue StandardError
+    model.object_id
+  end
+
+  def self.remember_write(model, what, entries)
+    return if entries.nil? || entries.empty?
+    @last_write = { :model => model_key(model), :what => what,
+                    :pages => entries, :at => Time.now }
+  end
+
+  # The written keys' current state, read with the page SELECTED. Keys the
+  # index does not know are left out — there is nothing to put back for them.
+  def self.snapshot_keys(keys)
+    snap = preview_snapshot
+    out  = {}
+    keys.each { |k| out[k] = snap[k] unless snap[k].nil? }
+    out
+  end
+
+  # For a button label: what the last record would put back, or nil.
+  def self.undo_summary(model)
+    lw = @last_write
+    return nil unless lw && lw[:model] == model_key(model)
+    names = lw[:pages].select { |e| e[:page].valid? }.map { |e| e[:name] }
+    return nil if names.empty?
+    { 'what' => lw[:what], 'scenes' => names,
+      'at' => lw[:at].strftime('%H:%M'), 'module' => 'WR_SceneAnnotations' }
+  rescue StandardError
+    nil
+  end
+
+  # write_scene's twin for a recorded snapshot: the same flags, the same
+  # page save-flag fixes, the same page.update — with `page` SELECTED.
+  def self.write_snapshot(page, before)
+    before.each do |key, hidden|
+      u = @units && @units[key]
+      next if u.nil? || hidden.nil?
+      if u[:layer]
+        l = u[:layer]
+        next unless l.valid?
+        l.visible = !hidden
+        page.set_visibility(l, !hidden) if page.respond_to?(:set_visibility)
+      else
+        e = u[:ent]
+        next unless e && e.valid?
+        e.hidden = hidden
+      end
+    end
+    if page.respond_to?(:use_hidden_layers=) &&
+       page.respond_to?(:use_hidden_layers?) && !page.use_hidden_layers?
+      page.use_hidden_layers = true rescue nil
+    end
+    if page.respond_to?(:use_hidden_objects=) &&
+       page.respond_to?(:use_hidden_objects?) && !page.use_hidden_objects?
+      page.use_hidden_objects = true rescue nil
+    end
+    page.update(update_mask)
+  end
+
+  def self.undo_last(model)
+    lw = @last_write
+    return [false, 'Nothing to put back — no apply has been recorded in this ' \
+                   'SketchUp session.'] unless lw
+    unless lw[:model] == model_key(model)
+      return [false, 'The last apply was on a different model — nothing put back.']
+    end
+    entries = lw[:pages].select { |e| e[:page] && e[:page].valid? }
+    return [false, 'The scenes the last apply wrote to no longer exist.'] if entries.empty?
+    inventory(model)                      # rebuild the key index; keys are entityIDs
+    start = model.pages.selected_page
+    put   = []
+    model.start_operation('Put back annotation answers per scene', true)
+    begin
+      entries.each do |e|
+        model.pages.selected_page = e[:page]
+        write_snapshot(e[:page], e[:before])
+        put << e[:name]
+      end
+      model.commit_operation
+    rescue StandardError => e
+      model.abort_operation
+      restore_page(model, start)
+      return [false, "Put back failed and was rolled back: #{e.class}: #{e.message}"]
+    end
+    restore_page(model, start)
+    @last_write = nil
+    [true, "Put back the saved annotation answer on #{put.size} scene(s): " \
+           "#{put.join(', ')} (as it was at #{lw[:at].strftime('%H:%M')}). " \
+           'That was the one step there is — it is used up.']
   end
 
   def self.restore_page(model, page)
@@ -628,9 +746,9 @@ module WR_SceneAnnotations
     UI.messagebox("Apply these #{what} picks to #{pages.size} scene(s)?\n\n" \
                   "#{shown.join("\n")}\n\n" \
                   "Each of those scenes' saved #{what} answer will be REPLACED " \
-                  "by what is ticked now.\n\nCtrl+Z will NOT put them back: a scene's saved " \
-                  "snapshot is outside SketchUp's undo (observed 10 Sep 2026). " \
-                  "There is no way back from this button yet.",
+                  "by what is ticked now.\n\nCtrl+Z will NOT put them back (a scene's saved " \
+                  "snapshot is outside SketchUp's undo). UNDO LAST APPLY puts this " \
+                  "one back - one step, this SketchUp session only.",
                   MB_YESNO) == IDYES
   end
 
@@ -747,7 +865,9 @@ module WR_SceneAnnotations
       <div id="move"></div>
       <div id="foot">
         <button id="apply" onclick="applyNow()">Apply to this scene</button>
-        <button onclick="applyAll()" title="The same ticks into EVERY scene in the model — asks first. Ctrl+Z will NOT undo it: scene snapshots are outside SketchUp's undo.">Apply to every scene</button>
+        <button onclick="applyAll()" title="The same ticks into EVERY scene in the model — asks first. Ctrl+Z will NOT undo it; Undo last apply will.">Apply to every scene</button>
+        <button id="undolast" onclick="sketchup.undolast()" disabled
+                title="Nothing to put back yet">Undo last apply</button>
         <button onclick="sketchup.pick()">Use my selection</button>
         <button onclick="sketchup.refresh()">Refresh</button>
       </div>
@@ -904,6 +1024,15 @@ module WR_SceneAnnotations
         function applyAll() { sketchup.applyall(JSON.stringify(collectPicks())); }
         function setState(json) {
           S = JSON.parse(json);
+          var ub = document.getElementById('undolast');
+          if (ub) {
+            ub.disabled = !S.undo;
+            ub.title = S.undo
+              ? ("Put back the saved " + S.undo.what + " answer on " + S.undo.scenes.length +
+                 " scene(s): " + S.undo.scenes.join(", ") + " (applied " + S.undo.at +
+                 "). One step, this SketchUp session only. Ctrl+Z cannot do this.")
+              : "Nothing to put back yet - an apply in this SketchUp session records what it overwrote.";
+          }
           picks = {};
           (S.sets||[]).forEach(function(u){
             if(u.hidden) picks[u.key] = true;
@@ -989,6 +1118,14 @@ module WR_SceneAnnotations
       else
         msg = 'Not applied — nothing was changed.'
       end
+      push_state(m)
+      status(msg)
+    end
+    # UNDO LAST APPLY (1.26.0): the way back that Ctrl+Z is not.
+    @dlg.add_action_callback('undolast') do |_c|
+      m = Sketchup.active_model
+      _ok, msg = undo_last(m)
+      puts "WR_SceneAnnotations: #{msg}"
       push_state(m)
       status(msg)
     end

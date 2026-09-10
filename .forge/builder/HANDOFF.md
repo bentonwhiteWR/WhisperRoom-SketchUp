@@ -1,3 +1,47 @@
+# HANDOFF — Fixer → Benton: UNDO LAST APPLY, 1.26.0
+
+2026-09-10. Benton: *"add an undo button too"*. Built on a snapshot taken
+before every apply, NOT on SketchUp's undo stack. **Unrun in SketchUp.**
+
+## What it does
+- Every apply (this scene / all scenes, walls / annotations, popover /
+  standalone) records, per written scene, what the written rows were
+  before — read with that scene selected. **UNDO LAST APPLY** selects each
+  of those scenes and writes that back through the normal save path.
+- **One step, this SketchUp session, this model.** Survives closing the
+  picker and the package window. Refused on another model. Used up when
+  pressed (press APPLY again for a redo). Not covered: the "Hide/Show
+  selection" buttons.
+
+## Where
+- Package window: `UNDO LAST APPLY` beside Rescan (grey = nothing
+  recorded; hover = what it would put back, on which scenes, when).
+- Standalone walls / annotations dialogs: `Undo last apply` in the foot.
+- Confirm boxes and Apply-to-all tooltips now point at it.
+
+## Produced
+- `scripts/wr-scene-walls.rb`, `scripts/wr-scene-annotations.rb`:
+  `last_write`, `remember_write`, `snapshot_keys`, `undo_summary`,
+  `write_snapshot`, `undo_last`; `apply` / `apply_all` record; `state`
+  carries `undo`; button + `undolast` callback.
+- `scripts/proposal-package.rb`: `undo_mod` / `undo_info` / `push_undo`,
+  `undolast` callback, `state['undo']`, button, `drawUndo` / `setUndo`.
+- `VERSION` → **1.26.0**. DEVLOG entry.
+
+## To verify (Benton) — the put-back is the load-bearing check
+1. Hide notes on scene A: tick a set and one loose callout → APPLY. Note
+   the package log line. `UNDO LAST APPLY` lights up; hover: names A.
+2. Press it. Log: `Put back the saved annotation answer on 1 scene(s): A`.
+   Click A: the set and the callout are showing again. The button greys.
+3. APPLY TO ALL with a wall ticked: confirm box now says UNDO LAST APPLY
+   puts it back. Yes. Click two scenes: wall hidden. `UNDO LAST APPLY`
+   hover: names every scene written. Press. Click the same two: wall
+   back as it was on each (a scene that already hid it stays hidden).
+4. Open a different model: the button is grey; hover says nothing
+   recorded. Back on the first model it is grey too — it was used up.
+
+---
+
 # HANDOFF — Builder → Benton: uniform callout font & colour, 1.26.0
 
 2026-09-10. New tool `scripts/wr-callout-style.rb` (TOOLS tab, *Tidy up the

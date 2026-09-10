@@ -700,6 +700,8 @@ module WR_ProposalPackage
       # offer the same flip the Toggle Draft/Render button does — you set the
       # slots here, you should be able to SEE them here.
       'mode'      => WR_Mode.current(model),
+      # UNDO LAST APPLY (1.26.0): what the button would put back, or nil.
+      'undo'      => undo_info(model),
       'materials' => (model.materials.map(&:name).sort rescue []) }
   end
 
@@ -707,6 +709,32 @@ module WR_ProposalPackage
     dlg.execute_script("applyState(#{state(model).to_json})")
   rescue StandardError => e
     puts "  could not refresh the window: #{e.class}: #{e.message}"
+  end
+
+  # ---- UNDO LAST APPLY (1.26.0) -------------------------------------------
+  # Ctrl+Z cannot reverse a scene write (1.25.2), so both scene modules
+  # record what their last apply overwrote (WR_SceneWalls.undo_last and
+  # its annotations twin) and this window offers to put it back. ONE step:
+  # whichever module wrote most recently. The record lives on the module,
+  # so it survives closing a popover and closing this window; it does not
+  # survive SketchUp closing, and it is refused on another model.
+  def self.undo_mod(model)
+    [WR_SceneWalls, WR_SceneAnnotations].select do |m|
+      m.respond_to?(:undo_summary) && m.undo_summary(model)
+    end.max_by { |m| m.last_write[:at] }
+  rescue StandardError
+    nil
+  end
+
+  def self.undo_info(model)
+    m = undo_mod(model)
+    m ? m.undo_summary(model) : nil
+  end
+
+  def self.push_undo(model, dlg)
+    dlg.execute_script("setUndo(#{undo_info(model).to_json})")
+  rescue StandardError
+    nil
   end
 
   # ------------------------------------------------------------ v-ray gate --
@@ -3460,6 +3488,26 @@ module WR_ProposalPackage
       push_state(model, d)
     end
 
+    # UNDO LAST APPLY (1.26.0). A live preview is ended first: its restore
+    # would otherwise land on top of what was just put back.
+    d.add_action_callback('undolast') do |_c, _p|
+      next if busy?(d, 'undolast')
+      begin
+        preview_end(model)
+        m = undo_mod(model)
+        if m
+          ok, msg = m.undo_last(model)
+          log(d, msg, ok ? 'dim' : 'bad')
+        else
+          log(d, 'Nothing to put back — no apply has been recorded in this SketchUp session.', 'bad')
+        end
+      rescue StandardError => e
+        log(d, "put back failed: #{e.class}: #{e.message}", 'bad')
+        puts "  put back failed: #{e.class}: #{e.message}"
+      end
+      push_undo(model, d)
+    end
+
     d.add_action_callback('activate') do |_c, n|
       next if busy?(d, 'activate')
       begin
@@ -3552,6 +3600,7 @@ module WR_ProposalPackage
         preview_end(model)                # restore-THEN-apply, see preview_*
         ok, msg = WR_SceneWalls.apply(model, picks)
         d.execute_script('wallsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        push_undo(model, d)
         log(d, msg, ok ? 'dim' : 'bad')
       rescue StandardError => e
         d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
@@ -3581,6 +3630,7 @@ module WR_ProposalPackage
           ok, msg = false, 'Not applied — nothing was changed.'
         end
         d.execute_script('wallsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        push_undo(model, d)
       rescue StandardError => e
         d.execute_script('wallsFail(' + "#{e.class}: #{e.message}".to_json + ')')
       end
@@ -3672,6 +3722,7 @@ module WR_ProposalPackage
         preview_end(model)                # restore-THEN-apply, see preview_*
         ok, msg = WR_SceneAnnotations.apply(model, picks)
         d.execute_script('annotsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        push_undo(model, d)
         log(d, msg, ok ? 'dim' : 'bad')
       rescue StandardError => e
         d.execute_script('annotsFail(' + "#{e.class}: #{e.message}".to_json + ')')
@@ -3695,6 +3746,7 @@ module WR_ProposalPackage
           ok, msg = false, 'Not applied — nothing was changed.'
         end
         d.execute_script('annotsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        push_undo(model, d)
       rescue StandardError => e
         d.execute_script('annotsFail(' + "#{e.class}: #{e.message}".to_json + ')')
       end
@@ -4037,6 +4089,8 @@ module WR_ProposalPackage
   <span class="c" id="count"></span>
   <button class="btn" id="rescan"
           title="Re-read the model's scene list — picks up scenes added, renamed or deleted since this window opened. Your MODE picks, folder, search and log all stay.">Rescan</button>
+  <button class="btn" id="undolast" disabled
+          title="Nothing to put back yet">UNDO LAST APPLY</button>
 </div>
 
 <div class="cmd">
@@ -4153,7 +4207,7 @@ module WR_ProposalPackage
       <button id="wselhide" title="Hide whatever is selected in the model on this scene, right now">HIDE SELECTED</button>
       <button id="wselshow" title="Show whatever is selected in the model on this scene, right now">SHOW SELECTED</button>
       <span class="wgap"></span>
-      <button id="wapplyall" title="The same ticks into every scene the table is showing — asks first. Ctrl+Z will NOT undo it.">APPLY TO ALL SCENES</button>
+      <button id="wapplyall" title="The same ticks into every scene the table is showing — asks first. Ctrl+Z will NOT undo it; UNDO LAST APPLY will.">APPLY TO ALL SCENES</button>
       <button id="wapply" class="prim">APPLY TO THIS SCENE</button>
       <button id="wcancel">CANCEL</button>
     </div>
@@ -4167,7 +4221,7 @@ module WR_ProposalPackage
     <div id="afoot">
       <button id="apick" title="Select the callouts in the model, then press this">USE MY SELECTION</button>
       <span class="wgap"></span>
-      <button id="aapplyall" title="The same ticks into every scene the table is showing — asks first. Ctrl+Z will NOT undo it.">APPLY TO ALL SCENES</button>
+      <button id="aapplyall" title="The same ticks into every scene the table is showing — asks first. Ctrl+Z will NOT undo it; UNDO LAST APPLY will.">APPLY TO ALL SCENES</button>
       <button id="aapply" class="prim">APPLY TO THIS SCENE</button>
       <button id="acancel">CANCEL</button>
     </div>
@@ -4321,7 +4375,21 @@ module WR_ProposalPackage
     // Rescan too: Ruby's busy? guard would refuse it anyway, but a greyed
     // button says so before the click rather than after.
     var rb = g("rescan"); if(rb) rb.disabled = running;
+    drawUndo();
   }
+
+  // UNDO LAST APPLY (1.26.0): enabled only when Ruby says there is a
+  // record for THIS model; the tooltip names what it would put back.
+  function drawUndo(){
+    var ub = g("undolast"); if(!ub) return;
+    var u = ST.undo;
+    ub.disabled = running || !u;
+    ub.title = u
+      ? "Put back the saved "+u.what+" answer on "+u.scenes.length+" scene(s): "+u.scenes.join(", ")
+        +" (applied "+u.at+"). One step, this SketchUp session only. Ctrl+Z cannot do this."
+      : "Nothing to put back yet — an apply in this SketchUp session records what it overwrote.";
+  }
+  window.setUndo = function (u) { ST.undo = u; drawUndo(); };
 
   // HTML5 drag-and-drop over the rows. The drop sends {from, to} as TABLE
   // numbers and nothing else: the table is not touched here, because Ruby
@@ -4453,7 +4521,7 @@ module WR_ProposalPackage
     btn.title = view.length < 2
       ? "Only this scene is shown — use APPLY TO THIS SCENE"
       : "The same ticks into "+(all ? "every scene" : "the "+view.length+" scenes the table is showing")
-        +" — asks first. Ctrl+Z will NOT undo it.";
+        +" — asks first. Ctrl+Z will NOT undo it; UNDO LAST APPLY will.";
   }
   function shownNs(){ return view.map(function(r){ return r.n; }); }
 
@@ -4888,6 +4956,10 @@ module WR_ProposalPackage
     // log can name what the rescan found rather than just "refreshed".
     if(window.sketchup && sketchup.rescan)
       sketchup.rescan(JSON.stringify(ST.rows.map(function(r){ return r.scene; })));
+  });
+  g("undolast").addEventListener("click", function(){
+    if(running) return;
+    if(window.sketchup && sketchup.undolast) sketchup.undolast("");
   });
   g("helpb").addEventListener("click", function(){
     document.body.classList.toggle("showhelp");

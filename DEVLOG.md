@@ -2,6 +2,60 @@
 
 ## 2026-09-10
 
+### UNDO LAST APPLY — the way back that Ctrl+Z is not, 1.26.0
+
+Benton: *"add an undo button too, I clicked 'apply to all scenes'
+(annotations). It said I could ctrl+z and that didnt work."* 1.25.2
+removed the promise; this makes one that holds. **Unrun in SketchUp.**
+
+**Mechanism — snapshot before the write, the preview's own shape.** Every
+apply in both scene modules now records what it is about to overwrite:
+one entry per written page — the page object, its name, and
+`snapshot_keys(picks.keys)`, which is `preview_snapshot` filtered to the
+written keys and taken **with that page selected** (the same read the
+picker shows, after `preview_end` has restored any live preview). Walls
+record per piece, so a mixed unit goes back mixed; annotations record a
+set's tag visibility or a callout's own flag. `undo_last` re-scans (keys
+are `entityID`s, stable for the session), selects each recorded page,
+writes the snapshot back through `write_snapshot` — the same flags, the
+same page save-flag fixes, the same `page.update(update_mask)` as
+`write_scene` — and puts the operator back on the scene they were on. It
+does not lean on SketchUp's undo stack at any point, which is the whole
+reason it can be believed.
+
+**Scope and lifetime, stated.** One step: the most recent apply, whichever
+module made it — the proposal package picks the newer of the two records
+by time. Covers APPLY TO THIS SCENE and APPLY TO ALL in both pickers and
+both standalone dialogs (the single apply is included because Ctrl+Z was
+just as false there). The record lives on the module, so it survives
+closing a popover, closing the package window and a script reload; it is
+**refused on a different model** (`model.guid`), lost when SketchUp
+closes, replaced by the next apply, and **used up by putting it back**
+(there is no redo — press APPLY again). Not covered: the selection
+buttons (`apply_selection`), which write whatever is selected rather
+than units, and the export lane's own hides, which `finish` already
+restores.
+
+**Where it is.** Package window: `UNDO LAST APPLY` beside Rescan, greyed
+until Ruby reports a record for this model; the tooltip names what it
+would put back, on which scenes, applied when. Standalone dialogs: `Undo
+last apply` beside `Apply to every scene`, same rule. Both confirm boxes
+and every Apply-to-all tooltip now say "UNDO LAST APPLY puts this one
+back — one step, this SketchUp session only" instead of "no way back".
+The package button is inert while a batch runs, `busy?`-guarded, and
+ends a live preview first so the restore cannot land on top of the put-
+back. One operation per put-back, per-scene names in the log line.
+
+Minor bump (1.26.0): new buttons in three dialogs. `rbparse.py` 3/3,
+`rbtest-proposal.py` PASS, `node --check` on all three extracted dialog
+scripts. **Not observed:** that selecting a page inside the put-back
+operation re-asserts its state synchronously before `preview_snapshot`
+reads it at record time (the existing `apply_all` already relies on the
+same select-then-read, verified live on 9 Sep for a single scene); and
+that a recorded `Sketchup::Page` reference stays `valid?` across the
+session (it should — nothing deletes pages here). The dialog text calls
+it one step for this session and nothing more.
+
 ### Uniform callout font & colour — 1.26.0
 
 Benton: *"You click it, it will ask you two things. You can change all of
