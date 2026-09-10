@@ -1,7 +1,11 @@
 # Click a WhisperRoom, get its dimensions — spec
 
-2026-09-10, Scoper (Fable). **Approval gate: Benton has not approved anything yet.**
-Mockup: `.forge/scoper/booth-dimensions-mockup.html` (variants A / A′ / B).
+2026-09-10, Scoper (Fable). **Rev 2** — Benton reviewed the published mockup: *"for the
+artifact, I like the A alternative. But could there be a button to 'rotate' to other side?
+These are shown on the right side. Sometimes they will need to be on left side depending on
+where we need to get the image of."* So: the side-pushed height (rev 1's "A′") is the layout,
+now called **A**, and the set gains a **ROTATE** action (§7b). Coordinator decisions recorded
+in §11. Mockup: `.forge/scoper/booth-dimensions-mockup.html` (A, ROTATE, B).
 
 ## The problem in one sentence
 
@@ -159,12 +163,12 @@ the tag orange (auto-dimension uses dark grey `[40,40,40]` for its primary tag a
 | S1 | **New script `scripts/dimension-whisperroom.rb`, module `WR_BoothDims`.** `dimension-booth.rb` is retired (see §9). `dimension-selection.rb` and `auto-dimension.rb` untouched. | "start from scratch"; the selection tool still answers "how big is this thing" for non-booths |
 | S2 | **Three dimensions, exterior, and nothing else** (variant A). No label, no door, no vents, no interior. | the reference image |
 | S3 | **Every string is measured off the built parts** and attached to them. Catalogue figures are printed beside them as a cross-check, never drawn. | D1, D2, D3, D5 |
-| S4 | **A pick tool.** Panel button → cursor picks → click the booth → dims. Esc cancels. If a booth is already selected when the button is pressed, no pick. | Benton's sentence |
-| S5 | **Not an ability.** A plain run script plus a companion `Clear WhisperRoom dimensions` script. Per-booth ownership via `persistent_id`. | D7; ability state is model-wide and cannot express "booth 1 on, booth 2 off" |
+| S4 | **Pick tools, no dialogs.** Panel button → cursor picks → click the booth → done. Esc cancels. If a booth is already selected when the button is pressed, no pick. | Benton's sentence; he liked it |
+| S5 | **Not abilities. Three plain run scripts:** *Dimension a WhisperRoom*, *Rotate booth dimensions*, *Clear WhisperRoom dimensions*. Per-booth ownership via `persistent_id`. | D7; ability state is model-wide and cannot express "booth 1 on, booth 2 off"; Benton asked for "a button to rotate" |
 | S6 | **Tag `WR-Dims-Booth`, tag colour dark grey, no dimension colouring.** | keeps `proposal-scenes.rb` `DIM_TAGS`, `SHOWN_ON_DIMENSIONED`, `annot_tags` and client-safe working unchanged; D9 |
-| S7 | **Standoff 24" on all three**, height standoff 36" when the side push is used (A′). Not a setting. Single-axis offsets so each drags cleanly. | prior 24; single-axis rule from 8ca3392 |
-| S8 | **Front = the door wall.** Width runs along the door wall's ground edge; depth along the right-hand wall as you face the door; height up the rear corner on that same side. | proposal scenes already read the door side; matches the reference |
-| S9 | **Height push: rear (+Y-ish) by default (A); side (A′) when anything sits within 24" behind the booth.** | booths are drawn 1" off a wall (house convention) |
+| S7 | **Standoff 24" on the two ground strings, 36" on the height** (it shares a corner with the depth string and must clear its end). Not a setting. Single-axis offsets so each drags cleanly. | coordinator confirmed 24 (Q6); single-axis rule from 8ca3392 |
+| S8 | **Front = the door wall.** At the default corner: width along the door wall's ground edge, depth along the right-hand wall as you face the door, height up the rear corner of that side wall, **pushed out to the side**. | Benton chose the side push (Q1 = A′); matches the reference |
+| S9 | **The set lives at one of four corners; ROTATE moves it to the next.** No automatic side-choosing: the operator decides, the tool complies and says when a side is blocked. | Benton: the clear side depends on where the camera is, per scene |
 | S10 | **Units forced Architectural**, auto-text only (`<>`), never a text override. | a dimension that lies about its own length is D2 again |
 | S11 | Arrow style, font, colour: **model-wide, left alone** (`Model Info › Dimensions`; DEVLOG 1.26.3 — no Ruby API for the font). | one place to set it |
 
@@ -223,15 +227,61 @@ own walls, not the world's). Front `F` = the wall carrying the door part (`DRFRM
 `F` from outside. Rear = opposite `F`. Corner names below assume F = S, R = E; rotate
 accordingly.
 
-| Dim | From | To | Offset (booth frame) | Text |
-|---|---|---|---|---|
-| Width | front-left ground corner `(x0,y0,z0)` | front-right `(x1,y0,z0)` | `(0, −24, 0)` | auto |
-| Depth | front-right `(x1,y0,z0)` | rear-right `(x1,y1,z0)` | `(+24, 0, 0)` | auto |
-| Height (A) | rear-right ground `(x1,y1,z0)` | rear-right top `(x1,y1,z1)` | `(0, +24, 0)` | auto |
-| Height (A′) | same | same | `(+36, 0, 0)` | auto |
+The set is defined by ONE thing: the **corner** it sits at, `C ∈ {FR, FL, RL, RR}`
+(front-right, front-left, rear-left, rear-right, named from outside facing the door wall).
+Given `C`, everything else follows from one rule — *the two ground strings run along the two
+ground edges that leave `C`; the height stands at the far end of the side-wall edge, pushed
+outward on that side* — so the four positions are one table, not four:
 
-A′ is chosen automatically when any other top-level entity's world bounds intersect the slab
-`y1 .. y1+24` across `x0-24 .. x1+24` (a wall behind the booth). Console says which and why.
+| Corner `C` | Width runs along | pushed | Depth runs along | pushed | Height at | pushed |
+|---|---|---|---|---|---|---|
+| **FR** (default) | front edge `(x0,y0)→(x1,y0)` | −Y 24 | right edge `(x1,y0)→(x1,y1)` | +X 24 | rear-right `(x1,y1)` | +X 36 |
+| **FL** | front edge | −Y 24 | left edge `(x0,y0)→(x0,y1)` | −X 24 | rear-left `(x0,y1)` | −X 36 |
+| **RL** | rear edge `(x0,y1)→(x1,y1)` | +Y 24 | left edge | −X 24 | front-left `(x0,y0)` | −X 36 |
+| **RR** | rear edge | +Y 24 | right edge | +X 24 | front-right `(x1,y0)` | +X 36 |
+
+All in the booth's own frame (X along the door wall, Y toward the rear), `z0..z1` the measured
+height. The mockup draws FR from a front-right camera and FL from a front-left camera.
+
+### 7b. ROTATE — moving the set to the other side
+
+**Shape: a rotation through the four corners, not a mirror.** Benton's word was "rotate" and
+his need is "the clear side depends on where the camera is". Left/right is the case he named;
+the rear corners exist for a rear/ventilation plate, cost nothing extra (same table), and a
+mirror would leave those shots with no clear side. Order **FR → FL → RL → RR → FR**, so the
+**first press always goes to the other side**, which is his case.
+
+**Trigger: a second panel button, *Rotate booth dimensions*** — pick-then-do like the others,
+no dialog, no setting. Justification: it is literally what he asked for ("a button to rotate");
+it keeps *Dimension a WhisperRoom* meaning one thing (draw/redraw where the set is) so a
+re-run after moving a booth never surprises him by also rotating; a modifier or arrow keys
+while a tool is live would be invisible to Gabe and undiscoverable from the panel. Press it
+again to go round. (Arrow-key rotation while the Dimension tool is live is an optional
+nicety, not in this build.)
+
+**It rebuilds, it never transforms.** `rotate(inst)` = read the stored corner, advance it,
+store it, then call the same `dimension(inst)` path a fresh run uses: erase this booth's set,
+re-measure the extent from the parts (§6), re-resolve the six anchors (§7 attachment), draw.
+No entity is moved, mirrored or re-texted, so the set cannot drift off the geometry, and a
+booth that was moved between presses is measured where it now stands.
+
+**Per booth.** The corner is stored on the **booth group** itself —
+`booth.set_attribute('WR_BoothDims', 'corner', 'FL')` — and echoed on each drawn entity.
+*Dimension a WhisperRoom* reads it first and defaults to `FR` only when absent, so a re-run
+does not snap the set back. Rotating booth 1 touches nothing of booth 2's. The attribute
+survives save/reload and travels with a copied booth (a copy starts at its source's corner —
+acceptable, and printed).
+
+**Obstruction: comply and say.** After choosing the corner, test whether any *other*
+top-level entity's world bounds intersect the slab the height line occupies (`36"` out on the
+chosen side, full height, the booth's depth) or the slab the depth string occupies (`24"`
+out, same side). If so, draw anyway and print
+`*** left side blocked by "W wall" — the height and depth strings sit inside it; rotate again
+or hide that wall for the shot`. Never refuse, never auto-skip a corner: he asked for control,
+and a tool that silently skipped to the corner *it* liked would be the settings dialog by
+another name. Rev 1's automatic rear/side switch is **dropped**.
+
+**Console on every draw:** `corner FR (default)` / `corner FL (rotated, press 1 of 4)`.
 
 **Attachment (D1).** For each endpoint, in order:
 1. A real **vertex** at that corner inside a voting part, addressed with an
@@ -253,8 +303,9 @@ A′ is chosen automatically when any other top-level entity's world bounds inte
 - Every entity drawn (3 dimensions, any ConstructionPoints) gets
   `set_attribute('WR_BoothDims', 'booth', booth.persistent_id)` and
   `('WR_BoothDims','own',true)`, and sits on `WR-Dims-Booth`.
-- **Re-run on a booth** erases only entities whose `booth` attribute matches, then redraws.
-  Booth 2 is never touched.
+- **Re-run on a booth** erases only entities whose `booth` attribute matches, then redraws at
+  the booth's stored corner (`WR_BoothDims/corner` on the group; default `FR`). Booth 2 is
+  never touched. ROTATE is the same path with the corner advanced first (§7b).
 - **Clear WhisperRoom dimensions** (`scripts/clear-whisperroom-dimensions.rb`, same module):
   pick a booth → remove that booth's set; Esc with nothing picked → confirm → remove every
   entity carrying `WR_BoothDims/own`. Never anything else on the tag (a hand-drawn dimension
@@ -269,9 +320,12 @@ A′ is chosen automatically when any other top-level entity's world bounds inte
 ## 9. Panel and repo wiring
 
 - New: `scripts/dimension-whisperroom.rb` (`@title Dimension a WhisperRoom…`,
-  `@cat Add dimensions`, `@rank 1`, `@icon` as the old one), and
-  `scripts/clear-whisperroom-dimensions.rb` (`@cat Add dimensions`). Both read
-  `$wr_no_autorun` like their peers.
+  `@cat Add dimensions`, `@rank 1`, `@icon` as the old one; it defines `WR_BoothDims` with
+  `dimension(inst)`, `rotate(inst)`, `clear(inst_or_nil)` and the pick tool),
+  `scripts/rotate-whisperroom-dimensions.rb` (`@title Rotate booth dimensions…`, `@rank 2`;
+  loads the first file quietly and runs the pick with `rotate`), and
+  `scripts/clear-whisperroom-dimensions.rb` (`@rank 3`). All three read `$wr_no_autorun`
+  like their peers. One module, three entry points — the panel wants one script per button.
 - Retire `scripts/dimension-booth.rb`: `# @shelf archive`, header note pointing at the new
   file, ability directives removed so the panel stops offering the switch. Do not delete this
   session — a model with its old dims still needs `ability_off` once. (The new Clear tool
@@ -299,11 +353,19 @@ Run through `scripts/sketchup-bridge.py` (`run`/`eval`/`shot`) on a live SketchU
    lower point z equals the floor stack's world min z (0.0 after 1.33.0), the upper equals the
    ceiling/tray max z. Screenshot the three-quarter view; the vertical string spans the booth
    exactly, no overhang either end.
-4. **Placement.** Screenshot from Benton's usual front-right three-quarter camera: width on
-   the left-front ground edge, depth on the right-front, height at the right rear, none of the
-   three lines crossing the booth silhouette; matches mockup A.
-5. **Against a wall.** Booth 1" off a north wall: height goes to A′ (side, 36"), console says
-   `rear blocked by "<wall name>"`; nothing drawn inside the wall.
+4. **Placement (FR).** Screenshot from Benton's usual front-right three-quarter camera: width on
+   the left-front ground edge, depth on the right-front, height at the right rear pushed 36"
+   to the side, none of the three lines crossing the booth silhouette; matches mockup A.
+5. **ROTATE.** Press once on that booth: still exactly 3 dimensions, `corner FL` in the
+   console, depth now along the left wall, height up the rear-left corner pushed −X 36";
+   screenshot from a front-left camera matches the mockup's ROTATE panel. All six anchors
+   re-resolved (check 2 passes again). Three more presses: RL, RR, then FR again; the entity
+   count never exceeds 3 for that booth. Re-run *Dimension* after a rotation → same corner
+   (attribute read, not reset). Rotating booth 1 with booth 2 dimensioned leaves booth 2's
+   three untouched and at its own corner.
+5b. **Against a wall.** Booth 1" off a west wall, rotate to FL: the set is still drawn
+   (inside the wall), console prints `*** left side blocked by "<wall name>"`. Nothing
+   refused, nothing skipped.
 6. **Rotated booth** (group rotated 30°): strings run along the booth's own walls, same
    three values.
 7. **Two booths.** Dimension both; re-run on booth 1; booth 2's three remain (count 6).
@@ -319,20 +381,20 @@ Run through `scripts/sketchup-bridge.py` (`run`/`eval`/`shot`) on a live SketchU
 
 ---
 
-## 11. Open questions (for Benton — also in the mockup's list)
+## 11. Questions — answered and open
 
-| # | Question | Default if unanswered |
+| # | Question | Status |
 |---|---|---|
-| Q1 | A (height off the rear) or A′ (off the side), or auto by what is behind the booth? | auto (S9) |
-| Q2 | Three only (A), or also the plan set with interior clear (B)? | A only |
-| Q3 | Was the reference image hand-drawn with SketchUp's Dimension tool, or the old tool's output moved by hand? (Tells us if its witness lines sit on geometry.) | assume hand-drawn; attach to geometry regardless |
-| Q4 | When the built vent housing measures other than 5 1/2" proud (a 96120 build read 6 7/16"), which wins: what is drawn, or the rule? | the dimension reads what is drawn; the builder's vent seating is a separate fix, flagged |
-| Q5 | Enhanced interior clear height (only for B). | not drawn |
-| Q6 | 24" standoff — fine, or further? | 24 |
-| Q7 | Pick tool, or select-then-button only? | both (S4) |
-| Q8 | Clear per booth (pick) with Esc = all — OK? | yes |
-| Q9 | Should *Booth from link* dimension the booth automatically after a build? | no, not this build |
-| Q10 | Plain black (model dimension colour) confirmed over orange? | black |
+| Q1 | Height off the rear or off the side? | **Benton, 10 Sep: the side** ("I like the A alternative") — now A, §7. Plus ROTATE, §7b. |
+| Q4 | Built vent housing ≠ 5 1/2" proud — drawn geometry or the rule? | **Coordinator: the dimension reads what is DRAWN, always**; catalogue comparison printed, any mismatch over 1/4" said out loud (`CLAUDE.md`: a drawing never quietly asserts a number nobody measured). A vent seating at 6 7/16" is a builder bug to fix separately, not something a dimension papers over. |
+| Q6 | 24" standoff? | **Coordinator: 24" as the default.** |
+| Q2 | Three only (A), or also the plan set with interior clear (B)? | **Open — being asked.** Spec assumes A only. B is a clean bolt-on: its own script, its own tag `WR-Dims-Booth-Plan`, catalogue `:iw/:ih` or `:eiw/:eih`, same ownership/corner attributes; nothing in A changes to add it. |
+| Q3 | Was the reference image hand-drawn, or the old tool's output moved? | Open, not blocking. Attach to geometry regardless. |
+| Q5 | Enhanced interior clear height (only for B). | Open, not blocking; not drawn until given. |
+| Q7 | Pick tool, or select-then-button only? | Both (S4); Benton liked the pick. |
+| Q8 | Clear per booth (pick) with Esc = all? | Assumed yes. |
+| Q9 | Should *Booth from link* dimension the booth automatically after a build? | No, not this build. |
+| Q10 | Plain black (model dimension colour) over orange? | Assumed black; Benton's image is black and the orange never drew on screen (D9). |
 
 ## 12. Not in scope
 Room chains (`auto-dimension.rb`), generic object measuring (`dimension-selection.rb`), the

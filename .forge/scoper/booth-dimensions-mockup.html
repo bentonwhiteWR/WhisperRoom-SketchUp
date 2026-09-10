@@ -32,19 +32,28 @@
 
 <div class="wrap">
   <h1>Click a WhisperRoom, get its dimensions <span>— placement mockup</span></h1>
-  <p class="sub">Drawn to scale from the reference image's own booth: an <b>MDL 7296 E</b>, vents on the far (north) face — <b>8' 2" × 6' 7 1/2" × 7' 5/16"</b>. Nothing here is code; it is the look to approve before anything is built. Point at a variant by its letter.</p>
+  <p class="sub">Drawn to scale from the reference image's own booth: an <b>MDL 7296 E</b>, vents on the far (north) face — <b>8' 2" × 6' 7 1/2" × 7' 5/16"</b>. Nothing here is code. <b>Rev 2:</b> Benton chose the side-pushed height (was "A′"); it is now <b>A</b>, and it gains a <b>ROTATE</b> button that moves the whole set to the other side of the booth for a camera on that side.</p>
 
   <div class="card">
-    <h2><span class="tag">A · recommended</span>Three exterior dimensions, exactly as your image</h2>
-    <p>Width along the front ground edge, depth along the right-hand ground edge, height up the <b>right-rear</b> corner. Every witness line starts on a real booth corner. Standoff <b>24"</b> on all three (was 24" before; auto-dimension's room chain moved to 20/33/48 after "way too close to the walls"). The height line stands off the <b>rear</b> of the right-hand face — it never meets the depth line.</p>
+    <h2><span class="tag">A · chosen</span>Three exterior dimensions — width on the front, depth on the right side, height up the rear-right corner, pushed out to the <em>side</em></h2>
+    <p>Every witness line starts on a real booth corner. Standoff <b>24"</b> on the two ground strings; the height goes out <b>36"</b> so it clears the end of the depth string (the two witness lines overlap on the ground, which is normal drafting). The set sits at the <b>front-right corner</b> — the corner nearest a camera on the right-hand side.</p>
     <div class="fig" id="figA"></div>
     <div class="legend"><span><i></i>dimension line + slash ticks + text (SketchUp draws these; model-wide style)</span><span><i class="w"></i>witness line, from the corner, past the dimension line</span><span><i class="h"></i>hidden edge: the vent housing on the far face, +5 1/2"</span></div>
   </div>
 
   <div class="card">
-    <h2><span class="tag grey">A′ · alternative</span>Same three, height pushed out to the <em>side</em> instead of the rear</h2>
-    <p>For a booth backed 1" off a wall (the house convention), a rear push buries the height line in the wall. Pushing it sideways keeps it in the room, but it then shares a corner with the depth line, so it goes out 1.5× further (36") and the two witness lines overlap on the ground. <b>Which of A / A′ your reference image is, I could not tell from the description — see Q3.</b> The tool can pick A′ automatically when something sits within 24" behind the booth.</p>
-    <div class="fig" id="figA2"></div>
+    <h2><span class="tag">ROTATE</span>The same set, moved to the <em>left</em> side for a camera on the left</h2>
+    <p>Press <b>Rotate booth dimensions</b>, click the booth: the set is <b>rebuilt from the model at the next corner</b> — new witness lines from the left-hand corners, the depth string now along the left wall, the height up the rear-left corner pushed out to the left. Nothing is mirrored or dragged; it is measured again, so it cannot drift off the geometry. Width stays on the door wall. This view is drawn from the front-left, where that camera would be.</p>
+    <div class="fig" id="figR"></div>
+    <div class="grid" style="margin-top:8px">
+      <div class="fig" id="figC" style="padding:6px"></div>
+      <div><b>In your terms:</b> the set lives at one of the booth's four corners. Each press of ROTATE moves it to the next corner, going round the booth — <b>the first press always puts it on the other side</b> (front-right → front-left), then rear-left, then rear-right, then back. On the rear corners the width string runs along the back wall instead of the door wall, for a rear/ventilation shot. Each booth remembers its own corner, so re-running <i>Dimension a WhisperRoom</i> on it (after it moved, say) redraws where you left it, and rotating booth 1 never touches booth 2.<br><br><b>If you rotate into a wall</b> (something within 36" on that side), it does it anyway and says so in the console — <i>"left side blocked by 'W wall' — the height line is inside it; rotate again or hide the wall for the shot"</i>. You asked for control; it does not second-guess you.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag grey">Not chosen</span>Height pushed to the rear</h2>
+    <p>Rev 1's recommended layout put the height line off the rear of the right-hand face so it never met the depth string. Benton chose the side push instead (the house convention backs a booth 1" off a wall, where a rear push buries the line). Kept here only so the record shows what was decided against; the drawing is gone.</p>
   </div>
 
   <div class="card">
@@ -69,29 +78,35 @@
     <div class="grid">
       <div><b>Click the panel button, then click the booth.</b> The cursor becomes a pick; click any part of a WhisperRoom and the three strings appear. <span class="kbd">Esc</span> cancels. If a booth is already selected when you press the button, it skips the pick.</div>
       <div><b>No dialog, no settings.</b> No Standard/Enhanced choice (that was a way to draw the wrong height), no vents box, no label above the booth. The console still prints the reconciliation.</div>
-      <div><b>Click it again and it re-measures.</b> Each booth carries its own set; re-running on booth 1 never touches booth 2. A second button, <i>Clear WhisperRoom dimensions</i>, removes one booth's set (pick it) or all of them (<span class="kbd">Esc</span>).</div>
+      <div><b>Three buttons, all pick-then-do, no dialogs:</b> <i>Dimension a WhisperRoom</i> (draw / redraw at the booth's remembered corner), <i>Rotate booth dimensions</i> (next corner, rebuilt), <i>Clear WhisperRoom dimensions</i> (that booth's set; <span class="kbd">Esc</span> with nothing picked = all). Each booth carries its own set and its own corner.</div>
       <div><b>Tag <code>WR-Dims-Booth</code>, plain black.</b> Same tag name as today, so the proposal package, the ANNOTATIONS picker and client-safe already know it. The orange on today's tag only ever showed under Color-by-Tag; the dimensions themselves have always drawn in the model's dimension colour, which is why your image is black.</div>
     </div>
   </div>
 
   <div class="q">
-    <b>Questions only you can answer (point at a letter or a number):</b>
+    <b>Decided (10 Sep 2026):</b> A with the side-pushed height (Benton); the dimension always reads what is <b>drawn</b>, with the catalogue comparison in the console and any mismatch over 1/4" said out loud (coordinator); 24" standoff (coordinator); ROTATE cycles the four corners, first press = other side, comply-and-say when a side is blocked (this spec).<br><br>
+    <b>Still open:</b>
     <ol>
-      <li><b>A or A′</b> for the height line — off the rear, or off the side? Or "let the tool choose by what is behind the booth".</li>
-      <li><b>Just the three (A), or A + the plan set (B)?</b> B needs a top-down scene to be worth anything.</li>
-      <li>Was your reference image <b>drawn by hand</b> with SketchUp's own Dimension tool, or the old tool's output that you moved? (Tells us whether its witness lines sit on the geometry — the new tool's will.)</li>
-      <li>When the built model's vent housing stands <b>other than 5 1/2"</b> proud, which wins on the drawing: what is drawn, or the 5 1/2" rule? (Recommended: the dimension reads what is drawn, and the builder gets fixed to seat vents at 5 1/2" if that is the real product.)</li>
-      <li>Only if B: what is the <b>Enhanced interior clear height</b>? (Standard is your 6' 8".)</li>
-      <li>Standoff <b>24"</b> — fine, or further?</li>
+      <li><b>Just the three (A), or A + the plan set (B)?</b> B bolts on later without rework either way.</li>
+      <li>Was your reference image drawn by hand with SketchUp's Dimension tool, or the old tool's output moved? (Not blocking.)</li>
+      <li>Only if B: the <b>Enhanced interior clear height</b> (Standard is your 6' 8"). (Not blocking.)</li>
     </ol>
   </div>
 </div>
 
 <script>
 (function(){
-  // ---------- projection: camera at the south-east, looking north-west, 35 deg up ----------
+  // ---------- projection: two cameras, both 35 deg up ----------
+  //   SE = front-right camera (looking north-west): the door wall reads on the LEFT, the right (E) wall on the right
+  //   SW = front-left camera  (looking north-east): the left (W) wall reads on the left, the door wall on the right
   const EL = 35*Math.PI/180, R = Math.SQRT1_2, S = 2.55;
-  function P(x,y,z){ const sx = R*(x+y); const up = Math.sin(EL)*R*(-x+y) + Math.cos(EL)*z; return [sx*S, -up*S]; }
+  let CAM = 'SE';
+  function P(x,y,z){
+    let sx, up;
+    if (CAM==='SE'){ sx = R*(x+y);  up = Math.sin(EL)*R*(-x+y) + Math.cos(EL)*z; }
+    else           { sx = R*(x-y);  up = Math.sin(EL)*R*( x+y) + Math.cos(EL)*z; }
+    return [sx*S, -up*S];
+  }
   function fmt(pt){ return pt[0].toFixed(1)+','+pt[1].toFixed(1); }
 
   // ---------- booth: MDL 7296 E, vents on N ----------
@@ -114,74 +129,86 @@
   }
 
   const F1='fill="#f1f0ec" stroke="#333" stroke-width="1.1" stroke-linejoin="round"';   // top
-  const F2='fill="#e2e0da" stroke="#333" stroke-width="1.1" stroke-linejoin="round"';   // south (front-left)
-  const F3='fill="#cfccc4" stroke="#333" stroke-width="1.1" stroke-linejoin="round"';   // east (front-right)
+  const F2='fill="#e2e0da" stroke="#333" stroke-width="1.1" stroke-linejoin="round"';   // door wall
+  const F3='fill="#cfccc4" stroke="#333" stroke-width="1.1" stroke-linejoin="round"';   // side wall
   const HID='stroke="#9a9790" stroke-width="1" stroke-dasharray="4 3" fill="none"';
   const DIM='stroke="#111" stroke-width="1.4" fill="none"';
   const WIT='stroke="#6b6b6b" stroke-width="0.9" fill="none"';
 
-  // 3D linear dimension: points a,b; offset vector off (inches); text; witness extends 12% past the line
   function dim(c, a, b, off, text, opts){
     opts=opts||{};
     const add=(p,k)=>[p[0]+off[0]*k, p[1]+off[1]*k, p[2]+off[2]*k];
     const a1=add(a,1), b1=add(b,1);
-    c.line(add(a,0.06), add(a,1.12), WIT); c.line(add(b,0.06), add(b,1.12), WIT);   // witness lines, small gap at the geometry
+    c.line(add(a,0.06), add(a,1.12), WIT); c.line(add(b,0.06), add(b,1.12), WIT);
     c.line(a1,b1,DIM);
-    // slash ticks in screen space
     const A=P(...a1),B=P(...b1); const dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy); const ux=dx/L,uy=dy/L;
     const tick=(pt)=>{ const t=5.5; const sx=(ux-uy)*t, sy=(uy+ux)*t; c.raw('<line x1="'+(pt[0]-sx).toFixed(1)+'" y1="'+(pt[1]-sy).toFixed(1)+'" x2="'+(pt[0]+sx).toFixed(1)+'" y2="'+(pt[1]+sy).toFixed(1)+'" stroke="#111" stroke-width="1.4"/>'); };
     tick(A); tick(B);
-    // text, screen-aligned, centred on the line, lifted off it
     const mx=(A[0]+B[0])/2, my=(A[1]+B[1])/2; const nx=-uy, ny=ux; const side=opts.textSide||-1; const gap=opts.textGap||10; const tx=mx+nx*gap*side, ty=my+ny*gap*side;
     c.raw('<text x="'+tx.toFixed(1)+'" y="'+(ty+4).toFixed(1)+'" font-size="13" font-weight="600" fill="#111" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">'+text+'</text>');
     c.push([tx-44,ty-12]); c.push([tx+44,ty+12]);
   }
-  function note(c, p3, text, dxs, dys){ const p=P(...p3); c.raw('<text x="'+(p[0]+dxs).toFixed(1)+'" y="'+(p[1]+dys).toFixed(1)+'" font-size="11" fill="#5d5d5d">'+text+'</text>'); c.push([p[0]+dxs-10,p[1]+dys-12]); c.push([p[0]+dxs+text.length*5.6,p[1]+dys+4]); }
+  function note(c, p3, text, dxs, dys, anchor){ const p=P(...p3); c.raw('<text x="'+(p[0]+dxs).toFixed(1)+'" y="'+(p[1]+dys).toFixed(1)+'" font-size="11" fill="#5d5d5d" text-anchor="'+(anchor||'start')+'">'+text+'</text>'); const w=text.length*5.6; const l=anchor==='end'?w:(anchor==='middle'?w/2:10), r=anchor==='end'?10:(anchor==='middle'?w/2:w); c.push([p[0]+dxs-l,p[1]+dys-12]); c.push([p[0]+dxs+r,p[1]+dys+4]); }
 
   function booth(c){
-    // vent housings on the far face (mostly hidden from this camera) — hidden edges dashed
+    const seam='stroke="#333" stroke-width="0.6"';
+    // vent housings on the far (N) face — hidden edges dashed; the end face that faces the camera is drawn
     vents.forEach(([x0,x1])=>{
       c.poly([[x0,D,0],[x1,D,0],[x1,DV,0],[x0,DV,0]], '', HID);
       c.line([x1,DV,0],[x1,DV,ventH],HID); c.line([x0,DV,0],[x0,DV,ventH],HID);
       c.line([x0,DV,ventH],[x1,DV,ventH],HID);
-      c.poly([[x1,D,0],[x1,DV,0],[x1,DV,ventH],[x1,D,ventH]], '', 'fill="#d8d6cf" stroke="#333" stroke-width="1" stroke-linejoin="round"');
+      const xe = CAM==='SE' ? x1 : x0;
+      c.poly([[xe,D,0],[xe,DV,0],[xe,DV,ventH],[xe,D,ventH]], '', 'fill="#d8d6cf" stroke="#333" stroke-width="1" stroke-linejoin="round"');
       c.poly([[x0,D,ventH],[x1,D,ventH],[x1,DV,ventH],[x0,DV,ventH]], '', 'fill="#eceae5" stroke="#333" stroke-width="1" stroke-linejoin="round"');
     });
-    // main box: south face, east face, top
-    c.poly([[0,0,0],[W,0,0],[W,0,H],[0,0,H]], '', F2);
-    c.poly([[W,0,0],[W,D,0],[W,D,H],[W,0,H]], '', F3);
-    c.poly([[0,0,H],[W,0,H],[W,D,H],[0,D,H]], '', F1);
-    // mat + floor seam lines on the visible faces (5/16 mat, 1" floor, walls above)
-    c.line([0,0,1.3125],[W,0,1.3125],'stroke="#333" stroke-width="0.6"'); c.line([W,0,1.3125],[W,D,1.3125],'stroke="#333" stroke-width="0.6"');
-    c.line([0,0,H-1.75],[W,0,H-1.75],'stroke="#333" stroke-width="0.6"'); c.line([W,0,H-1.75],[W,D,H-1.75],'stroke="#333" stroke-width="0.6"');
-    // door frame on the south face (frame only; the swung leaf is deliberately not part of the extent)
+    const xs = CAM==='SE' ? W : 0;                        // the side wall that faces the camera
+    c.poly([[0,0,0],[W,0,0],[W,0,H],[0,0,H]], '', F2);    // door wall
+    c.poly([[xs,0,0],[xs,D,0],[xs,D,H],[xs,0,H]], '', F3); // side wall
+    c.poly([[0,0,H],[W,0,H],[W,D,H],[0,D,H]], '', F1);    // top
+    [1.3125, H-1.75].forEach(z=>{ c.line([0,0,z],[W,0,z],seam); c.line([xs,0,z],[xs,D,z],seam); });
     c.poly([[door[0],0,1.3125],[door[1],0,1.3125],[door[1],0,doorH],[door[0],0,doorH]], '', 'fill="#e8e6e0" stroke="#333" stroke-width="0.9"');
-    c.line([door[0]+3,0,1.3125],[door[0]+3,0,doorH],'stroke="#333" stroke-width="0.6"');
-    c.raw('<circle cx="'+P(door[1]-4,0,40)[0].toFixed(1)+'" cy="'+P(door[1]-4,0,40)[1].toFixed(1)+'" r="1.8" fill="#333"/>');
-    // ground shadow line for orientation
-    note(c,[0,DV,ventH],'vent housings on the far (N) face, +5 1/2" (dashed = hidden)',-150,-10);
+    c.line([door[0]+3,0,1.3125],[door[0]+3,0,doorH],seam);
+    const k=P(door[1]-4,0,40); c.raw('<circle cx="'+k[0].toFixed(1)+'" cy="'+k[1].toFixed(1)+'" r="1.8" fill="#333"/>');
+    note(c,[0,DV,ventH],'vent housings on the far (N) face, +5 1/2" (dashed = hidden)', CAM==='SE'?-150:-150, CAM==='SE'?-10:-22);
     note(c,[door[1]+3,0,4],'door wall = front',0,0);
   }
 
   const G=24;
-  // ---------- A: height off the rear ----------
+  // ---------- A: front-right corner, height out to the side (chosen) ----------
+  CAM='SE';
   svgBuild(document.getElementById('figA'), c=>{
-    booth(c);
-    dim(c,[0,0,0],[W,0,0],[0,-G,0],"8' 2\"",{textSide:1});
-    dim(c,[W,0,0],[W,DV,0],[G,0,0],"6' 7 1/2\"",{textSide:1});
-    dim(c,[W,DV,0],[W,DV,H],[0,G,0],"7' 5/16\"",{textSide:1,textGap:34});
-    note(c,[W,DV+G,H],'height line stands off the REAR of the right-hand face',10,-8);
-    note(c,[W,DV+G,0],'24" standoff on all three',10,16);
-  });
-  // ---------- A′: height off the side ----------
-  svgBuild(document.getElementById('figA2'), c=>{
     booth(c);
     dim(c,[0,0,0],[W,0,0],[0,-G,0],"8' 2\"",{textSide:1});
     dim(c,[W,0,0],[W,DV,0],[G,0,0],"6' 7 1/2\"",{textSide:1});
     dim(c,[W,DV,0],[W,DV,H],[1.5*G,0,0],"7' 5/16\"",{textSide:1,textGap:34});
     note(c,[W+1.5*G,DV,H],'height line 36" out to the SIDE, past the depth line',10,-8);
     note(c,[W+1.5*G,DV,0],'the two witness lines overlap on the ground here',10,18);
+    note(c,[W/2,-G,0],'set at the FRONT-RIGHT corner (camera on the right)',-10,50,'middle');
   });
+  // ---------- R: rotated to the front-left corner, drawn from a front-left camera ----------
+  CAM='SW';
+  svgBuild(document.getElementById('figR'), c=>{
+    booth(c);
+    dim(c,[0,0,0],[W,0,0],[0,-G,0],"8' 2\"",{textSide:1});
+    dim(c,[0,DV,0],[0,0,0],[-G,0,0],"6' 7 1/2\"",{textSide:1});
+    dim(c,[0,DV,0],[0,DV,H],[-1.5*G,0,0],"7' 5/16\"",{textSide:-1,textGap:34});
+    note(c,[-1.5*G,DV,H],'height up the rear-LEFT corner, 36" out to the left',-10,-8,'end');
+    note(c,[W/2,-G,0],'set at the FRONT-LEFT corner (camera on the left)',10,50,'middle');
+  });
+  CAM='SE';
+  // ---------- C: plan compass of the four corners ----------
+  (function(){
+    const s=1.1, ox=150, oy=30, X=x=>ox+x*s, Y=y=>oy+(DV+30-y)*s; const p=[];
+    p.push('<rect x="'+X(0)+'" y="'+Y(D)+'" width="'+(W*s)+'" height="'+(D*s)+'" fill="#e2e0da" stroke="#333"/>');
+    vents.forEach(([a,b])=>p.push('<rect x="'+X(a)+'" y="'+Y(DV)+'" width="'+((b-a)*s)+'" height="'+(VP*s)+'" fill="#d8d6cf" stroke="#333"/>'));
+    p.push('<line x1="'+X(door[0])+'" y1="'+Y(0)+'" x2="'+X(door[1])+'" y2="'+Y(0)+'" stroke="#8b4513" stroke-width="3"/>');
+    p.push('<text x="'+X(W/2)+'" y="'+(Y(0)+14)+'" font-size="10" fill="#5d5d5d" text-anchor="middle">door wall = front</text>');
+    const corners=[['1',W,0,'front-right (default)',1],['2',0,0,'front-left - first press',-1],['3',0,DV,'rear-left',-1],['4',W,DV,'rear-right',1]];
+    corners.forEach(([n,x,y,lab,side])=>{ const cx=X(x),cy=Y(y); p.push('<circle cx="'+cx+'" cy="'+cy+'" r="10" fill="'+(n==='1'?'#ee6216':'#fff')+'" stroke="#ee6216" stroke-width="1.5"/><text x="'+cx+'" y="'+(cy+4)+'" font-size="11" font-weight="700" text-anchor="middle" fill="'+(n==='1'?'#fff':'#ee6216')+'">'+n+'</text>');
+      p.push('<text x="'+(cx+side*14)+'" y="'+(cy+(y>0?-8:16))+'" font-size="10" fill="#5d5d5d" text-anchor="'+(side>0?'start':'end')+'">'+lab+'</text>'); });
+    p.push('<text x="'+X(W/2)+'" y="'+(oy-12)+'" font-size="11" fill="#1a1a1a" text-anchor="middle" font-weight="600">ROTATE goes 1 > 2 > 3 > 4 > 1 (plan, N up)</text>');
+    document.getElementById('figC').innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+(ox*2+W*s)+' '+(oy+(DV+30)*s+30)+'" width="100%" font-family="Arial, Helvetica, sans-serif">'+p.join('')+'</svg>';
+  })();
 
   // ---------- B: plan set with interior clear (2D, north up) ----------
   (function(){

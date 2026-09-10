@@ -1,60 +1,62 @@
-# HANDOFF — Scoper → Benton (approval) → Builder: click a WhisperRoom, get its dimensions
+# HANDOFF — Scoper → Builder: click a WhisperRoom, get its dimensions (rev 2)
 
 2026-09-10. Prior mission's handoff preserved as `.forge/scoper/HANDOFF-scene-annotations.md`.
-**Approval gate: Benton has not approved anything yet. No code until he points at a variant.**
+**Benton approved the layout (rev 1's "A′", now A) and asked for a ROTATE button.** Q2 (the
+optional plan/interior set B) is still being asked; build A only, B is a bolt-on.
 
 ## Produced
-- `.forge/scoper/booth-dimensions-spec.md` — what the reference image is (decoded to an
-  MDL 7296 E), the height figure settled, nine named defects in today's tools, eleven
-  decisions, the identification / extent / anchor / placement rules, ownership and removal,
-  panel wiring, twelve bridge-verified acceptance checks, ten open questions with defaults.
-- `.forge/scoper/booth-dimensions-mockup.html` — standalone, inline SVG, to scale from the
-  7296 E's own numbers: **A** (three dims, height off the rear — recommended), **A′** (height
-  off the side, for a booth against a wall), **B** (optional plan set with interior clear).
-  Rendered in headless Chrome and inspected; no external resources.
+- `.forge/scoper/booth-dimensions-spec.md` rev 2 — §7 is now one corner table (FR/FL/RL/RR);
+  §7b ROTATE: a rotation through the four corners (first press = the other side), a second
+  pick-then-do panel button, always rebuilt from the model (never transformed), corner stored
+  per booth on the group, comply-and-say when a side is blocked; §9 three scripts; §10 adds
+  rotation acceptance (5, 5b); §11 records Benton's Q1 and the coordinator's Q4/Q6.
+- `.forge/scoper/booth-dimensions-mockup.html` rev 2 — A (chosen, front-right corner, side
+  push) drawn from a front-right camera; ROTATE panel drawn from a **front-left camera** with
+  its own projection and face order (not a mirror); a plan compass of the four corners and
+  the press order; the rear-push layout demoted to a "not chosen" note; B unchanged.
+  Rendered in headless Chrome and inspected. Same file path — republish to the same URL.
 - Nothing under `scripts/` touched; VERSION untouched.
 
 ## Read-first (Builder)
-1. Spec §1 (the height), §3 (defects D1–D3 are the load-bearing ones), §6–§7 (extent and
-   anchors) — that is the whole design; §10 is the exit criterion.
+1. Spec §7 + §7b (the corner table and ROTATE are the whole placement design), §6 (extent),
+   §7 attachment, §8 ownership; §10 is the exit criterion — checks 5 and 5b are new.
 2. `scripts/dimension-booth.rb` 173-330 — keep its identification and `vents_from_model`
-   regexes; discard its `draw`, `HEIGHTS`, `BASE_Z`, `VENT_PROUD`-as-drawn, and the label.
-3. `scripts/auto-dimension.rb` 1.17.0 attachment code (resolve to vertex / ConstructionPoint,
-   count `:loose`) — the precedent for §7.
+   regexes; discard `draw`, `HEIGHTS`, `BASE_Z`, the label, all `@setting`s.
+3. `scripts/auto-dimension.rb` 1.17.0 attachment code (vertex / ConstructionPoint, `:loose`
+   counted) — the precedent for the anchors.
 4. `scripts/build-booth-components.rb` 2440-2460, 2660-2680, 1262-1270; `scripts/wr-deck.rb`
-   `NAME` / `ENH_NAME` (318, 346); `scripts/wr-overlays.rb` `add` (650) and 1416 — the part
-   names the extent rules key on.
-5. `scripts/proposal-scenes.rb` 40-115 — the tag stays `WR-Dims-Booth`; nothing there changes.
+   `NAME` / `ENH_NAME` (318, 346); `scripts/wr-overlays.rb` `add` (650), 1416 — part names
+   the extent rules key on.
+5. `scripts/proposal-scenes.rb` 40-115 — the tag stays `WR-Dims-Booth`; nothing changes.
 6. `scripts/sketchup-bridge.py` header — every acceptance check runs through it.
-7. Benton's answers to Q1–Q10 (spec §11), which override the defaults.
+7. Benton's answer to Q2 when it arrives (adds script B; changes nothing in A).
 
 ## Assumptions
-- **observed (code):** all three current tools, their tags, colours, settings, placement,
-  `clear` scope; the 7296/96120 data; the part-naming conventions; the 46VNT / door part
-  sizes in `P:\Sketchup\NewMasterComponentList\_component-probe.tsv`; the bridge exists.
-- **derived:** the reference image's three strings = 98 / 74+5.5 / 84.3125 → a 7296 with
-  Enhanced height; 84.3125 = mat underside → tray top from the builder's own datums (mat
-  −1.3125, ceiling top 82.0, tray drop 0.75, tray box 1.75); the current Enhanced height
-  string floats 5/16" at both ends after the 1.33.0 lift; a built 96120 once had its E vent
-  ~6 7/16" proud, so measured geometry and the 5.5" rule can disagree.
-- **reported:** the reference image itself (operator's description — I have not seen it);
-  the `InstancePath` overload of `add_dimension_linear` for nested vertices (API memory —
-  Builder verifies on the bridge first; ConstructionPoint fallback is specified).
-- **assumed:** Benton's usual camera is front-right three-quarter (the proposal plates lead
-  with one); "click a whisperroom" means a pick, not a selection observer.
-- Not verified: anything in a live SketchUp. I cannot run it; the Builder must, via the
-  bridge, on a 7296 E, a 96120 S and a 96120 E.
+- **observed (code):** the three current tools, their tags, colours, settings, placement,
+  `clear` scope; the 7296/96120 data; part-naming conventions; the 46VNT / door sizes in
+  `P:\Sketchup\NewMasterComponentList\_component-probe.tsv`; the bridge exists.
+- **derived:** the reference image = 98 / 74+5.5 / 84.3125 → a 7296 with Enhanced height;
+  84.3125 = mat underside → tray top from the builder's own datums; the current Enhanced
+  height string floats 5/16" at both ends after the 1.33.0 lift; a built 96120 once had its E
+  vent ~6 7/16" proud, so measured geometry and the 5.5" rule can disagree (Q4 decided: the
+  dimension reads what is drawn).
+- **reported:** Benton's rev-2 words (via the coordinator); the reference image itself; the
+  `InstancePath` overload of `add_dimension_linear` for nested vertices (API memory — verify
+  on the bridge first; ConstructionPoint fallback is specified).
+- **assumed:** Benton's cameras are front-right and front-left three-quarters; "rotate" means
+  the whole set moves to another corner (his description: right side → left side), and the
+  rear corners are wanted for rear/ventilation plates — cheap either way (same table).
+- Not verified: anything in a live SketchUp. I cannot run it.
 
-## Open-questions (for Benton — the mockup carries the short form)
-1. Q1 height off the rear (A) or the side (A′), or auto by what is behind the booth.
-2. Q2 three only (A) or also the plan/interior set (B).
-3. Q3 was the reference hand-drawn with SketchUp's own tool, or the old tool's output moved.
-4. Q4 drawn geometry vs the 5 1/2" vent rule when they disagree — and whether the builder's
-   vent seating should be fixed to 5 1/2" (separate job).
-5. Q5 Enhanced interior clear height (only if B).
-6. Q6 24" standoff. Q7 pick tool + select-then-button. Q8 clear per booth / Esc = all.
-   Q9 auto-dimension after Booth-from-link (default no). Q10 black confirmed.
+## Open-questions
+1. **Q2** three strings only, or also the plan set B with interior clear — being asked now;
+   build A, keep B as its own script/tag.
+2. Q3 hand-drawn reference or moved tool output — not blocking.
+3. Q5 Enhanced interior clear height — only if B; not blocking.
+4. Nicety, not asked: arrow-key rotation while the Dimension pick tool is live. Left out of
+   this build deliberately (spec §7b); raise with Benton only if the button feels slow.
 
 ## Blockers
-- None for approval. For the build: Q4 decides whether acceptance check 1 is expected to pass
-  clean or to print the mismatch block on the first 7296 E.
+- None. Q4 is decided, so acceptance check 1 on a 7296 E is expected to either read
+  `8' 2" / 6' 7 1/2" / 7' 5/16"` or print the `***` vent-seat mismatch block — both pass;
+  a silent wrong number is the only fail. The vent seat itself is a separate builder fix.
