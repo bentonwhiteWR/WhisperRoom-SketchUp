@@ -1395,7 +1395,10 @@
       "<hr>" +
       '<div class="mi" data-m="shopdefaults" title="Write this panel\'s slots, stars and collapsed sections into the repo as the defaults everyone gets">' +
         useSvg("gl", "g-save") + "Save this layout as the shop default…" +
-        '<span class="hint">writes defaults.json</span></div>';
+        '<span class="hint">writes defaults.json</span></div>' +
+      '<div class="mi" data-m="shopreset" title="Replace your whole toolbar arrangement, stars, collapsed sections and per-script settings with the shop default. Asks first; no undo.">' +
+        useSvg("gl", "g-rescan") + "Reset to shop default…" +
+        '<span class="hint">icons after restart</span></div>';
     Array.prototype.forEach.call($menu.querySelectorAll(".mi[data-m]"), function (el) {
       el.addEventListener("click", function (e) {
         e.stopPropagation();
@@ -1433,6 +1436,7 @@
     else if (m === "folder")       sketchup.folder();
     else if (m === "console")      sketchup.console();
     else if (m === "shopdefaults" && sketchup.shopdefaults) sketchup.shopdefaults();
+    else if (m === "shopreset" && sketchup.shopreset) sketchup.shopreset();
   }
 
   function applyCompact() {

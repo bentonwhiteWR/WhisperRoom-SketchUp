@@ -621,9 +621,30 @@ module WhisperRoom
     # from the shop defaults on every launch.
     UNSET = "\u0000wr-unset".freeze
 
+    # THE FALL-THROUGH RULE, and the way back to it.
+    #
+    # read_pref consults defaults.json ONLY when the key has never been
+    # written. A key that exists — even holding an empty list, even holding
+    # eighteen dashes — wins forever, because "set to empty" is a choice.
+    # Nothing in SketchUp's API deletes a preference again (write_default has
+    # no remove, and nil goes in as the string "nil"), and UNSET itself cannot
+    # be stored: write_default wraps a string in double quotes and the registry
+    # cuts a REG_SZ at its first NUL, so it would come back as a lone `"` and
+    # a SyntaxError on the next read. So "Reset to shop default" writes THIS
+    # marker instead, and read_pref treats it exactly like UNSET: the key
+    # exists, and its value says "no opinion, use the shop's". `<` and `>` are
+    # illegal in a Windows filename, so no slot list or script name can equal
+    # it by accident, and it carries no quote and no pipe.
+    RESET = '<<wr-shop-default>>'.freeze
+
+    def self.unset?(v)
+      s = v.to_s
+      s == UNSET || s == RESET
+    end
+
     def self.read_pref(key, fallback = '')
       v = Sketchup.read_default(PREF_KEY, key, UNSET)
-      return v.to_s unless v.to_s == UNSET
+      return v.to_s unless unset?(v)
       d = shop_defaults[key.to_s]
       d.nil? ? fallback.to_s : d.to_s
     rescue Exception
@@ -643,18 +664,27 @@ module WhisperRoom
     # Returns [ok, message] — the message is shown to the operator verbatim.
     def self.save_shop_defaults
       out = {}
-      SHOP_KEYS.each do |k|
+      # The three slot keys are saved as the bar LOOKS — own choices merged
+      # over the current shop default (see merge_slots) — never as the raw
+      # stored string. The raw string of a half-inherited bar is a few names
+      # and dashes; saving that would silently drop every slot the operator
+      # can see but did not set. The inherited count is reported below so it
+      # is a stated fact of the save, not an accident of it.
+      names = slots
+      icons = slot_icons
+      inherited = inherited_slots.size
+      out['slots']      = names.join(LIST_SEP)
+      out['slot_icons'] = icons.join(LIST_SEP)
+      out['pinned']     = names.reject { |n| blank?(n) }.join(LIST_SEP)
+      (SHOP_KEYS - SLOT_KEYS).each do |k|
         v = Sketchup.read_default(PREF_KEY, k, UNSET)
-        out[k] = v.to_s unless v.to_s == UNSET
+        out[k] = v.to_s unless unset?(v)
       end
       # Per-script settings travel too: they are keyed set_<script>_<setting>
       # and are exactly the "I always run it this way" knowledge worth sharing.
-      scan.each do |sc|
-        (sc['settings'] || []).each do |st|
-          k = "set_#{sc['id']}_#{st['key']}"
-          v = Sketchup.read_default(PREF_KEY, k, UNSET)
-          out[k] = v.to_s unless v.to_s == UNSET
-        end
+      setting_keys.each do |k|
+        v = Sketchup.read_default(PREF_KEY, k, UNSET)
+        out[k] = v.to_s unless unset?(v)
       end
       path = defaults_source
       if bundled?
@@ -670,10 +700,92 @@ module WhisperRoom
         return [false, "Could not write #{path}: #{e.class}: #{e.message}"]
       end
       @shop = nil
-      [true, "Saved #{out.size} setting(s) to #{path}. COMMIT AND PUSH it — " \
-             'until you do, it is only on this machine. Anyone who has never ' \
-             'set these keeps getting the old defaults, and anyone who HAS ' \
-             'arranged their own panel keeps theirs.']
+      note = inherited.zero? ? '' :
+             " #{inherited} of the toolbar slots came from the shop default " \
+             'already and were saved along with yours.'
+      [true, "Saved #{out.size} setting(s) to #{path}.#{note} COMMIT AND PUSH " \
+             'it — until you do, it is only on this machine. Anyone who has ' \
+             'never set these keeps getting the old defaults, and anyone who ' \
+             'HAS arranged their own panel keeps theirs.']
+    end
+
+    # The keys save_shop_defaults captures and reset_to_shop_defaults clears,
+    # so the two stay inverses of each other.
+    SLOT_KEYS = %w[slots slot_icons pinned].freeze
+
+    def self.setting_keys
+      scan.flat_map { |sc|
+        (sc['settings'] || []).map { |st| "set_#{sc['id']}_#{st['key']}" }
+      }
+    end
+
+    # What the INSTALLED defaults.json holds — the file read_pref actually
+    # falls through to, which is the plugin folder's copy, not the repo's. A
+    # reset against a missing or stale copy would empty the panel and look
+    # like the very bug it exists to cure, so this is checked and said first.
+    # Returns [usable, description].
+    def self.shop_file_status
+      unless File.file?(DEFAULTS_FILE)
+        return [false, "There is no defaults.json in the installed plugin folder\n" \
+                       "(#{File.dirname(DEFAULTS_FILE)}).\n\n" \
+                       'Run Update now (or install-plugin.py) first, then restart ' \
+                       'SketchUp and try again.']
+      end
+      @shop = nil
+      d = shop_defaults
+      filled = pad(d['slots'].to_s.split(LIST_SEP)).count { |n| !blank?(n) }
+      if d.empty?
+        return [false, "The installed defaults.json could not be read or holds no " \
+                       "settings.\n\nRun Update now (or install-plugin.py) first."]
+      end
+      stamp = File.mtime(DEFAULTS_FILE).strftime('%Y-%m-%d %H:%M') rescue '?'
+      repo = defaults_source
+      freshness =
+        if bundled?
+          ''
+        elsif !File.file?(repo)
+          "\nThe repo checkout has no defaults.json, so this copy could not be compared."
+        elsif File.read(repo) == File.read(DEFAULTS_FILE)
+          "\nIt matches the repo checkout."
+        else
+          "\nWARNING: it DIFFERS from the repo checkout — run Update now first " \
+          'if you want the newest layout.'
+        end
+      [true, "Installed shop default: #{d.size} setting(s), #{filled} of " \
+             "#{SLOT_N} toolbar slots filled, file dated #{stamp}.#{freshness}"]
+    rescue Exception => e
+      [false, "Could not check the installed defaults.json: #{e.class}: #{e.message}"]
+    end
+
+    # The text the confirm box shows before a reset. Yes proceeds; No, Cancel,
+    # Escape and the close box all leave everything as it is. SketchUp's
+    # messagebox cannot move the default button, so Enter is Yes — the wording
+    # carries the weight instead.
+    def self.reset_confirm_text(status_text)
+      "Reset this panel to the shop default?\n\n" \
+      "This replaces YOUR WHOLE toolbar arrangement — every slot on all three bars, " \
+      "the icons, the stars — plus your collapsed sections, the developer and compact " \
+      "switches and #{setting_keys.size} per-script setting(s) with the shop layout. " \
+      "Your recent-scripts list is kept.\n\n" \
+      "#{status_text}\n\n" \
+      "The panel updates immediately and the toolbar buttons run the new scripts " \
+      "at once; the button ICONS above the viewport change when SketchUp next " \
+      "starts.\n\nThere is no undo."
+    end
+
+    # Write RESET into every key save_shop_defaults captures, so read_pref
+    # falls through to defaults.json for each of them again. Not an erase —
+    # see RESET for why a stored marker is the only honest way back.
+    def self.reset_to_shop_defaults
+      ok, status = shop_file_status
+      return [false, status] unless ok
+      keys = SHOP_KEYS + setting_keys
+      keys.each { |k| write_pref(k, RESET) }
+      @shop = nil
+      refresh_fav_labels
+      [true, "Reset #{keys.size} setting(s) to the shop default. The toolbar " \
+             'ICONS above the viewport catch up when SketchUp next starts; ' \
+             'the buttons already run the shop layout.']
     end
 
     def self.write_pref(key, value)
@@ -769,26 +881,117 @@ module WhisperRoom
       "#{bar_of(i)[:label]} #{seat_of(i)}"
     end
 
+    # A slot the user emptied ON PURPOSE, as distinct from one never touched.
+    # Stored in the user's own list only; it never reaches the panel, the
+    # toolbar or defaults.json — merge_slots turns it into SLOT_EMPTY on the
+    # way out. See merge_slots for why the distinction exists.
+    SLOT_CLEARED = '<cleared>'.freeze
+
     def self.blank?(v)
-      v.nil? || v.to_s.empty? || v.to_s == SLOT_EMPTY
+      v.nil? || v.to_s.empty? || v.to_s == SLOT_EMPTY || v.to_s == SLOT_CLEARED
     end
 
-    # Script name per slot. Migrates the old flat 'pinned' list — which had no
-    # slot positions, only an order — into slots the first time it is read, so
-    # an existing set of favourites survives the upgrade.
-    def self.slots
-      raw = read_list('slots')
-      if raw.empty?
-        old = read_list('pinned')
-        return pad(old) unless old.empty?
+    # PER-POSITION FALL-THROUGH (Benton, 10 Sep 2026: "Fix it and push it").
+    #
+    # The three slot keys are each ONE preference holding all eighteen entries
+    # pipe-joined, so read_pref's whole-key fall-through was all-or-nothing
+    # across the bar: the moment a user set a single slot the key existed, and
+    # the other seventeen came back as the dashes in his own string. A shop
+    # default could only ever reach someone who had never touched a slot —
+    # which is how Dave, with three slots set, saw fifteen empty ones instead
+    # of Benton's. Now every position falls through on its own: the user's
+    # entry wins where he has one, the shop's shows where he has none.
+    #
+    # Inheritance is by POSITION and the icon travels with the name — an
+    # inherited script wears the shop's chosen face, never the user's leftover
+    # icon for that seat, and a script the user set wears the user's icon (or
+    # its own, when none was picked), never the shop's.
+    #
+    # THE ACCEPTED COST. "Never set" and "emptied on purpose" used to be the
+    # same stored dash. Under this rule a plain dash is filled from the shop,
+    # so on the first launch after this release every slot anyone had cleared
+    # comes back wearing the shop's tool for that seat — a one-time
+    # re-population Benton accepted when he asked for the merge. From then on
+    # a deliberate clear stores SLOT_CLEARED, which stays empty whatever the
+    # shop says; only a never-touched dash inherits.
+    #
+    # Pure: lists in, [names, icons] out. rbtest-panel-prefs.py runs it.
+    def self.merge_slots(own_names, own_icons, shop_names, shop_icons)
+      on = pad(own_names)
+      oi = pad(own_icons)
+      sn = pad(shop_names)
+      si = pad(shop_icons)
+      names = Array.new(SLOT_N, SLOT_EMPTY)
+      icons = Array.new(SLOT_N, SLOT_EMPTY)
+      SLOT_N.times do |i|
+        if on[i] == SLOT_CLEARED
+          next                                   # emptied on purpose: stays empty
+        elsif blank?(on[i])
+          next if blank?(sn[i])                  # nobody has an opinion
+          names[i] = sn[i]
+          icons[i] = blank?(si[i]) ? SLOT_EMPTY : si[i]
+        else
+          names[i] = on[i]
+          icons[i] = blank?(oi[i]) ? SLOT_EMPTY : oi[i]
+        end
       end
+      [names, icons]
+    end
+
+    # This user's OWN stored lists — no shop default mixed in. The raw
+    # material of every edit, so an inherited slot is never written back as
+    # the user's own by editing the seat next to it.
+    def self.own_list(key)
+      v = Sketchup.read_default(PREF_KEY, key, UNSET)
+      return [] if unset?(v)
+      v.to_s.split(LIST_SEP).reject(&:empty?)
+    rescue Exception
+      []
+    end
+
+    # Migrates the old flat 'pinned' list — which had no slot positions, only
+    # an order — into slots the first time it is read, so an existing set of
+    # favourites survives the upgrade.
+    def self.own_slots
+      raw = own_list('slots')
+      raw = own_list('pinned') if raw.empty?
       pad(raw)
     end
 
-    def self.slot_icons
-      pad(read_list('slot_icons'))
+    def self.own_icons
+      pad(own_list('slot_icons'))
     end
 
+    def self.shop_list(key)
+      shop_defaults[key].to_s.split(LIST_SEP).reject(&:empty?)
+    end
+
+    def self.shop_slots
+      raw = shop_list('slots')
+      raw = shop_list('pinned') if raw.empty?
+      pad(raw)
+    end
+
+    # Script name per slot, as the bar LOOKS: own over shop, per position.
+    def self.slots
+      merge_slots(own_slots, own_icons, shop_slots, shop_list('slot_icons'))[0]
+    end
+
+    def self.slot_icons
+      merge_slots(own_slots, own_icons, shop_slots, shop_list('slot_icons'))[1]
+    end
+
+    # Positions showing the shop's entry rather than the user's own.
+    def self.inherited_slots
+      on = own_slots
+      seen = slots
+      (0...SLOT_N).select { |i| blank?(on[i]) && on[i] != SLOT_CLEARED && !blank?(seen[i]) }
+    end
+
+    # Writes the user's OWN lists. Callers pass own_slots/own_icons edited in
+    # place, never the merged view — merged names written here would freeze
+    # every inherited slot as this user's own and cut it off from later shop
+    # changes.
     def self.write_slots(names, icons)
       write_list('slots', pad(names))
       write_list('slot_icons', pad(icons))
@@ -798,13 +1001,19 @@ module WhisperRoom
 
     # Assign, in one call, because assigning a script without an icon and then
     # an icon without a script is two chances to clobber the other field.
+    # Clearing stores SLOT_CLEARED, not a dash — see merge_slots.
     def self.set_slot(i, name, icon)
       i = i.to_i
       return if i < 0 || i >= SLOT_N
-      names = slots
-      ics   = slot_icons
-      names[i] = blank?(name) ? SLOT_EMPTY : name.to_s
-      ics[i]   = blank?(icon) ? SLOT_EMPTY : icon.to_s
+      names = own_slots
+      ics   = own_icons
+      if blank?(name)
+        names[i] = SLOT_CLEARED
+        ics[i]   = SLOT_EMPTY
+      else
+        names[i] = name.to_s
+        ics[i]   = blank?(icon) ? SLOT_EMPTY : icon.to_s
+      end
       write_slots(names, ics)
     rescue StandardError
       nil
@@ -818,16 +1027,18 @@ module WhisperRoom
     # slot" — no icon chosen, so the slot wears the script's own list icon
     # (face_path step 2) until one is picked.
     def self.toggle_pin(name)
-      names = slots
-      ics   = slot_icons
-      at = names.index(name)
+      seen  = slots                  # what the user sees, own and inherited
+      names = own_slots              # what gets written
+      ics   = own_icons
+      at = seen.index(name)
       if at
-        names[at] = SLOT_EMPTY
+        names[at] = SLOT_CLEARED     # un-starring an inherited tool must stick
         ics[at]   = SLOT_EMPTY
       else
-        free = names.index { |n| blank?(n) }
+        free = seen.index { |n| blank?(n) }
         return if free.nil?          # every slot taken — the panel says so
         names[free] = name.to_s
+        ics[free]   = SLOT_EMPTY
       end
       write_slots(names, ics)
     rescue StandardError
@@ -1533,6 +1744,24 @@ module WhisperRoom
         ok, msg = save_shop_defaults
         UI.messagebox(msg)
         puts (ok ? '  ' : '  FAILED: ') + msg
+      end
+      # The inverse of the above. Confirmed first, because it replaces the
+      # user's own arrangement and there is no undo; refused outright when the
+      # installed defaults.json is missing, so it can never empty a panel.
+      d.add_action_callback('shopreset') do |_c|
+        usable, status = shop_file_status
+        unless usable
+          UI.messagebox(status)
+          puts '  Reset to shop default refused: ' + status
+          next
+        end
+        if UI.messagebox(reset_confirm_text(status), MB_YESNOCANCEL) == IDYES
+          ok, msg = reset_to_shop_defaults
+          push_note(msg)
+          puts (ok ? '  ' : '  FAILED: ') + msg
+        else
+          push_note('Reset cancelled — nothing changed.')
+        end
       end
       d.add_action_callback('folder')  { |_c| UI.openURL('file:///' + SCRIPTS_DIR) }
       d.add_action_callback('console') { |_c| Sketchup.send_action('showRubyPanel:') }

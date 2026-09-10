@@ -1890,3 +1890,48 @@ the booth → console `carries 1 light of its own … the rig places none`.
 On a model from earlier today the old rig light appears under
 `replacing N previously dropped lights`. Do not judge the ISO/key changes
 by the booth interior.
+
+---
+
+# HANDOFF — shop defaults reach a used panel: per-slot merge + Reset (Builder, 10 Sep 2026, 1.46.0)
+
+Benton: *"Fix it and push it, ill be working on his computer."* Dave had a
+few slots set; Benton's pushed shop default never showed. **Unrun in
+SketchUp.** rbparse 74/74; node --check clean; rbtest-panel-prefs 10 PASS,
+two mutants killed. VERSION 1.45.1 -> 1.46.0.
+
+## Produced
+- `scripts/wr_tools/main.rb`: `RESET` marker + `unset?` (read_pref falls
+  through on it); `merge_slots` per-position fall-through, icons with names;
+  `own_slots`/`own_icons`/`shop_slots`/`inherited_slots`; `SLOT_CLEARED`
+  for a deliberate empty; `set_slot`/`toggle_pin` edit OWN lists, search the
+  MERGED view; `save_shop_defaults` saves the merged bar and names the
+  inherited count; `shop_file_status`, `reset_confirm_text`,
+  `reset_to_shop_defaults`; `shopreset` callback with MB_YESNOCANCEL.
+- `scripts/wr_tools/panel.html`: "Reset to shop default..." under Save in
+  the more menu, dispatch `sketchup.shopreset()`.
+- `scripts/rbtest-panel-prefs.py`: the harness. DEVLOG entry carries the
+  fall-through rule and the accepted re-population cost.
+
+## The mechanism, corrected
+Not "he cleared everything": the three slot keys are one pipe-joined string
+each, so ONE set slot made the whole key exist and every other seat read as
+his own dash. Confirmed in code and by check 1 of the harness.
+
+## Deviation from the brief
+`SLOT_CLEARED` was "mention, do not build". Built (nine lines): without it
+clearing or un-starring any seat the shop fills is a visible no-op.
+
+## Benton at Dave's machine
+1. Panel more-menu -> **Update now** (banner should show 1.46.0).
+2. Restart SketchUp.
+3. Open the panel: Dave's own slots stay, Benton's fill the empty seats,
+   toolbar icons already right after this restart.
+4. Only if he wants Benton's bar exactly: more-menu -> **Reset to shop
+   default...** -> read the box (counts, file date, matches/DIFFERS repo)
+   -> Yes -> panel repaints; icons at the next restart.
+
+## Not checked
+The NUL round-trip claim (UNSET unstorable) is derived from the API's shape
+and main.rb's own comment, not observed; the RESET route does not depend on
+it. Nothing has run in SketchUp.

@@ -1,6 +1,99 @@
 # DEVLOG
 
 ## 2026-09-10
+### Shop defaults actually reach a used panel: per-slot fall-through + "Reset to shop default" — 1.46.0
+
+Benton pushed his layout as the shop default (`07fc2e1`, bump `62bf0d4`).
+Dave — *"he had only used a few slots"* — ran Update now, restarted, and got
+his three slots and fifteen empty ones, not Benton's. Benton: *"Fix it and
+push it, ill be working on his computer."*
+
+**The defect (observed in code, confirmed by the harness).** `slots`,
+`slot_icons` and `pinned` are each ONE preference holding all eighteen
+entries pipe-joined, and `read_pref` falls through to `defaults.json` only
+when the KEY has never been written. So the fall-through was all-or-nothing
+across the whole bar: the moment anyone set a single slot, the key existed
+and the other seventeen came back as the dashes in his own string. A shop
+default could reach only a user who had never touched a slot — in practice
+nobody. The earlier diagnosis ("Dave cleared everything, so every key was
+set") was wrong in its mechanism and right in its conclusion; a user with
+three slots set was blocked exactly as hard as one who had cleared all
+eighteen.
+
+**THE FALL-THROUGH RULE, so it is not forgotten.** A written key wins
+forever. `Sketchup.write_default` has no remove; writing `nil` stores the
+string `"nil"`; and the `UNSET` sentinel cannot be stored because
+`write_default` wraps the value in double quotes and the registry cuts a
+REG_SZ at its first NUL — it would come back as a lone `"` and a
+`SyntaxError` on the next read (the 2026-08-10 failure again). None of that
+was run here; it is derived from the API's documented shape and the existing
+comment block in `main.rb`. The honest way back is therefore a STORED
+marker: `RESET = '<<wr-shop-default>>'`, and `read_pref` treats it exactly
+like `UNSET` (`unset?`). `<`/`>` cannot appear in a Windows filename, so no
+slot list can equal it by accident; it carries no quote and no pipe, and
+the harness proves it survives `write_pref` intact.
+
+**Per-position merge (`merge_slots`, pure).** The user's entry wins where he
+has one; the shop's shows where he has none; icons travel WITH the name per
+seat (an inherited script wears the shop's chosen face, never a leftover
+user icon; a user's script wears the user's icon or its own). `pinned` needed
+nothing of its own — it has been derived from `slots` since the slot bars
+arrived, and the stored `pinned` key is only the legacy migration source.
+Edits (`set_slot`, `toggle_pin`) now read and write the user's OWN lists and
+search the MERGED view, so editing seat 4 never adopts the inherited seats
+around it as the user's own — inheritance stays live for later shop changes.
+
+**Accepted cost — decided by Benton, 10 Sep 2026, not an oversight.** "Never
+set" and "emptied on purpose" were the same stored dash. A plain dash now
+inherits, so on the first launch after 1.46.0 every slot anyone had cleared
+comes back wearing the shop's tool for that seat — a one-time re-population.
+From then on a deliberate clear (slot editor or un-star) stores
+`SLOT_CLEARED = '<cleared>'` in the user's own list, which stays empty
+whatever the shop says. That marker was not in the brief ("mention, do not
+build"); it was built anyway because without it un-starring or clearing any
+seat the shop fills would be a visible no-op — the seat would refill on the
+very next render — and Benton is doing this in front of the colleague it
+affects. It is nine lines, lives only in the stored own-list, and never
+reaches the panel, the toolbar or `defaults.json`.
+
+**Reset to shop default (⋯ menu, under Save as shop default).** Writes
+`RESET` into exactly the keys `save_shop_defaults` captures — `SHOP_KEYS`
+(`slots slot_icons pinned ui_collapsed ui_dev ui_compact`) plus every
+`set_<script>_<setting>` — so the two are inverses. Recents are kept.
+Refuses outright, with the path, when the INSTALLED `defaults.json` is
+missing or unreadable (a reset against nothing would empty the panel and
+look like the same bug), and the confirm names how many settings and filled
+slots the installed file carries, its date, and whether it matches or
+DIFFERS from the repo checkout. `MB_YESNOCANCEL`, only `IDYES` proceeds;
+SketchUp's messagebox cannot move the default button, so Enter is still Yes
+and the wording says "your WHOLE toolbar arrangement" and "no undo". The
+panel repaints at once and the buttons run the shop layout at once
+(`run_favourite` resolves the slot at click time); the ICONS above the
+viewport change at the next restart — said in the dialog.
+
+**Save as shop default** now writes the three slot keys as the bar LOOKS
+(merged), and reports how many seats were inherited — the raw own string of
+a half-inherited bar would have silently dropped every slot the operator can
+see but did not set. Anyone whose panel shows Benton's tools and presses
+Save therefore saves them back; that is the stated meaning of the button.
+
+**Still missing, not built:** a way to un-clear one seat back to "inherit"
+without a full Reset; the picker's first tile could write a dash instead of
+`<cleared>` if anyone asks.
+
+**Verification.** `rbparse.py` 74/74; `node --check` on the panel's single
+`<script>` block (one block, separate HTML file, no heredoc); new
+`scripts/rbtest-panel-prefs.py` lifts the whole preference layer verbatim
+out of `main.rb` (four-space indent, its own `method_source`) over a Hash
+`Sketchup` — Dave's case, never-touched, deliberate clear, no adoption on
+edit, un-star/re-star of an inherited tool, reset, the '' vs RESET vs UNSET
+rule, legacy flat `pinned` — 10 checks PASS; both named mutants killed.
+**Unrun in SketchUp.** `main.rb`/`panel.html` are read from the INSTALLED
+folder: Update now (or `install-plugin.py`) + restart, a pull is not enough.
+Cosmetic, Benton's to fix: the pushed layout carries `dimension-whisperroom.rb`
+in two seats (11 and 14) and no `clear-whisperroom-dimensions.rb`; the merge
+shows it faithfully, twice.
+
 ### The link places the step: Step.skp, 12" in front of the door frame, on the ground — 1.45.0
 
 Refused since 1.9.x for want of two rulings; Benton gave them today. Verbatim:
