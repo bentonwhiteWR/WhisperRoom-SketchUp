@@ -1,0 +1,108 @@
+{
+ "client": "PeoplesSpace",
+ "docType": "Booth Renderings · Revised",
+ "date": "September 2026",
+ "contact": {
+  "phone": "(865) 558-5364",
+  "email": "info@whisperroom.com",
+  "web": "www.whisperroom.com"
+ },
+ "cover": {
+  "eyebrow": "Booth Renderings — Revised",
+  "headlineLead": "Sound isolation for",
+  "headlineLines": 3,
+  "sub": "",
+  "image": "renders-web/01-overview-render.jpg",
+  "captionLead": "MDL 96120 E with the ADA package.",
+  "caption": "The enclosure drawn into the alcove, with the ceiling and overhead services above it, the ramp at the doorway, a window in the door and a framed window in the wall alongside it.",
+  "cards": [
+   {
+    "label": "Booth",
+    "value": "MDL 96120 E",
+    "sub": "With ADA package"
+   },
+   {
+    "label": "Footprint",
+    "value": "8' 2\" × 10' 2\"",
+    "sub": "As drawn on the plan"
+   },
+   {
+    "label": "In this pack",
+    "value": "11 renderings",
+    "sub": "Exterior, dimensioned, plan"
+   }
+  ],
+  "calloutLead": "About these renderings.",
+  "callout": "A revision of the August renderings, redrawn to answer the review comments returned on that pack. The ceiling and structure above the enclosure are now drawn in, the ramp and the interior clear floor are dimensioned, the suggested power and cable-passage locations are noted on the drawings, the ventilation is shown on the roof of the enclosure with the fire extinguishers alongside, and the door and ramp are shown in both a left-hand and a right-hand option. Every figure quoted in a caption is transcribed from the callout on that drawing."
+ },
+ "sections": [
+  {
+   "num": "01",
+   "model": "MDL 96120 E",
+   "boothOf": "With ADA",
+   "extra": "Fort Vancouver Regional Library",
+   "lead": "<b>One MDL 96120 E enclosure with the ADA package</b>, drawn into the space as measured and revised from the August pack. The views that follow walk around the enclosure, show the two door options, and close on the plan.",
+   "plates": [
+    {
+     "image": "renders-web/02-overview-dimensioned.jpg",
+     "view": "Dimensioned Overview",
+     "caption": "Dimensioned three-quarter view of the enclosure in the alcove, with the ceiling and structure drawn above it and the overhead pipes crossing. The 10' 2\", 9' 5\", 8' 3 1/4\" and 8' 1 5/16\" vertical callouts, and the 10' 8 3/4\", 10' 2\", 8' 2\" and 9' 6 3/4\" floor callouts, are as drawn. The note on the drawing reads: \"Outlet on ceiling would be best spot for power. Could access the fan units as well as dropping into the WhisperRoom via CBL Passage Plugs.\""
+    },
+    {
+     "image": "renders-web/03-ramp-dimensions.jpg",
+     "view": "Ramp Dimensions",
+     "caption": "The ADA ramp at the doorway, dimensioned. The 3', 3' 10\" and 3' 10 5/8\" floor callouts, the 3 13/16\" vertical callout at the ramp edge, and the 10' 2\" callout along the alcove are as drawn."
+    },
+    {
+     "image": "renders-web/04-outlet-location.jpg",
+     "view": "Power Location",
+     "caption": "Detail above the door wall — the overhead pipes and the ceiling above the enclosure, with the suggested outlet position marked on the drawing: \"Outlet around here is perfect.\""
+    },
+    {
+     "image": "renders-web/05-cable-passage-plugs.jpg",
+     "view": "Cable Passage Plugs",
+     "caption": "Looking in through the open door at the acoustic-foam panels on the interior walls. The note on the drawing identifies the cable passage plugs for running power and data cables into the enclosure."
+    },
+    {
+     "image": "renders-web/06-roof-ventilation-fire.jpg",
+     "view": "Roof Ventilation & Fire Suppression",
+     "caption": "The roof of the enclosure with the ventilation boxes arranged on top and the two extinguishers placed among them. The note on the drawing reads: \"Will need to double stack some of the VSS boxes and angle vent boxes to make room for Fire Guard extinguishers.\" The 9' 5\", 8' 3 1/4\" and 8' 1 5/16\" vertical callouts are as drawn."
+    },
+    {
+     "image": "renders-web/07-front-render-left-door.jpg",
+     "view": "Option 1 — Door & Ramp Left",
+     "caption": "Front render of Option 1, viewed from in front of the enclosure: the door and ramp at the left-hand end, with the window in the door and the framed wall window alongside."
+    },
+    {
+     "image": "renders-web/08-front-dims-left-door.jpg",
+     "view": "Option 1 — Dimensioned Front",
+     "caption": "Dimensioned front elevation of Option 1, door and ramp at the left-hand end. The 10' 2\", 9' 5\", 8' 3 1/4\" and 8' 1 5/16\" vertical callouts, the 8' 2\" and 9' 6 3/4\" callouts alongside, and the 10' 2\" and 10' 8 3/4\" floor callouts are as drawn."
+    },
+    {
+     "image": "renders-web/09-front-render-right-door.jpg",
+     "view": "Option 2 — Door & Ramp Right",
+     "caption": "Front render of Option 2, viewed from in front of the enclosure: the door and ramp at the right-hand end, with the window in the door and the framed wall window alongside."
+    },
+    {
+     "image": "renders-web/10-front-dims-right-door.jpg",
+     "view": "Option 2 — Dimensioned Front",
+     "caption": "Dimensioned front elevation of Option 2, door and ramp at the right-hand end. The 10' 2\", 9' 5\", 8' 3 1/4\" and 8' 1 5/16\" vertical callouts, the 8' 2\" and 9' 6 3/4\" callouts alongside, and the 10' 2\" and 10' 8 3/4\" floor callouts are as drawn."
+    },
+    {
+     "image": "renders-web/11-interior-dims.jpg",
+     "view": "Interior Clear Floor",
+     "caption": "Top-down view into the enclosure with the ceiling removed, showing the clear floor between the interior wall faces. The 7' 5 3/8\" and 9' 5 1/2\" interior callouts, and the 8' 2\" and 10' 2\" exterior callouts, are as drawn."
+    },
+    {
+     "image": "renders-web/12-top-down-plan.jpg",
+     "view": "Top-Down Plan",
+     "caption": "Top-down plan of the enclosure in the alcove — the ramp projecting from the door wall, the ventilation boxes and the two extinguishers on the roof, and the overhead pipes crossing. The 9' 6 3/4\", 8' 2\", 10' 2\", 10' 8 3/4\", 3' 10 5/8\", 3' and 3' 10\" callouts are as drawn."
+    }
+   ]
+  }
+ ],
+ "closing": {
+  "heading": "Questions about this layout",
+  "body": "Every WhisperRoom enclosure is built from interchangeable wall components — the door, window, jack panel and ventilation can each move to a different wall to suit the space, and the ramp can be turned to run out in a different direction without changing the enclosure itself. The space dimensions shown are taken from the drawings supplied for this location and are marked to be verified in field; please confirm them on site before the order is finalised."
+ }
+}

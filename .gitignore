@@ -58,3 +58,6 @@ __pycache__/
 .forge/auditor/booth-builder/out/*.trace.json
 .forge/auditor/booth-builder/out/*.heapsnapshot
 .forge/auditor/booth-builder/mobile-shots/
+
+# Client render imagery for the PeoplesSpace pack - the config is tracked, the pictures are not
+proposals/examples/peoplesspace/renders-web/
