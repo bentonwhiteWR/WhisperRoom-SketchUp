@@ -2,13 +2,14 @@
 # @cat V-Ray renders
 # @rank 4
 #
-# READ-ONLY until you press something. Five checks that catch the mistakes
+# READ-ONLY until you press something. Six checks that catch the mistakes
 # that come from switching draft <-> render by hand and from memory: a
 # dimension string left on, a floor still wearing drafting white, a camera
-# nudged off its saved scene, geometry left outside the room, and a camera
-# that has ended up looking at the ceiling instead of the booth. Every
-# failing row carries a Fix button that clears it — the window is the next
-# step, not a report you then go act on somewhere else.
+# nudged off its saved scene, geometry left outside the room, a camera
+# that has ended up looking at the ceiling instead of the booth, and a booth
+# that was built around parts the library did not have (1.25.0). Every
+# fixable failing row carries a Fix button that clears it — the window is the
+# next step, not a report you then go act on somewhere else.
 #
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/wr-preflight.rb"
 #
@@ -197,6 +198,31 @@ module WR_Preflight
     end
   end
 
+  # 6. A booth built WITHOUT some of its parts. build-booth-components.rb
+  # writes the list of absent files onto the booth group and stands orange
+  # placeholders on WR-Booth-Missing; either is enough to fail this row. Not
+  # fixable from here — the fix is authoring the .skp files and rebuilding.
+  def self.check_complete(model)
+    bad = []
+    model.entities.each do |e|
+      next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      m = e.get_attribute('wr_booth_components', 'missing') rescue nil
+      next unless m.is_a?(Array) && !m.empty?
+      bad << "#{e.name}: #{m.join(', ')}"
+    end
+    slabs = (WR_ProposalScenes.tagged(model, 'WR-Booth-Missing') rescue [])
+    if bad.empty? && slabs.empty?
+      { 'status' => 'pass', 'detail' => 'No booth in this model was built around a missing part.' }
+    else
+      det = bad.empty? ? "#{slabs.size} placeholder(s) on WR-Booth-Missing" : bad.join(' | ')
+      { 'status' => 'fail',
+        'detail' => "INCOMPLETE booth — orange placeholders stand where parts should: #{det}. " \
+                    'Author the parts and rebuild before any client image.' }
+    end
+  rescue StandardError => e
+    { 'status' => 'skip', 'detail' => "could not evaluate: #{e.class}: #{e.message}" }
+  end
+
   # --------------------------------------------------------------------- run --
 
   ROWS = [
@@ -204,13 +230,14 @@ module WR_Preflight
     { 'id' => 'floor',   'label' => 'Floor off drafting white',  'fixable' => true },
     { 'id' => 'scene',   'label' => 'Camera on a saved scene',   'fixable' => true },
     { 'id' => 'stray',   'label' => 'No geometry outside walls', 'fixable' => false },
-    { 'id' => 'ceiling', 'label' => 'Clear line of sight to the booth', 'fixable' => false }
+    { 'id' => 'ceiling', 'label' => 'Clear line of sight to the booth', 'fixable' => false },
+    { 'id' => 'complete', 'label' => 'Booth has every part', 'fixable' => false }
   ].freeze
 
   def self.check(model)
     results = { 'dims' => check_dims(model), 'floor' => check_floor(model),
                 'scene' => check_scene(model), 'stray' => check_stray(model),
-                'ceiling' => check_ceiling(model) }
+                'ceiling' => check_ceiling(model), 'complete' => check_complete(model) }
     ROWS.map do |r|
       c = results[r['id']]
       r.merge('status' => c['status'], 'detail' => c['detail'])

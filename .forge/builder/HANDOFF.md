@@ -1,3 +1,103 @@
+# HANDOFF — Builder → Benton: build around parts not authored yet, 1.25.0
+
+2026-09-10. Benton: *"when trying to pull in a 102102 E with WA, it couldn't
+find a couple of components. Those components are not in yet, id still like
+for you to import even though it was missing a few pieces."* **Unrun in
+SketchUp.**
+
+## What his case actually is (observed)
+- The portal writes `'STDWL7 / WL16'` for the 7" WA companion on a 40-series
+  booth (`WhisperRoomQuote/booth-builder.html:3935` `shrinkPack`, `:3724`
+  code C7; `lib/packing-list.js:1135` — Z02 is a 7 + 16 bundle, the 7 stands
+  in the slot). `component_for` had no branch → `odd` for `S1` and `S1i` →
+  `ENH_MISSING_ABORTS` refused. That is the "couple of components".
+- Translated: outer `7Panel` (on P:), inner `ENH 2.5Panel` — the width the
+  inner S wall closes on beside `ENH RightWADoor`, measured 44.5 wide in
+  `P:/…/_enhanced-probe.tsv` (44.5 + 6.5 + 2.5 = 35.5 + 6.5 + 11.5).
+  **`ENH 2.5Panel.skp` is not on P: as of today** (435 files listed; no
+  `ENH 2.5…` at all). That is the not-authored part.
+
+## Produced
+- `scripts/build-booth-components.rb`: `missing` (structurally wrong — still
+  a hard refusal) vs `absent` (file not on the share — consent box,
+  `MB_YESNOCANCEL`, only `IDYES` builds; `cfg['missing'] == 'placeholder'`
+  for bridge jobs; dry runs not asked). `absent_width`, `add_placeholder`,
+  `missing_material`; constants `MISSING_DICT`, `MISSING_TAG`,
+  `PLACEHOLDER_*`. Absent rows stay in `rows` for `rebalance_walls`; overlays
+  get `rows.reject { absent }`. Booth group renamed `… INCOMPLETE - N part(s)
+  missing`, attribute `wr_booth_components/missing`, loud console block,
+  `warn` carries the list.
+- `scripts/booth-from-link.rb`: `component_for` branch for
+  `%r{\ASTDWL7\s*/\s*WL16\z}i`; inner gaps now `assign[sid] = base`;
+  the ENH refusal only fires on `odd` (untranslatable). `ENH_MISSING_ABORTS`
+  comment rewritten to say why.
+- `scripts/wr-preflight.rb`: sixth row **Booth has every part**
+  (`check_complete`), not fixable.
+- `scripts/rbtest.py`: `fixture_absent` / `check_absent`, lifts
+  `absent_width` verbatim. `scripts/rbtest-boothlink-cbl.py`: group 6.
+- `VERSION` → **1.25.0** (minor). DEVLOG entry.
+
+## Decisions (why)
+- **Two kinds of miss.** A wrong part in a slot renders as a right one, so
+  `missing` is never built around. An absent file has a known identity, so
+  it can be — with consent and a visible stand-in.
+- **The signal must survive client-safe.** `WR-Booth-Missing` is outside the
+  `WR-Dims`/`WR-Notes` family on purpose (`proposal-scenes.rb annot_tags`
+  matches only that family). Orange geometry + a 3D-text label are geometry,
+  not notes; the group NAME reaches the manifest's `booth_groups` unchanged.
+- **One dialog, complete list.** booth-from-link no longer refuses on gaps;
+  the builder's gate sees every absent file (assigned or guessed) and asks
+  once.
+- **Inner gaps are assigned.** Unassigned, `guess_component` would stand an
+  *existing* `ENH 11.5PanelSolid` in the 2.5 slot — the silent wrong part
+  this repo exists to stop.
+
+## Assumptions (not observed)
+- `Entities#add_3d_text` signature `(string, align, font, bold, italic,
+  letter_height, tolerance, z, filled, extrusion)` and that it authors along
+  +X in XY at the group origin; `Group#transform!`; `Material#alpha=`.
+  Wrapped in nothing — a wrong signature will raise inside the operation and
+  abort the build loudly, which is the right failure.
+- `MB_YESNOCANCEL` returns `IDYES` on Yes; Escape returns `IDCANCEL`.
+- `booth.set_attribute` accepts an Array of Strings (documented).
+
+## Downstream (checked)
+- `proposal-package.rb`: `booth_groups` records the INCOMPLETE name;
+  `booth_name?` still matches on `MDL`. The client-safe pass does **not**
+  hide the tag. **Not wired, follow-up:** a manifest field naming the absent
+  parts, and a refusal/warning in the package when a booth group carries
+  `wr_booth_components/missing`. Small, but that file is the other agent's
+  today.
+- `wr-preflight.rb`: wired (row 6).
+- Bridge (`rbtest-live-booth.py`): a booth with absent parts still raises
+  `ModalBlocked` on a real build unless the job passes
+  `'missing' => 'placeholder'`; dry runs now report ABSENT instead of
+  raising.
+
+## To verify (Benton) — the real 102102 E with WA link
+1. Panel → **Build from booth-builder link** → paste the link. Console:
+   `S1     7Panel  <- STDWL7 / WL16` and `S1i    ENH 2.5Panel  <- …`, then
+   the `!!!` block "1 component file(s) DO NOT EXIST … S1i … ENH 2.5Panel.skp".
+2. A **YES / NO / CANCEL** box listing `S1i  ENH 2.5Panel.skp`. Press **No**
+   once: nothing is built. Run again, press **Yes**.
+3. In the model you should SEE: a **bright orange slab** ~2.5" wide, full
+   inner-wall height, standing proud of both faces, right beside the inner
+   wide-access door on the S wall; a flat orange **"MISSING ENH 2.5Panel.skp"**
+   label ~1 ft above the wall top over that slot (look from above); in
+   **Outliner** the group named `MDL 102102 E (components) INCOMPLETE - 1
+   part(s) missing`, containing `MISSING  S1i  ENH 2.5Panel.skp`; in
+   **Tags** a `WR-Booth-Missing` tag.
+4. The outer S wall should read `S0 RightWADoor` 49 wide + `S1 7Panel`, seal
+   shifted 9 in (console `rebalanced` lines); the inner S wall
+   `S0i ENH RightWADoor` 44.5 + seal + the 2.5 placeholder, closing on the
+   original end (no "does not close" line for S inner).
+5. **Pre-render checklist**: *Booth has every part* is red and names the
+   file.
+6. Proposal package, client-safe export: the orange slab and label are still
+   in the image. If they are not, that is a defect — report it.
+
+---
+
 # HANDOFF — Builder → Benton: live preview in the pickers, 1.24.0
 
 2026-09-10. Benton: *"Once we select a checkbox, go ahead and have it hidden

@@ -71,6 +71,13 @@ module WR_BuildBoothComponents
   PREF = 'WR_BuildBoothComponents'.freeze
   DEFAULT_DIR = 'P:/Sketchup/NewMasterComponentList'.freeze
 
+  # An INCOMPLETE build - one built around .skp files that are not on the
+  # share yet - writes the list of what is absent onto the booth group under
+  # this dictionary, so a tool that never saw the Ruby Console (wr-preflight)
+  # can still tell. The tag carries the placeholder slabs and labels.
+  MISSING_DICT = 'wr_booth_components'.freeze
+  MISSING_TAG  = 'WR-Booth-Missing'.freeze
+
   ORIGIN = Geom::Point3d.new(0, 0, 0)
   VX = Geom::Vector3d.new(1, 0, 0)
   VY = Geom::Vector3d.new(0, 1, 0)
@@ -433,6 +440,21 @@ module WR_BuildBoothComponents
   # already does. Packaging is still reported in the FIT column, untouched.
   def self.iep_nominal_width(name)
     w = name.to_s[/ENH\s+([\d.]+)/, 1]
+    w && w.to_f
+  end
+
+  # The width a part's NAME declares, for a part whose file is not on the
+  # share and so cannot be measured: 'ENH 2.5Panel' -> 2.5, '7Panel' -> 7,
+  # 'Right40Door' -> 40, '46VNT_VSS' -> 46, any wide-access door -> 49 (the
+  # frame width every WA door shares; ENH WA doors measure 44.5 and are
+  # caught by the ENH branch first). nil when the name says nothing, and the
+  # caller falls back to the slot - which moves nothing.
+  def self.absent_width(name)
+    s = name.to_s
+    w = s[/\AENH\s+([\d.]+)/, 1]
+    return w.to_f if w
+    return 49.0 if s =~ /WADoor/i
+    w = s[/\A(?:Left|Right)?(\d+(?:\.\d+)?)/, 1]
     w && w.to_f
   end
   IEP_DOOR_YAW   = 180.0   # the inner door - see below
@@ -2023,7 +2045,16 @@ module WR_BuildBoothComponents
         next (r[:slab][:w1] - r[:slab][:w0]) if r[:slab]
         slot = ext.call(r[:part][:poly])
         want = slot[1] - slot[0]
-        have = iep_nominal_width(r[:name]) || r[:cls][:w]
+        # AN ABSENT PART HAS NO BOX TO MEASURE. Its width is the one its NAME
+        # declares (absent_width), so the wall is re-walked around the
+        # placeholder at that width and the parts that ARE here land where
+        # they will once the file exists. A name that declares nothing takes
+        # the slot, which moves nothing.
+        have = if r[:absent]
+                 absent_width(r[:name]) || want
+               else
+                 iep_nominal_width(r[:name]) || r[:cls][:w]
+               end
         (have - want).abs <= SLAB_NOISE ? want : have
       end
       list.sort_by! { |r| ext.call(r[:part][:poly])[0] }
@@ -2084,6 +2115,86 @@ module WR_BuildBoothComponents
     end
   end
 
+  # ------------------------------------------------------- placeholders --
+  #
+  # What stands in a slot whose .skp is not on the share. Designed to be
+  # impossible to mistake for a part in ANY view a client could be shown:
+  #
+  #   * an OPAQUE brand-orange slab (WR-Missing material, #ee6216) the full
+  #     height of the part, standing PLACEHOLDER_PROUD in proud of BOTH wall
+  #     faces - so it shows in every elevation and in the plan, and no scene
+  #     style or material swap hides it: it is geometry, not a note;
+  #   * a filled 3D-text label "MISSING <file>" lying flat PLACEHOLDER_LABEL_UP
+  #     above the wall top, so it reads in the top-down plate every pack ends
+  #     on and sits clear of the ceiling deck that would otherwise bury it;
+  #   * both on the WR-Booth-Missing tag, INSIDE the booth group, so they move
+  #     and hide with the booth. The tag is deliberately outside the
+  #     WR-Dims / WR-Notes family: the proposal package's client-safe pass
+  #     hides that family by name, and a warning that vanishes exactly when
+  #     the client images are made is no warning. Switching this tag off is a
+  #     deliberate act by someone who can read its name.
+  PLACEHOLDER_PROUD    = 1.0
+  PLACEHOLDER_LABEL_UP = 12.0
+  PLACEHOLDER_LETTER   = 4.0
+
+  def self.missing_material(model)
+    m = model.materials['WR-Missing'] || model.materials.add('WR-Missing')
+    m.color = Sketchup::Color.new(238, 98, 22)
+    m.alpha = 1.0
+    m
+  rescue StandardError
+    nil
+  end
+
+  # z0..z1 is the part's underside and top, already lifted for an inner part.
+  def self.add_placeholder(booth, part, name, z0, z1, tag, mat)
+    xs = part[:poly].map { |q| q[0].to_f }
+    ys = part[:poly].map { |q| q[1].to_f }
+    along_x = (xs.max - xs.min) >= (ys.max - ys.min)
+    # The slot band, fattened ACROSS the wall so the slab stands proud of
+    # both faces. Along the wall it keeps the slot exactly, so it also shows
+    # the width the wall was re-walked with.
+    if along_x
+      x0, x1 = xs.min, xs.max
+      y0, y1 = ys.min - PLACEHOLDER_PROUD, ys.max + PLACEHOLDER_PROUD
+    else
+      x0, x1 = xs.min - PLACEHOLDER_PROUD, xs.max + PLACEHOLDER_PROUD
+      y0, y1 = ys.min, ys.max
+    end
+    g = booth.entities.add_group
+    g.name = "MISSING  #{part[:id]}  #{name}.skp"
+    face = g.entities.add_face([Geom::Point3d.new(x0, y0, z0), Geom::Point3d.new(x1, y0, z0),
+                                Geom::Point3d.new(x1, y1, z0), Geom::Point3d.new(x0, y1, z0)])
+    # pushpull follows the face normal, so the face must point UP before it
+    # is pulled - the same back-face trap reference/sketchup-drawing.md names
+    # for floors.
+    face.reverse! if face.normal.z < 0
+    face.pushpull(z1 - z0)
+    g.material = mat if mat
+    g.layer = tag if tag
+
+    lg = booth.entities.add_group
+    lg.name = "MISSING label  #{part[:id]}"
+    lg.entities.add_3d_text("MISSING #{name}.skp", TextAlignLeft, 'Arial', true, false,
+                            PLACEHOLDER_LETTER, 0.0, 0.0, true, 0.0)
+    # 3D text is authored along +X from the group origin, flat in XY. Centre
+    # it on the slot, turn it to run along the wall, float it above the wall
+    # top. Extents are max minus min per axis - never BoundingBox#width /
+    # #height, whose axis assignment this file's header warns about.
+    bb = lg.bounds
+    tw = bb.max.x.to_f - bb.min.x.to_f
+    th = bb.max.y.to_f - bb.min.y.to_f
+    tr = Geom::Transformation.translation(
+      Geom::Vector3d.new(-bb.min.x.to_f - tw / 2.0, -bb.min.y.to_f - th / 2.0, -bb.min.z.to_f))
+    tr = Geom::Transformation.rotation(ORIGIN, VZ, 90.degrees) * tr unless along_x
+    tr = Geom::Transformation.translation(
+      Geom::Vector3d.new((x0 + x1) / 2.0, (y0 + y1) / 2.0, z1 + PLACEHOLDER_LABEL_UP)) * tr
+    lg.transform!(tr)
+    lg.material = mat if mat
+    lg.layer = tag if tag
+    g
+  end
+
   # -------------------------------------------------------------------- run --
 
   def self.run
@@ -2142,6 +2253,7 @@ module WR_BuildBoothComponents
     cache  = {}
     rows   = []
     missing = []
+    absent  = []
     guessed = []
 
     puts ''
@@ -2193,7 +2305,16 @@ module WR_BuildBoothComponents
 
       defn = load_def(model, cfg['dir'], name, cache)
       if defn.nil?
-        missing << "#{p[:id]}  #{name}.skp"
+        # A FILE THAT DOES NOT EXIST is the one kind of miss that can be built
+        # around: the part's identity is known exactly (that name, in that
+        # slot); only its geometry is not authored yet. It is kept as a row so
+        # rebalance_walls still closes the wall around it, and pass 2 stands
+        # an orange placeholder in the slot instead of a part. Whether the
+        # build goes ahead at all is decided at the gate below - never here,
+        # and never silently.
+        absent << "#{p[:id]}  #{name}.skp"
+        rows << { :part => p, :name => name, :defn => nil, :cls => nil,
+                  :slab => nil, :absent => true }
         next
       end
       want_h = part_height(p, cfg['hx'])
@@ -2222,14 +2343,69 @@ module WR_BuildBoothComponents
       rows << { :part => p, :name => name, :defn => defn, :cls => cls, :slab => slab }
     end
 
+    # ---- THE GATE. Two kinds of miss, and they are not treated alike.
+    #
+    # `missing` is a part that resolved to something STRUCTURALLY WRONG: a
+    # Standard name in an inner slot, or a file whose axes are not a wall
+    # part's. Building around either means building WITH a wrong part, and a
+    # wrong part renders as a right one. Always refused, whatever else is
+    # going on.
+    #
+    # `absent` is a .skp that is not on the share yet (Benton, 2026-09-10,
+    # off a 102102 E with a wide-access door: "Those components are not in
+    # yet, I'd still like for you to import even though it was missing a few
+    # pieces"). That CAN be built around - but only with consent, given at
+    # this dialog with the full list in front of the operator, and only with
+    # the gap made unmissable in the model itself: an orange placeholder slab
+    # in every empty slot, a MISSING label floating above each one, the booth
+    # group renamed INCOMPLETE, and the list written onto the group as an
+    # attribute for wr-preflight.rb to find. The console alone is not enough:
+    # it scrolls away, and the drawing outlives it.
+    #
+    # cfg['missing'] == 'placeholder' is the programmatic form of that same
+    # consent (a bridge job, where UI.messagebox raises by design). Nothing
+    # else skips the question. A dry run places nothing and is not asked.
     unless missing.empty?
       puts ''
-      puts "  *** #{missing.length} part(s) could not be resolved. Nothing has been built."
+      puts "  *** #{missing.length} part(s) resolved to something that is NOT a usable wall"
+      puts '      part. Nothing has been built - a wrong part renders as a right one.'
       missing.each { |m| puts "      #{m}" }
+      unless absent.empty?
+        puts "      (and #{absent.length} file(s) are not on the share - those alone could be built around:)"
+        absent.each { |m| puts "      #{m}" }
+      end
       puts ''
-      UI.messagebox("#{missing.length} component(s) missing or unusable.\n\n" \
-                    "Nothing was built. The list is in the Ruby Console.")
+      UI.messagebox("#{missing.length} component(s) resolved to something unusable:\n\n" +
+                    missing.join("\n") +
+                    "\n\nNothing was built. A wrong part in a slot renders as a right " \
+                    'one, so this is never built around. Full list in the Ruby Console.')
       return
+    end
+
+    unless absent.empty?
+      puts ''
+      puts "  *** #{absent.length} component file(s) are NOT on the share:"
+      absent.each { |m| puts "      #{m}" }
+      if cfg['dry']
+        puts '      (dry run - nothing is placed either way; the table shows them as ABSENT)'
+      elsif cfg['missing'].to_s == 'placeholder'
+        puts '      cfg says build with placeholders - proceeding without asking.'
+      else
+        ans = UI.messagebox("#{absent.length} component file(s) are not in\n#{cfg['dir']}:\n\n" +
+                            absent.join("\n") +
+                            "\n\nBuild the booth WITHOUT them?\n\n" \
+                            'YES - build it. A bright orange placeholder slab stands in ' \
+                            'every empty slot with a MISSING label above it, the booth ' \
+                            'group is named INCOMPLETE, and the pre-render checklist ' \
+                            'fails until the parts are authored. This drawing must not ' \
+                            "go to a client as complete.\n\n" \
+                            'NO / CANCEL - build nothing.', MB_YESNOCANCEL)
+        unless ans == IDYES
+          puts '      declined at the dialog. Nothing has been built.'
+          return
+        end
+        puts '      operator said YES - building with placeholders.'
+      end
     end
 
     unless guessed.empty?
@@ -2262,9 +2438,26 @@ module WR_BuildBoothComponents
       t_vent = tag.call('WR-Booth-Vent',    [64, 102, 124])
       t_seal = tag.call('WR-Booth-Seals',   [90,  90,  96])
       t_corn = tag.call('WR-Booth-Corners', [70,  70,  76])
+      # Only made when something is absent, so a complete booth never carries
+      # an empty WR-Booth-Missing tag that reads as a warning.
+      t_miss   = absent.empty? ? nil : tag.call(MISSING_TAG, [238, 98, 22])
+      mat_miss = (absent.empty? || cfg['dry']) ? nil : missing_material(model)
 
       booth = cfg['dry'] ? nil : model.entities.add_group
-      booth.name = "#{key} (components)" if booth
+      if booth
+        # INCOMPLETE goes in the NAME, not only the console: the name is what
+        # Outliner, Entity Info, the proposal package's Objects list and its
+        # manifest's booth_groups all show. booth_name? still matches on MDL.
+        booth.name = if absent.empty?
+                       "#{key} (components)"
+                     else
+                       "#{key} (components) INCOMPLETE - #{absent.length} part(s) missing"
+                     end
+        unless absent.empty?
+          booth.set_attribute(MISSING_DICT, 'missing', absent)
+          booth.set_attribute(MISSING_DICT, 'built', Time.now.strftime('%Y-%m-%d %H:%M'))
+        end
+      end
 
       placed = 0
       warn = []
@@ -2290,6 +2483,18 @@ module WR_BuildBoothComponents
         p_lift = lift
         p_lift -= vent_drop if inner?(p) && iep_vent_part?(r[:name])
         nominal = part_top_z(p, cfg['hx'], p_lift)
+        if r[:absent]
+          axs = p[:poly].map { |q| q[0].to_f }
+          ays = p[:poly].map { |q| q[1].to_f }
+          puts format('  %-16s %-22s %8.3f %8s  %-11s %-9s %-9s %s',
+                      p[:id], r[:name], [axs.max - axs.min, ays.max - ays.min].max,
+                      'ABSENT', 'PLACEHOLDER', '-', '-', 'file not on the share')
+          next if cfg['dry']
+          add_placeholder(booth, p, r[:name], nominal - part_height(p, cfg['hx']),
+                          nominal, t_miss, mat_miss)
+          placed += 1
+          next
+        end
         rev = REVERSED.include?(r[:name])
         proud = p[:k] == 'seal' ? SEAL_PROUD : 0.0
         # A door's bulk is its swung leaf and belongs on the ROOM side, the
@@ -2614,7 +2819,9 @@ module WR_BuildBoothComponents
           # The deck bounds ride along (nil on a dry run) so the caster plate
           # can measure where the placed floor's underside really is instead
           # of assuming the nominal slab.
-          oc, owarn = WR_Overlays.place_all(model, booth, key, spec, cfg, rows,
+          # A placeholder is not a panel to foam or to hang a desk on.
+          oc, owarn = WR_Overlays.place_all(model, booth, key, spec, cfg,
+                                            rows.reject { |r| r[:absent] },
                                             cache, defined?(host) ? host : nil)
           placed += oc
           warn.concat(owarn)
@@ -2630,20 +2837,36 @@ module WR_BuildBoothComponents
       model.commit_operation unless cfg['dry']
       model.active_view.zoom_extents unless cfg['dry']
 
-      thick = rows.count { |r| r[:cls][:t] > THIN }
+      thick = rows.count { |r| r[:cls] && r[:cls][:t] > THIN }
+      real_n = rows.length - absent.length
       puts ''
       puts '  ' + '-' * 60
       if cfg['dry']
-        puts "  DRY RUN — nothing built. #{rows.length} parts would be placed."
+        puts "  DRY RUN — nothing built. #{real_n} parts would be placed" +
+             (absent.empty? ? '.' : ", #{absent.length} ABSENT (file not on the share).")
         # A dry run whose whole result is console text is invisible if the
         # console happens to be closed, so say it in a dialog too.
-        UI.messagebox("DRY RUN — nothing built.\n\n#{rows.length} parts resolved" \
+        UI.messagebox("DRY RUN — nothing built.\n\n#{real_n} parts resolved" \
+                      "#{absent.empty? ? '' : ", #{absent.length} ABSENT"}" \
                       "#{warn.empty? ? ' and every panel matches its slot.' : ", #{warn.length} item(s) flagged."}" \
                       "\n\nThe full table is in the Ruby Console:\n" \
                       'Extensions > Developer > Ruby Console.')
       else
-        puts "  placed #{placed} component instances."
+        puts "  placed #{placed} component instances" +
+             (absent.empty? ? '.' : " - #{absent.length} of them ORANGE PLACEHOLDERS.")
+        unless absent.empty?
+          puts ''
+          puts '  ' + '!' * 60
+          puts "  INCOMPLETE BOOTH - #{absent.length} slot(s) hold a placeholder, not a part:"
+          absent.each { |m| puts "      #{m}" }
+          puts "  Group renamed '#{booth.name}'."
+          puts "  Tag #{MISSING_TAG} carries the slabs and the MISSING labels."
+          puts '  wr-preflight.rb fails its "Booth has every part" row on this model.'
+          puts '  Do NOT send a render of this booth out as complete.'
+          puts '  ' + '!' * 60
+        end
       end
+      warn.concat(absent.map { |a| "ABSENT #{a} - an orange placeholder stands in the slot" })
       puts "  #{thick} part(s) carry bulk beyond their wall panel (a leaf, a housing,"
       puts '  a trim) and were oriented so that bulk faces OUT of the booth — measured'
       puts "  from each part's own geometry, marked ·bulk in the FACING column. Parts"

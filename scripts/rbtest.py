@@ -122,6 +122,8 @@ module WR_BuildBoothComponents
     w && w.to_f
   end
 
+%(absent_width)s
+
 %(rebalance)s
 
   # S wall of a 4872 E with a WIDE-ACCESS door on both shells.
@@ -178,6 +180,37 @@ module WR_BuildBoothComponents
     end.join(' | ')
   end
 
+  # BENTON'S 102102 E WITH A WIDE-ACCESS DOOR (2026-09-10). Inner S wall of a
+  # 40-series Enhanced booth: the layout holds 35.5 + 6.5 + 11.5 from x=4.25,
+  # the real parts are the 44.5 ENH WA door and the 2.5 companion the wall
+  # closes on - and ENH 2.5Panel.skp is NOT on the share. The row for it is an
+  # ABSENT row: no :cls at all, only the name. rebalance_walls must take the
+  # width the name declares (absent_width) rather than die on the nil :cls,
+  # and re-walk the wall so the door and the seal land where they will once
+  # the file exists: 4.25 + 44.5 = 48.75, seal to 55.25, the 2.5 slot
+  # 55.25..57.75 - closing on the original 57.75.
+  def self.fixture_absent
+    [{ :part => { :k => 'panel', :id => 'S0i', :sh => 'in',
+                  :poly => [[4.25, 0.0], [39.75, 0.0], [39.75, 1.0], [4.25, 1.0]] },
+       :cls => { :w => 44.5 }, :slab => nil, :name => 'ENH RightWADoor' },
+     { :part => { :k => 'seal', :id => 'S-seal0i', :sh => 'in',
+                  :poly => [[39.75, 0.0], [46.25, 0.0], [46.25, 1.0], [39.75, 1.0]] },
+       :cls => { :w => 6.5 }, :slab => nil, :name => 'ENH MidWallSeamSeal' },
+     { :part => { :k => 'panel', :id => 'S1i', :sh => 'in',
+                  :poly => [[46.25, 0.0], [57.75, 0.0], [57.75, 1.0], [46.25, 1.0]] },
+       :cls => nil, :slab => nil, :name => 'ENH 2.5Panel', :absent => true }]
+  end
+
+  def self.check_absent
+    rows = fixture_absent
+    rebalance_walls(rows)
+    rows.map do |r|
+      p = r[:part]
+      xs = p[:poly].map { |q| q[0].to_f }
+      format('%%s %%.3f..%%.3f', p[:id], xs.min, xs.max)
+    end.join(' | ')
+  end
+
   def self.check
     rows = fixture
     rebalance_walls(rows)
@@ -191,7 +224,8 @@ module WR_BuildBoothComponents
 end
 
 (begin
-  WR_BuildBoothComponents.check + '  ||  ' + WR_BuildBoothComponents.check_noise
+  WR_BuildBoothComponents.check + '  ||  ' + WR_BuildBoothComponents.check_noise +
+    '  ||  ' + WR_BuildBoothComponents.check_absent
 rescue Exception => e
   'FAIL ' + e.message
 end).dup
@@ -207,15 +241,21 @@ EXPECT = ('S0 2.000..51.000 | S-seal0 51.000..53.000 | S1 53.000..72.000 | '
           'S0i 4.250..48.750 | S-seal0i 48.750..55.250 | S1i 55.250..69.750'
           '  ||  '
           # second case: bounding-box noise on a jointless wall, nothing moves
-          'N0i 4.250..45.750')
+          'N0i 4.250..45.750'
+          '  ||  '
+          # third case: an ABSENT 2.5 companion beside a 44.5 ENH WA door -
+          # the wall re-walks around the placeholder at the name's width
+          'S0i 4.250..48.750 | S-seal0i 48.750..55.250 | S1i 55.250..57.750')
 
 
 def main():
     src = os.path.join(HERE, 'build-booth-components.rb')
-    prog = SHIMS + FIXTURE % {'rebalance': method_source(src, 'rebalance_walls')}
+    prog = SHIMS + FIXTURE % {'rebalance': method_source(src, 'rebalance_walls'),
+                              'absent_width': method_source(src, 'absent_width')}
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
-    print('rebalance_walls: wide-access door on both shells, then bbox noise')
+    print('rebalance_walls: wide-access door on both shells, then bbox noise, '
+          'then an absent companion')
     print('  got      %s' % got)
     if got == EXPECT:
         print('  PASS - real substitution re-walks, bbox noise leaves the wall alone')

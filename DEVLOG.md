@@ -2,6 +2,77 @@
 
 ## 2026-09-10
 
+### Build a booth around parts that are not authored yet — 1.25.0
+
+Benton: *"when trying to pull in a 102102 E with WA, it couldn't find a couple
+of components. Those components are not in yet, id still like for you to
+import even though it was missing a few pieces."*
+
+**What was actually stopping him (observed, by reading and by running the
+translation).** The portal writes the literal pack `'STDWL7 / WL16'` for the
+7" wide-access companion on a 40-series booth (`booth-builder.html`
+`shrinkPack`; the packing list's Z02 is a 7 + 16 bundle where the 7 stands in
+the slot). `component_for` had no branch for it, so on the Enhanced path the
+slot was *untranslatable* for both shells — `S1` and `S1i`, his "couple" —
+and `ENH_MISSING_ABORTS` refused the whole build before the builder ran.
+Translated, the outer slot is `7Panel` (on P:) and the inner one is
+`ENH 2.5Panel` — the width the inner wall closes on beside the measured
+44.5" `ENH RightWADoor` — which is **not on P:** as of today. That is the
+not-authored part.
+
+**The gate is a guard, not a bug, so it got a supervised way past it, not a
+bypass.** `build_booth` now sorts a miss into two kinds:
+
+- `missing` — a part that resolved to something *structurally wrong* (a
+  Standard name in an inner slot; a file whose axes are not a wall part's).
+  **Still a hard refusal**, always: a wrong part renders as a right one.
+- `absent` — a `.skp` that does not exist. Buildable **only with consent**:
+  a `MB_YESNOCANCEL` box listing every absent file; only `IDYES` builds, No
+  and Cancel build nothing. `cfg['missing'] == 'placeholder'` is the
+  programmatic form for bridge jobs (where a modal raises by design). A dry
+  run is not asked. A plain run never goes partial on its own.
+
+**And the partial build is unmissable in the model, not only the console:**
+
+- an **opaque brand-orange slab** (`WR-Missing` material, #ee6216) the full
+  part height, 1" proud of *both* wall faces, in every empty slot;
+- a flat 3D-text **`MISSING <file>.skp`** label 12" above the wall top so it
+  reads in the plan plate and clears the ceiling deck;
+- both on a new **`WR-Booth-Missing`** tag *inside* the booth group —
+  deliberately outside the `WR-Dims`/`WR-Notes` family, so the proposal
+  package's client-safe pass does **not** hide it (a warning that vanishes
+  exactly when the client images are made is no warning);
+- the booth group renamed **`… (components) INCOMPLETE - N part(s)
+  missing`** — which the proposal manifest's `booth_groups` records for free;
+- the list written to the group as `wr_booth_components/missing`;
+- **wr-preflight** gained a sixth row, *Booth has every part*, failing on
+  the attribute or the tag.
+
+An absent row stays in `rows` so `rebalance_walls` re-walks the wall around
+it at the width its *name* declares (`absent_width`); overlays get only the
+real rows. `booth-from-link` now hands the composed ENH name over for inner
+gaps too — leaving the slot unassigned would have let `guess_component` stand
+an **existing** `ENH 11.5PanelSolid` beside a 44.5" door, silently — and its
+own refusal narrows to untranslatable packs, so exactly one dialog asks, with
+the complete list, on both paths.
+
+Minor bump: new consent path, new tag, new preflight row, new translation.
+**Unrun in SketchUp** — `rbparse.py` 68/68; `rbtest.py` gains an
+absent-companion closure case (passes); `rbtest-boothlink-cbl.py` gains six
+companion checks (0 failures); v3 harness and live-booth selftest pass.
+Verify on the real 102102 E WA link: a YES/NO/CANCEL box naming
+`S1i  ENH 2.5Panel.skp`; after YES, an orange slab beside the inner WA door,
+a MISSING label above it, the group named INCOMPLETE in Outliner, and the
+pre-render checklist red on *Booth has every part*.
+
+**Also answered (Benton's step question).** The booth-builder link does
+**not** build the step: `booth-from-link.rb` refuses `sp` by name and the
+overlay pass records it as not built. The mounting (caster) plate does build.
+What sourcing the step would take is stated in `wr-overlays.rb`'s header —
+two rulings, its lateral anchor (door leaf or frame centre?) and which face
+of `StepFront.skp` is the tread; the 12" depth in front of the door is
+already known.
+
 ### Live preview in the walls and annotations pickers — 1.24.0
 
 Benton: *"When we are clicking the checkboxes and the annotations when we're

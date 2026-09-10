@@ -98,20 +98,29 @@ module WR_BoothLink
   PREF = 'WR_BoothLink'.freeze
   BUILDER = File.join(File.dirname(__FILE__), 'build-booth-components.rb')
 
-  # What to do when an ENHANCED booth needs a part the library does not have.
+  # What to do when an ENHANCED booth carries a pack this file cannot
+  # TRANSLATE (`odd` in build_from_payload).
   #
-  # true  — refuse the build and name every missing file. Chosen because the
-  #         failure this tool exists to remove is a wrong booth that LOOKS
-  #         right. Leaving a slot unassigned is not neutral: downstream,
+  # true  — refuse the build and name every such pack. A pack that cannot be
+  #         read means the slot's part is UNKNOWN; downstream,
   #         build-booth-components fills an unassigned slot with
-  #         guess_component, which composes STANDARD names — so "leave it out"
-  #         on the Enhanced path becomes "put a Standard part there" one
-  #         function later. Refusing is also the precedent the chain already
-  #         sets for "we cannot build this": build_booth itself messageboxes
-  #         and returns on a layout key it does not have.
-  # false — build anyway, still naming every missing file, and still never
-  #         emitting a Standard name in place of an Enhanced one. Flip this if
-  #         a partial Enhanced booth is wanted to look at.
+  #         guess_component from the layout's DEFAULT kind and width, and a
+  #         default part in a customer's slot renders as the right booth and
+  #         is the wrong one. Refusing is also the precedent the chain sets
+  #         for "we cannot build this": build_booth itself messageboxes and
+  #         returns on a layout key it does not have.
+  # false — build anyway, still naming every such pack.
+  #
+  # A FILE THAT DOES NOT EXIST IS NO LONGER THIS FENCE'S BUSINESS (1.25.0).
+  # Until then every missing .skp on the Enhanced path was refused here too,
+  # on the reasoning that an unassigned inner slot would get a Standard part.
+  # That reasoning had died: the composed ENH name is now handed over for
+  # inner slots as well (the gaps block in build_from_payload), so the
+  # builder knows the exact file that is absent, and it asks ONCE, with the
+  # complete list, whether to build around it with orange placeholders — the
+  # gate in build-booth-components.rb build_booth. Benton's 102102 E with a
+  # wide-access door needs ENH 2.5Panel.skp, which is not authored yet, and
+  # that is the case this exists for.
   ENH_MISSING_ABORTS = true
 
   # What to do when a ROOF-MOUNTED booth's vent-wall swap arrives half applied.
@@ -248,11 +257,10 @@ module WR_BoothLink
   #
   # KNOWN OPEN POINTS, stated rather than papered over:
   #   - Companion code 9 (the 7" WA companion) reconstructs to the guide's
-  #     own SKU column verbatim, 'STDWL7 / WL16' — one slot, two physical
-  #     panels. component_for has no branch for that string, so downstream
-  #     reports it untranslatable and the slot falls to its layout default,
-  #     LOUDLY. What single string the portal's #d= payload carries for that
-  #     slot is not stated in the guide; until it is, loud beats invented.
+  #     own SKU column verbatim, 'STDWL7 / WL16'. That IS the string the
+  #     portal's #d= payload carries too (booth-builder.html shrinkPack,
+  #     observed 2026-09-10), and component_for translates it since 1.25.0 —
+  #     see the branch there for what the two halves of the string mean.
   #   - The guide's own fully-loaded example ships wd = 1 (wide-access door)
   #     with a plain DRFRM byte in the door slot; v3_report warns when that
   #     combination arrives, because the build follows the pack strings.
@@ -624,6 +632,24 @@ module WR_BoothLink
       # path ignores o[:ramp] and emits the plain ENH door. The ramp still
       # reaches the model on the Standard OUTER shell, which is where it belongs.
       o[:ramp] && !enh ? "#{hand}WADoorWithRamp" : "#{p}#{hand}WADoor"
+    when %r{\ASTDWL7\s*/\s*WL16\z}i
+      # THE 7 IN WIDE-ACCESS COMPANION on a 40-series booth (WA type 4016:
+      # 40 + 16 = 49 + 7). The portal emits this literal for it — booth-
+      # builder.html `shrinkPack = w => (w === 7 ? 'STDWL7 / WL16' : ...)`,
+      # and the #3= vocabulary's code 9 reconstructs the same string. It is
+      # the packing list's Z02: a 2-PIECE BUNDLE, a 7 in wall and a 16 in wall
+      # shipped together, where the 7 is what stands in this slot and the 16
+      # restocks the C10 the wide door displaced (lib/packing-list.js, the
+      # narrow-wall-shrink comment; observed 2026-09-10). So the slot holds a
+      # 7 in wall and nothing else: 7Panel, or inboard ENH 2.5Panel — the
+      # width the inner wall closes on beside the 44.5 in ENH WA door
+      # (44.5 + 6.5 + 2.5 = 35.5 + 6.5 + 11.5; the door's 44.5 is measured,
+      # _enhanced-probe.tsv). ENH 2.5Panel.skp is NOT on the share as of
+      # 2026-09-10; it reaches the builder as an absent file, by name, and
+      # can be placeholdered. Before this branch the whole pack was
+      # untranslatable and the Enhanced build refused outright.
+      w = enh ? enh_width('7') : '7'
+      "#{p}#{w}Panel"
     when /\ASTDWL(\d+)\s+DRFRM\s+([RL])\b/i
       hand = Regexp.last_match(2).upcase == 'L' ? 'Left' : 'Right'
       w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
@@ -903,10 +929,18 @@ module WR_BoothLink
         name, gone = resolve_part(cfg['dir'], base, hx)
         if gone
           gaps << format('%-6s %-26s wanted  %s', sid, packs[slot], gone)
-          # Standard keeps today's behaviour EXACTLY: hand the composed name
-          # over and let the builder's own missing-parts report catch it. An
-          # inner slot assigns nothing, so no Standard name can reach it.
-          assign[sid] = base unless want_enh
+          # THE COMPOSED NAME IS HANDED OVER FOR BOTH SHELLS, so the builder
+          # reports — and, with consent, placeholders — the exact file that
+          # is absent. Until 1.25.0 an inner slot was left unassigned here,
+          # which read as safe ("no Standard name can reach it") but was
+          # not: the builder fills an unassigned inner slot with
+          # guess_component from the layout's DEFAULT width — for the 4016
+          # WA companion slot that is ENH 11.5PanelSolid, which EXISTS — and
+          # would have stood an 11.5 in panel beside a 44.5 in door where a
+          # 2.5 in one belongs. The composed name starts with 'ENH ' for an
+          # inner slot, so the builder's Standard-in-inner-slot fence is
+          # untouched.
+          assign[sid] = base
         else
           assign[sid] = name
         end
@@ -1026,11 +1060,9 @@ module WR_BoothLink
       puts '!' * 74
       puts "  #{gaps.length} component file(s) DO NOT EXIST in #{cfg['dir']}:"
       gaps.each { |g| puts "    #{g}" }
-      if enh
-        puts ''
-        puts '  THIS IS AN ENHANCED BOOTH. Nothing Standard has been put in their place.'
-        puts '  Those files have to be authored before this booth can be built.'
-      end
+      puts '  Nothing else is put in their place. The builder asks, with this list,'
+      puts '  whether to build WITHOUT them: an orange placeholder slab then stands'
+      puts '  in each empty slot and the booth group is named INCOMPLETE.'
       puts '!' * 74
     end
     # ---- option parts for the overlay pass, and LOUD refusals ------------
@@ -1115,17 +1147,18 @@ module WR_BoothLink
       return
     end
 
-    # THE REFUSAL. An Enhanced booth that is missing parts is not built at all.
-    # See ENH_MISSING_ABORTS at the top of the module for why, and for how to
-    # turn this into a build-anyway.
-    if enh && ENH_MISSING_ABORTS && !(gaps.empty? && odd.empty?)
-      lines = gaps + odd.map { |x| "untranslatable pack  #{x}" }
-      UI.messagebox("This ENHANCED booth needs #{lines.length} component(s) that could not " \
-                    "be resolved:\n\n" + lines.join("\n") +
-                    "\n\nNOTHING WAS BUILT. Building without them would put Standard parts " \
-                    "in an Enhanced booth, which is the failure this tool exists to stop.\n\n" \
-                    'Full detail is in the Ruby Console. To build anyway, leaving those slots ' \
-                    'empty, set ENH_MISSING_ABORTS = false in booth-from-link.rb.')
+    # THE REFUSAL. An Enhanced booth with a pack this file cannot read is not
+    # built at all. See ENH_MISSING_ABORTS at the top of the module for why,
+    # and for why a merely ABSENT file is no longer refused here.
+    if enh && ENH_MISSING_ABORTS && !odd.empty?
+      lines = odd.map { |x| "untranslatable pack  #{x}" }
+      UI.messagebox("This ENHANCED booth carries #{lines.length} pack(s) this tool cannot " \
+                    "translate to a part:\n\n" + lines.join("\n") +
+                    "\n\nNOTHING WAS BUILT. An unreadable pack means the slot's part is " \
+                    'unknown, and the layout default that would stand in for it renders ' \
+                    "as the right booth while being the wrong one.\n\n" \
+                    'Full detail is in the Ruby Console. To build anyway, set ' \
+                    'ENH_MISSING_ABORTS = false in booth-from-link.rb.')
       puts '  ENHANCED BUILD REFUSED - see the list above. Nothing was placed.'
       return
     end

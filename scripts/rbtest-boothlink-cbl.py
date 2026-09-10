@@ -30,6 +30,10 @@ WHAT IT ASSERTS
   5. THE 2026-09-09 DEFECT: a roof-mounted design whose cable walls have been
      DRAGGED off the layout's default vent slots builds, because the rule is a
      count over the whole outer shell and not an identity check on slot ids
+  6. THE 7 IN WIDE-ACCESS COMPANION (2026-09-10): the portal's literal
+     'STDWL7 / WL16' translates to the 7 in wall on both shells - 7Panel and
+     ENH 2.5Panel - and takes no option suffix. Before this it was
+     untranslatable and every Enhanced 4016-type WA booth refused to build.
 
 WHY GROUP 5 EXISTS
 ------------------
@@ -193,6 +197,17 @@ allmoved = { 'N0' => 'STDWL46',     'N1' => 'STDWL22', 'N2' => 'STDWL46',
              'W0' => 'STDWL46 CBL', 'W1' => 'STDWL46' }
 check('96120 E RM: no cable wall on ANY default vent slot still builds',
       WR_BoothLink.roof_vent_complaints(true, 'MDL 96120 E', allmoved), [])
+
+# 6 - the 7 in wide-access companion. booth-builder.html's shrinkPack emits
+# exactly 'STDWL7 / WL16' for it (observed 2026-09-10); the packing list's Z02
+# is a 7 + 16 bundle where the 7 stands in the slot. The Enhanced twin is the
+# 2.5 the inner wall closes on beside the 44.5 ENH WA door.
+check('7 in WA companion, Standard', WR_BoothLink.component_for('STDWL7 / WL16', O, false), '7Panel')
+check('7 in WA companion, Enhanced', WR_BoothLink.component_for('STDWL7 / WL16', O, true), 'ENH 2.5Panel')
+check('7 in WA companion ignores every option', WR_BoothLink.component_for('STDWL7 / WL16', OPT, true), 'ENH 2.5Panel')
+check('7 in WA companion, spacing and case forgiven', WR_BoothLink.component_for('stdwl7/wl16', O, false), '7Panel')
+check('a plain STDWL7 is still the 7 in wall', WR_BoothLink.component_for('STDWL7', O, false), '7Panel')
+check('the companion string is not a prefix of anything', WR_BoothLink.component_for('STDWL7 / WL16 VNT', O, false), nil)
 
 out = $results.map { |(n, ok, d)| (ok ? 'PASS ' : 'FAIL ') + n + (ok ? '' : '   ' + d) }
 (out.join("\n") + "\n" + $results.count { |r| !r[1] }.to_s + ' failure(s)').dup
