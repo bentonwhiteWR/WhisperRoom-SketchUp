@@ -1,6 +1,62 @@
 # DEVLOG
 
 ## 2026-09-10
+### Washed-out renders: the file was display-corrected twice — 1.33.1
+
+Benton, 10 Sep 2026, VFB beside the saved `2_Scene 4 render.png`:
+*"Clearly much brighter on the right side. Not ideal."* Patch bump.
+`rbparse.py` 71/71, `rbtest-proposal.py` PASS, `rbtest-srgb.py` PASS,
+`node --check` ok — none of which see V-Ray (see 1.31.3).
+
+**Cause, named (observed, measured on the file).**
+`Z:/Sketchup/Proposals/2_Scene 4 render.png`: RGB, sRGB + gAMA
+stamped, mean luminance **0.671**, max 1.0. The Rev2 renders
+(`01_OverviewRender`, `07_FrontRenderLeftDoor`) read **0.34**; the
+hand save measured 1 Sep read ~0.35–0.40. 0.671 is a ~0.40 sRGB file
+put through the sRGB encode a second time. Sequence: 1.31.3 fixed the
+`save_vfb_image` arity, so `:apply_color_corrections => true` in
+`SAVE_OPTS` reached V-Ray for the first time; V-Ray baked the VFB's
+Display Correction layer into the file; `srgb_bake` (wr-png-srgb.rb),
+calibrated for the LINEAR buffer, encoded it again. Not an exposure
+problem, not the ISO stamp.
+
+**The 1 Sep measurement was never a test of the option.** That day the
+Hash call raised on arity and the retry came from the fallback without
+the option, so "byte-different, luminance identical" measured render
+noise. The claim that the option "bakes only the correction layers, not
+the display transform" was wrong; the file proves it bakes the display
+transform.
+
+**Ruled out.** Alpha compositing: the file is colour type 2 (RGB), no
+alpha, BACKGROUND was off — no viewer composited it over white. The
+REJECTED line: had the option been rejected, the fallback would have
+saved a linear file and the bake would have landed near 0.34; it
+landed on 0.671, so the option was accepted and is real.
+
+**Fix.** `:apply_color_corrections` is out of `SAVE_OPTS`: the save is
+the linear buffer and `srgb_bake` is the one sRGB step — the road with
+a measurement behind it (lands on the hand save). The rescue's log line
+no longer blames that option. `srgb_bake` now logs a `bad` line when
+the pre-encode mean is already > 0.45 ("already looks display-corrected
+… the sRGB encode has now DOUBLED them") — heuristic, log-only. The
+alternative road — the option ON and no bake, V-Ray's own "as if you
+used the save button", which carries any curve/LUT/exposure layer — is
+written down, not shipped: it has no number behind it yet.
+
+**Rev2 render plates 01, 07, 09: NOT affected.** Exported at 12:47
+under 1.28.0, when the Hash call raised and the fallback saved the
+linear buffer, then baked once — mean 0.34, the calibrated result, the
+same pipeline 1.33.1 restores. Every render exported under 1.31.3 to
+1.33.0 IS double-corrected and must be re-exported.
+
+**Benton's comparison.** Render one scene, export, open the PNG beside
+the VFB: the booth fabric and the shadowed face should match the VFB to
+the eye, the row detail should read `sRGB-encoded (mean ~0.16 -> ~0.35
+…)`, and no "already looks display-corrected" line should appear. If
+the VFB carries correction layers beyond Display Correction (exposure,
+curve, LUT), those are NOT in the file on this road — say so and road
+(b) gets measured.
+
 ### Booths were sitting an inch into the floor: the ground lift — 1.33.0
 
 Benton: *"I think whenever we bring in a booth via the link, its too low. It

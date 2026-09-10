@@ -1226,3 +1226,19 @@ images plain image rows or ` render.png` rows?"**
    NOT STICK, paste the line.
 4. Proposal package on that model: the run log should say `EV 9.23 (f/8.0
    @ 1/300.0 @ ISO 3200.0, ISO counted)` plus a red ISO line.
+
+
+---
+
+# HANDOFF — double display correction (Fixer, 10 Sep 2026, 1.33.1)
+
+- **observed**: field PNG RGB, sRGB-stamped, mean 0.671 vs 0.34 (Rev2) —
+  display-corrected by V-Ray (option reached it after 1.31.3), then
+  sRGB-encoded again by srgb_bake. Alpha ruled out (colour type 2).
+- The 1 Sep "option changed nothing" test never exercised the option.
+- Fix: `:apply_color_corrections` removed from SAVE_OPTS; rescue log no
+  longer blames it; srgb_bake warns (log-only) when pre-encode mean > 0.45.
+- Rev2 01/07/09 unaffected (mean 0.34). Renders from 1.31.3–1.33.0 are
+  double-corrected: re-export.
+- Not shipped: option ON + no bake (V-Ray's own corrected save, carries
+  all VFB layers) — needs one measured comparison first.

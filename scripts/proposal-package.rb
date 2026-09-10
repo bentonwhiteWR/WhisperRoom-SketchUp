@@ -2674,20 +2674,32 @@ module WR_ProposalPackage
   # because at the time nobody had a measurement showing it mattered. Now
   # there is one.
   #
-  # AND :apply_color_corrections IS NOT THE FIX. MEASURED 1 Sep 2026: with it
-  # in SAVE_OPTS the retry file came out byte-different but luminance
-  # IDENTICAL (mean 0.1585, max 0.691). It bakes only the VFB's correction
-  # LAYERS (exposure / curve / LUT — all at default on this rig), not the
-  # display sRGB transform the VFB window applies on top. It stays in
-  # SAVE_OPTS so that any correction Benton DOES dial into the VFB reaches
-  # the file; the display transform is baked deterministically by srgb_bake
-  # below (wr-png-srgb.rb), which also stamps the sRGB + gAMA chunks so the
-  # file finally declares its colour space.
+  # :apply_color_corrections IS NOT IN THE SAVE, AND THE 1 SEP "IT CHANGED
+  # NOTHING" MEASUREMENT WAS NEVER A TEST OF IT (1.33.1). That day SAVE_OPTS
+  # was passed as a positional Hash, which raised (1.31.3), and the retry
+  # file came from the braceless fallback WITHOUT the option - so "byte-
+  # different, luminance identical" measured render noise, not the option.
+  # 1.31.3 fixed the arity and the option reached V-Ray for the first time.
+  # OBSERVED 10 Sep 2026 (Benton's VFB-vs-file screenshot, and the file
+  # itself): `2_Scene 4 render.png` came out RGB, sRGB-stamped, mean
+  # luminance 0.671 against 0.34 for the Rev2 renders and the ~0.35-0.40
+  # of a hand save. That is a display-corrected file encoded AGAIN by
+  # srgb_bake: the option DOES bake the VFB's Display Correction layer,
+  # and the pipeline below is calibrated (1 Sep, measured) for the LINEAR
+  # buffer plus exactly one sRGB encode. Two roads to a correct file:
+  #   (a) linear save + srgb_bake         - measured to land on the hand
+  #                                         save; carries no VFB layers
+  #                                         beyond the display transform;
+  #   (b) :apply_color_corrections, no bake - V-Ray's own "as if you used
+  #                                         the save button", carries every
+  #                                         layer; NOT measured here.
+  # (a) is what ships, because it is the one with a number behind it. (b)
+  # is the road to take the day Benton dials a curve or LUT into the VFB,
+  # and it needs one measured comparison first, not a comment.
   #
-  # The other two options stay exactly as they were: :skip_alpha kills the
-  # .Alpha.png sidecar, :no_alpha gives an opaque PNG.
-  SAVE_OPTS = { :skip_alpha => true, :no_alpha => true,
-                :apply_color_corrections => true }.freeze
+  # The two options that stay: :skip_alpha kills the .Alpha.png sidecar,
+  # :no_alpha gives an opaque PNG (dropped for a transparent run, 1.30.0).
+  SAVE_OPTS = { :skip_alpha => true, :no_alpha => true }.freeze
 
   # THE DARK-FILE FIX. Runs on every render-lane file the moment it lands on
   # disk: decode, sRGB-encode every colour byte, declare the colour space,
@@ -2709,6 +2721,18 @@ module WR_ProposalPackage
       { :ok => false, :why => "WR_PNGSRGB raised #{e.class}: #{e.message}" }
     end
     if r[:ok]
+      # A LINEAR buffer of a normally lit frame reads ~0.15-0.20 before the
+      # encode; a file that ALREADY carries the display transform reads
+      # ~0.35+ and comes out ~0.6+ after - the 10 Sep 2026 double-bake
+      # (mean 0.671). Heuristic, log-only: a genuinely bright linear frame
+      # can trip it, so it names the suspicion and does not undo anything.
+      if r[:before] * 1.0 > 0.45
+        log(dlg, "        #{p[:file]}  pre-encode mean #{format('%.3f', r[:before] * 1.0)} " \
+                 'already looks display-corrected - if V-Ray saved this file ' \
+                 'with its corrections baked, the sRGB encode has now DOUBLED ' \
+                 'them and the file will read washed out. Compare it to the ' \
+                 'VFB before sending.', 'bad')
+      end
       format(', sRGB-encoded (mean %.3f -> %.3f, max %.3f -> %.3f)',
              r[:before] * 1.0, r[:after] * 1.0,
              r[:max_before] * 1.0, r[:max_after] * 1.0)
@@ -2762,20 +2786,20 @@ module WR_ProposalPackage
     begin
       ok = @rend.save_vfb_image(p[:path], **save_opts)
     rescue Exception => e
-      # An option key this build rejects raises. :apply_color_corrections is
-      # the one that could be missing, and losing the whole batch over it
-      # would be worse than a dark image, so drop it, SAY SO LOUDLY, and
-      # save. The row still succeeds; it is just wrong in the way it used to
-      # be wrong, and now it is named instead of silent.
+      # An option key this build rejects raises. Losing the whole batch
+      # over one would be worse than a plain save, so retry with the two
+      # options the 30 Aug live check accepted, SAY SO by name, and go on.
+      # (Until 1.33.1 this branch blamed :apply_color_corrections; the real
+      # raiser was the Hash arity, 1.31.3.)
       begin
         fallback = { :skip_alpha => true }
         fallback[:no_alpha] = true unless @transparent
         ok = @rend.save_vfb_image(p[:path], **fallback)
         @colour_baked = false
-        log(dlg, "        #{p[:file]}  :apply_color_corrections was REJECTED by " \
-                 "this V-Ray build (#{e.class}) - saved the RAW buffer instead. " \
-                 'Any VFB correction layers are NOT in this file; the sRGB ' \
-                 'post-encode below still runs and fixes the darkness.', 'bad')
+        log(dlg, "        #{p[:file]}  save_vfb_image rejected the save options " \
+                 "(#{e.class}: #{e.message}) - saved with " \
+                 "#{fallback.keys.join(', ')} instead; the sRGB encode below " \
+                 'still runs.', 'bad')
       rescue Exception => e2
         @results << { :file => p[:file], :lane => 'render', :status => 'failed',
                       :detail => "save_vfb_image raised #{e2.class}: #{e2.message}" }

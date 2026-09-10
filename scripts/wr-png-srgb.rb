@@ -10,13 +10,14 @@
 # transfer curve to the batch file and it lands on 0.397, i.e. exactly on the
 # hand render. The file carries NO gAMA/sRGB/iCCP chunk, so every viewer
 # treats the linear data as sRGB and shows it dark. Camera EV was 14.229 in
-# BOTH files, so exposure is not the cause; and save_vfb_image with
-# :apply_color_corrections => true changed NOTHING measurable (retry file
-# byte-different, luminance identical) — that option bakes only the VFB's
-# correction LAYERS (exposure/curve/LUT, all at default here), not the
-# display transform. So the fix is applied here, deterministically, to the
-# saved file itself: decode the PNG, run every colour byte through the sRGB
-# encode curve
+# BOTH files, so exposure is not the cause. (The 1 Sep claim that
+# :apply_color_corrections "changed nothing" was wrong: the option never
+# reached V-Ray that day - the call raised on arity and the fallback ran
+# without it. Fixed in 1.31.3, it DID bake the display transform and this
+# file then encoded it again, mean 0.671, 10 Sep 2026. So the option is
+# OFF in proposal-package.rb and this file is the one and only sRGB step.)
+# The fix is applied here, deterministically, to the saved file itself:
+# decode the PNG, run every colour byte through the sRGB encode curve
 #
 #     v <= 0.0031308 ? v * 12.92 : 1.055 * v**(1/2.4) - 0.055
 #
