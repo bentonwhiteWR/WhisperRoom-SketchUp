@@ -1,6 +1,98 @@
 # DEVLOG
 
 ## 2026-09-10
+### Click a WhisperRoom, get its dimensions — measured, attached, rotatable — 1.37.0
+
+Benton, 10 Sep 2026: *"I still dont like the way our 'dimension tool' works
+at all for the whisperroom. Lets essentially start from scratch. I want to be
+able to click a whisperroom, and then all the dimensions show up."* Then, on
+the mockup: *"I like the A alternative. But could there be a button to
+'rotate' to other side?"* Spec `.forge/scoper/booth-dimensions-spec.md` rev
+2, built as approved (A only; the plan set B is not built). **Unrun in
+SketchUp** — the bridge was not listening. `rbparse.py` 74/74,
+`rbtest-boothdims.py` 90 checks PASS, seven mutants killed. Minor bump.
+
+**Three new scripts, one module (`WR_BoothDims`).** `dimension-whisperroom.rb`
+(Dimension a WhisperRoom), `rotate-whisperroom-dimensions.rb` (Rotate booth
+dimensions), `clear-whisperroom-dimensions.rb` (Clear WhisperRoom
+dimensions), all `@cat Add dimensions`, rank 1/2/3, pick-then-do: press the
+button, click the booth, done; a booth already selected skips the pick; Esc
+cancels. No dialog, no `@setting`, no label. The old `dimension-booth.rb`
+is `@shelf archive` with its ability directives gone, and running it now
+removes its own leftovers and draws nothing; the Clear tool's Esc sweeps
+`WR_DimBooth/own` too, so the file can go next release.
+
+**Measured, never the catalogue.** Footprint = union of the outer-shell wall
+parts (`/\A[NSEW]\d+\s/`, vent housings included, doors excluded — the open
+leaf lives inside that component) and the corner seals; height = floor-part
+underside (`STD…FL`, `ENH …FL`, `FLi`) to ceiling-part top (`…CL`, `CLi`),
+walls excluded because a 46VNT box stands taller than a Standard ceiling.
+Overlays (roof unit, caster plates, EFP), placeholders and anything on
+WR-Booth-Missing never vote; the inner IEP shell fails the wall regex on its
+own. Each side prints the part that set it. The catalogue (`:w`/`:h` + 5.5 per
+vented face, 83.0 / 84.3125) is printed beside it and any axis more than
+1/4 in apart gets a `***` block naming the axis, both figures and the part —
+the dimension still reads what is drawn (coordinator, Q4). A name-matched
+group with no named parts is measured off its group bounds and says so.
+
+**Attached.** Every endpoint is a ConstructionPoint on WR-Dims-Booth at the
+corner, owned by the booth, and the dimension is attached to it. Attaching
+straight to a part vertex through `Sketchup::InstancePath` is written
+(`attach_vertex`) but off behind `ATTACH_NESTED_VERTICES`: that 2019
+overload has never been exercised in this repo (1.17.0 never reached a
+nested face), the bridge could not verify it today, and a misremembered
+overload could land a witness line somewhere plausible and wrong. Either
+way the run post-checks every endpoint against its corner within 0.001 in
+and reports a miss; anything that could not attach at all is `loose` and
+reported as a defect.
+
+**One corner, four positions.** The set lives at FR / FL / RL / RR (named
+from outside facing the door wall), stored on the booth group as
+`WR_BoothDims/corner`. One rule places everything: the two ground strings run
+along the two ground edges leaving the corner, the height stands at the far
+end of the side-wall edge pushed out on that side — 24 in on the ground
+strings, 36 in on the height so it clears the depth string's end. With the
+door on S and corner FR that is the reference image exactly. ROTATE advances
+FR → FL → RL → RR → FR (first press = the other side) and then runs the
+same draw path: erase this booth's set, re-measure, re-anchor, draw. Nothing
+is transformed. A wall standing in the 36 in slab on the new side does not
+stop it — the set is drawn and the console says `*** left side blocked by
+"W wall"`. Per booth throughout: re-running booth 1 or rotating it never
+touches booth 2; orphan sets whose booth is gone are erased and reported.
+
+**Ecosystem untouched.** The tag stays `WR-Dims-Booth`, so `DIM_TAGS`,
+`SHOWN_ON_DIMENSIONED`, `annot_tags`, the ANNOTATIONS picker and the
+client-safe pass see exactly what they saw. Tag colour is now dark grey
+(the orange only ever showed under Color-by-Tag; the strings draw in the
+model's dimension colour, which is why the reference image is black).
+
+**Benton's check, fastest first.** (1) Link-build a 7296 E, press Dimension
+a WhisperRoom, click it: three strings, `8' 2"` / `6' 7 1/2"` / `7' 5/16"`, or
+a `***` block in the console naming the axis — both pass; a silent wrong
+number is the only fail. (2) Press Rotate, click it: `corner FL (rotated,
+press 1 of 4)`, depth on the left wall, height up the rear-left corner
+pushed out to the left, still three strings. (3) Move the booth 4 ft and
+re-run Dimension: the strings follow (they are rebuilt), still at FL. The
+check that would reveal the worst failure is the `anchors:` console line —
+if it ever reads anything but `0 loose`, or prints a `*** … landed` line,
+the attachment route is wrong and the fix is in `anchor_for`.
+
+**Finishing pass (second Builder, same day).** The first Builder was cut
+off by a rate limit before reporting; its work was audited against the spec
+item by item and found complete, with four small fixes: ROTATE now hands
+the advanced corner into `dimension`, which writes it inside the one
+operation, so a single Ctrl+Z reverses a rotate entirely (it used to leave
+the corner advanced); the GROUP BOUNDS fallback now sees unnamed children,
+so a block-out of nameless groups is measured instead of refused; every
+string gets auto-dimension.rb's `text = ''` guard so a typed figure can
+never survive (spec S10); and a comment mis-naming `onCancel` reason 2.
+Harness re-mutated here (FL mirrored → 4 fails, doors voting → 5 fails,
+restored byte-identical). One expectation in the spec is wrong about the
+model, not the code: `booth-4260-s.rb` names its parts like the builder
+(`N0  46VNT`, seals), so check 11 will take the PARTS route and print
+`*** no floor/ceiling parts — the height is off the WALLS`, not `GROUP
+BOUNDS`; the bounds route is for a block-out with no part names at all.
+
 ### FOLDER & DETAILS layout: the Browse button and the squeezed help column were one bug — 1.36.1
 
 Benton, 10 Sep 2026: *"browse button doesnt need to eat up all the

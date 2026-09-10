@@ -1303,3 +1303,67 @@ images plain image rows or ` render.png` rows?"**
 - Help moved to a column-2 row (text unchanged); `.out .btn
   { justify-self:start }`. Nothing else touched.
 - Check: Browse button-sized, path field fills the row, help text wide.
+
+
+---
+
+# HANDOFF — click a WhisperRoom, get its dimensions (Builder, 10 Sep 2026, 1.37.0)
+
+Spec rev 2 built as approved (A only; B not built). **Unrun in SketchUp** —
+the bridge was not listening (`sketchup-bridge.py ping` exit 3).
+
+## Produced
+- `scripts/dimension-whisperroom.rb` — module `WR_BoothDims`: `dimension(inst)`
+  (returns the three Dimension entities), `rotate(inst)`, `clear(inst_or_nil)`,
+  `run(action)`, `PickTool`. PURE SECTION (extent, corner table, rotation,
+  slab, reconciliation) between markers, no `.to_f` inside it.
+- `scripts/rotate-whisperroom-dimensions.rb`, `scripts/clear-whisperroom-dimensions.rb`
+  — load the module quietly (local-held `$wr_no_autorun`), run one action.
+- `scripts/dimension-booth.rb` — `@shelf archive`, ability directives removed,
+  `run` now prints the retirement and calls `ability_off` (draws nothing).
+- `scripts/proposal-scenes.rb` — comment at 45-47 only. `DIM_TAGS` /
+  `SHOWN_ON_DIMENSIONED` unchanged. `wr-preflight.rb`, `defaults.json`,
+  `icon-map.json` reference nothing that moved (the new scripts declare
+  `# @icon dim-booth` themselves).
+- `scripts/rbtest-boothdims.py` — 90 checks, 7 mutants killed (counts in its
+  header). `rbparse.py` 74/74. VERSION 1.37.0. DEVLOG entry.
+
+## Decisions I made (each reversible)
+- **ConstructionPoints are the default anchor; the InstancePath vertex route
+  is behind `ATTACH_NESTED_VERTICES = false`.** The coordinator's rule for an
+  unverifiable overload. Flip it after watching one run on the bridge; the
+  post-check (`*** … landed`) guards either route.
+- `@title` without the trailing `...` — that glyph means "opens a dialog";
+  a pick tool does not.
+- Refusal of a non-booth is a `UI.messagebox` (spec §5: "refuse … message");
+  it is not a settings dialog.
+- The obstruction test uses one 36 in slab (the 24 in depth slab sits inside
+  it) against every other top-level group/component's world AABB.
+- Old-tool leftovers (`WR_DimBooth/own`) are swept by Clear-all (Esc) only;
+  a per-booth run just counts them in the console.
+
+## Assumptions (not observed)
+- `PickHelper#path_at(0).first` is the top-level instance under the cursor;
+  `best_picked` is the fallback.
+- `DimensionLinear#start` / `#end` return a Point3d or an `[entity, point]`
+  pair (read the way `proposal-package.rb dim_anchor` reads them).
+- `Entity#bounds` on a child instance is in the booth group's frame.
+- `Model#find_entity_by_persistent_id` is present (2017+); if it raises, a
+  set is treated as alive rather than erased.
+
+## Finishing pass (second Builder, 10 Sep, same version)
+Audited against spec rev 2 §4–§10: every decision S1–S11 and §5–§9 is
+implemented; §7 attachment route 1 (InstancePath vertex) is written but
+off behind `ATTACH_NESTED_VERTICES` — a stated deviation, the spec's own
+fallthrough. Fixed: rotate's corner write moved inside the operation
+(`dimension(inst, force_corner)`); bounds fallback includes unnamed
+children; `d.text = ''` guard; onCancel comment. Check 11's expectation
+(`GROUP BOUNDS` on the 4260) is wrong about the block-out — it has named
+parts and will take the parts route with the no-deck height flag.
+Re-verified: rbparse 74/74, boothdims 90/0, proposal harness and JS dialog
+test pass, harness mutation-checked again. Still UNRUN in SketchUp.
+
+## To verify (Benton) — see the DEVLOG entry's three clicks
+Fastest proof: 7296 E → Dimension → three strings or a `***` block; Rotate →
+`corner FL`; move the booth → re-run → follows. The worst failure shows on the
+`anchors:` line (`loose` > 0) or a `*** … landed` line.

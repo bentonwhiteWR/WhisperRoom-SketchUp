@@ -42,7 +42,8 @@ module WR_ProposalScenes
 
   # Every WhisperRoom dimension tag, because a plate must not inherit whatever
   # visibility a tag happened to have when the scenes were made. This list was
-  # two tags long and predated dimension-booth.rb (WR-Dims-Booth) and
+  # two tags long and predated the booth tool (WR-Dims-Booth — now
+  # dimension-whisperroom.rb, which kept the tag name on purpose) and
   # dimension-selection.rb (WR-Dims-Selection), so those two froze at whatever
   # state they were in — booth catalogue numbers could land on the clean
   # exterior plate, or vanish from the dimensioned one. These are customer

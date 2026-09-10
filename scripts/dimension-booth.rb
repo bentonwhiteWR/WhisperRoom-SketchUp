@@ -1,16 +1,19 @@
-# @title Dimension the booth (catalogue figures)...
+# @title RETIRED - old booth dimensions (run removes its own)
 # @cat Add dimensions
-# @ability Dimensioned booth
-# @ability-blurb Select a booth: it works out which model, dimensions it and labels it. Switch off to remove.
-# @setting height  choice  Auto|Standard|Enhanced  Panel height
-# @setting vents   text    auto         Vented faces: auto, none, or e.g. "N E"
-# @setting gap     number  24           Standoff (in)
-# @setting rise    number  36           Label above booth (in)
-# @on  WR_DimensionBooth.ability_on(opts)
-# @off WR_DimensionBooth.ability_off(opts)
+# @shelf archive
 #
-# Select a WhisperRoom. It works out WHICH model it is, dimensions it to the
-# catalogue figures, and labels the drawing with the model name.
+# RETIRED 10 Sep 2026, replaced by dimension-whisperroom.rb (Dimension a
+# WhisperRoom / Rotate booth dimensions / Clear WhisperRoom dimensions).
+# Kept for one release so a model still carrying this tool's set can be
+# cleaned: running it now REMOVES what it drew and draws nothing. The new
+# Clear tool sweeps the same entities (WR_DimBooth/own), so this file can be
+# deleted next release. Spec: .forge/scoper/booth-dimensions-spec.md §3
+# names the nine defects that retired it — catalogue numbers at bare points
+# attached to nothing, a height setting that could draw the wrong height, a
+# label nobody asked for, a model-wide clear.
+#
+# The ability directives are gone from this header on purpose, so the panel
+# no longer offers the switch. The rest of the file is left as it was.
 #
 #   load "C:/Users/bento/Documents/Claude/Sketchup/scripts/dimension-booth.rb"
 #
@@ -726,16 +729,15 @@ module WR_DimensionBooth
     true
   end
 
-  # From the list, ask first; from the toggle, ability_on runs with the stored
-  # settings. The button and the switch therefore mean the same thing, they just
-  # differ on whether you get to change the standoff first.
+  # RETIRED: running this file removes its own leftovers and points at the
+  # replacement. It never draws again — a catalogue number at a bare point
+  # is the defect the replacement exists to remove.
   def self.run
-    cfg = ask
-    if cfg.nil?
-      puts '  cancelled at the dialog — nothing was drawn.'
-      return
-    end
-    ability_on(cfg)
+    puts ''
+    puts 'dimension-booth.rb is RETIRED. Use Dimension a WhisperRoom'
+    puts '(scripts/dimension-whisperroom.rb) — it measures the built parts and'
+    puts 'attaches the strings to the corners.'
+    ability_off
   end
 end
 
