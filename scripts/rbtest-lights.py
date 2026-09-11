@@ -405,7 +405,8 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'PANEL_U', 'PANEL_V', 'PANEL_DEPTH', 'PANEL_FRAME',
            'PANEL_EMIT_UP', 'PANEL_SPACING', 'PANEL_MAX', 'PANEL_MIN_INSET',
            'FILL_D', 'FILL_EDGE', 'FILL_STEP', 'FILL_MIN',
-           'CLAMP_TOL', 'CLAMP_FLOOR', 'PANEL_VISIBLE_SHARE']
+           'CLAMP_TOL', 'CLAMP_FLOOR', 'PANEL_VISIBLE_SHARE',
+           'PANEL_VIS_RECESS']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT', 'RIG_DEFAULT']
 # FILL_SCATTER BEFORE LIGHT_LAYERS: the :fill role's :n reads FILL_SCATTER.size,
 # and these are emitted in list order into one Ruby module body.

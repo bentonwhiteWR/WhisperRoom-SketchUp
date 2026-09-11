@@ -423,6 +423,14 @@ module WR_DropLights
   # at the same point, every pool in the room is still directly under a
   # visible fixture — the split costs nothing on "believable cause".
   PANEL_VISIBLE_SHARE = 0.05
+  PANEL_VIS_RECESS    = 0.75  # in — how far ABOVE the aperture plane the
+                              #   VISIBLE emitter is recessed, so the
+                              #   invisible one can have the aperture and
+                              #   throw into the room unobstructed. See the
+                              #   placement comment: coplanar cost d04 over
+                              #   half its light. Both stay inside the
+                              #   PANEL_DEPTH housing, so the ceiling clamp
+                              #   is untroubled either way.
   PANEL_MIN_INSET = 12.0 # in — half the panel: a centre closer than this to
                          #   a floor edge would hang the housing in a wall.
 
@@ -4917,8 +4925,20 @@ paint(); drawPresets("");
           pgrid[:pts].each do |p|
             fg, ez = build_f4(ents, model, p[0], p[1], info[:z_top], fx_mat)
             stamp_own.call(fg, :f4)
-            place.call(:panel, [p[0], p[1], ez], vis_lm, nil, fg.entities)
+            # THE HIDDEN EMITTER GOES IN FRONT, NOT BEHIND (d05). d04 placed
+            # both at the same z and lost over half the room's light: a V-Ray
+            # rectangle light with invisible = 0 is RENDERED GEOMETRY and
+            # occludes rays from behind it, so the visible aperture stood in
+            # front of the hidden emitter and blocked it. The frame showed it
+            # outright -- dark panels with the trapped light leaking out as a
+            # halo around each rim. So the invisible one takes the aperture
+            # position and the visible one is recessed PANEL_VIS_RECESS
+            # deeper into the housing. Nothing occludes the hidden emitter
+            # now, and the camera still sees the lit aperture through it,
+            # because an invisible light does not block camera rays.
             place.call(:plenum, [p[0], p[1], ez], hid_lm, nil, fg.entities)
+            place.call(:panel, [p[0], p[1], ez + PANEL_VIS_RECESS], vis_lm,
+                       nil, fg.entities)
           end
           puts format('  %s: OFFICE RIG — ceiling panels: %d x F4 %g x %g in ' \
                       'flat panel on a REGULAR grid, %d x %d at %.1f x %.1f in ' \
