@@ -1,6 +1,135 @@
 # DEVLOG
 
 ## 2026-09-10
+### The bearing came off the door LEAF, not the frame - and the interior is always a render - 1.52.0
+
+Three corrections from Benton after re-running 1.51.0. Two are the same plate
+still not being right; one is a workflow default.
+
+**1. THE FRONT PLATE WAS STILL NOT SQUARE, AND 1.51.0 FIXED THE WRONG HALF.**
+*"front and angled are still incorrect. Front should find the door frame
+really, rather than the door. It should be in front of the door frame."*
+
+1.51.0 changed the bearing from "direction to the door's centre" to "normal of
+the wall the door is in", which was the right shape - but it still computed
+that from **every part tagged `WR-Booth-Door`, unioned into one bounding box.**
+The booth data distinguishes a **`DRFRM`** slot (the frame, fixed in the wall)
+from the door **leaf**, and a leaf drawn SWUNG OPEN sits well off the wall
+plane. Union the two and the centroid is in mid-air, so the wall-normal rule
+normalises an offset that never came from a wall - and the wall it picks can be
+the wrong wall entirely.
+
+`frame_hits` now picks the frame out of the tagged parts, two ways:
+
+1. **By name** (`/FRM|FRAME/i`) when the builder names it that way.
+2. **Otherwise geometrically: the part CLOSEST TO THE SHELL PLANE.** Normalise
+   each offset by its own half-extent so 1.0 means "exactly at the shell", and
+   score `1 - |n - 1|`. A frame is in the wall plane and scores ~1; a leaf
+   swung inward falls short of it, a leaf swung outward overshoots it, and both
+   are penalised symmetrically.
+
+**The first version of that rule was "largest offset wins", and the check I
+wrote for it failed** - a leaf swung out past the booth's own footprint beat
+the frame. `fm2` caught it before it shipped. That is the check doing its job,
+and it is why the rule is stated as "closest to the shell" rather than
+"furthest from the centre".
+
+**`kind_of` IS NOT TOUCHED.** `wr-overlays.rb`'s `kind_of` returns `:door` for
+both frame and leaf and has three callers - `wr-overlays.rb:445`, `:849` (the
+step placement, which works today and depends on that loose sense), and this
+bearing. Nothing is repointed: the frame is chosen HERE, out of parts already
+tagged, and every existing caller keeps the behaviour it has.
+
+**AND THE FRONT PLATE NOW LOOKS AT THE FRAME, NOT THE BOOTH CENTRE.** *"It
+should be in front of the door frame."* On a long wall with an off-centre door,
+targeting the booth's middle leaves the door off to one side of the shot. The
+plate carries `:aim_at => :door` and the eye stands on the wall normal
+**through the frame**. Only that plate does; the others frame the whole booth.
+This also answers the standoff question: the eye is measured from the frame
+itself now, so a booth with its door on the long wall and one with its door on
+the short wall end up the same distance from the door.
+
+**THE FIXTURE NOW HAS BOTH A FRAME AND A SWUNG LEAF**, tagged the same, 38 in
+off the wall plane. Without that this class of error stays invisible - exactly
+as the centred-door fixture hid the 1.50.x bug.
+
+**2. THE INTERIOR EYE GOES A FURTHER ~18 IN INBOARD.** *"Interior needs to go
+towards the center of the booth like 18\" now or so"*, following the ~2 in of
+1.51.0. `INTERIOR_EYE_CLEAR` 4.0 -> **22.0** - one named constant carrying both
+corrections and both dates.
+
+**IT STAYS FIXED RATHER THAN GOING PROPORTIONAL, and that is the call the third
+correction turns on.** Both of Benton's corrections are absolute distances,
+because what he is describing is where a PERSON stands - a couple of feet
+inside the door, looking across the room - and that reads the same in a 4872 as
+in a 96192. A proportional rule has already failed here once: `radius * 0.55`
+was a fraction of the 3D DIAGONAL, mixing width, depth and height, and stood
+2 in off the face in one booth and 26 in off it in another. Going proportional
+again at 22 in would reintroduce precisely that.
+
+**The small-booth case is clamped, not ignored.** A 4230 is 32 in deep, so
+"23 in inside the door" is past its far wall; `interior_eye_dist` never lets the
+eye cross the booth centre and simply lands there, which is where a person in a
+2'8" booth is standing anyway (`in1d`).
+
+**The two-point look survived the move**, which was the constraint: the eye
+slides along a level direction, so `in6`-`in10` (zero-z direction, world
+vertical up, perspective, 70-degree lens) are untouched and still pass.
+
+**3. THE INTERIOR PLATE IS ALWAYS A RENDER.** *"fyi interior plate should always
+be a render."* It carries `:render => :always` and came OFF `RENDER_LADDER`.
+
+**FORCED RENDERS ARE ADDITIVE AND SIT OUTSIDE THE LADDER.** They do not consume
+a slot, because the render count answers *"how many of the ordinary plates do
+you want rendered"* - and silently demoting the angled hero because the interior
+box got ticked is the exact surprise this had to avoid. Set the knob to 2 and
+tick interior and you get **three** renders, and the Apply summary says
+`3 render (2 from the render count + 1 always-render: 07-interior)` rather than
+a number that no longer means what it says. At a render count of **zero** the
+interior is still a render (`fr1`), which is the case most likely to break.
+
+**COST IS KEPT VISIBLE, because renders are the expensive half.** Forcing a
+render on a plate that is OFF by default costs nothing until Benton asks for
+that plate. Forcing one on an always-on plate would raise the floor of every
+run. **`fr6` fails if a forced render ever appears on an `:on => true` plate**,
+so making that change means deliberately editing a check that says what it
+costs.
+
+**`07-interior` IS STILL `:on => false`** - "always a render" is about the mode
+when the plate is produced, not about producing it. That default is unchanged
+and still waiting on Benton's answer.
+
+**STILL NOT DONE - the dual angled image+render pair, and I want a decision
+rather than a guess.** The forced-render mechanism above is the half it shares
+and is now in place. What is NOT settled is the **naming**, and it reaches
+client output: `proposal-package.rb:576` already appends `' render'` to a render
+row's filename by MODE. So a second page called `02-angled render` exports as
+`..._02-angled render render.png` - a doubled word in a file that goes into
+`proposal-v2.json`. The options are a different scene suffix (`02-angled 2`),
+living with the doubled word, or changing `plan_names` - which is in a file
+another agent has been working in. **I am not picking a client-facing filename
+convention by guess.**
+
+**RE-RUNNABILITY.** The bearing and framing changes move where cameras POINT,
+and auto-set does not re-aim an existing scene unless the box is ticked. A set
+made by 1.51.0 keeps its old aim until Benton ticks **re-aim cameras**, or
+Removes and re-Applies. Plate IDs did not move, so either works. The forced
+render is MODE, which is policy and is rewritten on every run - so an existing
+interior scene flips to Render on the next Apply with no re-aim needed.
+
+**VERIFICATION.** `rbtest-autoset.py` 113 -> **134 checks**, green. **31 mutants
+reintroduced one at a time, all 31 killed by name** - including both D5 guards,
+the largest-offset frame rule (`fm2`), dropping the frame NAME rule
+(`fm1`/`fm2`/`fm5`), a forced render made to consume a ladder slot (`fr4`), a
+forced render put on an always-on plate (`fr6`/`fr7`), and the interior clamp
+allowed to go negative (`in1d`). `rbparse.py` clean across 75 files; every other
+`rbtest-*.py` exits 0.
+
+**UNVERIFIED until Benton runs it:** `.forge/builder/verify-autoset.rb`, now
+with a swung leaf in the fixture and a zero-render interior pass. Expect
+**~124 checks**.
+
+## 2026-09-10
 ### The door bearing was a bearing to the DOOR, not the normal of its wall - 1.51.0
 
 Benton on the 1.50.x plates: **"the new auto set scenes are REALLY good. Quite

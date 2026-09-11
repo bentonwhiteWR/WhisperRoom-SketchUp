@@ -158,7 +158,8 @@ module WR_AutoSet
   # would silently mis-expose it.
   PLATES = [
     { :id => '01-front',       :az => :door, :swing => 0.0,  :el => 7.0,
-      :on => true,  :what => 'Front on, square to the door' },
+      :aim_at => :door,
+      :on => true,  :what => 'Front on, square to the door FRAME' },
     { :id => '02-angled',      :az => :door, :swing => 35.0, :el => 7.0,
       :on => true,  :what => 'Angled, same height - cover hero' },
     { :id => '03-high',        :az => :door, :swing => 35.0, :el => 40.0,
@@ -171,7 +172,8 @@ module WR_AutoSet
       :parallel => true,
       :on => true,  :what => 'Top-down, dimensions (the ONE parallel plate)' },
     { :id => '07-interior',    :az => :door, :swing => 0.0,  :el => 0.0,
-      :on => false, :inside => true, :what => 'Interior (off by default)' }
+      :on => false, :inside => true, :render => :always,
+      :what => 'Interior (off by default, ALWAYS a render)' }
   ].freeze
 
   # SIDE IS ON BY DEFAULT EVEN THOUGH HE SAID "sometimes". Turning a plate off
@@ -212,7 +214,28 @@ module WR_AutoSet
   # off the door wall - a different shot entirely. At 4 in the face is clear of
   # the near plane on every model, and the shot means the same thing whatever
   # booth it is pointed at.
-  INTERIOR_EYE_CLEAR = 4.0
+  # TWO CORRECTIONS, BOTH BENTON'S, BOTH ABSOLUTE DISTANCES. 10 Sep 2026,
+  # first: "it needed to move like 2\" more inside the booth. It was kinda
+  # stuck in the wall" — which took this from the old radius * 0.55 (2.2 in
+  # off the interior face on a 4872) to 4 in. Then, after seeing that: "Interior
+  # needs to go towards the center of the booth like 18\" now or so" — a
+  # FURTHER ~18 in inboard, so 4 + 18 = 22.
+  #
+  # IT STAYS FIXED RATHER THAN BECOMING PROPORTIONAL, and that is the call the
+  # third correction turns on. Both of his corrections are absolute distances,
+  # because what he is describing is where a PERSON stands — a couple of feet
+  # inside the door, looking across the room. That reads the same in a 4872 and
+  # a 96192. A proportional rule has already failed here once: radius * 0.55
+  # was a fraction of the 3D DIAGONAL, so it mixed width, depth and height and
+  # stood 2 in off the face in one booth and 26 in off it in another. Going
+  # proportional again at 22 in would reintroduce exactly that.
+  #
+  # THE SMALL-BOOTH CASE IS REAL AND IS CLAMPED, NOT IGNORED. A 4230 is 32 in
+  # deep, so "23 in inside the door" is past its far wall. interior_eye_dist
+  # never lets the eye cross the booth centre; on the smallest booths it simply
+  # lands at the centre, which is where a person in a 2'8" booth is standing
+  # anyway.
+  INTERIOR_EYE_CLEAR = 22.0
 
   # The interior lens. Wide on purpose — see aim_interior: at PLATE_FOV (35)
   # a camera 4 in off the interior face of a 4872 sees one panel and nothing
@@ -242,7 +265,10 @@ module WR_AutoSet
     return radius.to_f * 0.55 if half.nil?
     r = reach(half[0], half[1], az)
     d = r - BOOTH_WALL_T - INTERIOR_EYE_CLEAR
-    d > 1.0 ? d : 1.0
+    # Never past the booth centre — see INTERIOR_EYE_CLEAR. Clamping at 0 puts
+    # the eye ON the centre, which still looks across the booth because the
+    # target sits on the far side of it.
+    d > 0.0 ? d : 0.0
   end
 
   # 35 degrees is SketchUp's own default lens and a longer one than aim's 40:
@@ -286,16 +312,45 @@ module WR_AutoSet
   # 0-6 from the popover. Assigned down this fixed ladder, everything below
   # the line is IMAGE.
   #
-  # TWO PLATES ARE NOT ON THE LADDER AT ALL, so no number of renders can
-  # promote them: 03-high ("This is image", flatly) and 06-plan. Both are
-  # dimension-carrying plates, and a plate whose job is to carry a dimension
-  # string does not need photoreal materials - the render lane is the
-  # expensive one. 01-front is last on the ladder for the same reason: it is
-  # the other dimensioned plate.
-  RENDER_LADDER = %w[02-angled 05-ventilation 04-side
-                     07-interior 01-front].freeze
+  # THREE PLATES ARE NOT ON THE LADDER AT ALL.
+  #
+  #   03-high  "This is image", flatly.
+  #   06-plan  the other dimension-carrying plate. A plate whose job is to
+  #            carry a dimension string does not need photoreal materials, and
+  #            the render lane is the expensive one.
+  #   07-interior  the opposite case: it is a FORCED render (:render =>
+  #            :always) and does not need the ladder's permission. Benton, 10
+  #            Sep 2026: "fyi interior plate should always be a render."
+  #
+  # 01-front is last ON the ladder for the dimensioned-plate reason above.
+  RENDER_LADDER = %w[02-angled 05-ventilation 04-side 01-front].freeze
   DEFAULT_RENDERS = 2
   MAX_RENDERS = 6
+
+  # ------------------------------------------------- forced renders --
+  #
+  # A plate carrying `:render => :always` is a render WHENEVER IT IS
+  # PRODUCED, at any setting of the knob, zero included. Benton, 10 Sep 2026:
+  # "fyi interior plate should always be a render."
+  #
+  # FORCED RENDERS ARE ADDITIVE AND SIT OUTSIDE THE LADDER. They do not
+  # consume a slot from the render count, because the count is the answer to
+  # "how many of the ordinary plates do you want rendered" and silently
+  # demoting the angled hero because the interior box got ticked is precisely
+  # the surprise this design has to avoid. Set the knob to 2 and tick the
+  # interior and you get THREE renders — and the Apply summary says so, broken
+  # out, rather than reporting a number that no longer means what it says.
+  #
+  # COST LIVES HERE, SO KEEP IT VISIBLE. Renders are the expensive half of
+  # Benton's workflow. Forcing one on a plate that is OFF by default (this is
+  # the only one) costs nothing until he asks for that plate. Forcing one on
+  # an always-on plate would raise the floor of every single run, and that is
+  # a different kind of decision — `rbtest-autoset.py`'s `fr6` fails if a
+  # forced render ever appears on an `:on => true` plate, so making that
+  # change means editing a check that says out loud what it costs.
+  def self.forced_renders(ids)
+    (ids || []).select { |id| pl = plate(id); pl && pl[:render] == :always }
+  end
 
   # STILL TO DO, NAMED RATHER THAN HALF-DONE (10 Sep 2026). Benton takes the
   # front-on and the angled shot TWICE - "I usually grab one that is an image
@@ -550,11 +605,19 @@ module WR_AutoSet
 
   # The plate ids that become RENDER rows: the first n rungs of the ladder
   # that are actually in this run's plate list. Everything else is IMAGE.
-  def self.renders_for(n, plate_ids)
+  # The ladder's share only — what the KNOB bought. Kept separate from the
+  # forced rows so the summary can report the two halves honestly.
+  def self.ladder_renders(n, plate_ids)
     want = n.to_i
     want = 0 if want < 0
     want = MAX_RENDERS if want > MAX_RENDERS
     RENDER_LADDER.select { |id| plate_ids.include?(id) }.first(want)
+  end
+
+  # Every plate that comes out as a render: the ladder's share plus the forced
+  # rows. Ladder first so the order still reads down the ladder.
+  def self.renders_for(n, plate_ids)
+    (ladder_renders(n, plate_ids) + forced_renders(plate_ids)).uniq
   end
 
   def self.mode_for(plate_id, render_ids)
@@ -863,7 +926,62 @@ module WR_AutoSet
     end
   end
 
-  def self.tag_az(booth, tag_name)
+  # THE FRAME, NOT THE LEAF. Benton, 10 Sep 2026, after 1.51.0: "Front should
+  # find the door frame really, rather than the door. It should be in front of
+  # the door frame."
+  #
+  # The booth data distinguishes a DRFRM slot -- the frame, fixed in the wall
+  # -- from the door leaf. A leaf can be drawn swung OPEN, and then its
+  # geometry sits well away from the wall plane; union the two into one
+  # bounding box and the centroid is somewhere in mid-air, so even the
+  # wall-normal rule of 1.51.0 normalises against an offset that never came
+  # from the wall. That is why the front plate was still not square.
+  #
+  # THIS DOES NOT TOUCH kind_of. wr-overlays.rb's kind_of returns :door for
+  # both frame and leaf and has three callers (wr-overlays.rb:445, :849 for the
+  # step, and this bearing). The step placement depends on finding "the door"
+  # in that loose sense and works today, so nothing is repointed: the frame is
+  # picked HERE, out of the parts already tagged WR-Booth-Door, and every
+  # existing caller keeps the behaviour it has.
+  #
+  # HOW THE FRAME IS PICKED, without depending on a naming convention that
+  # differs between builders (build-booth-components.rb names a DRFRM slot
+  # "Right46Door"; booth-4260-s.rb tags by :sk instead):
+  #
+  #   1. If any tagged part's name says frame (/FRM|FRAME/i), use those.
+  #   2. Otherwise use the part CLOSEST TO THE SHELL PLANE. Normalise each
+  #      offset by its own half-extent, so 1.0 means "exactly at the shell",
+  #      and score 1 - |n - 1|. A frame is IN the wall plane and scores ~1. A
+  #      leaf swung inward sits short of it; a leaf swung outward sits past it;
+  #      both are penalised, and symmetrically, which "largest offset wins"
+  #      was not -- that rule picked a leaf swung out beyond the booth's own
+  #      footprint, which is what the fm2 check caught while this was written.
+  #      Geometric, so it holds whatever the parts are called.
+  def self.frame_hits(hits, own)
+    named = hits.select { |e| (e.name.to_s rescue '') =~ /FRM|FRAME/i }
+    return named unless named.empty?
+    hx = (own.max.x - own.min.x).to_f / 2.0
+    hy = (own.max.y - own.min.y).to_f / 2.0
+    best = nil
+    best_n = -1.0
+    hits.each do |e|
+      c = e.bounds.center
+      nx = hx > 1.0e-6 ? ((c.x - own.center.x).to_f / hx).abs : 0.0
+      ny = hy > 1.0e-6 ? ((c.y - own.center.y).to_f / hy).abs : 0.0
+      n = nx > ny ? nx : ny
+      score = 1.0 - (n - 1.0).abs
+      if score > best_n
+        best_n = score
+        best = e
+      end
+    end
+    best ? [best] : []
+  end
+
+  # [centre, axis] for the tagged opening, in MODEL space: the frame's own
+  # centre point, and the unit outward normal of the wall it sits in. nil when
+  # there is nothing usable, and the caller says ASSUMED out loud.
+  def self.tag_anchor(booth, tag_name)
     ents = container_entities(booth)
     return nil if ents.nil?
     hits = []
@@ -871,20 +989,30 @@ module WR_AutoSet
     return nil if hits.empty?
     own = Geom::BoundingBox.new
     ents.each { |e| own.add(e.bounds) }
+    picked = frame_hits(hits, own)
+    return nil if picked.empty?
     tb = Geom::BoundingBox.new
-    hits.each { |e| tb.add(e.bounds) }
+    picked.each { |e| tb.add(e.bounds) }
     hx = (own.max.x - own.min.x).to_f / 2.0
     hy = (own.max.y - own.min.y).to_f / 2.0
     dx = (tb.center.x - own.center.x).to_f
     dy = (tb.center.y - own.center.y).to_f
     return nil if Math.sqrt((dx * dx) + (dy * dy)) < 1.0
     ux, uy = wall_axis(dx, dy, hx, hy)
-    v = Geom::Vector3d.new(ux, uy, 0)
-    v = v.transform(booth.transformation)
+    v = Geom::Vector3d.new(ux, uy, 0).transform(booth.transformation)
     return nil if v.length < 1.0e-6
-    Math.atan2(v.y, v.x) / DEG
+    # The frame's centre in model space, at the BOOTH centre's height: the eye
+    # height is the plate's business (:el), not the frame's.
+    fc = tb.center.transform(booth.transformation)
+    [[fc.x.to_f, fc.y.to_f, own.center.transform(booth.transformation).z.to_f],
+     Math.atan2(v.y, v.x) / DEG]
   rescue StandardError
     nil
+  end
+
+  def self.tag_az(booth, tag_name)
+    a = tag_anchor(booth, tag_name)
+    a && a[1]
   end
 
   # THE FALLBACK STOPS BEING SILENT (1.51.0). A fabricated -90 bearing is what
@@ -943,9 +1071,17 @@ module WR_AutoSet
   # standoff is what frames the shot - but it is threaded through here rather
   # than fetched inside, because aim_plate is the one place that already knows
   # which booth it is aiming at.
-  def self.aim_plate(view, plate_id, centre_a, radius, door_az, vent_az, half = nil)
+  # `anchor` is the door frame's own centre in model space, or nil. Only the
+  # plate carrying :aim_at => :door uses it — Benton, 10 Sep 2026: "It should
+  # be in front of the door frame." On a long wall with an off-centre door,
+  # targeting the BOOTH centre leaves the door off to one side of the frame;
+  # targeting the frame centres the thing the shot is of. Every other plate
+  # frames the whole booth and still looks at its centre.
+  def self.aim_plate(view, plate_id, centre_a, radius, door_az, vent_az, half = nil,
+                     anchor = nil)
     p = plate(plate_id)
-    c = Geom::Point3d.new(centre_a[0], centre_a[1], centre_a[2])
+    look = (p[:aim_at] == :door && anchor) ? anchor : centre_a
+    c = Geom::Point3d.new(look[0], look[1], look[2])
     return aim_interior(view, c, radius, (door_az || FALLBACK_AZ), half) if p[:inside]
     # Perspective everywhere except the one plate that carries :parallel (see
     # PLATES). dist and fov are auto-set's own; aim's own defaults are the
@@ -1097,8 +1233,10 @@ module WR_AutoSet
     rescue StandardError
       nil
     end
-    door = tag_az(booth, 'WR-Booth-Door')
-    vent = tag_az(booth, 'WR-Booth-Vent')
+    danchor = tag_anchor(booth, 'WR-Booth-Door')
+    door    = danchor && danchor[1]
+    dpoint  = danchor && danchor[0]
+    vent    = tag_az(booth, 'WR-Booth-Vent')
 
     taken  = tokens_in_use(pages.to_a)
     stored = booth.get_attribute(DICT, 'token', nil).to_s
@@ -1149,7 +1287,7 @@ module WR_AutoSet
           # Aimed BEFORE the add as well as after it, so the page is born with
           # the right camera even on a build where PAGE_USE_CAMERA is not
           # defined and the explicit save below cannot run.
-          aim_plate(view, id, centre, radius, door, vent, half)
+          aim_plate(view, id, centre, radius, door, vent, half, dpoint)
           page = pages.add(want)
           lines << "created  #{want}"
         elsif reaim
@@ -1192,7 +1330,7 @@ module WR_AutoSet
         # from the page's OWN saved camera, so a plate whose camera never
         # landed was also hiding the wrong walls.
         if fresh || reaim
-          aim_plate(view, id, centre, radius, door, vent, half)
+          aim_plate(view, id, centre, radius, door, vent, half, dpoint)
           view.refresh
           page.update(PAGE_USE_CAMERA) if defined?(PAGE_USE_CAMERA)
         end
@@ -1224,8 +1362,16 @@ module WR_AutoSet
     restore_page(model, start)
     restore_transition(model, prev_tr)
     n_new = ents.count { |e| e[:new] }
+    # THE COUNT STAYS TRUTHFUL WITH A FORCED ROW IN IT. `renders` already
+    # includes them, so the totals are right either way — but a bare "3
+    # render" when the knob says 2 reads like a bug, so the two halves are
+    # named.
+    forced = forced_renders(ids)
+    rsplit = forced.empty? ? '' :
+             " (#{renders.size - forced.size} from the render count + " \
+             "#{forced.size} always-render: #{forced.join(', ')})"
     msg = "AUTO-SET #{label}: #{n_new} scene(s) created, #{ents.size - n_new} updated, " \
-          "#{renders.size} render / #{ents.size - renders.size} image. " \
+          "#{renders.size} render#{rsplit} / #{ents.size - renders.size} image. " \
           'Read the WALLS and ANNOTATIONS columns before you export. ' + policy_line
     if door.nil?
       msg += ' WARNING: no usable WR-Booth-Door on this booth, so the door side ' \

@@ -187,6 +187,35 @@ class FakeCamera
   end
 end
 
+# The minimum the frame picker touches: a name and a bounds centre.
+class FakePt
+  attr_reader :x, :y, :z
+  def initialize(x, y, z = 0.0)
+    @x = x.to_f
+    @y = y.to_f
+    @z = z.to_f
+  end
+end
+
+class FakeBB
+  attr_reader :center
+  def initialize(cx, cy, hx, hy)
+    @center = FakePt.new(cx, cy)
+    @hx = hx.to_f
+    @hy = hy.to_f
+  end
+  def max; FakePt.new(@center.x + @hx, @center.y + @hy); end
+  def min; FakePt.new(@center.x - @hx, @center.y - @hy); end
+end
+
+class FakeEnt
+  attr_reader :name, :bounds
+  def initialize(name, cx, cy)
+    @name = name
+    @bounds = FakeBB.new(cx, cy, 1.0, 1.0)
+  end
+end
+
 class FakeView
   attr_reader :camera
   def initialize; @camera = FakeCamera.new; end
@@ -246,6 +275,10 @@ module WR_AutoSet
 
 %(wall_picks)s
 
+%(ladder_renders)s
+
+%(forced_renders)s
+
 %(renders_for)s
 
 %(mode_for)s
@@ -261,6 +294,8 @@ module WR_AutoSet
 %(reach)s
 
 %(wall_axis)s
+
+%(frame_hits)s
 
 %(interior_eye_dist)s
 
@@ -465,8 +500,11 @@ module T
     ck('ld4', WR_AutoSet.renders_for(4, DEFAULTS) ==
               ['02-angled', '05-ventilation', '04-side', '01-front'],
        WR_AutoSet.renders_for(4, DEFAULTS).inspect)
+    # 07-interior is a FORCED render now, appended after the ladder's share
+    # rather than occupying a rung of it.
     ck('ld5', WR_AutoSet.renders_for(4, ALL) ==
-              ['02-angled', '05-ventilation', '04-side', '07-interior'])
+              ['02-angled', '05-ventilation', '04-side', '01-front', '07-interior'],
+       WR_AutoSet.renders_for(4, ALL).inspect)
     # Only FIVE of the seven are on the ladder at all -- 03-high and 06-plan
     # can never be promoted, however high the knob goes.
     ck('ld6', WR_AutoSet.renders_for(99, DEFAULTS).length == 4,
@@ -475,6 +513,37 @@ module T
     ck('ld8', WR_AutoSet.mode_for('06-plan', ['02-angled']) == 'image')
     ck('ld9', WR_AutoSet.mode_for('02-angled', ['02-angled']) == 'render')
     ck('ld10', WR_AutoSet::DEFAULT_RENDERS == 2)
+
+    # ---- FORCED RENDERS --------------------------------------------------
+    # Benton, 10 Sep 2026: "fyi interior plate should always be a render."
+    # A forced row is a render WHENEVER THE PLATE IS PRODUCED, at any setting
+    # of the knob -- including ZERO, which is the case most likely to break.
+    ck('fr1', WR_AutoSet.mode_for('07-interior',
+                                  WR_AutoSet.renders_for(0, ALL)) == 'render',
+       WR_AutoSet.renders_for(0, ALL).inspect)
+    ck('fr2', (0..WR_AutoSet::MAX_RENDERS).all? do |n|
+                WR_AutoSet.renders_for(n, ALL).include?('07-interior')
+              end,
+       'the interior plate can come out as an image')
+    # ADDITIVE, NOT A SLOT. Ticking the interior box must not silently demote
+    # the angled hero -- the knob answers "how many of the ORDINARY plates",
+    # so 2 + the forced row is 3 renders, and the ladder's share is untouched.
+    ck('fr3', WR_AutoSet.ladder_renders(2, ALL) == WR_AutoSet.ladder_renders(2, DEFAULTS),
+       [WR_AutoSet.ladder_renders(2, ALL), WR_AutoSet.ladder_renders(2, DEFAULTS)].inspect)
+    ck('fr4', WR_AutoSet.renders_for(2, ALL).length ==
+              WR_AutoSet.renders_for(2, DEFAULTS).length + 1,
+       WR_AutoSet.renders_for(2, ALL).inspect)
+    # The plate is not on the ladder at all, so it cannot be double-counted.
+    ck('fr5', !WR_AutoSet::RENDER_LADDER.include?('07-interior'),
+       WR_AutoSet::RENDER_LADDER.inspect)
+    # COST. A forced render on a plate that is OFF by default costs nothing
+    # until Benton asks for that plate; on an always-on plate it would raise
+    # the floor of EVERY run. If that ever needs to change, this check is what
+    # makes it a decision rather than an accident -- edit it deliberately.
+    ck('fr6', WR_AutoSet.forced_renders(ALL).all? { |id| WR_AutoSet.plate(id)[:on] == false },
+       WR_AutoSet.forced_renders(ALL).inspect)
+    ck('fr7', WR_AutoSet.forced_renders(DEFAULTS) == [],
+       WR_AutoSet.forced_renders(DEFAULTS).inspect)
 
     # ---- the plate azimuths ---------------------------------------------
     # THE DOOR IS THE ANCHOR for everything except the vent shot. Benton:
@@ -731,13 +800,73 @@ module T
     ck('dr6', WR_AutoSet.wall_axis(0.0, -61.0, 0.0, 61.0) == [0.0, -1.0],
        WR_AutoSet.wall_axis(0.0, -61.0, 0.0, 61.0).inspect)
 
+    # ---- THE DOOR FRAME, NOT THE LEAF ------------------------------------
+    # Benton, 10 Sep 2026, after 1.51.0: "Front should find the door frame
+    # really, rather than the door." A leaf drawn SWUNG OPEN sits away from the
+    # wall plane, and unioned with the frame it drags the centroid into mid
+    # air -- so even the wall-normal rule normalises against an offset that
+    # never came from the wall.
+    #
+    # FakeEnt is the minimum the picker touches: a name and a bounds centre.
+    own96 = FakeBB.new(0.0, 0.0, 49.0, 61.0)
+    frame = FakeEnt.new('S0  Right46Door', 36.0, -60.0)
+    leaf  = FakeEnt.new('S0  Right46DoorLeaf', 60.0, -20.0)   # swung out past the shell
+    leaf_in = FakeEnt.new('S0  Right46DoorLeaf', 38.0, -43.0)  # swung inward
+    # By NAME first, when a builder names the frame.
+    named = FakeEnt.new('S0  Right46DRFRM', 36.0, -60.0)
+    got = WR_AutoSet.frame_hits([leaf, named], own96)
+    ck('fm1', got == [named], got.map { |e| e.name }.inspect)
+    # Otherwise GEOMETRICALLY: the part hardest against a wall is the frame.
+    got2 = WR_AutoSet.frame_hits([leaf, frame], own96)
+    ck('fm2', got2 == [frame], got2.map { |e| e.name }.inspect)
+    # The swung leaf ALONE would have given a bearing that is not the wall's.
+    bad = WR_AutoSet.wall_axis(60.0 - 0.0, -20.0 - 0.0, 49.0, 61.0)
+    ck('fm3', bad == [1.0, 0.0], bad.inspect)
+    # ... and the frame gives the real one.
+    good = WR_AutoSet.wall_axis(36.0, -60.0, 49.0, 61.0)
+    ck('fm4', good == [0.0, -1.0], good.inspect)
+    # A leaf swung INWARD is short of the shell; the frame still wins.
+    got3 = WR_AutoSet.frame_hits([leaf_in, frame], own96)
+    ck('fm5', got3 == [frame], got3.map { |e| e.name }.inspect)
+    ck('fm5b', WR_AutoSet.frame_hits([], own96) == [])
+    # Only the front plate re-targets onto the frame; every other plate still
+    # frames the whole booth.
+    ck('fm6', WR_AutoSet.plate('01-front')[:aim_at] == :door)
+    ck('fm7', (ALL - ['01-front']).none? { |id| WR_AutoSet.plate(id)[:aim_at] },
+       (ALL - ['01-front']).select { |id| WR_AutoSet.plate(id)[:aim_at] }.inspect)
+    # AIMED AT THE FRAME: with an off-centre door the eye stands on the wall
+    # normal THROUGH THE FRAME, not through the booth centre.
+    vv = FakeView.new
+    anch = [36.0, -61.0, CENTRE[2]]
+    WR_AutoSet.aim_plate(vv, '01-front', CENTRE, RADIUS, DOOR, VENT, HALF, anch)
+    ck('fm8', (vv.camera.target.to_a[0] - 36.0).abs < 1.0e-9,
+       vv.camera.target.to_a.inspect)
+    ck('fm9', (vv.camera.eye.to_a[0] - 36.0).abs < 1.0e-6,
+       'the eye is not on the frame normal')
+    # With no anchor it falls back to the booth centre rather than raising.
+    vv2 = FakeView.new
+    WR_AutoSet.aim_plate(vv2, '01-front', CENTRE, RADIUS, DOOR, VENT, HALF, nil)
+    ck('fm10', vv2.camera.target.to_a == CENTRE, vv2.camera.target.to_a.inspect)
+
     # ---- INSIDE THE BOOTH ------------------------------------------------
     # A FIXED CLEARANCE OFF THE INTERIOR FACE, NOT A FRACTION. Benton, 10 Sep
     # 2026: "it needed to move like 2\" more inside the booth. It was kinda
     # stuck in the wall." HALF is a real 4872 E; the door faces -Y, so the
     # booth's shell reaches 37 in that way and the interior face is at 36.
     idist = WR_AutoSet.interior_eye_dist(HALF, RADIUS, DOOR)
-    ck('in1', (idist - (37.0 - 1.0 - 4.0)).abs < 1.0e-9, idist.inspect)
+    ck('in1', (idist - (37.0 - 1.0 - WR_AutoSet::INTERIOR_EYE_CLEAR)).abs < 1.0e-9,
+       idist.inspect)
+    # THE SECOND CORRECTION, 10 Sep 2026: "Interior needs to go towards the
+    # center of the booth like 18\" now or so" -- a further ~18 in inboard of
+    # the 4 in that 1.51.0 shipped.
+    ck('in1b', (WR_AutoSet::INTERIOR_EYE_CLEAR - 22.0).abs < 1.0e-9,
+       WR_AutoSet::INTERIOR_EYE_CLEAR.inspect)
+    ck('in1c', (idist - 14.0).abs < 1.0e-9, idist.inspect)
+    # A BOOTH TOO SHALLOW TO STAND 23 IN INSIDE ITS DOOR clamps at the centre
+    # rather than going negative and putting the eye outside the far wall. A
+    # 4230 is 44 x 32 exterior, so its door wall is 16 in from centre.
+    ck('in1d', WR_AutoSet.interior_eye_dist([22.0, 16.0], 30.0, DOOR) == 0.0,
+       WR_AutoSet.interior_eye_dist([22.0, 16.0], 30.0, DOOR).inspect)
     # The eye stands clear of the INTERIOR face by the named clearance.
     clear = (WR_AutoSet.reach(HALF[0], HALF[1], DOOR) -
              WR_AutoSet::BOOTH_WALL_T) - idist
@@ -826,6 +955,7 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'sm1 sm2 sm3 sm4 sm5 sm6 sm7 sm8 '
          'mv1 mv2 mv3 mv4 mv5 '
          'ld1 ld2 ld3 ld4 ld5 ld6 ld7 ld8 ld9 ld10 '
+         'fr1 fr2 fr3 fr4 fr5 fr6 fr7 '
          'az1 az2 az3 az4 az5 az6 az7 az8 az9 az10 az11 '
          'an1 an2 an2b an2c an3 an4 an5 an6 an7 an7b an8 an9 an10 an11 '
          'nv1 nv2 nv3 '
@@ -833,7 +963,8 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'cm1 cm1b cm1c cm2 cm3 cm4 cm5 cm6 cm7 cm8 cm9 cm10 cm11 cm11b cm12 cm13 '
          'cm14 cm15 cm16 cm16b cm17 '
          'dr1 dr2 dr3 dr4 dr5 dr6 '
-         'in1 in2 in3 in4 in5 in6 in7 in8 in9 in10 '
+         'fm1 fm2 fm3 fm4 fm5 fm5b fm6 fm7 fm8 fm9 fm10 '
+         'in1 in1b in1c in1d in2 in3 in4 in5 in6 in7 in8 in9 in10 '
          'cm18 '
          'eb1 eb2 eb3 eb4 eb5 eb6 eb7 eb8').split()
 EXPECT = ' | '.join('%s ok' % n for n in NAMES)
@@ -876,8 +1007,11 @@ def main():
         'plate_ids':       rbtest.method_source(SRC, 'plate_ids'),
         'az_for':          rbtest.method_source(SRC, 'az_for'),
         'standoff':        rbtest.method_source(SRC, 'standoff'),
+        'forced_renders':  rbtest.method_source(SRC, 'forced_renders'),
+        'ladder_renders':  rbtest.method_source(SRC, 'ladder_renders'),
         'reach':           rbtest.method_source(SRC, 'reach'),
         'wall_axis':       rbtest.method_source(SRC, 'wall_axis'),
+        'frame_hits':      rbtest.method_source(SRC, 'frame_hits'),
         'interior_eye_dist': rbtest.method_source(SRC, 'interior_eye_dist'),
         'policy_line':     rbtest.method_source(SRC, 'policy_line'),
         'loose_split':     rbtest.method_source(SRC, 'loose_split'),

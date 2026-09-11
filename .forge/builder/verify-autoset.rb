@@ -148,8 +148,16 @@ module WR_VerifyAutoSet
     ge = g.entities
     box(ge, ox, oy, ox + 96.0, oy + 60.0, 84.0, 'shell')
     door = box(ge, ox + 54.0, oy - 2.0, ox + 90.0, oy, 84.0, 'door frame')
+    # A DOOR LEAF, SWUNG OPEN, TAGGED THE SAME. Benton, 10 Sep 2026: "Front
+    # should find the door frame really, rather than the door." The booth data
+    # has a DRFRM slot (the frame, in the wall) and a leaf that can be drawn
+    # open — and a leaf drawn open sits well off the wall plane, which drags
+    # the tagged centroid into mid-air. Until this fixture carried BOTH, that
+    # whole class of error was invisible here.
+    leaf = box(ge, ox + 90.0, oy - 38.0, ox + 93.0, oy, 84.0, 'door leaf')
     vent = box(ge, ox + 40.0, oy + 60.0, ox + 56.0, oy + 62.0, 20.0, 'vent')
     door.layer = @model.layers.add('WR-Booth-Door')
+    leaf.layer = @model.layers['WR-Booth-Door']
     vent.layer = @model.layers.add('WR-Booth-Vent')
     g.name = name
     g
@@ -684,6 +692,14 @@ module WR_VerifyAutoSet
       # the case that broke on Benton's 96120 S: the old rule returned the
       # bearing to the door's centre and swung ~30 deg off the wall. An
       # axis-aligned booth's door wall normal must land on a multiple of 90.
+      # THE FRAME, NOT THE LEAF. With both tagged, the picker must still
+      # return the part in the wall plane — the swung leaf is 38 in off it.
+      fanch = WR_AutoSet.tag_anchor(b1, 'WR-Booth-Door')
+      say('door.anchor_found', !fanch.nil?, fanch.inspect)
+      say('door.anchor_is_on_the_door_wall',
+          !fanch.nil? && (fanch[0][1] - b1.bounds.min.y).abs < 6.0,
+          fanch.nil? ? 'nil' : format('frame y %.1f vs booth min y %.1f',
+                                      fanch[0][1], b1.bounds.min.y))
       say('door.bearing_is_a_wall_normal',
           !daz.nil? && ((daz.to_f + 360.0) % 90.0).abs < 0.01,
           "#{daz.inspect} - should be a multiple of 90 on an axis-aligned booth")
@@ -699,6 +715,18 @@ module WR_VerifyAutoSet
           (fs['z'] - floor) > 36.0 && (fs['z'] - floor) < 110.0,
           format('%.1f in above the booth floor (eye z %.1f, floor %.1f)',
                  fs['z'] - floor, fs['z'], floor))
+      # IN FRONT OF THE DOOR FRAME, not in front of the booth's middle. The
+      # fixture's door is off-centre along its wall, so these differ.
+      fpg = by_plate['01-front']
+      say('cam.front_targets_the_door_frame',
+          !fanch.nil? && fpg && (fpg.camera.target.x - fanch[0][0]).abs < 2.0,
+          fpg ? format('target x %.1f vs frame x %.1f', fpg.camera.target.x,
+                       fanch.nil? ? -999.0 : fanch[0][0]) : 'no front page')
+      say('cam.front_is_NOT_aimed_at_the_booth_centre',
+          fpg && (fpg.camera.target.x - bc[0]).abs > 2.0,
+          fpg ? format('target x %.1f vs booth centre x %.1f',
+                       fpg.camera.target.x, bc[0]) : 'no front page')
+
       say('cam.front_stands_back', fs['run'] > 120.0 && fs['run'] < 400.0,
           format('%.1f in = %.1f ft back', fs['run'], fs['run'] / 12.0))
 
@@ -733,7 +761,8 @@ module WR_VerifyAutoSet
       # directly and read the camera the tool would have saved.
       iv = @model.active_view
       WR_AutoSet.aim_plate(iv, '07-interior', bc, br, daz, vaz,
-                           [(bbx.max.x - bbx.min.x) / 2.0, (bbx.max.y - bbx.min.y) / 2.0])
+                           [(bbx.max.x - bbx.min.x) / 2.0, (bbx.max.y - bbx.min.y) / 2.0],
+                           fanch && fanch[0])
       ic = iv.camera
       idir = ic.target - ic.eye
       # A FIXED CLEARANCE OFF THE INTERIOR FACE. Benton, 10 Sep 2026: "it
@@ -757,6 +786,31 @@ module WR_VerifyAutoSet
       say('cam.interior_is_perspective', ic.perspective? == true)
       say('cam.interior_keeps_its_wide_lens',
           (ic.fov - WR_AutoSet::INTERIOR_FOV).abs < 0.01, ic.fov.inspect)
+
+      # ---- THE INTERIOR IS ALWAYS A RENDER ------------------------------
+      # Benton, 10 Sep 2026: "fyi interior plate should always be a render."
+      # Checked at a render count of ZERO, which is the case most likely to
+      # break, and on a run that actually PRODUCES the plate.
+      iok, imsg, = WR_AutoSet.apply(@model, b2, { 'mode' => 'add', 'renders' => 0,
+                                                  'interior' => true })
+      say('forced.interior_run_ok', iok, imsg)
+      itok = b2.get_attribute('WR_AutoSet', 'token', nil)
+      iset = WR_AutoSet.token_pages(pages.to_a, itok)
+      made_pg.concat(iset)
+      ipg = iset.find { |pg| WR_AutoSet.page_stamp(pg)['plate'] == '07-interior' }
+      say('forced.interior_plate_exists', !ipg.nil?,
+          iset.map { |pg| WR_AutoSet.page_stamp(pg)['plate'] }.inspect)
+      say('forced.interior_is_a_RENDER_at_zero_renders',
+          ipg && WR_ProposalPackage.mode_of(ipg) == 'render',
+          ipg ? WR_ProposalPackage.mode_of(ipg) : 'no interior page')
+      say('forced.nothing_else_is_a_render_at_zero',
+          iset.reject { |pg| WR_AutoSet.page_stamp(pg)['plate'] == '07-interior' }
+              .all? { |pg| WR_ProposalPackage.mode_of(pg) == 'image' },
+          iset.map { |pg| [WR_AutoSet.page_stamp(pg)['plate'],
+                           WR_ProposalPackage.mode_of(pg)] }.inspect)
+      say('forced.summary_names_the_always_render',
+          imsg.to_s.include?('always-render'), imsg.to_s)
+      WR_AutoSet.apply(@model, b2, { 'mode' => 'remove' })
 
       # THE BLANK-PLATE SENTENCE. This fixture DOES carry dimension entities
       # on WR-Dims, so the note must NOT fire; the model Benton ran on carried
