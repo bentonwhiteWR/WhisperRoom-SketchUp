@@ -227,8 +227,20 @@ module WR_Overlays
   # when he dimensions drawings, and 4.75 is what this builds. One line each
   # to change if he refines them.
   #
-  # CP_BOOTH_LIFT   the booth floor slab's UNDERSIDE ends up this far above
+  # CP_BOOTH_LIFT   the booth's FLOOR STACK UNDERSIDE ends up this far above
   #                 the ground plane (world z 0, where the plate bottom sits).
+  #                 The stack is the standard slab on a Standard booth and
+  #                 the IEP mat under it on an Enhanced one, so this is the
+  #                 plate's TRAY FLOOR: bottom on the ground, rim
+  #                 CP_PLATE_HEIGHT up, tray CP_TRAY_DEPTH below the rim —
+  #                 5.50 - 0.75 = 4.75 — and the booth sits down onto it.
+  #                 Benton, 10 Sep 2026: "the CP raises the booth 4 3/4"...
+  #                 that would make an enhanced booth, with CP 7'5 1/16"",
+  #                 which is 84.3125 drawn + 4.75 and SUPERSEDES the 3 3/4
+  #                 (and the 7'-4 1/16") he gave earlier. Until 1.49.0 the
+  #                 lift was measured to the STANDARD floor instead, which
+  #                 buried an Enhanced booth's mat 0.3125 into the tray floor
+  #                 and read 7'-4 3/4". One plane now, not two.
   # CP_TRAY_DEPTH   the plate is a TRAY and the whole WhisperRoom sits down
   #                 into it — the rim wraps the bottom of the floor slab by
   #                 this much. The researcher measured 0.739 off the portal
@@ -509,11 +521,16 @@ module WR_Overlays
   # fires on every build, plates or not), so there is one function to test
   # and one call site to read. rbtest-overlays.py pins both.
   #
-  # TWO DATUMS, ONE RULE: the bottom of the booth lands on the ground plane.
+  # ONE DATUM, ONE RULE: the bottom of the booth's FLOOR STACK lands on the
+  # ground plane, or on the plate's tray floor when there are casters.
   #
-  #   casters     the plate set stands under the STANDARD floor, and Benton's
-  #               measured caster datum (2026-08-27) puts that floor's
-  #               underside CP_BOOTH_LIFT above the ground. Unchanged.
+  #   casters     the plate bottoms on the ground and its tray floor stands
+  #               CP_BOOTH_LIFT above it (CP_PLATE_HEIGHT - CP_TRAY_DEPTH =
+  #               4.75, the constants' own arithmetic). The floor STACK seats
+  #               on that tray floor, so the stack underside ends up
+  #               CP_BOOTH_LIFT above the ground whatever is on the bottom of
+  #               it. Benton, 10 Sep 2026: an Enhanced booth on a CP measures
+  #               7'-5 1/16" = 84.3125 drawn + 4.75.
   #   no casters  the FLOOR STACK's underside lands ON the ground. wr-deck
   #               places the deck TOP on the wall plane (DECK_TOP_Z = 0), so
   #               the 1.000 in slab hangs into the host floor, and on an
@@ -528,15 +545,19 @@ module WR_Overlays
   # That contract is now the opposite, on his instruction: every drawing was
   # sitting an inch (or 1 5/16) into the floor, and the fix IS the move.
   #
-  # fl_bottom is the placed STANDARD floor's measured underside in booth-local
-  # coordinates (about -1.0). stack_bottom is the underside of the whole floor
-  # stack: the same figure on a Standard booth, the IEP mat's on an Enhanced
-  # one (about -1.3125). The caster branch keeps fl_bottom on purpose — the
-  # 4.75 datum was measured against the standard floor, and on an Enhanced
-  # booth on casters the mat's extra 0.3125 into the tray is an OPEN question
-  # this does not answer (it never did).
-  def self.booth_lift(casters, fl_bottom, stack_bottom = fl_bottom)
-    return CP_BOOTH_LIFT - fl_bottom.to_f if casters
+  # stack_bottom is the underside of the whole floor stack in booth-local
+  # coordinates, MEASURED off the placed deck: the standard slab's underside
+  # on a Standard booth (about -1.0), the IEP mat's on an Enhanced one (about
+  # -1.3125). It is the only figure either branch needs, because both seat
+  # the same plane — the ground, or the tray floor CP_BOOTH_LIFT above it.
+  #
+  # 1.49.0 dropped the old fl_bottom argument. The caster branch used to
+  # measure to the STANDARD floor, which on an Enhanced booth left the mat
+  # 0.3125 INSIDE the plate's tray floor (an interpenetration, not a datum
+  # choice) and read the booth at 7'-4 3/4". Benton's 7'-5 1/16" is the
+  # stack-bottom reading and it is also the one that seats the part.
+  def self.booth_lift(casters, stack_bottom)
+    return CP_BOOTH_LIFT - stack_bottom.to_f if casters
     -stack_bottom.to_f
   end
 
@@ -741,7 +762,8 @@ module WR_Overlays
   # ground in booth-local coordinates is wherever build_booth's ground lift
   # will put world z 0, so step_ground_z is -booth_lift(...) and the step
   # rides the same one function the booth is lifted by. Standard 1.0 /
-  # Enhanced 1.3125 / casters 5.75 fall out of it; only casters builds.
+  # Enhanced 1.3125 / casters 5.75 Standard and 6.0625 Enhanced fall out of
+  # it; only casters builds.
   #
   # RAMP + STEP: the ramp wins and the step is refused by name. The ramp is
   # geometry inside …WADoorWithRamp.skp and occupies the same 12 in; the
@@ -772,8 +794,8 @@ module WR_Overlays
   # The booth-local z of the ground plane: where world z 0 lands once
   # build_booth applies booth_lift. One function, so the step and the lift
   # cannot disagree.
-  def self.step_ground_z(casters, fl_bottom, stack_bottom = fl_bottom)
-    -booth_lift(casters, fl_bottom, stack_bottom)
+  def self.step_ground_z(casters, stack_bottom)
+    -booth_lift(casters, stack_bottom)
   end
 
   # Every reason the step is NOT placed, by name; empty means place it.
@@ -814,7 +836,7 @@ module WR_Overlays
 
   # Stand Step.skp in front of the door. panels: the outer rows' {:id,:name,
   # :poly}; returns the count placed (0 on a refusal, which is in warns).
-  def self.place_step(model, booth, cfg, cache, panels, casters_in, fl_bottom,
+  def self.place_step(model, booth, cfg, cache, panels, casters_in,
                       stack_bottom, layer, warns)
     dry = cfg['dry'] ? true : false
     door = panels.reject { |p| p[:inner] }.find { |p| kind_of(p[:name]) == :door }
@@ -847,7 +869,7 @@ module WR_Overlays
     ys = door[:poly].map { |q| q[1].to_f }
     frame_c = %w[N S].include?(wall) ? (xs.min + xs.max) / 2.0 : (ys.min + ys.max) / 2.0
     face = { 'N' => ys.max, 'S' => ys.min, 'E' => xs.max, 'W' => xs.min }[wall]
-    ground = step_ground_z(casters_in, fl_bottom, stack_bottom)
+    ground = step_ground_z(casters_in, stack_bottom)
     box = step_seat(wall, frame_c, face, ground, e[ai], e[di], e[hi])
 
     # Part axes -> world: along -> X (N/S) or Y (E/W); height -> Z; depth ->
@@ -1242,7 +1264,7 @@ module WR_Overlays
     casters_in = false
     if ov['casters_plate']
       n = place_casters(model, booth, key, spec, cfg, cache,
-                        deck && deck['FL'], warns)
+                        deck && deck['FL'], deck && deck['stack_bottom'], warns)
       placed += n
       # A refused plate set (n = 0, said by name above) means there is NO
       # caster datum: build_booth grounds the booth like one without casters.
@@ -1255,7 +1277,7 @@ module WR_Overlays
       fl_bottom = deck && deck['FL'] ? deck['FL'].min.z.to_f : WR_Deck::DECK_TOP_Z - 1.0
       stack_bottom = (deck && deck['stack_bottom']) || fl_bottom
       placed += place_step(model, booth, cfg, cache, panels, casters_in,
-                           fl_bottom, stack_bottom, t_opt, warns)
+                           stack_bottom, t_opt, warns)
     end
 
     puts '  ---- overlays end ' + '-' * 58
@@ -1462,10 +1484,13 @@ module WR_Overlays
   # booth-local coordinates (which stay the group's local frame afterwards).
   #
   # fl_bounds: the placed standard floor's union bounds, or nil on a dry run.
+  # stack_bottom: the measured underside of the whole floor stack (the IEP mat
+  # on an Enhanced booth), or nil on a dry run - THE PLANE THE TRAY SEATS.
   # Returns the number of plates placed; refusals return 0, warn BY NAME, and
   # leave the booth UNLIFTED — a lifted booth over a missing plate is a
   # floating booth.
-  def self.place_casters(model, booth, key, spec, cfg, cache, fl_bounds, warns)
+  def self.place_casters(model, booth, key, spec, cfg, cache, fl_bounds,
+                         stack_bottom, warns)
     dir = cfg['dir']
     dry = cfg['dry'] ? true : false
 
@@ -1518,13 +1543,21 @@ module WR_Overlays
                'exist at that size, the other one went in. Check the joint.'
     end
 
-    # The measured floor underside; nominal on a dry run, and said so.
+    # The measured floor underside, and the measured underside of the whole
+    # stack under it; nominal on a dry run, and said so. THE STACK is what
+    # seats: its underside lands on the tray floor, CP_BOOTH_LIFT above the
+    # ground, so the plate hangs CP_BOOTH_LIFT below the stack bottom and its
+    # own bottom lands on the ground. On a Standard booth the two figures are
+    # the same; on an Enhanced one the IEP mat puts 0.3125 between them, and
+    # seating by the floor instead of the stack is what used to bury the mat
+    # in the tray and read the booth 0.3125 short (Benton, 10 Sep 2026).
     fl_bottom = fl_bounds ? fl_bounds.min.z.to_f : WR_Deck::DECK_TOP_Z - 1.0
-    lift = booth_lift(true, fl_bottom)
-    z_bot = fl_bottom - CP_BOOTH_LIFT
+    stack_bot = stack_bottom ? stack_bottom.to_f : fl_bottom
+    lift = booth_lift(true, stack_bot)
+    z_bot = stack_bot - CP_BOOTH_LIFT
     puts format('  CASTER PLATE  %s — plate bottoms at ground (booth-local %.4f), ' \
-                'floor underside %.4f%s',
-                note, z_bot, fl_bottom, fl_bounds ? '' : ' (NOMINAL — dry run)')
+                'floor underside %.4f, stack underside %.4f%s',
+                note, z_bot, fl_bottom, stack_bot, fl_bounds ? '' : ' (NOMINAL — dry run)')
     puts format('    datum from Benton, 2026-08-27: net lift %.2f, tray %.2f, ' \
                 'plate %.2f (= lift + tray). The portal\'s 5 in is marketing.',
                 CP_BOOTH_LIFT, CP_TRAY_DEPTH, CP_PLATE_HEIGHT)
@@ -1613,7 +1646,8 @@ module WR_Overlays
     # casters alike, and reads the plate count this returns to pick the
     # branch. Every bounds printed above is pre-lift, booth-local.
     puts format('    caster datum: build_booth will lift the booth %.4f so the floor ' \
-                'underside sits %.2f above the ground plane.', lift, CP_BOOTH_LIFT)
+                'STACK underside sits %.2f above the ground plane, on the tray floor.',
+                lift, CP_BOOTH_LIFT)
     placed
   end
 end

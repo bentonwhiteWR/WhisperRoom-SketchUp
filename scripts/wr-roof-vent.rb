@@ -163,6 +163,20 @@ module WR_RoofVent
   # an HX booth, so HX raises everything above it by the same 10 (derived).
   HX_ADD = 10.0
 
+  # THE CASTER PLATE, and it is the same kind of figure as HX_ADD: the whole
+  # booth stands on the plate's tray floor, which is this far above the ground
+  # (wr-overlays.rb CP_BOOTH_LIFT, Benton's datum, corrected 10 Sep 2026 to a
+  # FULL 4 3/4 under the floor stack — an Enhanced booth on a plate measures
+  # 7'-5 1/16"). So a room takes a plated booth's clearance plus this, derived
+  # the same way: everything above the plate moves up by exactly the lift.
+  #
+  # WR_OVERLAYS OWNS THE DATUM. This file is loaded and tested on its own (it
+  # touches no other module and rbtest-roofvent.py runs it alone), so the
+  # figure is repeated here rather than required — and rbtest-roofvent.py
+  # reads CP_BOOTH_LIFT out of wr-overlays.rb on every run and FAILS if the
+  # two ever disagree. Change it there; this follows.
+  CASTER_ADD = 4.75
+
   # ------------------------------------------------------------- seating --
   #
   # The booth's NOMINAL footprint — the model number in inches — sits this far
@@ -304,8 +318,15 @@ module WR_RoofVent
   # The height a room must give for this booth, roof unit included.
   #
   # Returns a hash: :booth is the catalogue install clearance plus the height
-  # extension, :unit is the roof unit (0.0 when the booth is not roof mounted),
-  # :total is what the room needs, and :why explains the unit figure.
+  # extension and the caster plate, :unit is the roof unit (0.0 when the booth
+  # is not roof mounted), :total is what the room needs, :plate is what the
+  # caster plate added (0.0 without one), and :why explains the unit figure.
+  #
+  # THE PLATE USED TO BE MISSING FROM THIS ENTIRELY (fixed 1.49.0, audit rank
+  # 02). It returned a flat 83 / 85 whatever the link said, so a booth that
+  # stands 89.0625 in tall on its plate was quoted as needing 85 in of ceiling
+  # — four and three quarter inches of under-report on the one constraint
+  # CLAUDE.md says disqualifies a booth fastest, and it was silent.
   #
   # THIS IS THE NUMBER THE PORTAL GETS WRONG. booth-builder.html's fit card
   # compares the room ceiling against standingHeight + 2 and never adds the
@@ -313,20 +334,25 @@ module WR_RoofVent
   # it needs nearly 8 ft (read off the portal source by the Researcher on
   # 2026-08-31 — reported, not exercised in a browser). Routed to Benton;
   # WhisperRoomQuote is read-only from here.
-  def self.ceiling_required(model, variant, hx, roof, vss)
+  def self.ceiling_required(model, variant, hx, roof, vss, casters = false)
+    plate = casters ? CASTER_ADD : 0.0
     booth = (variant.to_s.upcase == 'E' ? ENH_CLEARANCE : STD_CLEARANCE) +
-            (hx ? HX_ADD : 0.0)
-    return { :booth => booth, :unit => 0.0, :total => booth, :why => nil } unless roof
+            (hx ? HX_ADD : 0.0) + plate
+    unless roof
+      return { :booth => booth, :unit => 0.0, :total => booth, :plate => plate,
+               :why => nil }
+    end
     # rv = 1 on a model with no roof part is an impossible link, refused by
     # impossible_roof_link. Adding a height for a unit that cannot exist would
     # put a fictional number in front of whoever reads the refusal.
     unless has_part(model)
-      return { :booth => booth, :unit => 0.0, :total => booth,
+      return { :booth => booth, :unit => 0.0, :total => booth, :plate => plate,
                :why => "#{digits(model)} has no roof part, so there is no " \
                        'unit to add — this link is refused, see below' }
     end
     h, why = unit_height(model, vss)
-    { :booth => booth, :unit => h, :total => booth + h, :why => why }
+    { :booth => booth, :unit => h, :total => booth + h, :plate => plate,
+      :why => why }
   end
 
   # Inches -> 7'-11.3", same shape csusb-106.rb and smith-studio.rb print.

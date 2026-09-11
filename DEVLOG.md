@@ -1,6 +1,96 @@
 # DEVLOG
 
 ## 2026-09-10
+
+### The caster plate raises the booth a FULL 4 3/4 — one datum instead of three — 1.49.0
+
+Benton, 10 Sep 2026: *"I told you earlier that the CP raises the booth 3 3/4".
+I was wrong, it actually raises it 4 3/4". Can you please adjust this in
+dimensions and anywhere else? That would make an enhanced booth, with CP
+7'5 1/16"."* **This supersedes his 7'-4 1/16" of the same day** (the 1.42.0
+entry below), and it is his OUTCOME number — 7'-5 1/16" = 89.0625 — that this
+work is anchored to, not the constant.
+
+**The constant was already right; the datum was not.** `wr-overlays.rb` has
+carried `CP_BOOTH_LIFT = 4.75` since 27 Aug. What was wrong is the plane that
+4.75 was measured to. Two planes were in play and they disagreed by the IEP
+mat:
+
+- `booth_lift(casters, fl_bottom, …)` measured to the **standard floor's**
+  underside (−1.0), and `place_casters` seated the plate the same way
+  (`z_bot = fl_bottom − CP_BOOTH_LIFT`).
+- The plate is a **tray**: bottom on the ground, rim `CP_PLATE_HEIGHT` 5.50 up,
+  tray floor `CP_TRAY_DEPTH` 0.75 below the rim — i.e. **4.75 above the
+  ground**, which is where the booth actually sits down onto it.
+
+On a Standard booth those are the same plane and nothing was ever wrong. On an
+**Enhanced** booth the floor stack is 0.3125 deeper than the standard slab (the
+IEP mat), so seating by the floor pushed the mat **0.3125 INTO the plate's tray
+floor** — an interpenetration, not a datum choice — and the booth read
+84.3125 + 4.4375 = **88.75 = 7'-4 3/4"**. Benton's 89.0625 is the same booth
+with its stack seated ON the tray floor. So his corrected number is also the
+one that seats the part, and getting to it moved nothing he did not ask to
+move: the plate still bottoms on the ground, the booth still holds the 4.75
+datum, and only the Enhanced-on-CP case changes — by exactly the 5/16 that was
+previously buried in the tray.
+
+**What changed.**
+
+- `WR_Overlays.booth_lift` is now `(casters, stack_bottom)` — the `fl_bottom`
+  argument is gone, because one plane needs one figure. Caster branch:
+  `CP_BOOTH_LIFT − stack_bottom`. Standard 5.75, Enhanced **6.0625**.
+- `place_casters` seats the plate `CP_BOOTH_LIFT` under the **stack**
+  (`z_bot = stack_bot − CP_BOOTH_LIFT`) and takes the measured stack bottom
+  from the deck hash `build-booth-components.rb` already built for the step.
+  It prints the floor underside AND the stack underside now, so the two are
+  visible on every build.
+- `step_ground_z` / `place_step` follow the same one function (the step now
+  stands 6.0625 down on an Enhanced booth on casters, which is the ground).
+- `dimension-whisperroom.rb` needed no arithmetic change — it measures parts —
+  but its caster comment quoted the retracted 7'-4 1/16"; it now carries the
+  correction verbatim and points at who owns the datum.
+- **`ceiling_required` takes the caster plate** (`wr-roof-vent.rb`, audit rank
+  02, closed). It took no caster argument at all and answered a flat 83 / 85,
+  so *"the ceiling the room must give"* under-reported a plated booth by the
+  whole 4.75 — 85 in quoted for a booth standing 89.0625 in tall. It now adds
+  `CASTER_ADD`, returns `:plate`, and `booth-from-link.rb` passes the link's
+  `cs` flag and prints *"which includes 4.75 in of caster plate"*.
+  `CASTER_ADD` repeats `CP_BOOTH_LIFT` because `wr-roof-vent.rb` is loaded and
+  tested alone; `rbtest-roofvent.py` reads the constant out of
+  `wr-overlays.rb` on every run and FAILS if the two ever drift.
+
+**The datum story is now one account.** The three plate contributions
+`rbtest-boothdims.py` used to pin (4.75 under the floor, 4.4375 under the mat,
+3.75 under the mat "Benton's figure") are gone. The retracted 3.75 is pinned
+nowhere. The pre-1.49.0 seating survives as a **named regression fixture**: a
+plate at −5.75 still reads 88.75, and the catalogue cross-check now REFUSES it
+(0.3125 is over the 0.25 tolerance), so a regression is a FAIL with the old
+number printed beside the new one rather than a quietly smaller figure.
+
+**Checks.** `rbparse.py` 75/75. All 18 `rbtest-*.py` green, same as before the
+change. `rbtest-overlays.py` 33 checks (was 32; the new one is the outcome
+itself — plate bottom 0.0000 and ceiling top **89.0625** on an Enhanced booth,
+87.7500 on a Standard one) plus a source-level scan that `place_casters` still
+seats off `stack_bot`. `rbtest-roofvent.py` +9 caster checks and the cross-file
+datum check. Mutation-checked, each mutant applied, run, and reverted:
+
+| mutant | result |
+|---|---|
+| `booth_lift` caster branch back on the standard floor | 3 FAILs, transcript reads `enh -0.3125 88.7500` — the plate floating off the ground |
+| `place_casters` seats off `fl_bottom` again | source scan FAILs by name |
+| CP fixture re-seated at −5.75 (what a regressed builder produces) | 3 FAILs in `rbtest-boothdims.py` |
+| plate dropped from `ceiling_required` (pre-1.49.0) | 7 FAILs |
+| `CASTER_ADD` 4.75 → 3.75 (the retracted figure) | 6 FAILs + the datum check |
+
+**UNRUN IN SKETCHUP.** No bridge, as always. The live half is
+`.forge/builder/verify-caster-lift.rb` — refuses outside an Untitled model,
+builds a real 7296 E on a real CP set from the share, and checks the planes the
+offline harness cannot: plate bottom exactly on world z 0, mat underside on the
+tray floor at 4.75, standard floor at 5.0625, ceiling top at **89.0625**,
+nothing below the ground — then erases the booth in `ensure`. It needs the part
+share, so it is Benton's to run. Until he does, the geometry claim is derived
+from the seating arithmetic, not observed.
+
 ### AUTO-SET was locked behind the door it unlocks — the proposal package opens with no scenes — 1.48.1
 
 Benton, minutes after 1.48.0 shipped: *"but I cant open up proposal package if

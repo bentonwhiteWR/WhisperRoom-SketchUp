@@ -30,10 +30,30 @@ WHAT IS EXERCISED — the whole pure section of wr-overlays.rb:
      2026-09-10 ("its too low ... shifted up 1" for standard, or 1 5/16"
      for enhanced"): the branch now grounds the FLOOR STACK, -stack_bottom,
      and this pins 1.0000 for a -1.0 slab and 1.3125 for a slab + IEP mat.
-     The caster branch is unchanged and ignores stack_bottom. main() also
+     THE CASTER BRANCH GROUNDS THE SAME STACK (1.49.0). Benton, 10 Sep 2026:
+     "the CP raises the booth ... 4 3/4"... that would make an enhanced
+     booth, with CP 7'5 1/16"". The plate's tray floor stands CP_BOOTH_LIFT
+     above the ground and the stack seats ON it, so the lift is 5.75 on a
+     Standard booth and 6.0625 on an Enhanced one, and the Enhanced booth
+     on a plate reads 89.0625 = 7'-5 1/16" top to plate bottom. Measuring
+     to the STANDARD floor instead (the pre-1.49.0 rule) buried the IEP mat
+     0.3125 inside the tray and read 88.75 = 7'-4 3/4". Both totals are
+     pinned below, so the retracted figure cannot come back silently.
+     main() also
      asserts, at source level, that the group transform is applied in
      exactly one place - build_booth's ground pass, since 1.33.0 - and
      nowhere in wr-overlays or wr-deck.
+
+MUTATION-CHECKED, 10 Sep 2026 (1.49.0, the caster datum). Each mutation was
+applied to wr-overlays.rb, this test run, FAIL confirmed, the file restored:
+
+  * booth_lift's caster branch answers the pre-1.49.0 standard-floor
+    lift (CP_BOOTH_LIFT + 1.0) instead of grounding the stack      -> 3 failures
+    (and the transcript shows what it costs: "cp on plate std
+     0.0000 87.7500 enh -0.3125 88.7500" - the plate floating a
+     5/16 off the ground under an Enhanced booth reading 7' 4 3/4")
+  * place_casters seats the plate off fl_bottom again              -> the source
+    (z_bot = fl_bottom - CP_BOOTH_LIFT)                               scan fails
 
 Every expected number below traces to .forge/researcher/portal-part-placement.md
 (the port table, the 2.25 IEP move), to wr-booth-data.rb (the slot polygons),
@@ -257,12 +277,26 @@ __METHODS__
     # on z 0 - a Standard slab at -1.0 lifts 1.0000, a slab with the IEP mat
     # under it at -1.3125 lifts 1.3125 (Benton's two figures), and a stack
     # that somehow sits above the ground comes DOWN to it. With casters the
-    # standard floor's underside lands at 4.75 (5.75 from -1.0) and the mat
-    # is ignored, exactly as before.
-    out << format('cp lift off %.4f %.4f %.2f on %.2f %.2f',
-                  booth_lift(false, -1.0), booth_lift(false, -1.0, -1.3125),
+    # SAME stack underside lands on the plate's tray floor, 4.75 above the
+    # ground: 5.75 from a -1.0 Standard slab, 6.0625 from a -1.3125 Enhanced
+    # stack (1.49.0, Benton's correction).
+    out << format('cp lift off %.4f %.4f %.2f on %.4f %.4f',
+                  booth_lift(false, -1.0), booth_lift(false, -1.3125),
                   booth_lift(false, 3.25), booth_lift(true, -1.0),
-                  booth_lift(true, -1.0, -1.3125))
+                  booth_lift(true, -1.3125))
+    # BENTON'S OUTCOME NUMBER, 10 Sep 2026, pinned as the total a drawing
+    # reads rather than as the constant that produces it. Part extremes,
+    # booth-local, as build-booth-components places them: Standard floor
+    # underside -1.0 / ceiling top 82.0 (83.0 drawn), Enhanced IEP mat
+    # underside -1.3125 / tray top 83.0 (84.3125 drawn). The plate hangs
+    # CP_BOOTH_LIFT below the stack, so after the lift its bottom is ON the
+    # ground (0.0000) and the ceiling top is the booth's stated height:
+    # 87.75 = 7'-3 3/4" Standard, 89.0625 = 7'-5 1/16" Enhanced.
+    ls = booth_lift(true, -1.0)
+    le = booth_lift(true, -1.3125)
+    out << format('cp on plate std %.4f %.4f enh %.4f %.4f',
+                  (-1.0 - CP_BOOTH_LIFT) + ls, 82.0 + ls,
+                  (-1.3125 - CP_BOOTH_LIFT) + le, 83.0 + le)
     # Plate selection per footprint, one-for-one with the floor tiling:
     # 4872 single; 7272 48+24; 96120 48+24+48; the 84 series' odd 18 middle;
     # a 102 SIDE end. Every expected name exists in the P: library (listed
@@ -286,8 +320,9 @@ __METHODS__
     # frame datum, an unconfirmed ruling Benton may flip. Blockers: a plain
     # door with casters is clear; a ramp door, no casters, or no door each
     # refuse by name.
-    out << format('step ground %.4f %.4f %.4f', step_ground_z(false, -1.0),
-                  step_ground_z(false, -1.0, -1.3125), step_ground_z(true, -1.0))
+    out << format('step ground %.4f %.4f %.4f %.4f', step_ground_z(false, -1.0),
+                  step_ground_z(false, -1.3125), step_ground_z(true, -1.0),
+                  step_ground_z(true, -1.3125))
     s = step_seat('S', 22.0, 1.0, -5.75, 44.0, 12.0, 5.0)
     out << format('step S %.2f..%.2f %.2f..%.2f %.2f..%.2f',
                   s[0][0], s[0][1], s[1][0], s[1][1], s[2][0], s[2][1])
@@ -354,11 +389,12 @@ EXPECT = (
     ' | axes w1 h2 t0'
     ' | desk axes 012 012'
     ' | cp const 4.75 0.75 5.50 sum-ok'
-    ' | cp lift off 1.0000 1.3125 -3.25 on 5.75 5.75'
+    ' | cp lift off 1.0000 1.3125 -3.25 on 5.7500 6.0625'
+    ' | cp on plate std 0.0000 87.7500 enh 0.0000 89.0625'
     ' | cp names CP4872,CP7248 SIDE,CP7224 SIDE,CP9648 SIDE,CP9624 CTR,'
     'CP9648 SIDE,CP8418 CTR,CP10242 SIDE'
     ' | cp fall CP9624 SIDE/CP9624 CTR/CP9624'
-    ' | step ground -1.0000 -1.3125 -5.7500'
+    ' | step ground -1.0000 -1.3125 -5.7500 -6.0625'
     ' | step S 0.00..44.00 -11.00..1.00 -5.75..-0.75'
     ' | step N y 103.00..115.00 E x 103.00..115.00 W x -11.00..1.00 y 30.00..74.00'
     ' | step offset x 3.00..47.00 const 0.0'
@@ -379,6 +415,18 @@ def lift_leak_check():
     if n != 0:
         fails.append('wr-overlays.rb touches booth.transformation %d time(s); '
                      'since 1.33.0 the lift is applied only in build_booth' % n)
+    # THE PLATE SEATS OFF THE SAME PLANE THE LIFT USES (1.49.0). place_casters
+    # is SketchUp code and cannot run here, so its one arithmetic line is
+    # checked at source level: seat the plate off fl_bottom again and the
+    # plate ends up 0.3125 off the ground on an Enhanced booth while the
+    # printed height still looks right - the exact failure this fix removes.
+    if 'z_bot = stack_bot - CP_BOOTH_LIFT' not in ov:
+        fails.append('place_casters no longer seats the plate CP_BOOTH_LIFT under '
+                     'the FLOOR STACK (z_bot = stack_bot - CP_BOOTH_LIFT) - the '
+                     'plate and the lift must measure to the same plane')
+    if 'lift = booth_lift(true, stack_bot)' not in ov:
+        fails.append('place_casters no longer reports booth_lift(true, stack_bot) - '
+                     'the plate pass and the ground pass can now disagree')
     builder = open(os.path.join(HERE, 'build-booth-components.rb'), encoding='utf-8').read()
     n = builder.count('booth.transformation')
     # Exactly 2: the read and the write of the single compose-and-assign line

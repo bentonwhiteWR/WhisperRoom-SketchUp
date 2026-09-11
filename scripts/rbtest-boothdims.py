@@ -46,10 +46,14 @@ WHAT IT ASSERTS
      extent is its vent-box FACE (the outboard level carrying the most
      area beyond the panel band), never its assembly box; a caster plate
      is in the height. Fixture: Benton's 7296 E on a CP, 8' 7 1/2" x
-     6' 7 1/2"; the height reads what the plate adds, and the two datums
-     in play (4.75 under the standard floor per the builder; 3.75 under
-     the mat per Benton's 7' 4 1/16") are both pinned so the gap is on
-     record, not hidden.
+     6' 7 1/2"; the height reads what the plate adds. ONE DATUM SINCE
+     1.49.0: the plate's tray floor stands 4.75 (WR_Overlays::CP_BOOTH_LIFT)
+     under the booth's FLOOR STACK, so an Enhanced booth on a plate reads
+     84.3125 + 4.75 = 89.0625 = 7'-5 1/16" — Benton, 10 Sep 2026, which
+     supersedes both his earlier 7'-4 1/16" (a 3.75 plate under the mat,
+     retracted and no longer pinned anywhere) and the 7'-4 3/4" the old
+     seating produced. The superseded seating is still exercised, by name,
+     so a regression to it is a FAIL rather than a silently smaller number.
   8. ONE AXIS PER WALL (1.40.0): a protrusion on each of the four walls
      extends exactly the bound normal to that wall and never the other
      axis; the shell corners come from the corner seals; each protrusion
@@ -70,6 +74,12 @@ dimension-whisperroom.rb, this test run, FAIL confirmed, the file restored:
   * walls push all four bounds again (the union box, 1.37.0 rule)  -> 10 failures
   * vent_box_level takes the OUTERMOST level (the assembly edge)    -> 4 failures
   * caster plate no longer lowers z0                                 -> 4 failures
+  * (10 Sep 2026, 1.49.0) the CP fixture's plate put back where the
+    pre-1.49.0 builder seated it - 4.75 under the STANDARD floor, so
+    its bottom is -5.75 - which is the geometry a regressed builder
+    would produce and reads 7' 4 3/4" instead of 7' 5 1/16"        -> 3 failures
+    (the builder side of that same regression is mutation-checked in
+     rbtest-overlays.py, where it costs 3 more)
   * panel band collapses to one level (panel face becomes the box)   -> 4 failures
 
 The last one first died by crashing the harness (r[0] on an empty list) rather
@@ -312,9 +322,12 @@ cp = [['S0  Right46Door',        [2.0, -30.0, 0.0, 48.0, 1.0, 81.0]],
       ['STD9648CL SIDE',         [49.0, 1.0, 81.0, 97.0, 73.0, 82.0]],
       ['CLi  ENH 9648CL SIDE',   [3.25, 3.25, 81.25, 94.75, 70.75, 83.0]],
       ['RM7296 roof unit',       [20.0, 20.0, 82.0, 78.0, 54.0, 92.3125]]]
-# The builder's plate: bottom CP_BOOTH_LIFT 4.75 under the STANDARD floor
-# underside (-1.0), i.e. -5.75; rim 5.5 up.
-plate_builder = ['CP9648 SIDE  caster plate', [1.0, 1.0, -5.75, 97.0, 73.0, -0.25]]
+# The builder's plate, 1.49.0: its tray floor is CP_BOOTH_LIFT 4.75 under the
+# FLOOR STACK underside — the IEP mat at -1.3125 on this Enhanced booth — so
+# the plate bottom is -6.0625 and its rim 5.5 up at -0.5625. wr-overlays.rb
+# seats it there (place_casters: z_bot = stack_bot - CP_BOOTH_LIFT) and lifts
+# the group by 6.0625 so that bottom lands on the ground.
+plate_builder = ['CP9648 SIDE  caster plate', [1.0, 1.0, -6.0625, 97.0, 73.0, -0.5625]]
 eb = BD.extent_from_parts(cp + [plate_builder])
 check("Benton's 7296 E on a CP: width 8' 7 1/2\" (103.5) — the E vent box, not the assembly",
       [eb[:x0], eb[:x1], eb[:x1] - eb[:x0]], [0.0, 103.5, 103.5])
@@ -322,19 +335,25 @@ check("Benton's 7296 E on a CP: depth 6' 7 1/2\" (79.5) — the N vent box",
       [eb[:y0], eb[:y1], eb[:y1] - eb[:y0]], [0.0, 79.5, 79.5])
 check('CP: the silencer foot hanging to -4.75 on the vent parts does not touch the height (walls never vote on z)',
       eb[:z1], 83.0)
-check('CP: the plate bottom is the bottom of the booth', [eb[:z0], eb[:z0_by]], [-5.75, 'CP9648 SIDE  caster plate'])
-check('CP: plate contribution below the mat is recorded (4.75 under the std floor = 4.4375 under the mat)',
-      eb[:plate], 4.4375)
-check("CP: with the builder's datum the height reads 7' 4 3/4\" (88.75)", eb[:z1] - eb[:z0], 88.75)
-# Benton's figure, 7' 4 1/16" = 88.0625, is the drawn 84.3125 + 3.75: a plate
-# bottom 3.75 under the MAT. Pinned so the 11/16 between the two datums is on
-# record: the tool reads whichever the model has, and says how much is plate.
-plate_benton = ['CP9648 SIDE  caster plate', [1.0, 1.0, -5.0625, 97.0, 73.0, 0.4375]]
-eb2 = BD.extent_from_parts(cp + [plate_benton])
-check("CP: a plate 3.75 under the mat reads Benton's 7' 4 1/16\" (88.0625)", [eb2[:z1] - eb2[:z0], eb2[:plate]], [88.0625, 3.75])
+check('CP: the plate bottom is the bottom of the booth', [eb[:z0], eb[:z0_by]], [-6.0625, 'CP9648 SIDE  caster plate'])
+check('CP: the plate adds a FULL 4.75 below the floor stack (the mat seats on the tray floor)',
+      eb[:plate], 4.75)
+check("CP: an Enhanced booth on a plate reads Benton's 7' 5 1/16\" (89.0625 = 84.3125 drawn + 4.75)",
+      eb[:z1] - eb[:z0], 89.0625)
+# THE SUPERSEDED SEATING, kept as a regression pin and nothing else: until
+# 1.49.0 the plate was seated 4.75 under the STANDARD floor (-1.0), which put
+# its bottom at -5.75, buried the IEP mat 0.3125 inside its tray floor and read
+# 7'-4 3/4". If the builder ever measures to the standard floor again this is
+# the number that comes back, and the cross-check below refuses it.
+plate_old = ['CP9648 SIDE  caster plate', [1.0, 1.0, -5.75, 97.0, 73.0, -0.25]]
+eb2 = BD.extent_from_parts(cp + [plate_old])
+check("CP: the pre-1.49.0 seating reads the superseded 7' 4 3/4\" (88.75), a full 0.3125 short",
+      [eb2[:z1] - eb2[:z0], eb2[:plate]], [88.75, 4.4375])
+check('CP: and a booth seated that way FAILS the catalogue cross-check (0.3125 is over the 0.25 tolerance)',
+      BD.reconcile([103.5, 79.5, 88.75], [103.5, 79.5, 84.3125 + 4.75], ['E0', 'N0', 'plate']).length, 1)
 check('CP: the plate never touches the footprint', [eb[:x0_by], eb[:y0_by]], ['SW corner seal', 'SW corner seal'])
 check('CP: cross-check adds the plate to the catalogue height, so no *** on a plate that is where the builder put it',
-      BD.reconcile([103.5, 79.5, 88.75], [103.5, 79.5, 84.3125 + 4.4375], ['E0', 'N0', 'plate']), [])
+      BD.reconcile([103.5, 79.5, 89.0625], [103.5, 79.5, 84.3125 + 4.75], ['E0', 'N0', 'plate']), [])
 check('CP: catalogue for a 7296 E vented N and E is 103.5 x 79.5 x 84.3125',
       BD.catalogue_extent(98.0, 74.0, ['E', 'N'], true), [103.5, 79.5, 84.3125])
 check('CP: the untrimmed assembly boxes would have read 104.4375 x 80.4375 — the fault as reported',

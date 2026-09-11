@@ -2934,10 +2934,13 @@ module WR_BuildBoothComponents
       # ---- GROUND THE BOOTH ---------------------------------------------
       #
       # THE ONE APPLY SITE for the whole chain (rbtest-overlays.py asserts
-      # it at source level). WR_Overlays.booth_lift says how far: the caster
-      # datum when plates went in, otherwise the floor stack's underside onto
-      # the ground plane - 1.000 on a Standard booth, 1.3125 on an Enhanced
-      # one - MEASURED off the placed deck above. Benton, 2026-09-10:
+      # it at source level). WR_Overlays.booth_lift says how far, off ONE
+      # measured figure: the floor stack's underside onto the ground plane -
+      # 1.000 on a Standard booth, 1.3125 on an Enhanced one - or, with a
+      # caster plate under it, onto the plate's tray floor 4.75 above the
+      # ground, which is 5.75 Standard and 6.0625 Enhanced. Benton, 10 Sep
+      # 2026: the plate raises the booth 4 3/4, so an Enhanced booth on a CP
+      # measures 7'-5 1/16". MEASURED off the placed deck above. Benton, 2026-09-10:
       # "whenever we bring in a booth via the link, its too low. It should
       # be shifted up 1" for standard, or 1 5/16" for enhanced." That is the
       # slab (z 0..1 in every FL part, reference/floor-ceiling-geometry.md)
@@ -2957,7 +2960,7 @@ module WR_BuildBoothComponents
                 'could not be measured. The walls stand on z 0 and the floor would hang ' \
                 'into the host floor - fix the deck and rebuild.'
       else
-        lift = WR_Overlays.booth_lift(casters_in, fl_bottom, stack_bottom)
+        lift = WR_Overlays.booth_lift(casters_in, stack_bottom)
         booth.transformation = Geom::Transformation.translation(
           Geom::Vector3d.new(0, 0, lift)) * booth.transformation
         puts format('  GROUND  booth lifted %.4f - floor stack underside was %.4f booth-local, ' \

@@ -40,8 +40,9 @@ WHAT IT ASSERTS
   2. part_name gives the real .skp base for both variants, on all 22
   3. art_only excludes every scenery family and no buildable part
   4. unit_height takes the larger of stated and measured, both ways round
-  5. ceiling_required adds the roof unit, the height extension, and the
-     Enhanced clearance, and adds nothing at all when rv = 0
+  5. ceiling_required adds the roof unit, the height extension, the
+     CASTER PLATE, and the Enhanced clearance, and adds nothing at all
+     when rv = 0 and no plate is on the link
   6. roof_unit_blockers refuses an unsupported model and NOTHING else — the
      seating, EFS and HX are all answered — and the seating note explains
      which rule it applied
@@ -61,6 +62,21 @@ wr-roof-vent.rb, this test run, and the file restored:
   * put the HX refusal back, so an HX booth never seats         ->  2 failures
   * NOMINAL_INSET 1.0 -> 0.0 (seat off the exterior face)       -> 17 failures
 
+RE-MUTATION-CHECKED, 10 Sep 2026, for the caster plate (1.49.0):
+
+  * drop the caster plate from ceiling_required (the pre-1.49.0
+    behaviour: a flat 83 / 85 whatever the link carries)        ->  7 failures
+  * CASTER_ADD 4.75 -> 3.75 (Benton's retracted figure)          ->  6 failures
+                                       plus the cross-file datum check
+
+THE CASTER PLATE, 1.49.0. ceiling_required used to take no caster argument at
+all, so the "ceiling the room must give" line quoted 85 in for an Enhanced
+booth that stands 89.0625 in tall on its plate — under-reporting the one
+constraint that must never be under-reported, by the whole height of the plate.
+wr-overlays.rb owns the 4.75 datum (CP_BOOTH_LIFT); CASTER_ADD repeats it
+because this file is loaded alone, and main() re-reads wr-overlays.rb on every
+run so the repeat cannot drift.
+
 The first of those is the one that matters most: a mirrored orientation is
 arithmetically indistinguishable from the right one unless the test says which
 SIDE the gap is on, which is why every flush-right check below names LEFT or
@@ -73,6 +89,7 @@ there aborts the eval outright rather than raising, which reads as a broken
 harness rather than as a broken line.
 """
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -186,6 +203,36 @@ check('an HX booth with rv = 0 gets no unit at all',
       RV.ceiling_required('MDL 7272 S', 'S', true, false, false)[:unit], 0.0)
 check('the RM booth needs more ceiling than the portal fit card claims',
       rmv[:total] > 85.0, true)
+# THE CASTER PLATE (1.49.0). The plate lifts the whole booth 4.75 (Benton,
+# 10 Sep 2026: "the CP raises the booth ... 4 3/4"", which makes an Enhanced
+# booth on a plate 7'-5 1/16" = 89.0625 as drawn), so the room has to give
+# that much more. Until 1.49.0 this function took no caster argument and
+# answered a flat 83 / 85 - the audit's rank-02 defect, and green the whole
+# time because no check below passed a plate.
+cs = RV.ceiling_required('MDL 7272 S', 'S', false, false, false, true)
+check('a Standard booth on a caster plate needs the plate too',
+      [cs[:booth], cs[:plate], cs[:total]], [87.75, 4.75, 87.75])
+cse = RV.ceiling_required('MDL 7272 E', 'E', false, false, false, true)
+check('an Enhanced booth on a caster plate: 85 + 4.75', cse[:total], 89.75)
+check('and that clears the 89.0625 an Enhanced booth on a plate actually ' +
+      'measures - the clearance is never under the drawn height',
+      cse[:total] > 89.0625, true)
+check('the plate is exactly CASTER_ADD more ceiling than the same booth ' +
+      'without one', cse[:total] - enh[:total], RV::CASTER_ADD)
+check('no plate on the link adds nothing, and says so',
+      [enh[:plate], std[:plate]], [0.0, 0.0])
+csr = RV.ceiling_required('MDL 7272 S', 'S', false, true, false, true)
+check('plate + roof unit stack', csr[:total], 93.3125 + 4.75)
+csx = RV.ceiling_required('MDL 7272 E', 'E', true, true, true, true)
+check('Enhanced + HX + roof + VSS + plate all stack',
+      csx[:total], 85.0 + 10.0 + 10.499 + 4.75)
+check('a refused roof link still reports the plate it stands on',
+      RV.ceiling_required('MDL 4242 S', 'S', false, true, false, true)[:total],
+      87.75)
+check('the caster argument defaults to no plate, so a 5-argument call is ' +
+      'unchanged', RV.ceiling_required('MDL 7272 E', 'E', false, false, false)[:total],
+      85.0)
+
 nopart = RV.ceiling_required('MDL 4242 S', 'S', false, true, false)
 check('rv = 1 on a model with no roof part adds no fictional unit height',
       [nopart[:unit], nopart[:total]], [0.0, 83.0])
@@ -359,13 +406,36 @@ out = $results.map { |(n, ok, d)| (ok ? 'PASS ' : 'FAIL ') + n + (ok ? '' : '   
 '''
 
 
+def datum_check(lib):
+    """CASTER_ADD repeats wr-overlays.rb's CP_BOOTH_LIFT, because this file is
+    loaded and tested on its own. Two copies of a datum is exactly how a
+    corrected number half-lands, so the copy is checked against the original
+    on every run rather than trusted."""
+    def scalar(text, name):
+        m = re.search(r'^\s*%s\s*=\s*([0-9.]+)' % name, text, re.M)
+        return None if m is None else float(m.group(1))
+    ov = open(os.path.join(HERE, 'wr-overlays.rb'), encoding='utf-8').read()
+    here, there = scalar(lib, 'CASTER_ADD'), scalar(ov, 'CP_BOOTH_LIFT')
+    if here is None or there is None:
+        return ['the caster datum could not be read (CASTER_ADD %r / '
+                'CP_BOOTH_LIFT %r) - one of them has been renamed' % (here, there)]
+    if here != there:
+        return ['wr-roof-vent CASTER_ADD %.4f disagrees with wr-overlays '
+                'CP_BOOTH_LIFT %.4f - the plate datum lives in wr-overlays and '
+                'this file follows it' % (here, there)]
+    return []
+
+
 def main():
     lib = open(os.path.join(HERE, 'wr-roof-vent.rb'), encoding='utf-8').read()
     got = rbparse.rb_eval(rbparse.boot(), PROG.replace('@@LIB@@', lib))
     print(got)
+    bad = datum_check(lib)
+    for f in bad:
+        print('FAIL (caster datum) ' + f)
     if got.startswith('FAIL ') or 'error' in got[:40].lower():
         return 1
-    return 0 if got.rstrip().endswith('0 failure(s)') else 1
+    return 0 if got.rstrip().endswith('0 failure(s)') and not bad else 1
 
 
 if __name__ == '__main__':

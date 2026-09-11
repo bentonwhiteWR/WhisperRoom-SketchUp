@@ -372,9 +372,15 @@ module WR_BoothDims
       end
     end
     # A caster plate is part of how tall the booth is (Benton, 10 Sep 2026,
-    # 7296 E on a CP: "these should be ... 7' 4 1/16""). The plate bottom is
-    # the bottom of the booth; how much it adds below the floor stack is
-    # recorded so the console and the cross-check can say so.
+    # 7296 E on a CP). The plate bottom is the bottom of the booth; how much
+    # it adds below the floor stack is recorded so the console and the
+    # cross-check can say so. His figure for that booth was first "7' 4 1/16""
+    # and then, the same day, CORRECTED: "I told you earlier that the CP
+    # raises the booth 3 3/4". I was wrong, it actually raises it 4 3/4" ...
+    # that would make an enhanced booth, with CP 7'5 1/16"." So a plate under
+    # an Enhanced booth contributes a full 4.75 below the mat and the height
+    # reads 89.0625. Nothing here encodes either number: this measures the
+    # parts, and wr-overlays.rb seats them (CP_BOOTH_LIFT, place_casters).
     floor_z0 = ext[:z0]
     parts.each do |name, b|
       next unless classify(name) == :caster

@@ -977,18 +977,24 @@ module WR_BoothLink
     # (CLAUDE.md) and this tool never used to say it at all. On a roof-mounted
     # booth the roof unit is ADDED — the portal's fit card does not add it, and
     # under-reports an RM booth's ceiling by 10 to 16.5 in as a result.
+    # THE CASTER PLATE IS IN THIS FIGURE (1.49.0). It lifts the whole booth
+    # 4 3/4 (Benton, 10 Sep 2026), so the room has to give that much more;
+    # until 1.49.0 this line quoted a flat 83 / 85 whatever the link carried.
     ch = WR_RoofVent.ceiling_required(key, variant, hx, roof,
-                                      opts[:vss] ? true : false)
+                                      opts[:vss] ? true : false,
+                                      opts[:casters] ? true : false)
     puts ''
+    plate_note = ch[:plate] > 0 ? format(', which includes %.2f in of caster plate', ch[:plate]) : ''
     if ch[:unit] > 0
       puts format('  CEILING THE ROOM MUST GIVE: %s (%.2f in) — %.2f booth install ' \
-                  'clearance', WR_RoofVent.ft(ch[:total]), ch[:total], ch[:booth])
+                  'clearance%s', WR_RoofVent.ft(ch[:total]), ch[:total], ch[:booth],
+                  plate_note)
       puts format('    + %.2f in of roof unit (%s).', ch[:unit], ch[:why])
       puts '    The booth builder portal does NOT add the roof unit to its fit card,'
       puts '    so its figure for this booth is low by that amount.'
     else
-      puts format('  CEILING THE ROOM MUST GIVE: %s (%.2f in) install clearance.',
-                  WR_RoofVent.ft(ch[:total]), ch[:total])
+      puts format('  CEILING THE ROOM MUST GIVE: %s (%.2f in) install clearance%s.',
+                  WR_RoofVent.ft(ch[:total]), ch[:total], plate_note)
     end
     if roof
       puts ''
