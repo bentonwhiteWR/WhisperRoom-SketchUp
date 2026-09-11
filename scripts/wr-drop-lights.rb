@@ -3318,7 +3318,20 @@ module WR_DropLights
     # "is it all gone" is exactly the question that deserves an answer on
     # screen.
     dlg.add_action_callback('removeall') do |_c, _p|
+      # Traced on entry. 1.64.0's button did nothing and there was no way to
+      # tell from outside whether the click never arrived or the work failed
+      # silently; this line answers that in one look at the console.
+      puts 'WR Lights: REMOVE ALL LIGHTS pressed.'
       model = Sketchup.active_model
+      # THE CONFIRMATION IS HERE, not in the window's JS -- see the note by
+      # the button's click handler. MB_YESNO, matching confirm_all? in
+      # wr-scene-walls.rb, which is the one confirmation in this codebase
+      # already proven to appear over an HtmlDialog.
+      ans = UI.messagebox("Remove every light, fixture, borrowed ceiling and " \
+                          "borrowed wall this tool put in this model?\n\n" \
+                          "The window closes and NO lights are dropped.\n\n" \
+                          "Ctrl+Z will NOT put them back.", MB_YESNO)
+      next unless ans == IDYES
       begin
         r = remove_rig!(model)
         n = r['erased'].to_i
@@ -3581,13 +3594,13 @@ g("pdel").addEventListener("click", function(){
   var n = g("psel").value;
   if(n) sketchup.delpreset(n);
 });
-// Confirmed HERE rather than in Ruby: a window that vanishes and then asks
-// reads as though the press already happened. One confirm, before anything.
+// NO JS confirm() HERE. 1.64.0 shipped one and the button did nothing at
+// all: CEF's HtmlDialog does not reliably show a confirm(), so the guard
+// returned false and swallowed every press. wr-scene-walls.rb already had
+// this written down (confirm_all?, "a UI.messagebox rather than a JS
+// confirm(): CEF's HtmlDialog does not reliably show one") and it was not
+// read. The confirmation is Ruby's, in the callback, where it works.
 g("wipe").addEventListener("click", function(){
-  if(!confirm("Remove every light, fixture, borrowed ceiling and borrowed wall "
-            + "this tool put in the model?\n\nThe window closes and NO lights "
-            + "are dropped. This is not covered by Ctrl+Z."))
-    return;
   if(window.sketchup && sketchup.removeall) sketchup.removeall("");
 });
 g("cancel").addEventListener("click", function(){ sketchup.cancel(""); });
