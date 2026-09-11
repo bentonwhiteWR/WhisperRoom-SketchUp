@@ -371,11 +371,13 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'ceiling_pair', 'face_on_edge?', 'open_edges', 'face_offset',
            'run_report', 'fill_runs', 'exposure_ratio', 'stops_of', 'ev_of',
            'camera_verdict', 'rig_camera_gain', 'accent_tilt',
-           'accent_standoff', 'walls_mode', 'default_settings']
+           'accent_standoff', 'walls_mode', 'default_settings',
+           'door_face_normal', 'accent_place', 'audit_verdict']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'WASH_MAX', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
-           'ACCENT_STEP', 'ACCENT_MARGIN', 'MIN_ROOM_H',
+           'ACCENT_STEP', 'ACCENT_MARGIN', 'ACCENT_FAN_STEP', 'ACCENT_FAN_MAX',
+           'FACTORY_INTENSITY', 'MIN_ROOM_H',
            'MIN_ROOM_AREA', 'BOOTH_SIDE_MIN', 'BOOTH_SIDE_MAX',
            'BOOTH_H_MIN', 'BOOTH_H_MAX', 'GRID_SNAP', 'BOX_TOL',
            'UNITS_LUMENS', 'FACE_FLIP', 'TRIM_OPEN4', 'TRIM_OPEN3', 'SEG',
@@ -552,6 +554,49 @@ __METHODS__
     sd = accent_standoff([72.0, 30.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0)
     se = accent_standoff([72.0, 54.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0)
     out << 'ks ' + [sa, sb, sc, sd, se].map { |v| v.nil? ? '-' : format('%.0f', v) }.join(',')
+
+    # 9e -- door_face_normal (1.66.0): the door faces the booth-box side its
+    # panel box lies against. (a) the live desktop model, 11 Sep 2026: door
+    # panel x 349.5..381.5 on a booth x 349.5..469 -> west, [-1,0] (the old
+    # centre-to-centre line gave [-0.77,0.64] and pulled the key in to 48");
+    # (b) a panel flush with the +y end -> [0,1]; (c) a corner panel touching
+    # two sides: 30" across x, 46" across y -> the thinner crossing wins,
+    # west; (d) a zero-width booth box -> nil.
+    dfa = door_face_normal([349.5, 331.9, 469.0, 466.8], [349.5, 412.3, 381.5, 458.3])
+    dfb = door_face_normal([0.0, 0.0, 96.0, 160.0], [20.0, 140.0, 66.0, 160.0])
+    dfc = door_face_normal([0.0, 0.0, 96.0, 144.0], [0.0, 0.0, 30.0, 46.0])
+    dfd = door_face_normal([0.0, 0.0, 0.0, 144.0], [0.0, 0.0, 1.0, 1.0])
+    out << 'dfn ' + [dfa, dfb, dfc, dfd].map { |v|
+      v.nil? ? '-' : v.map { |x| format('%.0f', x) }.join(',')
+    }.join(';')
+
+    # 9f -- accent_place, the fan (1.66.0). (a) the perpendicular fits: 96 at
+    # 0 deg; (b) door 40" from the wall it faces: nothing on the perpendicular
+    # (42" lands 2" past the edge), +/-15..45 all land inside the 12" margin,
+    # +60 deg (cos 60 = 0.5) walks back from 96 to 54 (y = 40 - 27 = 13) ->
+    # 54 at +60; (c) 20" of room: even 60 deg cannot clear the margin -> nil,
+    # KEY SKIPPED; (d) the 9c (a) case is unchanged at 84 / 0 deg.
+    apa = accent_place([72.0, 200.0], 0.0, -1.0, rect_tall, [], 96.0, 42.0, 6.0, 12.0, 15.0, 60.0)
+    apb = accent_place([72.0, 40.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0, 15.0, 60.0)
+    apc = accent_place([72.0, 20.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0, 15.0, 60.0)
+    apd = accent_place([72.0, 96.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0, 15.0, 60.0)
+    out << 'ap ' + [apa, apb, apc, apd].map { |v|
+      v.nil? ? '-' : format('%.0f@%+.0f', v[0], v[3])
+    }.join(';')
+
+    # 9g -- audit_verdict (1.66.0): clean; a ghost; a rig light at the 30 lm
+    # factory default (dead, and NOT also counted as wrong); a wrong value; a
+    # missing plugin; a disabled light (dead).
+    rows_ok = [['/R', 3200000.0, true, :rig, 3200000.0], ['/Standard Light', 2500.0, true, :model, nil]]
+    va = audit_verdict(rows_ok, [])
+    vb = audit_verdict(rows_ok + [['/R#9', 480000.0, true, :ghost, nil]], [])
+    vc = audit_verdict([['/R', 30.0, true, :rig, 3200000.0]], [])
+    vd = audit_verdict([['/R', 3000000.0, true, :rig, 3200000.0]], [])
+    ve = audit_verdict(rows_ok, ['/R#3'])
+    vf = audit_verdict([['/R', 3200000.0, false, :rig, 3200000.0]], [])
+    out << 'av ' + [va, vb, vc, vd, ve, vf].map { |v|
+      (v['ok'] ? 'ok' : 'BAD') + format('%d,%d,%d,%d', v['ghosts'].size, v['dead'].size, v['wrong'].size, v['missing'].size)
+    }.join(';')
 
     # 9d -- THE WALLS DEFAULT. 1.43.1 made it 'all' ("default the drop down
     # to be 'on every run'"); 1.63.0 makes it 'hidden', because 'all' sealed
@@ -1007,6 +1052,9 @@ EXPECT = ' | '.join([
     # 84 -> 116 inside, 78 -> 122 clear -> 78. (d) 30" of room: 42 lands at
     # y=-12, outside -> nil. (e) door at y=54: 42 -> y=12, on the margin -> 42.
     'ks 84,96,78,-,42',
+    'dfn -1,0;0,1;-1,0;-',
+    'ap 96@+0;54@+60;-;84@+0',
+    'av ok0,0,0,0;BAD1,0,0,0;BAD0,1,0,0;BAD0,0,1,0;BAD0,0,0,1;BAD0,1,0,0',
     'wd open,cap,open,open,none,open,all,none,none',
     'veto 1110 msg1',
     'fbv 0011 list1',

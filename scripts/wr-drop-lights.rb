@@ -320,6 +320,16 @@ module WR_DropLights
   ACCENT_MARGIN   = 12.0   # in — half the key's 24" panel: the light body
                            #   must clear the floor edge by this or it sits
                            #   in a wall
+  # THE FAN (1.66.0). When the perpendicular in front of the door has no
+  # legal standoff at all — a booth parked with its door a few inches from
+  # a wall — the aim line is swept either side of the door normal in
+  # ACCENT_FAN_STEP-degree steps out to ACCENT_FAN_MAX, nearest the
+  # perpendicular first, and the first line with a legal standoff wins. The
+  # console says by how many degrees ("KEY SWUNG"). Only past the whole fan
+  # is the key skipped, and a skipped key was the single worst outcome the
+  # first rank loop hit (DEVLOG 1.65.0: "caps D1, D3 and D4 at once").
+  ACCENT_FAN_STEP = 15.0   # deg
+  ACCENT_FAN_MAX  = 60.0   # deg either side of the door normal
 
   # --- subject sanity — from the light-as-room incident -------------------
   # The first live press selected a 24"-tall V-Ray rectangle light; the
@@ -1286,6 +1296,62 @@ module WR_DropLights
         return d
       end
       d -= step
+    end
+    nil
+  end
+
+  # PURE. WHICH FACE OF THE BOOTH THE DOOR IS ON, as an outward unit normal
+  # in plan, from the booth's plan box [minx, miny, maxx, maxy] and the door
+  # panel's box in the same frame. The panel lies against exactly one side
+  # of the booth box (a swung leaf inflates BOTH boxes the same way, so the
+  # gap is still zero on the door side); that side's outward normal is the
+  # way the door faces. A panel touching two sides at a corner goes to the
+  # side it is THINNER across, because a door is wide along its wall and
+  # shallow through it. nil for a degenerate booth box.
+  #
+  # THIS REPLACES THE BOOTH-CENTRE-TO-DOOR-CENTRE LINE (1.66.0), which was
+  # the whole cause of "KEY SKIPPED" in the first rank loop: a door at one
+  # end of a long face made that line diagonal, it ran into the wall the
+  # booth was parked 4-6" from, and every standoff from 96" to 42" landed
+  # outside the floor while 8' of open room stood square in front of the
+  # door. Observed live on the desktop model (11 Sep 2026): the diagonal
+  # pulled the key in to 48"; the perpendicular fits the full 96".
+  def self.door_face_normal(bbb, dbb)
+    return nil if bbb.nil? || dbb.nil? || bbb.size < 4 || dbb.size < 4
+    bw = bbb[2] - bbb[0]
+    bh = bbb[3] - bbb[1]
+    return nil if bw <= 0.0 || bh <= 0.0
+    dw = (dbb[2] - dbb[0]).abs
+    dh = (dbb[3] - dbb[1]).abs
+    cands = [
+      [(dbb[0] - bbb[0]).abs, dw, [-1.0, 0.0]],
+      [(bbb[2] - dbb[2]).abs, dw, [1.0, 0.0]],
+      [(dbb[1] - bbb[1]).abs, dh, [0.0, -1.0]],
+      [(bbb[3] - dbb[3]).abs, dh, [0.0, 1.0]]
+    ]
+    cands.min_by { |gap, thick, _n| [(gap * 1000.0).round, thick] }[2]
+  end
+
+  # PURE. WHERE THE KEY GOES. accent_standoff along the door-face normal
+  # (nx, ny) first; when nothing from `want` down to `min` fits on that
+  # line, swing it `fan_step` degrees either side, then twice that, out to
+  # `fan_max`, and take the first line that fits — nearest the perpendicular
+  # wins, and on each line the LARGEST legal standoff wins, as before.
+  # Returns [standoff, ux, uy, degrees_off_normal] or nil when no line in
+  # the fan fits; the caller prints which it got and why.
+  def self.accent_place(dc, nx, ny, poly, keepouts, want, min, step, margin, fan_step, fan_max)
+    angles = [0.0]
+    a = fan_step * 1.0
+    while fan_step > 0.0 && a <= fan_max + 1e-9
+      angles << a << -a
+      a += fan_step
+    end
+    angles.each do |deg|
+      r = deg * Math::PI / 180.0
+      ux = nx * Math.cos(r) - ny * Math.sin(r)
+      uy = nx * Math.sin(r) + ny * Math.cos(r)
+      d = accent_standoff(dc, ux, uy, poly, keepouts, want, min, step, margin)
+      return [d, ux, uy, deg] if d
     end
     nil
   end
@@ -2463,6 +2529,103 @@ module WR_DropLights
   end
 
   # ======================================================================
+  # THE SCENE AUDIT (1.66.0) — what V-Ray will render, held against what
+  # the model shows. Two things were OBSERVED over the bridge on 11 Sep 2026
+  # that make a render disagree with the rig without a trace on the SketchUp
+  # side: (1) a re-drop over an existing rig once left four sconce spheres
+  # at V-Ray's factory 30 lm instead of the 480,000 the rig wrote and read
+  # back (one press in three; the frame came out 1.7% dimmer and nothing
+  # said why); (2) neither Ctrl+Z nor a rolled-back press removes the rig
+  # here — V-Ray's own scene transaction closes the SketchUp operation
+  # underneath it — so "reset" must be remove_rig!, verified, never undo.
+  # This is the check the rank loop runs right before every render: every
+  # rig light present, enabled, at the lumens it was written; no light
+  # plugin in the scene that no entity owns. A failed audit voids the cycle.
+  # ======================================================================
+  FACTORY_INTENSITY = 30.0   # V-Ray's default on a light nobody configured
+
+  # PURE. rows = [[plugin_name, intensity, enabled, :rig | :model | :ghost,
+  # expected_lumens_or_nil], ...]; missing = rig plugin names not in the
+  # scene at all. Verdict hash; 'ok' is true only when every list is empty.
+  def self.audit_verdict(rows, missing)
+    ghosts = rows.select { |r| r[3] == :ghost }.map { |r| r[0] }
+    dead = rows.select do |r|
+      r[3] == :rig && (r[1].nil? || (r[1] * 1.0) <= FACTORY_INTENSITY || r[2] == false)
+    end.map { |r| [r[0], r[1]] }
+    deadn = dead.map { |r| r[0] }
+    wrong = rows.select do |r|
+      r[3] == :rig && !deadn.include?(r[0]) && r[4] && r[1] &&
+        ((r[1] * 1.0) - (r[4] * 1.0)).abs > 0.5
+    end.map { |r| [r[0], r[1], r[4]] }
+    miss = Array(missing)
+    ok = ghosts.empty? && dead.empty? && wrong.empty? && miss.empty?
+    lines = []
+    lines << format('rig lights in the V-Ray scene: %d, model-owned: %d',
+                    rows.count { |r| r[3] == :rig }, rows.count { |r| r[3] == :model })
+    ghosts.each { |g| lines << "GHOST  #{g} — a light plugin no entity owns; it renders anyway" }
+    dead.each { |n, i| lines << "DEAD   #{n} — intensity #{i.inspect} (factory default or disabled)" }
+    wrong.each { |n, i, e| lines << format('WRONG  %s — intensity %s, the rig wrote %.0f', n, i.inspect, e * 1.0) }
+    miss.each { |n| lines << "MISSING #{n} — the entity is in the model, its plugin is not in the scene" }
+    lines << (ok ? 'AUDIT OK — the scene holds exactly the rig the model shows' : 'AUDIT FAILED — this frame would not be the rig')
+    { 'ok' => ok, 'rig' => rows.count { |r| r[3] == :rig },
+      'model' => rows.count { |r| r[3] == :model }, 'ghosts' => ghosts,
+      'dead' => dead, 'wrong' => wrong, 'missing' => miss, 'lines' => lines }
+  end
+
+  # The live half: read the scene, classify every light plugin, and hand the
+  # rows to audit_verdict. Never raises; a V-Ray fault comes back as
+  # 'ok' => false with 'why'.
+  def self.audit_scene(model)
+    why = vray_api_missing
+    ctx = nil
+    ctx, why = vray_context unless why
+    return { 'ok' => false, 'why' => why, 'lines' => ["AUDIT FAILED — #{why}"] } if why
+    sc = vray_scene(ctx)
+    return { 'ok' => false, 'why' => 'no V-Ray scene', 'lines' => ['AUDIT FAILED — no V-Ray scene'] } if sc.nil?
+    rig = {}
+    walk = nil
+    walk = lambda do |ents, depth|
+      next if depth > SWEEP_MAX_DEPTH
+      ents.each do |e|
+        next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+        p = e.get_attribute(DICT, 'plugin').to_s
+        rig[p] = e.get_attribute(DICT, 'lumens') unless p.empty?
+        kids = child_entities(e)
+        walk.call(kids, depth + 1) if kids.respond_to?(:each)
+      end
+    end
+    walk.call(model.entities, 0)
+    owned = {}
+    model.definitions.each do |d|
+      next if d.instances.empty?
+      p = main_plugin_of_definition(d)
+      owned[p] = d.name unless p.empty?
+    end
+    rows = []
+    begin
+      sc.each do |pl|
+        t = (pl.type.to_s rescue '')
+        next unless t =~ /\ALight/
+        n = pl.name.to_s
+        kind = rig.key?(n) ? :rig : (owned.key?(n) ? :model : :ghost)
+        rows << [n, (pl[:intensity] rescue nil), (pl[:enabled] rescue nil), kind, rig[n]]
+      end
+    rescue StandardError => e
+      return { 'ok' => false, 'why' => "enumerating the scene raised #{e.class}: #{e.message}",
+               'lines' => ["AUDIT FAILED — enumerating the scene raised #{e.class}"] }
+    end
+    missing = rig.keys - rows.map { |r| r[0] }
+    audit_verdict(rows, missing)
+  end
+
+  def self.main_plugin_of_definition(d)
+    ad = d.attribute_dictionary('VRayInfo')
+    ad ? ad['main_plugin'].to_s : ''
+  rescue StandardError
+    ''
+  end
+
+  # ======================================================================
   # THE TAG GATE (spec §9 step 2b, auditor finding C1)
   #
   # `WR Lights` read FALSE on the live model three times on 30 Aug, and a
@@ -3198,9 +3361,10 @@ module WR_DropLights
     [out, skipped_rooms]
   end
 
-  # Booth door face centre in world XY, from the WR-Booth-Door children.
-  # nil when the booth has no tagged door (accent is then skipped, loudly).
-  def self.booth_door_center(obst)
+  # The booth's door panel(s) as one world plan box [minx, miny, maxx, maxy],
+  # from the WR-Booth-Door children. nil when the booth has no tagged door
+  # (accent is then skipped, loudly).
+  def self.booth_door_box(obst)
     btr = obst[:tr] * (obst[:ent].respond_to?(:transformation) ? obst[:ent].transformation : IDENT)
     bb = Geom::BoundingBox.new
     child_entities(obst[:ent]).to_a.each do |e|
@@ -3210,7 +3374,13 @@ module WR_DropLights
       bb.add(wb.max)
     end
     return nil unless bb.valid?
-    [(bb.min.x + bb.max.x) / 2.0, (bb.min.y + bb.max.y) / 2.0]
+    [bb.min.x * 1.0, bb.min.y * 1.0, bb.max.x * 1.0, bb.max.y * 1.0]
+  end
+
+  # Booth door face centre in world XY. nil when there is no tagged door.
+  def self.booth_door_center(obst)
+    b = booth_door_box(obst)
+    b && [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]
   end
 
   # ---- the dialog ---------------------------------------------------------
@@ -4011,6 +4181,9 @@ paint(); drawPresets("");
         inst.set_attribute(DICT, 'role', role.to_s)
         inst.set_attribute(DICT, 'uuid', press_uuid)
         inst.set_attribute(DICT, 'plugin', plugin_name(plug))
+        # What was WRITTEN, so audit_scene can hold the V-Ray scene to it at
+        # render time (1.66.0).
+        inst.set_attribute(DICT, 'lumens', lumens.to_f)
         placed += 1
         if spec[:budget] == :room
           room_lm += lumens
@@ -4337,15 +4510,35 @@ paint(); drawPresets("");
                  'aimed booth-relative and there is nothing to aim from).'
             next
           end
-          dlen = Math.sqrt((dc[0] - cx)**2 + (dc[1] - cy)**2)
-          ax = accent_axis(cx - dc[0], cy - dc[1])
-          if ax.nil? || dlen < 1e-6
+          # THE DOOR'S OWN FACE NORMAL (1.66.0), not the booth-centre-to-door-
+          # centre line. See door_face_normal for why: the old line went
+          # diagonal on any door that was not centred on its face, and on a
+          # booth parked in a corner it ran into the wall at every standoff
+          # ("KEY SKIPPED", DEVLOG 1.65.0). `dlen` is the centre-to-door
+          # distance ALONG that normal, which is what the rim (opposite the
+          # door) and the foam graze (inside the back wall) always meant.
+          nrm_d = door_face_normal([bb.min.x * 1.0, bb.min.y * 1.0,
+                                    bb.max.x * 1.0, bb.max.y * 1.0],
+                                   booth_door_box(o))
+          if nrm_d.nil?
             puts "  #{name}: booth \"#{bname}\" door direction is degenerate — " \
                  'key, rim and foam graze skipped.'
             next
           end
-          ux = (dc[0] - cx) / dlen
-          uy = (dc[1] - cy) / dlen
+          ux = nrm_d[0]
+          uy = nrm_d[1]
+          dlen = (dc[0] - cx) * ux + (dc[1] - cy) * uy
+          if dlen < 1e-6
+            puts "  #{name}: booth \"#{bname}\" door direction is degenerate — " \
+                 'key, rim and foam graze skipped.'
+            next
+          end
+          # The key walks out from the door FACE — the booth box's side on
+          # the door's normal, at the door's centre along it — not from the
+          # panel's box centre, which sits inside the booth by half a leaf.
+          fpt = [dc[0], dc[1]]
+          fpt[0] = (ux < 0 ? bb.min.x : bb.max.x) * 1.0 if ux.abs > 0.5
+          fpt[1] = (uy < 0 ? bb.min.y : bb.max.y) * 1.0 if uy.abs > 0.5
 
           # ROLE 2 — the key, ACCENT_OUT (8') out from the door face, tilted
           # so its beam axis meets the face ACCENT_AIM_DROP below the mount
@@ -4353,15 +4546,28 @@ paint(); drawPresets("");
           # a lit TOP. When 8' of room is not there, the standoff walks back
           # toward ACCENT_MIN and the console says so by number — never a
           # light in a wall, never a silent skip.
-          kd = accent_standoff(dc, ux, uy, poly, keepouts, ACCENT_OUT, ACCENT_MIN,
-                               ACCENT_STEP, ACCENT_MARGIN)
+          kp = accent_place(fpt, ux, uy, poly, keepouts, ACCENT_OUT, ACCENT_MIN,
+                            ACCENT_STEP, ACCENT_MARGIN, ACCENT_FAN_STEP, ACCENT_FAN_MAX)
+          kd = kp && kp[0]
           if kd
-            kpt = [dc[0] + ux * kd, dc[1] + uy * kd, z_m]
+            kux = kp[1]
+            kuy = kp[2]
+            kdeg = kp[3]
+            kax = accent_axis(-kux, -kuy)
+            kpt = [fpt[0] + kux * kd, fpt[1] + kuy * kd, z_m]
             ktilt = accent_tilt(kd, ACCENT_AIM_DROP)
             rot = Geom::Transformation.rotation(
               Geom::Point3d.new(0, 0, 0),
-              Geom::Vector3d.new(ax[0], ax[1], 0), ktilt.degrees)
+              Geom::Vector3d.new(kax[0], kax[1], 0), ktilt.degrees)
             place.call(:key, kpt, lm_of.call(:key), rot)
+            if kdeg.abs > 1e-9
+              puts format('  %s: KEY SWUNG %+.0f deg off the door normal — no standoff ' \
+                          'between %.0f and %.0f in on the perpendicular lands inside ' \
+                          'the floor %.0f in clear of its edges and outside every ' \
+                          'keep-out, so the aim line was swept in %.0f deg steps and ' \
+                          'this is the first that fits. The face is lit from the side.',
+                          name, kdeg, ACCENT_OUT, ACCENT_MIN, ACCENT_MARGIN, ACCENT_FAN_STEP)
+            end
             puts format('  %s: key — %.0f lm at %dK, %s, STANDOFF %.0f in (%.1f ft) ' \
                         'from the door face, tilted %.0f deg so the beam axis meets ' \
                         'the face %.0f in below the mount plane (%.0f in above the ' \
@@ -4378,9 +4584,10 @@ paint(); drawPresets("");
           else
             puts format('  %s: KEY SKIPPED — no standoff between %.0f and %.0f in in front ' \
                         'of the door lands inside the floor, %.0f in clear of its edges ' \
-                        'and outside every keep-out. The booth has no key light; the ' \
-                        'rim and foam graze are still placed.', name, ACCENT_OUT,
-                        ACCENT_MIN, ACCENT_MARGIN)
+                        'and outside every keep-out, on the perpendicular OR on any ' \
+                        'line swept up to %.0f deg either side of it. The booth has no ' \
+                        'key light; the rim and foam graze are still placed.', name,
+                        ACCENT_OUT, ACCENT_MIN, ACCENT_MARGIN, ACCENT_FAN_MAX)
           end
 
           # ROLE 5 — the rim, OPPOSITE the key across the booth, cool against

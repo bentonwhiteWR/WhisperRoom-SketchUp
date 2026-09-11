@@ -1,6 +1,107 @@
 # DEVLOG
 
 ## 2026-09-11
+### 1.66.0 - Both blockers in front of rank cycle 1 cleared: the key light places, the "2x non-linearity" is not the renderer
+
+Everything below was OBSERVED over the bridge on the desktop's live SketchUp
+2026 session, one render at a time (~70 s each, six renders), and the model
+was put back to its pre-experiment census exactly. Scripts, transcripts and
+numbers: `.forge/fixer/rank-loop/`; the full case:
+`.forge/fixer/ROOTCAUSE-key-light-and-2x-2026-09-11.md`.
+
+**FIRST: the cycle model is not on this machine.** The desktop bridge log
+has no job between 10 Sep 23:35 and 11 Sep 17:55; c1..ctl were written at
+16:23-16:58. The laptop's session holds `MDL 96144 E`; this desktop holds
+`MDL 96120 S` in a same-size 40x40 room. So this is the same pipeline on a
+stand-in, not a re-measurement of c3.
+
+**BLOCKER 1 - `KEY SKIPPED` was a RULE DEFECT, and it is fixed in the rule,
+not by a drag.** The key was aimed along BOOTH CENTRE -> DOOR-PANEL CENTRE.
+A door that is not centred on its face makes that line diagonal; here it
+ran (-0.77, 0.64) toward the north wall, was outside the floor from 96" to
+72", inside the 12" body margin from 66" to 54", and stopped at 48" pulled
+in and off-axis. On a booth parked 4-6" off two walls it runs into the wall
+at every standoff - the recorded line. The perpendicular from the same door
+face fits the full 96" with 44" to spare.
+
+  - `door_face_normal(booth_box, door_box)` (pure): the door faces the
+    booth side its panel box lies against. Key, rim and foam all use it.
+  - The key walks out from the door FACE, not from the panel box centre
+    (which is inside the booth by half a swung leaf).
+  - `accent_place` (pure): perpendicular first; if nothing from 96" to 42"
+    fits, sweep the aim +/-15, 30, 45, 60 deg (`ACCENT_FAN_STEP/MAX`),
+    nearest-perpendicular first -> `KEY SWUNG +N deg`. `KEY SKIPPED` only
+    past the whole fan, and the message says so.
+  - Verified live: `key ... (253.5", 435.3", 96.0"), STANDOFF 96 in` -
+    square to the west face; face/floor 0.816 -> 0.904 on the same room.
+  - Pinned in `rbtest-lights.py` (`dfn`, `ap`); mutation-checked both ways.
+
+  ADJACENT, NOT FIXED: the rim now reports `lands outside the floor` on a
+  corner booth. The old diagonal had put it 4" from the wall - half inside
+  it, the rule has no margin test. A corner booth has nowhere behind it.
+
+**BLOCKER 2 - the pipeline is DETERMINISTIC and LINEAR; the 2.4x was
+never the renderer.** Six renders of the stand-in, rubric statistics in
+`renders-r1-r6.txt`:
+
+    r1  rig at defaults (drums 3,200,000 lm = c3's figure)  lin mean 0.35492  med 148.29
+    r2  nothing changed                                     lin mean 0.35491  med 148.30
+    r3  every rig light x0.5                                lin mean 0.18517  med 108.64
+    r5  after a forced rollback (see below)                 lin mean 0.35494  med 148.30
+
+  1. Same state -> same statistics to +/-0.0001; pixels differ by Monte
+     Carlo noise (max 29/255, 41% identical) exactly as c3 vs ctl did.
+  2. Halving the lumens halved the LINEAR mean (0.522x; the 2% is r1's
+     0.8% clipped pixels). The ENCODED median went 148 -> 109, not -> 74.
+     THE LOOP MUST REASON IN LINEAR SPACE.
+  3. `/SettingsColorMapping` is Reinhard burn 1.0 (= linear), mode 2, no
+     clamp; camera f/8 @ 1/300 @ ISO 100 = EV 14.23 as every manifest logs.
+     Decoding each cycle PNG reproduces the exporter's logged pre-encode
+     mean to 3 decimals. sRGB is ruled OUT: one encode, applied uniformly.
+  4. The SAME lumens as c3 give c1b's frame here (lin 0.355 / med 148 vs
+     c1b 0.357 / 148). c3 (0.076) is the outlier, not c1b.
+  5. c1b -> c3 in linear space is 5-6x nearly everywhere, 8-10x on the
+     walls, 1.2x on the foam window, with the ceiling's LINEAR R/B moving
+     3.25 -> 4.63. No single factor does that; a different SET of lights
+     does. The trend c1b 0.357 -> c2 0.105 -> c3 0.076 -> ctl 0.076 is
+     monotone with cycle count, not with the settings changed.
+  6. OBSERVED MECHANISM: after drop -> `Sketchup.undo` -> drop, four sconce
+     spheres sat at V-Ray's factory 30 lm where the rig had written and
+     read back 480,000; the frame was 1.7% dimmer and nothing said why.
+     Intermittent: two further replace-path drops were clean.
+  7. NEITHER `Sketchup.undo` NOR A ROLLED-BACK PRESS REMOVES THE RIG. A
+     raise forced into `reap_lights` (the last call before commit) printed
+     "The SketchUp side rolled back" and left all 36 entities and 19
+     plugins in place - V-Ray's `scene.change` closes the SketchUp
+     operation underneath. `remove_rig!` is clean every time
+     (`plugins_left=0`). The tool's "Ctrl+Z removes the lights" line is
+     untrue on this build.
+
+  I cannot prove which lights were dead in c3 - that laptop session is
+  gone - and the record should carry that gap. What the loop gets instead:
+
+  **`WR_DropLights.audit_scene(model)`** - every placed light now stamps
+  its written `lumens`; the audit classifies every light plugin in the
+  V-Ray scene as rig / model-owned / GHOST, and flags DEAD (<= 30 lm or
+  disabled), WRONG (not what was written) and MISSING. `'ok' => true` or
+  the cycle is void. ~10 ms over the bridge. `audit_verdict` is pure and
+  pinned (`av`).
+
+  **THE RULE FOR THE LOOP:** reset = `remove_rig!` verified, never undo;
+  drop; `audit_scene` must be ok; render; measure every frame in linear
+  (decode, or read the exporter's "mean X -> Y": X is linear); predict
+  lumens changes 1:1 in linear while clipping stays under ~1%.
+
+  **A CONSEQUENCE FOR THE RECORD:** 1.65.0's c2 conclusion (5000 K "made
+  the room dimmer", hence the floor-bounce diagnosis and the rubric's
+  "do not touch Kelvin again") assumed c2 was a clean Kelvin-only change.
+  c2's 3.4x linear darkening is the same unexplained class as c3's.
+  Confounded; not shown.
+
+**Harness:** `rbparse.py` 75/75, `rbtest-lights.py` 59 + 10 PASS. VERSION
+1.66.0. `wr-drop-lights.rb` is read live from the checkout on this desktop;
+the laptop needs a `git pull` before cycle 1 (no reinstall).
+
 ### 1.65.1 - The end-of-batch modal is gone, for the run Benton actually makes
 
 **THE BUG, and why it survived three "fixes".** At the end of every proposal

@@ -1,52 +1,66 @@
-# FIXER HANDOFF — 1.65.1, the end-of-batch modal
-
-(This file replaces a stale 1.55.0 handoff that was still on disk.)
+# Fixer HANDOFF — the two blockers in front of rank cycle 1 (11 Sep 2026, desktop)
 
 ## Produced
-- `scripts/proposal-package.rb` — `self.finish` no longer opens ANY window at
-  the end of a batch. The `UI.messagebox(lines.join("\n"))` and its
-  `headless?` guard are deleted outright. New pure `self.summary_class(line,
-  headline, bad_run)` decides the run-log colour; `finish` now computes
-  `lost_now` / `fails_now` once and both the log colouring and the closing
-  verdict read them.
-- `scripts/rbtest-proposal.py` — new `nobox` source guard (no end-of-batch
-  box in `finish`; exactly one messagebox left, the restore-failure one) and
-  `sc1-sc6` for `summary_class`. Both mutation-checked.
-- `scripts/wr_tools/VERSION` → 1.65.1. `DEVLOG.md` entry on top.
-- `.forge/fixer/probe-finish-interactive.rb` — the live repro/oracle. Run it
-  over the bridge with the panel OPEN. Returns `box_attempted` and
-  `headless?`; a valid run has `headless? => false`.
-- `.forge/fixer/probe-log-classes.rb` — live capture of the exact
-  (text, class) pairs `finish` hands the panel log.
+
+- `scripts/wr-drop-lights.rb` (1.66.0)
+  - `door_face_normal`, `booth_door_box`, `accent_place` + `ACCENT_FAN_STEP`
+    / `ACCENT_FAN_MAX`: the key is aimed along the door FACE normal and walks
+    out from the face; a perpendicular that does not fit is swept +/-15..60
+    deg (`KEY SWUNG`) before `KEY SKIPPED`. Rim and foam use the same normal.
+  - `audit_scene(model)` / `audit_verdict(rows, missing)` + `FACTORY_INTENSITY`,
+    and every placed light now carries a `lumens` attribute: the render-time
+    check that V-Ray holds exactly the rig the model shows.
+- `scripts/rbtest-lights.py` — `dfn`, `ap`, `av` transcripts (59 checks,
+  green; three mutations red). `scripts/wr_tools/VERSION` 1.65.1 -> 1.66.0.
+- `.forge/fixer/ROOTCAUSE-key-light-and-2x-2026-09-11.md` — both root
+  causes with every number and its provenance.
+- `.forge/fixer/rank-loop/` — the bridge jobs that ran a full headless cycle
+  on this desktop (`lib.rb`, A-setup, B-drop, C-export, D-redrop, E-rollback,
+  F-abort, G-ghosts, H-fixed, Z-cleanup), `measure.py` (the rubric formulas
+  plus linear decode), the console transcripts, `renders-r1-r6.txt`, and
+  `ratio-c1b-over-c3.png`. This IS the cycle recipe: AUTO-SET -> drop ->
+  audit -> export -> poll `@running` -> measure.
+- `DEVLOG.md` 1.66.0.
+- Benton's model: put back to its pre-experiment census exactly (no scenes,
+  no rig, tag hidden, remembered export folder list stripped of my scratch
+  paths). The camera was restored by eye only (the eye point was recorded,
+  the target was not).
 
 ## Read-first
-- `scripts/proposal-package.rb`, `self.finish` (~line 3469) — the comment
-  block there is the whole argument. **Do not reintroduce a box guarded by
-  `headless?`, `dlg.nil?`, or anything else.** That is precisely the fix that
-  shipped in 1.65.0 and did nothing.
-- `self.headless?` (~line 3563): latched in `start_run` as
-  `dlg.nil? || cfg['force']`. It describes the CALLER, never the box.
-- **Never verify an interactive-path fix with a `force` run.** It takes the
-  headless branch, everything looks clean, and nothing is proven. This is how
-  Benton was told three times that a live bug was fixed.
+
+1. `.forge/fixer/ROOTCAUSE-key-light-and-2x-2026-09-11.md` — the whole case.
+2. The `KEY` / `KEY SWUNG` / `KEY SKIPPED` block in `wr-drop-lights.rb`
+   (search `door_face_normal`) and the `THE SCENE AUDIT` block.
+3. `.forge/fixer/rank-loop/lib.rb` + `C-export.rb` for how a cycle is driven
+   over the bridge without a dialog.
 
 ## Assumptions
-- `.forge/fixer/probe-*.rb` drive `finish` with hand-set state rather than a
-  real render batch. The box decision, the restores, the manifest call and
-  the log traffic are the real code; only the WORK that filled `@results` is
-  synthesised. No full render-to-disk batch was run end to end.
-- The panel's log was verified at the Ruby seam (the pairs sent, plus zero
-  `execute_script` errors), not by reading the rendered CEF DOM — a callback
-  registered after page load never fires, so the DOM could not be read back.
-  `logLine` is unchanged shipped code.
-- The probes ran against a blank model (0 scenes). Restores were configured
-  to be no-ops so `restore_errs` stayed empty and the out-of-scope
-  restore-failure box could not muddy the oracle.
 
-## Open questions
-- `@close_after` (window X'd mid-run) closes the panel right after `finish`,
-  so that one path loses the log and keeps only the console. Pre-existing,
-  not touched; worth a look if Benton ever closes the window to cancel.
-- `finish`'s restore ORDER is still uncovered by any test.
-- Not pushed. Benton is mid-reinstall; see the commit note on whether he
-  needs to reinstall again (he does not, on this desktop).
+- The laptop's V-Ray colour mapping / camera match the desktop's (Reinhard
+  burn 1.0, mode 2, f/8 @ 1/300 @ ISO 100). The manifests' EV 14.23 on every
+  cycle supports the camera half; the colour-mapping half is assumed.
+- The c1b -> c3 darkening on the laptop was rig plugins losing their
+  configuration (observed here once in three replace-path drops) and/or the
+  tool-owned enclosure differing (the c3 sky-leak). Derived, not observed on
+  that session; it is gone.
+- The desktop model (`MDL 96120 S`, 11"/13" off two walls) stands in for the
+  cycle model (`MDL 96144 E`, 4"/6" off) for pipeline behaviour, not for
+  absolute numbers.
+
+## Open-questions
+
+- **The rim.** With the axis-aligned direction it is skipped on a corner
+  booth (it used to sit half in the wall). Fan it, flank it, or accept no
+  rim in corners — a lighting decision, not made here.
+- **Kelvin.** The rubric's Reversal 2 and DEVLOG 1.65.0's floor-bounce
+  diagnosis rest on c2 being a clean Kelvin-only change; c2's 3.4x darkening
+  is the same unexplained class as c3's. Re-test 5000 K once, with the audit
+  green, before treating "never touch Kelvin" as settled.
+- **Why do params fail to stick on the replace path, one press in three?**
+  The audit catches it; the cause (V-Ray re-syncing a plugin from a
+  definition blob written by a transaction that undo touched?) is not
+  established. `wr-drop-lights.rb`'s own "Ctrl+Z removes the lights" line is
+  untrue on this build and should be reworded.
+- **The cycle model lives on the laptop, unsaved.** Cycle 1 either runs
+  there (pull 1.66.0 first — scripts are read live from the checkout) or the
+  room is rebuilt here. The desktop bridge is on and works.

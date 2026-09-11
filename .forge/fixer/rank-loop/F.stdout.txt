@@ -1,0 +1,36 @@
+REMOVE: erased=17 plugins_deleted=19 plugins_left=0
+STEP0 clean: vray=2 rig_entities=0 top=2
+
+  CAMERA — read, never written (the ISO stamp is gone since 1.41.0).
+    /CameraPhysical reads f/8.0 @ 1/300.0 @ ISO 100.0 = EV 14.23
+    the factory ISO 100: the sun at 1.0, a link-built booth's own light and this rig all meter right together. Nothing to retune.
+    every figure written = product lumens x 10 (LUMEN_GAIN, by eye) x 32 (camera factor) = x320. Not spec-sheet lumens — see the UNITS section in this file.
+    NEVER WRITTEN: /SettingsOutput, /SunLight, /SettingsEnvironment, /SettingsImageSampler, /CameraPhysical
+
+  probe BEFORE the press: 68 definitions, 37 materials, 19 tags, 2 top-level entities
+  tag "WR Lights" was hidden — SHOWN. A hidden light tag makes a V-Ray pass render silently UNLIT (the 1.7.3 regression).
+  tag "WR Lights" is VISIBLE and placement leaves it that way, even though this model is in DRAFT mode — so the rectangles 
+    WILL show in plain image exports until you press the Draft/Render toggle (draft hides them, render shows them).
+    A V-Ray render right now WILL be lit.
+
+Drop Interior Lights 1.44.0 — brightness x1.00 (x1.00), warmth Warm (+0 K), units 1 (LUMENS), six roles
+  tag "WR Lights": visible, and stamped VISIBLE into 9 of 9 saved scenes
+  Room: added a tool-owned ceiling "WR Lights Ceiling" at 96" — the rig needs a surface to mount to and a room to bounce in. IT LEAVES WHEN THE LIGHTS DO (next press, or WR_DropLights.remove_rig!), and the removal is verified by an independent re-read.
+  Room: wall scan — 4 floor-polygon runs; a wall is a visible vertical face within 1" of the run, overlapping it, reaching 48" or higher:
+    run 1   480.0"  OPEN    no wall face anywhere near it
+    run 2   480.0"  WALLED  1 visible face on it
+    run 3   480.0"  WALLED  1 visible face on it
+    run 4   480.0"  OPEN    no wall face anywhere near it
+  Room: borrowed 2 walls on runs 1, 4 (every run with no visible wall), 0.062" outside the polygon, floor to 96", named "WR Lights Wall N". THEY LEAVE WHEN THE LIGHTS DO, with the ceiling, verified the same way.
+  Room: floor 1600 sq ft against the 192 sq ft reference room -> room roles x5.00, and the enclosure trim is x1.00
+  Room: ceiling ambient — 11 x F1 flush drum (18"), 3200000 lm each at 3500K, at (48, 48) (48, 144) (144, 48) (48, 240) (240, 48) (144, 144) (48, 336) (48, 432) (336, 48) (432, 48) (144, 240)
+  Room: pendant — F2 cord-hung drum (16"), shade bottom 78" AFF at (25, 25), 1920000 lm at 2700K
+  Room: door search came up empty — no doors container among the room's 2 children (looked for the WR-Doors tag or a "Doors" name) and no Opening markers directly in the room group.
+  Room: sconces — 2 x F3 up/down cylinder (5") at 66" AFF on wall run 1, TWO spheres each (480000 lm up, 480000 lm down) at 3000K. Two emitters per fixture is what throws the double scallop; the spec's "9 instances" counts one per fixture and undercounts by two.
+  Room: booth "MDL 96120 S (components)" carries 3 lights of its own (/Standard Light) — that is the interior light; the rig places none (1.44.0).
+  Room: key — 4480000 lm at 3200K, (328.4", 465.8", 96.0"), STANDOFF 48 in (4.0 ft) from the door face, tilted 39 deg so the beam axis meets the face 60 in below the mount plane (36 in above the floor here)
+  Room: KEY PULLED IN — 96 in wanted, only 48 in fits inside the floor, 12 in clear of its edges and outside every keep-out. The face gets (96/48)^2 = 4.0x the light it would at 96 in.
+  Room: rim — 2560000 lm at 5000K, (476.1", 344.3", 96.0"), tilted 60 deg across the booth's back top edge
+  Room: foam graze — 596832 lm at 3500K, 4" inside the back wall at the tray plane, long axis along the wall
+  MDL 96120 S (components): booth sits inside selected room "Room" — handled with that room.
+  NOTE: 19 V-Ray light plugins had already been created when this failed. The SketchUp side rolled back; those plugins may remain in the Asset Editor as lights with no instance. Delete them there if they bother you.
