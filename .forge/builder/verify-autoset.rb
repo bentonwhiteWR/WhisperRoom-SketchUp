@@ -201,6 +201,23 @@ module WR_VerifyAutoSet
     room
   end
 
+  # A borrowed wall face the way wr-drop-lights.rb#add_walls makes one
+  # (1.59.1): a single vertical face in a TOP-LEVEL group named "WR Lights
+  # Wall N", on the "WR Lights" tag, carrying WR_DropLights kind/role =
+  # "wall" and run = N. (x0,y0)-(x1,y1) is the face's plan line in MODEL
+  # space, z0..z1 its height.
+  def self.make_rig_wall(ents, n, x0, y0, x1, y1, z0, z1)
+    g = ents.add_group
+    g.name = format('WR Lights Wall %d', n)
+    g.entities.add_face([x0, y0, z0], [x1, y1, z0], [x1, y1, z1], [x0, y0, z1])
+    g.layer = @model.layers.add('WR Lights')
+    g.set_attribute('WR_DropLights', 'kind', 'wall')
+    g.set_attribute('WR_DropLights', 'role', 'wall')
+    g.set_attribute('WR_DropLights', 'run', n)
+    g.set_attribute('WR_DropLights', 'uuid', 'VERIFY')
+    g
+  end
+
   # A booth-shaped group with a DOOR-tagged plate on its -Y face and a
   # VENT-tagged plate on its +Y face, so tag_az has something real to read.
   # THE DOOR IS DELIBERATELY OFF-CENTRE ALONG ITS WALL (1.51.0). It used to sit
@@ -1303,8 +1320,16 @@ module WR_VerifyAutoSet
       @model.start_operation('WR verify: moved room + split-vent booth', true)
       room2 = make_room_moved(@model.entities, rx, ry, true)
       b4 = make_booth(@model.entities, B4, rx + 72.0, ry + 74.0, false, true)
+      # THE LIGHT RIG'S BORROWED WALLS (1.59.1). One face 1/16 in inside
+      # Wall 2's solid (the real wall's inner face is at local y 188), the
+      # way "Add walls" on "every run" or on a hidden Wall 2 leaves it; and
+      # one on an OPEN run with no real wall behind it -- a line 60 in
+      # beyond Wall 2, still on the booth's +Y side, so the vent cone sees
+      # it the way it sees a wall.
+      rig_b = make_rig_wall(@model.entities, 2, rx, ry + 188.0625, rx + 240.0, ry + 188.0625, 0.0, 96.0)
+      rig_o = make_rig_wall(@model.entities, 9, rx, ry + 252.0, rx + 240.0, ry + 252.0, 0.0, 96.0)
       @model.commit_operation
-      made.concat([room2, b4])
+      made.concat([room2, b4, rig_b, rig_o])
 
       units2 = WR_SceneWalls.scan(@model)[:walls].select { |u| u[:room].to_s == ROOM2 }
       say('roomx.four_walls_found_under_Room_Walls',
@@ -1384,6 +1409,51 @@ module WR_VerifyAutoSet
       say('roomx.log_hides_wall_2_by_name',
           lines4.any? { |l| l.to_s.include?("hides #{ROOM2} Wall 2") },
           lines4.select { |l| l.to_s.include?('hides ') }.inspect)
+
+      # ---- 17. THE LIGHT RIG'S BORROWED WALLS FOLLOW THE REAL ONE (1.59.1)
+      # Benton: "using 'drop in the lights' and having it add walls actually
+      # creates a wall when the 'actual' wall is hidden. It is properly
+      # hiding the real wall." The face inside Wall 2 must be a PIECE of
+      # Wall 2 (bound by position, no re-drop), hide with it on the vent
+      # plate and come back with it on the angled plate; the open-run face
+      # must be a wall unit of its own that the cone hides; neither may be
+      # listed a second time as an object row; and the log must say so.
+      say('rig.bound_face_is_a_piece_of_Wall_2',
+          w2 && w2[:pieces].include?(rig_b) && w2[:rig] == [rig_b],
+          w2 && w2[:pieces].map { |g| g.name.to_s }.inspect)
+      all_w = WR_SceneWalls.scan(@model)
+      open_u = all_w[:walls].find { |u| u[:kind] == 'rig' && u[:pieces] == [rig_o] }
+      say('rig.open_run_face_is_a_wall_unit_of_its_own',
+          !open_u.nil? && open_u[:key] == "r:#{rig_o.entityID}" && open_u[:wall] == 9,
+          all_w[:walls].select { |u| u[:kind] == 'rig' }.map { |u| u[:label] }.inspect)
+      say('rig.neither_face_is_an_object_row',
+          all_w[:objects].none? { |u| u[:pieces].include?(rig_b) || u[:pieces].include?(rig_o) },
+          all_w[:objects].map { |u| u[:label] }.inspect)
+      w2b = all_w[:walls].find { |u| u[:room].to_s == ROOM2 && u[:wall] == 2 }
+      if vpg
+        sel(vpg)
+        say('rig.ventilation_hides_the_bound_face_with_Wall_2',
+            hidden?(rig_b) && w2b && w2b[:pieces].all? { |g| hidden?(g) })
+        say('rig.ventilation_hides_the_open_run_face_in_the_cone', hidden?(rig_o))
+      end
+      apg0 = WR_AutoSet.token_pages(pages.to_a, tok4).find do |pg|
+        WR_AutoSet.page_stamp(pg)['plate'].to_s == '01-angled'
+      end
+      if apg0
+        sel(apg0)
+        say('rig.angled_shows_the_bound_face_with_Wall_2',
+            !hidden?(rig_b) && w2b && w2b[:pieces].none? { |g| hidden?(g) },
+            'Wall 2 is behind the booth from the angled eye, so it and its rig face are shown')
+      end
+      say('rig.log_says_the_face_went_with_Wall_2',
+          lines4.any? { |l| l.to_s.include?("hides #{ROOM2} Wall 2") &&
+                            l.to_s.include?('1 light-rig wall face bound to it') },
+          lines4.select { |l| l.to_s.include?('light-rig') }.inspect)
+      say('rig.run_line_counts_the_rig',
+          lines4.any? { |l| l.to_s.include?('light rig: 2 borrowed wall face(s)') &&
+                            l.to_s.include?('1 bound to the real wall') &&
+                            l.to_s.include?('1 on open run(s)') },
+          lines4.find { |l| l.to_s.include?('walls:') }.inspect)
       vline = lines4.find { |l| l.to_s.include?('vent: anchored') }
       say('vent.log_names_the_walls_and_the_swing',
           !vline.nil? && vline.include?('swung -25') && vline.include?('3 (N0  40VNT') &&
@@ -1510,7 +1580,7 @@ module WR_VerifyAutoSet
         end
         made.each { |e| (@model.entities.erase_entities(e) rescue nil) if e && (e.valid? rescue false) }
         [TAG_P, 'WR-Dims', 'WR-Dims-Doors', 'WR-Notes',
-         'WR-Booth-Door', 'WR-Booth-Vent', 'WR-Ceiling'].each do |n|
+         'WR-Booth-Door', 'WR-Booth-Vent', 'WR-Ceiling', 'WR Lights'].each do |n|
           l = @model.layers[n]
           (@model.layers.remove(l, true) rescue nil) if l
         end

@@ -1808,11 +1808,43 @@ module WR_AutoSet
         c = bb.center.to_a
       end
       side = u[:side].to_s
+      rig  = (u[:rig] || []).size
+      # A light-rig face on an open run is a wall-like unit of its own
+      # (1.59.1, WR_SceneWalls.bind_rig_walls); a named wall carries the
+      # number of rig faces bound to it so the log can say they went too.
+      label = if u[:kind] == 'rig'
+                "#{u[:label]} (light rig, open run)"
+              else
+                "#{u[:room]} Wall #{u[:wall]}#{side.empty? ? '' : " (#{side})"}"
+              end
       { 'key' => u[:key], 'c' => c, 'room' => u[:room].to_s, 'wall' => u[:wall],
-        'label' => "#{u[:room]} Wall #{u[:wall]}#{side.empty? ? '' : " (#{side})"}" }
+        'kind' => (u[:kind] == 'rig' ? 'rig' : 'wall'), 'rig' => rig, 'label' => label }
     end
   rescue StandardError
     []
+  end
+
+  # The "hides ..." line for one wall, PURE so the suite can pin it: a
+  # named wall says how many light-rig faces went with it.
+  def self.hides_line(label, dot, rig)
+    s = format('         hides %s  (dot %.2f)', label, dot.to_f)
+    n = rig.nil? ? 0 : rig.to_i
+    s += " + #{n} light-rig wall face#{n == 1 ? '' : 's'} bound to it" if n > 0
+    s
+  end
+
+  # What the light rig contributed, for walls_line: [bound, open] counts.
+  def self.rig_counts(units)
+    bound = 0
+    open  = 0
+    (units || []).each do |u|
+      if u['kind'] == 'rig'
+        open += 1
+      else
+        bound += u['rig'].nil? ? 0 : u['rig'].to_i
+      end
+    end
+    [bound, open]
   end
 
   # The ceiling units as ceiling_picks wants them, from the SAME scan that
@@ -1855,6 +1887,7 @@ module WR_AutoSet
     end
     rooms = []
     units.each do |u|
+      next if u['kind'] == 'rig'
       r = u['room'].to_s
       row = rooms.find { |x| x[0] == r }
       if row
@@ -1864,7 +1897,18 @@ module WR_AutoSet
       end
     end
     desc = rooms.map { |r, ws| "#{r}: Wall #{ws.map { |w| w.to_s }.join(', ')}" }.join('; ')
-    "         walls: #{units.size} wall unit(s) the cone rule can hide -- #{desc}"
+    bound, open = rig_counts(units)
+    line = "         walls: #{units.size} wall unit(s) the cone rule can hide -- #{desc}"
+    if bound > 0 || open > 0
+      # THE LIGHT RIG'S BORROWED FACES (1.59.1): said here so "the wall is
+      # hidden but something is still there" cannot happen silently again.
+      parts = []
+      parts << "#{bound} bound to the real wall each stands inside (they hide and show with it)" if bound > 0
+      parts << "#{open} on open run(s) with no real wall, treated by the cone as the wall(s) they are" if open > 0
+      line += "; light rig: #{bound + open} borrowed wall face(s) -- #{parts.join('; ')}. " \
+              'A scene that hides one renders that side of the room OPEN to the sky.'
+    end
+    line
   end
 
   # The names of the model's top-level containers, for walls_line.
@@ -2377,7 +2421,10 @@ module WR_AutoSet
     elsif hid.empty?
       out << '         walls: none in the camera cone'
     else
-      hid.each { |_k, lab, d, _h| out << format('         hides %s  (dot %.2f)', lab, d) }
+      hid.each do |k, lab, d, _h|
+        u = (units || []).find { |x| x['key'] == k }
+        out << hides_line(lab, d, u ? u['rig'] : 0)
+      end
     end
     shown = effective_shown(id, sets.map { |s| s['name'] })
     n_dim, n_txt = loose_split(loose)

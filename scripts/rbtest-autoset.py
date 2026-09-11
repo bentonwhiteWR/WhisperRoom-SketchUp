@@ -94,6 +94,9 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
     06-plan dropped from CEILING_PLATES                  -> cl4, cl9, cl12, cl15 FAIL
     ceiling_over? ignoring the footprint (any flat box)  -> cl1, cl2, cl4 FAIL
     ceilings_line silent when none is found              -> cl10, cl11 FAIL
+    rig_bound? never binding (the rig face stays)        -> rg1, rg3 FAIL
+    hides_line dropping the light-rig mention            -> rg4 FAIL
+    walls_line silent about the rig                      -> rg6 FAIL
     pick_side choosing a side with no door               -> sd16 (the run RAISES
                                                             there: this VM has no
                                                             NilClass#to_f, so the
@@ -307,6 +310,10 @@ module WR_SceneWalls
 %(ceiling_shape)s
 
 %(ceiling_hint)s
+
+%(rig_bind_tol)s
+
+%(rig_bound)s
 end
 
 # The minimum Sketchup::Page the stamp reader touches. `dict` nil means a page
@@ -414,6 +421,10 @@ module WR_AutoSet
 %(vent_line)s
 
 %(walls_line)s
+
+%(rig_counts)s
+
+%(hides_line)s
 
 %(ceiling_over)s
 
@@ -1240,6 +1251,53 @@ module T
                !WR_SceneWalls.ceiling_hint?('Wall 2', 'WR-Room', 'wall'))
     ck('cl15', WR_AutoSet::CEILING_PLATES == ['03-high', '06-plan'] && WR_AutoSet::CEIL_ABOVE_TOL == 1.0)
 
+    # ---- THE LIGHT RIG'S BORROWED WALLS (1.59.1) --------------------------
+    # Benton: "using 'drop in the lights' and having it add walls actually
+    # creates a wall when the 'actual' wall is hidden". A borrowed face
+    # stands 1/16 in inside the real wall's solid; bound by POSITION it is
+    # a piece of that wall. Real Wall 2 of a 240 x 192 room at (600, 400):
+    # solid y 588..592, x 600..840, z 0..96. The rig face on its run sits at
+    # y 588.0625, full length, floor to 96.
+    wall2 = [600.0, 588.0, 0.0, 840.0, 592.0, 96.0]
+    face2 = [600.0, 588.0625, 0.0, 840.0, 588.0625, 96.0]
+    ck('rg1', WR_SceneWalls.rig_bound?(face2, wall2), 'the face inside Wall 2 did not bind')
+    # Not bound: a face on the far wall, one standing 10 in off the plane,
+    # one reaching above the wall, one on the room's other axis.
+    ck('rg2', !WR_SceneWalls.rig_bound?([600.0, 400.0, 0.0, 840.0, 400.0, 96.0], wall2) &&
+              !WR_SceneWalls.rig_bound?([600.0, 578.0, 0.0, 840.0, 578.0, 96.0], wall2) &&
+              !WR_SceneWalls.rig_bound?([600.0, 588.0625, 0.0, 840.0, 588.0625, 120.0], wall2) &&
+              !WR_SceneWalls.rig_bound?([596.0, 400.0, 0.0, 596.0, 592.0, 96.0], wall2) &&
+              !WR_SceneWalls.rig_bound?(nil, wall2) && !WR_SceneWalls.rig_bound?(face2, nil))
+    ck('rg3', WR_SceneWalls::RIG_BIND_TOL == 2.0 &&
+              WR_SceneWalls.rig_bound?([600.0, 586.5, 0.0, 840.0, 586.5, 96.0], wall2) &&
+              !WR_SceneWalls.rig_bound?([600.0, 585.5, 0.0, 840.0, 585.5, 96.0], wall2))
+    # THE LOG: a hidden wall says its rig faces went with it; the run line
+    # counts bound and open-run faces and says what a hidden one does to
+    # the render.
+    ck('rg4', WR_AutoSet.hides_line('Room Wall 2 (north)', 0.91, 1) ==
+              '         hides Room Wall 2 (north)  (dot 0.91) + 1 light-rig wall face bound to it' &&
+              WR_AutoSet.hides_line('Room Wall 2', 0.9, 2).include?('2 light-rig wall faces bound') &&
+              WR_AutoSet.hides_line('Room Wall 2', 0.9, 0) == '         hides Room Wall 2  (dot 0.90)' &&
+              !WR_AutoSet.hides_line('Room Wall 2', 0.9, nil).include?('light-rig'),
+       WR_AutoSet.hides_line('Room Wall 2 (north)', 0.91, 1))
+    rig_units = [{ 'room' => 'Room', 'wall' => 1, 'kind' => 'wall', 'rig' => 0 },
+                 { 'room' => 'Room', 'wall' => 2, 'kind' => 'wall', 'rig' => 1 },
+                 { 'room' => 'Light rig (open run)', 'wall' => 3, 'kind' => 'rig', 'rig' => 1 }]
+    ck('rg5', WR_AutoSet.rig_counts(rig_units) == [1, 1] && WR_AutoSet.rig_counts([]) == [0, 0])
+    rl = WR_AutoSet.walls_line(rig_units, ['Room'])
+    ck('rg6', rl.include?('3 wall unit(s)') && rl.include?('Room: Wall 1, 2') &&
+              !rl.include?('Light rig (open run): Wall') &&
+              rl.include?('light rig: 2 borrowed wall face(s)') &&
+              rl.include?('1 bound to the real wall') && rl.include?('1 on open run(s)') &&
+              rl.include?('renders that side of the room OPEN'), rl)
+    # NO RIG: the line is exactly the 1.58.0 line.
+    plain = [{ 'room' => 'Room', 'wall' => 1, 'kind' => 'wall', 'rig' => 0 }]
+    ck('rg7', !WR_AutoSet.walls_line(plain, ['Room']).include?('light rig'))
+    # AN OPEN-RUN FACE IS A WALL TO THE CONE: same picks as a named wall.
+    ru = [{ 'key' => 'r:9', 'c' => [50.0, 0.0, 40.0], 'label' => 'WR Lights Wall 3 (light rig, open run)', 'kind' => 'rig' }]
+    ck('rg8', WR_AutoSet.wall_picks('01-angled', ru, [0.0, 0.0, 0.0], [97.8, 0.0, 20.8])['r:9'] == true &&
+              WR_AutoSet.wall_picks('06-plan', ru, [0.0, 0.0, 0.0], [97.8, 0.0, 20.8])['r:9'] == false)
+
     # ---- THE ANNOTATION ALLOWLIST ---------------------------------------
     # an1/an2 are the two that matter most in this file.
     ck('an1', ALL.all? { |p| WR_AutoSet.annot_picks(p, sets, loose)['t:WR-Notes'] == true },
@@ -1777,6 +1835,7 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'vt16 vt17 vt18 vt19 vt20 vt21 '
          'wl1 wl2 wl3 '
          'cl1 cl2 cl3 cl4 cl5 cl6 cl7 cl8 cl9 cl10 cl11 cl12 cl13 cl14 cl15 '
+         'rg1 rg2 rg3 rg4 rg5 rg6 rg7 rg8 '
          'an1 an2 an2b an2c an3 an4 an5 an6 an7 an7b an8 an9 an10 an11 '
          'nv1 nv2 nv3 '
          'wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 wp9 wp10 wp11 '
@@ -1822,6 +1881,10 @@ def main():
         'pick_vent':       rbtest.method_source(SRC, 'pick_vent'),
         'vent_line':       rbtest.method_source(SRC, 'vent_line'),
         'walls_line':      rbtest.method_source(SRC, 'walls_line'),
+        'rig_counts':      rbtest.method_source(SRC, 'rig_counts'),
+        'hides_line':      rbtest.method_source(SRC, 'hides_line'),
+        'rig_bind_tol':    const_line('RIG_BIND_TOL', SW),
+        'rig_bound':       rbtest.method_source(SW, 'rig_bound'),
         'ceiling_plates':  const_line('CEILING_PLATES'),
         'ceil_above_tol':  const_line('CEIL_ABOVE_TOL'),
         # 'ceiling_over' (not 'ceiling_over?'): the regex \b after the name.

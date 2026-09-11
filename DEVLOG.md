@@ -1,6 +1,57 @@
 # DEVLOG
 
 ## 2026-09-11
+### AUTO-SET: the light rig's borrowed walls follow the real wall they stand in - (VERSION bump held by the orchestrator)
+
+Benton solved the back-wall mystery himself, verbatim: *"using 'drop in
+the lights' and having it add walls actually creates a wall when the
+'actual' wall is hidden. It is properly hiding the real wall. Why is drop
+in the lights creating another wall when one gets hidden?"* 1.58.0's fix
+is working; a SECOND wall, the rig's, stood in the same place.
+
+**Why, from the source.** `wr-drop-lights.rb`'s "Add walls" borrows one
+vertical face per floor-polygon run so V-Ray lights an ENCLOSED room --
+the interior rig is exposed for a capped, four-walled room, and the
+design notes put an open side at -1.5 to -2 stops with sky leaking in.
+Those faces are not junk. Two things put one behind a hidden wall: the
+tool's default is "every run" (`WALLS_DEFAULT = 'all'`), which buries a
+face 1/16 in inside EVERY real wall's solid; and on "open runs only" a
+real wall that is HIDDEN on the scene you press from counts as OPEN -- by
+design (DEVLOG 1.28.x: "the borrowed wall is what closes the room on the
+scenes where the real one is hidden"). The face is a top-level group the
+wall picker knew only as an OBJECT row, and AUTO-SET never auto-hides
+objects. So it hid the real wall and left the rig's twin in the shot.
+
+**The fix is on the scene side, and it helps the model already open.**
+`WR_SceneWalls.bind_rig_walls` matches every `WR_DropLights/kind = wall`
+face BY POSITION (its model box inside a named wall's box, 2 in grown --
+`rig_bound?`, `RIG_BIND_TOL`) and makes it a PIECE of that wall unit, so
+it hides and shows with the wall in every dialog, every apply and every
+undo with no new mechanism, and no re-drop of the lights. A face that
+matches no wall is a wall on a genuinely open run and becomes a wall-like
+unit of its own, hidden by the cone when it stands between the camera and
+the booth -- what the rig's header says Benton would do by hand "for one
+camera". Neither is an object row any more. The rig itself is untouched.
+
+**The render trade-off, said rather than chosen.** V-Ray does not render
+hidden geometry: a scene that hides a wall for the camera now renders
+that side OPEN to the sky, and the rig's enclosure trims no longer
+describe that frame. That is what hiding the real wall already meant --
+the borrowed face was fighting the camera, not fixing the light. A camera
+cannot see through a wall that seals the room for its light; the run-level
+`walls:` line now says so, counts bound and open-run faces, and each
+hidden wall's line adds `+ N light-rig wall face(s) bound to it`.
+
+**Proof.** `rbparse.py`: 75 scripts + the harness parse.
+`rbtest-autoset.py` 258 -> 266, green: `rg1-rg8`; three mutants (never
+binding; the hides line silent; the run line silent) fail by name.
+`verify-autoset.rb` section 17 -- UNRUN -- puts a rig face 1/16 in inside
+Wall 2 of the moved room and one on an open run beyond it: `rig.*` (8
+checks). Everything in `.rb` is unrun until Benton loads it. Open, not
+changed: the rig's "hidden reads OPEN" rule and its "every run" default,
+both deliberate and both worth a decision now that the scene side hides
+the twin anyway.
+
 ### AUTO-SET: the high plate (and the plan) hide the room ceiling - (VERSION bump held by the orchestrator)
 
 Benton, verbatim: *"Hey a 'high' render, it should hide a ceiling as well if

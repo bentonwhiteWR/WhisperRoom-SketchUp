@@ -139,6 +139,13 @@ module WR_SceneWalls
   # read, and the caller falls back to the old local read rather than
   # dropping the wall.
   def self.model_centre(pieces, trs)
+    box = model_box_of(pieces, trs)
+    return nil if box.nil?
+    [(box[0] + box[3]) / 2.0, (box[1] + box[4]) / 2.0, (box[2] + box[5]) / 2.0]
+  end
+
+  # The MODEL-space box of several pieces together, [x0, y0, z0, x1, y1, z1].
+  def self.model_box_of(pieces, trs)
     bb = Geom::BoundingBox.new
     pieces.each_with_index do |g, i|
       next unless g.valid?
@@ -147,9 +154,75 @@ module WR_SceneWalls
       8.times { |k| bb.add(tr ? b.corner(k).transform(tr) : b.corner(k)) }
     end
     return nil unless bb.valid?
-    bb.center.to_a.map { |v| v.to_f }
+    [bb.min.x.to_f, bb.min.y.to_f, bb.min.z.to_f, bb.max.x.to_f, bb.max.y.to_f, bb.max.z.to_f]
   rescue StandardError
     nil
+  end
+
+  # ------------------------------------------------ the light rig's walls --
+  #
+  # WHY THERE WAS A SECOND WALL (Benton, 11 Sep 2026: "using 'drop in the
+  # lights' and having it add walls actually creates a wall when the
+  # 'actual' wall is hidden ... Why is drop in the lights creating another
+  # wall when one gets hidden?"). wr-drop-lights.rb's "Add walls" borrows
+  # a single vertical face per floor-polygon run so V-Ray has an ENCLOSED
+  # room to light -- the interior rig is exposed for a capped, four-walled
+  # room, and its own tables put an open side at -1.5 to -2 stops and a sky
+  # leak. Those faces are not junk. Two things put one behind a hidden wall:
+  # the tool's default is "every run", which buries a borrowed face 1/16"
+  # inside EVERY real wall's solid; and on "open runs only" a real wall that
+  # is HIDDEN on the scene you press from is counted OPEN by design (DEVLOG
+  # 1.28.x: "the borrowed wall is what closes the room on the scenes where
+  # the real one is hidden"). Either way the borrowed face is a top-level
+  # group the wall picker only knew as an OBJECT row, and AUTO-SET never
+  # auto-hides objects -- so it hid the real wall and left the rig's twin
+  # standing in the shot.
+  #
+  # THE BINDING. A borrowed face that stands inside a named wall's solid
+  # (its model box within the wall's box grown by RIG_BIND_TOL) becomes a
+  # PIECE of that wall unit: it hides and shows with it in every dialog,
+  # every apply and every undo, with no new mechanism. A borrowed face that
+  # matches no named wall is a wall on a genuinely open run; it becomes a
+  # wall-like unit of its own so the camera cone treats it as the wall it
+  # is. Matched by POSITION at scan time, so the rig already in a model
+  # binds without re-dropping the lights; the rig's `run` attribute is
+  # carried for the label only, because run numbering and Wall N numbering
+  # are two different walks of the polygon.
+  #
+  # THE RENDER TRADE-OFF, said rather than chosen silently: V-Ray does not
+  # render hidden geometry, so a scene that hides a wall for the camera
+  # renders that side OPEN -- sky comes in, and the rig's enclosure trims
+  # no longer describe that frame. That is already what hiding the real
+  # wall meant; the borrowed face was fighting it, not fixing it. A camera
+  # cannot see through a wall that seals the room for its light.
+  RIG_DICT     = 'WR_DropLights'.freeze
+  RIG_BIND_TOL = 2.0     # in — a borrowed face sits 1/16" inside the wall
+
+  # PURE: does a borrowed face's box sit inside a wall's box (grown by tol)?
+  # Both are model-space [x0, y0, z0, x1, y1, z1].
+  def self.rig_bound?(rig, wall, tol = RIG_BIND_TOL)
+    return false if rig.nil? || wall.nil? || rig.size < 6 || wall.size < 6
+    t = tol.to_f
+    rig[0].to_f >= wall[0].to_f - t && rig[3].to_f <= wall[3].to_f + t &&
+      rig[1].to_f >= wall[1].to_f - t && rig[4].to_f <= wall[4].to_f + t &&
+      rig[2].to_f >= wall[2].to_f - t && rig[5].to_f <= wall[5].to_f + t
+  end
+
+  # Every borrowed wall face in the model: [[group, model box, run], ...].
+  # The rig adds them to the active entities -- top level -- but a rig
+  # dropped while inside a group would nest them, so this walks to DEPTH.
+  def self.rig_walls(model)
+    out = []
+    each_container(model.entities, 0, nil) do |g, tr|
+      kind = (g.get_attribute(RIG_DICT, 'kind', nil) rescue nil)
+      next false unless kind.to_s == 'wall'
+      box = model_box(g, tr)
+      out << [g, box, (g.get_attribute(RIG_DICT, 'run', nil) rescue nil)] if box
+      true
+    end
+    out
+  rescue StandardError
+    out || []
   end
 
   # Compass hint for a wall, relative to its room's own bounding box. A HINT
@@ -364,6 +437,8 @@ module WR_SceneWalls
                   # The wall BANDS only, in MODEL space: the door leaf and its
                   # swing are :extra and would drag the centre into the room.
                   :centre => model_centre(u[:wall], u[:wtr]),
+                  :mbox   => model_box_of(u[:wall], u[:wtr]),
+                  :rig    => [],
                   :pieces => u[:wall] + u[:extra] }
         @units[key] = unit
         out << unit
@@ -372,7 +447,36 @@ module WR_SceneWalls
         @wall_rooms[room.entityID] = true
       end
     end
-    out
+    bind_rig_walls(model, out)
+  end
+
+  # The light rig's borrowed faces, bound to the named wall each stands in
+  # (see RIG_BIND_TOL above) or listed as a wall-like unit of its own.
+  # Every rig face is marked in @wall_rooms so object_units does not list
+  # it a second time as an object row.
+  def self.bind_rig_walls(model, units)
+    rig_walls(model).each do |g, box, run|
+      @wall_rooms[g.entityID] = true
+      home = units.find { |u| u[:mbox] && u[:kind].nil? && rig_bound?(box, u[:mbox]) }
+      if home
+        home[:pieces] << g
+        home[:rig]    << g
+        next
+      end
+      nm  = object_name(g)
+      nm  = "light-rig wall#{run ? " (run #{run})" : ''}" if nm.empty?
+      key = "r:#{g.entityID}"
+      unit = { :key => key, :kind => 'rig', :room => 'Light rig (open run)',
+               :wall => run.to_i, :label => nm, :side => '',
+               :hidden => (g.hidden? rescue false), :mixed => false,
+               :centre => [(box[0] + box[3]) / 2.0, (box[1] + box[4]) / 2.0, (box[2] + box[5]) / 2.0],
+               :mbox => box, :rig => [g], :pieces => [g] }
+      @units[key] = unit
+      units << unit
+    end
+    units
+  rescue StandardError
+    units
   end
 
   # ------------------------------------------------------------- objects --
@@ -448,7 +552,7 @@ module WR_SceneWalls
   # What a row calls itself, for the SHOW ME message. The one place a unit
   # becomes words, so two dialogs cannot describe the same row differently.
   def self.unit_label(u)
-    return u[:label].to_s if u[:kind] == 'ceiling'
+    return u[:label].to_s if u[:kind] == 'ceiling' || u[:kind] == 'rig'
     return "#{u[:room]} Wall #{u[:wall]}" unless u[:kind] == 'object'
     u[:count].to_i > 1 ? "#{u[:label]} (#{u[:count]})" : u[:label].to_s
   end
