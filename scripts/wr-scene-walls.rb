@@ -195,7 +195,137 @@ module WR_SceneWalls
     # left-to-right evaluation of hash values to enforce that is the kind of
     # ordering dependency that survives until someone reformats the line.
     walls = wall_units(model)
-    { :walls => walls, :objects => object_units(model) }
+    objs  = object_units(model)
+    { :walls => walls, :objects => objs, :ceilings => ceiling_units(model) }
+  end
+
+  # ------------------------------------------------------------ ceilings --
+  #
+  # THE CEILING IS AN OCCLUDER TOO (1.58.1). Benton, 11 Sep 2026: "a 'high'
+  # render, it should hide a ceiling as well if it has a ceiling". The high
+  # plate stands ~20 ft up looking down; the plan plate looks straight down.
+  # A room ceiling is between either camera and the booth exactly as a wall
+  # was between the ventilation camera and the booth.
+  #
+  # NOTHING IN THIS REPO NAMES A CEILING ONE WAY. build-room.rb -- the
+  # everyday room builder -- builds NO ceiling at all. build-takeoff.rb
+  # builds a slab group named "Ceiling" on the WR-Ceiling tag inside the
+  # room. wr-drop-lights.rb builds a face group named "WR Lights Ceiling"
+  # carrying WR_DropLights/kind = "ceiling". Anything else is hand-made and
+  # can be called anything. So a ceiling is recognised by its SHAPE first --
+  # a flat, broad container: at most CEIL_MAX_T thick, at least CEIL_MIN_SPAN
+  # each way in plan -- and a name / tag / attribute that says ceiling only
+  # RELAXES the thickness (a hung ceiling with a plenum can be deep). Which
+  # of those flat things is actually OVER a given booth is the caller's
+  # question (wr-autoset.rb#ceiling_over?): a floor is flat and broad too,
+  # and it is below.
+  #
+  # WHAT IS NEVER A CEILING: a named wall piece (PIECE_RE), anything on a
+  # WR-Booth-* tag, and anything inside a booth container -- a booth's own
+  # ceiling tray is flat, broad and exactly over the booth, and hiding it
+  # would take the roof off the product. Booths are told by name
+  # (WR_ProposalPackage.booth_name? when loaded, else the MDL pattern) and
+  # by tag.
+  #
+  # The box is in MODEL space (model_box carries the corners out through the
+  # container transforms, as model_centre does for walls), so a moved room
+  # reads where it stands.
+  CEIL_MAX_T      = 12.0      # a plain slab or face: this thick at most
+  CEIL_HINT_MAX_T = 24.0      # ... unless its name/tag says ceiling
+  CEIL_MIN_SPAN   = 48.0      # at least this wide AND deep in plan
+  CEIL_NAME_RE    = /ceiling/i
+  CEIL_TAG        = 'WR-Ceiling'.freeze
+
+  # The model-space box of a container as [x0, y0, z0, x1, y1, z1], or nil.
+  def self.model_box(g, tr)
+    b  = g.bounds
+    bb = Geom::BoundingBox.new
+    8.times { |k| bb.add(tr ? b.corner(k).transform(tr) : b.corner(k)) }
+    return nil unless bb.valid?
+    [bb.min.x.to_f, bb.min.y.to_f, bb.min.z.to_f, bb.max.x.to_f, bb.max.y.to_f, bb.max.z.to_f]
+  rescue StandardError
+    nil
+  end
+
+  # PURE: is this box flat and broad enough to be a ceiling? `hint` is
+  # whether something about it already says ceiling.
+  def self.ceiling_shape?(box, hint)
+    return false if box.nil? || box.size < 6
+    dx = box[3].to_f - box[0].to_f
+    dy = box[4].to_f - box[1].to_f
+    dz = box[5].to_f - box[2].to_f
+    return false if dx < CEIL_MIN_SPAN || dy < CEIL_MIN_SPAN
+    dz <= (hint ? CEIL_HINT_MAX_T : CEIL_MAX_T)
+  end
+
+  # PURE: does the name, tag or drop-lights attribute say ceiling?
+  def self.ceiling_hint?(name, tag, kind)
+    !(name.to_s =~ CEIL_NAME_RE).nil? || tag.to_s == CEIL_TAG || kind.to_s == 'ceiling'
+  end
+
+  def self.booth_container?(e)
+    nm = object_name(e)
+    if defined?(WR_ProposalPackage) && WR_ProposalPackage.respond_to?(:booth_name?)
+      return true if WR_ProposalPackage.booth_name?(nm)
+    end
+    return true if nm =~ /\bMDL\b/
+    tag = (e.layer && e.layer.name.to_s rescue '')
+    tag.start_with?('WR-Booth')
+  rescue StandardError
+    false
+  end
+
+  # Every group / component instance at or under `ents`, to DEPTH, with the
+  # transformation that carries ITS bounds to model space. The block returns
+  # true to stop descending into that container.
+  def self.each_container(ents, depth, tr, &blk)
+    ents.each do |g|
+      next unless g.is_a?(Sketchup::Group) || g.is_a?(Sketchup::ComponentInstance)
+      stop = blk.call(g, tr)
+      next if stop || depth >= DEPTH
+      kids = g.is_a?(Sketchup::Group) ? g.entities : g.definition.entities
+      each_container(kids, depth + 1, compose(tr, g.transformation), &blk)
+    end
+  rescue StandardError
+    nil
+  end
+
+  # Every flat, broad container in the model that is not a wall and not part
+  # of a booth, as units keyed "c:<entityID>", registered in @units so the
+  # same write_scene / snapshot / undo path that hides a wall hides these.
+  # :box is MODEL space; :top is the top-level container's entityID so a
+  # caller can rule out the booth it is shooting.
+  def self.ceiling_units(model)
+    out = []
+    model.entities.each do |top|
+      next unless top.is_a?(Sketchup::Group) || top.is_a?(Sketchup::ComponentInstance)
+      next if booth_container?(top)
+      tlabel = object_name(top)
+      tlabel = 'unnamed' if tlabel.empty?
+      each_container([top], 0, nil) do |g, tr|
+        next true if g.name.to_s =~ PIECE_RE
+        tag  = (g.layer && g.layer.name.to_s rescue '')
+        next true if tag.start_with?('WR-Booth')
+        kind = (g.get_attribute('WR_DropLights', 'kind', nil) rescue nil)
+        hint = ceiling_hint?(g.name.to_s, tag, kind)
+        box  = model_box(g, tr)
+        next false unless ceiling_shape?(box, hint)
+        nm = object_name(g)
+        nm = 'unnamed' if nm.empty?
+        key  = "c:#{g.entityID}"
+        unit = { :key => key, :kind => 'ceiling',
+                 :label => (g.equal?(top) ? nm : "#{tlabel} #{nm}"),
+                 :box => box, :hint => hint, :top => top.entityID,
+                 :count => 1, :hidden => (g.hidden? rescue false), :mixed => false,
+                 :pieces => [g] }
+        @units[key] = unit
+        out << unit
+        true
+      end
+    end
+    out
+  rescue StandardError
+    out || []
   end
 
   # Unchanged contract for every existing caller (proposal-package.rb called
@@ -318,6 +448,7 @@ module WR_SceneWalls
   # What a row calls itself, for the SHOW ME message. The one place a unit
   # becomes words, so two dialogs cannot describe the same row differently.
   def self.unit_label(u)
+    return u[:label].to_s if u[:kind] == 'ceiling'
     return "#{u[:room]} Wall #{u[:wall]}" unless u[:kind] == 'object'
     u[:count].to_i > 1 ? "#{u[:label]} (#{u[:count]})" : u[:label].to_s
   end

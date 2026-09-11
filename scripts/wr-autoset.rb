@@ -711,6 +711,91 @@ module WR_AutoSet
     picks
   end
 
+  # ------------------------------------------------------- the ceiling --
+  #
+  # "A 'high' render, it should hide a ceiling as well if it has a ceiling"
+  # (Benton, 11 Sep 2026). 03-high stands ~20 ft up looking down and 06-plan
+  # looks straight down; a room ceiling is between either camera and the
+  # booth, the way a wall was between the ventilation camera and the booth.
+  # The 60-degree cone is a horizontal test around the eye direction and a
+  # ceiling's centre is straight above the booth, so it never caught one;
+  # this is the vertical test, and it reuses everything else -- the units
+  # come from WR_SceneWalls.scan (keyed "c:<id>"), and the same write_scene,
+  # snapshot and UNDO LAST APPLY path carries them.
+  #
+  # 06-PLAN HIDES THE CEILING TOO. Its "walls: none hidden" rule is about
+  # keeping the room's WALLS in the picture for context; a ceiling is not
+  # context, it is a lid over the whole plate. The walls on 06-plan are
+  # exactly as before (wall_picks is untouched and NO_WALL_PLATES still
+  # holds it). To put the plan back to hiding nothing, drop '06-plan' from
+  # CEILING_PLATES -- one edit, and cl4 in rbtest-autoset.py fails by name.
+  #
+  # WHICH flat thing is the ceiling: one whose box sits at or above the
+  # booth's top (CEIL_ABOVE_TOL below it allowed -- a ceiling the booth is
+  # tucked hard up against) and whose plan footprint covers the booth's
+  # centre. A floor is flat and broad and BELOW; a neighbouring room's
+  # ceiling does not cover the centre. Either is named in the log as seen
+  # and passed over, so "none found" is never silent.
+  CEILING_PLATES = %w[03-high 06-plan].freeze
+  CEIL_ABOVE_TOL = 1.0
+
+  # PURE. box is [x0, y0, z0, x1, y1, z1] in model space; centre the booth's
+  # [x, y, z]; top_z the booth's highest point.
+  def self.ceiling_over?(box, centre, top_z)
+    return false if box.nil? || box.size < 6
+    return false if box[2].to_f < top_z.to_f - CEIL_ABOVE_TOL
+    cx = centre[0].to_f
+    cy = centre[1].to_f
+    cx >= box[0].to_f && cx <= box[3].to_f && cy >= box[1].to_f && cy <= box[4].to_f
+  end
+
+  # EVERY ceiling unit keyed, true or false, like wall_picks -- a partial
+  # hash would let a ceiling hidden on 03-high ride along into 04-side.
+  # ceils: [{ 'key', 'label', 'box' }, ...].
+  def self.ceiling_picks(plate_id, ceils, centre, top_z)
+    on = CEILING_PLATES.include?(base_id(plate_id))
+    picks = {}
+    (ceils || []).each do |c|
+      picks[c['key']] = (on && ceiling_over?(c['box'], centre, top_z)) ? true : false
+    end
+    picks
+  end
+
+  # The run-level line: what was found over the booth, or what was looked
+  # for and what flat things were seen instead.
+  def self.ceilings_line(ceils, centre, top_z)
+    ceils = ceils || []
+    over  = ceils.select { |c| ceiling_over?(c['box'], centre, top_z) }
+    plates = CEILING_PLATES.join(' and ')
+    if over.empty?
+      seen = ceils.first(6).map do |c|
+        format('%s (z %.0f to %.0f in)', c['label'], c['box'][2].to_f, c['box'][5].to_f)
+      end
+      tail = if ceils.empty?
+               'nothing flat and broad in the model at all'
+             else
+               "#{ceils.size} flat, broad group(s) seen but none qualifies: #{seen.join(', ')}" \
+                 "#{ceils.size > 6 ? ', ...' : ''}"
+             end
+      return format('         ceiling: none over the booth -- looked for a flat, broad group ' \
+                    '(at most %.0f in thick, at least %.0f in each way; %.0f in thick if named ' \
+                    'or tagged Ceiling) at or above the booth top (z %.0f in) whose footprint ' \
+                    'covers the booth centre; %s. %s will look through whatever ceiling is there.',
+                    WR_SceneWalls::CEIL_MAX_T, WR_SceneWalls::CEIL_MIN_SPAN,
+                    WR_SceneWalls::CEIL_HINT_MAX_T, top_z.to_f, tail, plates)
+    end
+    names = over.map { |c| format('%s (z %.0f to %.0f in)', c['label'], c['box'][2].to_f, c['box'][5].to_f) }
+    "         ceiling: #{over.size} over the booth -- #{names.join(', ')}; hidden on #{plates}"
+  end
+
+  # The per-plate line, on the plates that hide a ceiling.
+  def self.ceiling_line(plate_id, ceils, picks)
+    return nil unless CEILING_PLATES.include?(base_id(plate_id))
+    hid = (ceils || []).select { |c| picks && picks[c['key']] }
+    return '         ceiling: none hidden (none found over the booth)' if hid.empty?
+    "         hides ceiling #{hid.map { |c| c['label'] }.join(', ')}"
+  end
+
   # Same walk, but keeping the dot so a wrong call is readable rather than
   # mysterious. [[key, label, dot, hidden], ...]
   def self.wall_log(plate_id, units, centre, eye)
@@ -1730,6 +1815,20 @@ module WR_AutoSet
     []
   end
 
+  # The ceiling units as ceiling_picks wants them, from the SAME scan that
+  # builds the wall keys (wall_geometry runs it; this reads the index it
+  # left), minus anything inside the booth being shot -- its own tray is
+  # flat, broad and exactly over it.
+  def self.ceiling_geometry(model, booth)
+    st = WR_SceneWalls.scan(model)
+    bid = booth.entityID
+    (st[:ceilings] || []).reject { |u| u[:top] == bid }.map do |u|
+      { 'key' => u[:key], 'label' => u[:label].to_s, 'box' => u[:box], 'hint' => u[:hint] ? true : false }
+    end
+  rescue StandardError
+    []
+  end
+
   # THE WALL RULE SAYS WHAT IT HAD TO WORK WITH (1.57.1). `units` is
   # wall_geometry's list; `tops` the names of the model's top-level
   # containers. One line per run, printed before the plates.
@@ -2042,6 +2141,8 @@ module WR_AutoSet
     # both are rebuilt by these two calls. wall_geometry calls WR_SceneWalls
     # .scan, annot_rows calls WR_SceneAnnotations.inventory.
     units       = wall_geometry(model)
+    ceils       = ceiling_geometry(model, booth)
+    top_z       = (bbox.max.z.to_f rescue centre[2].to_f)
     sets, loose = annot_rows(model)
     # Counted once for the whole run, over every tag any plate is allowed to
     # show. Cheap, and it is what turns a silently blank plate into a sentence.
@@ -2064,6 +2165,7 @@ module WR_AutoSet
     lines << tag_az_line(booth, 'WR-Booth-Door', 'door side', door)
     lines << tag_az_line(booth, 'WR-Booth-Vent', 'vent side', vent)
     lines << walls_line(units, top_level_names(model))
+    lines << ceilings_line(ceils, centre, top_z)
     model.start_operation('AUTO-SET proposal scenes', true)
     begin
       booth.set_attribute(DICT, 'token', token)
@@ -2143,7 +2245,8 @@ module WR_AutoSet
 
         eye = page_eye(page, view)
 
-        wpicks = wall_picks(id, units, centre, eye)
+        cpicks = ceiling_picks(id, ceils, centre, top_z)
+        wpicks = wall_picks(id, units, centre, eye).merge(cpicks)
         apicks = annot_picks(id, sets, loose)
         ents << { :page => page, :name => page.name.to_s, :new => fresh,
                   :wbefore => (fresh ? nil : WR_SceneWalls.snapshot_keys(wpicks.keys)),
@@ -2154,7 +2257,8 @@ module WR_AutoSet
         WR_ProposalPackage.set_mode(page, mode_for(id, renders))
         stamp_page(page, token, id, centre)
 
-        lines.concat(plate_log(id, units, centre, eye, sets, loose, counts, spick, vpick))
+        lines.concat(plate_log(id, units, centre, eye, sets, loose, counts, spick, vpick,
+                               ceils, cpicks))
       end
       model.commit_operation
     rescue StandardError => e
@@ -2249,8 +2353,12 @@ module WR_AutoSet
 
   # Every wall this plate hides, with its dot product, and exactly which
   # annotation sets it shows. A wrong call has to be readable, not mysterious.
-  def self.plate_log(id, units, centre, eye, sets, loose, counts = {}, spick = nil, vpick = nil)
+  def self.plate_log(id, units, centre, eye, sets, loose, counts = {}, spick = nil, vpick = nil,
+                     ceils = nil, cpicks = nil)
     out = []
+    # THE HIGH AND PLAN PLATES SAY WHETHER A CEILING WAS HIDDEN (1.58.1).
+    cl = ceiling_line(id, ceils, cpicks)
+    out << cl if cl
     # THE SIDE PLATE SAYS WHICH SIDE AND WHY (1.57.0), before anything else
     # about it. A silent choice is a bad choice: Benton reads this log.
     out << side_line(spick, spick['az']) if spick && base_id(id) == SIDE_PLATE
@@ -2259,7 +2367,7 @@ module WR_AutoSet
     out << vent_line(vpick, vpick['az']) if vpick && base_id(id) == VENT_PLATE
     hid = wall_log(id, units, centre, eye).select { |r| r[3] }
     if NO_WALL_PLATES.include?(base_id(id))
-      why = base_id(id) == '06-plan' ? 'nothing occludes from above' :
+      why = base_id(id) == '06-plan' ? 'the walls are context from above, not occluders' :
             "the occluders are the booth's own panels, which are not wall units"
       out << "         walls: none hidden (#{why})"
     elsif (units || []).empty?

@@ -171,7 +171,12 @@ module WR_VerifyAutoSet
   # which is why `walls.ventilation_hides_at_least_one` passed while
   # Benton's plate looked straight into a wall. Built at the origin in local
   # space, then MOVED to (ox, oy) the way the Move tool would.
-  def self.make_room_moved(ents, ox, oy)
+  # `ceiling` (1.58.1) adds the slab build-takeoff.rb would: a box the full
+  # footprint, 4 in thick, sitting on the wall tops, named "Ceiling" on the
+  # WR-Ceiling tag, a sibling of Walls inside the room. The origin room
+  # (make_room) has NO ceiling, on purpose: a room without one must behave
+  # exactly as it did, and booth 1 proves that.
+  def self.make_room_moved(ents, ox, oy, ceiling = false)
     room = ents.add_group
     w = 240.0
     d = 192.0
@@ -184,6 +189,13 @@ module WR_VerifyAutoSet
     box(re, 0,     0,     t,     d,     h, 'Wall 3')      # -X
     box(re, w - t, 0,     w,     d,     h, 'Wall 4')      # +X
     walls.name = 'Walls'
+    if ceiling
+      cg = room.entities.add_group
+      f  = cg.entities.add_face([0, 0, h], [w, 0, h], [w, d, h], [0, d, h])
+      f.pushpull(f.normal.z < 0 ? -4.0 : 4.0)
+      cg.name  = 'Ceiling'
+      cg.layer = @model.layers.add('WR-Ceiling')
+    end
     room.name  = ROOM2
     room.transform!(Geom::Transformation.new(Geom::Point3d.new(ox, oy, 0)))
     room
@@ -1289,7 +1301,7 @@ module WR_VerifyAutoSet
       rx = 600.0
       ry = 400.0
       @model.start_operation('WR verify: moved room + split-vent booth', true)
-      room2 = make_room_moved(@model.entities, rx, ry)
+      room2 = make_room_moved(@model.entities, rx, ry, true)
       b4 = make_booth(@model.entities, B4, rx + 72.0, ry + 74.0, false, true)
       @model.commit_operation
       made.concat([room2, b4])
@@ -1387,6 +1399,79 @@ module WR_VerifyAutoSet
       say('vent.same_choice_on_a_re_run',
           !vb2.nil? && !vb.nil? && wrap.call(vb2 - vb).abs < 1.0,
           "#{vb.inspect} then #{vb2.inspect}")
+
+      # ---- 16. THE CEILING (1.58.1) -----------------------------------
+      # "a 'high' render, it should hide a ceiling as well if it has a
+      # ceiling". The moved room carries a take-off-shaped Ceiling slab at
+      # z 96..100 (room-local, so model z is the same -- the move is in
+      # plan). Booth 4's set is still on the pages here; it is read, not
+      # re-made. cl1-cl15 prove the rule on boxes; this proves the
+      # recogniser found the real slab where it STANDS, that 03-high and
+      # 06-plan hid it on the saved pages, that 06-plan's walls are exactly
+      # as before, and that the eye-height plates left it alone.
+      cu = WR_SceneWalls.scan(@model)[:ceilings]
+      cg = room2.entities.grep(Sketchup::Group).find { |g| g.name == 'Ceiling' }
+      mine_c = cu.find { |u| u[:pieces].first.equal?(cg) }
+      say('ceil.slab_is_recognised', !mine_c.nil?, cu.map { |u| [u[:label], u[:box]] }.inspect)
+      say('ceil.box_is_in_MODEL_space',
+          mine_c && (mine_c[:box][0] - rx).abs < 1.0 && (mine_c[:box][1] - ry).abs < 1.0 &&
+            (mine_c[:box][3] - (rx + 240.0)).abs < 1.0 && (mine_c[:box][2] - 96.0).abs < 1.0 &&
+            (mine_c[:box][5] - 100.0).abs < 1.0,
+          mine_c && mine_c[:box].inspect)
+      say('ceil.hint_read_from_name_and_tag', mine_c && mine_c[:hint] == true)
+      say('ceil.booths_are_never_ceilings',
+          cu.none? { |u| [b1, b4, b3].compact.any? { |b| b.valid? && u[:top] == b.entityID } },
+          cu.map { |u| u[:label] }.inspect)
+      geo_c = WR_AutoSet.ceiling_geometry(@model, b4)
+      bc4, _r4, bb4 = WR_AutoSet.booth_frame(b4)
+      say('ceil.is_over_booth_4',
+          geo_c.any? { |c| c['label'].to_s.include?('Ceiling') &&
+                           WR_AutoSet.ceiling_over?(c['box'], bc4, bb4.max.z.to_f) },
+          geo_c.inspect)
+      # BOOTH 1 SITS IN THE ORIGIN ROOM, WHICH HAS NO CEILING: none over it,
+      # and the log says what it looked for.
+      geo_1 = WR_AutoSet.ceiling_geometry(@model, b1)
+      bc1, _r1, bb1 = WR_AutoSet.booth_frame(b1)
+      l_1 = WR_AutoSet.ceilings_line(geo_1, bc1, bb1.max.z.to_f)
+      say('ceil.none_over_booth_1_and_says_so',
+          geo_1.none? { |c| WR_AutoSet.ceiling_over?(c['box'], bc1, bb1.max.z.to_f) } &&
+            l_1.include?('none over the booth') && l_1.include?('looked for'),
+          l_1)
+      plate_pg = lambda do |id|
+        WR_AutoSet.token_pages(pages.to_a, tok4).find do |pg|
+          WR_AutoSet.page_stamp(pg)['plate'].to_s == id
+        end
+      end
+      hpg = plate_pg.call('03-high')
+      ppg = plate_pg.call('06-plan')
+      apg = plate_pg.call('01-angled')
+      if hpg && cg
+        sel(hpg)
+        say('ceil.high_plate_hides_the_ceiling', hidden?(cg))
+      else
+        say('ceil.high_plate_hides_the_ceiling', false, 'no 03-high page or no slab')
+      end
+      if ppg && cg
+        sel(ppg)
+        say('ceil.plan_plate_hides_the_ceiling', hidden?(cg))
+        say('ceil.plan_plate_walls_still_shown',
+            units2.all? { |u| u[:pieces].none? { |g| hidden?(g) } },
+            units2.map { |u| [u[:wall], u[:pieces].map { |g| hidden?(g) }] }.inspect)
+      else
+        say('ceil.plan_plate_hides_the_ceiling', false, 'no 06-plan page or no slab')
+      end
+      if apg && cg
+        sel(apg)
+        say('ceil.angled_plate_leaves_the_ceiling', !hidden?(cg))
+      end
+      say('ceil.run_log_names_it',
+          lines4.any? { |l| l.to_s.include?('ceiling: 1 over the booth') &&
+                            l.to_s.include?('Ceiling') && l.to_s.include?('03-high and 06-plan') },
+          lines4.find { |l| l.to_s.include?('ceiling:') }.inspect)
+      say('ceil.high_plate_log_says_hidden',
+          lines4.index { |l| l.to_s.include?('hides ceiling') }.to_i >
+            lines4.index { |l| l.to_s.include?('03-high') }.to_i,
+          lines4.select { |l| l.to_s.include?('hides ceiling') }.inspect)
       WR_AutoSet.apply(@model, b4, { 'mode' => 'remove' })
 
       # THE EMPTY CASE IS SAID OUT LOUD: what the rule wanted, what it saw.
@@ -1425,7 +1510,7 @@ module WR_VerifyAutoSet
         end
         made.each { |e| (@model.entities.erase_entities(e) rescue nil) if e && (e.valid? rescue false) }
         [TAG_P, 'WR-Dims', 'WR-Dims-Doors', 'WR-Notes',
-         'WR-Booth-Door', 'WR-Booth-Vent'].each do |n|
+         'WR-Booth-Door', 'WR-Booth-Vent', 'WR-Ceiling'].each do |n|
           l = @model.layers[n]
           (@model.layers.remove(l, true) rescue nil) if l
         end

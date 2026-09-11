@@ -90,6 +90,10 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
     pick_vent's swing hand inverted                      -> vt3, vt4, vt8 FAIL
     pick_vent's tie-break rank dropped                   -> vt8, vt9, vt10 FAIL
     walls_line silent on an empty unit list              -> wl1, wl2 FAIL
+    ceiling_picks never hiding (the ceiling stays)       -> cl2, cl3, cl4, cl12 FAIL
+    06-plan dropped from CEILING_PLATES                  -> cl4, cl9, cl12, cl15 FAIL
+    ceiling_over? ignoring the footprint (any flat box)  -> cl1, cl2, cl4 FAIL
+    ceilings_line silent when none is found              -> cl10, cl11 FAIL
     pick_side choosing a side with no door               -> sd16 (the run RAISES
                                                             there: this VM has no
                                                             NilClass#to_f, so the
@@ -124,6 +128,7 @@ import rbparse   # noqa: E402
 import rbtest    # noqa: E402
 
 SRC = os.path.join(HERE, 'wr-autoset.rb')
+SW  = os.path.join(HERE, 'wr-scene-walls.rb')
 
 
 def const_line(name, src=SRC):
@@ -291,6 +296,19 @@ module WR_ProposalScenes
 %(aim)s
 end
 
+# The ceiling recogniser's pure half, verbatim from wr-scene-walls.rb.
+module WR_SceneWalls
+%(ceil_max_t)s
+%(ceil_hint_max_t)s
+%(ceil_min_span)s
+%(ceil_name_re)s
+%(ceil_tag)s
+
+%(ceiling_shape)s
+
+%(ceiling_hint)s
+end
+
 # The minimum Sketchup::Page the stamp reader touches. `dict` nil means a page
 # with NO WR_AutoSet dictionary -- a scene Benton made by hand, the thing the
 # containment rule exists to protect.
@@ -318,6 +336,8 @@ module WR_AutoSet
 %(side_skip_tags)s
 %(thin_max)s
 %(vent_plate)s
+%(ceiling_plates)s
+%(ceil_above_tol)s
 %(dual_suffix)s
 %(dims_re)s
 %(booth_wall_t)s
@@ -394,6 +414,14 @@ module WR_AutoSet
 %(vent_line)s
 
 %(walls_line)s
+
+%(ceiling_over)s
+
+%(ceiling_picks)s
+
+%(ceilings_line)s
+
+%(ceiling_line)s
 
 %(standoff)s
 
@@ -1133,6 +1161,85 @@ module T
     ck('wl3', wl1.include?('3 wall unit(s)') && wl1.include?('Room: Wall 1, 2') &&
               wl1.include?('Office: Wall 1') && !wl1.include?('NO wall'), wl1)
 
+    # ---- THE CEILING (1.58.1) -------------------------------------------
+    # "a 'high' render, it should hide a ceiling as well if it has a
+    # ceiling". A booth 96 x 60 x 84 centred at the origin (top z 84) under a
+    # take-off ceiling slab at z 96..100 covering 0..240 x 0..192 -- but the
+    # booth is at (0,0), so build the boxes around it. Also a floor at z 0, a
+    # neighbouring room's ceiling that does not cover the centre, and one
+    # squeezed exactly onto the roof.
+    cbox  = [-120.0, -96.0, 96.0, 120.0, 96.0, 100.0]
+    fbox  = [-120.0, -96.0, 0.0, 120.0, 96.0, 0.0]
+    nbox  = [130.0, -96.0, 96.0, 370.0, 96.0, 100.0]
+    tight = [-120.0, -96.0, 83.5, 120.0, 96.0, 84.0]
+    top_z = 84.0
+    ck('cl1', WR_AutoSet.ceiling_over?(cbox, CENTRE, top_z) &&
+              !WR_AutoSet.ceiling_over?(fbox, CENTRE, top_z) &&
+              !WR_AutoSet.ceiling_over?(nbox, CENTRE, top_z) &&
+              WR_AutoSet.ceiling_over?(tight, CENTRE, top_z),
+       [WR_AutoSet.ceiling_over?(cbox, CENTRE, top_z), WR_AutoSet.ceiling_over?(fbox, CENTRE, top_z)].inspect)
+    ceils = [{ 'key' => 'c:1', 'label' => 'Room Ceiling', 'box' => cbox },
+             { 'key' => 'c:2', 'label' => 'Room Floor',   'box' => fbox },
+             { 'key' => 'c:3', 'label' => 'Office Ceiling', 'box' => nbox }]
+    # THE HIGH PLATE HIDES IT, the floor and the neighbour stay, and every
+    # unit is keyed (the partial-hash bug, again).
+    hp = WR_AutoSet.ceiling_picks('03-high', ceils, CENTRE, top_z)
+    ck('cl2', hp == { 'c:1' => true, 'c:2' => false, 'c:3' => false }, hp.inspect)
+    ck('cl3', WR_AutoSet.ceiling_picks('03-high r', ceils, CENTRE, top_z)['c:1'] == true)
+    # THE PLAN PLATE HIDES IT TOO -- the coordinator's call, one line to
+    # reverse (drop '06-plan' from CEILING_PLATES) and this fails by name.
+    pp = WR_AutoSet.ceiling_picks('06-plan', ceils, CENTRE, top_z)
+    ck('cl4', pp['c:1'] == true && pp['c:2'] == false && pp.keys.length == 3, pp.inspect)
+    # ... and its WALLS are exactly as before: none hidden.
+    pw = [{ 'key' => 'w:a', 'c' => [50.0, 0.0, 40.0], 'label' => 'Room Wall 1' },
+          { 'key' => 'w:b', 'c' => [0.0, 50.0, 40.0], 'label' => 'Room Wall 2' }]
+    ck('cl5', WR_AutoSet.wall_picks('06-plan', pw, CENTRE, [97.8, 0.0, 300.0]).values.none? { |v| v } &&
+              WR_AutoSet::NO_WALL_PLATES.include?('06-plan'))
+    # THE EYE-HEIGHT PLATES AND THE INTERIOR LEAVE IT ALONE, keyed false.
+    q6 = WR_AutoSet.ceiling_picks('01-angled', ceils, CENTRE, top_z)
+    ck('cl6', q6.keys.length == 3 && q6.values.none? { |v| v }, q6.inspect)
+    ck('cl7', ['02-front', '04-side', '05-ventilation', '07-interior', '01-angled r'].all? { |id|
+                q = WR_AutoSet.ceiling_picks(id, ceils, CENTRE, top_z)
+                q.keys.length == 3 && q.values.none? { |v| v }
+              }, 'a plate other than 03-high / 06-plan hid the ceiling')
+    # NO CEILING AT ALL: an empty hash, nothing written, today's behaviour.
+    ck('cl8', WR_AutoSet.ceiling_picks('03-high', [], CENTRE, top_z) == {} &&
+              WR_AutoSet.ceiling_picks('03-high', nil, CENTRE, top_z) == {})
+    # THE LOG, run level: found and hidden on which plates ...
+    l1 = WR_AutoSet.ceilings_line(ceils, CENTRE, top_z)
+    ck('cl9', l1.include?('ceiling: 1 over the booth') && l1.include?('Room Ceiling (z 96 to 100 in)') &&
+              l1.include?('hidden on 03-high and 06-plan') && !l1.include?('Floor'), l1)
+    # ... or none, with what it looked for and what it saw instead.
+    l0 = WR_AutoSet.ceilings_line([ceils[1], ceils[2]], CENTRE, top_z)
+    ck('cl10', l0.include?('ceiling: none over the booth') && l0.include?('12 in thick') &&
+               l0.include?('48 in each way') && l0.include?('z 84 in') &&
+               l0.include?('2 flat, broad group(s) seen but none qualifies') &&
+               l0.include?('Room Floor (z 0 to 0 in)') && l0.include?('will look through'), l0)
+    ck('cl11', WR_AutoSet.ceilings_line([], CENTRE, top_z).include?('nothing flat and broad in the model at all'))
+    # The per-plate line: on the two plates only.
+    ck('cl12', WR_AutoSet.ceiling_line('03-high', ceils, hp) == '         hides ceiling Room Ceiling' &&
+               WR_AutoSet.ceiling_line('06-plan r', ceils, pp).to_s.include?('hides ceiling Room Ceiling') &&
+               WR_AutoSet.ceiling_line('03-high', [], {}).include?('none hidden') &&
+               WR_AutoSet.ceiling_line('01-angled', ceils, hp).nil?,
+       WR_AutoSet.ceiling_line('03-high', ceils, hp).inspect)
+    # THE RECOGNISER'S SHAPE RULE, as it runs in wr-scene-walls.rb: a slab
+    # 4 in thick is a ceiling; a 96 in wall is not; a 36 in door swing is
+    # too small; a 20 in deep hung ceiling needs its name to say so; the
+    # take-off tag, the drop-lights attribute and the name each count.
+    ck('cl13', WR_SceneWalls.ceiling_shape?([0, 0, 96, 240, 192, 100], false) &&
+               !WR_SceneWalls.ceiling_shape?([0, 0, 0, 240, 4, 96], false) &&
+               !WR_SceneWalls.ceiling_shape?([0, 0, 0, 36, 36, 0], false) &&
+               !WR_SceneWalls.ceiling_shape?([0, 0, 80, 240, 192, 100], false) &&
+               WR_SceneWalls.ceiling_shape?([0, 0, 80, 240, 192, 100], true) &&
+               !WR_SceneWalls.ceiling_shape?(nil, true))
+    ck('cl14', WR_SceneWalls.ceiling_hint?('Ceiling', '', nil) &&
+               WR_SceneWalls.ceiling_hint?('WR Lights Ceiling', 'WR-Lights', nil) &&
+               WR_SceneWalls.ceiling_hint?('Slab', 'WR-Ceiling', nil) &&
+               WR_SceneWalls.ceiling_hint?('Group#12', 'Layer0', 'ceiling') &&
+               !WR_SceneWalls.ceiling_hint?('Floor', 'WR-Floor', nil) &&
+               !WR_SceneWalls.ceiling_hint?('Wall 2', 'WR-Room', 'wall'))
+    ck('cl15', WR_AutoSet::CEILING_PLATES == ['03-high', '06-plan'] && WR_AutoSet::CEIL_ABOVE_TOL == 1.0)
+
     # ---- THE ANNOTATION ALLOWLIST ---------------------------------------
     # an1/an2 are the two that matter most in this file.
     ck('an1', ALL.all? { |p| WR_AutoSet.annot_picks(p, sets, loose)['t:WR-Notes'] == true },
@@ -1669,6 +1776,7 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'vt1 vt2 vt3 vt4 vt5 vt6 vt7 vt8 vt9 vt10 vt11 vt12 vt13 vt14 vt15 '
          'vt16 vt17 vt18 vt19 vt20 vt21 '
          'wl1 wl2 wl3 '
+         'cl1 cl2 cl3 cl4 cl5 cl6 cl7 cl8 cl9 cl10 cl11 cl12 cl13 cl14 cl15 '
          'an1 an2 an2b an2c an3 an4 an5 an6 an7 an7b an8 an9 an10 an11 '
          'nv1 nv2 nv3 '
          'wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 wp9 wp10 wp11 '
@@ -1714,6 +1822,23 @@ def main():
         'pick_vent':       rbtest.method_source(SRC, 'pick_vent'),
         'vent_line':       rbtest.method_source(SRC, 'vent_line'),
         'walls_line':      rbtest.method_source(SRC, 'walls_line'),
+        'ceiling_plates':  const_line('CEILING_PLATES'),
+        'ceil_above_tol':  const_line('CEIL_ABOVE_TOL'),
+        # 'ceiling_over' (not 'ceiling_over?'): the regex \b after the name.
+        'ceiling_over':    rbtest.method_source(SRC, 'ceiling_over'),
+        'ceiling_picks':   rbtest.method_source(SRC, 'ceiling_picks'),
+        'ceilings_line':   rbtest.method_source(SRC, 'ceilings_line'),
+        'ceiling_line':    rbtest.method_source(SRC, 'ceiling_line'),
+        # The recogniser's pure half, lifted from wr-scene-walls.rb into a
+        # stub of its module, so the shape rule the log quotes is the one
+        # that runs in the model.
+        'ceil_max_t':      const_line('CEIL_MAX_T', SW),
+        'ceil_hint_max_t': const_line('CEIL_HINT_MAX_T', SW),
+        'ceil_min_span':   const_line('CEIL_MIN_SPAN', SW),
+        'ceil_name_re':    const_line('CEIL_NAME_RE', SW),
+        'ceil_tag':        const_line('CEIL_TAG', SW),
+        'ceiling_shape':   rbtest.method_source(SW, 'ceiling_shape'),
+        'ceiling_hint':    rbtest.method_source(SW, 'ceiling_hint'),
         'dual_suffix':     const_line('DUAL_SUFFIX'),
         'dims_re':         const_line('DIMS_RE'),
         'booth_wall_t':    const_line('BOOTH_WALL_T'),

@@ -1,6 +1,57 @@
 # DEVLOG
 
 ## 2026-09-11
+### AUTO-SET: the high plate (and the plan) hide the room ceiling - (VERSION bump held by the orchestrator)
+
+Benton, verbatim: *"Hey a 'high' render, it should hide a ceiling as well if
+it has a ceiling"*. `03-high` stands ~20 ft up looking down; with a room
+ceiling the camera is above it and the plate is a picture of the lid,
+exactly as `05-ventilation` was a picture of a wall this morning.
+
+**What builds a ceiling here, read from the source.** `build-room.rb` — the
+everyday builder — builds none at all (its "ceiling" is the wall height).
+`build-takeoff.rb` builds a `Ceiling` group on `WR-Ceiling`, 4 in thick,
+inside the room. `wr-drop-lights.rb` builds a `WR Lights Ceiling` face
+group carrying `WR_DropLights/kind = "ceiling"`. Anything else in a client
+model is hand-made and can be called anything. So the recogniser
+(`WR_SceneWalls.ceiling_units`) is SHAPE-first: a flat, broad container —
+at most 12 in thick, at least 48 in each way, 24 in thick if its name, tag
+or attribute says ceiling — that is not a named wall piece, not on a
+`WR-Booth-*` tag and not inside a booth container (a booth's own tray is
+flat, broad and exactly over it). Its box is carried out to MODEL space
+through the container transforms, the 1.58.0 lesson. Units are keyed
+`c:<id>` in the same `@units` index as the walls, so `write_scene`, the
+snapshot and UNDO LAST APPLY carry them with no new mechanism.
+
+**Which flat thing is THE ceiling** is decided per booth in
+`wr-autoset.rb`: box bottom at or above the booth's top (1 in tolerance),
+footprint covering the booth centre (`ceiling_over?`). A floor is flat and
+broad and below; the next room's ceiling does not cover the centre; both
+are named in the log as seen and passed over, so "none found" is never
+silent — the run-level `ceiling:` line says what it looked for, and 03-high
+and 06-plan each log `hides ceiling ...` or `ceiling: none hidden`.
+
+**06-plan hides it too.** The plan's "walls: none hidden" rule is about
+keeping the room's WALLS in the picture for context; a ceiling is a lid
+over the whole plate. The plan's walls are exactly as before (`wall_picks`
+and `NO_WALL_PLATES` untouched; `walls.plan_hides_nothing` still counts
+zero wall units; `ceil.plan_plate_walls_still_shown` pins it live). That was
+the coordinator's call, not Benton's, and it is one edit to reverse: drop
+`'06-plan'` from `CEILING_PLATES`, and `cl4`/`cl9`/`cl12`/`cl15` fail by name. The other
+plates — 01-angled, 02-front, 04-side, 05-ventilation, 07-interior — leave a
+ceiling alone; they shoot at eye height and it is not in the way. A room
+with no ceiling writes nothing new: `ceiling_picks` is an empty hash.
+
+**Proof.** `rbparse.py`: 75 scripts + the harness parse.
+`rbtest-autoset.py` 243 -> 258, green: `cl1-cl15`, with the recogniser's
+pure half lifted verbatim from `wr-scene-walls.rb` into a stub. Four
+mutants (never hiding; 06-plan dropped; footprint ignored; silent when none
+found) each fail by name. `verify-autoset.rb` section 16 — UNRUN — gives
+the moved room at (600, 400) a take-off-shaped slab and checks the real
+pages: `ceil.*` (12 checks). Everything in `.rb` is unrun until Benton loads
+it. `proposal-package.rb` untouched: its WALLS column counts walls only and
+will not show the ceiling; the log and the page do.
+
 ### AUTO-SET: the ventilation plate hides the wall behind the booth and shoots the wall with the most vents - (VERSION bump held by the orchestrator)
 
 Benton ran AUTO-SET on a real MDL 96144 E in a real room and reported two
