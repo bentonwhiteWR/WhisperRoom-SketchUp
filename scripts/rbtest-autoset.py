@@ -63,6 +63,10 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
     the interior camera tilted off level                 -> in6 FAIL
     the interior up vector tipped                        -> in7 FAIL
     the interior fov reset to the exterior lens          -> in9 FAIL
+    aim_interior set() before perspective= again         -> in11, in12 FAIL
+    WR_ProposalScenes.aim set() before perspective=      -> cm19 FAIL
+    the interior plane read off the union box again      -> in12 FAIL
+    door_run's sign dropped (abs)                        -> in14b FAIL
     the front plate given a swing (not square to door)   -> cm2 FAIL
     the plan plate put back to el 89                     -> cm5 FAIL
     any plate given cam.perspective = false              -> cm1 FAIL
@@ -172,9 +176,20 @@ end
 # The camera aim() actually writes to. `perspective` starts FALSE so that a
 # plate which never sets it reads as parallel and fails cm1 -- the stub must
 # not flatter the code.
+#
+# THE PARALLEL-TO-PERSPECTIVE SLIDE IS MODELLED, because it is what SketchUp
+# does and it is what the 1.53.0 and 1.54.0 live runs measured. Flipping a
+# parallel camera to perspective keeps the TARGET and moves the EYE back along
+# the view direction until the parallel frame height fills the lens:
+# dist = height / (2 tan(fov / 2)). Live, 11 Sep 2026: 06-plan left the view
+# parallel at height radius * 2.3 = 186.40 with the 35-degree lens, and the
+# interior eye that had been set 27 in from its target came back 295.59 in
+# from it (186.40 / (2 tan 17.5) = 295.59), 223 in outside the booth. A stub
+# that ignores this passes a set()-then-perspective= order that SketchUp
+# overwrites -- 164 checks were green while that eye was wrong.
 class FakeCamera
-  attr_accessor :perspective, :fov, :height
-  attr_reader :eye, :target, :up
+  attr_accessor :fov, :height
+  attr_reader :eye, :target, :up, :perspective
   def initialize
     @perspective = false
     @fov = nil
@@ -184,6 +199,21 @@ class FakeCamera
     @eye = eye
     @target = target
     @up = up
+  end
+  def perspective=(v)
+    if v && !@perspective && @eye && @target && @height
+      f = (@fov || 35.0) * Math::PI / 180.0
+      d = @height / (2.0 * Math.tan(f / 2.0))
+      vx = @eye.x - @target.x
+      vy = @eye.y - @target.y
+      vz = @eye.z - @target.z
+      n = Math.sqrt((vx * vx) + (vy * vy) + (vz * vz))
+      if n > 1.0e-9
+        @eye = Geom::Point3d.new(@target.x + (vx / n * d), @target.y + (vy / n * d),
+                                 @target.z + (vz / n * d))
+      end
+    end
+    @perspective = v
   end
 end
 
@@ -218,7 +248,17 @@ end
 
 class FakeView
   attr_reader :camera
-  def initialize; @camera = FakeCamera.new; end
+  # `after_plan` hands back a view in the state 06-plan leaves it: parallel,
+  # frame height radius * 2.3, the 35-degree lens still on the camera. That
+  # is the view every interior aim in a default run is made onto.
+  def initialize(after_plan = false, radius = 60.0)
+    @camera = FakeCamera.new
+    return unless after_plan
+    @camera.set(Geom::Point3d.new(0, 0, 500), Geom::Point3d.new(0, 0, 42),
+                Geom::Vector3d.new(0, 1, 0))
+    @camera.fov = 35.0
+    @camera.height = radius * 2.3
+  end
   def refresh; true; end
 end
 
@@ -308,6 +348,8 @@ module WR_AutoSet
 %(frame_hits)s
 
 %(interior_eye_dist)s
+
+%(door_run)s
 
 %(policy_line)s
 
@@ -417,9 +459,9 @@ module T
   VENT   = 90.0
 
   # Aim one plate for real and hand back the camera it left behind.
-  def self.cam(id, door = DOOR, vent = VENT)
-    v = FakeView.new
-    WR_AutoSet.aim_plate(v, id, CENTRE, RADIUS, door, vent, HALF)
+  def self.cam(id, door = DOOR, vent = VENT, after_plan = false, half = HALF, anchor = nil)
+    v = FakeView.new(after_plan, RADIUS)
+    WR_AutoSet.aim_plate(v, id, CENTRE, RADIUS, door, vent, half, anchor)
     v.camera
   end
 
@@ -1053,6 +1095,55 @@ module T
     # tilt it, which is the thing the clearance fix had to not break.
     ck('in10', (ic2.eye.to_a[2] - CENTRE[2]).abs < 1.0e-9, ic2.eye.to_a.inspect)
 
+    # THE EYE SURVIVES BEING AIMED ONTO A PARALLEL CAMERA (1.55.0). 06-plan
+    # is aimed immediately before the interior and leaves the view parallel;
+    # SketchUp's parallel-to-perspective flip keeps the target and re-derives
+    # the eye from the frame height (FakeCamera models it). Live on 1.53.0 and
+    # 1.54.0 the interior eye came back 295.59 in from its target instead of
+    # 27, i.e. 223 in OUTSIDE the booth, and the suite was green because the
+    # stub had no such flip. The eye must be exactly where interior_eye_dist
+    # put it whichever projection the view was in beforehand.
+    ic3 = cam('07-interior', DOOR, VENT, true)
+    ck('in11', (ic3.eye.to_a[1] - (CENTRE[1] - idist)).abs < 1.0e-9,
+       "interior eye #{ic3.eye.to_a.inspect} after a parallel plate, wanted y #{-idist}")
+    # ... and the exterior plates too: same set()/perspective= order in
+    # WR_ProposalScenes.aim. Re-running Apply with the plan scene selected is
+    # a parallel view for every plate that follows.
+    f_fresh = cam('01-front')
+    f_plan  = cam('01-front', DOOR, VENT, true)
+    ck('cm19', f_fresh.eye.to_a == f_plan.eye.to_a,
+       "front eye #{f_plan.eye.to_a.inspect} after a parallel plate vs " \
+       "#{f_fresh.eye.to_a.inspect} on a fresh view")
+
+    # THE DOOR WALL PLANE COMES OFF THE FRAME, NOT THE UNION BOX (1.55.0).
+    # A leaf drawn open 36 in pushes the union half-depth from 37 to 55, and
+    # "22 in inside the union edge" is then 22 in inside the LEAF: 4 in off
+    # the real interior face, the 1.50.x shot Benton called "stuck in the
+    # wall". With the frame anchor (in the wall, y -37) the eye stands 22 in
+    # inside the real face whatever sticks out.
+    skew   = [25.0, 55.0]
+    anchor = [10.0, -37.0, 42.0]         # the frame, 10 in off centre, IN the -Y wall
+    ic4 = cam('07-interior', DOOR, VENT, true, skew, anchor)
+    ck('in12', (ic4.eye.to_a[1] - (CENTRE[1] - idist)).abs < 1.0e-9,
+       "interior eye #{ic4.eye.to_a.inspect} with the union skewed by an open leaf, " \
+       "wanted y #{-idist}")
+    # The off-centre frame does not drag the eye sideways: it stays on the
+    # booth's centre line, the anchor gives only the plane.
+    ck('in12b', (ic4.eye.to_a[0] - CENTRE[0]).abs < 1.0e-9, ic4.eye.to_a.inspect)
+    # No anchor (no door tag): the union box is still the fallback, so the
+    # eye moves with it rather than the tool refusing to aim.
+    ic5 = cam('07-interior', DOOR, VENT, true, skew, nil)
+    ck('in13', (ic5.eye.to_a[1] - (CENTRE[1] - (55.0 - 1.0 - 22.0))).abs < 1.0e-9,
+       ic5.eye.to_a.inspect)
+    # door_run is the run ALONG the normal only, and a frame on the wrong
+    # side (negative run) is refused rather than aimed at.
+    ck('in14', (WR_AutoSet.door_run([0.0, 0.0, 42.0], anchor, DOOR) - 37.0).abs < 1.0e-9,
+       WR_AutoSet.door_run([0.0, 0.0, 42.0], anchor, DOOR).inspect)
+    # -10 rather than -37: an abs() would turn -37 into the fixture's own
+    # 37 and pass by coincidence; abs(-10) = 10 clamps to 0 and is caught.
+    ck('in14b', (WR_AutoSet.interior_eye_dist(HALF, RADIUS, DOOR, -10.0) - idist).abs < 1.0e-9,
+       WR_AutoSet.interior_eye_dist(HALF, RADIUS, DOOR, -10.0).inspect)
+
     # NO DOOR TAG AT ALL: the documented -90 fallback still produces a real
     # camera rather than raising.
     ck('cm18', shot('01-front', nil, nil)['az'] == WR_AutoSet::FALLBACK_AZ,
@@ -1119,6 +1210,7 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'oc1 oc2 oc3 oc4 oc5 oc6 oc7 oc8 oc9 '
          'fm1 fm2 fm3 fm4 fm5 fm5b fm6 fm7 fm8 fm9 fm10 '
          'in1 in1b in1c in1d in2 in3 in4 in5 in6 in7 in8 in9 in10 '
+         'in11 cm19 in12 in12b in13 in14 in14b '
          'cm18 '
          'eb1 eb2 eb3 eb4 eb5 eb6 eb7 eb8').split()
 EXPECT = ' | '.join('%s ok' % n for n in NAMES)
@@ -1173,6 +1265,7 @@ def main():
         'annot_cell':      rbtest.method_source(SRC, 'annot_cell'),
         'frame_hits':      rbtest.method_source(SRC, 'frame_hits'),
         'interior_eye_dist': rbtest.method_source(SRC, 'interior_eye_dist'),
+        'door_run':        rbtest.method_source(SRC, 'door_run'),
         'policy_line':     rbtest.method_source(SRC, 'policy_line'),
         'loose_split':     rbtest.method_source(SRC, 'loose_split'),
         'plate_dist':      rbtest.method_source(SRC, 'plate_dist'),
@@ -1257,7 +1350,9 @@ def main():
         print('         name every unit; re-runs match on the stamp and never on')
         print('         the name, and an unstamped scene is untouchable.')
         print('         The interior plate is a locked two-point perspective and')
-        print('         stands 4 in clear of the interior wall face at any size.')
+        print('         stands 22 in clear of the interior wall face at any size,')
+        print('         off the door FRAME plane, whatever projection the view')
+        print('         was in when it was aimed.')
         print('         The cm checks RAN the real aim(): front-on is square to')
         print('         the door ~16 ft back at eye height, the top-down is')
         print('         genuinely straight down, the high shot is 17 ft up at')

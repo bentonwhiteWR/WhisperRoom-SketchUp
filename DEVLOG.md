@@ -1,6 +1,94 @@
 # DEVLOG
 
 ## 2026-09-11
+### The interior eye was overwritten by the projection flip, and the harness carried the union-box mistake - (VERSION bump held by the orchestrator)
+
+Benton ran `verify-autoset.rb` live on 1.54.0: **121 of 125 pass**, and
+`door.bearing_is_the_minus_Y_wall` passed at -90.0, so the 1.54.0 wall-plane
+fix is confirmed. Four failures remained. Two were the harness, two were the
+production code, and one of the production defects was hiding a second one.
+
+```
+FAIL door.anchor_is_on_the_door_wall           - frame y 23.0 vs booth min y -14.0
+FAIL cam.front_is_square_to_the_door           - eye at -84.7 deg, door at -90.0 deg
+FAIL cam.interior_eye_is_inside_the_shell      - [72.0, -223.12217541803528, 42.0]
+FAIL cam.interior_eye_clears_the_interior_face - 208.12 in clear, wants 22.00
+```
+
+**TWO HARNESS ASSERTIONS WERE WRONG, AND THE GEOMETRY SAYS SO.**
+
+- `door.anchor_is_on_the_door_wall` compared the frame's y against
+  `b1.bounds.min.y` = -14, which is the swung leaf, not a wall. The shell's -Y
+  face is at y 24 and the frame (y 22..24, centre 23) sits 1 in proud of it.
+  That is the exact union-box mistake 1.54.0 removed from `wall_axis`, still
+  live in the check that was supposed to prove the fix. It now measures
+  against the fixture's `shell` group.
+- `cam.front_is_square_to_the_door` took the eye's bearing from the BOOTH
+  CENTRE. The fixture's door is 24 in off centre on purpose, and 01-front is
+  aimed at the frame (`:aim_at => :door`, Benton: "It should be in front of
+  the door frame"), so the eye at x 96.0 = frame x 96.0 is exactly on the
+  wall normal and reads -84.7 from the centre by construction. The check two
+  lines below it, `cam.front_is_NOT_aimed_at_the_booth_centre`, asserted the
+  opposite convention. It now measures the bearing from the frame.
+
+**THE INTERIOR EYE WAS RIGHT WHEN SET AND WRONG WHEN READ. The arithmetic
+closes to three decimals, which is what decided it.** `aim_interior` put the
+eye 27 in from the centre (y 9) and the target at y 36 + 0.45 x 81.04 = 72.47.
+The observed eye was y -223.122, and 72.47 - (-223.122) = **295.59** - the
+observed view-direction length. 06-plan is aimed immediately before the
+interior and leaves the view camera PARALLEL at `height = radius * 2.3 =
+186.40`; `aim_interior` then did `cam.set(...)` and only afterwards
+`cam.perspective = true`. SketchUp's parallel-to-perspective flip keeps the
+target and re-derives the eye so the parallel frame fills the lens it
+inherits (35 deg): 186.40 / (2 tan 17.5) = **295.59**. The 1.53.0 run had the
+same eye along +X: 35.53 + 295.59 = 331.1, which that entry called "a sixth
+symptom of the bearing" and was not - the bearing fix moved it from +X to -Y
+and left the 295.59 untouched.
+
+The fix is order: **projection first, position last**, in `aim_interior` and
+in `WR_ProposalScenes.aim`'s perspective branch, so `set()` is the last word
+whatever the view was doing. **Production `apply` was probably NOT shipping
+this** (derived, not observed): the fresh path aims twice, and the second aim
+lands on a camera the first already flipped; the re-aim path selects the page
+first, which restores its perspective camera. The harness's single direct
+`aim_plate` call is a legitimate use and it hit the fragility.
+
+**WHICH EXPOSED THE SECOND DEFECT.** With the slide gone the eye lands at
+y 9: 22 in inside the UNION box's -Y edge, which is the leaf at -14, and
+**15 in outside the shell whose face is at y 24.** `half` in `apply` comes off
+the union box, and a leaf drawn open pushes the union past the door wall by
+its own width - "22 in inside the union edge" is 22 in inside the LEAF. Same
+skew 1.54.0 took out of the bearing. The old harness checks measured against
+the union box too, so they would have passed an eye standing in the doorway.
+`interior_eye_dist` now takes the door-wall plane from the FRAME ANCHOR
+(`door_run`: the frame's run from the centre along the normal - the anchor
+01-front already trusts), and the union box is only the fallback when there
+is no door tag. On the fixture the 38 in leaf drags the union centre to 12 in
+inside the door wall, so the never-past-the-centre clamp bites and the eye
+stands 11 in clear; the harness detail says why it is not 22.
+
+**THE OFFLINE SUITE WAS GREEN THROUGH ALL OF IT, AND NOW IS NOT ALLOWED TO
+BE.** `FakeCamera#perspective=` models the flip (target kept, eye re-derived
+from height and fov - the same formula that reproduced the live number), and
+`FakeView.new(true)` hands back the view 06-plan leaves. `in11` aims the
+interior onto it; `cm19` the front; `in12`/`in12b`/`in13` pin the anchor
+plane, the centre line and the no-tag fallback; `in14`/`in14b` pin `door_run`
+and its sign. **164 -> 171 checks, five mutants reintroduced one at a time,
+all five killed by name** (the first `in14b` let the abs() mutant survive
+because -37 abs'd is the fixture's own 37 - a check that passes by coincidence
+is not a check; it now uses -10). `rbparse.py` clean on all 75 files plus the
+harness.
+
+**HELD, ON THE ORCHESTRATOR'S INSTRUCTION:** VERSION stays where it is and
+nothing is pushed - GOAL.md, 11 Sep: two Fixers are running and the
+orchestrator bumps once after both land. **UNVERIFIED until Benton runs it:**
+every change in this entry is unrun Ruby. Re-run `verify-autoset.rb` from
+File > New and watch `door.anchor_is_on_the_door_wall`,
+`cam.front_is_square_to_the_door`, `cam.interior_eye_is_inside_the_shell`
+(expect eye ~[72, 36, 42]) and `cam.interior_eye_clears_the_interior_face`
+(expect 11.00, clamped). If the interior eye still reads 295.59 from its
+target, the flip model is wrong.
+
 ### The step never loaded AND a CP booth came in 4 3/4 low - one NameError, both symptoms
 
 Benton: *"Take a look at the load booth link. The Step is not loading at all.

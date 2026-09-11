@@ -262,14 +262,41 @@ module WR_AutoSet
   # the caller handed us no bounds, and the only thing left is the pre-1.50.2
   # proportional guess - apply always passes them, so that path is a
   # fallback and not a design.
-  def self.interior_eye_dist(half, radius, az)
-    return radius.to_f * 0.55 if half.nil?
-    r = reach(half[0], half[1], az)
+  #
+  # `frame_run` (1.55.0) is the door FRAME's own distance from the centre along
+  # `az`, from door_run below, or nil. When it is known it names the door wall
+  # plane and `half` is not consulted: `half` is the booth's UNION box, and the
+  # union is skewed by anything that sticks out -- a leaf drawn open pushes it
+  # past the door wall by the leaf's width, so "22 in inside the union edge" is
+  # 22 in inside the LEAF, which can be outside the booth. Live, 11 Sep 2026:
+  # the verify fixture's 38 in leaf put the eye 15 in outside its shell. The
+  # same union skew is what 1.54.0 took out of the wall bearing. The frame is
+  # in the wall by definition (it is what 01-front aims at), so it is the plane.
+  def self.interior_eye_dist(half, radius, az, frame_run = nil)
+    r = nil
+    r = frame_run.to_f if !frame_run.nil? && frame_run.to_f > 0.0
+    r = reach(half[0], half[1], az) if r.nil? && !half.nil?
+    return radius.to_f * 0.55 if r.nil?
     d = r - BOOTH_WALL_T - INTERIOR_EYE_CLEAR
     # Never past the booth centre — see INTERIOR_EYE_CLEAR. Clamping at 0 puts
     # the eye ON the centre, which still looks across the booth because the
     # target sits on the far side of it.
     d > 0.0 ? d : 0.0
+  end
+
+  # How far the door frame sits from the booth centre ALONG the door azimuth:
+  # the component of (anchor - centre) on the unit vector at `az`. `anchor` is
+  # tag_anchor's frame centre in model space, or nil; nil in, nil out, and
+  # interior_eye_dist falls back to the union box. Only the run along the
+  # normal is used, so an off-centre door (the fixture's is 24 in off) does
+  # not tilt anything -- the eye still stands on the centre line.
+  def self.door_run(centre_a, anchor, az)
+    return nil if anchor.nil? || centre_a.nil?
+    a = az.to_f * DEG
+    ((anchor[0].to_f - centre_a[0].to_f) * Math.cos(a)) +
+      ((anchor[1].to_f - centre_a[1].to_f) * Math.sin(a))
+  rescue StandardError
+    nil
   end
 
   # 35 degrees is SketchUp's own default lens and a longer one than aim's 40:
@@ -1218,7 +1245,7 @@ module WR_AutoSet
     p = plate(plate_id)
     look = (p[:aim_at] == :door && anchor) ? anchor : centre_a
     c = Geom::Point3d.new(look[0], look[1], look[2])
-    return aim_interior(view, c, radius, (door_az || FALLBACK_AZ), half) if p[:inside]
+    return aim_interior(view, c, radius, (door_az || FALLBACK_AZ), half, anchor) if p[:inside]
     # Perspective everywhere except the one plate that carries :parallel (see
     # PLATES). dist and fov are auto-set's own; aim's own defaults are the
     # legacy tool's and are left alone.
@@ -1256,18 +1283,34 @@ module WR_AutoSet
   # what interior_eye_dist and INTERIOR_EYE_CLEAR are. Moving the eye in or
   # out along a level direction does not tilt it, so the clearance fix of
   # 1.51.0 left the two-point look untouched.
-  def self.aim_interior(view, centre, radius, az, half = nil)
+  #
+  # `anchor` is the door frame's centre in model space (tag_anchor), or nil.
+  # It names the door wall plane the eye stands 22 in inside of; without it
+  # the union box does, and the union is skewed by an open leaf -- see
+  # interior_eye_dist.
+  def self.aim_interior(view, centre, radius, az, half = nil, anchor = nil)
     a   = az * DEG
     dir = Geom::Vector3d.new(Math.cos(a), Math.sin(a), 0)
-    eye = centre.offset(dir, interior_eye_dist(half, radius, az))
+    run = door_run(centre.to_a, anchor, az)
+    eye = centre.offset(dir, interior_eye_dist(half, radius, az, run))
     # The target only sets the orbit pivot: eye and target sit on the same
     # horizontal line through the centre, so the view DIRECTION is -dir
     # whatever this distance is. Moving the eye did not move the shot's aim.
     tgt = centre.offset(dir, -radius * 0.45)
     cam = view.camera
-    cam.set(eye, tgt, Geom::Vector3d.new(0, 0, 1))
+    # PROJECTION FIRST, POSITION LAST (1.55.0). Flipping a PARALLEL camera to
+    # perspective makes SketchUp keep the target and re-derive the eye so the
+    # parallel frame height still fills the lens: with 06-plan's height
+    # (radius * 2.3) and the 35-degree lens it inherits, that is
+    # 186.4 / (2 tan 17.5) = 295.6 in back from the target -- which is where
+    # the live harness found this eye on 1.53.0 AND 1.54.0 (x 331.1, then
+    # y -223.12, same 295.59 in both), 223 in outside the booth. 06-plan is
+    # the plate aimed immediately before this one and it leaves the view
+    # parallel. Setting the projection before the position means set() is the
+    # last word on where the eye is, whatever the view was doing before.
     cam.perspective = true
     cam.fov = INTERIOR_FOV
+    cam.set(eye, tgt, Geom::Vector3d.new(0, 0, 1))
     cam
   end
 

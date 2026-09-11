@@ -731,10 +731,18 @@ module WR_VerifyAutoSet
       # return the part in the wall plane — the swung leaf is 38 in off it.
       fanch = WR_AutoSet.tag_anchor(b1, 'WR-Booth-Door')
       say('door.anchor_found', !fanch.nil?, fanch.inspect)
+      # AGAINST THE SHELL, NOT THE UNION BOX. b1.bounds.min.y is -14 and that
+      # is the swung leaf, not a wall: the door wall is the shell's -Y face at
+      # y 24, and the frame (y 22..24, centre 23) sits 1 in proud of it. This
+      # check carried the exact union-box mistake 1.54.0 took out of the
+      # production code and failed a correct anchor on 1.53.0 and 1.54.0.
+      shell = b1.entities.grep(Sketchup::Group).find { |g| g.name.to_s == 'shell' }
+      shell_bb = shell ? shell.bounds : bbx
+      wall_y = shell_bb.min.y.to_f
       say('door.anchor_is_on_the_door_wall',
-          !fanch.nil? && (fanch[0][1] - b1.bounds.min.y).abs < 6.0,
-          fanch.nil? ? 'nil' : format('frame y %.1f vs booth min y %.1f',
-                                      fanch[0][1], b1.bounds.min.y))
+          !fanch.nil? && (fanch[0][1] - wall_y).abs < 6.0,
+          fanch.nil? ? 'nil' : format('frame y %.1f vs shell -Y face y %.1f (union min y %.1f is the leaf)',
+                                      fanch[0][1], wall_y, b1.bounds.min.y.to_f))
       say('door.bearing_is_a_wall_normal',
           !daz.nil? && ((daz.to_f + 360.0) % 90.0).abs < 0.01,
           "#{daz.inspect} - should be a multiple of 90 on an axis-aligned booth")
@@ -743,9 +751,24 @@ module WR_VerifyAutoSet
 
       # FRONT ON, square to the door. daz was read off the tag in section 2.
       fs = shot.call('01-front')
+      fpg = by_plate['01-front']
+      # SQUARE TO THE DOOR means the eye stands on the door wall's normal
+      # THROUGH THE FRAME -- which is what the plate is aimed at (:aim_at =>
+      # :door) and what cam.front_targets_the_door_frame asserts. This used
+      # to take the bearing from the BOOTH CENTRE, and the fixture's frame is
+      # 24 in off centre by design, so the centre reads -84.7 for an eye that
+      # is exactly on the normal (eye x 96.0 = frame x 96.0). It contradicted
+      # cam.front_is_NOT_aimed_at_the_booth_centre two checks down.
+      fbear = if fpg && fanch
+                Math.atan2(fpg.camera.eye.y - fanch[0][1],
+                           fpg.camera.eye.x - fanch[0][0]) * 180.0 / Math::PI
+              end
       say('cam.front_is_square_to_the_door',
-          !daz.nil? && ((fs['az'] - daz).abs % 360.0) < 1.0,
-          "eye at #{fs['az'].round(1)} deg, door at #{daz.to_f.round(1)} deg")
+          !daz.nil? && !fbear.nil? &&
+            (((fbear - daz).abs + 180.0) % 360.0 - 180.0).abs < 1.0,
+          "eye at #{fbear.nil? ? 'nil' : fbear.round(1)} deg from the frame, " \
+          "door normal #{daz.to_f.round(1)} deg (from the booth centre it reads " \
+          "#{fs['az'].round(1)}, which is the off-centre door, not an error)")
       say('cam.front_is_standing_height',
           (fs['z'] - floor) > 36.0 && (fs['z'] - floor) < 110.0,
           format('%.1f in above the booth floor (eye z %.1f, floor %.1f)',
@@ -803,14 +826,30 @@ module WR_VerifyAutoSet
       # A FIXED CLEARANCE OFF THE INTERIOR FACE. Benton, 10 Sep 2026: "it
       # needed to move like 2\" more inside the booth. It was kinda stuck in
       # the wall."
+      # INSIDE THE SHELL -- the real one. bbx is the UNION box (y -14..86,
+      # the swung leaf to the vent housing); "inside" that is not inside the
+      # booth. The shell group is the booth: y 24..84. Until 1.55.0 this
+      # passed an eye at y 9, 15 in outside the door wall, because the
+      # production rule stood 22 in inside the union edge, i.e. the leaf.
       say('cam.interior_eye_is_inside_the_shell',
-          ic.eye.x > bbx.min.x && ic.eye.x < bbx.max.x &&
-            ic.eye.y > bbx.min.y && ic.eye.y < bbx.max.y,
-          ic.eye.to_a.inspect)
-      iclear = (ic.eye.y - bbx.min.y).abs - WR_AutoSet::BOOTH_WALL_T
+          ic.eye.x > shell_bb.min.x && ic.eye.x < shell_bb.max.x &&
+            ic.eye.y > shell_bb.min.y && ic.eye.y < shell_bb.max.y,
+          format('eye %s vs shell x %.1f..%.1f y %.1f..%.1f', ic.eye.to_a.inspect,
+                 shell_bb.min.x.to_f, shell_bb.max.x.to_f,
+                 shell_bb.min.y.to_f, shell_bb.max.y.to_f))
+      iclear = (ic.eye.y - shell_bb.min.y).abs - WR_AutoSet::BOOTH_WALL_T
+      # 22 in, CLAMPED AT THE BOOTH CENTRE (interior_eye_dist never crosses
+      # it). The fixture's 38 in leaf drags the union centre to y 36, only 11
+      # in inside the shell's interior face, so here the clamp bites and 11
+      # is the right answer; the 22 itself is pinned offline (in2/in3). The
+      # detail names both so a reader is not left wondering why not 22.
+      iwant = [WR_AutoSet::INTERIOR_EYE_CLEAR,
+               (bc[1].to_f - shell_bb.min.y.to_f) - WR_AutoSet::BOOTH_WALL_T].min
       say('cam.interior_eye_clears_the_interior_face',
-          (iclear - WR_AutoSet::INTERIOR_EYE_CLEAR).abs < 0.51,
-          format('%.2f in clear, wants %.2f', iclear, WR_AutoSet::INTERIOR_EYE_CLEAR))
+          (iclear - iwant).abs < 0.51,
+          format('%.2f in clear of the shell face, wants %.2f (= min(%.0f, centre-to-face %.2f))',
+                 iclear, iwant, WR_AutoSet::INTERIOR_EYE_CLEAR,
+                 (bc[1].to_f - shell_bb.min.y.to_f) - WR_AutoSet::BOOTH_WALL_T))
       # THE TWO-POINT PERSPECTIVE. Benton: "I like the interior camera angle.
       # Its a good feature honestly." Level direction + world-vertical up +
       # perspective is what keeps real verticals parallel on screen. Each is

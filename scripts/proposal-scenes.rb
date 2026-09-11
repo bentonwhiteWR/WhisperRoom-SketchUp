@@ -200,13 +200,20 @@ module WR_ProposalScenes
     eye = centre.offset(dir, dist)
     up  = (el_deg.abs >= 88.0) ? Geom::Vector3d.new(0, 1, 0) : Geom::Vector3d.new(0, 0, 1)
     cam = view.camera
-    cam.set(eye, centre, up)
     if persp
+      # PROJECTION BEFORE POSITION. Flipping a parallel camera to perspective
+      # makes SketchUp keep the target and re-derive the eye from the parallel
+      # frame height, so a set() done BEFORE the flip is overwritten by it --
+      # measured live on wr-autoset's interior plate, 11 Sep 2026: an eye set
+      # 27 in from the target came back 295.6 in from it. set() goes last so
+      # it is the last word, whatever projection the view was in.
       cam.perspective = true
       cam.fov = (fov.nil? ? 40.0 : fov.to_f)
+      cam.set(eye, centre, up)
     else
+      cam.set(eye, centre, up)
       cam.perspective = false
-      cam.height = radius * 2.3
+      cam.height = radius * 2.3     # last: set() can reset the frame height
     end
     cam
   end

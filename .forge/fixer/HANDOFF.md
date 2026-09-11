@@ -1,51 +1,56 @@
-# HANDOFF — roof-mount (rv = 1) refused a booth whose cable walls had been moved
-
-**Outcome: fixed and proven outside SketchUp.** `roof_vent_complaints` was doing an
-identity check on slot ids where the product rule is a count. Shipped as **1.19.14**.
+# HANDOFF — Fixer, AUTO-SET live failures on 1.54.0 — 11 Sep 2026
 
 ## Produced
+- `scripts/wr-autoset.rb`: `aim_interior` sets projection/fov BEFORE `set()`
+  (the parallel→perspective flip was re-deriving the eye 295.59 in from the
+  target); new `door_run`; `interior_eye_dist(half, radius, az, frame_run)`
+  takes the door-wall plane from the frame anchor, union box only as fallback;
+  `aim_plate` hands the anchor to `aim_interior`.
+- `scripts/proposal-scenes.rb`: `aim` perspective branch — projection/fov
+  before `set()`. Parallel branch unchanged.
+- `scripts/rbtest-autoset.py`: `FakeCamera` models the flip, `FakeView.new(true)`
+  is the post-plan parallel view, `cam()` takes an anchor; checks `in11 cm19
+  in12 in12b in13 in14 in14b`; 164 → 171, all green; 5 mutants killed by name
+  (`.forge/fixer/autoset-1.55/mutants.py` re-runs them).
+- `.forge/builder/verify-autoset.rb`: `door.anchor_is_on_the_door_wall` and
+  the two `cam.interior_eye_*` checks measure the fixture's `shell` group, not
+  the union bbox; `cam.front_is_square_to_the_door` measures the bearing from
+  the frame, not the booth centre. Parsed clean with `rbparse.py`.
+- `DEVLOG.md` entry (top). `.forge/fixer/autoset-1.55/ROOTCAUSE.md`.
+- **VERSION NOT bumped, NOTHING pushed** — GOAL.md (orchestrator, 11 Sep):
+  two Fixers concurrent, the orchestrator bumps once and pushes after both
+  land. Committed locally, only my files staged; `wr-overlays.rb`,
+  `build-booth-components.rb`, `rbtest-overlays.py`, `GOAL.md` and the other
+  Fixer's `.forge` files were left untouched and unstaged.
 
-- `C:\Users\bento\Documents\Claude\Sketchup\scripts\booth-from-link.rb` — the fix.
-  `roof_vent_complaints` now counts CBL packs across every outer panel slot and
-  compares that to the vent-set count; new `outer_panel_ids`, and `vent_slot_ids`
-  refactored onto a shared `outer_panels` reader. Console + messagebox reworded.
-  `RM_HALF_APPLY_ABORTS`'s header comment rewritten to describe a count.
-- `C:\Users\bento\Documents\Claude\Sketchup\scripts\rbtest-boothlink-cbl.py` — group 5
-  is the reported payload (stubbed slot lists); group 4's assertions loosened off
-  exact line counts onto content.
-- `C:\Users\bento\Documents\Claude\Sketchup\.forge\fixer\rm-moved-cbl\repro-moved-cbl.py`
-  — the same design against the REAL `wr-booth-data.rb`, plus the part-translation
-  check. This is the file to re-run if the fence is ever touched again.
-- `C:\Users\bento\Documents\Claude\Sketchup\DEVLOG.md` — 1.19.14 entry.
-- `C:\Users\bento\Documents\Claude\Sketchup\scripts\wr_tools\VERSION` — 1.19.13 → 1.19.14.
-
-## Read first
-
-- The portal is the authority and it is READ-ONLY from here:
-  `C:\Users\bento\Documents\Claude\WhisperRoomQuote\booth-builder.html` —
-  `applyDesign`'s re-seat block at 3496-3536 (`(VNT + CBL) === ventSets`),
-  `applyRoofVent` at 4195 (position-blind), `doSwap` at 4360-4405 (moves packs
-  between any two same-module slots). Nothing in that repo was changed.
-- The vent-set count equals `base-bom.json`'s `F01` for all 25 layouts — verified,
-  not assumed (`C:\Users\bento\Documents\Claude\WhisperRoomQuote\lib\pl-data\`).
-- `scripts/rbparse.py` is the real syntax check. `rbcheck.py` is a bracket counter
-  and is not evidence of anything.
+## Read-first
+1. `.forge/fixer/autoset-1.55/ROOTCAUSE.md` — the arithmetic that decided it.
+2. DEVLOG top entry.
+3. `scripts/wr-autoset.rb` `aim_interior` / `interior_eye_dist` / `door_run`.
 
 ## Assumptions
+- **A1 (load-bearing, unrun):** SketchUp `Camera#perspective = true` on a
+  parallel camera keeps the target and re-derives the eye from `height` and
+  the current `fov`. Reproduces the live number to 2 dp on the 1.53.0 and
+  1.54.0 runs. Everything else follows from it.
+- A2: the fixture's `shell` group bounds are model-space (b1 has an identity
+  transform — boxes drawn at absolute coords inside `add_group`). If not, the
+  three shell-based checks fall back to `bbx` and read as the union again.
+- A3: a real booth's DRFRM part lies in the door wall plane, so `door_run`
+  names that plane on real booths too (observed on the fixture only).
+- A4: production `apply` was not shipping the slid eye (double aim + select
+  first). Derived, not observed — see ROOTCAUSE §3a.
 
-- **assumed** — that the payload Benton hit is equivalent to the one reconstructed
-  here. The actual `sales.whisperroom.com/q/W-…` link was never supplied. The
-  reconstruction reproduces his messagebox text verbatim ("1 of 3 vent slot(s)…"
-  with N0 and N2 as plain `STDWL46`), which is strong but not the same as the link.
-- **assumed** — that a SURPLUS of cable walls (more than ventSets) should not be
-  refused. It is unreachable from the builder and refusing it risks a second
-  too-strict fence; it is now not checked at all. Say so if that is wrong.
-
-## Open questions
-
-- **Nothing was run inside SketchUp.** No `ruby.exe` on this machine and no live
-  bridge. The fence, the layout reader and the part translation were exercised
-  through SketchUp's own CRuby 3.2 via `rbparse.py`; `build_booth` actually placing
-  those parts in a model is unrun. Benton re-running his own link is the last check.
-- Reaching Gabe still takes `git pull` + `install-plugin.py` + restart on his
-  machine (or the panel's **Update now**). Pushing is not installing.
+## Open-questions
+- **Benton must re-run `verify-autoset.rb` from File > New.** Expect 125
+  checks. Watch: `door.anchor_is_on_the_door_wall` (frame y 23.0 vs shell
+  face 24.0), `cam.front_is_square_to_the_door` (−90.0 from the frame),
+  `cam.interior_eye_is_inside_the_shell` (eye ≈ [72.0, 36.0, 42.0]),
+  `cam.interior_eye_clears_the_interior_face` (11.00, clamped, wants 11.00).
+  `cam.interior_looks_dead_level` should still read a pure +Y direction of
+  ~72.5 in (36.47 + 36.0), not 295.59.
+- If the interior eye still stands 295.59 in from its target, A1 is wrong:
+  the next thing to try is re-issuing `cam.set` AFTER the flip as well.
+- Should the never-past-the-centre clamp use something better than the union
+  centre? On a booth with an open leaf it bites early (fixture: 11 in instead
+  of 22). Not changed here — a taste call for Benton, and the 22 is his.
