@@ -25,6 +25,12 @@
 //     is ORANGE' FAILS (the D5 signal would go quiet);
 //   the no-named-walls branch removed           -> that cell's check FAILS;
 //   id="gwrap" or id="autosum" renamed          -> the literal-id check FAILS.
+// 1.48.1 added a fifth job: the window now OPENS on a model with no scenes
+// (AUTO-SET, which creates them, lives inside it), so the zero-row grid and
+// the disabled Export button are real first-thing-you-see states. Both are
+// drawn here from an empty ST and checked for what they SAY. Mutation-checked
+// when added, RUN: see the block at the bottom of this file for the four
+// mutants and the checks that killed them.
 'use strict';
 const fs = require('fs');
 const vm = require('vm');
@@ -48,7 +54,7 @@ if (!blocks.length) { console.log('FAIL: no <script> blocks'); process.exit(1); 
 // Four rows, four cases: a wall answer with the names behind the tooltip, the
 // ORANGE case (a loose Untagged callout still showing -- the D5 class of
 // defect), a row whose state was not read, and a model with no named walls.
-const ST = { deep: true,
+const ST_FULL = { deep: true,
              rows: [ { n: 1, scene: 'Scene 1', mode: 'image',  file: '1_Scene 1.png',
                        walls: { total: 4, hidden: 2, names: ['Room Wall 1', 'Room Wall 3'] },
                        annots: { label: 'dims + doors', warn: false, loose: 0,
@@ -70,7 +76,18 @@ const ST = { deep: true,
                         missing: false, label: 'Walls', fill: '' } ],
              mode: 'draft', undo: null,
              materials: ['0043_SaddleBrown', '0099_LightSteelBlue', 'Wood Tiles Shiny 03 100cm'] };
-function prepare(js, fname) {
+
+// THE ZERO-SCENE MODEL (1.48.1). Until 1.48.1 WR_ProposalPackage.run refused
+// to OPEN on a model with no scenes -- so this state could not be reached and
+// the dialog was never drawn with it. It is now the first thing seen on a
+// fresh model with a booth placed, which is precisely the model AUTO-SET
+// exists to serve, so it is drawn here and checked: the grid must say what to
+// do next, and the Export button must be disabled WITH ITS REASON ON SCREEN
+// rather than merely failing when clicked.
+const ST_EMPTY = { deep: false, rows: [], slots: ST_FULL.slots,
+                   mode: 'draft', undo: null, materials: [] };
+
+function prepare(js, fname, ST) {
   let code = js.replace('#{st.to_json}', JSON.stringify(ST))
                .replace('#{fname.to_json}', JSON.stringify(fname));
   code = code.replace(/#\{[^}]*\}/g, '0');   // any other interpolation
@@ -118,7 +135,7 @@ let failed = 0;
 {
   const read = new Set();
   for (const b of blocks) {
-    const code = prepare(b, 'x');
+    const code = prepare(b, 'x', ST_FULL);
     for (const m of code.matchAll(/\b(?:g|byId)\(\s*["']([A-Za-z0-9_-]+)["']\s*\)/g)) read.add(m[1]);
     for (const m of code.matchAll(/getElementById\(\s*["']([A-Za-z0-9_-]+)["']\s*\)/g)) read.add(m[1]);
   }
@@ -139,7 +156,7 @@ for (const fname of ['NewTemplate', '']) {          // saved-looking and unsaved
   const window = { addEventListener() {}, document };
   const ctx = { document, window, console, setTimeout, clearTimeout, JSON, String, Array, Object, Math };
   try {
-    blocks.forEach((b, i) => vm.runInNewContext(prepare(b, fname), ctx, { filename: 'dialog-block-' + i + '.js' }));
+    blocks.forEach((b, i) => vm.runInNewContext(prepare(b, fname, ST_FULL), ctx, { filename: 'dialog-block-' + i + '.js' }));
     const need = ['applyState', 'setDir', 'showPrompt', 'logLine', 'runStarted', 'runFinished', 'onerror'];
     const missing = need.filter(k => typeof window[k] !== 'function');
     if (missing.length) { failed++; console.log('FAIL (fname=' + JSON.stringify(fname) + '): missing window functions: ' + missing.join(', ')); }
@@ -196,5 +213,80 @@ for (const fname of ['NewTemplate', '']) {          // saved-looking and unsaved
     if (absent.length) console.log('     ids asked for but absent from the HTML: ' + absent.join(', '));
   }
 }
+
+// ---- THE ZERO-SCENE WINDOW (1.48.1) --------------------------------------
+// Ruby no longer refuses to open on a model with no scenes, because AUTO-SET
+// -- the thing that CREATES those scenes -- lives inside this window. So the
+// empty grid is now a real, first-thing-you-see state and it has to hold up:
+// say what to do next, and disable what is meaningless WITH THE REASON ON
+// SCREEN. Mutation-checked when added, RUN not assumed:
+//   the empty-body branch in draw() removed        -> 'the empty grid says what
+//     to do next' and 'names AUTO-SET' FAIL (the table is an empty box);
+//   the whynot text left blank / never shown       -> 'the disabled Export
+//     button carries its reason on screen' FAILS;
+//   g("export").disabled dropped back to `running` -> 'Export is disabled with
+//     no scenes' FAILS (the button would refuse only after a click).
+{
+  const made = {};
+  const asked = [];
+  const document = {
+    getElementById(id) { asked.push(id); return ids.has(id) ? (made[id] || (made[id] = el(id))) : null; },
+    querySelectorAll() { return []; }, querySelector() { return null; },
+    body: el('body'), addEventListener() {}, execCommand() { return true; },
+    createElement() { return el('x'); }
+  };
+  const window = { addEventListener() {}, document };
+  const ctx = { document, window, console, setTimeout, clearTimeout, JSON, String, Array, Object, Math };
+  try {
+    blocks.forEach((b, i) => vm.runInNewContext(prepare(b, '', ST_EMPTY), ctx, { filename: 'empty-block-' + i + '.js' }));
+    const body = (made['body'] || {}).innerHTML || '';
+    const why  = made['whynot'] || {};
+    const xb   = made['export'] || {};
+    const asum = (made['autosum'] || {}).textContent || '';
+    const want = [
+      ['zero scenes: the empty grid says what to do next, not nothing',
+       () => /no scenes yet/i.test(body)],
+      ['zero scenes: the empty grid names AUTO-SET as the way in',
+       () => /AUTO-SET/.test(body)],
+      ['zero scenes: it does NOT blame the search box when the search is empty',
+       () => !/No scene matches/.test(body)],
+      ['zero scenes: Export is disabled', () => xb.disabled === true],
+      ['zero scenes: the disabled Export button carries its reason ON SCREEN',
+       () => /AUTO-SET/.test(why.textContent || '') && why.style.display !== 'none'],
+      ['zero scenes: the reason is on the button tooltip too',
+       () => /AUTO-SET/.test(xb.title || '')],
+      ['zero scenes: the AUTO-SET bar still says there are none yet',
+       () => /no scenes yet/i.test(asum)]
+    ];
+    for (const [label, fn] of want) {
+      if (fn()) console.log('ok   ' + label);
+      else { failed++; console.log('FAIL ' + label + '\n     body: ' + body.slice(0, 600)
+                                   + '\n     whynot: ' + JSON.stringify(why.textContent)
+                                   + ' display=' + JSON.stringify(why.style && why.style.display)
+                                   + '\n     export.disabled=' + xb.disabled
+                                   + ' title=' + JSON.stringify(xb.title)
+                                   + '\n     autosum: ' + JSON.stringify(asum)); }
+    }
+    // A SEARCH THAT MATCHES NOTHING IS A DIFFERENT EMPTY. Same zero-row table,
+    // and pointing it at AUTO-SET would be wrong: the scenes exist, the filter
+    // hid them. Driven by typing into the real search box and redrawing.
+    const q = made['q'];
+    if (q && typeof window.applyState === 'function') {
+      q.value = 'zzzz-no-such-scene';
+      window.applyState(ST_FULL);
+      const b2 = (made['body'] || {}).innerHTML || '';
+      if (/No scene matches/.test(b2) && !/AUTO-SET/.test(b2))
+        console.log('ok   a search matching nothing says so, and does NOT point at AUTO-SET');
+      else { failed++; console.log('FAIL filtered-empty grid: ' + b2.slice(0, 600)); }
+      q.value = '';
+    } else { failed++; console.log('FAIL could not reach the search box to test the filtered-empty grid'); }
+  } catch (e) {
+    failed++;
+    console.log('FAIL (zero scenes): ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e));
+    const absent = [...new Set(asked.filter(id => !ids.has(id)))];
+    if (absent.length) console.log('     ids asked for but absent from the HTML: ' + absent.join(', '));
+  }
+}
+
 console.log(failed ? 'FAIL - the dialog script does not survive the heredoc' : 'PASS - dialog script runs as the browser receives it');
 process.exit(failed ? 1 : 0);

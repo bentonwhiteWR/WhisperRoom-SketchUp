@@ -61,6 +61,18 @@ added — each of these reintroduced bugs makes it FAIL:
     launch_decision's not-running early return inverted   -> launch1-6 FAIL
     launch_decision reset/decline swapped                 -> launch4-6 FAIL
 
+THE OPEN GATE (1.48.1). run() refused to open on a model with ZERO SCENES,
+and AUTO-SET -- the feature that creates a booth's scenes -- lives inside the
+window that refusal was guarding, so the state the feature exists for could
+not reach it. `open_decision` is the pure replacement and takes the page count
+ONLY so a test can prove the count does not decide. Mutation-checked when
+added, RUN not assumed -- each of these makes the NAMED check fail:
+
+    open_decision refuses when page_count is zero        -> open1 FAIL
+    the pages.count.zero? refusal put back into run()    -> open-gate FAIL
+    the 'Set up the five proposal plates' pointer back   -> open-gate FAIL
+    plan_names returns nil on an empty scene list        -> pn7 FAIL
+
 Do that again if you ever doubt it.
 
 THE LIFECYCLE HALF (added 1.9.6, 30 Aug 2026)
@@ -254,6 +266,7 @@ module WR_ProposalPackage
 %(autorun)s
 
 %(launch)s
+%(open_gate)s
 
 %(honoured_size)s
 
@@ -454,6 +467,20 @@ module WR_ProposalPackage
     [true,  true,  :reset  ],   # flag set, user confirmed stale: clear + open
     [true,  false, :decline],   # flag set, user declined: leave it alone
     [true,  nil,   :decline],   # no answer counts as declined
+  ]
+
+  # THE OPEN GATE (1.48.1). run() used to refuse a model with ZERO SCENES --
+  # and AUTO-SET, the feature that creates a booth's scenes, lives inside the
+  # window that refusal was guarding. The page count is passed in on purpose:
+  # it is the argument that must NOT decide, so every row below with a model
+  # present expects :open no matter what the count is.
+  OPEN_CASES = [
+    # [model_present, page_count, expected]
+    [true,  0,   :open  ],   # THE BUG: a fresh model with a booth and no scenes
+    [true,  1,   :open  ],
+    [true,  13,  :open  ],
+    [false, 0,   :refuse],   # no active model: nothing to open the window onto
+    [false, 13,  :refuse],   # ...and a page count cannot conjure one
   ]
 
   CASES = [
@@ -659,6 +686,11 @@ module WR_ProposalPackage
       got = launch_decision(running, confirmed)
       out << (got == want ? "launch#{i + 1} ok" : "launch#{i + 1} FAIL got #{got}")
     end
+    OPEN_CASES.each_with_index do |(present, pages, want), i|
+      got = open_decision(present, pages)
+      out << (got == want ? "open#{i + 1} ok" :
+                "open#{i + 1} FAIL model_present=#{present.inspect} pages=#{pages} got #{got}")
+    end
 
 
     # ================================================================
@@ -769,6 +801,10 @@ module WR_ProposalPackage
                      { 'n' => 3, 'scene' => 'X', 'mode' => 'image' }])
     out << (pe[1] == '1_---.png' && pe[2] == '2_X.png' && pe[3] == '3_X.png' ?
               'pn6 ok' : 'pn6 FAIL ' + pe.inspect)
+    # NO SCENES AT ALL (1.48.1). The window opens on this model now, so every
+    # pure method behind the grid has to survive the empty list rather than
+    # relying on a gate upstream to have turned it away.
+    out << (plan_names([]) == {} ? 'pn7 ok' : 'pn7 FAIL ' + plan_names([]).inspect)
 
     # ================================================================
     # 1.47.0 -- THE CLIENT-SAFE MODE IS GONE, AND STAYS GONE. annot1-7 used
@@ -1089,10 +1125,12 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'auto1 ok | auto2 ok | auto3 ok | '
           'launch1 ok | launch2 ok | launch3 ok | launch4 ok | launch5 ok | '
           'launch6 ok | '
+          # 1.48.1 -- the zero-scene model opens; the page count does not decide.
+          'open1 ok | open2 ok | open3 ok | open4 ok | open5 ok | '
           # 1.9.6 -- the lifecycle half.
           'gate1 ok | gate2 ok | gate3 ok | gate4 ok | '
           'sum1 ok | sum2 ok | sum3 ok | lost1 ok | lost2 ok | lost3 ok | '
-          'pn1 ok | pn2 ok | pn3 ok | pn4 ok | pn5 ok | pn6 ok | '
+          'pn1 ok | pn2 ok | pn3 ok | pn4 ok | pn5 ok | pn6 ok | pn7 ok | '
           'gone1 ok | '
           'busy1 ok | busy2 ok | busy3 ok | '
           # 1.10.7 -- the manifest's pure half.
@@ -1122,6 +1160,7 @@ def main():
         # it no word boundary to land on. No other method starts 'autorun'.
         'autorun':     rbtest.method_source(SRC, 'autorun'),
         'launch':      rbtest.method_source(SRC, 'launch_decision'),
+        'open_gate':   rbtest.method_source(SRC, 'open_decision'),
         'ev_consts':   '\n'.join(const_line(c) for c in
                                   ('EV_F_NUMBER', 'EV_ISO', 'EV_INTERIOR',
                                    'EV_ROOM', 'EV_MIN', 'EV_MAX', 'INTERIOR_RE')),
@@ -1194,6 +1233,33 @@ def main():
         return 1
     print('  gone2 ok - no ANNOTATION control, no g("annot"), no '
           'annotations_hidden_in_images writer, no @client_safe')
+
+    # open-gate (1.48.1) -- CHECKED ON THE SOURCE, because run() itself is not
+    # pure and cannot be run offline. The zero-scene refusal it used to carry
+    # is the bug: AUTO-SET creates a booth's scenes and lives INSIDE the
+    # window that refusal was guarding, so a fresh model with a booth and no
+    # scenes -- the exact case AUTO-SET exists for -- could not open it. The
+    # open1-5 cases above prove open_decision ignores the page count; these
+    # two prove nothing has quietly re-added a count test or the old wording
+    # AROUND it, which open_decision alone could never see.
+    run_src = src[src.index('def self.run' + chr(10)):]
+    run_src = run_src[:run_src.index('def self.html(')]
+    bad = []
+    if 'pages.count.zero?' in run_src or 'pages.empty?' in run_src:
+        bad.append('run() tests the page count again -- the zero-scene refusal is back')
+    if 'five proposal plates' in src:
+        bad.append("the old 'Set up the five proposal plates' pointer is back "
+                   '-- AUTO-SET is the way in now')
+    # Only inside run(): the phrase is legitimate in the dialog's own empty
+    # state, where it is the heading over the AUTO-SET instruction. In run()
+    # it can only be the refusal box.
+    if 'This model has no scenes' in run_src:
+        bad.append('the "This model has no scenes" refusal box is back in run()')
+    if bad:
+        print('  open-gate FAIL %s' % '; '.join(bad))
+        return 1
+    print('  open-gate ok - run() no longer refuses a model with no scenes, '
+          'and nothing points at the legacy five-plates tool')
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
     print('classify_render + read_signal + entry guards + exposure, mode '

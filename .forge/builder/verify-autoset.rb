@@ -19,6 +19,17 @@
 # erased and the scene you were on is reselected. If cleanup itself fails it
 # says so by name rather than leaving you to find out.
 #
+# 1.48.1 ADDED SECTION 0, THE ZERO-SCENE MODEL. AUTO-SET creates a booth's
+# proposal scenes and lives inside the proposal-package window, which until
+# 1.48.1 refused to open on a model with no scenes — so the feature was locked
+# behind the door it unlocks. Section 0 walks the whole open path on a model
+# with ZERO pages and ends by creating the first scenes from nothing, then
+# removes them so every check after it runs on exactly the model it used to.
+# IT OPENS AND CLOSES THE REAL PROPOSAL-PACKAGE WINDOW — expect it to appear
+# and vanish. It runs ONLY if the model has no scenes when you load this (it
+# will not delete scenes you own to manufacture that), and prints SKIPPED
+# otherwise: use File > New to cover it.
+#
 # WHAT IT CANNOT CHECK. Whether a plate LOOKS right — framing is a taste call
 # and always was. It checks the mechanism: the names, the marks, the stamp, what
 # each scene hides, what survives a re-run, and what Remove leaves alone.
@@ -176,6 +187,115 @@ module WR_VerifyAutoSet
       @model.commit_operation
 
       loose_ents = [t_l1, t_l2]
+
+      # ------------------ 0. THE ZERO-SCENE MODEL (1.48.1) ---------------
+      #
+      # THE BUG THIS SECTION EXISTS FOR. WR_ProposalPackage.run refused to
+      # open at all on a model whose `pages` was empty, and pointed at 'Set up
+      # the five proposal plates'. But AUTO-SET -- the feature that CREATES a
+      # booth's proposal scenes -- lives INSIDE that window. So a fresh model
+      # with a booth placed and no scenes yet, exactly the state AUTO-SET
+      # exists to solve, could not reach it. Benton, within minutes of 1.48.0:
+      # "but I cant open up proposal package if there isnt any scenes".
+      #
+      # The fixture above makes GEOMETRY ONLY -- no pages -- so right here the
+      # model still has however many scenes it had when you loaded this. The
+      # section runs only if that is ZERO, because it must not delete scenes
+      # you own to manufacture the condition; on a model that already has
+      # scenes it prints SKIPPED and records nothing, so the run stays clean.
+      # File > New gives you the model it wants.
+      #
+      # IT OPENS AND CLOSES THE REAL PROPOSAL-PACKAGE WINDOW. That is the
+      # point: the door being unlocked cannot be proven from a pure method.
+      # It closes it again before moving on.
+      if pages.count.zero?
+        say('empty.decision_is_open',
+            WR_ProposalPackage.open_decision(true, 0) == :open,
+            WR_ProposalPackage.open_decision(true, 0).inspect)
+        say('empty.no_model_is_still_refused',
+            WR_ProposalPackage.open_decision(false, 0) == :refuse)
+
+        # Everything the window reads on OPEN, against a model with no pages.
+        # The old `return` was doing defensive duty for all of this.
+        say('empty.gather_is_an_empty_list',
+            WR_ProposalPackage.gather(@model) == [],
+            WR_ProposalPackage.gather(@model).inspect)
+        say('empty.plan_names_of_nothing_is_nothing',
+            WR_ProposalPackage.plan_names([]) == {})
+        est = WR_ProposalPackage.state(@model)
+        say('empty.state_builds', est.is_a?(Hash) && est['rows'] == [],
+            est.is_a?(Hash) ? est.keys.inspect : est.class.to_s)
+        say('empty.state_still_carries_the_material_slots',
+            est['slots'].is_a?(Array) && !est['slots'].empty?,
+            est['slots'].inspect)
+        say('empty.nothing_to_undo_yet', est['undo'].nil?, est['undo'].inspect)
+        ers = WR_AutoSet.row_states(@model)
+        say('empty.row_states_reports_zero_scenes',
+            ers['_n'] == 0 && ers['_deep'] == false, ers.inspect)
+
+        # The HTML the window is built from, on this state. The empty grid has
+        # to SAY WHAT TO DO NEXT and the disabled Export has to carry its
+        # reason -- but the strings live in the JS, so what is checked here is
+        # that the document builds and still carries the elements that render
+        # them. jstest-proposal-dialog.js runs the script itself and asserts
+        # the text.
+        ehtml = WR_ProposalPackage.html('(verify)', est, '', '2400', 'Ask', true, true, '')
+        say('empty.dialog_html_builds', ehtml.to_s.length > 1000, ehtml.to_s.length.to_s)
+        say('empty.dialog_carries_the_disabled_reason_element',
+            ehtml.to_s.include?('id="whynot"'))
+        say('empty.dialog_carries_the_autoset_bar',
+            ehtml.to_s.include?('id="autoset"'))
+
+        # AUTO-SET's own payload, resolved against a model with no scenes --
+        # the popover has to draw before there is anything to draw beside.
+        ap = WR_ProposalPackage.autoset_payload(@model, B2)
+        say('empty.autoset_payload_builds', ap['plan'] && ap['plan']['rows'],
+            ap['note'].inspect)
+        say('empty.autoset_plan_has_no_existing_scenes',
+            ap['plan']['existing'] == 0 &&
+              ap['plan']['rows'].none? { |r| r['exists'] },
+            ap['plan']['existing'].inspect)
+
+        # THE DOOR ITSELF. run() on a model with zero scenes must open a live
+        # window rather than a message box.
+        begin
+          WR_ProposalPackage.run
+          dlg = WR_ProposalPackage.instance_variable_get(:@dlg)
+          say('empty.the_window_OPENS_with_no_scenes',
+              WR_ProposalPackage.dialog_alive?(dlg), dlg.inspect)
+          (dlg.close rescue nil) if dlg
+          say('empty.the_window_closes_again',
+              !WR_ProposalPackage.dialog_alive?(dlg))
+        rescue StandardError => e
+          say('empty.the_window_OPENS_with_no_scenes', false,
+              "#{e.class}: #{e.message}")
+        end
+
+        # AND THE POINT OF ALL OF IT: the first scenes in the model, made from
+        # nothing, by the feature that was locked behind the door. Removed
+        # again immediately so the model is back to zero pages and every check
+        # below runs exactly as it did before this section existed.
+        n0 = pages.count
+        eok, emsg, = WR_AutoSet.apply(@model, b2, { 'mode' => 'create', 'renders' => 1 })
+        say('empty.AUTOSET_creates_the_first_scenes_from_nothing', eok, emsg)
+        say('empty.five_plates_where_there_were_none', pages.count == n0 + 5,
+            "#{n0} -> #{pages.count}")
+        etok = b2.get_attribute('WR_AutoSet', 'token', nil)
+        say('empty.the_new_scenes_are_stamped',
+            !etok.nil? && WR_AutoSet.token_pages(pages.to_a, etok).length == 5,
+            etok.inspect)
+        est2 = WR_ProposalPackage.state(@model)
+        say('empty.the_grid_now_has_rows_to_review',
+            est2['rows'].length == 5 && est2['rows'].all? { |r| r['file'].to_s != '' ||
+                                                                r['mode'] == 'skip' },
+            est2['rows'].map { |r| [r['n'], r['mode'], r['file']] }.inspect)
+        WR_AutoSet.apply(@model, b2, { 'mode' => 'remove' })
+        say('empty.section_left_the_model_as_it_found_it', pages.count == n0,
+            "#{pages.count} scene(s), token=" +
+              b2.get_attribute('WR_AutoSet', 'token', nil).inspect)
+      else
+        puts "  SKIP empty-model section — this model already has "              "#{pages.count} scene(s). It is NOT exercised. Run this in a "              'fresh Untitled model (File > New) to cover the zero-scene path.'
+      end
 
       # A scene Benton made by hand, present throughout. Nothing in this
       # feature may touch it — not update, not remove, not undo.

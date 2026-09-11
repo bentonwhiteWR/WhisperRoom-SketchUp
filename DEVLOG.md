@@ -1,6 +1,111 @@
 # DEVLOG
 
 ## 2026-09-10
+### AUTO-SET was locked behind the door it unlocks — the proposal package opens with no scenes — 1.48.1
+
+Benton, minutes after 1.48.0 shipped: *"but I cant open up proposal package if
+there isnt any scenes"*. He is right, and it made the whole feature
+unreachable in the one state it exists for.
+
+**The bug.** `WR_ProposalPackage.run` opened with
+
+```ruby
+if model.nil? || model.pages.count.zero?
+  UI.messagebox("This model has no scenes.\n\nAdd scenes first …, or run
+                 'Set up the five proposal plates'.")
+  return
+end
+```
+
+AUTO-SET is the thing that CREATES a booth's proposal scenes, and it lives
+inside that window as a bar and a popover — deliberately, so the grid it
+fills is the grid you review. So on a fresh model with a booth placed and no
+scenes yet, exactly the case AUTO-SET was built for, the door was locked from
+the inside. The gate long predates AUTO-SET (it is the same scene-driven
+refusal `list-scenes.rb`, `export-scenes.rb` and the rest still carry, and
+still should) and nobody revisited it when the feature landed. Its message
+even pointed at `proposal-scenes.rb`, whose own `@title` now reads
+*"Set up the five proposal plates (legacy — fixed five, no booth)"*.
+
+The front end was already written for the empty model — `drawRows` has said
+`"no scenes yet — pick a booth and click once"` in the AUTO-SET bar since
+1.48.0 — which is what made this read as a leftover rather than a decision.
+
+**The fix, and the part that was actual work.** The refusal is now
+`open_decision(model_present, _page_count)`, a pure method beside
+`launch_decision`: a nil model is still refused by name, a page count of zero
+is not. **The page count is still passed in on purpose** — it is the argument
+that must NOT decide, and `rbtest-proposal.py` asserts `:open` for 0, 1 and
+13 pages (`open1`–`open5`).
+
+Deleting a `return` exposes whatever it was defending, so every path that
+runs on open or on Rescan was read rather than guessed at:
+
+- `gather` → `[]`, `plan_names([])` → `{}`, `slot_rows` reads materials not
+  pages, `WR_AutoSet.row_states` already returns `{'_n'=>0,'_deep'=>false}`
+  on `pages.empty?`, `undo_info` is a module record. `state` composes those
+  and needed nothing.
+- Every callback that resolves a row by table index (`sunopen`, `wallsopen`,
+  `annotsopen`, `mark`, `bulk`, `activate`, `reorder`, `sweep_pages`) already
+  raises *"scene N is gone — hit Rescan"* or guards `if pg` — and none of
+  them is reachable with no rows on screen anyway.
+- The export is the one thing that genuinely needs scenes. `start_run`
+  already refused by name ("No scenes are marked Image or Render"), and that
+  stands; what changed is that you now see why **before** clicking.
+- `WR_AutoSet.plan` / `autoset_payload` were already empty-safe (`.max` over
+  an empty list is nil, `token_pages([])` is `[]`), which is what lets the
+  popover draw on a model with nothing in it.
+
+**The empty window says what to do next.** The zero-row grid is now a real
+first-thing-you-see state, so it gets the file's own treatment rather than an
+empty box under eight headings: a note pointing at AUTO-SET by name. Two
+different empty states, and deliberately not the same sentence — *no scenes
+in the model* points at AUTO-SET; *a search that matched nothing* points at
+the search box. The disabled **Export package** button carries its reason on
+screen next to it (`id="whynot"`) and in its tooltip, both for the no-scenes
+case and the everything-is-Skip case. `$pmsg` is untouched: the progress line
+owns the running story and two places narrating one run would contradict
+each other.
+
+**Why 1.48.1 and not 1.49.0.** Nothing new is on offer. A feature that
+shipped at 1.48.0 is made reachable, and the only UI added exists to explain
+a state that previously could not be reached at all. Corrective, so the
+third digit.
+
+**Verified offline, and the mutants were run, not assumed.** `rbparse` 75/75;
+`rbtest-proposal.py` 139 checks (5 new: `open1`–`open5`, plus `pn7` for
+`plan_names([])`, plus a new `open-gate` source check);
+`rbtest-autoset.py` 63 and every other `rbtest-*` unchanged and passing;
+`node --check` on the unescaped dialog script; `jstest-proposal-dialog.js`
+PASS with 8 new zero-scene checks. Eight mutants, each killed by the check
+named for it:
+
+| reintroduced bug | check that failed |
+|---|---|
+| `open_decision` refuses when the page count is zero | `open1` |
+| `pages.count.zero?` refusal put back into `run()` | `open-gate` |
+| the "Set up the five proposal plates" pointer back | `open-gate` |
+| `plan_names` returns nil on an empty list | `pn7` |
+| the empty-grid branch removed from `draw()` | *the empty grid says what to do next* / *names AUTO-SET* |
+| the `whynot` reason left blank | *the disabled Export button carries its reason ON SCREEN* |
+| `export.disabled` back to `running` alone | *zero scenes: Export is disabled* |
+| the filtered-empty grid pointed at AUTO-SET too | *a search matching nothing says so* |
+
+**UNVERIFIED UNTIL BENTON RUNS IT.** `.forge/builder/verify-autoset.rb` gains
+**section 0**, 20 live checks on a model with zero pages: the decision, the
+whole open path (`gather`, `plan_names`, `state`, `row_states`, the built
+HTML, `autoset_payload`), **the real window opening and closing**, and then
+AUTO-SET creating the first five scenes from nothing — removed again
+immediately so the 57 existing checks run on exactly the model they always
+did. It runs only if the model has no scenes when loaded (it will not delete
+scenes you own to manufacture the condition) and prints SKIPPED otherwise, so
+**use File > New**. Nothing in section 0 has been observed; there is no
+bridge from the assistant's session into SketchUp.
+
+Files: `scripts/proposal-package.rb`, `scripts/rbtest-proposal.py`,
+`scripts/jstest-proposal-dialog.js`, `.forge/builder/verify-autoset.rb`,
+`scripts/wr_tools/VERSION` → 1.48.1.
+
 ### AUTO-SET: pick a booth, click once, get its whole proposal scene set — 1.48.0
 
 Benton: *"I'd like to find a way to 'auto set' the entire proposal package…

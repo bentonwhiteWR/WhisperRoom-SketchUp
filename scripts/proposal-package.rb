@@ -3666,6 +3666,32 @@ module WR_ProposalPackage
     end
   end
 
+  # What run() does about the MODEL it was handed:
+  #   :open   — there is a model; the window opens, scenes or no scenes
+  #   :refuse — there is no active model at all, so there is nothing to open on
+  #
+  # THE ZERO-SCENE REFUSAL IS GONE (1.48.1), and this method exists so it
+  # cannot quietly come back. Until 1.48.1 run() also refused a model whose
+  # `pages` was empty, with a box pointing at 'Set up the five proposal
+  # plates'. That gate predates AUTO-SET by a long way, and AUTO-SET (1.48.0)
+  # is the feature that CREATES a booth's proposal scenes — and it lives
+  # inside THIS window. So on a fresh model with a booth placed and no scenes
+  # yet, exactly the state AUTO-SET exists to solve, the door was locked from
+  # the inside. Benton, within minutes of 1.48.0 shipping: "but I cant open up
+  # proposal package if there isnt any scenes".
+  #
+  # The page count is still passed in, deliberately: it is the argument that
+  # must NOT change the answer, and rbtest-proposal.py asserts that for 0, 1
+  # and many. Nothing downstream of the old return was leaning on it — gather,
+  # plan_names, slot_rows, row_states and state are each empty-safe on their
+  # own, and every callback that resolves a row by table index already raises
+  # "scene N is gone — hit Rescan" rather than dereferencing nil. The one
+  # thing that genuinely needs scenes is the export, and that refuses by name
+  # in start_run AND is disabled in the window with its reason on screen.
+  def self.open_decision(model_present, _page_count)
+    model_present ? :open : :refuse
+  end
+
   # What run() does about the live-batch flag:
   #   :launch  — nothing running, open the dialog
   #   :reset   — flag set, user confirmed it is stale: clear through FINISH,
@@ -3754,11 +3780,12 @@ module WR_ProposalPackage
   def self.run
     puts 'WR_ProposalPackage.run — opening the dialog…'   # "did the click reach Ruby?"
     model = Sketchup.active_model
-    if model.nil? || model.pages.count.zero?
-      puts 'WR_ProposalPackage: not opened — the model has no scenes.'
-      UI.messagebox("This model has no scenes.\n\nAdd scenes first " \
-                    '(View > Animation > Add Scene), or run ' \
-                    "'Set up the five proposal plates'.")
+    # A model with no scenes OPENS (1.48.1) — see open_decision. A nil model
+    # is still a nil model: there is nothing to open the window onto.
+    if open_decision(!model.nil?, model.nil? ? 0 : model.pages.count) == :refuse
+      puts 'WR_ProposalPackage: not opened — there is no active model.'
+      UI.messagebox("There is no model open.\n\nOpen or create a model, then " \
+                    'run this again.')
       return
     end
 
@@ -4675,6 +4702,11 @@ module WR_ProposalPackage
   tr.dragging { opacity:.4; }
   tr.over-above td { border-top:2px solid var(--accent); }
   tr.over-below td { border-bottom:2px solid var(--accent); }
+  /* The zero-row table (1.48.1). It is a real state now that the window
+     opens on a model with no scenes, so it reads as a note, not a gap. */
+  tr.empty:hover td { background:none; }
+  tr.empty td { padding:14px 10px; color:var(--muted); line-height:1.55; }
+  tr.empty td b { color:var(--ink); }
   /* The scene name is the SECOND way to jump to a scene -- it carries the
      same data-go hook as the arrow at the end of the row, so the one
      [data-go] wiring below drives both. A cell that moves the SketchUp
@@ -5046,6 +5078,13 @@ module WR_ProposalPackage
   <button class="btn" id="cancel" style="display:none">Cancel</button>
   <button class="btn" id="helpb" title="Show the notes under this window">?</button>
   <button class="btn" id="closeb">Close</button>
+  <!-- A DISABLED BUTTON CARRIES ITS REASON (1.48.1). Since the window now
+       opens on a model with no scenes at all, "Export package" greyed out is
+       the FIRST thing seen on a fresh model, and a grey button with no reason
+       reads as broken. draw() fills this in and hides it again the moment
+       there is something to export. -->
+  <span class="lbl" id="whynot"
+        style="display:none;font-weight:400;letter-spacing:0;color:var(--accent);max-width:300px"></span>
   <button class="btn p" id="export">Export package</button>
 </div>
 
@@ -5246,6 +5285,23 @@ window.onerror = function (msg, src, line) {
         "<td class='file' title='"+esc(r.file)+"'>"+fh+"</td>"+
         "<td class='go'><button data-go='"+r.n+"' title='Go to this scene'>&#8594;</button></td></tr>";
     }).join("");
+    // AN EMPTY GRID MUST SAY WHAT TO DO NEXT (1.48.1). Before 1.48.1 this
+    // window refused to open at all on a model with no scenes, which is
+    // exactly the model AUTO-SET exists for; now that it opens, the table's
+    // zero-row case is a real state someone will see first, and an empty box
+    // under eight headings looks like a tool that failed to load. Two
+    // different empty states, and they are NOT the same message: no scenes in
+    // the model at all points at AUTO-SET; scenes filtered out by the search
+    // box points at the search box.
+    if(!view.length)
+      $b.innerHTML = "<tr class='empty'><td colspan='8'>" + (ST.rows.length
+        ? "No scene matches &ldquo;" + esc(q) + "&rdquo;. Clear the search to see all "
+          + ST.rows.length + " again."
+        : "<b>This model has no scenes yet.</b><br>Use <b>AUTO-SET</b> above: pick the "
+          + "booth and click once, and it writes the proposal plates for it &mdash; named "
+          + "after the booth, marked Render or Image, with each scene&rsquo;s walls and "
+          + "notes answered. Then review them here before you export.")
+        + "</td></tr>";
     if(canDrag) wireDrag();
     Array.prototype.forEach.call($b.querySelectorAll("[data-mode]"), function(el){
       el.addEventListener("click", function(){
@@ -5306,6 +5362,24 @@ window.onerror = function (msg, src, line) {
                                     +nr+" render scene(s)")
                                  : "no render scenes marked";
     g("export").disabled = running || (nr+ni)===0;
+    // WHY IT IS GREY, ON SCREEN (1.48.1) — this file's own rule, the one the
+    // FILE column, the review cells and the AUTO-SET bar already follow. The
+    // export path REFUSES the same two cases by name in Ruby (start_run's
+    // "No scenes are marked Image or Render"), but a refusal you only meet by
+    // clicking is not feedback; on a model with no scenes the greyed button
+    // is the first thing seen, so it has to point at AUTO-SET rather than sit
+    // there dead. Not touched while a batch runs: $pmsg and the progress bar
+    // own that story, and two places narrating one run would contradict
+    // each other.
+    var xw = g("whynot"), why = "";
+    if(!running){
+      if(!ST.rows.length)   why = "Nothing to export yet — AUTO-SET above writes a booth's scenes in one click.";
+      else if((nr+ni)===0)  why = "Every scene is marked Skip — mark at least one Image or Render.";
+    }
+    xw.textContent = why;
+    xw.style.display = why ? "" : "none";
+    g("export").title = why || (running ? "A batch is running — use Cancel."
+                                        : "Export the "+(nr+ni)+" marked scene(s) to the folder above.");
     // drawMats() is not re-run when a batch starts or stops, so the mode
     // button's disabled state is refreshed here instead — the batch owns the
     // model's mode while it runs.
