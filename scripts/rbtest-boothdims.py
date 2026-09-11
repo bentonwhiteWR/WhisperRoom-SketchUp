@@ -60,6 +60,13 @@ WHAT IT ASSERTS
      is reported as proud (its own axis) and overhang (the other axis, not
      counted). Benton's EFS hanging off a back wall past the corner made
      the width read 9' 10 5/8" — the union box of every part.
+  6. measure_to (11 Sep 2026): a wall part named _EFS is measured to its
+     silencer assembly's outboard edge, every other wall part to its vent
+     box face (1.42.0); only the EFS wall's own axis grows; the catalogue
+     cross-check expects EFS_PROUD 10 on an EFS face and 5.5 elsewhere.
+     The CP fixture feeds RAW assembly boxes through measure_to the way
+     dimension() does, so the rule is exercised, not hand-trimmed away —
+     which is how the 1.42.0 fixture hid this fault.
 
 MUTATION-CHECKED, 10 Sep 2026. Each mutation was applied to
 dimension-whisperroom.rb, this test run, FAIL confirmed, the file restored:
@@ -74,6 +81,12 @@ dimension-whisperroom.rb, this test run, FAIL confirmed, the file restored:
   * walls push all four bounds again (the union box, 1.37.0 rule)  -> 10 failures
   * vent_box_level takes the OUTERMOST level (the assembly edge)    -> 4 failures
   * caster plate no longer lowers z0                                 -> 4 failures
+  * (11 Sep 2026, EFS) measure_to ignores efs_part? — every wall part
+    trimmed to its vent box, the 1.42.0 rule on an EFS wall, which is
+    the fault Benton reported                                        -> see below
+  * (11 Sep 2026, EFS) efs_faces_from_names returns [] — the string
+    grows but the cross-check still expects 5.5 and flags every
+    EFS booth                                                        -> see below
   * (10 Sep 2026, 1.49.0) the CP fixture's plate put back where the
     pre-1.49.0 builder seated it - 4.75 under the STANDARD floor, so
     its bottom is -5.75 - which is the geometry a regressed builder
@@ -301,13 +314,60 @@ check('grille faces within a sixteenth merge into one level',
       BD.level_totals([[103.5, 100.0], [103.53, 200.0], [104.0, 1.0]]), [[103.5, 300.0], [104.0, 1.0]])
 check('no faces -> nil', BD.vent_box_level([], 1.0), nil)
 
-# Benton's booth: MDL 7296 E on a CP, door S, vents N and E (EFS), the vent
-# boxes trimmed to their faces the way dimension() does before the extent.
-cp = [['S0  Right46Door',        [2.0, -30.0, 0.0, 48.0, 1.0, 81.0]],
+# 9b - WHERE A WALL PART IS MEASURED TO (measure_to), 11 Sep 2026.
+# Benton, on a booth with a caster plate and EFS: "the dimension tool is
+# not currently accounting for the EFS. The dimensions should extend 10"
+# total from the booth corner on booths with EFS." An EFS part's faces, E
+# wall: the panel, the vent box at 103.5 (5.5 past the 98 shell, 1800 sq
+# in) and the silencer box's outer face at 108.125 (220 sq in) — the
+# assembly edge. 108.125 is DERIVED (_component-probe.tsv: 12.125 thick
+# against 8.5468 for a plain 46VNT, less the panel and the seal inch);
+# the live run reads whatever the part reaches. What is pinned is the RULE.
+lv_efs = [[97.0, 3726.0], [98.0, 3726.0], [103.5, 1800.0], [108.125, 220.0]]
+r_efs = BD.vent_box_level(lv_efs, 1.0)
+check('THE FAULT: the vent-box rule on an EFS part picks the duct face (103.5) and calls the silencer a fitting',
+      [r_efs[:box], r_efs[:beyond]], [103.5, [[108.125, 220.0]]])
+check('measure_to: an EFS part is measured to its assembly edge, rule :assembly',
+      BD.measure_to('E0  46Vnt_VSS_EFS_CP', 108.125, r_efs, 1.0), [108.125, :assembly])
+check('measure_to: the same faces on a part with no EFS still stop at the vent box (1.42.0 kept)',
+      BD.measure_to('E0  46Vnt_VSS_CP', 108.125, r_efs, 1.0), [103.5, :vent_box])
+check('measure_to: a plain vent whose box face is the edge stays at the edge',
+      BD.measure_to('N0  46VNT', 103.5, BD.vent_box_level([[97.0, 3726.0], [98.0, 3726.0], [103.5, 1800.0]], 1.0), 1.0),
+      [103.5, :vent_box])
+check('measure_to: a W wall EFS part, outboard -X, goes to its -X edge',
+      BD.measure_to('W0  46VNT_EFS', -10.125, BD.vent_box_level([[1.0, 3726.0], [0.0, 3726.0], [-5.5, 1800.0], [-10.125, 220.0]], -1.0), -1.0),
+      [-10.125, :assembly])
+check('measure_to: no faces read -> the edge, rule :box', BD.measure_to('E0  46VNT_EFS', 104.0, nil, 1.0), [104.0, :box])
+check('measure_to never moves a plain vent OUTWARD past its edge',
+      BD.measure_to('E0  46VNT', 103.0, r_efs, 1.0), [103.0, :vent_box])
+check('efs_part? reads the suffix, any case', %w[46Vnt_VSS_EFS_CP 46VNT_EFS 46VNT_VSS 46VntCP].map { |n| BD.efs_part?(n) },
+      [true, true, false, false])
+check('efs faces: only the walls whose VENT part carries EFS',
+      BD.efs_faces_from_names(['N0  46Vnt_VSS_EFS_CP', 'E0  46VNT', 'S0  Right46Door', 'N0i  ENH 41.5VNT']), ['N'])
+check('efs faces: both vented walls when both carry it',
+      BD.efs_faces_from_names(['E0  46VNT_EFS', 'N0  46VNT_EFS']), ['E', 'N'])
+check('efs faces: none on a plain vented booth', BD.efs_faces_from_names(names_7296), [])
+check('catalogue: an EFS face takes 10, a plain vented face keeps 5.5 — one vented wall never grows the other',
+      BD.catalogue_extent(98.0, 74.0, ['E', 'N'], true, ['E']), [108.0, 79.5, 84.3125])
+check('catalogue: EFS on both vented walls', BD.catalogue_extent(98.0, 74.0, ['E', 'N'], true, ['E', 'N']), [108.0, 84.0, 84.3125])
+check('catalogue: EFS_PROUD is the quote tool\'s EPROT (layout-render.js: EFS ? 10 : 5.5)', [BD::EFS_PROUD, BD::VENT_PROUD], [10.0, 5.5])
+check('catalogue: the old four-argument call still means no EFS', BD.catalogue_extent(98.0, 74.0, ['E', 'N'], true), [103.5, 79.5, 84.3125])
+check('catalogue: fed from the part names the way dimension() feeds it — EFS parts on N and E give 108 x 84',
+      (lambda {
+        nm = ['S0  Right46Door', 'N0  46Vnt_VSS_EFS_CP', 'E0  46Vnt_VSS_EFS_CP', 'W0  46PanelSolid']
+        f, _e = BD.vents_from_names(nm)
+        BD.catalogue_extent(98.0, 74.0, f, true, BD.efs_faces_from_names(nm))
+      }).call, [108.0, 84.0, 84.3125])
+
+# Benton's booth: MDL 7296 E on a CP, door S, vents N and E, both parts
+# 46Vnt_VSS_EFS_CP. The boxes are the RAW assembly boxes, and each vent part
+# goes through measure_to the way dimension() does before the extent — so a
+# rule change is felt here, not hidden by a hand-trimmed fixture.
+cp_raw = [['S0  Right46Door',      [2.0, -30.0, 0.0, 48.0, 1.0, 81.0]],
       ['S1  46PanelSolid',       [50.0, 0.0, 0.0, 96.0, 1.0, 81.0]],
-      ['N0  46Vnt_VSS_EFS_CP',   [2.0, 73.0, -4.75, 60.0, 79.5, 82.3125]],
+      ['N0  46Vnt_VSS_EFS_CP',   [2.0, 73.0, -4.75, 60.0, 84.125, 82.3125]],
       ['N1  46PanelSolid',       [50.0, 73.0, 0.0, 96.0, 74.0, 81.0]],
-      ['E0  46Vnt_VSS_EFS_CP',   [97.0, 2.0, -4.75, 103.5, 60.0, 82.3125]],
+      ['E0  46Vnt_VSS_EFS_CP',   [97.0, 2.0, -4.75, 108.125, 60.0, 82.3125]],
       ['E1  22PanelSolid',       [97.0, 50.0, 0.0, 98.0, 72.0, 81.0]],
       ['W0  46PanelSolid',       [0.0, 2.0, 0.0, 1.0, 48.0, 81.0]],
       ['W1  22PanelSolid',       [0.0, 50.0, 0.0, 1.0, 72.0, 81.0]],
@@ -322,6 +382,21 @@ cp = [['S0  Right46Door',        [2.0, -30.0, 0.0, 48.0, 1.0, 81.0]],
       ['STD9648CL SIDE',         [49.0, 1.0, 81.0, 97.0, 73.0, 82.0]],
       ['CLi  ENH 9648CL SIDE',   [3.25, 3.25, 81.25, 94.75, 70.75, 83.0]],
       ['RM7296 roof unit',       [20.0, 20.0, 82.0, 78.0, 54.0, 92.3125]]]
+# The N part's faces (Y axis): panel 73/74, vent box 79.5, silencer 84.125.
+lv_efs_n = [[73.0, 3726.0], [74.0, 3726.0], [79.5, 1800.0], [84.125, 220.0]]
+trim = lambda do |list|
+  list.map do |n, b|
+    next [n, b] unless BD.classify(n) == :wall && n =~ /Vnt/i
+    k = BD.wall_axis(n[0, 1])
+    i = BD::BOUND_IX[k]
+    sign = BD.outward?(k) ? 1.0 : -1.0
+    res = BD.vent_box_level(n[0, 1] == 'N' ? lv_efs_n : lv_efs, sign)
+    nb = b.dup
+    nb[i] = BD.measure_to(n, b[i], res, sign)[0]
+    [n, nb]
+  end
+end
+cp = trim.call(cp_raw)
 # The builder's plate, 1.49.0: its tray floor is CP_BOOTH_LIFT 4.75 under the
 # FLOOR STACK underside — the IEP mat at -1.3125 on this Enhanced booth — so
 # the plate bottom is -6.0625 and its rim 5.5 up at -0.5625. wr-overlays.rb
@@ -329,10 +404,24 @@ cp = [['S0  Right46Door',        [2.0, -30.0, 0.0, 48.0, 1.0, 81.0]],
 # the group by 6.0625 so that bottom lands on the ground.
 plate_builder = ['CP9648 SIDE  caster plate', [1.0, 1.0, -6.0625, 97.0, 73.0, -0.5625]]
 eb = BD.extent_from_parts(cp + [plate_builder])
-check("Benton's 7296 E on a CP: width 8' 7 1/2\" (103.5) — the E vent box, not the assembly",
-      [eb[:x0], eb[:x1], eb[:x1] - eb[:x0]], [0.0, 103.5, 103.5])
-check("Benton's 7296 E on a CP: depth 6' 7 1/2\" (79.5) — the N vent box",
-      [eb[:y0], eb[:y1], eb[:y1] - eb[:y0]], [0.0, 79.5, 79.5])
+check("EFS on a CP: width 9' 0 1/8\" (108.125) — the E silencer assembly, set by the EFS part",
+      [eb[:x0], eb[:x1], eb[:x1] - eb[:x0], eb[:x1_by]], [0.0, 108.125, 108.125, 'E0  46Vnt_VSS_EFS_CP'])
+check("EFS on a CP: depth 7' 0 1/8\" (84.125) — the N silencer assembly",
+      [eb[:y0], eb[:y1], eb[:y1] - eb[:y0], eb[:y1_by]], [0.0, 84.125, 84.125, 'N0  46Vnt_VSS_EFS_CP'])
+check('EFS on a CP: each EFS part is reported 10.125 proud of the seals on its OWN wall only',
+      eb[:proud], [['N0  46Vnt_VSS_EFS_CP', 'N', 10.125], ['E0  46Vnt_VSS_EFS_CP', 'E', 10.125]])
+check('EFS on one wall only: the other vented wall keeps its vent box (the E silencer never widens Y)',
+      (lambda {
+        one = cp_raw.map { |n, b| n =~ /\AN0/ ? ['N0  46Vnt_VSS_CP', b] : [n, b] }
+        e = BD.extent_from_parts(trim.call(one))
+        [e[:x1], e[:y1], e[:y1_by]]
+      }).call, [108.125, 79.5, 'N0  46Vnt_VSS_CP'])
+check('the same booth with no EFS parts trims both vents to the box — 8\' 7 1/2" x 6\' 7 1/2", the 1.42.0 reading kept',
+      (lambda {
+        plain = cp_raw.map { |n, b| n =~ /EFS/ ? [n.sub('_EFS', ''), b] : [n, b] }
+        e = BD.extent_from_parts(trim.call(plain))
+        [e[:x1], e[:y1]]
+      }).call, [103.5, 79.5])
 check('CP: the silencer foot hanging to -4.75 on the vent parts does not touch the height (walls never vote on z)',
       eb[:z1], 83.0)
 check('CP: the plate bottom is the bottom of the booth', [eb[:z0], eb[:z0_by]], [-6.0625, 'CP9648 SIDE  caster plate'])
@@ -350,18 +439,23 @@ eb2 = BD.extent_from_parts(cp + [plate_old])
 check("CP: the pre-1.49.0 seating reads the superseded 7' 4 3/4\" (88.75), a full 0.3125 short",
       [eb2[:z1] - eb2[:z0], eb2[:plate]], [88.75, 4.4375])
 check('CP: and a booth seated that way FAILS the catalogue cross-check (0.3125 is over the 0.25 tolerance)',
-      BD.reconcile([103.5, 79.5, 88.75], [103.5, 79.5, 84.3125 + 4.75], ['E0', 'N0', 'plate']).length, 1)
+      BD.reconcile([108.125, 84.125, 88.75], [108.0, 84.0, 84.3125 + 4.75], ['E0', 'N0', 'plate']).length, 1)
 check('CP: the plate never touches the footprint', [eb[:x0_by], eb[:y0_by]], ['SW corner seal', 'SW corner seal'])
 check('CP: cross-check adds the plate to the catalogue height, so no *** on a plate that is where the builder put it',
-      BD.reconcile([103.5, 79.5, 89.0625], [103.5, 79.5, 84.3125 + 4.75], ['E0', 'N0', 'plate']), [])
-check('CP: catalogue for a 7296 E vented N and E is 103.5 x 79.5 x 84.3125',
+      BD.reconcile([108.125, 84.125, 89.0625], [108.0, 84.0, 84.3125 + 4.75], ['E0', 'N0', 'plate']), [])
+check('CP: catalogue for a 7296 E vented N and E, no EFS, is 103.5 x 79.5 x 84.3125',
       BD.catalogue_extent(98.0, 74.0, ['E', 'N'], true), [103.5, 79.5, 84.3125])
-check('CP: the untrimmed assembly boxes would have read 104.4375 x 80.4375 — the fault as reported',
+check('EFS: a silencer reaching 10 1/8 past the shell is inside the 1/4 in tolerance of the 10 in rule — no ***',
       (lambda {
-        raw = cp.map { |n, bx| n =~ /EFS/ ? [n, (n[0, 1] == 'N' ? [bx[0], bx[1], bx[2], bx[3], 80.4375, bx[5]] : [bx[0], bx[1], bx[2], 104.4375, bx[4], bx[5]])] : [n, bx] }
-        e = BD.extent_from_parts(raw)
-        [e[:x1], e[:y1]]
-      }).call, [104.4375, 80.4375])
+        x = BD.catalogue_extent(98.0, 74.0, ['E', 'N'], true, ['E', 'N'])
+        x[2] += 4.75
+        BD.reconcile([eb[:x1] - eb[:x0], eb[:y1] - eb[:y0], 89.0625], x, ['E0', 'N0', 'plate'])
+      }).call, [])
+check('EFS: the 1.42.0 record — an EFS part reaching only 6 7/16 past the shell (104.4375) — is named as a mismatch on X, so the console says which number the part is',
+      (lambda {
+        m = BD.reconcile([104.4375, 84.125, 89.0625], [108.0, 84.0, 89.0625], ['E0  46Vnt_VSS_EFS_CP', 'N0', 'plate'])
+        [m.length, (m[0] || '').include?('ACROSS X'), (m[0] || '').include?('-3.5625')]
+      }).call, [1, true, true])
 check('a plate on a floor-standing fixture that sits ABOVE the floor underside adds nothing',
       BD.extent_from_parts(cp + [['CPx  caster plate', [1.0, 1.0, -0.5, 97.0, 73.0, 5.0]]])[:plate], nil)
 

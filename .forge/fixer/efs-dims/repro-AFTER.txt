@@ -1,0 +1,5 @@
+vent box face 103.5000 (1800 sq in); beyond it: [[108.125, 220.0]]
+BEFORE (1.42.0 rule): E bound 103.5000 -> width 103.5000  (E0  46Vnt_VSS_EFS_CP)
+AFTER  (EFS rule):    E bound 108.1250 -> width 108.1250  (E0  46Vnt_VSS_EFS_CP)
+the N wall (no EFS part) is untouched: y1 74.0000 by NW corner seal
+RESULT: FIXED

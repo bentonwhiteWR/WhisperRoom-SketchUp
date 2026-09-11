@@ -34,13 +34,23 @@
 # because that is what SketchUp prints on it.
 #
 # THE CATALOGUE IS A CROSS-CHECK, NEVER DRAWN. wr-booth-data.rb's :w/:h plus
-# 5.5 in per vented face, and 83.0 / 84.3125 in for Standard / Enhanced, are
-# printed beside the measured figures on every run. Any axis more than 1/4 in
-# apart gets a *** block naming the axis, both numbers and the part that set
-# the measured one. The dimension still reads the measured value — a vent
-# housing seated 6 7/16 in proud is a builder bug to fix in the builder, not a
-# number for a dimension to paper over (coordinator, 10 Sep 2026: "the
-# dimension reads what is DRAWN, always").
+# 5.5 in per vented face (10 in for a face whose vent carries an EFS), and
+# 83.0 / 84.3125 in for Standard / Enhanced, are printed beside the measured
+# figures on every run. Any axis more than 1/4 in apart gets a *** block
+# naming the axis, both numbers and the part that set the measured one. The
+# dimension still reads the measured value — a vent housing seated 6 7/16 in
+# proud is a builder bug to fix in the builder, not a number for a dimension
+# to paper over (coordinator, 10 Sep 2026: "the dimension reads what is
+# DRAWN, always").
+#
+# A WALL PART IS MEASURED TO ITS VENT BOX FACE, OR TO ITS EFS ASSEMBLY. A
+# plain vent part's assembly box carries a duct collar past the box; the
+# string stops at the box (1.42.0, measure_to). A part named _EFS carries an
+# exterior fan silencer whose box stands further out than the ducts, and the
+# string goes to the assembly's outboard edge (11 Sep 2026, Benton: "10 in
+# total from the booth corner"). Only that wall's own axis grows — a wall
+# part never pushes any bound but the one normal to it, so an EFS on the
+# back wall leaves the width alone (1.40.0).
 #
 # ATTACHMENT. Each endpoint is a ConstructionPoint on WR-Dims-Booth at the
 # corner, and the dimension is attached to it, so the witness line starts on
@@ -116,6 +126,21 @@ module WR_BoothDims
   # figure, confirmed against the 96120 render. Cross-check only, never drawn.
   VENT_PROUD = 5.5
 
+  # The same figure for a face carrying exterior fan silencers. Benton, 11 Sep
+  # 2026: "The dimensions should extend 10" total from the booth corner on
+  # booths with EFS" — TOTAL, so 10 in place of the 5.5, not on top of it.
+  # It is also the quote tool's own reach for the assembly
+  # (WhisperRoomQuote/assets/layout-render.js: `EPROT = EFS ? 10 : VPROT`,
+  # "a floor-level silencer box ... sticking out 10" from the wall face"),
+  # and the part on the share is consistent with it: _component-probe.tsv
+  # boxes every 46-series EFS variant 12.125 in thick against 8.5468 for a
+  # plain 46VNT, which is 10.125 past the seal line if all of the extra bulk
+  # is outboard. Cross-check only, never drawn: the string reads the part.
+  # The clearance table in CLAUDE.md also says "10 with EFS" — that is the
+  # air the booth needs against a wall, a different quantity that happens to
+  # carry the same number; nothing here is a clearance.
+  EFS_PROUD = 10.0
+
   # Exterior heights by key suffix, for the cross-check only. Standard: floor
   # underside -1.0 to ceiling top 82.0. Enhanced: IEP mat underside -1.3125
   # to tray top 83.0. Derived from the builder's datums (spec §1).
@@ -145,6 +170,11 @@ module WR_BoothDims
   EXCLUDE_RE = /\AMISSING|roof unit|\bRFU\b|\ARM\d{2,5}\b|elevated floor|\AEFP\d/i.freeze
   CASTER_RE  = /caster plate/i.freeze
   VENT_RE    = /v(?:e)?nt/i.freeze
+  # An exterior fan silencer, as booth-from-link.rb composes it into the
+  # part name ("46Vnt_VSS_EFS_CP") — the only way this tool learns a wall
+  # carries one. An Enhanced booth's OUTER shell is Standard parts and gets
+  # the suffix; the inner "N0i  ENH 41.5VNT" never does and never votes.
+  EFS_RE     = /EFS/i.freeze
 
   # Identification, kept from dimension-booth.rb so the cross-check finds
   # the catalogue entry the same way the proposal package finds a booth.
@@ -185,10 +215,59 @@ module WR_BoothDims
     names.each do |n|
       m = WALL_RE.match(n.to_s)
       next if m.nil? || n.to_s !~ VENT_RE
-      efs = true if n.to_s =~ /EFS/i
+      efs = true if n.to_s =~ EFS_RE
       faces << m[1] unless faces.include?(m[1])
     end
     [faces.sort, efs]
+  end
+
+  def self.efs_part?(name)
+    !(name.to_s =~ EFS_RE).nil?
+  end
+
+  # The wall letters whose vent part carries an EFS. A booth has one vented
+  # wall or two; a dimension on a wall with no silencer must not grow.
+  def self.efs_faces_from_names(names)
+    faces = []
+    names.each do |n|
+      m = WALL_RE.match(n.to_s)
+      next if m.nil? || n.to_s !~ VENT_RE || !efs_part?(n)
+      faces << m[1] unless faces.include?(m[1])
+    end
+    faces.sort
+  end
+
+  # WHERE A WALL PART'S BOUND IS MEASURED TO. `edge` is the part's assembly
+  # box on its wall-normal axis; `res` is vent_box_level's read of its faces
+  # (nil when none could be read); out_sign +1 when outboard is +axis.
+  # Returns [level, rule].
+  #
+  #   :vent_box  — the 1.42.0 rule. The vent box is the outboard face level
+  #                carrying the most area; a duct collar rim beyond it is a
+  #                fitting and the bound moves IN to the box. Only ever
+  #                inward: a face cannot stand outside the box holding it.
+  #   :assembly  — an EFS part. Benton, 11 Sep 2026: "the dimension tool is
+  #                not currently accounting for the EFS. The dimensions
+  #                should extend 10" total from the booth corner on booths
+  #                with EFS." Under :vent_box the silencer box's outer face
+  #                (a 10 x 22 box, ~220 sq in) always loses the area vote to
+  #                the duct faces (~1800 sq in) and was set aside as a
+  #                fitting — which is the fault. So the string goes to the
+  #                assembly's outboard edge, which is what the 1.40.0 tool
+  #                drew and what Benton called "really close with the efs".
+  #                The caller prints the vent box level beside it so the
+  #                inches the silencer adds are on the console, never quiet.
+  #   :box       — no faces read: the assembly edge, as before.
+  #
+  # This REVERSES 1.42.0 for EFS parts only. That rule was built to Benton's
+  # 8' 7 1/2" on a 7296 E carrying 46Vnt_VSS_EFS_CP parts; today's 10 in on
+  # the same part family cannot both hold. The newer instruction is drawn;
+  # the cross-check (EFS_PROUD) says out loud when the part disagrees.
+  def self.measure_to(name, edge, res, out_sign)
+    return [edge, :box] if res.nil?
+    return [edge, :assembly] if efs_part?(name)
+    return [res[:box], :vent_box] if (edge - res[:box]) * out_sign > 0.0
+    [edge, :vent_box]
   end
 
   def self.booth_name?(name)
@@ -531,14 +610,16 @@ module WR_BoothDims
   end
 
   # The catalogue's expectation for the three axes: the box plus 5.5 per
-  # vented face (E/W project in X, N/S in Y) and the height by key suffix.
-  def self.catalogue_extent(w, h, faces, enhanced)
+  # vented face — 10 for a face whose vent carries an EFS — (E/W project in
+  # X, N/S in Y) and the height by key suffix.
+  def self.catalogue_extent(w, h, faces, enhanced, efs_faces = [])
     x = w * 1.0
     y = h * 1.0
-    x += VENT_PROUD if faces.include?('E')
-    x += VENT_PROUD if faces.include?('W')
-    y += VENT_PROUD if faces.include?('N')
-    y += VENT_PROUD if faces.include?('S')
+    proud = lambda { |f| efs_faces.include?(f) ? EFS_PROUD : VENT_PROUD }
+    x += proud.call('E') if faces.include?('E')
+    x += proud.call('W') if faces.include?('W')
+    y += proud.call('N') if faces.include?('N')
+    y += proud.call('S') if faces.include?('S')
     [x, y, enhanced ? HEIGHT_ENH : HEIGHT_STD]
   end
 
@@ -643,10 +724,11 @@ module WR_BoothDims
     nil
   end
 
-  # For a wall part: its box with the outboard bound moved in to the vent
-  # box face, plus what was read. Returns [box, info] where info is nil when
+  # For a wall part: its box with the outboard bound set where measure_to
+  # says, plus what was read. Returns [box, info] where info is nil when
   # the faces could not be read (box used as it is) or
-  # { :letter, :bound, :box_edge, :face => vent_box_level result }.
+  # { :letter, :bound, :box_edge, :level, :rule, :face => vent_box_level
+  # result }.
   def self.vent_box_bound(name, part, box)
     m = WALL_RE.match(name.to_s)
     return [box, nil] if m.nil?
@@ -661,11 +743,10 @@ module WR_BoothDims
     return [box, nil] if res.nil?
     i = BOUND_IX[k]
     edge = box[i]
-    # Only ever move the bound INWARD from the assembly box; a face cannot
-    # stand outside the box that contains it, so anything else is a misread.
+    level, rule = measure_to(name, edge, res, sign)
     nb = box.dup
-    nb[i] = res[:box] if (edge - res[:box]) * sign > 0.0
-    [nb, { :letter => letter, :bound => k, :box_edge => edge, :face => res }]
+    nb[i] = level
+    [nb, { :letter => letter, :bound => k, :box_edge => edge, :level => level, :rule => rule, :face => res }]
   end
 
   # A top-level thing that is a WhisperRoom, or nil with the reason. Route 1
@@ -971,11 +1052,12 @@ module WR_BoothDims
     specs = booths
     key, how_id = specs.empty? ? [nil, 'booth data not found'] : identify(inst, specs, kids)
     faces, efs = vents_from_names(names)
+    efs_faces = efs_faces_from_names(names)
     mismatch = []
     expected = nil
     if key
       spec = specs[key]
-      expected = catalogue_extent(spec[:w], spec[:h], faces, !(key =~ /\sE\z/).nil?)
+      expected = catalogue_extent(spec[:w], spec[:h], faces, !(key =~ /\sE\z/).nil?, efs_faces)
       # The catalogue height is floor-standing; a booth on a plate is taller
       # by exactly what its plate adds, so the comparison adds it too.
       expected[2] += ext[:plate] if ext[:plate]
@@ -1102,6 +1184,16 @@ module WR_BoothDims
         f = info[:face]
         sign = outward?(info[:bound]) ? 1.0 : -1.0
         box_over = (info[:box_edge] - f[:box]) * sign
+        if info[:rule] == :assembly
+          # An EFS part: the string reaches the silencer assembly, and the
+          # inches past the vent box are printed so nothing is added quietly.
+          puts format('    EFS: "%s" measured to the silencer assembly at %.4f — the vent box face is at %.4f (%.0f sq in), the assembly reaches %s past it (Benton, 11 Sep 2026: 10 in total from the corner)',
+                      nm, info[:level], f[:box], f[:box_area], arch(box_over))
+          f[:beyond].each do |l, a|
+            puts format('      face beyond the vent box at %.4f (%.0f sq in)', l, a)
+          end
+          next
+        end
         if f[:beyond].empty? && box_over.abs <= 0.01
           next if f[:box] == f[:panel]
           puts format('    vent box: "%s" outer face at %.4f (%.0f sq in), the assembly box agrees', nm, f[:box], f[:box_area])
@@ -1121,9 +1213,10 @@ module WR_BoothDims
     puts format('  width   %-12s  depth   %-12s  height  %-12s   (MEASURED — what is drawn)',
                 arch(meas[:width]), arch(meas[:depth]), arch(meas[:height]))
     if key
-      puts format('  catalogue %s: %s x %s x %s  (%s, +%s per vented face: %s%s)', key,
+      puts format('  catalogue %s: %s x %s x %s  (%s, +%s per vented face: %s%s%s)', key,
                   arch(expected[0]), arch(expected[1]), arch(expected[2]), how_id,
                   arch(VENT_PROUD), faces.empty? ? 'none' : faces.join(' '),
+                  efs_faces.empty? ? '' : format('; +%s instead on the EFS face(s): %s', arch(EFS_PROUD), efs_faces.join(' ')),
                   ext[:plate] ? format('; height + %s caster plate', arch(ext[:plate])) : '')
       if mismatch.empty?
         puts format('  agrees with the catalogue within %s on all three axes', arch(CAT_TOL))
@@ -1137,7 +1230,10 @@ module WR_BoothDims
     else
       puts "  catalogue cross-check skipped: #{how_id}"
     end
-    puts '  *** EFS parts in this booth: the 5 1/2 in figure is the no-EFS rule, so the catalogue line understates' if efs
+    if efs
+      puts format('  EFS on the %s wall(s): those strings reach the silencer assembly, not the vent box — the catalogue line expects %s past the shell there',
+                  efs_faces.empty? ? '?' : efs_faces.join(' '), arch(EFS_PROUD))
+    end
     casters = names.select { |n| n =~ CASTER_RE }
     unless casters.empty?
       if ext[:plate]

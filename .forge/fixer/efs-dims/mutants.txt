@@ -1,0 +1,20 @@
+== mutant 1: measure_to ignores efs_part? (every part trimmed to the vent box)
+FAIL measure_to: an EFS part is measured to its assembly edge, rule :assembly
+FAIL measure_to: a W wall EFS part, outboard -X, goes to its -X edge
+FAIL EFS on a CP: width 9' 0 1/8" (108.125) — the E silencer assembly, set by the EFS part
+FAIL EFS on a CP: depth 7' 0 1/8" (84.125) — the N silencer assembly
+FAIL EFS on a CP: each EFS part is reported 10.125 proud of the seals on its OWN wall only
+FAIL EFS on one wall only: the other vented wall keeps its vent box (the E silencer never widens Y)
+FAIL EFS: a silencer reaching 10 1/8 past the shell is inside the 1/4 in tolerance of the 10 in rule — no ***
+7 failure(s)
+== mutant 2: efs_faces_from_names returns []
+FAIL efs faces: only the walls whose VENT part carries EFS
+FAIL efs faces: both vented walls when both carry it
+2 failure(s)
+== restored:
+identical
+0 failure(s)
+FAIL efs faces: only the walls whose VENT part carries EFS
+FAIL efs faces: both vented walls when both carry it
+FAIL catalogue: fed from the part names the way dimension() feeds it — EFS parts on N and E give 108 x 84
+3 failure(s)

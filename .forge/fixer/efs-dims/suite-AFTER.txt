@@ -1,0 +1,149 @@
+PASS a vent housing is a wall part
+PASS a solid panel is a wall part
+PASS an HX panel is a wall part
+PASS a door does not vote
+PASS a wide-access door does not vote
+PASS the inner IEP shell does not vote
+PASS a mid-wall seal does not vote
+PASS a corner seal votes
+PASS an inner corner seal is a corner too (inboard, so it never sets an extreme)
+PASS a placeholder does not vote
+PASS a placeholder label does not vote
+PASS the roof unit does not vote
+PASS a caster plate votes on the height bottom only
+PASS the roof unit under its other names does not vote
+PASS an EFP slab does not vote
+PASS a STD floor is a floor
+PASS a STD ceiling is a ceiling
+PASS an ENH floor is a floor
+PASS the IEP mat is a floor
+PASS the IEP tray is a ceiling
+PASS a block-out floor group is nothing
+PASS an empty name is nothing
+PASS door wall read off the parts
+PASS no door part -> nil
+PASS door on the east wall
+PASS vents: N only on the 7296
+PASS vents: 46NV is a blank, not a vent
+PASS vents: EFS is flagged
+PASS vents: inner shell vents are not counted twice
+PASS booth_name? on the components builder name
+PASS booth_name? on a block-out
+PASS booth_name? on a bare key
+PASS booth_name? refuses a room wall
+PASS booth_name? refuses Room
+PASS 7296 E: across X is 98
+PASS 7296 E: across Y is 79.5 (vent)
+PASS 7296 E: height is mat to tray
+PASS 7296 E: 84.3125 overall
+PASS 7296 E: y1 was set by a vent housing
+PASS 7296 E: x0 was set by a corner seal
+PASS 7296 E: z0 was set by the IEP mat
+PASS 7296 E: z1 was set by the IEP tray
+PASS 7296 E: the open door leaf did not move the front
+PASS 7296 E: the roof unit did not raise the top
+PASS 7296 E floor-standing: no plate in the height
+PASS 7296 E: mode is parts
+PASS 7296 E: height not from walls
+PASS door-only front wall: the corner seals set the front
+PASS no deck: walls carry the height and it is flagged
+PASS no deck: the by-names say so
+PASS nothing voting -> nil
+PASS group bounds: everything but overlays
+PASS group bounds: says so per side
+PASS wall_axis: N pushes y1, S y0, E x1, W x0
+PASS N EFS: extends Y only (y1 52), X untouched (x1 stays 44)
+PASS N EFS: y1 set by the EFS, x1 still by a corner seal
+PASS N EFS: reported proud 8 on the N wall, beside the 4.5 the plain vent already stood
+PASS N EFS: reported 16 overhang along X, not counted
+PASS S EFS: extends -Y only (y0 -10), X untouched (x0 stays 0)
+PASS S EFS: proud 10 on S, overhang 20 along X
+PASS E EFS: extends X only (x1 55), Y untouched (y1 stays 48.5)
+PASS E EFS: proud 11 on E, overhang 21.5 along Y past the vented y1
+PASS W EFS: extends -X only (x0 -7), Y untouched (y0 stays 0)
+PASS W EFS: proud 7 on W, overhang 15 along Y
+PASS the plain shell reports only its vent proud, and no overhang
+PASS the shell is the seals
+PASS no seals: each wall sets its own side and nothing else
+PASS no seals, no wall on one side: the union fills it and says so
+PASS the door leaf reaching out the front still moves nothing (S is the door wall, excluded)
+PASS vent box: the panel band ends at its OUTER face (98), not its biggest face
+PASS vent box: the outboard level with the most area is the box (103.5)
+PASS vent box: the collar rim beyond it is a fitting, reported
+PASS vent box: a bracket between panel and box is not beyond
+PASS vent box on a W wall: outboard is -X, panel outer face 0, box at -5.5, rim beyond
+PASS a solid panel: no outboard level, the box IS the panel face
+PASS grille faces within a sixteenth merge into one level
+PASS no faces -> nil
+PASS THE FAULT: the vent-box rule on an EFS part picks the duct face (103.5) and calls the silencer a fitting
+PASS measure_to: an EFS part is measured to its assembly edge, rule :assembly
+PASS measure_to: the same faces on a part with no EFS still stop at the vent box (1.42.0 kept)
+PASS measure_to: a plain vent whose box face is the edge stays at the edge
+PASS measure_to: a W wall EFS part, outboard -X, goes to its -X edge
+PASS measure_to: no faces read -> the edge, rule :box
+PASS measure_to never moves a plain vent OUTWARD past its edge
+PASS efs_part? reads the suffix, any case
+PASS efs faces: only the walls whose VENT part carries EFS
+PASS efs faces: both vented walls when both carry it
+PASS efs faces: none on a plain vented booth
+PASS catalogue: an EFS face takes 10, a plain vented face keeps 5.5 — one vented wall never grows the other
+PASS catalogue: EFS on both vented walls
+PASS catalogue: EFS_PROUD is the quote tool's EPROT (layout-render.js: EFS ? 10 : 5.5)
+PASS catalogue: the old four-argument call still means no EFS
+PASS catalogue: fed from the part names the way dimension() feeds it — EFS parts on N and E give 108 x 84
+PASS EFS on a CP: width 9' 0 1/8" (108.125) — the E silencer assembly, set by the EFS part
+PASS EFS on a CP: depth 7' 0 1/8" (84.125) — the N silencer assembly
+PASS EFS on a CP: each EFS part is reported 10.125 proud of the seals on its OWN wall only
+PASS EFS on one wall only: the other vented wall keeps its vent box (the E silencer never widens Y)
+PASS the same booth with no EFS parts trims both vents to the box — 8' 7 1/2" x 6' 7 1/2", the 1.42.0 reading kept
+PASS CP: the silencer foot hanging to -4.75 on the vent parts does not touch the height (walls never vote on z)
+PASS CP: the plate bottom is the bottom of the booth
+PASS CP: the plate adds a FULL 4.75 below the floor stack (the mat seats on the tray floor)
+PASS CP: an Enhanced booth on a plate reads Benton's 7' 5 1/16" (89.0625 = 84.3125 drawn + 4.75)
+PASS CP: the pre-1.49.0 seating reads the superseded 7' 4 3/4" (88.75), a full 0.3125 short
+PASS CP: and a booth seated that way FAILS the catalogue cross-check (0.3125 is over the 0.25 tolerance)
+PASS CP: the plate never touches the footprint
+PASS CP: cross-check adds the plate to the catalogue height, so no *** on a plate that is where the builder put it
+PASS CP: catalogue for a 7296 E vented N and E, no EFS, is 103.5 x 79.5 x 84.3125
+PASS EFS: a silencer reaching 10 1/8 past the shell is inside the 1/4 in tolerance of the 10 in rule — no ***
+PASS EFS: the 1.42.0 record — an EFS part reaching only 6 7/16 past the shell (104.4375) — is named as a mismatch on X, so the console says which number the part is
+PASS a plate on a floor-standing fixture that sits ABOVE the floor underside adds nothing
+PASS FR: width on the front edge pushed -Y 24, depth on the RIGHT edge pushed +X 24, height at rear-RIGHT pushed +X 36
+PASS FL: width on the front edge, depth on the LEFT edge pushed -X, height at rear-LEFT pushed -X 36
+PASS RL: width on the REAR edge pushed +Y, depth on the left edge, height at front-LEFT pushed -X 36
+PASS RR: width on the rear edge, depth on the right edge, height at front-RIGHT pushed +X 36
+PASS an unknown corner draws as FR
+PASS the height string is pushed further than the depth string it shares a corner with
+PASS north door: width runs along the north edge, pushed +Y
+PASS north door: RIGHT when facing it from outside is the WEST wall, pushed -X
+PASS north door: the height stands at the far (south) end of the west wall
+PASS east door: right is NORTH, so the depth runs along y1 and is pushed +Y
+PASS frame: r is always (-f) x z
+PASS FR -> FL (the other side, first press)
+PASS FL -> RL
+PASS RL -> RR
+PASS RR -> FR (round the booth)
+PASS an absent corner rotates from FR
+PASS four presses come home
+PASS press_of
+PASS side words
+PASS FR slab is 36 in off the RIGHT (x1) face, full depth, full height
+PASS FL slab is 36 in off the LEFT (x0) face
+PASS RR slab is the same side as FR
+PASS a west wall 1 in off the booth blocks FL
+PASS and does not block FR
+PASS touching faces do not overlap
+PASS 7296 N-vented Enhanced expects 98 x 79.5 x 84.3125
+PASS 96120 N+E vented Standard expects 127.5 x 103.5 x 83
+PASS no vents: the box itself
+PASS W and S project too
+PASS agreement prints nothing
+PASS exactly 1/4 in is still agreement
+PASS a vent 15/16 too proud is one line
+PASS and it names ACROSS X
+PASS and both figures
+PASS and the part
+PASS a Standard height on an Enhanced key is a HEIGHT line
+PASS the sign says which way
+PASS three axes wrong is three lines
+0 failure(s)

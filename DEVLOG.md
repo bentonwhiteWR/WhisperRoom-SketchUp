@@ -1,6 +1,59 @@
 # DEVLOG
 
 ## 2026-09-11
+### Booth dimensions reach the EFS silencer: an _EFS wall part is measured to its assembly, not its vent box - (VERSION bump held by the orchestrator)
+
+Benton, on a booth with a caster plate and exterior fan silencers: *"the
+dimension tool is not currently accounting for the EFS. The dimensions
+should extend 10" total from the booth corner on booths with EFS."* His
+strings read `12' 7 1/2"` × `8' 7 1/2"` (146 + 5.5, 98 + 5.5) with the
+silencer housings standing past them; the height `7' 5 1/16"` is the
+1.49.0 CP figure and is untouched.
+
+**Root cause (observed, reproduced offline).** The 1.42.0 vent-box rule:
+a wall part's extent along its normal is the outboard face level carrying
+the MOST area, anything further out is "a fitting". The silencer box's
+outer face (~220 sq in) always loses that vote to the duct faces (~1800
+sq in), so on every EFS wall it was set aside and the string stopped at
+the vent box. A wrong rule, not a missing input — the tool already read
+`_EFS` off the part name and only printed a warning with it.
+
+**Rule now (`measure_to`, pure section).** A part named `_EFS` is measured
+to its assembly's outboard edge (`:assembly`); every other wall part keeps
+the 1.42.0 trim to its vent box (`:vent_box`); no readable faces → the
+edge (`:box`). A part still pushes only the bound normal to its own wall
+(1.40.0), so an EFS on one vented wall never grows the other axis. The
+console prints, per EFS part, the vent box level, the assembly edge and
+the inches between them. The catalogue cross-check expects `EFS_PROUD` 10
+on an EFS face and 5.5 elsewhere (`efs_faces_from_names`,
+`catalogue_extent`'s new fifth argument) — cross-check only, never drawn.
+
+**Which 10.** "Total" is read as 10 in place of the 5.5, the EFS face
+landing 10 past the shell corner — the quote tool's own reach
+(`layout-render.js` `EPROT = EFS ? 10 : VPROT`), not +10 on the run and
+not 5 at each end. CLAUDE.md's "10 with EFS" is a room CLEARANCE from the
+same renderer; the numbers coincide, the quantities do not, and nothing
+here is a clearance.
+
+**The number the part will actually read is open, on record.**
+`_component-probe.tsv` (measured, 26 Aug) boxes every 46-series EFS part
+12.125 thick against 8.5468 for a plain 46VNT — **10 1/8 past the seals**
+if all the extra bulk is outboard (derived: −1 panel, −1 seal inch). But
+the 1.42.0 entry was built to Benton's `8' 7 1/2"` on a 7296 E carrying
+these same `46Vnt_VSS_EFS_CP` parts, whose untrimmed box then read only
+6 7/16 past. Both cannot hold; today's instruction is drawn, and a reach
+outside 10 ± 1/4 now prints as a `*** ACROSS` mismatch naming the part.
+
+`rbtest-boothdims.py` 148 checks (21 new; the CP fixture now feeds RAW
+assembly boxes through `measure_to` the way `dimension()` does — the old
+fixture hand-trimmed them to 103.5/79.5, which is how it hid this). Two
+mutants killed (7 and 3 failures). `rbparse.py` 75/75 plus the new
+verifier. **Unrun in SketchUp.** Benton's check:
+`.forge/builder/verify-efs-dims.rb` on his CP+EFS booth — it reports the
+reach past the seals by name, and the two plan strings should read the
+shell plus that reach on each EFS wall. Notes and transcripts in
+`.forge/fixer/efs-dims/`.
+
 ### The interior eye was overwritten by the projection flip, and the harness carried the union-box mistake - (VERSION bump held by the orchestrator)
 
 Benton ran `verify-autoset.rb` live on 1.54.0: **121 of 125 pass**, and

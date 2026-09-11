@@ -1,0 +1,4 @@
+vent box face 103.5000 (1800 sq in); beyond it: [[108.125, 220.0]]
+BEFORE (1.42.0 rule): E bound 103.5000 -> width 103.5000  (E0  46Vnt_VSS_EFS_CP)
+AFTER: measure_to not present in the pure section - unfixed
+RESULT: FAULT PRESENT
