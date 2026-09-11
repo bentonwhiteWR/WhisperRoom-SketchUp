@@ -73,6 +73,20 @@ added, RUN not assumed -- each of these makes the NAMED check fail:
     the 'Set up the five proposal plates' pointer back   -> open-gate FAIL
     plan_names returns nil on an empty scene list        -> pn7 FAIL
 
+THE WINDOW'S SHAPE (1.49.2). AUTO-SET wrote five scenes, the header said
+"5 scenes - 2 render - 3 image", and the table showed NOTHING. Nothing had
+failed: the rows were in the DOM and had zero height, because #scenesect was
+the only item in the body's flex column that could shrink and an expanded
+FOLDER & DETAILS -- taller than the window on its own -- squeezed it to 0px.
+The CSS floor is proven in a real browser by scripts/jstest-proposal-layout.js
+(it re-runs itself with that CSS removed and fails if the mutant still shows
+rows). What is proven HERE is the Ruby half -- which state the section starts
+in. Mutation-checked when added, RUN not assumed:
+
+    details_open? returns true for a remembered folder   -> dt3-4 FAIL
+    details_open? returns false for an empty dir         -> dt1-2 FAIL
+    id="outsect" hard-coded back to class="sect open"    -> outsect FAIL
+
 Do that again if you ever doubt it.
 
 THE LIFECYCLE HALF (added 1.9.6, 30 Aug 2026)
@@ -267,6 +281,7 @@ module WR_ProposalPackage
 
 %(launch)s
 %(open_gate)s
+%(details_open)s
 
 %(honoured_size)s
 
@@ -483,6 +498,21 @@ module WR_ProposalPackage
     [false, 13,  :refuse],   # ...and a page count cannot conjure one
   ]
 
+  # DOES FOLDER & DETAILS START EXPANDED? (1.49.2) It is the tallest block in
+  # the window and it is set-once configuration; the SCENES grid is what the
+  # window is for. Open/collapsed is not remembered per user -- the classes
+  # are written fresh on every open -- so this is a default, not someone's
+  # choice being overridden. The one case that must stay expanded is the one
+  # where the section holds the only thing standing between the operator and
+  # an export: no folder remembered yet.
+  DETAILS_CASES = [
+    # [dir, expected details_open?]
+    ['',                             true ],   # nothing remembered: it IS the next step
+    ['   ',                          true ],   # whitespace is not a folder
+    ['C:/Users/bento/Desktop/Props', false],   # a folder is set: collapse, outsum says where
+    ['P:/renders',                   false],
+  ]
+
   CASES = [
     # [state_val, seq_ended, seen_running(latch), expected]
     #
@@ -690,6 +720,11 @@ module WR_ProposalPackage
       got = open_decision(present, pages)
       out << (got == want ? "open#{i + 1} ok" :
                 "open#{i + 1} FAIL model_present=#{present.inspect} pages=#{pages} got #{got}")
+    end
+    DETAILS_CASES.each_with_index do |(dir, want), i|
+      got = details_open?(dir)
+      out << (got == want ? "dt#{i + 1} ok" :
+                "dt#{i + 1} FAIL dir=#{dir.inspect} got #{got}")
     end
 
 
@@ -1127,6 +1162,8 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'launch6 ok | '
           # 1.48.1 -- the zero-scene model opens; the page count does not decide.
           'open1 ok | open2 ok | open3 ok | open4 ok | open5 ok | '
+          # 1.49.2 -- FOLDER & DETAILS starts collapsed once a folder is known.
+          'dt1 ok | dt2 ok | dt3 ok | dt4 ok | '
           # 1.9.6 -- the lifecycle half.
           'gate1 ok | gate2 ok | gate3 ok | gate4 ok | '
           'sum1 ok | sum2 ok | sum3 ok | lost1 ok | lost2 ok | lost3 ok | '
@@ -1161,6 +1198,9 @@ def main():
         'autorun':     rbtest.method_source(SRC, 'autorun'),
         'launch':      rbtest.method_source(SRC, 'launch_decision'),
         'open_gate':   rbtest.method_source(SRC, 'open_decision'),
+        # 'details_open' (not 'details_open?'): method_source appends  and
+        # ? gives it no word boundary to land on.
+        'details_open': rbtest.method_source(SRC, 'details_open'),
         'ev_consts':   '\n'.join(const_line(c) for c in
                                   ('EV_F_NUMBER', 'EV_ISO', 'EV_INTERIOR',
                                    'EV_ROOM', 'EV_MIN', 'EV_MAX', 'INTERIOR_RE')),
@@ -1260,6 +1300,23 @@ def main():
         return 1
     print('  open-gate ok - run() no longer refuses a model with no scenes, '
           'and nothing points at the legacy five-plates tool')
+
+    # outsect (1.49.2) -- CHECKED ON THE SOURCE. details_open? can return the
+    # right answer all day while the HTML ignores it; the section's class is
+    # written in a heredoc, which no pure test can reach. A hard-coded
+    # class="sect open" here is exactly what shipped at 1.48.1 and it is what
+    # squeezed the scene grid out of the window.
+    bad = []
+    if 'class="sect open" id="outsect"' in src:
+        bad.append('FOLDER & DETAILS is hard-coded open again -- details_open? '
+                   'is not deciding, and the scene grid pays for it')
+    if 'id="outsect"' in src and 'details_open?(dir)' not in src:
+        bad.append('details_open?(dir) is not used in the html heredoc at all')
+    if bad:
+        print('  outsect FAIL %s' % '; '.join(bad))
+        return 1
+    print('  outsect ok - FOLDER & DETAILS starts from details_open?(dir), '
+          'not from a hard-coded open')
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
     print('classify_render + read_signal + entry guards + exposure, mode '

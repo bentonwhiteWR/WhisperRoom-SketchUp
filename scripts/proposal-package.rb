@@ -3692,6 +3692,29 @@ module WR_ProposalPackage
     model_present ? :open : :refuse
   end
 
+  # Does FOLDER & DETAILS start expanded? (1.49.2)
+  #
+  # It is the tallest block in the window by a long way and it is set-once
+  # configuration — folder, subfolder, client, image width, overwrite rule,
+  # shading, background. The SCENES grid is what the window is FOR, and on a
+  # 700x760 window an expanded FOLDER & DETAILS is what squeezed it out of
+  # existence. The CSS floor added at 1.49.2 means the grid survives either
+  # way now; starting collapsed is what makes it survive with room to read.
+  #
+  # Open/collapsed is NOT remembered per user — the .sect classes are written
+  # fresh into the HTML on every open and the only thing that changes them is
+  # a click in that window — so this is a default nobody has overridden, not
+  # a choice being taken away.
+  #
+  # The exception is the case that would be a trap: no folder remembered yet.
+  # Then the one thing that must happen before an export is inside this
+  # section, so it opens. `outsum` carries "Files go to: …" in the header the
+  # rest of the time, so a collapsed section still says where the package
+  # lands — the same rule scenesum and matsum already follow.
+  def self.details_open?(dir)
+    dir.to_s.strip.empty?
+  end
+
   # What run() does about the live-batch flag:
   #   :launch  — nothing running, open the dialog
   #   :reset   — flag set, user confirmed it is stale: clear through FINISH,
@@ -4893,6 +4916,29 @@ module WR_ProposalPackage
   .sect.grow.open { flex:1 1 auto; }
   .sect.grow.open > .bodyy { flex:1 1 auto; min-height:0; display:flex;
                              flex-direction:column; padding:0; }
+  /* THE SCENE GRID MUST NEVER BE SQUEEZED TO NOTHING (1.49.2). The rules
+     above made .sect.grow.open the ONLY item in this flex column that can
+     shrink — every other .sect is flex:0 0 auto — and min-height:0 then let
+     it shrink all the way to zero. So on a 700x760 window with FOLDER &
+     DETAILS open, whose body alone is taller than the window, ALL of the
+     overflow landed on the scene table: the rows were drawn correctly and
+     had nowhere to be. Benton, 10 Sep 2026, on a model AUTO-SET had just
+     filled: "oh fyi it shows in full screen, but should show always".
+     Two rules, and both are load-bearing:
+       1. the scene section gets a FLOOR it cannot be shrunk past — header,
+          the sticky heading row and about four scene rows, which then
+          SCROLL inside .wrap (it is already overflow:auto);
+       2. every other open section yields instead of holding its full
+          height, and scrolls inside its own body. Shrink is weighted by
+          base size, so the tallest block — FOLDER & DETAILS — gives up the
+          most, which is the right order: it is set-once configuration and
+          the grid is what the window is for.
+     #logsect is .grow too and deliberately keeps min-height:0: during a run
+     the log should yield to the grid, not compete with it. */
+  #scenesect.open { min-height:150px; }
+  .sect.open:not(.grow) { display:flex; flex-direction:column; flex:0 1 auto; min-height:0; }
+  .sect.open:not(.grow) > .hd { flex:0 0 auto; }
+  .sect.open:not(.grow) > .bodyy { flex:0 1 auto; min-height:0; overflow:auto; }
   .sect .hd .mini { color:var(--faint); font-size:14px; line-height:1; padding:0 2px; }
   .sect .hd:hover .mini { color:var(--accent); }
   .matrow { display:flex; gap:8px; align-items:center; padding:4px 0; }
@@ -4990,12 +5036,12 @@ module WR_ProposalPackage
   <div class="bodyy" id="matbody"></div>
 </div>
 
-<div class="sect open" id="outsect">
+<div class="sect#{details_open?(dir) ? ' open' : ''}" id="outsect">
   <div class="hd">
-    <span class="tri">&#9660;</span>
+    <span class="tri">#{details_open?(dir) ? '&#9660;' : '&#9654;'}</span>
     <span class="lbl">FOLDER &amp; DETAILS</span>
     <span class="sum" id="outsum"></span>
-    <span class="mini" title="Minimise">&minus;</span>
+    <span class="mini" title="#{details_open?(dir) ? 'Minimise' : 'Expand'}">#{details_open?(dir) ? '&minus;' : '&plus;'}</span>
   </div>
   <div class="bodyy"><div class="out">
   <span class="lbl">SUBFOLDER</span>
@@ -6205,6 +6251,11 @@ window.onerror = function (msg, src, line) {
     else if(!FNAME) t = "Files go to:  " + r + "   (the ROOT - this model is not saved, so there is no file name for a subfolder)";
     else t = "Files go to:  " + r + "/" + FNAME + "/";
     g("dest").textContent = t;
+    // A MINIMISED SECTION STILL SAYS WHAT IS IN IT (1.49.2) — the rule
+    // scenesum and matsum already follow. FOLDER & DETAILS now starts
+    // collapsed whenever a folder is already remembered, so the destination
+    // has to be readable without expanding it.
+    var os = g("outsum"); if(os) os.textContent = t;
   }
   g("dir").addEventListener("input", updateDest);
   g("sub").addEventListener("change", updateDest);

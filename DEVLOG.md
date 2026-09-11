@@ -2,7 +2,7 @@
 
 ## 2026-09-10
 
-### The scene grid was squeezed to zero height — the proposal window drew five rows and showed none — 1.49.1
+### The scene grid was squeezed to zero height — the proposal window drew five rows and showed none — 1.49.2
 
 Benton, on a model AUTO-SET had just filled: the window said **"5 scenes ·
 2 render · 3 image"** in its own header and the table under it was **blank** —
@@ -71,7 +71,7 @@ browser receives it (same heredoc unescape), lays it out in **headless Chrome
 inside an iframe of an exact pixel size** so the dialog's real `:width` /
 `:height` and `:min_width` / `:min_height` are the viewport, and measures how
 many scene rows are actually visible inside `.wrap` and whether the Export bar
-is still on screen. **Its last case re-runs the worst layout with the 1.49.1
+is still on screen. **Its last case re-runs the worst layout with the 1.49.2
 CSS cut back out and fails if that mutant still shows rows**, so the checks
 can never pass by not testing anything. It prints SKIPPED and exits 0 where
 there is no Chrome.
