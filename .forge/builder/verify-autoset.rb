@@ -27,7 +27,14 @@ require 'json'
 
 module WR_VerifyAutoSet
   DIR   = File.expand_path('../../../scripts', __FILE__).freeze
-  TAG_P = 'WR-Notes-VerifyPlan'.freeze
+  # MUST be the name WR_AutoSet::SHOWN_BY_PLATE['05-plan'] actually allows.
+  # It was 'WR-Notes-VerifyPlan' on the first live run (10 Sep 2026) and
+  # annot.plan_shows_dims_doors_and_the_plan_set FAILED because of it: the
+  # allowlist showed WR-Dims and WR-Dims-Doors and hid the unknown set, which
+  # is the allowlist WORKING. The fixture was asserting that an invented tag
+  # name would be shown. Using the real name means this check now proves the
+  # plan plate shows its plan set, instead of proving a typo stays hidden.
+  TAG_P = 'WR-Notes-Plan'.freeze
   ROOM  = 'WR-Verify room'.freeze
   B1    = 'MDL 9901 E VERIFY'.freeze
   B2    = 'MDL 9902 E VERIFY'.freeze
