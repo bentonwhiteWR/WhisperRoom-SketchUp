@@ -2,7 +2,101 @@
 
 ## 2026-09-10
 
-### The caster plate raises the booth a FULL 4 3/4 — one datum instead of three — 1.49.0
+### The scene grid was squeezed to zero height — the proposal window drew five rows and showed none — 1.49.1
+
+Benton, on a model AUTO-SET had just filled: the window said **"5 scenes ·
+2 render · 3 image"** in its own header and the table under it was **blank** —
+not a red error row, not the empty-state row, nothing. Then, minutes later:
+*"oh fyi it shows in full screen, but should show always"*. Maximise the
+window and all five rows are there, correct, with their MODE marks, WALLS and
+ANNOTATIONS cells and filenames.
+
+**Nothing failed.** The first hypotheses were all wrong and worth naming so
+nobody spends the time again: the 1.48.1 zero-row branch did not win, no
+renamed `ST_FULL` escaped into the dialog, `draw()` did not throw (the lines
+it writes AFTER the table — the count, the bulk bar, the AUTO-SET summary —
+were all correct on screen, which is proof the whole function ran), and the
+"A WINDOW WHOSE SCRIPT FAILED MUST NOT LOOK LIKE A MODEL WITH NO SCENES"
+guard was right not to fire. **The rows were in the DOM and had nowhere to
+be.** This was a layout bug the whole time, and the header being right is what
+gave it away.
+
+**The bug, in one sentence.** `body` is a flex column; every `.sect` in it is
+`flex:0 0 auto` **except** the scene section, which is `.sect.grow.open` —
+`flex:1 1 auto` with `min-height:0`. That made it the only item in the column
+that could shrink, and `min-height:0` let it shrink **to nothing**. FOLDER &
+DETAILS is taller than the entire window on its own (subfolder, folder, GOES
+TO, client, image width, overwrite, shading, and two paragraphs about
+transparent backgrounds) and it opened expanded, so it and the fixed blocks
+below took the height and the grid absorbed 100% of the overflow. Measured in
+a real browser at the dialog's own 700x760: `#scenesect` **2px**, `.wrap`
+**0px**, five rows in the DOM, **zero visible** — and the bar carrying Export
+package pushed off the bottom too, which is the exact bug `.grow` was added to
+prevent. The `.grow` markup has been right since 1.23.x; what it never had was
+a floor.
+
+**The fix is four CSS rules.** The scene section gets a floor it cannot be
+shrunk past (`#scenesect.open { min-height:150px }` — header, sticky heading
+row and about four rows, which then scroll inside `.wrap`, already
+`overflow:auto`), and every other open section is allowed to yield and scroll
+inside its own body instead of holding full height
+(`.sect.open:not(.grow)` as a flex column with `min-height:0` and
+`overflow:auto` on its `.bodyy`). Flex shrink is weighted by base size, so the
+tallest block gives up the most — which is the right order, because FOLDER &
+DETAILS is set-once configuration and the grid is what the window is for.
+`#logsect` is `.grow` too and deliberately keeps `min-height:0`: during a run
+the log should yield to the grid, not compete with it. Both halves are
+load-bearing and each is checked by size — dropping the floor alone still
+looks fine at 700x760 and takes the minimum size from 150px/2 rows to
+78px/1 row; dropping the yielding rules alone puts Export package back off the
+bottom.
+
+**FOLDER & DETAILS now starts collapsed once a folder is remembered**
+(`details_open?(dir)`, pure, beside `open_decision`). Open/collapsed is not
+remembered per user — the classes are written fresh into the HTML on every
+open and only a click in that window changes them — so this is a default
+nobody had overridden, not a choice taken away. It still opens when no folder
+is set yet, because then it holds the one thing that must happen before an
+export. And `updateDest()` now writes the destination into `outsum` as well
+as `dest`, so the collapsed header reads *"Files go to: …"* — the same rule
+`scenesum` and `matsum` already follow. At 700x760 that is the difference
+between three rows visible and all five.
+
+**A new harness, because the old one structurally could not see this.**
+`scripts/jstest-proposal-dialog.js` runs the dialog script under a FAKE DOM:
+no layout, no viewport, no CSS, so five correct rows with zero height look
+identical to five correct rows. `scripts/jstest-proposal-layout.js` is the
+other half and does no logic checking at all — it builds the page the way the
+browser receives it (same heredoc unescape), lays it out in **headless Chrome
+inside an iframe of an exact pixel size** so the dialog's real `:width` /
+`:height` and `:min_width` / `:min_height` are the viewport, and measures how
+many scene rows are actually visible inside `.wrap` and whether the Export bar
+is still on screen. **Its last case re-runs the worst layout with the 1.49.1
+CSS cut back out and fails if that mutant still shows rows**, so the checks
+can never pass by not testing anything. It prints SKIPPED and exits 0 where
+there is no Chrome.
+
+**Gotchas worth keeping.** Embedding the dialog HTML inside a `<script>` via
+`JSON.stringify` silently truncates the page at its first `</script>` — escape
+`</` as `<\/`. And `--window-size` is not the viewport: headless Chrome takes
+about 95px off the top, which is why the cases use an iframe of an exact size
+instead.
+
+**Offline:** rbparse 75/75; rbtest-proposal 0 failures with `dt1`–`dt4` and a
+new `outsect` source check; `jstest-proposal-dialog` PASS unchanged;
+`jstest-proposal-layout` 12 checks PASS. Five mutants run, each killed by the
+check named for it (the four above plus `details_open?` inverted and the
+`outsum` line dropped).
+
+**NOT verified live.** Nobody has opened the real window since the fix. The
+layout is proven in Chrome, and SketchUp's HtmlDialog is CEF/Chromium, but
+that is derived, not observed — and `:preferences_key` means the window
+reopens at whatever size it was last left, which could be shorter than the
+520x480 minimum tested here. First thing to look at: open the proposal
+package on a model with scenes and confirm the grid is there without
+maximising.
+
+### The caster plate raises the booth a FULL 4 3/4 — one datum instead of three — 1.49.0, live-verified in 1.49.1
 
 Benton, 10 Sep 2026: *"I told you earlier that the CP raises the booth 3 3/4".
 I was wrong, it actually raises it 4 3/4". Can you please adjust this in
@@ -81,6 +175,45 @@ datum check. Mutation-checked, each mutant applied, run, and reverted:
 | CP fixture re-seated at −5.75 (what a regressed builder produces) | 3 FAILs in `rbtest-boothdims.py` |
 | plate dropped from `ceiling_required` (pre-1.49.0) | 7 FAILs |
 | `CASTER_ADD` 4.75 → 3.75 (the retracted figure) | 6 FAILs + the datum check |
+
+**RUN LIVE, AND THE GEOMETRY WAS RIGHT FIRST TIME — 1.49.1.** Benton ran
+`.forge/builder/verify-caster-lift.rb`: 12 checks, 5 failed, and every failure
+was **the verification script's**, not the product's. It read child `bounds`
+without the group transform, so it reported booth-LOCAL numbers — plate
+−6.0625, mat −1.3125, standard floor −1.0000, ceiling top 83.0000 — while the
+build log on the same run printed `GROUND booth lifted 6.0625 … now 4.7500
+above the ground plane (caster datum)`. Add the lift to each and they are
+0, 4.75, 5.0625 and **89.0625**: Benton's number, exactly, from the shipped
+code. The one check that used the group's own bounds (`nothing hangs below the
+ground`) passed at 0.0000, which is the tell — the group's bounds are world,
+a child's are its parent's frame.
+
+Fixed in the script only: `parts` now pushes every corner through
+`group.transformation`, and a new **frame check** asserts the per-part reader
+agrees with the group's own bounds, so a slip back into local space fails by
+name instead of libelling the geometry. The check that merely said "not 88.75"
+was vacuous once the rest read world space; it now measures the SPAN from
+plate bottom to ceiling top and asserts it is 0.3125 **over** 88.75, which
+exercises both ends and does not depend on where z 0 is.
+
+This is the wrong-coordinate-space failure class today's geometry audit named
+(`.forge/auditor/geometry.md`). **The product code does not have it**, checked
+rather than assumed: `dimension-whisperroom.rb`'s `local_box` is documented as
+the booth's own frame and its measurements are spans (a translation cannot
+change a distance); where it genuinely needs world space — the obstruction
+slab — it already builds a `to_world` lambda off `inst.transformation`.
+`wr-overlays` and `build-booth-components` pass booth-local figures and label
+them `booth-local` in both the code and the console.
+
+**The wheels are not a guarantee.** Benton, same run: *"also, the CP wheels may
+not be PERFECTLY heighted to say that dimension. Just an fyi."* 4.75 is the
+DESIGN datum — what the model builds and dimensions to — and that caveat is now
+recorded at the datum itself in `wr-overlays.rb`. A physical plate measuring a
+fraction off is not a defect in the model, and nobody should nudge the constant
+to chase a tape measure.
+
+**The corrected script has NOT itself been run live.** It parses; that is all.
+Benton re-runs it and 14 checks should pass.
 
 **UNRUN IN SKETCHUP.** No bridge, as always. The live half is
 `.forge/builder/verify-caster-lift.rb` — refuses outside an Untitled model,

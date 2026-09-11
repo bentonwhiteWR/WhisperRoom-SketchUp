@@ -241,6 +241,13 @@ module WR_Overlays
   #                 lift was measured to the STANDARD floor instead, which
   #                 buried an Enhanced booth's mat 0.3125 into the tray floor
   #                 and read 7'-4 3/4". One plane now, not two.
+  #                 THE WHEELS ARE NOT A GUARANTEE. Benton, 10 Sep 2026, on
+  #                 the live run that confirmed this: "also, the CP wheels may
+  #                 not be PERFECTLY heighted to say that dimension. Just an
+  #                 fyi." 4.75 is the DESIGN datum and it is what the model
+  #                 builds and dimensions to; a physical plate measuring a
+  #                 fraction off it is not a defect in the model, and nothing
+  #                 here should be nudged to chase a tape measure.
   # CP_TRAY_DEPTH   the plate is a TRAY and the whole WhisperRoom sits down
   #                 into it — the rim wraps the bottom of the floor slab by
   #                 this much. The researcher measured 0.739 off the portal

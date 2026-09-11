@@ -25,6 +25,24 @@
 # whole output back. It erases the booth it built in `ensure`, and says so by
 # name if the cleanup itself fails.
 #
+# FIRST LIVE RUN, 10 Sep 2026 — Benton ran it, 12 checks, 5 failed, AND THE
+# GEOMETRY WAS ALREADY RIGHT. The script was reading child bounds without the
+# group transform, so it reported booth-LOCAL numbers: plate -6.0625, mat
+# -1.3125, standard floor -1.0000, ceiling top 83.0000. Add the 6.0625 lift
+# the build log printed on the same run and every one of them is the right
+# world figure, the ceiling top landing on 89.0625 exactly. The one check that
+# used the group's own bounds ('nothing hangs below the ground') passed at
+# 0.0000, which is the tell. Fixed in parts() below; the frame check added
+# beside it fails loudly if that reader ever slips back into local space.
+# Nothing in the product code was changed for this — wr-overlays and
+# build-booth-components were producing Benton's number all along.
+#
+# THE PLATE'S WHEELS. Benton, same run: "also, the CP wheels may not be
+# PERFECTLY heighted to say that dimension. Just an fyi." 4.75 is the DESIGN
+# datum and this script checks the model against it. A physical plate whose
+# wheels sit a fraction off is not a defect in the model and nothing here
+# should be adjusted to chase one.
+#
 # WHAT IT CANNOT CHECK. Whether the plate LOOKS seated — a gap hidden inside
 # the tray is a taste call and is warned about by name at build time. It checks
 # the planes: plate bottom on the ground, stack underside on the tray floor,
@@ -55,15 +73,32 @@ module WR_VerifyCasterLift
     !got.nil? && (got - want).abs <= TOL
   end
 
-  # Every leaf instance in the booth group, as [name, world bounds].
+  # THE COORDINATE SPACE, and the first live run got it wrong (10 Sep 2026).
+  # Entity#bounds on a CHILD is in its PARENT's frame — booth-local here — and
+  # the booth group carries the whole caster lift in its own transformation.
+  # So a raw child read is short by exactly the lift, and the first run
+  # reported -6.0625 / -1.3125 / -1.0000 / 83.0000: every number right, every
+  # one of them in the wrong frame, five FAILs against geometry that was
+  # already producing Benton's figure. The group's OWN bounds are world, which
+  # is why 'nothing hangs below the ground' passed at exactly 0.0000 while the
+  # rest failed — that check is the known-good reference, and the frame check
+  # below ties this reader back to it.
+  #
+  # Every z here is therefore pushed through the group transform first. Bounds
+  # are axis-aligned and the lift is a pure translation, but the corners are
+  # transformed rather than the min/max offset, so a build that ever rotates
+  # or scales the group reads correctly instead of plausibly.
   def self.parts(group)
+    tr = group.transformation
     out = []
     group.entities.each do |e|
       next unless e.is_a?(Sketchup::ComponentInstance) || e.is_a?(Sketchup::Group)
       n = e.name.to_s
       n = e.definition.name.to_s if n.empty? && e.respond_to?(:definition)
       b = e.bounds
-      out << [n, b.min.z.to_f, b.max.z.to_f]
+      next unless b.valid?
+      zs = (0..7).map { |i| b.corner(i).transform(tr).z.to_f }
+      out << [n, zs.min, zs.max]
     end
     out
   end
@@ -146,6 +181,12 @@ module WR_VerifyCasterLift
           near(plate_bottom, 0.0), format('%.4f', plate_bottom.to_f))
       say('nothing in the booth hangs below the ground',
           group_bottom >= -TOL, format('group bottom %.4f', group_bottom))
+      # THE FRAME CHECK. The group's own bounds are world by definition; the
+      # per-part reader above has to agree with them or it is reading the
+      # booth's local frame, which is the defect the first live run had.
+      say("the per-part reader is in the same frame as the group's own bounds",
+          near(group_bottom, plate_bottom.to_f),
+          format('group %.4f vs plate %.4f', group_bottom, plate_bottom.to_f))
       say("the IEP mat's underside seats on the tray floor, CP_BOOTH_LIFT up",
           near(mat_bottom, WR_Overlays::CP_BOOTH_LIFT), format('%.4f', mat_bottom.to_f))
       say('the standard floor underside is the mat thickness above that',
@@ -153,12 +194,21 @@ module WR_VerifyCasterLift
           format('%.4f', std_bottom.to_f))
       say("the ceiling top reads Benton's 7'-5 1/16\" (89.0625) off the ground",
           near(ceil_top, WANT), format('%.4f', ceil_top.to_f))
+      # MEASURED END TO END, not off the ground: plate bottom to ceiling top
+      # is the booth's own height and does not care where z 0 is, so it stands
+      # even if the group is one day placed somewhere other than the origin.
+      # It is also the figure Benton reads off a drawing.
+      span = (ceil_top.nil? || plate_bottom.nil?) ? nil : ceil_top - plate_bottom
+      say("plate bottom to ceiling top measures 7'-5 1/16\" (89.0625)",
+          near(span, WANT), span.nil? ? 'not measurable' : format('%.4f', span))
       say('and that is the drawn Enhanced height plus a FULL 4.75 of plate',
-          near(ceil_top.to_f - DRAWN, WR_Overlays::CP_BOOTH_LIFT),
-          format('%.4f', ceil_top.to_f - DRAWN))
-      say('NOT the pre-1.49.0 88.75 (7\'-4 3/4"), which is what a plate seated ' \
-          'under the standard floor reads',
-          !near(ceil_top, 88.75), format('%.4f', ceil_top.to_f))
+          near(span.to_f - DRAWN, WR_Overlays::CP_BOOTH_LIFT),
+          format('%.4f', span.to_f - DRAWN))
+      # The pre-1.49.0 seating read 88.75 end to end. Asserting the SPAN is
+      # 0.3125 OVER it, rather than merely 'not 88.75', keeps this a real
+      # measurement of both ends instead of a restatement of the check above.
+      say('a full 0.3125 over the pre-1.49.0 88.75 (7 ft 4 3/4 in) — the mat that used to sit buried in the tray',
+          near(span.to_f - 88.75, 0.3125), format('%.4f over 88.75', span.to_f - 88.75))
     rescue Exception => e
       puts "  FAIL run aborted — #{e.class}: #{e.message}"
       puts e.backtrace.first(6).map { |l| "       #{l}" }.join("\n")
