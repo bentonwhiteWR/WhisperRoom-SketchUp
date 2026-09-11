@@ -345,8 +345,39 @@ recorded at the datum itself in `wr-overlays.rb`. A physical plate measuring a
 fraction off is not a defect in the model, and nobody should nudge the constant
 to chase a tape measure.
 
-**The corrected script has NOT itself been run live.** It parses; that is all.
-Benton re-runs it and 14 checks should pass.
+**RUN LIVE 10 Sep 2026 — ALL 14 CHECKS PASS.** Benton ran the corrected script
+in an Untitled SketchUp 26.2.243 model on a real MDL 7296 E with a real CP set.
+Every figure the 1.49.0 datum predicted came back off the built geometry:
+
+```
+  PASS the plate bottom sits ON the ground plane (world z 0) — 0.0000
+  PASS nothing in the booth hangs below the ground — group bottom 0.0000
+  PASS the per-part reader is in the same frame as the group's own bounds
+       — group 0.0000 vs plate 0.0000
+  PASS the IEP mat's underside seats on the tray floor, CP_BOOTH_LIFT up — 4.7500
+  PASS the standard floor underside is the mat thickness above that — 5.0625
+  PASS the ceiling top reads Benton's 7'-5 1/16" (89.0625) off the ground — 89.0625
+  PASS plate bottom to ceiling top measures 7'-5 1/16" (89.0625) — 89.0625
+  PASS and that is the drawn Enhanced height plus a FULL 4.75 of plate — 4.7500
+  PASS a full 0.3125 over the pre-1.49.0 88.75 (7 ft 4 3/4 in) — the mat that
+       used to sit buried in the tray — 0.3125 over 88.75
+  14 check(s), 0 failed
+```
+
+Three things this settles that reading the code could not. The mat really does
+seat ON the tray floor at 4.75 rather than sinking into it — the interpenetration
+1.49.0 diagnosed was real and is gone. The booth really measures **89.0625 from
+plate bottom to ceiling top**, which is Benton's corrected figure exactly, and
+the span check proves it end-to-end rather than trusting where z 0 happens to
+sit. And the frame check — group bottom against plate bottom, both 0.0000 —
+confirms the per-part reader and the group's own bounds now agree, which is the
+whole content of the 1.49.1 fix.
+
+The previous run of this script (before 1.49.1) reported 5 of 12 failing. Every
+one of those failures was the script reading booth-local bounds, off by exactly
+the 6.0625 lift; the geometry was correct throughout. Worth remembering as the
+shape of that mistake: a test that libels working code costs as much trust as a
+test that passes broken code.
 
 **UNRUN IN SKETCHUP.** No bridge, as always. The live half is
 `.forge/builder/verify-caster-lift.rb` — refuses outside an Untitled model,
