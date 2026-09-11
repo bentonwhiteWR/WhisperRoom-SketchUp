@@ -92,57 +92,152 @@ module WR_AutoSet
 
   # ------------------------------------------------------------- plates --
   #
-  # PLATE 3 IS A FRONT ELEVATION, AND THAT IS A CHANGE. proposal-scenes.rb
-  # makes `03-side`, a SIDE elevation at az +90 (observed, its PLATES array).
-  # Both real proposal packs on disk ask for a FRONT elevation with the door
-  # open — proposals/examples/example-client/proposal-v2.json ("Front
-  # Elevation", stem `front`) and proposals/examples/peoplesspace (two front
-  # renders, `07-front-render-left-door` / `09-front-render-right-door`). So
-  # the frozen side elevation looks like a defect rather than a preference,
-  # and auto-set aims plate 3 at the real door side. Benton's answer, 10 Sep
-  # 2026: switch to front.
+  # THE SHOT LIST IS BENTON'S, VERBATIM (10 Sep 2026), after the first real
+  # run of 1.48.0 came back "the layouts are terrible":
   #
-  #   :az    :door or :vent — which tag the azimuth is read from
+  #   "Almost always, I will have a 'front on' view. Find the door, step out
+  #    like 15 ft or so. Straight on. Perspective. FYI I never use parellel
+  #    perspective so dont use it either. This first front view is great to
+  #    show dimensions... Then I would go to the left or right, so you see the
+  #    booth at a bit of an angle. Still about the same height... Then usually
+  #    one from 15-20ft high around this same angle. This is image. Great at
+  #    showing dimensions. Sometimes a side view depending on how big the
+  #    booth is, or if there are windows. Usually a back view to show
+  #    ventilation (this usually requires a hidden wall). Then finally a Top
+  #    Down view that shows dimensions"
+  #
+  # EVERY PLATE IS PERSPECTIVE. He said it flatly - "I never use parellel
+  # perspective so dont use it either" - and that includes the top-down and
+  # the two that read like elevations. 1.48.0 shipped four of its six plates
+  # parallel. There is no :persp key any more, because a key implies a choice.
+  #
+  # WHAT THE OLD NAMES WERE, AND WHY THEY WENT. 1.48.0 made 01-exterior,
+  # 02-dimensioned, 03-front, 04-ventilation, 05-plan. 02-dimensioned was
+  # named for its ANNOTATIONS rather than its camera, which is part of why a
+  # blank one was so confusing (see empty_shown_note); and with the front-on
+  # shot promoted to first, "01-exterior" would have named a straight-on
+  # product shot. Every id now names a CAMERA, and the annotations follow the
+  # camera instead of the other way round.
+  #
+  # RE-RUNNABILITY, SAID OUT LOUD: the stamp's `plate` key IS these ids, so
+  # scenes stamped by 1.48.x carry retired ids and will NOT be matched by this
+  # version. They are still matched by TOKEN, so Remove still removes them -
+  # and stale_plates below names them in the log rather than erasing a scene
+  # Benton may have nudged. The one action that gets the corrected framing is
+  # Remove, then Apply.
+  #
+  #   :az    :door or :vent - which tag the azimuth is read from
   #   :swing degrees added to it; 35 makes a three-quarter out of a head-on
-  #   :el    elevation in degrees; 89 is the plan
-  #   :inside the camera goes INSIDE the booth (06-interior only)
+  #   :el    elevation in degrees. 7 is standing eye height at the standoff
+  #          below (a 66 in eye, a booth centre ~42 in up, ~16 ft back);
+  #          40 is the "15-20 ft high" shot at the same standoff; 90 is
+  #          straight down.
+  #   :inside the camera goes INSIDE the booth (07-interior only)
   #
-  # '06-interior' is named so it matches proposal-package.rb's INTERIOR_RE
-  # (/interior|inside|in-booth|booth\s+in/i), which is what selects the
-  # interior exposure value for a render row. Renaming it would silently
-  # mis-expose it.
+  # 06-PLAN IS 90, NOT 89. 1.48.0 shipped the plan at 89 and Benton's first
+  # run came back "it's not even a top view". 89 was there to dodge a
+  # degenerate up vector at straight down; it is not needed, because
+  # WR_ProposalScenes.aim already swaps up to +Y at |el| >= 88 (observed, its
+  # own source). At exactly 90 the azimuth stops mattering and the top-down
+  # always lands +Y up, which is orientation-stable rather than accidental.
+  #
+  # '07-interior' is named so it still matches proposal-package.rb's
+  # INTERIOR_RE (/interior|inside|in-booth|booth\s+in/i), which is what selects
+  # the interior exposure value for a render row. Renaming it past that regex
+  # would silently mis-expose it.
   PLATES = [
-    { :id => '01-exterior',    :az => :door, :swing => 35.0, :el => 12.0, :persp => true,
-      :on => true,  :what => 'Main Render / cover hero' },
-    { :id => '02-dimensioned', :az => :door, :swing => 35.0, :el => 20.0, :persp => false,
-      :on => true,  :what => 'Dimensioned View' },
-    { :id => '03-front',       :az => :door, :swing => 0.0,  :el => 0.0,  :persp => false,
-      :on => true,  :what => 'Front Elevation' },
-    { :id => '04-ventilation', :az => :vent, :swing => 25.0, :el => 14.0, :persp => false,
-      :on => true,  :what => 'Rear View & Ventilation' },
-    { :id => '05-plan',        :az => :door, :swing => 0.0,  :el => 89.0, :persp => false,
-      :on => true,  :what => 'Top-Down Floor Plan' },
-    { :id => '06-interior',    :az => :door, :swing => 0.0,  :el => 0.0,  :persp => true,
+    { :id => '01-front',       :az => :door, :swing => 0.0,  :el => 7.0,
+      :on => true,  :what => 'Front on, square to the door' },
+    { :id => '02-angled',      :az => :door, :swing => 35.0, :el => 7.0,
+      :on => true,  :what => 'Angled, same height - cover hero' },
+    { :id => '03-high',        :az => :door, :swing => 35.0, :el => 40.0,
+      :on => true,  :what => 'High angled (15-20 ft up) - always an image' },
+    { :id => '04-side',        :az => :door, :swing => 90.0, :el => 7.0,
+      :on => true,  :what => 'Side view' },
+    { :id => '05-ventilation', :az => :vent, :swing => 25.0, :el => 10.0,
+      :on => true,  :what => 'Rear view & ventilation' },
+    { :id => '06-plan',        :az => :door, :swing => 0.0,  :el => 90.0,
+      :on => true,  :what => 'Top-down, dimensions' },
+    { :id => '07-interior',    :az => :door, :swing => 0.0,  :el => 0.0,
       :on => false, :inside => true, :what => 'Interior (off by default)' }
   ].freeze
 
-  # Plates that hide NO walls. 05-plan: walls do not occlude from directly
-  # above and the plan's job is to show the booth IN the room. 06-interior:
-  # the occluders there are the booth's own panels, which are not wall units —
+  # SIDE IS ON BY DEFAULT EVEN THOUGH HE SAID "sometimes". Turning a plate off
+  # is one tick in the popover before Apply; a plate he wanted and did not get
+  # costs a second run and a re-review. Interior stays the one opt-in plate,
+  # because it is the only one whose camera is inside the booth.
+
+  # THE STANDOFF. "step out like 15 ft or so" is the intent, not a constant:
+  # a 96168 at 15 ft does not fit in a 35-degree frame, and a plate whose
+  # subject is cropped is worse than one shot from 26 ft. So it scales with
+  # the booth's own radius and lands at ~16 ft for a 4872 (radius ~60 in) and
+  # ~26 ft for a 96168 (~106 in). 1.48.0 used WR_ProposalScenes.aim's own
+  # radius * 3.2 + 60, which put a 4872 at 21 ft.
+  STANDOFF_K = 2.6
+  STANDOFF_C = 36.0
+
+  # 35 degrees is SketchUp's own default lens and a longer one than aim's 40:
+  # less barrel on a product shot, and it is what Benton's hand-framed views
+  # already are.
+  PLATE_FOV = 35.0
+
+  def self.standoff(radius)
+    (radius.to_f * STANDOFF_K) + STANDOFF_C
+  end
+
+  # THE STANDOFF IS A GROUND RUN, NOT A SLANT RANGE, and that is the whole
+  # reason the high plate works. Benton wants the angled shot and the high one
+  # "around this same angle" - same place on the floor, camera lifted 15-20 ft.
+  # If standoff were the slant range, raising the elevation would walk the
+  # camera IN toward the booth instead of up, and the "high" shot would end up
+  # 9 ft off the ground and 9 ft away. So divide by cos(el).
+  #
+  # At or past 80 degrees there is no meaningful ground run left (and cos(90)
+  # is zero), so overhead the standoff is read as a HEIGHT above the booth
+  # centre instead - which for a 4872 is ~16 ft up, ~12 ft clear of the roof.
+  def self.plate_dist(el, radius)
+    base = standoff(radius)
+    e = el.to_f.abs
+    return base if e >= 80.0
+    base / Math.cos(e * DEG)
+  end
+
+  # Plates that hide NO walls. 06-plan: walls do not occlude from directly
+  # above and the plan's job is to show the booth IN the room. 07-interior:
+  # the occluders there are the booth's own panels, which are not wall units -
   # said out loud in the log rather than silently doing nothing.
-  NO_WALL_PLATES = %w[05-plan 06-interior].freeze
+  #
+  # 05-ventilation is deliberately NOT here: Benton, "a back view to show
+  # ventilation (this usually requires a hidden wall)". That IS the camera
+  # cone rule, and it only fires if the plate's camera actually landed on the
+  # page - which until 1.49.1 it did not (see apply).
+  NO_WALL_PLATES = %w[06-plan 07-interior].freeze
 
   # RENDERS ARE A KNOB, NOT A CONSTANT. Default 2 (Benton, 10 Sep 2026);
   # 0-6 from the popover. Assigned down this fixed ladder, everything below
-  # the line is IMAGE. Exterior first because it is the cover in both packs;
-  # front second because peoplesspace renders both its front options; the
-  # dimensioned plate and the plan are LAST on purpose — a plate whose job is
-  # to carry a dimension string does not need photoreal materials, and the
-  # render lane is the expensive one.
-  RENDER_LADDER = %w[01-exterior 03-front 04-ventilation
-                     06-interior 02-dimensioned 05-plan].freeze
+  # the line is IMAGE.
+  #
+  # TWO PLATES ARE NOT ON THE LADDER AT ALL, so no number of renders can
+  # promote them: 03-high ("This is image", flatly) and 06-plan. Both are
+  # dimension-carrying plates, and a plate whose job is to carry a dimension
+  # string does not need photoreal materials - the render lane is the
+  # expensive one. 01-front is last on the ladder for the same reason: it is
+  # the other dimensioned plate.
+  RENDER_LADDER = %w[02-angled 05-ventilation 04-side
+                     07-interior 01-front].freeze
   DEFAULT_RENDERS = 2
   MAX_RENDERS = 6
+
+  # STILL TO DO, NAMED RATHER THAN HALF-DONE (10 Sep 2026). Benton takes the
+  # front-on and the angled shot TWICE - "I usually grab one that is an image
+  # from this view, as well as a render" - one image carrying dimensions and
+  # one clean render from the SAME camera. This table cannot say that: one
+  # row is one page, and the stamp's `plate` key is unique per page. The shape
+  # it wants is a :dual flag that emits two ids from one row ('01-front' and
+  # '01-front-render'), aimed once and stamped twice, with the render one on
+  # the ladder and the image one carrying the allowlist. That is a change to
+  # the plate table, the stamp, the scene names, the ladder and the review
+  # grid, so it is a separate piece of work and not this one.
 
   # ------------------------------------------------- the annotation rule --
 
@@ -159,12 +254,13 @@ module WR_AutoSet
   # that the model does not carry is simply not shown (opt-in by existence),
   # so a shop that has never made a WR-Notes-Vent set gets a clean plate 4.
   SHOWN_BY_PLATE = {
-    '01-exterior'    => [],                                        # hero: clean or it isn't a hero
-    '02-dimensioned' => WR_ProposalScenes::SHOWN_ON_DIMENSIONED,   # the existing, reviewed answer
-    '03-front'       => [],                                        # elevation reads as a product shot
-    '04-ventilation' => %w[WR-Notes-Vent],
-    '05-plan'        => WR_ProposalScenes::SHOWN_ON_DIMENSIONED + %w[WR-Notes-Plan],
-    '06-interior'    => []
+    '01-front'       => WR_ProposalScenes::SHOWN_ON_DIMENSIONED,   # "great to show dimensions"
+    '02-angled'      => [],                                        # cover hero: clean or it isn't one
+    '03-high'        => WR_ProposalScenes::SHOWN_ON_DIMENSIONED,   # "Great at showing dimensions"
+    '04-side'        => [],
+    '05-ventilation' => %w[WR-Notes-Vent],
+    '06-plan'        => WR_ProposalScenes::SHOWN_ON_DIMENSIONED + %w[WR-Notes-Plan],
+    '07-interior'    => []
   }.freeze
 
   # The family tags this plate may show, given the tags the model actually
@@ -187,6 +283,76 @@ module WR_AutoSet
     (sets || []).each { |s| picks[s['key']] = !shown.include?(s['name'].to_s) }
     (loose || []).each { |it| picks[it['key']] = true }
     picks
+  end
+
+  # ------------------------------------ is there anything ON those tags? --
+  #
+  # THE ALLOWLIST CANNOT TELL YOU THIS AND NEITHER CAN THE REVIEW COLUMN.
+  # Benton's first real run, 10 Sep 2026, on `MDL 4872 E (components)`: the
+  # dimensioned plate came out with a clean booth and no annotation on it, and
+  # the ANNOTATIONS column for that scene read "dims + doors" - i.e. the
+  # allowlist had done exactly its job and WR-Dims / WR-Dims-Doors really were
+  # visible on the page. The model simply had nothing drawn on them: a bare
+  # booth component, no room, nothing dimensioned.
+  #
+  # From the column, "the tags are hidden" and "there is nothing on the tags"
+  # look identical, and both render as a blank plate. So COUNT, and say so.
+  # This does NOT widen the allowlist and must never be made to: that list is
+  # the only thing standing between a construction note and a customer's
+  # image. The honest fix for a model with no dimensions is to draw the
+  # dimensions.
+
+  # How many entities the model carries on each of `tags`. nil for a tag whose
+  # walk failed - nil is "could not tell" and never counts as empty.
+  def self.tag_counts(model, tags)
+    out = {}
+    (tags || []).each do |n|
+      name = n.to_s
+      out[name] = begin
+        hits = []
+        WR_ProposalScenes.walk(model.entities, name, hits, 0)
+        hits.length
+      rescue StandardError
+        nil
+      end
+    end
+    out
+  end
+
+  # The warning line for one plate, or nil when there is nothing to warn
+  # about. It fires ONLY when the plate is allowed to show tags and EVERY one
+  # of them is empty - a plate showing two sets where one has content is not
+  # blank. A nil count (the walk failed) is not empty, so a failed read stays
+  # quiet rather than telling Benton his dimensions are missing on no evidence.
+  def self.empty_shown_note(shown, counts)
+    names = (shown || []).map { |n| n.to_s }
+    return nil if names.empty?
+    return nil unless names.all? { |n| (counts || {})[n] == 0 }
+    "NOTHING IS DRAWN on #{names.join(' + ')} - this plate will be BLANK. " \
+      'The tags are shown, not hidden; the model carries no entities on them. ' \
+      'Dimension the model first, then re-run AUTO-SET.'
+  end
+
+  # The run-level version: which of these plates come out blank, named.
+  def self.blank_plates(ids, sets, counts)
+    present = (sets || []).map { |s| s['name'] }
+    (ids || []).select do |id|
+      !empty_shown_note(effective_shown(id, present), counts).nil?
+    end
+  end
+
+  # ------------------------------------------------- plates that retired --
+  #
+  # A page stamped by an older version with a plate id this version no longer
+  # has. It is OURS (same token), so the containment rule allows touching it -
+  # but it is NOT erased, because Benton may have renamed or nudged it. It is
+  # NAMED, in the log and in the summary, with the one action that fixes it.
+  def self.stale_plates(pages, token)
+    live = PLATES.map { |pl| pl[:id] }
+    token_pages(pages, token).reject do |pg|
+      st = page_stamp(pg)
+      st.nil? || live.include?(st['plate'].to_s)
+    end
   end
 
   # ------------------------------------------------------- the wall rule --
@@ -270,7 +436,7 @@ module WR_AutoSet
   end
 
   def self.plate_ids(interior = false)
-    PLATES.select { |p| p[:on] || (interior && p[:id] == '06-interior') }.map { |p| p[:id] }
+    PLATES.select { |p| p[:on] || (interior && p[:inside]) }.map { |p| p[:id] }
   end
 
   # Where the camera stands, in degrees. door_az/vent_az are read off the
@@ -562,8 +728,11 @@ module WR_AutoSet
     p = plate(plate_id)
     c = Geom::Point3d.new(centre_a[0], centre_a[1], centre_a[2])
     return aim_interior(view, c, radius, (door_az || FALLBACK_AZ)) if p[:inside]
+    # PERSPECTIVE, ALWAYS - there is no :persp key on a plate any more (see
+    # PLATES). dist and fov are auto-set's own; aim's own defaults are the
+    # legacy tool's and are left alone.
     WR_ProposalScenes.aim(view, c, radius, az_for(plate_id, door_az, vent_az),
-                          p[:el], p[:persp])
+                          p[:el], true, plate_dist(p[:el], radius), PLATE_FOV)
   end
 
   # Inside the booth, looking back across it. A STARTING POINT, not a
@@ -688,6 +857,10 @@ module WR_AutoSet
     # .scan, annot_rows calls WR_SceneAnnotations.inventory.
     units       = wall_geometry(model)
     sets, loose = annot_rows(model)
+    # Counted once for the whole run, over every tag any plate is allowed to
+    # show. Cheap, and it is what turns a silently blank plate into a sentence.
+    counts      = tag_counts(model, SHOWN_BY_PLATE.values.flatten.uniq - NEVER_SHOWN)
+    stale       = stale_plates(pages.to_a, token)
 
     start   = pages.selected_page
     ents    = []
@@ -711,18 +884,13 @@ module WR_AutoSet
         fresh = page.nil?
 
         if fresh
+          # Aimed BEFORE the add as well as after it, so the page is born with
+          # the right camera even on a build where PAGE_USE_CAMERA is not
+          # defined and the explicit save below cannot run.
           aim_plate(view, id, centre, radius, door, vent)
           page = pages.add(want)
           lines << "created  #{want}"
         elsif reaim
-          pages.selected_page = page
-          aim_plate(view, id, centre, radius, door, vent)
-          # THE CAMERA HAS TO BE SAVED EXPLICITLY. write_scene below calls
-          # page.update with the HIDDEN-state mask only (WR_SceneWalls
-          # .update_mask = hidden objects | hidden geometry), so without this
-          # line a re-aim would move the viewport and the scene would put the
-          # old camera straight back the next time it was clicked.
-          page.update(PAGE_USE_CAMERA) if defined?(PAGE_USE_CAMERA)
           lines << "re-aimed #{page.name}"
         elsif page.name.to_s != want
           # RENAMED BY HAND. Updated, never renamed back — matched on the
@@ -742,6 +910,31 @@ module WR_AutoSet
         page.transition_time       = 0
 
         pages.selected_page = page
+
+        # THE CAMERA HAS TO BE SAVED ONTO THE PAGE EXPLICITLY, AND ON THE
+        # FRESH PATH TOO (1.48.2). Until now only the re-aim branch did this;
+        # a newly created page was left to whatever `pages.add` captured, and
+        # Benton's first real run came back with all five plates wearing one
+        # camera — the viewport's — so 03-front was a three-quarter and
+        # 05-plan an oblique. The order here is the fix: SELECT the page
+        # first (selecting a page restores its camera, so aiming before that
+        # can be undone by it), aim, refresh so the view has actually taken
+        # it — proposal-scenes.rb has always called view.refresh between the
+        # aim and the add, and auto-set dropped it — and then commit the
+        # camera with page.update(PAGE_USE_CAMERA). write_scene below calls
+        # page.update with the HIDDEN-state mask only (WR_SceneWalls
+        # .update_mask = hidden objects | hidden geometry), so it will not do
+        # this for us.
+        #
+        # It also has to happen before page_eye: the wall cone is computed
+        # from the page's OWN saved camera, so a plate whose camera never
+        # landed was also hiding the wrong walls.
+        if fresh || reaim
+          aim_plate(view, id, centre, radius, door, vent)
+          view.refresh
+          page.update(PAGE_USE_CAMERA) if defined?(PAGE_USE_CAMERA)
+        end
+
         eye = page_eye(page, view)
 
         wpicks = wall_picks(id, units, centre, eye)
@@ -755,7 +948,7 @@ module WR_AutoSet
         WR_ProposalPackage.set_mode(page, mode_for(id, renders))
         stamp_page(page, token, id, centre)
 
-        lines.concat(plate_log(id, units, centre, eye, sets, loose))
+        lines.concat(plate_log(id, units, centre, eye, sets, loose, counts))
       end
       model.commit_operation
     rescue StandardError => e
@@ -772,12 +965,23 @@ module WR_AutoSet
     msg = "AUTO-SET #{label}: #{n_new} scene(s) created, #{ents.size - n_new} updated, " \
           "#{renders.size} render / #{ents.size - renders.size} image. " \
           'Read the WALLS and ANNOTATIONS columns before you export.'
+    blank = blank_plates(ids, sets, counts)
+    unless blank.empty?
+      msg += " NOTE: #{blank.join(', ')} will be BLANK - nothing is drawn on the " \
+             'annotation tags those plates show. The tags are shown, not hidden. ' \
+             'Dimension the model, then re-run.'
+    end
+    unless stale.empty?
+      msg += " NOTE: #{stale.size} scene(s) from an older plate set are still here " \
+             "(#{stale.map { |pg| pg.name.to_s }.join(', ')}). They keep their old " \
+             'framing. Remove, then Apply, to get the whole corrected set.'
+    end
     [true, msg, lines]
   end
 
   # Every wall this plate hides, with its dot product, and exactly which
   # annotation sets it shows. A wrong call has to be readable, not mysterious.
-  def self.plate_log(id, units, centre, eye, sets, loose)
+  def self.plate_log(id, units, centre, eye, sets, loose, counts = {})
     out = []
     hid = wall_log(id, units, centre, eye).select { |r| r[3] }
     if NO_WALL_PLATES.include?(id)
@@ -792,6 +996,8 @@ module WR_AutoSet
     shown = effective_shown(id, sets.map { |s| s['name'] })
     out << "         shows: #{shown.empty? ? 'no annotations at all' : shown.join(' + ')}" \
            "#{loose.empty? ? '' : " — #{loose.size} loose callout(s) hidden"}"
+    note = empty_shown_note(shown, counts)
+    out << "         #{note}" if note
     out
   end
 

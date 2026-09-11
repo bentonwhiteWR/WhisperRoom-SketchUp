@@ -1,6 +1,139 @@
 # DEVLOG
 
 ## 2026-09-10
+### AUTO-SET's plates were the wrong shots AND the right shots never reached the page - 1.50.0
+
+Benton ran AUTO-SET for real for the first time and sent five screenshots:
+*"The layouts are terrible. They say 'plan' (assuming floor plan or top view).
+It's not even a top view. Same with Front. It's an angled front view.
+Dimensions view hid the dimensions. It's all just quietly terrible."*
+
+**There were three separate causes and it matters that they are separate.**
+
+**1. The camera was computed correctly and then thrown away.** `aim_plate`
+aimed the view for every plate; on the CREATE path the code then called
+`pages.add(want)` and trusted SketchUp to snapshot it, and never called
+`page.update(PAGE_USE_CAMERA)`. The re-aim branch five lines below DID call
+it, with a comment saying in as many words that *"THE CAMERA HAS TO BE SAVED
+EXPLICITLY"* - the fresh path just never got the same treatment, and every
+plate Benton has ever seen came from the fresh path. `proposal-scenes.rb`,
+the legacy tool that works, also calls `view.refresh` between the aim and the
+add; auto-set dropped that too. So all five scenes wore one camera: the
+viewport's. That is why `03-front` was *"essentially the same family of shot
+as 01-exterior"* - it was literally the same camera - and why `01-exterior`
+and `04-ventilation` looked fine, which is luck, not correctness: a stock
+orbit view of a booth passes for a three-quarter exterior.
+
+It also meant the WALL rule was computed from the wrong eye, because
+`page_eye` reads the page's own saved camera. The vent plate never hid the
+wall behind the booth. Benton: *"a back view to show ventilation (this
+usually requires a hidden wall)."*
+
+The fix is in `apply`: select the page, aim, refresh, then
+`page.update(PAGE_USE_CAMERA)` - on the fresh path as well as the re-aim one,
+and BEFORE `page_eye`, so the walls follow the camera that was actually kept.
+
+**2. The plate table was the wrong shot list.** Benton then gave the real one,
+and it is now quoted verbatim at the top of `PLATES`. The two rules in it that
+are not negotiable: **every plate is perspective** (*"FYI I never use parellel
+perspective so dont use it either"* - 1.48.0 shipped four of its six plates
+parallel, including the plan), and **front-on means find the door, step out
+~15 ft, square to it**. `05-plan` was also at el **89**, not 90 - one degree of
+tilt, which under parallel projection shears every wall face into view. 89 was
+dodging a degenerate up vector that `WR_ProposalScenes.aim` already handles
+(it swaps up to +Y at |el| >= 88), so 90 was always available.
+
+The plates are now, and every id names a CAMERA rather than an annotation set:
+
+| id | shot | mode |
+|---|---|---|
+| `01-front` | square to the door, ~16 ft back, 5'-6" eye | image, shows dims |
+| `02-angled` | door + 35 deg, same height | **render** (cover hero) |
+| `03-high` | same bearing, ~17 ft up | image ALWAYS, shows dims |
+| `04-side` | door + 90 deg | image |
+| `05-ventilation` | vent side + 25 deg, wall rule fires | **render** |
+| `06-plan` | straight down, +Y up | image, shows dims |
+| `07-interior` | inside the booth | off by default |
+
+`03-high` and `06-plan` are **not on the RENDER_LADDER at all**, so no setting
+of the renders knob can promote them - *"This is image"*, flatly. `01-front` is
+last on the ladder for the same reason the old table put the dimensioned plate
+last: a plate carrying a dimension string does not need photoreal materials.
+
+The standoff is now a **ground run, not a slant range** (`plate_dist` divides
+by cos(el)). Without that, raising the elevation walks the camera IN toward
+the booth and the "15-20 ft high" shot lands 9 ft up and 9 ft away. It scales
+with the booth - ~16 ft for a 4872, ~26 ft for a 96168 - because a 96168 at a
+literal 15 ft does not fit in a 35-degree frame, and a cropped subject is
+worse than one shot from further back. `WR_ProposalScenes.aim` grew two
+OPTIONAL trailing arguments (`dist`, `fov`) that default to nil = exactly what
+it did before, so the legacy five are untouched.
+
+**3. The missing dimensions were not a bug at all, and the allowlist was never
+widened.** The proposal window's ANNOTATIONS column read **"dims + doors"** for
+that scene, so `WR-Dims` and `WR-Dims-Doors` really were visible on the page -
+the allowlist did its job. `MDL 4872 E (components)` is a bare booth with no
+room and nothing dimensioned. Nothing was hidden; nothing was drawn.
+
+From that column, *"the tags are hidden"* and *"there is nothing on the tags"*
+look identical and both render blank. So `tag_counts` counts, and
+`empty_shown_note` puts a sentence in the run log and the summary:
+**"NOTHING IS DRAWN on WR-Dims + WR-Dims-Doors - this plate will be BLANK. The
+tags are shown, not hidden."** A partial count is not blank, and a failed walk
+returns nil and stays quiet rather than claiming his dimensions are missing on
+no evidence. `SHOWN_BY_PLATE` and `NEVER_SHOWN` are byte-for-byte the policy
+they were; `rbtest-autoset.py` now REFUSES a source file containing a `:persp`
+key as well as one containing a `HIDDEN_BY_PLATE` denylist.
+
+**RE-RUNNABILITY, AND THE ONE ACTION BENTON HAS TO TAKE.** The stamp's `plate`
+key IS the plate id, so the scenes from his bad run carry retired ids
+(`01-exterior` and friends) and this version will not match them. They are
+still matched by TOKEN, so **Remove, then Apply** gets the whole corrected set
+- that is the one action, and re-running with "re-aim cameras" ticked is NOT
+enough because the ids moved. Stale scenes are NOT erased automatically
+(`stale_plates` names them in the summary instead): a scene he renamed or
+nudged is his, and the containment rule has never let this tool delete one
+without being asked.
+
+**STILL TO DO, named rather than half-done.** Benton takes the front-on and
+the angled shot TWICE - *"I usually grab one that is an image from this view,
+as well as a render"* - one image carrying dimensions and one clean render
+from the SAME camera. The plate table cannot express that: one row is one
+page, and the stamp's `plate` key is unique per page. The shape it wants is a
+`:dual` flag emitting two ids from one row, aimed once and stamped twice. That
+touches the table, the stamp, the scene names, the ladder and the review grid,
+so it is a separate piece of work. `proposal-package.rb`'s popover help string
+still describes the OLD ladder ("ventilation -> interior -> dimensioned ->
+plan") - cosmetic, in a file another agent was working in today, left alone.
+
+`proposal-scenes.rb`'s own five plates were **deliberately not changed**, and
+its `PLATES` now says so out loud: their names are the contract
+`export-scenes.rb`, `wr-pack-export.rb` and the packs on disk are written
+against. Three of them are parallel and therefore disagree with Benton's
+stated preference. That is a decision, not an oversight.
+
+**VERIFICATION.** `rbtest-autoset.py` is 92 checks (was 63). The new `cm`
+block does NOT read `:el` out of the table and compare numbers - that would
+pass a table whose values never reach a camera, which IS the 1.48.0 defect. It
+stubs `Geom` and a camera, lifts the REAL `aim` out of `proposal-scenes.rb`
+and the REAL `aim_plate`, and measures the eye that comes out: bearing, ground
+run, height, projection, lens. Twelve mutants were reintroduced one at a time
+and every one died by name - el 89 -> `cm5`, a swing on the front plate ->
+`cm2`, parallel projection -> `cm1`, the slant-range standoff -> `cm9`/`cm10`,
+`03-high` on the ladder -> `cm11`, ventilation exempted from the wall rule ->
+`cm12`/`cm14`, a nil count treated as empty -> `eb5`.
+
+**UNVERIFIED UNTIL BENTON RUNS IT:** `.forge/builder/verify-autoset.rb` gained
+**section 13**, which reads `page.camera` back off a freshly created set - the
+half the offline harness cannot reach. `cam.plates_have_DIFFERENT_cameras` is
+the 1.48.0 defect stated as a check: if the aim never lands, every eye is
+identical. Nothing in this file had ever read a created page's camera back,
+which is exactly why it passed 57 checks on 10 Sep while shipping this bug.
+The whole file is Untitled-only and cleans up in `ensure`. **I have no live
+SketchUp - the camera-save fix is DERIVED from the code, not observed, and
+section 13 is what turns it into evidence.**
+
+## 2026-09-10
 
 ### The scene grid was squeezed to zero height — the proposal window drew five rows and showed none — 1.49.2
 

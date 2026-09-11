@@ -32,6 +32,16 @@
 module WR_ProposalScenes
   DEG = Math::PI / 180.0
 
+  # THIS TABLE IS THE LEGACY FIVE AND IT IS DELIBERATELY NOT BENTON'S NEW SHOT
+  # LIST. On 10 Sep 2026 he said he never uses parallel projection, and
+  # wr-autoset.rb's plates were rebuilt around that (all perspective, front-on
+  # first, a 15-20 ft high shot, a true top-down). These five were left alone
+  # ON PURPOSE: their NAMES are the contract export-scenes.rb, wr-pack-export.rb
+  # and the proposal packs on disk are written against, and changing their
+  # cameras under those names would move output nobody asked to move. Use
+  # AUTO-SET for a new pack; this stays for the fixed-five workflow and to own
+  # the tag family. THE THREE PARALLEL PLATES BELOW ARE KNOWN TO DISAGREE WITH
+  # HIS STATED PREFERENCE - that is a decision, not an oversight.
   PLATES = [
     { :name => '01-exterior',    :kind => :three_quarter, :az => 0.0,   :el => 12.0, :persp => true  },
     { :name => '02-dimensioned', :kind => :three_quarter, :az => 0.0,   :el => 20.0, :persp => false },
@@ -171,20 +181,29 @@ module WR_ProposalScenes
 
   # ------------------------------------------------------------------ camera --
 
-  def self.aim(view, centre, radius, az_deg, el_deg, persp)
+  # dist and fov are OPTIONAL and default to nil, which means "the numbers
+  # this tool has always used". wr-autoset.rb passes its own (WR_AutoSet
+  # .standoff / PLATE_FOV) because Benton's shot list names a standoff -
+  # "step out like 15 ft or so" - and radius * 3.2 + 60 puts a 4872 at 21 ft.
+  # Passing nil changes nothing, so this file's own five plates are untouched.
+  #
+  # The up vector swaps to +Y at |el| >= 88 because at straight down the
+  # world Z axis IS the view direction and (0,0,1) is degenerate. That guard
+  # is what lets a caller ask for el 90 rather than fudging 89.
+  def self.aim(view, centre, radius, az_deg, el_deg, persp, dist = nil, fov = nil)
     a = az_deg * DEG
     e = el_deg * DEG
     dir = Geom::Vector3d.new(Math.cos(e) * Math.cos(a),
                              Math.cos(e) * Math.sin(a),
                              Math.sin(e))
-    dist = radius * 3.2 + 60.0
+    dist = (radius * 3.2 + 60.0) if dist.nil?
     eye = centre.offset(dir, dist)
     up  = (el_deg.abs >= 88.0) ? Geom::Vector3d.new(0, 1, 0) : Geom::Vector3d.new(0, 0, 1)
     cam = view.camera
     cam.set(eye, centre, up)
     if persp
       cam.perspective = true
-      cam.fov = 40.0
+      cam.fov = (fov.nil? ? 40.0 : fov.to_f)
     else
       cam.perspective = false
       cam.height = radius * 2.3

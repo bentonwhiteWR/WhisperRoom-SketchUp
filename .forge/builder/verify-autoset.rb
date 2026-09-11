@@ -30,9 +30,25 @@
 # will not delete scenes you own to manufacture that), and prints SKIPPED
 # otherwise: use File > New to cover it.
 #
+# 1.50.0 REBUILT THE PLATES AND ADDED SECTION 13, THE CAMERA. The 1.48.0
+# plates came back from Benton's first real run wrong in two separate ways, and
+# only one of them was the numbers in the table: the aim was computed correctly
+# and then NEVER SAVED ONTO THE PAGE on the create path, so all five scenes
+# wore whatever camera the viewport happened to have. Nothing in this file
+# noticed, because nothing in it had ever read a created page's camera back.
+# Section 13 does exactly that — it reads page.camera off each fresh plate and
+# measures where the eye actually stands. It is the half rbtest-autoset.py
+# cannot reach: the offline harness proves aim() computes the right eye, this
+# proves SketchUp kept it.
+#
+# The plate ids also changed (01-front / 02-angled / 03-high / 04-side /
+# 05-ventilation / 06-plan / 07-interior), so a run makes SIX scenes now, not
+# five, and every count below moved with it.
+#
 # WHAT IT CANNOT CHECK. Whether a plate LOOKS right — framing is a taste call
 # and always was. It checks the mechanism: the names, the marks, the stamp, what
-# each scene hides, what survives a re-run, and what Remove leaves alone.
+# each scene hides, what survives a re-run, what Remove leaves alone, and now
+# where each camera ended up.
 
 require 'json'
 
@@ -338,18 +354,18 @@ module WR_VerifyAutoSet
       say('create.token_on_booth', tok1.to_s == B1, tok1.inspect)
       set1 = WR_AutoSet.token_pages(pages.to_a, tok1)
       made_pg.concat(set1)
-      say('create.five_pages', set1.length == 5, set1.map { |p| p.name }.inspect)
+      say('create.six_pages', set1.length == 6, set1.map { |p| p.name }.inspect)
       say('create.named_after_the_booth',
           set1.map { |p| p.name.to_s }.sort ==
             WR_AutoSet.plate_ids(false).map { |id| "#{B1} #{id}" }.sort,
           set1.map { |p| p.name.to_s }.inspect)
       modes = set1.map { |p| WR_ProposalPackage.mode_of(p) }
-      say('create.two_render_three_image',
-          modes.count('render') == 2 && modes.count('image') == 3, modes.inspect)
-      say('create.renders_are_exterior_and_front',
+      say('create.four_image_two_render',
+          modes.count('render') == 2 && modes.count('image') == 4, modes.inspect)
+      say('create.renders_are_angled_and_ventilation',
           set1.select { |p| WR_ProposalPackage.mode_of(p) == 'render' }
               .map { |p| WR_AutoSet.page_stamp(p)['plate'] }.sort ==
-            ['01-exterior', '03-front'],
+            ['02-angled', '05-ventilation'],
           set1.map { |p| [WR_AutoSet.page_stamp(p)['plate'], WR_ProposalPackage.mode_of(p)] }.inspect)
       say('create.stamp_carries_the_centre',
           set1.all? { |p| WR_AutoSet.page_stamp(p)['centre'].to_s.split(',').length == 3 })
@@ -374,16 +390,19 @@ module WR_VerifyAutoSet
           bad_note.empty? ? 'the D5 banner is hidden on all five' : bad_note.inspect)
       say('annot.loose_callouts_hidden_on_every_plate', bad_loose.empty?,
           bad_loose.empty? ? 'both Untagged callouts hidden on all five' : bad_loose.inspect)
-      say('annot.dimensioned_shows_dims_and_doors',
-          shown_map['02-dimensioned'].sort == ['WR-Dims', 'WR-Dims-Doors'],
-          shown_map['02-dimensioned'].inspect)
-      say('annot.exterior_shows_nothing', shown_map['01-exterior'] == [],
-          shown_map['01-exterior'].inspect)
-      say('annot.front_shows_nothing', shown_map['03-front'] == [],
-          shown_map['03-front'].inspect)
+      say('annot.front_shows_dims_and_doors',
+          shown_map['01-front'].sort == ['WR-Dims', 'WR-Dims-Doors'],
+          shown_map['01-front'].inspect)
+      say('annot.high_shows_dims_and_doors',
+          shown_map['03-high'].sort == ['WR-Dims', 'WR-Dims-Doors'],
+          shown_map['03-high'].inspect)
+      say('annot.angled_shows_nothing', shown_map['02-angled'] == [],
+          shown_map['02-angled'].inspect)
+      say('annot.side_shows_nothing', shown_map['04-side'] == [],
+          shown_map['04-side'].inspect)
       say('annot.plan_shows_dims_doors_and_the_plan_set',
-          shown_map['05-plan'].sort == ['WR-Dims', 'WR-Dims-Doors', TAG_P].sort,
-          shown_map['05-plan'].inspect)
+          shown_map['06-plan'].sort == ['WR-Dims', 'WR-Dims-Doors', TAG_P].sort,
+          shown_map['06-plan'].inspect)
       say('annot.every_plate_saves_hidden_state',
           WR_SceneAnnotations.pages_not_saving(@model).reject { |n| n == MINE }.empty?,
           WR_SceneAnnotations.pages_not_saving(@model).inspect)
@@ -396,10 +415,15 @@ module WR_VerifyAutoSet
         plate = WR_AutoSet.page_stamp(pg)['plate']
         hid_by[plate] = units.count { |u| u[:pieces].all? { |g| hidden?(g) } }
       end
-      say('walls.plan_hides_nothing', hid_by['05-plan'] == 0, hid_by.inspect)
-      say('walls.exterior_hides_some_but_not_all',
-          hid_by['01-exterior'] > 0 && hid_by['01-exterior'] < units.length,
+      say('walls.plan_hides_nothing', hid_by['06-plan'] == 0, hid_by.inspect)
+      say('walls.angled_hides_some_but_not_all',
+          hid_by['02-angled'] > 0 && hid_by['02-angled'] < units.length,
           hid_by.inspect)
+      # BENTON'S OWN WORDS ABOUT THE BACK SHOT: "this usually requires a
+      # hidden wall". The cone rule is what does that, and it only fires if
+      # the plate's camera actually landed on the page (section 13).
+      say('walls.ventilation_hides_at_least_one',
+          hid_by['05-ventilation'] > 0, hid_by.inspect)
       say('walls.objects_never_auto_hidden',
           set1.all? { |pg| sel(pg); !hidden?(b1) && !hidden?(b2) })
 
@@ -410,17 +434,17 @@ module WR_VerifyAutoSet
       set2 = WR_AutoSet.token_pages(pages.to_a, tok2)
       made_pg.concat(set2)
       say('second.token_differs', tok2.to_s != tok1.to_s, [tok1, tok2].inspect)
-      say('second.five_more_pages', set2.length == 5)
+      say('second.six_more_pages', set2.length == 6)
       say('second.no_name_collision',
           (set1.map { |p| p.name.to_s } & set2.map { |p| p.name.to_s }).empty?)
       say('second.booth_ones_set_untouched',
-          WR_AutoSet.token_pages(pages.to_a, tok1).length == 5)
+          WR_AutoSet.token_pages(pages.to_a, tok1).length == 6)
       say('second.appended_after_the_first',
           pages.to_a.index(set2.first) > pages.to_a.index(set1.last),
           "#{pages.to_a.index(set1.last)} then #{pages.to_a.index(set2.first)}")
 
       # ---------------- 7. a hand-renamed scene, and a nudged camera -----
-      hero = set1.find { |p| WR_AutoSet.page_stamp(p)['plate'] == '01-exterior' }
+      hero = set1.find { |p| WR_AutoSet.page_stamp(p)['plate'] == '02-angled' }
       hero.name = 'Hero for Steve'
       sel(hero)
       v = @model.active_view
@@ -482,7 +506,7 @@ module WR_VerifyAutoSet
       ok4, msg4, = WR_AutoSet.apply(@model, b2, { 'mode' => 'add', 'renders' => 1 })
       say('add.second_set_for_the_same_booth', ok4, msg4)
       added = pages.count - n_pre
-      say('add.five_more', added == 5, added.to_s)
+      say('add.six_more', added == 6, added.to_s)
       made_pg.concat(pages.to_a)
       say('undo.available', !WR_AutoSet.undo_summary(@model).nil?,
           WR_AutoSet.undo_summary(@model).inspect)
@@ -497,14 +521,118 @@ module WR_VerifyAutoSet
       n_pre2 = pages.count
       rok, rmsg, = WR_AutoSet.apply(@model, b1, { 'mode' => 'remove' })
       say('remove.ok', rok, rmsg)
-      say('remove.only_this_booths_five', pages.count == n_pre2 - 5,
+      say('remove.only_this_booths_six', pages.count == n_pre2 - 6,
           "#{n_pre2} -> #{pages.count}")
       say('remove.my_test_survived_remove',
           mine_pg.valid? && mine_pg.name.to_s == mine_name_at_start)
       say('remove.booth_twos_set_survived',
-          WR_AutoSet.token_pages(pages.to_a, tok2).length == 5)
+          WR_AutoSet.token_pages(pages.to_a, tok2).length == 6)
       say('remove.token_cleared_off_the_booth',
           b1.get_attribute('WR_AutoSet', 'token', nil).nil?)
+
+      # ------------------------- 13. THE CAMERA ACTUALLY LANDED ----------
+      #
+      # THE CHECK THIS FILE WAS MISSING, AND THE REASON 1.48.0 SHIPPED WRONG.
+      # rbtest-autoset.py proves aim() computes the right eye. Nothing proved
+      # SketchUp KEPT it: on the create path auto-set aimed the view and let
+      # `pages.add` snapshot it, never calling page.update(PAGE_USE_CAMERA),
+      # and every plate came out wearing the viewport's camera instead of its
+      # own. These checks read page.camera back off a freshly created set and
+      # measure where the eye stands relative to the booth.
+      #
+      # A brand-new set is made for this on booth 1, because sections 7-11
+      # have been nudging and removing the earlier ones.
+      cok, cmsg, = WR_AutoSet.apply(@model, b1, { 'mode' => 'create', 'renders' => 2 })
+      say('cam.fresh_set_made', cok, cmsg)
+      cset = WR_AutoSet.token_pages(pages.to_a, b1.get_attribute('WR_AutoSet', 'token', nil))
+      made_pg.concat(cset)
+      bc, br, = WR_AutoSet.booth_frame(b1)
+      by_plate = {}
+      cset.each { |pg| by_plate[WR_AutoSet.page_stamp(pg)['plate'].to_s] = pg }
+
+      # eye relative to the booth centre: bearing, ground run, height off zero
+      shot = lambda do |id|
+        c = by_plate[id] && by_plate[id].camera
+        next nil unless c
+        e = c.eye.to_a
+        dx = e[0] - bc[0]
+        dy = e[1] - bc[1]
+        { 'az'    => (Math.atan2(dy, dx) * 180.0 / Math::PI),
+          'run'   => Math.sqrt((dx * dx) + (dy * dy)),
+          'z'     => e[2],
+          'persp' => c.perspective?,
+          'fov'   => (c.perspective? ? c.fov : nil) }
+      end
+
+      say('cam.every_plate_saved_a_camera',
+          WR_AutoSet.plate_ids(false).all? { |id| !shot.call(id).nil? },
+          by_plate.keys.inspect)
+
+      # NO PARALLEL PROJECTION ANYWHERE. Benton, 10 Sep 2026: "I never use
+      # parellel perspective so dont use it either."
+      flat = WR_AutoSet.plate_ids(false).reject { |id| shot.call(id)['persp'] }
+      say('cam.no_plate_is_parallel', flat.empty?, flat.inspect)
+
+      # THE PLATES ARE NOT ALL THE SAME SHOT. This is the 1.48.0 defect stated
+      # as a check: if the aim never lands, every eye is identical.
+      eyes = WR_AutoSet.plate_ids(false).map { |id| by_plate[id].camera.eye.to_a.map { |v| v.round(1) } }
+      say('cam.plates_have_DIFFERENT_cameras', eyes.uniq.length == eyes.length,
+          eyes.inspect)
+
+      # FRONT ON, square to the door. daz was read off the tag in section 2.
+      fs = shot.call('01-front')
+      say('cam.front_is_square_to_the_door',
+          !daz.nil? && ((fs['az'] - daz).abs % 360.0) < 1.0,
+          "eye at #{fs['az'].round(1)} deg, door at #{daz.to_f.round(1)} deg")
+      say('cam.front_is_standing_height', fs['z'] > 36.0 && fs['z'] < 110.0,
+          "#{fs['z'].round(1)} in off the floor")
+      say('cam.front_stands_back', fs['run'] > 120.0 && fs['run'] < 400.0,
+          format('%.1f in = %.1f ft back', fs['run'], fs['run'] / 12.0))
+
+      # TOP DOWN. The eye is OVER the booth, not beside it.
+      ps = shot.call('06-plan')
+      say('cam.plan_is_straight_down', ps['run'] < 1.0,
+          format('%.3f in off the axis', ps['run']))
+      say('cam.plan_is_above_the_booth', ps['z'] > bc[2].to_f + 60.0,
+          "#{ps['z'].round(1)} in vs booth centre #{bc[2].to_f.round(1)}")
+
+      # THE HIGH SHOT: same bearing as the angled one, camera lifted.
+      hs = shot.call('03-high')
+      as_ = shot.call('02-angled')
+      say('cam.high_is_above_the_angled_shot', hs['z'] > as_['z'] + 60.0,
+          "#{hs['z'].round(1)} vs #{as_['z'].round(1)}")
+      say('cam.high_keeps_the_angled_bearing', (hs['az'] - as_['az']).abs < 1.0,
+          "#{hs['az'].round(1)} vs #{as_['az'].round(1)}")
+      say('cam.high_is_15_to_20_ft_up', hs['z'] > 150.0 && hs['z'] < 260.0,
+          format('%.1f ft up', hs['z'] / 12.0))
+
+      # THE VENT SHOT looks from the vent side, not the door side.
+      vs = shot.call('05-ventilation')
+      say('cam.ventilation_looks_from_the_vent_side',
+          !vaz.nil? && (((vs['az'] - vaz).abs + 180.0) % 360.0 - 180.0).abs < 60.0,
+          "eye at #{vs['az'].round(1)} deg, vent at #{vaz.to_f.round(1)} deg")
+
+      # THE BLANK-PLATE SENTENCE. This fixture DOES carry dimension entities
+      # on WR-Dims, so the note must NOT fire; the model Benton ran on carried
+      # none, and that is the case the note exists for.
+      cnt = WR_AutoSet.tag_counts(@model, ['WR-Dims', 'WR-Dims-Doors'])
+      say('cam.tag_counts_sees_the_fixture_dimensions',
+          cnt['WR-Dims'].to_i > 0, cnt.inspect)
+      say('cam.no_false_blank_warning',
+          WR_AutoSet.blank_plates(WR_AutoSet.plate_ids(false), [], cnt) == [] ||
+            !cmsg.to_s.include?('will be BLANK'),
+          cmsg.to_s)
+      # And with a count of zero it DOES fire, on the plates that show dims.
+      say('cam.blank_warning_fires_when_nothing_is_drawn',
+          WR_AutoSet.blank_plates(WR_AutoSet.plate_ids(false),
+                                  [{ 'name' => 'WR-Dims' }, { 'name' => 'WR-Dims-Doors' }],
+                                  { 'WR-Dims' => 0, 'WR-Dims-Doors' => 0 }) ==
+            ['01-front', '03-high', '06-plan'],
+          WR_AutoSet.blank_plates(WR_AutoSet.plate_ids(false),
+                                  [{ 'name' => 'WR-Dims' }, { 'name' => 'WR-Dims-Doors' }],
+                                  { 'WR-Dims' => 0, 'WR-Dims-Doors' => 0 }).inspect)
+
+      WR_AutoSet.apply(@model, b1, { 'mode' => 'remove' })
 
       # ------------------------------------------- 12. the orphan case ---
       @model.start_operation('WR verify: delete booth 2', true)
