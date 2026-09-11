@@ -56,6 +56,13 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
     wall_picks' cone test inverted                       -> wp1 FAIL
     05-plan dropped from NO_WALL_PLATES                  -> wp3 FAIL
     token_pages matched by NAME instead of stamp         -> sm2, sm3 FAIL
+    WR-Notes put back on a plate                         -> an1, nv1, nv2 FAIL
+    loose TEXT shown (the D5 guard)                      -> an2 FAIL
+    loose dimensions hidden again                        -> an2b FAIL
+    the interior eye put back at radius * 0.55           -> in1, in2, in3 FAIL
+    the interior camera tilted off level                 -> in6 FAIL
+    the interior up vector tipped                        -> in7 FAIL
+    the interior fov reset to the exterior lens          -> in9 FAIL
     the front plate given a swing (not square to door)   -> cm2 FAIL
     the plan plate put back to el 89                     -> cm5 FAIL
     any plate given cam.perspective = false              -> cm1 FAIL
@@ -214,6 +221,10 @@ module WR_AutoSet
 %(fallback_az)s
 %(moved_tol)s
 %(cos_cone)s
+%(dims_re)s
+%(booth_wall_t)s
+%(interior_eye_clear)s
+%(interior_fov)s
 %(standoff_k)s
 %(standoff_c)s
 %(plate_fov)s
@@ -246,6 +257,16 @@ module WR_AutoSet
 %(az_for)s
 
 %(standoff)s
+
+%(reach)s
+
+%(wall_axis)s
+
+%(interior_eye_dist)s
+
+%(policy_line)s
+
+%(loose_split)s
 
 %(plate_dist)s
 
@@ -287,6 +308,7 @@ end
 # gate is gone, the D5 banner comes back out of here.
 module WR_AutoSetPoison
 %(never_shown)s
+%(dims_re)s
   SHOWN_BY_PLATE = {
     '01-exterior' => %%w[WR-Dims WR-Notes WR-Dims-Booth]
   }.freeze
@@ -318,9 +340,25 @@ module T
   # Hand-placed text on Untagged. SketchUp REFUSES to hide the Untagged tag,
   # so these are the rows an allowlist exists for: their content is unknown to
   # any tool, and every one of them is hidden on every plate.
+  # TWO TEXT CALLOUTS AND ONE DIMENSION, because since 1.51.0 those are
+  # treated differently and a fixture that carried only one kind could not
+  # tell the two rules apart. The text rows are the D5 case and stay hidden
+  # on every plate; the loose dimension is a dimension, and Benton asked for
+  # the dimensions to stop being hidden.
   def self.loose
-    [{ 'key' => 'e:101' }, { 'key' => 'e:102' }]
+    [{ 'key' => 'e:101', 'kind' => 'text' },
+     { 'key' => 'e:102', 'kind' => 'text' },
+     { 'key' => 'e:103', 'kind' => 'dim' }]
   end
+
+  def self.loose_text
+    loose.select { |it| it['kind'] != 'dim' }
+  end
+
+  # The booth this fixture measures in: MDL 4872 E. Exterior 4'2" x 6'2" x
+  # 7'1" = 50 x 74 x 85 (reference/booth-models.md), so the half-extents are
+  # 25 x 37 and the model number 4872 IS the interior -- 1 in of wall a side.
+  HALF = [25.0, 37.0]
 
   # The booth this repo draws most: MDL 4872 E, 48 x 72 x ~85, sitting on the
   # floor, so its centre is ~42 in up and its radius ~60 in. Every distance
@@ -333,7 +371,7 @@ module T
   # Aim one plate for real and hand back the camera it left behind.
   def self.cam(id, door = DOOR, vent = VENT)
     v = FakeView.new
-    WR_AutoSet.aim_plate(v, id, CENTRE, RADIUS, door, vent)
+    WR_AutoSet.aim_plate(v, id, CENTRE, RADIUS, door, vent, HALF)
     v.camera
   end
 
@@ -467,32 +505,55 @@ module T
     # an1/an2 are the two that matter most in this file.
     ck('an1', ALL.all? { |p| WR_AutoSet.annot_picks(p, sets, loose)['t:WR-Notes'] == true },
        'WR-Notes -- the D5 banner -- is SHOWN on a plate')
+    # an2 IS THE D5 GUARD AND IT DID NOT RELAX AT 1.51.0. Loose TEXT is text
+    # of unknown content that lands on Untagged, and SketchUp refuses to hide
+    # the Untagged tag -- this is the case the allowlist exists for.
     ck('an2', ALL.all? do |p|
                 pk = WR_AutoSet.annot_picks(p, sets, loose)
-                loose.all? { |it| pk[it['key']] == true }
+                loose_text.all? { |it| pk[it['key']] == true }
               end,
-       'a loose/Untagged callout is SHOWN on a plate')
-    ck('an3', shown_on('01-front') == ['WR-Dims', 'WR-Dims-Doors'],
-       shown_on('01-front').inspect)
-    ck('an4', shown_on('05-ventilation') == ['WR-Notes-Vent'],
+       'a loose/Untagged TEXT callout is SHOWN on a plate')
+    # ... but a loose DIMENSION is shown, on every plate. Benton, 10 Sep 2026:
+    # "please dont hide any of the dimensions on the auto set."
+    ck('an2b', ALL.all? { |p| WR_AutoSet.annot_picks(p, sets, loose)['e:103'] == false },
+       'a loose DIMENSION is hidden on a plate')
+    # A row whose kind is missing or unreadable is treated as text and hidden.
+    ck('an2c', WR_AutoSet.annot_picks('01-front', [], [{ 'key' => 'e:999' }])['e:999'] == true,
+       'an unreadable loose row was SHOWN')
+    # EVERY DIMENSION TAG, ON EVERY PLATE (1.51.0).
+    dims_all = %%w[WR-Dims WR-Dims-Doors WR-Dims-Booth WR-Dims-Selection]
+    ck('an3', shown_on('01-front').sort == dims_all.sort, shown_on('01-front').inspect)
+    ck('an4', shown_on('05-ventilation').sort == (dims_all + ['WR-Notes-Vent']).sort,
        shown_on('05-ventilation').inspect)
     # Opt-in BY EXISTENCE: a shop that has never made that set gets a clean
     # plate rather than an error.
     no_vent = sets.reject { |s| s['name'] == 'WR-Notes-Vent' }
-    ck('an5', shown_on('05-ventilation', no_vent) == [],
+    # The NOTE set is still opt-in BY EXISTENCE: a shop that never made
+    # WR-Notes-Vent gets the dimensions and no note.
+    ck('an5', shown_on('05-ventilation', no_vent).sort == dims_all.sort,
        shown_on('05-ventilation', no_vent).inspect)
-    ck('an6', shown_on('06-plan') == ['WR-Dims', 'WR-Dims-Doors', 'WR-Notes-Plan'],
+    ck('an6', shown_on('06-plan').sort == (dims_all + ['WR-Notes-Plan']).sort,
        shown_on('06-plan').inspect)
-    ck('an7', %%w[02-angled 04-side 07-interior].all? { |p| shown_on(p) == [] },
-       'a clean plate is showing an annotation set')
+    # THE PLATES THAT USED TO SHOW NOTHING NOW SHOW THE DIMENSIONS, AND ONLY
+    # THE DIMENSIONS. This assertion moved on purpose at 1.51.0; the one below
+    # it (an7b) is the part that did not move.
+    ck('an7', %%w[02-angled 04-side 07-interior].all? { |p| shown_on(p).sort == dims_all.sort },
+       %%w[02-angled 04-side 07-interior].map { |p| shown_on(p) }.inspect)
+    ck('an7b', ALL.all? { |p| (shown_on(p) - dims_all - %%w[WR-Notes-Vent WR-Notes-Plan]).empty? },
+       'a plate is showing something that is neither a dimension nor its own note set')
     # FULL HASH: one key per set row plus one per loose row, and nothing else.
     pk = WR_AutoSet.annot_picks('01-front', sets, loose)
     ck('an8', pk.keys.length == sets.length + loose.length, pk.keys.length.to_s)
+    # an9 WAS THE OPPOSITE ASSERTION UNTIL 1.51.0 -- it required WR-Dims-Booth
+    # and WR-Dims-Selection to be HIDDEN everywhere. They are dimensions,
+    # Benton asked for the dimensions, and they came off NEVER_SHOWN. That was
+    # a legibility preference, never the D5 safety gate; an1 is the safety
+    # gate and it is untouched.
     ck('an9', ALL.all? do |p|
                 q = WR_AutoSet.annot_picks(p, sets, loose)
-                q['t:WR-Dims-Booth'] == true && q['t:WR-Dims-Selection'] == true
+                q['t:WR-Dims-Booth'] == false && q['t:WR-Dims-Selection'] == false
               end,
-       'a working-dimension tag is SHOWN on a plate')
+       'a working-dimension tag is HIDDEN on a plate')
     # A set made this afternoon is matched live by the family regex and is on
     # no allowlist, so it is hidden -- not invisible to the tool, hidden BY it.
     ck('an10', ALL.all? { |p| WR_AutoSet.annot_picks(p, sets, loose)['t:WR-Notes-Custom'] == true })
@@ -500,13 +561,21 @@ module T
     ck('an11', WR_AutoSet.annot_picks('02-angled', [], []) == {})
 
     # ---- the never-shown gate -------------------------------------------
-    ck('nv1', WR_AutoSet::NEVER_SHOWN.sort ==
-              ['WR-Dims-Booth', 'WR-Dims-Selection', 'WR-Notes'],
+    # THE GATE IS WR-Notes AND ONLY WR-Notes NOW, and that is the whole list
+    # it has to be: the D5 banner. If this ever reads [] the gate is gone.
+    ck('nv1', WR_AutoSet::NEVER_SHOWN == ['WR-Notes'],
        WR_AutoSet::NEVER_SHOWN.inspect)
+    # THE POISONED ALLOWLIST NAMES WR-Notes ON THE HERO PLATE. The gate must
+    # still refuse it -- and WR-Dims-Booth now legitimately comes through,
+    # which is the 1.51.0 change, not a hole.
     ck('nv2', WR_AutoSetPoison.effective_shown('01-exterior',
-                %%w[WR-Dims WR-Notes WR-Dims-Booth]) == ['WR-Dims'],
+                %%w[WR-Dims WR-Notes WR-Dims-Booth]).sort ==
+              ['WR-Dims', 'WR-Dims-Booth'],
        WR_AutoSetPoison.effective_shown('01-exterior',
                 %%w[WR-Dims WR-Notes WR-Dims-Booth]).inspect)
+    ck('nv3', WR_AutoSet.policy_line.include?('EVERY plate') &&
+              WR_AutoSet.policy_line.include?('still hidden'),
+       WR_AutoSet.policy_line)
 
     # ---- THE WALL CONE --------------------------------------------------
     # Booth at the origin; the camera 100 in away on +X at 12 degrees up --
@@ -546,10 +615,17 @@ module T
     # ---- THE CAMERAS, RUN NOT ASSERTED ----------------------------------
     # Benton, 10 Sep 2026, after the 1.48.0 plates came back wrong:
     # "I never use parellel perspective so dont use it either."
-    ck('cm1', ALL.all? { |id| cam(id).perspective == true },
-       ALL.reject { |id| cam(id).perspective == true }.inspect)
-    ck('cm1b', ALL.all? { |id| cam(id).height.nil? },
-       'a plate set a parallel-projection frame height')
+    # ONE PARALLEL PLATE, AND IT IS THE TOP-DOWN. Benton, 10 Sep 2026: "The
+    # top down should actually be the only one in parellel projection so
+    # change that too." Both halves are asserted: the plan IS parallel, and
+    # nothing else is. cm1 used to read "no plate is parallel"; that rule was
+    # superseded, not abandoned.
+    flat = ALL.reject { |id| cam(id).perspective }
+    ck('cm1', flat == ['06-plan'], flat.inspect)
+    ck('cm1b', (ALL - ['06-plan']).all? { |id| cam(id).height.nil? },
+       'a perspective plate set a parallel-projection frame height')
+    ck('cm1c', !cam('06-plan').height.nil? && cam('06-plan').height > 0,
+       cam('06-plan').height.inspect)
 
     # FRONT ON. "Find the door, step out like 15 ft or so. Straight on."
     f = shot('01-front')
@@ -567,7 +643,7 @@ module T
     ck('cm6', pl['z'] > CENTRE[2] + 120.0, pl['z'].round(1).to_s)
     # Straight down makes world Z the view direction, so up must NOT be Z.
     ck('cm7', pl['up'] == [0.0, 1.0, 0.0], pl['up'].inspect)
-    ck('cm8', pl['persp'] == true, 'the top-down is parallel-projected')
+    ck('cm8', pl['persp'] == false, 'the top-down is NOT parallel-projected')
 
     # THE HIGH SHOT. "one from 15-20ft high around this same angle."
     h = shot('03-high')
@@ -609,17 +685,93 @@ module T
     # interior plate keeps its own wide 70, because a 35 inside a 4 ft booth
     # sees a panel and nothing else -- that is aim_interior's own number and
     # it is meant to differ.
-    ck('cm16', DEFAULTS.all? { |id| cam(id).fov == WR_AutoSet::PLATE_FOV },
-       DEFAULTS.map { |id| cam(id).fov }.inspect)
+    # The plan is parallel, so it has no lens at all -- every OTHER exterior
+    # plate carries the one number.
+    ck('cm16', (DEFAULTS - ['06-plan']).all? { |id| cam(id).fov == WR_AutoSet::PLATE_FOV },
+       DEFAULTS.map { |id| [id, cam(id).fov] }.inspect)
     ck('cm16b', cam('07-interior').fov > WR_AutoSet::PLATE_FOV,
        cam('07-interior').fov.inspect)
 
-    # The interior plate is inside the booth: the eye is closer to the centre
-    # than the booth's own radius.
+    # cm17 USED TO ASK "is the eye closer than the RADIUS" -- the 3D diagonal,
+    # which is larger than any half-extent, so it was true of a camera sitting
+    # outside the booth and proved nothing. in4 below asks the real question.
     ic = cam('07-interior')
-    ck('cm17', Math.sqrt(ic.eye.to_a.each_with_index
-                           .map { |v, i| (v - CENTRE[i])**2 }.inject(:+)) < RADIUS,
-       ic.eye.to_a.inspect)
+    ck('cm17', ic.eye.to_a[2] == CENTRE[2], ic.eye.to_a.inspect)
+
+    # ---- WHICH WALL IS THE DOOR IN? ------------------------------------
+    # THE 1.50.x DEFECT, PINNED. tag_az used to return the bearing to the
+    # door's CENTRE. A door is rarely centred along its own wall, and on
+    # Benton's MDL 96120 S (98 x 122 exterior, door ~36 in off centre) that
+    # read -120 instead of -90 -- most of 02-angled's 35-degree swing, which
+    # is why 01-front came out a three-quarter and 02-angled came out
+    # square-on. The answer must be the wall's NORMAL, not a bearing to a
+    # point.
+    #
+    # 98 x 122 exterior -> half-extents 49 x 61. Door in the -Y wall.
+    ck('dr1', WR_AutoSet.wall_axis(0.0, -61.0, 49.0, 61.0) == [0.0, -1.0],
+       WR_AutoSet.wall_axis(0.0, -61.0, 49.0, 61.0).inspect)
+    # THE CASE THAT SHIPPED WRONG: 36 in off centre along the wall. The old
+    # rule gave -120.5 deg; the wall normal is still -90.
+    ck('dr2', WR_AutoSet.wall_axis(36.0, -61.0, 49.0, 61.0) == [0.0, -1.0],
+       WR_AutoSet.wall_axis(36.0, -61.0, 49.0, 61.0).inspect)
+    # Even hard against the corner it is still that wall, not the other one.
+    ck('dr3', WR_AutoSet.wall_axis(48.0, -61.0, 49.0, 61.0) == [0.0, -1.0],
+       WR_AutoSet.wall_axis(48.0, -61.0, 49.0, 61.0).inspect)
+    # A door genuinely in the +X wall reads +X, offset along it or not.
+    ck('dr4', WR_AutoSet.wall_axis(49.0, 30.0, 49.0, 61.0) == [1.0, 0.0],
+       WR_AutoSet.wall_axis(49.0, 30.0, 49.0, 61.0).inspect)
+    # NORMALISED BY EACH HALF-EXTENT, not compared in raw inches: 44 in of x
+    # is 0.90 of the way out across 49, while 50 in of y is only 0.82 across
+    # 61 -- so this is the +X wall even though the y offset is the bigger
+    # number. Comparing inches would pick the wrong wall.
+    ck('dr5', WR_AutoSet.wall_axis(44.0, 50.0, 49.0, 61.0) == [1.0, 0.0],
+       WR_AutoSet.wall_axis(44.0, 50.0, 49.0, 61.0).inspect)
+    # A degenerate half-extent must not divide by zero or pick a wall it
+    # cannot see.
+    ck('dr6', WR_AutoSet.wall_axis(0.0, -61.0, 0.0, 61.0) == [0.0, -1.0],
+       WR_AutoSet.wall_axis(0.0, -61.0, 0.0, 61.0).inspect)
+
+    # ---- INSIDE THE BOOTH ------------------------------------------------
+    # A FIXED CLEARANCE OFF THE INTERIOR FACE, NOT A FRACTION. Benton, 10 Sep
+    # 2026: "it needed to move like 2\" more inside the booth. It was kinda
+    # stuck in the wall." HALF is a real 4872 E; the door faces -Y, so the
+    # booth's shell reaches 37 in that way and the interior face is at 36.
+    idist = WR_AutoSet.interior_eye_dist(HALF, RADIUS, DOOR)
+    ck('in1', (idist - (37.0 - 1.0 - 4.0)).abs < 1.0e-9, idist.inspect)
+    # The eye stands clear of the INTERIOR face by the named clearance.
+    clear = (WR_AutoSet.reach(HALF[0], HALF[1], DOOR) -
+             WR_AutoSet::BOOTH_WALL_T) - idist
+    ck('in2', (clear - WR_AutoSet::INTERIOR_EYE_CLEAR).abs < 1.0e-9, clear.inspect)
+    # ... AND IT IS THE SAME CLEARANCE IN A BOOTH THREE TIMES THE SIZE. The
+    # old radius * 0.55 stood 2.2 in off the face on a 4872 and 26 in off it
+    # on a 96168; that is the bug, not the 2 inches.
+    big = [49.0, 85.0]     # MDL 96168 E, 8'2" x 14'2" exterior
+    bclear = (WR_AutoSet.reach(big[0], big[1], DOOR) - WR_AutoSet::BOOTH_WALL_T) -
+             WR_AutoSet.interior_eye_dist(big, 106.8, DOOR)
+    ck('in3', (bclear - clear).abs < 1.0e-9, [clear, bclear].inspect)
+    # The eye is genuinely inside the shell, on both.
+    ck('in4', idist < WR_AutoSet.reach(HALF[0], HALF[1], DOOR), idist.inspect)
+    # reach takes the NEARER face on an off-axis azimuth, not the wider one.
+    ck('in5', (WR_AutoSet.reach(25.0, 37.0, 0.0) - 25.0).abs < 1.0e-9,
+       WR_AutoSet.reach(25.0, 37.0, 0.0).inspect)
+
+    # THE TWO-POINT PERSPECTIVE. Benton, 10 Sep 2026: "I like the interior
+    # camera angle. Its a good feature honestly." A perspective camera looking
+    # DEAD LEVEL with a WORLD-VERTICAL up vector leaves real verticals
+    # parallel on screen instead of converging -- the same geometry SketchUp's
+    # Two-Point Perspective mode imposes. Each of the three things that
+    # produces it gets its own check, because none of them looks important.
+    ic2 = cam('07-interior')
+    idir = [ic2.target.to_a[0] - ic2.eye.to_a[0],
+            ic2.target.to_a[1] - ic2.eye.to_a[1],
+            ic2.target.to_a[2] - ic2.eye.to_a[2]]
+    ck('in6', idir[2].abs < 1.0e-9, "view direction z = #{idir[2]}")
+    ck('in7', ic2.up.to_a == [0.0, 0.0, 1.0], ic2.up.to_a.inspect)
+    ck('in8', ic2.perspective == true, 'the interior plate is parallel-projected')
+    ck('in9', ic2.fov == WR_AutoSet::INTERIOR_FOV, ic2.fov.inspect)
+    # And the eye is level with the booth centre -- moving it inboard must not
+    # tilt it, which is the thing the clearance fix had to not break.
+    ck('in10', (ic2.eye.to_a[2] - CENTRE[2]).abs < 1.0e-9, ic2.eye.to_a.inspect)
 
     # NO DOOR TAG AT ALL: the documented -90 fallback still produces a real
     # camera rather than raising.
@@ -630,8 +782,9 @@ module T
     # The model Benton ran on carried no dimensions at all, and a plate that
     # SHOWS WR-Dims while the model has none looks identical to one that hides
     # them. Counting is the only way to tell, and it must not widen anything.
-    none = { 'WR-Dims' => 0, 'WR-Dims-Doors' => 0, 'WR-Notes-Plan' => 0 }
-    some = { 'WR-Dims' => 14, 'WR-Dims-Doors' => 0, 'WR-Notes-Plan' => 0 }
+    none = { 'WR-Dims' => 0, 'WR-Dims-Doors' => 0, 'WR-Dims-Booth' => 0,
+             'WR-Dims-Selection' => 0, 'WR-Notes-Plan' => 0, 'WR-Notes-Vent' => 0 }
+    some = none.merge({ 'WR-Dims' => 14 })
     ck('eb1', !WR_AutoSet.empty_shown_note(['WR-Dims', 'WR-Dims-Doors'], none).nil?)
     ck('eb2', WR_AutoSet.empty_shown_note(['WR-Dims', 'WR-Dims-Doors'], none)
                         .include?('BLANK'))
@@ -648,8 +801,9 @@ module T
     ck('eb6', WR_AutoSet.empty_shown_note(['WR-Dims'], {}).nil?)
     # The run-level list names the dimensioned plates and leaves the clean
     # ones out of it.
-    ck('eb7', WR_AutoSet.blank_plates(ALL, sets, none) ==
-              ['01-front', '03-high', '06-plan'],
+    # Every plate shows dimensions now, so on a model with none drawn EVERY
+    # plate is blank and says so -- which is exactly the model Benton ran on.
+    ck('eb7', WR_AutoSet.blank_plates(ALL, sets, none) == ALL,
        WR_AutoSet.blank_plates(ALL, sets, none).inspect)
     ck('eb8', WR_AutoSet.blank_plates(ALL, sets, some) == [],
        WR_AutoSet.blank_plates(ALL, sets, some).inspect)
@@ -673,11 +827,14 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'mv1 mv2 mv3 mv4 mv5 '
          'ld1 ld2 ld3 ld4 ld5 ld6 ld7 ld8 ld9 ld10 '
          'az1 az2 az3 az4 az5 az6 az7 az8 az9 az10 az11 '
-         'an1 an2 an3 an4 an5 an6 an7 an8 an9 an10 an11 '
-         'nv1 nv2 '
+         'an1 an2 an2b an2c an3 an4 an5 an6 an7 an7b an8 an9 an10 an11 '
+         'nv1 nv2 nv3 '
          'wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 wp9 '
-         'cm1 cm1b cm2 cm3 cm4 cm5 cm6 cm7 cm8 cm9 cm10 cm11 cm11b cm12 cm13 '
-         'cm14 cm15 cm16 cm16b cm17 cm18 '
+         'cm1 cm1b cm1c cm2 cm3 cm4 cm5 cm6 cm7 cm8 cm9 cm10 cm11 cm11b cm12 cm13 '
+         'cm14 cm15 cm16 cm16b cm17 '
+         'dr1 dr2 dr3 dr4 dr5 dr6 '
+         'in1 in2 in3 in4 in5 in6 in7 in8 in9 in10 '
+         'cm18 '
          'eb1 eb2 eb3 eb4 eb5 eb6 eb7 eb8').split()
 EXPECT = ' | '.join('%s ok' % n for n in NAMES)
 
@@ -694,6 +851,10 @@ def main():
         'fallback_az':     const_line('FALLBACK_AZ'),
         'moved_tol':       const_line('MOVED_TOL'),
         'cos_cone':        const_line('COS_CONE'),
+        'dims_re':         const_line('DIMS_RE'),
+        'booth_wall_t':    const_line('BOOTH_WALL_T'),
+        'interior_eye_clear': const_line('INTERIOR_EYE_CLEAR'),
+        'interior_fov':    const_line('INTERIOR_FOV'),
         'standoff_k':      const_line('STANDOFF_K'),
         'standoff_c':      const_line('STANDOFF_C'),
         'plate_fov':       const_line('PLATE_FOV'),
@@ -715,6 +876,11 @@ def main():
         'plate_ids':       rbtest.method_source(SRC, 'plate_ids'),
         'az_for':          rbtest.method_source(SRC, 'az_for'),
         'standoff':        rbtest.method_source(SRC, 'standoff'),
+        'reach':           rbtest.method_source(SRC, 'reach'),
+        'wall_axis':       rbtest.method_source(SRC, 'wall_axis'),
+        'interior_eye_dist': rbtest.method_source(SRC, 'interior_eye_dist'),
+        'policy_line':     rbtest.method_source(SRC, 'policy_line'),
+        'loose_split':     rbtest.method_source(SRC, 'loose_split'),
         'plate_dist':      rbtest.method_source(SRC, 'plate_dist'),
         'aim_plate':       rbtest.method_source(SRC, 'aim_plate'),
         'aim_interior':    rbtest.method_source(SRC, 'aim_interior'),
@@ -752,17 +918,25 @@ def main():
         gone.append('NEVER_SHOWN (the second gate) is gone')
     if re.search(r'^\s*HIDDEN_BY_PLATE\s*=', src, re.M):
         gone.append('a HIDDEN_BY_PLATE denylist has appeared')
-    # PARALLEL PROJECTION IS BANNED OUTRIGHT, not merely absent. Benton: "I
-    # never use parellel perspective so dont use it either." A :persp key back
-    # in the plate table is the shape that lets one creep in.
+    # THE PROJECTION RULE, ENFORCED ON THE SOURCE. Benton refined the blanket
+    # no-parallel rule on 10 Sep 2026: "The top down should actually be the
+    # only one in parellel projection". So the gate enforces BOTH halves
+    # rather than banning the key -- the rule changed, it did not vanish, and
+    # this is the thing standing between us and a silent slide back to 1.48,
+    # where four of six plates were parallel.
     if re.search(r':persp\s*=>', src):
-        gone.append('a :persp key is back in the plate table -- every plate '
-                    'is perspective, see PLATES')
+        gone.append('a :persp key is back in the plate table -- projection is '
+                    'carried by :parallel on exactly one plate, see PLATES')
+    par = re.findall(r":id\s*=>\s*'([^']+)'[^}]*?:parallel\s*=>\s*true", src, re.S)
+    if par != ['06-plan']:
+        gone.append('the parallel plate(s) are %r -- it must be exactly '
+                    "['06-plan']: the top-down is a drafting plan and every "
+                    'other plate is a photograph' % (par,))
     if gone:
         print('  policy FAIL %s' % '; '.join(gone))
         return 1
     print('  policy ok - the annotation rule is still an allowlist plus a '
-          'never-shown gate, and no plate asks for parallel projection')
+          'never-shown gate, and 06-plan is the only parallel plate')
 
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
@@ -770,14 +944,18 @@ def main():
           'ladder, the plate azimuths and the stamp')
     if got == EXPECT:
         print('  PASS - %d checks' % len(NAMES))
-        print('         WR-Notes and every loose callout are hidden on all seven')
-        print('         plates, the wall picks name every unit, re-runs match on')
-        print('         the stamp and never on the name, and an unstamped scene')
-        print('         is untouchable.')
+        print('         Dimensions show on all seven plates; WR-Notes and every')
+        print('         loose TEXT callout are hidden on all seven; the wall picks')
+        print('         name every unit; re-runs match on the stamp and never on')
+        print('         the name, and an unstamped scene is untouchable.')
+        print('         The interior plate is a locked two-point perspective and')
+        print('         stands 4 in clear of the interior wall face at any size.')
         print('         The cm checks RAN the real aim(): front-on is square to')
         print('         the door ~16 ft back at eye height, the top-down is')
         print('         genuinely straight down, the high shot is 17 ft up at')
-        print('         the angled bearing, and every camera is perspective.')
+        print('         the angled bearing, the door bearing is a WALL NORMAL')
+        print('         rather than a bearing to the door, and 06-plan is the')
+        print('         only parallel-projected plate.')
         return 0
     exp = EXPECT.split(' | ')
     act = got.split(' | ')

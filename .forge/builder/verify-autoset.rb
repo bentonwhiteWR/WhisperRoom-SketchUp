@@ -136,11 +136,18 @@ module WR_VerifyAutoSet
 
   # A booth-shaped group with a DOOR-tagged plate on its -Y face and a
   # VENT-tagged plate on its +Y face, so tag_az has something real to read.
+  # THE DOOR IS DELIBERATELY OFF-CENTRE ALONG ITS WALL (1.51.0). It used to sit
+  # dead centre, which is the one position where the 1.50.x tag_az bug -- a
+  # bearing to the door's CENTRE rather than the normal of its wall -- has zero
+  # error. That is why every check passed while Benton's MDL 96120 S, whose
+  # door is about 36 in off centre, came out with 01-front and 02-angled
+  # apparently swapped. A fixture that only tests the easy position is not
+  # testing the thing.
   def self.make_booth(ents, name, ox, oy)
     g  = ents.add_group
     ge = g.entities
     box(ge, ox, oy, ox + 96.0, oy + 60.0, 84.0, 'shell')
-    door = box(ge, ox + 30.0, oy - 2.0, ox + 66.0, oy, 84.0, 'door frame')
+    door = box(ge, ox + 54.0, oy - 2.0, ox + 90.0, oy, 84.0, 'door frame')
     vent = box(ge, ox + 40.0, oy + 60.0, ox + 56.0, oy + 62.0, 20.0, 'vent')
     door.layer = @model.layers.add('WR-Booth-Door')
     vent.layer = @model.layers.add('WR-Booth-Vent')
@@ -215,9 +222,21 @@ module WR_VerifyAutoSet
       # which is the entire reason the annotation rule is an allowlist.
       t_l1 = @model.entities.add_text('VERIFY loose one', [60, 40, 100])
       t_l2 = @model.entities.add_text('VERIFY loose two', [60, 50, 100])
+      # A LOOSE DIMENSION ON NO TAG. Since 1.51.0 a loose row is judged by its
+      # KIND: a dimension is a dimension and is shown, loose TEXT is unknown
+      # content and stays hidden. The fixture needs one of each or it cannot
+      # tell the two rules apart.
+      t_ld = begin
+        @model.entities.add_dimension_linear([120, 0, 0], [180, 0, 0], [0, -12, 0])
+      rescue StandardError
+        nil
+      end
       made.concat([t_dim, t_door, t_note, t_plan, t_l1, t_l2])
+      made << t_ld if t_ld
       @model.commit_operation
 
+      # loose_ents stays TEXT ONLY -- it is the D5 guard's subject, and the
+      # loose dimension is tracked separately because it is meant to SHOW.
       loose_ents = [t_l1, t_l2]
 
       # ------------------ 0. THE ZERO-SCENE MODEL (1.48.1) ---------------
@@ -423,19 +442,31 @@ module WR_VerifyAutoSet
           bad_note.empty? ? 'the D5 banner is hidden on all five' : bad_note.inspect)
       say('annot.loose_callouts_hidden_on_every_plate', bad_loose.empty?,
           bad_loose.empty? ? 'both Untagged callouts hidden on all five' : bad_loose.inspect)
-      say('annot.front_shows_dims_and_doors',
-          shown_map['01-front'].sort == ['WR-Dims', 'WR-Dims-Doors'],
-          shown_map['01-front'].inspect)
-      say('annot.high_shows_dims_and_doors',
-          shown_map['03-high'].sort == ['WR-Dims', 'WR-Dims-Doors'],
-          shown_map['03-high'].inspect)
-      say('annot.angled_shows_nothing', shown_map['02-angled'] == [],
-          shown_map['02-angled'].inspect)
-      say('annot.side_shows_nothing', shown_map['04-side'] == [],
-          shown_map['04-side'].inspect)
-      say('annot.plan_shows_dims_doors_and_the_plan_set',
-          shown_map['06-plan'].sort == ['WR-Dims', 'WR-Dims-Doors', TAG_P].sort,
-          shown_map['06-plan'].inspect)
+      # DIMENSIONS ARE SHOWN ON EVERY PLATE (1.51.0). Benton, 10 Sep 2026:
+      # "Also please dont hide any of the dimensions on the auto set." The two
+      # checks that used to assert a plate showed NOTHING are now the two that
+      # assert it shows the dimensions -- that expectation moved on purpose.
+      %w[01-front 02-angled 03-high 04-side 05-ventilation 06-plan].each do |pl|
+        say("annot.#{pl.tr('-', '_')}_shows_the_dimensions",
+            (['WR-Dims', 'WR-Dims-Doors'] - shown_map[pl].to_a).empty?,
+            shown_map[pl].inspect)
+      end
+      # The NOTE set is still per-plate and still opt-in: the plan names it,
+      # nothing else does.
+      say('annot.only_the_plan_shows_the_plan_note',
+          shown_map['06-plan'].include?(TAG_P) &&
+            %w[01-front 02-angled 03-high 04-side 05-ventilation]
+              .none? { |pl| shown_map[pl].to_a.include?(TAG_P) },
+          shown_map.map { |k, v| [k, v] }.inspect)
+      # AND THE LOOSE DIMENSION SHOWS, while the loose TEXT does not. Both
+      # halves, because "show the dimensions" must not become "show anything".
+      if t_ld
+        say('annot.a_loose_DIMENSION_is_shown',
+            set1.all? { |pg| sel(pg); hidden?(t_ld) == false },
+            'a loose dimension entity was hidden on a plate')
+      else
+        puts '  SKIP annot.a_loose_DIMENSION_is_shown - add_dimension_linear unavailable'
+      end
       say('annot.every_plate_saves_hidden_state',
           WR_SceneAnnotations.pages_not_saving(@model).reject { |n| n == MINE }.empty?,
           WR_SceneAnnotations.pages_not_saving(@model).inspect)
@@ -634,16 +665,30 @@ module WR_VerifyAutoSet
           WR_AutoSet.plate_ids(false).all? { |id| !shot.call(id).nil? },
           by_plate.keys.inspect)
 
-      # NO PARALLEL PROJECTION ANYWHERE. Benton, 10 Sep 2026: "I never use
-      # parellel perspective so dont use it either."
+      # THE TOP-DOWN IS THE ONE PARALLEL PLATE, AND ONLY IT. Benton, 10 Sep
+      # 2026: "The top down should actually be the only one in parellel
+      # projection so change that too." This check used to read
+      # cam.no_plate_is_parallel; that rule was REFINED by him, not abandoned,
+      # so both halves are asserted rather than the check being dropped.
       flat = WR_AutoSet.plate_ids(false).reject { |id| shot.call(id)['persp'] }
-      say('cam.no_plate_is_parallel', flat.empty?, flat.inspect)
+      say('cam.only_the_plan_is_parallel', flat == ['06-plan'], flat.inspect)
 
       # THE PLATES ARE NOT ALL THE SAME SHOT. This is the 1.48.0 defect stated
       # as a check: if the aim never lands, every eye is identical.
       eyes = WR_AutoSet.plate_ids(false).map { |id| by_plate[id].camera.eye.to_a.map { |v| v.round(1) } }
       say('cam.plates_have_DIFFERENT_cameras', eyes.uniq.length == eyes.length,
           eyes.inspect)
+
+      # THE DOOR BEARING IS A WALL NORMAL, NOT A BEARING TO THE DOOR. The
+      # fixture's door is deliberately off-centre along its wall now, which is
+      # the case that broke on Benton's 96120 S: the old rule returned the
+      # bearing to the door's centre and swung ~30 deg off the wall. An
+      # axis-aligned booth's door wall normal must land on a multiple of 90.
+      say('door.bearing_is_a_wall_normal',
+          !daz.nil? && ((daz.to_f + 360.0) % 90.0).abs < 0.01,
+          "#{daz.inspect} - should be a multiple of 90 on an axis-aligned booth")
+      say('door.bearing_is_the_minus_Y_wall', !daz.nil? && (daz.to_f + 90.0).abs < 0.01,
+          daz.inspect)
 
       # FRONT ON, square to the door. daz was read off the tag in section 2.
       fs = shot.call('01-front')
@@ -682,6 +727,36 @@ module WR_VerifyAutoSet
       say('cam.ventilation_looks_from_the_vent_side',
           !vaz.nil? && (((vs['az'] - vaz).abs + 180.0) % 360.0 - 180.0).abs < 60.0,
           "eye at #{vs['az'].round(1)} deg, vent at #{vaz.to_f.round(1)} deg")
+
+      # ---- INSIDE THE BOOTH --------------------------------------------
+      # The interior plate is off by default, so it is not in cset; aim it
+      # directly and read the camera the tool would have saved.
+      iv = @model.active_view
+      WR_AutoSet.aim_plate(iv, '07-interior', bc, br, daz, vaz,
+                           [(bbx.max.x - bbx.min.x) / 2.0, (bbx.max.y - bbx.min.y) / 2.0])
+      ic = iv.camera
+      idir = ic.target - ic.eye
+      # A FIXED CLEARANCE OFF THE INTERIOR FACE. Benton, 10 Sep 2026: "it
+      # needed to move like 2\" more inside the booth. It was kinda stuck in
+      # the wall."
+      say('cam.interior_eye_is_inside_the_shell',
+          ic.eye.x > bbx.min.x && ic.eye.x < bbx.max.x &&
+            ic.eye.y > bbx.min.y && ic.eye.y < bbx.max.y,
+          ic.eye.to_a.inspect)
+      iclear = (ic.eye.y - bbx.min.y).abs - WR_AutoSet::BOOTH_WALL_T
+      say('cam.interior_eye_clears_the_interior_face',
+          (iclear - WR_AutoSet::INTERIOR_EYE_CLEAR).abs < 0.51,
+          format('%.2f in clear, wants %.2f', iclear, WR_AutoSet::INTERIOR_EYE_CLEAR))
+      # THE TWO-POINT PERSPECTIVE. Benton: "I like the interior camera angle.
+      # Its a good feature honestly." Level direction + world-vertical up +
+      # perspective is what keeps real verticals parallel on screen. Each is
+      # checked separately because none of the three looks important.
+      say('cam.interior_looks_dead_level', idir.z.abs < 1.0e-6, idir.to_a.inspect)
+      say('cam.interior_up_is_world_vertical',
+          ic.up.to_a.map { |v| v.round(6) } == [0.0, 0.0, 1.0], ic.up.to_a.inspect)
+      say('cam.interior_is_perspective', ic.perspective? == true)
+      say('cam.interior_keeps_its_wide_lens',
+          (ic.fov - WR_AutoSet::INTERIOR_FOV).abs < 0.01, ic.fov.inspect)
 
       # THE BLANK-PLATE SENTENCE. This fixture DOES carry dimension entities
       # on WR-Dims, so the note must NOT fire; the model Benton ran on carried

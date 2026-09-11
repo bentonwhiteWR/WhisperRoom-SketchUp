@@ -106,10 +106,21 @@ module WR_AutoSet
   #    ventilation (this usually requires a hidden wall). Then finally a Top
   #    Down view that shows dimensions"
   #
-  # EVERY PLATE IS PERSPECTIVE. He said it flatly - "I never use parellel
-  # perspective so dont use it either" - and that includes the top-down and
-  # the two that read like elevations. 1.48.0 shipped four of its six plates
-  # parallel. There is no :persp key any more, because a key implies a choice.
+  # EVERY PLATE IS PERSPECTIVE EXCEPT THE TOP-DOWN. Benton first said it
+  # flatly - "I never use parellel perspective so dont use it either" - and
+  # then refined it the same day, 10 Sep 2026, having seen the plates:
+  # "The top down should actually be the only one in parellel projection so
+  # change that too."
+  #
+  # THAT REFINEMENT SUPERSEDES THE BLANKET RULE AND IS NOT A REGRESSION. A
+  # top-down is a drafting plan and parallel is the correct convention for one
+  # - it is what makes a dimension string on it measurable. Every other plate
+  # is a photograph and stays perspective. 1.48.0's bug was four of six
+  # parallel, not the concept.
+  #
+  # The key is :parallel and it appears on ONE plate. rbtest-autoset.py's
+  # source gate enforces both halves - the plan is parallel, nothing else is -
+  # rather than banning the key, because the rule changed, it did not vanish.
   #
   # WHAT THE OLD NAMES WERE, AND WHY THEY WENT. 1.48.0 made 01-exterior,
   # 02-dimensioned, 03-front, 04-ventilation, 05-plan. 02-dimensioned was
@@ -157,7 +168,8 @@ module WR_AutoSet
     { :id => '05-ventilation', :az => :vent, :swing => 25.0, :el => 10.0,
       :on => true,  :what => 'Rear view & ventilation' },
     { :id => '06-plan',        :az => :door, :swing => 0.0,  :el => 90.0,
-      :on => true,  :what => 'Top-down, dimensions' },
+      :parallel => true,
+      :on => true,  :what => 'Top-down, dimensions (the ONE parallel plate)' },
     { :id => '07-interior',    :az => :door, :swing => 0.0,  :el => 0.0,
       :on => false, :inside => true, :what => 'Interior (off by default)' }
   ].freeze
@@ -175,6 +187,63 @@ module WR_AutoSet
   # radius * 3.2 + 60, which put a 4872 at 21 ft.
   STANDOFF_K = 2.6
   STANDOFF_C = 36.0
+
+  # ------------------------------------------------- inside the booth --
+  #
+  # THE BOOTH WALL IS 1 INCH PER SIDE, and that is read off the catalogue
+  # rather than guessed. Every model's EXTERIOR is its model number plus two
+  # inches: 4872 -> 4'2" x 6'2" = 50 x 74, 96120 -> 8'2" x 10'2" = 98 x 122,
+  # 96168 -> 8'2" x 14'2" = 98 x 170 (reference/booth-models.md, itself a copy
+  # of models.json). The model number IS the interior. So the interior face
+  # sits 1 in inboard of the shell a bounding box reports.
+  BOOTH_WALL_T = 1.0
+
+  # HOW FAR CLEAR OF THAT INTERIOR FACE THE INTERIOR EYE STANDS. Benton, 10
+  # Sep 2026, having run the 1.50.0 plates for real: "The interior one was
+  # slightly off though. It was almost perfect, but it needed to move like 2"
+  # more inside the booth. It was kinda stuck in the wall."
+  #
+  # It is a FIXED clearance off the interior face and deliberately NOT a
+  # fraction of anything. The old rule put the eye at radius * 0.55, and the
+  # radius is the 3D diagonal, so it mixed width, depth and height and landed
+  # somewhere different in every booth size: on a 4872 that is 2.2 in off the
+  # interior face (inside a 70-degree camera's near plane, which is why the
+  # panel vanished and the eye read as stuck in it), and on a 96168 it is 26 in
+  # off the door wall - a different shot entirely. At 4 in the face is clear of
+  # the near plane on every model, and the shot means the same thing whatever
+  # booth it is pointed at.
+  INTERIOR_EYE_CLEAR = 4.0
+
+  # The interior lens. Wide on purpose — see aim_interior: at PLATE_FOV (35)
+  # a camera 4 in off the interior face of a 4872 sees one panel and nothing
+  # else. Named rather than inline so a check can pin it.
+  INTERIOR_FOV = 70.0
+
+  # How far the booth's own shell reaches from its centre along `az`: the exit
+  # distance of a ray from the centre through an axis-aligned box of
+  # half-extents hx, hy. Not simply "half a side", because the door azimuth is
+  # read off a tag and is rarely exactly on an axis.
+  def self.reach(hx, hy, az_deg)
+    a  = az_deg.to_f * DEG
+    cx = Math.cos(a).abs
+    cy = Math.sin(a).abs
+    ts = []
+    ts << (hx.to_f / cx) if cx > 1.0e-9
+    ts << (hy.to_f / cy) if cy > 1.0e-9
+    ts.empty? ? 0.0 : ts.min
+  end
+
+  # Where the interior eye stands, as a distance from the booth centre along
+  # the door azimuth. `half` is [hx, hy] off the booth's own bounds; nil means
+  # the caller handed us no bounds, and the only thing left is the pre-1.50.2
+  # proportional guess - apply always passes them, so that path is a
+  # fallback and not a design.
+  def self.interior_eye_dist(half, radius, az)
+    return radius.to_f * 0.55 if half.nil?
+    r = reach(half[0], half[1], az)
+    d = r - BOOTH_WALL_T - INTERIOR_EYE_CLEAR
+    d > 1.0 ? d : 1.0
+  end
 
   # 35 degrees is SketchUp's own default lens and a longer one than aim's 40:
   # less barrel on a product shot, and it is what Benton's hand-framed views
@@ -241,34 +310,71 @@ module WR_AutoSet
 
   # ------------------------------------------------- the annotation rule --
 
+  # DIMENSIONS ARE SHOWN ON EVERY PLATE (1.51.0). Benton, 10 Sep 2026, having
+  # run the new plates: "Also please dont hide any of the dimensions on the
+  # auto set. I dont like the way thats working right now. Will otpimize
+  # later." That is an explicit, deliberate step back from the per-plate
+  # dimension policy 1.50.0 shipped, and it is HIS call on a client-facing
+  # default. **Do not "restore" the old behaviour thinking this was a
+  # regression** — he intends to refine it himself.
+  #
+  # Any tag whose name is in the WR-Dims family is shown, on every plate.
+  DIMS_RE = /\AWR-Dims(\z|-)/.freeze
+
   # NEVER shown by auto-set, on any plate, ever.
-  #   WR-Notes          the house-default ceiling banner — the literal D5 string
-  #   WR-Dims-Booth     working dimensions: a booth carrying both shows two
-  #   WR-Dims-Selection different footprints with nothing saying which is which
-  #                     (proposal-scenes.rb:120-129 — that reasoning is lifted,
-  #                     not invented).
-  NEVER_SHOWN = %w[WR-Notes WR-Dims-Booth WR-Dims-Selection].freeze
+  #
+  #   WR-Notes   the house-default ceiling banner — the literal D5 string
+  #              ("Ceiling 8'-0\" - HOUSE DEFAULT, not measured. Confirm before
+  #              quoting.") that went out on a client image on 30 Aug 2026.
+  #
+  # THIS GATE IS UNTOUCHED AND MUST STAY. Benton said *dimensions*, and a
+  # construction note is not a dimension. Client-safe annotation mode was
+  # removed at 1.47.0, so there is no second net behind this list.
+  #
+  # WR-Dims-Booth AND WR-Dims-Selection WERE ON THIS LIST UNTIL 1.51.0 and are
+  # deliberately no longer. They were never here for safety — they were here
+  # for legibility, because "a booth carrying both sets shows two different
+  # footprints with nothing on the page to say which is which"
+  # (proposal-scenes.rb, where that reasoning still lives and still governs
+  # THAT tool). They are dimensions, Benton asked to see the dimensions, and
+  # a legibility preference is exactly the kind of thing he is entitled to
+  # overrule. The D5 gate did not weaken: it still refuses the one tag it was
+  # built to refuse, and effective_shown still subtracts it last.
+  NEVER_SHOWN = %w[WR-Notes].freeze
 
   # THE ALLOWLIST. A plate shows these family tags AND NOTHING ELSE — every
   # other family tag and every loose Untagged callout is hidden. A name here
   # that the model does not carry is simply not shown (opt-in by existence),
   # so a shop that has never made a WR-Notes-Vent set gets a clean plate 4.
+  # WHAT THIS LIST IS FOR NOW. Since 1.51.0 every WR-Dims tag is shown on every
+  # plate and does not need naming here, so what is left is the NOTE sets —
+  # the WR-Notes-* annotation sets Benton makes by hand in
+  # wr-scene-annotations.rb. Those are still strictly opt-in per plate, which
+  # is the half of the allowlist that is still carrying weight: a note is text
+  # of unknown content, and an unknown note on a customer image is the defect
+  # this whole mechanism exists for.
   SHOWN_BY_PLATE = {
-    '01-front'       => WR_ProposalScenes::SHOWN_ON_DIMENSIONED,   # "great to show dimensions"
-    '02-angled'      => [],                                        # cover hero: clean or it isn't one
-    '03-high'        => WR_ProposalScenes::SHOWN_ON_DIMENSIONED,   # "Great at showing dimensions"
+    '01-front'       => [],
+    '02-angled'      => [],
+    '03-high'        => [],
     '04-side'        => [],
     '05-ventilation' => %w[WR-Notes-Vent],
-    '06-plan'        => WR_ProposalScenes::SHOWN_ON_DIMENSIONED + %w[WR-Notes-Plan],
+    '06-plan'        => %w[WR-Notes-Plan],
     '07-interior'    => []
   }.freeze
 
   # The family tags this plate may show, given the tags the model actually
   # carries. The NEVER_SHOWN subtraction is the second gate: it is what stops
   # a later edit to SHOWN_BY_PLATE putting WR-Notes back on a plate.
+  # The family tags this plate may show, given the tags the model actually
+  # carries: the note sets it names by hand, PLUS every dimension tag that
+  # exists (1.51.0 — Benton's call, see NEVER_SHOWN). The NEVER_SHOWN
+  # subtraction is still last and still the final word, so the D5 banner
+  # cannot re-enter through either half.
   def self.effective_shown(plate_id, present)
+    names = present.map { |n| n.to_s }
     allow = (SHOWN_BY_PLATE[plate_id.to_s] || [])
-    ((allow & present.map { |n| n.to_s }) - NEVER_SHOWN)
+    ((allow & names) | names.grep(DIMS_RE)) - NEVER_SHOWN
   end
 
   # The full picks hash for one plate, in the picker's own polarity:
@@ -276,13 +382,39 @@ module WR_AutoSet
   # so a set shown on the previous plate cannot ride along into this one.
   #
   #   sets  [{ 'key' => 't:WR-Dims', 'name' => 'WR-Dims' }, ...]
-  #   loose [{ 'key' => 'e:1234' }, ...]      every one of them is hidden
+  #   loose [{ 'key' => 'e:1234', 'kind' => 'text' | 'dim' }, ...]
+  #
+  # A LOOSE ROW IS JUDGED BY ITS KIND, AND THAT DISTINCTION IS REAL, NOT
+  # INFERRED FROM A NAME. wr-scene-annotations.rb's item_hash already
+  # classifies every annotation entity it finds: 'dim' for Sketchup
+  # ::DimensionLinear / ::DimensionRadial, 'text' for Sketchup::Text. So:
+  #
+  #   a loose DIMENSION  is SHOWN  — it is a dimension, which is the thing
+  #                                  Benton asked to stop hiding
+  #   a loose TEXT       is HIDDEN — its content is unknown to every tool, it
+  #                                  lands on Untagged, and SketchUp REFUSES
+  #                                  to hide the Untagged tag. This is the
+  #                                  case the allowlist was built for and it
+  #                                  is not relaxed.
+  #
+  # A row with no kind at all is treated as TEXT and hidden: an unreadable
+  # annotation must fail toward the conservative answer.
   def self.annot_picks(plate_id, sets, loose)
     shown = effective_shown(plate_id, (sets || []).map { |s| s['name'] })
     picks = {}
     (sets || []).each { |s| picks[s['key']] = !shown.include?(s['name'].to_s) }
-    (loose || []).each { |it| picks[it['key']] = true }
+    (loose || []).each { |it| picks[it['key']] = (it['kind'].to_s != 'dim') }
     picks
+  end
+
+  # What the policy IS, in one line, for the run log and the Apply summary.
+  # Benton is changing a client-facing default; he should be able to read what
+  # he now has without opening this file.
+  def self.policy_line
+    'POLICY: dimensions are shown on EVERY plate (every WR-Dims tag, plus ' \
+      'loose dimension entities). Construction notes and untagged text are ' \
+      'still hidden on every plate — WR-Notes never shows, and a WR-Notes-* ' \
+      'set shows only on a plate that names it.'
   end
 
   # ------------------------------------ is there anything ON those tags? --
@@ -681,21 +813,101 @@ module WR_AutoSet
   # between the booth and the tagged part carry identity transforms — which is
   # what the build tools produce. A wrong read falls back to FALLBACK_AZ and
   # the popover says so in orange BEFORE Apply.
+  # The entities of a booth container, whichever kind it is. A Group has
+  # #entities; a ComponentInstance does NOT and raises NoMethodError, and
+  # resolve_booth accepts both (it always has). Until 1.51.0 tag_az called
+  # booth.entities bare and the rescue turned that raise into a silent -90
+  # fallback on every component booth.
+  def self.container_entities(booth)
+    return booth.entities if booth.respond_to?(:entities)
+    return booth.definition.entities if booth.respond_to?(:definition)
+    nil
+  end
+
+  # WHICH WALL IS THE DOOR IN? Not "what bearing is the door's centre at".
+  #
+  # THE 1.50.x BUG, AND WHY IT ONLY SHOWED UP ON A BIG BOOTH. This used to
+  # return the bearing from the booth's centre to the tagged part's centre. A
+  # door is rarely centred along its own wall, and the further off-centre it
+  # sits the more that bearing swings away from the wall's normal. On Benton's
+  # MDL 96120 S (98 x 122 exterior) a door about 36 in off centre reads -120
+  # instead of -90 — a 30-degree error, which is most of 02-angled's 35-degree
+  # swing. That is exactly what he saw: "01-front" came out a three-quarter
+  # and "02-angled" came out square-on, the two apparently swapped. They were
+  # not swapped; both were aimed off a fabricated bearing.
+  #
+  # It passed every check because verify-autoset.rb's fixture booth has its
+  # door centred on its wall, where the error is zero.
+  #
+  # A booth is a rectangular box and the door is in ONE of its four walls, so
+  # the answer is a wall NORMAL, not a bearing to a point: take the offset in
+  # booth-local space, normalise each axis by that axis's own half-extent
+  # (a 36 in offset means something different across 98 in than across 122),
+  # and the dominant one names the wall. Then rotate that axis into model
+  # space, because the booth may be turned in the room.
+  # THE PURE HALF, so the thing that was wrong is the thing that gets tested.
+  # dx/dy is the offset from the booth centre to the tagged part's centre in
+  # BOOTH-LOCAL space; hx/hy are the booth's own half-extents. Returns the unit
+  # outward normal of the wall the part sits in, as [ux, uy].
+  #
+  # Normalising by each half-extent before comparing is the whole point: on a
+  # 98 x 122 booth a 36 in offset is 0.73 of the way to the short wall but only
+  # 0.59 of the way to the long one, and comparing raw inches would pick wrong.
+  def self.wall_axis(dx, dy, hx, hy)
+    nx = hx.to_f > 1.0e-6 ? (dx.to_f / hx.to_f) : 0.0
+    ny = hy.to_f > 1.0e-6 ? (dy.to_f / hy.to_f) : 0.0
+    if nx.abs >= ny.abs
+      [dx.to_f >= 0 ? 1.0 : -1.0, 0.0]
+    else
+      [0.0, dy.to_f >= 0 ? 1.0 : -1.0]
+    end
+  end
+
   def self.tag_az(booth, tag_name)
+    ents = container_entities(booth)
+    return nil if ents.nil?
     hits = []
-    WR_ProposalScenes.walk(booth.entities, tag_name, hits, 0)
+    WR_ProposalScenes.walk(ents, tag_name, hits, 0)
     return nil if hits.empty?
     own = Geom::BoundingBox.new
-    booth.entities.each { |e| own.add(e.bounds) }
+    ents.each { |e| own.add(e.bounds) }
     tb = Geom::BoundingBox.new
     hits.each { |e| tb.add(e.bounds) }
-    v = tb.center - own.center
-    return nil if v.length < 1.0
+    hx = (own.max.x - own.min.x).to_f / 2.0
+    hy = (own.max.y - own.min.y).to_f / 2.0
+    dx = (tb.center.x - own.center.x).to_f
+    dy = (tb.center.y - own.center.y).to_f
+    return nil if Math.sqrt((dx * dx) + (dy * dy)) < 1.0
+    ux, uy = wall_axis(dx, dy, hx, hy)
+    v = Geom::Vector3d.new(ux, uy, 0)
     v = v.transform(booth.transformation)
     return nil if v.length < 1.0e-6
     Math.atan2(v.y, v.x) / DEG
   rescue StandardError
     nil
+  end
+
+  # THE FALLBACK STOPS BEING SILENT (1.51.0). A fabricated -90 bearing is what
+  # let the wrong front shot ship, and it was invisible because every downstream
+  # check asks "is the camera square to the bearing we computed" rather than
+  # "did we compute one". Every run now says, by name, whether each side was
+  # READ or ASSUMED, and how many tagged parts it read it from.
+  def self.tag_az_line(booth, tag_name, label, az)
+    n = begin
+      ents = container_entities(booth)
+      hits = []
+      WR_ProposalScenes.walk(ents, tag_name, hits, 0) if ents
+      hits.length
+    rescue StandardError
+      0
+    end
+    if az.nil?
+      "         #{label}: ASSUMED — no usable #{tag_name} on this booth " \
+        "(#{n} tagged part(s) found). Every plate aimed off it is a guess."
+    else
+      format('         %s: READ %.1f deg from %d %s part(s).',
+             label, az, n, tag_name)
+    end
   end
 
   # Wall units as wall_picks wants them: key, label and a MODEL-space centre.
@@ -718,34 +930,72 @@ module WR_AutoSet
   # inventory so the keys are the keys write_scene understands.
   def self.annot_rows(model)
     inv = WR_SceneAnnotations.inventory(model)
+    # The loose rows carry their KIND now (1.51.0): annot_picks shows a loose
+    # dimension and hides loose text, and it cannot tell them apart without it.
     [inv[:sets].map { |s| { 'key' => s[:key], 'name' => s[:name] } },
-     inv[:loose].map { |it| { 'key' => it[:key] } }]
+     inv[:loose].map { |it| { 'key' => it[:key], 'kind' => it[:kind].to_s } }]
   end
 
   # ---------------------------------------------------------- the camera --
 
-  def self.aim_plate(view, plate_id, centre_a, radius, door_az, vent_az)
+  # `half` is [hx, hy] off the booth's own bounding box. Only the interior
+  # plate uses it - every exterior plate stands outside the booth, where the
+  # standoff is what frames the shot - but it is threaded through here rather
+  # than fetched inside, because aim_plate is the one place that already knows
+  # which booth it is aiming at.
+  def self.aim_plate(view, plate_id, centre_a, radius, door_az, vent_az, half = nil)
     p = plate(plate_id)
     c = Geom::Point3d.new(centre_a[0], centre_a[1], centre_a[2])
-    return aim_interior(view, c, radius, (door_az || FALLBACK_AZ)) if p[:inside]
-    # PERSPECTIVE, ALWAYS - there is no :persp key on a plate any more (see
+    return aim_interior(view, c, radius, (door_az || FALLBACK_AZ), half) if p[:inside]
+    # Perspective everywhere except the one plate that carries :parallel (see
     # PLATES). dist and fov are auto-set's own; aim's own defaults are the
     # legacy tool's and are left alone.
     WR_ProposalScenes.aim(view, c, radius, az_for(plate_id, door_az, vent_az),
-                          p[:el], true, plate_dist(p[:el], radius), PLATE_FOV)
+                          p[:el], !p[:parallel], plate_dist(p[:el], radius), PLATE_FOV)
   end
 
-  # Inside the booth, looking back across it. A STARTING POINT, not a
-  # decision — nudge it and re-save that scene, like every other plate.
-  def self.aim_interior(view, centre, radius, az)
+  # Inside the booth, looking back across it.
+  #
+  # ------------------------------------------------------------------------
+  # THIS IS A TWO-POINT PERSPECTIVE, AND IT IS DELIBERATE. DO NOT "TIDY" IT.
+  # ------------------------------------------------------------------------
+  # Benton, 10 Sep 2026, on the 1.51.0 plates: "I like the interior camera
+  # angle. Its a good feature honestly." He noticed it reads as locked
+  # two-point perspective. Three lines below produce that, and each one is
+  # load-bearing:
+  #
+  #   1. `dir` has a ZERO Z COMPONENT. The camera looks dead level, so no
+  #      vertical in the booth is foreshortened.
+  #   2. The up vector is WORLD VERTICAL (0, 0, 1), not the camera's own up.
+  #   3. The camera is PERSPECTIVE.
+  #
+  # A perspective camera whose view direction is perpendicular to the vertical
+  # axis leaves real verticals PARALLEL on screen instead of converging to a
+  # third vanishing point — which is exactly the geometry SketchUp's own
+  # Two-Point Perspective mode imposes, arrived at here by aiming level rather
+  # than by setting a mode. Give this plate a non-zero :el, or tip the up
+  # vector, and the verticals start converging and the look is gone.
+  #
+  # The 70-degree fov is the other half of it: a 35 inside a 4 ft booth sees
+  # one panel. `rbtest-autoset.py` pins all four of these by name (in6-in10)
+  # precisely because nothing about the three lines LOOKS important.
+  #
+  # The eye's distance along `dir` is a taste call and IS adjustable — that is
+  # what interior_eye_dist and INTERIOR_EYE_CLEAR are. Moving the eye in or
+  # out along a level direction does not tilt it, so the clearance fix of
+  # 1.51.0 left the two-point look untouched.
+  def self.aim_interior(view, centre, radius, az, half = nil)
     a   = az * DEG
     dir = Geom::Vector3d.new(Math.cos(a), Math.sin(a), 0)
-    eye = centre.offset(dir, radius * 0.55)
+    eye = centre.offset(dir, interior_eye_dist(half, radius, az))
+    # The target only sets the orbit pivot: eye and target sit on the same
+    # horizontal line through the centre, so the view DIRECTION is -dir
+    # whatever this distance is. Moving the eye did not move the shot's aim.
     tgt = centre.offset(dir, -radius * 0.45)
     cam = view.camera
     cam.set(eye, tgt, Geom::Vector3d.new(0, 0, 1))
     cam.perspective = true
-    cam.fov = 70.0
+    cam.fov = INTERIOR_FOV
     cam
   end
 
@@ -837,7 +1087,16 @@ module WR_AutoSet
     pages   = model.pages
     view    = model.active_view
 
-    centre, radius, = booth_frame(booth)
+    centre, radius, bbox = booth_frame(booth)
+    # [hx, hy] for the interior eye. Taken off min/max rather than through
+    # BoundingBox#width / #height / #depth, because in SketchUp #height is the
+    # Y extent and #depth is Z -- a naming trap that would have handed the
+    # interior camera the booth's HEIGHT as its plan half-depth, silently.
+    half = begin
+      [(bbox.max.x - bbox.min.x).to_f / 2.0, (bbox.max.y - bbox.min.y).to_f / 2.0]
+    rescue StandardError
+      nil
+    end
     door = tag_az(booth, 'WR-Booth-Door')
     vent = tag_az(booth, 'WR-Booth-Vent')
 
@@ -873,6 +1132,9 @@ module WR_AutoSet
       nil
     end
 
+    lines << policy_line
+    lines << tag_az_line(booth, 'WR-Booth-Door', 'door side', door)
+    lines << tag_az_line(booth, 'WR-Booth-Vent', 'vent side', vent)
     model.start_operation('AUTO-SET proposal scenes', true)
     begin
       booth.set_attribute(DICT, 'token', token)
@@ -887,7 +1149,7 @@ module WR_AutoSet
           # Aimed BEFORE the add as well as after it, so the page is born with
           # the right camera even on a build where PAGE_USE_CAMERA is not
           # defined and the explicit save below cannot run.
-          aim_plate(view, id, centre, radius, door, vent)
+          aim_plate(view, id, centre, radius, door, vent, half)
           page = pages.add(want)
           lines << "created  #{want}"
         elsif reaim
@@ -930,7 +1192,7 @@ module WR_AutoSet
         # from the page's OWN saved camera, so a plate whose camera never
         # landed was also hiding the wrong walls.
         if fresh || reaim
-          aim_plate(view, id, centre, radius, door, vent)
+          aim_plate(view, id, centre, radius, door, vent, half)
           view.refresh
           page.update(PAGE_USE_CAMERA) if defined?(PAGE_USE_CAMERA)
         end
@@ -964,7 +1226,12 @@ module WR_AutoSet
     n_new = ents.count { |e| e[:new] }
     msg = "AUTO-SET #{label}: #{n_new} scene(s) created, #{ents.size - n_new} updated, " \
           "#{renders.size} render / #{ents.size - renders.size} image. " \
-          'Read the WALLS and ANNOTATIONS columns before you export.'
+          'Read the WALLS and ANNOTATIONS columns before you export. ' + policy_line
+    if door.nil?
+      msg += ' WARNING: no usable WR-Booth-Door on this booth, so the door side ' \
+             'was ASSUMED (-90). The front, angled, high, side and top-down plates ' \
+             'are all aimed off that guess - check them before you export.'
+    end
     blank = blank_plates(ids, sets, counts)
     unless blank.empty?
       msg += " NOTE: #{blank.join(', ')} will be BLANK - nothing is drawn on the " \
@@ -994,11 +1261,21 @@ module WR_AutoSet
       hid.each { |_k, lab, d, _h| out << format('         hides %s  (dot %.2f)', lab, d) }
     end
     shown = effective_shown(id, sets.map { |s| s['name'] })
+    n_dim, n_txt = loose_split(loose)
+    tail = []
+    tail << "#{n_dim} loose dimension(s) shown" if n_dim > 0
+    tail << "#{n_txt} loose text callout(s) hidden" if n_txt > 0
     out << "         shows: #{shown.empty? ? 'no annotations at all' : shown.join(' + ')}" \
-           "#{loose.empty? ? '' : " — #{loose.size} loose callout(s) hidden"}"
+           "#{tail.empty? ? '' : " — #{tail.join(', ')}"}"
     note = empty_shown_note(shown, counts)
     out << "         #{note}" if note
     out
+  end
+
+  # The loose rows split the way the log should report them.
+  def self.loose_split(loose)
+    dims = (loose || []).select { |it| it['kind'].to_s == 'dim' }
+    [dims.size, (loose || []).size - dims.size]
   end
 
   # The eye the wall rule is computed from: the page's OWN saved camera. On a

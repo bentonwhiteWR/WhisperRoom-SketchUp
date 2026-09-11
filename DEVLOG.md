@@ -1,6 +1,168 @@
 # DEVLOG
 
 ## 2026-09-10
+### The door bearing was a bearing to the DOOR, not the normal of its wall - 1.51.0
+
+Benton on the 1.50.x plates: **"the new auto set scenes are REALLY good. Quite
+happy with them."** Then five corrections from running them on real booths.
+Four are his preferences; one is a real defect that had been passing every
+check we had.
+
+**1. THE DEFECT: `01-front` and `02-angled` were producing each other's shot.**
+On `MDL 96120 S (components)` the front plate came out a three-quarter and the
+angled plate came out square-on. **They were not swapped. Both were aimed off a
+fabricated bearing.**
+
+`tag_az` returned the bearing from the booth's centre to the tagged door's
+CENTRE. A door is rarely centred along its own wall, and the further off-centre
+it sits the further that bearing swings from the wall's normal:
+
+| door offset along its wall | `tag_az` read | wanted | error |
+|---|---|---|---|
+| 0 in (centred) | -90.0 | -90.0 | **0.0** |
+| 24 in | -111.5 | -90.0 | 21.5 |
+| 36 in | -120.5 | -90.0 | **30.5** |
+
+A 96120 S is 98 x 122 exterior; a door ~36 in off centre gives ~30 degrees,
+which is most of `02-angled`'s 35-degree swing. That is exactly the picture.
+
+**Why nothing caught it: `verify-autoset.rb`'s fixture booth had its door dead
+centre on its wall — the one position where the error is zero.** The fixture
+was only ever testing the easy case. It now builds the door deliberately
+off-centre, and `door.bearing_is_a_wall_normal` asserts the bearing lands on a
+multiple of 90 for an axis-aligned booth.
+
+The fix is a change of model, not a tweak: **a booth is a rectangular box and
+the door is in ONE of its four walls, so the answer is a wall NORMAL.**
+`wall_axis` takes the offset in booth-local space, normalises each axis by that
+axis's own half-extent (36 in means something different across 98 in than
+across 122 in — comparing raw inches picks the wrong wall, which `dr5` pins),
+and the dominant one names the wall. That axis is then rotated into model space
+for a booth turned in the room.
+
+**It is a pure function on purpose**, so the thing that was wrong is the thing
+that gets tested: `dr1`-`dr6` in `rbtest-autoset.py`, including the exact 36 in
+case that shipped.
+
+**AND THE SILENT FALLBACK IS NO LONGER SILENT.** A fabricated -90 that passes a
+"is the camera square to the bearing we computed" check is precisely the shape
+of failure that let this ship. Every run now prints, per side, whether it was
+READ or ASSUMED and from how many tagged parts, and the Apply summary carries a
+WARNING when the door was assumed. `tag_az` also handles a **ComponentInstance**
+booth now (`container_entities`) — `resolve_booth` has always accepted one,
+while `tag_az` called `booth.entities` bare and the rescue turned the
+`NoMethodError` into that same silent -90. That was a real latent gap; it was
+NOT this model's cause (`build-booth-components.rb` builds its container with
+`model.entities.add_group`, and tags the door on the top-level instance).
+
+**2. THE TOP-DOWN IS NOW THE ONLY PARALLEL PLATE.** Benton, verbatim: *"The top
+down should actually be the only one in parellel projection so change that
+too."* **This supersedes his earlier blanket "I never use parellel perspective
+so dont use it either" and is not a regression — do not "restore" it.** A
+top-down is a drafting plan and parallel is the convention that makes a
+dimension string on it measurable; every other plate is a photograph. 1.48.0's
+bug was four of six plates parallel, not the concept. The source-policy gate
+was reworked rather than deleted: it now requires the parallel plate list to be
+exactly `['06-plan']`, so both a slide back to all-parallel and a drift to
+all-perspective fail by name.
+
+**3. DIMENSIONS ARE SHOWN ON EVERY PLATE.** Benton: *"Also please dont hide any
+of the dimensions on the auto set. I dont like the way thats working right now.
+Will otpimize later."* His explicit call on a client-facing default, and he
+intends to refine it himself — **do not revert this thinking it was a
+regression.** Every `WR-Dims*` tag shows on every plate, and loose *dimension
+entities* show too.
+
+**What is still hidden, and why that is not negotiable:**
+
+- **`WR-Notes` never shows.** He said *dimensions*; a construction note is not
+  a dimension. This is the tag carrying the literal D5 banner that reached a
+  client image on 30 Aug 2026, and client-safe mode was removed at 1.47.0, so
+  there is no second net. `NEVER_SHOWN` is now exactly `['WR-Notes']` and
+  `effective_shown` still subtracts it last.
+- **Loose UNTAGGED TEXT never shows.** Its content is unknown to every tool, it
+  lands on Untagged, and SketchUp refuses to hide the Untagged tag.
+- A `WR-Notes-*` set still shows only on a plate that names it.
+
+The dimension/text split is **real, not inferred from a name**:
+`wr-scene-annotations.rb`'s `item_hash` already classifies every annotation as
+`'dim'` (`DimensionLinear` / `DimensionRadial`) or `'text'` (`Sketchup::Text`).
+`annot_rows` carries that kind through; a row with NO kind is treated as text
+and hidden, because an unreadable annotation must fail conservative.
+
+**`WR-Dims-Booth` and `WR-Dims-Selection` came OFF `NEVER_SHOWN`, and that is a
+deliberate deviation from my brief, flagged rather than slipped in.** I was told
+to leave `NEVER_SHOWN` exactly as it was AND to show every `WR-Dims*` tag; those
+two instructions conflict, because that list held two `WR-Dims` tags. They were
+never there for safety — they were there for legibility ("a booth carrying both
+sets shows two different footprints with nothing on the page to say which is
+which", which still governs `proposal-scenes.rb`). They are dimensions, Benton
+asked for the dimensions, and a legibility preference is his to overrule. **The
+D5 gate did not weaken**: it still refuses the one tag it was built to refuse,
+and the mutation run confirms `an1`/`an2`/`nv1`/`nv2` all still bite.
+
+The run log and the Apply summary now state the policy in a sentence, because
+he is changing a client-facing default and should be able to read what he has
+without opening the source.
+
+**4. THE INTERIOR EYE: A FIXED CLEARANCE, NOT A FRACTION.** Benton: *"it needed
+to move like 2" more inside the booth. It was kinda stuck in the wall."* The old
+rule was `radius * 0.55` — a fraction of the 3D diagonal, so it mixed width,
+depth and height and landed somewhere different in every booth size: 2.2 in off
+the interior face on a 4872, 26 in off the door wall on a 96168. It is now
+`reach(hx, hy, az) - BOOTH_WALL_T - INTERIOR_EYE_CLEAR`.
+
+**`BOOTH_WALL_T` is 1.0 and that is read, not guessed:** every model's exterior
+is its model number plus two inches (4872 -> 4'2" x 6'2" = 50 x 74; 96120 ->
+8'2" x 10'2" = 98 x 122, `reference/booth-models.md`), so the model number IS
+the interior and the wall is 1 in a side. `INTERIOR_EYE_CLEAR` is 4.0, which
+puts the wall face outside a 70-degree camera's near plane. `in3` proves the
+clearance is identical on a 4872 and a 96168 — that is the point of a fixed
+inset.
+
+**5. THE INTERIOR TWO-POINT PERSPECTIVE IS NOW PROTECTED.** Benton: *"I like the
+interior camera angle. Its a good feature honestly."* It was emergent and
+nothing defended it. A perspective camera looking **dead level** with a
+**world-vertical up vector** leaves real verticals parallel on screen instead of
+converging — the geometry SketchUp's Two-Point Perspective mode imposes, reached
+here by aiming level rather than setting a mode. All three of those, plus the
+70-degree lens, now have a comment saying so and a check each (`in6`-`in10`),
+because none of the three lines looks important. Moving the eye inboard along a
+level direction does not tilt it, so the clearance fix left the look untouched.
+
+**RE-RUNNABILITY — WHAT AN EXISTING STAMPED SET DOES.** The door-bearing fix
+changes where cameras POINT, and **auto-set does not re-aim an existing scene
+unless the re-aim box is ticked** (framing is Benton's call). So a set made by
+1.50.x keeps its wrong bearing until he either ticks **re-aim cameras** on a
+re-run, or **Removes and re-Applies**. Either works here — unlike the 1.50.0
+plate rename, the plate IDs did not move this time. The annotation and
+projection changes are POLICY and are rewritten on every run regardless.
+
+**STILL TO DO — the dual angled image+render pair.** Benton: *"I also always
+want a regular image at angled, and a render at angled. Should be the same
+scene, except with the render setting."* **Deliberately NOT in this commit.**
+It needs a `:dual` flag emitting two plate ids from one row, aimed once and
+stamped twice, plus rules for how a forced-render row coexists with
+`RENDER_LADDER` without silently demoting something, and Remove/re-run treating
+the pair as one plate. That is a design change across the table, the stamp, the
+names, the ladder and the review grid — and the door-bearing fix is what makes
+his front shot correct, so it goes now rather than waiting behind it. Also still
+open: `proposal-package.rb`'s stale popover help string, and the two unexplained
+wall units in the verify fixture.
+
+**VERIFICATION.** `rbtest-autoset.py` 92 -> **113 checks**, green. **23 mutants
+reintroduced one at a time, all 23 killed by name** — including both D5 guards
+(`NEVER_SHOWN` emptied -> `nv1`/`nv2`; loose text shown -> `an2`), the old
+bearing-to-the-door rule -> `dr2`/`dr3`/`dr4`, raw-inch wall comparison ->
+`dr5`, the plan made perspective -> the source gate, and each of the three
+two-point ingredients -> `in6`/`in7`/`in9`. `rbparse.py` clean across 75 files;
+every other `rbtest-*.py` exits 0.
+
+**UNVERIFIED until Benton re-runs it:** `.forge/builder/verify-autoset.rb`.
+Expect **~112 checks**. The fixture booth's door is off-centre now, so
+`door.bearing_is_a_wall_normal` is a real test rather than a tautology.
+
+## 2026-09-10
 ### AUTO-SET 1.50.0 verified live - the cameras were right and the FIXTURE was upside down - 1.50.1
 
 Benton ran `.forge/builder/verify-autoset.rb` on 1.50.0 in an Untitled
