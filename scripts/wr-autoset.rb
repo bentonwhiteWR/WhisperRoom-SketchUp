@@ -176,6 +176,42 @@ module WR_AutoSet
   # INTERIOR_RE (/interior|inside|in-booth|booth\s+in/i), which is what selects
   # the interior exposure value for a render row. Renaming it past that regex
   # would silently mis-expose it.
+  # THE GROUND PLATES ARE AIMED BY EYE HEIGHT, NOT BY ANGLE (1.64.0).
+  #
+  # Until now :el was a fixed 7 degrees on every ground-level plate, and the
+  # comment above it read "7 is standing eye height ... a 66 in eye". That
+  # was true of exactly one booth. The eye ends up at
+  #
+  #     eye_z = target_z + standoff(radius) * tan(el)
+  #
+  # (WR_ProposalScenes.aim: eye = centre + dir * dist, dir.z = sin(el), and
+  # plate_dist divides the ground standoff by cos(el)), and the standoff
+  # scales with the booth -- so a FIXED angle raises the camera on every
+  # larger model. A 4872 landed the intended 66"; the 96144 E Benton shot on
+  # 11 Sep 2026 landed 75", and a 96168 would land ~78". At 75" in a room
+  # with the 8'-0" house ceiling the eye sits 21" under the ceiling and only
+  # 10" above the booth roof, which is exactly what he saw: "for the front
+  # and angle view, I feel like the camera should be about 1' lower because
+  # its close to the ceiling."
+  #
+  # So the plate states the height it wants and the angle is solved for it.
+  # Every booth now gets the same eye, and the fix does not have to be
+  # re-made per model.
+  #
+  # 61", not the old 66". A 7'-1" Enhanced booth is nearly a foot taller than
+  # the 4872 that 66" was set against, and an eye slightly below centre makes
+  # a tall object read as tall. 71" on the ventilation plate keeps the ~10"
+  # of extra lift its 10-degree setting used to give it over the others.
+  PLATE_EYE = 61.0
+  VENT_EYE  = 71.0
+
+  # DEFINED ABOVE PLATES ON PURPOSE. PLATES is an array LITERAL and it
+  # names these two, so Ruby evaluates them at load: 1.64.0 shipped them
+  # below it and every tool that loads wr-autoset.rb died on
+  # "uninitialized constant WR_AutoSet::PLATE_EYE" (Benton, 11 Sep 2026,
+  # from proposal-package.rb). rbparse only parses, and the test harness
+  # lifts constants in its own order, so neither could see it -- the
+  # const_order check in rbparse.py was added for exactly this.
   PLATES = [
     { :id => '01-angled',      :az => :door, :swing => 35.0, :el => 7.0,
       :eye => PLATE_EYE,
@@ -333,35 +369,6 @@ module WR_AutoSet
   # less barrel on a product shot, and it is what Benton's hand-framed views
   # already are.
   PLATE_FOV = 35.0
-
-  # THE GROUND PLATES ARE AIMED BY EYE HEIGHT, NOT BY ANGLE (1.64.0).
-  #
-  # Until now :el was a fixed 7 degrees on every ground-level plate, and the
-  # comment above it read "7 is standing eye height ... a 66 in eye". That
-  # was true of exactly one booth. The eye ends up at
-  #
-  #     eye_z = target_z + standoff(radius) * tan(el)
-  #
-  # (WR_ProposalScenes.aim: eye = centre + dir * dist, dir.z = sin(el), and
-  # plate_dist divides the ground standoff by cos(el)), and the standoff
-  # scales with the booth -- so a FIXED angle raises the camera on every
-  # larger model. A 4872 landed the intended 66"; the 96144 E Benton shot on
-  # 11 Sep 2026 landed 75", and a 96168 would land ~78". At 75" in a room
-  # with the 8'-0" house ceiling the eye sits 21" under the ceiling and only
-  # 10" above the booth roof, which is exactly what he saw: "for the front
-  # and angle view, I feel like the camera should be about 1' lower because
-  # its close to the ceiling."
-  #
-  # So the plate states the height it wants and the angle is solved for it.
-  # Every booth now gets the same eye, and the fix does not have to be
-  # re-made per model.
-  #
-  # 61", not the old 66". A 7'-1" Enhanced booth is nearly a foot taller than
-  # the 4872 that 66" was set against, and an eye slightly below centre makes
-  # a tall object read as tall. 71" on the ventilation plate keeps the ~10"
-  # of extra lift its 10-degree setting used to give it over the others.
-  PLATE_EYE = 61.0
-  VENT_EYE  = 71.0
 
   # How far the solved elevation may travel. A booth or a floor at an
   # unexpected Z must not be able to produce a level or downward camera, or

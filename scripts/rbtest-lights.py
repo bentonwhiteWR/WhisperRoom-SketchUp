@@ -557,7 +557,13 @@ __METHODS__
     # to be 'on every run'"); 1.63.0 makes it 'hidden', because 'all' sealed
     # a room that was DRAWN 2-sided and walled the camera out (Benton, 11 Sep
     # 2026: "its making all 4 sides ... this does not need to be doing
-    # this"). walls_mode: a missing key (a pre-1.28.0 preset) gets whatever
+    # this"). 1.64.2 makes it 'open': 'hidden' turned out to be INERT at the
+    # only moment the tool runs -- a wall is hidden per SCENE and there are no
+    # scenes yet on the fresh model Drop in the lights is pressed on, so
+    # nothing ever qualified ("its not doing the walls with this setting").
+    # 'open' keeps the half that mattered: a run with a VISIBLE wall is still
+    # never doubled.
+    # walls_mode: a missing key (a pre-1.28.0 preset) gets whatever
     # the default now is, the 1.28.0 checkbox true/false still means
     # open/none, explicit strings pass through, junk is No. The ceiling
     # default stays on.
@@ -1001,7 +1007,7 @@ EXPECT = ' | '.join([
     # 84 -> 116 inside, 78 -> 122 clear -> 78. (d) 30" of room: 42 lands at
     # y=-12, outside -> nil. (e) door at y=54: 42 -> y=12, on the margin -> 42.
     'ks 84,96,78,-,42',
-    'wd hidden,cap,hidden,open,none,open,all,none,none',
+    'wd open,cap,open,open,none,open,all,none,none',
     'veto 1110 msg1',
     'fbv 0011 list1',
     'lw 1100',

@@ -1822,7 +1822,7 @@ module WR_DropLights
   # with the rig, owned by dictionary, swept by the next press or by
   # remove_rig!, and the removal verified by the same independent re-read.
   #
-  # ONLY WHERE A WALL IS HIDDEN, and that is the default since 1.63.0. A
+  # EVERY RUN WITHOUT A VISIBLE WALL, and that is the default since 1.64.2. A
   # great many WhisperRoom drawings are 2- and 3-sided rooms with a wall
   # LEFT OUT so the camera can see in (sunoff-drive.py's header says so in
   # as many words). Sealing that room walls the camera out and the frame
@@ -1830,9 +1830,13 @@ module WR_DropLights
   # defaulting to No; 1.28.x then made the default "every run" for the
   # lumen table's sake and put the hazard back, which is what Benton hit on
   # 11 Sep 2026. The fill now reads the scan instead of ignoring it: see
-  # the three run states at the `fill =` case. A drawn-open run is never
-  # filled, a visible wall is never doubled, and a wall hidden for the
-  # scene is put back — bound to the real wall, so Hide walls takes both.
+  # the three run states at the `fill =` case. A visible wall is never
+  # doubled -- that was the complaint. A wall hidden for the scene is put
+  # back, bound to the real wall so Hide walls takes both. A drawn-open run
+  # IS filled, and the camera is not the casualty it looks like: AUTO-SET's
+  # cone hides a borrowed face per plate, so the way in is opened for the
+  # plates that need it by the tool that knows where the camera is. See
+  # WALLS_DEFAULT for why filling it is the default rather than the option.
   #
   # existing_walls scans the room's own geometry for a vertical face on
   # each floor-polygon run. On an L-shaped room the polygon has six runs
@@ -3209,7 +3213,27 @@ module WR_DropLights
   # for the same all read it. A preset that SAYS 'none' or was saved with
   # the 1.28.0 checkbox off still means No — he chose that. The trim does
   # not move: enclosure_trim reads poly.size, never the walls mode.
-  WALLS_DEFAULT = 'hidden'.freeze
+  # 'open', NOT 'hidden' (1.64.2). 1.63.0 made 'hidden' the default to stop
+  # a drawn-open room being sealed shut, and Benton hit the consequence the
+  # same day: "its not doing the walls with this setting." The mode is inert
+  # in the order the tool is actually used. A wall is HIDDEN per scene, and
+  # the scenes do not exist yet when Drop in the lights runs on a fresh
+  # model -- so on that press nothing is ever hidden, nothing qualifies, and
+  # no room is ever sealed.
+  #
+  # 'open' is the right default and the fear that kept it from being one was
+  # unfounded: a borrowed face on a genuinely open run becomes its own
+  # wall-like unit (WR_SceneWalls.bind_rig_walls) and reaches
+  # WR_AutoSet.wall_picks as a 'rig' unit, so the camera cone hides it for
+  # any plate that looks through it, exactly as it would a real wall. The
+  # camera is not walled out; it is handled per plate, later, by the tool
+  # that knows where the camera is.
+  #
+  # What 'open' does NOT do -- and this is the half of 1.63.0 worth keeping
+  # -- is double a run that already has a VISIBLE wall. That was the
+  # original complaint ("its making all 4 sides"), and it stays fixed: only
+  # 'all' fills those now.
+  WALLS_DEFAULT = 'open'.freeze
 
   # One place the four modes are named, so the console, the summary window
   # and the per-room lines cannot drift from the dropdown.
@@ -3473,17 +3497,18 @@ as a preset and every later room can use the same rig.</div>
     <span class="lab" style="margin:0">Add walls</span>
     <select id="walls" style="width:auto">
       <option value="none">No</option>
-      <option value="hidden">Only where a wall is HIDDEN &mdash; put back the seal this scene took away</option>
       <option value="open">On every run with no visible wall &mdash; a drawn-open side is filled too</option>
+      <option value="hidden">Only where a wall is HIDDEN &mdash; nothing on a fresh model, where nothing is hidden yet</option>
       <option value="all">On every run &mdash; enclose the room even where a wall already stands</option>
     </select>
   </div>
   <div class="note">A borrowed wall stands 1/16" outside the floor polygon, so
   on a run that has a real wall it sits inside that wall and shows only when
-  the real one is hidden. The default fills ONLY the runs whose wall is hidden
-  for this scene &mdash; a side that was never drawn stays open, so a 2- or
-  3-sided room keeps the way in for the camera. The console lists every run
-  and what it found. They leave with the lights.</div>
+  the real one is hidden. The default fills every run WITHOUT a visible wall
+  &mdash; a hidden one and a side that was never drawn both count, and a run
+  that already has a real wall is never doubled. A borrowed wall does not wall
+  the camera out: AUTO-SET hides it per plate, the same as a real one. The
+  console lists every run and what it found. They leave with the lights.</div>
   <div class="row" style="margin-top:6px">
     <span class="lab" style="margin:0">Grid</span>
     <select id="dens" style="width:auto">

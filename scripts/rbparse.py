@@ -46,6 +46,8 @@ in-Ruby harness below deliberately formats errors with `e.message` only.
 """
 import ctypes
 import os
+import io
+import re
 import sys
 
 SU_DIR = r"C:\Program Files\SketchUp\SketchUp 2024"
@@ -150,6 +152,98 @@ def targets(args):
     return out
 
 
+
+# ---------------------------------------------------------------- const order --
+#
+# PARSING IS NOT LOADING, and this is the gap that let 1.64.0 ship broken.
+# PLATES in wr-autoset.rb is an array LITERAL that names PLATE_EYE, and
+# PLATE_EYE was defined 150 lines BELOW it. Ruby evaluates a module body top
+# to bottom, so every tool that loaded the file died on "uninitialized
+# constant WR_AutoSet::PLATE_EYE" -- while this script happily reported the
+# file parses, because it does. The rbtest harnesses could not see it either:
+# they lift constants and methods into a fixture in their own order.
+#
+# So: a constant used in the MODULE BODY must be defined earlier in the file.
+# Inside a `def` it does not matter -- that body runs later, when everything
+# exists -- which is why the scan skips def bodies entirely.
+#
+# Deliberately conservative. It only knows constants THIS file defines at
+# module-body level, it ignores comments and anything in a string or symbol
+# it can cheaply spot, and it says "suspect", not "error", because a constant
+# named inside a lazily-evaluated block at module level would be a false
+# positive. A finding here is worth reading; it is not automatically a bug.
+CONST_DEF = re.compile(r'^(\s{0,6})([A-Z][A-Z0-9_]{2,})\s*=[^=~]')
+WORD = re.compile(r'(?<![:.\w])([A-Z][A-Z0-9_]{2,})(?!\w)')
+# A constant NAME is not a constant USE. These idioms spell one out as text
+# and would otherwise light up every file that reloads cleanly:
+#   %w[DICT DIM_TAGS ...].each { |c| remove_const(c) ... }   (wr-mode, wr-shading)
+#   'DICT', "DICT", :DICT
+# Stripped before the scan rather than filtered after, so a real use sitting
+# on the same line is still seen.
+NOISE = re.compile(r'%[wiWI][\[({][^\])}]*[\])}]'
+                   r"|'[^']*'"
+                   r'|"[^"]*"'
+                   r'|:[A-Za-z_][A-Za-z0-9_]*')
+
+
+def _quiet(text):
+    return NOISE.sub(' ', text)
+
+
+def _const_defs(text):
+    """[(line_no, NAME, rhs_text)] for every CONST = ... in the file.
+
+    The RHS runs to the end of the line, or to the close of a bracket the
+    line opens -- PLATES is a six-screen array literal and the whole of it
+    is evaluated the moment the file loads.
+    """
+    lines = text.splitlines()
+    out = []
+    for i, raw in enumerate(lines):
+        m = CONST_DEF.match(raw)
+        if not m:
+            continue
+        rhs = raw[m.end() - 1:]
+        depth = rhs.count('[') + rhs.count('{') - rhs.count(']') - rhs.count('}')
+        j = i
+        while depth > 0 and j + 1 < len(lines):
+            j += 1
+            nxt = lines[j]
+            rhs += chr(10) + nxt
+            depth += nxt.count('[') + nxt.count('{') - nxt.count(']') - nxt.count('}')
+        out.append((i + 1, m.group(2), rhs))
+    return out
+
+
+def const_order(path):
+    """Constants named in another constant's VALUE before they exist.
+
+    Deliberately narrow: only the right-hand side of a CONST = ... is
+    scanned, because that is the code Ruby runs at load time and it is the
+    one place this can bite. A constant named inside a `def` is fine -- that
+    body runs later -- and is not looked at, which is also why this cannot
+    produce the false positives a whole-file scan does (wr-deck.rb's ORIGIN,
+    used in methods above where it is defined, and correct).
+    """
+    try:
+        text = io.open(path, encoding='utf-8').read()
+    except (IOError, OSError, UnicodeDecodeError):
+        return []
+    defs = _const_defs(text)
+    at = {}
+    for n, name, _ in defs:
+        at.setdefault(name, n)
+    bad = []
+    for n, name, rhs in defs:
+        for used in WORD.findall(_quiet(rhs)):
+            if used == name:
+                continue
+            where = at.get(used)
+            if where is not None and where > n:
+                bad.append((n, used, where))
+    return bad
+
+
 def main():
     files = targets(sys.argv[1:])
     if not files:
@@ -168,13 +262,28 @@ def main():
             print("FAIL  %s" % short)
             for ln in out.splitlines():
                 print("      " + ln)
+    # The load-order pass. Separate from parsing and reported separately,
+    # because a file can pass one and fail the other -- that is the whole
+    # reason this exists.
+    suspect = []
+    for f in files:
+        for n, name, at in const_order(f):
+            suspect.append((os.path.basename(f), n, name, at))
+    if suspect:
+        print("")
+        print("CONSTANT USED BEFORE IT IS DEFINED (the module body runs top to bottom):")
+        for short, n, name, at in suspect:
+            print("      %s:%d uses %s, which is defined at line %d" % (short, n, name, at))
+        print("      Move the definition above its first use, or this file will")
+        print("      raise NameError on load even though it parses.")
+
     print("")
     if bad:
         print("%d of %d file(s) DO NOT PARSE: %s" %
               (len(bad), len(files), ", ".join(bad)))
     else:
         print("%d file(s) parse. (Parsing is not working -- run it.)" % len(files))
-    return 1 if bad else 0
+    return 1 if (bad or suspect) else 0
 
 
 if __name__ == "__main__":
