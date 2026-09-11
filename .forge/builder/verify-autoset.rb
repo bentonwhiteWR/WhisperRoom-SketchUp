@@ -54,6 +54,12 @@
 # pin all of that on real pages; every scene count is asked of the table for
 # the render count that run used, never a literal.
 #
+# 1.57.0 MADE THE SIDE PLATE CHOOSE ITS SIDE: a window first, then the side
+# with more distinct parts, then door +90 as before. Section 14 (`side.*`)
+# builds a THIRD booth with a window panel on its door -90 side, because
+# neither fixture booth had anything in a side wall and the rule could not
+# otherwise be exercised; booth 1 is checked to be unchanged.
+#
 # WHAT IT CANNOT CHECK. Whether a plate LOOKS right — framing is a taste call
 # and always was. It checks the mechanism: the names, the marks, the stamp, what
 # each scene hides, what survives a re-run, what Remove leaves alone, and now
@@ -74,6 +80,7 @@ module WR_VerifyAutoSet
   ROOM  = 'WR-Verify room'.freeze
   B1    = 'MDL 9901 E VERIFY'.freeze
   B2    = 'MDL 9902 E VERIFY'.freeze
+  B3    = 'MDL 9903 E VERIFY'.freeze     # the one with a WINDOW on its door -90 side
   MINE  = 'WR-Verify My test'.freeze     # the hand-made scene that must survive
 
   def self.say(name, ok, detail = nil)
@@ -152,10 +159,16 @@ module WR_VerifyAutoSet
   # door is about 36 in off centre, came out with 01-front and 02-angled
   # apparently swapped. A fixture that only tests the easy position is not
   # testing the thing.
-  def self.make_booth(ents, name, ox, oy)
+  # `window` adds a WINDOW PANEL on the -X face (the door -90 side, since the
+  # door faces -Y), named the way the booth builders name one -- the slot,
+  # two spaces, the component: "W0  46Panel3236WDO". It is on no tag, which
+  # is how a real window panel arrives too (the builder puts windows on
+  # WR-Booth-Walls; there is no window tag). Section 14 is the only user.
+  def self.make_booth(ents, name, ox, oy, window = false)
     g  = ents.add_group
     ge = g.entities
     box(ge, ox, oy, ox + 96.0, oy + 60.0, 84.0, 'shell')
+    box(ge, ox - 2.0, oy + 14.0, ox, oy + 46.0, 84.0, 'W0  46Panel3236WDO') if window
     door = box(ge, ox + 54.0, oy - 2.0, ox + 90.0, oy, 84.0, 'door frame')
     # A DOOR LEAF, SWUNG OPEN, TAGGED THE SAME. Benton, 10 Sep 2026: "Front
     # should find the door frame really, rather than the door." The booth data
@@ -1120,7 +1133,89 @@ module WR_VerifyAutoSet
                                   [{ 'name' => 'WR-Dims' }, { 'name' => 'WR-Dims-Doors' }],
                                   { 'WR-Dims' => 0, 'WR-Dims-Doors' => 0 }).inspect)
 
+      # ------------------- 14. THE SIDE PLATE PICKS ITS SIDE (1.57.0) ---
+      #
+      # Benton, 11 Sep 2026: "if it can always choose the side with more to
+      # look at, a window is priority, then that would be ideal". Offline,
+      # sd1-sd20 prove the rule on fake parts. This proves it on REAL groups
+      # with real bounds inside a real booth transformation, and that the
+      # camera SketchUp saved onto 04-side actually stands on the chosen
+      # side. The eye bearing is measured from the booth centre, as in
+      # section 13.
+      bearing = lambda do |booth, pg|
+        c = pg && pg.camera
+        next nil unless c
+        bc0 = WR_AutoSet.booth_frame(booth)[0]
+        e = c.eye.to_a
+        Math.atan2(e[1] - bc0[1], e[0] - bc0[0]) * 180.0 / Math::PI
+      end
+      wrap = lambda { |d| ((d + 180.0) % 360.0) - 180.0 }
+      side_of = lambda do |booth|
+        tk = booth.get_attribute('WR_AutoSet', 'token', nil)
+        WR_AutoSet.token_pages(pages.to_a, tk).find do |pg|
+          WR_AutoSet.page_stamp(pg)['plate'].to_s == '04-side'
+        end
+      end
+
+      # BOOTH 1 HAS NO WINDOW ON EITHER SIDE (a shell, a door, a leaf and a
+      # vent, nothing in the side walls at all): the choice is a tie, the
+      # side plate stays at door +90, and the log says it is unchanged. This
+      # is every booth that predates 1.57.0 and it MUST NOT MOVE.
+      p1 = WR_AutoSet.side_choice(b1, WR_AutoSet.tag_anchor(b1, 'WR-Booth-Door'))
+      say('side.no_window_is_a_tie_and_says_so',
+          p1['sign'] == 1 && p1['why'].to_s.include?('+90 as before'), p1.inspect)
+      s1 = bearing.call(b1, side_of.call(b1))
+      say('side.no_window_keeps_door_plus_90',
+          !s1.nil? && !daz.nil? && wrap.call(s1 - (daz + 90.0)).abs < 1.0,
+          "side eye at #{s1.inspect}, door at #{daz.inspect}")
       WR_AutoSet.apply(@model, b1, { 'mode' => 'remove' })
+
+      # BOOTH 3 CARRIES A WINDOW PANEL ON ITS DOOR -90 SIDE. The parts read
+      # off the real group, the window is seen in the -X wall, the pick is
+      # -1 because of it, the saved camera stands there, the plate's own log
+      # line names the window, and a re-run makes the same choice.
+      @model.start_operation('WR verify: booth 3', true)
+      b3 = make_booth(@model.entities, B3, 24.0, 220.0, true)
+      @model.commit_operation
+      made << b3
+      parts3 = WR_AutoSet.booth_parts(b3)
+      say('side.booth_parts_sees_the_window_in_the_minus_x_wall',
+          parts3.any? { |pt| pt['name'].to_s =~ /WDO/ && pt['wall'] == [-1.0, 0.0] },
+          parts3.inspect)
+      say('side.booth_parts_skips_the_door_tagged_parts',
+          parts3.none? { |pt| pt['name'].to_s =~ /door/i }, parts3.inspect)
+      dan3 = WR_AutoSet.tag_anchor(b3, 'WR-Booth-Door')
+      say('side.anchor_carries_the_local_door_normal',
+          dan3.is_a?(Array) && dan3[2] == [0.0, -1.0], dan3.inspect)
+      p3 = WR_AutoSet.side_choice(b3, dan3)
+      say('side.window_side_is_chosen',
+          p3['sign'] == -1 && p3['why'].to_s.include?('window') &&
+            p3['why'].to_s.include?('46Panel3236WDO'),
+          p3.inspect)
+      sok, smsg, slines = WR_AutoSet.apply(@model, b3, { 'mode' => 'create', 'renders' => 0 })
+      say('side.window_booth_set_made', sok, smsg)
+      b3set = WR_AutoSet.token_pages(pages.to_a, b3.get_attribute('WR_AutoSet', 'token', nil))
+      made_pg.concat(b3set)
+      daz3 = WR_AutoSet.tag_az(b3, 'WR-Booth-Door')
+      s3 = bearing.call(b3, side_of.call(b3))
+      say('side.camera_stands_on_the_window_side',
+          !s3.nil? && !daz3.nil? && wrap.call(s3 - (daz3 - 90.0)).abs < 1.0,
+          "side eye at #{s3.inspect}, door at #{daz3.inspect}")
+      sline = (slines || []).find { |l| l.to_s.include?('side: door') }
+      say('side.log_names_the_window_and_the_hand',
+          !sline.nil? && sline.include?('door -90') && sline.include?('46Panel3236WDO'),
+          sline.inspect)
+      say('side.log_line_sits_under_the_side_plate',
+          (slines || []).index { |l| l.to_s.include?('side: door') }.to_i >
+            (slines || []).index { |l| l.to_s.include?('04-side') }.to_i,
+          (slines || []).select { |l| l.to_s.include?('04-side') || l.to_s.include?('side: door') }.inspect)
+      # DETERMINISTIC: Update with re-aim lands on the same side.
+      WR_AutoSet.apply(@model, b3, { 'mode' => 'update', 'renders' => 0, 'reaim' => true })
+      s3b = bearing.call(b3, side_of.call(b3))
+      say('side.same_side_on_a_re_run',
+          !s3b.nil? && !s3.nil? && wrap.call(s3b - s3).abs < 1.0,
+          "#{s3.inspect} then #{s3b.inspect}")
+      WR_AutoSet.apply(@model, b3, { 'mode' => 'remove' })
 
       # ------------------------------------------- 12. the orphan case ---
       @model.start_operation('WR verify: delete booth 2', true)

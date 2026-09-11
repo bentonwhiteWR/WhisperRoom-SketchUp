@@ -82,6 +82,15 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
     NO_WALL_PLATES checked on the raw id                 -> du5b FAIL
     page_for_plate no longer following RENUMBERED        -> mg1, mg3 FAIL
     stale_plates calling a RENUMBERED id stale           -> mg5 FAIL
+    az_for back to the unconditional door +90 side       -> sd12, sd15 FAIL
+    pick_side ranking part count above the window        -> sd6 FAIL
+    pick_side tie falling to door -90                    -> sd4, sd7, sd11, sd18 FAIL
+    pick_side choosing a side with no door               -> sd16 (the run RAISES
+                                                            there: this VM has no
+                                                            NilClass#to_f, so the
+                                                            fabricated normal blows
+                                                            up where real Ruby would
+                                                            fail sd16 by name)
 
 THE CAMERA MATHS ARE RUN, NOT ASSERTED ABOUT
 --------------------------------------------
@@ -299,6 +308,10 @@ module WR_AutoSet
 %(moved_tol)s
 %(cos_cone)s
 %(aspect_min)s
+%(window_re)s
+%(side_plate)s
+%(side_skip_tags)s
+%(thin_max)s
 %(dual_suffix)s
 %(dims_re)s
 %(booth_wall_t)s
@@ -353,6 +366,18 @@ module WR_AutoSet
 %(auto_named)s
 
 %(az_for)s
+
+%(part_wall)s
+
+%(side_normals)s
+
+%(side_score)s
+
+%(pick_side)s
+
+%(side_sign)s
+
+%(side_line)s
 
 %(standoff)s
 
@@ -482,17 +507,19 @@ module T
   VENT   = 90.0
 
   # Aim one plate for real and hand back the camera it left behind.
-  def self.cam(id, door = DOOR, vent = VENT, after_plan = false, half = HALF, anchor = nil)
+  # `side` is pick_side's sign; it reaches az_for through the real aim_plate.
+  def self.cam(id, door = DOOR, vent = VENT, after_plan = false, half = HALF, anchor = nil,
+               side = 1)
     v = FakeView.new(after_plan, RADIUS)
-    WR_AutoSet.aim_plate(v, id, CENTRE, RADIUS, door, vent, half, anchor)
+    WR_AutoSet.aim_plate(v, id, CENTRE, RADIUS, door, vent, half, anchor, side)
     v.camera
   end
 
   # Where the eye ended up, relative to the booth centre, in the terms the
   # shot list is written in: compass bearing, height off the FLOOR, and how
   # far back along the ground.
-  def self.shot(id, door = DOOR, vent = VENT)
-    c = cam(id, door, vent)
+  def self.shot(id, door = DOOR, vent = VENT, side = 1)
+    c = cam(id, door, vent, false, HALF, nil, side)
     e = c.eye.to_a
     dx = e[0] - CENTRE[0]
     dy = e[1] - CENTRE[1]
@@ -864,6 +891,127 @@ module T
     # The interior plate's NAME has to keep matching proposal-package.rb's
     # INTERIOR_RE or the render row is silently mis-exposed.
     ck('az11', ('07-interior' =~ /interior|inside|in-booth|booth\s+in/i) ? true : false)
+
+    # ---- THE SIDE PLATE PICKS ITS SIDE (1.57.0) -------------------------
+    # Benton, 11 Sep 2026: "if it can always choose the side with more to
+    # look at, a window is priority, then that would be ideal". The fixture
+    # booth's door faces -Y (door normal [0, -1]), so door +90 is the +X wall
+    # and door -90 is the -X wall.
+    dax   = [0.0, -1.0]
+    plusx = [1.0, 0.0]
+    minx  = [-1.0, 0.0]
+    ck('sd1', WR_AutoSet.side_normals(dax) == [plusx, minx],
+       WR_AutoSet.side_normals(dax).inspect)
+    # A part is placed in a wall by its SHAPE (wall_normal) and kept out of
+    # the count when it is not thin across that wall. A 2 in panel on the +X
+    # wall of a 50 x 74 booth; the same panel on the -X wall; a 50 x 74 floor
+    # deck (aspect 1.5, not a wall); and a 48 x 120 deck on a long booth,
+    # which wall_normal WOULD call a Y wall and the thin-span guard rejects.
+    ck('sd2', WR_AutoSet.part_wall(2.0, 46.0, 24.0, 0.0, 50.0, 74.0) == plusx &&
+              WR_AutoSet.part_wall(2.0, 46.0, -24.0, 5.0, 50.0, 74.0) == minx &&
+              WR_AutoSet.part_wall(46.0, 2.0, 0.0, -36.0, 50.0, 74.0) == dax,
+       [WR_AutoSet.part_wall(2.0, 46.0, 24.0, 0.0, 50.0, 74.0),
+        WR_AutoSet.part_wall(2.0, 46.0, -24.0, 5.0, 50.0, 74.0)].inspect)
+    ck('sd3', WR_AutoSet.part_wall(50.0, 74.0, 0.0, 0.0, 50.0, 74.0).nil? &&
+              WR_AutoSet.part_wall(48.0, 120.0, 0.0, 0.0, 48.0, 120.0).nil?,
+       WR_AutoSet.part_wall(48.0, 120.0, 0.0, 0.0, 48.0, 120.0).inspect)
+    pt = lambda do |name, wall|
+      { 'name' => name, 'key' => name.sub(/\A\w+i?\s+/, '').sub(/_HX\z/i, '').downcase,
+        'wall' => wall }
+    end
+    solid_p = pt.call('E0  22PanelSolid', plusx)
+    solid_p2 = pt.call('E1  22PanelSolid', plusx)      # same key: counts once
+    solid_m = pt.call('W0  22PanelSolid', minx)
+    win_m   = pt.call('W1  46Panel3236WDO', minx)
+    win_p   = pt.call('E1  46Panel3236WDO', plusx)
+    vent_m  = pt.call('W1  40VNT', minx)
+    duct_m  = pt.call('W1 duct  Duct Cover', minx)
+    back    = pt.call('N0  46PanelSolid', [0.0, 1.0])  # the vent wall: not a candidate
+    # NOTHING TO CHOOSE BETWEEN: the pre-1.57.0 behaviour, door +90, and the
+    # log says so. This is the usual booth and it must not change.
+    e0 = WR_AutoSet.pick_side([], dax)
+    ck('sd4', e0['sign'] == 1 && e0['ax'] == plusx && e0['why'].include?('+90'),
+       e0.inspect)
+    # A WINDOW WINS, on either side, over any number of other parts.
+    w1 = WR_AutoSet.pick_side([solid_p, solid_p2, vent_m, win_m, back], dax)
+    ck('sd5', w1['sign'] == -1 && w1['ax'] == minx &&
+              w1['why'].include?('window') && w1['why'].include?('46Panel3236WDO'),
+       w1.inspect)
+    w2 = WR_AutoSet.pick_side([win_p, solid_m, vent_m, duct_m], dax)
+    ck('sd6', w2['sign'] == 1 && w2['ax'] == plusx && w2['why'].include?('1 window'),
+       w2.inspect)
+    # A WINDOW ON BOTH SIDES, otherwise equal: a tie, door +90, and the log
+    # names both windows.
+    w3 = WR_AutoSet.pick_side([win_p, solid_p, win_m, solid_m], dax)
+    ck('sd7', w3['sign'] == 1 && w3['why'].include?('BOTH') && w3['why'].include?('+90'),
+       w3.inspect)
+    # A WINDOW ON BOTH SIDES, one side with more distinct parts: that side.
+    w4 = WR_AutoSet.pick_side([win_p, solid_p, win_m, solid_m, vent_m], dax)
+    ck('sd8', w4['sign'] == -1 && w4['why'].include?('BOTH') &&
+              w4['why'].include?('2 distinct part(s) against 1') == false &&
+              w4['why'].include?('3 distinct part(s) against 2'),
+       w4.inspect)
+    # NO WINDOW EITHER SIDE: more distinct parts wins, either way round.
+    n1 = WR_AutoSet.pick_side([solid_p, solid_p2, solid_m, vent_m, duct_m], dax)
+    ck('sd9', n1['sign'] == -1 && n1['why'].include?('no window') &&
+              n1['why'].include?('3 distinct part(s) against 1'),
+       n1.inspect)
+    n2 = WR_AutoSet.pick_side([solid_p, pt.call('E1  40VNT', plusx), solid_m], dax)
+    ck('sd10', n2['sign'] == 1 && n2['why'].include?('2 distinct part(s) against 1'),
+       n2.inspect)
+    # TWO IDENTICAL PANELS ARE ONE THING TO LOOK AT, so they do not beat one
+    # panel on the other side; and an _HX twin is the same part.
+    n3 = WR_AutoSet.pick_side([solid_p, solid_p2, pt.call('E2  22PanelSolid_HX', plusx),
+                               solid_m], dax)
+    ck('sd11', n3['sign'] == 1 && n3['plus']['distinct'] == 1 && n3['why'].include?('tie'),
+       n3.inspect)
+    # THE SIGN REACHES THE SIDE PLATE AND ONLY THE SIDE PLATE. A mutant that
+    # goes back to the unconditional +90 fails sd12 and sd15 by name.
+    ck('sd12', WR_AutoSet.az_for('04-side', 0.0, nil) == 90.0 &&
+               WR_AutoSet.az_for('04-side', 0.0, nil, 1) == 90.0 &&
+               WR_AutoSet.az_for('04-side', 0.0, nil, -1) == -90.0 &&
+               WR_AutoSet.az_for('04-side r', 0.0, nil, -1) == -90.0,
+       [WR_AutoSet.az_for('04-side', 0.0, nil, -1),
+        WR_AutoSet.az_for('04-side r', 0.0, nil, -1)].inspect)
+    ck('sd13', WR_AutoSet.az_for('01-angled', 0.0, nil, -1) == 35.0 &&
+               WR_AutoSet.az_for('03-high', 0.0, nil, -1) == 35.0 &&
+               WR_AutoSet.az_for('02-front', 0.0, nil, -1) == 0.0 &&
+               WR_AutoSet.az_for('06-plan', 0.0, nil, -1) == 0.0 &&
+               WR_AutoSet.az_for('05-ventilation', 0.0, 90.0, -1) == 115.0,
+       'a plate other than 04-side moved with the side sign')
+    # THE SIGN IS RE-DERIVED FROM THE CHOSEN WALL'S MODEL BEARING, so a
+    # mirrored placement cannot swap hands; and it wraps at +/-180.
+    ck('sd14', WR_AutoSet.side_sign(0.0, -90.0) == 1 &&
+               WR_AutoSet.side_sign(180.0, -90.0) == -1 &&
+               WR_AutoSet.side_sign(-180.0, -90.0) == -1 &&
+               WR_AutoSet.side_sign(-170.0, 90.0) == 1 &&
+               WR_AutoSet.side_sign(90.0, 0.0) == 1 &&
+               WR_AutoSet.side_sign(-90.0, 0.0) == -1,
+       [WR_AutoSet.side_sign(-180.0, -90.0), WR_AutoSet.side_sign(-170.0, 90.0)].inspect)
+    # THROUGH THE REAL aim(): the side eye stands at door -90 when told to,
+    # and at door +90 by default -- the fixture door is -90, so 180 and 0.
+    ss = shot('04-side', DOOR, VENT, -1)
+    sd = shot('04-side')
+    ck('sd15', (ss['az'].abs - 180.0).abs < 1.0e-6 && sd['az'].abs < 1.0e-6,
+       [ss['az'], sd['az']].inspect)
+    # NO DOOR: nothing is chosen, the sign is +1, and the words say ASSUMED.
+    nd = WR_AutoSet.pick_side([win_m, solid_p], nil)
+    ck('sd16', nd['sign'] == 1 && nd['ax'].nil? && nd['why'].include?('ASSUMED'),
+       nd.inspect)
+    # THE LOG LINE: which side, at what bearing, and why -- in plain words.
+    l1 = WR_AutoSet.side_line(w1.merge('az' => 180.0), 180.0)
+    ck('sd17', l1.include?('side: door -90') && l1.include?('180.0 deg') &&
+               l1.include?('window'), l1)
+    l2 = WR_AutoSet.side_line(e0.merge('az' => 0.0), 0.0)
+    ck('sd18', l2.include?('side: door +90') && l2.include?('+90 as before'), l2)
+    ck('sd19', WR_AutoSet.side_line(nd, nil).include?('ASSUMED'),
+       WR_AutoSet.side_line(nd, nil))
+    ck('sd20', WR_AutoSet::SIDE_PLATE == '04-side' &&
+               ('46Panel3236WDO' =~ WR_AutoSet::WINDOW_RE ? true : false) &&
+               ('STDWL46 WDO3236' =~ WR_AutoSet::WINDOW_RE ? true : false) &&
+               ('40VNT' =~ WR_AutoSet::WINDOW_RE).nil? &&
+               ('Right46Door' =~ WR_AutoSet::WINDOW_RE).nil?,
+       'WINDOW_RE no longer matches the WDO panel names and only them')
 
     # ---- THE ANNOTATION ALLOWLIST ---------------------------------------
     # an1/an2 are the two that matter most in this file.
@@ -1379,6 +1527,8 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'fr1 fr2 fr3 fr4 fr5 fr6 fr7 fr8 '
          'du1 du2 du3 du4 du5 du5b du6 du6b du7 du8 du9 du10 du11 du12 '
          'az1 az2 az3 az4 az5 az6 az7 az8 az9 az10 az11 '
+         'sd1 sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9 sd10 sd11 sd12 sd13 sd14 sd15 '
+         'sd16 sd17 sd18 sd19 sd20 '
          'an1 an2 an2b an2c an3 an4 an5 an6 an7 an7b an8 an9 an10 an11 '
          'nv1 nv2 nv3 '
          'wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 wp9 '
@@ -1408,6 +1558,16 @@ def main():
         'moved_tol':       const_line('MOVED_TOL'),
         'cos_cone':        const_line('COS_CONE'),
         'aspect_min':      const_line('ASPECT_MIN'),
+        'window_re':       const_line('WINDOW_RE'),
+        'side_plate':      const_line('SIDE_PLATE'),
+        'side_skip_tags':  const_line('SIDE_SKIP_TAGS'),
+        'thin_max':        const_line('THIN_MAX'),
+        'part_wall':       rbtest.method_source(SRC, 'part_wall'),
+        'side_normals':    rbtest.method_source(SRC, 'side_normals'),
+        'side_score':      rbtest.method_source(SRC, 'side_score'),
+        'pick_side':       rbtest.method_source(SRC, 'pick_side'),
+        'side_sign':       rbtest.method_source(SRC, 'side_sign'),
+        'side_line':       rbtest.method_source(SRC, 'side_line'),
         'dual_suffix':     const_line('DUAL_SUFFIX'),
         'dims_re':         const_line('DIMS_RE'),
         'booth_wall_t':    const_line('BOOTH_WALL_T'),

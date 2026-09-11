@@ -1,6 +1,90 @@
 # DEVLOG
 
 ## 2026-09-11
+### AUTO-SET: the side plate picks the side with more to look at, a window first - 1.57.0
+
+Benton asked how `04-side` chose which side of the booth it shoots and was
+told the truth: it did not. `az_for` returned the door bearing plus the
+plate's fixed `:swing`, every swing is positive, so the side plate was
+always door +90 and which physical wall that was followed from how the
+booth happened to be rotated in the model. His spec, verbatim: *"I think
+if it can always choose the side with more to look at, a window is
+priority, then that would be ideal."*
+
+**The rule (`scripts/wr-autoset.rb`, `pick_side`).** The choice is binary
+-- the side plate is a profile at right angles to the door, so the only
+candidates are door +90 and door -90; nothing searches all four walls.
+
+1. A window beats no window; more windows beat fewer.
+2. Otherwise the side with more **distinct parts** wins: the number of
+   different component names sitting in that wall. Three identical solid
+   panels count 1; a vent panel, its duct cover and a solid count 3. It is
+   the cheapest honest reading of "more to look at" and it is printed.
+3. A tie keeps door +90 -- exactly what every run before this did. So the
+   usual booth, with nothing in either side wall, gets the same side plate
+   it always has, and a booth with a window on **both** sides comes down to
+   rule 2 and then to this. Same booth, same plate, every run.
+
+**How a window is recognised.** By component name, `/WDO/i` -- the one
+convention every reader in this repo already uses: `wr-overlays.rb#kind_of`
+returns `:window` on it, `booth-from-link.rb`'s placement summary calls a
+slot "Window" on it, the builder names instances `W0  46Panel3236WDO` and
+the catalogue SKU is `STDWL46 WDO3236`. Not by tag: the builder puts
+windows on plain `WR-Booth-Walls` and there is no window tag to find.
+
+**What is weighed.** The groups and component instances placed directly in
+the booth container, keyed by definition name with `_HX` stripped, placed
+in a wall by their own shape (`wall_normal`, the 1.54.0 rule) and rejected
+when not thin across it (`THIN_MAX`, so a long floor deck is not a wall).
+Skipped by tag: `WR-Booth-Door` (a leaf drawn swung open lies off its own
+wall and would land in a side bucket), `WR-Booth-Deck`, `WR-Booth-Missing`.
+The union box is used only for the sign of an offset and the thin-span
+guard, both of which survive the skew that bit 1.53.0.
+
+**Wiring.** `tag_anchor` now returns the door wall's local normal as a
+third element (callers of `[0]`/`[1]` untouched). `side_choice` runs once
+per apply, turns the chosen local normal into a model bearing and
+re-derives the sign from that bearing (`side_sign`), so a mirrored
+placement cannot swap hands. `aim_plate` takes `side` and hands it to
+`az_for(plate_id, door_az, vent_az, side = 1)`, which honours it on
+`SIDE_PLATE` only -- `01-angled` and `03-high` keep their handedness (open
+question below). With no usable door nothing is chosen, the sign is +1 and
+the log says ASSUMED. **The plate's own log lines lead with the decision:**
+`side: door -90 (bearing 180.0 deg) -- it has 1 window(s) (W0
+46Panel3236WDO) and the other side has 0`, or `... a tie, so door +90 as
+before`.
+
+**Offline (`scripts/rbtest-autoset.py`, 197 -> 217, run).** `sd1-sd20`:
+the candidate normals, part placement and the deck guard, the empty tie,
+a window winning either way round and over any part count, both-sides
+tie and both-sides broken by parts, no-window part counts, identical
+panels counting once, the sign reaching `04-side` / `04-side r` and no
+other plate, `side_sign` wrap and mirror, the real `aim()` standing at
+door -90 when told, the no-door case, `WINDOW_RE`, and the three log
+lines. Four mutants run: unconditional +90 -> `sd12 sd15`; part count
+ranked above window -> `sd6`; tie to -90 -> `sd4 sd7 sd11 sd18`; picking
+with no door -> the run goes red at `sd16` (a raise: this VM has no
+`NilClass#to_f`; real Ruby would fail `sd16` by name).
+
+**Live (`.forge/builder/verify-autoset.rb`) -- UNRUN, no SketchUp here.**
+Neither fixture booth had anything in a side wall, so section 14 builds a
+third, `MDL 9903 E VERIFY`, with a `W0  46Panel3236WDO` box on its door
+-90 face. `side.no_window_is_a_tie_and_says_so` and
+`side.no_window_keeps_door_plus_90` pin booth 1 unchanged;
+`side.booth_parts_sees_the_window_in_the_minus_x_wall`,
+`side.booth_parts_skips_the_door_tagged_parts`,
+`side.anchor_carries_the_local_door_normal`, `side.window_side_is_chosen`,
+`side.window_booth_set_made`, `side.camera_stands_on_the_window_side`,
+`side.log_names_the_window_and_the_hand`,
+`side.log_line_sits_under_the_side_plate`, `side.same_side_on_a_re_run`
+prove the rule on real groups and the saved camera.
+
+**Open for Benton.** Whether `01-angled` / `03-high` should swing to the
+same hand as the side plate (they are three-quarter views, a different
+job; left alone as instructed). Whether a vent wall with no window should
+count as "more to look at" -- under rule 2 it does, and the ventilation
+plate already shoots it.
+
 ### AUTO-SET: angled leads, a render is an extra scene in front of its image, and zero means zero - 1.56.0
 
 Benton, having run 1.55.0 live: *"When I click '0' renders, it still makes

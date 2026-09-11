@@ -786,15 +786,164 @@ module WR_AutoSet
 
   # Where the camera stands, in degrees. door_az/vent_az are read off the
   # booth's own WR-Booth-Door / WR-Booth-Vent tags; either may be nil.
-  def self.az_for(plate_id, door_az, vent_az)
+  #
+  # `side` is +1 or -1 and is honoured by the SIDE PLATE ONLY: it is the
+  # hand pick_side made (below), so +1 keeps the door bearing plus 90 -- the
+  # only side the plate ever looked at until 1.57.0 -- and -1 turns it to the
+  # door bearing minus 90. Every other plate ignores it; the three-quarter
+  # plates keep their own handedness (see pick_side for why that is a
+  # question for Benton, not a thing this method decides).
+  def self.az_for(plate_id, door_az, vent_az, side = 1)
     p = plate(plate_id)
     return nil unless p
     base = door_az.nil? ? FALLBACK_AZ : door_az.to_f
     if p[:az] == :vent
       (vent_az.nil? ? (base + 180.0) : vent_az.to_f) + p[:swing]
+    elsif p[:id] == SIDE_PLATE
+      base + (p[:swing] * (side.to_i < 0 ? -1.0 : 1.0))
     else
       base + p[:swing]
     end
+  end
+
+  # ------------------------------------------------------ the side plate --
+  #
+  # WHICH SIDE THE SIDE PLATE LOOKS AT. Benton, 11 Sep 2026, asked how 04-side
+  # chose its side and told that it did not -- it was always the door bearing
+  # plus 90, so which physical wall that landed on followed from how the booth
+  # happened to be rotated in the model: "I think if it can always choose the
+  # side with more to look at, a window is priority, then that would be
+  # ideal".
+  #
+  # THE CHOICE IS BINARY. The side plate is a profile at right angles to the
+  # door, so the only candidates are door plus 90 and door minus 90 (the
+  # other two walls are the door wall and the vent wall, which 02-front and
+  # 05-ventilation already own). Nothing here searches all four walls.
+  #
+  # THE RULE, in full, so it can be checked against the log:
+  #
+  #   1. A window beats no window. More windows beat fewer.
+  #   2. Otherwise the side with MORE DISTINCT PARTS wins -- the number of
+  #      different component names that sit in that wall. A wall of three
+  #      identical solid panels counts 1; a wall carrying a vent panel, its
+  #      duct cover and a solid counts 3. That is the cheapest honest reading
+  #      of "more to look at" and it is inspectable in the log.
+  #   3. A tie keeps door plus 90, which is exactly what every run before
+  #      1.57.0 did. So a booth with nothing to tell its sides apart -- the
+  #      usual booth -- produces the same side plate it always has, and a
+  #      booth with a window on BOTH sides comes down to rule 2, then to
+  #      this. Deterministic: the same booth always gets the same plate.
+  #
+  # HOW A WINDOW IS RECOGNISED. By the component name, never by a tag: a
+  # window panel is a wall panel whose name carries WDO -- 46Panel3236WDO,
+  # ENH 41.5Panel3236WDO, and the catalogue SKU STDWL46 WDO3236 they come
+  # from. That is the ONE convention every reader in this repo already uses:
+  # wr-overlays.rb#kind_of returns :window on /WDO/i, booth-from-link.rb's
+  # placement summary calls a slot "Window" on /WDO/i, and the builder tags
+  # windows on the plain WR-Booth-Walls tag (there is no window tag), so a
+  # tag could not have found them anyway.
+  #
+  # WHAT IS NOT WEIGHED. Anything on WR-Booth-Door (the frame and the leaf --
+  # a leaf drawn swung open lies off its own wall and would land in a side
+  # bucket), WR-Booth-Deck (floor, ceiling and the seam seals that run with
+  # them) and WR-Booth-Missing (a placeholder is not a part to look at).
+  WINDOW_RE  = /WDO/i
+  SIDE_PLATE = '04-side'.freeze
+  SIDE_SKIP_TAGS = ['WR-Booth-Door', 'WR-Booth-Deck', 'WR-Booth-Missing'].freeze
+  # A wall part is THIN across its wall: its thin span is at most this
+  # fraction of the booth's own extent on that axis. A panel is 2-5 in thick
+  # on a booth at least 48 in across (0.1); a floor deck on a long booth is
+  # long enough for wall_normal to call it a wall, and its thin span is the
+  # booth's whole width (1.0). Nothing sits between.
+  THIN_MAX = 0.34
+
+  # Which wall does a part sit in, or nil for "not a wall part". span_x/span_y
+  # are the part's own plan extents, dx/dy its offset from the booth centre
+  # and ext_x/ext_y the booth's plan extents, all in BOOTH-LOCAL space.
+  # wall_normal reads the wall off the part's SHAPE; the thin-span guard is
+  # what keeps a long floor deck out.
+  def self.part_wall(span_x, span_y, dx, dy, ext_x, ext_y)
+    ax = wall_normal(span_x, span_y, dx, dy)
+    return nil if ax.nil?
+    thin, ext = ax[0].abs > 0.5 ? [span_x, ext_x] : [span_y, ext_y]
+    return nil if ext.to_f < 1.0e-6
+    (thin.to_f.abs / ext.to_f) <= THIN_MAX ? ax : nil
+  end
+
+  # The two candidate walls, as unit normals in booth-local space, given the
+  # door wall's: [plus, minus] -- the door normal turned +90 and -90.
+  def self.side_normals(door_ax)
+    ux, uy = door_ax
+    [[-uy.to_f, ux.to_f], [uy.to_f, -ux.to_f]]
+  end
+
+  # What one candidate wall carries. parts are pick_side's rows:
+  # { 'name' => label for the log, 'key' => distinctness key, 'wall' => [ux, uy] }.
+  def self.side_score(parts, ax)
+    mine = parts.select { |pt| pt['wall'] == ax }
+    wins = mine.select { |pt| "#{pt['name']} #{pt['key']}" =~ WINDOW_RE }
+    { 'windows'  => wins.size,
+      'distinct' => mine.map { |pt| pt['key'].to_s }.uniq.size,
+      'names'    => wins.map { |pt| pt['name'].to_s } }
+  end
+
+  # THE DECISION. Returns { 'sign' => 1 | -1, 'ax' => [ux, uy] or nil,
+  # 'why' => plain words for the log, 'plus' => score, 'minus' => score }.
+  # door_ax nil means the door wall is unknown (the FALLBACK_AZ case): then
+  # nothing is chosen, the sign is +1 as it always was, and 'why' says so.
+  def self.pick_side(parts, door_ax)
+    if door_ax.nil?
+      return { 'sign' => 1, 'ax' => nil, 'plus' => nil, 'minus' => nil,
+               'why' => 'the door side is ASSUMED, so no side was chosen -- ' \
+                        'door +90 as before' }
+    end
+    plus, minus = side_normals(door_ax)
+    sp = side_score(parts, plus)
+    sm = side_score(parts, minus)
+    cmp = [sp['windows'], sp['distinct']] <=> [sm['windows'], sm['distinct']]
+    if cmp == 0
+      why = if sp['windows'] > 0
+              "a window on BOTH sides (#{(sp['names'] + sm['names']).join(', ')}) " \
+              "and #{sp['distinct']} distinct part(s) each -- a tie, so door +90 as before"
+            elsif sp['distinct'] > 0
+              "no window on either side and #{sp['distinct']} distinct part(s) each " \
+              '-- a tie, so door +90 as before'
+            else
+              'no window on either side and no wall parts to tell them apart ' \
+              '-- door +90 as before'
+            end
+      return { 'sign' => 1, 'ax' => plus, 'plus' => sp, 'minus' => sm, 'why' => why }
+    end
+    ax, sign, s, o = cmp > 0 ? [plus, 1, sp, sm] : [minus, -1, sm, sp]
+    why = if s['windows'] > o['windows']
+            "it has #{s['windows']} window(s) (#{s['names'].join(', ')}) and the " \
+            "other side has #{o['windows']}"
+          elsif s['windows'] > 0
+            "a window on BOTH sides (#{(s['names'] + o['names']).join(', ')}); this " \
+            "side has more to look at, #{s['distinct']} distinct part(s) against #{o['distinct']}"
+          else
+            "no window on either side; this side has more to look at, " \
+            "#{s['distinct']} distinct part(s) against #{o['distinct']}"
+          end
+    { 'sign' => sign, 'ax' => ax, 'plus' => sp, 'minus' => sm, 'why' => why }
+  end
+
+  # The sign az_for wants, from the chosen wall's MODEL-space bearing rather
+  # than from which local normal was picked: a booth placed with a mirroring
+  # transformation would otherwise swap hands silently. +1 when the bearing
+  # is the door bearing plus 90 (to within a right angle), else -1.
+  def self.side_sign(pick_az, door_az)
+    d = ((pick_az.to_f - (door_az.to_f + 90.0)) % 360.0)
+    d = d - 360.0 if d > 180.0
+    d.abs <= 90.0 ? 1 : -1
+  end
+
+  # The log line for the side plate, in plain words: which side, at what
+  # bearing, and what made the choice.
+  def self.side_line(pick, az)
+    return "         side: #{pick['why']}" if pick.nil? || az.nil? || pick['ax'].nil?
+    format('         side: door %s90 (bearing %.1f deg) -- %s',
+           pick['sign'] < 0 ? '-' : '+', az, pick['why'])
   end
 
   # --------------------------------------------------------- the token --
@@ -1224,8 +1373,11 @@ module WR_AutoSet
     # The frame's centre in model space, at the BOOTH centre's height: the eye
     # height is the plate's business (:el), not the frame's.
     fc = tb.center.transform(booth.transformation)
+    # The third element is the wall's normal in BOOTH-LOCAL space, which is
+    # what pick_side sorts the side walls against (1.57.0). Callers that
+    # read [0] and [1] are untouched.
     [[fc.x.to_f, fc.y.to_f, own.center.transform(booth.transformation).z.to_f],
-     Math.atan2(v.y, v.x) / DEG]
+     Math.atan2(v.y, v.x) / DEG, [ux.to_f, uy.to_f]]
   rescue StandardError
     nil
   end
@@ -1256,6 +1408,61 @@ module WR_AutoSet
       format('         %s: READ %.1f deg from %d %s part(s).',
              label, az, n, tag_name)
     end
+  end
+
+  # The booth's own parts as pick_side wants them, in BOOTH-LOCAL space: the
+  # groups and component instances placed DIRECTLY in the booth container
+  # (build-booth-components.rb and booth-from-link.rb add every panel there),
+  # each named by its definition so two 22PanelSolid instances count once,
+  # with the _HX file suffix stripped so an _HX part and its twin agree.
+  #
+  # The booth centre and extents are the UNION box, and that box is skewed by
+  # anything that protrudes (the 1.53.0 lesson, see wall_normal). It is used
+  # here only for the SIGN of a part's offset and for the thin-span guard,
+  # both of which survive a rough centre: the wall itself is read off the
+  # part's own shape. Anything on a SIDE_SKIP_TAGS tag is left out.
+  def self.booth_parts(booth)
+    ents = container_entities(booth)
+    return [] if ents.nil?
+    own = Geom::BoundingBox.new
+    ents.each { |e| own.add(e.bounds) }
+    ext_x = (own.max.x - own.min.x).to_f
+    ext_y = (own.max.y - own.min.y).to_f
+    out = []
+    ents.each do |e|
+      next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      tag = (e.layer && e.layer.name.to_s rescue '')
+      next if SIDE_SKIP_TAGS.include?(tag)
+      bb = e.bounds
+      ax = part_wall((bb.max.x - bb.min.x).to_f, (bb.max.y - bb.min.y).to_f,
+                     (bb.center.x - own.center.x).to_f, (bb.center.y - own.center.y).to_f,
+                     ext_x, ext_y)
+      next if ax.nil?
+      dname = (e.respond_to?(:definition) ? e.definition.name.to_s : '') rescue ''
+      iname = (e.name.to_s rescue '')
+      key   = (dname.empty? ? iname : dname).sub(/_HX\z/i, '').strip.downcase
+      out << { 'name' => (iname.empty? ? dname : iname), 'key' => key, 'wall' => ax }
+    end
+    out
+  rescue StandardError
+    []
+  end
+
+  # The side plate's choice for this booth: pick_side's hash plus 'az', the
+  # chosen wall's MODEL-space bearing, and the sign re-derived from that
+  # bearing (side_sign) so a mirrored placement cannot swap hands. `danchor`
+  # is tag_anchor's [point, bearing, local normal] or nil; nil means the door
+  # is ASSUMED and nothing is chosen.
+  def self.side_choice(booth, danchor)
+    door_ax = danchor && danchor[2]
+    return pick_side([], nil) if door_ax.nil?
+    pick = pick_side(booth_parts(booth), door_ax)
+    v = Geom::Vector3d.new(pick['ax'][0], pick['ax'][1], 0).transform(booth.transformation)
+    az = Math.atan2(v.y, v.x) / DEG
+    pick.merge('az' => az, 'sign' => side_sign(az, danchor[1]))
+  rescue StandardError
+    pick_side([], nil).merge('why' => 'the side walls could not be read, so no side ' \
+                                      'was chosen -- door +90 as before')
   end
 
   # Wall units as wall_picks wants them: key, label and a MODEL-space centre.
@@ -1297,8 +1504,10 @@ module WR_AutoSet
   # targeting the BOOTH centre leaves the door off to one side of the frame;
   # targeting the frame centres the thing the shot is of. Every other plate
   # frames the whole booth and still looks at its centre.
+  # `side` is pick_side's sign (+1 / -1) and reaches az_for, which honours it
+  # on the side plate only.
   def self.aim_plate(view, plate_id, centre_a, radius, door_az, vent_az, half = nil,
-                     anchor = nil)
+                     anchor = nil, side = 1)
     p = plate(plate_id)
     look = (p[:aim_at] == :door && anchor) ? anchor : centre_a
     c = Geom::Point3d.new(look[0], look[1], look[2])
@@ -1306,7 +1515,7 @@ module WR_AutoSet
     # Perspective everywhere except the one plate that carries :parallel (see
     # PLATES). dist and fov are auto-set's own; aim's own defaults are the
     # legacy tool's and are left alone.
-    WR_ProposalScenes.aim(view, c, radius, az_for(plate_id, door_az, vent_az),
+    WR_ProposalScenes.aim(view, c, radius, az_for(plate_id, door_az, vent_az, side),
                           p[:el], !p[:parallel], plate_dist(p[:el], radius), PLATE_FOV)
   end
 
@@ -1504,6 +1713,11 @@ module WR_AutoSet
     door    = danchor && danchor[1]
     dpoint  = danchor && danchor[0]
     vent    = tag_az(booth, 'WR-Booth-Vent')
+    # Which side the side plate looks at (1.57.0). Decided ONCE per run so
+    # the image and its paired render agree, and printed on the plate's own
+    # log lines below.
+    spick   = side_choice(booth, danchor)
+    side    = spick['sign']
 
     taken  = tokens_in_use(pages.to_a)
     stored = booth.get_attribute(DICT, 'token', nil).to_s
@@ -1557,7 +1771,7 @@ module WR_AutoSet
           # Aimed BEFORE the add as well as after it, so the page is born with
           # the right camera even on a build where PAGE_USE_CAMERA is not
           # defined and the explicit save below cannot run.
-          aim_plate(view, id, centre, radius, door, vent, half, dpoint)
+          aim_plate(view, id, centre, radius, door, vent, half, dpoint, side)
           page = add_page(pages, want, insert_index(pages, token, id))
           lines << "created  #{want}"
         elsif old != id
@@ -1613,7 +1827,7 @@ module WR_AutoSet
         # from the page's OWN saved camera, so a plate whose camera never
         # landed was also hiding the wrong walls.
         if fresh || reaim
-          aim_plate(view, id, centre, radius, door, vent, half, dpoint)
+          aim_plate(view, id, centre, radius, door, vent, half, dpoint, side)
           view.refresh
           page.update(PAGE_USE_CAMERA) if defined?(PAGE_USE_CAMERA)
         end
@@ -1631,7 +1845,7 @@ module WR_AutoSet
         WR_ProposalPackage.set_mode(page, mode_for(id, renders))
         stamp_page(page, token, id, centre)
 
-        lines.concat(plate_log(id, units, centre, eye, sets, loose, counts))
+        lines.concat(plate_log(id, units, centre, eye, sets, loose, counts, spick))
       end
       model.commit_operation
     rescue StandardError => e
@@ -1721,8 +1935,11 @@ module WR_AutoSet
 
   # Every wall this plate hides, with its dot product, and exactly which
   # annotation sets it shows. A wrong call has to be readable, not mysterious.
-  def self.plate_log(id, units, centre, eye, sets, loose, counts = {})
+  def self.plate_log(id, units, centre, eye, sets, loose, counts = {}, spick = nil)
     out = []
+    # THE SIDE PLATE SAYS WHICH SIDE AND WHY (1.57.0), before anything else
+    # about it. A silent choice is a bad choice: Benton reads this log.
+    out << side_line(spick, spick['az']) if spick && base_id(id) == SIDE_PLATE
     hid = wall_log(id, units, centre, eye).select { |r| r[3] }
     if NO_WALL_PLATES.include?(base_id(id))
       why = base_id(id) == '06-plan' ? 'nothing occludes from above' :
