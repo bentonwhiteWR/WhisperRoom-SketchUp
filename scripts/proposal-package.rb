@@ -992,6 +992,33 @@ module WR_ProposalPackage
     end
   end
 
+  # DELETE A SCENE (1.62.0). Benton: "lets add an x to the proposal package
+  # scenes that would allow us to quickly delete a scene". A scene written by
+  # AUTO-SET that turned out wrong used to mean leaving the window, finding
+  # the tab in SketchUp and right-clicking it; the row is where he is already
+  # looking. Pages#erase is NOT covered by SketchUp's undo -- the same reason
+  # reorder tells you to drag it back rather than press Ctrl+Z -- so this
+  # confirms by name before it erases, and the row numbers of every scene
+  # after it shift, which is why the caller invalidates the cache and pushes
+  # fresh state instead of patching the table.
+  def self.delete_scene(model, n)
+    pages = model.pages
+    pg    = pages.to_a[n.to_i - 1]
+    return [false, "scene #{n} is gone — hit Rescan"] unless pg
+    name = pg.name.to_s
+    ans = UI.messagebox("Delete the scene \"#{name}\"?
+
+This cannot be undone "                         "with Ctrl+Z — scene state is outside SketchUp's undo.",
+                        MB_OKCANCEL)
+    return [true, "Kept \"#{name}\"."] unless ans == IDOK
+    begin
+      pages.erase(pg)
+    rescue StandardError => e
+      return [false, "delete failed: #{e.class}: #{e.message}"]
+    end
+    [true, "Deleted scene \"#{name}\". The scenes after it moved up a number."]
+  end
+
   def self.slot_rows(model)
     WR_MaterialsSwap::SLOT_FOR.map do |house, slot|
       src = WR_MaterialsSwap.source(model, slot)
@@ -4104,6 +4131,19 @@ module WR_ProposalPackage
       push_state(model, d)
     end
 
+    d.add_action_callback('delscene') do |_c, n|
+      next if busy?(d, 'delscene')
+      begin
+        ok, msg = delete_scene(model, n.to_i)
+        log(d, msg, ok ? 'dim' : 'bad')
+      rescue StandardError => e
+        log(d, "delete failed: #{e.class}: #{e.message}", 'bad')
+        puts "  delete failed: #{e.class}: #{e.message}"
+      end
+      invalidate_rows!          # every row after it just changed number
+      push_state(model, d)
+    end
+
     # UNDO LAST APPLY (1.26.1). A live preview is ended first: its restore
     # would otherwise land on top of what was just put back.
     d.add_action_callback('undolast') do |_c, _p|
@@ -4779,6 +4819,13 @@ module WR_ProposalPackage
   .go button { border:0; background:transparent; color:var(--faint); cursor:pointer;
                font-size:13px; padding:0 4px; }
   .go button:hover { color:var(--accent); }
+  /* DELETE (1.62.0). Faint until the row is hovered and red only on its own
+     hover, so a destructive control never competes with the scene name it
+     sits beside. */
+  td.del { width:1%; }
+  .del button { border:0; background:transparent; color:var(--faint); cursor:pointer;
+                font-size:14px; line-height:1; padding:0 6px; }
+  .del button:hover { color:#c0392b; }
   mark { background:#ffe3a8; color:inherit; border-radius:2px; }
 
   .seg { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
@@ -5046,7 +5093,7 @@ module WR_ProposalPackage
   </div>
   <div class="bodyy"><div class="wrap"><table>
     <thead><tr>
-      <th>#</th><th>SCENE</th><th>MODE</th><th>SUN</th><th>WALLS</th><th>ANNOTATIONS</th><th>FILE IT WILL WRITE</th><th></th>
+      <th>#</th><th>SCENE</th><th>MODE</th><th>SUN</th><th>WALLS</th><th>ANNOTATIONS</th><th>FILE IT WILL WRITE</th><th></th><th></th>
     </tr></thead>
     <tbody id="body"></tbody>
   </table></div></div>
@@ -5354,7 +5401,8 @@ window.onerror = function (msg, src, line) {
         "<td><button class='wbtn' data-walls='"+r.n+"' title='Choose which whole walls this scene hides'>Hide walls</button>"+wallsCell(r)+"</td>"+
         "<td><button class='wbtn' data-annots='"+r.n+"' title='Choose which notes and dimensions this scene hides'>Hide notes</button>"+annotsCell(r)+"</td>"+
         "<td class='file' title='"+esc(r.file)+"'>"+fh+"</td>"+
-        "<td class='go'><button data-go='"+r.n+"' title='Go to this scene'>&#8594;</button></td></tr>";
+        "<td class='go'><button data-go='"+r.n+"' title='Go to this scene'>&#8594;</button></td>"+
+        "<td class='del'><button data-del='"+r.n+"' title='Delete this scene'>&#10005;</button></td></tr>";
     }).join("");
     // AN EMPTY GRID MUST SAY WHAT TO DO NEXT (1.48.1). Before 1.48.1 this
     // window refused to open at all on a model with no scenes, which is
@@ -5365,7 +5413,7 @@ window.onerror = function (msg, src, line) {
     // the model at all points at AUTO-SET; scenes filtered out by the search
     // box points at the search box.
     if(!view.length)
-      $b.innerHTML = "<tr class='empty'><td colspan='8'>" + (ST.rows.length
+      $b.innerHTML = "<tr class='empty'><td colspan='9'>" + (ST.rows.length
         ? "No scene matches &ldquo;" + esc(q) + "&rdquo;. Clear the search to see all "
           + ST.rows.length + " again."
         : "<b>This model has no scenes yet.</b><br>Use <b>AUTO-SET</b> above: pick the "
@@ -5401,6 +5449,18 @@ window.onerror = function (msg, src, line) {
         e.stopPropagation();
         if(running) return;
         annotsOpen(+el.getAttribute("data-annots"));
+      });
+    });
+    // DELETE (1.62.0). Ruby confirms by name before it erases, so there is
+    // no second confirm here; stopPropagation keeps the click off the name
+    // cell's go-to-scene handler, and 'running' blocks it the way every
+    // other row control is blocked -- erasing a page mid-batch would pull a
+    // scene out from under the exporter.
+    Array.prototype.forEach.call($b.querySelectorAll("[data-del]"), function(el){
+      el.addEventListener("click", function(e){
+        e.stopPropagation();
+        if(running) return;
+        if(window.sketchup && sketchup.delscene) sketchup.delscene(el.getAttribute("data-del"));
       });
     });
     // Both the name cell and the arrow button carry data-go, so this one
