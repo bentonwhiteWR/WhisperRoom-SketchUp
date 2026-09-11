@@ -669,14 +669,87 @@ module WR_AutoSet
   # a compass HINT relative to the wall's own room and says so (side_of, line
   # 109). So the rule is computed from the camera instead.
   #
-  #   Hide wall W when  (centre(W) - C).norm . (E - C).norm  >  cos 60
+  # THE TEST, IN ONE SENTENCE (1.60.1): a wall is hidden when a straight
+  # line from the camera eye to any of nine points on the booth -- its centre
+  # and the eight corners of its box -- passes through the wall's model-space
+  # box before it reaches that point.
   #
-  # i.e. hide the walls standing between the camera and the booth. Show every
-  # other wall. On the door-side three-quarter that is usually the two walls
-  # of the near corner — which is what Benton does by hand today with
-  # wr-lower-walls.rb ("I usually find the corner where the WhisperRoom is and
-  # lower those two adjacent walls").
-  COS_CONE = 0.5
+  # WHAT IT REPLACED, AND WHY. Until 1.60.0 the rule was angular: hide wall W
+  # when (centre(W) - C).(E - C) > cos 60 -- "the wall is in the camera's
+  # direction from the booth". That reads the wall by its CENTRE, and a long
+  # wall's centre can sit far along its own length: a side wall running past
+  # the booth toward the camera, or a far wall whose middle lies off toward
+  # the camera's side, both landed inside the cone with nothing in front of
+  # the booth. Benton, 11 Sep 2026, with the front and side shots missing
+  # walls beside and beyond the booth: "If there is a wall between the booth
+  # and the camera, yeah it should hide that wall. But these views do not
+  # have a wall between the booth and the camera and they are still hiding."
+  # A line-of-sight test answers his sentence literally. Nine sight lines
+  # rather than one so a wall that covers part of the booth -- the near
+  # corner's two walls on the three-quarter, which he lowers by hand today --
+  # still counts; a wall beside the booth that no sight line crosses does
+  # not. The wall's box is its axis-aligned model-space box (loose on a
+  # rotated room, which errs toward hiding), padded WALL_PAD so a zero-thick
+  # light-rig face is a box too. cone_dot is kept for the vent swing checks
+  # and for anyone reading old logs; nothing hides on it any more.
+  WALL_PAD  = 0.5     # in — grown on every face of a wall's box
+  SIGHT_MIN = 1       # sight lines that must cross the wall to hide it
+
+  # The nine points a wall has to stay clear of: the booth's centre and the
+  # eight corners of its box ([x0, y0, z0, x1, y1, z1]; nil = centre only).
+  def self.booth_targets(centre, bbox)
+    pts = [[centre[0].to_f, centre[1].to_f, centre[2].to_f]]
+    if bbox && bbox.size >= 6
+      [bbox[0], bbox[3]].each do |x|
+        [bbox[1], bbox[4]].each do |y|
+          [bbox[2], bbox[5]].each { |z| pts << [x.to_f, y.to_f, z.to_f] }
+        end
+      end
+    end
+    pts
+  end
+
+  # The parameter t (0..1 along a -> b) where the segment ENTERS the padded
+  # box, or nil when it does not cross the box before reaching b. A point b
+  # that is itself inside the box is not "behind a wall" and answers nil.
+  def self.segment_box_t(a, b, box, pad = WALL_PAD)
+    return nil if box.nil? || box.size < 6
+    inside_b = true
+    3.times do |i|
+      lo = box[i].to_f - pad.to_f
+      hi = box[i + 3].to_f + pad.to_f
+      inside_b = false if b[i].to_f < lo || b[i].to_f > hi
+    end
+    return nil if inside_b
+    t0 = 0.0
+    t1 = 1.0
+    3.times do |i|
+      lo = box[i].to_f - pad.to_f
+      hi = box[i + 3].to_f + pad.to_f
+      ai = a[i].to_f
+      d  = b[i].to_f - ai
+      if d.abs < 1.0e-9
+        return nil if ai < lo || ai > hi
+      else
+        ta = (lo - ai) / d
+        tb = (hi - ai) / d
+        if ta > tb
+          tt = ta
+          ta = tb
+          tb = tt
+        end
+        t0 = ta if ta > t0
+        t1 = tb if tb < t1
+        return nil if t0 > t1
+      end
+    end
+    t0 < 0.999 ? t0 : nil
+  end
+
+  # How many of the sight lines from the eye to the targets cross the box.
+  def self.sight_lines_crossed(box, eye, targets)
+    (targets || []).count { |p| !segment_box_t(eye, p, box).nil? }
+  end
 
   def self.unit_vec(a, b)
     vx = a[0].to_f - b[0].to_f
@@ -698,15 +771,27 @@ module WR_AutoSet
     (w[0] * e[0]) + (w[1] * e[1]) + (w[2] * e[2])
   end
 
-  # EVERY unit keyed, true or false. units: [{ 'key' => .., 'c' => [x,y,z] }].
+  # A unit's box for the test: its model-space 'box', or a 2 in cube around
+  # its centre for a unit that has none.
+  def self.unit_box(u)
+    b = u['box']
+    return b if b.is_a?(Array) && b.size >= 6
+    c = u['c'] || [0.0, 0.0, 0.0]
+    [c[0].to_f - 1.0, c[1].to_f - 1.0, c[2].to_f - 1.0,
+     c[0].to_f + 1.0, c[1].to_f + 1.0, c[2].to_f + 1.0]
+  end
+
+  # EVERY unit keyed, true or false. units: [{ 'key', 'c', 'box' }, ...];
+  # bbox is the booth's model-space box (nil: the centre alone is sighted).
   # Objects are never in this list — auto-set writes WALL units only, so a
   # booth, a chair or the other booth is never auto-hidden.
-  def self.wall_picks(plate_id, units, centre, eye)
+  def self.wall_picks(plate_id, units, centre, eye, bbox = nil)
     none  = NO_WALL_PLATES.include?(base_id(plate_id))
+    tg    = booth_targets(centre, bbox)
     picks = {}
     (units || []).each do |u|
-      d = none ? nil : cone_dot(u['c'], centre, eye)
-      picks[u['key']] = (!d.nil? && d > COS_CONE)
+      n = none ? 0 : sight_lines_crossed(unit_box(u), eye, tg)
+      picks[u['key']] = n >= SIGHT_MIN
     end
     picks
   end
@@ -796,13 +881,15 @@ module WR_AutoSet
     "         hides ceiling #{hid.map { |c| c['label'] }.join(', ')}"
   end
 
-  # Same walk, but keeping the dot so a wrong call is readable rather than
-  # mysterious. [[key, label, dot, hidden], ...]
-  def self.wall_log(plate_id, units, centre, eye)
+  # Same walk, but keeping the count so a wrong call is readable rather than
+  # mysterious. [[key, label, crossed, hidden, of], ...] -- `crossed` of
+  # `of` sight lines pass through the wall before reaching the booth.
+  def self.wall_log(plate_id, units, centre, eye, bbox = nil)
     none = NO_WALL_PLATES.include?(base_id(plate_id))
+    tg   = booth_targets(centre, bbox)
     (units || []).map do |u|
-      d = none ? nil : cone_dot(u['c'], centre, eye)
-      [u['key'], u['label'].to_s, d, (!d.nil? && d > COS_CONE)]
+      n = none ? 0 : sight_lines_crossed(unit_box(u), eye, tg)
+      [u['key'], u['label'].to_s, n, n >= SIGHT_MIN, tg.size]
     end
   end
 
@@ -1817,7 +1904,7 @@ module WR_AutoSet
               else
                 "#{u[:room]} Wall #{u[:wall]}#{side.empty? ? '' : " (#{side})"}"
               end
-      { 'key' => u[:key], 'c' => c, 'room' => u[:room].to_s, 'wall' => u[:wall],
+      { 'key' => u[:key], 'c' => c, 'box' => u[:mbox], 'room' => u[:room].to_s, 'wall' => u[:wall],
         'kind' => (u[:kind] == 'rig' ? 'rig' : 'wall'), 'rig' => rig, 'label' => label }
     end
   rescue StandardError
@@ -1826,8 +1913,11 @@ module WR_AutoSet
 
   # The "hides ..." line for one wall, PURE so the suite can pin it: a
   # named wall says how many light-rig faces went with it.
-  def self.hides_line(label, dot, rig)
-    s = format('         hides %s  (dot %.2f)', label, dot.to_f)
+  # `crossed` of `of` sight lines from the camera to the booth pass through
+  # the wall: that is WHY it qualified, and it is said in those words.
+  def self.hides_line(label, crossed, rig, of = 9)
+    s = format('         hides %s -- it stands between the camera and the booth: %d of %d ' \
+               'sight lines to the booth cross it', label, crossed.to_i, of.to_i)
     n = rig.nil? ? 0 : rig.to_i
     s += " + #{n} light-rig wall face#{n == 1 ? '' : 's'} bound to it" if n > 0
     s
@@ -2187,6 +2277,13 @@ module WR_AutoSet
     units       = wall_geometry(model)
     ceils       = ceiling_geometry(model, booth)
     top_z       = (bbox.max.z.to_f rescue centre[2].to_f)
+    # The booth's box as six numbers, for the line-of-sight wall test (1.60.1).
+    bb6         = begin
+      [bbox.min.x.to_f, bbox.min.y.to_f, bbox.min.z.to_f,
+       bbox.max.x.to_f, bbox.max.y.to_f, bbox.max.z.to_f]
+    rescue StandardError
+      nil
+    end
     sets, loose = annot_rows(model)
     # Counted once for the whole run, over every tag any plate is allowed to
     # show. Cheap, and it is what turns a silently blank plate into a sentence.
@@ -2290,7 +2387,7 @@ module WR_AutoSet
         eye = page_eye(page, view)
 
         cpicks = ceiling_picks(id, ceils, centre, top_z)
-        wpicks = wall_picks(id, units, centre, eye).merge(cpicks)
+        wpicks = wall_picks(id, units, centre, eye, bb6).merge(cpicks)
         apicks = annot_picks(id, sets, loose)
         ents << { :page => page, :name => page.name.to_s, :new => fresh,
                   :wbefore => (fresh ? nil : WR_SceneWalls.snapshot_keys(wpicks.keys)),
@@ -2302,7 +2399,7 @@ module WR_AutoSet
         stamp_page(page, token, id, centre)
 
         lines.concat(plate_log(id, units, centre, eye, sets, loose, counts, spick, vpick,
-                               ceils, cpicks))
+                               ceils, cpicks, bb6))
       end
       model.commit_operation
     rescue StandardError => e
@@ -2398,7 +2495,7 @@ module WR_AutoSet
   # Every wall this plate hides, with its dot product, and exactly which
   # annotation sets it shows. A wrong call has to be readable, not mysterious.
   def self.plate_log(id, units, centre, eye, sets, loose, counts = {}, spick = nil, vpick = nil,
-                     ceils = nil, cpicks = nil)
+                     ceils = nil, cpicks = nil, bbox = nil)
     out = []
     # THE HIGH AND PLAN PLATES SAY WHETHER A CEILING WAS HIDDEN (1.58.1).
     cl = ceiling_line(id, ceils, cpicks)
@@ -2409,21 +2506,23 @@ module WR_AutoSet
     # THE VENT PLATE SAYS WHICH WALL ANCHORS IT AND WHICH WAY IT SWUNG
     # (1.57.1), for the same reason the side plate does.
     out << vent_line(vpick, vpick['az']) if vpick && base_id(id) == VENT_PLATE
-    hid = wall_log(id, units, centre, eye).select { |r| r[3] }
+    wl  = wall_log(id, units, centre, eye, bbox)
+    hid = wl.select { |r| r[3] }
     if NO_WALL_PLATES.include?(base_id(id))
       why = base_id(id) == '06-plan' ? 'the walls are context from above, not occluders' :
             "the occluders are the booth's own panels, which are not wall units"
       out << "         walls: none hidden (#{why})"
     elsif (units || []).empty?
-      # NOT "none in the camera cone" -- there was nothing to put in it.
+      # NOT "none in the way" -- there was nothing to put in the way.
       out << '         walls: none hidden -- there are NO wall units in this model ' \
              '(see the walls line at the top of this log)'
     elsif hid.empty?
-      out << '         walls: none in the camera cone'
+      out << '         walls: none hidden -- no wall stands between the camera and the booth ' \
+             "(none of the #{wl.first ? wl.first[4] : 9} sight lines to the booth crosses one)"
     else
-      hid.each do |k, lab, d, _h|
+      hid.each do |k, lab, n, _h, of|
         u = (units || []).find { |x| x['key'] == k }
-        out << hides_line(lab, d, u ? u['rig'] : 0)
+        out << hides_line(lab, n, u ? u['rig'] : 0, of)
       end
     end
     shown = effective_shown(id, sets.map { |s| s['name'] })

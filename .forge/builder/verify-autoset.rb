@@ -1410,6 +1410,46 @@ module WR_VerifyAutoSet
           lines4.any? { |l| l.to_s.include?("hides #{ROOM2} Wall 2") },
           lines4.select { |l| l.to_s.include?('hides ') }.inspect)
 
+      # ---- 18. A WALL HIDES ONLY WHEN IT STANDS BETWEEN THE CAMERA AND THE
+      # BOOTH (1.60.1). Benton's front and side shots had walls beside and
+      # beyond the booth missing: the old cone read a long wall by its
+      # centre. Booth 4's door faces -Y and it sits mid-room in x, so on
+      # 02-front only Wall 1 (-Y) is between; Wall 2 (beyond) and Walls 3/4
+      # (beside) must stay up. Its side plate looks from +X (the E0 vent
+      # wall), so there only Wall 4 goes. The log says why by name.
+      on_plate = lambda do |id|
+        pg = WR_AutoSet.token_pages(pages.to_a, tok4).find do |q|
+          WR_AutoSet.page_stamp(q)['plate'].to_s == id
+        end
+        next nil unless pg
+        sel(pg)
+        units2.map { |u| [u[:wall], u[:pieces].all? { |g| hidden?(g) }] }.sort.to_h
+      end
+      fw = on_plate.call('02-front')
+      say('sight.front_hides_only_the_wall_in_front',
+          fw && fw[1] == true && fw[2] == false && fw[3] == false && fw[4] == false, fw.inspect)
+      sw = on_plate.call('04-side')
+      say('sight.side_hides_only_the_wall_on_the_camera_side',
+          sw && sw[4] == true && sw[3] == false && sw[1] == false && sw[2] == false, sw.inspect)
+      aw = on_plate.call('01-angled')
+      say('sight.angled_leaves_the_far_and_off_side_walls_up',
+          aw && aw[1] == true && aw[2] == false && aw[3] == false, aw.inspect)
+      vw = on_plate.call('05-ventilation')
+      say('sight.ventilation_hides_only_the_wall_behind_the_vents',
+          vw && vw[2] == true && vw[1] == false && vw[3] == false && vw[4] == false, vw.inspect)
+      say('sight.log_says_why_by_name',
+          lines4.any? { |l| l.to_s.include?("hides #{ROOM2} Wall 1 -- it stands between the camera and the booth") &&
+                            l.to_s =~ /\d+ of 9 sight lines to the booth cross it/ },
+          lines4.select { |l| l.to_s.include?('sight lines') }.first(3).inspect)
+      say('sight.log_says_none_when_none_is_between',
+          lines4.any? { |l| l.to_s.include?('no wall stands between the camera and the booth') },
+          lines4.select { |l| l.to_s.include?('walls: none') }.first(2).inspect)
+      # THE REAL WALL'S MODEL BOX IS WHAT THE TEST READS (the 1.58.0 lesson).
+      say('sight.wall_geometry_carries_the_model_box',
+          WR_AutoSet.wall_geometry(@model).any? { |u| u['room'] == ROOM2 && u['wall'] == 1 &&
+                                                       u['box'].is_a?(Array) && (u['box'][1] - ry).abs < 1.0 },
+          WR_AutoSet.wall_geometry(@model).select { |u| u['room'] == ROOM2 }.map { |u| [u['wall'], u['box']] }.inspect)
+
       # ---- 17. THE LIGHT RIG'S BORROWED WALLS FOLLOW THE REAL ONE (1.59.1)
       # Benton: "using 'drop in the lights' and having it add walls actually
       # creates a wall when the 'actual' wall is hidden. It is properly

@@ -53,7 +53,8 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
     annot_picks stops keying the loose rows              -> an2, an8 FAIL
     SHOWN_BY_PLATE['01-exterior'] given a tag            -> an7 FAIL
     wall_picks emits only the hidden keys (partial hash) -> wp2, wp3 FAIL
-    wall_picks' cone test inverted                       -> wp1 FAIL
+    wall_picks back to the angular cone (1.60.0 rule)    -> bt3, bt4, bt7 FAIL
+    segment_box_t counting a booth point INSIDE a wall  -> wp1, wp5, wp8, bt8 FAIL
     05-plan dropped from NO_WALL_PLATES                  -> wp3 FAIL
     token_pages matched by NAME instead of stamp         -> sm2, sm3 FAIL
     WR-Notes put back on a plate                         -> an1, nv1, nv2 FAIL
@@ -336,7 +337,8 @@ module WR_AutoSet
 %(dict)s
 %(fallback_az)s
 %(moved_tol)s
-%(cos_cone)s
+%(wall_pad)s
+%(sight_min)s
 %(aspect_min)s
 %(window_re)s
 %(side_plate)s
@@ -370,7 +372,17 @@ module WR_AutoSet
 
 %(cone_dot)s
 
+%(booth_targets)s
+
+%(segment_box_t)s
+
+%(sight_lines_crossed)s
+
+%(unit_box)s
+
 %(wall_picks)s
+
+%(wall_log)s
 
 %(ladder_renders)s
 
@@ -1274,12 +1286,13 @@ module T
     # THE LOG: a hidden wall says its rig faces went with it; the run line
     # counts bound and open-run faces and says what a hidden one does to
     # the render.
-    ck('rg4', WR_AutoSet.hides_line('Room Wall 2 (north)', 0.91, 1) ==
-              '         hides Room Wall 2 (north)  (dot 0.91) + 1 light-rig wall face bound to it' &&
-              WR_AutoSet.hides_line('Room Wall 2', 0.9, 2).include?('2 light-rig wall faces bound') &&
-              WR_AutoSet.hides_line('Room Wall 2', 0.9, 0) == '         hides Room Wall 2  (dot 0.90)' &&
-              !WR_AutoSet.hides_line('Room Wall 2', 0.9, nil).include?('light-rig'),
-       WR_AutoSet.hides_line('Room Wall 2 (north)', 0.91, 1))
+    ck('rg4', WR_AutoSet.hides_line('Room Wall 2 (north)', 9, 1, 9) ==
+              '         hides Room Wall 2 (north) -- it stands between the camera and the booth: 9 of 9 sight lines to the booth cross it + 1 light-rig wall face bound to it' &&
+              WR_AutoSet.hides_line('Room Wall 2', 3, 2).include?('3 of 9 sight lines') &&
+              WR_AutoSet.hides_line('Room Wall 2', 3, 2).include?('2 light-rig wall faces bound') &&
+              !WR_AutoSet.hides_line('Room Wall 2', 9, 0).include?('light-rig') &&
+              !WR_AutoSet.hides_line('Room Wall 2', 9, nil).include?('light-rig'),
+       WR_AutoSet.hides_line('Room Wall 2 (north)', 9, 1, 9))
     rig_units = [{ 'room' => 'Room', 'wall' => 1, 'kind' => 'wall', 'rig' => 0 },
                  { 'room' => 'Room', 'wall' => 2, 'kind' => 'wall', 'rig' => 1 },
                  { 'room' => 'Light rig (open run)', 'wall' => 3, 'kind' => 'rig', 'rig' => 1 }]
@@ -1294,7 +1307,7 @@ module T
     plain = [{ 'room' => 'Room', 'wall' => 1, 'kind' => 'wall', 'rig' => 0 }]
     ck('rg7', !WR_AutoSet.walls_line(plain, ['Room']).include?('light rig'))
     # AN OPEN-RUN FACE IS A WALL TO THE CONE: same picks as a named wall.
-    ru = [{ 'key' => 'r:9', 'c' => [50.0, 0.0, 40.0], 'label' => 'WR Lights Wall 3 (light rig, open run)', 'kind' => 'rig' }]
+    ru = [{ 'key' => 'r:9', 'c' => [50.0, 0.0, 48.0], 'box' => [50.0, -150.0, 0.0, 50.0, 150.0, 96.0], 'label' => 'WR Lights Wall 3 (light rig, open run)', 'kind' => 'rig' }]
     ck('rg8', WR_AutoSet.wall_picks('01-angled', ru, [0.0, 0.0, 0.0], [97.8, 0.0, 20.8])['r:9'] == true &&
               WR_AutoSet.wall_picks('06-plan', ru, [0.0, 0.0, 0.0], [97.8, 0.0, 20.8])['r:9'] == false)
 
@@ -1374,49 +1387,120 @@ module T
               WR_AutoSet.policy_line.include?('still hidden'),
        WR_AutoSet.policy_line)
 
-    # ---- THE WALL CONE --------------------------------------------------
-    # Booth at the origin; the camera 100 in away on +X at 12 degrees up --
-    # the 01-exterior eye. Walls at the four compass points plus one sitting
-    # on the booth centre, which is the degenerate case.
-    centre = [0.0, 0.0, 0.0]
+    # ---- THE WALL RULE: A LINE OF SIGHT, NOT A CONE (1.60.1) -----------
+    # Booth at the origin (box +/-48 x +/-30 x 0..84); the camera 98 in away
+    # on +X at 12 degrees up. Four walls of a 300 x 300 room plus one
+    # sitting on the booth centre, which is the degenerate case.
+    centre = [0.0, 0.0, 42.0]
+    bbox   = [-48.0, -30.0, 0.0, 48.0, 30.0, 84.0]
     eye    = [97.8, 0.0, 20.8]
-    units  = [{ 'key' => 'w:front', 'c' => [50.0, 0.0, 40.0],  'label' => 'Room Wall 1' },
-              { 'key' => 'w:back',  'c' => [-50.0, 0.0, 40.0], 'label' => 'Room Wall 2' },
-              { 'key' => 'w:side',  'c' => [0.0, 50.0, 40.0],  'label' => 'Room Wall 3' },
-              { 'key' => 'w:corner', 'c' => [40.0, 40.0, 40.0], 'label' => 'Room Wall 4' },
-              { 'key' => 'w:onit',  'c' => [0.0, 0.0, 0.0],    'label' => 'Room Wall 5' }]
-    p1 = WR_AutoSet.wall_picks('01-angled', units, centre, eye)
+    wall   = lambda { |key, label, box| { 'key' => key, 'label' => label, 'box' => box,
+                                          'c' => [(box[0] + box[3]) / 2.0, (box[1] + box[4]) / 2.0, (box[2] + box[5]) / 2.0] } }
+    units  = [wall.call('w:front', 'Room Wall 1', [88.0, -150.0, 0.0, 92.0, 150.0, 96.0]),
+              wall.call('w:back',  'Room Wall 2', [-92.0, -150.0, 0.0, -88.0, 150.0, 96.0]),
+              wall.call('w:side',  'Room Wall 3', [-150.0, 88.0, 0.0, 150.0, 92.0, 96.0]),
+              wall.call('w:other', 'Room Wall 4', [-150.0, -92.0, 0.0, 150.0, -88.0, 96.0]),
+              wall.call('w:onit',  'Room Wall 5', [-1.0, -1.0, 41.0, 1.0, 1.0, 43.0])]
+    p1 = WR_AutoSet.wall_picks('01-angled', units, centre, eye, bbox)
     hid = units.map { |u| u['key'] }.select { |k| p1[k] }
-    ck('wp1', hid == ['w:front', 'w:corner'], hid.inspect)
+    ck('wp1', hid == ['w:front'], hid.inspect)
     # PARTIAL HASHES ARE THE BUG. Every unit keyed, true or false, or a wall
     # hidden on the previous plate rides along into this one.
     ck('wp2', p1.keys.length == units.length, p1.keys.length.to_s)
-    p2 = WR_AutoSet.wall_picks('06-plan', units, centre, eye)
+    p2 = WR_AutoSet.wall_picks('06-plan', units, centre, eye, bbox)
     ck('wp3', p2.keys.length == units.length && p2.values.none? { |v| v },
        p2.inspect)
-    p3 = WR_AutoSet.wall_picks('07-interior', units, centre, eye)
+    p3 = WR_AutoSet.wall_picks('07-interior', units, centre, eye, bbox)
     ck('wp4', p3.values.none? { |v| v })
-    # CANNOT-TELL SHOWS THE WALL. Failing toward showing a wall costs a
-    # re-shot plate; failing toward hiding one costs a wrong image.
+    # CANNOT-TELL SHOWS THE WALL. A box the booth centre sits inside is not
+    # "between"; a degenerate cone reads nil.
     ck('wp5', p1['w:onit'] == false)
     ck('wp6', WR_AutoSet.cone_dot([10.0, 0.0, 0.0], centre, centre).nil?)
-    ck('wp7', WR_AutoSet.wall_picks('01-angled', [], centre, eye) == {})
-    # The vent plate looks from the other side, so the other walls go.
+    ck('wp7', WR_AutoSet.wall_picks('01-angled', [], centre, eye, bbox) == {})
+    # The vent plate looks from the other side, so the other wall goes.
     eye2 = [-97.8, 0.0, 20.8]
-    p4   = WR_AutoSet.wall_picks('05-ventilation', units, centre, eye2)
+    p4   = WR_AutoSet.wall_picks('05-ventilation', units, centre, eye2, bbox)
     ck('wp8', units.map { |u| u['key'] }.select { |k| p4[k] } == ['w:back'],
        units.map { |u| u['key'] }.select { |k| p4[k] }.inspect)
-    # The cone is 60 degrees off the eye direction, both ways.
-    ck('wp9', WR_AutoSet::COS_CONE == 0.5)
+    ck('wp9', WR_AutoSet::SIGHT_MIN == 1 && WR_AutoSet::WALL_PAD == 0.5)
+
+    # ---- THE FOUR SITUATIONS (1.60.1) -----------------------------------
+    # Benton: "If there is a wall between the booth and the camera, yeah it
+    # should hide that wall. But these views do not have a wall between the
+    # booth and the camera and they are still hiding." Booth as above; the
+    # front camera 260 in out on -Y at 72 in up. Walls of a LONG room, the
+    # shape the cone got wrong: their centres sit well along their length.
+    b_front = wall.call('w:F', 'Room Wall 1', [-150.0, -100.0, 0.0, 150.0, -96.0, 96.0])   # between
+    b_far   = wall.call('w:R', 'Room Wall 2', [-150.0, 96.0, 0.0, 150.0, 100.0, 96.0])     # beyond
+    b_left  = wall.call('w:L', 'Room Wall 3', [-150.0, -300.0, 0.0, -146.0, 100.0, 96.0])  # beside, long toward the camera
+    b_right = wall.call('w:S', 'Room Wall 4', [146.0, -100.0, 0.0, 150.0, 100.0, 96.0])    # beside
+    b_far2  = wall.call('w:R2', 'Room Wall 2b', [0.0, 96.0, 0.0, 600.0, 100.0, 96.0])       # beyond, centre off toward +X
+    e_front = [0.0, -260.0, 72.0]
+    e_diag  = [300.0, -260.0, 72.0]
+    e_corner = [250.0, -200.0, 72.0]
+    e_inside = [0.0, -80.0, 60.0]
+    four = [b_front, b_far, b_left, b_right]
+    pf = WR_AutoSet.wall_picks('02-front', four, centre, e_front, bbox)
+    # 1. WALL BETWEEN CAMERA AND BOOTH -> hidden (the 05-ventilation case).
+    ck('bt1', pf['w:F'] == true, pf.inspect)
+    # 2. WALL BEYOND THE BOOTH -> stays up (his front shot).
+    ck('bt2', pf['w:R'] == false, pf.inspect)
+    # 3. WALL BESIDE THE BOOTH, inside the old cone -> stays up (his side
+    # shot). The cone's own number is recorded so the regression is
+    # visible: the long side wall's centre is at (-148, -100), which from
+    # the booth reads 0.73 toward the camera -- the old rule hid it.
+    ck('bt3', pf['w:L'] == false && pf['w:S'] == false &&
+              WR_AutoSet.cone_dot(b_left['c'], centre, e_front) > 0.5,
+       "#{pf.inspect} cone #{WR_AutoSet.cone_dot(b_left['c'], centre, e_front)}")
+    # 2 again, hardest form: a far wall whose centre lies toward the
+    # camera's side reads 0.58 in the cone and is BEYOND the booth.
+    pd = WR_AutoSet.wall_picks('01-angled', [b_far2, b_front], centre, e_diag, bbox)
+    ck('bt4', pd['w:R2'] == false && pd['w:F'] == true &&
+              WR_AutoSet.cone_dot(b_far2['c'], centre, e_diag) > 0.5,
+       "#{pd.inspect} cone #{WR_AutoSet.cone_dot(b_far2['c'], centre, e_diag)}")
+    # 4. CAMERA OUTSIDE THE ROOM LOOKING IN through the near corner: both
+    # near walls are between (the corner Benton lowers by hand), the far
+    # two stay up. The right wall is crossed by corner sight lines only.
+    pc = WR_AutoSet.wall_picks('01-angled', four, centre, e_corner, bbox)
+    ck('bt5', pc['w:F'] == true && pc['w:S'] == true && pc['w:R'] == false && pc['w:L'] == false,
+       pc.inspect)
+    ck('bt6', WR_AutoSet.sight_lines_crossed(b_right['box'], e_corner, [centre]) == 0 &&
+              WR_AutoSet.sight_lines_crossed(b_right['box'], e_corner, WR_AutoSet.booth_targets(centre, bbox)) > 0,
+       'the side wall on the corner shot is caught by a corner sight line, not the centre one')
+    # CAMERA INSIDE THE ROOM: the wall behind the camera is not between.
+    pi = WR_AutoSet.wall_picks('02-front', four, centre, e_inside, bbox)
+    ck('bt7', pi.values.none? { |v| v }, pi.inspect)
+    # THE SEGMENT TEST ITSELF: entry at t = 0.61 (the padded near face); nil
+    # for a point inside the box; nil when the box is past the point.
+    t = WR_AutoSet.segment_box_t(e_front, centre, b_front['box'])
+    ck('bt8', !t.nil? && (t - 0.61).abs < 0.01 &&
+              WR_AutoSet.segment_box_t(e_front, [0.0, -98.0, 40.0], b_front['box']).nil? &&
+              WR_AutoSet.segment_box_t(e_front, centre, b_far['box']).nil? &&
+              WR_AutoSet.segment_box_t(e_front, centre, nil).nil?, t.inspect)
+    # A ZERO-THICK LIGHT-RIG FACE is a box too, by the pad.
+    face = wall.call('r:1', 'WR Lights Wall 1', [-150.0, -98.0, 0.0, 150.0, -98.0, 96.0])
+    ck('bt9', WR_AutoSet.wall_picks('02-front', [face], centre, e_front, bbox)['r:1'] == true)
+    # NINE TARGETS with a box, one without; a unit with no box is a 2 in cube.
+    ck('bt10', WR_AutoSet.booth_targets(centre, bbox).length == 9 &&
+               WR_AutoSet.booth_targets(centre, nil).length == 1 &&
+               WR_AutoSet.unit_box({ 'c' => [5.0, 5.0, 5.0] }) == [4.0, 4.0, 4.0, 6.0, 6.0, 6.0])
+    # wall_log carries the count and the total, and the words say why.
+    wlg = WR_AutoSet.wall_log('02-front', four, centre, e_front, bbox)
+    ck('bt11', wlg[0][2] == 9 && wlg[0][3] == true && wlg[0][4] == 9 && wlg[1][2] == 0 && wlg[1][3] == false,
+       wlg.inspect)
+    hl = WR_AutoSet.hides_line('Room Wall 1 (south)', 9, 1, 9)
+    ck('bt12', hl.include?('hides Room Wall 1 (south) -- it stands between the camera and the booth: 9 of 9 sight lines to the booth cross it') &&
+               hl.include?('+ 1 light-rig wall face bound to it'), hl)
+
     # THE SWING DOES NOT MOVE THE OCCLUDER (1.57.1). Benton: "the wall behind
     # the 3 vent sets would still be hidden". With the primary vent wall on
     # +Y and the REAL vent eye swung 25 deg either way, the room wall behind
     # +Y is in the cone (dot cos 25 = 0.91) and the two side walls (at 65
     # deg, dot 0.42) are not -- whichever hand the swing took.
-    vwalls = [{ 'key' => 'w:behind', 'c' => [0.0, 90.0, 60.0],  'label' => 'Room Wall 2' },
-              { 'key' => 'w:plus',   'c' => [-90.0, 0.0, 60.0], 'label' => 'Room Wall 3' },
-              { 'key' => 'w:minus',  'c' => [90.0, 0.0, 60.0],  'label' => 'Room Wall 4' },
-              { 'key' => 'w:far',    'c' => [0.0, -90.0, 60.0], 'label' => 'Room Wall 1' }]
+    vwalls = [wall.call('w:behind', 'Room Wall 2', [-150.0, 88.0, 0.0, 150.0, 92.0, 96.0]),
+              wall.call('w:plus',   'Room Wall 3', [-92.0, -150.0, 0.0, -88.0, 150.0, 96.0]),
+              wall.call('w:minus',  'Room Wall 4', [88.0, -150.0, 0.0, 92.0, 150.0, 96.0]),
+              wall.call('w:far',    'Room Wall 1', [-150.0, -92.0, 0.0, 150.0, -88.0, 96.0])]
     e_plus  = cam('05-ventilation', DOOR, VENT, false, HALF, nil, 1, 1).eye.to_a
     e_minus = cam('05-ventilation', DOOR, VENT, false, HALF, nil, 1, -1).eye.to_a
     wp_plus  = WR_AutoSet.wall_picks('05-ventilation', vwalls, CENTRE, e_plus)
@@ -1490,8 +1574,8 @@ module T
     ck('cm13', (vshot['az'] - (VENT + 25.0)).abs < 1.0e-6, vshot['az'].inspect)
     # A wall standing behind the booth on the vent side is hidden by the cone,
     # using the eye the REAL aim produced.
-    vwall = [{ 'key' => 'w:rear', 'c' => [0.0, 90.0, 60.0], 'label' => 'Room Wall 2' },
-             { 'key' => 'w:far',  'c' => [0.0, -90.0, 60.0], 'label' => 'Room Wall 1' }]
+    vwall = [{ 'key' => 'w:rear', 'c' => [0.0, 90.0, 48.0], 'box' => [-150.0, 88.0, 0.0, 150.0, 92.0, 96.0], 'label' => 'Room Wall 2' },
+             { 'key' => 'w:far',  'c' => [0.0, -90.0, 48.0], 'box' => [-150.0, -92.0, 0.0, 150.0, -88.0, 96.0], 'label' => 'Room Wall 1' }]
     vp = WR_AutoSet.wall_picks('05-ventilation', vwall, CENTRE, cam('05-ventilation').eye.to_a)
     ck('cm14', vp['w:rear'] == true && vp['w:far'] == false, vp.inspect)
 
@@ -1838,7 +1922,9 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'rg1 rg2 rg3 rg4 rg5 rg6 rg7 rg8 '
          'an1 an2 an2b an2c an3 an4 an5 an6 an7 an7b an8 an9 an10 an11 '
          'nv1 nv2 nv3 '
-         'wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 wp9 wp10 wp11 '
+         'wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 wp9 '
+         'bt1 bt2 bt3 bt4 bt5 bt6 bt7 bt8 bt9 bt10 bt11 bt12 '
+         'wp10 wp11 '
          'cm1 cm1b cm1c cm2 cm3 cm4 cm5 cm6 cm7 cm8 cm9 cm10 cm11 cm11b cm12 cm13 '
          'cm14 cm15 cm16 cm16b cm17 '
          'dr1 dr2 dr3 dr4 dr5 dr6 '
@@ -1863,7 +1949,13 @@ def main():
         'dict':            const_line('DICT'),
         'fallback_az':     const_line('FALLBACK_AZ'),
         'moved_tol':       const_line('MOVED_TOL'),
-        'cos_cone':        const_line('COS_CONE'),
+        'wall_pad':        const_line('WALL_PAD'),
+        'sight_min':       const_line('SIGHT_MIN'),
+        'booth_targets':   rbtest.method_source(SRC, 'booth_targets'),
+        'segment_box_t':   rbtest.method_source(SRC, 'segment_box_t'),
+        'sight_lines_crossed': rbtest.method_source(SRC, 'sight_lines_crossed'),
+        'unit_box':        rbtest.method_source(SRC, 'unit_box'),
+        'wall_log':        rbtest.method_source(SRC, 'wall_log'),
         'aspect_min':      const_line('ASPECT_MIN'),
         'window_re':       const_line('WINDOW_RE'),
         'side_plate':      const_line('SIDE_PLATE'),

@@ -1,6 +1,55 @@
 # DEVLOG
 
 ## 2026-09-11
+### AUTO-SET: a wall hides only when it stands between the camera and the booth - (VERSION bump held by the orchestrator)
+
+Benton, verbatim, with a front shot and a side shot both missing walls
+that were beside and beyond the booth: *"If there is a wall between the
+booth and the camera, yeah it should hide that wall. But these views do
+not have a wall between the booth and the camera and they are still
+hiding."*
+
+**What was wrong.** Since 1.48.0 the wall rule was angular: hide W when
+(centre(W) - C).(E - C) > cos 60 -- "the wall lies in the camera's
+direction from the booth". It read a wall by its CENTRE, and a long
+wall's centre sits well along its own length: a side wall running past
+the booth toward the camera reads 0.73 toward the camera, a far wall
+whose middle lies off to the camera's side reads 0.58 -- both inside the
+cone, neither in front of the booth. The 1.58.0 model-space centre made
+the number honest; it did not make the question right.
+
+**The test now, in one sentence** (`wr-autoset.rb`, above `WALL_PAD`): a
+wall is hidden when a straight line from the camera eye to any of nine
+points on the booth -- its centre and the eight corners of its box --
+passes through the wall's model-space box before it reaches that point.
+`segment_box_t` is the slab test on the wall's box (`:mbox`, carried out
+through the container transforms since 1.58.0, padded 0.5 in so a
+zero-thick light-rig face is a box too); a point that is itself inside a
+box is not "behind a wall". Nine lines, not one, so the two walls of the
+near corner on the three-quarter -- the ones Benton lowers by hand --
+still go while a wall beside the booth that no line crosses stays up.
+The four situations, pinned: between -> hidden; beyond -> up; beside,
+inside the old cone -> up; camera outside looking in -> the near walls
+go, the far ones stay. The plate log says why by name: `hides Room Wall
+1 -- it stands between the camera and the booth: 9 of 9 sight lines to
+the booth cross it`, and `walls: none hidden -- no wall stands between
+the camera and the booth` otherwise.
+
+**Unchanged and confirmed.** The ceiling rule (03-high, 06-plan);
+06-plan's walls; 07-interior; the light-rig binding, which keys off which
+units are hidden and inherits the corrected test -- a bound face is a
+piece of its wall, an open-run face is a unit with its own box.
+
+**Proof.** `rbparse.py`: 75 scripts + the harness parse.
+`rbtest-autoset.py` 266 -> 278, green: `bt1-bt12` (the situations, the
+segment test, the words), `wp1-wp9` rewritten against boxes; two mutants
+(back to the angular cone; the inside-the-box guard dropped) fail by
+name. `verify-autoset.rb` section 18 -- UNRUN -- on the moved room:
+`sight.*` (7 checks) prove the front, side, angled and vent pages each
+hide only the wall in the way and the log says why. Everything in `.rb`
+is unrun until Benton loads it. His two screenshots are in
+`.forge/fixer/wall-cone/`.
+
 ### AUTO-SET: the light rig's borrowed walls follow the real wall they stand in - (VERSION bump held by the orchestrator)
 
 Benton solved the back-wall mystery himself, verbatim: *"using 'drop in
