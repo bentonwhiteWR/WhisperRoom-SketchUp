@@ -16,6 +16,15 @@
 //   3. checks that the functions Ruby calls into (applyState, setDir,
 //      showPrompt, logLine, runStarted, runFinished) exist afterwards.
 // Exit 1 on any throw. Fake DOM only: layout and events are not exercised.
+//
+// 1.48.0 added a fourth job: the WALLS and ANNOTATIONS columns now render
+// PER-ROW STATE beside their buttons, because after AUTO-SET writes ten
+// scenes there has to be something on screen to review. Those cells are
+// checked against the drawn HTML. Mutation-checked when added, RUN:
+//   the ORANGE warn class dropped from annotsCell -> 'a shown loose callout
+//     is ORANGE' FAILS (the D5 signal would go quiet);
+//   the no-named-walls branch removed           -> that cell's check FAILS;
+//   id="gwrap" or id="autosum" renamed          -> the literal-id check FAILS.
 'use strict';
 const fs = require('fs');
 const vm = require('vm');
@@ -35,10 +44,24 @@ for (const m of doc.matchAll(/\sid=["']([A-Za-z0-9_-]+)["']/g)) ids.add(m[1]);
 const blocks = [...doc.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
 if (!blocks.length) { console.log('FAIL: no <script> blocks'); process.exit(1); }
 
-const ST = { rows: [ { n: 1, scene: 'Scene 1', mode: 'image',  file: '1_Scene 1.png' },
-                     { n: 2, scene: 'Scene 4', mode: 'render', file: '2_Scene 4 render.png' },
+// The per-row WALLS / ANNOTATIONS state the review columns render (1.48.0).
+// Four rows, four cases: a wall answer with the names behind the tooltip, the
+// ORANGE case (a loose Untagged callout still showing -- the D5 class of
+// defect), a row whose state was not read, and a model with no named walls.
+const ST = { deep: true,
+             rows: [ { n: 1, scene: 'Scene 1', mode: 'image',  file: '1_Scene 1.png',
+                       walls: { total: 4, hidden: 2, names: ['Room Wall 1', 'Room Wall 3'] },
+                       annots: { label: 'dims + doors', warn: false, loose: 0,
+                                 tip: 'Shown: WR-Dims, WR-Dims-Doors' } },
+                     { n: 2, scene: 'Scene 4', mode: 'render', file: '2_Scene 4 render.png',
+                       walls: { total: 4, hidden: 0, names: [] },
+                       annots: { label: 'all hidden + 1 loose', warn: true, loose: 1,
+                                 tip: 'No annotation set is shown - 1 LOOSE/Untagged callout still SHOWN' } },
                      { n: 3, scene: 'Scene 2', mode: 'skip',   file: '' },
-                     { n: 4, scene: 'Scene 3', mode: 'image',  file: '4_Scene 3.png' } ],
+                     { n: 4, scene: 'Scene 3', mode: 'image',  file: '4_Scene 3.png',
+                       walls: { total: 0, hidden: 0, names: [] },
+                       annots: { label: 'unreadable', warn: true, loose: null,
+                                 tip: "This scene's tag state could not be read." } } ],
              // Benton's 10 Sep 2026 template: the floor slot pinned to a
              // material the model no longer has, and 0128_White never in it.
              slots: [ { slot: 'WR-Floor-Render', draft: '[Color M00]', house: '0128_White',
@@ -138,6 +161,34 @@ for (const fname of ['NewTemplate', '']) {          // saved-looking and unsaved
       if (re.test(mat)) console.log('ok   matbody: ' + label);
       else { failed++; console.log('FAIL matbody: ' + label + '\n     html: ' + mat.slice(0, 1200)); }
     }
+    // THE REVIEW COLUMNS (1.48.0). AUTO-SET writes ten scenes' worth of walls
+    // and annotation answers, and "just have you review it before you export"
+    // needs something on screen to read. Two stateless buttons is what this
+    // replaced, so the check is that each of the four cases actually renders --
+    // and above all that the ORANGE class reaches the DOM for the one signal a
+    // reviewer must not miss: a loose Untagged callout still showing on a plate.
+    const body = (made['body'] || {}).innerHTML || '';
+    const wantRows = [
+      ['walls cell: a hidden count, with the wall names in the tooltip',
+       /title='Hidden here: Room Wall 1, Room Wall 3'>2 hidden<\/span>/],
+      ['walls cell: all shown', /all shown<\/span>/],
+      ['walls cell: a model with no named walls says so', /no walls<\/span>/],
+      ['walls cell: a row whose state was not read shows an em dash',
+       /class='cst dim' title='Not read for this scene[\s\S]*?&mdash;<\/span>/],
+      ['annots cell: dims + doors',
+       /class='cst' title='Shown: WR-Dims, WR-Dims-Doors'>dims \+ doors<\/span>/],
+      ['annots cell: a shown loose callout is ORANGE',
+       /class='cst warn'[^>]*>all hidden \+ 1 loose<\/span>/],
+      ['annots cell: an unreadable scene says unreadable, never clean',
+       /class='cst warn'[^>]*>unreadable<\/span>/]
+    ];
+    for (const [label, re] of wantRows) {
+      if (re.test(body)) console.log('ok   ' + label);
+      else { failed++; console.log('FAIL ' + label + ' -- html: ' + body.slice(0, 2000)); }
+    }
+    const asum = (made['autosum'] || {}).textContent || '';
+    if (/own saved state/.test(asum)) console.log('ok   AUTO-SET bar says how the review columns were read');
+    else { failed++; console.log('FAIL AUTO-SET bar summary: ' + JSON.stringify(asum)); }
   } catch (e) {
     failed++;
     console.log('FAIL (fname=' + JSON.stringify(fname) + '): ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e));

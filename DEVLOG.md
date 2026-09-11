@@ -1,6 +1,161 @@
 # DEVLOG
 
 ## 2026-09-10
+### AUTO-SET: pick a booth, click once, get its whole proposal scene set — 1.48.0
+
+Benton: *"I'd like to find a way to 'auto set' the entire proposal package…
+select the whisperroom, then it would make scenes and label them accordingly.
+This way it can be clicked a 2nd time on a 2nd booth… Almost do all of the
+work, and just have you review it before you export."* Spec and approval:
+`.forge/scoper/proposal-autoset.md`, artifact approved 10 Sep 2026.
+
+**UNRUN IN SKETCHUP.** rbparse 75/75; new `rbtest-autoset.py` 63 checks +
+the allowlist source check; `rbtest-proposal.py` and every other offline
+harness unchanged and still passing; `jstest-proposal-dialog.js` PASS (80
+literal ids, plus 8 new review-column checks); nine Ruby mutants and four
+JS mutants killed **by the named check**, run not assumed. The live half is
+`.forge/builder/verify-autoset.rb` — paste it into the Ruby Console of an
+**Untitled** model; it builds its own room, two booths, four annotation
+sets, two loose Untagged callouts and a hand-made scene, prints one
+PASS/FAIL per check, and erases everything it made in `ensure`. **Until
+that is run, nothing about page creation, the stamp surviving a re-run, the
+scenes' saved hidden state or the undo step has been observed.**
+
+**What it is.** `scripts/wr-autoset.rb`, a new `WR_AutoSet` module — a
+library in `wr_tools`' SKIP list, like `wr-scene-sun.rb`, driven from a new
+**AUTO-SET** bar and popover in the proposal-package window rather than a
+button of its own. The thing being pre-filled *is* that grid; a tool filling
+a grid in another window would make him alt-tab to check its work, which is
+the review step he asked for. Resolve a booth (viewport selection wins, a
+dropdown of every top-level container is the fallback so a hand-drawn model
+never dead-ends), and it creates five scenes named `MDL 96120 E 01-exterior`
+…, marks 2 render / 3 image, and writes each scene's WALLS and ANNOTATIONS
+answer through the existing pickers. Then it stops.
+
+**Plate 3 is now a FRONT elevation, and that corrects a long-standing
+mismatch.** `proposal-scenes.rb` has been making `03-side`, a SIDE elevation
+at az +90, since the plates were frozen. Both real proposal packs on disk
+want a *front* elevation with the door open — `example-client`'s
+`proposal-v2.json` ("Front Elevation", stem `front`) and `peoplesspace`'s
+two front renders (`07-front-render-left-door`, `09-front-render-right-door`).
+Nothing in the repo asks for a side elevation. So the frozen side elevation
+reads as a defect rather than a preference; AUTO-SET aims plate 3 straight
+at the door side. `proposal-scenes.rb` itself is unchanged in behaviour and
+still makes `03-side` — its report now says so, and points at AUTO-SET.
+
+**Renders are a knob, not a constant.** `RENDERS_PER_BOOTH` defaults to 2
+(Benton's answer to Q1), 0–6 from the popover, assigned down a fixed ladder:
+exterior → front → ventilation → interior → dimensioned → plan. The
+dimensioned plate and the plan are last on purpose — a plate whose job is to
+carry a dimension string does not need photoreal materials, and the render
+lane is the expensive one.
+
+**THE ANNOTATION RULE IS AN ALLOWLIST, and that is the highest-risk thing in
+this release.** Client-safe mode went at 1.47.0, so the per-scene ANNOTATIONS
+picker is now the *only* authority on what a customer image shows. A plate
+SHOWS ONLY the sets it names (`SHOWN_BY_PLATE`); every other family tag and
+**every loose Untagged callout** is hidden. It has to be an allowlist because
+SketchUp refuses to hide the Untagged tag, hand-placed text lands there, and
+the content of that text is unknown to any tool — a denylist can only hide
+what it has heard of. `NEVER_SHOWN` (`WR-Notes`, `WR-Dims-Booth`,
+`WR-Dims-Selection`) is a second gate whose job is to survive a future edit to
+the allowlist; `WR-Notes` is the literal D5 banner. `02-dimensioned` shows
+exactly `SHOWN_ON_DIMENSIONED`, read from `proposal-scenes.rb` rather than
+re-litigated. `WR-Notes-Vent` / `WR-Notes-Plan` are opt-in by existence, so a
+shop that has never made those sets gets a clean plate rather than an error.
+
+**Walls are computed from the camera, not a frozen table.** Which wall blocks
+a shot depends on where the booth sits in the room, and `wr-scene-walls.rb`'s
+`:side` is a *hint* relative to the wall's own room and says so. So: hide wall
+W when `(centre(W)−C)·(E−C) > cos 60°` — the walls standing between the camera
+and the booth, which is what Benton does by hand with `wr-lower-walls.rb`. The
+picks hash names **every** wall unit, true or false, never a partial hash, or a
+wall hidden on the previous plate rides along into this one. `05-plan` and
+`06-interior` hide nothing and the log says why. Objects — the booths, the
+furniture — are never auto-hidden. Every hidden wall is logged with its dot
+product, so a wrong call is readable rather than mysterious.
+
+**Idempotency rests entirely on the stamp.** A `WR_AutoSet` attribute dict on
+the booth Group (`token`, `label`) and on each Page (`token`, `plate`,
+`version`, `centre`). **The containment rule: AUTO-SET reads, writes and
+erases only pages carrying a stamp with the token it is working on. A page
+with no stamp is never touched, under any path, Remove included.** Matching is
+by stamp and never by name, so a scene renamed by hand is updated in place
+rather than renamed back — `rbtest-autoset.py`'s `sm2`/`sm3` are exactly that
+case, and the name-matching mutant fails both by name. Two booths sharing a
+name get `-2` on the token and ` (2)` on the label — two stored keys, not one
+parsed string, so a booth genuinely called `Rack-2` is not mistaken for the
+second `Rack`. **Cameras are not re-aimed on a re-run** unless the box is
+ticked (pre-ticked, with the distance in orange, when the booth has moved more
+than 1"): walls and annotations are policy and this tool is the policy
+authority; the camera is taste and it is not.
+
+**The review surface shipped as part of this, not as polish.** The WALLS and
+ANNOTATIONS columns rendered two stateless buttons, so after AUTO-SET wrote
+ten scenes there was nothing on screen to review — which defeats the whole
+ask. They now carry per-row state, computed from **each page's own saved
+state** and never from what AUTO-SET intended to write, because the column has
+to be able to disagree with the tool. `all shown` / `2 hidden` (names in the
+tooltip) / `no walls`; `all hidden` / `dims + doors` / `3 shown`, and **orange
+when a loose/Untagged callout is still showing** — the one signal a reviewer
+must not miss.
+
+**The cost the spec flagged as unmeasured is now measured, on the machine it
+runs on.** The truthful read needs one page selection per scene, so it is
+split: the tag half comes free off `Page#layers`, and the deep half (wall units
+and loose callouts) is timed. Over `DEEP_BUDGET` (2.5 s) it switches itself off
+for the session, the columns fall back to tag-only and *say so* in the AUTO-SET
+bar, and the log carries the number. It is cached — a full read on every
+Skip/Image/Render click would be intolerable — and invalidated by Rescan, an
+auto-set, any walls/annotations apply and UNDO LAST APPLY. **Tradeoff stated:
+a walls/annotations apply pays a full re-read rather than leaving a cell that
+could be stale, because a column telling him a plate is clean just after he
+made it dirty is worse than a column that costs something.** I have no number
+for it — `verify-autoset.rb` prints one.
+
+**Undo.** `page.update` is outside SketchUp's undo stack, so AUTO-SET records
+its own step: the pages it created (to erase) plus each updated page's prior
+walls and annotations snapshot, through both modules' existing
+`snapshot_keys` / `write_snapshot` seams. `WR_AutoSet` joined `undo_mod`'s
+list, so **UNDO LAST APPLY** reads *"Undo AUTO-SET — MDL 96120 E"*. One step,
+this session, this model, used up when taken — the same contract as the
+others, no new promise. It does **not** reverse the Skip/Image/Render marks;
+the message says so.
+
+**Written through `write_scene`, not `apply`.** Spec §3.1 said "through
+`WR_SceneAnnotations.apply`"; that was wrong in detail and right in intent.
+`apply` opens its own `start_operation` per page, and `apply_all` writes the
+*same* picks into every scene — which is the one thing these picks must not
+be. `write_scene` is documented as having no transaction of its own precisely
+so a caller can own the operation, so the whole run is one `start_operation`
+with each page selected before it is written.
+
+**Gotchas found on the way.**
+- `Sketchup::Page#update` with the walls' mask saves hidden state only, so a
+  re-aim needs its own `page.update(PAGE_USE_CAMERA)` or the scene puts the old
+  camera straight back on the next click. Fixed; **unverified until live.**
+- Reading the door tag through a global `WR_ProposalScenes.heading_to` would
+  average *both* booths' door tags in a two-booth model. `WR_AutoSet.tag_az`
+  walks the booth's own entities, works in the booth's local space and rotates
+  the result into model space as a **vector** (`Vector3d#transform` ignores
+  translation). Caveat stated in the code: containers nested below the booth
+  are assumed to carry identity transforms — the same assumption
+  `wr-scene-walls.rb#side_of` already documents.
+- A missing `WR-Booth-Door` falls back to −90° and produces a hero shot of the
+  back of the booth. `proposal-scenes.rb` only ever said so *afterwards*, in
+  the console; the popover now says it **in orange before Apply**.
+
+**Panel/house rules.** VERSION 1.47.0 → 1.48.0 (minor: a feature).
+`wr-autoset.rb` is a **library**, so per `wr_tools/main.rb` it goes in `SKIP`
+and gets **no** `@title`/`@cat`/`@rank` header and no `icon-map.json` entry —
+the `wr-scene-sun.rb` convention, not the tool convention. `main.rb` changed,
+so this one needs `git pull` + `install-plugin.py` + restart on Gabe's machine,
+not just a pull.
+
+**Still not done / out of scope.** Sun presets (Q4 default: no). Hiding the
+other booth on each booth's plates (Q5 default: no). Writing `proposal-v2.json`
+from the model. Renaming a scene set. And the whole live half above.
+
 ### Client-safe annotation mode removed — per scene is the only behaviour — 1.47.0
 
 Benton: *"Hey the annotation by default should be set to PER SCENE. Not

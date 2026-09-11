@@ -115,6 +115,12 @@ begin
   # save, a library in wr_tools' SKIP list.
   load File.join(File.dirname(__FILE__), 'wr-sun-aim.rb')
   load File.join(File.dirname(__FILE__), 'wr-scene-sun.rb')
+  # AUTO-SET (1.48.0): pick a booth, get a named, marked, walls-and-
+  # annotations-preset scene set for it. A library in wr_tools' SKIP list; it
+  # DRIVES the two pickers above rather than replacing either, so there is one
+  # mechanism per question and not two that can disagree. It loads
+  # proposal-scenes.rb itself, for the tag family and the camera maths.
+  load File.join(File.dirname(__FILE__), 'wr-autoset.rb')
   # The sRGB post-encode for the render lane (the dark-file fix — see the
   # THE DARK RENDERS section above save_frame). Pure Ruby, no tool of its own.
   load File.join(File.dirname(__FILE__), 'wr-png-srgb.rb')
@@ -977,11 +983,79 @@ module WR_ProposalPackage
     end
   end
 
+  # ---- PER-ROW WALLS / ANNOTATIONS STATE (1.48.0) -------------------------
+  #
+  # WHY THIS IS CACHED AND NOT COMPUTED IN state(). The WALLS and ANNOTATIONS
+  # columns used to render two stateless buttons, so after AUTO-SET wrote ten
+  # scenes there was nothing on screen to review — and "review it before you
+  # export" is the whole ask. Reading the TRUE per-row answer means selecting
+  # each page in turn (the per-entity hidden state lives in the page's own
+  # snapshot and there is no other way at it), and state() is pushed after
+  # EVERY mark click. Selecting thirteen pages on every Skip/Image/Render
+  # press would be intolerable, so the read happens once and is reused until
+  # something invalidates it: Rescan, an auto-set, any walls/annotations
+  # apply, or UNDO LAST APPLY.
+  #
+  # WR_AutoSet.row_states times its own deep pass and switches it off for the
+  # session if it blows the budget, so a slow model degrades to the shallow
+  # tag-only read and SAYS so, rather than being quietly sluggish.
+  def self.row_states(model)
+    @rows_cache ||= WR_AutoSet.row_states(model)
+  rescue StandardError => e
+    puts "  could not read per-row walls/annotations state: #{e.class}: #{e.message}"
+    {}
+  end
+
+  def self.invalidate_rows!
+    @rows_cache = nil
+  end
+
+  # Something just changed what a scene hides, so the review columns are
+  # stale. Re-read and redraw.
+  #
+  # THE TRADEOFF, STATED. This pays a full deep read (one page selection per
+  # scene) after every walls/annotations apply, not just on Rescan. A column
+  # that can be stale is worse than a column that costs something: it would
+  # tell Benton a plate is clean after he has just made it dirty, which is the
+  # exact failure the columns exist to prevent. Applies are deliberate and
+  # occasional; mark clicks are not, and those still read the cache. The read
+  # times itself and switches its deep half off if it blows the budget.
+  def self.rows_changed(model, dlg)
+    invalidate_rows!
+    push_state(model, dlg)
+    log_row_cost(dlg, @rows_cache)
+  rescue StandardError => e
+    puts "  could not refresh the review columns: #{e.class}: #{e.message}"
+  end
+
+  # One log line, once per read, naming the measured cost — so the Rescan
+  # price of the review columns is a number on Benton's machine instead of an
+  # assumption in a spec.
+  def self.log_row_cost(dlg, st)
+    return unless st && st['_deep']
+    msg = format('per-row WALLS/ANNOTATIONS state read for %d scene(s) in %.2f s',
+                 st['_n'].to_i, st['_ms'].to_f)
+    if st['_slow']
+      log(dlg, msg + " — over #{WR_AutoSet::DEEP_BUDGET} s, so the deep read is OFF " \
+                     'for this session: the columns now show tag state only. Hit ' \
+                     'Rescan to try again.', 'bad')
+    else
+      log(dlg, msg, 'dim')
+    end
+  end
+
   def self.state(model)
     rows  = gather(model)
     files = plan_names(rows)
-    rows.each { |r| r['file'] = files[r['n']].to_s }
+    rs    = row_states(model)
+    rows.each do |r|
+      r['file'] = files[r['n']].to_s
+      cell = rs[r['n']] || {}
+      r['walls']  = cell['walls']
+      r['annots'] = cell['annots']
+    end
     { 'rows'      => rows,
+      'deep'      => rs['_deep'] ? true : false,
       'slots'     => slot_rows(model),
       # Which way the model is showing RIGHT NOW, so the materials section can
       # offer the same flip the Toggle Draft/Render button does — you set the
@@ -1006,7 +1080,7 @@ module WR_ProposalPackage
   # so it survives closing a popover and closing this window; it does not
   # survive SketchUp closing, and it is refused on another model.
   def self.undo_mod(model)
-    [WR_SceneWalls, WR_SceneAnnotations, WR_SceneSun].select do |m|
+    [WR_SceneWalls, WR_SceneAnnotations, WR_SceneSun, WR_AutoSet].select do |m|
       m.respond_to?(:undo_summary) && m.undo_summary(model)
     end.max_by { |m| m.last_write[:at] }
   rescue StandardError
@@ -3540,6 +3614,31 @@ module WR_ProposalPackage
       'warn' => WR_SceneWalls.pages_not_saving_hidden(model).include?(pg.name.to_s) }
   end
 
+  # Everything the AUTO-SET popover needs, in one place, so the two callbacks
+  # that draw it (open, and the booth dropdown) cannot send two slightly
+  # different shapes — the walls_payload rule.
+  #
+  # A refusal is a PAYLOAD, not an exception: the card still draws, still
+  # lists every top-level container, and says by name what it could not
+  # resolve. "Select a booth" with no list is a dead end for a hand-drawn
+  # model, which is exactly the case that must not dead-end.
+  def self.autoset_payload(model, want)
+    booth, note = WR_AutoSet.resolve_booth(model, want)
+    { 'choices' => WR_AutoSet.booth_choices(model),
+      'note'    => note,
+      'max'     => WR_AutoSet::MAX_RENDERS,
+      'opts'    => { 'renders' => WR_AutoSet::DEFAULT_RENDERS, 'interior' => false },
+      'plan'    => booth ? WR_AutoSet.plan(model, booth, {}) : nil }
+  end
+
+  def self.autoset_push(model, dlg, want)
+    dlg.execute_script('autosetShow(' + autoset_payload(model, want).to_json + ')')
+  rescue StandardError => e
+    dlg.execute_script('autosetFail(' + "#{e.class}: #{e.message}".to_json + ')')
+    puts "  auto-set could not read the model: #{e.class}: #{e.message}"
+    puts e.backtrace.first(6).map { |l| "    #{l}" }.join("\n") if e.backtrace
+  end
+
   # The pages an APPLY TO ALL request names, resolved by table index the way
   # every other callback here does it. A scene deleted since the table was
   # drawn is simply absent; none left is a refusal that points at Rescan.
@@ -3898,7 +3997,13 @@ module WR_ProposalPackage
       rescue StandardError => e
         puts "  rescan failed: #{e.class}: #{e.message}"
       end
+      # The review columns are re-read here and NOWHERE else in the normal
+      # flow -- see row_states. Rescan is the button whose whole job is "go
+      # look at the model again", so it is the right and only place to pay
+      # for it, and log_row_cost puts the price on screen.
+      invalidate_rows!
       push_state(model, d)
+      log_row_cost(d, @rows_cache)
     end
 
     # One drag = one operation; its reverse is dragging back, NOT Ctrl+Z
@@ -3935,7 +4040,9 @@ module WR_ProposalPackage
         log(d, "put back failed: #{e.class}: #{e.message}", 'bad')
         puts "  put back failed: #{e.class}: #{e.message}"
       end
+      invalidate_rows!          # what a scene hides has just changed
       push_undo(model, d)
+      push_state(model, d)
     end
 
     d.add_action_callback('activate') do |_c, n|
@@ -4109,6 +4216,7 @@ module WR_ProposalPackage
         # off first or its ticks would be snapshotted into the page.
         preview_end(model)
         ok, msg = WR_SceneWalls.apply_selection(model, req['hide'] ? true : false)
+        rows_changed(model, d)
         # Redraw first, so a row the operator just hid comes back ticked,
         # then put the outcome in the message strip the redraw cleared.
         payload = walls_payload(model, req['n'], pg)
@@ -4144,6 +4252,7 @@ module WR_ProposalPackage
         preview_end(model)                # restore-THEN-apply, see preview_*
         ok, msg = WR_SceneWalls.apply(model, picks)
         d.execute_script('wallsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        rows_changed(model, d)
         push_undo(model, d)
         log(d, msg, ok ? 'dim' : 'bad')
       rescue StandardError => e
@@ -4170,6 +4279,7 @@ module WR_ProposalPackage
         if WR_SceneWalls.confirm_all?(pages, 'wall')
           ok, msg, det = WR_SceneWalls.apply_all(model, picks, pages)
           log_sweep(d, ok, msg, det)
+          rows_changed(model, d)
         else
           ok, msg = false, 'Not applied — nothing was changed.'
         end
@@ -4266,6 +4376,7 @@ module WR_ProposalPackage
         preview_end(model)                # restore-THEN-apply, see preview_*
         ok, msg = WR_SceneAnnotations.apply(model, picks)
         d.execute_script('annotsDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        rows_changed(model, d)
         push_undo(model, d)
         log(d, msg, ok ? 'dim' : 'bad')
       rescue StandardError => e
@@ -4286,6 +4397,7 @@ module WR_ProposalPackage
         if WR_SceneAnnotations.confirm_all?(pages, 'annotation')
           ok, msg, det = WR_SceneAnnotations.apply_all(model, picks, pages)
           log_sweep(d, ok, msg, det)
+          rows_changed(model, d)
         else
           ok, msg = false, 'Not applied — nothing was changed.'
         end
@@ -4350,6 +4462,63 @@ module WR_ProposalPackage
       ensure
         @walls_return = nil
       end
+    end
+
+    # ---- AUTO-SET, in this window (1.48.0) ---------------------------------
+    #
+    # Pick a booth, click once, get its whole scene set. The popover lives HERE
+    # and not in a window of its own because the thing being pre-filled IS this
+    # grid: a tool that fills a grid somewhere else makes him alt-tab to check
+    # its work, which is the review step he asked for.
+    #
+    # OPEN NEVER WRITES. It resolves the booth (viewport selection wins, the
+    # dropdown is the fallback) and computes the PLAN -- what Apply would do --
+    # so the door tag, the booth size and the renamed scenes are all on screen
+    # BEFORE anything is written. A missing WR-Booth-Door is said in orange
+    # here rather than in the console afterwards, because that is the one that
+    # produces a hero shot of the back of the booth.
+    d.add_action_callback('autosetopen') do |_c, _p|
+      next if busy?(d, 'autosetopen')
+      autoset_push(model, d, nil)
+    end
+
+    # The dropdown changed: re-resolve against that name and redraw the plan.
+    d.add_action_callback('autosetpick') do |_c, nm|
+      next if busy?(d, 'autosetpick')
+      autoset_push(model, d, nm.to_s)
+    end
+
+    d.add_action_callback('autosetapply') do |_c, payload|
+      next if busy?(d, 'autosetapply')
+      begin
+        req = JSON.parse(payload.to_s)
+        booth, note = WR_AutoSet.resolve_booth(model, req['booth'].to_s)
+        raise(note || 'No booth resolved — pick one from the list.') if booth.nil?
+        preview_end(model)            # a popover preview would be snapshotted in
+        opts = { 'mode'     => req['mode'].to_s,
+                 'renders'  => req['renders'].to_i,
+                 'interior' => req['interior'] ? true : false,
+                 'reaim'    => req['reaim'] ? true : false }
+        ok, msg, lines = WR_AutoSet.apply(model, booth, opts)
+        d.execute_script('autosetDone(' + { 'ok' => ok, 'msg' => msg }.to_json + ')')
+        log(d, msg, ok ? 'dim' : 'bad')
+        (lines || []).each { |l| log(d, "  #{l}", 'dim') }
+        # The grid IS the review, so it is redrawn from the model immediately —
+        # marks, filenames, and both review columns.
+        rows_changed(model, d)
+        push_undo(model, d)
+      rescue StandardError => e
+        d.execute_script('autosetFail(' + "#{e.class}: #{e.message}".to_json + ')')
+        puts "  auto-set failed: #{e.class}: #{e.message}"
+        puts e.backtrace.first(6).map { |l| "    #{l}" }.join("
+") if e.backtrace
+      end
+    end
+
+    # Nothing to put back: OPEN does not select a scene or touch the model, so
+    # closing has nothing to undo. It exists so the JS has one way out.
+    d.add_action_callback('autosetclose') do |_c, _p|
+      nil
     end
 
     d.add_action_callback('browse') do |_c, cur|
@@ -4530,6 +4699,45 @@ module WR_ProposalPackage
     border-radius:3px; background:var(--surface); color:var(--muted); cursor:pointer;
     white-space:nowrap; }
   .wbtn:hover { border-color:var(--accent); color:var(--accent); }
+  /* PER-ROW STATE in the WALLS and ANNOTATIONS cells (1.48.0). Quiet by
+     default -- it is a list to read, not a set of controls -- and ORANGE only
+     for the one signal a reviewer must not miss: a loose/Untagged callout
+     still showing on a plate. No new colour; var(--accent) is the same one the
+     render mark and every hover already use. */
+  .cst { color:var(--muted); font-size:11px; margin-left:6px; white-space:nowrap; }
+  .cst.dim { color:var(--faint); }
+  .cst.warn { color:var(--accent); font-weight:650; }
+  /* AUTO-SET popover (1.48.0): the annotations card's shape, one id over. */
+  #gwrap { display:none; position:fixed; inset:0; background:rgba(20,24,28,.44);
+    align-items:center; justify-content:center; z-index:50; }
+  #gcard { background:var(--surface); border:1px solid var(--line); border-radius:6px;
+    width:min(580px,94vw); max-height:86vh; display:flex; flex-direction:column;
+    box-shadow:0 10px 34px rgba(0,0,0,.28); }
+  #gtitle { font-weight:650; padding:12px 14px 8px; font-size:13px; }
+  #gbody { overflow:auto; padding:0 14px 6px; flex:1 1 auto; font-size:12px; }
+  #gbody .grow2 { display:flex; gap:8px; align-items:baseline; padding:4px 0;
+    border-top:1px solid var(--line); }
+  #gbody .grow2:first-child { border-top:0; }
+  #gbody .glab { color:var(--muted); font-size:11px; text-transform:uppercase;
+    letter-spacing:.04em; flex:0 0 118px; }
+  #gbody .gval b { font-weight:650; }
+  #gbody .gwarn { color:var(--accent); font-weight:650; }
+  #gbody .gctl { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:6px 0 2px; }
+  #gbody .gctl input[type=number] { width:52px; font:inherit; padding:2px 4px;
+    border:1px solid var(--line); border-radius:3px; }
+  #gbody select { font:inherit; font-size:12px; padding:3px 6px; border:1px solid var(--line);
+    border-radius:4px; background:#fff; color:var(--ink); max-width:300px; }
+  #gbody table.gp { width:100%; border-collapse:collapse; margin-top:4px; }
+  #gbody table.gp td { padding:2px 4px; border-top:1px solid var(--line); font-size:11.5px; }
+  #gbody table.gp td.m { width:1%; white-space:nowrap; font-weight:650; }
+  #gbody table.gp td.m.render { color:var(--accent); }
+  #gbody table.gp td.m.image { color:#2b5e8f; }
+  #gbody .gnote { font-size:11px; color:var(--muted); line-height:1.45; padding:6px 0 2px; }
+  #gfoot { display:flex; gap:8px; padding:10px 14px 12px; border-top:1px solid var(--line); }
+  #gfoot button { font:inherit; font-size:12px; padding:5px 13px; border:1px solid var(--line);
+    border-radius:3px; background:var(--surface); cursor:pointer; }
+  #gfoot button.prim { background:var(--accent); border-color:var(--accent); color:#fff; }
+  #gfoot button:disabled { color:var(--faint); cursor:default; }
   #wwrap { display:none; position:fixed; inset:0; background:rgba(20,24,28,.44);
     align-items:center; justify-content:center; z-index:50; }
   #wcard { background:var(--surface); border:1px solid var(--line); border-radius:6px;
@@ -4712,6 +4920,13 @@ module WR_ProposalPackage
 </div>
 
 <div class="bulk">
+  <span class="lbl">AUTO-SET</span>
+  <button class="btn" id="autoset"
+          title="Pick a booth and get its whole scene set in one click: named after the booth, marked Skip/Image/Render, with the WALLS and ANNOTATIONS answer written into every plate. Click it again on a second booth — the two sets cannot collide. Then review the grid.">Set up a booth&hellip;</button>
+  <span class="lbl" style="margin-left:auto;font-weight:400;letter-spacing:0" id="autosum"></span>
+</div>
+
+<div class="bulk">
   <span class="lbl">SHOWN &rarr;</span>
   <button class="btn" data-bulk="render">Render</button>
   <button class="btn" data-bulk="image">Image</button>
@@ -4869,6 +5084,19 @@ module WR_ProposalPackage
     </div>
   </div>
 </div>
+<div id="gwrap">
+  <div id="gcard">
+    <div id="gtitle"></div>
+    <div id="gbody"></div>
+    <div id="gmsg" class="wmsg"></div>
+    <div id="gfoot">
+      <button id="gremove" title="Erase the scenes AUTO-SET made for this booth. Only scenes carrying this booth's AUTO-SET stamp are touched — a scene you made by hand is never erased from here.">REMOVE THIS BOOTH&#39;S SCENES</button>
+      <span class="wgap"></span>
+      <button id="gapply" class="prim">APPLY</button>
+      <button id="gcancel">CANCEL</button>
+    </div>
+  </div>
+</div>
 <div id="swrap">
   <div id="scard">
     <div id="stitle"></div>
@@ -4914,7 +5142,9 @@ window.onerror = function (msg, src, line) {
       $amsg=g("amsg"), $aapply=g("aapply"), $aapplyall=g("aapplyall"), $acancel=g("acancel"),
       $apick=g("apick"),
       $swrap=g("swrap"), $stitle=g("stitle"), $sbody=g("sbody"), $smsg=g("smsg"),
-      $saim=g("saim"), $sapplyall=g("sapplyall"), $scancel=g("scancel"), $sfix=g("sfix");
+      $saim=g("saim"), $sapplyall=g("sapplyall"), $scancel=g("scancel"), $sfix=g("sfix"),
+      $gwrap=g("gwrap"), $gtitle=g("gtitle"), $gbody=g("gbody"), $gmsg=g("gmsg"),
+      $gapply=g("gapply"), $gremove=g("gremove"), $gcancel=g("gcancel");
 
   function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;")
     .replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")
@@ -4956,6 +5186,33 @@ window.onerror = function (msg, src, line) {
   function segBtn(r,m,label){
     return "<button data-n='"+r.n+"' data-mode='"+m+"' class='"+(r.mode===m?("on-"+m):"")+"'>"+label+"</button>";
   }
+  // ---- the review columns (1.48.0) ----
+  // AUTO-SET writes ten scenes' worth of walls and annotation answers, and a
+  // review needs something on screen to read. These two cells are computed in
+  // Ruby from each PAGE'S OWN SAVED STATE, never from what auto-set intended
+  // to write -- the column must be able to DISAGREE with auto-set, because
+  // that is what makes it a review rather than an echo.
+  function wallsCell(r){
+    var w = r.walls;
+    if(!w) return "<span class='cst dim' title='Not read for this scene -- hit "
+      + "Rescan. (Reading it means selecting the scene, so it is done once per "
+      + "Rescan, not on every click.)'>&mdash;</span>";
+    if(!w.total) return "<span class='cst dim' title='This model has no named "
+      + "walls. Run Name walls for the scene picker if the room was drawn by "
+      + "hand.'>no walls</span>";
+    if(!w.hidden) return "<span class='cst' title='Every named wall is shown on "
+      + "this scene'>all shown</span>";
+    return "<span class='cst' title='Hidden here: "+esc(w.names.join(", "))
+      + (w.hidden > w.names.length ? ", and more" : "") + "'>"+w.hidden+" hidden</span>";
+  }
+  // ORANGE MEANS A LOOSE / UNTAGGED CALLOUT IS STILL SHOWN. That is the D5
+  // class of defect -- the one thing a reviewer must not miss -- and since
+  // client-safe mode was removed at 1.47.0 there is no second net behind it.
+  function annotsCell(r){
+    var a = r.annots;
+    if(!a) return "<span class='cst dim' title='Not read for this scene -- hit Rescan'>&mdash;</span>";
+    return "<span class='cst"+(a.warn?" warn":"")+"' title='"+esc(a.tip)+"'>"+esc(a.label)+"</span>";
+  }
   function draw(){
     var q=$q.value.trim(), nums=parseNums(q), ts=terms(q);
     view = ST.rows.filter(function(r){
@@ -4984,8 +5241,8 @@ window.onerror = function (msg, src, line) {
           segBtn(r,"skip","Skip")+segBtn(r,"image","Image")+segBtn(r,"render","Render")+
         "</span></td>"+
         "<td><button class='wbtn' data-sun='"+r.n+"' title='Where the sun is for this scene — aim it, save it, or put it on every scene'>&#9728; Sun</button></td>"+
-        "<td><button class='wbtn' data-walls='"+r.n+"' title='Choose which whole walls this scene hides'>Hide walls</button></td>"+
-        "<td><button class='wbtn' data-annots='"+r.n+"' title='Choose which notes and dimensions this scene hides'>Hide notes</button></td>"+
+        "<td><button class='wbtn' data-walls='"+r.n+"' title='Choose which whole walls this scene hides'>Hide walls</button>"+wallsCell(r)+"</td>"+
+        "<td><button class='wbtn' data-annots='"+r.n+"' title='Choose which notes and dimensions this scene hides'>Hide notes</button>"+annotsCell(r)+"</td>"+
         "<td class='file' title='"+esc(r.file)+"'>"+fh+"</td>"+
         "<td class='go'><button data-go='"+r.n+"' title='Go to this scene'>&#8594;</button></td></tr>";
     }).join("");
@@ -5056,6 +5313,16 @@ window.onerror = function (msg, src, line) {
     // Rescan too: Ruby's busy? guard would refuse it anyway, but a greyed
     // button says so before the click rather than after.
     var rb = g("rescan"); if(rb) rb.disabled = running;
+    var ab = g("autoset"); if(ab) ab.disabled = running;
+    // The AUTO-SET bar says how the review columns were read, because "—" in
+    // a cell has to have a reason on screen rather than looking like an empty
+    // model. ST.deep is false when the deep pass was skipped or switched off
+    // for being slow; the log line carries the measured time.
+    var as = g("autosum");
+    if(as) as.textContent = ST.rows.length
+      ? (ST.deep ? "WALLS and ANNOTATIONS below show each scene's own saved state"
+                 : "WALLS/ANNOTATIONS show tag state only — hit Rescan for the full read")
+      : "no scenes yet — pick a booth and click once";
     drawUndo();
   }
 
@@ -5683,6 +5950,172 @@ window.onerror = function (msg, src, line) {
   });
   $scancel.addEventListener("click", sunClose);
   $swrap.addEventListener("click", function(e){ if(e.target === $swrap) sunClose(); });
+
+  // ---- AUTO-SET (1.48.0) -------------------------------------------------
+  //
+  // Pick a booth, click once, get its whole scene set: named after the booth,
+  // marked Skip/Image/Render, with the WALLS and ANNOTATIONS answer written
+  // into every plate. Click again on a second booth and get a second set that
+  // cannot collide, because identity is a STAMP on the page and not the name.
+  //
+  // The card shows what Apply WOULD do, computed in Ruby from the model, before
+  // anything is written. Everything the framing turns on is on screen first:
+  // the resolved booth, its size, and whether the WR-Booth-Door tag was found
+  // -- because with no door tag the hero shot faces the back of the booth, and
+  // proposal-scenes.rb only ever said so AFTER the fact, in the console.
+  var AS = null;
+  function autoSetOpen(){
+    AS = null;
+    $gtitle.textContent = "Reading the model…";
+    $gbody.innerHTML = "";
+    $gmsg.textContent = ""; $gmsg.className = "wmsg";
+    $gapply.disabled = true; $gremove.disabled = true;
+    $gwrap.style.display = "flex";
+    if(window.sketchup && sketchup.autosetopen) sketchup.autosetopen("");
+  }
+  function autoSetClose(){
+    $gwrap.style.display = "none"; AS = null;
+    if(window.sketchup && sketchup.autosetclose) sketchup.autosetclose("");
+  }
+  window.autosetFail = function (msg) {
+    $gtitle.textContent = "AUTO-SET could not read the model";
+    $gmsg.textContent = msg; $gmsg.className = "wmsg bad";
+    $gapply.disabled = true; $gremove.disabled = true;
+  };
+  function deg(v){ return v === null || v === undefined ? null : Math.round(v); }
+  window.autosetShow = function (d) {
+    AS = d;
+    var p = d.plan, opt = d.opts || {};
+    $gtitle.textContent = p ? ("AUTO-SET — " + p.label) : "AUTO-SET";
+    var sel = "<select id='gbooth'>" + (d.choices || []).map(function(c){
+          return "<option value='" + esc(c.name) + "'"
+            + ((p && c.name === p.booth) ? " selected" : "") + ">" + esc(c.name)
+            + (c.booth ? "" : "  (does not name a booth model)") + "</option>";
+        }).join("") + "</select>";
+    var h = "<div class='grow2'><span class='glab'>Booth</span><span class='gval'>"
+          + sel + "</span></div>";
+    if(!p){
+      $gbody.innerHTML = h + "<div class='gnote'>" + esc(d.note || "Select a booth in "
+        + "the viewport, or pick one above.") + "</div>";
+      wireBoothPick();
+      $gmsg.textContent = d.note || ""; $gmsg.className = "wmsg" + (d.note ? " bad" : "");
+      $gapply.disabled = true; $gremove.disabled = true;
+      return;
+    }
+    h += "<div class='grow2'><span class='glab'>Size</span><span class='gval'>"
+       + esc(p.size) + (p.isbooth ? "" : " <span class='gwarn'>name does not say a model</span>")
+       + "</span></div>";
+    h += "<div class='grow2'><span class='glab'>Door tag</span><span class='gval'>"
+       + (p.door === null || p.door === undefined
+          ? "<span class='gwarn'>WR-Booth-Door NOT found — the door side is assumed "
+            + "-90°, so the hero may face the BACK of the booth</span>"
+          : "WR-Booth-Door read at <b>" + deg(p.door) + "°</b>")
+       + "</span></div>";
+    h += "<div class='grow2'><span class='glab'>Vent tag</span><span class='gval'>"
+       + (p.vent === null || p.vent === undefined
+          ? "no WR-Booth-Vent — plate 04 is just the opposite side"
+          : "WR-Booth-Vent read at <b>" + deg(p.vent) + "°</b>")
+       + "</span></div>";
+    h += "<div class='grow2'><span class='glab'>Named walls</span><span class='gval'>"
+       + (p.walls ? (p.walls + " — the walls between the camera and the booth are "
+                     + "hidden per plate; objects are never auto-hidden")
+                  : "<span class='gwarn'>none</span> — nothing will be hidden. Run "
+                    + "<b>Name walls for the scene picker</b> once if this room was drawn by hand")
+       + "</span></div>";
+    h += "<div class='gctl'><span class='glab'>Renders</span>"
+       + "<input type='number' id='grenders' min='0' max='" + (d.max || 6) + "' value='"
+       + (opt.renders === undefined ? 2 : opt.renders) + "'>"
+       + "<span class='gnote' style='padding:0'>down the ladder exterior → front → "
+       + "ventilation → interior → dimensioned → plan. Everything below the "
+       + "line is an Image row.</span></div>";
+    h += "<div class='gctl'><label><input type='checkbox' id='ginterior'"
+       + (opt.interior ? " checked" : "") + "> also make an interior plate</label></div>";
+    if(p.existing){
+      h += "<div class='grow2'><span class='glab'>Already there</span><span class='gval'>"
+         + "<b>" + p.existing + "</b> scene(s) already carry this booth's AUTO-SET stamp."
+         + "</span></div>";
+      h += "<div class='gctl'><label><input type='radio' name='gmode' value='update'"
+         + " checked> update them</label>"
+         + "<label><input type='radio' name='gmode' value='add'> add a SECOND set "
+         + "for this booth</label></div>";
+      h += "<div class='gctl'><label><input type='checkbox' id='greaim'"
+         + (p.movedfar ? " checked" : "") + "> re-aim the cameras</label>"
+         + "<span class='gnote' style='padding:0'>"
+         + (p.movedfar
+            ? "<span class='gwarn'>the booth has moved " + Math.round(p.moved)
+              + " in since these scenes were aimed</span>, so this is pre-ticked"
+            : "off by default: a framing you fixed by hand is the most valuable thing "
+              + "in the model, and re-aiming is the one operation that destroys it")
+         + "</span></div>";
+    }
+    h += "<table class='gp'>" + (p.rows || []).map(function(r){
+          return "<tr><td class='m " + r.mode + "'>" + r.mode.toUpperCase() + "</td>"
+            + "<td>" + esc(r.name) + "</td><td>" + esc(r.what) + "</td>"
+            + "<td>" + (r.renamed ? "<span class='gwarn'>renamed by hand — will be "
+                        + "updated, not renamed back</span>"
+                        : (r.exists ? "exists" : "new")) + "</td></tr>";
+        }).join("") + "</table>";
+    if(p.orphans && p.orphans.length)
+      h += "<div class='gnote'><span class='gwarn'>Stamped scenes whose booth is gone: "
+        + esc(p.orphans.join(", ")) + ".</span> They are left alone here — select the "
+        + "booth they belonged to, or delete those scenes in SketchUp.</div>";
+    if(p.offpages && p.offpages.length)
+      h += "<div class='gnote'><span class='gwarn'>Scene(s) that do not save hidden "
+        + "tags/objects: " + esc(p.offpages.join(", ")) + ".</span> Walls and callouts will "
+        + "NOT come back on those. Apply turns it on for the scenes it writes.</div>";
+    h += "<div class='gnote'>Every plate SHOWS ONLY the annotation sets it names and hides "
+       + "everything else, loose Untagged callouts included — since 1.47.0 the per-scene "
+       + "ANNOTATIONS picker is the only thing standing between a plate and a client. "
+       + "Nothing here is exported; read the grid afterwards and change anything you like.</div>";
+    $gbody.innerHTML = h;
+    wireBoothPick();
+    $gmsg.className = "wmsg" + (d.note ? " bad" : "");
+    $gmsg.textContent = d.note || (p.fresh
+      ? "Nothing of mine in this model yet — Apply creates the set."
+      : "Apply rewrites walls, annotations and the mode marks on this booth's stamped scenes.");
+    $gapply.disabled = false;
+    $gremove.disabled = !p.existing;
+  };
+  function wireBoothPick(){
+    var s = g("gbooth");
+    if(s) s.addEventListener("change", function(){
+      if(window.sketchup && sketchup.autosetpick) sketchup.autosetpick(s.value);
+    });
+  }
+  function autoSetOpts(mode){
+    var rn = g("grenders"), iv = g("ginterior"), ra = g("greaim"),
+        m = mode || "create", picked = null;
+    Array.prototype.forEach.call($gbody.querySelectorAll("input[name=gmode]"), function(el){
+      if(el.checked) picked = el.getAttribute("value");
+    });
+    if(!mode && picked) m = picked;
+    return { mode: m,
+             renders: rn ? +rn.value : 2,
+             interior: iv ? !!iv.checked : false,
+             reaim: ra ? !!ra.checked : false,
+             booth: (g("gbooth") ? g("gbooth").value : "") };
+  }
+  window.autosetDone = function (r) {
+    $gmsg.textContent = r.msg;
+    $gmsg.className = "wmsg" + (r.ok ? " ok" : " bad");
+    if(r.ok) setTimeout(autoSetClose, 1100);
+  };
+  $gapply.addEventListener("click", function(){
+    if(running || !AS || !AS.plan) return;
+    $gapply.disabled = true; $gremove.disabled = true;
+    $gmsg.className = "wmsg"; $gmsg.textContent = "Writing the scenes…";
+    if(window.sketchup && sketchup.autosetapply)
+      sketchup.autosetapply(JSON.stringify(autoSetOpts(null)));
+  });
+  $gremove.addEventListener("click", function(){
+    if(running || !AS || !AS.plan) return;
+    $gapply.disabled = true; $gremove.disabled = true;
+    if(window.sketchup && sketchup.autosetapply)
+      sketchup.autosetapply(JSON.stringify(autoSetOpts("remove")));
+  });
+  $gcancel.addEventListener("click", autoSetClose);
+  $gwrap.addEventListener("click", function(e){ if(e.target === $gwrap) autoSetClose(); });
+  g("autoset").addEventListener("click", function(){ if(!running) autoSetOpen(); });
 
   window.applyState = function (st) { ST = st; drawMats(); draw(); };
   window.setDir = function (d) { g("dir").value = d; updateDest(); };

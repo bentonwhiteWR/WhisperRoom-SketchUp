@@ -58,11 +58,12 @@ module WhisperRoom
 
     # Libraries other scripts `load`, not commands. wr-booth-data.rb is data for
     # build-booth.rb; wr-shading.rb is the shading contract both component-art
-    # exporters share.
+    # exporters share; wr-autoset.rb is AUTO-SET, driven from the proposal
+    # package window rather than from a button of its own (1.48.0).
     SKIP     = ['wr_tools.rb', 'wr-booth-data.rb', 'wr-shading.rb',
                 'wr-folder.rb', 'wr-deck.rb', 'wr-overlays.rb',
                 'wr-roof-vent.rb', 'wr-bridge-lib.rb',
-                'wr-png-srgb.rb', 'wr-scene-sun.rb'].freeze
+                'wr-png-srgb.rb', 'wr-scene-sun.rb', 'wr-autoset.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5
 

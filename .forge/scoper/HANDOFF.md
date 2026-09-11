@@ -1,62 +1,71 @@
-# HANDOFF — Scoper → Builder: click a WhisperRoom, get its dimensions (rev 2)
+# HANDOFF — Scoper → Builder: AUTO-SET the proposal package from a selected booth
 
-2026-09-10. Prior mission's handoff preserved as `.forge/scoper/HANDOFF-scene-annotations.md`.
-**Benton approved the layout (rev 1's "A′", now A) and asked for a ROTATE button.** Q2 (the
-optional plan/interior set B) is still being asked; build A only, B is a bolt-on.
+10 Sep 2026. Plugin 1.47.0. Prior mission's handoff (booth-dimensions rev 2) preserved verbatim
+as `.forge/scoper/HANDOFF-booth-dimensions.md`; its spec and mockup are untouched at
+`.forge/scoper/booth-dimensions-spec.md` / `booth-dimensions-mockup.html`.
+
+**BLOCKED ON APPROVAL. No Ruby is to be written until Benton answers the artifact.** Five of
+the design's decisions are genuinely his (Q1–Q5, §10 of the spec) and two of them — how many
+renders per booth, and whether plate 3 becomes a front elevation — change the output.
 
 ## Produced
-- `.forge/scoper/booth-dimensions-spec.md` rev 2 — §7 is now one corner table (FR/FL/RL/RR);
-  §7b ROTATE: a rotation through the four corners (first press = the other side), a second
-  pick-then-do panel button, always rebuilt from the model (never transformed), corner stored
-  per booth on the group, comply-and-say when a side is blocked; §9 three scripts; §10 adds
-  rotation acceptance (5, 5b); §11 records Benton's Q1 and the coordinator's Q4/Q6.
-- `.forge/scoper/booth-dimensions-mockup.html` rev 2 — A (chosen, front-right corner, side
-  push) drawn from a front-right camera; ROTATE panel drawn from a **front-left camera** with
-  its own projection and face order (not a mirror); a plan compass of the four corners and
-  the press order; the rear-push layout demoted to a "not chosen" note; B unchanged.
-  Rendered in headless Chrome and inspected. Same file path — republish to the same URL.
-- Nothing under `scripts/` touched; VERSION untouched.
+- `.forge/scoper/proposal-autoset.md` — the spec. §1 booth identity + the stored booth token;
+  §2 the six plates, the render ladder and the evidence from both `proposal-v2.json` examples;
+  §3 the annotation **allowlist** and the wall **camera-cone** rule (highest risk, read first);
+  §4 where it lives + why `proposal-scenes.rb` is kept + why the WALLS/ANNOTATIONS columns must
+  gain state; §5 the stamp, the containment rule and five re-run cases; §6 ten ordered build
+  steps; §7 acceptance incl. three mutants and the D5 export check; §8 edge cases; §9 out of
+  scope; §10 open questions; §11 the ranking record.
+- Review artifact: **https://claude.ai/code/artifact/a800433f-5b61-44d7-b147-9b522b2c6bd2**
+  — the grid pre-filled for two booths, live Skip/Image/Render controls, the five decisions as
+  controls, approve/changes/hold, and a copy-back box. Source in the session scratchpad
+  (`autoset-review.html`); republish that same path to keep the URL.
+- Nothing under `scripts/` touched. `scripts/wr_tools/VERSION` untouched at 1.47.0. Nothing
+  committed, nothing pushed, nothing emailed.
 
 ## Read-first (Builder)
-1. Spec §7 + §7b (the corner table and ROTATE are the whole placement design), §6 (extent),
-   §7 attachment, §8 ownership; §10 is the exit criterion — checks 5 and 5b are new.
-2. `scripts/dimension-booth.rb` 173-330 — keep its identification and `vents_from_model`
-   regexes; discard `draw`, `HEIGHTS`, `BASE_Z`, the label, all `@setting`s.
-3. `scripts/auto-dimension.rb` 1.17.0 attachment code (vertex / ConstructionPoint, `:loose`
-   counted) — the precedent for the anchors.
-4. `scripts/build-booth-components.rb` 2440-2460, 2660-2680, 1262-1270; `scripts/wr-deck.rb`
-   `NAME` / `ENH_NAME` (318, 346); `scripts/wr-overlays.rb` `add` (650), 1416 — part names
-   the extent rules key on.
-5. `scripts/proposal-scenes.rb` 40-115 — the tag stays `WR-Dims-Booth`; nothing changes.
-6. `scripts/sketchup-bridge.py` header — every acceptance check runs through it.
-7. Benton's answer to Q2 when it arrives (adds script B; changes nothing in A).
+1. Spec §3 in full, twice. It is the only thing standing between an auto-set and a customer
+   image carrying the `Ceiling 8'-0" - HOUSE DEFAULT` banner.
+2. `scripts/wr-scene-annotations.rb` — `inventory` (260), `apply` (499), `write_scene` (531),
+   `state_hash` (317). Note the picks polarity: **ticked = hidden**.
+3. `scripts/wr-scene-walls.rb` — `scan` (138), `wall_units` (154), `object_units` (231),
+   `side_of` (109, and its room-local caveat), `apply` (341), `write_scene` (376),
+   `apply_all` (418, and why it is the wrong call here).
+4. `scripts/proposal-scenes.rb` 34-130 — `PLATES`, `DIM_TAGS`, `NOTE_TAGS`, `ANNOT_RE`,
+   `annot_tags`, `SHOWN_ON_DIMENSIONED`, and `aim`/`heading_to`/`subject_bounds` (169-190).
+   This file is a **library**; do not delete or restructure it.
+5. `scripts/proposal-package.rb` — `booth_name?` (667), `booth_groups` (3024), `mode_of` /
+   `set_mode` (274-293), `gather` / `state` / `push_state` (913-1005), `plan_names` (562),
+   `scene_prefix` (546), `walls_payload` (3531), the `wallsopen`/`annotsopen` callbacks
+   (4073, 4227), the CSS `:root` and `.seg` rules (4464, 4631), `draw()` (4959).
+6. `proposals/examples/example-client/proposal-v2.json` and
+   `proposals/examples/peoplesspace/proposal-v2.json` — the only real evidence for which shots
+   a proposal needs and which of them are renders.
+7. DEVLOG top entry (1.47.0) — what was removed and, more importantly, what stayed and why.
+8. Benton's answers to Q1–Q5 when they arrive. Q1 and Q2 change the shipped defaults.
 
 ## Assumptions
-- **observed (code):** the three current tools, their tags, colours, settings, placement,
-  `clear` scope; the 7296/96120 data; part-naming conventions; the 46VNT / door sizes in
-  `P:\Sketchup\NewMasterComponentList\_component-probe.tsv`; the bridge exists.
-- **derived:** the reference image = 98 / 74+5.5 / 84.3125 → a 7296 with Enhanced height;
-  84.3125 = mat underside → tray top from the builder's own datums; the current Enhanced
-  height string floats 5/16" at both ends after the 1.33.0 lift; a built 96120 once had its E
-  vent ~6 7/16" proud, so measured geometry and the 5.5" rule can disagree (Q4 decided: the
-  dimension reads what is drawn).
-- **reported:** Benton's rev-2 words (via the coordinator); the reference image itself; the
-  `InstancePath` overload of `add_dimension_linear` for nested vertices (API memory — verify
-  on the bridge first; ConstructionPoint fallback is specified).
-- **assumed:** Benton's cameras are front-right and front-left three-quarters; "rotate" means
-  the whole set moves to another corner (his description: right side → left side), and the
-  rear corners are wanted for rear/ventilation plates — cheap either way (same table).
-- Not verified: anything in a live SketchUp. I cannot run it.
+- **observed (code, this session):** everything cited with a file and line above; the two
+  example packs' plate lists and their `boothOf` fields; that the WALLS and ANNOTATIONS columns
+  render stateless buttons today; that `booth_groups`/`booth_name?` already exist; that the
+  package already loads both scene pickers; that VERSION is 1.47.0.
+- **derived:** the render ladder and the default of 2; the camera-cone wall rule; that
+  `05-plan` needs no walls hidden; that scene names should lead with the booth; the 1"
+  booth-moved threshold; that the grid needs per-row state for the review to be a review.
+- **reported:** Benton's ask, verbatim in `.forge/GOAL.md`; the "a few of them as renders"
+  phrasing that Q1 turns on.
+- **assumed, and flagged as such in the spec:** that entity ids are not reliable enough to be
+  the booth token; that reading true per-row walls/annotations state on Rescan is fast enough —
+  **unmeasured**, measure before optimising (§4.3).
+- **Not run, and must not be claimed as run:** nothing in this spec has executed in SketchUp.
+  Build steps 5–8 can only be proven live.
 
-## Open-questions
-1. **Q2** three strings only, or also the plan set B with interior clear — being asked now;
-   build A, keep B as its own script/tag.
-2. Q3 hand-drawn reference or moved tool output — not blocking.
-3. Q5 Enhanced interior clear height — only if B; not blocking.
-4. Nicety, not asked: arrow-key rotation while the Dimension pick tool is live. Left out of
-   this build deliberately (spec §7b); raise with Benton only if the button feels slow.
-
-## Blockers
-- None. Q4 is decided, so acceptance check 1 on a 7296 E is expected to either read
-  `8' 2" / 6' 7 1/2" / 7' 5/16"` or print the `***` vent-seat mismatch block — both pass;
-  a silent wrong number is the only fail. The vent seat itself is a separate builder fix.
+## Open questions
+- **Q1** Renders per booth — 2 (default), 1, or 3? Your two packs disagree.
+- **Q2** Plate 3: front elevation (both packs want one) or the side elevation the tool makes
+  today? Default: switch to front.
+- **Q3** Interior plate on by default? Default: off.
+- **Q4** Preset the sun per scene? Default: no (§3.3).
+- **Q5** Hide the other booth on each booth's plates? Default: no.
+- Coordinator: the artifact link still needs emailing to bentonwhite92@gmail.com — the Scoper
+  was told not to send it.

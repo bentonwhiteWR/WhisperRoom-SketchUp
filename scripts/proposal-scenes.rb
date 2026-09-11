@@ -1,4 +1,4 @@
-# @title Set up the five proposal plates...
+# @title Set up the five proposal plates (legacy - fixed five, no booth)...
 # @cat Scenes and images
 # @rank 1
 # @ability Proposal scenes
@@ -326,6 +326,16 @@ module WR_ProposalScenes
     puts ''
     puts '  Next: run Export Scenes. The filenames come out in plate order and'
     puts '  drop straight into examples/<client>/proposal-v2.json.'
+    puts ''
+    puts '  THERE IS A BOOTH-AWARE VERSION OF THIS NOW (1.48.0). The proposal'
+    puts '  package window has an AUTO-SET bar: pick a booth, click once, and'
+    puts '  get scenes NAMED AFTER THAT BOOTH, marked Skip/Image/Render, with'
+    puts '  the per-scene WALLS and ANNOTATIONS answers already written -- and'
+    puts '  clickable again on a second booth without a name collision. This'
+    puts '  script stays: it is the fixed five, globally named, and it owns the'
+    puts '  tag family (DIM_TAGS / NOTE_TAGS / ANNOT_RE / annot_tags) that'
+    puts '  AUTO-SET and every other consumer reads. Note that AUTO-SET makes'
+    puts '  plate 3 a FRONT elevation; the 03-side above is a SIDE elevation.'
     puts ''
   end
 end
