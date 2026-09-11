@@ -398,6 +398,31 @@ module WR_DropLights
                          #   every wall, which is how a real ceiling is set
                          #   out.
   PANEL_MAX     = 49     # a 7 x 7 grid. A cap, not a design figure.
+
+  # THE VISIBLE/INVISIBLE SPLIT (rank cycle d04), and it is a deliberate
+  # departure from physical honesty, so it is written down as one.
+  #
+  # In a real photograph of a real office, exposed for the room, the ceiling
+  # fixtures ARE blown white — a 2x2 panel runs on the order of 3,000 cd/m2
+  # against walls at 30-60, so it is 50-100x over and no exposure holds both.
+  # Measured here: at 1,152,000 lm the panels clip, and HALVING them cut the
+  # frame's clipped fraction only 0.1252 -> 0.0943 (rank cycle d01), which is
+  # what a surface many times over the clip point does. There is no output at
+  # which the panels both light this room and stay under the clip point.
+  #
+  # Benton's ruling R2 is that he does not want blown patches, and the
+  # rubric's D2 anchors agree with him. Between the physics and the client,
+  # the client wins. So each grid position is split in two: a VISIBLE
+  # aperture emitter carrying this share of the position's output, so its
+  # surface reads as a bright lamp with structure in it rather than as paper
+  # white, and an INVISIBLE :plenum emitter at the SAME POINT carrying the
+  # rest and doing the actual lighting.
+  #
+  # The position's TOTAL output is unchanged, so the room level and the
+  # settings knob both stay where they were. And because the two emitters sit
+  # at the same point, every pool in the room is still directly under a
+  # visible fixture — the split costs nothing on "believable cause".
+  PANEL_VISIBLE_SHARE = 0.05
   PANEL_MIN_INSET = 12.0 # in — half the panel: a centre closer than this to
                          #   a floor edge would hang the housing in a wall.
 
@@ -568,6 +593,17 @@ module WR_DropLights
                   # like every other parameter -- if the build will not take
                   # it, configure_light lists :directional as DID NOT STICK.
                   :fixture => :f4, :disc => false, :tilt => nil, :dir => 0.6 },
+    # The invisible half of each ceiling position — see
+    # PANEL_VISIBLE_SHARE. Same size, same colour and the same cutoff as the
+    # aperture it hides behind, because it stands in the same place and must
+    # throw the same distribution; the ONLY difference is that it is not
+    # seen. :lumens is not read — the caller splits the panel's figure.
+    :plenum  => { :label => 'Panel (hidden)', :n => 25, :emitter => :rect,
+                  :u => PANEL_U - 2.0 * PANEL_FRAME - 0.5,
+                  :v => PANEL_V - 2.0 * PANEL_FRAME - 0.5,
+                  :emitters => 1, :lumens => 3600.0,
+                  :kelvin => 4200, :budget => :room, :visible => false,
+                  :fixture => nil, :disc => false, :tilt => nil, :dir => 0.6 },
     :fill    => { :label => 'Fill sphere', :n => FILL_SCATTER.size,
                   :emitter => :sphere,
                   :u => FILL_D, :v => FILL_D, :emitters => 1,
@@ -4872,10 +4908,17 @@ paint(); drawPresets("");
           panel_lm = layer_lumens(LIGHT_LAYERS[:panel][:lumens], opts[:mult],
                                   room_trim * role_scale(:panel, opts),
                                   opts[:cam_gain])
+          # THE SPLIT (d04). Two emitters at one point: the aperture you
+          # SEE, dimmed to PANEL_VISIBLE_SHARE so it does not clip, and the
+          # hidden one that LIGHTS. Both go inside the fixture group, so
+          # dragging a panel still takes its light with it.
+          vis_lm = panel_lm * PANEL_VISIBLE_SHARE
+          hid_lm = panel_lm - vis_lm
           pgrid[:pts].each do |p|
             fg, ez = build_f4(ents, model, p[0], p[1], info[:z_top], fx_mat)
             stamp_own.call(fg, :f4)
-            place.call(:panel, [p[0], p[1], ez], panel_lm, nil, fg.entities)
+            place.call(:panel, [p[0], p[1], ez], vis_lm, nil, fg.entities)
+            place.call(:plenum, [p[0], p[1], ez], hid_lm, nil, fg.entities)
           end
           puts format('  %s: OFFICE RIG — ceiling panels: %d x F4 %g x %g in ' \
                       'flat panel on a REGULAR grid, %d x %d at %.1f x %.1f in ' \
@@ -4887,6 +4930,13 @@ paint(); drawPresets("");
                       pgrid[:sx] / 2.0, pgrid[:sy] / 2.0, panel_lm,
                       layer_kelvin(LIGHT_LAYERS[:panel][:kelvin], opts[:koffset]),
                       PANEL_DEPTH, info[:z_top])
+          puts format('  %s: each panel is TWO emitters at one point — a ' \
+                      'VISIBLE aperture at %.0f lm (%.0f%% of the position, so ' \
+                      'its surface reads as a lamp instead of paper white) and ' \
+                      'an INVISIBLE one at %.0f lm doing the lighting. The ' \
+                      'position total is unchanged; see PANEL_VISIBLE_SHARE for ' \
+                      'why this is done and what it costs.',
+                      name, vis_lm, PANEL_VISIBLE_SHARE * 100.0, hid_lm)
           if pgrid[:pts].size < pgrid[:nx] * pgrid[:ny]
             puts format('  %s: %d grid position%s fell outside the floor polygon ' \
                         'or within %g in of its edge and were dropped.', name,

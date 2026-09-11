@@ -405,7 +405,7 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'PANEL_U', 'PANEL_V', 'PANEL_DEPTH', 'PANEL_FRAME',
            'PANEL_EMIT_UP', 'PANEL_SPACING', 'PANEL_MAX', 'PANEL_MIN_INSET',
            'FILL_D', 'FILL_EDGE', 'FILL_STEP', 'FILL_MIN',
-           'CLAMP_TOL', 'CLAMP_FLOOR']
+           'CLAMP_TOL', 'CLAMP_FLOOR', 'PANEL_VISIBLE_SHARE']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT', 'RIG_DEFAULT']
 # FILL_SCATTER BEFORE LIGHT_LAYERS: the :fill role's :n reads FILL_SCATTER.size,
 # and these are emitted in list order into one Ruby module body.
@@ -1154,6 +1154,21 @@ __METHODS__
                   LIGHT_LAYERS[:fill][:visible] ? 'VIS' : 'inv',
                   RIG_DEFAULT)
 
+    # 29j -- THE VISIBLE/INVISIBLE SPLIT (d04). The hidden half of a ceiling
+    # position must match the aperture it stands behind in size, colour and
+    # cutoff -- same point, same distribution -- and differ ONLY in being
+    # unseen. And the split must CONSERVE the position's output: 5% visible
+    # plus 95% hidden, never 100% + something.
+    ps = LIGHT_LAYERS[:panel]
+    pl = LIGHT_LAYERS[:plenum]
+    same = (ps[:u] == pl[:u] && ps[:v] == pl[:v] &&
+            ps[:kelvin] == pl[:kelvin] && ps[:dir] == pl[:dir] &&
+            ps[:emitter] == pl[:emitter])
+    out << format('split match%d vis%s hid%s share%.4g sum%.4g',
+                  same ? 1 : 0, ps[:visible] ? 'VIS' : 'inv',
+                  pl[:visible] ? 'VIS' : 'inv', PANEL_VISIBLE_SHARE,
+                  PANEL_VISIBLE_SHARE + (1.0 - PANEL_VISIBLE_SHARE))
+
     out.join(' | ')
   end
 end
@@ -1274,6 +1289,7 @@ EXPECT = ' | '.join([
     'top 94.600,99.776,94.000',
     'auditoff ok1 offA | auditmix ok0 offA deadB+C+F wrongE',
     'roles panel22/22/3600/4200/VIS fill10/2000/3500/inv rigoffice',
+    'split match1 visVIS hidinv share0.05 sum1',
 ])
 
 # ---- second program: wr-mode.rb's snapshot pins -------------------------
