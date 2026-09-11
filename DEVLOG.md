@@ -1,6 +1,126 @@
 # DEVLOG
 
 ## 2026-09-11
+### 1.65.0 - Claude can now drive SketchUp headlessly, and the first rank loop ran end to end
+
+**THE BIG ONE: the bridge is on.** `scripts/wr_tools/wr_bridge.rb` +
+`scripts/sketchup-bridge.py` have existed for a while and had never been
+switched on. They are now enabled for SketchUp 2026 on the laptop
+(`%LOCALAPPDATA%\WhisperRoomridge\SketchUp 2026\enabled`). Claude can
+run Ruby in the live model (~1 ms round trip), read any model state, take
+viewport screenshots, drive AUTO-SET and the light rig, start a proposal
+export, poll it to completion and read the PNGs back. A full
+reset -> AUTO-SET -> drop lights -> export -> render cycle runs unattended in
+about 2.5 minutes, one render.
+
+We audited the third-party `mhyrr/sketchup-mcp` MCP server first and did NOT
+install it: 8 commits ever, 18 open issues including a broken `eval_ruby`, no
+license file, no `start_operation` anywhere (nothing it does is undoable), and
+unauthenticated arbitrary eval on 127.0.0.1:9876. Trimble's official hosted
+MCP server (announced Apr 2026) is real but authors `.skp` files server-side
+and does not drive the open session, so it does not replace the bridge.
+
+**FIVE HEADLESS SEAMS.** Every one of these was a report window written for a
+human, fired unconditionally, on a path that may not have one. Each blocked an
+unattended run dead; one of them (the walls summary) fired AFTER the rig was
+built, was blocked, raised, and ROLLED THE WHOLE RIG BACK - a summary nobody
+could read destroyed the work it was summarising.
+
+  1. `WR_DropLights.run(given = nil, subjects_given = nil)` - pass settings and
+     subjects to skip the dialog and the viewport selection.
+  2. `wr-drop-lights.rb` now honours `$wr_no_autorun` like every other tool
+     script. Loading it no longer presses the button.
+  3. The walls summary box is suppressed when `run` was given its settings.
+  4. `cfg['force']` skips the preflight Yes/No prompt.
+  5. `WR_ProposalPackage.headless?` + `box(text, buttons, headless_answer)` -
+     ONE decision point, replacing four one-off guards. Every prompt reachable
+     from a batch states its unattended answer at the call site (files exist ->
+     SKIP, never overwrite).
+
+  `@headless` is latched at the top of `start_run` from the arguments as
+  passed. The first cut derived it from `@dlg.nil? || @cfg['force']` and BOTH
+  halves were wrong: `@dlg` holds the last panel opened for the life of the
+  session, and `@cfg` is rebuilt from named keys that never included 'force'.
+  It returned false every time. Verified live now (`headless? => true`).
+
+**CAMERA + LIGHTING CHANGES (from Benton's review of the test1 set).**
+
+  - `AREA_SCALE_MAX` 3.0 -> 5.0. The 1600 sq ft test room is 8.33x the 192
+    sq ft reference and was being lit for 576 sq ft.
+  - `ceiling_count(area, available)` replaces a hard-coded pair. `grid_points`
+    computes 25 valid ceiling positions on that room and `ceiling_pair` threw
+    all but TWO away. Now one drum per ~150 sq ft, floor 2, cap 12 -> 11 drums
+    on the test room. The 192 sq ft reference room still gets exactly 2.
+  - `02-front` no longer carries `:aim_at => :door`. REVERSES the 10 Sep
+    instruction "It should be in front of the door frame": on a 12'-2" booth
+    with the door in one end that centres the DOOR and leaves bare wall down
+    one side. Benton, 11 Sep: "be centered on that booth walls face? Rather
+    than on door?". The `:aim_at` machinery is kept, unused - one key to
+    re-enable.
+  - Ceiling ambient stays at 4200 K. 5000 K was tried and REVERTED: measured,
+    it made the room dimmer (median 148 -> 73) and MORE red-biased (R/B 1.58
+    -> 1.62). Cooler light did not cool the room, which says the peach cast is
+    the orange FLOOR bouncing into a white ceiling. D5 is capped by the floor
+    material and cannot be fixed from the Kelvin table.
+
+**rbparse gained a load-order check.** 1.64.0 shipped `PLATES` (an array
+LITERAL) referencing `PLATE_EYE` defined 150 lines below it - every tool died
+on load with "uninitialized constant WR_AutoSet::PLATE_EYE" while rbparse
+happily said the file parsed, because it does. `const_order` now flags a
+constant named in another constant's VALUE before it is defined. Narrow on
+purpose (only a CONST = ... right-hand side is scanned) so `wr-deck.rb`'s
+ORIGIN, used in methods above its definition and correct, is not a false
+positive. Mutation-checked.
+
+**THE RANK LOOP - ran, and the scores are NOT trustworthy yet.**
+Rubric pinned at `Z:\Sketchup\Proposals	est1\.rank	est1.rubric.md`
+(5 dimensions, camera framing + lighting only). Measured, on 01-angled r:
+
+    baseline  med  56.8  face/floor 0.47  R/B 1.66  blown 0.0%   -> 4.6
+    c1b       med 148.2  face/floor 0.50  R/B 1.58  blown 3.0%   -> 6.8
+    c2  5000K med  73.0  face/floor 0.58  R/B 1.62  blown 0.0%   -> 6.4
+    c3  max5  med  61.5  face/floor 0.52  R/B 1.63  blown 0.0%   -> withheld
+
+  **THE OPEN PROBLEM.** c1b -> c3 changed the ceiling lumens by exactly 1.2x
+  (3,840,000 -> 3,200,000, measured directly) and the render's median
+  luminance by 2.4x. Same 11 drums, same Kelvin, nothing else moved. A zero-
+  change CONTROL render matched c3 to the decimal on all five metrics, so the
+  pipeline IS deterministic and this is a real non-linearity, not noise. Until
+  it is explained, no cycle score is defensible.
+
+  Also learned: a ROLLED-BACK light drop leaves V-Ray light plugins orphaned,
+  and the next render comes out dark with nothing on the SketchUp side showing
+  it. That cost one full cycle (c1, median 14.9).
+
+**Next steps**
+
+  1. Chase the non-linearity. One render with `ceiling_count` pinned and ONLY
+     `AREA_SCALE_MAX` moving (5.0 -> 6.0), then read `layer_lumens` /
+     `role_scale` / `LUMEN_GAIN` for a squared or clamped term. This blocks
+     all further scoring.
+  2. Re-score cleanly once (1) is understood, then the BLIND COLD RE-SCORE the
+     rank skill requires (fresh agent, rubric + final image only, no history).
+  3. The key light has never placed in this model:
+     "KEY SKIPPED - no standoff between 96 and 42 in in front of the door
+     lands inside the floor". The booth sits 6" from one wall and 4" from
+     another in a 40x40 room. This caps D1, D3 and D4 at once and is a DRAG IN
+     SKETCHUP, not a code change - do it before spending more renders.
+  4. The peach ceiling is the FLOOR material. Try a neutral floor; do not
+     touch Kelvin again.
+  5. Enable the bridge on the desktop: `python scripts/sketchup-bridge.py
+     enable`, then restart SketchUp. It is a per-machine switch and the
+     desktop has never had it on.
+
+**Open decisions for Benton**
+
+  - `02-front` aiming reverses your 10 Sep instruction. Booth-centred is in;
+     say if you want the door-frame aim back.
+  - Render size is still 800px (~114 dpi on a Letter page). Fine for the loop,
+     too soft for a real client pack.
+  - The foam renders as clipped pure `(0,0,255)`. Out of scope by your
+     instruction, still true, still the first thing a client would see.
+
+## 2026-09-11
 ### AUTO-SET: a wall hides only when it stands between the camera and the booth - (VERSION bump held by the orchestrator)
 
 Benton, verbatim, with a front shot and a side shot both missing walls

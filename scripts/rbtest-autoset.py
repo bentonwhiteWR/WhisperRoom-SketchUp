@@ -756,11 +756,17 @@ module T
     # Every id's number is its 1-based position in the table.
     ck('or4', base.each_with_index.all? { |id, i| id.start_with?(format('%%02d-', i + 1)) },
        base.inspect)
-    # The front-on shot is still the one aimed at the frame, whatever number
-    # it wears.
+    # NO PLATE RE-TARGETS ONTO THE DOOR FRAME ANY MORE (1.65.0). 1.51.x gave
+    # 02-front :aim_at => :door for "It should be in front of the door
+    # frame"; on a 12'-2" booth with the door in one end that centres the
+    # DOOR and leaves bare wall down one side of the frame, which is what
+    # Benton asked to change on 11 Sep 2026 ("be centered on that booth walls
+    # face? Rather than on door?"). The :aim_at MECHANISM is left in
+    # aim_plate, unused -- re-enabling it is one key in the table -- and
+    # fm8/fm9 now pin that an anchor handed in IS IGNORED.
     pf = WR_AutoSet.plate('02-front')
     pa = WR_AutoSet.plate('01-angled')
-    ck('or5', !pf.nil? && !pa.nil? && pf[:aim_at] == :door && pa[:aim_at].nil?,
+    ck('or5', !pf.nil? && !pa.nil? && pf[:aim_at].nil? && pa[:aim_at].nil?,
        [pf, pa].inspect)
 
     # ---- the render ladder ----------------------------------------------
@@ -1789,9 +1795,9 @@ module T
     got3 = WR_AutoSet.frame_hits([leaf_in, frame], own96)
     ck('fm5', got3 == [frame], got3.map { |e| e.name }.inspect)
     ck('fm5b', WR_AutoSet.frame_hits([], own96) == [])
-    # Only the front plate re-targets onto the frame; every other plate still
-    # frames the whole booth.
-    ck('fm6', WR_AutoSet.plate('02-front')[:aim_at] == :door)
+    # NO plate re-targets now (1.65.0) -- every plate frames the whole booth.
+    ck('fm6', WR_AutoSet::PLATES.none? { |p| p[:aim_at] },
+       WR_AutoSet::PLATES.select { |p| p[:aim_at] }.map { |p| p[:id] }.inspect)
     # The RENDER half of the front plate is the same plate, so it re-targets
     # too -- both halves are excluded, and every other id must still frame
     # the whole booth. (ALL carries '02-front r' since the default went to
@@ -1803,10 +1809,15 @@ module T
     vv = FakeView.new
     anch = [36.0, -61.0, CENTRE[2]]
     WR_AutoSet.aim_plate(vv, '02-front', CENTRE, RADIUS, DOOR, VENT, HALF, anch)
-    ck('fm8', (vv.camera.target.to_a[0] - 36.0).abs < 1.0e-9,
+    # 1.65.0 INVERTS THESE TWO. Until now an anchor handed to the front plate
+    # moved the target onto the door frame (x = 36). Benton asked for the
+    # booth's wall face instead, so the anchor is now IGNORED and the target
+    # is the booth centre (x = 0) -- asserted with an anchor supplied, which
+    # is the only way to tell "ignored" from "never passed".
+    ck('fm8', (vv.camera.target.to_a[0] - CENTRE[0]).abs < 1.0e-9,
        vv.camera.target.to_a.inspect)
-    ck('fm9', (vv.camera.eye.to_a[0] - 36.0).abs < 1.0e-6,
-       'the eye is not on the frame normal')
+    ck('fm9', (vv.camera.eye.to_a[0] - CENTRE[0]).abs < 1.0e-6,
+       "the eye is off the booth centre: #{vv.camera.eye.to_a.inspect}")
     # With no anchor it falls back to the booth centre rather than raising.
     vv2 = FakeView.new
     WR_AutoSet.aim_plate(vv2, '02-front', CENTRE, RADIUS, DOOR, VENT, HALF, nil)

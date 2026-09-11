@@ -216,9 +216,18 @@ module WR_AutoSet
     { :id => '01-angled',      :az => :door, :swing => 35.0, :el => 7.0,
       :eye => PLATE_EYE,
       :on => true,  :what => 'Angled three-quarter, eye height - the cover hero' },
+    # AIMED AT THE BOOTH, NOT THE DOOR (1.65.0). 1.51.x added
+    # :aim_at => :door for "It should be in front of the door frame." On a
+    # 12'-2" booth whose door sits in one end that centres the DOOR and
+    # pushes the booth a tenth of a frame off centre, leaving bare wall down
+    # one side -- Benton, 11 Sep 2026: "the camera on the front view could be
+    # shifted right a little bit (be centered on that booth walls face?
+    # Rather than on door?)". Dropping the flag targets the booth centre,
+    # which is what every other plate does. The :aim_at machinery stays; no
+    # plate uses it now.
     { :id => '02-front',       :az => :door, :swing => 0.0,  :el => 7.0,
-      :aim_at => :door, :eye => PLATE_EYE,
-      :on => true,  :what => 'Front on, square to the door FRAME' },
+      :eye => PLATE_EYE,
+      :on => true,  :what => 'Front on, square to the door wall' },
     { :id => '03-high',        :az => :door, :swing => 35.0, :el => 40.0,
       :on => true,  :what => 'High angled (15-20 ft up)' },
     { :id => '04-side',        :az => :door, :swing => 90.0, :el => 7.0,

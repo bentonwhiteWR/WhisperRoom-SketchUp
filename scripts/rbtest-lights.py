@@ -1029,7 +1029,11 @@ EXPECT = ' | '.join([
     # supplied at the camera now ride on the fixtures. 2000 lm of product
     # spec leaves as 640,000.
     'lm 640000,1280000,320000,224000,160000,256000',
-    'as 1.000,1.667,0.500,3.000,1.250,1.000',
+    # AREA_SCALE_MAX 3.0 -> 6.0 (1.65.0): the cap that was meant to stop a
+    # HALL getting a stadium's worth was capping a 1600 sq ft SHOWROOM at
+    # the light for 576 sq ft. The 4th value is the over-cap case and it
+    # is the only one that moves; the floor (0.5) is untouched.
+    'as 1.000,1.667,0.500,5.000,1.250,1.000',
     'lt roles6 inst10 visroles3 visfix5 k6 room10800 booth400 units1 nobooth1 brkey+rim+foam',
     # THE TWO FILL LAYERS WENT NEUTRAL (1.64.0). Ceiling ambient
     # 3500 -> 4200 K and the key 3200 -> 3600 K. The 11 Sep 2026 set

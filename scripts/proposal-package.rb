@@ -1540,6 +1540,9 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
 
   # cfg: {'dir', 'width', 'over' ('Ask'|'Overwrite'|'Skip existing'), 'shade'}
   def self.start_run(model, dlg, cfg)
+    # Decided HERE, from what the caller actually passed, before anything can
+    # overwrite it. See headless?.
+    @headless = dlg.nil? || (cfg && cfg['force']) ? true : false
     if @running                    # double-press race; never a silent ignore
       puts 'WR_ProposalPackage: Export pressed while a batch is running — ignored.'
       log(dlg, 'a batch is already running — this press was ignored', 'bad')
@@ -1548,7 +1551,7 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
 
     root = cfg['dir'].to_s.strip.delete('"').tr('\\', '/').sub(%r{/+\z}, '')
     if root.empty?
-      UI.messagebox('Choose a root folder first.')
+      box('Choose a root folder first.')
       return
     end
     # The FOLDER field is the ROOT (1.34.0); `dir` is where the files go.
@@ -1566,7 +1569,7 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     @last_prompt = nil
     dir, dir_note = resolve_dir(root, @per_model, model.title)
     if dir.nil?
-      UI.messagebox('Choose a root folder first.')
+      box('Choose a root folder first.')
       return
     end
 
@@ -1574,7 +1577,7 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     files = plan_names(rows)
     live  = rows.reject { |r| r['mode'] == 'skip' }
     if live.empty?
-      UI.messagebox('No scenes are marked Image or Render — nothing to export.')
+      box('No scenes are marked Image or Render — nothing to export.')
       return
     end
 
@@ -1591,7 +1594,7 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
                                live.any? { |r| r['mode'] == 'render' })
     out_w, out_h = sz
     if why
-      UI.messagebox(why)
+      box(why)
       return
     end
 
@@ -1609,9 +1612,11 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
                       'else to export.')
         return
       end
-      ans = UI.messagebox("#{msg} — or export the image rows only.\n\n" \
-                          "Yes = export the #{images.size} image row(s) only.\n" \
-                          'No = cancel.', MB_YESNO)
+      # Unattended: take the image rows. A batch that renders nothing is
+      # still worth the six plates it CAN produce, and the console says so.
+      ans = box("#{msg} — or export the image rows only.\n\n" \
+                "Yes = export the #{images.size} image row(s) only.\n" \
+                'No = cancel.', MB_YESNO, IDYES)
       return unless ans == IDYES
       live = images
     end
@@ -1645,15 +1650,27 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
       # "Dimension tags off: Visible: WR-Dims", a contradiction on screen.
       # Say which is which.
       lines = failing.map { |r| "  - #{r['label']} - FAILED: #{r['detail']}" }.join("\n")
-      go = UI.messagebox("Preflight found #{failing.size} issue(s):\n\n#{lines}\n\n" \
-                         'Continue the export anyway?', MB_YESNO)
-      return unless go == IDYES
+      # cfg['force'] ANSWERS THIS WITHOUT A WINDOW (1.65.0). An unattended
+      # caller -- the rank loop driving a re-render over the bridge -- has
+      # nobody to click Yes, and a blocked modal here does not merely skip
+      # the prompt, it ABORTS the export. The findings still go to the
+      # console and the log, in full, because "it exported with 3 preflight
+      # failures" is exactly what a later reader needs to know.
+      if cfg['force']
+        puts "  PREFLIGHT (#{failing.size} issue(s)), continuing because cfg['force'] was set:"
+        puts lines
+        log(dlg, "preflight: #{failing.size} issue(s), forced past by the caller", 'bad')
+      else
+        go = UI.messagebox("Preflight found #{failing.size} issue(s):\n\n#{lines}\n\n" \
+        'Continue the export anyway?', MB_YESNO)
+        return unless go == IDYES
+      end
     end
 
     begin
       FileUtils.mkdir_p(dir)
     rescue StandardError => e
-      UI.messagebox("Cannot create the output folder:\n#{dir}\n\n#{e.class}: #{e.message}")
+      box("Cannot create the output folder:\n#{dir}\n\n#{e.class}: #{e.message}")
       return
     end
 
@@ -1679,9 +1696,13 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
         plan -= existing
       else # Ask
         names = existing.map { |p| p[:file] }.join("\n  ")
-        ans = UI.messagebox("These files already exist in\n#{dir}:\n\n  #{names}\n\n" \
-                            'Overwrite them? Yes overwrites, No skips just those and ' \
-                            'keeps going.', MB_YESNOCANCEL)
+        # Unattended: SKIP the ones already there, never overwrite. An
+        # unattended overwrite is the one answer that destroys work, so the
+        # headless default is the conservative one even though it means a
+        # re-run into a used folder produces nothing new.
+        ans = box("These files already exist in\n#{dir}:\n\n  #{names}\n\n" \
+                  'Overwrite them? Yes overwrites, No skips just those and ' \
+                  'keeps going.', MB_YESNOCANCEL, IDNO)
         return if ans == IDCANCEL
         if ans != IDYES
           existing.each do |p|
@@ -1693,7 +1714,7 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
       end
     end
     if plan.empty?
-      UI.messagebox('Every planned file already exists and was skipped — nothing to do.')
+      box('Every planned file already exists and was skipped — nothing to do.')
       @results = []
       return
     end
@@ -1793,7 +1814,10 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     @cfg = { 'dir' => dir, 'width' => out_w.to_s, 'height' => out_h.to_s,
              # OVERRIDES ARE OPT-IN AND NEVER DEFAULT (1.9.4). Absent or empty
              # means: touch nothing, render at the operator's own settings.
-             'overrides' => (cfg['overrides'] || {}) }
+             'overrides' => (cfg['overrides'] || {}),
+             # Carried so the manifest and any later reader can tell that this
+             # batch ran unattended; the live guard is @headless, not this.
+             'force' => (cfg['force'] ? true : false) }
     @saved_mode  = WR_Mode.current(model)
     @mode_now    = @saved_mode
     @prev_page   = model.pages.selected_page
@@ -3442,11 +3466,22 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     # never allowed to leak into a later batch's finish.
     @manifest_plan = nil
     @results  = @results || []
-    begin
-      UI.messagebox(lines.join("\n"))
-    rescue Exception => e
-      puts "  (the summary box could not be shown: #{e.class}: #{e.message} " \
-           '- the summary above is the whole of it, and the batch is finished)'
+    # THE SUMMARY BOX NEEDS SOMEBODY TO READ IT (1.65.0). A headless run --
+    # the rank loop driving this over the bridge -- has nobody, and the box
+    # then sits on screen blocking SketchUp until a human happens past. That
+    # is exactly what caught Benton on 11 Sep 2026 ("It looks stuck at this
+    # dialog box?") with a SECOND batch queued behind it. The caller's own
+    # 'force' is the tell, and so is a nil dialog: no window to log into,
+    # no window to pop. Every line is already on the console.
+    if headless?
+      puts '  (summary box suppressed - no dialog on this run. The lines above are all of it.)'
+    else
+      begin
+        UI.messagebox(lines.join("\n"))
+      rescue Exception => e
+        puts "  (the summary box could not be shown: #{e.class}: #{e.message} " \
+             '- the summary above is the whole of it, and the batch is finished)'
+      end
     end
     if @close_after
       @close_after = false
@@ -3497,6 +3532,45 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
   end
 
   # ------------------------------------------------------------ dialog io --
+
+  # ONE PLACE THAT DECIDES WHETHER A WINDOW MAY OPEN (1.65.0).
+  #
+  # Benton, 11 Sep 2026: "Do i have to keep pressing O after the render
+  # package?" ... "prevent me from doing that." By then this was the FIFTH
+  # modal in one afternoon to stop an unattended run dead, and every one of
+  # them had been fixed the same reactive way: find the box that bit, guard
+  # that box, wait for the next. That is not a fix, it is a queue.
+  #
+  # So the decision moves here. `headless?` is true when there is no dialog
+  # to log into, or when the caller explicitly said 'force' -- either tell
+  # means nobody is sitting in front of SketchUp. `box` then prints instead
+  # of popping, and RETURNS THE DEFAULT the caller names, so a prompt that
+  # gates real work has a stated unattended answer rather than an accident.
+  #
+  # The default is passed at every call site on purpose: reading "what does
+  # this do with nobody watching" should never require finding this method.
+  # @headless IS SET ONCE, BY start_run, AND NOTHING ELSE READS THE GUESSWORK.
+  # The first cut of this asked `@dlg.nil? || @cfg['force']` and BOTH halves
+  # were wrong in practice (Benton, 11 Sep 2026: "why am I still having to
+  # press OK"):
+  #   - @dlg holds the LAST panel he opened, for the life of the session. A
+  #     batch started from the bridge with dlg = nil still saw that stale
+  #     window sitting in @dlg, so @dlg.nil? was false.
+  #   - @cfg is REBUILT from named keys at line ~1811 and 'force' is not one
+  #     of them, so the caller's own flag was dropped before finish ran.
+  # Deriving a fact that is known at one moment, from state that drifts, is
+  # the bug. The moment is start_run; the fact is stored there.
+  def self.headless?
+    @headless ? true : false
+  end
+
+  def self.box(text, buttons = nil, headless_answer = nil)
+    if headless?
+      puts "  [no dialog] #{text.to_s.gsub("\n", ' ')}"
+      return headless_answer
+    end
+    buttons.nil? ? UI.messagebox(text) : UI.messagebox(text, buttons)
+  end
 
   def self.log(dlg, text, cls)
     dlg.execute_script("logLine(#{text.to_json}, #{cls.to_json})")
@@ -4741,7 +4815,7 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
   rescue Exception => e
     # Exception, not StandardError — the repo rule (main.rb, "running"): a
     # ScriptError must become a message box here, never a silent dead button.
-    UI.messagebox("Proposal package failed:\n\n#{e.class}: #{e.message}")
+    box("Proposal package failed:\n\n#{e.class}: #{e.message}")
     puts "FAILED: #{e.class}: #{e.message}"
     puts e.backtrace.first(5)
     raise if e.is_a?(SystemExit) || e.is_a?(NoMemoryError)

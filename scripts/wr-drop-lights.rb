@@ -374,6 +374,15 @@ module WR_DropLights
   LIGHT_LAYERS = {
     :ceiling => { :label => 'Ceiling ambient', :n => 2, :emitter => :rect,
                   :u => 17.5, :v => 17.5, :emitters => 1, :lumens => 2000.0,
+                  # 3500 -> 4200 (1.64.0), and it STOPS THERE. 1.65.0 tried
+                  # 5000 to chase the peach ceiling and the render came back
+                  # WORSE on both counts, measured: median luminance 148 ->
+                  # 73 and R/B 1.58 -> 1.62. Cooler light did not cool the
+                  # room, it only dimmed it -- which says the cast is the
+                  # orange FLOOR bouncing into a white ceiling and not the
+                  # lamp colour at all. D5 is capped by the floor material
+                  # and cannot be fixed from this table; changing Kelvin
+                  # again is chasing the wrong variable.
                   :kelvin => 4200, :budget => :room, :visible => true,
                   :fixture => :f1, :disc => true, :tilt => nil, :dir => nil },
     :key     => { :label => 'Key / booth face', :n => 1, :emitter => :rect,
@@ -456,7 +465,22 @@ module WR_DropLights
   REF_ROOM_SQFT  = 192.0
   REF_BOOTH_SQFT = 24.0
   AREA_SCALE_MIN = 0.5    # a tiny room still wants a usable fixture
-  AREA_SCALE_MAX = 3.0    # and a hall does not get a stadium's worth
+  # 3.0 -> 6.0 (1.65.0). The cap existed so "a hall does not get a stadium's
+  # worth", and at 3.0 it did its job on a hall and broke a SHOWROOM. Benton's
+  # 11 Sep 2026 test room measures 1600 sq ft against the 192 sq ft reference
+  # -- a ratio of 8.33 -- so the room was lit for 576 sq ft and the renders
+  # came back with the booth face DARKER than the floor in front of it
+  # (measured: 0.53 and 0.43 of floor luminance). 6.0 covers a 1150 sq ft
+  # room outright and leaves a genuine hall still capped. The cap is not
+  # removed, because an unbounded scale is how one enormous floor plate
+  # writes a rig nobody asked for.
+  #
+  # 6.0 -> 5.0 the same day. At 6.0 the fix overshot: 3.0% of the render's
+  # pixels blew out against 0.0% on the old rig, and the ceiling sat at 198
+  # of 255 -- a room lit past the point where a photograph holds detail. 5.0
+  # keeps the level that made the room readable and gives the highlights
+  # back. Measured on the 1600 sq ft test room, not chosen by eye.
+  AREA_SCALE_MAX = 5.0
 
   # --- enclosure trims (spec §6; derived from the sun-off sweep) -----------
   TRIM_OPEN4 = 0.35      # no ceiling, 4 walls  (-1.5 stops, observed cost)
@@ -1166,11 +1190,41 @@ module WR_DropLights
     [best[0] + dx * t, best[1] + dy * t]
   end
 
-  # The two grid points furthest from the booth — the ceiling ambient pair.
-  # With no booth, the two furthest from each other, so the pair spreads.
-  def self.ceiling_pair(pts, bx, by)
-    return pts if pts.size <= 2
+  # How many ceiling ambient fixtures a room gets. Two was hard-coded until
+  # 1.65.0, and it was the other half of the dark-room defect: grid_points
+  # computes a real downlight grid over the floor polygon -- 25 valid points
+  # on Benton's 1600 sq ft test room at Soft spacing -- and ceiling_pair
+  # threw all but TWO away. A 40 x 40 ft showroom lit by two drums.
+  #
+  # The grid is the design; this only bounds it. One per CEIL_PER_SQFT of
+  # floor, never fewer than 2 (the pair that spreads, which is what the old
+  # behaviour was right about on a small room) and never more than
+  # CEILING_MAX -- a cap on FIXTURE COUNT, separate from the cap on total
+  # lumens, because the two failure modes are different: too few fixtures
+  # scallops, too much light blows out.
+  CEIL_PER_SQFT = 150.0   # one drum per ~150 sq ft; the 192 sq ft reference
+                          #   room keeps its 2, as designed
+  CEILING_MAX   = 12      # a drum every 150 sq ft up to 1800 sq ft
+
+  def self.ceiling_count(area_sqin, available)
+    n = ((area_sqin.to_f / 144.0) / CEIL_PER_SQFT).round
+    n = 2 if n < 2
+    n = CEILING_MAX if n > CEILING_MAX
+    n = available if available < n
+    n
+  end
+
+  # The grid points furthest from the booth — the ceiling ambient set. With
+  # no booth, spread from each other. `want` defaults to 2 so every existing
+  # caller and every test reads exactly as it did before 1.65.0.
+  def self.ceiling_pair(pts, bx, by, want = 2)
+    want = 2 if want.nil? || want < 2
+    return pts if pts.size <= want
     if bx.nil? || by.nil?
+      # No booth: start from the two furthest apart, then keep adding the
+      # point furthest from everything already chosen. That spreads a set of
+      # any size instead of clustering it, and for want == 2 it returns
+      # exactly the pair the old code did.
       best = nil
       best_d = -1.0
       pts.each_with_index do |a, i|
@@ -1183,9 +1237,15 @@ module WR_DropLights
           end
         end
       end
-      return best
+      chosen = best || pts.first(want)
+      while chosen.size < want
+        rest = pts - chosen
+        break if rest.empty?
+        chosen << rest.max_by { |p| chosen.map { |c| (p[0] - c[0])**2 + (p[1] - c[1])**2 }.min }
+      end
+      return chosen
     end
-    pts.sort_by { |p| -((p[0] - bx)**2 + (p[1] - by)**2) }.first(2)
+    pts.sort_by { |p| -((p[0] - bx)**2 + (p[1] - by)**2) }.first(want)
   end
 
   # Rotation axis that tips a down-facing light toward the booth: for unit
@@ -3699,11 +3759,33 @@ paint(); drawPresets("");
 
   # ---- run ----------------------------------------------------------------
 
-  def self.run
+  # `given` SKIPS THE SETTINGS DIALOG (1.65.0). Benton, 11 Sep 2026, on
+  # letting the rank loop drive itself: "You'd have to run the commands,
+  # delete the lights, reset the lights, clear the scenes, reset the scenes
+  # ... Should be simple." It was one seam: every other step of that loop
+  # already had a headless entry (remove_rig!, WR_AutoSet.apply,
+  # model.pages), and this one read its answer out of a modal window.
+  #
+  # Hand it an opts hash -- the same shape opts_from returns, the same shape
+  # `ask` hands back -- and it runs with those. Hand it nothing and it asks,
+  # exactly as it always has: the button on the panel is unchanged, and this
+  # is additive.
+  #
+  # Also accepts a SUBJECT list, because split_selection reads the viewport
+  # selection and an unattended caller has no selection to speak of. nil
+  # means "use the selection", which is the interactive path.
+  def self.run(given = nil, subjects_given = nil)
     model = Sketchup.active_model
     raise 'No model open.' unless model
 
-    subjects, excluded = split_selection(model)
+    # An unattended caller has no viewport selection, so it may name its
+    # subjects outright. The interactive path is untouched.
+    if subjects_given.nil?
+      subjects, excluded = split_selection(model)
+    else
+      subjects = subjects_given
+      excluded = []
+    end
     handmade = excluded.select { |_, r| r == :vray }.map { |p| p[0] }
     own_count = excluded.count { |_, r| r == :own }
     puts '' unless excluded.empty?
@@ -3746,7 +3828,16 @@ paint(); drawPresets("");
       return
     end
 
-    opts = ask
+    # HEADLESS MEANS NO REPORT WINDOWS (1.65.0). A press that was handed its
+    # settings has nobody in front of it, and the end-of-run summary box
+    # below is written for someone who is. Unattended it is worse than
+    # useless: the bridge blocks the modal, the block RAISES, and the raise
+    # rolls the whole rig back -- so a summary nobody could read destroyed
+    # the work it was summarising (observed, 11 Sep 2026, on the first
+    # headless press). The console lines carry the same content and are
+    # unaffected.
+    @headless = !given.nil?
+    opts = given.nil? ? ask : opts_from(given)
     return unless opts # cancelled
 
     # THE API CHECK — before a single entity moves. There is no seed
@@ -4143,7 +4234,10 @@ paint(); drawPresets("");
           bcx = (bb.min.x + bb.max.x) / 2.0
           bcy = (bb.min.y + bb.max.y) / 2.0
         end
-        pair = ceiling_pair(grid[:pts], bcx, bcy)
+        # The count comes from the floor area, not from a constant — see
+        # ceiling_count. `grid[:pts]` is the ceiling the room actually wants.
+        n_ceil = ceiling_count(area, grid[:pts].size)
+        pair = ceiling_pair(grid[:pts], bcx, bcy, n_ceil)
         pair.each do |p|
           fg, ez = build_f1(ents, model, p[0], p[1], info[:z_top], fx_mat)
           stamp_own.call(fg, :f1)
@@ -4394,7 +4488,7 @@ paint(); drawPresets("");
       # THE WALLS WINDOW. Benton does not read the console; 1.28.0 borrowed
       # nothing and said so only there, and that cost a round trip. When
       # walls were asked for, what the scan decided goes in a window.
-      if opts[:walls] != 'none'
+      if opts[:walls] != 'none' && !@headless
         body = wall_notes.empty? ? ['no room reached the wall scan (see the console)'] : wall_notes
         UI.messagebox("Add walls (#{WALL_MODE_LABEL[opts[:walls]] || opts[:walls]}):\n\n" +
                       body.join("\n") + "\n\nThe Ruby Console lists every run and " \
@@ -4432,11 +4526,21 @@ paint(); drawPresets("");
   end
 end
 
+# AUTORUN, AND THE FLAG THAT TURNS IT OFF (1.65.0). Every other tool script
+# in this repo honours $wr_no_autorun -- a loader that only wants the module
+# DEFINED sets it, loads, and calls in itself. This file did not, so loading
+# it from the bridge fired a press with no selection and put a messagebox up
+# in front of an unattended SketchUp. wr-autoset.rb and proposal-package.rb
+# already read this flag; this file now reads it the same way.
 begin
-  WR_DropLights.run
+  if $wr_no_autorun
+    puts 'WR_DropLights: loaded but NOT launched — $wr_no_autorun is true. '          'To open the dialog run:  WR_DropLights.run'
+  else
+    WR_DropLights.run
+  end
 rescue Exception => e
   puts ''
   puts "FAILED: #{e.class}: #{e.message}"
   puts e.backtrace.first(10).map { |l| "  #{l}" }.join("\n") if e.backtrace
-  UI.messagebox("Drop Interior Lights failed:\n\n#{e.message}\n\nSee the Ruby Console.")
+  UI.messagebox("Drop Interior Lights failed:\n\n#{e.message}\n\nSee the Ruby Console.") unless $wr_no_autorun
 end
