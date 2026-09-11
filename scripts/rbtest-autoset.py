@@ -355,6 +355,10 @@ module WR_AutoSet
 %(standoff_k)s
 %(standoff_c)s
 %(plate_fov)s
+%(plate_eye)s
+%(vent_eye)s
+%(el_min)s
+%(el_max)s
 %(default_renders)s
 %(plates)s
 %(renumbered)s
@@ -467,6 +471,8 @@ module WR_AutoSet
 %(loose_split)s
 
 %(plate_dist)s
+
+%(plate_el)s
 
 %(aim_plate)s
 
@@ -1542,6 +1548,48 @@ module T
     # Standing eye height, not a bird. 4 ft - 8 ft off the floor.
     ck('cm4', f['z'] > 48.0 && f['z'] < 96.0, f['z'].round(1).to_s)
 
+    # THE EYE HEIGHT IS THE SAME ON EVERY BOOTH (1.64.0). This is the whole
+    # point of plate_el, and the defect it replaces: :el was a fixed 7
+    # degrees, the standoff scales with the booth, and eye_z = centre_z +
+    # standoff * tan(el) -- so a bigger booth got a higher camera. The 4872
+    # this suite is written around landed the intended 66"; the 96144 E
+    # Benton shot on 11 Sep 2026 landed 75" and read as looking down from
+    # near the ceiling ("the camera should be about 1' lower because its
+    # close to the ceiling").
+    #
+    # Asserted the way it is meant to hold: the three ground plates put the
+    # eye at PLATE_EYE, and they do it for a small booth AND a large one --
+    # a 96144 E is ~88" of plan radius against this suite's 60. An assertion
+    # at ONE radius could not have caught the bug.
+    eye_at = lambda do |id, r|
+      v = FakeView.new(false, r)
+      WR_AutoSet.aim_plate(v, id, CENTRE, r, DOOR, VENT, HALF, nil, 1, 1)
+      v.camera.eye.to_a[2]
+    end
+    small = %%w[01-angled 02-front 04-side].map { |id| eye_at.call(id, RADIUS) }
+    big   = %%w[01-angled 02-front 04-side].map { |id| eye_at.call(id, 88.0) }
+    ck('cm4b', (small + big).all? { |z| (z - WR_AutoSet::PLATE_EYE).abs < 0.5 },
+       [small.map { |z| z.round(1) }, big.map { |z| z.round(1) }].inspect)
+    # The ventilation plate keeps its lift over the others -- ~10", which is
+    # what its old 10 degrees bought it -- and is equally booth-independent.
+    vz = [eye_at.call('05-ventilation', RADIUS), eye_at.call('05-ventilation', 88.0)]
+    ck('cm4c', vz.all? { |z| (z - WR_AutoSet::VENT_EYE).abs < 0.5 } &&
+               WR_AutoSet::VENT_EYE > WR_AutoSet::PLATE_EYE,
+       vz.map { |z| z.round(1) }.inspect)
+    # The HIGH plate has no :eye and must be untouched by any of this: it is
+    # still the fixed 40-degree shot, so its eye DOES rise with the booth.
+    ck('cm4d', eye_at.call('03-high', 88.0) > eye_at.call('03-high', RADIUS) + 24.0,
+       [eye_at.call('03-high', RADIUS).round(1), eye_at.call('03-high', 88.0).round(1)].inspect)
+    # plate_el itself: it must REFUSE rather than return a silly angle when
+    # the geometry is outside the band, and fall back to the plate's own :el.
+    ck('cm4e', WR_AutoSet.plate_el('03-high', 42.0, 60.0) == 40.0 &&
+               WR_AutoSet.plate_el('01-angled', 42.0, nil) == 7.0 &&
+               WR_AutoSet.plate_el('01-angled', 500.0, 60.0) == 7.0 &&
+               WR_AutoSet.plate_el('01-angled', 60.5, 60.0) == 7.0,
+       [WR_AutoSet.plate_el('03-high', 42.0, 60.0),
+        WR_AutoSet.plate_el('01-angled', 500.0, 60.0),
+        WR_AutoSet.plate_el('01-angled', 60.5, 60.0)].inspect)
+
     # TOP DOWN. Genuinely straight down: the eye is over the booth, not
     # beside it. At el 89 the run was ~4 in and this check is what fails.
     pl = shot('06-plan')
@@ -1937,7 +1985,7 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 wp9 '
          'bt1 bt2 bt3 bt4 bt5 bt6 bt7 bt8 bt9 bt10 bt11 bt12 '
          'wp10 wp11 '
-         'cm1 cm1b cm1c cm2 cm3 cm4 cm5 cm6 cm7 cm8 cm9 cm10 cm11 cm11b cm12 cm13 '
+         'cm1 cm1b cm1c cm2 cm3 cm4 cm4b cm4c cm4d cm4e cm5 cm6 cm7 cm8 cm9 cm10 cm11 cm11b cm12 cm13 '
          'cm14 cm15 cm16 cm16b cm17 '
          'dr1 dr2 dr3 dr4 dr5 dr6 '
          'wn1 wn2 wn3 wn4 wn5 wn6 wn7 wn8 wn9 '
@@ -2014,6 +2062,10 @@ def main():
         'standoff_k':      const_line('STANDOFF_K'),
         'standoff_c':      const_line('STANDOFF_C'),
         'plate_fov':       const_line('PLATE_FOV'),
+        'plate_eye':       const_line('PLATE_EYE'),
+        'vent_eye':        const_line('VENT_EYE'),
+        'el_min':          const_line('EL_MIN'),
+        'el_max':          const_line('EL_MAX'),
         'max_renders':     const_line('MAX_RENDERS'),
         'default_renders': const_line('DEFAULT_RENDERS'),
         'plates':          const_block('PLATES'),
@@ -2053,6 +2105,7 @@ def main():
         'policy_line':     rbtest.method_source(SRC, 'policy_line'),
         'loose_split':     rbtest.method_source(SRC, 'loose_split'),
         'plate_dist':      rbtest.method_source(SRC, 'plate_dist'),
+        'plate_el':        rbtest.method_source(SRC, 'plate_el'),
         'aim_plate':       rbtest.method_source(SRC, 'aim_plate'),
         'aim_interior':    rbtest.method_source(SRC, 'aim_interior'),
         # tag_counts needs a real model to walk, so it is NOT lifted -- only

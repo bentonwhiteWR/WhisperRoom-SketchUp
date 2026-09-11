@@ -157,10 +157,12 @@ module WR_AutoSet
   #
   #   :az    :door or :vent - which tag the azimuth is read from
   #   :swing degrees added to it; 35 makes a three-quarter out of a head-on
-  #   :el    elevation in degrees. 7 is standing eye height at the standoff
-  #          below (a 66 in eye, a booth centre ~42 in up, ~16 ft back);
-  #          40 is the "15-20 ft high" shot at the same standoff; 90 is
-  #          straight down.
+  #   :el    elevation in degrees. 40 is the "15-20 ft high" shot at the
+  #          standoff below; 90 is straight down. On a plate that also
+  #          carries :eye this is only the FALLBACK -- see :eye.
+  #   :eye   the eye height above the floor, in inches, that this plate
+  #          actually wants. THE ELEVATION IS DERIVED FROM IT per booth --
+  #          see plate_el, and the note below on why an angle was wrong.
   #   :inside the camera goes INSIDE the booth (07-interior only)
   #
   # 06-PLAN IS 90, NOT 89. 1.48.0 shipped the plan at 89 and Benton's first
@@ -176,15 +178,18 @@ module WR_AutoSet
   # would silently mis-expose it.
   PLATES = [
     { :id => '01-angled',      :az => :door, :swing => 35.0, :el => 7.0,
+      :eye => PLATE_EYE,
       :on => true,  :what => 'Angled three-quarter, eye height - the cover hero' },
     { :id => '02-front',       :az => :door, :swing => 0.0,  :el => 7.0,
-      :aim_at => :door,
+      :aim_at => :door, :eye => PLATE_EYE,
       :on => true,  :what => 'Front on, square to the door FRAME' },
     { :id => '03-high',        :az => :door, :swing => 35.0, :el => 40.0,
       :on => true,  :what => 'High angled (15-20 ft up)' },
     { :id => '04-side',        :az => :door, :swing => 90.0, :el => 7.0,
+      :eye => PLATE_EYE,
       :on => true,  :what => 'Side view' },
     { :id => '05-ventilation', :az => :vent, :swing => 25.0, :el => 10.0,
+      :eye => VENT_EYE,
       :on => true,  :what => 'Rear view & ventilation' },
     { :id => '06-plan',        :az => :door, :swing => 0.0,  :el => 90.0,
       :parallel => true,
@@ -328,6 +333,65 @@ module WR_AutoSet
   # less barrel on a product shot, and it is what Benton's hand-framed views
   # already are.
   PLATE_FOV = 35.0
+
+  # THE GROUND PLATES ARE AIMED BY EYE HEIGHT, NOT BY ANGLE (1.64.0).
+  #
+  # Until now :el was a fixed 7 degrees on every ground-level plate, and the
+  # comment above it read "7 is standing eye height ... a 66 in eye". That
+  # was true of exactly one booth. The eye ends up at
+  #
+  #     eye_z = target_z + standoff(radius) * tan(el)
+  #
+  # (WR_ProposalScenes.aim: eye = centre + dir * dist, dir.z = sin(el), and
+  # plate_dist divides the ground standoff by cos(el)), and the standoff
+  # scales with the booth -- so a FIXED angle raises the camera on every
+  # larger model. A 4872 landed the intended 66"; the 96144 E Benton shot on
+  # 11 Sep 2026 landed 75", and a 96168 would land ~78". At 75" in a room
+  # with the 8'-0" house ceiling the eye sits 21" under the ceiling and only
+  # 10" above the booth roof, which is exactly what he saw: "for the front
+  # and angle view, I feel like the camera should be about 1' lower because
+  # its close to the ceiling."
+  #
+  # So the plate states the height it wants and the angle is solved for it.
+  # Every booth now gets the same eye, and the fix does not have to be
+  # re-made per model.
+  #
+  # 61", not the old 66". A 7'-1" Enhanced booth is nearly a foot taller than
+  # the 4872 that 66" was set against, and an eye slightly below centre makes
+  # a tall object read as tall. 71" on the ventilation plate keeps the ~10"
+  # of extra lift its 10-degree setting used to give it over the others.
+  PLATE_EYE = 61.0
+  VENT_EYE  = 71.0
+
+  # How far the solved elevation may travel. A booth or a floor at an
+  # unexpected Z must not be able to produce a level or downward camera, or
+  # one steeper than the high plate: outside the band the plate's own :el
+  # stands, and plate_el says nothing -- the caller's business is the number.
+  EL_MIN = 2.0
+  EL_MAX = 22.0
+
+  # PURE. The elevation this plate should actually use, in degrees.
+  # `target_z` is the Z the camera will LOOK at (the booth centre, or the
+  # door frame on the plate that re-targets) and `radius` its plan radius;
+  # the eye then lands at the plate's :eye above Z=0, whatever the target.
+  # Falls back to the plate's :el whenever there is no :eye, no readable Z,
+  # no standoff, or the answer is outside the band.
+  #
+  # ASSUMED, and the one thing that would make this wrong: the room floor is
+  # at Z=0. Every WR build tool puts it there and these rooms are drawn on
+  # the ground plane, but a booth in a model built at some other datum would
+  # take its eye height from that datum instead.
+  def self.plate_el(plate_id, target_z, radius)
+    p = plate(plate_id)
+    return nil if p.nil?
+    h = p[:eye]
+    return p[:el] if h.nil? || !target_z.is_a?(Numeric) || !radius.is_a?(Numeric)
+    s = standoff(radius)
+    return p[:el] if s <= 0.0
+    deg = Math.atan((h.to_f - target_z.to_f) / s) / DEG
+    return p[:el] if deg < EL_MIN || deg > EL_MAX
+    deg
+  end
 
   def self.standoff(radius)
     (radius.to_f * STANDOFF_K) + STANDOFF_C
@@ -2053,8 +2117,12 @@ module WR_AutoSet
     # Perspective everywhere except the one plate that carries :parallel (see
     # PLATES). dist and fov are auto-set's own; aim's own defaults are the
     # legacy tool's and are left alone.
+    # The SOLVED elevation, not the table's -- see plate_el. It reaches both
+    # aim and plate_dist, because the ground standoff is divided by cos(el)
+    # and the two must agree or the camera walks in instead of up.
+    el = plate_el(plate_id, look[2], radius) || p[:el]
     WR_ProposalScenes.aim(view, c, radius, az_for(plate_id, door_az, vent_az, side, vshift),
-                          p[:el], !p[:parallel], plate_dist(p[:el], radius), PLATE_FOV)
+                          el, !p[:parallel], plate_dist(el, radius), PLATE_FOV)
   end
 
   # Inside the booth, looking back across it.

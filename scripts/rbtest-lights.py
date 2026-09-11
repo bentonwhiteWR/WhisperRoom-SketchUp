@@ -374,7 +374,7 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'accent_standoff', 'walls_mode', 'default_settings']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'CU', 'WASH_STANDOFF',
-           'WASH_SPACING', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
+           'WASH_SPACING', 'WASH_MAX', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
            'ACCENT_STEP', 'ACCENT_MARGIN', 'MIN_ROOM_H',
            'MIN_ROOM_AREA', 'BOOTH_SIDE_MIN', 'BOOTH_SIDE_MAX',
            'BOOTH_H_MIN', 'BOOTH_H_MAX', 'GRID_SNAP', 'BOX_TOL',
@@ -983,9 +983,15 @@ EXPECT = ' | '.join([
     'inpoly 0 1 1',
     'near 0',
     'opp 2 2',
-    'washR 126.0,156.0;90.0,156.0;54.0,156.0;18.0,156.0',
-    'washL 126.0,156.0;90.0,156.0',
-    'washK 90.0,156.0;54.0,156.0;18.0,156.0',
+    # THE WALL WASH, RE-SPACED (1.64.0). Benton's 11 Sep 2026 set came
+    # back with the washed wall in discrete pools and dark gaps. Spacing
+    # went 1.5 -> 1.0 x standoff and the per-wall cap 4 -> 6, so a 12 ft
+    # run now carries SIX fixtures 24 in apart instead of four at 36 --
+    # the pools overlap. The lumens are unchanged and divide across the
+    # larger count, so this is a distribution change, not a brighter rig.
+    'washR 132.0,156.0;108.0,156.0;84.0,156.0;60.0,156.0;36.0,156.0;12.0,156.0',
+    'washL 132.0,156.0;108.0,156.0;84.0,156.0',
+    'washK 108.0,156.0;84.0,156.0;60.0,156.0;36.0,156.0;12.0,156.0',
     'lm 3000 1000 6000 1500',
     'thr 22.5 36.0 18.0',
     'axis35 0.0,1.0 -1.0,0.0',
@@ -1018,8 +1024,15 @@ EXPECT = ' | '.join([
     # spec leaves as 640,000.
     'lm 640000,1280000,320000,224000,160000,256000',
     'as 1.000,1.667,0.500,3.000,1.250,1.000',
-    'lt roles6 inst10 visroles3 visfix5 k5 room10800 booth400 units1 nobooth1 brkey+rim+foam',
-    'ko 4000,3700,3200,3500,5500,4000',
+    'lt roles6 inst10 visroles3 visfix5 k6 room10800 booth400 units1 nobooth1 brkey+rim+foam',
+    # THE TWO FILL LAYERS WENT NEUTRAL (1.64.0). Ceiling ambient
+    # 3500 -> 4200 K and the key 3200 -> 3600 K. The 11 Sep 2026 set
+    # measured a mean of R112/G78/B65 -- red nearly double blue -- so a
+    # white ceiling rendered orange and the room read as orange rather
+    # than warmly lit. The pendant (2700) and sconces (3000) are NOT
+    # touched: they are the accents, and the warmth is meant to live
+    # there. These figures carry the +500 offset the check applies.
+    'ko 4700,4100,3200,3500,5500,4000',
     'fx 9.0/0.0 0.0/9.0 -9.0/0.0 -0.0/-9.0 shell64 faces394 budget1',
     'sc 36.0,3.0;108.0,3.0 n0,1',
     'pp 121.5,151.9 96.0,135.0;48.0,135.0',

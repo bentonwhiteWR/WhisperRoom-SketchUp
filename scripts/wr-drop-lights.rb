@@ -274,7 +274,20 @@ module WR_DropLights
   TARGET_FC     = 40.0   # footcandles on the floor — mid retail band
   CU            = 0.6    # coefficient of utilization (assumed)
   WASH_STANDOFF = 24.0   # in off the washed wall (low end of sourced 2-3')
-  WASH_SPACING  = 1.5    # spacing = this x standoff (sourced 1.2-1.5 band)
+  # SPACING 1.5 -> 1.0 AND THE CAP 4 -> 6 (1.64.0). Benton's 11 Sep 2026 set
+  # came back with the washed wall in discrete bright pools with dark gaps
+  # between them, which is what makes a render read as CG rather than as a
+  # room. Two things caused it and the CAP was the larger: at 1.5 x 24" the
+  # asked-for spacing was 36", but wash_points then clamped the count to
+  # FOUR, so a 20 ft wall got four sconces ~60" apart no matter what the
+  # spacing said. 1.0 is the tight end of the sourced 1.2-1.5 band read as a
+  # ratio to standoff -- equal spacing and standoff is the usual rule for an
+  # EVEN wash rather than a graze, which is the look this needs. The budget
+  # is unchanged: more fixtures divide the same lumens, each is dimmer, and
+  # the pools overlap instead of scalloping. A wall long enough to still hit
+  # the cap lands at 40" rather than 60".
+  WASH_SPACING  = 1.0    # spacing = this x standoff
+  WASH_MAX      = 6      # fixtures per washed wall; see WASH_SPACING
   # --- the key light's standoff and aim (1.43.0) -----------------------
   # Benton, 10 Sep 2026, with a screenshot of the key floating a few feet
   # off the door face: "the booth face lights are just way too close. Can
@@ -361,11 +374,11 @@ module WR_DropLights
   LIGHT_LAYERS = {
     :ceiling => { :label => 'Ceiling ambient', :n => 2, :emitter => :rect,
                   :u => 17.5, :v => 17.5, :emitters => 1, :lumens => 2000.0,
-                  :kelvin => 3500, :budget => :room, :visible => true,
+                  :kelvin => 4200, :budget => :room, :visible => true,
                   :fixture => :f1, :disc => true, :tilt => nil, :dir => nil },
     :key     => { :label => 'Key / booth face', :n => 1, :emitter => :rect,
                   :u => 24.0, :v => 24.0, :emitters => 1, :lumens => 2800.0,
-                  :kelvin => 3200, :budget => :room, :visible => false,
+                  :kelvin => 3600, :budget => :room, :visible => false,
                   :fixture => nil, :disc => false, :tilt => 35.0, :dir => 0.5 },
     :pendant => { :label => 'Pendant', :n => 1, :emitter => :sphere,
                   :u => 3.0, :v => 3.0, :emitters => 1, :lumens => 1200.0,
@@ -775,9 +788,9 @@ module WR_DropLights
     best
   end
 
-  # Wall-wash row: 24" standoff into the room, 2-4 fixtures at 1.5x standoff
-  # spacing, centred along the wall run, dropped where the floor polygon or
-  # a keep-out disagrees.
+  # Wall-wash row: 24" standoff into the room, 2 to WASH_MAX fixtures at
+  # WASH_SPACING x standoff, centred along the wall run, dropped where the
+  # floor polygon or a keep-out disagrees.
   def self.wash_points(poly, wall_i, keepouts)
     n = poly.size
     ax, ay = poly[wall_i]
@@ -786,7 +799,7 @@ module WR_DropLights
     return [] if len < 1e-6
     count = grid_count(len, WASH_SPACING * WASH_STANDOFF)
     count = 2 if count < 2
-    count = 4 if count > 4
+    count = WASH_MAX if count > WASH_MAX
     wall_points(poly, wall_i, WASH_STANDOFF, count, keepouts)
   end
 
@@ -3287,6 +3300,63 @@ module WR_DropLights
       dlg.close
     end
     dlg.add_action_callback('cancel') { |_c, _p| @settings_result = nil; dlg.close }
+
+    # REMOVE ALL LIGHTS (1.64.0). Benton, 11 Sep 2026: "is there a way to
+    # 'remove all the drop in lights' with one button? ... Right now, to make
+    # sure its all gone, im starting a new model." remove_rig! has done the
+    # whole job since 1.9.9 -- fixtures, emitters, the borrowed ceiling and
+    # walls, the V-Ray plugin records, this tool's own tag -- and it PROVES
+    # it with an independent re-read of the model. It was simply never
+    # reachable from anywhere but the Ruby Console, which is why starting a
+    # new model looked like the safer option. It is now the button on the
+    # left of the footer.
+    #
+    # It closes the window and returns nil, so no drop follows: "remove" and
+    # "drop" are opposite intents and running both from one press is how you
+    # get a rig you did not ask for. The report is a messagebox, not a
+    # console line, for the same reason -- he does not read the console, and
+    # "is it all gone" is exactly the question that deserves an answer on
+    # screen.
+    dlg.add_action_callback('removeall') do |_c, _p|
+      model = Sketchup.active_model
+      begin
+        r = remove_rig!(model)
+        n = r['erased'].to_i
+        parts = []
+        parts << format('%d light%s / fixture%s', n, n == 1 ? '' : 's', n == 1 ? '' : 's')
+        cg = r['ceiling_groups_erased'].to_i
+        wg = r['wall_groups_erased'].to_i
+        parts << format('%d borrowed ceiling%s', cg, cg == 1 ? '' : 's') if cg > 0
+        parts << format('%d borrowed wall%s', wg, wg == 1 ? '' : 's') if wg > 0
+        pl = r['plugins_deleted'].to_i
+        parts << format('%d V-Ray light record%s', pl, pl == 1 ? '' : 's') if pl > 0
+        parts << 'the WR Lights tag' if r['tag_removed']
+        body = n.zero? && cg.zero? && wg.zero? ?
+          'Nothing of this tool was in the model — there was nothing to remove.' :
+          'Removed: ' + parts.join(', ') + '.'
+        left = r['plugins_left'].to_i
+        body += format("\n\n** %d V-Ray light record%s could NOT be deleted and " \
+                       'are still in the scene. The Ruby Console names them.',
+                       left, left == 1 ? '' : 's') if left > 0
+        body += "\n\n** " + r['tag_note'].to_s if r['tag_note']
+        # verify_restore! is the independent re-read. If it does not agree the
+        # model is clean, that is the headline and it goes FIRST -- the whole
+        # point of the button is being able to trust the answer.
+        unless r['ceiling_verified']
+          body = "** THE MODEL DID NOT VERIFY CLEAN.\n\n" +
+                 Array(r['lines']).join("\n") + "\n\n" + body
+        end
+        UI.messagebox(body)
+        (r['lines'] || []).each { |l| puts "  #{l}" }
+      rescue StandardError => e
+        UI.messagebox("Remove all lights failed: #{e.class}: #{e.message}\n\n" \
+                      'Nothing further was changed. The Ruby Console has the detail.')
+        puts "  remove all lights failed: #{e.class}: #{e.message}"
+        puts e.backtrace.first(6).map { |l| "    #{l}" }.join("\n")
+      end
+      @settings_result = nil
+      dlg.close
+    end
     dlg.add_action_callback('savepreset') do |_c, payload|
       begin
         req = JSON.parse(payload.to_s)
@@ -3348,6 +3418,10 @@ button.prim{background:var(--accent);border-color:var(--accent);color:#fff;font-
 .foot{position:fixed;left:0;right:0;bottom:0;background:var(--card);
   border-top:1px solid var(--line);padding:9px 14px;display:flex;gap:8px;align-items:center}
 .gap{flex:1 1 auto}
+/* The one destructive control in the window, so it is the one that looks it
+   -- quiet until you touch it, never competing with DROP THE LIGHTS. */
+.danger{color:#b03027;border-color:#e8c9c6}
+.danger:hover{background:#b03027;border-color:#b03027;color:#fff}
 .note{font-size:11px;color:var(--muted);margin-top:6px}
 .note.bad{color:#b03027}
 </style></head><body>
@@ -3418,6 +3492,7 @@ as a preset and every later room can use the same rig.</div>
 </div>
 
 <div class="foot">
+  <button id="wipe" class="danger" title="Erase every light, fixture, borrowed ceiling and borrowed wall this tool has ever put in this model, and say what went">REMOVE ALL LIGHTS</button>
   <button id="reset">RESET TO DESIGNED</button>
   <span class="gap"></span>
   <button id="cancel">CANCEL</button>
@@ -3505,6 +3580,15 @@ g("psave").addEventListener("click", function(){
 g("pdel").addEventListener("click", function(){
   var n = g("psel").value;
   if(n) sketchup.delpreset(n);
+});
+// Confirmed HERE rather than in Ruby: a window that vanishes and then asks
+// reads as though the press already happened. One confirm, before anything.
+g("wipe").addEventListener("click", function(){
+  if(!confirm("Remove every light, fixture, borrowed ceiling and borrowed wall "
+            + "this tool put in the model?\n\nThe window closes and NO lights "
+            + "are dropped. This is not covered by Ctrl+Z."))
+    return;
+  if(window.sketchup && sketchup.removeall) sketchup.removeall("");
 });
 g("cancel").addEventListener("click", function(){ sketchup.cancel(""); });
 g("go").addEventListener("click", function(){ sketchup.drop(JSON.stringify(collect())); });
