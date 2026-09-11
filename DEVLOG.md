@@ -94,6 +94,12 @@ At 1 the default is still exactly 2 renders (the forced angled + one off the
 ladder), and what he gained is the angled IMAGE row he did ask for. `ld11`
 pins that total and `fr7` pins the floor.
 
+**DO NOT "RESTORE" THE KNOB TO 2.** It reads like a value someone lowered by
+accident, and it is not: putting it back raises Benton's render spend by 50% on
+every default run, silently. The number in the setting changed meaning, not the
+output. If a default run ever needs to be 3 renders, that is a decision to take
+on purpose with the cost named out loud.
+
 **`fr6` CHANGED DELIBERATELY AND THE COST IS THE POINT.** It used to require
 every forced render to sit on an off-by-default plate, so that forcing one
 could never raise the floor of an ordinary run. Benton then asked for exactly
@@ -114,13 +120,62 @@ ordinary always-on plate (`fr6`). `rbparse.py` clean across 75 files; every
 **~136 checks**. Its page counts now come from `plate_ids` rather than literals,
 so the next plate-set change will not produce another wave of false failures.
 
-**NEXT, AND NOT IN THIS COMMIT: the per-row X delete.** Benton: *"also put an X
-somewhere on the UI for propsal package for each scene so a scene can be
-'deleted'"*. It is the first control in that window that destroys something he
-made, and it deletes ANY scene, not only stamped ones - the opposite of
-REMOVE THIS BOOTH'S SCENES, which is stamp-scoped and must stay that way. That
-belongs in its own commit with its own review, not folded into a camera and
-naming change.
+---
+
+### QUEUED, NOT BUILT: the per-row X delete
+
+Benton asked for it - *"also put an X somewhere on the UI for propsal package
+for each scene so a scene can be 'deleted'"* - and then called it off the same
+day: **"ok hold off on the X then for now, well work on that later."**
+
+**NOTHING OF IT WAS BUILT.** No callback, no CSS, no JS handler, no dead code
+anywhere. That was deliberate rather than incidental: a half-present destructive
+control is worse than none, and this one deletes scenes Benton made by hand.
+`proposal-package.rb` contains no row-delete code and 1.53.0's diff to that file
+is the `RENDER_MARK` constant and nothing else.
+
+The design work that was done before it was cancelled is recorded here so the
+next person does not rediscover it:
+
+- **IT DELETES ANY SCENE, INCLUDING ONES AUTO-SET NEVER MADE.** That is the
+  point of the request - pruning a scene list. It is therefore **the opposite
+  of REMOVE THIS BOOTH'S SCENES**, which is stamp-scoped and must stay that
+  way. The two must be visually distinguishable in the window so they are never
+  confused: Remove is *"the ones I made"*, the X is *"this one, whoever made
+  it"*.
+- **IT MUST CONFIRM, AND THE CONFIRMATION MUST NAME THE SCENE** - and say
+  plainly when the scene is one Benton made by hand rather than one auto-set
+  created, because that is the case where a misclick costs real work. A row X
+  sits next to Skip/Image/Render and is an easy misclick. The confirmation must
+  not be so routine that it becomes muscle memory.
+- **UNDOABILITY HAS TO BE ESTABLISHED BEFORE IT SHIPS, NOT ASSUMED.** Whether
+  SketchUp's undo covers a page erase inside an operation is an open question -
+  `page.update` already sits outside the undo stack (1.25.2), so this cannot be
+  reasoned from the surrounding code. If it is not recoverable the confirmation
+  has to say so. Also open: whether it should feed the one-step UNDO LAST APPLY
+  record, or whether mixing a delete into that record makes undo ambiguous.
+- **THE GRID MUST BE CONSISTENT IMMEDIATELY, NOT AFTER A RESCAN** - row
+  indices, the header scene count, the render/image counts, the filename column
+  and the stamp bookkeeping. Several callbacks resolve a row by table index,
+  and a stale index after a delete is exactly the *"scene N is gone - hit
+  Rescan"* class of error that file already guards against.
+- **A BOOTH'S STAMP MUST NOT END UP POINTING AT SCENES THAT NO LONGER EXIST.**
+  What a deleted stamped scene means for orphan detection and for the re-run
+  path needs working out, so a later Apply does the sensible thing rather than
+  half-matching.
+
+### ALSO OPEN AND UNASSIGNED
+
+- **`proposal-package.rb`'s popover help string is stale.** It still describes
+  the pre-1.50 ladder (*"ventilation -> interior -> dimensioned -> plan"*),
+  which names three plates that no longer exist, and it predates the render
+  count moving to 1. Cosmetic, but it is the text Benton reads before clicking
+  Apply.
+- **Two wall units in `verify-autoset.rb`'s fixture are unexplained.** The live
+  run of 1.50.0 reported 6 where the fixture builds 4. `fixture.walls_named`
+  now asserts identity rather than a bare total and prints every unit with its
+  room label, so the next live run names the strangers - but nobody has yet
+  explained where they come from, and the 6 was never blessed.
 
 ## 2026-09-10
 ### The bearing came off the door LEAF, not the frame - and the interior is always a render - 1.52.0
