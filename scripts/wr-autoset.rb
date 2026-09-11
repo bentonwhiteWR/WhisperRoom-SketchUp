@@ -161,7 +161,8 @@ module WR_AutoSet
       :aim_at => :door,
       :on => true,  :what => 'Front on, square to the door FRAME' },
     { :id => '02-angled',      :az => :door, :swing => 35.0, :el => 7.0,
-      :on => true,  :what => 'Angled, same height - cover hero' },
+      :on => true,  :dual => true,
+      :what => 'Angled, same height - cover hero (image + render)' },
     { :id => '03-high',        :az => :door, :swing => 35.0, :el => 40.0,
       :on => true,  :what => 'High angled (15-20 ft up) - always an image' },
     { :id => '04-side',        :az => :door, :swing => 90.0, :el => 7.0,
@@ -322,9 +323,22 @@ module WR_AutoSet
   #            :always) and does not need the ladder's permission. Benton, 10
   #            Sep 2026: "fyi interior plate should always be a render."
   #
+  # 02-angled CAME OFF THE LADDER AT 1.53.0 and that is not a demotion. It is
+  # now a DUAL plate: its image half must stay an image, and its render half
+  # ('02-angled r') is a forced render. Leaving the base id on the ladder would
+  # have let the knob promote the IMAGE half and give Benton two renders and no
+  # image, which is the opposite of what he asked for.
+  #
   # 01-front is last ON the ladder for the dimensioned-plate reason above.
-  RENDER_LADDER = %w[02-angled 05-ventilation 04-side 01-front].freeze
-  DEFAULT_RENDERS = 2
+  RENDER_LADDER = %w[05-ventilation 04-side 01-front].freeze
+
+  # ONE, NOT TWO, AND THAT IS A COST DECISION SAID OUT LOUD. Until 1.53.0 a
+  # default run was 2 renders: 02-angled and 05-ventilation. The angled render
+  # is now FORCED, so a knob of 2 would have made every default run 3 renders
+  # -- 50% more of the expensive half, which Benton did not ask for. At 1 the
+  # default is still exactly 2 renders (the forced angled + one off the
+  # ladder), and what he gained is the angled IMAGE row he did ask for.
+  DEFAULT_RENDERS = 1
   MAX_RENDERS = 6
 
   # ------------------------------------------------- forced renders --
@@ -349,7 +363,60 @@ module WR_AutoSet
   # forced render ever appears on an `:on => true` plate, so making that
   # change means editing a check that says out loud what it costs.
   def self.forced_renders(ids)
-    (ids || []).select { |id| pl = plate(id); pl && pl[:render] == :always }
+    (ids || []).select do |id|
+      next true if dual_render?(id)
+      pl = plate(id)
+      pl && pl[:render] == :always
+    end
+  end
+
+  # ------------------------------------------- the dual image/render pair --
+  #
+  # Benton, 10 Sep 2026: "I also always want a regular image at angled, and a
+  # render at angled. Should be the same scene, except with the render
+  # setting."
+  #
+  # ONE SketchUp SCENE IS ONE GRID ROW WITH ONE MODE, so "the same scene with
+  # two settings" has to be TWO PAGES SHARING A CAMERA. The machinery for that
+  # turns out to be almost nothing: a dual plate emits a SECOND plate id that
+  # is the first plus DUAL_SUFFIX, and `plate` resolves that id back to the
+  # SAME row. Everything downstream then falls out for free --
+  #
+  #   camera      both ids read the same :az/:swing/:el, so they are aimed
+  #               identically without anything special being written
+  #   walls       wall_picks is keyed on the plate row, so both get the same
+  #   annotations annot_picks likewise. They are the same shot; a difference
+  #               between the two would be a defect.
+  #   stamp       the plate key stays UNIQUE PER PAGE ('02-angled' and
+  #               '02-angled r'), which is what identity needs
+  #   remove      already matches on TOKEN, not plate, so it takes both halves
+  #               and cannot leave an orphan
+  #   re-run      page_for_plate matches each half on its own stamp, so
+  #               neither half is recreated or duplicated
+  #
+  # THE SUFFIX IS ' r' TO MATCH THE FILENAME MARKER. The scene names come out
+  # "MDL 4872 E 02-angled" and "MDL 4872 E 02-angled r" -- adjacent in the tab
+  # bar, obvious which is which. proposal-package.rb's plan_names appends its
+  # render mark only when the name does not already end in it, so the file is
+  # "..._02-angled r.png" and not "..._02-angled r r.png".
+  #
+  # IF BENTON RE-FRAMES ONE OF THE TWO BY HAND, THEY DIVERGE AND STAY
+  # DIVERGED. That is deliberate: auto-set does not re-aim a scene without the
+  # box ticked, because framing is his call. A re-run will NOT silently
+  # re-sync them. Ticking re-aim re-aims BOTH back to the computed camera,
+  # which is the way to put them back together.
+  DUAL_SUFFIX = ' r'.freeze
+
+  def self.dual_render?(id)
+    s = id.to_s
+    return false unless s.end_with?(DUAL_SUFFIX)
+    base = s[0...-DUAL_SUFFIX.length]
+    pl = PLATES.find { |p| p[:id] == base }
+    !pl.nil? && pl[:dual] ? true : false
+  end
+
+  def self.dual_render_id(id)
+    "#{id}#{DUAL_SUFFIX}"
   end
 
   # STILL TO DO, NAMED RATHER THAN HALF-DONE (10 Sep 2026). Benton takes the
@@ -626,12 +693,28 @@ module WR_AutoSet
 
   # ------------------------------------------------------------ azimuth --
 
+  # A dual plate's render half resolves to the SAME row as its image half.
+  # That is what makes the two identical in camera, walls and annotations
+  # without any of those three knowing the pair exists.
   def self.plate(plate_id)
-    PLATES.find { |p| p[:id] == plate_id.to_s }
+    s = plate_id.to_s
+    found = PLATES.find { |p| p[:id] == s }
+    return found if found
+    return nil unless s.end_with?(DUAL_SUFFIX)
+    base = s[0...-DUAL_SUFFIX.length]
+    pl = PLATES.find { |p| p[:id] == base }
+    (pl && pl[:dual]) ? pl : nil
   end
 
+  # A dual plate contributes TWO ids, adjacent, image first.
   def self.plate_ids(interior = false)
-    PLATES.select { |p| p[:on] || (interior && p[:inside]) }.map { |p| p[:id] }
+    out = []
+    PLATES.each do |p|
+      next unless p[:on] || (interior && p[:inside])
+      out << p[:id]
+      out << dual_render_id(p[:id]) if p[:dual]
+    end
+    out
   end
 
   # Where the camera stands, in degrees. door_az/vent_az are read off the

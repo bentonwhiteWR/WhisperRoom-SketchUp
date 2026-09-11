@@ -301,6 +301,8 @@ module WR_ProposalPackage
 
 %(agent_prompt)s
 
+%(render_mark)s
+
 %(uniquify)s
 
 %(scene_prefix)s
@@ -818,7 +820,9 @@ module WR_ProposalPackage
     pn = plan_names([{ 'n' => 1, 'scene' => 'Overview', 'mode' => 'image' },
                      { 'n' => 2, 'scene' => 'Plan', 'mode' => 'render' },
                      { 'n' => 3, 'scene' => 'Spare', 'mode' => 'skip' }])
-    out << (pn[1] == '1_Overview.png' && pn[2] == '2_Plan render.png' ?
+    # THE RENDER MARKER IS ' r' (1.53.0). Benton: "instead of 'rendered', just
+    # put 'r' to identify it."
+    out << (pn[1] == '1_Overview.png' && pn[2] == '2_Plan r.png' ?
               'pn1 ok' : 'pn1 FAIL ' + pn.inspect)
     out << (!pn.key?(3) ? 'pn2 ok' : 'pn2 FAIL a skipped scene got a file')
     many = (1..13).map { |i| { 'n' => i, 'scene' => 'S' + i.to_s, 'mode' => 'image' } }
@@ -840,6 +844,18 @@ module WR_ProposalPackage
     # pure method behind the grid has to survive the empty list rather than
     # relying on a gate upstream to have turned it away.
     out << (plan_names([]) == {} ? 'pn7 ok' : 'pn7 FAIL ' + plan_names([]).inspect)
+    # NO DOUBLED MARKER. auto-set names the render half of the dual angled
+    # pair "<booth> 02-angled r", so the mark must not be appended twice --
+    # and the pair must still come out as two distinct, adjacent files.
+    pd = plan_names([{ 'n' => 1, 'scene' => 'MDL 4872 E 02-angled', 'mode' => 'image' },
+                     { 'n' => 2, 'scene' => 'MDL 4872 E 02-angled r', 'mode' => 'render' }])
+    out << (pd[2] == '2_MDL 4872 E 02-angled r.png' ?
+              'pn8 ok' : 'pn8 FAIL ' + pd.inspect)
+    out << (pd[1] == '1_MDL 4872 E 02-angled.png' && pd[1] != pd[2] ?
+              'pn9 ok' : 'pn9 FAIL ' + pd.inspect)
+    # An IMAGE row never gets the mark, even if its scene name ends in ' r'.
+    pi = plan_names([{ 'n' => 1, 'scene' => 'Corner r', 'mode' => 'image' }])
+    out << (pi[1] == '1_Corner r.png' ? 'pn10 ok' : 'pn10 FAIL ' + pi.inspect)
 
     # ================================================================
     # 1.47.0 -- THE CLIENT-SAFE MODE IS GONE, AND STAYS GONE. annot1-7 used
@@ -1168,6 +1184,7 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'gate1 ok | gate2 ok | gate3 ok | gate4 ok | '
           'sum1 ok | sum2 ok | sum3 ok | lost1 ok | lost2 ok | lost3 ok | '
           'pn1 ok | pn2 ok | pn3 ok | pn4 ok | pn5 ok | pn6 ok | pn7 ok | '
+          'pn8 ok | pn9 ok | pn10 ok | '
           'gone1 ok | '
           'busy1 ok | busy2 ok | busy3 ok | '
           # 1.10.7 -- the manifest's pure half.
@@ -1227,6 +1244,7 @@ def main():
         'resolve_dir':       rbtest.method_source(SRC, 'resolve_dir'),
         'folder_url':        rbtest.method_source(SRC, 'folder_url'),
         'agent_prompt':      rbtest.method_source(SRC, 'agent_prompt'),
+        'render_mark':       const_line('RENDER_MARK'),
         'uniquify':          rbtest.method_source(SRC, 'uniquify'),
         'scene_prefix':      rbtest.method_source(SRC, 'scene_prefix'),
         'plan_names':        rbtest.method_source(SRC, 'plan_names'),

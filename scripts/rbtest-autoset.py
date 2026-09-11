@@ -250,6 +250,7 @@ module WR_AutoSet
 %(fallback_az)s
 %(moved_tol)s
 %(cos_cone)s
+%(dual_suffix)s
 %(dims_re)s
 %(booth_wall_t)s
 %(interior_eye_clear)s
@@ -276,6 +277,10 @@ module WR_AutoSet
 %(wall_picks)s
 
 %(ladder_renders)s
+
+%(dual_render)s
+
+%(dual_render_id)s
 
 %(forced_renders)s
 
@@ -359,8 +364,11 @@ module T
 
   # The six plates a default run makes, and the seven that exist. Side is ON
   # by default even though Benton said "sometimes" -- see PLATES.
-  DEFAULTS = %%w[01-front 02-angled 03-high 04-side 05-ventilation 06-plan]
-  ALL      = DEFAULTS + %%w[07-interior]
+  # 02-angled is a DUAL plate: it emits an image row and a render row from
+  # one camera, so the default run is SEVEN pages, not six.
+  DEFAULTS = ['01-front', '02-angled', '02-angled r', '03-high', '04-side',
+              '05-ventilation', '06-plan']
+  ALL      = DEFAULTS + ['07-interior']
 
   # Every annotation set a well-used model carries: the five the WR tools
   # write, the two opt-in sets AUTO-SET knows by name, and one Benton made
@@ -427,6 +435,11 @@ module T
       'fov' => c.fov }
   end
 
+  def self.shown_on_equal?(a, b, ss = sets)
+    WR_AutoSet.annot_picks(a, ss, loose) == WR_AutoSet.annot_picks(b, ss, loose) &&
+      shown_on(a, ss) == shown_on(b, ss)
+  end
+
   def self.shown_on(plate, ss = sets)
     p = WR_AutoSet.annot_picks(plate, ss, loose)
     ss.map { |s| s['name'] }.reject { |n| p["t:#{n}"] }
@@ -490,29 +503,33 @@ module T
     ck('mv5', WR_AutoSet.centre_moved?('', [10.0, 20.0, 30.0]) == false)
 
     # ---- the render ladder ----------------------------------------------
-    # The clean plates render; the dimension-carrying ones are images.
-    ck('ld1', WR_AutoSet.renders_for(2, DEFAULTS) == ['02-angled', '05-ventilation'],
+    # The ladder's share, plus the forced rows. '02-angled r' is forced, so
+    # it is in every one of these regardless of the knob.
+    ck('ld1', WR_AutoSet.renders_for(1, DEFAULTS) == ['05-ventilation', '02-angled r'],
+       WR_AutoSet.renders_for(1, DEFAULTS).inspect)
+    # AT ZERO THE ANGLED RENDER IS STILL THERE. "always", per Benton.
+    ck('ld2', WR_AutoSet.renders_for(0, DEFAULTS) == ['02-angled r'],
+       WR_AutoSet.renders_for(0, DEFAULTS).inspect)
+    ck('ld3', WR_AutoSet.renders_for(2, DEFAULTS) ==
+              ['05-ventilation', '04-side', '02-angled r'],
        WR_AutoSet.renders_for(2, DEFAULTS).inspect)
-    ck('ld2', WR_AutoSet.renders_for(0, DEFAULTS) == [])
-    ck('ld3', WR_AutoSet.renders_for(3, DEFAULTS) ==
-              ['02-angled', '05-ventilation', '04-side'])
-    # 07-interior is a rung, but only when the run actually makes that plate.
-    ck('ld4', WR_AutoSet.renders_for(4, DEFAULTS) ==
-              ['02-angled', '05-ventilation', '04-side', '01-front'],
-       WR_AutoSet.renders_for(4, DEFAULTS).inspect)
-    # 07-interior is a FORCED render now, appended after the ladder's share
-    # rather than occupying a rung of it.
-    ck('ld5', WR_AutoSet.renders_for(4, ALL) ==
-              ['02-angled', '05-ventilation', '04-side', '01-front', '07-interior'],
-       WR_AutoSet.renders_for(4, ALL).inspect)
-    # Only FIVE of the seven are on the ladder at all -- 03-high and 06-plan
-    # can never be promoted, however high the knob goes.
-    ck('ld6', WR_AutoSet.renders_for(99, DEFAULTS).length == 4,
-       WR_AutoSet.renders_for(99, DEFAULTS).inspect)
-    ck('ld7', WR_AutoSet.renders_for(-1, DEFAULTS) == [])
-    ck('ld8', WR_AutoSet.mode_for('06-plan', ['02-angled']) == 'image')
-    ck('ld9', WR_AutoSet.mode_for('02-angled', ['02-angled']) == 'render')
-    ck('ld10', WR_AutoSet::DEFAULT_RENDERS == 2)
+    ck('ld4', WR_AutoSet.renders_for(3, DEFAULTS) ==
+              ['05-ventilation', '04-side', '01-front', '02-angled r'],
+       WR_AutoSet.renders_for(3, DEFAULTS).inspect)
+    ck('ld5', WR_AutoSet.renders_for(3, ALL) ==
+              ['05-ventilation', '04-side', '01-front', '02-angled r', '07-interior'],
+       WR_AutoSet.renders_for(3, ALL).inspect)
+    # Three of the ladder's rungs exist; 03-high and 06-plan are on no rung.
+    ck('ld6', WR_AutoSet.ladder_renders(99, DEFAULTS).length == 3,
+       WR_AutoSet.ladder_renders(99, DEFAULTS).inspect)
+    ck('ld7', WR_AutoSet.ladder_renders(-1, DEFAULTS) == [])
+    ck('ld8', WR_AutoSet.mode_for('06-plan', ['02-angled r']) == 'image')
+    ck('ld9', WR_AutoSet.mode_for('02-angled r', ['02-angled r']) == 'render')
+    # ONE, NOT TWO: the angled render is forced now, so a default run is
+    # still exactly 2 renders and Benton's spend did not go up by 50%%.
+    ck('ld10', WR_AutoSet::DEFAULT_RENDERS == 1)
+    ck('ld11', WR_AutoSet.renders_for(WR_AutoSet::DEFAULT_RENDERS, DEFAULTS).length == 2,
+       WR_AutoSet.renders_for(WR_AutoSet::DEFAULT_RENDERS, DEFAULTS).inspect)
 
     # ---- FORCED RENDERS --------------------------------------------------
     # Benton, 10 Sep 2026: "fyi interior plate should always be a render."
@@ -540,10 +557,68 @@ module T
     # until Benton asks for that plate; on an always-on plate it would raise
     # the floor of EVERY run. If that ever needs to change, this check is what
     # makes it a decision rather than an accident -- edit it deliberately.
-    ck('fr6', WR_AutoSet.forced_renders(ALL).all? { |id| WR_AutoSet.plate(id)[:on] == false },
+    # fr6 CHANGED DELIBERATELY AT 1.53.0 AND THE COST IS THE POINT. It used
+    # to require EVERY forced render to sit on an off-by-default plate, so
+    # that forcing one could never raise the floor of an ordinary run. Benton
+    # then asked for exactly that: "I also always want a regular image at
+    # angled, and a render at angled." So a forced render is now allowed on an
+    # always-on plate ONLY as the render half of a dual pair -- an ordinary
+    # plate still cannot be made a forced render without failing here.
+    ck('fr6', WR_AutoSet.forced_renders(ALL).all? do |id|
+                WR_AutoSet.dual_render?(id) || WR_AutoSet.plate(id)[:on] == false
+              end,
        WR_AutoSet.forced_renders(ALL).inspect)
-    ck('fr7', WR_AutoSet.forced_renders(DEFAULTS) == [],
-       WR_AutoSet.forced_renders(DEFAULTS).inspect)
+    # THE FLOOR OF EVERY DEFAULT RUN, NAMED. One render happens whatever the
+    # knob says. If this number ever moves, it moved because someone changed
+    # what a default run costs.
+    ck('fr7', WR_AutoSet.renders_for(0, DEFAULTS).length == 1,
+       WR_AutoSet.renders_for(0, DEFAULTS).inspect)
+
+    # ---- THE DUAL ANGLED PAIR -------------------------------------------
+    # Benton, 10 Sep 2026: "I also always want a regular image at angled, and
+    # a render at angled. Should be the same scene, except with the render
+    # setting."
+    ck('du1', WR_AutoSet.plate_ids(false) == DEFAULTS, WR_AutoSet.plate_ids(false).inspect)
+    # Adjacent, image first, so the tab bar reads in pairs.
+    ck('du2', WR_AutoSet.plate_ids(false).index('02-angled r') ==
+              WR_AutoSet.plate_ids(false).index('02-angled') + 1,
+       WR_AutoSet.plate_ids(false).inspect)
+    # ONE IMAGE, ONE RENDER, ALWAYS -- at every setting of the knob.
+    ck('du3', (0..WR_AutoSet::MAX_RENDERS).all? do |n|
+                rs = WR_AutoSet.renders_for(n, DEFAULTS)
+                rs.include?('02-angled r') && !rs.include?('02-angled')
+              end,
+       'the angled pair is not exactly one image and one render')
+    # THE SAME SHOT. Both halves resolve to the SAME plate row, which is what
+    # makes their camera, walls and annotations identical without anything
+    # having to keep them in step.
+    ck('du4', WR_AutoSet.plate('02-angled r').equal?(WR_AutoSet.plate('02-angled')),
+       'the two halves resolve to different plate rows')
+    ck('du5', shown_on_equal?('02-angled', '02-angled r'),
+       'the pair disagrees about annotations')
+    # Identical cameras, measured -- not asserted from the shared row.
+    ia = shot('02-angled')
+    ra = shot('02-angled r')
+    ck('du6', (ia['az'] - ra['az']).abs < 1.0e-12 &&
+              (ia['run'] - ra['run']).abs < 1.0e-12 &&
+              (ia['z'] - ra['z']).abs < 1.0e-12,
+       [ia, ra].inspect)
+    # The stamp key stays UNIQUE PER PAGE, which is what identity needs.
+    ck('du7', WR_AutoSet.scene_name('MDL 4872 E', '02-angled r') ==
+              'MDL 4872 E 02-angled r',
+       WR_AutoSet.scene_name('MDL 4872 E', '02-angled r'))
+    ck('du8', WR_AutoSet.scene_name('MDL 4872 E', '02-angled') !=
+              WR_AutoSet.scene_name('MDL 4872 E', '02-angled r'))
+    # A NON-DUAL PLATE GETS NO SECOND ROW, and 'xx r' for a plate that is not
+    # dual resolves to nothing rather than silently aliasing.
+    ck('du9', !WR_AutoSet.dual_render?('01-front r') &&
+              WR_AutoSet.plate('01-front r').nil?,
+       'a non-dual plate grew a render half')
+    ck('du10', WR_AutoSet.dual_render?('02-angled r') &&
+               !WR_AutoSet.dual_render?('02-angled'))
+    # THE FILENAME DOES NOT DOUBLE THE MARKER. proposal-package.rb appends its
+    # mark only when the name does not already end in it.
+    ck('du11', WR_AutoSet::DUAL_SUFFIX == ' r', WR_AutoSet::DUAL_SUFFIX.inspect)
 
     # ---- the plate azimuths ---------------------------------------------
     # THE DOOR IS THE ANCHOR for everything except the vent shot. Benton:
@@ -954,8 +1029,9 @@ end).dup
 NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'sm1 sm2 sm3 sm4 sm5 sm6 sm7 sm8 '
          'mv1 mv2 mv3 mv4 mv5 '
-         'ld1 ld2 ld3 ld4 ld5 ld6 ld7 ld8 ld9 ld10 '
+         'ld1 ld2 ld3 ld4 ld5 ld6 ld7 ld8 ld9 ld10 ld11 '
          'fr1 fr2 fr3 fr4 fr5 fr6 fr7 '
+         'du1 du2 du3 du4 du5 du6 du7 du8 du9 du10 du11 '
          'az1 az2 az3 az4 az5 az6 az7 az8 az9 az10 az11 '
          'an1 an2 an2b an2c an3 an4 an5 an6 an7 an7b an8 an9 an10 an11 '
          'nv1 nv2 nv3 '
@@ -982,6 +1058,7 @@ def main():
         'fallback_az':     const_line('FALLBACK_AZ'),
         'moved_tol':       const_line('MOVED_TOL'),
         'cos_cone':        const_line('COS_CONE'),
+        'dual_suffix':     const_line('DUAL_SUFFIX'),
         'dims_re':         const_line('DIMS_RE'),
         'booth_wall_t':    const_line('BOOTH_WALL_T'),
         'interior_eye_clear': const_line('INTERIOR_EYE_CLEAR'),
@@ -1008,6 +1085,8 @@ def main():
         'az_for':          rbtest.method_source(SRC, 'az_for'),
         'standoff':        rbtest.method_source(SRC, 'standoff'),
         'forced_renders':  rbtest.method_source(SRC, 'forced_renders'),
+        'dual_render':     rbtest.method_source(SRC, 'dual_render'),
+        'dual_render_id':  rbtest.method_source(SRC, 'dual_render_id'),
         'ladder_renders':  rbtest.method_source(SRC, 'ladder_renders'),
         'reach':           rbtest.method_source(SRC, 'reach'),
         'wall_axis':       rbtest.method_source(SRC, 'wall_axis'),

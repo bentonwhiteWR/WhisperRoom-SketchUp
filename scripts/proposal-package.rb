@@ -565,6 +565,10 @@ module WR_ProposalPackage
   # rather than colliding with scene 2; two scenes sharing a name now
   # differ by prefix and the "(2)" suffix is only reached if the prefixed
   # names still collide, which they cannot.
+  # What marks a render row's filename. Short on purpose - Benton, 10 Sep
+  # 2026: "instead of 'rendered', just put 'r' to identify it."
+  RENDER_MARK = ' r'.freeze
+
   def self.plan_names(rows)
     used = {}
     out  = {}
@@ -573,7 +577,24 @@ module WR_ProposalPackage
       base = sanitize(r['scene'])
       base = 'scene' if base.empty?
       base = scene_prefix(r['n'], rows.size) + base
-      base += ' render' if r['mode'] == 'render'
+
+      # THE RENDER MARKER IS 'r' (1.53.0). Benton, 10 Sep 2026, given three
+      # naming options for the angled image/render pair: "instead of
+      # 'rendered', just put 'r' to identify it." He rejected the word, not
+      # one of the options, so this is the marker for EVERY render row.
+      #
+      #   before   2_MDL 4872 E 02-angled render.png
+      #   after    2_MDL 4872 E 02-angled r.png
+      #
+      # APPENDED ONLY IF THE NAME DOES NOT ALREADY END IN IT, which is what
+      # makes the dual pair readable: auto-set names the render half of the
+      # angled pair "<booth> 02-angled r" so the two scenes sit next to each
+      # other in the tab bar, and without this guard its file would come out
+      # "...02-angled r r.png". Same rule protects a scene Benton names that
+      # way by hand.
+      if r['mode'] == 'render' && !base.end_with?(RENDER_MARK)
+        base += RENDER_MARK
+      end
       out[r['n']] = "#{uniquify(base, used)}.png"
     end
     out

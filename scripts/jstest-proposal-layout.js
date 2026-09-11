@@ -103,7 +103,7 @@ const ST = {
   deep: true,
   rows: NAMES.map((s, i) => ({
     n: i + 1, scene: 'MDL 4872 E (components) ' + s, mode: MODES[i],
-    file: (i + 1) + '_MDL 4872 E (components) ' + s + (MODES[i] === 'render' ? ' render' : '') + '.png',
+    file: (i + 1) + '_MDL 4872 E (components) ' + s + (MODES[i] === 'render' ? ' r' : '') + '.png',
     walls: { total: 4, hidden: i < 4 ? 1 : 0, names: i < 4 ? ['Room Wall 1'] : [] },
     annots: { label: i === 4 ? 'dims + doors' : 'all hidden', warn: false, loose: 0, tip: 'Shown: WR-Dims' }
   })),

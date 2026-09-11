@@ -101,7 +101,16 @@ def infer_profile(path):
     base = os.path.basename(path)
     if PLAN_RE.search(base):
         return 'plan', 'inferred from the filename'
-    if re.search(r'render', base, re.I):
+    # ' r' BEFORE THE EXTENSION IS A RENDER TOO (1.53.0). proposal-package.rb
+    # used to write '... render.png' and now writes '... r.png' -- Benton:
+    # "instead of 'rendered', just put 'r' to identify it." Both are matched,
+    # so packs exported before and after the change classify the same.
+    #
+    # It matters even though PROFILES['render'] and PROFILES['view'] currently
+    # hold identical numbers: the profile NAME is what the QA report shows, and
+    # the day those tolerances diverge a silently mis-labelled render is
+    # exactly the 30 Aug failure this file was written for.
+    if re.search(r'render', base, re.I) or re.search(r'\sr\.[A-Za-z0-9]+$', base):
         return 'render', 'inferred from the filename'
     return 'view', 'inferred from the filename (default)'
 

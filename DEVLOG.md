@@ -1,6 +1,128 @@
 # DEVLOG
 
 ## 2026-09-10
+### The angled shot is a PAIR now - one image, one render, one camera - and the render marker is 'r' - 1.53.0
+
+Two decisions came back from Benton and unblocked the dual-camera work that
+1.50.0 identified and deliberately deferred.
+
+**1. THE RENDER MARKER IS `r`.** Given three naming options for the pair, he
+rejected the word rather than picking one: *"instead of 'rendered', just put
+'r' to identify it."* So it is the marker for EVERY render row, not just the
+pair.
+
+| | before | after |
+|---|---|---|
+| a render row | `2_MDL 4872 E 02-angled render.png` | `2_MDL 4872 E 02-angled r.png` |
+| an image row | `1_MDL 4872 E 01-front.png` | unchanged |
+| the pair | n/a | `2_..._02-angled.png` + `3_..._02-angled r.png` |
+
+**IT IS APPENDED ONLY IF THE NAME DOES NOT ALREADY END IN IT**, which is what
+stops the pair doubling: auto-set names the render half `<booth> 02-angled r`
+so the two sit adjacent in the tab bar, and without the guard its file would be
+`..._02-angled r r.png`. Same rule protects a scene Benton names that way by
+hand, and an IMAGE row never gets the mark even if its name ends in ` r`
+(`pn8`-`pn10`).
+
+**I CHECKED THE BLAST RADIUS BEFORE EDITING, because these filenames go into
+client packs and into `proposal-v2.json`:**
+
+- **`scripts/image-qa.py:104` infers the QA profile from the filename**
+  containing "render". It now matches ` r.<ext>` as well, so packs exported
+  before and after classify the same. **Worth stating: `PROFILES['render']` and
+  `PROFILES['view']` currently hold identical numbers, so nothing moved
+  numerically today** - but the profile NAME is what the QA report shows, and
+  the day those tolerances diverge a silently mis-labelled render is exactly
+  the 30 Aug failure that file exists for. Fixed rather than left.
+- **`scripts/jstest-proposal-layout.js:106`** built the expected filename with
+  `' render'`. Updated.
+- **`scripts/jstest-proposal-dialog.js:62`** carries `'2_Scene 4 render.png'`,
+  but as fixture INPUT to the dialog renderer, not as an expectation derived
+  from `plan_names` - nothing breaks, and it is the other agent's file, so it
+  was left alone.
+- **`proposals/examples/*/proposal-v2.json` contain no `.png` filenames at
+  all**, so no existing pack config references the old string.
+- `wr-flatten-trim.py` has no dependency on it.
+- `proposal-package.rb`'s last commit is `6c95e08` (1.49.2, already merged), so
+  the other agent's grid work is landed and editing it now is safe.
+
+**Operational note:** a folder already holding `..._02-angled render.png` will
+gain `..._02-angled r.png` beside it on the next export rather than overwriting
+it. Nothing deletes the old file.
+
+**2. `07-interior` STAYS OFF BY DEFAULT.** Benton, asked directly: *"Leave it
+off - tick to include."* **This was asked and explicitly declined - do not flip
+it later thinking it was an oversight.** `:on => false` and the `fr6` guard are
+both correct as they stand.
+
+**3. THE DUAL ANGLED PAIR.** *"I also always want a regular image at angled,
+and a render at angled. Should be the same scene, except with the render
+setting."*
+
+One SketchUp scene is one grid row with one mode, so "the same scene with two
+settings" has to be **two pages sharing a camera**. The machinery turned out to
+be almost nothing: a `:dual` plate emits a SECOND plate id that is the first
+plus `DUAL_SUFFIX` (`' r'`), and **`plate` resolves that id back to the SAME
+row.** Everything else falls out for free:
+
+- **camera** - both ids read the same `:az`/`:swing`/`:el`, so they are aimed
+  identically with nothing written to keep them in step (`du6` measures the two
+  eyes rather than trusting the shared row)
+- **walls and annotations** - both keyed on the plate row, so identical (`du5`)
+- **stamp** - the plate key stays unique per page, which is all identity needs
+- **Remove** - already matches on TOKEN, never on plate, so it takes both
+  halves and cannot leave an orphan
+- **re-run** - each half matches its own stamp, so neither is duplicated
+
+**IF BENTON RE-FRAMES ONE OF THE TWO BY HAND THEY DIVERGE AND STAY DIVERGED.**
+That is deliberate, not a gap: auto-set does not re-aim without the box ticked,
+because framing is his call. **A re-run will NOT silently re-sync them.**
+Ticking **re-aim cameras** puts both back on the computed camera, and that is
+the way to reunite them.
+
+**THE RENDER ACCOUNTING, AND THE COST DECISION IN IT.** `02-angled` came OFF
+`RENDER_LADDER` - not a demotion. Its image half must stay an image, and
+leaving the base id on the ladder would have let the knob promote it and give
+him two renders and no image, the exact opposite of the request. The render
+half is a FORCED render, additive and outside the ladder.
+
+**`DEFAULT_RENDERS` went 2 -> 1, and that is a deliberate cost decision.**
+Until now a default run was 2 renders (`02-angled` + `05-ventilation`). With
+the angled render forced, a knob of 2 would have made every default run
+**three** renders - 50% more of the expensive half, which he did not ask for.
+At 1 the default is still exactly 2 renders (the forced angled + one off the
+ladder), and what he gained is the angled IMAGE row he did ask for. `ld11`
+pins that total and `fr7` pins the floor.
+
+**`fr6` CHANGED DELIBERATELY AND THE COST IS THE POINT.** It used to require
+every forced render to sit on an off-by-default plate, so that forcing one
+could never raise the floor of an ordinary run. Benton then asked for exactly
+that. A forced render is now allowed on an always-on plate **only as the render
+half of a dual pair** - an ordinary plate still cannot be made one without
+failing that check.
+
+**VERIFICATION.** `rbtest-autoset.py` 134 -> **146 checks**; `rbtest-proposal.py`
+gained `pn8`-`pn10` for the marker and the no-doubling rule. **37 mutants
+reintroduced one at a time, all 37 killed by name** - including the angled
+plate un-dualled, the image half put back on the ladder, the render half
+un-forced, the pair made to resolve to different plate rows (`du4`/`du6`), the
+default spend raised back to 2 (`ld10`/`ld11`), and a forced render put on an
+ordinary always-on plate (`fr6`). `rbparse.py` clean across 75 files; every
+`rbtest-*.py` exits 0 and both `jstest-*.js` pass.
+
+**UNVERIFIED until Benton runs it:** `.forge/builder/verify-autoset.rb`. Expect
+**~136 checks**. Its page counts now come from `plate_ids` rather than literals,
+so the next plate-set change will not produce another wave of false failures.
+
+**NEXT, AND NOT IN THIS COMMIT: the per-row X delete.** Benton: *"also put an X
+somewhere on the UI for propsal package for each scene so a scene can be
+'deleted'"*. It is the first control in that window that destroys something he
+made, and it deletes ANY scene, not only stamped ones - the opposite of
+REMOVE THIS BOOTH'S SCENES, which is stamp-scoped and must stay that way. That
+belongs in its own commit with its own review, not folded into a camera and
+naming change.
+
+## 2026-09-10
 ### The bearing came off the door LEAF, not the frame - and the interior is always a render - 1.52.0
 
 Three corrections from Benton after re-running 1.51.0. Two are the same plate

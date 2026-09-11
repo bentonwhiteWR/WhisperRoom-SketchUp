@@ -414,18 +414,26 @@ module WR_VerifyAutoSet
       say('create.token_on_booth', tok1.to_s == B1, tok1.inspect)
       set1 = WR_AutoSet.token_pages(pages.to_a, tok1)
       made_pg.concat(set1)
-      say('create.six_pages', set1.length == 6, set1.map { |p| p.name }.inspect)
+      # THE COUNT COMES FROM THE PLATE TABLE, not a literal -- 1.53.0 made
+      # 02-angled a DUAL plate, so a default run is seven pages, not six, and
+      # a hard-coded number would have produced another wave of false failures.
+      want_n = WR_AutoSet.plate_ids(false).length
+      say('create.a_page_per_plate', set1.length == want_n,
+          "#{set1.length} pages, table wants #{want_n}: #{set1.map { |p| p.name }.inspect}")
       say('create.named_after_the_booth',
           set1.map { |p| p.name.to_s }.sort ==
             WR_AutoSet.plate_ids(false).map { |id| "#{B1} #{id}" }.sort,
           set1.map { |p| p.name.to_s }.inspect)
       modes = set1.map { |p| WR_ProposalPackage.mode_of(p) }
-      say('create.four_image_two_render',
-          modes.count('render') == 2 && modes.count('image') == 4, modes.inspect)
-      say('create.renders_are_angled_and_ventilation',
+      # DEFAULT_RENDERS is 1 now and the angled render is FORCED, so a default
+      # run is still exactly 2 renders -- Benton's spend did not go up.
+      say('create.two_render_the_rest_image',
+          modes.count('render') == 2 && modes.count('image') == want_n - 2,
+          modes.inspect)
+      say('create.renders_are_the_angled_render_half_and_ventilation',
           set1.select { |p| WR_ProposalPackage.mode_of(p) == 'render' }
               .map { |p| WR_AutoSet.page_stamp(p)['plate'] }.sort ==
-            ['02-angled', '05-ventilation'],
+            ['02-angled r', '05-ventilation'],
           set1.map { |p| [WR_AutoSet.page_stamp(p)['plate'], WR_ProposalPackage.mode_of(p)] }.inspect)
       say('create.stamp_carries_the_centre',
           set1.all? { |p| WR_AutoSet.page_stamp(p)['centre'].to_s.split(',').length == 3 })
@@ -506,11 +514,11 @@ module WR_VerifyAutoSet
       set2 = WR_AutoSet.token_pages(pages.to_a, tok2)
       made_pg.concat(set2)
       say('second.token_differs', tok2.to_s != tok1.to_s, [tok1, tok2].inspect)
-      say('second.six_more_pages', set2.length == 6)
+      say('second.a_page_per_plate_again', set2.length == want_n, set2.length.to_s)
       say('second.no_name_collision',
           (set1.map { |p| p.name.to_s } & set2.map { |p| p.name.to_s }).empty?)
       say('second.booth_ones_set_untouched',
-          WR_AutoSet.token_pages(pages.to_a, tok1).length == 6)
+          WR_AutoSet.token_pages(pages.to_a, tok1).length == want_n)
       say('second.appended_after_the_first',
           pages.to_a.index(set2.first) > pages.to_a.index(set1.last),
           "#{pages.to_a.index(set1.last)} then #{pages.to_a.index(set2.first)}")
@@ -602,7 +610,7 @@ module WR_VerifyAutoSet
       ok4, msg4, = WR_AutoSet.apply(@model, b2, { 'mode' => 'add', 'renders' => 1 })
       say('add.second_set_for_the_same_booth', ok4, msg4)
       added = pages.count - n_pre
-      say('add.six_more', added == 6, added.to_s)
+      say('add.a_page_per_plate', added == want_n, added.to_s)
       made_pg.concat(pages.to_a)
       say('undo.available', !WR_AutoSet.undo_summary(@model).nil?,
           WR_AutoSet.undo_summary(@model).inspect)
@@ -617,12 +625,14 @@ module WR_VerifyAutoSet
       n_pre2 = pages.count
       rok, rmsg, = WR_AutoSet.apply(@model, b1, { 'mode' => 'remove' })
       say('remove.ok', rok, rmsg)
-      say('remove.only_this_booths_six', pages.count == n_pre2 - 6,
-          "#{n_pre2} -> #{pages.count}")
+      # REMOVE TAKES BOTH HALVES OF THE DUAL PAIR. It matches on TOKEN, never
+      # on plate, so it cannot leave an orphan half behind.
+      say('remove.only_this_booths_pages', pages.count == n_pre2 - want_n,
+          "#{n_pre2} -> #{pages.count}, expected -#{want_n}")
       say('remove.my_test_survived_remove',
           mine_pg.valid? && mine_pg.name.to_s == mine_name_at_start)
       say('remove.booth_twos_set_survived',
-          WR_AutoSet.token_pages(pages.to_a, tok2).length == 6)
+          WR_AutoSet.token_pages(pages.to_a, tok2).length == want_n)
       say('remove.token_cleared_off_the_booth',
           b1.get_attribute('WR_AutoSet', 'token', nil).nil?)
 
@@ -786,6 +796,46 @@ module WR_VerifyAutoSet
       say('cam.interior_is_perspective', ic.perspective? == true)
       say('cam.interior_keeps_its_wide_lens',
           (ic.fov - WR_AutoSet::INTERIOR_FOV).abs < 0.01, ic.fov.inspect)
+
+      # ---- THE DUAL ANGLED PAIR, ON REAL PAGES --------------------------
+      # Benton, 10 Sep 2026: "I also always want a regular image at angled,
+      # and a render at angled. Should be the same scene, except with the
+      # render setting."
+      ang_i = by_plate['02-angled']
+      ang_r = by_plate['02-angled r']
+      say('dual.both_halves_exist', !ang_i.nil? && !ang_r.nil?, by_plate.keys.inspect)
+      say('dual.one_image_one_render',
+          ang_i && ang_r &&
+            WR_ProposalPackage.mode_of(ang_i) == 'image' &&
+            WR_ProposalPackage.mode_of(ang_r) == 'render',
+          [ang_i && WR_ProposalPackage.mode_of(ang_i),
+           ang_r && WR_ProposalPackage.mode_of(ang_r)].inspect)
+      # THE SAME CAMERA, read back off the two saved pages.
+      say('dual.identical_cameras',
+          ang_i && ang_r && cam_tuple(ang_i.camera) == cam_tuple(ang_r.camera),
+          [ang_i && cam_tuple(ang_i.camera), ang_r && cam_tuple(ang_r.camera)].inspect)
+      # THE SAME WALLS AND THE SAME ANNOTATIONS. They are one shot; a
+      # difference between the two halves would be a defect.
+      if ang_i && ang_r
+        sel(ang_i)
+        wi = units.count { |u| u[:pieces].all? { |g| hidden?(g) } }
+        ai = tag_names_hidden(ang_i).to_a.sort
+        sel(ang_r)
+        wr = units.count { |u| u[:pieces].all? { |g| hidden?(g) } }
+        ar = tag_names_hidden(ang_r).to_a.sort
+        say('dual.identical_walls', wi == wr, "#{wi} vs #{wr}")
+        say('dual.identical_annotations', ai == ar, [ai, ar].inspect)
+      end
+      # ADJACENT IN THE TAB BAR, image first.
+      say('dual.adjacent_and_image_first',
+          ang_i && ang_r &&
+            pages.to_a.index(ang_r) == pages.to_a.index(ang_i) + 1,
+          [ang_i && pages.to_a.index(ang_i), ang_r && pages.to_a.index(ang_r)].inspect)
+      # AND THE FILENAME DOES NOT DOUBLE THE MARKER.
+      dn = WR_ProposalPackage.plan_names(WR_ProposalPackage.state(@model)['rows'])
+      say('dual.no_doubled_render_marker',
+          dn.values.none? { |f| f.to_s =~ /r\s+r\.png\z/ },
+          dn.values.select { |f| f.to_s.include?(' r') }.inspect)
 
       # ---- THE INTERIOR IS ALWAYS A RENDER ------------------------------
       # Benton, 10 Sep 2026: "fyi interior plate should always be a render."
