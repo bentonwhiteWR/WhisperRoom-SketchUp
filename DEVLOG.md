@@ -1,6 +1,116 @@
 # DEVLOG
 
 ## 2026-09-11
+### AUTO-SET: angled leads, a render is an extra scene in front of its image, and zero means zero - 1.56.0
+
+Benton, having run 1.55.0 live: *"When I click '0' renders, it still makes
+one though. Lets get that situated."* And the order and ladder he actually
+wants, verbatim: *"First render would be the angled. So then the render
+would go IN FRONT of the image. So then the 1st scene would be render
+angled. 2nd scene would be image angled. 3rd scene image front... if two
+renders were selected, then it would add a rendered front. if 3 were added,
+it would add a rendered high."* Asked whether the interior counts against
+that number: *"No, interior is extra and always a render."*
+
+**What changed (`scripts/wr-autoset.rb`).**
+
+- **Plate order** is angled, front, high, side, ventilation, plan, and the
+  numeric prefix follows the position: `01-front` is now `02-front`,
+  `02-angled` is now `01-angled`. The last four kept their ids.
+- **A render is an extra paired scene, inserted in front of its image.** The
+  six image plates are always produced; the render count says how many of
+  them also get a `"<id> r"` scene, walked down `RENDER_LADDER`, which is
+  now the plate order itself. `plate_ids(interior, renders)` builds the id
+  list in scene order; `render_ids(ids)` is the paired halves plus the
+  interior. `forced_renders`, `renders_for` and the `:dual` flag are gone
+  with the concept. `MAX_RENDERS` is the ladder's length (6).
+- **Zero renders is six image scenes and nothing else.** The forced angled
+  render of 1.53-1.55 is removed; `fr7` pins the floor at zero and `fr6`
+  fails if a non-paired render ever lands on an always-on plate again.
+- **The interior** is unchanged in behaviour and now pinned as such: opt-in,
+  after the plan, always a render, `n + 1` renders at knob `n`, never a
+  paired image (`fr3`, `fr4`, `fr8`).
+- **`base_id`** strips the suffix so `SHOWN_BY_PLATE`, `NO_WALL_PLATES` and
+  `plate_log` see through it. Until now the one paired plate had an empty
+  allowlist so the raw-id lookup happened to be right; a `05-ventilation r`
+  that hid WR-Notes-Vent, or a `06-plan r` that hid walls, would have been a
+  silent defect. `du5` / `du5b` pin it; two mutants confirm they bite.
+- **Summary string** breaks the count out honestly: `N render (n from the
+  render count, each its own scene in front of its image: ...; 1 always a
+  render, not counted: 07-interior) / M image`. At zero it reads `0 render
+  / 6 image`. The sentence about an "always-render" is gone. The door-nil
+  warning lists the plates in the new order. `plate_log` compared against
+  `'05-plan'`, a leftover from the 1.50 renumbering; it is `06-plan`.
+
+**The update path over an existing set -- the risk I was told to watch.**
+Every 1.53-1.55 set carries `01-front` / `02-angled` / `02-angled r`, so a
+naive Update would create three new scenes beside them and call the
+originals stale. Instead `RENUMBERED` maps old id to new; `page_for_plate`
+falls through to it, apply restamps the page, and **renames it only if it
+still wears the tool's own old name** (`auto_named?`) -- a hand-typed name
+stays. `stale_plates` treats those ids as live, so the only thing still
+called stale is an id with no successor (1.48's `02-dimensioned`). What
+Update cannot do is reorder the tab bar (no page move in the API), and the
+export numbers follow the tab order, so apply now says `not in plate order`
+when the written pages are out of sequence and names Remove-then-Apply.
+Two more notes: a render scene created on an Update is inserted before its
+image with `Pages#add(name, flags, index)` -- documented, **unobserved on
+this build**, with a rescue to append -- and pages of this token that a
+run neither writes nor calls stale (a render from a higher count, an
+interior from a ticked run) are listed as `not part of this run and were
+left exactly as they were`, because a page that silently stays behind is
+how a stale render reaches an export.
+
+**Popover (`scripts/proposal-package.rb`).** The ladder sentence described a
+ladder that no longer exists; it now says each render is an extra scene in
+plate order and 0 is the six images. The preview table is drawn for the
+count typed: the render input and the interior box re-plan through
+`autosetpick`, which now takes `{booth, renders, interior}` as JSON (a bare
+name still works). Rows found through `RENUMBERED` read `exists under its
+pre-1.56 name -- will be renumbered`, not `renamed by hand`. The header
+tally (`N RENDER · N IMAGE · N SKIP`) is a mode count of the grid and needed
+nothing. The JS fallback default was `2`; it is `1`, matching
+`DEFAULT_RENDERS`.
+
+**Default cost went DOWN and is said so.** `DEFAULT_RENDERS` stays 1, which
+under the old ladder meant two renders (forced angled + ventilation) and now
+means one (angled). 2 now adds a rendered front, not ventilation. Open for
+Benton -- see the handoff.
+
+**Offline (`scripts/rbtest-autoset.py`, 171 -> 197 checks, run).** Checks
+changed because the spec changed: `ld1-ld11` (the ladder), `fr1-fr7` (the
+interior), `du1-du11` (the pair, `du2` now render-first), `cm11/cm11b`
+(image plates are never renders at any count; `03-high r` appears at 3,
+`06-plan r` at 6), every `01-front` / `02-angled` id in `ts6`, `sm*`,
+`az*`, `an*`, `wp*`, `cm*`, `fm*`. New: `or1-or5` (the order, by name),
+`ld12-ld16`, `fr8`, `du5b`, `du6b`, `du12`, `sm9`, `mg1-mg10` (the
+renumbering: fall-through, precedence, stale vs live, extras). Nine mutants
+run and killed by name: front-first order -> `or1 or2 or3`; angled forced at
+zero -> `ld1 ld13 fr7`; image-first -> `du2 ld14`; interior consumes a slot
+-> `fr4`; raw-id allowlist -> `du5`; raw-id NO_WALL -> `du5b`; no
+RENUMBERED fall-through -> `mg1 mg3`; RENUMBERED called stale -> `mg5`;
+ladder off the plate order -> `ld12 ld15`.
+
+**Live (`.forge/builder/verify-autoset.rb`) -- UNRUN, no SketchUp here.**
+`dual.adjacent_and_image_first` is now `dual.adjacent_and_render_first`
+(the spec reversed the pairing). `create.a_default_run_is_two_renders` ->
+`create.a_default_run_is_DEFAULT_RENDERS_renders`;
+`create.renders_are_the_forced_angled_half_and_ventilation` ->
+`create.the_default_render_is_the_angled_pair`; the three `forced.*` ladder
+checks -> `forced.the_interior_is_the_ONLY_render_at_zero` and
+`forced.summary_breaks_out_the_interior_as_not_counted`. New sections:
+`zero.*` (a real run at 0, no interior: six images, `0 render /`), 7b/7c
+(`update.raising_the_count_adds_exactly_one_scene`,
+`update.added_render_sits_before_its_image`,
+`update.out_of_order_is_SAID_when_it_happens`,
+`update.the_left_over_render_is_NAMED_in_the_summary`), and `migrate.*`
+(three stamps aged to 1.55 ids, then Update: no duplicates, stamps
+migrated, tool names renumbered, a hand name kept, nothing called stale).
+Every scene count is asked of the table for the count that run used.
+
+**Not done, on purpose.** Whether the interior gets a paired image is
+unspecified; it stays a single render scene.
+
 ### Booth dimensions reach the EFS silencer: an _EFS wall part is measured to its assembly, not its vent box - (VERSION bump held by the orchestrator)
 
 Benton, on a booth with a caster plate and exterior fan silencers: *"the

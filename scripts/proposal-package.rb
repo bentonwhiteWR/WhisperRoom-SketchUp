@@ -3643,17 +3643,41 @@ module WR_ProposalPackage
   # lists every top-level container, and says by name what it could not
   # resolve. "Select a booth" with no list is a dead end for a hand-drawn
   # model, which is exactly the case that must not dead-end.
-  def self.autoset_payload(model, want)
+  #
+  # `opts` is what the popover's own controls say -- the render count and the
+  # interior box -- and it is echoed back so a redraw keeps them. Since 1.56.0
+  # the render count changes HOW MANY SCENES a run makes (each render is a
+  # scene of its own), so the preview table has to be drawn for the number
+  # typed, not for the default.
+  def self.autoset_payload(model, want, opts = nil)
     booth, note = WR_AutoSet.resolve_booth(model, want)
+    o = { 'renders' => WR_AutoSet::DEFAULT_RENDERS, 'interior' => false }
+    if opts.is_a?(Hash)
+      o['renders']  = opts['renders'].to_i if opts.key?('renders')
+      o['interior'] = opts['interior'] ? true : false if opts.key?('interior')
+    end
     { 'choices' => WR_AutoSet.booth_choices(model),
       'note'    => note,
       'max'     => WR_AutoSet::MAX_RENDERS,
-      'opts'    => { 'renders' => WR_AutoSet::DEFAULT_RENDERS, 'interior' => false },
-      'plan'    => booth ? WR_AutoSet.plan(model, booth, {}) : nil }
+      'opts'    => o,
+      'plan'    => booth ? WR_AutoSet.plan(model, booth, o) : nil }
   end
 
-  def self.autoset_push(model, dlg, want)
-    dlg.execute_script('autosetShow(' + autoset_payload(model, want).to_json + ')')
+  # The popover's pick callback sends either a bare booth name (the first
+  # draw) or a JSON object {booth, renders, interior} (a control changed).
+  def self.autoset_pick_args(payload)
+    s = payload.to_s
+    if s.strip.start_with?('{')
+      req = JSON.parse(s)
+      return [req['booth'].to_s, req] if req.is_a?(Hash)
+    end
+    [s, nil]
+  rescue StandardError
+    [s, nil]
+  end
+
+  def self.autoset_push(model, dlg, want, opts = nil)
+    dlg.execute_script('autosetShow(' + autoset_payload(model, want, opts).to_json + ')')
   rescue StandardError => e
     dlg.execute_script('autosetFail(' + "#{e.class}: #{e.message}".to_json + ')')
     puts "  auto-set could not read the model: #{e.class}: #{e.message}"
@@ -4553,10 +4577,12 @@ module WR_ProposalPackage
       autoset_push(model, d, nil)
     end
 
-    # The dropdown changed: re-resolve against that name and redraw the plan.
-    d.add_action_callback('autosetpick') do |_c, nm|
+    # A popover control changed (the booth dropdown, the render count, the
+    # interior box): re-resolve and redraw the plan for what is now typed.
+    d.add_action_callback('autosetpick') do |_c, payload|
       next if busy?(d, 'autosetpick')
-      autoset_push(model, d, nm.to_s)
+      nm, o = autoset_pick_args(payload)
+      autoset_push(model, d, nm, o)
     end
 
     d.add_action_callback('autosetapply') do |_c, payload|
@@ -6165,12 +6191,14 @@ window.onerror = function (msg, src, line) {
        + "</span></div>";
     h += "<div class='gctl'><span class='glab'>Renders</span>"
        + "<input type='number' id='grenders' min='0' max='" + (d.max || 6) + "' value='"
-       + (opt.renders === undefined ? 2 : opt.renders) + "'>"
-       + "<span class='gnote' style='padding:0'>down the ladder exterior → front → "
-       + "ventilation → interior → dimensioned → plan. Everything below the "
-       + "line is an Image row.</span></div>";
+       + (opt.renders === undefined ? 1 : opt.renders) + "'>"
+       + "<span class='gnote' style='padding:0'>each render is an EXTRA scene placed "
+       + "in front of its image, in plate order: angled → front → high → side → "
+       + "ventilation → plan. 0 is the six image plates and nothing else.</span></div>";
     h += "<div class='gctl'><label><input type='checkbox' id='ginterior'"
-       + (opt.interior ? " checked" : "") + "> also make an interior plate</label></div>";
+       + (opt.interior ? " checked" : "") + "> also make an interior plate</label>"
+       + "<span class='gnote' style='padding:0'>extra, after the plan, always a render, "
+       + "not counted above</span></div>";
     if(p.existing){
       h += "<div class='grow2'><span class='glab'>Already there</span><span class='gval'>"
          + "<b>" + p.existing + "</b> scene(s) already carry this booth's AUTO-SET stamp."
@@ -6194,8 +6222,17 @@ window.onerror = function (msg, src, line) {
             + "<td>" + esc(r.name) + "</td><td>" + esc(r.what) + "</td>"
             + "<td>" + (r.renamed ? "<span class='gwarn'>renamed by hand — will be "
                         + "updated, not renamed back</span>"
-                        : (r.exists ? "exists" : "new")) + "</td></tr>";
+                        : (r.renumber ? "exists under its pre-1.56 name — will be "
+                                        + "renumbered to " + esc(r.want)
+                        : (r.exists ? "exists" : "new"))) + "</td></tr>";
         }).join("") + "</table>";
+    if(p.extra && p.extra.length)
+      h += "<div class='gnote'>Not part of this run, left exactly as they are: "
+        + esc(p.extra.join(", ")) + ".</div>";
+    if(p.stale && p.stale.length)
+      h += "<div class='gnote'><span class='gwarn'>Older plate id(s) this version no "
+        + "longer makes: " + esc(p.stale.join(", ")) + ".</span> They are left alone and "
+        + "keep their framing; Remove then Apply rebuilds the whole set.</div>";
     if(p.orphans && p.orphans.length)
       h += "<div class='gnote'><span class='gwarn'>Stamped scenes whose booth is gone: "
         + esc(p.orphans.join(", ")) + ".</span> They are left alone here — select the "
@@ -6217,11 +6254,22 @@ window.onerror = function (msg, src, line) {
     $gapply.disabled = false;
     $gremove.disabled = !p.existing;
   };
+  // Any control that changes WHAT A RUN MAKES redraws the preview for it:
+  // the booth, the render count (each render is a scene since 1.56.0) and
+  // the interior box. The pick callback takes the whole state as JSON; a
+  // bare name still works for the first draw.
   function wireBoothPick(){
-    var s = g("gbooth");
-    if(s) s.addEventListener("change", function(){
-      if(window.sketchup && sketchup.autosetpick) sketchup.autosetpick(s.value);
-    });
+    var s = g("gbooth"), rn = g("grenders"), iv = g("ginterior");
+    function repick(){
+      if(!(window.sketchup && sketchup.autosetpick)) return;
+      sketchup.autosetpick(JSON.stringify({
+        booth: s ? s.value : "",
+        renders: rn ? +rn.value : 1,
+        interior: iv ? !!iv.checked : false }));
+    }
+    if(s)  s.addEventListener("change", repick);
+    if(rn) rn.addEventListener("change", repick);
+    if(iv) iv.addEventListener("change", repick);
   }
   function autoSetOpts(mode){
     var rn = g("grenders"), iv = g("ginterior"), ra = g("greaim"),
@@ -6231,7 +6279,7 @@ window.onerror = function (msg, src, line) {
     });
     if(!mode && picked) m = picked;
     return { mode: m,
-             renders: rn ? +rn.value : 2,
+             renders: rn ? +rn.value : 1,
              interior: iv ? !!iv.checked : false,
              reaim: ra ? !!ra.checked : false,
              booth: (g("gbooth") ? g("gbooth").value : "") };

@@ -45,6 +45,15 @@
 # 05-ventilation / 06-plan / 07-interior), so a run makes SIX scenes now, not
 # five, and every count below moved with it.
 #
+# 1.56.0 REORDERED THE PLATES AND CHANGED WHAT A RENDER IS. Benton, 11 Sep
+# 2026: angled first, then front (01-angled / 02-front; the rest kept their
+# ids), and a render is an EXTRA scene placed IN FRONT of its image, walked
+# down the plate order -- the count adds scenes and converts nothing, and zero
+# means zero. The interior is still the opt-in extra, always a render, never
+# counted. Sections 3, 6, 7, 13, `dual.*`, `zero.*` and the new `migrate.*`
+# pin all of that on real pages; every scene count is asked of the table for
+# the render count that run used, never a literal.
+#
 # WHAT IT CANNOT CHECK. Whether a plate LOOKS right — framing is a taste call
 # and always was. It checks the mechanism: the names, the marks, the stamp, what
 # each scene hides, what survives a re-run, what Remove leaves alone, and now
@@ -435,18 +444,25 @@ module WR_VerifyAutoSet
             WR_AutoSet.plate_ids(false).map { |id| "#{B1} #{id}" }.sort,
           set1.map { |p| p.name.to_s }.inspect)
       modes = set1.map { |p| WR_ProposalPackage.mode_of(p) }
-      # DEFAULT_RENDERS is 1 now and the angled render is FORCED, so a default
-      # run is still exactly 2 renders -- Benton's spend did not go up.
-      # A DEFAULT RUN IS EXACTLY 2 RENDERS and that number is Benton's spend.
-      # If it ever moves, someone changed what a default run costs.
-      say('create.a_default_run_is_two_renders',
-          modes.count('render') == 2 && modes.count('image') == want_n - 2,
-          modes.inspect)
-      say('create.renders_are_the_forced_angled_half_and_ventilation',
+      # A DEFAULT RUN IS DEFAULT_RENDERS RENDERS -- one, the angled -- and the
+      # six image plates. That number is Benton's spend: if it ever moves,
+      # someone changed what a default run costs. (Under the pre-1.56 ladder
+      # it was two: the forced angled plus ventilation.)
+      say('create.a_default_run_is_DEFAULT_RENDERS_renders',
+          modes.count('render') == WR_AutoSet::DEFAULT_RENDERS &&
+            modes.count('image') == want_n - WR_AutoSet::DEFAULT_RENDERS,
+          "#{modes.inspect}, DEFAULT_RENDERS #{WR_AutoSet::DEFAULT_RENDERS}")
+      say('create.the_default_render_is_the_angled_pair',
           set1.select { |p| WR_ProposalPackage.mode_of(p) == 'render' }
-              .map { |p| WR_AutoSet.page_stamp(p)['plate'] }.sort ==
-            ['02-angled r', '05-ventilation'],
+              .map { |p| WR_AutoSet.page_stamp(p)['plate'] } == ['01-angled r'],
           set1.map { |p| [WR_AutoSet.page_stamp(p)['plate'], WR_ProposalPackage.mode_of(p)] }.inspect)
+      # THE TAB ORDER IS THE EXPORT ORDER, so the pages must land in plate
+      # order: angled render, angled, front, high, side, ventilation, plan.
+      say('create.scenes_land_in_plate_order',
+          pages.to_a.select { |p| set1.include?(p) }
+               .map { |p| WR_AutoSet.page_stamp(p)['plate'] } == WR_AutoSet.plate_ids(false),
+          pages.to_a.select { |p| set1.include?(p) }
+               .map { |p| WR_AutoSet.page_stamp(p)['plate'] }.inspect)
       say('create.stamp_carries_the_centre',
           set1.all? { |p| WR_AutoSet.page_stamp(p)['centre'].to_s.split(',').length == 3 })
       say('create.my_test_untouched_by_create',
@@ -474,16 +490,16 @@ module WR_VerifyAutoSet
       # "Also please dont hide any of the dimensions on the auto set." The two
       # checks that used to assert a plate showed NOTHING are now the two that
       # assert it shows the dimensions -- that expectation moved on purpose.
-      %w[01-front 02-angled 03-high 04-side 05-ventilation 06-plan].each do |pl|
+      %w[01-angled 02-front 03-high 04-side 05-ventilation 06-plan].each do |pl|
         say("annot.#{pl.tr('-', '_')}_shows_the_dimensions",
             (['WR-Dims', 'WR-Dims-Doors'] - shown_map[pl].to_a).empty?,
             shown_map[pl].inspect)
       end
       # The NOTE set is still per-plate and still opt-in: the plan names it,
-      # nothing else does.
+      # nothing else does -- the angled RENDER scene included.
       say('annot.only_the_plan_shows_the_plan_note',
           shown_map['06-plan'].include?(TAG_P) &&
-            %w[01-front 02-angled 03-high 04-side 05-ventilation]
+            %w[01-angled\ r 01-angled 02-front 03-high 04-side 05-ventilation]
               .none? { |pl| shown_map[pl].to_a.include?(TAG_P) },
           shown_map.map { |k, v| [k, v] }.inspect)
       # AND THE LOOSE DIMENSION SHOWS, while the loose TEXT does not. Both
@@ -517,7 +533,7 @@ module WR_VerifyAutoSet
       end
       say('walls.plan_hides_nothing', hid_by['06-plan'] == 0, hid_by.inspect)
       say('walls.angled_hides_some_but_not_all',
-          hid_by['02-angled'] > 0 && hid_by['02-angled'] < units.length,
+          hid_by['01-angled'] > 0 && hid_by['01-angled'] < units.length,
           hid_by.inspect)
       # BENTON'S OWN WORDS ABOUT THE BACK SHOT: "this usually requires a
       # hidden wall". The cone rule is what does that, and it only fires if
@@ -528,13 +544,28 @@ module WR_VerifyAutoSet
           set1.all? { |pg| sel(pg); !hidden?(b1) && !hidden?(b2) })
 
       # ------------------------------------ 6. booth 2: no collision -----
+      # TWO RENDERS: "if two renders were selected, then it would add a
+      # rendered front" -- so this set is EIGHT pages, and the count is asked
+      # of the table for 2, never assumed equal to the default run's.
       ok2, msg2, = WR_AutoSet.apply(@model, b2, { 'mode' => 'create', 'renders' => 2 })
       say('second.ok', ok2, msg2)
       tok2 = b2.get_attribute('WR_AutoSet', 'token', nil)
       set2 = WR_AutoSet.token_pages(pages.to_a, tok2)
       made_pg.concat(set2)
+      want_2 = WR_AutoSet.plate_ids(false, 2).length
       say('second.token_differs', tok2.to_s != tok1.to_s, [tok1, tok2].inspect)
-      say('second.a_page_per_plate_again', set2.length == want_n, set2.length.to_s)
+      say('second.a_page_per_plate_at_two_renders', set2.length == want_2,
+          "#{set2.length} pages, table wants #{want_2} at 2 renders")
+      st2 = pages.to_a.select { |p| set2.include?(p) }.map { |p| WR_AutoSet.page_stamp(p)['plate'] }
+      say('second.two_renders_add_the_front_render_before_the_front_image',
+          st2 == WR_AutoSet.plate_ids(false, 2) &&
+            st2.index('02-front r') == st2.index('02-front') - 1,
+          st2.inspect)
+      say('second.exactly_two_render_rows',
+          set2.count { |p| WR_ProposalPackage.mode_of(p) == 'render' } == 2 &&
+            set2.select { |p| WR_ProposalPackage.mode_of(p) == 'render' }
+                .map { |p| WR_AutoSet.page_stamp(p)['plate'] }.sort == ['01-angled r', '02-front r'],
+          set2.map { |p| [WR_AutoSet.page_stamp(p)['plate'], WR_ProposalPackage.mode_of(p)] }.inspect)
       say('second.no_name_collision',
           (set1.map { |p| p.name.to_s } & set2.map { |p| p.name.to_s }).empty?)
       say('second.booth_ones_set_untouched',
@@ -544,7 +575,7 @@ module WR_VerifyAutoSet
           "#{pages.to_a.index(set1.last)} then #{pages.to_a.index(set2.first)}")
 
       # ---------------- 7. a hand-renamed scene, and a nudged camera -----
-      hero = set1.find { |p| WR_AutoSet.page_stamp(p)['plate'] == '02-angled' }
+      hero = set1.find { |p| WR_AutoSet.page_stamp(p)['plate'] == '01-angled' }
       hero.name = 'Hero for Steve'
       sel(hero)
       v = @model.active_view
@@ -554,7 +585,10 @@ module WR_VerifyAutoSet
       nudged = cam_tuple(hero.camera)
       n_before = pages.count
 
-      ok3, msg3, = WR_AutoSet.apply(@model, b1, { 'mode' => 'update', 'renders' => 2,
+      # SAME COUNT AS THE SET WAS MADE WITH, so an Update adds nothing. (Since
+      # 1.56.0 a higher count ADDS scenes -- that case is 7b below.)
+      ok3, msg3, = WR_AutoSet.apply(@model, b1, { 'mode' => 'update',
+                                                  'renders' => WR_AutoSet::DEFAULT_RENDERS,
                                                   'reaim' => false })
       say('update.ok', ok3, msg3)
       say('update.no_new_pages', pages.count == n_before, "#{n_before} -> #{pages.count}")
@@ -564,6 +598,47 @@ module WR_VerifyAutoSet
           "#{nudged.inspect} vs #{cam_tuple(hero.camera).inspect}")
       say('update.my_test_still_untouched',
           mine_pg.valid? && mine_pg.name.to_s == mine_name_at_start)
+
+      # ------------- 7b. raising the count on an existing set (1.56.0) ----
+      # A render is a scene, so Update at 2 on a set made at 1 must ADD exactly
+      # one page -- the front render -- and put it in front of the front image.
+      # Pages#add's index argument is documented but UNOBSERVED on this build;
+      # add_page falls back to append, and apply then SAYS the set is out of
+      # order. Both halves are checked separately so the log says which
+      # happened.
+      n_7b = pages.count
+      ok3b, msg3b, = WR_AutoSet.apply(@model, b1, { 'mode' => 'update', 'renders' => 2,
+                                                    'reaim' => false })
+      say('update.raising_the_count_ok', ok3b, msg3b)
+      say('update.raising_the_count_adds_exactly_one_scene', pages.count == n_7b + 1,
+          "#{n_7b} -> #{pages.count}")
+      fr_pg = WR_AutoSet.page_for_plate(pages.to_a, tok1, '02-front r')
+      fi_pg = WR_AutoSet.page_for_plate(pages.to_a, tok1, '02-front')
+      made_pg << fr_pg if fr_pg
+      say('update.the_added_scene_is_the_front_render',
+          !fr_pg.nil? && WR_ProposalPackage.mode_of(fr_pg) == 'render' &&
+            fr_pg.name.to_s == "#{B1} 02-front r",
+          fr_pg ? [fr_pg.name.to_s, WR_ProposalPackage.mode_of(fr_pg)].inspect : 'no 02-front r page')
+      in_place = fr_pg && fi_pg && pages.to_a.index(fr_pg) == pages.to_a.index(fi_pg) - 1
+      say('update.added_render_sits_before_its_image', in_place ? true : false,
+          fr_pg && fi_pg ? "render at #{pages.to_a.index(fr_pg)}, image at #{pages.to_a.index(fi_pg)}" \
+                         : 'page missing')
+      say('update.out_of_order_is_SAID_when_it_happens',
+          in_place || msg3b.to_s.include?('not in plate order'), msg3b.to_s)
+      say('update.hero_still_untouched_by_the_second_update',
+          hero.valid? && hero.name.to_s == 'Hero for Steve' && cam_tuple(hero.camera) == nudged)
+
+      # ------------- 7c. lowering it again leaves the render, and says so --
+      n_7c = pages.count
+      ok3c, msg3c, = WR_AutoSet.apply(@model, b1, { 'mode' => 'update',
+                                                    'renders' => WR_AutoSet::DEFAULT_RENDERS,
+                                                    'reaim' => false })
+      say('update.lowering_the_count_ok', ok3c, msg3c)
+      say('update.lowering_the_count_erases_nothing',
+          pages.count == n_7c && fr_pg && fr_pg.valid?, "#{n_7c} -> #{pages.count}")
+      say('update.the_left_over_render_is_NAMED_in_the_summary',
+          msg3c.to_s.include?('not part of this run') && msg3c.to_s.include?("#{B1} 02-front r"),
+          msg3c.to_s)
 
       # -------------------------------------- 8. the booth has moved -----
       @model.start_operation('WR verify: move the booth', true)
@@ -643,16 +718,17 @@ module WR_VerifyAutoSet
 
       # ----------------------------------------------- 11. remove --------
       n_pre2 = pages.count
+      n_tok1 = WR_AutoSet.token_pages(pages.to_a, tok1).length   # 7 + the 7b front render
       rok, rmsg, = WR_AutoSet.apply(@model, b1, { 'mode' => 'remove' })
       say('remove.ok', rok, rmsg)
-      # REMOVE TAKES BOTH HALVES OF THE DUAL PAIR. It matches on TOKEN, never
-      # on plate, so it cannot leave an orphan half behind.
-      say('remove.only_this_booths_pages', pages.count == n_pre2 - want_n,
-          "#{n_pre2} -> #{pages.count}, expected -#{want_n}")
+      # REMOVE TAKES EVERY STAMPED PAGE, the left-over render included. It
+      # matches on TOKEN, never on plate, so it cannot leave an orphan behind.
+      say('remove.only_this_booths_pages', pages.count == n_pre2 - n_tok1,
+          "#{n_pre2} -> #{pages.count}, expected -#{n_tok1}")
       say('remove.my_test_survived_remove',
           mine_pg.valid? && mine_pg.name.to_s == mine_name_at_start)
       say('remove.booth_twos_set_survived',
-          WR_AutoSet.token_pages(pages.to_a, tok2).length == want_n)
+          WR_AutoSet.token_pages(pages.to_a, tok2).length == want_2)
       say('remove.token_cleared_off_the_booth',
           b1.get_attribute('WR_AutoSet', 'token', nil).nil?)
 
@@ -750,8 +826,8 @@ module WR_VerifyAutoSet
           daz.inspect)
 
       # FRONT ON, square to the door. daz was read off the tag in section 2.
-      fs = shot.call('01-front')
-      fpg = by_plate['01-front']
+      fs = shot.call('02-front')
+      fpg = by_plate['02-front']
       # SQUARE TO THE DOOR means the eye stands on the door wall's normal
       # THROUGH THE FRAME -- which is what the plate is aimed at (:aim_at =>
       # :door) and what cam.front_targets_the_door_frame asserts. This used
@@ -775,7 +851,7 @@ module WR_VerifyAutoSet
                  fs['z'] - floor, fs['z'], floor))
       # IN FRONT OF THE DOOR FRAME, not in front of the booth's middle. The
       # fixture's door is off-centre along its wall, so these differ.
-      fpg = by_plate['01-front']
+      fpg = by_plate['02-front']
       say('cam.front_targets_the_door_frame',
           !fanch.nil? && fpg && (fpg.camera.target.x - fanch[0][0]).abs < 2.0,
           fpg ? format('target x %.1f vs frame x %.1f', fpg.camera.target.x,
@@ -799,7 +875,7 @@ module WR_VerifyAutoSet
 
       # THE HIGH SHOT: same bearing as the angled one, camera lifted.
       hs = shot.call('03-high')
-      as_ = shot.call('02-angled')
+      as_ = shot.call('01-angled')
       say('cam.high_is_above_the_angled_shot', hs['z'] > as_['z'] + 60.0,
           "#{hs['z'].round(1)} vs #{as_['z'].round(1)}")
       say('cam.high_keeps_the_angled_bearing', (hs['az'] - as_['az']).abs < 1.0,
@@ -865,9 +941,16 @@ module WR_VerifyAutoSet
       # Benton, 10 Sep 2026: "I also always want a regular image at angled,
       # and a render at angled. Should be the same scene, except with the
       # render setting."
-      ang_i = by_plate['02-angled']
-      ang_r = by_plate['02-angled r']
+      ang_i = by_plate['01-angled']
+      ang_r = by_plate['01-angled r']
       say('dual.both_halves_exist', !ang_i.nil? && !ang_r.nil?, by_plate.keys.inspect)
+      # THE WHOLE SET, IN PLATE ORDER, for the count it was made with (2).
+      cst = pages.to_a.select { |p| cset.include?(p) }.map { |p| WR_AutoSet.page_stamp(p)['plate'] }
+      say('dual.set_reads_angled_r_angled_front_r_front_high_side_vent_plan',
+          cst == WR_AutoSet.plate_ids(false, 2) &&
+            cst == ['01-angled r', '01-angled', '02-front r', '02-front', '03-high',
+                    '04-side', '05-ventilation', '06-plan'],
+          cst.inspect)
       say('dual.one_image_one_render',
           ang_i && ang_r &&
             WR_ProposalPackage.mode_of(ang_i) == 'image' &&
@@ -890,21 +973,57 @@ module WR_VerifyAutoSet
         say('dual.identical_walls', wi == wr, "#{wi} vs #{wr}")
         say('dual.identical_annotations', ai == ar, [ai, ar].inspect)
       end
-      # ADJACENT IN THE TAB BAR, image first.
-      say('dual.adjacent_and_image_first',
+      # ADJACENT IN THE TAB BAR, RENDER FIRST. This read image-first until
+      # 1.56.0; Benton, 11 Sep 2026: "the render would go IN FRONT of the
+      # image. So then the 1st scene would be render angled. 2nd scene would
+      # be image angled."
+      say('dual.adjacent_and_render_first',
           ang_i && ang_r &&
-            pages.to_a.index(ang_r) == pages.to_a.index(ang_i) + 1,
-          [ang_i && pages.to_a.index(ang_i), ang_r && pages.to_a.index(ang_r)].inspect)
+            pages.to_a.index(ang_r) == pages.to_a.index(ang_i) - 1,
+          [ang_r && pages.to_a.index(ang_r), ang_i && pages.to_a.index(ang_i)].inspect)
+      # THE SECOND PAIR, the front, is the same shape and shares a camera too.
+      fr_i = by_plate['02-front']
+      fr_r = by_plate['02-front r']
+      say('dual.front_pair_exists_at_two_renders', !fr_i.nil? && !fr_r.nil?, by_plate.keys.inspect)
+      say('dual.front_pair_render_first_and_identical_camera',
+          fr_i && fr_r &&
+            pages.to_a.index(fr_r) == pages.to_a.index(fr_i) - 1 &&
+            WR_ProposalPackage.mode_of(fr_r) == 'render' &&
+            WR_ProposalPackage.mode_of(fr_i) == 'image' &&
+            cam_tuple(fr_i.camera) == cam_tuple(fr_r.camera),
+          [fr_r && cam_tuple(fr_r.camera), fr_i && cam_tuple(fr_i.camera)].inspect)
       # AND THE FILENAME DOES NOT DOUBLE THE MARKER.
       dn = WR_ProposalPackage.plan_names(WR_ProposalPackage.state(@model)['rows'])
       say('dual.no_doubled_render_marker',
           dn.values.none? { |f| f.to_s =~ /r\s+r\.png\z/ },
           dn.values.select { |f| f.to_s.include?(' r') }.inspect)
 
-      # ---- THE INTERIOR IS ALWAYS A RENDER ------------------------------
+      # ---- ZERO RENDERS MEANS ZERO RENDERS (1.56.0) ---------------------
+      # Benton, 11 Sep 2026: "When I click '0' renders, it still makes one
+      # though. Lets get that situated." On real pages: a run at 0 with no
+      # interior is the six image plates and NOTHING else.
+      zok, zmsg, = WR_AutoSet.apply(@model, b2, { 'mode' => 'add', 'renders' => 0 })
+      say('zero.run_ok', zok, zmsg)
+      ztok = b2.get_attribute('WR_AutoSet', 'token', nil)
+      zset = WR_AutoSet.token_pages(pages.to_a, ztok)
+      made_pg.concat(zset)
+      zst = pages.to_a.select { |p| zset.include?(p) }.map { |p| WR_AutoSet.page_stamp(p)['plate'] }
+      say('zero.six_image_plates_and_nothing_else',
+          zst == %w[01-angled 02-front 03-high 04-side 05-ventilation 06-plan],
+          zst.inspect)
+      say('zero.ZERO_render_rows',
+          zset.none? { |pg| WR_ProposalPackage.mode_of(pg) == 'render' },
+          zset.map { |pg| [WR_AutoSet.page_stamp(pg)['plate'], WR_ProposalPackage.mode_of(pg)] }.inspect)
+      say('zero.summary_says_0_render', zmsg.to_s.include?('0 render /'), zmsg.to_s)
+      say('zero.summary_no_longer_describes_an_always_render',
+          !zmsg.to_s.include?('always-render'), zmsg.to_s)
+      WR_AutoSet.apply(@model, b2, { 'mode' => 'remove' })
+
+      # ---- THE INTERIOR IS ALWAYS A RENDER, EXTRA, NOT COUNTED ----------
       # Benton, 10 Sep 2026: "fyi interior plate should always be a render."
-      # Checked at a render count of ZERO, which is the case most likely to
-      # break, and on a run that actually PRODUCES the plate.
+      # 11 Sep 2026: "No, interior is extra and always a render." Checked at a
+      # render count of ZERO, which is the case most likely to break, on a run
+      # that actually PRODUCES the plate: seven pages, ONE render, the interior.
       iok, imsg, = WR_AutoSet.apply(@model, b2, { 'mode' => 'add', 'renders' => 0,
                                                   'interior' => true })
       say('forced.interior_run_ok', iok, imsg)
@@ -917,23 +1036,66 @@ module WR_VerifyAutoSet
       say('forced.interior_is_a_RENDER_at_zero_renders',
           ipg && WR_ProposalPackage.mode_of(ipg) == 'render',
           ipg ? WR_ProposalPackage.mode_of(ipg) : 'no interior page')
-      # AT A COUNT OF ZERO, THE ONLY RENDERS ARE THE FORCED ONES. The angled
-      # render half is forced too (it is the point of the dual pair), so the
-      # check excludes every forced row rather than just the interior -- and
-      # still proves the LADDER promoted nothing.
-      forced_ids = WR_AutoSet.forced_renders(WR_AutoSet.plate_ids(true))
-      say('forced.the_ladder_promotes_nothing_at_zero',
-          iset.reject { |pg| forced_ids.include?(WR_AutoSet.page_stamp(pg)['plate']) }
-              .all? { |pg| WR_ProposalPackage.mode_of(pg) == 'image' },
+      say('forced.interior_is_extra_and_last',
+          iset.length == WR_AutoSet.plate_ids(true, 0).length &&
+            pages.to_a.select { |p| iset.include?(p) }.last == ipg,
+          "#{iset.length} pages, table wants #{WR_AutoSet.plate_ids(true, 0).length}")
+      # AT A COUNT OF ZERO THE INTERIOR IS THE ONLY RENDER. The angled render
+      # is no longer forced, so nothing else may come out as one.
+      say('forced.the_interior_is_the_ONLY_render_at_zero',
+          iset.select { |pg| WR_ProposalPackage.mode_of(pg) == 'render' } == [ipg],
           iset.map { |pg| [WR_AutoSet.page_stamp(pg)['plate'],
                            WR_ProposalPackage.mode_of(pg)] }.inspect)
-      say('forced.every_forced_row_IS_a_render_at_zero',
-          iset.select { |pg| forced_ids.include?(WR_AutoSet.page_stamp(pg)['plate']) }
-              .all? { |pg| WR_ProposalPackage.mode_of(pg) == 'render' },
-          forced_ids.inspect)
-      say('forced.summary_names_the_always_render',
-          imsg.to_s.include?('always-render'), imsg.to_s)
+      say('forced.summary_breaks_out_the_interior_as_not_counted',
+          imsg.to_s.include?('1 render') && imsg.to_s.include?('always a render, not counted') &&
+            imsg.to_s.include?('07-interior'),
+          imsg.to_s)
       WR_AutoSet.apply(@model, b2, { 'mode' => 'remove' })
+
+      # ---- THE 1.56.0 RENUMBERING OVER A 1.53-1.55 SET ------------------
+      # THE HIGHEST-RISK PATH OF THE RENUMBERING. Benton has real models with
+      # sets stamped 01-front / 02-angled / 02-angled r. Manufacture one out
+      # of cset by rewriting three stamps and names to the old ids, then
+      # Update: nothing may be duplicated, nothing called stale, the tool's own
+      # old names get renumbered, and a hand-typed name stays.
+      m_front = by_plate['02-front']
+      m_ang   = by_plate['01-angled']
+      m_angr  = by_plate['01-angled r']
+      @model.start_operation('WR verify: age three stamps to 1.55', true)
+      m_front.set_attribute('WR_AutoSet', 'plate', '01-front')
+      m_front.name = "#{B1} 01-front"                 # the tool's own old name
+      m_ang.set_attribute('WR_AutoSet', 'plate', '02-angled')
+      m_ang.name = 'Old hero, hand named'             # Benton's, must survive
+      m_angr.set_attribute('WR_AutoSet', 'plate', '02-angled r')
+      m_angr.name = "#{B1} 02-angled r"
+      @model.commit_operation
+      mpl = WR_AutoSet.plan(@model, b1, { 'renders' => 2 })
+      say('migrate.plan_sees_no_stale_scenes', mpl['stale'] == [], mpl['stale'].inspect)
+      say('migrate.plan_flags_the_renumber_not_a_hand_rename',
+          mpl['rows'].find { |r| r['plate'] == '02-front' }['renumber'] == true &&
+            mpl['rows'].find { |r| r['plate'] == '02-front' }['renamed'] == false &&
+            mpl['rows'].find { |r| r['plate'] == '01-angled' }['renamed'] == true,
+          mpl['rows'].map { |r| [r['plate'], r['exists'], r['renumber'], r['renamed']] }.inspect)
+      n_mg = pages.count
+      mok, mmsg, mlines = WR_AutoSet.apply(@model, b1, { 'mode' => 'update', 'renders' => 2,
+                                                          'reaim' => false })
+      say('migrate.update_ok', mok, mmsg)
+      say('migrate.NO_duplicate_scenes', pages.count == n_mg, "#{n_mg} -> #{pages.count}")
+      say('migrate.stamps_now_carry_the_new_ids',
+          WR_AutoSet.page_stamp(m_front)['plate'] == '02-front' &&
+            WR_AutoSet.page_stamp(m_ang)['plate'] == '01-angled' &&
+            WR_AutoSet.page_stamp(m_angr)['plate'] == '01-angled r',
+          [m_front, m_ang, m_angr].map { |p| WR_AutoSet.page_stamp(p)['plate'] }.inspect)
+      say('migrate.the_tools_own_names_are_renumbered',
+          m_front.name.to_s == "#{B1} 02-front" && m_angr.name.to_s == "#{B1} 01-angled r",
+          [m_front.name.to_s, m_angr.name.to_s].inspect)
+      say('migrate.a_hand_typed_name_is_kept',
+          m_ang.name.to_s == 'Old hero, hand named', m_ang.name.to_s)
+      say('migrate.nothing_called_stale',
+          !mmsg.to_s.include?('no longer makes'), mmsg.to_s)
+      say('migrate.log_says_renumbered',
+          (mlines || []).any? { |l| l.to_s.include?('renumbered') && l.to_s.include?('since 1.56.0') },
+          (mlines || []).select { |l| l.to_s.include?('1.56.0') }.inspect)
 
       # THE BLANK-PLATE SENTENCE. This fixture DOES carry dimension entities
       # on WR-Dims, so the note must NOT fire; the model Benton ran on carried
@@ -983,6 +1145,7 @@ module WR_VerifyAutoSet
           nm = pg.name.to_s
           st = (WR_AutoSet.page_stamp(pg) rescue nil)
           next unless nm == MINE || nm.include?('VERIFY') || nm == 'Hero for Steve' ||
+                      nm == 'Old hero, hand named' ||
                       (st && st['token'].to_s.include?('VERIFY'))
           (@model.pages.erase(pg) rescue nil)
         end

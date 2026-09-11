@@ -70,10 +70,18 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
     the front plate given a swing (not square to door)   -> cm2 FAIL
     the plan plate put back to el 89                     -> cm5 FAIL
     any plate given cam.perspective = false              -> cm1 FAIL
-    03-high put on the RENDER_LADDER                     -> cm11 FAIL
+    an IMAGE plate made a render at any count            -> cm11 FAIL
     05-ventilation added to NO_WALL_PLATES               -> cm12 FAIL
     empty_shown_note made to fire on a partial count     -> eb3 FAIL
-    renders_for's ladder reordered                       -> ld1 FAIL
+    PLATES put back to the pre-1.56 front-first order    -> or1, or2, or3 FAIL
+    the ladder reordered (not the plate order)           -> ld12, ld15 FAIL
+    the angled render forced again at a count of zero    -> ld1, ld13, fr7 FAIL
+    the pair emitted image-first again                   -> du2, ld14 FAIL
+    the interior made to consume a render slot           -> fr4 FAIL
+    effective_shown keyed on the raw id (not base_id)    -> du5 FAIL
+    NO_WALL_PLATES checked on the raw id                 -> du5b FAIL
+    page_for_plate no longer following RENUMBERED        -> mg1, mg3 FAIL
+    stale_plates calling a RENUMBERED id stale           -> mg5 FAIL
 
 THE CAMERA MATHS ARE RUN, NOT ASSERTED ABOUT
 --------------------------------------------
@@ -299,11 +307,12 @@ module WR_AutoSet
 %(standoff_k)s
 %(standoff_c)s
 %(plate_fov)s
-%(max_renders)s
 %(default_renders)s
 %(plates)s
+%(renumbered)s
 %(no_wall_plates)s
 %(render_ladder)s
+%(max_renders)s
 %(never_shown)s
 %(shown_by_plate)s
 
@@ -319,19 +328,29 @@ module WR_AutoSet
 
 %(ladder_renders)s
 
+%(base_id)s
+
 %(dual_render)s
 
 %(dual_render_id)s
 
-%(forced_renders)s
-
-%(renders_for)s
+%(render_ids)s
 
 %(mode_for)s
 
 %(plate)s
 
 %(plate_ids)s
+
+%(run_ids)s
+
+%(live_plate)s
+
+%(stale_plates)s
+
+%(extra_pages)s
+
+%(auto_named)s
 
 %(az_for)s
 
@@ -396,9 +415,12 @@ end
 module WR_AutoSetPoison
 %(never_shown)s
 %(dims_re)s
+%(dual_suffix)s
   SHOWN_BY_PLATE = {
     '01-exterior' => %%w[WR-Dims WR-Notes WR-Dims-Booth]
   }.freeze
+
+%(base_id)s
 
 %(effective_shown)s
 end
@@ -409,12 +431,13 @@ module T
     OUT << (ok ? "#{name} ok" : "#{name} FAIL#{detail ? ' ' + detail.to_s : ''}")
   end
 
-  # The six plates a default run makes, and the seven that exist. Side is ON
-  # by default even though Benton said "sometimes" -- see PLATES.
-  # 02-angled is a DUAL plate: it emits an image row and a render row from
-  # one camera, so the default run is SEVEN pages, not six.
-  DEFAULTS = ['01-front', '02-angled', '02-angled r', '03-high', '04-side',
-              '05-ventilation', '06-plan']
+  # THE SIX IMAGE PLATES, IN BENTON'S ORDER (11 Sep 2026): angled leads,
+  # front follows. Side is ON by default even though he said "sometimes" --
+  # see PLATES. A render is an EXTRA scene in front of its image, so a
+  # default run (DEFAULT_RENDERS 1) is SEVEN pages: the angled render, then
+  # the six images.
+  IMAGES   = ['01-angled', '02-front', '03-high', '04-side', '05-ventilation', '06-plan']
+  DEFAULTS = ['01-angled r'] + IMAGES
   ALL      = DEFAULTS + ['07-interior']
 
   # Every annotation set a well-used model carries: the five the WR tools
@@ -503,8 +526,8 @@ module T
        WR_AutoSet.next_token(['MDL 4872 E'], 'MDL 4872 E').inspect)
     ck('ts5', WR_AutoSet.next_token(['MDL 4872 E', 'MDL 4872 E-2'], 'MDL 4872 E') ==
               ['MDL 4872 E-3', 'MDL 4872 E (3)'])
-    ck('ts6', WR_AutoSet.scene_name('MDL 96120 E', '01-front') ==
-              'MDL 96120 E 01-front')
+    ck('ts6', WR_AutoSet.scene_name('MDL 96120 E', '02-front') ==
+              'MDL 96120 E 02-front')
     # A booth genuinely named "Rack-2" must not be mistaken for the second
     # "Rack" -- which is why token and label are two stored keys, not one
     # parsed string.
@@ -512,32 +535,97 @@ module T
 
     # ---- the stamp, and the containment rule ----------------------------
     tok  = 'MDL 96120 E'
-    mine = FakePage.new('MDL 96120 E 01-front',
-                        { 'token' => tok, 'plate' => '01-front', 'version' => 1,
+    mine = FakePage.new('MDL 96120 E 02-front',
+                        { 'token' => tok, 'plate' => '02-front', 'version' => 1,
                           'centre' => '10.000,20.000,30.000' })
     # RENAMED BY HAND. Same stamp, different name. Matched on the stamp, so it
     # is updated -- and never renamed back.
     ren  = FakePage.new('Hero shot for Steve',
-                        { 'token' => tok, 'plate' => '02-angled', 'version' => 1,
+                        { 'token' => tok, 'plate' => '01-angled', 'version' => 1,
                           'centre' => '10.000,20.000,30.000' })
     # A HAND-MADE SCENE WEARING THE EXPECTED NAME AND NO STAMP. Nothing in
     # this tool may touch it, Remove included.
     fake = FakePage.new('MDL 96120 E 03-high')
-    other = FakePage.new('MDL 4872 E 01-front',
-                         { 'token' => 'MDL 4872 E', 'plate' => '01-front',
+    other = FakePage.new('MDL 4872 E 02-front',
+                         { 'token' => 'MDL 4872 E', 'plate' => '02-front',
                            'version' => 1, 'centre' => '0.000,0.000,0.000' })
     pages = [mine, fake, ren, other]
     got = WR_AutoSet.token_pages(pages, tok)
     ck('sm1', got.length == 2, got.map { |p| p.name }.inspect)
     ck('sm2', !got.include?(fake), 'an UNSTAMPED page was matched')
     ck('sm3', got.include?(ren), 'a page renamed by hand was not matched')
-    ck('sm4', WR_AutoSet.page_for_plate(pages, tok, '02-angled') == ren)
+    ck('sm4', WR_AutoSet.page_for_plate(pages, tok, '01-angled') == ren)
     ck('sm5', WR_AutoSet.page_for_plate(pages, tok, '03-high').nil?,
        'the unstamped page was returned for a plate it happens to be named after')
     ck('sm6', WR_AutoSet.tokens_in_use(pages) == [tok, 'MDL 4872 E'],
        WR_AutoSet.tokens_in_use(pages).inspect)
     ck('sm7', WR_AutoSet.page_stamp(fake).nil?)
-    ck('sm8', WR_AutoSet.page_stamp(mine)['plate'] == '01-front')
+    ck('sm8', WR_AutoSet.page_stamp(mine)['plate'] == '02-front')
+    ck('sm9', WR_AutoSet.auto_named?(mine, 'MDL 96120 E') == true &&
+              WR_AutoSet.auto_named?(ren, 'MDL 96120 E') == false &&
+              WR_AutoSet.auto_named?(fake, 'MDL 96120 E') == false,
+       'auto_named? does not tell the tool\'s own name from a hand-typed one')
+
+    # ---- THE 1.56.0 RENUMBERING, AND THE SETS ALREADY OUT THERE ----------
+    # Benton has real models carrying 1.53-1.55 sets stamped 01-front /
+    # 02-angled / 02-angled r. An Update must FIND those pages for the shots
+    # they still are, not create a second copy beside them and call the
+    # originals stale. That is the highest-risk part of the renumbering.
+    old_tok = 'MDL 4872 E OLD'
+    o_front = FakePage.new('MDL 4872 E OLD 01-front',
+                           { 'token' => old_tok, 'plate' => '01-front', 'version' => 1,
+                             'centre' => '0.000,0.000,0.000' })
+    o_ang   = FakePage.new('MDL 4872 E OLD 02-angled',
+                           { 'token' => old_tok, 'plate' => '02-angled', 'version' => 1,
+                             'centre' => '0.000,0.000,0.000' })
+    o_angr  = FakePage.new('MDL 4872 E OLD 02-angled r',
+                           { 'token' => old_tok, 'plate' => '02-angled r', 'version' => 1,
+                             'centre' => '0.000,0.000,0.000' })
+    o_high  = FakePage.new('MDL 4872 E OLD 03-high',
+                           { 'token' => old_tok, 'plate' => '03-high', 'version' => 1,
+                             'centre' => '0.000,0.000,0.000' })
+    # A 1.48 id with NO successor in this table: genuinely stale.
+    o_dim   = FakePage.new('MDL 4872 E OLD 02-dimensioned',
+                           { 'token' => old_tok, 'plate' => '02-dimensioned', 'version' => 1,
+                             'centre' => '0.000,0.000,0.000' })
+    old_pages = [o_front, o_ang, o_angr, o_high, o_dim]
+    ck('mg1', WR_AutoSet.page_for_plate(old_pages, old_tok, '02-front') == o_front,
+       'the old 01-front page was not found for 02-front')
+    ck('mg2', WR_AutoSet.page_for_plate(old_pages, old_tok, '01-angled') == o_ang)
+    ck('mg3', WR_AutoSet.page_for_plate(old_pages, old_tok, '01-angled r') == o_angr,
+       'the old angled render half was not found for 01-angled r')
+    # A page ALREADY on the new id wins over one still on the old id.
+    n_front = FakePage.new('MDL 4872 E OLD 02-front',
+                           { 'token' => old_tok, 'plate' => '02-front', 'version' => 1,
+                             'centre' => '0.000,0.000,0.000' })
+    ck('mg4', WR_AutoSet.page_for_plate(old_pages + [n_front], old_tok, '02-front') == n_front)
+    # Only RENUMBERED is followed -- nothing is guessed from a name.
+    ck('mg4b', WR_AutoSet.page_for_plate(old_pages, old_tok, '02-front r').nil?,
+       'a render half was matched to a page that never had one')
+    # STALE IS ONLY WHAT HAS NO SUCCESSOR. The renumbered ids are live.
+    st = WR_AutoSet.stale_plates(old_pages, old_tok)
+    ck('mg5', st == [o_dim], st.map { |p| p.name }.inspect)
+    ck('mg6', WR_AutoSet::RENUMBERED.values.all? { |v| WR_AutoSet.live_plate?(v) } &&
+              WR_AutoSet::RENUMBERED.keys.all? { |k| WR_AutoSet.live_plate?(k) } &&
+              !WR_AutoSet.live_plate?('02-dimensioned') &&
+              !WR_AutoSet.live_plate?('07-interior r'),
+       WR_AutoSet::RENUMBERED.inspect)
+    # The old name IS the tool's own name for the old plate, so Update may
+    # renumber it; a hand-typed one it may not.
+    ck('mg7', WR_AutoSet.auto_named?(o_front, 'MDL 4872 E OLD') == true)
+    # EXTRA: a run at 0 renders does not ask for the angled render half, so
+    # the old '02-angled r' page is neither written nor stale -- it is left
+    # alone and NAMED. run_ids is what plan and apply both ask.
+    ids0 = WR_AutoSet.run_ids({ 'renders' => 0 })
+    ex = WR_AutoSet.extra_pages(old_pages, old_tok, ids0)
+    ck('mg8', ex == [o_angr], ex.map { |p| p.name }.inspect)
+    ids1 = WR_AutoSet.run_ids({ 'renders' => 1 })
+    ck('mg9', WR_AutoSet.extra_pages(old_pages, old_tok, ids1) == [],
+       WR_AutoSet.extra_pages(old_pages, old_tok, ids1).map { |p| p.name }.inspect)
+    ck('mg10', ids0 == IMAGES && ids1 == DEFAULTS &&
+               WR_AutoSet.run_ids({}) == DEFAULTS &&
+               WR_AutoSet.run_ids({ 'plates' => ['06-plan'] }) == ['06-plan'],
+       [ids0, ids1].inspect)
 
     # ---- has the booth moved? -------------------------------------------
     ck('mv1', WR_AutoSet.centre_key([1.5, -2.25, 0]) == '1.500,-2.250,0.000',
@@ -549,130 +637,215 @@ module T
     # on no evidence would destroy a framing Benton fixed by hand.
     ck('mv5', WR_AutoSet.centre_moved?('', [10.0, 20.0, 30.0]) == false)
 
-    # ---- the render ladder ----------------------------------------------
-    # The ladder's share, plus the forced rows. '02-angled r' is forced, so
-    # it is in every one of these regardless of the knob.
-    ck('ld1', WR_AutoSet.renders_for(1, DEFAULTS) == ['05-ventilation', '02-angled r'],
-       WR_AutoSet.renders_for(1, DEFAULTS).inspect)
-    # AT ZERO THE ANGLED RENDER IS STILL THERE. "always", per Benton.
-    ck('ld2', WR_AutoSet.renders_for(0, DEFAULTS) == ['02-angled r'],
-       WR_AutoSet.renders_for(0, DEFAULTS).inspect)
-    ck('ld3', WR_AutoSet.renders_for(2, DEFAULTS) ==
-              ['05-ventilation', '04-side', '02-angled r'],
-       WR_AutoSet.renders_for(2, DEFAULTS).inspect)
-    ck('ld4', WR_AutoSet.renders_for(3, DEFAULTS) ==
-              ['05-ventilation', '04-side', '01-front', '02-angled r'],
-       WR_AutoSet.renders_for(3, DEFAULTS).inspect)
-    ck('ld5', WR_AutoSet.renders_for(3, ALL) ==
-              ['05-ventilation', '04-side', '01-front', '02-angled r', '07-interior'],
-       WR_AutoSet.renders_for(3, ALL).inspect)
-    # Three of the ladder's rungs exist; 03-high and 06-plan are on no rung.
-    ck('ld6', WR_AutoSet.ladder_renders(99, DEFAULTS).length == 3,
-       WR_AutoSet.ladder_renders(99, DEFAULTS).inspect)
-    ck('ld7', WR_AutoSet.ladder_renders(-1, DEFAULTS) == [])
-    ck('ld8', WR_AutoSet.mode_for('06-plan', ['02-angled r']) == 'image')
-    ck('ld9', WR_AutoSet.mode_for('02-angled r', ['02-angled r']) == 'render')
-    # ONE, NOT TWO: the angled render is forced now, so a default run is
-    # still exactly 2 renders and Benton's spend did not go up by 50%%.
-    ck('ld10', WR_AutoSet::DEFAULT_RENDERS == 1)
-    ck('ld11', WR_AutoSet.renders_for(WR_AutoSet::DEFAULT_RENDERS, DEFAULTS).length == 2,
-       WR_AutoSet.renders_for(WR_AutoSet::DEFAULT_RENDERS, DEFAULTS).inspect)
+    # ---- THE PLATE ORDER (1.56.0) ---------------------------------------
+    # Benton, 11 Sep 2026: angled first, then front, high, side, ventilation,
+    # plan. The numeric prefix IS the position, so 01-front became 02-front
+    # and 02-angled became 01-angled. A mutant that puts the table back to
+    # front-first fails here BY NAME.
+    base = WR_AutoSet::PLATES.map { |p| p[:id] }
+    ck('or1', base == IMAGES + ['07-interior'], base.inspect)
+    ck('or2', base.first == '01-angled', base.first.inspect)
+    ck('or3', base[1] == '02-front', base[1].inspect)
+    # Every id's number is its 1-based position in the table.
+    ck('or4', base.each_with_index.all? { |id, i| id.start_with?(format('%%02d-', i + 1)) },
+       base.inspect)
+    # The front-on shot is still the one aimed at the frame, whatever number
+    # it wears.
+    pf = WR_AutoSet.plate('02-front')
+    pa = WR_AutoSet.plate('01-angled')
+    ck('or5', !pf.nil? && !pa.nil? && pf[:aim_at] == :door && pa[:aim_at].nil?,
+       [pf, pa].inspect)
 
-    # ---- FORCED RENDERS --------------------------------------------------
+    # ---- the render ladder ----------------------------------------------
+    # A RENDER IS AN EXTRA SCENE IN FRONT OF ITS IMAGE, walked down the plate
+    # order. The count shapes the id LIST; it converts nothing.
+    #
+    # ZERO MEANS ZERO. Benton, 11 Sep 2026: "When I click '0' renders, it
+    # still makes one though. Lets get that situated." The angled render is
+    # no longer forced.
+    ck('ld1', WR_AutoSet.plate_ids(false, 0) == IMAGES, WR_AutoSet.plate_ids(false, 0).inspect)
+    ck('ld2', WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false, 0)) == [],
+       WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false, 0)).inspect)
+    # ONE: the angled render leads, then the six images. "the 1st scene would
+    # be render angled. 2nd scene would be image angled. 3rd scene image
+    # front".
+    ck('ld3', WR_AutoSet.plate_ids(false, 1) == DEFAULTS, WR_AutoSet.plate_ids(false, 1).inspect)
+    # TWO: "it would add a rendered front" -- directly before the front image.
+    ck('ld4', WR_AutoSet.plate_ids(false, 2) ==
+              ['01-angled r', '01-angled', '02-front r', '02-front', '03-high',
+               '04-side', '05-ventilation', '06-plan'],
+       WR_AutoSet.plate_ids(false, 2).inspect)
+    # THREE: "if 3 were added, it would add a rendered high."
+    p3 = WR_AutoSet.plate_ids(false, 3)
+    ck('ld5', p3.include?('03-high r') && p3.index('03-high r') == p3.index('03-high') - 1 &&
+              !p3.include?('04-side r'),
+       p3.inspect)
+    # SIX is every image led by its render; past six is still six.
+    ck('ld6', WR_AutoSet.plate_ids(false, 6).length == 12 &&
+              WR_AutoSet.plate_ids(false, 99) == WR_AutoSet.plate_ids(false, 6),
+       WR_AutoSet.plate_ids(false, 99).inspect)
+    ck('ld7', WR_AutoSet.plate_ids(false, -1) == IMAGES)
+    # AN IMAGE PLATE IS NEVER A RENDER, at any count: the count adds scenes.
+    ck('ld8', (0..WR_AutoSet::MAX_RENDERS).all? do |n|
+                ids = WR_AutoSet.plate_ids(true, n)
+                rs  = WR_AutoSet.render_ids(ids)
+                IMAGES.all? { |id| WR_AutoSet.mode_for(id, rs) == 'image' }
+              end,
+       'an image plate came out as a render')
+    ck('ld9', WR_AutoSet.mode_for('01-angled r', WR_AutoSet.render_ids(DEFAULTS)) == 'render')
+    # ONE BY DEFAULT: the angled render only. Under the old ladder a default
+    # run was two (forced angled + ventilation); that cost went DOWN, and if
+    # this number ever moves it moved because someone changed what a default
+    # run costs.
+    ck('ld10', WR_AutoSet::DEFAULT_RENDERS == 1)
+    ck('ld11', WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false)).length == 1 &&
+               WR_AutoSet.plate_ids(false) == DEFAULTS,
+       WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false)).inspect)
+    # THE LADDER IS THE PLATE ORDER. Not a separate priority list any more.
+    ck('ld12', WR_AutoSet::RENDER_LADDER == IMAGES, WR_AutoSet::RENDER_LADDER.inspect)
+    # THE COUNT MEANS WHAT IT SAYS: n renders is n render scenes, and the six
+    # images are always all there.
+    ck('ld13', (0..WR_AutoSet::MAX_RENDERS).all? do |n|
+                 ids = WR_AutoSet.plate_ids(false, n)
+                 WR_AutoSet.render_ids(ids).length == n &&
+                   (ids - WR_AutoSet.render_ids(ids)) == IMAGES
+               end,
+       (0..6).map { |n| WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false, n)).length }.inspect)
+    # EVERY RENDER SITS IMMEDIATELY BEFORE ITS IMAGE, at every count.
+    ck('ld14', (1..WR_AutoSet::MAX_RENDERS).all? do |n|
+                 ids = WR_AutoSet.plate_ids(false, n)
+                 WR_AutoSet.render_ids(ids).all? do |r|
+                   ids.index(r) == ids.index(WR_AutoSet.base_id(r)) - 1
+                 end
+               end,
+       WR_AutoSet.plate_ids(false, 6).inspect)
+    # The plates promoted at n are the FIRST n in plate order.
+    ck('ld15', (0..WR_AutoSet::MAX_RENDERS).all? do |n|
+                 WR_AutoSet.ladder_renders(n) == IMAGES.first(n)
+               end,
+       WR_AutoSet.ladder_renders(3).inspect)
+    ck('ld16', WR_AutoSet::MAX_RENDERS == 6)
+
+    # ---- THE INTERIOR: EXTRA, ALWAYS A RENDER, NEVER COUNTED -------------
     # Benton, 10 Sep 2026: "fyi interior plate should always be a render."
-    # A forced row is a render WHENEVER THE PLATE IS PRODUCED, at any setting
-    # of the knob -- including ZERO, which is the case most likely to break.
+    # And 11 Sep 2026, asked whether it counts against the number typed:
+    # "No, interior is extra and always a render."
     ck('fr1', WR_AutoSet.mode_for('07-interior',
-                                  WR_AutoSet.renders_for(0, ALL)) == 'render',
-       WR_AutoSet.renders_for(0, ALL).inspect)
+                                  WR_AutoSet.render_ids(WR_AutoSet.plate_ids(true, 0))) == 'render',
+       WR_AutoSet.render_ids(WR_AutoSet.plate_ids(true, 0)).inspect)
     ck('fr2', (0..WR_AutoSet::MAX_RENDERS).all? do |n|
-                WR_AutoSet.renders_for(n, ALL).include?('07-interior')
+                WR_AutoSet.render_ids(WR_AutoSet.plate_ids(true, n)).include?('07-interior')
               end,
        'the interior plate can come out as an image')
-    # ADDITIVE, NOT A SLOT. Ticking the interior box must not silently demote
-    # the angled hero -- the knob answers "how many of the ORDINARY plates",
-    # so 2 + the forced row is 3 renders, and the ladder's share is untouched.
-    ck('fr3', WR_AutoSet.ladder_renders(2, ALL) == WR_AutoSet.ladder_renders(2, DEFAULTS),
-       [WR_AutoSet.ladder_renders(2, ALL), WR_AutoSet.ladder_renders(2, DEFAULTS)].inspect)
-    ck('fr4', WR_AutoSet.renders_for(2, ALL).length ==
-              WR_AutoSet.renders_for(2, DEFAULTS).length + 1,
-       WR_AutoSet.renders_for(2, ALL).inspect)
-    # The plate is not on the ladder at all, so it cannot be double-counted.
+    # EXTRA: exactly one more scene than the same run without it, and last.
+    ck('fr3', (0..WR_AutoSet::MAX_RENDERS).all? do |n|
+                with = WR_AutoSet.plate_ids(true, n)
+                with.length == WR_AutoSet.plate_ids(false, n).length + 1 &&
+                  with.last == '07-interior' &&
+                  with[0...-1] == WR_AutoSet.plate_ids(false, n)
+              end,
+       WR_AutoSet.plate_ids(true, 2).inspect)
+    # NOT COUNTED: knob n plus the box is n + 1 renders, the ladder's n
+    # untouched.
+    ck('fr4', (0..WR_AutoSet::MAX_RENDERS).all? do |n|
+                WR_AutoSet.render_ids(WR_AutoSet.plate_ids(true, n)).length == n + 1
+              end,
+       WR_AutoSet.render_ids(WR_AutoSet.plate_ids(true, 2)).inspect)
     ck('fr5', !WR_AutoSet::RENDER_LADDER.include?('07-interior'),
        WR_AutoSet::RENDER_LADDER.inspect)
-    # COST. A forced render on a plate that is OFF by default costs nothing
-    # until Benton asks for that plate; on an always-on plate it would raise
-    # the floor of EVERY run. If that ever needs to change, this check is what
-    # makes it a decision rather than an accident -- edit it deliberately.
-    # fr6 CHANGED DELIBERATELY AT 1.53.0 AND THE COST IS THE POINT. It used
-    # to require EVERY forced render to sit on an off-by-default plate, so
-    # that forcing one could never raise the floor of an ordinary run. Benton
-    # then asked for exactly that: "I also always want a regular image at
-    # angled, and a render at angled." So a forced render is now allowed on an
-    # always-on plate ONLY as the render half of a dual pair -- an ordinary
-    # plate still cannot be made a forced render without failing here.
-    ck('fr6', WR_AutoSet.forced_renders(ALL).all? do |id|
+    # COST, SAID OUT LOUD. The ONLY render that is not a paired render scene
+    # sits on a plate that is OFF by default. A forced render on an always-on
+    # plate raises the floor of every run -- that is the 1.53-1.55 angled
+    # behaviour Benton asked to have removed, and this check is what makes
+    # putting it back a decision rather than an accident.
+    ck('fr6', WR_AutoSet.render_ids(WR_AutoSet.plate_ids(true, 6)).all? do |id|
                 WR_AutoSet.dual_render?(id) || WR_AutoSet.plate(id)[:on] == false
               end,
-       WR_AutoSet.forced_renders(ALL).inspect)
-    # THE FLOOR OF EVERY DEFAULT RUN, NAMED. One render happens whatever the
-    # knob says. If this number ever moves, it moved because someone changed
-    # what a default run costs.
-    ck('fr7', WR_AutoSet.renders_for(0, DEFAULTS).length == 1,
-       WR_AutoSet.renders_for(0, DEFAULTS).inspect)
+       WR_AutoSet.render_ids(WR_AutoSet.plate_ids(true, 6)).inspect)
+    # THE FLOOR OF A ZERO-RENDER RUN IS ZERO. This is item 1 of the 11 Sep
+    # spec, pinned.
+    ck('fr7', WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false, 0)).length == 0,
+       WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false, 0)).inspect)
+    # The interior never grows a paired render of its own.
+    ck('fr8', (0..WR_AutoSet::MAX_RENDERS).none? do |n|
+                WR_AutoSet.plate_ids(true, n).include?('07-interior r')
+              end &&
+              !WR_AutoSet.dual_render?('07-interior r') &&
+              WR_AutoSet.plate('07-interior r').nil?,
+       'the interior grew a render half')
 
-    # ---- THE DUAL ANGLED PAIR -------------------------------------------
+    # ---- THE IMAGE/RENDER PAIR -------------------------------------------
     # Benton, 10 Sep 2026: "I also always want a regular image at angled, and
     # a render at angled. Should be the same scene, except with the render
-    # setting."
+    # setting." -- now the rule for every ladder plate.
     ck('du1', WR_AutoSet.plate_ids(false) == DEFAULTS, WR_AutoSet.plate_ids(false).inspect)
-    # Adjacent, image first, so the tab bar reads in pairs.
-    ck('du2', WR_AutoSet.plate_ids(false).index('02-angled r') ==
-              WR_AutoSet.plate_ids(false).index('02-angled') + 1,
+    # ADJACENT, RENDER FIRST (1.56.0 -- this was image-first until then).
+    ck('du2', WR_AutoSet.plate_ids(false).index('01-angled r') ==
+              WR_AutoSet.plate_ids(false).index('01-angled') - 1,
        WR_AutoSet.plate_ids(false).inspect)
-    # ONE IMAGE, ONE RENDER, ALWAYS -- at every setting of the knob.
-    ck('du3', (0..WR_AutoSet::MAX_RENDERS).all? do |n|
-                rs = WR_AutoSet.renders_for(n, DEFAULTS)
-                rs.include?('02-angled r') && !rs.include?('02-angled')
+    # ONE IMAGE, ONE RENDER at every count of one or more.
+    ck('du3', (1..WR_AutoSet::MAX_RENDERS).all? do |n|
+                rs = WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false, n))
+                rs.include?('01-angled r') && !rs.include?('01-angled')
               end,
        'the angled pair is not exactly one image and one render')
     # THE SAME SHOT. Both halves resolve to the SAME plate row, which is what
     # makes their camera, walls and annotations identical without anything
     # having to keep them in step.
-    ck('du4', WR_AutoSet.plate('02-angled r').equal?(WR_AutoSet.plate('02-angled')),
+    ck('du4', WR_AutoSet.plate('01-angled r').equal?(WR_AutoSet.plate('01-angled')) &&
+              WR_AutoSet.plate('06-plan r').equal?(WR_AutoSet.plate('06-plan')),
        'the two halves resolve to different plate rows')
-    ck('du5', shown_on_equal?('02-angled', '02-angled r'),
-       'the pair disagrees about annotations')
+    # THE SUFFIX IS SEEN THROUGH by the annotation rule -- on the pair that
+    # actually names a note set, so a raw-id lookup cannot pass by accident.
+    ck('du5', shown_on_equal?('05-ventilation', '05-ventilation r') &&
+              shown_on('05-ventilation r').include?('WR-Notes-Vent') &&
+              shown_on_equal?('01-angled', '01-angled r'),
+       [shown_on('05-ventilation'), shown_on('05-ventilation r')].inspect)
+    # ... and by the wall rule: the plan's render hides no walls either.
+    wp_r = WR_AutoSet.wall_picks('06-plan r',
+                                 [{ 'key' => 'w:x', 'c' => [50.0, 0.0, 40.0] }],
+                                 [0.0, 0.0, 0.0], [97.8, 0.0, 20.8])
+    ck('du5b', wp_r == { 'w:x' => false }, wp_r.inspect)
     # Identical cameras, measured -- not asserted from the shared row.
-    ia = shot('02-angled')
-    ra = shot('02-angled r')
+    ia = shot('01-angled')
+    ra = shot('01-angled r')
     ck('du6', (ia['az'] - ra['az']).abs < 1.0e-12 &&
               (ia['run'] - ra['run']).abs < 1.0e-12 &&
               (ia['z'] - ra['z']).abs < 1.0e-12,
        [ia, ra].inspect)
+    fi = shot('02-front')
+    fr = shot('02-front r')
+    ck('du6b', (fi['az'] - fr['az']).abs < 1.0e-12 &&
+               (fi['run'] - fr['run']).abs < 1.0e-12 &&
+               (fi['z'] - fr['z']).abs < 1.0e-12,
+       [fi, fr].inspect)
     # The stamp key stays UNIQUE PER PAGE, which is what identity needs.
-    ck('du7', WR_AutoSet.scene_name('MDL 4872 E', '02-angled r') ==
-              'MDL 4872 E 02-angled r',
-       WR_AutoSet.scene_name('MDL 4872 E', '02-angled r'))
-    ck('du8', WR_AutoSet.scene_name('MDL 4872 E', '02-angled') !=
-              WR_AutoSet.scene_name('MDL 4872 E', '02-angled r'))
-    # A NON-DUAL PLATE GETS NO SECOND ROW, and 'xx r' for a plate that is not
-    # dual resolves to nothing rather than silently aliasing.
-    ck('du9', !WR_AutoSet.dual_render?('01-front r') &&
-              WR_AutoSet.plate('01-front r').nil?,
-       'a non-dual plate grew a render half')
-    ck('du10', WR_AutoSet.dual_render?('02-angled r') &&
-               !WR_AutoSet.dual_render?('02-angled'))
+    ck('du7', WR_AutoSet.scene_name('MDL 4872 E', '01-angled r') ==
+              'MDL 4872 E 01-angled r',
+       WR_AutoSet.scene_name('MDL 4872 E', '01-angled r'))
+    ck('du8', WR_AutoSet.scene_name('MDL 4872 E', '01-angled') !=
+              WR_AutoSet.scene_name('MDL 4872 E', '01-angled r'))
+    # 'xx r' for something that is not a ladder plate resolves to nothing
+    # rather than silently aliasing.
+    ck('du9', !WR_AutoSet.dual_render?('zz r') && WR_AutoSet.plate('zz r').nil? &&
+              WR_AutoSet.plate('01-angled rr').nil?,
+       'a non-plate grew a render half')
+    ck('du10', WR_AutoSet.dual_render?('01-angled r') &&
+               !WR_AutoSet.dual_render?('01-angled') &&
+               WR_AutoSet.dual_render?('06-plan r'))
     # THE FILENAME DOES NOT DOUBLE THE MARKER. proposal-package.rb appends its
     # mark only when the name does not already end in it.
     ck('du11', WR_AutoSet::DUAL_SUFFIX == ' r', WR_AutoSet::DUAL_SUFFIX.inspect)
+    ck('du12', WR_AutoSet.base_id('02-front r') == '02-front' &&
+               WR_AutoSet.base_id('02-front') == '02-front' &&
+               WR_AutoSet.dual_render_id('02-front') == '02-front r')
 
     # ---- the plate azimuths ---------------------------------------------
     # THE DOOR IS THE ANCHOR for everything except the vent shot. Benton:
     # "Find the door, step out like 15 ft or so. Straight on."
-    ck('az1', WR_AutoSet.az_for('01-front', 12.0, nil) == 12.0,
-       WR_AutoSet.az_for('01-front', 12.0, nil).inspect)
-    ck('az2', WR_AutoSet.az_for('02-angled', 0.0, nil) == 35.0)
+    ck('az1', WR_AutoSet.az_for('02-front', 12.0, nil) == 12.0,
+       WR_AutoSet.az_for('02-front', 12.0, nil).inspect)
+    ck('az2', WR_AutoSet.az_for('01-angled', 0.0, nil) == 35.0)
     ck('az3', WR_AutoSet.az_for('03-high', 0.0, nil) == 35.0)
     ck('az4', WR_AutoSet.az_for('05-ventilation', 0.0, 90.0) == 115.0)
     # No WR-Booth-Vent: the vent plate is just the opposite side, plus swing.
@@ -680,7 +853,7 @@ module T
        WR_AutoSet.az_for('05-ventilation', 0.0, nil).inspect)
     # No WR-Booth-Door at all: the documented -90 fallback, which is exactly
     # the case the popover says out loud in orange BEFORE Apply.
-    ck('az6', WR_AutoSet.az_for('01-front', nil, nil) == -90.0)
+    ck('az6', WR_AutoSet.az_for('02-front', nil, nil) == -90.0)
     ck('az7', WR_AutoSet.az_for('06-plan', 12.0, nil) == 12.0)
     # NO PLATE CARRIES A PROJECTION KEY ANY MORE. A :persp key is the shape
     # that lets parallel projection creep back in one plate at a time.
@@ -709,11 +882,11 @@ module T
     ck('an2b', ALL.all? { |p| WR_AutoSet.annot_picks(p, sets, loose)['e:103'] == false },
        'a loose DIMENSION is hidden on a plate')
     # A row whose kind is missing or unreadable is treated as text and hidden.
-    ck('an2c', WR_AutoSet.annot_picks('01-front', [], [{ 'key' => 'e:999' }])['e:999'] == true,
+    ck('an2c', WR_AutoSet.annot_picks('02-front', [], [{ 'key' => 'e:999' }])['e:999'] == true,
        'an unreadable loose row was SHOWN')
     # EVERY DIMENSION TAG, ON EVERY PLATE (1.51.0).
     dims_all = %%w[WR-Dims WR-Dims-Doors WR-Dims-Booth WR-Dims-Selection]
-    ck('an3', shown_on('01-front').sort == dims_all.sort, shown_on('01-front').inspect)
+    ck('an3', shown_on('02-front').sort == dims_all.sort, shown_on('02-front').inspect)
     ck('an4', shown_on('05-ventilation').sort == (dims_all + ['WR-Notes-Vent']).sort,
        shown_on('05-ventilation').inspect)
     # Opt-in BY EXISTENCE: a shop that has never made that set gets a clean
@@ -728,12 +901,12 @@ module T
     # THE PLATES THAT USED TO SHOW NOTHING NOW SHOW THE DIMENSIONS, AND ONLY
     # THE DIMENSIONS. This assertion moved on purpose at 1.51.0; the one below
     # it (an7b) is the part that did not move.
-    ck('an7', %%w[02-angled 04-side 07-interior].all? { |p| shown_on(p).sort == dims_all.sort },
-       %%w[02-angled 04-side 07-interior].map { |p| shown_on(p) }.inspect)
+    ck('an7', %%w[01-angled 04-side 07-interior].all? { |p| shown_on(p).sort == dims_all.sort },
+       %%w[01-angled 04-side 07-interior].map { |p| shown_on(p) }.inspect)
     ck('an7b', ALL.all? { |p| (shown_on(p) - dims_all - %%w[WR-Notes-Vent WR-Notes-Plan]).empty? },
        'a plate is showing something that is neither a dimension nor its own note set')
     # FULL HASH: one key per set row plus one per loose row, and nothing else.
-    pk = WR_AutoSet.annot_picks('01-front', sets, loose)
+    pk = WR_AutoSet.annot_picks('02-front', sets, loose)
     ck('an8', pk.keys.length == sets.length + loose.length, pk.keys.length.to_s)
     # an9 WAS THE OPPOSITE ASSERTION UNTIL 1.51.0 -- it required WR-Dims-Booth
     # and WR-Dims-Selection to be HIDDEN everywhere. They are dimensions,
@@ -749,7 +922,7 @@ module T
     # no allowlist, so it is hidden -- not invisible to the tool, hidden BY it.
     ck('an10', ALL.all? { |p| WR_AutoSet.annot_picks(p, sets, loose)['t:WR-Notes-Custom'] == true })
     # A model with no annotations at all: an empty hash, not a crash.
-    ck('an11', WR_AutoSet.annot_picks('02-angled', [], []) == {})
+    ck('an11', WR_AutoSet.annot_picks('01-angled', [], []) == {})
 
     # ---- the never-shown gate -------------------------------------------
     # THE GATE IS WR-Notes AND ONLY WR-Notes NOW, and that is the whole list
@@ -779,7 +952,7 @@ module T
               { 'key' => 'w:side',  'c' => [0.0, 50.0, 40.0],  'label' => 'Room Wall 3' },
               { 'key' => 'w:corner', 'c' => [40.0, 40.0, 40.0], 'label' => 'Room Wall 4' },
               { 'key' => 'w:onit',  'c' => [0.0, 0.0, 0.0],    'label' => 'Room Wall 5' }]
-    p1 = WR_AutoSet.wall_picks('02-angled', units, centre, eye)
+    p1 = WR_AutoSet.wall_picks('01-angled', units, centre, eye)
     hid = units.map { |u| u['key'] }.select { |k| p1[k] }
     ck('wp1', hid == ['w:front', 'w:corner'], hid.inspect)
     # PARTIAL HASHES ARE THE BUG. Every unit keyed, true or false, or a wall
@@ -794,7 +967,7 @@ module T
     # re-shot plate; failing toward hiding one costs a wrong image.
     ck('wp5', p1['w:onit'] == false)
     ck('wp6', WR_AutoSet.cone_dot([10.0, 0.0, 0.0], centre, centre).nil?)
-    ck('wp7', WR_AutoSet.wall_picks('02-angled', [], centre, eye) == {})
+    ck('wp7', WR_AutoSet.wall_picks('01-angled', [], centre, eye) == {})
     # The vent plate looks from the other side, so the other walls go.
     eye2 = [-97.8, 0.0, 20.8]
     p4   = WR_AutoSet.wall_picks('05-ventilation', units, centre, eye2)
@@ -819,7 +992,7 @@ module T
        cam('06-plan').height.inspect)
 
     # FRONT ON. "Find the door, step out like 15 ft or so. Straight on."
-    f = shot('01-front')
+    f = shot('02-front')
     ck('cm2', (f['az'] - DOOR).abs < 1.0e-6, f['az'].inspect)
     # ~16 ft back on the ground for this booth, which is "15 ft or so" and
     # not the 21 ft radius * 3.2 + 60 used to give.
@@ -842,18 +1015,22 @@ module T
     # "around this same angle": same bearing and same ground run as the
     # angled shot, camera lifted. This is what plate_dist's 1/cos(el) buys --
     # without it, raising the elevation walks the camera in toward the booth.
-    ang = shot('02-angled')
+    ang = shot('01-angled')
     ck('cm10', (h['az'] - ang['az']).abs < 1.0e-6 &&
                (h['run'] - ang['run']).abs < 1.0, [h['run'], ang['run']].inspect)
-    # "This is image." Not a render at ANY setting of the renders knob.
+    # "This is image." The high IMAGE is never a render at ANY count -- the
+    # count adds a '03-high r' scene beside it (from 3 up) and converts
+    # nothing. Same for the top-down (from 6).
     ck('cm11', (0..WR_AutoSet::MAX_RENDERS).none? do |n|
-                 WR_AutoSet.renders_for(n, ALL).include?('03-high')
+                 rs = WR_AutoSet.render_ids(WR_AutoSet.plate_ids(true, n))
+                 rs.include?('03-high') || rs.include?('06-plan')
                end,
-       'the high shot can be promoted to a render')
-    ck('cm11b', (0..WR_AutoSet::MAX_RENDERS).none? do |n|
-                  WR_AutoSet.renders_for(n, ALL).include?('06-plan')
-                end,
-       'the top-down can be promoted to a render')
+       'the high shot or the top-down image was promoted to a render')
+    ck('cm11b', (0..2).none? { |n| WR_AutoSet.plate_ids(true, n).include?('03-high r') } &&
+                (3..6).all? { |n| WR_AutoSet.plate_ids(true, n).include?('03-high r') } &&
+                (0..5).none? { |n| WR_AutoSet.plate_ids(true, n).include?('06-plan r') } &&
+                WR_AutoSet.plate_ids(true, 6).include?('06-plan r'),
+       'the high / plan render scenes do not appear at exactly 3 and 6')
 
     # VENTILATION. "Usually a back view to show ventilation (this usually
     # requires a hidden wall)" -- so it must NOT be exempt from the wall cone.
@@ -1024,21 +1201,21 @@ module T
     ck('fm5b', WR_AutoSet.frame_hits([], own96) == [])
     # Only the front plate re-targets onto the frame; every other plate still
     # frames the whole booth.
-    ck('fm6', WR_AutoSet.plate('01-front')[:aim_at] == :door)
-    ck('fm7', (ALL - ['01-front']).none? { |id| WR_AutoSet.plate(id)[:aim_at] },
-       (ALL - ['01-front']).select { |id| WR_AutoSet.plate(id)[:aim_at] }.inspect)
+    ck('fm6', WR_AutoSet.plate('02-front')[:aim_at] == :door)
+    ck('fm7', (ALL - ['02-front']).none? { |id| WR_AutoSet.plate(id)[:aim_at] },
+       (ALL - ['02-front']).select { |id| WR_AutoSet.plate(id)[:aim_at] }.inspect)
     # AIMED AT THE FRAME: with an off-centre door the eye stands on the wall
     # normal THROUGH THE FRAME, not through the booth centre.
     vv = FakeView.new
     anch = [36.0, -61.0, CENTRE[2]]
-    WR_AutoSet.aim_plate(vv, '01-front', CENTRE, RADIUS, DOOR, VENT, HALF, anch)
+    WR_AutoSet.aim_plate(vv, '02-front', CENTRE, RADIUS, DOOR, VENT, HALF, anch)
     ck('fm8', (vv.camera.target.to_a[0] - 36.0).abs < 1.0e-9,
        vv.camera.target.to_a.inspect)
     ck('fm9', (vv.camera.eye.to_a[0] - 36.0).abs < 1.0e-6,
        'the eye is not on the frame normal')
     # With no anchor it falls back to the booth centre rather than raising.
     vv2 = FakeView.new
-    WR_AutoSet.aim_plate(vv2, '01-front', CENTRE, RADIUS, DOOR, VENT, HALF, nil)
+    WR_AutoSet.aim_plate(vv2, '02-front', CENTRE, RADIUS, DOOR, VENT, HALF, nil)
     ck('fm10', vv2.camera.target.to_a == CENTRE, vv2.camera.target.to_a.inspect)
 
     # ---- INSIDE THE BOOTH ------------------------------------------------
@@ -1109,8 +1286,8 @@ module T
     # ... and the exterior plates too: same set()/perspective= order in
     # WR_ProposalScenes.aim. Re-running Apply with the plan scene selected is
     # a parallel view for every plate that follows.
-    f_fresh = cam('01-front')
-    f_plan  = cam('01-front', DOOR, VENT, true)
+    f_fresh = cam('02-front')
+    f_plan  = cam('02-front', DOOR, VENT, true)
     ck('cm19', f_fresh.eye.to_a == f_plan.eye.to_a,
        "front eye #{f_plan.eye.to_a.inspect} after a parallel plate vs " \
        "#{f_fresh.eye.to_a.inspect} on a fresh view")
@@ -1146,8 +1323,8 @@ module T
 
     # NO DOOR TAG AT ALL: the documented -90 fallback still produces a real
     # camera rather than raising.
-    ck('cm18', shot('01-front', nil, nil)['az'] == WR_AutoSet::FALLBACK_AZ,
-       shot('01-front', nil, nil)['az'].inspect)
+    ck('cm18', shot('02-front', nil, nil)['az'] == WR_AutoSet::FALLBACK_AZ,
+       shot('02-front', nil, nil)['az'].inspect)
 
     # ---- THE BLANK PLATE EXPLAINS ITSELF --------------------------------
     # The model Benton ran on carried no dimensions at all, and a plate that
@@ -1162,9 +1339,9 @@ module T
     # PARTIAL IS NOT BLANK. One populated tag means the plate has content.
     ck('eb3', WR_AutoSet.empty_shown_note(['WR-Dims', 'WR-Dims-Doors'], some).nil?,
        WR_AutoSet.empty_shown_note(['WR-Dims', 'WR-Dims-Doors'], some).inspect)
-    # A plate that shows nothing by design is not "blank" -- 02-angled is
-    # meant to be clean, and telling Benton to dimension his model for it
-    # would be noise.
+    # A plate that shows nothing by design is not "blank" -- a plate with an
+    # empty allowlist and no dims present is meant to be clean, and telling
+    # Benton to dimension his model for it would be noise.
     ck('eb4', WR_AutoSet.empty_shown_note([], none).nil?)
     # COULD NOT TELL IS NOT EMPTY. A failed walk returns nil and must stay
     # quiet rather than claim the dimensions are missing.
@@ -1194,11 +1371,13 @@ end).dup
 '''
 
 NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
-         'sm1 sm2 sm3 sm4 sm5 sm6 sm7 sm8 '
+         'sm1 sm2 sm3 sm4 sm5 sm6 sm7 sm8 sm9 '
+         'mg1 mg2 mg3 mg4 mg4b mg5 mg6 mg7 mg8 mg9 mg10 '
          'mv1 mv2 mv3 mv4 mv5 '
-         'ld1 ld2 ld3 ld4 ld5 ld6 ld7 ld8 ld9 ld10 ld11 '
-         'fr1 fr2 fr3 fr4 fr5 fr6 fr7 '
-         'du1 du2 du3 du4 du5 du6 du7 du8 du9 du10 du11 '
+         'or1 or2 or3 or4 or5 '
+         'ld1 ld2 ld3 ld4 ld5 ld6 ld7 ld8 ld9 ld10 ld11 ld12 ld13 ld14 ld15 ld16 '
+         'fr1 fr2 fr3 fr4 fr5 fr6 fr7 fr8 '
+         'du1 du2 du3 du4 du5 du5b du6 du6b du7 du8 du9 du10 du11 du12 '
          'az1 az2 az3 az4 az5 az6 az7 az8 az9 az10 az11 '
          'an1 an2 an2b an2c an3 an4 an5 an6 an7 an7b an8 an9 an10 an11 '
          'nv1 nv2 nv3 '
@@ -1240,6 +1419,7 @@ def main():
         'max_renders':     const_line('MAX_RENDERS'),
         'default_renders': const_line('DEFAULT_RENDERS'),
         'plates':          const_block('PLATES'),
+        'renumbered':      const_block('RENUMBERED'),
         'no_wall_plates':  const_line('NO_WALL_PLATES'),
         'render_ladder':   const_block('RENDER_LADDER'),
         'never_shown':     const_line('NEVER_SHOWN'),
@@ -1249,13 +1429,19 @@ def main():
         'unit_vec':        rbtest.method_source(SRC, 'unit_vec'),
         'cone_dot':        rbtest.method_source(SRC, 'cone_dot'),
         'wall_picks':      rbtest.method_source(SRC, 'wall_picks'),
-        'renders_for':     rbtest.method_source(SRC, 'renders_for'),
+        'render_ids':      rbtest.method_source(SRC, 'render_ids'),
         'mode_for':        rbtest.method_source(SRC, 'mode_for'),
         'plate':           rbtest.method_source(SRC, 'plate'),
         'plate_ids':       rbtest.method_source(SRC, 'plate_ids'),
+        'run_ids':         rbtest.method_source(SRC, 'run_ids'),
+        # 'live_plate' (not 'live_plate?'): see the centre_moved note below.
+        'live_plate':      rbtest.method_source(SRC, 'live_plate'),
+        'stale_plates':    rbtest.method_source(SRC, 'stale_plates'),
+        'extra_pages':     rbtest.method_source(SRC, 'extra_pages'),
+        'auto_named':      rbtest.method_source(SRC, 'auto_named'),
         'az_for':          rbtest.method_source(SRC, 'az_for'),
         'standoff':        rbtest.method_source(SRC, 'standoff'),
-        'forced_renders':  rbtest.method_source(SRC, 'forced_renders'),
+        'base_id':         rbtest.method_source(SRC, 'base_id'),
         'dual_render':     rbtest.method_source(SRC, 'dual_render'),
         'dual_render_id':  rbtest.method_source(SRC, 'dual_render_id'),
         'ladder_renders':  rbtest.method_source(SRC, 'ladder_renders'),

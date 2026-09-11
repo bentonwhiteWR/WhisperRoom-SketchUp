@@ -130,12 +130,30 @@ module WR_AutoSet
   # product shot. Every id now names a CAMERA, and the annotations follow the
   # camera instead of the other way round.
   #
+  # THE ORDER CHANGED AT 1.56.0 AND THE NUMBERS MOVED WITH IT. Benton, 11 Sep
+  # 2026: the angled shot leads and the front-on follows -- "the 1st scene
+  # would be render angled. 2nd scene would be image angled. 3rd scene image
+  # front". Until then the table read front, angled, high, side, ventilation,
+  # plan. Only the first two swapped, but an id's numeric prefix IS its
+  # position (that is what makes the tab bar readable), so 01-front became
+  # 02-front and 02-angled became 01-angled. The last four kept their ids.
+  #
   # RE-RUNNABILITY, SAID OUT LOUD: the stamp's `plate` key IS these ids, so
-  # scenes stamped by 1.48.x carry retired ids and will NOT be matched by this
-  # version. They are still matched by TOKEN, so Remove still removes them -
-  # and stale_plates below names them in the log rather than erasing a scene
-  # Benton may have nudged. The one action that gets the corrected framing is
-  # Remove, then Apply.
+  # scenes stamped by an older version can carry retired ids. Two cases:
+  #
+  #   RENUMBERED  the 1.53-1.55 ids that name a shot this table still has
+  #               (01-front, 02-angled, 02-angled r). page_for_plate follows
+  #               RENUMBERED below, so an Update finds the old page, restamps
+  #               it and -- if it still wears the tool's own old name --
+  #               renumbers the name. Nothing is duplicated and nothing is
+  #               called stale. What Update cannot do is REORDER the tab bar
+  #               (the SketchUp API has no page move), and the export numbers
+  #               follow the tab order, so apply says so when the set is out
+  #               of order and names Remove-then-Apply as the fix.
+  #   RETIRED     ids with no successor (1.48's 02-dimensioned). Still matched
+  #               by TOKEN, so Remove still removes them, and stale_plates
+  #               names them in the log rather than erasing a scene Benton
+  #               may have nudged.
   #
   #   :az    :door or :vent - which tag the azimuth is read from
   #   :swing degrees added to it; 35 makes a three-quarter out of a head-on
@@ -157,14 +175,13 @@ module WR_AutoSet
   # the interior exposure value for a render row. Renaming it past that regex
   # would silently mis-expose it.
   PLATES = [
-    { :id => '01-front',       :az => :door, :swing => 0.0,  :el => 7.0,
+    { :id => '01-angled',      :az => :door, :swing => 35.0, :el => 7.0,
+      :on => true,  :what => 'Angled three-quarter, eye height - the cover hero' },
+    { :id => '02-front',       :az => :door, :swing => 0.0,  :el => 7.0,
       :aim_at => :door,
       :on => true,  :what => 'Front on, square to the door FRAME' },
-    { :id => '02-angled',      :az => :door, :swing => 35.0, :el => 7.0,
-      :on => true,  :dual => true,
-      :what => 'Angled, same height - cover hero (image + render)' },
     { :id => '03-high',        :az => :door, :swing => 35.0, :el => 40.0,
-      :on => true,  :what => 'High angled (15-20 ft up) - always an image' },
+      :on => true,  :what => 'High angled (15-20 ft up)' },
     { :id => '04-side',        :az => :door, :swing => 90.0, :el => 7.0,
       :on => true,  :what => 'Side view' },
     { :id => '05-ventilation', :az => :vent, :swing => 25.0, :el => 10.0,
@@ -174,8 +191,16 @@ module WR_AutoSet
       :on => true,  :what => 'Top-down, dimensions (the ONE parallel plate)' },
     { :id => '07-interior',    :az => :door, :swing => 0.0,  :el => 0.0,
       :on => false, :inside => true, :render => :always,
-      :what => 'Interior (off by default, ALWAYS a render)' }
+      :what => 'Interior (off by default, ALWAYS a render, never counted)' }
   ].freeze
+
+  # Plate ids that earlier versions stamped for a shot this table still makes,
+  # keyed old -> new. See RE-RUNNABILITY above. A key here is NOT stale.
+  RENUMBERED = {
+    '01-front'     => '02-front',
+    '02-angled'    => '01-angled',
+    '02-angled r'  => '01-angled r'
+  }.freeze
 
   # SIDE IS ON BY DEFAULT EVEN THOUGH HE SAID "sometimes". Turning a plate off
   # is one tick in the popover before Apply; a plate he wanted and did not get
@@ -271,7 +296,7 @@ module WR_AutoSet
   # 22 in inside the LEAF, which can be outside the booth. Live, 11 Sep 2026:
   # the verify fixture's 38 in leaf put the eye 15 in outside its shell. The
   # same union skew is what 1.54.0 took out of the wall bearing. The frame is
-  # in the wall by definition (it is what 01-front aims at), so it is the plane.
+  # in the wall by definition (it is what 02-front aims at), so it is the plane.
   def self.interior_eye_dist(half, radius, az, frame_run = nil)
     r = nil
     r = frame_run.to_f if !frame_run.nil? && frame_run.to_f > 0.0
@@ -336,96 +361,89 @@ module WR_AutoSet
   # page - which until 1.49.1 it did not (see apply).
   NO_WALL_PLATES = %w[06-plan 07-interior].freeze
 
-  # RENDERS ARE A KNOB, NOT A CONSTANT. Default 2 (Benton, 10 Sep 2026);
-  # 0-6 from the popover. Assigned down this fixed ladder, everything below
-  # the line is IMAGE.
+  # ------------------------------------------------------ the render ladder --
   #
-  # THREE PLATES ARE NOT ON THE LADDER AT ALL.
+  # A RENDER IS AN EXTRA SCENE, NOT A CONVERTED ONE (1.56.0). Benton, 11 Sep
+  # 2026, verbatim:
   #
-  #   03-high  "This is image", flatly.
-  #   06-plan  the other dimension-carrying plate. A plate whose job is to
-  #            carry a dimension string does not need photoreal materials, and
-  #            the render lane is the expensive one.
-  #   07-interior  the opposite case: it is a FORCED render (:render =>
-  #            :always) and does not need the ladder's permission. Benton, 10
-  #            Sep 2026: "fyi interior plate should always be a render."
+  #   "Adding 1, or 2, or however many renders will put renders as these in
+  #    priority. First render would be the angled. So then the render would go
+  #    IN FRONT of the image. So then the 1st scene would be render angled.
+  #    2nd scene would be image angled. 3rd scene image front... if two
+  #    renders were selected, then it would add a rendered front. if 3 were
+  #    added, it would add a rendered high."
   #
-  # 02-angled CAME OFF THE LADDER AT 1.53.0 and that is not a demotion. It is
-  # now a DUAL plate: its image half must stay an image, and its render half
-  # ('02-angled r') is a forced render. Leaving the base id on the ladder would
-  # have let the knob promote the IMAGE half and give Benton two renders and no
-  # image, which is the opposite of what he asked for.
+  # So the six image plates are ALWAYS produced, in PLATES order, and the
+  # render count says how many of them ALSO get a render scene of their own,
+  # walked down this ladder -- which is the plate order itself. Each render
+  # scene is inserted IMMEDIATELY BEFORE its image and shares its camera,
+  # walls and annotations (see DUAL_SUFFIX). The count therefore means exactly
+  # what it says: n renders is n render scenes and six image scenes.
   #
-  # 01-front is last ON the ladder for the dimensioned-plate reason above.
-  RENDER_LADDER = %w[05-ventilation 04-side 01-front].freeze
+  #   0  01-angled, 02-front, 03-high, 04-side, 05-ventilation, 06-plan
+  #   1  01-angled r, 01-angled, 02-front, 03-high, ...
+  #   2  01-angled r, 01-angled, 02-front r, 02-front, 03-high, ...
+  #   6  every image plate led by its render
+  #
+  # ZERO MEANS ZERO. Until 1.56.0 the angled render was FORCED -- produced at
+  # every setting of the knob -- so typing 0 still made one render. Benton:
+  # "When I click '0' renders, it still makes one though. Lets get that
+  # situated." There is no forced render on any always-on plate any more;
+  # rbtest-autoset.py's fr7 pins the floor of a zero-render run at zero.
+  #
+  # 03-high AND 06-plan ARE ON THE LADDER NOW, and that does not contradict
+  # "this is image": their IMAGE scene is always made and is always an image.
+  # What the ladder adds, at 3 and 6, is a render scene beside it. The old
+  # ladder converted the image into a render, which is why those two had to
+  # be kept off it.
+  #
+  # 07-interior IS NOT ON THE LADDER. It is the opt-in extra, always a render,
+  # and never counted -- see render_ids.
+  RENDER_LADDER = %w[01-angled 02-front 03-high 04-side 05-ventilation 06-plan].freeze
 
-  # ONE, NOT TWO, AND THAT IS A COST DECISION SAID OUT LOUD. Until 1.53.0 a
-  # default run was 2 renders: 02-angled and 05-ventilation. The angled render
-  # is now FORCED, so a knob of 2 would have made every default run 3 renders
-  # -- 50% more of the expensive half, which Benton did not ask for. At 1 the
-  # default is still exactly 2 renders (the forced angled + one off the
-  # ladder), and what he gained is the angled IMAGE row he did ask for.
+  # ONE BY DEFAULT, AND THAT IS A COST DECISION SAID OUT LOUD. Under the old
+  # ladder a default run was 2 renders (the forced angled plus ventilation).
+  # Under this one a default of 1 is the angled render only -- the "first
+  # render would be the angled" case -- and 2 would now add a rendered FRONT,
+  # not ventilation. The knob is in the popover; this is only what it starts
+  # at.
   DEFAULT_RENDERS = 1
-  MAX_RENDERS = 6
+  MAX_RENDERS = RENDER_LADDER.length
 
-  # ------------------------------------------------- forced renders --
-  #
-  # A plate carrying `:render => :always` is a render WHENEVER IT IS
-  # PRODUCED, at any setting of the knob, zero included. Benton, 10 Sep 2026:
-  # "fyi interior plate should always be a render."
-  #
-  # FORCED RENDERS ARE ADDITIVE AND SIT OUTSIDE THE LADDER. They do not
-  # consume a slot from the render count, because the count is the answer to
-  # "how many of the ordinary plates do you want rendered" and silently
-  # demoting the angled hero because the interior box got ticked is precisely
-  # the surprise this design has to avoid. Set the knob to 2 and tick the
-  # interior and you get THREE renders — and the Apply summary says so, broken
-  # out, rather than reporting a number that no longer means what it says.
-  #
-  # COST LIVES HERE, SO KEEP IT VISIBLE. Renders are the expensive half of
-  # Benton's workflow. Forcing one on a plate that is OFF by default (this is
-  # the only one) costs nothing until he asks for that plate. Forcing one on
-  # an always-on plate would raise the floor of every single run, and that is
-  # a different kind of decision — `rbtest-autoset.py`'s `fr6` fails if a
-  # forced render ever appears on an `:on => true` plate, so making that
-  # change means editing a check that says out loud what it costs.
-  def self.forced_renders(ids)
-    (ids || []).select do |id|
-      next true if dual_render?(id)
-      pl = plate(id)
-      pl && pl[:render] == :always
-    end
-  end
-
-  # ------------------------------------------- the dual image/render pair --
+  # ------------------------------------------- the image/render pair --
   #
   # Benton, 10 Sep 2026: "I also always want a regular image at angled, and a
   # render at angled. Should be the same scene, except with the render
-  # setting."
+  # setting." -- and at 1.56.0 that became the rule for EVERY ladder plate.
   #
   # ONE SketchUp SCENE IS ONE GRID ROW WITH ONE MODE, so "the same scene with
   # two settings" has to be TWO PAGES SHARING A CAMERA. The machinery for that
-  # turns out to be almost nothing: a dual plate emits a SECOND plate id that
-  # is the first plus DUAL_SUFFIX, and `plate` resolves that id back to the
-  # SAME row. Everything downstream then falls out for free --
+  # is almost nothing: the render scene's plate id is the image's id plus
+  # DUAL_SUFFIX, and `plate` / `base_id` resolve it back to the SAME row.
+  # Everything downstream then falls out for free --
   #
   #   camera      both ids read the same :az/:swing/:el, so they are aimed
   #               identically without anything special being written
-  #   walls       wall_picks is keyed on the plate row, so both get the same
-  #   annotations annot_picks likewise. They are the same shot; a difference
-  #               between the two would be a defect.
-  #   stamp       the plate key stays UNIQUE PER PAGE ('02-angled' and
-  #               '02-angled r'), which is what identity needs
+  #   walls       wall_picks keys NO_WALL_PLATES on base_id, so both get the
+  #               same (a '06-plan r' hides no walls, exactly like 06-plan)
+  #   annotations effective_shown keys SHOWN_BY_PLATE on base_id likewise
+  #               (a '05-ventilation r' shows WR-Notes-Vent). They are the
+  #               same shot; a difference between the two would be a defect.
+  #   stamp       the plate key stays UNIQUE PER PAGE ('01-angled' and
+  #               '01-angled r'), which is what identity needs
   #   remove      already matches on TOKEN, not plate, so it takes both halves
   #               and cannot leave an orphan
   #   re-run      page_for_plate matches each half on its own stamp, so
   #               neither half is recreated or duplicated
   #
   # THE SUFFIX IS ' r' TO MATCH THE FILENAME MARKER. The scene names come out
-  # "MDL 4872 E 02-angled" and "MDL 4872 E 02-angled r" -- adjacent in the tab
-  # bar, obvious which is which. proposal-package.rb's plan_names appends its
-  # render mark only when the name does not already end in it, so the file is
-  # "..._02-angled r.png" and not "..._02-angled r r.png".
+  # "MDL 4872 E 01-angled r" and then "MDL 4872 E 01-angled" -- render first,
+  # adjacent in the tab bar, obvious which is which. Both carry the plate's
+  # own number because they ARE the same plate; the export prefix
+  # (proposal-package.rb's scene_prefix, the scene's table position) is what
+  # keeps the two FILES distinct and ordered. proposal-package.rb's plan_names
+  # appends its render mark only when the name does not already end in it,
+  # so the file is "..._01-angled r.png" and not "..._01-angled r r.png".
   #
   # IF BENTON RE-FRAMES ONE OF THE TWO BY HAND, THEY DIVERGE AND STAY
   # DIVERGED. That is deliberate: auto-set does not re-aim a scene without the
@@ -434,28 +452,22 @@ module WR_AutoSet
   # which is the way to put them back together.
   DUAL_SUFFIX = ' r'.freeze
 
+  # The image plate an id belongs to: 'x r' -> 'x', anything else unchanged.
+  def self.base_id(id)
+    s = id.to_s
+    s.end_with?(DUAL_SUFFIX) ? s[0...-DUAL_SUFFIX.length] : s
+  end
+
+  # Is this id the RENDER scene of a ladder plate? Only ladder plates pair, so
+  # '07-interior r' is nobody's render half and resolves to nothing.
   def self.dual_render?(id)
     s = id.to_s
-    return false unless s.end_with?(DUAL_SUFFIX)
-    base = s[0...-DUAL_SUFFIX.length]
-    pl = PLATES.find { |p| p[:id] == base }
-    !pl.nil? && pl[:dual] ? true : false
+    s.end_with?(DUAL_SUFFIX) && RENDER_LADDER.include?(base_id(s))
   end
 
   def self.dual_render_id(id)
     "#{id}#{DUAL_SUFFIX}"
   end
-
-  # STILL TO DO, NAMED RATHER THAN HALF-DONE (10 Sep 2026). Benton takes the
-  # front-on and the angled shot TWICE - "I usually grab one that is an image
-  # from this view, as well as a render" - one image carrying dimensions and
-  # one clean render from the SAME camera. This table cannot say that: one
-  # row is one page, and the stamp's `plate` key is unique per page. The shape
-  # it wants is a :dual flag that emits two ids from one row ('01-front' and
-  # '01-front-render'), aimed once and stamped twice, with the render one on
-  # the ladder and the image one carrying the allowlist. That is a change to
-  # the plate table, the stamp, the scene names, the ladder and the review
-  # grid, so it is a separate piece of work and not this one.
 
   # ------------------------------------------------- the annotation rule --
 
@@ -503,8 +515,8 @@ module WR_AutoSet
   # of unknown content, and an unknown note on a customer image is the defect
   # this whole mechanism exists for.
   SHOWN_BY_PLATE = {
-    '01-front'       => [],
-    '02-angled'      => [],
+    '01-angled'      => [],
+    '02-front'       => [],
     '03-high'        => [],
     '04-side'        => [],
     '05-ventilation' => %w[WR-Notes-Vent],
@@ -513,16 +525,18 @@ module WR_AutoSet
   }.freeze
 
   # The family tags this plate may show, given the tags the model actually
-  # carries. The NEVER_SHOWN subtraction is the second gate: it is what stops
-  # a later edit to SHOWN_BY_PLATE putting WR-Notes back on a plate.
-  # The family tags this plate may show, given the tags the model actually
   # carries: the note sets it names by hand, PLUS every dimension tag that
   # exists (1.51.0 — Benton's call, see NEVER_SHOWN). The NEVER_SHOWN
   # subtraction is still last and still the final word, so the D5 banner
   # cannot re-enter through either half.
+  #
+  # Keyed on base_id, so a plate's render scene shows exactly what its image
+  # does -- '05-ventilation r' shows WR-Notes-Vent. Until 1.56.0 the one
+  # paired plate had an empty allowlist, so the suffix falling through to []
+  # happened to be right; now it would be a defect.
   def self.effective_shown(plate_id, present)
     names = present.map { |n| n.to_s }
-    allow = (SHOWN_BY_PLATE[plate_id.to_s] || [])
+    allow = (SHOWN_BY_PLATE[base_id(plate_id)] || [])
     ((allow & names) | names.grep(DIMS_RE)) - NEVER_SHOWN
   end
 
@@ -625,14 +639,26 @@ module WR_AutoSet
   # ------------------------------------------------- plates that retired --
   #
   # A page stamped by an older version with a plate id this version no longer
-  # has. It is OURS (same token), so the containment rule allows touching it -
-  # but it is NOT erased, because Benton may have renamed or nudged it. It is
-  # NAMED, in the log and in the summary, with the one action that fixes it.
+  # has AND cannot follow (see RENUMBERED). It is OURS (same token), so the
+  # containment rule allows touching it - but it is NOT erased, because Benton
+  # may have renamed or nudged it. It is NAMED, in the log and in the summary,
+  # with the one action that fixes it.
+  #
+  # Every id this version can produce is live: the image ids, their ' r'
+  # render ids, and the RENUMBERED keys (an old '02-angled r' is the same
+  # shot as '01-angled r', not a stranger).
+  def self.live_plate?(id)
+    s = id.to_s
+    return true if RENUMBERED.key?(s)
+    b = base_id(s)
+    return false unless PLATES.any? { |pl| pl[:id] == b }
+    s == b || RENDER_LADDER.include?(b)
+  end
+
   def self.stale_plates(pages, token)
-    live = PLATES.map { |pl| pl[:id] }
     token_pages(pages, token).reject do |pg|
       st = page_stamp(pg)
-      st.nil? || live.include?(st['plate'].to_s)
+      st.nil? || live_plate?(st['plate'])
     end
   end
 
@@ -676,7 +702,7 @@ module WR_AutoSet
   # Objects are never in this list — auto-set writes WALL units only, so a
   # booth, a chair or the other booth is never auto-hidden.
   def self.wall_picks(plate_id, units, centre, eye)
-    none  = NO_WALL_PLATES.include?(plate_id.to_s)
+    none  = NO_WALL_PLATES.include?(base_id(plate_id))
     picks = {}
     (units || []).each do |u|
       d = none ? nil : cone_dot(u['c'], centre, eye)
@@ -688,7 +714,7 @@ module WR_AutoSet
   # Same walk, but keeping the dot so a wrong call is readable rather than
   # mysterious. [[key, label, dot, hidden], ...]
   def self.wall_log(plate_id, units, centre, eye)
-    none = NO_WALL_PLATES.include?(plate_id.to_s)
+    none = NO_WALL_PLATES.include?(base_id(plate_id))
     (units || []).map do |u|
       d = none ? nil : cone_dot(u['c'], centre, eye)
       [u['key'], u['label'].to_s, d, (!d.nil? && d > COS_CONE)]
@@ -697,21 +723,33 @@ module WR_AutoSet
 
   # ------------------------------------------------------- render ladder --
 
-  # The plate ids that become RENDER rows: the first n rungs of the ladder
-  # that are actually in this run's plate list. Everything else is IMAGE.
-  # The ladder's share only — what the KNOB bought. Kept separate from the
-  # forced rows so the summary can report the two halves honestly.
-  def self.ladder_renders(n, plate_ids)
+  # The image plates that get a render scene of their own: the first n rungs
+  # of the ladder, which is the plate order. 0..MAX_RENDERS, clamped.
+  def self.ladder_renders(n)
     want = n.to_i
     want = 0 if want < 0
     want = MAX_RENDERS if want > MAX_RENDERS
-    RENDER_LADDER.select { |id| plate_ids.include?(id) }.first(want)
+    RENDER_LADDER.first(want)
   end
 
-  # Every plate that comes out as a render: the ladder's share plus the forced
-  # rows. Ladder first so the order still reads down the ladder.
-  def self.renders_for(n, plate_ids)
-    (ladder_renders(n, plate_ids) + forced_renders(plate_ids)).uniq
+  # Every id in a run that comes out as a RENDER row: the paired render
+  # scenes the count bought, plus any plate carrying :render => :always.
+  #
+  # THE INTERIOR IS ALWAYS A RENDER AND IS NEVER COUNTED. Benton, 10 Sep 2026:
+  # "fyi interior plate should always be a render"; and 11 Sep 2026, asked
+  # whether it counts against the number typed: "No, interior is extra and
+  # always a render." So it is additive and sits outside the ladder: knob 2
+  # plus the interior box is THREE renders, and the Apply summary says so,
+  # broken out, rather than reporting a number that no longer means what it
+  # says. Forcing a render on an always-on plate would raise the floor of
+  # every run -- that is exactly what 1.56.0 removed, and rbtest-autoset.py's
+  # fr6 fails if it comes back.
+  def self.render_ids(ids)
+    (ids || []).select do |id|
+      next true if dual_render?(id)
+      pl = plate(id)
+      pl && pl[:render] == :always
+    end
   end
 
   def self.mode_for(plate_id, render_ids)
@@ -720,26 +758,28 @@ module WR_AutoSet
 
   # ------------------------------------------------------------ azimuth --
 
-  # A dual plate's render half resolves to the SAME row as its image half.
-  # That is what makes the two identical in camera, walls and annotations
-  # without any of those three knowing the pair exists.
+  # A plate's render scene resolves to the SAME row as its image. That is
+  # what makes the two identical in camera, walls and annotations without any
+  # of those three knowing the pair exists. An 'x r' whose x is not a ladder
+  # plate resolves to nothing rather than silently aliasing.
   def self.plate(plate_id)
     s = plate_id.to_s
     found = PLATES.find { |p| p[:id] == s }
     return found if found
-    return nil unless s.end_with?(DUAL_SUFFIX)
-    base = s[0...-DUAL_SUFFIX.length]
-    pl = PLATES.find { |p| p[:id] == base }
-    (pl && pl[:dual]) ? pl : nil
+    return nil unless dual_render?(s)
+    PLATES.find { |p| p[:id] == base_id(s) }
   end
 
-  # A dual plate contributes TWO ids, adjacent, image first.
-  def self.plate_ids(interior = false)
+  # The ids one run produces, IN SCENE ORDER: every always-on plate in
+  # PLATES order, each of the first `renders` ladder plates led by its render
+  # scene; the interior last, alone, when asked for.
+  def self.plate_ids(interior = false, renders = DEFAULT_RENDERS)
+    paired = ladder_renders(renders)
     out = []
     PLATES.each do |p|
       next unless p[:on] || (interior && p[:inside])
+      out << dual_render_id(p[:id]) if paired.include?(p[:id])
       out << p[:id]
-      out << dual_render_id(p[:id]) if p[:dual]
     end
     out
   end
@@ -860,8 +900,25 @@ module WR_AutoSet
     end
   end
 
+  # The page carrying this plate id -- or, failing that, the page carrying
+  # the id the same shot had before the 1.56.0 renumbering (RENUMBERED), so
+  # an Update over a 1.53-1.55 set finds its scenes instead of duplicating
+  # them. A page found the second way still wears its OLD stamp until apply
+  # restamps it; `migrated?` is how apply tells.
   def self.page_for_plate(pages, token, plate_id)
-    token_pages(pages, token).find { |pg| page_stamp(pg)['plate'] == plate_id.to_s }
+    mine = token_pages(pages, token)
+    hit  = mine.find { |pg| page_stamp(pg)['plate'] == plate_id.to_s }
+    return hit if hit
+    old = RENUMBERED.key(plate_id.to_s)
+    old && mine.find { |pg| page_stamp(pg)['plate'] == old }
+  end
+
+  # Does this page still wear the name auto-set gave it, for whatever plate
+  # its stamp currently says? True means the name is the tool's, not
+  # Benton's, and renumbering it is not renaming his work.
+  def self.auto_named?(page, label)
+    st = page_stamp(page)
+    !st.nil? && page.name.to_s == scene_name(label, st['plate'])
   end
 
   # Every token any page in this model claims — what next_token must avoid.
@@ -1319,8 +1376,8 @@ module WR_AutoSet
   # What Apply WOULD do, computed before anything is written, so the popover
   # can show it and the log can name it. It reads the model; it writes nothing.
   def self.plan(model, booth, opts = {})
-    ids     = opts['plates'] || plate_ids(opts['interior'] ? true : false)
-    renders = renders_for(opts.key?('renders') ? opts['renders'] : DEFAULT_RENDERS, ids)
+    ids     = run_ids(opts)
+    renders = render_ids(ids)
     pages   = model.pages.to_a
     taken   = tokens_in_use(pages)
     stored  = booth.get_attribute(DICT, 'token', nil)
@@ -1340,14 +1397,21 @@ module WR_AutoSet
     rows  = ids.map do |id|
       pg   = page_for_plate(pages, token, id)
       want = scene_name(label, id)
-      { 'plate'   => id,
-        'what'    => plate(id)[:what],
-        'name'    => pg ? pg.name.to_s : want,
-        'want'    => want,
-        'mode'    => mode_for(id, renders),
-        'exists'  => pg ? true : false,
-        'renamed' => (pg && pg.name.to_s != want) ? true : false }
+      old  = pg ? page_stamp(pg)['plate'].to_s : id
+      # A page found through RENUMBERED still wears the tool's OLD name; that
+      # is a renumber, not a hand rename, and the popover must not say
+      # "renamed by hand" about the tool's own work.
+      hand = pg && pg.name.to_s != want && !auto_named?(pg, label)
+      { 'plate'    => id,
+        'what'     => plate(id)[:what],
+        'name'     => pg ? pg.name.to_s : want,
+        'want'     => want,
+        'mode'     => mode_for(id, renders),
+        'exists'   => pg ? true : false,
+        'renumber' => (pg && old != id) ? true : false,
+        'renamed'  => hand ? true : false }
     end
+    stale = stale_plates(pages, token)
     { 'token'    => token,
       'label'    => label,
       'fresh'    => fresh,
@@ -1361,6 +1425,8 @@ module WR_AutoSet
       'movedfar' => (!moved.nil? && moved > MOVED_TOL),
       'renders'  => renders,
       'rows'     => rows,
+      'stale'    => stale.map { |pg| pg.name.to_s },
+      'extra'    => extra_pages(pages, token, ids, stale).map { |pg| pg.name.to_s },
       'walls'    => wall_geometry(model).size,
       'orphans'  => orphan_tokens(model),
       'offpages' => (WR_SceneWalls.pages_not_saving_hidden(model) |
@@ -1372,6 +1438,28 @@ module WR_AutoSet
     "#{f.call(bb.width)} x #{f.call(bb.depth)} x #{f.call(bb.height)}"
   rescue StandardError
     ''
+  end
+
+  # The ids this request produces. 'plates' is an explicit override (no
+  # caller in the dialog sends one); otherwise the interior box and the
+  # render count shape the list -- see plate_ids.
+  def self.run_ids(opts)
+    return opts['plates'] if opts['plates']
+    plate_ids(opts['interior'] ? true : false,
+              opts.key?('renders') ? opts['renders'] : DEFAULT_RENDERS)
+  end
+
+  # This token's pages that this run neither writes nor calls stale: a
+  # render scene from a higher count, an interior from a run that ticked the
+  # box. They are left exactly as they are, and NAMED, because a page that
+  # silently stays behind is how a stale render reaches an export.
+  def self.extra_pages(pages, token, ids, stale = nil)
+    stale ||= stale_plates(pages, token)
+    token_pages(pages, token).reject do |pg|
+      st = page_stamp(pg)
+      pl = st['plate'].to_s
+      stale.include?(pg) || ids.include?(pl) || ids.include?(RENUMBERED[pl].to_s)
+    end
   end
 
   # ----------------------------------------------------------- the write --
@@ -1396,8 +1484,8 @@ module WR_AutoSet
     what = (opts['mode'] || 'create').to_s
     return remove(model, booth, opts) if what == 'remove'
 
-    ids     = opts['plates'] || plate_ids(opts['interior'] ? true : false)
-    renders = renders_for(opts.key?('renders') ? opts['renders'] : DEFAULT_RENDERS, ids)
+    ids     = run_ids(opts)
+    renders = render_ids(ids)
     reaim   = opts['reaim'] ? true : false
     pages   = model.pages
     view    = model.active_view
@@ -1437,6 +1525,7 @@ module WR_AutoSet
     # show. Cheap, and it is what turns a silently blank plate into a sentence.
     counts      = tag_counts(model, SHOWN_BY_PLATE.values.flatten.uniq - NEVER_SHOWN)
     stale       = stale_plates(pages.to_a, token)
+    extra       = extra_pages(pages.to_a, token, ids, stale)
 
     start   = pages.selected_page
     ents    = []
@@ -1462,13 +1551,28 @@ module WR_AutoSet
         want  = scene_name(label, id)
         fresh = page.nil?
 
+        old   = fresh ? id : page_stamp(page)['plate'].to_s
+
         if fresh
           # Aimed BEFORE the add as well as after it, so the page is born with
           # the right camera even on a build where PAGE_USE_CAMERA is not
           # defined and the explicit save below cannot run.
           aim_plate(view, id, centre, radius, door, vent, half, dpoint)
-          page = pages.add(want)
+          page = add_page(pages, want, insert_index(pages, token, id))
           lines << "created  #{want}"
+        elsif old != id
+          # FOUND THROUGH RENUMBERED: a 1.53-1.55 page for this same shot.
+          # The stamp is rewritten below. The NAME is renumbered ONLY if it is
+          # still the tool's own -- a name Benton typed is his, whatever plate
+          # it is on.
+          if auto_named?(page, label)
+            lines << "renumbered #{page.name} -> #{want}  (plate #{old} is #{id} since 1.56.0)"
+            page.name = want
+          else
+            lines << "updated  #{page.name}  (plate #{old} is #{id} since 1.56.0; " \
+                     'renamed by hand, left as it is)'
+          end
+          lines << "re-aimed #{page.name}" if reaim
         elsif reaim
           lines << "re-aimed #{page.name}"
         elsif page.name.to_s != want
@@ -1541,34 +1645,78 @@ module WR_AutoSet
     restore_page(model, start)
     restore_transition(model, prev_tr)
     n_new = ents.count { |e| e[:new] }
-    # THE COUNT STAYS TRUTHFUL WITH A FORCED ROW IN IT. `renders` already
-    # includes them, so the totals are right either way — but a bare "3
-    # render" when the knob says 2 reads like a bug, so the two halves are
-    # named.
-    forced = forced_renders(ids)
-    rsplit = forced.empty? ? '' :
-             " (#{renders.size - forced.size} from the render count + " \
-             "#{forced.size} always-render: #{forced.join(', ')})"
+    # THE COUNT STAYS TRUTHFUL, BROKEN OUT. `renders` is every render row
+    # this run wrote: the paired scenes the count bought, each a scene of its
+    # own in front of its image, plus the interior when it was asked for --
+    # which is always a render and never counted. A bare "3 render" when the
+    # knob says 2 reads like a bug, so the two halves are named.
+    paired = renders.select { |id| dual_render?(id) }.map { |id| base_id(id) }
+    always = renders.reject { |id| dual_render?(id) }
+    parts  = []
+    parts << "#{paired.size} from the render count, each its own scene in front " \
+             "of its image: #{paired.join(', ')}" unless paired.empty?
+    parts << "#{always.size} always a render, not counted: #{always.join(', ')}" unless always.empty?
+    rsplit = parts.empty? ? '' : " (#{parts.join('; ')})"
     msg = "AUTO-SET #{label}: #{n_new} scene(s) created, #{ents.size - n_new} updated, " \
           "#{renders.size} render#{rsplit} / #{ents.size - renders.size} image. " \
           'Read the WALLS and ANNOTATIONS columns before you export. ' + policy_line
     if door.nil?
       msg += ' WARNING: no usable WR-Booth-Door on this booth, so the door side ' \
-             'was ASSUMED (-90). The front, angled, high, side and top-down plates ' \
+             'was ASSUMED (-90). The angled, front, high, side and top-down plates ' \
              'are all aimed off that guess - check them before you export.'
     end
-    blank = blank_plates(ids, sets, counts)
+    blank = blank_plates(ids, sets, counts).map { |id| base_id(id) }.uniq
     unless blank.empty?
       msg += " NOTE: #{blank.join(', ')} will be BLANK - nothing is drawn on the " \
              'annotation tags those plates show. The tags are shown, not hidden. ' \
              'Dimension the model, then re-run.'
     end
+    # THE TAB ORDER IS THE EXPORT ORDER (scene_prefix numbers files by table
+    # position), and Update cannot move a page -- the API has no reorder. So
+    # a set that predates the 1.56.0 order, or one whose new render scene had
+    # to be appended at the end, is SAID rather than left for the export to
+    # reveal. Positions are read after the commit so appended pages count.
+    all_pages = pages.to_a
+    pos = ents.map { |e| all_pages.index(e[:page]) }.compact
+    if pos != pos.sort
+      msg += ' NOTE: these scenes are not in plate order in the tab bar, and the ' \
+             'export numbers follow the tab order. Reorder them in the Scenes tray, ' \
+             'or Remove then Apply to rebuild the set in order.'
+    end
+    unless extra.empty?
+      msg += " NOTE: #{extra.size} of this booth's stamped scene(s) are not part of " \
+             "this run and were left exactly as they were (#{extra.map { |pg| pg.name.to_s }.join(', ')})."
+    end
     unless stale.empty?
-      msg += " NOTE: #{stale.size} scene(s) from an older plate set are still here " \
-             "(#{stale.map { |pg| pg.name.to_s }.join(', ')}). They keep their old " \
-             'framing. Remove, then Apply, to get the whole corrected set.'
+      msg += " NOTE: #{stale.size} scene(s) carry a plate id this version no longer " \
+             "makes (#{stale.map { |pg| pg.name.to_s }.join(', ')}). They were left " \
+             'as they are and keep their old framing. Remove, then Apply, rebuilds ' \
+             'the whole set.'
     end
     [true, msg, lines]
+  end
+
+  # Where a fresh page goes. A render scene created on an Update, for an image
+  # that is already in the model, belongs IMMEDIATELY BEFORE that image (the
+  # tab order is the export order); everything else appends, which on a
+  # fresh set is already plate order. nil means append.
+  def self.insert_index(pages, token, id)
+    return nil unless dual_render?(id)
+    img = page_for_plate(pages.to_a, token, base_id(id))
+    img ? pages.to_a.index(img) : nil
+  end
+
+  # Pages#add(name, flags, index) -- the three-argument form is documented but
+  # UNOBSERVED on this build (1.56.0 was written with no SketchUp to hand), so
+  # a refusal falls back to append and the out-of-order NOTE in apply says
+  # what happened rather than the export revealing it.
+  def self.add_page(pages, name, index)
+    return pages.add(name) if index.nil?
+    begin
+      pages.add(name, (defined?(PAGE_USE_ALL) ? PAGE_USE_ALL : 0xffff), index)
+    rescue ArgumentError, TypeError
+      pages.add(name)
+    end
   end
 
   # Every wall this plate hides, with its dot product, and exactly which
@@ -1576,8 +1724,8 @@ module WR_AutoSet
   def self.plate_log(id, units, centre, eye, sets, loose, counts = {})
     out = []
     hid = wall_log(id, units, centre, eye).select { |r| r[3] }
-    if NO_WALL_PLATES.include?(id)
-      why = id == '05-plan' ? 'nothing occludes from above' :
+    if NO_WALL_PLATES.include?(base_id(id))
+      why = base_id(id) == '06-plan' ? 'nothing occludes from above' :
             "the occluders are the booth's own panels, which are not wall units"
       out << "         walls: none hidden (#{why})"
     elsif hid.empty?
