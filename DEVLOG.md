@@ -1,5 +1,89 @@
 # DEVLOG
 
+## 2026-09-11
+### The step never loaded AND a CP booth came in 4 3/4 low - one NameError, both symptoms
+
+Benton: *"Take a look at the load booth link. The Step is not loading at all.
+Also, booths with a CP need to start up higher when loaded. They need to load
+up 4 3/4" higher than they are"*. **Unrun in SketchUp**; reproduced and fixed
+offline in the CRuby 3.2 DLL. Version bump left to the orchestrator.
+
+**The cause (observed — `.forge/fixer/repro-step-nameerror.py`).** `place_step`'s
+own console line, the `STEP  Step.skp …` print, computed its "threshold" as
+`fl_bottom - ground + 1.0`. `fl_bottom` is a local of `place_all`, not of
+`place_step`. Ruby raises `NameError: undefined local variable or method
+'fl_bottom'` there — AFTER every gate has passed (door found, no ramp, plates
+in, `Step.skp` loaded and measured) and BEFORE `add()`. So on every CP + step
+link from 1.45.0 to 1.54.0 the step was never added. That is defect 1.
+
+Defect 2 is the same raise, one frame up. `place_all` had no fence around the
+step, so the exception escaped to `build_booth`'s `rescue Exception`, which
+logs `OVERLAYS FAILED — NameError …` and — because the multiple assignment
+`oc, owarn, casters_in = WR_Overlays.place_all(...)` never completed —
+leaves `casters_in` at its initial `false`. The ground pass then called
+`booth_lift(false, stack_bottom)`: **1.3125 instead of 6.0625** on the
+Enhanced booth, 1.0 instead of 5.75 on a Standard one. The plates, already
+placed at `stack_bot − 4.75` booth-local, ended up hanging 4.75 under the
+floor and the booth sat exactly `CP_BOOTH_LIFT` low. Benton's "4 3/4" is not
+a new figure to add: it is the one lift the code already had, lost on the
+step path. **Adding 4.75 to the constant would have put every step-less CP
+booth at 9.5** — the case `verify-caster-lift.rb` proved live on 10 Sep
+(14/14, mat at 4.75, ceiling 89.0625) has no step in its build, which is why
+it never saw this.
+
+Every other gate was ruled in or out by reading or by running (the table is
+in `.forge/fixer/ROOTCAUSE-booth-link-step-cp-2026-09-11.md`): `sp` decodes,
+doors are `panel` parts, the ramp blocker is `/WithRamp/` only, `Step.skp` is
+on both `P:` and `Z:` (196 KB, 10 Sep), `load_def` is case-insensitive. The
+raise was not swallowed — it was printed as `OVERLAYS FAILED`, under a
+screenful of build noise.
+
+**Why nothing caught it.** `rbparse.py` is a parser and an undefined local
+is a runtime error. `rbtest-overlays.py` lifted the step's pure helpers and
+never ran `place_step`. No live script had a step in its build.
+
+**The fix (`scripts/wr-overlays.rb`, `scripts/build-booth-components.rb`).**
+- The print uses `-ground` — the threshold is the floor top on the wall
+  plane (`DECK_TOP_Z` = 0 booth-local), so its height above the ground is
+  minus the ground's booth-local z: 5.75 Standard / 6.0625 Enhanced on
+  casters. Same number the old expression meant; no foreign local.
+- `place_all` fences the step in its own `rescue StandardError` → `STEP (sp)
+  not placed: place_step raised … the caster datum is unaffected`. The step
+  is the only overlay placed after the plate, so it is the only one whose
+  failure could discard `casters_in`; now it cannot. A broken step is a
+  missing step, never a moved booth.
+- `build_booth`'s `OVERLAYS FAILED` warning says the booth is grounded
+  WITHOUT the caster datum and to rebuild, so this class of failure is
+  never again a mystery 4.75.
+
+**Checks.** `rbtest-overlays.py` **36 checks** (was 33): group 8 lifts
+`place_step` verbatim and runs it end to end against small REAL `Geom`
+stubs (cross product, `Transformation.axes` as columns, Rodrigues rotation,
+composition) with `load_def` / `geom_extents` / `add` stubbed — the placed
+box on an S door lands at x 3..47, y −11..1, z −5.75..−0.75 (Standard on
+casters), on an E door at x 73..85, y 27..71, z −6.0625..−1.0625 (Enhanced),
+the printed threshold reads 5.75, and no-plate / ramp both refuse with
+nothing added. A source scan asserts the fence. **Mutation-checked:** the
+1.45.0 line put back → the whole transcript reads `FAIL undefined local
+variable or method 'fl_bottom'`; fence removed → `FAIL (lift leak)
+place_all's step block does not fence place_step`. `rbparse.py` 75/75; all
+18 `rbtest-*.py` green.
+
+**Live (Benton): `.forge/builder/verify-booth-link-step.rb`** — Untitled
+model; builds a real 7296 E with `casters_plate` + `step`, checks the plate
+bottom on z 0, the mat at 4.75 and the ceiling at 89.0625 WITH the step in
+the link (defect 2), then that a `Step  <door>` instance exists, its
+underside is on z 0, its tread is below the floor top, and it is centred on
+the real door's frame with its near face on the door's exterior face,
+standing outside the booth (defect 1); then builds again without the plate
+and checks no step and the 1.3125 datum; erases both. What it cannot judge:
+tread direction (`STEP_FRONT_AWAY`) and leaf-vs-frame (`STEP_ALONG_OFFSET`)
+— Benton's eye, one constant each.
+
+**Not measured:** `Step.skp`'s box (the harness assumes StepFront's
+44 × 12 × 5; the builder measures the real part); every value above is
+derived from the seating arithmetic until the live script runs.
+
 ## 2026-09-10
 ### The wall plane came off the booth's UNION box, which anything sticking out can skew - 1.54.0
 

@@ -2923,8 +2923,16 @@ module WR_BuildBoothComponents
           placed += oc
           warn.concat(owarn)
         rescue Exception => e
+          # casters_in is still false here whatever place_all had placed, so
+          # the ground pass below uses the NO-caster datum. If a plate set
+          # went in before the failure it now hangs 4.75 under the floor —
+          # this is what happened on every CP + step link from 1.45.0 to
+          # 1.54.0 (a NameError in the step's console line). Say so.
           warn << "OVERLAYS FAILED — #{e.class}: #{e.message}. The walls and deck " \
-                  'are intact; foam / duct covers / options were not (all) placed.'
+                  'are intact; foam / duct covers / options were not (all) placed. ' \
+                  'THE BOOTH IS GROUNDED WITHOUT THE CASTER DATUM: if a caster plate ' \
+                  'went in before this, it hangs under the floor and the booth is ' \
+                  '4.75 in low. Fix the cause and rebuild.'
           puts e.backtrace.first(6).map { |l| "    #{l}" }.join("\n")
         end
       else

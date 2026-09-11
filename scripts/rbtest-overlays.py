@@ -43,6 +43,20 @@ WHAT IS EXERCISED — the whole pure section of wr-overlays.rb:
      asserts, at source level, that the group transform is applied in
      exactly one place - build_booth's ground pass, since 1.33.0 - and
      nowhere in wr-overlays or wr-deck.
+  7. THE EXTERIOR STEP's pure pieces (step_ground_z / step_seat /
+     step_blockers, 1.45.0) - and, since 11 Sep 2026, place_step ITSELF,
+     run end to end against small real Geom stubs (group 8). From 1.45.0
+     to 1.54.0 place_step's console line named `fl_bottom`, a local of
+     place_all, and raised NameError after the plates were in and before
+     add(): no step, AND - because the raise escaped to build_booth's
+     rescue and took place_all's return value with it - casters_in read
+     false and the booth was grounded 4.75 low with the plates hanging
+     under it. Benton, 11 Sep 2026: "The Step is not loading at all. Also,
+     booths with a CP need to ... load up 4 3/4" higher". Group 8 would
+     have failed by name on the unfixed file (the transcript becomes
+     'FAIL undefined local variable or method `fl_bottom' ...'), and the
+     source scan asserts place_all fences the step so no future step bug
+     can discard casters_in again.
 
 MUTATION-CHECKED, 10 Sep 2026 (1.49.0, the caster datum). Each mutation was
 applied to wr-overlays.rb, this test run, FAIL confirmed, the file restored:
@@ -106,27 +120,96 @@ METHODS = ['kind_of', 'wears_foam?', 'wears_duct_covers?', 'slot_frame',
            'port_run_pos', 'wall_of', 'host_frame', 'foam_targets',
            'duct_targets', 'desk_accepts_inside?', 'desk_accepts_outside?',
            'desk_host', 'mjp_host', 'axes_for', 'booth_lift', 'cp_candidates',
-           'step_ground_z', 'step_blockers', 'step_seat']
+           'step_ground_z', 'step_blockers', 'step_seat',
+           # NOT pure — it calls Geom::, load_def, geom_extents and add — but
+           # every one of those is stubbed below so the WHOLE method runs,
+           # including its console line. See group 8 for why.
+           'place_step']
 CONSTS = ['DUCT_PORTS', 'OPPOSITE_WALL']
 # Scalar constants (no .freeze line to anchor on): lifted verbatim as their
 # single assignment line.
-SCALARS = ['CP_BOOTH_LIFT', 'CP_TRAY_DEPTH', 'CP_PLATE_HEIGHT', 'STEP_ALONG_OFFSET']
+SCALARS = ['CP_BOOTH_LIFT', 'CP_TRAY_DEPTH', 'CP_PLATE_HEIGHT', 'STEP_ALONG_OFFSET',
+           'STEP_NAME', 'STEP_DEPTH', 'STEP_FRONT_AWAY']
 
 
 def lift_scalar(lines, name):
-    """Verbatim single-line `  NAME = <number>` assignment."""
-    pat = re.compile(r'^  %s\s*=\s*[-\d.]+\s*$' % re.escape(name))
+    """Verbatim single-line `  NAME = <one token>` assignment, trailing
+    comment allowed (STEP_DEPTH, STEP_NAME and STEP_FRONT_AWAY carry one)."""
+    pat = re.compile(r'^  %s\s*=\s*\S+\s*(#.*)?$' % re.escape(name))
     for ln in lines:
         if pat.match(ln):
             return ln
     raise SystemExit('wr-overlays.rb: no scalar constant %s' % name)
 
+# The SketchUp-only surface place_step touches, as small REAL implementations
+# rather than no-op mocks, so the transform arithmetic in place_step is
+# exercised and the box the instance would land in can be pinned:
+#   Geom::Vector3d#* is the cross product (API), Transformation.axes maps the
+#   standard axes onto the given ones (columns), .rotation is Rodrigues about
+#   an axis through a point, `a * b` applies b first. Numeric#degrees as
+#   SketchUp defines it. load_def hands back a fake definition; geom_extents
+#   and add are stubbed inside the module (fixture) since place_step calls
+#   them on self.
 SHIMS = r'''
 class Float
   def to_f; self; end
+  def degrees; self * Math::PI / 180.0; end
 end
 class Integer
   def to_f; self * 1.0; end
+  def degrees; self * Math::PI / 180.0; end
+end
+
+module Geom
+  class Vector3d
+    attr_reader :x, :y, :z
+    def initialize(x, y, z); @x = x.to_f; @y = y.to_f; @z = z.to_f; end
+    def *(o)
+      Vector3d.new(@y * o.z - @z * o.y, @z * o.x - @x * o.z, @x * o.y - @y * o.x)
+    end
+    def transform(t); t.apply_v(self); end
+  end
+  class Point3d
+    attr_reader :x, :y, :z
+    def initialize(x, y, z); @x = x.to_f; @y = y.to_f; @z = z.to_f; end
+    def transform(t); t.apply_p(self); end
+  end
+  class Transformation
+    attr_reader :m, :o
+    def initialize(m = nil, o = nil)
+      @m = m || [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+      @o = o || [0.0, 0.0, 0.0]
+    end
+    def self.axes(origin, xa, ya, za)
+      new([[xa.x, ya.x, za.x], [xa.y, ya.y, za.y], [xa.z, ya.z, za.z]],
+          [origin.x, origin.y, origin.z])
+    end
+    def self.translation(v); new(nil, [v.x, v.y, v.z]); end
+    def self.rotation(pt, axis, ang)
+      k = [axis.x, axis.y, axis.z]
+      c = Math.cos(ang); s = Math.sin(ang); t = 1.0 - c
+      m = [[c + k[0]*k[0]*t,        k[0]*k[1]*t - k[2]*s,  k[0]*k[2]*t + k[1]*s],
+           [k[1]*k[0]*t + k[2]*s,   c + k[1]*k[1]*t,       k[1]*k[2]*t - k[0]*s],
+           [k[2]*k[0]*t - k[1]*s,   k[2]*k[1]*t + k[0]*s,  c + k[2]*k[2]*t]]
+      p = [pt.x, pt.y, pt.z]
+      rp = (0..2).map { |i| (0..2).inject(0.0) { |a, j| a + m[i][j] * p[j] } }
+      new(m, (0..2).map { |i| p[i] - rp[i] })
+    end
+    def mul_v(v); (0..2).map { |i| (0..2).inject(0.0) { |a, j| a + @m[i][j] * v[j] } }; end
+    def *(other)
+      m = (0..2).map { |i| (0..2).map { |j| (0..2).inject(0.0) { |a, k| a + @m[i][k] * other.m[k][j] } } }
+      o = mul_v(other.o)
+      Transformation.new(m, (0..2).map { |i| o[i] + @o[i] })
+    end
+    def apply_v(v); r = mul_v([v.x, v.y, v.z]); Vector3d.new(r[0], r[1], r[2]); end
+    def apply_p(p); r = mul_v([p.x, p.y, p.z]); Point3d.new(r[0] + @o[0], r[1] + @o[1], r[2] + @o[2]); end
+  end
+end
+
+module WR_BuildBoothComponents
+  def self.load_def(_model, _dir, name, cache)
+    cache[name] = { :name => name }
+  end
 end
 '''
 
@@ -138,6 +221,31 @@ module WR_Overlays
 __CONSTS__
 
 __METHODS__
+
+  # ---- stubs for what place_step calls on self (group 8) ----
+  # The part is the 44 x 12 x 5 box StepFront probes at (Step.skp itself has
+  # not been measured here; the DEVLOG for 1.45.0 records the inference).
+  @log = []
+  @added = []
+  def self.log; @log; end
+  def self.added; @added; end
+  def self.puts(*a); @log << a.join(' '); nil; end
+  def self.geom_extents(_defn)
+    { :lo => [0.0, 0.0, 0.0], :hi => [44.0, 12.0, 5.0], :e => [44.0, 12.0, 5.0] }
+  end
+  def self.add(_booth, _defn, tr, name, _layer)
+    pts = []
+    [0.0, 44.0].each { |px| [0.0, 12.0].each { |py| [0.0, 5.0].each { |pz|
+      pts << Geom::Point3d.new(px, py, pz).transform(tr) } } }
+    box = [[pts.map { |q| q.x }.min, pts.map { |q| q.x }.max],
+           [pts.map { |q| q.y }.min, pts.map { |q| q.y }.max],
+           [pts.map { |q| q.z }.min, pts.map { |q| q.z }.max]]
+    @added << [name, box]
+    name
+  end
+  def self.box_s(b)
+    format('%.2f..%.2f %.2f..%.2f %.4f..%.4f', b[0][0], b[0][1], b[1][0], b[1][1], b[2][0], b[2][1])
+  end
 
   # MDL 7272 E, panels only. A SYNTHETIC arrangement: the N/S polygons are
   # straight out of wr-booth-data.rb, but the E/W walls are the pre-1.19.10
@@ -338,6 +446,35 @@ __METHODS__
                             step_blockers('Right46Door', false).length,
                             step_blockers(nil, true).length].join('/')
 
+    # 8 - place_step END TO END (11 Sep 2026). From 1.45.0 to 1.54.0 the
+    # method's console line referenced `fl_bottom`, a local of place_all,
+    # and raised NameError on the first build that got past every gate -
+    # after the plates were in and before add(). Benton: "The Step is not
+    # loading at all. Also, booths with a CP need to ... load up 4 3/4"
+    # higher". Groups 7's pure pieces could not see it because the raise
+    # was in the one method they did not run. This runs it. A raise here
+    # turns the whole transcript into 'FAIL NameError ...' by name.
+    #   S0 Right46Door on the 7272 fixture: frame centre 25, exterior face
+    #   y 1 -> x 3..47, y -11..1 (12 out), z -5.75..-0.75 on a Standard
+    #   booth on casters; the threshold the line prints is -ground = 5.75.
+    #   An E-wall door, Enhanced stack: y along, x out, z -6.0625..-1.0625.
+    #   No casters / a ramp door: 0 placed, one warn each, nothing added.
+    cfg = { 'dir' => 'P:/x', 'dry' => false }
+    @added.clear
+    n8 = place_step(nil, nil, cfg, {}, fixture_7272e, true, -1.0, nil, (w8 = []))
+    thr = (@log.find { |l| l =~ /\A\s*STEP\s/ } || '')[/threshold (\d+\.\d+)/, 1]
+    out << format('step place S0 %d %s thr %s w%d', n8, box_s(@added.last[1]), thr, w8.length)
+    door_e = [{ :id => 'E0', :name => 'Left46Door', :inner => false,
+                :poly => [[72.0, 26.0], [73.0, 26.0], [73.0, 72.0], [72.0, 72.0]] }]
+    n8 = place_step(nil, nil, cfg, {}, door_e, true, -1.3125, nil, (w8 = []))
+    out << format('step place E0 %d %s w%d', n8, box_s(@added.last[1]), w8.length)
+    @added.clear
+    n8 = place_step(nil, nil, cfg, {}, fixture_7272e, false, -1.0, nil, (w8 = []))
+    ramp = [{ :id => 'S0', :name => 'RightWADoorWithRamp', :inner => false,
+              :poly => [[2.0, 1.0], [51.0, 1.0], [51.0, 2.0], [2.0, 2.0]] }]
+    n9 = place_step(nil, nil, cfg, {}, ramp, true, -1.0, nil, (w9 = []))
+    out << format('step place none %d/%d w%d/%d added %d', n8, n9, w8.length, w9.length, @added.length)
+
     out.join(' | ')
   end
 end
@@ -399,6 +536,9 @@ EXPECT = (
     ' | step N y 103.00..115.00 E x 103.00..115.00 W x -11.00..1.00 y 30.00..74.00'
     ' | step offset x 3.00..47.00 const 0.0'
     ' | step block 0/1/1/1'
+    ' | step place S0 1 3.00..47.00 -11.00..1.00 -5.7500..-0.7500 thr 5.75 w0'
+    ' | step place E0 1 73.00..85.00 27.00..71.00 -6.0625..-1.0625 w0'
+    ' | step place none 0/0 w1/1 added 0'
 )
 
 
@@ -424,6 +564,16 @@ def lift_leak_check():
         fails.append('place_casters no longer seats the plate CP_BOOTH_LIFT under '
                      'the FLOOR STACK (z_bot = stack_bot - CP_BOOTH_LIFT) - the '
                      'plate and the lift must measure to the same plane')
+    # THE STEP IS FENCED (11 Sep 2026). place_all's step block must catch its
+    # own exceptions: the step is placed AFTER the plate, and an exception
+    # escaping place_all reaches build_booth's rescue, which drops place_all's
+    # return value - casters_in included - and grounds a plated booth on the
+    # no-caster datum, 4.75 low. That is the second half of the 1.45.0
+    # NameError and it must not be reachable from any future step bug.
+    step_block = ov.split("if ov['step']", 1)[-1].split('---- overlays end', 1)[0]
+    if 'place_step(' not in step_block or 'rescue StandardError' not in step_block:
+        fails.append("place_all's step block does not fence place_step in its own "
+                     'rescue StandardError - a step exception would discard casters_in')
     if 'lift = booth_lift(true, stack_bot)' not in ov:
         fails.append('place_casters no longer reports booth_lift(true, stack_bot) - '
                      'the plate pass and the ground pass can now disagree')

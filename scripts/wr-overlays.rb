@@ -918,6 +918,17 @@ module WR_Overlays
     sp = span.call(rot)
     tr = Geom::Transformation.translation(
       Geom::Vector3d.new(box[0][0] - sp[0][0], box[1][0] - sp[1][0], box[2][0] - sp[2][0])) * rot
+    # The threshold is the floor's TOP, which wr-deck seats on the wall plane
+    # (DECK_TOP_Z = 0, booth-local), so its height above the ground is simply
+    # -ground: 5.75 Standard / 6.0625 Enhanced on casters. UNTIL 11 SEP 2026 THIS
+    # LINE READ `fl_bottom - ground + 1.0` — fl_bottom is place_all's local,
+    # not this method's, so the first build that got past the gates raised
+    # NameError HERE, before add(). That single line is why "the step is not
+    # loading at all" AND why a CP booth came in 4 3/4 low: the exception
+    # escaped place_all to build_booth's rescue, which dropped place_all's
+    # return value, casters_in with it, and grounded the booth on the
+    # NO-caster datum with the plates already in. Nothing in this print may
+    # reference anything that is not a local of place_step.
     puts format('  STEP  %s.skp %.2f x %.2f x %.2f (along x deep x tall), centred on the door ' \
                 'FRAME of %s%s, %.0f in out from its exterior face, underside on the ground ' \
                 '(booth-local z %.4f, world 0 after the lift); tread %.2f above the ground, ' \
@@ -925,7 +936,7 @@ module WR_Overlays
                 'STEP_ALONG_OFFSET); front %s (STEP_FRONT_AWAY).',
                 STEP_NAME, e[ai], e[di], e[hi], door[:id],
                 STEP_ALONG_OFFSET.zero? ? '' : format(' %+.2f in along', STEP_ALONG_OFFSET),
-                e[di], ground, e[hi], fl_bottom - ground + 1.0,
+                e[di], ground, e[hi], -ground,
                 STEP_FRONT_AWAY ? 'away from the booth' : 'toward the booth')
     return 0 if dry
     at = add(booth, defn, tr, "Step  #{door[:id]}", layer)
@@ -1280,11 +1291,25 @@ module WR_Overlays
 
     # ------------------------------------------------- the exterior step --
     # After the plate, because it needs to know whether the plate went in.
+    #
+    # FENCED (11 Sep 2026). The step is the one overlay placed AFTER the plate, so
+    # it is the one whose failure can throw away casters_in: an exception
+    # here escaped to build_booth's rescue, which discards this method's
+    # return value, and the ground pass then lifted a plated booth by the
+    # no-caster figure — 4.75 short, plates hanging under the floor. That is
+    # exactly what 1.45.0's NameError did (see place_step). A broken step is
+    # a missing step, said by name; it is never a moved booth.
     if ov['step']
       fl_bottom = deck && deck['FL'] ? deck['FL'].min.z.to_f : WR_Deck::DECK_TOP_Z - 1.0
       stack_bottom = (deck && deck['stack_bottom']) || fl_bottom
-      placed += place_step(model, booth, cfg, cache, panels, casters_in,
-                           stack_bottom, t_opt, warns)
+      begin
+        placed += place_step(model, booth, cfg, cache, panels, casters_in,
+                             stack_bottom, t_opt, warns)
+      rescue StandardError => e
+        warns << "STEP (sp) not placed: place_step raised #{e.message} - the caster " \
+                 'datum is unaffected (the plate count was already read). Report this.'
+        puts((e.backtrace || []).first(4).map { |l| "    #{l}" }.join("\n"))
+      end
     end
 
     puts '  ---- overlays end ' + '-' * 58
