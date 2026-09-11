@@ -134,6 +134,35 @@ this fix; if the bearing is still 0.0 the diagnosis above is wrong.
 Benton stopped here and continues tomorrow from a different computer. Plugin is
 at **1.53.0**. Read this section first, then the 1.53.0 entry below it.
 
+### SUPERSEDED — everything below was written before 1.54.0 landed
+
+This handoff was written at 112/124 on 1.53.0. **1.54.0 shipped afterwards and
+fixed all twelve failures.** Read the 1.54.0 entry at the top of this file
+instead; it is the current state. The sections below are kept only because they
+record the reasoning, and one of them is wrong in an instructive way.
+
+**Where it actually stands now:** plugin **1.54.0**, working tree clean, offline
+suite green (`rbtest-autoset.py` 164 checks, 43 mutants all killed). Live
+`verify-autoset.rb` has **not** been run against 1.54.0.
+
+**Start here tomorrow:** pull, then run `verify-autoset.rb` from **File > New**.
+Expect ~126 checks. **`door.bearing_is_the_minus_Y_wall` is the one check that
+confirms or refutes the 1.54.0 fix** — if the bearing is still 0.0, the
+diagnosis is wrong and everything downstream of it is still suspect.
+
+**My triage below was wrong, and is worth keeping for that reason.** I read the
+anchor at y 23.0 against a booth min y of -14.0, concluded the frame picker had
+grabbed an interior part, and told the Builder to reject any candidate not lying
+in a wall plane. That would have rejected the *correct* part: y -14 and y 86 are
+the swung leaf and the vent housing, not walls, and the real shell spans
+y 24..84. The picker was right all along; what was wrong was `wall_axis`
+normalising the frame's offset against the booth's **union** bounding box, which
+anything protruding skews. A confident reading of two numbers, by someone who
+had not opened the fixture geometry, pointed a correct investigation in the
+wrong direction for a full round. The Builder checked rather than complied,
+which is the only reason it cost one round and not three.
+
+
 ### Where AUTO-SET actually stands
 
 Live run of `.forge/builder/verify-autoset.rb` on 1.53.0 in a fresh Untitled
