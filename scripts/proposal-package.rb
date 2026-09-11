@@ -3497,7 +3497,8 @@ module WR_ProposalPackage
   end
 
   # F5, CLOSED AT LAST (D12, 1.9.6). The four dialog callbacks that MUTATE the
-  # model -- mark, bulk, setfill, activate -- had no @running check on the
+  # model -- mark, bulk (the SHOWN bar, removed 11 Sep 2026), setfill, activate --
+  # had no @running check on the
   # Ruby side. Two of them (the drawMats select and the go-arrow) had none on
   # the JS side either, and the JS `running` flag is set by runStarted(),
   # whose failure is rescued and ignored -- and which HAS been observed to
@@ -3980,21 +3981,6 @@ module WR_ProposalPackage
       push_state(model, d)
     end
 
-    d.add_action_callback('bulk') do |_c, payload|
-      next if busy?(d, 'bulk')
-      begin
-        data  = JSON.parse(payload)
-        pages = model.pages.to_a
-        (data['ns'] || []).each do |n|
-          page = pages[n.to_i - 1]
-          set_mode(page, data['mode'].to_s) if page
-        end
-      rescue StandardError => e
-        puts "  bulk mark failed: #{e.class}: #{e.message}"
-      end
-      push_state(model, d)
-    end
-
     d.add_action_callback('setfill') do |_c, payload|
       next if busy?(d, 'setfill')
       begin
@@ -4055,7 +4041,7 @@ module WR_ProposalPackage
     # RESCAN (1.21.1). Benton: "a 'refresh' button ... so it loads in newly
     # added scenes". Three error paths in this window had said "hit Rescan"
     # since 1.19 without any such button existing. The rebuild is the same
-    # push_state every mark / bulk / fill change already does, and it loses
+    # push_state every mark / fill change already does, and it loses
     # NOTHING the operator set in this window -- checked, not assumed: MODE
     # and EV live on the page (set_mode / set_ev), the slot fills live on the
     # model (WR_MaterialsSwap), and the folder, width, overwrite, shading,
@@ -5051,14 +5037,6 @@ module WR_ProposalPackage
   <span class="lbl" style="margin-left:auto;font-weight:400;letter-spacing:0" id="autosum"></span>
 </div>
 
-<div class="bulk">
-  <span class="lbl">SHOWN &rarr;</span>
-  <button class="btn" data-bulk="render">Render</button>
-  <button class="btn" data-bulk="image">Image</button>
-  <button class="btn" data-bulk="skip">Skip</button>
-  <span class="lbl" style="margin-left:auto" id="picksum"></span>
-</div>
-
 <div class="sect grow open" id="scenesect">
   <div class="hd">
     <span class="tri">&#9660;</span>
@@ -5265,7 +5243,7 @@ window.onerror = function (msg, src, line) {
   var running = false;
 
   function g(id){ return document.getElementById(id); }
-  var $q=g("q"), $b=g("body"), $count=g("count"), $pick=g("picksum"),
+  var $q=g("q"), $b=g("body"), $count=g("count"),
       $log=g("log"), $pmsg=g("pmsg"), $pfill=g("pfill"),
       $wrap=g("wwrap"), $wtitle=g("wtitle"), $wbody=g("wbody"),
       $wmsg=g("wmsg"), $wapply=g("wapply"), $wapplyall=g("wapplyall"), $wcancel=g("wcancel"),
@@ -5446,7 +5424,6 @@ window.onerror = function (msg, src, line) {
     $count.textContent = (view.length===ST.rows.length ? ST.rows.length+" scenes"
                           : view.length+" of "+ST.rows.length)
                          + " · "+nr+" render · "+ni+" image";
-    $pick.textContent = nr+" RENDER · "+ni+" IMAGE · "+(ST.rows.length-nr-ni)+" SKIP";
     // The scene section's own header carries the count, so a minimised list
     // still says what is in it.
     g("scenesum").textContent = $count.textContent;
@@ -5628,7 +5605,7 @@ window.onerror = function (msg, src, line) {
     });
   }
 
-  // Ruby pushes fresh rows + filenames after every mark / bulk / fill change,
+  // Ruby pushes fresh rows + filenames after every mark / fill change,
   // so the FILE column always shows what the export will actually write.
   // ---- per-scene wall hiding, inline under the row ------------------------
   // The picker is a MODAL over this window rather than a row expansion: the
@@ -5636,8 +5613,9 @@ window.onerror = function (msg, src, line) {
   // that can scroll out from under it is how you end up applying walls to a
   // scene you are not looking at.
   // APPLY TO ALL SCENES means the scenes the TABLE is showing — every scene
-  // unless the search box is filtering. That is the bulk bar's SHOWN → rule
-  // one section up, and the narrower of the two readings: a deliberate
+  // unless the search box is filtering. That was the SHOWN → bulk bar's rule
+  // before it was removed (11 Sep 2026, Benton: never going to be used); this
+  // dialog still keeps it here, the narrower of the two readings: a deliberate
   // filter narrows this too, and the label says how many so nobody has to
   // remember whether one is on. Ruby confirms by name before writing.
   function allScope(btn){
@@ -6378,14 +6356,6 @@ window.onerror = function (msg, src, line) {
   });
 
   // ---- wiring ----
-  Array.prototype.forEach.call(document.querySelectorAll("[data-bulk]"), function(el){
-    el.addEventListener("click", function(){
-      if(running) return;
-      var ns = view.map(function(r){ return r.n; });
-      if(window.sketchup && sketchup.bulk)
-        sketchup.bulk(JSON.stringify({ ns:ns, mode:el.getAttribute("data-bulk") }));
-    });
-  });
   $q.addEventListener("input", draw);
   // EVERY section collapses, not just the materials one. A short SketchUp
   // window could not reach Export package because every block was fixed-height

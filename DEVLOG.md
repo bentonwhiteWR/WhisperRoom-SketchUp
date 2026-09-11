@@ -1,6 +1,43 @@
 # DEVLOG
 
 ## 2026-09-11
+### Proposal package: the SHOWN → bulk bar is gone - (VERSION bump held by the orchestrator)
+
+Benton, verbatim: *"remove this 'bar' as well its not ever going to be
+used"*. The bar sat between AUTO-SET and the SCENES grid: `SHOWN →` with
+Render / Image / Skip buttons that re-marked every row surviving the search
+filter, and a `10 RENDER · 0 IMAGE · 0 SKIP` tally on its right. He sets
+the mode per row in the grid, which is untouched.
+
+**Removed** from `scripts/proposal-package.rb`: the `<div class="bulk">`
+markup carrying `SHOWN →` and `#picksum`; the `$pick` binding and the tally
+line in `draw`; the `[data-bulk]` click wiring; and the Ruby `bulk` action
+callback, which nothing else called (observed: the only `sketchup.bulk(`
+in the repo was that wiring). Comments that listed `bulk` among the
+mutating callbacks now say it was removed rather than pretend it never
+existed.
+
+**Kept, deliberately.** The `.bulk` CSS class is shared with the AUTO-SET
+bar, so it stays. The "shown scenes" idea — `view`, `shownNs()`,
+`allScope()` and the `APPLY TO THE n SHOWN SCENES` label — is not the
+bar's; it is the WALLS / ANNOTATIONS pickers' APPLY TO ALL scope, and it
+still narrows to the search filter exactly as before. Its comment used to
+cite the bulk bar as the precedent; it now says the bar is gone and that
+the rule lives on here.
+
+**The counts are not lost.** The SCENES section header already carried
+`n scenes · r render · i image` (`#count` → `#scenesum`) before this
+change; the tally was a second copy of the same numbers with SKIP as the
+remainder. Verified by reading `draw`, not assumed.
+
+**Verification.** `node scripts/jstest-proposal-dialog.js` 37 ok (no check
+ever pinned the SHOWN bar, so none was changed; the AUTO-SET bar checks
+are untouched); `node scripts/jstest-proposal-layout.js` PASS;
+`python scripts/rbtest-proposal.py` PASS; `python scripts/rbparse.py` 75
+files parse. The JS harness runs `draw` under a fake DOM, which is the
+evidence the removed `$pick` reference did not leave an orphan. The dialog
+itself is UNRUN — no SketchUp here — so the on-screen result is unseen.
+
 ### AUTO-SET: the side plate picks the side with more to look at, a window first - 1.57.0
 
 Benton asked how `04-side` chose which side of the booth it shoots and was
