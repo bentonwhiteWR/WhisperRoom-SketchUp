@@ -28,13 +28,9 @@ work, and just have you review it before you export."
 - No production Ruby until Benton approves the artifact.
 
 ## Now
-AUTO-SET is BUILT and pushed (1.48.0) — scripts/wr-autoset.rb, plus the AUTO-SET bar and
-the per-row WALLS/ANNOTATIONS review columns in proposal-package.rb. Q1 = 2 renders (a
-knob), Q2 = plate 3 is a FRONT elevation with the door open. Offline proof is done
-(rbparse 75/75, rbtest-autoset 63 checks, jstest PASS, 13 mutants killed by name).
-NOT YET VERIFIED LIVE: Benton runs .forge/builder/verify-autoset.rb in an Untitled model
-and pastes the output back. Until then nothing about real pages, the stamp surviving a
-re-run, or the measured cost of the review columns has been observed.
+VERIFIED LIVE 10 Sep 2026 — 57/57 checks pass in SketchUp 26.2.243, plugin 1.48.0.
+The only gap left is the first real proposal batch: no PNG has been exported through
+auto-set yet, so the D5 export check is unproven.
 
 ## Out of scope
 - Sun presets (Q4), hiding the other booth (Q5), writing proposal-v2.json from the model.

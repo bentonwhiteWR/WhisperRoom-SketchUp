@@ -9,7 +9,52 @@ This way it can be clicked a 2nd time on a 2nd booth… Almost do all of the
 work, and just have you review it before you export."* Spec and approval:
 `.forge/scoper/proposal-autoset.md`, artifact approved 10 Sep 2026.
 
-**UNRUN IN SKETCHUP.** rbparse 75/75; new `rbtest-autoset.py` 63 checks +
+**VERIFIED LIVE 10 Sep 2026 — ALL 57 CHECKS PASS** in an Untitled SketchUp
+26.2.243 model, plugin 1.48.0. Benton ran `.forge/builder/verify-autoset.rb`
+twice: the first run reported 56/57 and the second, after the fixture fix
+below, 57/57.
+
+THE ONE FAILURE WAS THE TEST, NOT THE CODE, and it is worth keeping because
+of which direction it failed in. `annot.plan_shows_dims_doors_and_the_plan_set`
+expected the plan plate to show a set the fixture had invented,
+`WR-Notes-VerifyPlan`. `SHOWN_BY_PLATE['05-plan']` allows
+`SHOWN_ON_DIMENSIONED + WR-Notes-Plan`, so the plate showed WR-Dims and
+WR-Dims-Doors and HID the unknown set. That is the allowlist doing precisely
+what it exists for: an annotation set nobody named cannot reach a customer,
+even when a test asks for it. The failure landed in the safe direction —
+less shown, not more. `TAG_P` is now `WR-Notes-Plan`, the name the allowlist
+really allows, so the check proves the plan plate SHOWS its plan set rather
+than proving a typo stays hidden. Second run: `["WR-Dims", "WR-Dims-Doors",
+"WR-Notes-Plan"]`.
+
+What the live run settled that offline testing could not:
+
+- **The annotation policy holds on real pages.** `WR-Notes` (the D5 banner)
+  hidden on all five plates; both loose Untagged callouts hidden on all five;
+  the hero and the front elevation show nothing at all.
+- **The stamp works.** A scene renamed by hand to "Hero for Steve" was
+  updated in place and NOT renamed back. A nudged camera came back identical
+  to the decimal (`[209.49, -119.65, 7.88, 72.0, 54.0, -42.0]` both sides).
+  Remove erased only the five stamped pages for one booth, twice leaving the
+  hand-made scene and the other booth's set alone. Two booths produced two
+  tokens and no name collision.
+- **The review surface is honest.** A clean plate reads "all hidden" with no
+  warning; a plate deliberately left showing four sets and two loose
+  callouts reads "4 shown + 2 loose" and flags orange, naming the callouts.
+- **The unmeasured cost is measured: 0.025 s and 0.038 s** across two runs
+  for 11 scenes, against a 2.5 s budget. The self-disabling path exists but
+  is nowhere near tripping at this size.
+- Undo erased exactly the five pages it had created and left the hand-made
+  scene alive. Orphan detection named the right booth.
+
+**Still not proven, and it is the last gap:** no PNG has been exported
+through this. Every check above drives the library methods; the D5 export
+check (open every exported image, confirm no `Ceiling 8'-0" - HOUSE DEFAULT`
+string reaches one) waits on the first real proposal batch. Nobody has
+clicked the AUTO-SET bar in the dialog either — the callbacks are covered by
+jstest, not by a human.
+
+Offline, before that run: rbparse 75/75; new `rbtest-autoset.py` 63 checks +
 the allowlist source check; `rbtest-proposal.py` and every other offline
 harness unchanged and still passing; `jstest-proposal-dialog.js` PASS (80
 literal ids, plus 8 new review-column checks); nine Ruby mutants and four
