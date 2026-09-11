@@ -1,5 +1,138 @@
 # DEVLOG
 
+## HANDOFF — end of 10 Sep 2026, picking up on another machine
+
+Benton stopped here and continues tomorrow from a different computer. Plugin is
+at **1.53.0**. Read this section first, then the 1.53.0 entry below it.
+
+### Where AUTO-SET actually stands
+
+Live run of `.forge/builder/verify-autoset.rb` on 1.53.0 in a fresh Untitled
+model: **112 of 124 pass.** What holds, confirmed live: both D5 guards,
+dimensions shown on every plate, the dual angled pair (identical cameras, walls
+and annotations), plan-only parallel projection, standing height 72.3 in, the
+high shot at 20.8 ft, Remove, Undo, orphan detection, and the deep read at
+0.041 s against a 2.5 s budget.
+
+### THE ONE THING TO FIX FIRST — the frame picker selects the wrong part
+
+Five of the twelve failures are one root cause. `door.anchor_found` PASSES at
+`[[96.0, 23.0, 42.0], 0.0]` — it found an anchor at **y 23.0**, while the
+booth's door wall is at **y -14.0**. That is an interior point, not a wall. The
+"closest to the shell plane" geometric fallback in `frame_hits`
+(`scripts/wr-autoset.rb`) ranked a part that is not the frame.
+
+The bearing then comes back **0.0** (the +X wall) instead of **-90** (the -Y
+wall), and everything downstream inherits it:
+
+```
+FAIL door.read_from_tag - 0.0
+FAIL door.anchor_is_on_the_door_wall - frame y 23.0 vs booth min y -14.0
+FAIL door.bearing_is_the_minus_Y_wall - 0.0
+FAIL cam.front_is_square_to_the_door - eye at -2.7 deg, door at 0.0 deg
+FAIL cam.interior_eye_is_inside_the_shell - [331.1, 36.0, 42.0]
+```
+
+The interior eye at x 331 is **outside the booth** (booth centre x 72) because
+it slides along the wrong axis. `cam.interior_eye_clears_the_interior_face`
+(49 in clear, wants 22) is almost certainly a sixth symptom of the same thing —
+**confirm that before touching `INTERIOR_EYE_CLEAR`, which is correct at 22.0.**
+
+Fix direction: the name rule (`/FRM|FRAME/i`) is the reliable one. The
+geometric fallback must **reject** a candidate that does not lie in a wall
+plane rather than merely ranking it — a part at y 23 in a booth whose walls sit
+at y -14 and y 86 should be refused outright. And a bearing that cannot be
+traced to a wall plane should **refuse and say so**, not fall back to a
+plausible number. That silent-fallback pattern was fixed once already tonight
+(1.51.0, the READ-or-ASSUMED reporting) and has reappeared in a new place.
+
+### Two real defects, separate from the above
+
+- **A loose DIMENSION trips the orange warning.**
+  `rows.a_clean_plate_is_not_flagged_orange` reports
+  `{"loose"=>1, "tip"=>"1 LOOSE/Untagged callout(s) still SHOWN: 5'"}`.
+  Now that dimensions are always shown, a loose dimension entity counts toward
+  a warning that exists to flag untagged *text* about to reach a customer.
+  Flagging a dimension Benton asked to see trains him to ignore the warning,
+  which destroys the protection. `item_hash` already classifies `'dim'` vs
+  `'text'`; loose dimensions must not trigger it, loose text still must.
+- **A check passes while its own message says the opposite.**
+  `annot.a_loose_DIMENSION_is_shown` PASSED with the detail *"a loose dimension
+  entity was hidden on a plate"*. Either the assertion is inverted or the text
+  is wrong. A check whose words contradict its verdict is worse than none.
+
+### Four stale expectations — correct behaviour, wrong checks
+
+`cam.plates_have_DIFFERENT_cameras` and `forced.nothing_else_is_a_render_at_zero`
+fail on the dual pair sharing a camera and the angled render being forced —
+both by design. Rewrite them to exclude dual halves and forced renders rather
+than weakening them.
+
+`create.two_render_the_rest_image` and
+`create.renders_are_the_angled_render_half_and_ventilation` need real thought,
+not a new literal: the run produced **three** renders (`02-angled r`,
+`04-side`, `05-ventilation`) where two were expected. Establish whether the
+ladder is over-promoting now that `02-angled` came off it, or whether the
+fixture passes a count that no longer means what it did. **Renders are the
+expensive half of Benton's workflow — do not raise the expectation to match.**
+
+`cam.blank_warning_fires_when_nothing_is_drawn` lists all seven plates where
+fewer were expected; likely just the plate set growing, but verify.
+
+### Next steps, in order
+
+1. Fix the frame picker; re-run `verify-autoset.rb` from **File > New** —
+   section 0 is skipped on a model that already has scenes.
+2. Fix the loose-dimension orange warning and the contradictory check message.
+3. Resolve the render-count question before editing either render expectation.
+4. Rewrite the two dual/forced stale checks.
+
+### Open and unassigned
+
+- **The X delete control.** Benton asked for a per-row X to delete a scene,
+  then called it off the same night (*"hold off on the X then for now, we'll
+  work on that later"*). Nothing was built. Design points: it must delete
+  unstamped scenes (unlike stamp-scoped Remove), needs a confirmation naming
+  the scene and flagging a hand-made one, undoability must be **established
+  not assumed**, the grid must stay consistent immediately, and the
+  stamp/orphan consequence needs an answer.
+- `proposal-package.rb`'s popover help string still describes the pre-1.50
+  render ladder, now also stale on the render count.
+- Two wall units in the verify fixture are unexplained — `fixture.walls_named`
+  now prints every unit with its room label, and the last run showed two under
+  a room called `Room` alongside the four under `WR-Verify room`.
+- **The codebase audit of 10 Sep 2026: 54 findings, 5 reports now committed
+  under `.forge/auditor/`.** Two were fixed tonight (the caster-plate ceiling
+  figure, rank 02; and the client-safe Untagged hole, closed at 1.20.0). Most
+  urgent of the rest: the deep-read pass that can leave a model altered with no
+  undo, `wr-pack-export.rb` bypassing the annotation picker entirely, and the
+  installer's partial-copy failure mode.
+  Artifact: https://claude.ai/code/artifact/2cf74938-44d2-4923-a278-9c9d9d163935
+- **Benton's step is not placing from a booth-builder link** despite the plan
+  having both a caster plate and a step. Unresolved — we never got the console
+  line. `place_step` refuses for five named reasons (no caster plate actually
+  placed, a `...WithRamp` door, no door on the outer shell, `Step.skp` missing
+  from the parts folder, or it holding no measurable faces) and each writes a
+  `STEP (sp) not placed:` line. The portal emits `sp` correctly and the script
+  reads it, so the flag is not the problem. **Ask Benton for that console line
+  first.**
+
+### Things that cost time tonight, so they do not again
+
+- **Three separate defects were invisible because the test fixture was too
+  tidy.** The dimensioned plate looked broken because the model had nothing
+  drawn on it. The door bearing error hid because the fixture's door was dead
+  centre. It hid again because the fixture had no swung leaf. Each fix included
+  making the fixture messier — and the frame-picker bug above is the same story
+  a fourth time.
+- **A verification script libelled working code twice.**
+  `verify-caster-lift.rb` read booth-local bounds and reported 5 false
+  failures; `verify-autoset.rb` built its fixture below the ground plane and
+  reported 2 more. Both now measure off the geometry's own bounds instead of
+  trusting where z 0 sits. **When a check fails, establish which side is wrong
+  before changing either.**
+
+
 ## 2026-09-10
 ### The angled shot is a PAIR now - one image, one render, one camera - and the render marker is 'r' - 1.53.0
 
