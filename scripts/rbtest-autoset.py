@@ -250,6 +250,7 @@ module WR_AutoSet
 %(fallback_az)s
 %(moved_tol)s
 %(cos_cone)s
+%(aspect_min)s
 %(dual_suffix)s
 %(dims_re)s
 %(booth_wall_t)s
@@ -299,6 +300,10 @@ module WR_AutoSet
 %(reach)s
 
 %(wall_axis)s
+
+%(wall_normal)s
+
+%(annot_cell)s
 
 %(frame_hits)s
 
@@ -875,6 +880,77 @@ module T
     ck('dr6', WR_AutoSet.wall_axis(0.0, -61.0, 0.0, 61.0) == [0.0, -1.0],
        WR_AutoSet.wall_axis(0.0, -61.0, 0.0, 61.0).inspect)
 
+    # ---- WHICH WALL PLANE IS THE PART IN? --------------------------------
+    # THE 1.53.0 LIVE DEFECT, AND IT WAS NOT THE FRAME PICKER. The run
+    # reported the anchor at [96.0, 23.0] -- which IS the fixture's door frame
+    # centre, exactly -- and then a bearing of 0.0 (+X) for a door in the -Y
+    # wall. What failed is that the offset was normalised against the booth's
+    # UNION bounding box, and the union is skewed by whatever sticks out: the
+    # swung leaf reaches y -14, the vent housing y 86, so the centre read y 36
+    # where the shell's is y 54 and the half-extents read 48 x 50 for a 96 x 60
+    # shell. The frame then scored 0.500 on x against 0.260 on y and +X won.
+    #
+    # The rule now reads the PART'S OWN SHAPE: long along its wall, thin across
+    # it, and the thin axis is the normal. No booth box, so nothing that sticks
+    # out can skew it.
+    #
+    # The fixture's door frame is 36 in long and 2 in thick, in the -Y wall.
+    ck('wn1', WR_AutoSet.wall_normal(36.0, 2.0, 25.5, -13.0) == [0.0, -1.0],
+       WR_AutoSet.wall_normal(36.0, 2.0, 25.5, -13.0).inspect)
+    # THE EXACT LIVE NUMBERS, with the skewed offset that beat the old rule.
+    # dx/hx was 0.500 and dy/hy only -0.260, so the old rule said +X; the shape
+    # says -Y whatever the offset is.
+    ck('wn2', WR_AutoSet.wall_axis(25.5, -13.0, 48.0, 50.0) == [1.0, 0.0],
+       'the OLD rule no longer reproduces the defect it is here to document')
+    ck('wn3', WR_AutoSet.wall_normal(36.0, 2.0, 25.5, -13.0) !=
+              WR_AutoSet.wall_axis(25.5, -13.0, 48.0, 50.0),
+       'the new rule agrees with the rule that shipped the bug')
+    # A part in the +Y wall signs the other way.
+    ck('wn4', WR_AutoSet.wall_normal(36.0, 2.0, 0.0, 31.0) == [0.0, 1.0],
+       WR_AutoSet.wall_normal(36.0, 2.0, 0.0, 31.0).inspect)
+    # A part in an X wall: thin in x, long in y.
+    ck('wn5', WR_AutoSet.wall_normal(2.0, 36.0, -47.0, 4.0) == [-1.0, 0.0],
+       WR_AutoSet.wall_normal(2.0, 36.0, -47.0, 4.0).inspect)
+    # AND THE ORIGINAL 96120 CASE still lands on the wall, off-centre door and
+    # all -- a 46 in frame in a 1 in wall, 36 in along it.
+    ck('wn6', WR_AutoSet.wall_normal(46.0, 1.0, 36.0, -61.0) == [0.0, -1.0],
+       WR_AutoSet.wall_normal(46.0, 1.0, 36.0, -61.0).inspect)
+    # IT REFUSES RATHER THAN GUESSING. A squarish block is not identifiably in
+    # a wall, so it returns nil and the caller says ASSUMED out loud.
+    ck('wn7', WR_AutoSet.wall_normal(30.0, 24.0, 10.0, -20.0).nil?,
+       WR_AutoSet.wall_normal(30.0, 24.0, 10.0, -20.0).inspect)
+    ck('wn8', WR_AutoSet.wall_normal(0.0, 0.0, 1.0, 1.0).nil?)
+    ck('wn9', WR_AutoSet::ASPECT_MIN == 2.0, WR_AutoSet::ASPECT_MIN.inspect)
+
+    # ---- A LOOSE DIMENSION IS NOT AN ORANGE WARNING ----------------------
+    # The orange cell says "untagged TEXT is about to reach a customer image".
+    # Since 1.51.0 dimensions show on every plate, so a loose DIMENSION started
+    # tripping it -- the 1.53.0 live run flagged a clean plate orange over a
+    # dimension reading 5'. A warning that fires on something Benton asked to
+    # see is one he learns to ignore, and then it stops protecting him from the
+    # text too.
+    fam = %%w[WR-Dims WR-Dims-Doors]
+    dim1 = [{ :key => 'e:1', :kind => 'dim',  :text => "5'" }]
+    txt1 = [{ :key => 'e:2', :kind => 'text', :text => 'note to self' }]
+    c_d = WR_AutoSet.annot_cell(fam, [], dim1)
+    ck('oc1', c_d['warn'] == false, c_d.inspect)
+    ck('oc2', c_d['loose'] == 0 && c_d['loose_dims'] == 1, c_d.inspect)
+    # ... but it is still REPORTED, as a fact rather than a problem.
+    ck('oc3', c_d['tip'].include?('loose dimension'), c_d['tip'])
+    # LOOSE TEXT STILL WARNS. This is the D5 guard in the review column.
+    c_t = WR_AutoSet.annot_cell(fam, [], txt1)
+    ck('oc4', c_t['warn'] == true, c_t.inspect)
+    ck('oc5', c_t['loose'] == 1, c_t.inspect)
+    ck('oc6', c_t['tip'].include?('LOOSE/Untagged'), c_t['tip'])
+    # A DIMENSION MUST NOT MASK TEXT when both are present.
+    c_b = WR_AutoSet.annot_cell(fam, [], dim1 + txt1)
+    ck('oc7', c_b['warn'] == true && c_b['loose'] == 1 && c_b['loose_dims'] == 1,
+       c_b.inspect)
+    # An unreadable page is still reported as unreadable, never as clean.
+    ck('oc8', WR_AutoSet.annot_cell(fam, nil, nil)['warn'] == true)
+    # The deep read not having run still means "does not claim to know".
+    ck('oc9', WR_AutoSet.annot_cell(fam, [], nil)['loose'].nil?)
+
     # ---- THE DOOR FRAME, NOT THE LEAF ------------------------------------
     # Benton, 10 Sep 2026, after 1.51.0: "Front should find the door frame
     # really, rather than the door." A leaf drawn SWUNG OPEN sits away from the
@@ -1039,6 +1115,8 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'cm1 cm1b cm1c cm2 cm3 cm4 cm5 cm6 cm7 cm8 cm9 cm10 cm11 cm11b cm12 cm13 '
          'cm14 cm15 cm16 cm16b cm17 '
          'dr1 dr2 dr3 dr4 dr5 dr6 '
+         'wn1 wn2 wn3 wn4 wn5 wn6 wn7 wn8 wn9 '
+         'oc1 oc2 oc3 oc4 oc5 oc6 oc7 oc8 oc9 '
          'fm1 fm2 fm3 fm4 fm5 fm5b fm6 fm7 fm8 fm9 fm10 '
          'in1 in1b in1c in1d in2 in3 in4 in5 in6 in7 in8 in9 in10 '
          'cm18 '
@@ -1058,6 +1136,7 @@ def main():
         'fallback_az':     const_line('FALLBACK_AZ'),
         'moved_tol':       const_line('MOVED_TOL'),
         'cos_cone':        const_line('COS_CONE'),
+        'aspect_min':      const_line('ASPECT_MIN'),
         'dual_suffix':     const_line('DUAL_SUFFIX'),
         'dims_re':         const_line('DIMS_RE'),
         'booth_wall_t':    const_line('BOOTH_WALL_T'),
@@ -1090,6 +1169,8 @@ def main():
         'ladder_renders':  rbtest.method_source(SRC, 'ladder_renders'),
         'reach':           rbtest.method_source(SRC, 'reach'),
         'wall_axis':       rbtest.method_source(SRC, 'wall_axis'),
+        'wall_normal':     rbtest.method_source(SRC, 'wall_normal'),
+        'annot_cell':      rbtest.method_source(SRC, 'annot_cell'),
         'frame_hits':      rbtest.method_source(SRC, 'frame_hits'),
         'interior_eye_dist': rbtest.method_source(SRC, 'interior_eye_dist'),
         'policy_line':     rbtest.method_source(SRC, 'policy_line'),
@@ -1140,6 +1221,19 @@ def main():
     if re.search(r':persp\s*=>', src):
         gone.append('a :persp key is back in the plate table -- projection is '
                     'carried by :parallel on exactly one plate, see PLATES')
+    # THE WALL RULE HAS TO BE WIRED IN, not merely present. wn1-wn9 prove
+    # wall_normal is right; nothing offline can prove tag_anchor CALLS it,
+    # because tag_anchor needs a real Geom and a real booth transformation.
+    # This mutant survived the first mutation run for exactly that reason, so
+    # the wiring is checked on the source instead: wall_normal first, the old
+    # union-box rule only as the nil fallback.
+    if not re.search(r'ax\s*=\s*wall_normal\(', src):
+        gone.append('tag_anchor no longer asks wall_normal for the wall plane '
+                    '-- the union-box offset rule is what shipped the 1.53.0 '
+                    'wrong-wall bearing, see wall_normal')
+    if not re.search(r'ax\s*=\s*wall_axis\([^)]*\)\s*if\s+ax\.nil\?', src):
+        gone.append('the union-box offset rule is no longer guarded by '
+                    '`if ax.nil?` -- it is the last resort, not the rule')
     par = re.findall(r":id\s*=>\s*'([^']+)'[^}]*?:parallel\s*=>\s*true", src, re.S)
     if par != ['06-plan']:
         gone.append('the parallel plate(s) are %r -- it must be exactly '
@@ -1149,7 +1243,8 @@ def main():
         print('  policy FAIL %s' % '; '.join(gone))
         return 1
     print('  policy ok - the annotation rule is still an allowlist plus a '
-          'never-shown gate, and 06-plan is the only parallel plate')
+          'never-shown gate, 06-plan is the only parallel plate, and the '
+          'wall plane is read from the part not the union box')
 
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)

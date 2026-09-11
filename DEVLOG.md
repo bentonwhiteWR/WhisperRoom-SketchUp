@@ -1,5 +1,134 @@
 # DEVLOG
 
+## 2026-09-10
+### The wall plane came off the booth's UNION box, which anything sticking out can skew - 1.54.0
+
+Benton ran `verify-autoset.rb` live on 1.53.0: **112 of 124 pass.** Five
+failures were one root cause, four were stale expectations 1.53.0's own
+features invalidated, two were real defects, and one was a check whose text
+contradicted its own verdict.
+
+**THE ROOT CAUSE, AND IT IS NOT WHAT THE FAILURES LOOKED LIKE.**
+
+```
+FAIL door.read_from_tag - 0.0
+FAIL door.anchor_is_on_the_door_wall - frame y 23.0 vs booth min y -14.0
+FAIL door.bearing_is_the_minus_Y_wall - 0.0
+FAIL cam.front_is_square_to_the_door - eye at -2.7 deg, door at 0.0 deg
+FAIL cam.interior_eye_is_inside_the_shell - [331.1, 36.0, 42.0]
+```
+
+It reads like the frame picker choosing an interior part. **It did not.** The
+anchor came back at `[96.0, 23.0]`, and the fixture's door frame spans
+x 78..114, y 22..24 - centre **(96, 23)**, exactly. `frame_hits` picked the
+right part. And y -14 / y 86 are not walls: they are the swung leaf and the
+vent housing.
+
+What failed is the line after it. `wall_axis` normalised the frame's offset
+against the booth's **UNION bounding box**, and the union is skewed by anything
+that sticks out:
+
+| | x | y |
+|---|---|---|
+| shell (the real booth) | 24..120 | 24..84, centre **54**, half **30** |
+| union incl. swung leaf + vent | 24..120 | **-14..86**, centre **36**, half **50** |
+
+Under that skew the frame scored `nx = 25.5/48 = 0.500` against
+`ny = -13/50 = -0.260`, so **the +X wall won** for a door in the -Y wall. The
+bearing 0.0 then propagated: the front plate aimed at the wrong wall, and the
+interior eye slid along +X to x 331 - outside the booth entirely, which is why
+`cam.interior_eye_clears_the_interior_face` read 49 in instead of 22.
+**That was a sixth symptom, confirmed by arithmetic, not an independent bug -
+the 22 in inset needed no tuning.**
+
+A real booth does exactly the same thing: a door drawn open and a vent housing
+both push the union past the shell.
+
+**THE FIX IS A CHANGE OF QUESTION.** Stop asking where the part SITS and ask
+what SHAPE it is. **A wall part is long along its wall and thin across it, and
+the thin axis IS the wall's normal.** That needs no booth box, so nothing that
+sticks out can skew it. The booth centre is now used only for the SIGN, which
+survives a far rougher centre than the old rule did - here dy was -13 against a
+true -31, and the sign is the same either way.
+
+**AND IT REFUSES RATHER THAN GUESSING.** A part that is not clearly longer one
+way than the other (`ASPECT_MIN`, 2:1) is not identifiably in a wall, so
+`wall_normal` returns nil and the caller says ASSUMED out loud. **A fabricated
+bearing that reads plausible is the failure that shipped twice tonight; the
+third time it declines.** The old union-box rule survives only as the last
+resort for a tagged part whose shape names no wall.
+
+**ONE MUTANT SURVIVED THE FIRST MUTATION RUN AND IS WORTH RECORDING.**
+`wn1`-`wn9` prove `wall_normal` is right, but nothing offline could prove
+`tag_anchor` CALLS it - that needs a real `Geom` and a real booth
+transformation. Reverting the wiring left every check green. So the wiring is
+now checked on the SOURCE, beside the allowlist gate: `wall_normal` first, the
+union-box rule only behind `if ax.nil?`. **A rule that is right but not wired
+in is worth nothing, and only mutation testing showed the difference.**
+
+**TWO REAL DEFECTS.**
+
+**1. A loose DIMENSION was flagging the review cell orange.** The orange says
+*"untagged TEXT is about to reach a customer image"* - the one thing the
+allowlist structurally cannot catch, because SketchUp refuses to hide the
+Untagged tag. Since 1.51.0 dimensions show on every plate, so a loose dimension
+started tripping it: the live run flagged a clean plate orange over a dimension
+reading `5'`.
+
+**That is worse than a wrong colour. A warning that fires on something Benton
+asked to see is one he learns to ignore - and then it is not protecting him
+from the text either.** `annot_cell` now counts TEXT only for the warning;
+loose dimensions are still reported in the tip as a fact, with no warn, and a
+new `loose_dims` count carries them. The split is `item_hash`'s own
+`'dim'`/`'text'`, not a string guess. `oc7` pins that a dimension cannot mask
+text when both are present.
+
+**2. `annot.a_loose_DIMENSION_is_shown` passed while its own text said
+"hidden".** `say()` prints its detail on PASS as well as FAIL, and I had
+written that detail as a failure message. **A check whose text contradicts its
+verdict is worse than no check** - anyone reading the log learns to distrust
+it. The detail is now a fact either way, and I swept every `say()` in the file
+for the same mistake (the other two conditional details were correct, but said
+"all five" for what is now seven plates, so they now count).
+
+**FOUR STALE EXPECTATIONS - 1.53.0's own features invalidated them.**
+
+- `cam.plates_have_DIFFERENT_cameras` - **the dual pair shares a camera by
+  design.** Dual halves are excluded rather than the check weakened; it still
+  catches the 1.48.0 defect (every plate wearing the viewport's camera) for
+  everything else, and `dual.identical_cameras` is what asserts the pair
+  matches.
+- `forced.nothing_else_is_a_render_at_zero` - **the angled render half is
+  forced too**, so it is a render at zero by design. Now excludes every forced
+  row and proves what it actually cares about: the LADDER promoted nothing.
+  A second check asserts every forced row IS a render at zero.
+- `create.two_render_the_rest_image` produced **three** renders. **I worked out
+  which before touching the expectation, because a silently raised render count
+  is what the 2 -> 1 change existed to prevent.** The ladder is NOT
+  over-promoting (`ld1`/`ld3` pin it): the fixture passed an explicit
+  `'renders' => 2`, and since `02-angled` came off the ladder and its render
+  half is forced, 2 off the ladder plus the forced one is 3 - correct. The
+  fixture was asking for a number that changed meaning. It now passes
+  `DEFAULT_RENDERS`, so the section tests what a DEFAULT RUN costs, which is
+  the thing worth guarding, and the check is renamed
+  `create.a_default_run_is_two_renders`.
+- `cam.blank_warning_fires_when_nothing_is_drawn` listed all seven plates -
+  correct since 1.51.0, because every plate shows dimensions, so on a model
+  with none drawn every plate is blank and says so. Verified rather than
+  assumed; the expectation now comes from `plate_ids`.
+
+**VERIFICATION.** `rbtest-autoset.py` 146 -> **164 checks**, green. **43 mutants
+reintroduced one at a time, all 43 killed by name** - including the union-box
+rule restored (`wn2`/`wn3` plus the source gate), the aspect read the wrong way
+round, `wall_normal` guessing instead of refusing, the degenerate-span guard
+removed, a loose dimension flagging orange again (`oc1`), and loose text
+ceasing to flag it (`oc4`). `rbparse.py` clean across 75 files; every
+`rbtest-*.py` exits 0 and both `jstest-*.js` pass.
+
+**UNVERIFIED until Benton runs it:** `.forge/builder/verify-autoset.rb`. Expect
+**~126 checks**. `door.bearing_is_the_minus_Y_wall` is the one that confirms
+this fix; if the bearing is still 0.0 the diagnosis above is wrong.
+
 ## HANDOFF — end of 10 Sep 2026, picking up on another machine
 
 Benton stopped here and continues tomorrow from a different computer. Plugin is

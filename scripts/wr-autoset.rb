@@ -999,6 +999,56 @@ module WR_AutoSet
   # Normalising by each half-extent before comparing is the whole point: on a
   # 98 x 122 booth a 36 in offset is 0.73 of the way to the short wall but only
   # 0.59 of the way to the long one, and comparing raw inches would pick wrong.
+  # WHICH WALL PLANE DOES THIS PART LIE IN? Read off the PART'S OWN SHAPE, not
+  # off where it sits in the booth.
+  #
+  # THE 1.53.0 DEFECT, AND IT IS NOT WHAT IT LOOKED LIKE. The live run reported
+  # the door anchor at [96.0, 23.0] and a bearing of 0.0 (+X) for a door in the
+  # -Y wall. The frame picker was NOT at fault -- 96.0, 23.0 IS the door
+  # frame's centre, exactly. What was wrong is that wall_axis normalised that
+  # offset against the booth's UNION bounding box, and the union is skewed by
+  # anything that sticks out: the swung leaf reaches y -14 and the vent housing
+  # y 86, so the "centre" came out at y 36 when the shell's centre is y 54, and
+  # the half-extents came out 48 x 50 for a shell that is 96 x 60. Under that
+  # skew the frame scored 0.500 on x against 0.260 on y and the +X wall won.
+  #
+  # A real booth does the same thing: a door drawn open and a vent housing both
+  # push the union past the shell.
+  #
+  # So stop asking where the part SITS and ask what SHAPE it is. A wall part is
+  # long along its wall and thin across it, and the thin axis IS the wall's
+  # normal. That needs no booth box at all, so nothing that sticks out can skew
+  # it. The booth centre is then used only for the SIGN, which survives a much
+  # rougher centre than the old rule did (here dy = -13 against a true -31, and
+  # the sign is the same either way).
+  #
+  # IT REFUSES RATHER THAN GUESSING. A part that is not clearly longer one way
+  # than the other is not identifiably in a wall, and this returns nil -- the
+  # caller then says ASSUMED out loud. A fabricated bearing that reads
+  # plausible is the exact failure that shipped twice tonight; the third time
+  # it declines.
+  ASPECT_MIN = 2.0
+
+  def self.wall_normal(span_x, span_y, dx, dy)
+    sx = span_x.to_f.abs
+    sy = span_y.to_f.abs
+    # A part with no horizontal extent at all names no wall. Guarded before
+    # the ratios, because 0 >= 0 * ASPECT_MIN is TRUE and would have called a
+    # degenerate part a Y wall (caught by wn8 while this was written).
+    return nil if sx < 1.0e-6 && sy < 1.0e-6
+    if sx >= sy * ASPECT_MIN
+      # long in x, thin in y -> the wall runs along x, its normal is +/-Y
+      [0.0, dy.to_f >= 0 ? 1.0 : -1.0]
+    elsif sy >= sx * ASPECT_MIN
+      [dx.to_f >= 0 ? 1.0 : -1.0, 0.0]
+    end
+  end
+
+  # The pre-1.54.0 rule. KEPT ONLY AS THE LAST RESORT, for a tagged part whose
+  # shape does not name a wall (a squarish block). It is the rule that failed
+  # above, so it is used only when the better one has already declined, and the
+  # caller still reports the bearing as READ rather than ASSUMED because it did
+  # come off real geometry.
   def self.wall_axis(dx, dy, hx, hy)
     nx = hx.to_f > 1.0e-6 ? (dx.to_f / hx.to_f) : 0.0
     ny = hy.to_f > 1.0e-6 ? (dy.to_f / hy.to_f) : 0.0
@@ -1081,7 +1131,10 @@ module WR_AutoSet
     dx = (tb.center.x - own.center.x).to_f
     dy = (tb.center.y - own.center.y).to_f
     return nil if Math.sqrt((dx * dx) + (dy * dy)) < 1.0
-    ux, uy = wall_axis(dx, dy, hx, hy)
+    # The FRAME'S OWN footprint names the wall plane; the offset only signs it.
+    ax = wall_normal((tb.max.x - tb.min.x), (tb.max.y - tb.min.y), dx, dy)
+    ax = wall_axis(dx, dy, hx, hy) if ax.nil?
+    ux, uy = ax
     v = Geom::Vector3d.new(ux, uy, 0).transform(booth.transformation)
     return nil if v.length < 1.0e-6
     # The frame's centre in model space, at the BOOTH centre's height: the eye
@@ -1762,17 +1815,45 @@ module WR_AutoSet
             end
     tip  = shown.empty? ? 'No annotation set is shown on this scene.' :
            "Shown: #{shown.join(', ')}"
+    # A LOOSE DIMENSION IS NOT A WARNING. THIS IS WHAT THE ORANGE IS FOR.
+    #
+    # The cell goes orange to say "untagged TEXT is about to reach a customer
+    # image" -- the one thing the annotation allowlist structurally cannot
+    # catch, because SketchUp refuses to hide the Untagged tag. From 1.51.0
+    # dimensions are shown on every plate at Benton's instruction, so a loose
+    # DIMENSION entity started tripping it: the live run of 1.53.0 flagged a
+    # clean plate orange over a dimension reading 5'.
+    #
+    # That is worse than a cosmetic wrong colour. A warning that fires on
+    # something Benton asked to see is a warning he learns to ignore, and then
+    # it is not protecting him from the text either. So the warning counts TEXT
+    # only. Loose dimensions are still reported in the tip, as a fact, with no
+    # warn -- he can see they are there without being told they are a problem.
+    #
+    # The 'dim'/'text' split is wr-scene-annotations.rb's own (item_hash: 'dim'
+    # for DimensionLinear/DimensionRadial, 'text' for Sketchup::Text), not
+    # something guessed from a string here.
     warn = false
     unless loose_shown.nil?
-      n = loose_shown.size
-      if n > 0
+      dims = loose_shown.select { |it| it[:kind].to_s == 'dim' }
+      text = loose_shown - dims
+      if text.any?
         warn  = true
-        label = "#{label} + #{n} loose"
-        tip  += " — #{n} LOOSE/Untagged callout(s) still SHOWN: " +
-                loose_shown.first(6).map { |it| it[:text].to_s }.join(' | ')
+        label = "#{label} + #{text.size} loose"
+        tip  += " — #{text.size} LOOSE/Untagged callout(s) still SHOWN: " +
+                text.first(6).map { |it| it[:text].to_s }.join(' | ')
+      end
+      if dims.any?
+        tip += " — #{dims.size} loose dimension(s) shown (dimensions are shown " \
+               'on every plate; not a warning)'
       end
     end
-    { 'label' => label, 'warn' => warn, 'tip' => tip,
-      'shown' => shown, 'loose' => (loose_shown.nil? ? nil : loose_shown.size) }
+    # 'loose' stays the TEXT count, because it is what drives the warning and
+    # what every consumer reads as "things that should not be there".
+    { 'label' => label, 'warn' => warn, 'tip' => tip, 'shown' => shown,
+      'loose' => (loose_shown.nil? ? nil :
+                  loose_shown.count { |it| it[:kind].to_s != 'dim' }),
+      'loose_dims' => (loose_shown.nil? ? nil :
+                       loose_shown.count { |it| it[:kind].to_s == 'dim' }) }
   end
 end

@@ -408,7 +408,17 @@ module WR_VerifyAutoSet
       say('vent.read_from_tag', !vaz.nil? && (vaz - 90.0).abs < 25.0, vaz.inspect)
 
       # -------------------------------------- 3. booth 1: create the set --
-      ok, msg, = WR_AutoSet.apply(@model, b1, { 'mode' => 'create', 'renders' => 2 })
+      # THE COUNT COMES FROM DEFAULT_RENDERS, NOT A LITERAL 2. This asked for 2
+      # and the 1.53.0 live run produced THREE renders -- correctly. The knob
+      # answers "how many of the ORDINARY plates", and since 02-angled came off
+      # the ladder and its render half is forced, 2 off the ladder plus the
+      # forced one is 3. The ladder is not over-promoting (rbtest ld1/ld3 pin
+      # that); the fixture was asking for a number that changed meaning.
+      # Asking for the real default keeps this section testing what a DEFAULT
+      # RUN costs, which is the thing worth guarding.
+      ok, msg, = WR_AutoSet.apply(@model, b1,
+                                  { 'mode' => 'create',
+                                    'renders' => WR_AutoSet::DEFAULT_RENDERS })
       say('create.ok', ok, msg)
       tok1 = b1.get_attribute('WR_AutoSet', 'token', nil)
       say('create.token_on_booth', tok1.to_s == B1, tok1.inspect)
@@ -427,10 +437,12 @@ module WR_VerifyAutoSet
       modes = set1.map { |p| WR_ProposalPackage.mode_of(p) }
       # DEFAULT_RENDERS is 1 now and the angled render is FORCED, so a default
       # run is still exactly 2 renders -- Benton's spend did not go up.
-      say('create.two_render_the_rest_image',
+      # A DEFAULT RUN IS EXACTLY 2 RENDERS and that number is Benton's spend.
+      # If it ever moves, someone changed what a default run costs.
+      say('create.a_default_run_is_two_renders',
           modes.count('render') == 2 && modes.count('image') == want_n - 2,
           modes.inspect)
-      say('create.renders_are_the_angled_render_half_and_ventilation',
+      say('create.renders_are_the_forced_angled_half_and_ventilation',
           set1.select { |p| WR_ProposalPackage.mode_of(p) == 'render' }
               .map { |p| WR_AutoSet.page_stamp(p)['plate'] }.sort ==
             ['02-angled r', '05-ventilation'],
@@ -455,9 +467,9 @@ module WR_VerifyAutoSet
         shown_map[plate] = (%w[WR-Dims WR-Dims-Doors WR-Notes] + [TAG_P]) - hid
       end
       say('annot.WR_Notes_hidden_on_every_plate', bad_note.empty?,
-          bad_note.empty? ? 'the D5 banner is hidden on all five' : bad_note.inspect)
+          bad_note.empty? ? "the D5 banner is hidden on all #{set1.length}" : bad_note.inspect)
       say('annot.loose_callouts_hidden_on_every_plate', bad_loose.empty?,
-          bad_loose.empty? ? 'both Untagged callouts hidden on all five' : bad_loose.inspect)
+          bad_loose.empty? ? "both Untagged text callouts hidden on all #{set1.length}" : bad_loose.inspect)
       # DIMENSIONS ARE SHOWN ON EVERY PLATE (1.51.0). Benton, 10 Sep 2026:
       # "Also please dont hide any of the dimensions on the auto set." The two
       # checks that used to assert a plate showed NOTHING are now the two that
@@ -477,9 +489,17 @@ module WR_VerifyAutoSet
       # AND THE LOOSE DIMENSION SHOWS, while the loose TEXT does not. Both
       # halves, because "show the dimensions" must not become "show anything".
       if t_ld
-        say('annot.a_loose_DIMENSION_is_shown',
-            set1.all? { |pg| sel(pg); hidden?(t_ld) == false },
-            'a loose dimension entity was hidden on a plate')
+        # THE DETAIL IS A FACT, NOT A FAILURE MESSAGE. say() prints the detail
+        # on PASS as well as FAIL, so a failure-phrased string made this read
+        # "PASS ... - a loose dimension entity was hidden on a plate" in the
+        # 1.53.0 live run: the verdict said one thing and the text said the
+        # opposite. A check whose text contradicts its verdict is worse than no
+        # check.
+        ld_hidden = set1.select { |pg| sel(pg); hidden?(t_ld) }
+                        .map { |pg| WR_AutoSet.page_stamp(pg)['plate'] }
+        say('annot.a_loose_DIMENSION_is_shown', ld_hidden.empty?,
+            ld_hidden.empty? ? 'shown on all of them' :
+                               "hidden on: #{ld_hidden.inspect}")
       else
         puts '  SKIP annot.a_loose_DIMENSION_is_shown - add_dimension_linear unavailable'
       end
@@ -693,9 +713,14 @@ module WR_VerifyAutoSet
 
       # THE PLATES ARE NOT ALL THE SAME SHOT. This is the 1.48.0 defect stated
       # as a check: if the aim never lands, every eye is identical.
-      eyes = WR_AutoSet.plate_ids(false).map { |id| by_plate[id].camera.eye.to_a.map { |v| v.round(1) } }
+      # THE DUAL PAIR SHARES A CAMERA BY DESIGN, so it is excluded here rather
+      # than this check being weakened -- dual.identical_cameras is the one
+      # that asserts the pair matches, and this one still catches the 1.48.0
+      # defect (every plate wearing the viewport's camera) for everything else.
+      distinct = WR_AutoSet.plate_ids(false).reject { |id| WR_AutoSet.dual_render?(id) }
+      eyes = distinct.map { |id| by_plate[id].camera.eye.to_a.map { |v| v.round(1) } }
       say('cam.plates_have_DIFFERENT_cameras', eyes.uniq.length == eyes.length,
-          eyes.inspect)
+          distinct.zip(eyes).inspect)
 
       # THE DOOR BEARING IS A WALL NORMAL, NOT A BEARING TO THE DOOR. The
       # fixture's door is deliberately off-centre along its wall now, which is
@@ -853,11 +878,20 @@ module WR_VerifyAutoSet
       say('forced.interior_is_a_RENDER_at_zero_renders',
           ipg && WR_ProposalPackage.mode_of(ipg) == 'render',
           ipg ? WR_ProposalPackage.mode_of(ipg) : 'no interior page')
-      say('forced.nothing_else_is_a_render_at_zero',
-          iset.reject { |pg| WR_AutoSet.page_stamp(pg)['plate'] == '07-interior' }
+      # AT A COUNT OF ZERO, THE ONLY RENDERS ARE THE FORCED ONES. The angled
+      # render half is forced too (it is the point of the dual pair), so the
+      # check excludes every forced row rather than just the interior -- and
+      # still proves the LADDER promoted nothing.
+      forced_ids = WR_AutoSet.forced_renders(WR_AutoSet.plate_ids(true))
+      say('forced.the_ladder_promotes_nothing_at_zero',
+          iset.reject { |pg| forced_ids.include?(WR_AutoSet.page_stamp(pg)['plate']) }
               .all? { |pg| WR_ProposalPackage.mode_of(pg) == 'image' },
           iset.map { |pg| [WR_AutoSet.page_stamp(pg)['plate'],
                            WR_ProposalPackage.mode_of(pg)] }.inspect)
+      say('forced.every_forced_row_IS_a_render_at_zero',
+          iset.select { |pg| forced_ids.include?(WR_AutoSet.page_stamp(pg)['plate']) }
+              .all? { |pg| WR_ProposalPackage.mode_of(pg) == 'render' },
+          forced_ids.inspect)
       say('forced.summary_names_the_always_render',
           imsg.to_s.include?('always-render'), imsg.to_s)
       WR_AutoSet.apply(@model, b2, { 'mode' => 'remove' })
@@ -873,11 +907,14 @@ module WR_VerifyAutoSet
             !cmsg.to_s.include?('will be BLANK'),
           cmsg.to_s)
       # And with a count of zero it DOES fire, on the plates that show dims.
+      # EVERY plate, because since 1.51.0 every plate shows the dimensions --
+      # so on a model with none drawn, every plate is blank and says so. That
+      # is the model Benton ran auto-set on in the first place.
       say('cam.blank_warning_fires_when_nothing_is_drawn',
           WR_AutoSet.blank_plates(WR_AutoSet.plate_ids(false),
                                   [{ 'name' => 'WR-Dims' }, { 'name' => 'WR-Dims-Doors' }],
                                   { 'WR-Dims' => 0, 'WR-Dims-Doors' => 0 }) ==
-            ['01-front', '03-high', '06-plan'],
+            WR_AutoSet.plate_ids(false),
           WR_AutoSet.blank_plates(WR_AutoSet.plate_ids(false),
                                   [{ 'name' => 'WR-Dims' }, { 'name' => 'WR-Dims-Doors' }],
                                   { 'WR-Dims' => 0, 'WR-Dims-Doors' => 0 }).inspect)
