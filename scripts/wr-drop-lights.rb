@@ -361,6 +361,124 @@ module WR_DropLights
   BOOTH_H_MIN    = 78.0  # in — Std draws ~83"; margin below
   BOOTH_H_MAX    = 94.0  # in — Enh ~85" + 5" casters; an 8' room is out
 
+  # ======================================================================
+  # THE OFFICE RIG (1.67.0) — Benton, 11 Sep 2026, in his own words:
+  #
+  #   "Why don't we try other types of light? ... Maybe some sphere lighting
+  #    that is invisible in assorted places, you know, maybe four or five
+  #    feet away from the booth, low level, high level, et cetera. ... But
+  #    honestly, we just did some panel ceiling lighting that was consistent
+  #    with an office building or something along the lines of that. I think
+  #    that would go a long ways rather than trying to set up photography
+  #    lighting, essentially."
+  #
+  # So: ARCHITECTURAL lighting, not a photographic rig. A regular grid of
+  # ceiling panels that lights the ROOM, plus a scatter of invisible fill
+  # spheres. The key / rim / foam-graze triangle aimed at the booth is
+  # retired in this mode — it is what put wall blooms with no visible cause
+  # in the c00-c02 frames (c02 turned the key down and the ceiling streak
+  # went with it, observed).
+  # ======================================================================
+
+  # SQUARE, 2 x 2 ft. A 2 x 4 troffer is the other ordinary office fixture
+  # and was the first draft, but a rectangular emitter has to agree with its
+  # housing about which way is long, and nothing in the V-Ray API says
+  # whether create_rectangle_light's `width` runs along the definition's
+  # local X. A square panel cannot disagree with itself. 2 x 2 lay-in flat
+  # panels are as standard in a commercial ceiling as troffers are, and the
+  # GRID RHYTHM is what reads as "office", not the aspect ratio.
+  PANEL_U       = 24.0   # in — 2 ft
+  PANEL_V       = 24.0   # in — 2 ft
+  PANEL_DEPTH   = 2.0    # in — the housing hangs this far BELOW the ceiling
+                         #   plane. Never above it: see THE CEILING CLAMP.
+  PANEL_FRAME   = 0.75   # in — frame wall thickness
+  PANEL_EMIT_UP = 0.25   # in — emitter this far inside the open bottom
+  PANEL_SPACING = 96.0   # in — 8 ft on centre, the ordinary office rhythm.
+                         #   axis_points leaves a half spacing (4 ft) at
+                         #   every wall, which is how a real ceiling is set
+                         #   out.
+  PANEL_MAX     = 49     # a 7 x 7 grid. A cap, not a design figure.
+  PANEL_MIN_INSET = 12.0 # in — half the panel: a centre closer than this to
+                         #   a floor edge would hang the housing in a wall.
+
+  # THE FILL SCATTER — "assorted places ... four or five feet away from the
+  # booth, low level, high level". Each row is
+  #   [degrees off the booth's door normal, inches out from the booth's SKIN,
+  #    inches above the floor, output scale]
+  # and the table is ASYMMETRIC ON PURPOSE: irregular angular gaps (30, 25,
+  # 29, 22, 23 deg), irregular standoffs, heights alternating low and high,
+  # and a different output on every sphere. A symmetric arrangement is the
+  # photographic instinct this rig is moving away from. Six rows is a
+  # scatter; it is not a count with a derivation behind it.
+  #
+  # The arc runs from just behind the door face round to the booth's far
+  # flank. It is one-sided by DESIGN and by GEOMETRY both: a booth parked in
+  # a corner has no room on its two wall sides, and fill_points drops a row
+  # with nowhere legal rather than putting a light in a wall.
+  FILL_SCATTER = [
+    [ -21.0, 54.0, 82.0, 1.25 ],
+    [   9.0, 66.0, 27.0, 0.80 ],
+    [  34.0, 48.0, 70.0, 1.05 ],
+    [  63.0, 60.0, 19.0, 0.60 ],
+    [  85.0, 51.0, 58.0, 1.15 ],
+    [ 108.0, 72.0, 88.0, 0.70 ]
+  ].freeze
+  FILL_D        = 10.0   # in — sphere DIAMETER. Large on purpose: a big
+                         #   emitter throws a soft-edged shadow and no
+                         #   specular pinpoint, which is the whole reason
+                         #   these are spheres and not another panel.
+  FILL_EDGE     = 40.0   # in — a fill sphere never stands closer than this
+                         #   to a wall.
+                         #
+                         # 18 -> 54 (rank cycle d02, 11 Sep 2026). 18 was
+                         # assumed, carried over from the room-light edge
+                         # constants, and it is far too permissive for a
+                         # light of this output: at 18 in a 448,000 lm sphere
+                         # is allowed to stand 27 in off a wall, and d01
+                         # measured exactly what that does -- 11,965 clipped
+                         # pixels at the frame's left and right edges, mean
+                         # RGB (255.0, 254.8, 254.8), perfectly neutral, a
+                         # blown patch on plain wall with no visible cause.
+                         # That is the same failure that held the c-series
+                         # rig at 5.7, reproduced by a different mechanism.
+                         # A fill light is a FILL: it belongs in the room's
+                         # volume, not against its surfaces. 54 in = 4.5 ft,
+                         # inside the 4-5 ft band Benton asked the scatter to
+                         # sit in, so a sphere pushed off a wall is still at
+                         # a distance he named.
+                         #
+                         # WHY 40 AND NOT 54, which is what this change was
+                         # first set to. The pinned scatter test went red at
+                         # 54: on a booth parked in a corner, rows 1 and 6
+                         # aim at the two walls the booth is 11 and 13 in
+                         # from, and walking their standoff IN moves them
+                         # toward the corner, so no standoff satisfies a
+                         # 54 in margin and both rows drop. Those two are
+                         # the 82 in and 88 in spheres -- exactly the "high
+                         # level" half of what Benton asked for. 40 in is the
+                         # largest margin this geometry keeps all six at
+                         # (row 1 reaches 41.9 in, row 6 reaches 40.8 in),
+                         # and it is still a 2.3x cut in irradiance on the
+                         # wall spot that blew. Distance and output are
+                         # separate knobs; this one moves distance, and if
+                         # the blooms survive it the next cycle moves output
+                         # with the exponent now known.
+  FILL_STEP     = 6.0    # in — walk-IN step when the asked-for standoff does
+                         #   not fit
+  FILL_MIN      = 24.0   # in — never closer than 2 ft to the booth's skin
+
+  # THE CEILING CLAMP. c00-c02's key was a 24 in panel tilted 58 deg with its
+  # centre at z 89.6 in a 96 in room: its top edge stood at ~99.8 in, THROUGH
+  # the ceiling, and the half of it outside the room put a hard white streak
+  # across the top of the frame (observed). No rig light may stand above the
+  # room's ceiling plane. See emitter_top_z and the clamp in `place`.
+  CLAMP_TOL     = 0.0625 # in — 1/16"
+  CLAMP_FLOOR   = 6.0    # in above the floor: the clamp LOWERS a light, and
+                         #   this is as far as lowering may go before the
+                         #   press refuses outright.
+
+  RIG_DEFAULT   = 'office'.freeze
+
   BRIGHT = { 'Dim' => 0.5, 'Normal' => 1.0, 'Bright' => 2.0 }.freeze
 
   # --- THE SEVEN-ROLE LAYER TABLE -----------------------------------------
@@ -414,7 +532,48 @@ module WR_DropLights
     :foam    => { :label => 'Foam graze', :n => 1, :emitter => :rect,
                   :u => 4.0, :v => 36.0, :emitters => 1, :lumens => 400.0,
                   :kelvin => 3500, :budget => :booth, :visible => false,
-                  :fixture => nil, :disc => false, :tilt => nil, :dir => nil }
+                  :fixture => nil, :disc => false, :tilt => nil, :dir => nil },
+    # ---- the office rig's two roles (1.67.0) ---------------------------
+    # 3600 lm is a real 2x2 LED flat panel (the commodity band is 3000-4400
+    # lm) so the file's contract — every visible figure is one a client could
+    # hold against a product page — still holds. 4200 K is the SAME
+    # temperature the :ceiling ambient already sits at: the rubric's Reversal
+    # 2 says do not touch Kelvin, and this does not. It is also the ordinary
+    # commercial neutral-white.
+    #
+    # THE PANEL DOES NOT TAKE THE AREA SCALE. :ceiling did, because two drums
+    # had to light any room; a real ceiling puts MORE FIXTURES in a bigger
+    # room and each one is the same product. panel_grid scales the COUNT;
+    # applying area_scale on top would count the room twice.
+    #
+    # The emitter is inset inside the housing aperture so the light plane
+    # cannot poke out through the frame: PANEL_U less two frame walls less a
+    # further 1/2 in of clearance.
+    :panel   => { :label => 'Ceiling panel', :n => 25, :emitter => :rect,
+                  :u => PANEL_U - 2.0 * PANEL_FRAME - 0.5,
+                  :v => PANEL_V - 2.0 * PANEL_FRAME - 0.5,
+                  :emitters => 1, :lumens => 3600.0,
+                  :kelvin => 4200, :budget => :room, :visible => true,
+                  # THE CUTOFF (rank cycle d03). nil -> 0.6. A real office
+                  # panel is not a bare Lambertian emitter: low-glare
+                  # (UGR<19) panels are the commodity product precisely
+                  # because they cut the wide-angle output that washes walls
+                  # and glares at people. Measured cause, d02: the frame's
+                  # two blown edges are the walls directly beneath the
+                  # outermost panel row, which axis_points stands 48 in off
+                  # the wall, and an open 2 in housing throws almost
+                  # horizontally onto it. Directionality removes that spill
+                  # without removing the downward light, so unlike an output
+                  # cut it need not cost the exposure. Written and read back
+                  # like every other parameter -- if the build will not take
+                  # it, configure_light lists :directional as DID NOT STICK.
+                  :fixture => :f4, :disc => false, :tilt => nil, :dir => 0.6 },
+    :fill    => { :label => 'Fill sphere', :n => FILL_SCATTER.size,
+                  :emitter => :sphere,
+                  :u => FILL_D, :v => FILL_D, :emitters => 1,
+                  :lumens => 2000.0, :kelvin => 3500, :budget => :room,
+                  :visible => false, :fixture => nil, :disc => false,
+                  :tilt => nil, :dir => nil }
   }.freeze
 
   # Roles that only exist when a booth stands in the room. The rig's own
@@ -766,6 +925,140 @@ module WR_DropLights
               .max_by { |p| edge_dist(p[0], p[1], poly) }
     end
     { :pts => c ? [c] : [], :s => s, :fallback => true, :diag => diag }
+  end
+
+  # ======================================================================
+  # THE OFFICE RIG'S PLACEMENT LOGIC — PURE, and pinned in
+  # scripts/rbtest-lights.py alongside the rest of this section.
+  # ======================================================================
+
+  # A REGULAR CEILING GRID. Bounding box of the floor polygon, centred rows
+  # on each axis at `spacing` on centre, which axis_points lays out with a
+  # HALF spacing at every wall — the way a real commercial ceiling is set
+  # out.
+  #
+  # NO KEEP-OUT IS TAKEN, and that is the point of this function. A real
+  # office ceiling does not route its fixtures around the furniture standing
+  # under it. The c00-c02 rig did the opposite: ceiling_pair sorts the grid
+  # by distance from the booth and keeps the FARTHEST points, so on this
+  # model all eleven drums landed in the half of the room the camera cannot
+  # see and the camera's own half of the ceiling had no fixture in it at all
+  # (observed, c00 note). A point outside a non-rectangular floor, or within
+  # PANEL_MIN_INSET of its edge, is still dropped — that one would hang the
+  # housing in a wall.
+  def self.panel_grid(poly, spacing, cap)
+    xs = poly.map { |p| p[0] }
+    ys = poly.map { |p| p[1] }
+    minx = xs.min
+    miny = ys.min
+    lx = xs.max - minx
+    ly = ys.max - miny
+    empty = { :pts => [], :nx => 0, :ny => 0, :sx => 0.0, :sy => 0.0 }
+    return empty if lx <= 0.0 || ly <= 0.0 || spacing <= 0.0
+    nx = grid_count(lx, spacing)
+    ny = grid_count(ly, spacing)
+    while cap && cap > 0 && nx * ny > cap && (nx > 1 || ny > 1)
+      if nx >= ny
+        nx -= 1
+      else
+        ny -= 1
+      end
+    end
+    pts = []
+    axis_points(lx, nx).each do |x|
+      axis_points(ly, ny).each do |y|
+        px = minx + x
+        py = miny + y
+        next unless point_in_poly?(px, py, poly)
+        next if edge_dist(px, py, poly) < PANEL_MIN_INSET - 1e-6
+        pts << [px, py]
+      end
+    end
+    { :pts => pts, :nx => nx, :ny => ny, :sx => lx / nx, :sy => ly / ny }
+  end
+
+  # PURE. Rotate a unit XY vector `deg` degrees counter-clockwise.
+  def self.rot2(vx, vy, deg)
+    r = deg * Math::PI / 180.0
+    c = Math.cos(r)
+    sn = Math.sin(r)
+    [vx * c - vy * sn, vx * sn + vy * c]
+  end
+
+  # PURE. Distance from an axis-aligned box's centre to its boundary along a
+  # unit direction — "how far out is the booth's skin this way". Half-extents
+  # hx, hy. This is what makes "four or five feet away from the booth" mean
+  # away from the BOOTH and not away from its centre: on a 10 ft booth those
+  # are five feet apart.
+  def self.box_exit(hx, hy, dx, dy)
+    ts = []
+    ts << (hx / dx.abs) if dx.abs > 1e-9
+    ts << (hy / dy.abs) if dy.abs > 1e-9
+    ts.empty? ? 0.0 : ts.min
+  end
+
+  # THE FILL SCATTER, resolved against a real room. For each
+  # [angle, standoff, height, scale] row: aim `angle` degrees off the booth's
+  # door normal (nx, ny), walk out from the booth's SKIN by `standoff`, and
+  # stand a sphere there. When that point is outside the floor, too near a
+  # wall, or inside a keep-out, the standoff walks IN in `step` steps to
+  # `minout` and no further — a fill light is never put in a wall and never
+  # put inside the booth. A row with nowhere legal comes back with a nil
+  # point and the caller NAMES it; it is never silently dropped.
+  #
+  # Returns one row per scatter entry:
+  #   [px, py, height, scale, standoff_used, angle, index]
+  def self.fill_points(cx, cy, hx, hy, nx, ny, poly, keepouts, scatter,
+                       edge_margin = FILL_EDGE, step = FILL_STEP,
+                       minout = FILL_MIN)
+    out = []
+    scatter.each_with_index do |row, i|
+      ang = row[0]
+      want = row[1]
+      hgt = row[2]
+      sc = row[3]
+      dx, dy = rot2(nx, ny, ang)
+      len = Math.sqrt(dx * dx + dy * dy)
+      if len < 1e-9
+        out << [nil, nil, hgt, sc, nil, ang, i]
+        next
+      end
+      dx /= len
+      dy /= len
+      t0 = box_exit(hx, hy, dx, dy)
+      d = want
+      hit = nil
+      while d >= minout - 1e-9
+        px = cx + dx * (t0 + d)
+        py = cy + dy * (t0 + d)
+        if point_in_poly?(px, py, poly) &&
+           edge_dist(px, py, poly) >= edge_margin - 1e-6 &&
+           !in_keepout?(px, py, keepouts)
+          hit = [px, py, hgt, sc, d, ang, i]
+          break
+        end
+        d -= step
+      end
+      out << (hit || [nil, nil, hgt, sc, nil, ang, i])
+    end
+    out
+  end
+
+  # PURE. THE CEILING CLAMP'S MEASUREMENT. The highest z an emitter reaches,
+  # computed from the emitter's OWN size and its OWN rotation — never from a
+  # bounding box, because a V-Ray light's bounds include its gizmo and would
+  # make this test lie in both directions.
+  #
+  # `rot` is a list of the four corner offsets ALREADY rotated (the caller
+  # does the Geom work; this half stays pure and testable), or nil for a
+  # sphere, where the answer is simply the radius.
+  #
+  #   emitter_top_z(89.6, :sphere, 10.0, nil)          -> 94.6
+  #   emitter_top_z(89.6, :rect, nil, [0, 0, 10.2, 0]) -> 99.8   (c00's key)
+  def self.emitter_top_z(cz, kind, diameter, corner_dz)
+    return cz + ((diameter * 1.0) / 2.0) if kind == :sphere
+    return cz if corner_dz.nil? || corner_dz.empty?
+    cz + corner_dz.map { |v| v * 1.0 }.max
   end
 
   def self.nearest_edge(poly, px, py)
@@ -1835,6 +2128,51 @@ module WR_DropLights
     [g, z_bot + F1_EMIT_UP]
   end
 
+  # F4 — THE OFFICE CEILING PANEL. A shallow square tube: four outer walls,
+  # four inner walls and a four-piece bottom rim, open at the TOP (the
+  # ceiling closes it, exactly as it does F1's drum) and open at the BOTTOM,
+  # which is the luminous aperture. Twelve faces, so a 25-panel ceiling costs
+  # 300 — half the FIXTURE_FACES_MAX budget.
+  #
+  # IT IS DRAWN ENTIRELY BELOW THE CEILING PLANE: top at z_ceil, bottom at
+  # z_ceil - PANEL_DEPTH. A recessed troffer's real housing sits ABOVE the
+  # ceiling in the plenum, and that is exactly the geometry that put c00's
+  # key light through the roof and a white streak across the frame. A
+  # surface-mounted flat panel is just as ordinary in a commercial ceiling
+  # and cannot do it. Returns [group, emitter_z].
+  def self.build_f4(ents, model, cx, cy, z_ceil, mat)
+    g = ents.add_group
+    g.name = 'WR Fixture F4 ceiling panel'
+    z_bot = z_ceil - PANEL_DEPTH
+    ho = PANEL_U / 2.0
+    hi = ho - PANEL_FRAME
+    box_shell(g.entities, cx, cy, z_bot, z_ceil, ho, hi)
+    g.material = mat if mat
+    [g, z_bot + PANEL_EMIT_UP]
+  end
+
+  # A square tube with a bottom rim and no top. Built face by face rather
+  # than by add_face-then-pushpull, because a face with a hole punched in it
+  # has to be identified by area afterwards and that is one more thing that
+  # can silently pick the wrong one.
+  def self.box_shell(ents, cx, cy, z0, z1, ho, hi)
+    oc = [[-ho, -ho], [ho, -ho], [ho, ho], [-ho, ho]]
+    ic = [[-hi, -hi], [hi, -hi], [hi, hi], [-hi, hi]]
+    pt = lambda do |c, z|
+      Geom::Point3d.new(cx + c[0], cy + c[1], z)
+    end
+    4.times do |i|
+      j = (i + 1) % 4
+      ents.add_face(pt.call(oc[i], z0), pt.call(oc[j], z0),
+                    pt.call(oc[j], z1), pt.call(oc[i], z1))
+      ents.add_face(pt.call(ic[i], z0), pt.call(ic[j], z0),
+                    pt.call(ic[j], z1), pt.call(ic[i], z1))
+      ents.add_face(pt.call(oc[i], z0), pt.call(oc[j], z0),
+                    pt.call(ic[j], z0), pt.call(ic[i], z0))
+    end
+    true
+  end
+
   # F2 — cord-hung pendant. Canopy at the ceiling, 1/4-IPS-scale cord, and a
   # truncated-cone shade whose bottom sits at PENDANT_AFF. Drawn from the
   # PH5 / Nelson Bubble / Akari proportions (reported, spec §7.4).
@@ -2549,12 +2887,36 @@ module WR_DropLights
   # scene at all. Verdict hash; 'ok' is true only when every list is empty.
   def self.audit_verdict(rows, missing)
     ghosts = rows.select { |r| r[3] == :ghost }.map { |r| r[0] }
+    # AN INTENTIONAL ZERO IS NOT A DEAD LIGHT (1.67.0). FACTORY_INTENSITY
+    # exists because V-Ray's factory default on a light nobody configured is
+    # 30 lm, and re-dropped lights silently sitting at it wrecked a whole run
+    # of scores (.forge/fixer/ROOTCAUSE-key-light-and-2x-2026-09-11.md,
+    # finding 6). That protection is UNCHANGED. What it must not also do is
+    # make "switch this layer off and re-render" impossible - which is what
+    # it did on 11 Sep: rank cycle c01 asked for the foam graze OFF, the rig
+    # created the layer and wrote it 0.0 as designed (role_scale returns 0.0
+    # for a layer switched off), and the audit called it DEAD and voided the
+    # frame. No render was made and a legitimate test was lost.
+    #
+    # The two cases are trivially distinguishable and always were: the rig
+    # records what it MEANT to write in the instance's own `lumens`
+    # attribute, which arrives here as r[4]. An intended 0 that reads back 0
+    # is OFF - reported, not a fault. An intended 0 that reads back 30 is
+    # still DEAD, so a factory-default light cannot hide behind a
+    # switched-off layer. A light with no `lumens` record (a pre-1.66.0 rig)
+    # is judged exactly as before.
+    intended_off = lambda { |r| !r[4].nil? && (r[4] * 1.0).abs < 1e-9 }
+    off = rows.select do |r|
+      r[3] == :rig && intended_off.call(r) && r[1] && (r[1] * 1.0).abs <= 0.5
+    end.map { |r| [r[0], r[1]] }
+    offn = off.map { |r| r[0] }
     dead = rows.select do |r|
-      r[3] == :rig && (r[1].nil? || (r[1] * 1.0) <= FACTORY_INTENSITY || r[2] == false)
+      r[3] == :rig && !offn.include?(r[0]) &&
+        (r[1].nil? || (r[1] * 1.0) <= FACTORY_INTENSITY || r[2] == false)
     end.map { |r| [r[0], r[1]] }
     deadn = dead.map { |r| r[0] }
     wrong = rows.select do |r|
-      r[3] == :rig && !deadn.include?(r[0]) && r[4] && r[1] &&
+      r[3] == :rig && !deadn.include?(r[0]) && !offn.include?(r[0]) && r[4] && r[1] &&
         ((r[1] * 1.0) - (r[4] * 1.0)).abs > 0.5
     end.map { |r| [r[0], r[1], r[4]] }
     miss = Array(missing)
@@ -2564,12 +2926,14 @@ module WR_DropLights
                     rows.count { |r| r[3] == :rig }, rows.count { |r| r[3] == :model })
     ghosts.each { |g| lines << "GHOST  #{g} — a light plugin no entity owns; it renders anyway" }
     dead.each { |n, i| lines << "DEAD   #{n} — intensity #{i.inspect} (factory default or disabled)" }
+    off.each { |n, i| lines << "OFF    #{n} — intensity #{i.inspect}, and the rig wrote 0 lm ON PURPOSE (layer switched off) — not a fault" }
     wrong.each { |n, i, e| lines << format('WRONG  %s — intensity %s, the rig wrote %.0f', n, i.inspect, e * 1.0) }
     miss.each { |n| lines << "MISSING #{n} — the entity is in the model, its plugin is not in the scene" }
     lines << (ok ? 'AUDIT OK — the scene holds exactly the rig the model shows' : 'AUDIT FAILED — this frame would not be the rig')
     { 'ok' => ok, 'rig' => rows.count { |r| r[3] == :rig },
       'model' => rows.count { |r| r[3] == :model }, 'ghosts' => ghosts,
-      'dead' => dead, 'wrong' => wrong, 'missing' => miss, 'lines' => lines }
+      'dead' => dead, 'off' => off, 'wrong' => wrong, 'missing' => miss,
+      'lines' => lines }
   end
 
   # The live half: read the scene, classify every light plugin, and hand the
@@ -3428,7 +3792,7 @@ module WR_DropLights
       layers[role.to_s] = { 'on' => true, 'scale' => 1.0, 'kdelta' => 0 }
     end
     { 'mult' => 1.0, 'koffset' => 0, 'ceiling' => true, 'walls' => WALLS_DEFAULT,
-      'density' => 'soft', 'layers' => layers }
+      'density' => 'soft', 'rig' => RIG_DEFAULT, 'layers' => layers }
   end
 
   # THE WALLS DEFAULT (1.43.1). Benton, 10 Sep 2026: "default the drop down
@@ -3509,7 +3873,22 @@ module WR_DropLights
       :ceiling => st['ceiling'] ? true : false,
       :walls   => walls_mode(st['walls']),
       :density => st['density'].to_s == 'showroom' ? :showroom : :soft,
+      :rig     => rig_mode(st['rig']),
       :layers  => layers }
+  end
+
+  # 'office' | 'classic'. THE DEFAULT IS 'office' (1.67.0) — Benton's 11 Sep
+  # direction is a REPLACEMENT of the photographic key/fill/rim rig, not an
+  # option beside it, so a press that says nothing gets the office rig. The
+  # classic rig is kept reachable by name because three cycles of scores were
+  # measured on it and a comparison must stay possible.
+  #
+  # KNOWN GAP, said plainly rather than hidden: the settings DIALOG has no
+  # control for this yet, so an interactive press silently gets the office
+  # rig. The console names the rig on every press. Adding the control is a
+  # panel change and is listed in DEVLOG 1.67.0.
+  def self.rig_mode(v)
+    v.to_s == 'classic' ? 'classic' : RIG_DEFAULT
   end
 
   # 'none' | 'hidden' | 'open' | 'all'. A 1.28.0 preset saved the box as true /
@@ -4080,8 +4459,11 @@ paint(); drawPresets("");
       erased, reap_pending = erase_lights(stale)
 
       puts ''
-      puts format('Drop Interior Lights 1.44.0 — brightness %s (x%.2f), ' \
-                  'warmth %s (%+d K), units 1 (LUMENS), six roles',
+      puts format('Drop Interior Lights 1.67.0 — RIG: %s. brightness %s ' \
+                  '(x%.2f), warmth %s (%+d K), units 1 (LUMENS)',
+                  opts[:rig] == 'office' ?
+                    'OFFICE (ceiling panel grid + invisible fill scatter)' :
+                    'CLASSIC (key / rim / foam, drums, pendant, sconces)',
                   opts[:bright], opts[:mult], opts[:warmth], opts[:koffset])
       unless stale.empty?
         puts format('  replacing %d previously dropped light%s - their ' \
@@ -4154,8 +4536,64 @@ paint(); drawPresets("");
       # the roles that have a fixture — so the emitter travels with it
       # (1.28.0). Same coordinates either way: a fresh group's
       # transformation is the identity.
+      # ---- THE CEILING CLAMP (1.67.0) --------------------------------
+      # c00-c02's key light was a 24 in panel tilted 58 deg with its centre
+      # at z 89.6 in a 96 in room: top edge ~99.8 in, THROUGH the ceiling.
+      # The half of it standing outside the room lit the far side of the
+      # ceiling slab and put a hard white streak across the top of every
+      # frame — c02 turned the key down, the streak vanished, and that is
+      # what identified it (observed).
+      #
+      # So: no rig light stands above the room's ceiling plane, and the rule
+      # is enforced HERE, on every light of every role, rather than in each
+      # role's own placement arithmetic — which is where it would be
+      # forgotten. The emitter's real top is computed from its own size and
+      # its own rotation (emitter_top_z), never from a bounding box, because
+      # a V-Ray light's bounds include its gizmo. A light that does not fit
+      # is LOWERED until it does, and the console says by how much. It
+      # refuses outright only if lowering would put the light on the floor,
+      # which means the room is shorter than the fixture.
+      ceil_limit = nil
+      floor_limit = nil
+      clamped = []
+      corner_dz = lambda do |spec, extra_tr|
+        hx = spec[:u] / 2.0
+        hy = spec[:v] / 2.0
+        [[-hx, -hy], [hx, -hy], [hx, hy], [-hx, hy]].map do |c|
+          p = Geom::Point3d.new(c[0], c[1], 0.0)
+          p = p.transform(extra_tr) if extra_tr
+          p.z
+        end
+      end
+      top_of = lambda do |spec, pt, extra_tr|
+        if spec[:emitter] == :sphere
+          emitter_top_z(pt[2], :sphere, spec[:u], nil)
+        else
+          emitter_top_z(pt[2], :rect, nil, corner_dz.call(spec, extra_tr))
+        end
+      end
+
       place = lambda do |role, pt, lumens, extra_tr = nil, into = nil|
         spec = LIGHT_LAYERS[role]
+        pt = [pt[0], pt[1], pt[2]]
+        if ceil_limit
+          top = top_of.call(spec, pt, extra_tr)
+          if top > ceil_limit + CLAMP_TOL
+            drop_by = top - ceil_limit
+            if pt[2] - drop_by < (floor_limit || 0.0)
+              raise format('CEILING CLAMP: the %s light does not fit in this ' \
+                           'room. Its emitter reaches %.1f in above its own ' \
+                           'centre, the ceiling is at %.1f in, and lowering it ' \
+                           'to fit would put it below %.1f in. Nothing was ' \
+                           'placed.', role, top - pt[2], ceil_limit,
+                           floor_limit || 0.0)
+            end
+            pt[2] -= drop_by
+            clamped << format('%s lowered %.2f in — its top edge stood at ' \
+                              '%.2f in, above the %.1f in ceiling', role,
+                              drop_by, top, ceil_limit)
+          end
+        end
         if spec[:emitter] == :sphere
           d, plug = create_sphere(ctx, spec[:u] / 2.0)
         else
@@ -4400,6 +4838,132 @@ paint(); drawPresets("");
           next
         end
 
+        ceil_limit = info[:z_top]
+        floor_limit = z0 + CLAMP_FLOOR
+
+        # ================================================================
+        # THE OFFICE RIG (1.67.0). Two roles and no others.
+        #
+        # PRIMARY: a regular grid of VISIBLE ceiling panels, aligned to the
+        # room, half a spacing off every wall, running the whole plate. The
+        # grid does not know the booth is there, because a real commercial
+        # ceiling does not. Visible room fixtures are what Benton's ruling
+        # R1 permits and what the rubric's D6 "believable cause" anchor asks
+        # for.
+        #
+        # FILL: invisible spheres scattered 4-6 ft out from the booth at
+        # assorted heights, ASYMMETRIC on purpose (FILL_SCATTER).
+        #
+        # RETIRED HERE: the :ceiling drums, the :pendant, the :sconce pair,
+        # and the whole booth-facing :key / :rim / :foam triangle. Those
+        # produced the wall blooms with no visible cause that held c00-c02
+        # at 5.7, and Benton's direction is to replace them, not tune them.
+        # They are still in LIGHT_LAYERS and still placed by the 'classic'
+        # rig; nothing about the old rig is deleted.
+        # ================================================================
+        if opts[:rig] == 'office'
+          pgrid = panel_grid(poly, PANEL_SPACING, PANEL_MAX)
+          if pgrid[:pts].empty?
+            puts "  REFUSED #{name} — no ceiling panel position lands inside " \
+                 'its floor polygon.'
+            next
+          end
+          # NO area_scale: the COUNT scales with the room, not the fixture.
+          panel_lm = layer_lumens(LIGHT_LAYERS[:panel][:lumens], opts[:mult],
+                                  room_trim * role_scale(:panel, opts),
+                                  opts[:cam_gain])
+          pgrid[:pts].each do |p|
+            fg, ez = build_f4(ents, model, p[0], p[1], info[:z_top], fx_mat)
+            stamp_own.call(fg, :f4)
+            place.call(:panel, [p[0], p[1], ez], panel_lm, nil, fg.entities)
+          end
+          puts format('  %s: OFFICE RIG — ceiling panels: %d x F4 %g x %g in ' \
+                      'flat panel on a REGULAR grid, %d x %d at %.1f x %.1f in ' \
+                      'on centre, %.1f / %.1f in in from the walls, %.0f lm each ' \
+                      'at %dK, aperture %g in below the %.0f in ceiling. The grid ' \
+                      'IGNORES the booth, exactly as a real commercial ceiling ' \
+                      'does.', name, pgrid[:pts].size, PANEL_U, PANEL_V,
+                      pgrid[:nx], pgrid[:ny], pgrid[:sx], pgrid[:sy],
+                      pgrid[:sx] / 2.0, pgrid[:sy] / 2.0, panel_lm,
+                      layer_kelvin(LIGHT_LAYERS[:panel][:kelvin], opts[:koffset]),
+                      PANEL_DEPTH, info[:z_top])
+          if pgrid[:pts].size < pgrid[:nx] * pgrid[:ny]
+            puts format('  %s: %d grid position%s fell outside the floor polygon ' \
+                        'or within %g in of its edge and were dropped.', name,
+                        pgrid[:nx] * pgrid[:ny] - pgrid[:pts].size,
+                        pgrid[:nx] * pgrid[:ny] - pgrid[:pts].size == 1 ? '' : 's',
+                        PANEL_MIN_INSET)
+          end
+
+          if booths.empty?
+            puts "  #{name}: no booth in this room — the fill scatter has " \
+                 'nothing to be four feet away FROM, so it is skipped. The ' \
+                 'ceiling grid is the whole rig here.'
+          end
+          booths.each do |o|
+            bname = display_name(o[:ent])
+            bb = o[:bb]
+            cx = (bb.min.x + bb.max.x) / 2.0
+            cy = (bb.min.y + bb.max.y) / 2.0
+            hx = (bb.max.x - bb.min.x) / 2.0
+            hy = (bb.max.y - bb.min.y) / 2.0
+            booth_notes << booth_light_note(bname, booth_own_lights(o[:ent], scene))
+            puts "  #{name}: #{booth_notes.last}"
+
+            # The scatter is aimed off the DOOR'S OWN FACE NORMAL, the same
+            # datum 1.66.0 gave the key — it is the only booth-relative
+            # direction in the model that is not an accident of where the
+            # door panel happens to sit on its face. With no tagged door the
+            # scatter falls back to +X, and says so: a scatter has no aim to
+            # get wrong, only an orientation, and an arbitrary one is
+            # honest where a guessed one is not.
+            nrm_d = nil
+            dbox = booth_door_box(o)
+            if dbox
+              nrm_d = door_face_normal([bb.min.x * 1.0, bb.min.y * 1.0,
+                                        bb.max.x * 1.0, bb.max.y * 1.0], dbox)
+            end
+            if nrm_d.nil?
+              nrm_d = [1.0, 0.0]
+              puts "  #{name}: booth \"#{bname}\" has no usable door face — " \
+                   'the fill scatter is oriented on +X instead. It is a ' \
+                   'scatter, not an aim, so this costs orientation and not ' \
+                   'correctness.'
+            end
+            fpts = fill_points(cx, cy, hx, hy, nrm_d[0], nrm_d[1], poly,
+                               keepouts, FILL_SCATTER)
+            base_fill = LIGHT_LAYERS[:fill][:lumens]
+            n_fill = 0
+            fpts.each do |fp|
+              if fp[0].nil?
+                puts format('  %s: fill sphere %d (%+.0f deg off the door face, ' \
+                            '%.0f in out, %.0f in AFF) has nowhere legal — every ' \
+                            'standoff from %.0f down to %.0f in lands outside the ' \
+                            'floor, within %.0f in of a wall, or inside the booth ' \
+                            'keep-out. SKIPPED rather than placed in a wall.',
+                            name, fp[6] + 1, fp[5], FILL_SCATTER[fp[6]][1], fp[2],
+                            FILL_SCATTER[fp[6]][1], FILL_MIN, FILL_EDGE)
+                next
+              end
+              lm = layer_lumens(base_fill, opts[:mult],
+                                room_trim * role_scale(:fill, opts) * fp[3],
+                                opts[:cam_gain])
+              place.call(:fill, [fp[0], fp[1], z0 + fp[2]], lm)
+              n_fill += 1
+              puts format('  %s: fill sphere %d — %.0f lm at %dK, d%g in, ' \
+                          '(%.0f, %.0f, %.0f), %+.0f deg off the door face, ' \
+                          '%.0f in out from the booth skin, %.0f in AFF, ' \
+                          'output x%.2f, INVISIBLE', name, fp[6] + 1, lm,
+                          layer_kelvin(LIGHT_LAYERS[:fill][:kelvin], opts[:koffset]),
+                          FILL_D, fp[0], fp[1], z0 + fp[2], fp[5], fp[4], fp[2],
+                          fp[3])
+            end
+            puts format('  %s: fill scatter — %d of %d spheres placed, ' \
+                        'asymmetric by design, all invisible. Heights %s in AFF.',
+                        name, n_fill, FILL_SCATTER.size,
+                        fpts.select { |f| f[0] }.map { |f| format('%.0f', f[2]) }.join('/'))
+          end
+        else
         bcx = nil
         bcy = nil
         unless booths.empty?
@@ -4631,9 +5195,18 @@ paint(); drawPresets("");
                       name, lm_of.call(:foam),
                       layer_kelvin(3500, opts[:koffset]), FOAM_OFFSET)
         end
+        end
       end
 
       raise 'Nothing was placed — see the per-room lines above.' if placed.zero?
+
+      unless clamped.empty?
+        puts ''
+        puts format('  CEILING CLAMP fired on %d light%s — each was LOWERED so ' \
+                    'no part of its emitter stands above the room ceiling:',
+                    clamped.size, clamped.size == 1 ? '' : 's')
+        clamped.each { |l| puts "    #{l}" }
+      end
 
       # THE REAP - last, and it has to be last. See erase_lights.
       plugs_gone, plugs_left = reap_lights(model, scene, reap_pending)

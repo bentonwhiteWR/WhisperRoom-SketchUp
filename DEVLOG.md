@@ -1,6 +1,149 @@
 # DEVLOG
 
 ## 2026-09-11
+### 1.67.0 - THE OFFICE RIG: architectural lighting replaces the photographic key/fill/rim; plus a ceiling clamp, an audit that can tell an intentional zero from a factory default, and a COMMITTED rank-measurement script
+
+Benton, 11 Sep, and this is a REPLACEMENT and not a tuning pass: *"Why don't we
+try other types of light? ... Maybe some sphere lighting that is invisible in
+assorted places, you know, maybe four or five feet away from the booth, low
+level, high level, et cetera. ... But honestly, we just did some panel ceiling
+lighting that was consistent with an office building or something along the
+lines of that. I think that would go a long ways rather than trying to set up
+photography lighting, essentially."*
+
+**`opts[:rig]` now selects a rig and `'office'` IS THE DEFAULT.** `'classic'` is
+the whole pre-1.67.0 arrangement and is still reachable by name, so the c-series
+rank frames stay reproducible. Nothing was deleted.
+
+**THE OFFICE RIG - two roles and no others.**
+
+- `:panel` - a VISIBLE 2 x 2 ft flat ceiling panel, 3600 lm at 4200 K (a real
+  commodity figure; the band is 3000-4400), drawn as F4: a shallow square tube
+  whose open bottom is the aperture and whose open top the ceiling closes.
+  `panel_grid` lays them on a REGULAR grid at `PANEL_SPACING` 96 in on centre
+  with a half spacing at every wall, which is how a commercial ceiling is
+  actually set out. **It takes NO KEEP-OUT.** A real office ceiling does not
+  route around the furniture under it, and the old rule did the opposite:
+  `ceiling_pair` sorts grid points by distance from the booth and keeps the
+  FARTHEST, so on the 11 Sep test model all eleven drums landed in the half of
+  the room the camera cannot see (observed).
+  SQUARE, not a 2x4 troffer, on purpose: a rectangular emitter has to agree
+  with its housing about which way is long, and nothing in the V-Ray API says
+  whether `create_rectangle_light`'s `width` runs along local X. A square
+  cannot disagree with itself.
+  **The panel does NOT take `area_scale`** - the COUNT scales with the room,
+  which is what a real ceiling does; the area scale on top would count twice.
+- `:fill` - six INVISIBLE 10 in spheres at 3500 K scattered 4-6 ft out from the
+  booth's SKIN (not its centre - `box_exit`) at heights 19 to 88 in, each with
+  a different output. `FILL_SCATTER` is ASYMMETRIC ON PURPOSE: irregular
+  angular gaps, irregular standoffs, alternating heights. A symmetric
+  arrangement is the photographic instinct being retired. `fill_points` walks a
+  row's standoff IN when the asked-for one lands outside the floor or in a
+  keep-out, and NAMES a row it cannot place rather than putting a light in a
+  wall.
+
+Retired in office mode: `:ceiling` drums, `:pendant`, `:sconce`, and the whole
+booth-facing `:key` / `:rim` / `:foam` triangle.
+
+**KNOWN GAP, stated rather than hidden: the settings DIALOG has no rig control
+yet.** An interactive press gets the office rig and only the console says so.
+The panel control is not written.
+
+**THE CEILING CLAMP - a rule, not a placement fix.** c00-c02's key light was a
+24 in panel tilted 58 deg with its centre at z 89.6 in a 96 in room: top edge
+~99.8, THROUGH the ceiling, half the emitter outside the room. It put a hard
+white streak across the top of every frame - c02 turned the key down, the
+streak went with it, and that is what identified it (observed). Now EVERY light
+of EVERY role passes a clamp inside `place`: `emitter_top_z` computes the
+emitter's real top from its own size and its own rotation - never from a
+bounding box, because a V-Ray light's bounds include its gizmo and would make
+the test lie in both directions - and a light that would stand above the room's
+ceiling plane is LOWERED until it fits, with the amount printed. It refuses
+outright only if lowering would put the light on the floor. Enforced centrally
+so a new role cannot forget it.
+
+**`audit_scene`: AN INTENTIONAL ZERO IS NOT A DEAD LIGHT.** `FACTORY_INTENSITY`
+30 exists because re-dropped lights silently sitting at V-Ray's factory default
+wrecked a whole run of scores, and that protection is UNCHANGED. What it also
+did was make "switch this layer off and re-render" impossible: rank cycle c01
+asked for the foam graze OFF, the rig created the layer and wrote 0.0 as
+designed, the audit called it DEAD, and a legitimate test was lost with no frame
+rendered. The two cases were always distinguishable - the rig records what it
+MEANT to write in the instance's own `lumens` attribute. An intended 0 that
+reads back 0 is now OFF and the audit stays ok; an intended 0 that reads back
+**30** is still DEAD, so a factory-default light cannot hide behind a
+switched-off layer; a light with no `lumens` record is judged as before.
+
+**NEW: `scripts/rank-measure.py`, method stamp `rank-measure/1`.** Three rank
+loops in a row computed the rubric's statistics from a throwaway script in a
+session scratch directory and none of them committed it. Worse, THE CROP
+RECTANGLES WERE NEVER WRITTEN DOWN - which is why one baseline plate is recorded
+as face/floor 0.53 in `test1.scores.md` and 0.47 in DEVLOG 1.65.0. The crops are
+now named constants at the top of the file (`FACE_CROP`, `FLOOR_CROP`,
+`CEIL_BAND`). **It reproduces c00, c01 and c02 exactly, to every printed
+digit**, so the c-series and d-series statistics ARE on one scale - what is
+re-baselined in run d is the scores, not the measurements. `mean`, `clip` and
+`dark` still come from the committed `image-qa` gate rather than a second
+implementation of the same idea.
+
+GOTCHAS in that file, both of which have already cost somebody time:
+`linmean`/`linmed` are the sRGB-decoded pair and exist for LUMEN PREDICTION
+only - the pipeline is linear in lumens with one encode on top, so doubling the
+rig doubles `linmean` and does NOT double `mean`. Never score against them. And
+`ff` is a fixed rectangle on a fixed plate, not a detector that finds the booth:
+move the camera and it does not fail, it quietly lies.
+
+**Tests.** `scripts/rbtest-lights.py` is green at 69 checks with `panel_grid`,
+`rot2`, `box_exit`, `fill_points` and `emitter_top_z` lifted verbatim and
+pinned. Every expected value was DERIVED BY HAND from the geometry before the
+first run - the six-sphere scatter to 0.1 in, the 5 x 5 grid, the audit table,
+and the c00 key's 99.776 in top edge. Three of my hand values were wrong on that
+first run (a negative zero, a rounded unit vector, and a scatter count I guessed
+at instead of deriving); all three were MY arithmetic, the code was right, and
+the corrected derivations are now in the fixture comments. The pins then earned
+their keep immediately: they went red on the `FILL_EDGE` change below and told
+me which two spheres I was about to lose.
+
+GOTCHAS in that harness: the check VM has no `Float#to_f`, which is why this
+file multiplies by `1.0` everywhere. And anything `LIGHT_LAYERS` references must
+be added to `SCALARS`/`BLOCKS` or the fixture dies with a NameError before a
+single assertion runs - the same trap `LUMEN_GAIN` fell into for nine versions.
+
+**Rank loop harness is committed this time**: `.forge/fixer/rank-loop/d-lib.rb`
+with `d-drop.rb` / `d-export.rb` / `d-audit.rb`, driven by a JSON config at
+`%LOCALAPPDATA%\WhisperRoom\rank-loop-d.json` so the Ruby is fixed and only the
+settings move. `DCYC.reset!` RAISES unless `plugins_left == 0`,
+`rig_entities == 0` and the V-Ray scene is back to exactly two lights (the
+booth's own and the sun). Never `Sketchup.undo` - V-Ray's `scene.change` closes
+the SketchUp operation underneath the rig, so the tool's own "Ctrl+Z removes the
+lights" line is untrue and remains a known, unfixed wart.
+
+**`FILL_EDGE` 18 -> 40 in (rank cycle d02).** 18 was an assumed figure carried
+over from the room-light edge constants and it is far too permissive for a light
+of this output: it let a 448,000 lm sphere stand 27 in off a wall, and the d01
+frame measured exactly what that does - 11,965 clipped pixels banked at the
+frame's left and right edges, mean RGB (255.0, 254.8, 254.8), perfectly neutral:
+a blown patch on plain wall with no visible cause, which is the same failure
+that held the c-series at 5.7, reproduced by a different mechanism. 54 in was
+the first value tried and the pins went red: on a booth parked in a corner, two
+rows aim at the two walls the booth is 11 and 13 in from, walking their standoff
+IN moves them toward the corner, and both rows drop - and they are the 82 in and
+88 in spheres, the "high level" half of what Benton asked for. 40 in is the
+largest margin this geometry keeps all six at.
+
+**Measured this version (`rank-measure/1`, 800x450, camera fixed):** the office
+rig's first frame d00 came in at mean 0.6670 / clip 0.1252 / ceil R/B 1.2209
+against the classic rig's c00 at 0.5971 / 0.0163 / 1.9349. The ceiling colour
+problem that D4 had been stuck on since test1 is largely gone - 25 visible
+neutral 4200 K panels in the ceiling band plus far more direct downlight - and a
+visible fixture is in frame for the first time in the loop's history. The open
+problem is the opposite of the old one: the frame CLIPS, and halving every panel
+moved `clip` only 0.1252 -> 0.0943, which says a visible emitter at this camera
+sits many times over the clip point and the room's light cannot come from
+non-clipping visible panels. Live scores and per-cycle evidence:
+`Z:\Sketchup\Proposals\test2\.rank\booth-render.scores.md`, run d.
+
+## 2026-09-11
 ### 1.66.0 - Both blockers in front of rank cycle 1 cleared: the key light places, the "2x non-linearity" is not the renderer
 
 Everything below was OBSERVED over the bridge on the desktop's live SketchUp

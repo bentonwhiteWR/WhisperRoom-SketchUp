@@ -372,7 +372,9 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'run_report', 'fill_runs', 'exposure_ratio', 'stops_of', 'ev_of',
            'camera_verdict', 'rig_camera_gain', 'accent_tilt',
            'accent_standoff', 'walls_mode', 'default_settings',
-           'door_face_normal', 'accent_place', 'audit_verdict']
+           'door_face_normal', 'accent_place', 'audit_verdict',
+           # 1.67.0 -- the office rig's placement logic
+           'panel_grid', 'rot2', 'box_exit', 'fill_points', 'emitter_top_z']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'WASH_MAX', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
@@ -395,9 +397,20 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            # 1.41.0: the ISO stamp is gone and its five stops moved onto the
            # fixtures. Same rule as LUMEN_GAIN -- anything layer_lumens
            # multiplies by is lifted here.
-           'CAMERA_GAIN']
-STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT']
-BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'LIGHT_LAYERS', 'BOOTH_ROLES']
+           'CAMERA_GAIN',
+           # 1.67.0. LIGHT_LAYERS is lifted VERBATIM as a block and the
+           # office roles read these, so a missing one is a NameError in the
+           # fixture rather than a failed assertion -- the same trap
+           # LUMEN_GAIN fell into for nine versions.
+           'PANEL_U', 'PANEL_V', 'PANEL_DEPTH', 'PANEL_FRAME',
+           'PANEL_EMIT_UP', 'PANEL_SPACING', 'PANEL_MAX', 'PANEL_MIN_INSET',
+           'FILL_D', 'FILL_EDGE', 'FILL_STEP', 'FILL_MIN',
+           'CLAMP_TOL', 'CLAMP_FLOOR']
+STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT', 'RIG_DEFAULT']
+# FILL_SCATTER BEFORE LIGHT_LAYERS: the :fill role's :n reads FILL_SCATTER.size,
+# and these are emitted in list order into one Ruby module body.
+BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'FILL_SCATTER',
+          'LIGHT_LAYERS', 'BOOTH_ROLES']
 
 
 def lift_block(lines, name):
@@ -1015,6 +1028,132 @@ __METHODS__
                     layer_lumens(800.0, 1.0, 1.0, 32.0)]
                    .map { |v| format('%.0f', v) }.join(',')
 
+    # ==================================================================
+    # 29 -- THE OFFICE RIG (1.67.0). Every expected value below is derived
+    # BY HAND from the geometry, not read off a first run, so a wrong
+    # answer here is a wrong answer and not a changed answer.
+    #
+    # The room is the live 11 Sep test room: 40 x 40 ft, interior 0..480 in.
+    # The booth stands in it at centre (410, 400) with half-extents 60 x 67
+    # (the real MDL 96120 S measures 59.76 x 67.42, rounded here so the
+    # arithmetic in this comment is checkable), door on the WEST face, so
+    # the door normal is (-1, 0). Its keep-out is the footprint inflated by
+    # KEEPOUT_PAD: [338, 321, 482, 479].
+    # ==================================================================
+    p480 = [[0.0, 0.0], [480.0, 0.0], [480.0, 480.0], [0.0, 480.0]]
+    bko = [[338.0, 321.0, 482.0, 479.0]]
+
+    # 29a -- THE CEILING GRID. 480 / 96 = 5 exactly on both axes, so
+    # axis_points lays out 480(2i+1)/10 = 48, 144, 240, 336, 432: a 5 x 5
+    # grid, 96 in on centre, 48 in (half a spacing) off every wall. All 25
+    # survive -- the nearest is 48 in from a wall against a 12 in inset
+    # floor. THE BOOTH IS NOT CONSULTED: panel_grid takes no keep-out.
+    pg = panel_grid(p480, 96.0, 49)
+    out << format('pgrid n%d %dx%d s%.4g,%.4g first%.4g,%.4g last%.4g,%.4g',
+                  pg[:pts].size, pg[:nx], pg[:ny], pg[:sx], pg[:sy],
+                  pg[:pts].first[0], pg[:pts].first[1],
+                  pg[:pts].last[0], pg[:pts].last[1])
+
+    # 29b -- THE CAP. Asked for 25 with room for 9, the grid steps DOWN a
+    # row at a time from the longer axis first: 5x5 -> 4x5 -> 4x4 -> 3x4 ->
+    # 3x3 = 9. Spacing widens with it (480/3 = 160).
+    pg9 = panel_grid(p480, 96.0, 9)
+    out << format('pcap n%d %dx%d s%.4g', pg9[:pts].size, pg9[:nx], pg9[:ny], pg9[:sx])
+
+    # 29c -- rot2. The door normal is (-1, 0) = due WEST. Rotated +90 deg
+    # counter-clockwise it is due SOUTH (0, -1); -90 deg is due NORTH.
+    out << 'rot2 ' + [rot2(-1.0, 0.0, 90.0), rot2(-1.0, 0.0, -90.0),
+                      rot2(-1.0, 0.0, 0.0)]
+                     .map { |v| format('%.3f,%.3f', v[0], v[1]) }.join(';')
+
+    # 29d -- box_exit. Straight out the 60 in half-width face is 60 in;
+    # straight out the 67 in half-depth face is 67; on the 45 deg diagonal
+    # the WIDTH face is reached first, at 60 / 0.70711 = 84.852 (the
+    # direction passed in is the 5-decimal unit vector, not exact cos 45).
+    out << 'bexit ' + [box_exit(60.0, 67.0, -1.0, 0.0), box_exit(60.0, 67.0, 0.0, -1.0),
+                       box_exit(60.0, 67.0, -0.70711, -0.70711)]
+                      .map { |v| format('%.3f', v) }.join(',')
+
+    # 29e -- THE FILL SCATTER on that room. Hand-derived, row by row, as
+    #   p = centre + dir * (box_exit + standoff):
+    #   -21 deg: dir (-0.93358, 0.35837), exit 64.269, +54 -> (299.6, 442.4)
+    #    +9 deg: dir (-0.98769, -0.15643), exit 60.748, +66 -> (284.8, 380.2)
+    #   +34 deg: dir (-0.82904, -0.55919), exit 72.373, +48 -> (310.2, 332.7)
+    #   +63 deg: dir (-0.45399, -0.89101), exit 75.196, +60 -> (348.6, 279.5)
+    #   +85 deg: dir (-0.08716, -0.99619), exit 67.256, +51 -> (399.7, 282.2)
+    #  +108 deg: dir ( 0.30902, -0.95106), exit 70.447, +72 -> (454.0, 264.5)
+    # Every one is inside the floor, at least FILL_EDGE from a wall (the
+    # tightest is +108 at 25.98 in from the east wall) and outside the booth
+    # keep-out, so all six stand at the standoff they asked for.
+    fp = fill_points(410.0, 400.0, 60.0, 67.0, -1.0, 0.0, p480, bko, FILL_SCATTER)
+    out << 'fill ' + fp.map { |f|
+      f[0].nil? ? 'SKIP' : format('%.1f,%.1f,%.0f,%.0f', f[0], f[1], f[2], f[4])
+    }.join(';')
+
+    # 29f -- THE SAME SCATTER WITH NO ROOM. Shrink the floor to a 180 in
+    # square from (300,300) to (480,480) and the legal area collapses to a
+    # 20 in strip (x in [318, 338), outside the keep-out and 18 in off the
+    # wall) plus a 3 in sliver (y in [318, 321)). Row by row, with T the
+    # distance from the booth centre:
+    #   -21 deg: needs T in (77.1, 98.5]  -> d = 30 fits (px 322.0)  PLACED
+    #    +9 deg: needs T in (72.9, 93.2]  -> d = 30 fits (px 320.4)  PLACED
+    #   +34 deg: needs T in (86.8, 98.9]  -> d = 36 fits (px 320.2)  PLACED
+    #   +63 deg: py >= 318 caps d at 16.8 -- below FILL_MIN 24        SKIP
+    #   +85 deg: py >= 318 caps d at 15.0                             SKIP
+    #  +108 deg: py >= 318 caps d at 15.8                             SKIP
+    # Three placed, three skipped. This is the branch that keeps a fill
+    # light out of a wall, and the skipped rows are NAMED by the caller.
+    small = [[300.0, 300.0], [480.0, 300.0], [480.0, 480.0], [300.0, 480.0]]
+    fps = fill_points(410.0, 400.0, 60.0, 67.0, -1.0, 0.0, small, bko, FILL_SCATTER)
+    out << format('fillsmall placed%d of%d', fps.count { |f| f[0] }, fps.size)
+
+    # 29g -- THE CEILING CLAMP'S MEASUREMENT. A d10 sphere centred at 89.6
+    # reaches 94.6. c00's KEY -- a 24 in square panel tilted 58 deg, centre
+    # 89.6 -- has its high corner 12 * sin(58) = 10.176 in above centre, so
+    # 99.776: through a 96 in ceiling, which is the defect this exists to
+    # make impossible. A flat panel (no rotation, all corner offsets zero)
+    # reaches exactly its own centre height.
+    kdz = [-10.176, 0.0, 10.176, 0.0]
+    out << 'top ' + [emitter_top_z(89.6, :sphere, 10.0, nil),
+                     emitter_top_z(89.6, :rect, nil, kdz),
+                     emitter_top_z(94.0, :rect, nil, [0.0, 0.0, 0.0, 0.0])]
+                    .map { |v| format('%.3f', v) }.join(',')
+
+    # 29h -- AN INTENTIONAL ZERO IS NOT A DEAD LIGHT. Six rig lights:
+    #   A wrote 0 and reads 0      -> OFF. Deliberate. The audit stays ok.
+    #   B wrote 0 and reads 30     -> DEAD. A factory-default light cannot
+    #                                 hide behind a switched-off layer.
+    #   C wrote 1000 and reads 30  -> DEAD, exactly as before.
+    #   D wrote 1000 and reads 1000-> fine.
+    #   E wrote 1000 and reads 900 -> WRONG.
+    #   F wrote nothing and reads 0-> DEAD: a pre-1.66.0 rig keeps the old
+    #                                 judgement, because there is no record
+    #                                 that says the zero was meant.
+    av1 = audit_verdict([['A', 0.0, true, :rig, 0.0]], [])
+    av2 = audit_verdict([['A', 0.0, true, :rig, 0.0],
+                         ['B', 30.0, true, :rig, 0.0],
+                         ['C', 30.0, true, :rig, 1000.0],
+                         ['D', 1000.0, true, :rig, 1000.0],
+                         ['E', 900.0, true, :rig, 1000.0],
+                         ['F', 0.0, true, :rig, nil]], [])
+    out << format('auditoff ok%d off%s | auditmix ok%d off%s dead%s wrong%s',
+                  av1['ok'] ? 1 : 0, av1['off'].map { |r| r[0] }.join('+'),
+                  av2['ok'] ? 1 : 0, av2['off'].map { |r| r[0] }.join('+'),
+                  av2['dead'].map { |r| r[0] }.join('+'),
+                  av2['wrong'].map { |r| r[0] }.join('+'))
+
+    # 29i -- the office roles landed in the table and the default rig is the
+    # office one. PANEL's emitter is inset inside its 24 in housing by two
+    # 0.75 in frame walls and a further 1/2 in of clearance = 22.0 in.
+    out << format('roles panel%.4g/%.4g/%.0f/%d/%s fill%.4g/%.0f/%d/%s rig%s',
+                  LIGHT_LAYERS[:panel][:u], LIGHT_LAYERS[:panel][:v],
+                  LIGHT_LAYERS[:panel][:lumens], LIGHT_LAYERS[:panel][:kelvin],
+                  LIGHT_LAYERS[:panel][:visible] ? 'VIS' : 'inv',
+                  LIGHT_LAYERS[:fill][:u], LIGHT_LAYERS[:fill][:lumens],
+                  LIGHT_LAYERS[:fill][:kelvin],
+                  LIGHT_LAYERS[:fill][:visible] ? 'VIS' : 'inv',
+                  RIG_DEFAULT)
+
     out.join(' | ')
   end
 end
@@ -1109,6 +1248,32 @@ EXPECT = ' | '.join([
     'user_iso,unreadable,unreadable,unreadable',
     'cg 32,1,32,32,32,32',
     'lc 640000,20000,256000',
+    # --- 1.67.0, the office rig. Derived by hand; see the fixture comments.
+    'pgrid n25 5x5 s96,96 first48,48 last432,432',
+    'pcap n9 3x3 s160',
+    # -0.000 is the real answer and not a defect: cos(90 deg) in floating
+    # point is 6.1e-17, not 0, and the product carries the sign of the -1.0
+    # it came from. Pinned as it is rather than rounded away.
+    'rot2 -0.000,-1.000;-0.000,1.000;-1.000,0.000',
+    'bexit 60.000,67.000,84.852',
+    # FILL_EDGE 18 -> 40 at rank cycle d02. Rows 2-5 are untouched (their
+    # tightest margin was already 80 in). Rows 1 and 6 aimed at the two walls
+    # the booth is parked against and were standing 37.6 and 26.0 in off
+    # them, which is what blew the frame's left and right edges in d01; both
+    # now walk IN until they clear 40 in. Row 1: d 54 -> 42 (margin 37.6 ->
+    # 41.9). Row 6: d 72 -> 24 (margin 26.0 -> 40.8), the walk-in limit,
+    # because moving a corner-aimed row toward the booth moves it away from
+    # the wall it was facing.
+    'fill 310.8,438.1,82,42;284.8,380.2,27,66;310.2,332.7,70,48;'
+    '348.6,279.5,19,60;399.7,282.2,58,51;439.2,310.2,88,24',
+    # At a 40 in margin the 180 in test square has NO legal point left at all:
+    # x >= 340 and y >= 340 by the margin, and the booth keep-out claims
+    # everything with x >= 338 and y >= 321. All six rows are dropped and
+    # NAMED rather than placed in a wall, which is the behaviour under test.
+    'fillsmall placed0 of6',
+    'top 94.600,99.776,94.000',
+    'auditoff ok1 offA | auditmix ok0 offA deadB+C+F wrongE',
+    'roles panel22/22/3600/4200/VIS fill10/2000/3500/inv rigoffice',
 ])
 
 # ---- second program: wr-mode.rb's snapshot pins -------------------------
