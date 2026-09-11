@@ -1,6 +1,90 @@
 # DEVLOG
 
 ## 2026-09-11
+### AUTO-SET: the ventilation plate hides the wall behind the booth and shoots the wall with the most vents - (VERSION bump held by the orchestrator)
+
+Benton ran AUTO-SET on a real MDL 96144 E in a real room and reported two
+things about `05-ventilation`, verbatim: *"I had a backshot, and it didnt
+hide the wall that was right behind it"* and *"the ventilation scene also
+doesnt really go 'back'. Honestly, it might be because there is one vent
+set on the side, but there are 3 on the back"*. His screenshot shows the
+plate filled edge to edge by a room wall, the booth invisible, and the
+WALLS column reading `all shown` on all ten rows.
+
+**Defect 1 — no wall hidden on any plate.** `wall_geometry` handed the
+camera cone a wall centre built from the wall pieces' own `#bounds`, and a
+nested group's bounds are in its PARENT's space. The booth centre and the
+camera eye are in model space. A `Room > Walls > Wall N` room that has been
+moved (the Move tool on the room group, which is how a room ends up around a
+booth) reports every wall where the room was built, not where it stands,
+and no wall lands in the cone on any plate. The harness fixture room sits at
+the origin with an identity transformation — the one case where the two
+spaces agree — so `walls.ventilation_hides_at_least_one` passed live the
+same day. `wr-scene-walls.rb#side_of` carries a comment recording this
+exact trap, observed live on 31 Aug, fixed there and nowhere else.
+`each_piece` now threads the room-to-model transformation through the
+containers and every wall unit carries `:centre` in MODEL space
+(`model_centre` — the wall bands only, eight corners carried out, so a
+rotated container is exact too); `wall_geometry` uses it.
+
+Whether his `Room` is in fact moved I could not see from here; the handoff
+carries a one-line console command that prints it. **The silent half is
+fixed regardless:** a run that finds NO wall units used to print `none in
+the camera cone` on every plate, which reads like a clean result. It now
+prints one `walls:` line per run — the units the cone can hide, or, when
+there are none, that NO plate can hide a wall, what the rule looks for
+(a top-level group holding groups named `Wall 1`, `Wall 2`, ...), and what
+it saw at the top level — and the Apply summary carries a WARNING.
+
+**Defect 2 — the wrong vent wall.** The vent bearing came from
+`tag_anchor`, a DOOR rule: `frame_hits` keeps ONE tagged part, the one
+closest to the shell plane. Every vent panel is in the shell plane, the
+score ties, and a strict `>` keeps the first part walked. His build log
+reads `Right (E0), Back (N0), Back (N1), Back (N2)` — E0 first — so the
+plate shot the right wall's single vent. And the plate's fixed `:swing`
+of 25 was always applied positive, so which way it leaned followed from how
+the booth sat in the model: the side plate's pre-1.57.0 mistake, again.
+
+The rule now, in his words (*"whatever side has the 'most' vent sets ...
+camera angled slightly towards where there are other vent sets ... but the
+wall behind the 3 vent sets would still be hidden"*):
+
+1. **The wall with the most vent parts anchors the shot** (`pick_vent`).
+   Ties rank opposite-the-door, then a side wall, then the door wall, then
+   +Y, -Y, +X, -X in booth-local space — the same booth, the same plate,
+   every run.
+2. **The swing's SIGN turns toward the wall carrying the next-most vents**
+   (`vshift`, honoured by `az_for` on the vent plate only). The magnitude
+   is unchanged and lives where it always did, the plate's `:swing` (25):
+   he said "slightly" and 25 is what the plate has always carried. On his
+   booth the camera stands 25 off the back wall's normal leaning toward the
+   right wall, which shows foreshortened in the same frame.
+3. **Every vent on one wall: +swing exactly as before.** The common case;
+   it does not move (`vt6`, `vt15`, `vent.single_vent_booth_is_unchanged`).
+4. **Other vents on the wall opposite:** primary kept, +swing, and the log
+   says no single bearing shows both.
+5. **The wall hiding still keys off the primary wall** and nothing in the
+   cone changed: at 25 off the normal the wall behind is at dot 0.91
+   (hidden), the wall behind the secondary vents at 0.42 (left up), either
+   hand. `wp10`/`wp11` pin it with the real eye.
+
+The choice is printed under the vent plate the way the side choice is:
+`vent: anchored on the wall at bearing 90.0 deg, camera swung -25 deg --
+the wall opposite the door carries the most vents, 3 (N0 40VNT, N1 40VNT,
+N2 40VNT), against 1 on the door +90 wall (E0 40VNT); the camera swings
+toward the door +90 wall so those show in the same frame`.
+
+**Proof.** `rbparse.py`: 75 scripts + the harness parse. `rbtest-autoset.py`
+217 -> 243, green: `vt1-vt21`, `wl1-wl3`, `wp10-wp11`; five mutants (the
+unconditional +swing, first-found primary, inverted hand, dropped tie-break,
+silent empty list) each fail by name. `verify-autoset.rb` section 15 —
+UNRUN — builds a fourth booth with three vents on +Y and one on +X inside a
+SECOND room shaped like build-room.rb's output and MOVED to (600, 400):
+`roomx.*` (11 checks) and `vent.*` (10). Everything in `.rb` is unrun until
+Benton loads it. Not touched: `proposal-package.rb`'s WALLS column, which
+still reads "all shown" for the empty case — the log and the summary now
+say why.
+
 ### Proposal package: the SHOWN → bulk bar is gone - (VERSION bump held by the orchestrator)
 
 Benton, verbatim: *"remove this 'bar' as well its not ever going to be

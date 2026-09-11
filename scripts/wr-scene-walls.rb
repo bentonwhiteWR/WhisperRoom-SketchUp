@@ -88,15 +88,68 @@ module WR_SceneWalls
 
   # Walk a room's subtree for named pieces. A group whose name matches the
   # piece pattern is a piece; anything else descends until DEPTH.
-  def self.each_piece(ents, depth = 0, &blk)
+  #
+  # `tr` is the transformation that carries a piece's PARENT space out to
+  # MODEL space -- the room's own transformation, times every container's
+  # between the room and the piece -- and it is handed to the block as a
+  # fourth argument. It exists because a nested group's #bounds is reported
+  # in its parent's space, not the model's (the same trap side_of names
+  # below). Blocks that only want (g, kind, n) still work: Ruby drops the
+  # extra argument.
+  def self.each_piece(ents, depth = 0, tr = nil, &blk)
     ents.grep(Sketchup::Group).each do |g|
       nm = g.name.to_s
       if nm =~ PIECE_RE
-        blk.call(g, Regexp.last_match(1), Regexp.last_match(2).to_i)
+        blk.call(g, Regexp.last_match(1), Regexp.last_match(2).to_i, tr)
       elsif depth < DEPTH
-        each_piece(g.entities, depth + 1, &blk)
+        each_piece(g.entities, depth + 1, compose(tr, g.transformation), &blk)
       end
     end
+  end
+
+  # parent * child: the child's transformation carried out through its
+  # parent's. nil on either side means identity.
+  def self.compose(parent, child)
+    return child if parent.nil?
+    return parent if child.nil?
+    parent * child
+  rescue StandardError
+    parent
+  end
+
+  # The MODEL-space centre of a wall's solids, as [x, y, z].
+  #
+  # THIS IS WHAT THE CAMERA CONE NEEDS AND DID NOT HAVE (1.57.1). A nested
+  # group's #bounds is in its PARENT'S space -- so a wall inside Room > Walls
+  # reports where it sits relative to the Room group, and a Room that has
+  # been MOVED (or built by build-takeoff.rb at a GAP offset) puts every one
+  # of its walls somewhere else in the model than its bounds say. The cone
+  # rule in wr-autoset.rb compared those local centres against a booth
+  # centre and a camera eye that are in model space, and on Benton's model
+  # (11 Sep 2026, "it didnt hide the wall that was right behind it") found
+  # no wall in the cone on any of ten plates. The fixture room in
+  # verify-autoset.rb sits at the origin with an identity transformation,
+  # which is the one case where local and model space agree -- so every
+  # harness check passed.
+  #
+  # Each solid's eight bounding corners are carried out through `trs[i]`
+  # (each_piece's parent-to-model transformation for that piece) and the
+  # box of all of them is taken; the centre of that box is exact under any
+  # affine transformation, rotation included. nil when nothing could be
+  # read, and the caller falls back to the old local read rather than
+  # dropping the wall.
+  def self.model_centre(pieces, trs)
+    bb = Geom::BoundingBox.new
+    pieces.each_with_index do |g, i|
+      next unless g.valid?
+      tr = trs[i]
+      b  = g.bounds
+      8.times { |k| bb.add(tr ? b.corner(k).transform(tr) : b.corner(k)) }
+    end
+    return nil unless bb.valid?
+    bb.center.to_a.map { |v| v.to_f }
+  rescue StandardError
+    nil
   end
 
   # Compass hint for a wall, relative to its room's own bounding box. A HINT
@@ -156,9 +209,15 @@ module WR_SceneWalls
     out = []
     roots = model.entities.grep(Sketchup::Group)
     roots.each do |room|
-      per_run = Hash.new { |h, k| h[k] = { :wall => [], :extra => [] } }
-      each_piece(room.entities) do |g, kind, n|
-        (kind == 'Wall' ? per_run[n][:wall] : per_run[n][:extra]) << g
+      per_run = Hash.new { |h, k| h[k] = { :wall => [], :extra => [], :wtr => [] } }
+      room_tr = (room.transformation rescue nil)
+      each_piece(room.entities, 0, room_tr) do |g, kind, n, tr|
+        if kind == 'Wall'
+          per_run[n][:wall] << g
+          per_run[n][:wtr]  << tr
+        else
+          per_run[n][:extra] << g
+        end
       end
       next if per_run.values.all? { |u| u[:wall].empty? }
       label = room.name.to_s.strip
@@ -172,6 +231,9 @@ module WR_SceneWalls
                   :side => side_of(room, u[:wall]),
                   :hidden => states.all?,
                   :mixed => states.uniq.size > 1,
+                  # The wall BANDS only, in MODEL space: the door leaf and its
+                  # swing are :extra and would drag the centre into the room.
+                  :centre => model_centre(u[:wall], u[:wtr]),
                   :pieces => u[:wall] + u[:extra] }
         @units[key] = unit
         out << unit

@@ -60,6 +60,16 @@
 # neither fixture booth had anything in a side wall and the rule could not
 # otherwise be exercised; booth 1 is checked to be unchanged.
 #
+# 1.57.1 ADDED SECTION 15 for the two defects Benton found on 11 Sep 2026 with
+# a real MDL 96144 E in a real room: the ventilation plate hid no wall
+# ("all shown" on ten rows) and shot the side with one vent instead of the
+# back with three. A FOURTH booth with three vents on +Y and one on +X sits
+# inside a SECOND room shaped like build-room.rb's output (Room > Walls >
+# Wall N) that has been MOVED, so its walls' bounds are in the room's space
+# and not the model's -- the case the origin-sitting fixture room can never
+# exercise. `roomx.*` pins the model-space wall centres and the hidden wall;
+# `vent.*` pins the anchor wall, the swing hand, the log line and the re-run.
+#
 # WHAT IT CANNOT CHECK. Whether a plate LOOKS right — framing is a taste call
 # and always was. It checks the mechanism: the names, the marks, the stamp, what
 # each scene hides, what survives a re-run, what Remove leaves alone, and now
@@ -81,6 +91,8 @@ module WR_VerifyAutoSet
   B1    = 'MDL 9901 E VERIFY'.freeze
   B2    = 'MDL 9902 E VERIFY'.freeze
   B3    = 'MDL 9903 E VERIFY'.freeze     # the one with a WINDOW on its door -90 side
+  B4    = 'MDL 9904 E VERIFY'.freeze     # three vents on +Y, one on +X; lives in the MOVED room
+  ROOM2 = 'Room'.freeze                  # build-room.rb's default name, as on Benton's model
   MINE  = 'WR-Verify My test'.freeze     # the hand-made scene that must survive
 
   def self.say(name, ok, detail = nil)
@@ -150,6 +162,33 @@ module WR_VerifyAutoSet
     room
   end
 
+  # A ROOM SHAPED LIKE BENTON'S, AND MOVED (1.57.1). build-room.rb makes
+  # Room > Walls > "Wall N" -- one container deeper than make_room -- and a
+  # room a person has dragged into place carries a NON-IDENTITY
+  # transformation, so every wall's #bounds (parent space) sits somewhere
+  # other than where the wall stands in the model. The fixture above is at
+  # the origin with identity transforms, the one case where the two agree,
+  # which is why `walls.ventilation_hides_at_least_one` passed while
+  # Benton's plate looked straight into a wall. Built at the origin in local
+  # space, then MOVED to (ox, oy) the way the Move tool would.
+  def self.make_room_moved(ents, ox, oy)
+    room = ents.add_group
+    w = 240.0
+    d = 192.0
+    t = 4.0
+    h = 96.0
+    walls = room.entities.add_group
+    re = walls.entities
+    box(re, 0,     0,     w,     t,     h, 'Wall 1')      # -Y
+    box(re, 0,     d - t, w,     d,     h, 'Wall 2')      # +Y
+    box(re, 0,     0,     t,     d,     h, 'Wall 3')      # -X
+    box(re, w - t, 0,     w,     d,     h, 'Wall 4')      # +X
+    walls.name = 'Walls'
+    room.name  = ROOM2
+    room.transform!(Geom::Transformation.new(Geom::Point3d.new(ox, oy, 0)))
+    room
+  end
+
   # A booth-shaped group with a DOOR-tagged plate on its -Y face and a
   # VENT-tagged plate on its +Y face, so tag_az has something real to read.
   # THE DOOR IS DELIBERATELY OFF-CENTRE ALONG ITS WALL (1.51.0). It used to sit
@@ -164,10 +203,23 @@ module WR_VerifyAutoSet
   # two spaces, the component: "W0  46Panel3236WDO". It is on no tag, which
   # is how a real window panel arrives too (the builder puts windows on
   # WR-Booth-Walls; there is no window tag). Section 14 is the only user.
-  def self.make_booth(ents, name, ox, oy, window = false)
+  # `split_vents` (1.57.1) replaces the single +Y vent with THREE on +Y and
+  # ONE on +X, named the way build-booth-components.rb names them, the +X
+  # one placed FIRST -- Benton's MDL 96144 E, "Right (E0), Back (N0), Back
+  # (N1), Back (N2)", whose vent plate shot the side with one vent because
+  # the first-walked part won a tie.
+  def self.make_booth(ents, name, ox, oy, window = false, split_vents = false)
     g  = ents.add_group
     ge = g.entities
     box(ge, ox, oy, ox + 96.0, oy + 60.0, 84.0, 'shell')
+    if split_vents
+      e0 = box(ge, ox + 96.0, oy + 20.0, ox + 98.0, oy + 36.0, 20.0, 'E0  40VNT')
+      n0 = box(ge, ox + 10.0, oy + 60.0, ox + 26.0, oy + 62.0, 20.0, 'N0  40VNT')
+      n1 = box(ge, ox + 40.0, oy + 60.0, ox + 56.0, oy + 62.0, 20.0, 'N1  40VNT')
+      n2 = box(ge, ox + 70.0, oy + 60.0, ox + 86.0, oy + 62.0, 20.0, 'N2  40VNT')
+      vt = @model.layers.add('WR-Booth-Vent')
+      [e0, n0, n1, n2].each { |v| v.layer = vt }
+    end
     box(ge, ox - 2.0, oy + 14.0, ox, oy + 46.0, 84.0, 'W0  46Panel3236WDO') if window
     door = box(ge, ox + 54.0, oy - 2.0, ox + 90.0, oy, 84.0, 'door frame')
     # A DOOR LEAF, SWUNG OPEN, TAGGED THE SAME. Benton, 10 Sep 2026: "Front
@@ -177,10 +229,10 @@ module WR_VerifyAutoSet
     # the tagged centroid into mid-air. Until this fixture carried BOTH, that
     # whole class of error was invisible here.
     leaf = box(ge, ox + 90.0, oy - 38.0, ox + 93.0, oy, 84.0, 'door leaf')
-    vent = box(ge, ox + 40.0, oy + 60.0, ox + 56.0, oy + 62.0, 20.0, 'vent')
+    vent = split_vents ? nil : box(ge, ox + 40.0, oy + 60.0, ox + 56.0, oy + 62.0, 20.0, 'vent')
     door.layer = @model.layers.add('WR-Booth-Door')
     leaf.layer = @model.layers['WR-Booth-Door']
-    vent.layer = @model.layers.add('WR-Booth-Vent')
+    vent.layer = @model.layers.add('WR-Booth-Vent') if vent
     g.name = name
     g
   end
@@ -1216,6 +1268,133 @@ module WR_VerifyAutoSet
           !s3b.nil? && !s3.nil? && wrap.call(s3b - s3).abs < 1.0,
           "#{s3.inspect} then #{s3b.inspect}")
       WR_AutoSet.apply(@model, b3, { 'mode' => 'remove' })
+
+      # ---- 15. A ROOM SHAPED LIKE BENTON'S, MOVED; A BOOTH WITH SPLIT VENTS
+      #
+      # Both 11 Sep 2026 defects on one fixture, because they interact:
+      # "I had a backshot, and it didnt hide the wall that was right behind
+      # it" and "the ventilation scene also doesnt really go 'back' ... there
+      # is one vent set on the side, but there are 3 on the back". Room >
+      # Walls > Wall N carrying a translation (roomx.*), and a booth inside
+      # it with three vents on +Y and one on +X (vent.*). Its vent plate
+      # must anchor on +Y, swing toward +X, and STILL hide Wall 2 behind the
+      # three vents. Booth 1 -- a single vent -- is checked to be unchanged.
+      #
+      # Booth placement: the union box centre (what the cone measures from)
+      # sits ~12 in above the shell's oy because the swung leaf reaches
+      # oy-38 and the vents oy+62; oy is chosen so that centre is a hair
+      # BELOW Wall 4's centre line, keeping Wall 4 (behind the single vent)
+      # cleanly outside the 60-degree cone at a 65-degree eye. It is not in
+      # the way of the shot and it must stay up.
+      rx = 600.0
+      ry = 400.0
+      @model.start_operation('WR verify: moved room + split-vent booth', true)
+      room2 = make_room_moved(@model.entities, rx, ry)
+      b4 = make_booth(@model.entities, B4, rx + 72.0, ry + 74.0, false, true)
+      @model.commit_operation
+      made.concat([room2, b4])
+
+      units2 = WR_SceneWalls.scan(@model)[:walls].select { |u| u[:room].to_s == ROOM2 }
+      say('roomx.four_walls_found_under_Room_Walls',
+          units2.map { |u| u[:wall] }.sort == [1, 2, 3, 4],
+          units2.map { |u| [u[:room], u[:wall]] }.inspect)
+      w2 = units2.find { |u| u[:wall] == 2 }        # +Y, local y 188..192
+      w1 = units2.find { |u| u[:wall] == 1 }        # -Y, the far wall
+      w4 = units2.find { |u| u[:wall] == 4 }        # +X, behind the single vent
+      say('roomx.wall_centre_is_in_MODEL_space',
+          w2 && w2[:centre].is_a?(Array) &&
+            (w2[:centre][1] - (ry + 190.0)).abs < 1.0 &&
+            (w2[:centre][0] - (rx + 120.0)).abs < 1.0,
+          "Wall 2 centre #{w2 && w2[:centre].inspect}, wants ~[#{rx + 120.0}, #{ry + 190.0}, 48]")
+      say('roomx.local_bounds_would_have_been_wrong',
+          w2 && (w2[:pieces][0].bounds.center.y.to_f - 190.0).abs < 1.0,
+          "the piece's own bounds read y #{w2 && w2[:pieces][0].bounds.center.y.to_f} (parent space)")
+      geo2 = WR_AutoSet.wall_geometry(@model).select { |u| u['room'] == ROOM2 }
+      say('roomx.wall_geometry_carries_the_model_centre',
+          geo2.any? { |u| u['wall'] == 2 && (u['c'][1] - (ry + 190.0)).abs < 1.0 },
+          geo2.map { |u| [u['wall'], u['c']] }.inspect)
+
+      vparts = WR_AutoSet.vent_parts(b4)
+      say('vent.parts_read_off_the_real_booth',
+          vparts.count { |pt| pt['wall'] == [0.0, 1.0] } == 3 &&
+            vparts.count { |pt| pt['wall'] == [1.0, 0.0] } == 1,
+          vparts.inspect)
+      dan4 = WR_AutoSet.tag_anchor(b4, 'WR-Booth-Door')
+      vc4  = WR_AutoSet.vent_choice(b4, dan4)
+      say('vent.primary_is_the_wall_with_three',
+          vc4['ax'] == [0.0, 1.0] && vc4['n'] == 3 && !vc4['az'].nil? &&
+            (vc4['az'].to_f - 90.0).abs < 1.0,
+          vc4.inspect)
+      say('vent.shift_is_toward_the_single_vent',
+          vc4['sec'] == [1.0, 0.0] && vc4['shift'] == -1, vc4.inspect)
+      vc1 = WR_AutoSet.vent_choice(b1, WR_AutoSet.tag_anchor(b1, 'WR-Booth-Door'))
+      say('vent.single_vent_booth_is_unchanged',
+          vc1['shift'] == 1 && vc1['sec'].nil? && !vc1['az'].nil? &&
+            !vaz.nil? && (vc1['az'].to_f - vaz.to_f).abs < 1.0 &&
+            vc1['why'].to_s.include?('as before'),
+          vc1.inspect)
+
+      ok4, msg4, lines4 = WR_AutoSet.apply(@model, b4, { 'mode' => 'create', 'renders' => 0 })
+      say('roomx.set_made', ok4, msg4)
+      lines4 ||= []
+      tok4 = b4.get_attribute('WR_AutoSet', 'token', nil)
+      set4 = WR_AutoSet.token_pages(pages.to_a, tok4)
+      made_pg.concat(set4)
+      vent_pg = lambda do
+        WR_AutoSet.token_pages(pages.to_a, tok4).find do |pg|
+          WR_AutoSet.page_stamp(pg)['plate'].to_s == '05-ventilation'
+        end
+      end
+      vpg = vent_pg.call
+      say('roomx.ventilation_plate_exists', !vpg.nil?, set4.map { |pg| pg.name.to_s }.inspect)
+      vb = vpg && bearing.call(b4, vpg)
+      say('vent.camera_anchors_on_the_three_vent_wall',
+          !vb.nil? && wrap.call(vb - 65.0).abs < 1.5,
+          "eye at #{vb.inspect} deg, wants 90 - 25 = 65")
+      say('vent.camera_swings_toward_the_single_vent',
+          !vb.nil? && wrap.call(vb - 90.0) < 0.0 && wrap.call(vb - 90.0) > -60.0,
+          "eye at #{vb.inspect} deg; +X (the single vent) is at 0")
+      if vpg
+        sel(vpg)
+        say('roomx.ventilation_hides_the_wall_behind_the_vents',
+            w2 && w2[:pieces].all? { |g| hidden?(g) },
+            "Wall 2 pieces hidden: #{w2 && w2[:pieces].map { |g| hidden?(g) }.inspect}")
+        say('roomx.ventilation_leaves_the_far_wall_standing',
+            w1 && w1[:pieces].none? { |g| hidden?(g) })
+        say('vent.wall_behind_the_single_vent_stays_up',
+            w4 && w4[:pieces].none? { |g| hidden?(g) },
+            'Wall 4 is at 65 deg off the eye, outside the 60-degree cone')
+      end
+      say('roomx.log_counts_the_wall_units',
+          lines4.any? { |l| l.to_s.include?('wall unit(s) the cone rule can hide') &&
+                            l.to_s.include?("#{ROOM2}: Wall 1, 2, 3, 4") },
+          lines4.find { |l| l.to_s.include?('walls:') }.inspect)
+      say('roomx.log_hides_wall_2_by_name',
+          lines4.any? { |l| l.to_s.include?("hides #{ROOM2} Wall 2") },
+          lines4.select { |l| l.to_s.include?('hides ') }.inspect)
+      vline = lines4.find { |l| l.to_s.include?('vent: anchored') }
+      say('vent.log_names_the_walls_and_the_swing',
+          !vline.nil? && vline.include?('swung -25') && vline.include?('3 (N0  40VNT') &&
+            vline.include?('against 1 on') && vline.include?('E0  40VNT'),
+          vline.inspect)
+      say('vent.log_line_sits_under_the_vent_plate',
+          lines4.index { |l| l.to_s.include?('vent: anchored') }.to_i >
+            lines4.index { |l| l.to_s.include?('05-ventilation') }.to_i,
+          lines4.select { |l| l.to_s.include?('05-ventilation') || l.to_s.include?('vent: anchored') }.inspect)
+      # DETERMINISTIC: Update with re-aim lands on the same wall and hand.
+      WR_AutoSet.apply(@model, b4, { 'mode' => 'update', 'renders' => 0, 'reaim' => true })
+      vb2 = vent_pg.call && bearing.call(b4, vent_pg.call)
+      say('vent.same_choice_on_a_re_run',
+          !vb2.nil? && !vb.nil? && wrap.call(vb2 - vb).abs < 1.0,
+          "#{vb.inspect} then #{vb2.inspect}")
+      WR_AutoSet.apply(@model, b4, { 'mode' => 'remove' })
+
+      # THE EMPTY CASE IS SAID OUT LOUD: what the rule wanted, what it saw.
+      wl0 = WR_AutoSet.walls_line([], WR_AutoSet.top_level_names(@model))
+      say('roomx.no_units_is_said_out_loud',
+          wl0.include?('NO wall units') && wl0.include?('"Wall 1"') &&
+            wl0.include?(B4) && wl0.include?(ROOM2),
+          wl0)
 
       # ------------------------------------------- 12. the orphan case ---
       @model.start_operation('WR verify: delete booth 2', true)

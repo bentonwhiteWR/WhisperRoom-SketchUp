@@ -85,6 +85,11 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
     az_for back to the unconditional door +90 side       -> sd12, sd15 FAIL
     pick_side ranking part count above the window        -> sd6 FAIL
     pick_side tie falling to door -90                    -> sd4, sd7, sd11, sd18 FAIL
+    az_for back to the unconditional +swing on the vent  -> vt15, vt16, vt18 FAIL
+    pick_vent taking the FIRST wall walked (no ordering) -> vt1, vt3, vt4 FAIL
+    pick_vent's swing hand inverted                      -> vt3, vt4, vt8 FAIL
+    pick_vent's tie-break rank dropped                   -> vt8, vt9, vt10 FAIL
+    walls_line silent on an empty unit list              -> wl1, wl2 FAIL
     pick_side choosing a side with no door               -> sd16 (the run RAISES
                                                             there: this VM has no
                                                             NilClass#to_f, so the
@@ -312,6 +317,7 @@ module WR_AutoSet
 %(side_plate)s
 %(side_skip_tags)s
 %(thin_max)s
+%(vent_plate)s
 %(dual_suffix)s
 %(dims_re)s
 %(booth_wall_t)s
@@ -378,6 +384,16 @@ module WR_AutoSet
 %(side_sign)s
 
 %(side_line)s
+
+%(vent_rank)s
+
+%(wall_word)s
+
+%(pick_vent)s
+
+%(vent_line)s
+
+%(walls_line)s
 
 %(standoff)s
 
@@ -508,18 +524,19 @@ module T
 
   # Aim one plate for real and hand back the camera it left behind.
   # `side` is pick_side's sign; it reaches az_for through the real aim_plate.
+  # `vshift` is pick_vent's sign; it reaches az_for on the vent plate only.
   def self.cam(id, door = DOOR, vent = VENT, after_plan = false, half = HALF, anchor = nil,
-               side = 1)
+               side = 1, vshift = 1)
     v = FakeView.new(after_plan, RADIUS)
-    WR_AutoSet.aim_plate(v, id, CENTRE, RADIUS, door, vent, half, anchor, side)
+    WR_AutoSet.aim_plate(v, id, CENTRE, RADIUS, door, vent, half, anchor, side, vshift)
     v.camera
   end
 
   # Where the eye ended up, relative to the booth centre, in the terms the
   # shot list is written in: compass bearing, height off the FLOOR, and how
   # far back along the ground.
-  def self.shot(id, door = DOOR, vent = VENT, side = 1)
-    c = cam(id, door, vent, false, HALF, nil, side)
+  def self.shot(id, door = DOOR, vent = VENT, side = 1, vshift = 1)
+    c = cam(id, door, vent, false, HALF, nil, side, vshift)
     e = c.eye.to_a
     dx = e[0] - CENTRE[0]
     dy = e[1] - CENTRE[1]
@@ -1013,6 +1030,109 @@ module T
                ('Right46Door' =~ WR_AutoSet::WINDOW_RE).nil?,
        'WINDOW_RE no longer matches the WDO panel names and only them')
 
+    # ---- THE VENT PLATE PICKS ITS WALL AND ITS SWING (1.57.1) -----------
+    # Benton's MDL 96144 E: "Right (E0), Back (N0), Back (N1), Back (N2)" --
+    # one vent on the +X wall, three on +Y, the +X one placed FIRST, which is
+    # the order the old first-found tie went to. The door is on -Y.
+    plusy = [0.0, 1.0]
+    vp = lambda { |name, wall| { 'name' => name, 'wall' => wall } }
+    e0 = vp.call('E0  40VNT', plusx)
+    n0 = vp.call('N0  40VNT', plusy)
+    n1 = vp.call('N1  40VNT', plusy)
+    n2 = vp.call('N2  40VNT', plusy)
+    w0 = vp.call('W0  40VNT', minx)
+    s0 = vp.call('S0  40VNT', dax)
+    # THE WALL WITH THREE ANCHORS THE SHOT, whichever part came first.
+    b = WR_AutoSet.pick_vent([e0, n0, n1, n2], dax)
+    ck('vt1', b['ax'] == plusy && b['n'] == 3, b.inspect)
+    ck('vt2', WR_AutoSet.pick_vent([n0, n1, n2, e0], dax)['ax'] == plusy &&
+              WR_AutoSet.pick_vent([n0, e0, n1, n2], dax)['ax'] == plusy,
+       'the order the parts are walked in changed the answer')
+    # THE SWING TURNS TOWARD THE SINGLE VENT: +X is +Y turned -90 (clockwise
+    # in plan), so the local shift is -1; and the mirror case is +1.
+    ck('vt3', b['sec'] == plusx && b['shift'] == -1, b.inspect)
+    bm = WR_AutoSet.pick_vent([w0, n0, n1, n2], dax)
+    ck('vt4', bm['sec'] == minx && bm['shift'] == 1, bm.inspect)
+    # THE WORDS: which wall, how many on each, which way and why.
+    ck('vt5', b['why'].include?('opposite the door') && b['why'].include?('3 (N0  40VNT, N1  40VNT, N2  40VNT)') &&
+              b['why'].include?('against 1 on the door +90 wall (E0  40VNT)') &&
+              b['why'].include?('swings toward the door +90 wall'),
+       b['why'])
+    # EVERY VENT ON ONE WALL: nothing to swing toward, +swing as before. The
+    # common case and it must not move.
+    one = WR_AutoSet.pick_vent([n0, n1], dax)
+    ck('vt6', one['ax'] == plusy && one['sec'].nil? && one['shift'] == 1 &&
+              one['why'].include?('as before'), one.inspect)
+    # THE OTHER VENT ON THE WALL OPPOSITE: primary kept, swing +, said so.
+    opp = WR_AutoSet.pick_vent([n0, n1, s0], dax)
+    ck('vt7', opp['ax'] == plusy && opp['sec'].nil? && opp['shift'] == 1 &&
+              opp['why'].include?('no single bearing shows both'), opp.inspect)
+    # A TIE resolves the same way every run: opposite the door beats a side
+    # wall, a side wall beats the door wall, and the log says it was a tie.
+    t1 = WR_AutoSet.pick_vent([e0, n0], dax)
+    t2 = WR_AutoSet.pick_vent([n0, e0], dax)
+    ck('vt8', t1['ax'] == plusy && t2['ax'] == plusy && t1['why'].include?('tie') &&
+              t1['sec'] == plusx && t1['shift'] == -1, [t1['ax'], t2['ax']].inspect)
+    t3 = WR_AutoSet.pick_vent([e0, s0], dax)
+    ck('vt9', t3['ax'] == plusx && WR_AutoSet.pick_vent([s0, e0], dax)['ax'] == plusx, t3.inspect)
+    t4 = WR_AutoSet.pick_vent([e0, w0], dax)
+    ck('vt10', t4['ax'] == plusx && WR_AutoSet.pick_vent([w0, e0], dax)['ax'] == plusx &&
+               t4['sec'].nil?, t4.inspect)
+    # NO DOOR KNOWN: the fixed order still decides, deterministically.
+    ck('vt11', WR_AutoSet.pick_vent([e0, w0], nil)['ax'] == plusx &&
+               WR_AutoSet.pick_vent([w0, e0], nil)['ax'] == plusx &&
+               WR_AutoSet.pick_vent([e0, n0], nil)['ax'] == plusy,
+       WR_AutoSet.pick_vent([w0, e0], nil).inspect)
+    # NOTHING IN A WALL: nil, ASSUMED, and the unplaced parts are named.
+    nv = WR_AutoSet.pick_vent([vp.call('Roof VNT', nil)], dax)
+    ck('vt12', nv['ax'].nil? && nv['shift'] == 1 && nv['why'].include?('ASSUMED') &&
+               nv['why'].include?('Roof VNT'), nv.inspect)
+    ck('vt13', WR_AutoSet.pick_vent([], dax)['ax'].nil? &&
+               WR_AutoSet.pick_vent([], dax)['why'].include?('ASSUMED'))
+    lost = WR_AutoSet.pick_vent([n0, vp.call('Roof VNT', nil)], dax)
+    ck('vt14', lost['ax'] == plusy && lost['why'].include?('not counted') &&
+               lost['why'].include?('Roof VNT'), lost['why'])
+    # THE SIGN REACHES THE VENT PLATE AND ONLY THE VENT PLATE, through the
+    # real aim(). A mutant back to the unconditional +swing fails vt15/vt16.
+    ck('vt15', WR_AutoSet.az_for('05-ventilation', DOOR, VENT) == VENT + 25.0 &&
+               WR_AutoSet.az_for('05-ventilation', DOOR, VENT, 1, 1) == VENT + 25.0 &&
+               WR_AutoSet.az_for('05-ventilation', DOOR, VENT, 1, -1) == VENT - 25.0 &&
+               WR_AutoSet.az_for('05-ventilation r', DOOR, VENT, 1, -1) == VENT - 25.0,
+       [WR_AutoSet.az_for('05-ventilation', DOOR, VENT, 1, -1)].inspect)
+    vs_m = shot('05-ventilation', DOOR, VENT, 1, -1)
+    vs_p = shot('05-ventilation', DOOR, VENT, 1, 1)
+    ck('vt16', (vs_m['az'] - (VENT - 25.0)).abs < 1.0e-6 && (vs_p['az'] - (VENT + 25.0)).abs < 1.0e-6,
+       [vs_m['az'], vs_p['az']].inspect)
+    ck('vt17', WR_AutoSet.az_for('01-angled', 0.0, nil, 1, -1) == 35.0 &&
+               WR_AutoSet.az_for('04-side', 0.0, nil, 1, -1) == 90.0 &&
+               WR_AutoSet.az_for('02-front', 0.0, nil, 1, -1) == 0.0,
+       'a plate other than 05-ventilation moved with the vent shift')
+    # NO VENT AT ALL still falls back to opposite the door, + swing, as before.
+    ck('vt18', WR_AutoSet.az_for('05-ventilation', DOOR, nil, 1, -1) == DOOR + 180.0 - 25.0 &&
+               WR_AutoSet.az_for('05-ventilation', DOOR, nil) == DOOR + 180.0 + 25.0,
+       WR_AutoSet.az_for('05-ventilation', DOOR, nil, 1, -1).inspect)
+    # THE LOG LINE: bearing, the swing's sign and size, and the words.
+    vl = WR_AutoSet.vent_line(b.merge('az' => 90.0), 90.0)
+    ck('vt19', vl.include?('vent:') && vl.include?('90.0 deg') && vl.include?('swung -25 deg') &&
+               vl.include?('3 (N0  40VNT'), vl)
+    vl2 = WR_AutoSet.vent_line(one.merge('az' => 90.0), 90.0)
+    ck('vt20', vl2.include?('swung +25 deg') && vl2.include?('as before'), vl2)
+    ck('vt21', WR_AutoSet.vent_line(nv, nil).include?('ASSUMED') &&
+               WR_AutoSet::VENT_PLATE == '05-ventilation', WR_AutoSet.vent_line(nv, nil))
+
+    # ---- THE WALL RULE SAYS WHAT IT HAD (1.57.1) ------------------------
+    # Ten plates of "all shown" on Benton's model read like a clean result;
+    # it was the rule finding NO wall units at all. That is said in words.
+    wl0 = WR_AutoSet.walls_line([], ['Room', 'MDL 96144 E (components)'])
+    ck('wl1', wl0.include?('NO wall units') && wl0.include?('NO plate can hide a wall') &&
+              wl0.include?('"Wall 1"') && wl0.include?('Room, MDL 96144 E (components)') &&
+              wl0.include?('Name walls for the scene picker'), wl0)
+    ck('wl2', WR_AutoSet.walls_line([], []).include?('nothing at all'))
+    wl1 = WR_AutoSet.walls_line([{ 'room' => 'Room', 'wall' => 1 }, { 'room' => 'Room', 'wall' => 2 },
+                                 { 'room' => 'Office', 'wall' => 1 }], ['Room'])
+    ck('wl3', wl1.include?('3 wall unit(s)') && wl1.include?('Room: Wall 1, 2') &&
+              wl1.include?('Office: Wall 1') && !wl1.include?('NO wall'), wl1)
+
     # ---- THE ANNOTATION ALLOWLIST ---------------------------------------
     # an1/an2 are the two that matter most in this file.
     ck('an1', ALL.all? { |p| WR_AutoSet.annot_picks(p, sets, loose)['t:WR-Notes'] == true },
@@ -1123,6 +1243,23 @@ module T
        units.map { |u| u['key'] }.select { |k| p4[k] }.inspect)
     # The cone is 60 degrees off the eye direction, both ways.
     ck('wp9', WR_AutoSet::COS_CONE == 0.5)
+    # THE SWING DOES NOT MOVE THE OCCLUDER (1.57.1). Benton: "the wall behind
+    # the 3 vent sets would still be hidden". With the primary vent wall on
+    # +Y and the REAL vent eye swung 25 deg either way, the room wall behind
+    # +Y is in the cone (dot cos 25 = 0.91) and the two side walls (at 65
+    # deg, dot 0.42) are not -- whichever hand the swing took.
+    vwalls = [{ 'key' => 'w:behind', 'c' => [0.0, 90.0, 60.0],  'label' => 'Room Wall 2' },
+              { 'key' => 'w:plus',   'c' => [-90.0, 0.0, 60.0], 'label' => 'Room Wall 3' },
+              { 'key' => 'w:minus',  'c' => [90.0, 0.0, 60.0],  'label' => 'Room Wall 4' },
+              { 'key' => 'w:far',    'c' => [0.0, -90.0, 60.0], 'label' => 'Room Wall 1' }]
+    e_plus  = cam('05-ventilation', DOOR, VENT, false, HALF, nil, 1, 1).eye.to_a
+    e_minus = cam('05-ventilation', DOOR, VENT, false, HALF, nil, 1, -1).eye.to_a
+    wp_plus  = WR_AutoSet.wall_picks('05-ventilation', vwalls, CENTRE, e_plus)
+    wp_minus = WR_AutoSet.wall_picks('05-ventilation', vwalls, CENTRE, e_minus)
+    ck('wp10', wp_plus['w:behind'] == true && wp_plus['w:plus'] == false &&
+               wp_plus['w:minus'] == false && wp_plus['w:far'] == false, wp_plus.inspect)
+    ck('wp11', wp_minus['w:behind'] == true && wp_minus['w:plus'] == false &&
+               wp_minus['w:minus'] == false && wp_minus['w:far'] == false, wp_minus.inspect)
 
     # ---- THE CAMERAS, RUN NOT ASSERTED ----------------------------------
     # Benton, 10 Sep 2026, after the 1.48.0 plates came back wrong:
@@ -1529,9 +1666,12 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'az1 az2 az3 az4 az5 az6 az7 az8 az9 az10 az11 '
          'sd1 sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9 sd10 sd11 sd12 sd13 sd14 sd15 '
          'sd16 sd17 sd18 sd19 sd20 '
+         'vt1 vt2 vt3 vt4 vt5 vt6 vt7 vt8 vt9 vt10 vt11 vt12 vt13 vt14 vt15 '
+         'vt16 vt17 vt18 vt19 vt20 vt21 '
+         'wl1 wl2 wl3 '
          'an1 an2 an2b an2c an3 an4 an5 an6 an7 an7b an8 an9 an10 an11 '
          'nv1 nv2 nv3 '
-         'wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 wp9 '
+         'wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 wp9 wp10 wp11 '
          'cm1 cm1b cm1c cm2 cm3 cm4 cm5 cm6 cm7 cm8 cm9 cm10 cm11 cm11b cm12 cm13 '
          'cm14 cm15 cm16 cm16b cm17 '
          'dr1 dr2 dr3 dr4 dr5 dr6 '
@@ -1568,6 +1708,12 @@ def main():
         'pick_side':       rbtest.method_source(SRC, 'pick_side'),
         'side_sign':       rbtest.method_source(SRC, 'side_sign'),
         'side_line':       rbtest.method_source(SRC, 'side_line'),
+        'vent_plate':      const_line('VENT_PLATE'),
+        'vent_rank':       rbtest.method_source(SRC, 'vent_rank'),
+        'wall_word':       rbtest.method_source(SRC, 'wall_word'),
+        'pick_vent':       rbtest.method_source(SRC, 'pick_vent'),
+        'vent_line':       rbtest.method_source(SRC, 'vent_line'),
+        'walls_line':      rbtest.method_source(SRC, 'walls_line'),
         'dual_suffix':     const_line('DUAL_SUFFIX'),
         'dims_re':         const_line('DIMS_RE'),
         'booth_wall_t':    const_line('BOOTH_WALL_T'),

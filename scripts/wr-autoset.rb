@@ -793,12 +793,18 @@ module WR_AutoSet
   # door bearing minus 90. Every other plate ignores it; the three-quarter
   # plates keep their own handedness (see pick_side for why that is a
   # question for Benton, not a thing this method decides).
-  def self.az_for(plate_id, door_az, vent_az, side = 1)
+  #
+  # `vshift` is +1 or -1 and is honoured by the VENT PLATE ONLY (1.57.1): it
+  # is the hand pick_vent chose, so the plate's fixed swing turns TOWARD the
+  # wall carrying the booth's other vents. +1 is the swing every run before
+  # 1.57.1 applied, so a booth with every vent on one wall does not move.
+  def self.az_for(plate_id, door_az, vent_az, side = 1, vshift = 1)
     p = plate(plate_id)
     return nil unless p
     base = door_az.nil? ? FALLBACK_AZ : door_az.to_f
     if p[:az] == :vent
-      (vent_az.nil? ? (base + 180.0) : vent_az.to_f) + p[:swing]
+      (vent_az.nil? ? (base + 180.0) : vent_az.to_f) +
+        (p[:swing] * (vshift.to_i < 0 ? -1.0 : 1.0))
     elsif p[:id] == SIDE_PLATE
       base + (p[:swing] * (side.to_i < 0 ? -1.0 : 1.0))
     else
@@ -944,6 +950,179 @@ module WR_AutoSet
     return "         side: #{pick['why']}" if pick.nil? || az.nil? || pick['ax'].nil?
     format('         side: door %s90 (bearing %.1f deg) -- %s',
            pick['sign'] < 0 ? '-' : '+', az, pick['why'])
+  end
+
+  # ------------------------------------------------------ the vent plate --
+  #
+  # WHICH WALL THE VENTILATION PLATE SHOOTS, AND WHICH WAY IT SWINGS (1.57.1).
+  #
+  # THE DEFECT. The vent bearing came from tag_anchor, which was written for
+  # the DOOR: it picks ONE tagged part (frame_hits -- a name saying FRAME, else
+  # the part closest to the shell plane) and reads that part's wall. Every
+  # vent panel sits in the shell plane, so on a booth with vents in more than
+  # one wall the winner was decided by a tie in a plane-closeness score, and a
+  # tie goes to the FIRST part walked. Benton's MDL 96144 E carries "Right
+  # (E0), Back (N0), Back (N1), Back (N2)" -- one vent on the right wall,
+  # three on the back, and the right one is placed first -- so 05-ventilation
+  # shot the side with one vent and, in his words, "doesnt really go 'back'".
+  #
+  # THE RULE, in his words: "whatever side has the 'most' vent sets. And then
+  # it could be camera angled slightly towards where there are other vent
+  # sets. So if 3 are on the back, and 1 on the left, it could be slightly
+  # shifted to the left but the wall behind the 3 vent sets would still be
+  # hidden."
+  #
+  #   1. THE WALL WITH THE MOST VENT PARTS ANCHORS THE SHOT. A tie between
+  #      walls is broken by a fixed rank -- opposite the door first, a side
+  #      wall next, the door wall last, and within that +Y, -Y, +X, -X in
+  #      booth-local space -- so the same booth gives the same plate every
+  #      run.
+  #   2. THE SWING TURNS TOWARD THE OTHER VENTS. The plate's fixed swing (25
+  #      degrees, PLATES) has always been applied with a positive sign, which
+  #      is the side-plate mistake 1.57.0 fixed: which physical side that was
+  #      followed from how the booth sat in the model. Now the sign is chosen
+  #      so the swing goes toward the wall carrying the next-most vents, and
+  #      that wall shows in the same frame instead of hiding behind the
+  #      booth. The MAGNITUDE is unchanged and lives in one place, the plate's
+  #      :swing -- Benton said "slightly" and 25 is what it has always been.
+  #   3. EVERY VENT ON ONE WALL: nothing to swing toward, +swing as before.
+  #      The common case, and it must not move.
+  #   4. THE OTHER VENTS ON THE WALL OPPOSITE: no single bearing shows both.
+  #      The primary is kept, the swing stays +, and the log says so rather
+  #      than splitting the difference into a shot that shows neither.
+  #   5. THE WALL HIDING STILL KEYS OFF THE PRIMARY WALL. Nothing here
+  #      touches the cone rule; the eye stands 25 degrees off the primary
+  #      wall's normal, the room wall behind it is at dot cos 25 = 0.91
+  #      against COS_CONE 0.5, so it is hidden either way the swing goes, and
+  #      the wall behind the secondary vents (at 65 degrees, dot 0.42) is
+  #      left standing -- it is not between the camera and the booth.
+  #      wp10/wp11 in rbtest-autoset.py pin that with the real eye.
+  #
+  # HOW A VENT PART IS PLACED IN A WALL. Every part on WR-Booth-Vent, at any
+  # depth in the booth (WR_ProposalScenes.walk, as tag_anchor reads), its
+  # wall read off its OWN shape (wall_normal: long along the wall, thin
+  # across it) and signed by its offset from the booth's union centre. A
+  # part whose shape names no wall is counted nowhere and named in the log.
+  VENT_PLATE = '05-ventilation'.freeze
+
+  # A tie-break rank for a wall, lower first: opposite the door (0), a side
+  # wall (1), the door wall (2) -- times ten, plus a fixed order within, so
+  # two side walls with the same count still resolve the same way every
+  # run. With no door known only the fixed order applies.
+  def self.vent_rank(ax, door_ax)
+    fixed = [[0.0, 1.0], [0.0, -1.0], [1.0, 0.0], [-1.0, 0.0]].index(ax) || 4
+    return fixed if door_ax.nil?
+    dot = (ax[0].to_f * door_ax[0].to_f) + (ax[1].to_f * door_ax[1].to_f)
+    rel = if dot < -0.5 then 0
+          elsif dot > 0.5 then 2
+          else 1
+          end
+    (rel * 10) + fixed
+  end
+
+  # A wall in words Benton reads: relative to the door when the door is
+  # known, else by booth-local axis.
+  def self.wall_word(ax, door_ax)
+    return 'no wall' if ax.nil?
+    if door_ax
+      dot = (ax[0].to_f * door_ax[0].to_f) + (ax[1].to_f * door_ax[1].to_f)
+      return 'the wall opposite the door' if dot < -0.5
+      return 'the door wall' if dot > 0.5
+      plus, = side_normals(door_ax)
+      return ax == plus ? 'the door +90 wall' : 'the door -90 wall'
+    end
+    { [0.0, 1.0] => 'the +Y wall', [0.0, -1.0] => 'the -Y wall',
+      [1.0, 0.0] => 'the +X wall', [-1.0, 0.0] => 'the -X wall' }[ax] || 'a wall'
+  end
+
+  # THE DECISION. parts are [{ 'name' => label, 'wall' => [ux, uy] or nil }],
+  # one per WR-Booth-Vent part. door_ax is the door wall's local normal or
+  # nil. Returns
+  #   { 'ax'    => the primary wall's local normal, or nil when no vent part
+  #                sits in a wall,
+  #     'n'     => how many vent parts it carries,
+  #     'walls' => [[ax, [names]], ...] every wall carrying vents, most first,
+  #     'sec'   => the wall the swing turns toward, or nil,
+  #     'shift' => 1 | -1, LOCAL: +1 means sec is the primary turned +90
+  #                (counter-clockwise in booth-local plan), which is the sign
+  #                every run before 1.57.1 used,
+  #     'lost'  => names of vent parts whose shape named no wall,
+  #     'why'   => plain words for the log }
+  def self.pick_vent(parts, door_ax)
+    by   = []
+    lost = []
+    (parts || []).each do |pt|
+      ax = pt['wall']
+      if ax.nil?
+        lost << pt['name'].to_s
+        next
+      end
+      row = by.find { |r| r[0] == ax }
+      if row
+        row[1] << pt['name'].to_s
+      else
+        by << [ax, [pt['name'].to_s]]
+      end
+    end
+    if by.empty?
+      why = lost.empty? ? 'no WR-Booth-Vent part on this booth' :
+                          "#{lost.size} WR-Booth-Vent part(s) but none whose shape sits in a wall (#{lost.join(', ')})"
+      return { 'ax' => nil, 'n' => 0, 'walls' => [], 'sec' => nil, 'shift' => 1,
+               'lost' => lost,
+               'why' => "#{why} -- the vent side is ASSUMED opposite the door, swing + as before" }
+    end
+    # Most parts first, then the rank. A hand-rolled best-of so the ordering
+    # is one comparison and readable, not a sort_by over array keys.
+    order = []
+    by.each do |row|
+      i = 0
+      i += 1 while i < order.size &&
+                   ([-order[i][1].size, vent_rank(order[i][0], door_ax)] <=>
+                    [-row[1].size, vent_rank(row[0], door_ax)]) <= 0
+      order.insert(i, row)
+    end
+    prim, pnames = order[0]
+    sec = nil
+    opp = nil
+    order[1..-1].each do |ax, names|
+      dot = (prim[0].to_f * ax[0].to_f) + (prim[1].to_f * ax[1].to_f)
+      if dot < -0.5
+        opp = [ax, names] if opp.nil?
+      elsif sec.nil?
+        sec = [ax, names]
+      end
+    end
+    pw = wall_word(prim, door_ax)
+    tie = order.size > 1 && order[1][1].size == pnames.size
+    tie_s = tie ? " (a tie with #{wall_word(order[1][0], door_ax)} at #{pnames.size} each; " \
+                  "#{pw} is taken because it ranks first -- opposite the door, then a side wall, then the door wall)" : ''
+    shift = 1
+    why = if sec
+            cross = (prim[0].to_f * sec[0][1].to_f) - (prim[1].to_f * sec[0][0].to_f)
+            shift = cross >= 0 ? 1 : -1
+            "#{pw} carries the most vents, #{pnames.size} (#{pnames.join(', ')}), against " \
+              "#{sec[1].size} on #{wall_word(sec[0], door_ax)} (#{sec[1].join(', ')})#{tie_s}; " \
+              "the camera swings toward #{wall_word(sec[0], door_ax)} so those show in the same frame" +
+              (opp ? "; the #{opp[1].size} on #{wall_word(opp[0], door_ax)} (#{opp[1].join(', ')}) cannot be seen from here" : '')
+          elsif opp
+            "#{pw} carries the most vents, #{pnames.size} (#{pnames.join(', ')}), against " \
+              "#{opp[1].size} on #{wall_word(opp[0], door_ax)} (#{opp[1].join(', ')})#{tie_s}; " \
+              'no single bearing shows both, so the primary is kept and the swing is + as before'
+          else
+            "all #{pnames.size} vent part(s) sit in #{pw} (#{pnames.join(', ')}); swing + as before"
+          end
+    why += "; #{lost.size} vent part(s) sit in no wall and were not counted (#{lost.join(', ')})" unless lost.empty?
+    { 'ax' => prim, 'n' => pnames.size, 'walls' => order, 'sec' => sec && sec[0],
+      'shift' => shift, 'lost' => lost, 'why' => why }
+  end
+
+  # The log line for the vent plate: which wall anchors it, at what bearing,
+  # which way the swing went, and why.
+  def self.vent_line(pick, az)
+    return "         vent: #{pick['why']}" if pick.nil? || az.nil? || pick['ax'].nil?
+    sw = (plate(VENT_PLATE) || {})[:swing].to_f
+    format('         vent: anchored on the wall at bearing %.1f deg, camera swung %s%.0f deg -- %s',
+           az, pick['shift'].to_i < 0 ? '-' : '+', sw, pick['why'])
   end
 
   # --------------------------------------------------------- the token --
@@ -1465,18 +1644,139 @@ module WR_AutoSet
                                       'was chosen -- door +90 as before')
   end
 
+  # Every WR-Booth-Vent part on the booth as pick_vent wants it: its label
+  # and the LOCAL wall its own shape puts it in (nil when the shape names no
+  # wall). Walked to depth 4 like tag_anchor, because that is where the old
+  # read found them; the union box supplies only the SIGN of each offset.
+  def self.vent_parts(booth)
+    ents = container_entities(booth)
+    return [] if ents.nil?
+    hits = []
+    WR_ProposalScenes.walk(ents, 'WR-Booth-Vent', hits, 0)
+    return [] if hits.empty?
+    own = Geom::BoundingBox.new
+    ents.each { |e| own.add(e.bounds) }
+    hits.map do |e|
+      bb = e.bounds
+      ax = wall_normal((bb.max.x - bb.min.x).to_f, (bb.max.y - bb.min.y).to_f,
+                       (bb.center.x - own.center.x).to_f, (bb.center.y - own.center.y).to_f)
+      dname = (e.respond_to?(:definition) ? e.definition.name.to_s : '') rescue ''
+      iname = (e.name.to_s rescue '')
+      { 'name' => (iname.empty? ? (dname.empty? ? "##{e.entityID}" : dname) : iname),
+        'wall' => ax }
+    end
+  rescue StandardError
+    []
+  end
+
+  # A booth-local wall normal as a MODEL-space bearing in degrees, or nil.
+  def self.local_bearing(booth, ax)
+    v = Geom::Vector3d.new(ax[0], ax[1], 0).transform(booth.transformation)
+    return nil if v.length < 1.0e-6
+    Math.atan2(v.y, v.x) / DEG
+  end
+
+  # The vent plate's choice for this booth: pick_vent's hash plus 'az', the
+  # primary wall's MODEL-space bearing (nil when nothing was chosen, and
+  # az_for then falls back to opposite the door as it always has), with
+  # 'shift' re-derived from the secondary wall's model bearing (side_sign)
+  # so a mirrored placement cannot swap hands. `danchor` is tag_anchor's
+  # [point, bearing, local normal] for the door, or nil.
+  def self.vent_choice(booth, danchor)
+    door_ax = danchor && danchor[2]
+    pick = pick_vent(vent_parts(booth), door_ax)
+    return pick.merge('az' => nil, 'shift' => 1) if pick['ax'].nil?
+    az = local_bearing(booth, pick['ax'])
+    return pick.merge('az' => nil, 'shift' => 1) if az.nil?
+    shift = pick['shift']
+    if pick['sec']
+      saz = local_bearing(booth, pick['sec'])
+      shift = side_sign(saz, az) unless saz.nil?
+    end
+    pick.merge('az' => az, 'shift' => shift)
+  rescue StandardError => e
+    { 'ax' => nil, 'n' => 0, 'walls' => [], 'sec' => nil, 'shift' => 1, 'lost' => [], 'az' => nil,
+      'why' => "the vent parts could not be read (#{e.class}) -- the vent side is ASSUMED " \
+               'opposite the door, swing + as before' }
+  end
+
   # Wall units as wall_picks wants them: key, label and a MODEL-space centre.
   # Walls only — object_units (the booths, the furniture) are deliberately
   # never auto-hidden.
+  #
+  # THE CENTRE IS THE UNIT'S :centre, WHICH IS IN MODEL SPACE (1.57.1). It
+  # used to be the box of the pieces' own #bounds, and a nested group's
+  # bounds are in its PARENT'S space: a Room that had been moved put every
+  # wall centre somewhere the room was not, the cone found nothing on any
+  # plate, and the ventilation shot went out through the wall behind the
+  # booth (Benton, 11 Sep 2026). See WR_SceneWalls.model_centre. The old
+  # read is kept only as the fallback for a unit that could not be carried
+  # out -- a wall in the wrong place still beats a wall that vanished from
+  # the picker.
   def self.wall_geometry(model)
     st = WR_SceneWalls.scan(model)
     (st[:walls] || []).map do |u|
-      bb = Geom::BoundingBox.new
-      u[:pieces].each { |g| bb.add(g.bounds) if g.valid? }
+      c = u[:centre]
+      if c.nil?
+        bb = Geom::BoundingBox.new
+        u[:pieces].each { |g| bb.add(g.bounds) if g.valid? }
+        c = bb.center.to_a
+      end
       side = u[:side].to_s
-      { 'key' => u[:key], 'c' => bb.center.to_a,
+      { 'key' => u[:key], 'c' => c, 'room' => u[:room].to_s, 'wall' => u[:wall],
         'label' => "#{u[:room]} Wall #{u[:wall]}#{side.empty? ? '' : " (#{side})"}" }
     end
+  rescue StandardError
+    []
+  end
+
+  # THE WALL RULE SAYS WHAT IT HAD TO WORK WITH (1.57.1). `units` is
+  # wall_geometry's list; `tops` the names of the model's top-level
+  # containers. One line per run, printed before the plates.
+  #
+  # An empty list used to be silent: every plate logged "none in the camera
+  # cone" and the WALLS column read "all shown" on all ten rows, which is
+  # indistinguishable from a room whose walls simply stand clear of every
+  # shot. It is not a clean result -- it means NO plate can hide ANY wall --
+  # so it is said in those words, with what the rule looks for and what it
+  # saw instead, so a room named or nested some other way is a ten-second
+  # diagnosis rather than a mystery.
+  def self.walls_line(units, tops)
+    units = units || []
+    if units.empty?
+      seen = (tops || []).map { |t| t.to_s }.reject { |t| t.empty? }
+      seen_s = seen.empty? ? 'nothing at all' : seen.first(8).join(', ')
+      seen_s += ", ... #{seen.size - 8} more" if seen.size > 8
+      return '         walls: NO wall units found, so NO plate can hide a wall -- the ' \
+             'ventilation shot will look through whatever room wall stands behind the ' \
+             'booth. The wall rule wants a top-level GROUP (the room) holding groups ' \
+             'named "Wall 1", "Wall 2", ... (a "Walls" container between them is fine; ' \
+             'build-room.rb makes Room > Walls > Wall N). Top level here: ' \
+             "#{seen_s}. Run \"Name walls for the scene picker\" on the room, then AUTO-SET again."
+    end
+    rooms = []
+    units.each do |u|
+      r = u['room'].to_s
+      row = rooms.find { |x| x[0] == r }
+      if row
+        row[1] << u['wall']
+      else
+        rooms << [r, [u['wall']]]
+      end
+    end
+    desc = rooms.map { |r, ws| "#{r}: Wall #{ws.map { |w| w.to_s }.join(', ')}" }.join('; ')
+    "         walls: #{units.size} wall unit(s) the cone rule can hide -- #{desc}"
+  end
+
+  # The names of the model's top-level containers, for walls_line.
+  def self.top_level_names(model)
+    model.entities.to_a.map do |e|
+      next nil unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      nm = (e.name.to_s.strip rescue '')
+      nm = (e.definition.name.to_s.strip rescue '') if nm.empty? && e.respond_to?(:definition)
+      nm = 'unnamed' if nm.empty?
+      e.is_a?(Sketchup::ComponentInstance) ? "#{nm} [component]" : nm
+    end.compact
   rescue StandardError
     []
   end
@@ -1506,8 +1806,10 @@ module WR_AutoSet
   # frames the whole booth and still looks at its centre.
   # `side` is pick_side's sign (+1 / -1) and reaches az_for, which honours it
   # on the side plate only.
+  # `vshift` is pick_vent's sign (+1 / -1) and reaches az_for, which honours
+  # it on the vent plate only.
   def self.aim_plate(view, plate_id, centre_a, radius, door_az, vent_az, half = nil,
-                     anchor = nil, side = 1)
+                     anchor = nil, side = 1, vshift = 1)
     p = plate(plate_id)
     look = (p[:aim_at] == :door && anchor) ? anchor : centre_a
     c = Geom::Point3d.new(look[0], look[1], look[2])
@@ -1515,7 +1817,7 @@ module WR_AutoSet
     # Perspective everywhere except the one plate that carries :parallel (see
     # PLATES). dist and fov are auto-set's own; aim's own defaults are the
     # legacy tool's and are left alone.
-    WR_ProposalScenes.aim(view, c, radius, az_for(plate_id, door_az, vent_az, side),
+    WR_ProposalScenes.aim(view, c, radius, az_for(plate_id, door_az, vent_az, side, vshift),
                           p[:el], !p[:parallel], plate_dist(p[:el], radius), PLATE_FOV)
   end
 
@@ -1600,8 +1902,9 @@ module WR_AutoSet
     end
     mine = token_pages(pages, token)
     centre, _radius, bb = booth_frame(booth)
-    door  = tag_az(booth, 'WR-Booth-Door')
-    vent  = tag_az(booth, 'WR-Booth-Vent')
+    danchor = tag_anchor(booth, 'WR-Booth-Door')
+    door  = danchor && danchor[1]
+    vent  = vent_choice(booth, danchor)['az']     # the wall apply will shoot (1.57.1)
     moved = mine.map { |pg| moved_by(page_stamp(pg)['centre'], centre) }.compact.max
     rows  = ids.map do |id|
       pg   = page_for_plate(pages, token, id)
@@ -1712,7 +2015,12 @@ module WR_AutoSet
     danchor = tag_anchor(booth, 'WR-Booth-Door')
     door    = danchor && danchor[1]
     dpoint  = danchor && danchor[0]
-    vent    = tag_az(booth, 'WR-Booth-Vent')
+    # Which wall the vent plate shoots and which way it swings (1.57.1):
+    # the wall with the most vent parts, swung toward the rest. Decided
+    # ONCE per run, like the side, and printed under the vent plate.
+    vpick   = vent_choice(booth, danchor)
+    vent    = vpick['az']
+    vshift  = vpick['shift']
     # Which side the side plate looks at (1.57.0). Decided ONCE per run so
     # the image and its paired render agree, and printed on the plate's own
     # log lines below.
@@ -1755,6 +2063,7 @@ module WR_AutoSet
     lines << policy_line
     lines << tag_az_line(booth, 'WR-Booth-Door', 'door side', door)
     lines << tag_az_line(booth, 'WR-Booth-Vent', 'vent side', vent)
+    lines << walls_line(units, top_level_names(model))
     model.start_operation('AUTO-SET proposal scenes', true)
     begin
       booth.set_attribute(DICT, 'token', token)
@@ -1771,7 +2080,7 @@ module WR_AutoSet
           # Aimed BEFORE the add as well as after it, so the page is born with
           # the right camera even on a build where PAGE_USE_CAMERA is not
           # defined and the explicit save below cannot run.
-          aim_plate(view, id, centre, radius, door, vent, half, dpoint, side)
+          aim_plate(view, id, centre, radius, door, vent, half, dpoint, side, vshift)
           page = add_page(pages, want, insert_index(pages, token, id))
           lines << "created  #{want}"
         elsif old != id
@@ -1827,7 +2136,7 @@ module WR_AutoSet
         # from the page's OWN saved camera, so a plate whose camera never
         # landed was also hiding the wrong walls.
         if fresh || reaim
-          aim_plate(view, id, centre, radius, door, vent, half, dpoint, side)
+          aim_plate(view, id, centre, radius, door, vent, half, dpoint, side, vshift)
           view.refresh
           page.update(PAGE_USE_CAMERA) if defined?(PAGE_USE_CAMERA)
         end
@@ -1845,7 +2154,7 @@ module WR_AutoSet
         WR_ProposalPackage.set_mode(page, mode_for(id, renders))
         stamp_page(page, token, id, centre)
 
-        lines.concat(plate_log(id, units, centre, eye, sets, loose, counts, spick))
+        lines.concat(plate_log(id, units, centre, eye, sets, loose, counts, spick, vpick))
       end
       model.commit_operation
     rescue StandardError => e
@@ -1878,6 +2187,11 @@ module WR_AutoSet
       msg += ' WARNING: no usable WR-Booth-Door on this booth, so the door side ' \
              'was ASSUMED (-90). The angled, front, high, side and top-down plates ' \
              'are all aimed off that guess - check them before you export.'
+    end
+    if units.empty?
+      msg += ' WARNING: NO wall units were found, so no plate hides a wall - the ' \
+             'ventilation plate will look through whatever room wall stands behind ' \
+             'the booth. The log says what the wall rule looks for and what it saw.'
     end
     blank = blank_plates(ids, sets, counts).map { |id| base_id(id) }.uniq
     unless blank.empty?
@@ -1935,16 +2249,23 @@ module WR_AutoSet
 
   # Every wall this plate hides, with its dot product, and exactly which
   # annotation sets it shows. A wrong call has to be readable, not mysterious.
-  def self.plate_log(id, units, centre, eye, sets, loose, counts = {}, spick = nil)
+  def self.plate_log(id, units, centre, eye, sets, loose, counts = {}, spick = nil, vpick = nil)
     out = []
     # THE SIDE PLATE SAYS WHICH SIDE AND WHY (1.57.0), before anything else
     # about it. A silent choice is a bad choice: Benton reads this log.
     out << side_line(spick, spick['az']) if spick && base_id(id) == SIDE_PLATE
+    # THE VENT PLATE SAYS WHICH WALL ANCHORS IT AND WHICH WAY IT SWUNG
+    # (1.57.1), for the same reason the side plate does.
+    out << vent_line(vpick, vpick['az']) if vpick && base_id(id) == VENT_PLATE
     hid = wall_log(id, units, centre, eye).select { |r| r[3] }
     if NO_WALL_PLATES.include?(base_id(id))
       why = base_id(id) == '06-plan' ? 'nothing occludes from above' :
             "the occluders are the booth's own panels, which are not wall units"
       out << "         walls: none hidden (#{why})"
+    elsif (units || []).empty?
+      # NOT "none in the camera cone" -- there was nothing to put in it.
+      out << '         walls: none hidden -- there are NO wall units in this model ' \
+             '(see the walls line at the top of this log)'
     elsif hid.empty?
       out << '         walls: none in the camera cone'
     else
