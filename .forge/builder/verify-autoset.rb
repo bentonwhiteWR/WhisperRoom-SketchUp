@@ -92,10 +92,26 @@ module WR_VerifyAutoSet
   end
 
   # A box group, so everything in the fixture is real geometry with real bounds.
+  #
+  # IT BUILDS UPWARD, AND THAT TOOK A LIVE RUN TO FIND. SketchUp orients a face
+  # drawn flat on the ground plane with its FRONT pointing DOWN, whatever order
+  # the points are given in, and pushpull follows the face normal. So
+  # `f.pushpull(h)` sank every box in this fixture to z -h..0: the live run of
+  # 1.50.0 reported the booth centre at z -42.0 and the room walls hanging
+  # below the ground plane. Nothing that compares one fixture bound against
+  # another noticed, because the whole model was mirrored consistently -- but
+  # the first check to assert an ABSOLUTE height ("a standing eye is ~5'-6" off
+  # the floor") read -14.8 and failed a camera that was correct.
+  #
+  # Pushing along the sign of the normal puts the model the right way up, which
+  # is also how build-booth.rb and build-room.rb really build. The checks
+  # below ALSO measure off the booth's own bounds rather than trusting z 0 --
+  # belt and braces, for the same reason verify-caster-lift.rb needed fixing on
+  # 9 Sep: a fixture that lies makes a correct tool look broken.
   def self.box(ents, x0, y0, x1, y1, h, name = nil)
     g = ents.add_group
     f = g.entities.add_face([x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0])
-    f.pushpull(h)
+    f.pushpull(f.normal.z < 0 ? -h : h)
     g.name = name if name
     g
   end
@@ -291,19 +307,26 @@ module WR_VerifyAutoSet
         # nothing, by the feature that was locked behind the door. Removed
         # again immediately so the model is back to zero pages and every check
         # below runs exactly as it did before this section existed.
+        # THE COUNT COMES FROM THE PLATE TABLE, NOT A LITERAL. These three
+        # were written when a default run made five plates and produced three
+        # false failures the day the set became six (live, 10 Sep 2026). The
+        # number of plates is AUTO-SET's to decide; what this section is
+        # actually testing is that a model with ZERO pages ends up with a full
+        # set of them, so ask the table.
+        want_n = WR_AutoSet.plate_ids(false).length
         n0 = pages.count
         eok, emsg, = WR_AutoSet.apply(@model, b2, { 'mode' => 'create', 'renders' => 1 })
         say('empty.AUTOSET_creates_the_first_scenes_from_nothing', eok, emsg)
-        say('empty.five_plates_where_there_were_none', pages.count == n0 + 5,
-            "#{n0} -> #{pages.count}")
+        say('empty.every_plate_where_there_were_none', pages.count == n0 + want_n,
+            "#{n0} -> #{pages.count}, table wants #{want_n}")
         etok = b2.get_attribute('WR_AutoSet', 'token', nil)
         say('empty.the_new_scenes_are_stamped',
-            !etok.nil? && WR_AutoSet.token_pages(pages.to_a, etok).length == 5,
-            etok.inspect)
+            !etok.nil? && WR_AutoSet.token_pages(pages.to_a, etok).length == want_n,
+            "#{etok.inspect}, #{WR_AutoSet.token_pages(pages.to_a, etok.to_s).length} stamped")
         est2 = WR_ProposalPackage.state(@model)
         say('empty.the_grid_now_has_rows_to_review',
-            est2['rows'].length == 5 && est2['rows'].all? { |r| r['file'].to_s != '' ||
-                                                                r['mode'] == 'skip' },
+            est2['rows'].length == want_n && est2['rows'].all? { |r| r['file'].to_s != '' ||
+                                                                    r['mode'] == 'skip' },
             est2['rows'].map { |r| [r['n'], r['mode'], r['file']] }.inspect)
         WR_AutoSet.apply(@model, b2, { 'mode' => 'remove' })
         say('empty.section_left_the_model_as_it_found_it', pages.count == n0,
@@ -319,8 +342,18 @@ module WR_VerifyAutoSet
       made_pg << mine_pg
       mine_name_at_start = mine_pg.name.to_s
 
-      say('fixture.walls_named', WR_SceneWalls.scan(@model)[:walls].length == 4,
-          "#{WR_SceneWalls.scan(@model)[:walls].length} wall unit(s)")
+      # IDENTITY, NOT A BARE TOTAL. This asked for "4 wall units in the model"
+      # and the 1.50.0 live run answered 6 -- and a total cannot say WHICH six,
+      # so it could neither be trusted nor diagnosed. What the fixture actually
+      # promises is that make_room's four named walls are each found, in the
+      # room it built them in; anything else the model happens to carry is not
+      # this check's business. The detail prints every unit found, so if there
+      # really are two strangers in there the next run names them.
+      all_units = WR_SceneWalls.scan(@model)[:walls]
+      mine_units = all_units.select { |u| u[:room].to_s == ROOM }
+      say('fixture.walls_named',
+          mine_units.map { |u| u[:wall] }.sort == [1, 2, 3, 4],
+          all_units.map { |u| [u[:room], u[:wall]] }.inspect)
       say('fixture.two_booths', WR_ProposalPackage.booth_groups(@model).length >= 2,
           WR_ProposalPackage.booth_groups(@model).inspect)
 
@@ -477,6 +510,28 @@ module WR_VerifyAutoSet
       @model.commit_operation
 
       # ------------------------------------- 9. the review columns -------
+      #
+      # THE ORANGE CASE IS MANUFACTURED, NOT HOPED FOR. The check below exists
+      # to prove the review grid flags a scene that is about to put an
+      # UNTAGGED callout on a customer image -- the one thing the annotation
+      # allowlist cannot catch, because SketchUp refuses to hide the Untagged
+      # tag. On the 1.50.0 live run it reported {"loose"=>0, "warn"=>false}:
+      # by then every apply had hidden both callouts model-wide, MINE had
+      # never saved a hidden-object state of its own, and the condition the
+      # check tests simply did not exist in the model. It failed for the right
+      # reason -- but it would equally have PASSED for the wrong one if the
+      # assertion had been loosened, so the fixture is what gets fixed.
+      #
+      # Make both callouts visible with MINE selected and save that into the
+      # page, then assert loose > 0 FIRST. A fixture that did not take now
+      # fails by its own name instead of quietly making the real check vacuous.
+      sel(mine_pg)
+      @model.start_operation('WR verify: leave a loose callout showing', true)
+      loose_ents.each { |e| (e.hidden = false) if e && (e.valid? rescue false) }
+      @model.commit_operation
+      mine_pg.use_hidden_objects = true if mine_pg.respond_to?(:use_hidden_objects=)
+      mine_pg.update(WR_SceneWalls.update_mask)
+
       t0 = Time.now
       rs = WR_AutoSet.row_states(@model)
       ms = Time.now - t0
@@ -492,6 +547,8 @@ module WR_VerifyAutoSet
       # THE HAND-MADE SCENE IS THE ORANGE CASE. It was never written by
       # auto-set, so both loose callouts are still showing on it — which is
       # exactly the signal the column exists to raise.
+      say('rows.the_orange_fixture_really_shows_a_loose_callout',
+          rs[mine_n]['annots']['loose'].to_i > 0, rs[mine_n]['annots'].inspect)
       say('rows.a_scene_showing_loose_callouts_IS_flagged_orange',
           rs[mine_n]['annots']['warn'] == true, rs[mine_n]['annots'].inspect)
       # THE MEASUREMENT THE SPEC FLAGGED AS ASSUMED. Report the number.
@@ -546,7 +603,16 @@ module WR_VerifyAutoSet
       say('cam.fresh_set_made', cok, cmsg)
       cset = WR_AutoSet.token_pages(pages.to_a, b1.get_attribute('WR_AutoSet', 'token', nil))
       made_pg.concat(cset)
-      bc, br, = WR_AutoSet.booth_frame(b1)
+      bc, br, bbx = WR_AutoSet.booth_frame(b1)
+      # THE DATUM IS THE BOOTH'S OWN FLOOR, NOT z ZERO. "A standing eye is
+      # 5'-6" off the floor" is only checkable against a known floor, and the
+      # 1.50.0 live run proved this fixture's was not where the check assumed
+      # (see box() -- everything was built downward, booth centre z -42). Two
+      # checks failed on a camera that was correct, which is exactly what
+      # verify-caster-lift.rb did on 9 Sep by reading booth-local bounds. Ask
+      # the booth where its own floor is and the question stops depending on
+      # how the fixture happened to be extruded.
+      floor = bbx.min.z.to_f
       by_plate = {}
       cset.each { |pg| by_plate[WR_AutoSet.page_stamp(pg)['plate'].to_s] = pg }
 
@@ -584,8 +650,10 @@ module WR_VerifyAutoSet
       say('cam.front_is_square_to_the_door',
           !daz.nil? && ((fs['az'] - daz).abs % 360.0) < 1.0,
           "eye at #{fs['az'].round(1)} deg, door at #{daz.to_f.round(1)} deg")
-      say('cam.front_is_standing_height', fs['z'] > 36.0 && fs['z'] < 110.0,
-          "#{fs['z'].round(1)} in off the floor")
+      say('cam.front_is_standing_height',
+          (fs['z'] - floor) > 36.0 && (fs['z'] - floor) < 110.0,
+          format('%.1f in above the booth floor (eye z %.1f, floor %.1f)',
+                 fs['z'] - floor, fs['z'], floor))
       say('cam.front_stands_back', fs['run'] > 120.0 && fs['run'] < 400.0,
           format('%.1f in = %.1f ft back', fs['run'], fs['run'] / 12.0))
 
@@ -595,6 +663,8 @@ module WR_VerifyAutoSet
           format('%.3f in off the axis', ps['run']))
       say('cam.plan_is_above_the_booth', ps['z'] > bc[2].to_f + 60.0,
           "#{ps['z'].round(1)} in vs booth centre #{bc[2].to_f.round(1)}")
+      say('cam.plan_is_above_the_roof', ps['z'] > bbx.max.z.to_f,
+          "#{ps['z'].round(1)} in vs roof #{bbx.max.z.to_f.round(1)}")
 
       # THE HIGH SHOT: same bearing as the angled one, camera lifted.
       hs = shot.call('03-high')
@@ -603,8 +673,9 @@ module WR_VerifyAutoSet
           "#{hs['z'].round(1)} vs #{as_['z'].round(1)}")
       say('cam.high_keeps_the_angled_bearing', (hs['az'] - as_['az']).abs < 1.0,
           "#{hs['az'].round(1)} vs #{as_['az'].round(1)}")
-      say('cam.high_is_15_to_20_ft_up', hs['z'] > 150.0 && hs['z'] < 260.0,
-          format('%.1f ft up', hs['z'] / 12.0))
+      say('cam.high_is_15_to_20_ft_up',
+          (hs['z'] - floor) > 150.0 && (hs['z'] - floor) < 264.0,
+          format('%.1f ft above the booth floor', (hs['z'] - floor) / 12.0))
 
       # THE VENT SHOT looks from the vent side, not the door side.
       vs = shot.call('05-ventilation')

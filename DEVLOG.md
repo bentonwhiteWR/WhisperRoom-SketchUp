@@ -1,6 +1,117 @@
 # DEVLOG
 
 ## 2026-09-10
+### AUTO-SET 1.50.0 verified live - the cameras were right and the FIXTURE was upside down - 1.50.1
+
+Benton ran `.forge/builder/verify-autoset.rb` on 1.50.0 in an Untitled
+SketchUp 26.2.243 model: **88 of 95 pass**. **No production code changed in
+this entry.** Nothing under `scripts/` was touched - the plugin behaves exactly
+as 1.50.0 does. The bump carries this DEVLOG entry and a verification-script
+repair, and the update banner should be read that way.
+
+**THE 1.50.0 THESIS IS NOW OBSERVED, NOT DERIVED.** The camera-save fix was
+the one claim I could not prove without a real model, and it holds:
+
+```
+PASS cam.every_plate_saved_a_camera          all six plates
+PASS cam.plates_have_DIFFERENT_cameras       six distinct eyes
+PASS cam.no_plate_is_parallel                []
+PASS cam.front_is_square_to_the_door         eye at -90.0, door at -90.0
+PASS cam.plan_is_straight_down               0.000 in off the axis
+PASS cam.high_keeps_the_angled_bearing       -55.0 vs -55.0
+PASS walls.ventilation_hides_at_least_one    3 hidden
+PASS cam.blank_warning_fires_when_nothing_is_drawn
+```
+
+`cam.plates_have_DIFFERENT_cameras` is the 1.48.0 defect stated as a check,
+and it passes. The vent plate hides three walls, which it never did before,
+because the wall cone was being fed an eye from a camera that never landed.
+
+**THE TWO REAL FAILURES WERE THE FIXTURE, NOT THE CAMERA — AND THE ARITHMETIC
+SAYS SO TO A TENTH OF AN INCH.**
+
+```
+FAIL cam.front_is_standing_height    -14.8 in off the floor
+FAIL cam.high_is_15_to_20_ft_up      12.0 ft up
+```
+
+`box()` draws a face flat on the ground plane and pushpulls it. **SketchUp
+orients a horizontal face with its front pointing DOWN**, whatever order the
+points are given in, and pushpull follows the normal - so every box in this
+fixture was extruded to z `-h..0`. The live run says so itself: it reported the
+booth centre at **z -42.0** for an 84-inch-tall booth. The room, the walls and
+both booths were all hanging below the ground plane.
+
+Which means "off the floor" was being measured from a floor that was not there.
+Working it forward from the fixture's own dimensions - shell 96 x 60 x 84, door
+frame and vent taking the y span to 64, so radius 71.4 and standoff 221.5:
+
+| plate | predicted eye z | Benton observed | above the booth's OWN floor |
+|---|---|---|---|
+| `01-front` | -14.8 | **-14.8** | 69.2 in = **5'-9"**, a standing eye |
+| `03-high` | 143.9 | **143.9** | 227.9 in = **19.0 ft**, inside 15-20 |
+
+Both numbers reproduce exactly. The cameras were correct the whole time; the
+datum was wrong. This is the same shape of mistake `verify-caster-lift.rb` made
+on 9 Sep by reading booth-local bounds, and it cost that script a whole cycle
+of false failures - so it is worth saying plainly: **a fixture that lies makes
+a correct tool look broken, and the first instinct on a failing check should
+not be to change the tool.**
+
+Fixed on both sides, deliberately. `box()` now pushes along the sign of the
+face normal, so the fixture is the right way up and matches how
+`build-booth.rb` and `build-room.rb` really build; AND the height checks
+measure off `booth_frame`'s own bounding box (`bbx.min.z`) instead of trusting
+z zero, so a future fixture change cannot fake a failure again. A new
+`cam.plan_is_above_the_roof` came along with it.
+
+**FOUR STALE EXPECTATIONS, FROM A CROSS-AGENT COLLISION.** Section 0 (the
+1.48.1 empty-model work) hard-coded "five plates". 1.50.0 made it six, so three
+checks failed on correct output - the grid rows it printed read exactly right:
+`01-front`, `02-angled render`, `03-high`, `04-side`, `05-ventilation`,
+`06-plan`. They now ask `WR_AutoSet.plate_ids(false).length` instead of a
+literal, because the number of plates is AUTO-SET's to decide and this section
+is testing that a zero-page model ends up with a full set, not that the set is
+five.
+
+`fixture.walls_named` asked for "4 wall units in the model" and got **6**. A
+bare total cannot say WHICH six, so it could be neither trusted nor diagnosed.
+It now asserts the identity the fixture actually promises - `make_room`'s walls
+1, 2, 3 and 4, found in the room it built them in - and prints every unit with
+its room label. **The two extra units are still unexplained**; I did not bless
+the 6, I made the check say where they come from on the next run.
+
+**THE ORANGE CASE WAS NEVER CREATED, SO THE FIXTURE IS WHAT GOT FIXED.**
+
+```
+FAIL rows.a_scene_showing_loose_callouts_IS_flagged_orange
+     {"label"=>"3 shown", "warn"=>false, "loose"=>0}
+```
+
+`loose => 0`. By the time the review columns are read, every `apply` has hidden
+both Untagged callouts model-wide and the hand-made scene has never saved a
+hidden-object state of its own - so the condition the check exists to test was
+not in the model. This check guards the warning that tells Benton an untagged
+note is about to go out on a customer image, which is the one thing the
+annotation allowlist structurally cannot catch, so loosening the assertion was
+never on the table. The fixture now makes both callouts visible with that scene
+selected and saves it into the page, and a new
+`rows.the_orange_fixture_really_shows_a_loose_callout` asserts `loose > 0`
+FIRST - so a fixture that does not take fails by its own name instead of
+quietly making the real check vacuous.
+
+Note that the same row shows `WR-Notes-Plan` among its "3 shown" with
+`warn => false`. That is audit finding **R1** - the reviewer does not warn on a
+NEVER_SHOWN tag - and it is deliberately NOT fixed here.
+
+**WHAT BENTON SHOULD SEE ON A RE-RUN:** 97 checks, all passing, in an Untitled
+model (File > New, so section 0 is exercised rather than SKIPPED). If
+`fixture.walls_named` fails again it will now name the two extra wall units.
+The offline harness is unchanged at 92 checks and green; nothing in this entry
+could be mutation-checked offline, because everything it changes needs a real
+SketchUp - **which is precisely why the live run was worth having.**
+
+## 2026-09-10
 ### AUTO-SET's plates were the wrong shots AND the right shots never reached the page - 1.50.0
 
 Benton ran AUTO-SET for real for the first time and sent five screenshots:
