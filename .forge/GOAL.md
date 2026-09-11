@@ -14,8 +14,14 @@ skewing. Every offline proof is green; nothing has been checked against SketchUp
 - Any failures root-caused, fixed, VERSION bumped, committed and pushed.
 
 ## Now
-Waiting on Benton to run `verify-autoset.rb` in SketchUp and paste the console
-output. I cannot drive SketchUp from here.
+All three Fixers landed and pushed as 1.55.0. Waiting on Benton to install and
+run the three live checks. Every Ruby change in 1.55.0 is UNRUN.
+
+One open question he alone can settle: how far the EFS silencer actually stands
+past the seals. The measured part thickness derives 10 1/8, but the 1.42.0
+DEVLOG entry was built to his own 8'-7 1/2" on a booth carrying the same parts,
+which implies 6 7/16. 1.55.0 draws the newer instruction and prints an ACROSS
+mismatch if the placed part disagrees.
 
 ## Out of scope
 - WhisperRoomQuote (booth-builder.html) — read-only from here.
