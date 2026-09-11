@@ -90,6 +90,11 @@ const ST_EMPTY = { deep: false, rows: [], slots: ST_FULL.slots,
 function prepare(js, fname, ST) {
   let code = js.replace('#{st.to_json}', JSON.stringify(ST))
                .replace('#{fname.to_json}', JSON.stringify(fname));
+  // The render-count default is READ FROM THE RUBY, not restated here: the
+  // whole point of hoisting it into the window was that one number governs
+  // the field, the buttons and what a run makes. A test carrying its own
+  // copy could not catch them drifting.
+  code = code.replace('#{WR_AutoSet::DEFAULT_RENDERS}', String(RENDERS_DEFAULT));
   code = code.replace(/#\{[^}]*\}/g, '0');   // any other interpolation
   return rubyUnescape(code);                  // the heredoc unescape
 }
@@ -111,6 +116,14 @@ function rubyUnescape(t) {
   }
   return out;
 }
+
+// The render default, lifted from wr-autoset.rb so this file never states it.
+const RENDERS_DEFAULT = (() => {
+  const rb = fs.readFileSync(path.join(__dirname, 'wr-autoset.rb'), 'utf8');
+  const m = rb.match(/^\s*DEFAULT_RENDERS\s*=\s*(\d+)/m);
+  if (!m) { console.log('FAIL could not read DEFAULT_RENDERS from wr-autoset.rb'); process.exit(1); }
+  return +m[1];
+})();
 
 function el(id) {
   return { id, value: '', checked: false, textContent: '', innerHTML: '', title: '', disabled: false,
@@ -178,6 +191,42 @@ for (const fname of ['NewTemplate', '']) {          // saved-looking and unsaved
       if (re.test(mat)) console.log('ok   matbody: ' + label);
       else { failed++; console.log('FAIL matbody: ' + label + '\n     html: ' + mat.slice(0, 1200)); }
     }
+    // THE AUTO-SET RENDER COUNT (1.63.0). Benton: "the arrows are super
+    // janky ... if you quickly click again, it removes one." The spinner is
+    // gone and the 1-5 buttons replace it, so what is checked here is what
+    // he asked for: the buttons exist, exactly one is lit, and the lit one
+    // AND the field agree with the Ruby default. Drawn through the real
+    // window.autosetShow, never a re-implementation of it.
+    if (typeof window.autosetShow === 'function') {
+      window.autosetShow({ max: 6, choices: [{ name: 'WR 96120 E', booth: true }],
+        plan: { label: 'WR 96120 E', booth: 'WR 96120 E', size: "8' x 10'", isbooth: true,
+                door: -90, vent: 90, walls: 4, existing: 0, rows: [] } });
+      const gb = (made['gbody'] || {}).innerHTML || '';
+      const quick = [...gb.matchAll(/data-rq='(\d)'([^>]*)>/g)];
+      const lit = quick.filter(m => /class='on'/.test(m[2])).map(m => +m[1]);
+      const field = (gb.match(/id='grenders'[^>]*value='(\d+)'/) || [])[1];
+      const gwant = [
+        ['five quick buttons, 1 to 5', () => quick.map(m => m[1]).join(',') === '1,2,3,4,5'],
+        ['exactly one is lit', () => lit.length === 1],
+        ['the lit one is the Ruby default (' + RENDERS_DEFAULT + ')', () => lit[0] === RENDERS_DEFAULT],
+        ['the field agrees with it', () => +field === RENDERS_DEFAULT]
+      ];
+      for (const [label, fn] of gwant) {
+        if (fn()) console.log('ok   autoset renders: ' + label);
+        else { failed++; console.log('FAIL autoset renders: ' + label
+                 + '\n     quick=' + JSON.stringify(quick.map(m => m[1]))
+                 + ' lit=' + JSON.stringify(lit) + ' field=' + JSON.stringify(field)
+                 + '\n     html: ' + gb.slice(0, 900)); }
+      }
+    } else { failed++; console.log('FAIL autoset renders: window.autosetShow is not reachable'); }
+
+    // The spinner must be OFF in the CSS as well as unused by the JS -- the
+    // arrows are the control he called janky, and dropping the rule puts
+    // them straight back beside the new buttons.
+    if (/-webkit-appearance:\s*none/.test(doc) && /::-webkit-inner-spin-button/.test(doc))
+      console.log('ok   autoset renders: the number field spinner is suppressed in CSS');
+    else { failed++; console.log('FAIL autoset renders: no spinner-suppression CSS -- the janky arrows are back'); }
+
     // THE REVIEW COLUMNS (1.48.0). AUTO-SET writes ten scenes' worth of walls
     // and annotation answers, and "just have you review it before you export"
     // needs something on screen to read. Two stateless buttons is what this

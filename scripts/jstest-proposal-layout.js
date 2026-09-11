@@ -113,11 +113,24 @@ const ST = {
 };
 const DIR = 'C:/Users/bento/Desktop/ProposalFiles';
 
+// The render default, read from wr-autoset.rb so this file never restates it.
+const RENDERS_DEFAULT = (() => {
+  const rb = fs.readFileSync(path.join(__dirname, 'wr-autoset.rb'), 'utf8');
+  const m = rb.match(/^\s*DEFAULT_RENDERS\s*=\s*(\d+)/m);
+  if (!m) { console.log('FAIL could not read DEFAULT_RENDERS from wr-autoset.rb'); process.exit(1); }
+  return +m[1];
+})();
+
 doc = doc.replace('#{st.to_json}', JSON.stringify(ST))
          .replace('#{fname.to_json}', JSON.stringify('MDL 4872 E (components)'))
          .replace('#{escHtml(title)}', 'MDL 4872 E (components)')
          .replace(/#\{escAttr\(dir\)\}/g, DIR)
          .replace(/#\{escAttr\(fname\)\}/g, 'MDL 4872 E (components)')
+         // The render default is a NUMBER in the JS, so blanking it the way
+         // every other interpolation is blanked leaves `var x = ;` and kills
+         // the whole script -- which showed up here as a one-row grid, not as
+         // a syntax error. Read it from the Ruby, like the dialog test does.
+         .replace('#{WR_AutoSet::DEFAULT_RENDERS}', String(RENDERS_DEFAULT))
          .replace(/#\{[^{}]*\}/g, '');          // every other interpolation
 doc = rubyUnescape(doc);
 

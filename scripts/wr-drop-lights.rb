@@ -1014,6 +1014,43 @@ module WR_DropLights
     ccw ? [-uy, ux] : [uy, -ux]
   end
 
+  # WHICH RUNS GET A BORROWED FACE (1.63.0). Benton, 11 Sep 2026:
+  # "when I click on a 2 sided room, its not just making a ceiling and
+  # 2 sides, its making all 4 sides ... this does not need to be doing
+  # this." It was doing it because 'all' never consulted the scan --
+  # it filled every run of the floor polygon whether a wall stood
+  # there or not. Three run states, three answers, and the scan has
+  # always known all three (run_report carries :faces and :hidden
+  # separately):
+  #   VISIBLE WALL   -> skip. A borrowed face 1/16" inside a real
+  #                     wall's solid adds nothing, and it is exactly
+  #                     the coplanar pair the 1.28.0 header warned of.
+  #   WALL, HIDDEN   -> borrow. This is the case the seal exists for:
+  #                     a WhisperRoom "3-sided" render is four walls
+  #                     with one hidden for that camera, and the
+  #                     borrowed face is what keeps the light in. It
+  #                     binds to the real wall (WR_SceneWalls.
+  #                     bind_rig_walls) so Hide walls takes both.
+  #   NO WALL AT ALL -> skip. The room was DRAWN open so the camera
+  #                     can see in; sealing it walls the camera out,
+  #                     which is the 1.28.0 header's own warning and
+  #                     could not be fixed by binding -- there is no
+  #                     wall there to bind to.
+  # That is the new default, 'hidden'. Both older modes are kept
+  # verbatim for when he wants them: 'open' fills every run without a
+  # VISIBLE wall (drawn-open runs included), 'all' still encloses the
+  # room regardless. The trim does not move -- enclosure_trim reads
+  # poly.size, as it always has.
+  def self.fill_runs(mode, n, wrep)
+    case mode
+    when 'all'    then (0...n).to_a
+    when 'open'   then wrep ? (0...n).select { |i| !wrep[i][:walled] } : []
+    when 'hidden' then (wrep ? (0...n).select { |i|
+                          !wrep[i][:walled] && wrep[i][:hidden] > 0 } : [])
+    else []
+    end
+  end
+
   # ---- borrowed walls: which floor-polygon runs are OPEN? — pure ---------
   #
   # A wall stands on run a->b when a VERTICAL face is (1) parallel to the
@@ -1772,18 +1809,21 @@ module WR_DropLights
   # with the rig, owned by dictionary, swept by the next press or by
   # remove_rig!, and the removal verified by the same independent re-read.
   #
-  # OPT-IN, DEFAULT OFF — unlike the ceiling. A great many WhisperRoom
-  # drawings are 2- and 3-sided rooms with a wall LEFT OUT so the camera can
-  # see in (sunoff-drive.py's header says so in as many words). Sealing that
-  # room automatically walls the camera out and the frame goes black —
-  # silently, an hour later. So the panel asks, the default is No, and the
-  # checkbox says what it does.
+  # ONLY WHERE A WALL IS HIDDEN, and that is the default since 1.63.0. A
+  # great many WhisperRoom drawings are 2- and 3-sided rooms with a wall
+  # LEFT OUT so the camera can see in (sunoff-drive.py's header says so in
+  # as many words). Sealing that room walls the camera out and the frame
+  # goes black — silently, an hour later. 1.28.0 guarded that by
+  # defaulting to No; 1.28.x then made the default "every run" for the
+  # lumen table's sake and put the hazard back, which is what Benton hit on
+  # 11 Sep 2026. The fill now reads the scan instead of ignoring it: see
+  # the three run states at the `fill =` case. A drawn-open run is never
+  # filled, a visible wall is never doubled, and a wall hidden for the
+  # scene is put back — bound to the real wall, so Hide walls takes both.
   #
-  # ONLY THE OPEN RUNS. existing_walls scans the room's own geometry for a
-  # vertical face on each floor-polygon run; a run that has one keeps it and
-  # is not doubled — a borrowed wall on top of a real one would be two
-  # coplanar faces fighting in the render. On an L-shaped room the polygon
-  # has six runs and gets up to six walls; nothing special.
+  # existing_walls scans the room's own geometry for a vertical face on
+  # each floor-polygon run. On an L-shaped room the polygon has six runs
+  # and gets up to six walls; nothing special.
   #
   # ONE GROUP PER RUN, NAMED BY RUN, so "Hide walls per scene" lists each
   # borrowed wall as an object Benton can hide again for one camera.
@@ -3156,7 +3196,16 @@ module WR_DropLights
   # for the same all read it. A preset that SAYS 'none' or was saved with
   # the 1.28.0 checkbox off still means No — he chose that. The trim does
   # not move: enclosure_trim reads poly.size, never the walls mode.
-  WALLS_DEFAULT = 'all'.freeze
+  WALLS_DEFAULT = 'hidden'.freeze
+
+  # One place the four modes are named, so the console, the summary window
+  # and the per-room lines cannot drift from the dropdown.
+  WALL_MODE_LABEL = {
+    'none'   => 'No',
+    'hidden' => 'only where a wall is hidden',
+    'open'   => 'every run with no visible wall',
+    'all'    => 'every run'
+  }.freeze
 
   def self.read_presets
     raw = Sketchup.read_default(PRESET_DICT, PRESET_KEY, '{}').to_s
@@ -3196,7 +3245,7 @@ module WR_DropLights
       :layers  => layers }
   end
 
-  # 'none' | 'open' | 'all'. A 1.28.0 preset saved the checkbox as true /
+  # 'none' | 'hidden' | 'open' | 'all'. A 1.28.0 preset saved the box as true /
   # false; true was "open runs only" and stays that, false is No. A preset
   # with NO walls key (saved before 1.28.0) gets the shop default — loading
   # it must not drop the control back to "No" and look removed again.
@@ -3204,7 +3253,7 @@ module WR_DropLights
     return WALLS_DEFAULT if v.nil?
     return 'open' if v == true
     m = v.to_s
-    m == 'open' || m == 'all' ? m : 'none'
+    %w[open all hidden].include?(m) ? m : 'none'
   end
 
   def self.ask
@@ -3337,14 +3386,17 @@ as a preset and every later room can use the same rig.</div>
     <span class="lab" style="margin:0">Add walls</span>
     <select id="walls" style="width:auto">
       <option value="none">No</option>
-      <option value="open">On the open runs &mdash; a hidden wall counts as open</option>
-      <option value="all">On every run &mdash; completely enclose the room</option>
+      <option value="hidden">Only where a wall is HIDDEN &mdash; put back the seal this scene took away</option>
+      <option value="open">On every run with no visible wall &mdash; a drawn-open side is filled too</option>
+      <option value="all">On every run &mdash; enclose the room even where a wall already stands</option>
     </select>
   </div>
   <div class="note">A borrowed wall stands 1/16" outside the floor polygon, so
   on a run that has a real wall it sits inside that wall and shows only when
-  the real one is hidden. The console lists every run and what it found.
-  Put the camera INSIDE first. They leave with the lights.</div>
+  the real one is hidden. The default fills ONLY the runs whose wall is hidden
+  for this scene &mdash; a side that was never drawn stays open, so a 2- or
+  3-sided room keeps the way in for the camera. The console lists every run
+  and what it found. They leave with the lights.</div>
   <div class="row" style="margin-top:6px">
     <span class="lab" style="margin:0">Grid</span>
     <select id="dens" style="width:auto">
@@ -3880,31 +3932,33 @@ paint(); drawPresets("");
         mode = opts[:walls]
         if wall_err
           puts "  #{name}: ** the wall scan raised #{wall_err} — no run can be " \
-               'judged open.' + (mode == 'all' ? ' "Every run" needs no scan and goes ahead.' : ' Nothing borrowed on "open runs only"; pick "every run" to enclose anyway.')
+               'judged open.' + (mode == 'all' ? ' "Every run" needs no scan and goes ahead.' : format(' Nothing borrowed on "%s"; pick "every run" to enclose anyway.', WALL_MODE_LABEL[mode] || mode))
           wall_notes << "#{name}: wall scan FAILED (#{wall_err})" +
                         (mode == 'all' ? '; every run filled regardless' : '; nothing borrowed')
         else
           wall_scan_lines(name, poly, wrep, z_need).each { |l| puts l }
         end
-        fill = case mode
-               when 'all'  then (0...poly.size).to_a
-               when 'open' then open_runs
-               else []
-               end
+        fill = fill_runs(mode, poly.size, wrep)
         if mode == 'none'
           unless open_runs.empty?
-            puts format('  %s: "Add walls" is No (the default is "every run") — run%s %s ' \
+            puts format('  %s: "Add walls" is No (the default is "%s") — run%s %s ' \
                         'stay%s open; sky comes in and the rig leaves through %s.', name,
+                        WALL_MODE_LABEL[WALLS_DEFAULT],
                         open_runs.size == 1 ? '' : 's', run_list,
                         open_runs.size == 1 ? 's' : '',
                         open_runs.size == 1 ? 'it' : 'them')
           end
         elsif fill.empty?
-          puts "  #{name}: every one of the #{poly.size} runs has a VISIBLE " \
-               'wall — nothing to borrow on "open runs only". If a wall is ' \
-               'hidden on the scene you render, the scan would have said so ' \
-               'above; pick "every run" to enclose regardless.'
-          wall_notes << "#{name}: #{poly.size} runs, all walled — nothing borrowed"
+          puts format('  %s: nothing to borrow on "%s" — of the %d runs, %d ' \
+                      'have a VISIBLE wall, %d have a HIDDEN one, %d have no ' \
+                      'wall at all. The per-run lines above say which is ' \
+                      'which; pick "every run" to enclose regardless.',
+                      name, WALL_MODE_LABEL[mode] || mode, poly.size,
+                      wrep ? wrep.count { |r| r[:walled] } : 0,
+                      wrep ? wrep.count { |r| !r[:walled] && r[:hidden] > 0 } : 0,
+                      wrep ? wrep.count { |r| !r[:walled] && r[:hidden] == 0 } : 0)
+          wall_notes << format('%s: %d runs — nothing borrowed on "%s"',
+                               name, poly.size, WALL_MODE_LABEL[mode] || mode)
         else
           made = add_walls(ents, poly, fill, z0, info[:z_top], layer,
                            press_uuid, borrow_material(model, ['WR Wall', 'Wall']))
@@ -3914,7 +3968,7 @@ paint(); drawPresets("");
                       'WHEN THE LIGHTS DO, with the ceiling, verified the ' \
                       'same way.', name, made.size, made.size == 1 ? '' : 's',
                       fill.size == 1 ? '' : 's', fill.map { |i| i + 1 }.join(', '),
-                      mode == 'all' ? 'every run' : 'the open runs',
+                      WALL_MODE_LABEL[mode] || mode,
                       WALL_OUT, info[:z_top], WALL_NAME)
           if made.size < fill.size
             puts format('  %s: ** %d run%s could not be faced — still open.',
@@ -4220,7 +4274,7 @@ paint(); drawPresets("");
       # walls were asked for, what the scan decided goes in a window.
       if opts[:walls] != 'none'
         body = wall_notes.empty? ? ['no room reached the wall scan (see the console)'] : wall_notes
-        UI.messagebox("Add walls (#{opts[:walls] == 'all' ? 'every run' : 'open runs only'}):\n\n" +
+        UI.messagebox("Add walls (#{WALL_MODE_LABEL[opts[:walls]] || opts[:walls]}):\n\n" +
                       body.join("\n") + "\n\nThe Ruby Console lists every run and " \
                       'what was found on it.')
       end

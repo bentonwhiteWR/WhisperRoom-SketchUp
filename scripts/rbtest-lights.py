@@ -369,7 +369,7 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'layer_kelvin', 'area_scale', 'ring_points', 'shell_faces', 'fixture_faces',
            'wall_points', 'sconce_points', 'wall_normal', 'far_corner',
            'ceiling_pair', 'face_on_edge?', 'open_edges', 'face_offset',
-           'run_report', 'exposure_ratio', 'stops_of', 'ev_of',
+           'run_report', 'fill_runs', 'exposure_ratio', 'stops_of', 'ev_of',
            'camera_verdict', 'rig_camera_gain', 'accent_tilt',
            'accent_standoff', 'walls_mode', 'default_settings']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
@@ -553,11 +553,14 @@ __METHODS__
     se = accent_standoff([72.0, 54.0], 0.0, -1.0, RECT, [], 96.0, 42.0, 6.0, 12.0)
     out << 'ks ' + [sa, sb, sc, sd, se].map { |v| v.nil? ? '-' : format('%.0f', v) }.join(',')
 
-    # 9d -- THE WALLS DEFAULT (1.43.1; Benton: "default the drop down to be
-    # 'on every run'"). default_settings says all; walls_mode: a missing key
-    # (a pre-1.28.0 preset) gets the default, the 1.28.0 checkbox true/false
-    # still means open/none, explicit strings pass, junk is No. The ceiling
-    # default stays on, so the default room is sealed.
+    # 9d -- THE WALLS DEFAULT. 1.43.1 made it 'all' ("default the drop down
+    # to be 'on every run'"); 1.63.0 makes it 'hidden', because 'all' sealed
+    # a room that was DRAWN 2-sided and walled the camera out (Benton, 11 Sep
+    # 2026: "its making all 4 sides ... this does not need to be doing
+    # this"). walls_mode: a missing key (a pre-1.28.0 preset) gets whatever
+    # the default now is, the 1.28.0 checkbox true/false still means
+    # open/none, explicit strings pass through, junk is No. The ceiling
+    # default stays on.
     ds = default_settings
     out << 'wd ' + [ds['walls'], ds['ceiling'] ? 'cap' : 'open',
                     walls_mode(nil), walls_mode(true), walls_mode(false),
@@ -896,6 +899,21 @@ __METHODS__
                                          r[:faces], r[:hidden],
                                          r[:near] ? format('%.1f', r[:near]) : '-') }.join(' ')
 
+    # 27b -- WHICH RUNS GET A BORROWED FACE (1.63.0). `rr2` above is the
+    # ideal fixture: run 1 has a visible wall, run 2's only face is HIDDEN,
+    # run 3 has a visible wall, run 4 has no face at all. Benton's 2-sided
+    # room is run 4 repeated, and the old default filled it. The new
+    # default 'hidden' must pick run 2 ALONE -- put back the seal the scene
+    # took away, never double a visible wall, never close a side that was
+    # drawn open. 'open' still takes 2 and 4, 'all' still takes everything,
+    # 'none' nothing; and a scan that FAILED (wrep nil) must borrow nothing
+    # on every mode but 'all', which needs no scan.
+    fr = lambda { |m, w| (fill_runs(m, 4, w).map { |i| i + 1 }.join(',')) }
+    out << 'fr ' + [fr.call('hidden', rr2), fr.call('open', rr2),
+                    fr.call('all', rr2), fr.call('none', rr2),
+                    fr.call('hidden', nil), fr.call('open', nil),
+                    fr.call('all', nil)].map { |v| v.empty? ? '-' : v }.join(' ')
+
     # 28 -- THE CAMERA, READ NOT WRITTEN (1.41.0; the 1.32.0 retune window
     # and its retune_rows are gone). exposure_ratio / stops_of stay for the
     # console's "N stops hot/dark" line: 100 -> 3200 is 1/32 = five stops;
@@ -977,7 +995,7 @@ EXPECT = ' | '.join([
     # 84 -> 116 inside, 78 -> 122 clear -> 78. (d) 30" of room: 42 lands at
     # y=-12, outside -> nil. (e) door at y=54: 42 -> y=12, on the margin -> 42.
     'ks 84,96,78,-,42',
-    'wd all,cap,all,open,none,open,all,none,none',
+    'wd hidden,cap,hidden,open,none,open,all,none,none',
     'veto 1110 msg1',
     'fbv 0011 list1',
     'lw 1100',
@@ -1013,6 +1031,7 @@ EXPECT = ' | '.join([
     'oe 3 - 3 0 3 - 4',
     'rr W2/0/-/144 W1/0/4.0/180 W1/0/-/144 O0/1/-/180 oe3',
     'rr2 W2/0/- O0/1/4.0 W1/0/- O0/0/-',
+    'fr 2 2,4 1,2,3,4 - - - 1,2,3,4',
     'er 0.03125,-,0.03125,-,-,-,0.125 st5.0,3.0,-',
     'ev 14.23,9.23,11.23,-,-,-',
     'cv factory,stale_record,legacy_stamped,user_iso,legacy_stamped,user_iso,'

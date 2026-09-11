@@ -4858,8 +4858,25 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
   #gbody .gval b { font-weight:650; }
   #gbody .gwarn { color:var(--accent); font-weight:650; }
   #gbody .gctl { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:6px 0 2px; }
-  #gbody .gctl input[type=number] { width:52px; font:inherit; padding:2px 4px;
-    border:1px solid var(--line); border-radius:3px; }
+  /* NO SPINNER (1.63.0). The stepper arrows were the janky control -- see
+     the comment at the Renders field. Chromium needs the ::-webkit- rules;
+     -moz-appearance is kept so the field behaves the same anywhere this
+     HTML is opened outside SketchUp's browser. */
+  #gbody .gctl input[type=number] { width:46px; font:inherit; padding:2px 4px;
+    border:1px solid var(--line); border-radius:3px; text-align:center;
+    -moz-appearance:textfield; appearance:textfield; }
+  #gbody .gctl input[type=number]::-webkit-outer-spin-button,
+  #gbody .gctl input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance:none; margin:0; }
+  /* The 1-5 buttons. Big enough to hit without looking, and the live value
+     is the filled one so the row says what it is set to at a glance. */
+  #gbody .gquick { display:inline-flex; gap:3px; }
+  #gbody .gquick button { font:inherit; font-size:12px; line-height:1;
+    min-width:26px; padding:5px 0; border:1px solid var(--line); border-radius:3px;
+    background:var(--surface); color:var(--muted); cursor:pointer; }
+  #gbody .gquick button:hover { border-color:var(--accent); color:var(--accent); }
+  #gbody .gquick button.on { background:var(--accent); border-color:var(--accent);
+    color:#fff; font-weight:650; }
   #gbody select { font:inherit; font-size:12px; padding:3px 6px; border:1px solid var(--line);
     border-radius:4px; background:#fff; color:var(--ink); max-width:300px; }
   #gbody table.gp { width:100%; border-collapse:collapse; margin-top:4px; }
@@ -5288,6 +5305,10 @@ window.onerror = function (msg, src, line) {
   "use strict";
   var ST = #{st.to_json};
   var running = false;
+  // The render-count default lives in Ruby (WR_AutoSet::DEFAULT_RENDERS) and
+  // is handed to the window here, so the field, the quick buttons and what a
+  // run actually makes cannot disagree about what "default" means.
+  var RENDERS_DEFAULT = #{WR_AutoSet::DEFAULT_RENDERS};
 
   function g(id){ return document.getElementById(id); }
   var $q=g("q"), $b=g("body"), $count=g("count"),
@@ -6227,9 +6248,25 @@ window.onerror = function (msg, src, line) {
                   : "<span class='gwarn'>none</span> — nothing will be hidden. Run "
                     + "<b>Name walls for the scene picker</b> once if this room was drawn by hand")
        + "</span></div>";
+    // THE RENDER COUNT (1.63.0). Benton: "the arrows are super janky as when
+    // you click one, it moves the whole screen up a bit and if you quickly
+    // click again, it removes one." The spinner is the whole problem: its
+    // arrows are ~7px tall, a second click inside the double-click window
+    // lands on the other one, and the popover reflows under the pointer
+    // because every change redraws the plate preview below it. So the
+    // spinner is gone (CSS, .gctl input[type=number]) and the numbers are
+    // buttons -- one click, a target you cannot miss, and the value is set
+    // rather than stepped so a mis-click costs nothing. The field stays,
+    // typeable, because the ladder goes to 6 and the buttons stop at 5.
+    var rmax = d.max || 6, rnow = (opt.renders === undefined ? RENDERS_DEFAULT : opt.renders);
     h += "<div class='gctl'><span class='glab'>Renders</span>"
-       + "<input type='number' id='grenders' min='0' max='" + (d.max || 6) + "' value='"
-       + (opt.renders === undefined ? 1 : opt.renders) + "'>"
+       + "<input type='number' id='grenders' min='0' max='" + rmax + "' value='"
+       + rnow + "'>"
+       + "<span class='gquick'>" + [1,2,3,4,5].map(function(v){
+           return v > rmax ? "" : "<button type='button' data-rq='" + v + "'"
+                  + (+rnow === v ? " class='on'" : "")
+                  + " title='Set the render count to " + v + "'>" + v + "</button>";
+         }).join("") + "</span>"
        + "<span class='gnote' style='padding:0'>each render is an EXTRA scene placed "
        + "in front of its image, in plate order: angled → front → high → side → "
        + "ventilation → plan. 0 is the six image plates and nothing else.</span></div>";
@@ -6302,12 +6339,24 @@ window.onerror = function (msg, src, line) {
       if(!(window.sketchup && sketchup.autosetpick)) return;
       sketchup.autosetpick(JSON.stringify({
         booth: s ? s.value : "",
-        renders: rn ? +rn.value : 1,
+        renders: rn ? +rn.value : RENDERS_DEFAULT,
         interior: iv ? !!iv.checked : false }));
     }
     if(s)  s.addEventListener("change", repick);
     if(rn) rn.addEventListener("change", repick);
     if(iv) iv.addEventListener("change", repick);
+    // A quick button SETS the field and asks Ruby to redraw the preview,
+    // the same path the field's own change event takes -- one code path,
+    // so a number typed and a number clicked cannot mean different things.
+    // Re-clicking the button already showing is a no-op, not a round trip.
+    Array.prototype.forEach.call($gbody.querySelectorAll("[data-rq]"), function(el){
+      el.addEventListener("click", function(){
+        var v = +el.getAttribute("data-rq");
+        if(!rn || +rn.value === v) return;
+        rn.value = v;
+        repick();
+      });
+    });
   }
   function autoSetOpts(mode){
     var rn = g("grenders"), iv = g("ginterior"), ra = g("greaim"),
@@ -6317,7 +6366,7 @@ window.onerror = function (msg, src, line) {
     });
     if(!mode && picked) m = picked;
     return { mode: m,
-             renders: rn ? +rn.value : 1,
+             renders: rn ? +rn.value : RENDERS_DEFAULT,
              interior: iv ? !!iv.checked : false,
              reaim: ra ? !!ra.checked : false,
              booth: (g("gbooth") ? g("gbooth").value : "") };

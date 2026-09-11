@@ -401,13 +401,16 @@ module WR_AutoSet
   # and never counted -- see render_ids.
   RENDER_LADDER = %w[01-angled 02-front 03-high 04-side 05-ventilation 06-plan].freeze
 
-  # ONE BY DEFAULT, AND THAT IS A COST DECISION SAID OUT LOUD. Under the old
-  # ladder a default run was 2 renders (the forced angled plus ventilation).
-  # Under this one a default of 1 is the angled render only -- the "first
-  # render would be the angled" case -- and 2 would now add a rendered FRONT,
-  # not ventilation. The knob is in the popover; this is only what it starts
-  # at.
-  DEFAULT_RENDERS = 1
+  # THREE BY DEFAULT (1.63.0), AND THAT IS A COST DECISION SAID OUT LOUD.
+  # Under the old ladder a default run was 2 renders (the forced angled plus
+  # ventilation). 1.56.0 dropped it to 1 -- the angled render alone. Benton,
+  # 11 Sep 2026: "lets default 3", which on this ladder is angled + front +
+  # high, the three plates a proposal leads with. Each render is an EXTRA
+  # scene on top of the six image plates and each one costs V-Ray time, so
+  # raising the default raises the cost of every un-touched run; the knob is
+  # in the popover and the 1-5 buttons beside it, and this is only what it
+  # starts at.
+  DEFAULT_RENDERS = 3
   MAX_RENDERS = RENDER_LADDER.length
 
   # ------------------------------------------- the image/render pair --

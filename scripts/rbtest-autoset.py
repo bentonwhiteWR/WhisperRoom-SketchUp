@@ -525,11 +525,17 @@ module T
 
   # THE SIX IMAGE PLATES, IN BENTON'S ORDER (11 Sep 2026): angled leads,
   # front follows. Side is ON by default even though he said "sometimes" --
-  # see PLATES. A render is an EXTRA scene in front of its image, so a
-  # default run (DEFAULT_RENDERS 1) is SEVEN pages: the angled render, then
-  # the six images.
+  # see PLATES. A render is an EXTRA scene in front of its image, so a run
+  # at N renders is 6 + N pages.
   IMAGES   = ['01-angled', '02-front', '03-high', '04-side', '05-ventilation', '06-plan']
-  DEFAULTS = ['01-angled r'] + IMAGES
+  # ONE render -- not the default any more, but still the shape mg9/mg10
+  # pin when a run explicitly asks for one.
+  ONE      = ['01-angled r'] + IMAGES
+  # THE DEFAULT RUN, at DEFAULT_RENDERS 3 (1.63.0, Benton: "lets default
+  # 3"): NINE pages -- the top three of the ladder rendered, each sitting
+  # in front of its own image, then the rest of the images.
+  DEFAULTS = ['01-angled r', '01-angled', '02-front r', '02-front',
+              '03-high r', '03-high', '04-side', '05-ventilation', '06-plan']
   ALL      = DEFAULTS + ['07-interior']
 
   # Every annotation set a well-used model carries: the five the WR tools
@@ -717,7 +723,7 @@ module T
     ids1 = WR_AutoSet.run_ids({ 'renders' => 1 })
     ck('mg9', WR_AutoSet.extra_pages(old_pages, old_tok, ids1) == [],
        WR_AutoSet.extra_pages(old_pages, old_tok, ids1).map { |p| p.name }.inspect)
-    ck('mg10', ids0 == IMAGES && ids1 == DEFAULTS &&
+    ck('mg10', ids0 == IMAGES && ids1 == ONE &&
                WR_AutoSet.run_ids({}) == DEFAULTS &&
                WR_AutoSet.run_ids({ 'plates' => ['06-plan'] }) == ['06-plan'],
        [ids0, ids1].inspect)
@@ -764,7 +770,7 @@ module T
     # ONE: the angled render leads, then the six images. "the 1st scene would
     # be render angled. 2nd scene would be image angled. 3rd scene image
     # front".
-    ck('ld3', WR_AutoSet.plate_ids(false, 1) == DEFAULTS, WR_AutoSet.plate_ids(false, 1).inspect)
+    ck('ld3', WR_AutoSet.plate_ids(false, 1) == ONE, WR_AutoSet.plate_ids(false, 1).inspect)
     # TWO: "it would add a rendered front" -- directly before the front image.
     ck('ld4', WR_AutoSet.plate_ids(false, 2) ==
               ['01-angled r', '01-angled', '02-front r', '02-front', '03-high',
@@ -788,12 +794,14 @@ module T
               end,
        'an image plate came out as a render')
     ck('ld9', WR_AutoSet.mode_for('01-angled r', WR_AutoSet.render_ids(DEFAULTS)) == 'render')
-    # ONE BY DEFAULT: the angled render only. Under the old ladder a default
-    # run was two (forced angled + ventilation); that cost went DOWN, and if
-    # this number ever moves it moved because someone changed what a default
-    # run costs.
-    ck('ld10', WR_AutoSet::DEFAULT_RENDERS == 1)
-    ck('ld11', WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false)).length == 1 &&
+    # THREE BY DEFAULT (1.63.0). The old ladder defaulted to two (forced
+    # angled + ventilation), 1.56.0 cut it to one, and Benton asked for
+    # three -- angled, front, high. Every render is V-Ray time on every
+    # un-touched run, so if this number moves again it moved because
+    # someone changed what a default run COSTS, and this check is where
+    # they have to say so.
+    ck('ld10', WR_AutoSet::DEFAULT_RENDERS == 3)
+    ck('ld11', WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false)).length == 3 &&
                WR_AutoSet.plate_ids(false) == DEFAULTS,
        WR_AutoSet.render_ids(WR_AutoSet.plate_ids(false)).inspect)
     # THE LADDER IS THE PLATE ORDER. Not a separate priority list any more.
@@ -1736,8 +1744,12 @@ module T
     # Only the front plate re-targets onto the frame; every other plate still
     # frames the whole booth.
     ck('fm6', WR_AutoSet.plate('02-front')[:aim_at] == :door)
-    ck('fm7', (ALL - ['02-front']).none? { |id| WR_AutoSet.plate(id)[:aim_at] },
-       (ALL - ['02-front']).select { |id| WR_AutoSet.plate(id)[:aim_at] }.inspect)
+    # The RENDER half of the front plate is the same plate, so it re-targets
+    # too -- both halves are excluded, and every other id must still frame
+    # the whole booth. (ALL carries '02-front r' since the default went to
+    # three renders.)
+    ck('fm7', (ALL - ['02-front', '02-front r']).none? { |id| WR_AutoSet.plate(id)[:aim_at] },
+       (ALL - ['02-front', '02-front r']).select { |id| WR_AutoSet.plate(id)[:aim_at] }.inspect)
     # AIMED AT THE FRAME: with an off-centre door the eye stands on the wall
     # normal THROUGH THE FRAME, not through the booth centre.
     vv = FakeView.new
