@@ -1,6 +1,88 @@
 # DEVLOG
 
 ## 2026-09-11
+### 1.65.1 - The end-of-batch modal is gone, for the run Benton actually makes
+
+**THE BUG, and why it survived three "fixes".** At the end of every proposal
+package export a modal box popped up with the summary in it and Benton had to
+press OK before he could touch SketchUp again. He reported it repeatedly and
+was told repeatedly that it was fixed. It was not. His words this session:
+*"you kept saying you fixed it, but you hadn't."*
+
+1.65.0 did guard the box - behind `headless?`. And `headless?` is latched in
+`start_run` as `dlg.nil? || cfg['force']`, which is TRUE for the bridge and
+the rank loop and FALSE for a batch started from the panel, because that batch
+has a real visible dialog and nobody passes 'force'. So the shipped fix fixed
+the unattended run. The interactive run - the only run Benton makes - was
+never covered. Everyone kept verifying with a `force` run, which takes the
+headless path and proves nothing about his case. **That trap is the whole
+lesson of this entry: a guard that keys off `headless?` tests the caller, not
+the box.**
+
+**REPRODUCED LIVE FIRST, over the bridge, with the panel open**
+(`.forge/fixer/probe-finish-interactive.rb`). The bridge muzzles modals by
+raising `WhisperRoom::Bridge::ModalBlocked`, so a modal attempt is detectable:
+
+    BEFORE  headless? => false   box_attempted => true    MODAL FIRED
+    AFTER   headless? => false   box_attempted => false   no modal
+
+Note `headless? => false` in BOTH rows. The check was designed so it could
+only pass on the interactive path; a `force` run would have made it green and
+meaningless.
+
+**THE FIX.** The box does not get a better condition - it is gone
+(`scripts/proposal-package.rb`, `self.finish`). A modal is the wrong carrier
+for a report nobody has to acknowledge. Everything it held is delivered twice
+over already: every line goes to the Ruby Console, and every line goes to the
+run window's own log (D11 put it there in 1.9.6). Nothing waits on a click.
+
+**THE HEADLINE IS NOW THE LOUD PART,** because with the box gone it is what
+the eye lands on. It used to be coloured by the same substring rule as every
+other line - and the headline ALWAYS contains the word FAILED, `0 FAILED` on a
+perfect run - so it came out red on every run that ever finished, which is the
+same as having no colour at all. `summary_class(line, headline, bad_run)` is
+the pure replacement: the headline's colour comes from the COUNTS (green on a
+clean batch, red the moment anything failed, was lost, or a restore broke),
+every other line keeps the substring rule. Observed live:
+
+    failing batch  -> ["bad", "PROPOSAL PACKAGE - 1 exported, 1 skipped, 1 FAILED"]
+    clean batch    -> ["ok",  "PROPOSAL PACKAGE - 2 exported, 0 skipped, 0 FAILED"]
+
+and zero `execute_script` errors, so every line reached the dialog.
+
+**THE CHECK THAT WAS MISSING** is now in `scripts/rbtest-proposal.py`. The
+suite's own honesty note used to read "finish's restore ORDER and its two
+messagebox sites remain uncovered" - which is exactly where this lived.
+
+  * `nobox` reads `finish()`'s source (comments stripped - this stretch of the
+    file quotes `UI.messagebox` six times while explaining itself, and
+    counting those made the check read 7 the first time). It asserts the
+    end-of-batch box is absent and that exactly ONE messagebox remains, the
+    COULD-NOT-RESTORE error box, which is deliberately out of scope.
+  * `sc1-sc6` cover `summary_class`.
+
+Mutation-checked, RUN not assumed:
+
+    the 1.65.0 guarded box put back verbatim   -> nobox FAIL (2 messageboxes)
+    summary_class's headline branch removed    -> sc1 FAIL ("clean headline is bad")
+
+**OUT OF SCOPE, deliberately untouched:** the export-callback error box, the
+preflight prompt, the delete-scene confirm, the COULD-NOT-RESTORE box, and the
+top-level load-failure box. The headless/bridge path is unchanged.
+
+**KNOWN GAP.** The panel's log was verified at the Ruby seam - the exact
+(text, class) pairs `finish` hands to `self.log`, with no `execute_script`
+error - not by reading the rendered CEF DOM. `add_action_callback` registered
+after the page has loaded never fires, so the DOM could not be read back.
+`logLine` itself is shipped code Benton watches during every run and was not
+changed.
+
+**REINSTALL?** `proposal-package.rb` is a tool script under `scripts/`, read
+live from the repo checkout on any machine whose path is in `CANDIDATES`
+(`main.rb`). On this desktop a `git pull` is enough - no `install-plugin.py`,
+no SketchUp restart. VERSION moved so the update banner fires for Gabe.
+
+## 2026-09-11
 ### 1.65.0 - Claude can now drive SketchUp headlessly, and the first rank loop ran end to end
 
 **THE BIG ONE: the bridge is on.** `scripts/wr_tools/wr_bridge.rb` +

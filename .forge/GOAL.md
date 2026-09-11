@@ -1,34 +1,32 @@
 # GOAL
 
 ## Mission
-Confirm plugin **1.54.0** is correct in the real application. 1.54.0 re-derived
-`wall_axis` from the booth's wall shell instead of its union bounding box, which
-anything protruding (the swung leaf at y -14, the vent housing at y 86) was
-skewing. Every offline proof is green; nothing has been checked against SketchUp.
+Kill the blocking "PROPOSAL PACKAGE — n exported..." modal that Benton has to
+click OK on at the end of every interactive proposal-package export. 1.65.0
+suppressed it only when `headless?` is true (bridge/force runs). An interactive
+run from the panel has a dialog and no 'force', so `headless?` is false and
+`scripts/proposal-package.rb:3480` still fires `UI.messagebox`. The fix that
+shipped fixed the unattended run, not Benton's run.
 
 ## Done means
-- `verify-autoset.rb` run from **File > New** against 1.54.0, ~126 checks.
-- `door.bearing_is_the_minus_Y_wall` PASSES. That single check confirms or
-  refutes the 1.54.0 diagnosis; if the bearing is still 0.0 the root cause is
-  wrong and everything downstream of it is suspect again.
-- Any failures root-caused, fixed, VERSION bumped, committed and pushed.
+- No `UI.messagebox` fires at the end of a normal panel-driven export, with or
+  without failures.
+- The full summary that box carried is still readable without hunting: every
+  line lands in the panel's own log, and the headline states pass/fail loudly.
+- Verified LIVE over the bridge on this desktop (`%LOCALAPPDATA%\WhisperRoom\
+  bridge\SketchUp 2026\` is enabled, `alive` stamped 11 Sep 17:52) with a real
+  panel-driven export — NOT a `force` run, which would take the headless path
+  and prove nothing.
+- VERSION bumped, DEVLOG entry, committed and pushed.
 
 ## Now
-All three Fixers landed and pushed as 1.55.0. Waiting on Benton to install and
-run the three live checks. Every Ruby change in 1.55.0 is UNRUN.
-
-One open question he alone can settle: how far the EFS silencer actually stands
-past the seals. The measured part thickness derives 10 1/8, but the 1.42.0
-DEVLOG entry was built to his own 8'-7 1/2" on a booth carrying the same parts,
-which implies 6 7/16. 1.55.0 draws the newer instruction and prints an ACROSS
-mismatch if the placed part disagrees.
+Fixer is on the modal. Benton is reinstalling the plugin on the desktop.
 
 ## Out of scope
-- WhisperRoomQuote (booth-builder.html) — read-only from here.
-- The 53 open audit findings in `.forge/auditor/full-audit-2026-09-01.md`.
+- The headless/bridge path — it already works, do not regress it.
+- Any other messagebox in the file that is not on the end-of-batch path.
+- WhisperRoomQuote (booth-builder.html) — read-only.
 
 ## History
-- CP caster-plate datum reconciled 1.49.0; Enhanced-on-CP reads 7'-5 1/16".
-- AUTO-SET shipped 1.48.0, verified live 10 Sep 2026 at 88/95.
-- 1.50.1 → 1.54.0 fixed camera bearing, angled-shot pairing, and the wall plane.
+- 1.65.0 turned the bridge on and guarded five headless seams.
 - Codebase audit 10 Sep 2026: `.forge/auditor/*.md`.

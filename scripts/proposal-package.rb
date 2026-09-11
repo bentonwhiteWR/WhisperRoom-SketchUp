@@ -3401,6 +3401,11 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     write_manifest(model, dlg)
 
     lines = summary_lines(why, restore_errs)
+    # Counted ONCE, here, and read by both the log colouring and the closing
+    # verdict below -- the same rule D11 made for the headline and the verdict
+    # when they were allowed to disagree.
+    lost_now  = lost_rows(@plan_files, @results.map { |r| r[:file] })
+    fails_now = @results.count { |r| r[:status] == 'failed' } + lost_now.size
     puts ''
     lines.each { |l| puts l }
     puts ''
@@ -3409,9 +3414,18 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     # '*** N PLANNED ROW(S) PRODUCED NO RESULT AT ALL' block was written,
     # printed to the console and put in the messagebox, and was the one thing
     # the run window never showed.
-    lines.each do |l|
-      bad = !restore_errs.empty? || l.include?('***') || l.include?('FAILED')
-      log(dlg, l.to_s, bad ? 'bad' : 'dim')
+    #
+    # THE HEADLINE IS THE LOUD PART NOW (1.65.1), because with the box gone it
+    # is what a human's eye lands on. It used to be coloured by the same
+    # substring test as every other line -- and the headline ALWAYS contains
+    # the word FAILED, '0 FAILED' on a perfect run -- so it came out red every
+    # single time and therefore said nothing at all. Its colour comes from the
+    # COUNTS instead: green on a clean batch, red the moment anything failed
+    # or a restore broke. summary_class is pure and rbtest-proposal.py proves
+    # it, so 'red every time' cannot come back unnoticed.
+    bad_run = fails_now > 0 || !restore_errs.empty?
+    lines.each_with_index do |l, i|
+      log(dlg, l.to_s, summary_class(l.to_s, i.zero?, bad_run))
     end
     (@unmapped || []).each { |s| log(dlg, "unmapped  #{s}", 'bad') }
     if @last_prompt
@@ -3424,8 +3438,8 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
 
     # D11 -- the closing verdict counts lost rows too, so the window can no
     # longer say 'Done. Model restored.' on a short delivery.
-    lost  = lost_rows(@plan_files, @results.map { |r| r[:file] })
-    fails = @results.count { |r| r[:status] == 'failed' } + lost.size
+    lost  = lost_now
+    fails = fails_now
     msg = if why == 'cancelled'
             'Cancelled — model restored. Partial results are real files.'
           elsif fails > 0
@@ -3466,23 +3480,33 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     # never allowed to leak into a later batch's finish.
     @manifest_plan = nil
     @results  = @results || []
-    # THE SUMMARY BOX NEEDS SOMEBODY TO READ IT (1.65.0). A headless run --
-    # the rank loop driving this over the bridge -- has nobody, and the box
-    # then sits on screen blocking SketchUp until a human happens past. That
-    # is exactly what caught Benton on 11 Sep 2026 ("It looks stuck at this
-    # dialog box?") with a SECOND batch queued behind it. The caller's own
-    # 'force' is the tell, and so is a nil dialog: no window to log into,
-    # no window to pop. Every line is already on the console.
-    if headless?
-      puts '  (summary box suppressed - no dialog on this run. The lines above are all of it.)'
-    else
-      begin
-        UI.messagebox(lines.join("\n"))
-      rescue Exception => e
-        puts "  (the summary box could not be shown: #{e.class}: #{e.message} " \
-             '- the summary above is the whole of it, and the batch is finished)'
-      end
-    end
+    # THERE IS NO END-OF-BATCH BOX ANY MORE (1.65.1). 1.65.0 put this line
+    # behind `headless?` and that fixed a run Benton never makes. `headless?`
+    # is latched in start_run as `dlg.nil? || cfg['force']`; a batch started
+    # from his panel has a real, VISIBLE dialog and no 'force', so the latch
+    # is FALSE and the box still fired -- every time, at the end of every
+    # interactive export. OBSERVED live over the bridge on 11 Sep 2026 with
+    # the panel open: headless? => false, and UI.messagebox reached with the
+    # whole summary inside it. He was told more than once that this was
+    # fixed; it had been guarded for the unattended caller and for nobody
+    # else ("you kept saying you fixed it, but you hadn't").
+    #
+    # So the box does not get a better condition -- it goes. A modal is the
+    # wrong carrier for a report nobody has to acknowledge, and everything it
+    # held is already delivered twice over:
+    #   * every line is on the CONSOLE (the puts loop above), and
+    #   * every line is in the PANEL'S OWN LOG (the log loop above, D11),
+    #     coloured by summary_class so a clean batch reads green and a failed
+    #     one reads red, and
+    #   * the closing verdict is in the window's status line via runFinished.
+    # Nothing is lost and nothing waits on a click.
+    #
+    # DO NOT reintroduce this guarded by `headless?`, by `dlg.nil?`, or by any
+    # other predicate: the end of a batch never pops a window. (The error box
+    # in the export callback, the preflight prompt and the delete-scene
+    # confirm are different animals and are deliberately untouched.)
+    puts '  (no summary box - the lines above are on the console and in the ' \
+         "run window's log)"
     if @close_after
       @close_after = false
       begin
@@ -3529,6 +3553,31 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
       missing.each { |f| lines << "        #{f}" }
     end
     lines
+  end
+
+  # PURE (1.65.1). Which colour a summary line gets in the run window's log.
+  #
+  # This exists because the box that used to carry the summary is gone, and
+  # the log is now the whole of it. The old rule was one substring test for
+  # every line -- `l.include?('***') || l.include?('FAILED')` -- and the
+  # HEADLINE always matches it, because the headline reads
+  # "PROPOSAL PACKAGE - n exported, n skipped, n FAILED" even when that n is
+  # zero. So the headline was red on every run that ever finished, which is
+  # the same as having no colour at all.
+  #
+  # The headline's colour therefore comes from the CALLER'S COUNTS, never
+  # from its own text: `bad_run` is "anything failed, was lost, or a restore
+  # broke". Every other line keeps the substring rule, which is right for
+  # them -- a per-file row says FAILED only when that file failed, and a
+  # '***' line is always a warning worth the colour.
+  #
+  # Kept pure and argument-fed so rbtest-proposal.py can run it outside
+  # SketchUp; it is mutation-checked there.
+  def self.summary_class(line, headline, bad_run)
+    return bad_run ? 'bad' : 'ok' if headline
+    return 'bad' if line.to_s.include?('***') || line.to_s.include?('FAILED')
+
+    'dim'
   end
 
   # ------------------------------------------------------------ dialog io --

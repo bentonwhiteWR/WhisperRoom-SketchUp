@@ -89,6 +89,37 @@ in. Mutation-checked when added, RUN not assumed:
 
 Do that again if you ever doubt it.
 
+THE MODAL (1.65.1, 11 Sep 2026)
+-------------------------------
+At the end of every proposal export a modal box popped up with the summary in
+it and Benton had to press OK. He reported it repeatedly and was told
+repeatedly it was fixed. 1.65.0 DID guard it -- behind `headless?`, which
+start_run latches as `dlg.nil? || cfg['force']`. That is true for the bridge
+and false for a batch started from the panel, so the shipped fix covered the
+unattended run and never touched his. Every verification had been done with a
+`force` run, which takes the headless path and proves nothing.
+
+The suite could not have caught it: the note above admitted finish's two
+messagebox sites were uncovered, and that is where it lived. Now:
+
+    nobox     finish() pops NO window at the end of a batch. Read on the
+              SOURCE, comments stripped -- finish() quotes `UI.messagebox`
+              six times in its own commentary explaining why boxes are or are
+              not there, and counting those made this read 7 first time. It
+              asserts the end-of-batch box is absent AND that exactly one
+              messagebox survives, the COULD-NOT-RESTORE error box, which is
+              deliberately out of scope.
+    sc1-sc6   summary_class -- the log's colouring, which is load-bearing now
+              that the log is the only carrier. The headline ALWAYS contains
+              the word FAILED ('0 FAILED' on a perfect run), so the old
+              substring rule painted it red on every run that ever finished.
+              sc1 and sc3 are the cases that rule gets wrong.
+
+Mutation-checked, RUN not assumed, 11 Sep 2026:
+
+    the 1.65.0 guarded box put back verbatim      -> nobox FAIL
+    summary_class's headline branch removed       -> sc1 FAIL
+
 THE LIFECYCLE HALF (added 1.9.6, 30 Aug 2026)
 ---------------------------------------------
 The 30 Aug audit's sharpest sentence: **this suite passed 64/64 while the
@@ -118,8 +149,10 @@ reintroduced bugs makes the named check FAIL:
     busy? never refuses                                   -> busy1 FAIL
 
 WHAT THIS HALF STILL DOES NOT PROVE. start_run itself is not executed here --
-only the gate it now calls. step / step_body's re-entrancy split, finish's
-restore ORDER and its two messagebox sites remain uncovered (plan_names /
+only the gate it now calls. step / step_body's re-entrancy split and finish's
+restore ORDER remain uncovered (finish's END-OF-BATCH messagebox is covered
+since 1.65.1 -- see THE MODAL, below -- and that uncovered site is precisely
+where it hid) (plan_names /
 uniquify / sanitize, the FILE-column contract, are covered since 1.26.2: pn1-6). And nothing offline can
 prove the real UI::HtmlDialog path: no batch has ever been started from the
 dialog's own Export button.
@@ -310,6 +343,7 @@ module WR_ProposalPackage
 %(plan_names)s
 
 %(summary_lines)s
+%(summary_class)s
 
 %(busy)s
 
@@ -1118,6 +1152,33 @@ module WR_ProposalPackage
     out << (apr.include?('rebuilt from manifest.json') && apr.include?('<client name - fill in>') ?
               'ap6 ok' : 'ap6 FAIL reconstructed wording')
 
+
+    # ================================================================
+    # 1.65.1 -- THE SUMMARY'S COLOUR, now that the log is the only place the
+    # summary lands. The headline ALWAYS contains the word FAILED (it reads
+    # "... 0 FAILED" on a perfect run), so the old substring rule painted it
+    # red on every run that ever finished. sc1/sc2 are the cases that rule
+    # got wrong; they fail the moment it comes back.
+    # ================================================================
+    head = 'PROPOSAL PACKAGE - 3 exported, 0 skipped, 0 FAILED'
+    out << (summary_class(head, true, false) == 'ok' ? 'sc1 ok' :
+            'sc1 FAIL clean headline is ' + summary_class(head, true, false).to_s)
+    bad_head = 'PROPOSAL PACKAGE - 2 exported, 0 skipped, 1 FAILED'
+    out << (summary_class(bad_head, true, true) == 'bad' ? 'sc2 ok' :
+            'sc2 FAIL failed headline is ' + summary_class(bad_head, true, true).to_s)
+    # A clean HEADLINE on a run whose failure was a RESTORE error, not a row:
+    # bad_run carries it, so the headline is still red even though its own
+    # text says 0 FAILED. This is the restore-error case, by counts.
+    out << (summary_class(head, true, true) == 'bad' ? 'sc3 ok' : 'sc3 FAIL')
+    # Body lines keep the substring rule -- and only the substring rule, so a
+    # clean row in a failed batch is not drowned in red.
+    out << (summary_class('  ok      hero.png   (rendered)', false, true) == 'dim' ?
+            'sc4 ok' : 'sc4 FAIL')
+    out << (summary_class('  FAILED  dims.png   (timed out)', false, false) == 'bad' ?
+            'sc5 ok' : 'sc5 FAIL')
+    out << (summary_class('  *** RESTORE FAILED: mode', false, false) == 'bad' ?
+            'sc6 ok' : 'sc6 FAIL')
+
     out.join(' | ')
   end
 end
@@ -1198,7 +1259,9 @@ EXPECT = ('1 ok | 2 ok | 3 ok | 4 ok | 5 ok | 6 ok | 7 ok | 8 ok | 9 ok | '
           'shade1 ok | shade2 ok | shade3 ok | shade4 ok | '
           'dir1 ok | dir2 ok | dir3 ok | dir4 ok | dir5 ok | dir6 ok | '
           'url1 ok | url2 ok | url3 ok | url4 ok | '
-          'ap1 ok | ap2 ok | ap3 ok | ap4 ok | ap5 ok | ap6 ok')
+          'ap1 ok | ap2 ok | ap3 ok | ap4 ok | ap5 ok | ap6 ok | '
+          # 1.65.1 -- the summary's colour, the log being all of it now.
+          'sc1 ok | sc2 ok | sc3 ok | sc4 ok | sc5 ok | sc6 ok')
 
 
 def main():
@@ -1249,6 +1312,7 @@ def main():
         'scene_prefix':      rbtest.method_source(SRC, 'scene_prefix'),
         'plan_names':        rbtest.method_source(SRC, 'plan_names'),
         'summary_lines':     rbtest.method_source(SRC, 'summary_lines'),
+        'summary_class':     rbtest.method_source(SRC, 'summary_class'),
         'busy':              rbtest.method_source(SRC, 'busy'),
         # 1.10.7 -- the manifest's pure half.
         # 'booth_name' (not 'booth_name?'): method_source appends \b and ?
@@ -1335,6 +1399,49 @@ def main():
         return 1
     print('  outsect ok - FOLDER & DETAILS starts from details_open?(dir), '
           'not from a hard-coded open')
+    # nobox (1.65.1) -- CHECKED ON THE SOURCE, because finish() is not pure
+    # and the box only ever fires at the end of a real batch. THIS IS THE
+    # CHECK THAT WAS MISSING. 1.65.0 "fixed" the end-of-batch summary
+    # messagebox by putting it behind `headless?`, which start_run latches
+    # false for any run with a dialog and no 'force' -- i.e. every run Benton
+    # makes from the panel. The box went on firing and he went on being told
+    # it was fixed. A predicate guard is not a fix here; the box's ABSENCE is,
+    # and absence is what this reads.
+    #
+    # finish() legitimately still owns ONE messagebox: the
+    # COULD-NOT-RESTORE-THE-MODEL box, which is an error box and out of
+    # scope. So this counts, rather than forbidding outright -- put the
+    # summary box back in any guarded form and the count goes to two.
+    fin = src[src.index('def self.finish(model, dlg, why)'):]
+    fin = fin[:fin.index('def self.summary_lines(')]
+    # CODE ONLY. This stretch of the file is heavily commented and half of
+    # those comments quote `UI.messagebox` while explaining why a box is or
+    # is not there -- counting raw occurrences counts the history, not the
+    # behaviour, and made this check read 7 the first time it was run.
+    code = '\n'.join(l for l in fin.split('\n') if not l.strip().startswith('#'))
+    bad = []
+    if 'UI.messagebox(lines.join' in code:
+        bad.append('the end-of-batch summary messagebox is back in finish()')
+    if 'the summary box could not be shown' in code:
+        bad.append("finish() still rescues a summary box -- so it still tries "
+                   'to open one')
+    n = code.count('UI.messagebox')
+    if n != 1:
+        bad.append('finish() holds %d UI.messagebox call(s); exactly one is '
+                   'expected, the COULD-NOT-RESTORE error box' % n)
+    elif 'COULD NOT RESTORE' not in code:
+        bad.append("finish()'s one messagebox is not the restore-failure box")
+    if 'summary_class(' not in code:
+        bad.append('finish() no longer colours the summary through '
+                   'summary_class -- the log is the only carrier now, so its '
+                   'colouring is load-bearing')
+    if bad:
+        print('  nobox FAIL %s' % '; '.join(bad))
+        return 1
+    print('  nobox ok - the end of a batch pops no window; the summary goes to '
+          'the console and to the run log, coloured by summary_class, and the '
+          "one messagebox left in finish() is the restore-failure error box")
+
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
     print('classify_render + read_signal + entry guards + exposure, mode '
