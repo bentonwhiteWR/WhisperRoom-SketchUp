@@ -2927,8 +2927,9 @@ module WR_DropLights
   FACTORY_INTENSITY = 30.0   # V-Ray's default on a light nobody configured
 
   # PURE. rows = [[plugin_name, intensity, enabled, :rig | :model | :ghost,
-  # expected_lumens_or_nil], ...]; missing = rig plugin names not in the
-  # scene at all. Verdict hash; 'ok' is true only when every list is empty.
+  # expected_lumens_or_nil, expected_invisible_or_nil, actual_invisible],
+  # ...]; missing = rig plugin names not in the scene at all. Verdict hash;
+  # 'ok' is true only when every list is empty.
   def self.audit_verdict(rows, missing)
     ghosts = rows.select { |r| r[3] == :ghost }.map { |r| r[0] }
     # AN INTENTIONAL ZERO IS NOT A DEAD LIGHT (1.67.0). FACTORY_INTENSITY
@@ -2963,8 +2964,20 @@ module WR_DropLights
       r[3] == :rig && !deadn.include?(r[0]) && !offn.include?(r[0]) && r[4] && r[1] &&
         ((r[1] * 1.0) - (r[4] * 1.0)).abs > 0.5
     end.map { |r| [r[0], r[1], r[4]] }
+    # SEEN WHEN IT SHOULD NOT BE, or vice versa (1.67.1). Nothing checked
+    # this until rank cycle d05 put a bare white ball in the middle of a
+    # frame and the audit cleared it: the sphere's intensity was right, so
+    # every test there was passed, and its `invisible` flag had quietly
+    # reverted to V-Ray's factory 0. Both directions are faults — an
+    # invisible room fixture is a glow with no lamp in it, and a visible
+    # fill is an object with no reason to exist.
+    truth = lambda { |v| v == true || v == 1 || v == 1.0 || v.to_s == 'true' || v.to_s == '1' }
+    seen = rows.select do |r|
+      r[3] == :rig && !r[5].nil? && !r[6].nil? &&
+        truth.call(r[5]) != truth.call(r[6])
+    end.map { |r| [r[0], truth.call(r[6]), truth.call(r[5])] }
     miss = Array(missing)
-    ok = ghosts.empty? && dead.empty? && wrong.empty? && miss.empty?
+    ok = ghosts.empty? && dead.empty? && wrong.empty? && seen.empty? && miss.empty?
     lines = []
     lines << format('rig lights in the V-Ray scene: %d, model-owned: %d',
                     rows.count { |r| r[3] == :rig }, rows.count { |r| r[3] == :model })
@@ -2972,12 +2985,18 @@ module WR_DropLights
     dead.each { |n, i| lines << "DEAD   #{n} — intensity #{i.inspect} (factory default or disabled)" }
     off.each { |n, i| lines << "OFF    #{n} — intensity #{i.inspect}, and the rig wrote 0 lm ON PURPOSE (layer switched off) — not a fault" }
     wrong.each { |n, i, e| lines << format('WRONG  %s — intensity %s, the rig wrote %.0f', n, i.inspect, e * 1.0) }
+    seen.each do |n, got, wantv|
+      lines << format('SEEN   %s — invisible is %s, the rig wrote %s. %s',
+                      n, got.inspect, wantv.inspect,
+                      wantv ? 'This emitter RENDERS AS AN OBJECT in frame.' :
+                              'This fixture is invisible, so its light has no lamp in it.')
+    end
     miss.each { |n| lines << "MISSING #{n} — the entity is in the model, its plugin is not in the scene" }
     lines << (ok ? 'AUDIT OK — the scene holds exactly the rig the model shows' : 'AUDIT FAILED — this frame would not be the rig')
     { 'ok' => ok, 'rig' => rows.count { |r| r[3] == :rig },
       'model' => rows.count { |r| r[3] == :model }, 'ghosts' => ghosts,
-      'dead' => dead, 'off' => off, 'wrong' => wrong, 'missing' => miss,
-      'lines' => lines }
+      'dead' => dead, 'off' => off, 'wrong' => wrong, 'seen' => seen,
+      'missing' => miss, 'lines' => lines }
   end
 
   # The live half: read the scene, classify every light plugin, and hand the
@@ -2991,13 +3010,17 @@ module WR_DropLights
     sc = vray_scene(ctx)
     return { 'ok' => false, 'why' => 'no V-Ray scene', 'lines' => ['AUDIT FAILED — no V-Ray scene'] } if sc.nil?
     rig = {}
+    rigvis = {}
     walk = nil
     walk = lambda do |ents, depth|
       next if depth > SWEEP_MAX_DEPTH
       ents.each do |e|
         next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
         p = e.get_attribute(DICT, 'plugin').to_s
-        rig[p] = e.get_attribute(DICT, 'lumens') unless p.empty?
+        unless p.empty?
+          rig[p] = e.get_attribute(DICT, 'lumens')
+          rigvis[p] = e.get_attribute(DICT, 'invisible')
+        end
         kids = child_entities(e)
         walk.call(kids, depth + 1) if kids.respond_to?(:each)
       end
@@ -3016,7 +3039,8 @@ module WR_DropLights
         next unless t =~ /\ALight/
         n = pl.name.to_s
         kind = rig.key?(n) ? :rig : (owned.key?(n) ? :model : :ghost)
-        rows << [n, (pl[:intensity] rescue nil), (pl[:enabled] rescue nil), kind, rig[n]]
+        rows << [n, (pl[:intensity] rescue nil), (pl[:enabled] rescue nil),
+                 kind, rig[n], rigvis[n], (pl[:invisible] rescue nil)]
       end
     rescue StandardError => e
       return { 'ok' => false, 'why' => "enumerating the scene raised #{e.class}: #{e.message}",
@@ -4666,6 +4690,16 @@ paint(); drawPresets("");
         # What was WRITTEN, so audit_scene can hold the V-Ray scene to it at
         # render time (1.66.0).
         inst.set_attribute(DICT, 'lumens', lumens.to_f)
+        # AND what visibility was written (1.67.1). Same reason as `lumens`:
+        # the audit can only hold the V-Ray scene to the rig if the rig
+        # writes down what it asked for. Rank cycle d05 rendered a bare
+        # white BALL in the middle of the frame -- a fill sphere whose
+        # `invisible` flag had reverted to V-Ray's factory 0 while its
+        # intensity was correct -- and `audit_scene` passed the frame,
+        # because it only ever checked intensity and enabled. A light that
+        # is meant to be unseen and is not is just as wrong as a light at
+        # the wrong intensity, and is far more obvious in the picture.
+        inst.set_attribute(DICT, 'invisible', !spec[:visible])
         placed += 1
         if spec[:budget] == :room
           room_lm += lumens

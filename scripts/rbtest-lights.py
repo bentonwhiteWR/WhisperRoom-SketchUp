@@ -1130,13 +1130,29 @@ __METHODS__
     #   F wrote nothing and reads 0-> DEAD: a pre-1.66.0 rig keeps the old
     #                                 judgement, because there is no record
     #                                 that says the zero was meant.
-    av1 = audit_verdict([['A', 0.0, true, :rig, 0.0]], [])
-    av2 = audit_verdict([['A', 0.0, true, :rig, 0.0],
-                         ['B', 30.0, true, :rig, 0.0],
-                         ['C', 30.0, true, :rig, 1000.0],
-                         ['D', 1000.0, true, :rig, 1000.0],
-                         ['E', 900.0, true, :rig, 1000.0],
-                         ['F', 0.0, true, :rig, nil]], [])
+    av1 = audit_verdict([['A', 0.0, true, :rig, 0.0, true, true]], [])
+    av2 = audit_verdict([['A', 0.0, true, :rig, 0.0, true, true],
+                         ['B', 30.0, true, :rig, 0.0, true, true],
+                         ['C', 30.0, true, :rig, 1000.0, true, true],
+                         ['D', 1000.0, true, :rig, 1000.0, true, true],
+                         ['E', 900.0, true, :rig, 1000.0, true, true],
+                         ['F', 0.0, true, :rig, nil, true, true]], [])
+
+    # 29k -- SEEN WHEN IT SHOULD NOT BE (1.67.1). G is a fill the rig wrote
+    # invisible and V-Ray is rendering as an object -- rank cycle d05's white
+    # ball, which the audit cleared because its intensity was correct. H is
+    # the mirror: a fixture the rig wrote VISIBLE that is not being drawn, so
+    # its light has no lamp in it. Both must fail. J holds the right
+    # intensity and the right visibility and must not. K has no visibility
+    # record at all (a pre-1.67.1 rig) and must be judged exactly as before.
+    # V-Ray hands these back as 0/1 as often as false/true, so both spellings
+    # have to read the same.
+    av3 = audit_verdict([['G', 1000.0, true, :rig, 1000.0, true, false],
+                         ['H', 1000.0, true, :rig, 1000.0, false, 1],
+                         ['J', 1000.0, true, :rig, 1000.0, true, 1],
+                         ['K', 1000.0, true, :rig, 1000.0, nil, false]], [])
+    out << format('auditseen ok%d seen%s', av3['ok'] ? 1 : 0,
+                  av3['seen'].map { |r| r[0] }.join('+'))
     out << format('auditoff ok%d off%s | auditmix ok%d off%s dead%s wrong%s',
                   av1['ok'] ? 1 : 0, av1['off'].map { |r| r[0] }.join('+'),
                   av2['ok'] ? 1 : 0, av2['off'].map { |r| r[0] }.join('+'),
@@ -1288,6 +1304,7 @@ EXPECT = ' | '.join([
     # NAMED rather than placed in a wall, which is the behaviour under test.
     'fillsmall placed0 of6',
     'top 94.600,99.776,94.000',
+    'auditseen ok0 seenG+H',
     'auditoff ok1 offA | auditmix ok0 offA deadB+C+F wrongE',
     'roles panel22/22/3600/4200/VIS fill10/2000/3500/inv rigoffice',
     'split match1 visVIS hidinv share0.05 sum1',
