@@ -499,6 +499,23 @@ module WR_DropLights
   FILL_STEP     = 6.0    # in — walk-IN step when the asked-for standoff does
                          #   not fit
   FILL_MIN      = 24.0   # in — never closer than 2 ft to the booth's skin
+  # EVERY SCATTER STANDOFF IS MULTIPLIED BY THIS (rank cycle d08). Benton's
+  # words were "maybe four or five feet away from the booth", and the table
+  # above is written at that distance. 0.70 brings the six spheres in to
+  # 34-50 in (2.8-4.2 ft), which is BELOW what he said, so it is a
+  # deliberate departure and is reported as one. It is taken under his
+  # ruling R3 — "idk i want you to loop and judge for yourself trying
+  # different things and report back" — which makes distance the loop's to
+  # determine.
+  #
+  # Measured reason: since the key light was retired the scatter is the ONLY
+  # thing lighting the booth's door face, and cutting it 4x at d07 to stop
+  # it blowing the walls took the face with it (face crop L 106.2 -> 92.7,
+  # face/floor 0.690 -> 0.664). Pulling the same output closer buys roughly
+  # 2x on the face by inverse square AND moves every sphere further from the
+  # wall it was spotting, so it is the one move that serves the booth and
+  # the highlights at the same time.
+  FILL_STANDOFF_K = 0.70
 
   # THE CEILING CLAMP. c00-c02's key was a 24 in panel tilted 58 deg with its
   # centre at z 89.6 in a 96 in room: its top edge stood at ~99.8 in, THROUGH
@@ -1058,7 +1075,7 @@ module WR_DropLights
     out = []
     scatter.each_with_index do |row, i|
       ang = row[0]
-      want = row[1]
+      want = row[1] * FILL_STANDOFF_K
       hgt = row[2]
       sc = row[3]
       dx, dy = rot2(nx, ny, ang)

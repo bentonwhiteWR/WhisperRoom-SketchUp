@@ -406,7 +406,7 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'PANEL_EMIT_UP', 'PANEL_SPACING', 'PANEL_MAX', 'PANEL_MIN_INSET',
            'FILL_D', 'FILL_EDGE', 'FILL_STEP', 'FILL_MIN',
            'CLAMP_TOL', 'CLAMP_FLOOR', 'PANEL_VISIBLE_SHARE',
-           'PANEL_VIS_RECESS']
+           'PANEL_VIS_RECESS', 'FILL_STANDOFF_K']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT', 'RIG_DEFAULT']
 # FILL_SCATTER BEFORE LIGHT_LAYERS: the :fill role's :n reads FILL_SCATTER.size,
 # and these are emitted in list order into one Ruby module body.
@@ -1296,8 +1296,14 @@ EXPECT = ' | '.join([
     # 41.9). Row 6: d 72 -> 24 (margin 26.0 -> 40.8), the walk-in limit,
     # because moving a corner-aimed row toward the booth moves it away from
     # the wall it was facing.
-    'fill 310.8,438.1,82,42;284.8,380.2,27,66;310.2,332.7,70,48;'
-    '348.6,279.5,19,60;399.7,282.2,58,51;439.2,310.2,88,24',
+    # FILL_STANDOFF_K 0.70 at rank cycle d08: every asked-for standoff is
+    # multiplied before the walk-in, so the table's 54/66/48/60/51/72 become
+    # 37.8/46.2/33.6/42.0/35.7/50.4. Rows 1-5 take theirs outright. Row 6
+    # still aims at the east wall the booth is parked against and still has
+    # to walk in, 50.4 -> 26.4, to clear the 40 in margin (at 26.4 it sits
+    # 40.07 in off it) -- the same limit as before, reached sooner.
+    'fill 314.7,436.6,82,38;304.4,383.3,27,46;322.1,340.7,70,34;'
+    '356.8,295.6,19,42;401.0,297.4,58,36;439.9,307.9,88,26',
     # At a 40 in margin the 180 in test square has NO legal point left at all:
     # x >= 340 and y >= 340 by the margin, and the booth keep-out claims
     # everything with x >= 338 and y >= 321. All six rows are dropped and
