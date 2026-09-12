@@ -1,6 +1,160 @@
 # DEVLOG
 
 ## 2026-09-12
+### 1.68.0 - THE FRONT PLATE WAS NOT FACING THE DOOR. One coin flip in the door-wall derivation, decided by 0.6 percent, turned every door-referenced plate the wrong way. Fixed, and the three-quarter plates now swing toward the window like the side plate already did.
+
+Benton, 12 Sep, on the `t3-01` pack:
+
+> *"It chose the wrong sides. The window is on the right side of the booth and it
+> chose to do the side view on the left. Same with the angled view... it should kind
+> of auto decide to go towards the side where there's more features such as a
+> window. In this case it chose to go through the left and then it removed the wall
+> and that's not the way that that would be done if I did that manually. The back
+> side looks fine where the ventilation is, floor plan looks fine. That's really the
+> angled views. The front also thinks the front is the side. I don't really know
+> why. That doesn't make sense. The front is going to be where the door is."*
+
+`Z:\Sketchup\Proposals\test3\t3-01\4_MDL 4872 S (components) 02-front.png` is a blank
+booth end panel with **no door anywhere in the frame**. The new pack is at
+`t3-02`, same room, same rig, same cycle harness.
+
+## The clue was in what still worked
+
+Broken: `02-front`, `04-side`, `01-angled` (and `03-high`). Fine: `05-ventilation`,
+`06-plan`. That is **exactly** the set keyed `:az => :door` against the set that is
+not: the vent plate reads its own bearing off `WR-Booth-Vent`, and the plan is at
+`:el => 90` where the azimuth stops mattering. Four plates rotating together off one
+reference is one root cause, not four defects.
+
+## THE ROOT CAUSE, measured through the bridge on the live model
+
+The booth's door is **a single ComponentInstance** on `WR-Booth-Door`,
+`S0  Left46Door`, with the frame AND the leaf inside it. `frame_hits` therefore has
+one part to choose from and hands back the whole assembly. Its booth-local footprint
+is **46.00 x 31.99** - 46 in of door along its wall, and 32 in *across* it because
+the leaf is drawn swung open.
+
+`wall_normal` requires `ASPECT_MIN = 2.0` and 46 is not 2 x 32, so it **correctly
+declined**. Then the pre-1.54.0 `wall_axis` fallback ran, and it is the rule the
+1.53.0 note in that same file says was wrong: it normalises the offset against the
+booth's UNION bounding box, which the swung leaf and the vent housing skew to
+**120.6 x 84.0 for a shell that is 72 x 48**. The two normalised offsets came out
+
+    nx = -0.40933      ny = -0.40684
+
+and `|nx| >= |ny|` picked X by **0.6 percent**. A coin flip, and it lost: the door
+is in the **-Y** wall and the bearing came back **180** instead of **-90**.
+
+`02-front` then stood on the -X side and photographed `W0  46PanelSolid`. That is the
+blank panel in the frame Benton was looking at.
+
+It also poisoned the side pick downstream. `pick_side` takes the door normal turned
++/-90, so with a wrong door wall its two candidates were the **door wall and the vent
+wall** - neither of them a side. It duly reported *"no window on either side"* and
+chose the vent wall, which is the left-hand shot Benton saw.
+
+## THE FIX: look inside the door, do not sharpen the coin flip
+
+`frame_hits` already says what the answer should be - THE FRAME, NOT THE LEAF - and
+only failed because it assumed frame and leaf are **siblings**. When the picked
+part's own shape does not name a wall, `tag_anchor` now descends ONE level into its
+definition and looks for the frame among the children. On this booth that finds
+
+    Std door frame 46"#7    46.00 x 17.88 booth-local, aspect 2.57   <- picked
+    Component#393           36.69 x 31.99 booth-local, aspect 1.15   <- the leaf
+
+and `wall_normal` reads the -Y wall without hesitation. Two independent signals pick
+the frame and they agree: the name (`FRAME_RE`), then the plan aspect. All eight
+bounding-box corners are transformed, because this door instance carries a
+90-degree rotation and transforming min/max alone does not give a rotated box's
+extents.
+
+**Nothing that works today changes.** The descent is gated on `wall_shape?`: a booth
+whose frame is its own tagged sibling (the DRFRM slot `build-booth-components.rb`
+produces) passes on the first read and never descends. When the descent finds
+nothing wall-shaped, the old fallback still runs. It can only turn a guess into a
+reading, never the other way round.
+
+## WHAT CAME FREE, AND WHAT DID NOT
+
+The side plate's window rule has been in since 1.57.0 and was **never broken** - it
+was being fed a wrong door normal. With the normal fixed it picks the window on its
+own and says so:
+
+    side: door +90 (bearing -0.0 deg) -- it has 1 window(s) (E0  46Panel3236WDO)
+          and the other side has 0
+
+What did NOT come free is the **angled** view, and Benton asked for it by name. Until
+now `az_for` honoured the side sign on `04-side` alone, and the note there said the
+three-quarter plates' handedness was *"a question for Benton, not a thing this method
+decides"*. He decided it. `side_swung?` now names the rule as a property rather than
+a list - **every plate whose azimuth is read off the door and that swings away from
+it** - so `01-angled`, `03-high` and `04-side` all turn toward the chosen side, and
+all three print the side line in the log.
+
+**The door reference is not overridden.** The side pick governs which way a plate
+SWINGS FROM the door, never what the door is. Every plate with no swing is unmoved:
+`02-front` stays square to the door wall, `06-plan` stays straight down,
+`07-interior` takes the door bearing bare. A booth with nothing to choose between
+gets `+1`, the historic swing, so the usual booth produces the plates it always has.
+
+## Proven on the live model, by looking
+
+| plate | azimuth before | after | what the image shows now |
+|---|---|---|---|
+| 01-angled | -145 | **-55** | door wall AND the window return, three-quarter |
+| 02-front  | 180  | **-90** | the door, square on, dead centre |
+| 03-high   | -145 | **-55** | same corner from 17 ft up |
+| 04-side   | 90 (vent wall) | **0** | the window panel, desk and MJP |
+| 05-ventilation | 115 | **115** | unchanged, as Benton said it should be |
+| 06-plan   | 180 | 0 | unchanged - `:el => 90`, `+Y` up either way |
+
+`audit_scene` returned `ok` (rig 28, 0 off / dead / wrong / ghosts) both before and
+after the render, so the frames count. `rbtest-autoset.py` is **296 checks green**
+(was 282); the eleven new `if*` checks and the rewritten `sd13` were mutation-run,
+not assumed - see the CHECKED AGAINST ITSELF block in that file for the six
+mutations and which checks caught each.
+
+## GOTCHA for whoever touches this next
+
+`06-plan`'s stored azimuth changed from 180 to 0 and **that is not a defect**. At
+`:el => 90` `WR_ProposalScenes.aim` swaps the up vector to `+Y` and the azimuth
+stops reaching the camera. Do not "fix" it back.
+
+## OPEN, and it INTERACTS with this
+
+The hidden room wall rendering as open sky is still open and was **not** touched
+here. But the orientation fix moves which wall gets hidden, so the old frames and
+the new ones are not comparable on that axis:
+
+| plate | wall hidden before | after |
+|---|---|---|
+| 01-angled | Wall 15 (west) | Wall 3, Wall 4 (south) |
+| 02-front  | Wall 15 (west) | Wall 1 (west) |
+| 03-high   | Wall 15 (west) | **none** |
+| 04-side   | Wall 14 (north) | Wall 13 (north) |
+| 05-ventilation | Wall 14, Wall 15 | unchanged |
+
+On THIS booth in THIS room that happens to cure it: the old hero
+(`t3-01\1_...01-angled r.png`) is roughly a fifth sky and infinite grey ground, and
+the new one (`t3-02\1_...`) has **none** - the walls now hidden are behind the
+camera. **That is luck, not a fix.** A booth whose door faces the other way puts the
+hidden wall back in shot. The open item stands.
+
+Also open, and unrelated to the door: `04-side` frames small. The standoff scales
+with the booth's 3D diagonal, and the side plate on this booth looks at the 48 in
+end, so the subject is narrow in a frame sized for a 120 in diagonal.
+
+## Files
+
+- `scripts/wr-autoset.rb` - `FRAME_RE`, `wall_shape?`, `plan_aspect`,
+  `inner_frame_pick`, `inner_parts`, `side_swung?`; `tag_anchor` descends;
+  `az_for` and `plate_log` ask `side_swung?` instead of `== SIDE_PLATE`.
+- `scripts/rbtest-autoset.py` - `if1`-`if11`, `sd13` rewritten, `sd13b`, `sd13c`,
+  `vt17b`; six new mutation rows.
+- `scripts/wr_tools/VERSION` - 1.68.0.
+
+
 ### 1.67.8 - AUTOMATION RUN on a real client room. The whole pipeline drives unattended in ~2.5 minutes, and it produced three BLANK frames on the shipped code. One predicate - `floor_child?` not knowing the tag name `WR-106-Floor` - made the rig light a bounding box 2.5x the size of the room.
 
 Benton, 12 Sep: *"This should be running the proposal package like auto set bank...

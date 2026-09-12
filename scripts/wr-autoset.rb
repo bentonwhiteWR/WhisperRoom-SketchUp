@@ -1042,12 +1042,32 @@ module WR_AutoSet
   # Where the camera stands, in degrees. door_az/vent_az are read off the
   # booth's own WR-Booth-Door / WR-Booth-Vent tags; either may be nil.
   #
-  # `side` is +1 or -1 and is honoured by the SIDE PLATE ONLY: it is the
-  # hand pick_side made (below), so +1 keeps the door bearing plus 90 -- the
-  # only side the plate ever looked at until 1.57.0 -- and -1 turns it to the
-  # door bearing minus 90. Every other plate ignores it; the three-quarter
-  # plates keep their own handedness (see pick_side for why that is a
-  # question for Benton, not a thing this method decides).
+  # `side` is +1 or -1: the hand pick_side made (below). +1 keeps the door
+  # bearing plus the plate's swing -- the only hand any plate ever had before
+  # 1.57.0 -- and -1 turns the swing the other way, onto the door bearing
+  # minus it.
+  #
+  # EVERY DOOR-REFERENCED PLATE THAT SWINGS NOW FOLLOWS IT (1.68.0), not just
+  # 04-side. Until now this method honoured `side` on the side plate alone,
+  # and the note here said the three-quarter plates' handedness was "a
+  # question for Benton, not a thing this method decides". He decided it on
+  # 12 Sep 2026, looking at a pack whose side and angled plates had both gone
+  # the wrong way: "it should kind of auto decide to go towards the side where
+  # there's more features such as a window. In this case it chose to go through
+  # the left". So 01-angled and 03-high turn toward the chosen side too, and
+  # the hero frame and the side elevation now agree about which side of the
+  # booth is worth showing instead of disagreeing by construction.
+  #
+  # THE PLATES WITH NO SWING ARE UNMOVED, and that is what keeps the door
+  # reference intact: 02-front (swing 0) stays square to the door wall,
+  # 06-plan (swing 0) is straight down, and 07-interior takes the door
+  # bearing bare. `side` governs WHICH WAY A PLATE SWINGS FROM the door, never
+  # what the door is. 05-ventilation reads its own bearing and its own
+  # `vshift` and is untouched by this.
+  #
+  # A BOOTH WITH NOTHING TO CHOOSE BETWEEN DOES NOT MOVE. pick_side returns
+  # +1 on a tie and +1 when the door side is ASSUMED, and +1 is the historic
+  # swing, so the usual booth produces exactly the plates it always has.
   #
   # `vshift` is +1 or -1 and is honoured by the VENT PLATE ONLY (1.57.1): it
   # is the hand pick_vent chose, so the plate's fixed swing turns TOWARD the
@@ -1060,11 +1080,28 @@ module WR_AutoSet
     if p[:az] == :vent
       (vent_az.nil? ? (base + 180.0) : vent_az.to_f) +
         (p[:swing] * (vshift.to_i < 0 ? -1.0 : 1.0))
-    elsif p[:id] == SIDE_PLATE
+    elsif side_swung?(plate_id)
       base + (p[:swing] * (side.to_i < 0 ? -1.0 : 1.0))
     else
       base + p[:swing]
     end
+  end
+
+  # WHICH PLATES TURN WITH THE SIDE PICK: every plate whose azimuth is read
+  # off the door AND that swings away from it. That is 01-angled, 03-high and
+  # 04-side today.
+  #
+  # Stated as a PROPERTY rather than as a list of ids on purpose. A list has
+  # to be remembered when a plate is added; this cannot fall out of step with
+  # PLATES, and it makes the rule itself the readable thing: a plate that
+  # swings off the door swings toward the side worth looking at, and a plate
+  # that does not swing is not affected by which side that is. The dual
+  # render id ('04-side r') resolves through plate() to the same row, so an
+  # image and its render can never disagree.
+  def self.side_swung?(plate_id)
+    p = plate(plate_id)
+    return false if p.nil?
+    p[:az] == :door && p[:swing].to_f.abs > 1.0e-9
   end
 
   # ------------------------------------------------------ the side plate --
@@ -1778,6 +1815,148 @@ module WR_AutoSet
     best ? [best] : []
   end
 
+  # THE DOOR THAT IS ONE COMPONENT, FRAME AND SWUNG LEAF TOGETHER (1.68.0).
+  #
+  # THE DEFECT, measured on Benton's live MDL 4872 S in CSUSB Chaparral 106 on
+  # 12 Sep 2026. That booth's door is a SINGLE ComponentInstance on
+  # WR-Booth-Door -- "S0  Left46Door" -- and both the frame and the leaf live
+  # INSIDE it. frame_hits therefore has exactly one part to choose from and
+  # returns the whole assembly, whose booth-local footprint is 46.00 x 31.99:
+  # the 46 in door width along its wall, and 32 in ACROSS it because the leaf
+  # is drawn swung open. 46 is not 2x 32, so wall_normal rightly declines --
+  # that shape does not name a wall.
+  #
+  # Then the pre-1.54.0 fallback ran, and it is the rule the 1.53.0 note above
+  # says was wrong: it normalises the offset against the booth's UNION box,
+  # which the same swung leaf and the vent housing skew (own box 120.6 x 84.0
+  # for a shell that is 72 x 48). It came out nx -0.40933 against ny -0.40684
+  # and called the door wall +/-X on a margin of 0.6 percent. It was a coin
+  # flip and it lost: the door is in the -Y wall, and the bearing came back
+  # 180 instead of -90.
+  #
+  # Every plate keyed :az => :door rotated with it. 02-front stood on the -X
+  # side and photographed "W0  46PanelSolid", a blank end wall with no door in
+  # the frame at all; 04-side and 01-angled swung off the same bad reference.
+  # 05-ventilation and 06-plan were untouched, the first because the vent
+  # bearing is read separately and the second because at el 90 the azimuth
+  # stops mattering -- which is exactly the pair Benton reported as fine.
+  #
+  # THE FIX IS TO LOOK INSIDE, NOT TO SHARPEN THE COIN FLIP. frame_hits
+  # already says what the answer should be -- THE FRAME, NOT THE LEAF -- and
+  # only failed because it assumed the two are SIBLINGS. When the picked part's
+  # own shape does not name a wall, descend ONE level into its definition and
+  # look for the frame among its children. On this booth that finds
+  # "Std door frame 46 #7", 46.00 x 17.87 in booth-local space once the
+  # instance transform is applied, which wall_normal reads as the -Y wall
+  # without hesitation (46 >= 2 x 17.87).
+  #
+  # NOTHING THAT WORKS TODAY CHANGES. The descent is gated on the shape test:
+  # a booth whose door frame is its own tagged sibling (the DRFRM slot
+  # build-booth-components.rb produces) passes wall_shape? on the first read
+  # and never descends. When the descent finds nothing it can use, the old
+  # wall_axis fallback still runs -- so this can only turn a guess into a
+  # reading, never the other way round.
+
+  # The frame's name, when a builder gives it one. Kept separate from
+  # frame_hits's own inline /FRM|FRAME/i on purpose: that one is pinned by
+  # tests and is not being touched here.
+  FRAME_RE = /FRM|FRAME/i
+
+  # Does this plan footprint, ON ITS OWN, name a wall? wall_normal answers
+  # with a normal and needs an offset for the SIGN; this asks only the shape
+  # half of the same question, so a caller can tell "the shape does not name a
+  # wall" from "it names the -Y one". Kept in step with wall_normal by using
+  # the same ASPECT_MIN and the same degenerate guard.
+  def self.wall_shape?(span_x, span_y)
+    sx = span_x.to_f.abs
+    sy = span_y.to_f.abs
+    return false if sx < 1.0e-6 && sy < 1.0e-6
+    sx >= sy * ASPECT_MIN || sy >= sx * ASPECT_MIN
+  end
+
+  # Long over thin, in plan. A frame lies flat IN its wall and scores high; a
+  # leaf swung open sits at an angle across the room and scores near 1.
+  # Capped rather than infinite so a zero-thickness face cannot poison a sort.
+  def self.plan_aspect(span_x, span_y)
+    sx = span_x.to_f.abs
+    sy = span_y.to_f.abs
+    lo = sx < sy ? sx : sy
+    hi = sx < sy ? sy : sx
+    return 0.0 if hi < 1.0e-9
+    lo < 1.0e-9 ? 1.0e9 : (hi / lo)
+  end
+
+  # THE PURE HALF OF THE DESCENT, so the thing that was wrong is the thing
+  # that gets tested. `rows` are inner_parts's readings, already in the BOOTH's
+  # space: { 'name' => ..., 'span' => [sx, sy], 'ctr' => [cx, cy] }. Returns
+  # the row to read the wall off, or nil for "nothing in there helps".
+  #
+  # Two signals, asked in this order:
+  #   1. A child whose name says frame. That is the builder telling us.
+  #   2. Otherwise the child with the highest plan aspect -- the longest,
+  #      thinnest thing in the box, which is what a wall part is.
+  # The winner must then still pass wall_shape?. A door assembly with nothing
+  # wall-shaped inside it returns nil and the caller keeps its old fallback,
+  # so this never fabricates an answer it does not have.
+  def self.inner_frame_pick(rows)
+    return nil if rows.nil? || rows.empty?
+    named = rows.select { |r| r['name'].to_s =~ FRAME_RE }
+    pool  = named.empty? ? rows : named
+    best  = nil
+    bestv = -1.0
+    pool.each do |r|
+      sp = r['span']
+      next if sp.nil?
+      a = plan_aspect(sp[0], sp[1])
+      if a > bestv
+        bestv = a
+        best  = r
+      end
+    end
+    return nil if best.nil?
+    wall_shape?(best['span'][0], best['span'][1]) ? best : nil
+  end
+
+  # The impure half: the direct children of a single picked part, each read as
+  # a plan footprint in the PICKED PART'S OWN PARENT space -- which is the
+  # booth's space, because frame_hits picks from parts walked out of the booth.
+  #
+  # All EIGHT corners are transformed, not just min and max: the door instance
+  # on this very booth carries a 90-degree rotation, and transforming two
+  # opposite corners of an axis-aligned box through a rotation does not give
+  # the rotated box's extents.
+  #
+  # Only ONE picked part is descended into. Several picked parts that together
+  # fail the shape test is a different situation -- there is no single
+  # assembly to open -- and it is left to the existing fallback rather than
+  # guessed at.
+  def self.inner_parts(picked)
+    return [] unless picked.is_a?(Array) && picked.length == 1
+    e = picked[0]
+    return [] unless e.respond_to?(:definition)
+    tr = e.transformation
+    out = []
+    e.definition.entities.each do |k|
+      next unless k.is_a?(Sketchup::Group) || k.is_a?(Sketchup::ComponentInstance)
+      bb = k.bounds
+      xs = []
+      ys = []
+      (0..7).each do |i|
+        pt = bb.corner(i).transform(tr)
+        xs << pt.x.to_f
+        ys << pt.y.to_f
+      end
+      dn  = (k.respond_to?(:definition) ? k.definition.name.to_s : '') rescue ''
+      inm = (k.name.to_s rescue '')
+      out << { 'name' => "#{inm} #{dn}".strip,
+               'span' => [xs.max - xs.min, ys.max - ys.min],
+               'ctr'  => [(xs.max + xs.min) / 2.0, (ys.max + ys.min) / 2.0] }
+    end
+    out
+  rescue StandardError
+    []
+  end
+
   # [centre, axis] for the tagged opening, in MODEL space: the frame's own
   # centre point, and the unit outward normal of the wall it sits in. nil when
   # there is nothing usable, and the caller says ASSUMED out loud.
@@ -1793,20 +1972,34 @@ module WR_AutoSet
     return nil if picked.empty?
     tb = Geom::BoundingBox.new
     picked.each { |e| tb.add(e.bounds) }
+    sx = (tb.max.x - tb.min.x).to_f
+    sy = (tb.max.y - tb.min.y).to_f
+    cx = tb.center.x.to_f
+    cy = tb.center.y.to_f
+    # A ONE-PIECE DOOR: frame and swung leaf in one component, so the outer
+    # footprint names no wall. Open it and read the frame instead. See the
+    # note on inner_frame_pick -- this is the 12 Sep 2026 wrong-front fix.
+    unless wall_shape?(sx, sy)
+      inner = inner_frame_pick(inner_parts(picked))
+      unless inner.nil?
+        sx, sy = inner['span']
+        cx, cy = inner['ctr']
+      end
+    end
     hx = (own.max.x - own.min.x).to_f / 2.0
     hy = (own.max.y - own.min.y).to_f / 2.0
-    dx = (tb.center.x - own.center.x).to_f
-    dy = (tb.center.y - own.center.y).to_f
+    dx = (cx - own.center.x).to_f
+    dy = (cy - own.center.y).to_f
     return nil if Math.sqrt((dx * dx) + (dy * dy)) < 1.0
     # The FRAME'S OWN footprint names the wall plane; the offset only signs it.
-    ax = wall_normal((tb.max.x - tb.min.x), (tb.max.y - tb.min.y), dx, dy)
+    ax = wall_normal(sx, sy, dx, dy)
     ax = wall_axis(dx, dy, hx, hy) if ax.nil?
     ux, uy = ax
     v = Geom::Vector3d.new(ux, uy, 0).transform(booth.transformation)
     return nil if v.length < 1.0e-6
     # The frame's centre in model space, at the BOOTH centre's height: the eye
     # height is the plate's business (:el), not the frame's.
-    fc = tb.center.transform(booth.transformation)
+    fc = Geom::Point3d.new(cx, cy, tb.center.z).transform(booth.transformation)
     # The third element is the wall's normal in BOOTH-LOCAL space, which is
     # what pick_side sorts the side walls against (1.57.0). Callers that
     # read [0] and [1] are untouched.
@@ -2589,7 +2782,10 @@ module WR_AutoSet
     out << cl if cl
     # THE SIDE PLATE SAYS WHICH SIDE AND WHY (1.57.0), before anything else
     # about it. A silent choice is a bad choice: Benton reads this log.
-    out << side_line(spick, spick['az']) if spick && base_id(id) == SIDE_PLATE
+    # 1.68.0: the angled plates swing with the same pick, so they print the
+    # same line. Benton reads this log, and a plate that moved silently is
+    # the defect this whole section exists to stop.
+    out << side_line(spick, spick['az']) if spick && side_swung?(id)
     # THE VENT PLATE SAYS WHICH WALL ANCHORS IT AND WHICH WAY IT SWUNG
     # (1.57.1), for the same reason the side plate does.
     out << vent_line(vpick, vpick['az']) if vpick && base_id(id) == VENT_PLATE

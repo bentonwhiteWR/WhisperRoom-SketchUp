@@ -84,6 +84,23 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
     page_for_plate no longer following RENUMBERED        -> mg1, mg3 FAIL
     stale_plates calling a RENUMBERED id stale           -> mg5 FAIL
     az_for back to the unconditional door +90 side       -> sd12, sd15 FAIL
+    az_for honouring the side sign on 04-side only       -> sd13, vt17b FAIL
+    side_swung? narrowed back to 04-side                 -> sd13, sd13c, vt17b FAIL
+    side_swung? forgetting the swing test (any :door)    -> sd13c FAIL
+    wall_shape? drifting from wall_normal at ASPECT_MIN  -> if2 FAIL
+    inner_frame_pick ignoring the frame NAME             -> if8 FAIL
+    inner_frame_pick ranked by box area, not aspect      -> the run RAISES at if7
+                                                            (nil['name']), where
+                                                            real Ruby would fail
+                                                            it by name -- same
+                                                            shape as sd16 below
+    inner_frame_pick guessing when nothing is wall-shaped-> if9 FAIL
+
+    tag_anchor NOT descending into a one-piece door is the defect itself, and it
+    is impure -- if4..if10 pin the pure half, and the live half was measured
+    through scripts/sketchup-bridge.py against Benton's own model on 12 Sep 2026
+    (door bearing 180 -> -90, side pick landing on the window). verify-autoset.rb
+    section 10 is where it belongs in a model.
     pick_side ranking part count above the window        -> sd6 FAIL
     pick_side tie falling to door -90                    -> sd4, sd7, sd11, sd18 FAIL
     az_for back to the unconditional +swing on the vent  -> vt15, vt16, vt18 FAIL
@@ -416,6 +433,8 @@ module WR_AutoSet
 
 %(az_for)s
 
+%(side_swung)s
+
 %(part_wall)s
 
 %(side_normals)s
@@ -457,6 +476,14 @@ module WR_AutoSet
 %(wall_axis)s
 
 %(wall_normal)s
+
+%(frame_re)s
+
+%(wall_shape)s
+
+%(plan_aspect)s
+
+%(inner_frame_pick)s
 
 %(annot_cell)s
 
@@ -1061,12 +1088,40 @@ module T
                WR_AutoSet.az_for('04-side r', 0.0, nil, -1) == -90.0,
        [WR_AutoSet.az_for('04-side', 0.0, nil, -1),
         WR_AutoSet.az_for('04-side r', 0.0, nil, -1)].inspect)
-    ck('sd13', WR_AutoSet.az_for('01-angled', 0.0, nil, -1) == 35.0 &&
-               WR_AutoSet.az_for('03-high', 0.0, nil, -1) == 35.0 &&
-               WR_AutoSet.az_for('02-front', 0.0, nil, -1) == 0.0 &&
-               WR_AutoSet.az_for('06-plan', 0.0, nil, -1) == 0.0 &&
-               WR_AutoSet.az_for('05-ventilation', 0.0, 90.0, -1) == 115.0,
-       'a plate other than 04-side moved with the side sign')
+    # 1.68.0: THE THREE-QUARTER PLATES SWING WITH THE SIDE PICK TOO. Benton,
+    # 12 Sep 2026, on a pack whose side AND angled plates both went the wrong
+    # way: "Same with the angled view ... it should kind of auto decide to go
+    # towards the side where there's more features such as a window." Before
+    # this, 01-angled and 03-high kept a fixed +35 whatever 04-side chose, so
+    # the hero and the side elevation could disagree about the booth by
+    # construction.
+    ck('sd13', WR_AutoSet.az_for('01-angled', 0.0, nil, -1) == -35.0 &&
+               WR_AutoSet.az_for('03-high', 0.0, nil, -1) == -35.0 &&
+               WR_AutoSet.az_for('01-angled r', 0.0, nil, -1) == -35.0 &&
+               WR_AutoSet.az_for('01-angled', 0.0, nil, 1) == 35.0 &&
+               WR_AutoSet.az_for('03-high', 0.0, nil, 1) == 35.0,
+       [WR_AutoSet.az_for('01-angled', 0.0, nil, -1),
+        WR_AutoSet.az_for('03-high', 0.0, nil, -1)].inspect)
+    # THE DOOR REFERENCE IS NOT OVERRIDDEN. The side pick governs which way a
+    # plate SWINGS FROM the door, never what the door is: every plate with no
+    # swing is unmoved by it, so the front stays square to the door wall and
+    # the plan stays straight down. 05-ventilation reads its own bearing.
+    ck('sd13b', WR_AutoSet.az_for('02-front', 0.0, nil, -1) == 0.0 &&
+                WR_AutoSet.az_for('06-plan', 0.0, nil, -1) == 0.0 &&
+                WR_AutoSet.az_for('07-interior', 0.0, nil, -1) == 0.0 &&
+                WR_AutoSet.az_for('05-ventilation', 0.0, 90.0, -1) == 115.0,
+       'the side sign moved a plate that does not swing off the door')
+    # WHICH PLATES FOLLOW IT, stated as the property rather than a list.
+    ck('sd13c', WR_AutoSet.side_swung?('01-angled') &&
+                WR_AutoSet.side_swung?('03-high') &&
+                WR_AutoSet.side_swung?('04-side') &&
+                WR_AutoSet.side_swung?('04-side r') &&
+                !WR_AutoSet.side_swung?('02-front') &&
+                !WR_AutoSet.side_swung?('06-plan') &&
+                !WR_AutoSet.side_swung?('07-interior') &&
+                !WR_AutoSet.side_swung?('05-ventilation') &&
+                !WR_AutoSet.side_swung?('nonesuch'),
+       'side_swung? no longer names exactly the door-referenced swinging plates')
     # THE SIGN IS RE-DERIVED FROM THE CHOSEN WALL'S MODEL BEARING, so a
     # mirrored placement cannot swap hands; and it wraps at +/-180.
     ck('sd14', WR_AutoSet.side_sign(0.0, -90.0) == 1 &&
@@ -1175,9 +1230,19 @@ module T
     ck('vt16', (vs_m['az'] - (VENT - 25.0)).abs < 1.0e-6 && (vs_p['az'] - (VENT + 25.0)).abs < 1.0e-6,
        [vs_m['az'], vs_p['az']].inspect)
     ck('vt17', WR_AutoSet.az_for('01-angled', 0.0, nil, 1, -1) == 35.0 &&
+               WR_AutoSet.az_for('03-high', 0.0, nil, 1, -1) == 35.0 &&
                WR_AutoSet.az_for('04-side', 0.0, nil, 1, -1) == 90.0 &&
                WR_AutoSet.az_for('02-front', 0.0, nil, 1, -1) == 0.0,
        'a plate other than 05-ventilation moved with the vent shift')
+    # THE TWO SIGNS DO NOT CROSS. `side` turns the door plates, `vshift` turns
+    # the vent plate, and neither reaches the other's plates -- checked
+    # together because 1.68.0 widened the first one's reach.
+    ck('vt17b', WR_AutoSet.az_for('01-angled', 0.0, nil, -1, 1) == -35.0 &&
+                WR_AutoSet.az_for('01-angled', 0.0, nil, -1, -1) == -35.0 &&
+                WR_AutoSet.az_for('05-ventilation', 0.0, 90.0, -1, -1) == 65.0 &&
+                WR_AutoSet.az_for('05-ventilation', 0.0, 90.0, -1, 1) == 115.0,
+       [WR_AutoSet.az_for('01-angled', 0.0, nil, -1, -1),
+        WR_AutoSet.az_for('05-ventilation', 0.0, 90.0, -1, -1)].inspect)
     # NO VENT AT ALL still falls back to opposite the door, + swing, as before.
     ck('vt18', WR_AutoSet.az_for('05-ventilation', DOOR, nil, 1, -1) == DOOR + 180.0 - 25.0 &&
                WR_AutoSet.az_for('05-ventilation', DOOR, nil) == DOOR + 180.0 + 25.0,
@@ -1737,6 +1802,92 @@ module T
     ck('wn8', WR_AutoSet.wall_normal(0.0, 0.0, 1.0, 1.0).nil?)
     ck('wn9', WR_AutoSet::ASPECT_MIN == 2.0, WR_AutoSet::ASPECT_MIN.inspect)
 
+    # ---------------------------------------------------------- 1.68.0: the
+    # ONE-PIECE DOOR. Benton's live MDL 4872 S carries its frame and its swung
+    # leaf inside a single "S0  Left46Door" component, so frame_hits returns
+    # the whole assembly and its 46.00 x 31.99 footprint names no wall --
+    # wall_normal declines, the pre-1.54.0 wall_axis fallback runs against the
+    # skewed union box, and it called the door wall +/-X on a 0.6 percent
+    # margin when the door is in the -Y wall. 02-front then photographed a
+    # blank end panel with no door in the frame at all.
+    #
+    # THE NUMBERS BELOW ARE THE LIVE ONES, read out of that model on 12 Sep
+    # 2026 through the bridge, not invented for the test.
+
+    # The shape half of wall_normal's question, asked on its own.
+    ck('if1', WR_AutoSet.wall_shape?(46.0, 17.88) &&
+              !WR_AutoSet.wall_shape?(46.0, 31.99) &&
+              WR_AutoSet.wall_shape?(22.0, 1.0) &&
+              !WR_AutoSet.wall_shape?(0.0, 0.0) &&
+              WR_AutoSet.wall_shape?(1.8, 46.0),
+       'wall_shape? no longer agrees with wall_normal about what names a wall')
+    # EXACTLY ASPECT_MIN COUNTS, and a hair under does not. wall_normal uses
+    # >=, so this must too or the two disagree at the boundary.
+    ck('if2', WR_AutoSet.wall_shape?(20.0, 10.0) &&
+              !WR_AutoSet.wall_shape?(19.999, 10.0) &&
+              (WR_AutoSet.wall_normal(20.0, 10.0, 0.0, -5.0).nil? ? false : true) &&
+              WR_AutoSet.wall_normal(19.999, 10.0, 0.0, -5.0).nil?,
+       'wall_shape? and wall_normal disagree at exactly ASPECT_MIN')
+    ck('if3', WR_AutoSet.plan_aspect(46.0, 17.88).round(3) == 2.573 &&
+              WR_AutoSet.plan_aspect(36.69, 31.99).round(3) == 1.147 &&
+              WR_AutoSet.plan_aspect(0.0, 0.0) == 0.0 &&
+              WR_AutoSet.plan_aspect(46.0, 0.0) == 1.0e9,
+       [WR_AutoSet.plan_aspect(46.0, 17.88), WR_AutoSet.plan_aspect(36.69, 31.99)].inspect)
+
+    # THE LIVE PAIR. The frame is named and is the long thin one; the leaf is
+    # neither. Either signal alone picks the frame, which is the point of
+    # having two.
+    frm  = { 'name' => 'Std door frame 46"#7', 'span' => [46.0, 17.88], 'ctr' => [25.0, 2.75] }
+    leaf = { 'name' => 'Component#393',        'span' => [36.69, 31.99], 'ctr' => [25.02, 0.91] }
+    ck('if4', WR_AutoSet.inner_frame_pick([frm, leaf]) == frm &&
+              WR_AutoSet.inner_frame_pick([leaf, frm]) == frm,
+       WR_AutoSet.inner_frame_pick([frm, leaf]).inspect)
+    # and the wall that then comes out is the -Y one, off the live offset
+    # (own centre y 18.0, so dy = 2.75 - 18.0).
+    ck('if5', WR_AutoSet.wall_normal(46.0, 17.88, 25.0 - 49.69, 2.75 - 18.0) == [0.0, -1.0],
+       WR_AutoSet.wall_normal(46.0, 17.88, 25.0 - 49.69, 2.75 - 18.0).inspect)
+    # THE OLD PATH, PINNED AS THE BUG IT WAS: the whole assembly names no
+    # wall, and the fallback's two normalised offsets are a coin flip that
+    # went the wrong way. If this ever stops being true the note above is
+    # stale.
+    ck('if6', WR_AutoSet.wall_normal(46.0, 31.99, -24.687, -17.087).nil? &&
+              WR_AutoSet.wall_axis(-24.687, -17.087, 60.313, 42.0) == [-1.0, 0.0] &&
+              ((-24.687 / 60.313).abs - (-17.087 / 42.0).abs).abs < 0.003,
+       'the 12 Sep 2026 defect no longer reproduces from its own numbers')
+
+    # NO NAME SAYING FRAME: the aspect alone must still find it.
+    ck('if7', WR_AutoSet.inner_frame_pick(
+                [{ 'name' => 'Component#1', 'span' => [36.69, 31.99], 'ctr' => [0.0, 0.0] },
+                 { 'name' => 'Component#2', 'span' => [46.0, 17.88], 'ctr' => [1.0, 2.0] }]
+              )['name'] == 'Component#2',
+       'inner_frame_pick stopped falling back to the aspect when nothing is named')
+    # A NAME SAYING FRAME BEATS A FATTER ASPECT -- the builder's word wins.
+    ck('if8', WR_AutoSet.inner_frame_pick(
+                [{ 'name' => 'blade', 'span' => [100.0, 1.0], 'ctr' => [0.0, 0.0] },
+                 { 'name' => 'Std door FRAME', 'span' => [46.0, 17.88], 'ctr' => [1.0, 2.0] }]
+              )['name'] == 'Std door FRAME',
+       'a named frame no longer beats an unnamed sliver')
+    # IT REFUSES RATHER THAN GUESSING. Nothing wall-shaped inside, nothing
+    # returned -- the caller then keeps its old fallback instead of being
+    # handed a fabricated wall.
+    ck('if9', WR_AutoSet.inner_frame_pick([leaf]).nil? &&
+              WR_AutoSet.inner_frame_pick([]).nil? &&
+              WR_AutoSet.inner_frame_pick(nil).nil? &&
+              WR_AutoSet.inner_frame_pick(
+                [{ 'name' => 'door FRAME', 'span' => [30.0, 29.0], 'ctr' => [0.0, 0.0] }]
+              ).nil?,
+       'inner_frame_pick fabricated a wall from a part that does not name one')
+    # A ROW WITH NO SPAN IS SKIPPED, NOT RAISED ON.
+    ck('if10', WR_AutoSet.inner_frame_pick(
+                 [{ 'name' => 'ghost', 'span' => nil },
+                  { 'name' => 'frame', 'span' => [46.0, 17.88], 'ctr' => [0.0, 0.0] }]
+               )['name'] == 'frame',
+       'inner_frame_pick no longer survives a row with no span')
+    ck('if11', ('Std door frame 46' =~ WR_AutoSet::FRAME_RE ? true : false) &&
+               ('E1 46DRFRM' =~ WR_AutoSet::FRAME_RE ? true : false) &&
+               ('Left46Door' =~ WR_AutoSet::FRAME_RE).nil?,
+       'FRAME_RE no longer matches the frame names and only them')
+
     # ---- A LOOSE DIMENSION IS NOT AN ORANGE WARNING ----------------------
     # The orange cell says "untagged TEXT is about to reach a customer image".
     # Since 1.51.0 dimensions show on every plate, so a loose DIMENSION started
@@ -1984,10 +2135,11 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'fr1 fr2 fr3 fr4 fr5 fr6 fr7 fr8 '
          'du1 du2 du3 du4 du5 du5b du6 du6b du7 du8 du9 du10 du11 du12 '
          'az1 az2 az3 az4 az5 az6 az7 az8 az9 az10 az11 '
-         'sd1 sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9 sd10 sd11 sd12 sd13 sd14 sd15 '
+         'sd1 sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9 sd10 sd11 sd12 sd13 sd13b sd13c '
+         'sd14 sd15 '
          'sd16 sd17 sd18 sd19 sd20 '
          'vt1 vt2 vt3 vt4 vt5 vt6 vt7 vt8 vt9 vt10 vt11 vt12 vt13 vt14 vt15 '
-         'vt16 vt17 vt18 vt19 vt20 vt21 '
+         'vt16 vt17 vt17b vt18 vt19 vt20 vt21 '
          'wl1 wl2 wl3 '
          'cl1 cl2 cl3 cl4 cl5 cl6 cl7 cl8 cl9 cl10 cl11 cl12 cl13 cl14 cl15 '
          'rg1 rg2 rg3 rg4 rg5 rg6 rg7 rg8 '
@@ -2000,6 +2152,7 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'cm14 cm15 cm16 cm16b cm17 '
          'dr1 dr2 dr3 dr4 dr5 dr6 '
          'wn1 wn2 wn3 wn4 wn5 wn6 wn7 wn8 wn9 '
+         'if1 if2 if3 if4 if5 if6 if7 if8 if9 if10 if11 '
          'oc1 oc2 oc3 oc4 oc5 oc6 oc7 oc8 oc9 '
          'fm1 fm2 fm3 fm4 fm5 fm5b fm6 fm7 fm8 fm9 fm10 '
          'in1 in1b in1c in1d in2 in3 in4 in5 in6 in7 in8 in9 in10 '
@@ -2101,6 +2254,10 @@ def main():
         'extra_pages':     rbtest.method_source(SRC, 'extra_pages'),
         'auto_named':      rbtest.method_source(SRC, 'auto_named'),
         'az_for':          rbtest.method_source(SRC, 'az_for'),
+        # 'side_swung' / 'wall_shape' (not the ? forms): method_source
+        # appends \b and ? gives it no word boundary to land on. Same
+        # trick as 'live_plate' and 'centre_moved' above.
+        'side_swung':      rbtest.method_source(SRC, 'side_swung'),
         'standoff':        rbtest.method_source(SRC, 'standoff'),
         'base_id':         rbtest.method_source(SRC, 'base_id'),
         'dual_render':     rbtest.method_source(SRC, 'dual_render'),
@@ -2109,6 +2266,10 @@ def main():
         'reach':           rbtest.method_source(SRC, 'reach'),
         'wall_axis':       rbtest.method_source(SRC, 'wall_axis'),
         'wall_normal':     rbtest.method_source(SRC, 'wall_normal'),
+        'frame_re':        const_line('FRAME_RE'),
+        'wall_shape':      rbtest.method_source(SRC, 'wall_shape'),
+        'plan_aspect':     rbtest.method_source(SRC, 'plan_aspect'),
+        'inner_frame_pick': rbtest.method_source(SRC, 'inner_frame_pick'),
         'annot_cell':      rbtest.method_source(SRC, 'annot_cell'),
         'frame_hits':      rbtest.method_source(SRC, 'frame_hits'),
         'interior_eye_dist': rbtest.method_source(SRC, 'interior_eye_dist'),
