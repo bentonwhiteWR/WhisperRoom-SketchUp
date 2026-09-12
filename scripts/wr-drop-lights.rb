@@ -448,7 +448,62 @@ module WR_DropLights
   # flank. It is one-sided by DESIGN and by GEOMETRY both: a booth parked in
   # a corner has no room on its two wall sides, and fill_points drops a row
   # with nowhere legal rather than putting a light in a wall.
+  #
+  # SIX -> FOURTEEN AT THE SAME TOTAL FLUX (rank cycle e00, 11 Sep 2026).
+  # The six-sphere table above this comment is preserved verbatim in
+  # FILL_SCATTER_6 below; nothing about it is lost and the d-series stays
+  # reproducible by swapping the two names.
+  #
+  # WHY. Run d ended stalled on a MEASURED trade-off, not a missing tweak
+  # (`booth-render.scores.md`, d09): fill level moves D2 (highlights) and D4
+  # (neutral colour) in opposite directions, because the same spheres that
+  # dilute the orange floor-bounce on the ceiling are the ones that put blown
+  # pools on the side walls. Measured there: x0.25 -> clip 0.0061 / ceil R/B
+  # 1.67; x0.70 -> clip 0.0283 / ceil R/B 1.46; x1.00 -> clip 0.0445 / ceil
+  # R/B 1.32. Clip crosses D2's 0.020 limit near x0.49, where the ceiling is
+  # still in D4's 6 band.
+  #
+  # The lever that is NOT on that line: a wall hotspot is set by ONE sphere's
+  # output, but the ceiling's colour is set by the scatter's TOTAL. So hold
+  # the total and divide it over more, dimmer spheres. Fourteen rows whose
+  # scales SUM TO THE SAME 5.55 as the six above (1.25+0.80+1.05+0.60+1.15+
+  # 0.70), so at any layer scale the room receives identically the same fill
+  # flux, while the hottest single sphere falls 1.25 -> 0.57, a 2.2x cut in
+  # the irradiance any one wall spot sees.
+  #
+  # It is also closer to what Benton actually asked for -- "sphere lighting
+  # that is invisible in ASSORTED PLACES ... low level, high level" -- than
+  # six was. Six was an implementation choice; he named no count.
+  #
+  # Same design rules as the six: irregular angular gaps (9/11/11/8/11/12/8/
+  # 11/11/8/11/9/9 deg), irregular standoffs 48-72 in before FILL_STANDOFF_K (row 14 asks
+  # 72 in for the same reason the six-sphere row 6 did -- at +108 deg the
+  # booth's own corner is the binding constraint and a shorter ask walks IN
+  # toward it and finds nothing legal; measured, e00 first drop),
+  # heights alternating low and high with no pattern, a different output on
+  # every sphere. The arc is held inside the six-sphere span (-21 to +108
+  # deg) ON PURPOSE: the booth is 11 in off the east wall and 13 in off the
+  # north, and rows outside that span have nowhere legal that clears
+  # FILL_EDGE, so widening it would silently DROP spheres and quietly change
+  # the total flux this cycle exists to hold constant.
   FILL_SCATTER = [
+    [ -21.0, 54.0, 82.0, 0.55 ],
+    [ -12.0, 66.0, 27.0, 0.32 ],
+    [  -1.0, 48.0, 70.0, 0.42 ],
+    [  10.0, 60.0, 19.0, 0.24 ],
+    [  18.0, 51.0, 58.0, 0.50 ],
+    [  29.0, 72.0, 88.0, 0.28 ],
+    [  41.0, 57.0, 36.0, 0.38 ],
+    [  49.0, 63.0, 75.0, 0.57 ],
+    [  60.0, 49.0, 23.0, 0.30 ],
+    [  71.0, 69.0, 64.0, 0.49 ],
+    [  79.0, 52.0, 91.0, 0.26 ],
+    [  90.0, 58.0, 31.0, 0.48 ],
+    [  99.0, 71.0, 47.0, 0.36 ],
+    [ 108.0, 72.0, 79.0, 0.40 ]
+  ].freeze
+  # The run-d table, kept so every d-row can be re-rendered exactly.
+  FILL_SCATTER_6 = [
     [ -21.0, 54.0, 82.0, 1.25 ],
     [   9.0, 66.0, 27.0, 0.80 ],
     [  34.0, 48.0, 70.0, 1.05 ],
@@ -516,6 +571,66 @@ module WR_DropLights
   # wall it was spotting, so it is the one move that serves the booth and
   # the highlights at the same time.
   FILL_STANDOFF_K = 0.70
+
+  # ======================================================================
+  # THE FACE WASH (rank cycle e02) — the ONE thing in this rig that lights
+  # the booth, and it is INVISIBLE, which is the only reason it is allowed.
+  #
+  # Benton's ruling R1: "Room fixtures may be visible and should justify the
+  # ambient light. Anything lighting the booth face itself stays invisible,
+  # so no fixture competes with the product." So this role has no fixture
+  # geometry and visible = false, and that is not a detail — it is the whole
+  # licence for the role to exist.
+  #
+  # WHY IT EXISTS. D3 (the booth as the subject) sat at 6 for THIRTEEN
+  # consecutive cycles, face/floor 0.66-0.72 against the 0.85 the next band
+  # wants, and run d named the cause: when the photographic key was retired
+  # nothing was left in the rig that lights a camera-facing VERTICAL
+  # surface. Ceiling panels are overhead and now directional (:dir 0.6), so
+  # they wash the floor and the booth's TOP. The fill scatter is the only
+  # other source and it is off to the sides.
+  #
+  # WHY IT IS NOT THE OLD KEY COMING BACK, and this is the line that has to
+  # be held. Benton rejected photography lighting. Four deliberate choices
+  # keep this on the ambient side of that line, and each one costs something:
+  #
+  #   1. It is BIG — 60 x 48 in, against the old key's 24 x 24. Six times
+  #      the area, so the shadow it throws has a soft edge and the gradient
+  #      across the face is gradual instead of a lit patch with a rim.
+  #   2. It is aimed HORIZONTALLY, not raked down. FACEWASH_AIM_DROP = 0
+  #      makes accent_tilt answer 90 deg, so the emitter plane stands
+  #      vertical and faces the door face square on. The old key was tilted
+  #      35-58 deg to put a diagonal fall across the face — the classic
+  #      product-shot modelling look, and exactly what he did not want.
+  #   3. It is at MID-BOOTH HEIGHT (FACEWASH_Z), not up near the ceiling
+  #      where the key hung. A source at eye level reads as the room; a
+  #      source above the subject aiming down reads as a studio.
+  #   4. It carries NO directionality cutoff (:dir nil). A cutoff is what
+  #      makes a beam. This is a wide, dull sheet of light.
+  #
+  # And it is 4200 K, the SAME temperature as the ceiling panels, so it adds
+  # no colour of its own: whatever it puts on the face is the same light the
+  # room is already full of. A different Kelvin here would be the giveaway.
+  #
+  # If a cycle ever produces a visible pool on the booth with no plausible
+  # source, this has gone too far and the output comes back down. That test
+  # is by EYE on the frame, not by a number, and the cycle note must say how
+  # it was judged.
+  FACEWASH_U      = 60.0   # in
+  FACEWASH_V      = 48.0   # in
+  FACEWASH_OUT    = 96.0   # in — 8 ft off the booth's door FACE. The figure
+                           #   Benton named for the key ("can these be backed
+                           #   up like 8 ft?", DEVLOG 1.43.0) and released as
+                           #   a fixed constraint by R3.
+  FACEWASH_MIN    = 48.0   # in — walk-back floor
+  FACEWASH_STEP   = 6.0    # in
+  FACEWASH_MARGIN = 30.0   # in — half the 60 in panel, so the body never
+                           #   stands in a wall
+  FACEWASH_Z      = 48.0   # in above the floor — mid-booth (the booth's own
+                           #   top is 87.75 in here)
+  FACEWASH_AIM_DROP = 0.0  # in — 0 means accent_tilt returns 90 deg: the
+                           #   emitter faces the door face square on instead
+                           #   of raking down it.
 
   # THE CEILING CLAMP. c00-c02's key was a 24 in panel tilted 58 deg with its
   # centre at z 89.6 in a 96 in room: its top edge stood at ~99.8 in, THROUGH
@@ -629,6 +744,50 @@ module WR_DropLights
                   :emitters => 1, :lumens => 3600.0,
                   :kelvin => 4200, :budget => :room, :visible => false,
                   :fixture => nil, :disc => false, :tilt => nil, :dir => 0.6 },
+    # THE FACE WASH — see the FACEWASH_* block for why it is allowed to
+    # exist at all (ruling R1: invisible only) and the four choices that keep
+    # it ambient rather than photographic. :lumens is a BASE; the cycle drives
+    # it with the layer scale, so the output can be tuned without a code edit.
+    :facewash => { :label => 'Booth face wash', :n => 1, :emitter => :rect,
+                   :u => FACEWASH_U, :v => FACEWASH_V, :emitters => 1,
+                   # 980, NOT the key's 2800, and the number is a MEASUREMENT.
+                   # Every other layer's :lumens is a real product figure; this
+                   # role has no product behind it, so its base is set to the
+                   # output the rank loop validated: 980 x the rig's gain =
+                   # 313,600 lm, which is the face wash in frames e04 and e06.
+                   # At 4x that figure (rank cycle e05) the beam passing the
+                   # booth's silhouette puts a hard-edged BLOWN WEDGE on the
+                   # wall behind it -- a bright region with no cause a viewer
+                   # can see, which is D6's own example of an impossible
+                   # artifact and a hard fail under Benton's R2. So the default
+                   # press gets the tested output, and a layer scale above
+                   # about 3 on this role is known to break the frame.
+                   :lumens => 980.0, :kelvin => 4200, :budget => :room,
+                   :visible => false, :fixture => nil, :disc => false,
+                   # THE CUTOFF (rank cycle e03). nil -> 0.5. e02 measured the
+                   # bare emitter's problem and it is DISTRIBUTION, not level:
+                   # face_L +3.5% but floor_L +4.0 in absolute L, so the wash
+                   # lit the near floor slightly HARDER than the booth and
+                   # face/floor did not move. A hemisphere emitter standing
+                   # between the camera and the booth throws as much at the
+                   # floor crop as at the face. Raising the output makes that
+                   # ratio worse, not better (solve for face/floor = 0.85 and
+                   # the answer is x173 -- see the e02 note).
+                   #
+                   # Directionality narrows the lobe toward the emitter normal,
+                   # which here points square at the door face. Same lever, same
+                   # reasoning and the same value band as the ceiling panels'
+                   # :dir 0.6 at d03, which removed the wall spill without
+                   # removing the downward light.
+                   #
+                   # 0.5 AND NOT HIGHER, deliberately. A cutoff is what turns a
+                   # wash into a beam, and this role's whole licence is that it
+                   # reads as ambient. It is held to a moderate value on a
+                   # source SIX TIMES the retired key's area, aimed square
+                   # instead of raked, at mid-booth height. If a frame shows a
+                   # pool on the booth with a traceable edge, this comes back
+                   # out -- and that verdict is by EYE, not by a number.
+                   :tilt => nil, :dir => 0.5 },
     :fill    => { :label => 'Fill sphere', :n => FILL_SCATTER.size,
                   :emitter => :sphere,
                   :u => FILL_D, :v => FILL_D, :emitters => 1,
@@ -5083,6 +5242,80 @@ paint(); drawPresets("");
                         'asymmetric by design, all invisible. Heights %s in AFF.',
                         name, n_fill, FILL_SCATTER.size,
                         fpts.select { |f| f[0] }.map { |f| format('%.0f', f[2]) }.join('/'))
+
+            # ============================================================
+            # THE FACE WASH (e02). One invisible, wide, low-output panel
+            # standing vertical at mid-booth height, FACEWASH_OUT off the
+            # booth's DOOR FACE and aimed square at it. See the FACEWASH_*
+            # constants for why this is not the retired key coming back and
+            # what keeps it on the ambient side of Benton's line.
+            #
+            # It is CENTRED ON THE BOOTH'S FACE, not aimed at the door
+            # panel -- the same preference Benton stated for the 02-front
+            # camera plate on 11 Sep ("be centered on that booth walls
+            # face? Rather than on door?") and recorded as Reversal 1 in
+            # the rubric. Centring also puts the gradient's middle in the
+            # middle of the face instead of off to one end.
+            # ============================================================
+            if role_scale(:facewash, opts) > 0.0
+              fw_nx = nrm_d[0]
+              fw_ny = nrm_d[1]
+              ffpt = [cx, cy]
+              ffpt[0] = (fw_nx < 0 ? bb.min.x : bb.max.x) * 1.0 if fw_nx.abs > 0.5
+              ffpt[1] = (fw_ny < 0 ? bb.min.y : bb.max.y) * 1.0 if fw_ny.abs > 0.5
+              fwp = accent_place(ffpt, fw_nx, fw_ny, poly, keepouts,
+                                 FACEWASH_OUT, FACEWASH_MIN, FACEWASH_STEP,
+                                 FACEWASH_MARGIN, ACCENT_FAN_STEP, ACCENT_FAN_MAX)
+              if fwp.nil? || fwp[0].nil?
+                puts format('  %s: FACE WASH SKIPPED -- no standoff between ' \
+                            '%.0f and %.0f in off the door face, on any aim ' \
+                            'line within %.0f deg of its normal, lands inside ' \
+                            'the floor %.0f in clear of its edges and outside ' \
+                            'every keep-out. Nothing was placed; the booth ' \
+                            'face is unlit by design this cycle.', name,
+                            FACEWASH_OUT, FACEWASH_MIN, ACCENT_FAN_MAX,
+                            FACEWASH_MARGIN)
+              else
+                fwd = fwp[0]
+                fwux = fwp[1]
+                fwuy = fwp[2]
+                fwdeg = fwp[3]
+                fwax = accent_axis(-fwux, -fwuy)
+                fwtilt = accent_tilt(fwd, FACEWASH_AIM_DROP)
+                fwrot = Geom::Transformation.rotation(
+                  Geom::Point3d.new(0, 0, 0),
+                  Geom::Vector3d.new(fwax[0], fwax[1], 0), fwtilt.degrees)
+                fwpt = [ffpt[0] + fwux * fwd, ffpt[1] + fwuy * fwd,
+                        z0 + FACEWASH_Z]
+                fwlm = layer_lumens(LIGHT_LAYERS[:facewash][:lumens],
+                                    opts[:mult],
+                                    room_trim * role_scale(:facewash, opts),
+                                    opts[:cam_gain])
+                place.call(:facewash, fwpt, fwlm, fwrot)
+                puts format('  %s: FACE WASH -- %.0f lm at %dK, %g x %g in ' \
+                            'INVISIBLE panel at (%.0f, %.0f, %.0f), %.0f in ' \
+                            '(%.1f ft) off the booth face on the door normal ' \
+                            '%+.0f deg, standing VERTICAL (tilt %.0f deg) and ' \
+                            'aimed square at the face, cutoff %s. No fixture, ' \
+                            'same 4200 K as the ceiling panels.', name, fwlm,
+                            layer_kelvin(LIGHT_LAYERS[:facewash][:kelvin],
+                                         opts[:koffset]),
+                            FACEWASH_U, FACEWASH_V, fwpt[0], fwpt[1], fwpt[2],
+                            fwd, fwd / 12.0, fwdeg, fwtilt,
+                            LIGHT_LAYERS[:facewash][:dir].inspect)
+                if fwd < FACEWASH_OUT - 1e-9
+                  puts format('  %s: FACE WASH PULLED IN -- %.0f in wanted, ' \
+                              '%.0f in fits. The face gets (%.0f/%.0f)^2 = ' \
+                              '%.1fx the light, a DIFFERENT EXPOSURE on the ' \
+                              'booth than the constant asks for.',
+                              name, FACEWASH_OUT, fwd, FACEWASH_OUT, fwd,
+                              (FACEWASH_OUT / fwd)**2)
+                end
+              end
+            else
+              puts format('  %s: face wash layer is OFF -- nothing in this rig ' \
+                          'lights the booth face except the scatter.', name)
+            end
           end
         else
         bcx = nil

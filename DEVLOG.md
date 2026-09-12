@@ -1,6 +1,95 @@
 # DEVLOG
 
 ## 2026-09-11
+### 1.67.2 - RANK RUN e: the fill scatter goes 6 -> 14 spheres, a new INVISIBLE `:facewash` role lights the booth face, and the render reaches 7.7 from 6.8. Both of run d's named routes are now tested - one works, one does not.
+
+Run d stalled at 6.8 (`d07`) against a target of 9.0 and named two untested
+routes out. Run e (`e00`-`e06`, seven cycles) tested both. Frames are at
+`Z:\Sketchup\Proposals\test2\e<NN>-angled-r.png`, every row written into
+`Z:\Sketchup\Proposals\test2\.rank\booth-render.scores.md` as the cycle
+completed, method `rank-measure/1` unchanged so the rows compare to run d's.
+
+**Best frame: `e06`, overall 7.7** (D1 9 / D2 9 / D3 6 / D4 6 / D5 8 / D6 8)
+against run d's best of 6.8. **The 9.0 target is NOT met and this is not
+claimed as done.**
+
+**ROUTE 1 - spread the fill over more, dimmer spheres: TESTED, DOES NOT WORK.**
+`FILL_SCATTER` is now **14 rows instead of 6**, per-sphere scales re-cut so the
+table sums to the same 5.55 and the total fill flux is identical at any layer
+scale. At matched flux the fourteen clipped **0.0304** against the six's 0.0283
+(`e00` vs `d09`) - worse, not halved - and wall-and-floor clipped pixels were
+8,794 against 8,668. **Clipping is a function of the fill layer's TOTAL flux
+and is nearly indifferent to how many spheres carry it**, because a patch of
+wall is lit by all of them at once. The D2/D4 trade-off run d measured is real
+and this does not break it. The 14-row table is KEPT anyway: at a fixed clip
+level it is worth about 0.11 in ceiling R/B, and it removed the two round blown
+pools on the left wall that were the most obviously fake thing in `d09`. The
+run-d table is preserved verbatim as `FILL_SCATTER_6`.
+
+**ROUTE 2 - an invisible source on the booth face: TESTED, WORKS, BOUNDED.**
+New role **`:facewash`** - ONE 60 x 48 in rectangle, 4200 K (the same
+temperature as the ceiling panels, so it adds no colour of its own), standing
+VERTICAL at 48 in AFF, 96 in off the booth's door face and aimed square at it,
+no fixture and **invisible**, which is the only reason ruling R1 permits it at
+all. Four choices keep it ambient rather than photographic and each is written
+into the `FACEWASH_*` constants: six times the retired key's area, aimed square
+instead of raked 35-58 deg, mid-booth height instead of ceiling height, and a
+moderate cutoff.
+
+- **Output is the wrong knob** (`e02`): a bare emitter lights the near floor
+  slightly harder than the booth, so face/floor does not move and the ratio gets
+  *worse* with more output.
+- **The cutoff is the right knob** (`e03`): `:facewash[:dir]` nil -> **0.5**
+  moved face luminance +6.6% and floor +0.7% at **zero extra lumens**, and
+  face/floor +0.041 - the first movement on D3 in fourteen cycles.
+- **The ceiling on it is the WALL, not the booth** (`e05`): at 4x output
+  face/floor reached 0.8334, still inside D3's 6 band, and the frame carried a
+  4,868 px hard-edged blown wedge on the wall past the booth's silhouette. On
+  the booth itself it stayed clean at every output tried - zero clipped pixels
+  in the face crop. **The giveaway arrives on the room, not on the product.**
+
+**THE FRAME THAT WON, AND WHY IT IS NOT THE ONE THE FILL TUNING PRODUCED.**
+`e04` cut the fill layer to x0.10 on a fitted line and the frame came back with
+**zero clipped pixels on any wall or floor** (total clip 0.0005, nb 0.0019),
+which took D2 from 3 to 9 - the largest single move of either run - at the cost
+of D4 falling to 6. `e06` then lifted the panel layer x0.50 -> x0.60 and put D1
+at 9 as well (dark fraction 3.19% -> 2.80%). Both blown-wall failures that have
+been in every frame since `d00` are gone.
+
+**A failed prediction worth keeping: the panel layer moves D4 the RIGHT way.**
+I predicted `e06`'s panel lift would make the ceiling worse, since panels point
+at the orange floor. Measured: ceiling R/B **1.6377 -> 1.5467**, better by 0.09,
+on a 99.9% unclipped band, at no cost to D2. The d-series note that only the
+fill scatter can cool the ceiling is incomplete - **the panel layer is a third
+lever on D4 and the only one of the three that does not blow a wall.** It is
+the most promising untested thread left.
+
+**What is still stuck, and what it would take.** D3 at 6: face/floor 0.7049,
+and the wall wedge arrives around 0.83 while the next band needs 1.0 - it needs
+a booth-face source whose spill cannot reach the wall behind (closer standoff,
+or grazing along the face). D4 at 6: ceiling R/B 1.5467, the orange floor
+bouncing into a white ceiling, and the project's named lever is **the floor
+material** (`0128_White`), which Benton's own ruling puts out of scope and which
+needs him to lift it - unless the panel lever above does it instead.
+
+**Shipped-default safety, changed after the last render and changing no frame.**
+`:facewash[:lumens]` is **980**, not the key's 2800, because every layer defaults
+to scale 1.0 and a plain press would otherwise have got the face wash at 896,000
+lm - near the `e05` output that blows a wedge on the wall. 980 x the rig's gain
+= 313,600 lm, exactly the output `e04` and `e06` were rendered at. To reproduce
+the scores rows on this code the face wash is scale 1.00 (4.00 for `e05`); the
+lumens written are identical.
+
+**Operational note: V-Ray's deferred re-sync hit all seven drops.** Every cycle
+came back with one to four rig lights at factory 30 lm with `invisible` false,
+including the face wash itself. `.forge/fixer/rank-loop/d-repair.rb` restored
+the full parameter set each time and `audit_scene` was clean before AND after
+every render - no frame in this run was rendered on a failed audit. On a
+65-light rig this is not intermittent; budget the repair pass as part of the
+cycle.
+
+
+## 2026-09-11
 ### 1.67.0 - THE OFFICE RIG: architectural lighting replaces the photographic key/fill/rim; plus a ceiling clamp, an audit that can tell an intentional zero from a factory default, and a COMMITTED rank-measurement script
 
 Benton, 11 Sep, and this is a REPLACEMENT and not a tuning pass: *"Why don't we
