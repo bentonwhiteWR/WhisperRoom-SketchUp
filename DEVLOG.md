@@ -1,6 +1,177 @@
 # DEVLOG
 
 ## 2026-09-11
+### 1.67.7 - RANK RUN i: run h's recommended floor had NO V-RAY MATERIAL. The "renders at 2x its albedo" finding is wrong (it is 1.41x, and it is sheen, not albedo). Rebuilt properly, the floor reaches 8.2 - and floor albedo turns out to be a better exposure lever than lumens.
+
+Two tasks in one run, five cycles of six. Frames at
+`Z:\Sketchup\Proposals\test2\i<NN>-angled-r.png`, rows in the scores file's new `RUN i`
+section, written as each cycle completed. Method `rank-measure/1` unchanged, so every row
+compares to runs d through h. Control is **`h05`, 8.0** - run h's recommended
+grey-washed wide plank.
+
+## Task 1: the exposure step run h named. It works, and it does not pay.
+
+`h05` sat 0.2 below the retired concrete control on exactly one statistic - `dark` 3.76%
+against D1's 3% ceiling. Run h named the fix (panel layer x0.70 -> roughly x0.80-0.85) and
+could not take it because its lighting was frozen.
+
+**The estimate was wrong and two measured cycles show why.** Fitting the exponent on this
+floor, `dark` goes as `panel^-0.704` (run g measured -0.764 on concrete - the two agree), so
+the 3% crossing is at **panel ~0.96-1.00**, not 0.85.
+
+| panel | dark | raw 250-count | of which NOT a product glint | D1 | D2 | overall |
+|---|---|---|---|---|---|---|
+| x0.70 (`h05`) | 3.76% | 17 | **0** | 8 | 9 | **8.0** |
+| x0.85 (`i00`) | 3.28% | 206 | 51 | 8 | 8 | 7.8 |
+| x1.00 (`i01`) | **2.93%** | 486 | **241** | **9** | 7 | 7.8 |
+
+**`dark` under 3% is reachable, but only by blowing the ceiling.** The frame's hottest
+region - a soft bloom on the plain ceiling above the booth's right shoulder - is already at
+L 250.7 in `h05` itself, so it crosses the clip point at about panel x0.80, well before
+`dark` crosses 3% at x0.96. At x1.00 it is a 48 x 10 px blob flat at 255 with no detail in
+it, which ruling **R2** does not let us trade for a point of D1. **D1 and D2 move one for
+one on this rig, so the overall cannot rise by this lever.** Two flat cycles = stall;
+Task 1 stopped there and the recommendation did not move.
+
+**A bound on `dark` worth carrying forward.** Of `h05`'s 13,545 sub-L32 pixels, **1,424 are
+the blue foam** - it renders as clipped pure blue, luminance 0.0722 x 255 = 18.4, under
+L 32 by construction. The count is 1,424 / 1,419 / 1,414 / 1,410 across h05 / i00 / i01 /
+h00 - flat across a 41% flux sweep AND across different floors. **0.39pp of D1's statistic
+is an out-of-scope material defect (R4) that no lighting change can reach**, and it is 13%
+of the number. Not scored; recorded because it says where the last 0.4pp lives.
+
+## Task 2: the floor material, and the finding that matters most
+
+**Run h's recommended floor has no V-Ray material.** Read off the live V-Ray scene:
+
+```
+/Wood_Planks_01_1K          _HostMaterial     <- the RECOMMENDED floor
+/Wood_Floor_12_1K           _HostMaterial
+/Marble_20_1K               _HostMaterial
+/Concrete Simple C01 200cm  MtlSingleBRDF -> BRDFVRayMtl
+/Oak Honey Semigloss 300cm  MtlSingleBRDF -> BRDFVRayMtl
+/Wood Tiles Shiny 03 100cm  MtlSingleBRDF -> BRDFVRayMtl
+/WhisperRoom Floor Carpet   MtlSingleBRDF -> BRDFVRayMtl
+```
+
+`_HostMaterial` is a shim with no BRDF, no diffuse texture plugin, no reflection, no
+roughness and not one readable parameter - **the same class of object as the blue foam**.
+The three shims are exactly the three `.skm` materials whose textures point at
+`P:/SketchUp projects/2025 PBR Materials/...`, **a path that does not exist on this
+machine**; the four real ones point at files that do. Three against four is a correlation,
+stated as one.
+
+**The "2x albedo" claim was tested properly and it is wrong.** It had been derived by
+comparing a texture's ENCODED mean against a RENDERED band mean - different quantities, one
+of which depends on the lighting. Tested instead by building the *same bitmap* as a real
+V-Ray material and rendering it against the shim on a frozen rig (`i03` vs `h05`, identical
+albedo, size, lumens, camera):
+
+| | `h05` SHIM | `i03` real material | shim / real |
+|---|---|---|---|
+| linmean (whole room) | 0.2107 | 0.1755 | **1.200** |
+| floor band L | 162.63 | 121.30 | **1.341** |
+| face_L (the booth) | 99.48 | 99.79 | 0.997 |
+| ceil R/B | 1.2933 | 1.2949 | 0.999 |
+
+**Hue is preserved exactly - that half holds. The magnitude does not: the effective albedo
+is 1.41x, not 2x** (solved on a two-point calibration from two real materials on the same
+texture, `linmean = 0.08977 + 1.4171 x albedo`). **And the mechanism is different from what
+was recorded.** The floor gains 34%, the room 20%, the booth 0% - a diffuse albedo error
+moves all three together. Light that brightens the floor without bouncing into the room is
+**specular**. `_HostMaterial` is adding an uncontrolled sheen and flattening the map's
+contrast; run h's `h03` note *"a strong grazing sheen that erases the plank joints"* was the
+mechanism, not evidence for the 2x reading. **So "h05 survives because it is dark enough to
+absorb the doubling" is not true - there is no doubling.**
+
+## The rebuild: three real V-Ray materials, and the recommendation moves
+
+Built by the new `.forge/fixer/rank-loop/i-material.rb` via V-Ray's own converter, textures
+committed to `assets/textures/` so the path resolves on every machine (which is itself part
+of the fix).
+
+| material | linear albedo | frame | D1 | D2 | D4 | overall |
+|---|---|---|---|---|---|---|
+| `Wood_Planks_01_1K` (SHIM) | 0.0605 nom / 0.0853 eff | `h05` | 8 | 9 | 9 | 8.0 |
+| `WR Plank Grey Wide 48 A1` | 0.0605 - the map as shipped | `i03` | 6 | 9 | 9 | 7.7 |
+| `WR Plank Grey Wide 48 M` | 0.0853 - matched to the shim | `i04` | 8 | 9 | 9 | **8.0** |
+| **`WR Plank Grey Wide 48`** | **0.1413** | **`i02`** | **9** | **9** | **9** | **8.2** |
+
+**`i04` reproduces `h05`'s room and the prediction proves the mechanism is understood.** The
+calibration said the match needed albedo 0.0853 and predicted linmean 0.2107; it measured
+**0.2081, 1.25% out**. mean +0.3%, ceiling R/B +0.3%, and it scores 8.0 dimension for
+dimension with `h05`.
+
+**But the floor's own surface does not match and cannot.** `i04`'s floor band is **12%
+darker** and shows the grain and joints the map contains, because the 12% was sheen and a
+converted SketchUp material has no reflection slot to put it back. **The rebuilt floor is a
+different-looking floor** - cleaner, more grain, no sheen. Both frames should go in front of
+Benton rather than one being shipped quietly.
+
+**`i02` at 8.2 is the recommendation, and it clears Task 1's blocker by a route Task 1 could
+not reach.** mean 0.5403, med 148.00, `dark` **2.98%** - all three inside D1's 9 band - with
+`clip` 0.0001 and a raw 250-count of **22 pixels, every one a specular glint on the booth's
+own door handle and window frames**. It ties `g03`, the sealed-concrete control R8 retired,
+while being a wood floor.
+
+**The general lesson: floor albedo is a better exposure lever than lumens.** Same
+20,828,800 lm as `h05`. A floor that returns more light lights the room without touching the
+surface that was about to blow out. Checked pixel by pixel across all four Task 2 frames,
+**every clipped pixel lies on the booth's hardware rows and zero lie anywhere else**;
+Task 1's `i00` and `i01` put 51 and 241 on the ceiling for the same exposure gain.
+
+**The caveat is aesthetic and the numbers cannot settle it.** 14.1% is a DERIVED albedo -
+the source map rescaled by a constant 2.36 in linear (hue preserved to 0.001). 14% is
+ordinary for a light grey-washed wood floor, where the map's own 6% is darker than walnut.
+But the floor it produces reads more weathered and rustic than `h05`'s smooth grey-wash.
+`h05`/`i04` is the calmer floor; `i02` is the better-lit room.
+
+## Known issues and gotchas
+
+- **A converted SketchUp material cannot carry reflection.** `reflect` and
+  `reflect_glossiness` were written inside a labelled `scene.change` using
+  `wr-drop-lights.rb`'s own proven write form; the writes raised nothing and both read back
+  at V-Ray's defaults. V-Ray's material syncer owns those slots for a bound SketchUp
+  material. `/WhisperRoom Floor Carpet` - WhisperRoom's own shipping material - carries
+  reflect (0,0,0) too, so matte is the normal shape here. A reflective floor has to arrive
+  as an imported V-Ray asset (the Cosmos route). **Open item.**
+- **DO NOT write `bind_all_on = 0` to get around that.** It raised inside `scene.change`,
+  left the bridge listener's `@busy` flag set and wedged the job queue for twenty minutes -
+  drops, audits and renders all stopped being claimed *while the heartbeat kept ticking*,
+  which is the signature of `@busy` stuck rather than SketchUp being dead. Cleared by hand
+  from the Ruby Console with `WhisperRoom::Bridge.instance_variable_set :@busy, false`. No
+  model state was lost; the raise aborted the transaction. Warned about in
+  `i-material.rb`'s header.
+- **V-Ray's deferred re-sync is now total, not partial.** `i02`, `i03` and `i04` each came
+  back with **65 of 65 rig lights at factory 30 lm with `invisible` false**, against one to
+  four per drop through runs g and h. `d-repair.rb` rewrote all 65 every time and the audit
+  went clean before AND after every render. On `i04` the drop's own audit PASSED and the
+  drift appeared between that job and the next - the clearest demonstration yet that the
+  re-sync is asynchronous and that `d-repair.rb` plus a re-audit is load-bearing. Likeliest
+  trigger is the V-Ray Asset Editor being open from the material work; a correlation, not
+  proven.
+- **`rank-measure/1`'s `nb` column stays void on a near-neutral frame** - hand-checked on
+  all four Task 2 frames as runs g and h established.
+
+## New files
+
+- `.forge/fixer/rank-loop/i-material.rb` - builds a render floor as a real V-Ray material
+  from a committed texture, via V-Ray's own converter; reads `build_name` / `build_tex` /
+  `build_size` from the same `rank-loop-d.json`. Does NOT paint the floor - `h-floor.rb`
+  still does that, so "one variable per cycle" stays checkable.
+- `.forge/fixer/rank-loop/i-albedo.py` - measures a texture's TRUE linear albedo (averaging
+  the decoded pixels, not decoding the average - the bias is 1.01-1.07 across run h's seven
+  floors, small but it had to be measured) and derives a rescaled diffuse map at a target
+  albedo by constant linear multiply, reporting any pixel driven over 1.0.
+- `assets/textures/WR_Plank_Grey_Wide_alb.png` (0.1413), `..._alb_m.png` (0.0853),
+  `..._alb_x1.png` (0.0605).
+
+## State
+
+Model left in RENDER mode with **`WR Plank Grey Wide 48` on `WR-Floor-Render` at 48 in** -
+the recommended floor - and the rig at `h05`/`g03` settings, panel x0.70,
+`PANEL_APERTURE_INVISIBLE` true. One cycle of the six is unspent.
+
 ### 1.67.6 - RANK RUN h: rulings R7 and R8. Six client floors on a frozen rig. The peach ceiling is not "wood" - it is SATURATION, and a grey-washed wood plank holds D4 at 9 while still reading as a wood floor.
 
 Two rulings from Benton in `Z:\Sketchup\Proposals\test2\.rank\booth-render.rubric.md`.
