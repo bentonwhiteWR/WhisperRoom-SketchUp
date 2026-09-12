@@ -131,17 +131,66 @@ IN moves them toward the corner, and both rows drop - and they are the 82 in and
 88 in spheres, the "high level" half of what Benton asked for. 40 in is the
 largest margin this geometry keeps all six at.
 
-**Measured this version (`rank-measure/1`, 800x450, camera fixed):** the office
-rig's first frame d00 came in at mean 0.6670 / clip 0.1252 / ceil R/B 1.2209
-against the classic rig's c00 at 0.5971 / 0.0163 / 1.9349. The ceiling colour
-problem that D4 had been stuck on since test1 is largely gone - 25 visible
-neutral 4200 K panels in the ceiling band plus far more direct downlight - and a
-visible fixture is in frame for the first time in the loop's history. The open
-problem is the opposite of the old one: the frame CLIPS, and halving every panel
-moved `clip` only 0.1252 -> 0.0943, which says a visible emitter at this camera
-sits many times over the clip point and the room's light cannot come from
-non-clipping visible panels. Live scores and per-cycle evidence:
+**Measured over ten cycles (`rank-measure/1`, 800x450, camera fixed).** The rank
+loop ran d00-d09 and stopped on the stall rule at **6.7 overall**, best frame
+**6.8** (`d07-angled-r.png`). It did not reach the 9.0 target and the reason is
+a measured trade-off, not a missing tweak - see below. Full per-cycle evidence:
 `Z:\Sketchup\Proposals\test2\.rank\booth-render.scores.md`, run d.
+
+What the office rig fixed against the classic rig's c00 baseline:
+- **A visible fixture is in frame for the first time in the loop's history**, and
+  it reads as office lighting. D6 5 -> 7.
+- **Exposure**: D1 reached a clean 9 (mean 0.5619, med 137.9, 2.58% below L 32) -
+  all three anchors at once, which no earlier frame managed.
+- **Highlights**: clip 0.1252 -> 0.0042 at the best point, with the panel
+  apertures reading as graded lamps rather than flat white. D2 3 -> 7.
+- **The key light through the ceiling is structurally impossible now** (the
+  clamp), and a whole class of silent rig corruption is now caught (the audit).
+
+**THE FINDING THAT MATTERS MOST, and it corrects the project record.** D4's peach
+ceiling has been blamed since test1 on the orange floor bouncing into a white
+ceiling, "capped by the floor material and cannot be fixed from the Kelvin
+table" (DEVLOG 1.65.0). The cause is right; the conclusion that the rig cannot
+touch it is **wrong**. Ceiling R/B tracks FILL LEVEL monotonically, on readings
+taken where the ceiling band is 100% unclipped so nothing is flattering them:
+
+    fill x0.25 -> ceil R/B 1.67      fill x0.70 -> 1.46      fill x1.00 -> 1.32
+
+Direct 3500 K light from the fill spheres dilutes the floor's bounce (the floor
+blocks measure R/B 2.3-2.5). More fill, less peach.
+
+**But the same fills blow the walls**, so D2 and D4 move in opposite directions
+and, on the rig as built, **D2 >= 7 and D4 >= 7 are mutually exclusive**. clip
+hits D2's 0.020 limit at about fill x0.49, where ceiling R/B is still ~1.56.
+That single trade is what caps the score.
+
+**The route out, identified too late in the budget to test and NOT claimed as
+proven:** the fill is six concentrated sources, so the output that fixes the
+colour necessarily makes six hot spots. Spread the same flux over twelve or
+sixteen dimmer spheres and every hotspot halves while the ceiling gets the same
+dilution. One change to `FILL_SCATTER` plus a per-sphere divide, and still
+exactly what Benton asked for.
+
+**A methodological gotcha worth carrying forward.** Four times in this run a
+favourable number turned out to be measuring something other than what it
+claimed: ceiling R/B tracking exposure; face/floor rising because its
+denominator collapsed; a rendering artifact (a stray visible sphere) dragging
+whole-frame R/B down; and - the one I got wrong and had to publish a correction
+for - clipping and colour moving together from a **common cause** (the fill cut)
+which I wrote up as a causal link. On this pipeline, check whether a statistic
+moved because the thing it names moved, or because something else did.
+
+### 1.67.1 - the audit checks visibility; the repair restores the whole light
+
+Split out because it is a protection fix rather than a rig change; see the
+audit_scene and d-repair.rb notes above. The short version: V-Ray's deferred
+re-sync puts a drifted light back to FACTORY, not to one wrong parameter, so a
+fill sphere came back at 30 lm AND visible, rendered as a bare white ball in the
+middle of a frame, and the audit cleared it because it only checked intensity.
+On the 56-light office rig this drift hits nearly every drop (one to four lights
+each time), where ROOTCAUSE finding 6 had recorded it as one press in three on
+an 18-light rig. Re-dropping is a lottery; `d-repair.rb` is the fix, and it
+still cannot clear a frame - only `audit_scene` can.
 
 ## 2026-09-11
 ### 1.66.0 - Both blockers in front of rank cycle 1 cleared: the key light places, the "2x non-linearity" is not the renderer
