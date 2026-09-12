@@ -1,5 +1,58 @@
 # DEVLOG
 
+## 2026-09-11 — SESSION HANDOFF (read this first tomorrow)
+
+**Where we are.** The proposal render lighting went from 5.7 to **8.2** over 42 scored
+frames across six runs (`c` through `i`). Everything below is committed and pushed;
+plugin VERSION is **1.67.7**.
+
+**The one decision waiting on Benton.** Two rebuilt grey-plank floors, both sound, pick
+on looks alone:
+- `Z:\Sketchup\Proposals\test2\i02-angled-r.png` — 8.2, weathered, visible grain,
+  more contrast between boards. Best frame in the project.
+- `Z:\Sketchup\Proposals\test2\i04-angled-r.png` — 8.0, calmer and slightly darker,
+  closest to the `h05` survey winner he was originally shown.
+
+Both are real V-Ray materials with the texture committed at
+`assets\textures\WR_Plank_Grey_Wide_alb*.png`, so they resolve on any machine. The
+review page with all options side by side:
+https://claude.ai/code/artifact/bac063be-6ae4-4682-a992-8ca3384633ac
+
+**Next steps, in order.**
+1. Get Benton's floor pick (i02 or i04), then set it as the rig's default floor.
+2. **The flush fixture builds no geometry.** 25 `WR Fixture F4 flush aperture` groups,
+   0 faces between them. Draft mode hides the `WR Lights` tag so plan and line views draw
+   nothing either way, but a pack carrying both a hero render and a line view of the same
+   ceiling contradicts itself. Not a lighting change; decide and fix separately.
+3. **A reflective floor needs an imported V-Ray asset.** A converted SketchUp material
+   cannot carry reflection — writes to `reflect` / `reflect_glossiness` read back at
+   V-Ray's defaults because V-Ray's syncer owns those slots. Forcing it via
+   `bind_all_on = 0` wedged the bridge for 20 minutes; cleared from the Ruby Console.
+4. **D3 (booth as the subject) has never moved off 6** in five runs. Needs face-to-floor
+   ≥ 1.0; run `e` proved the only known lever (the face wash) puts a blown wedge on the
+   wall well before that. Genuinely open.
+5. Gabe is now able to pull: `git pull` + `install-plugin.py` on his machine.
+
+**Dead ends — do NOT re-try these.**
+- Raising the ceiling panels for exposure. D1 and D2 now trade 1:1; the ceiling bloom
+  above the booth clips before the dark fraction comes into range. That lever is finished.
+- Spreading the fill over more spheres to cut clipping. Tested at matched flux: 14 spheres
+  clipped slightly *worse* than 6. A wall patch is lit by all of them at once.
+- Concrete as the default floor. Scores best, retired by Benton (R8) — no client has one.
+- Colour temperature for the ceiling cast. It was never Kelvin; it is floor bounce, and
+  the cause is **saturation, not wood**. A desaturated wood costs nothing.
+
+**Standing rulings live at the bottom of**
+`Z:\Sketchup\Proposals\test2\.rankooth-render.rubric.md` **as R1-R8.** They override
+the anchors above them and the project record. Read them before scoring anything.
+
+**Two traps that already cost time.**
+- V-Ray's deferred re-sync drifts 1-4 lights to factory 30 lm with `invisible` false on
+  nearly every drop. `.forge/fixer/rank-loop/d-repair.rb` restores them. `audit_scene`
+  catches it; never score a frame whose audit is not ok.
+- Never `Sketchup.undo` a rig. It does not remove it, and a surviving rig invalidated a
+  whole run of scores before anyone noticed.
+
 ## 2026-09-11
 ### 1.67.7 - RANK RUN i: run h's recommended floor had NO V-RAY MATERIAL. The "renders at 2x its albedo" finding is wrong (it is 1.41x, and it is sheen, not albedo). Rebuilt properly, the floor reaches 8.2 - and floor albedo turns out to be a better exposure lever than lumens.
 
