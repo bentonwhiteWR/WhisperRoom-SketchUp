@@ -552,7 +552,12 @@ module WR_DropLights
   # live scene in BOTH directions, so a panel aperture that comes back
   # visible fails the audit and voids the frame exactly as a visible fill
   # sphere does. No second path, nothing new to keep in step.
-  PANEL_APERTURE_INVISIBLE = false
+  # RUN h (ruling R7 + R8): TRUE. R7 re-anchored D6 so that an unseen source
+  # neither earns nor costs anything, which removes the only thing g03 was
+  # marked down for; g03 and g04 then tie, and Benton asked for invisible
+  # fixtures, so the invisible variant is run h's control and every floor in
+  # the run is rendered on it.
+  PANEL_APERTURE_INVISIBLE = true
 
   # The share of a ceiling position's output that goes to the emitter the
   # CAMERA SEES. One place, so the aperture cannot be created with a share

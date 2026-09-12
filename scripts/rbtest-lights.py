@@ -1361,8 +1361,16 @@ EXPECT = ' | '.join([
     'top 94.600,99.776,94.000',
     'auditseen ok0 seenG+H',
     'auditoff ok1 offA | auditmix ok0 offA deadB+C+F wrongE',
-    'roles panel22/22/3600/4200/VIS fill10/2000/3500/inv rigoffice',
-    'split match1 visVIS hidinv share0.08 sum1 seen1 eff0.08 apinv0/agree',
+    # 1.67.6 (run h): PANEL_APERTURE_INVISIBLE flipped to true, so the panel
+    # role's own :visible is !true = false and the aperture reports `inv`.
+    # Derived from the constant by hand, not read off a run: the role's
+    # :visible is written as `!PANEL_APERTURE_INVISIBLE` in one place, so a
+    # true constant can only produce an invisible aperture, and `apinv` is the
+    # constant itself. Both halves must still AGREE, which is what the pin
+    # actually guards -- flip the constant back and these two lines flip with
+    # it, but `agree` never may.
+    'roles panel22/22/3600/4200/inv fill10/2000/3500/inv rigoffice',
+    'split match1 visinv hidinv share0.08 sum1 seen1 eff0.08 apinv1/agree',
     # 1.67.3: aperture 1/4 in below the ceiling, hidden emitter 3/4 in below
     # it -> in front, and the recess between them is 0.75 - 0.25 = 0.50.
     'flush on1 drop0.25 hid0.75 order1 recess0.5',

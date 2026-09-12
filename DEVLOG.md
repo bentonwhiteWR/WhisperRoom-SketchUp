@@ -1,6 +1,118 @@
 # DEVLOG
 
 ## 2026-09-11
+### 1.67.6 - RANK RUN h: rulings R7 and R8. Six client floors on a frozen rig. The peach ceiling is not "wood" - it is SATURATION, and a grey-washed wood plank holds D4 at 9 while still reading as a wood floor.
+
+Two rulings from Benton in `Z:\Sketchup\Proposals\test2\.rank\booth-render.rubric.md`.
+**R7** re-anchors D6 so an unseen source neither earns nor costs anything. **R8** retires
+concrete as the default floor - *"Most of our clients won't have a concrete floor... The
+floor was a wood. I think that usually looks pretty good, but let's try some other floors
+out."* Six cycles, `h00`-`h05`, frames at
+`Z:\Sketchup\Proposals\test2\h<NN>-angled-r.png`, rows written into the scores file as
+each cycle completed. Method `rank-measure/1` unchanged, so the rows compare to runs d,
+e, f and g.
+
+**`g03` re-read under R7 first, because it decides the control.** It was marked D6 = 6
+purely for having no visible source, which R7 no longer penalises. Re-read on the picture:
+no impossible artifact, booth grounded by a soft contact shadow, and the falloff is
+identical to `g04` because not one light differs between them - only the apertures'
+`invisible` flag. **D6 6 -> 8, overall 7.8 -> 8.2.** `g04` re-reads to the same 8, so the
+two tie on identical scores, which is what R7 requires when the only difference is whether
+the lamp is drawn. Benton asked for invisible fixtures, so **`g03` is the control** and
+`PANEL_APERTURE_INVISIBLE` is now **true**.
+
+**Recommended floor: `Wood_Planks_01_1K`, a grey-washed wide plank (`h05`), overall 8.0.**
+
+| floor | overall | D1 | D2 | D4 | ceiling R/B | reads as |
+|---|---|---|---|---|---|---|
+| g03 concrete (RETIRED by R8) | 8.2 | 9 | 9 | 9 | 1.216 | control only |
+| h00 shiny wood tile (the old floor) | 7.7 | 9 | 9 | **6** | 1.488 | salmon-orange parquet |
+| h01 oak plank | 7.7 | 9 | 9 | **6** | **1.882** | best wood, worst ceiling |
+| h02 commercial carpet tile | 8.0 | 8 | 9 | 9 | 1.228 | a real office |
+| h03 vinyl/laminate plank | 7.7 | 8 | 9 | 7 | 1.513 | washed-out sheet vinyl |
+| h04 light commercial tile | 5.3 | 4 | **3** | - | - | **HARD FAIL, blown floor** |
+| **h05 grey-washed plank** | **8.0** | 8 | 9 | **9** | **1.293** | **wood, clean ceiling** |
+
+**The finding the run exists for.** The ceiling gets almost no direct light - the panels
+are flush in it and cut off at 0.6 - so the ceiling band is very nearly pure floor bounce,
+and its colour is the FLOOR's diffuse R/B. Across six floors, ceiling R/B tracks floor R/B
+and nothing else. **So the peach ceiling was never "wood"; it was a saturated floor.** A
+saturated wood costs three points of D4 (h01, ceiling R/B 1.882); a desaturated wood costs
+none (h05, 1.293). That splits a decision the record has treated as one thing since DEVLOG
+1.65.0, and it is what lets R8 be satisfied without going back to concrete.
+
+**The trade-off, named rather than optimised away.** If Benton wants a warm honey wood, it
+costs about half a point overall and the ceiling will carry a visible warm tint - which is
+physically correct, not a defect, since a warm floor really does bounce warm light. `h01`
+is the frame to look at for that; it has the best-looking floor in the run and the most
+obviously peach ceiling. The recommendation is `h05` because it keeps the word "wood" and
+does not spend the point.
+
+**Both D4 = 9 floors are one lighting step short of 8.2 and it is not a floor problem.**
+`h02` and `h05` are held off the control's score by exactly one statistic - `dark` at
+3.68% and 3.76% against D1's 3% ceiling - because carpet and a grey plank return less
+bounce than concrete at identical lumens (20,828,800 lm every cycle). `g02` already proved
+the fix: panel layer x0.60 -> x0.70 bought the same statistic back for concrete at a cost
+of twelve clipped pixels. A darker floor needs the same step again, to roughly **x0.80-
+0.85**. Run h's lighting was frozen by the brief so it was not taken - it is the next
+cycle.
+
+**A material gotcha worth more than the cycle that found it.** SketchUp's own library
+`.skm` materials render in V-Ray at roughly **twice their own albedo**, hue preserved.
+`h03` measured it (albedo L 78 -> rendered floor band L 169.7 at the correct R/B 1.435,
+with a grazing sheen that erased the plank joints) and `h04` died of it: a near-white
+`Marble_20_1K` put 36.6% of the frame over the clip point, 131,719 raw clipped pixels, a
+floor band at L 254.8 with a standard deviation of 1.9 - no detail at all. **Use V-Ray
+materials for anything client-facing.** `h05`'s grey plank is also an `.skm` and works
+only because its albedo is dark enough to survive the doubling; if it is adopted it should
+be rebuilt as a real V-Ray material with its own reflection and roughness before it goes
+in a pack.
+
+**New in the harness.** `.forge/fixer/rank-loop/h-floor.rb` - run g changed the render
+floor from an unrecorded bridge one-liner, and R8 makes the floor a whole run's variable,
+so the swap is now a harness step with the drop's discipline. It reads `floor`,
+`floor_skm` and `floor_size` from the same `rank-loop-d.json` the rig reads, can pull a
+material out of SketchUp's own library by collection/name, sets the texture size in real
+inches (a floor texture at the wrong scale is a different floor), and **refuses to run at
+all unless `Room > Floor` is currently on the fill the model says it is on** - so "one
+variable this cycle" is checked rather than asserted. It prints the material's rgb, R/B,
+texture file and size into the console transcript.
+
+**Known-good state.** The model is left in RENDER mode with `Wood_Planks_01_1K` on
+`WR-Floor-Render` at 48 in, carrying the `g03` rig re-dropped from scratch:
+`rig` office, `mult` 1.0, `panel` x0.70, `plenum` x1.0, `fill` x0.10, `facewash` x1.00,
+`PANEL_FLUSH` true, `PANEL_APERTURE_SEEN` true, **`PANEL_APERTURE_INVISIBLE` true**.
+
+**Gotchas carried forward.**
+- **V-Ray's deferred re-sync hit all six drops** this run (1-4 lights each at factory
+  30 lm with `invisible` false), against four of five in run g. `d-repair.rb` restored the
+  full parameter set every time and `audit_scene` came back clean before AND after every
+  render, so no frame was rendered on a failed audit - but the fault is getting more
+  frequent, not less, and `d-repair.rb` is now load-bearing rather than a convenience.
+- **`rank-measure/1`'s `nb` column is void on any frame whose whole-frame R/B is near 1**
+  - five of the seven frames here. Its premise is a frame that is warm everywhere else.
+  Hand-checked instead on h02/h03/h05: nb pixels mean RGB ~(189,188,191), 49-63 pixels of
+  360,000 at 245+ in all channels, brightest 25 px block L 250.7-250.9. Nothing paper
+  white, no flat white polygon.
+- **`fixture-contrast/3` was correctly skipped.** Its masks are pinned from `f03` and
+  separate aperture from ceiling; with `PANEL_APERTURE_INVISIBLE` true there is no
+  aperture in any frame of this run, so both masks fall on bare ceiling and the ratio
+  measures nothing.
+- **The raw clipped-pixel creep has stopped.** f03 1 -> g02 13 -> g03 33 -> g04 13 ->
+  h00 17 / h01 14 / h02 20 / h03 13 / h05 17. Flat at 13-20 px of 360,000, all inside
+  x 239-375 / y 104-219 - the booth's own door handle and window frames. `g03`'s 33 was an
+  outlier, not a trend.
+- **D3 stayed at 6 on all seven frames and that is a rule, not an oversight.** `ff` ranged
+  0.4921-0.7927 across the run while `face_L` barely moved (99.5-125.4) and `floor_L`
+  ranged 133.4-254.8 - every move was the denominator. Run g refused a D3 *rise* from a
+  collapsing denominator twice; the same refusal has to apply to falls.
+
+**Open for Benton.** Which floor becomes the shop default. The run's recommendation is the
+grey-washed plank; the honest alternative is the honey oak at half a point and a visibly
+warm ceiling; carpet tile is the safest bet for what an office client actually walks on.
+The pick is his, and the flush-mode fixture-geometry gap raised at the end of run g is
+still open and still unfixed.
+
 ### 1.67.5 - RANK RUN g: ruling R6. A neutral floor takes D4 from 6 to 9 and closes the fixture/ceiling colour gap that run f could not touch; and the fully-invisible-fixture frame Benton asked to see, rendered twice by two different mechanisms and scored straight at D6 = 6 both times.
 
 Two instructions from Benton, `R6a` and `R6b` in
