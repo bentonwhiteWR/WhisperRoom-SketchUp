@@ -499,6 +499,70 @@ module WR_DropLights
     PANEL_FLUSH ? (PANEL_FLUSH_HID - PANEL_FLUSH_DROP) : PANEL_VIS_RECESS
   end
 
+  # ======================================================================
+  # FULLY INVISIBLE CEILING SOURCES (1.67.5) — Benton's ruling R6b:
+  #
+  #   "lets make the light invisible id like to see the output."
+  #
+  # When this is false the VISIBLE aperture emitter is not created at all.
+  # There is no aperture, no emitter and no housing in the ceiling: the
+  # camera sees an unbroken ceiling plane and the room is lit entirely by
+  # the INVISIBLE :plenum emitter standing at the same point.
+  #
+  # THE LIGHT ITSELF DOES NOT CHANGE, and that is the whole design of this
+  # switch. The position's total output, its point, its size, its 4200 K
+  # colour and its 0.6 cutoff are all identical either way — the flux that
+  # was in the aperture is handed to the plenum emitter beside it
+  # (`panel_visible_share` returns 0, so `hid_lm` becomes the position's
+  # whole figure). ONLY VISIBILITY MOVES.
+  #
+  # It defaults to TRUE because a visible source is what the office rig
+  # exists to provide: D6 ("believable cause") sat pinned at 5 for two
+  # entire runs on a room that glowed with no lamp in it. This constant is
+  # the switch that renders the other case for Benton to look at, not a
+  # recommendation to use it.
+  PANEL_APERTURE_SEEN = true
+
+  # ======================================================================
+  # THE OTHER "INVISIBLE", AND IT IS NOT THE SAME CHANGE (1.67.5).
+  #
+  # Benton, shown a V-Ray Asset Editor with a Rectangle Light selected and
+  # pointing at the Invisible checkbox under Options:
+  #
+  #   "I want to make the lights themselves invisible. Like this setting on
+  #    a random light in vray."
+  #
+  # PANEL_APERTURE_SEEN above does NOT do that. It stops the aperture being
+  # created, which takes its emission with it (the flux is handed to the
+  # plenum emitter beside it, so the ROOM level survives, but the aperture
+  # as a light is gone). THIS constant is V-Ray's own `invisible`
+  # parameter: the emitter stays, at its own point, its own size, its own
+  # 4200 K, its own 0.6 cutoff and every lumen it was already contributing
+  # — the camera simply does not see the glowing rectangle. Nothing about
+  # the room's light changes at all.
+  #
+  # The difference between the two is whether the light survives, and the
+  # rank loop rendered both: g00 is PANEL_APERTURE_SEEN false, g03 is this.
+  #
+  # It is wired through the SAME path the fill spheres already use — the
+  # role's `:visible` flag, which `configure_light` turns into
+  # `[:invisible, !visible]`, writes inside the V-Ray transaction, READS
+  # BACK and reports as DID NOT STICK if it did not take; which the rig
+  # stamps onto the instance; and which `audit_scene` compares against the
+  # live scene in BOTH directions, so a panel aperture that comes back
+  # visible fails the audit and voids the frame exactly as a visible fill
+  # sphere does. No second path, nothing new to keep in step.
+  PANEL_APERTURE_INVISIBLE = false
+
+  # The share of a ceiling position's output that goes to the emitter the
+  # CAMERA SEES. One place, so the aperture cannot be created with a share
+  # of zero (a visible rectangle light at 0 lm is a black rectangle in the
+  # ceiling, not an absent one) and cannot be skipped while its flux stays
+  # behind.
+  def self.panel_visible_share
+    PANEL_APERTURE_SEEN ? PANEL_VISIBLE_SHARE : 0.0
+  end
+
   # THE FILL SCATTER — "assorted places ... four or five feet away from the
   # booth, low level, high level". Each row is
   #   [degrees off the booth's door normal, inches out from the booth's SKIN,
@@ -783,7 +847,13 @@ module WR_DropLights
                   :u => PANEL_U - 2.0 * PANEL_FRAME - 0.5,
                   :v => PANEL_V - 2.0 * PANEL_FRAME - 0.5,
                   :emitters => 1, :lumens => 3600.0,
-                  :kelvin => 4200, :budget => :room, :visible => true,
+                  # PANEL_APERTURE_INVISIBLE (ruling R6b, 1.67.5) rides on
+                  # this flag rather than on a second mechanism: false here
+                  # makes `configure_light` write V-Ray's `invisible` true,
+                  # stamps it on the instance, and puts it under the audit's
+                  # visibility check — the same path the fill spheres use.
+                  :kelvin => 4200, :budget => :room,
+                  :visible => !PANEL_APERTURE_INVISIBLE,
                   # THE CUTOFF (rank cycle d03). nil -> 0.6. A real office
                   # panel is not a bare Lambertian emitter: low-glare
                   # (UGR<19) panels are the commodity product precisely
@@ -5206,7 +5276,7 @@ paint(); drawPresets("");
           # SEE, dimmed to PANEL_VISIBLE_SHARE so it does not clip, and the
           # hidden one that LIGHTS. Both go inside the fixture group, so
           # dragging a panel still takes its light with it.
-          vis_lm = panel_lm * PANEL_VISIBLE_SHARE
+          vis_lm = panel_lm * panel_visible_share
           hid_lm = panel_lm - vis_lm
           pgrid[:pts].each do |p|
             fg, ez = build_f4(ents, model, p[0], p[1], info[:z_top], fx_mat)
@@ -5223,8 +5293,13 @@ paint(); drawPresets("");
             # now, and the camera still sees the lit aperture through it,
             # because an invisible light does not block camera rays.
             place.call(:plenum, [p[0], p[1], ez], hid_lm, nil, fg.entities)
+            # RULING R6b: with PANEL_APERTURE_SEEN false the aperture is not
+            # created at all. It is NOT created at 0 lm — a V-Ray rectangle
+            # light with invisible = 0 is rendered geometry, so a 0 lm one
+            # would put a black rectangle in the ceiling where the fixture
+            # used to be, which is a different picture from no fixture.
             place.call(:panel, [p[0], p[1], ez + panel_vis_recess], vis_lm,
-                       nil, fg.entities)
+                       nil, fg.entities) if PANEL_APERTURE_SEEN
           end
           puts format('  %s: OFFICE RIG — ceiling panels: %d x F4 %g x %g in ' \
                       'flat panel on a REGULAR grid, %d x %d at %.1f x %.1f in ' \
@@ -5248,13 +5323,23 @@ paint(); drawPresets("");
                         format('SURFACE-MOUNTED — a %g in open housing with ' \
                                'a %g in frame hangs below the ceiling',
                                PANEL_DEPTH, PANEL_FRAME))
-          puts format('  %s: each panel is TWO emitters at one point — a ' \
-                      'VISIBLE aperture at %.0f lm (%.0f%% of the position, so ' \
-                      'its surface reads as a lamp instead of paper white) and ' \
-                      'an INVISIBLE one at %.0f lm doing the lighting. The ' \
-                      'position total is unchanged; see PANEL_VISIBLE_SHARE for ' \
-                      'why this is done and what it costs.',
-                      name, vis_lm, PANEL_VISIBLE_SHARE * 100.0, hid_lm)
+          if PANEL_APERTURE_SEEN
+            puts format('  %s: each panel is TWO emitters at one point — a ' \
+                        'VISIBLE aperture at %.0f lm (%.0f%% of the position, so ' \
+                        'its surface reads as a lamp instead of paper white) and ' \
+                        'an INVISIBLE one at %.0f lm doing the lighting. The ' \
+                        'position total is unchanged; see PANEL_VISIBLE_SHARE for ' \
+                        'why this is done and what it costs.',
+                        name, vis_lm, panel_visible_share * 100.0, hid_lm)
+          else
+            puts format('  %s: PANEL_APERTURE_SEEN is FALSE (ruling R6b) — each ' \
+                        'position is ONE INVISIBLE emitter at %.0f lm, the ' \
+                        'position\'s whole output. No aperture and no housing is ' \
+                        'drawn: there is NOTHING in the ceiling for the camera to ' \
+                        'see. Point, size, colour, cutoff and total output are ' \
+                        'unchanged from the visible-aperture rig; only visibility ' \
+                        'moved.', name, hid_lm)
+          end
           if pgrid[:pts].size < pgrid[:nx] * pgrid[:ny]
             puts format('  %s: %d grid position%s fell outside the floor polygon ' \
                         'or within %g in of its edge and were dropped.', name,

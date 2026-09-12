@@ -1,6 +1,140 @@
 # DEVLOG
 
 ## 2026-09-11
+### 1.67.5 - RANK RUN g: ruling R6. A neutral floor takes D4 from 6 to 9 and closes the fixture/ceiling colour gap that run f could not touch; and the fully-invisible-fixture frame Benton asked to see, rendered twice by two different mechanisms and scored straight at D6 = 6 both times.
+
+Two instructions from Benton, `R6a` and `R6b` in
+`Z:\Sketchup\Proposals\test2\.rank\booth-render.rubric.md`. Five cycles,
+`g00`-`g04`, frames at `Z:\Sketchup\Proposals\test2\g<NN>-angled-r.png`, every
+row written into the scores file as the cycle completed. Method
+`rank-measure/1` unchanged, so the rows compare to runs d, e and f.
+
+**Shipped frame: `g04` (identical to `g02`), overall 8.2** - D1 9 / D2 9 /
+D3 6 / D4 **9** / D5 8 / D6 8, against the `f03` control of 7.7. Highest of the
+four runs, and the first time any dimension other than D1 and D2 has reached 9.
+
+**R6a - THE NEUTRAL FLOOR, and it fixed the thing the record said it would.**
+The render floor slot went `Wood Tiles Shiny 03 100cm` ->
+**`Concrete Simple C01 200cm`** (sealed concrete, RGB 134/133/133, a real V-Ray
+material already in the model with diffuse, gloss and normal maps).
+
+- **D4 6 -> 9 in one cycle** after sitting at 6 or 7 for the whole of runs d, e
+  and f. Ceiling R/B **1.5205 -> 1.2125**, whole-frame R/B **1.5651 -> 1.1143**.
+  DEVLOG 1.65.0's diagnosis is confirmed outright: the peach ceiling was the
+  floor bouncing into it, and no amount of Kelvin or fixture work was ever
+  going to reach it.
+- **And D4's number is finally honest.** d03/d04 established that ceiling R/B
+  on this rig tracked ceiling-band LUMINANCE, so every earlier D4 = 9 was partly
+  an exposure artifact. Here the band got DIMMER and its R/B fell anyway (g01),
+  then got BRIGHTER and its R/B did not move (g02). The confound is broken in
+  both directions.
+- **The fixture/ceiling hue gap closed with it**, `rb_gap` **0.446 -> 0.034**,
+  which is precisely what the f-run predicted lifting the floor ruling would do.
+  It did not lift D6, because a luminance separation replaced the hue one
+  (`lin_ratio` 0.979 -> 1.258) and because D6's 9 anchor is the one the rubric
+  itself flags as PART INFERRED and never ruled on.
+- **It cost exposure and that was bought back.** Concrete returns less bounce
+  than wood, so the same 17.9M lm lit the room less well (linear mean -23%) and
+  `dark` went over D1's 3% anchor. Panel layer x0.60 -> **x0.70** restored it,
+  and all six derived predictions in the g01 note landed to within 2%.
+- **`0128_White` was NOT used** even though it is the shop default for that slot.
+  It is the slot's SOURCE, not a fill: in the V-Ray scene it is a bare
+  `_HostMaterial` with no texture and no reflection, and at ~100% albedo it
+  would have pushed the floor brighter when every prediction wanted it darker.
+  The deviation is argued in the `g01` note rather than performed quietly.
+
+**R6b - THE FULLY INVISIBLE FIXTURES. Two different changes, both rendered.**
+Benton first asked *"lets make the light invisible id like to see the output"*,
+then clarified by pointing at V-Ray's **Invisible** checkbox in the Asset
+Editor: *"I want to make the lights themselves invisible."* Those are not the
+same change and both are now on record:
+
+- **`PANEL_APERTURE_SEEN` (g00)** - the aperture emitter is not created at all.
+  Its flux is handed to the plenum emitter beside it so the room stays lit, but
+  the aperture as a light is gone. It is not created at 0 lm on purpose: a V-Ray
+  rectangle light with `invisible = 0` is rendered geometry, so a 0 lm visible
+  emitter would have put a BLACK rectangle at each of the 25 positions.
+  **Overall 7.2.**
+- **`PANEL_APERTURE_INVISIBLE` (g03)** - the emitter stays, at its own point,
+  size, 4200 K, 0.6 cutoff and every lumen, and V-Ray's `invisible` is set on
+  it. This is the one he meant. It rides on the role's own `:visible` flag, so
+  it goes through the SAME path the fill spheres already use - written inside
+  the V-Ray transaction, read back, reported as DID NOT STICK if it did not
+  take, stamped on the instance, and compared by `audit_scene` in both
+  directions. No second mechanism to keep in step. Verified live: 66 lights in
+  the V-Ray scene, 66 invisible, 0 visible. **Overall 7.8.**
+
+**Both score D6 = 6, by different mechanisms, and that is the useful part.**
+D6's 6 anchor describes the frame word for word - *"the room's light has no
+visible source: the ceiling and walls glow with no lamp, fixture or window
+anywhere in the frame to account for it."* Neither is a 3 (no impossible
+artifact, and the booth is grounded by a soft contact shadow in both) and
+neither can reach 9, whose first requirement is a visible fixture. Nothing else
+is harmed: g03 holds D1/D2/D4/D5 at 9/9/9/8 and has the best dark fraction of
+the run. **The cost of invisibility on this rubric is two points of believable
+cause and nothing else.** If Benton looks at `g03` and prefers it, D6's anchor
+is what needs revisiting - the rubric already marks it inferred and he has never
+ruled on it.
+
+**KNOWN DEFECT, CONFIRMED AND NOT FIXED.** In flush mode `build_f4` returns an
+empty group, so the 25 `WR Fixture F4 flush aperture` groups in the model hold
+**0 faces between them** (observed on the live model; 50 child entities, all of
+them light components). **The ceiling in any non-rendered view has nothing in
+it.** Partly mitigated: `WR_Mode::LIGHT_TAGS` hides the `WR Lights` tag in draft
+mode as policy and the proposal package's image lane runs in draft, so plan and
+line views never draw the rig either way - but a pack carrying both a hero
+render and a line view of the same ceiling would disagree with itself. Raise it
+before that happens; it is not a lighting change and does not belong in a
+scoring cycle.
+
+**Measurement notes that a later run must not trip over.**
+
+- **`rank-measure/1`'s `nb` column is not comparable across the floor change.**
+  It flags pixels that are bright AND near-neutral, and its own comment says why
+  that is a fault signature: *"in a frame whose light is warm everywhere else."*
+  This frame's whole-frame R/B is 1.11, so the premise is void by design and
+  `nb` went 0.0022 -> 0.0216 with no defect appearing. Checked by hand instead:
+  the brightest 25 px block is L 225.6, ten pixels of 360,000 reach 245 in all
+  three channels, nothing reads as paper white.
+- **`fixture-contrast/2` cannot classify a neutral ceiling** - its ceiling test
+  is `(R - B) >= 60` and selects zero pixels. Replaced by **`fixture-contrast/3`**:
+  the same two masks, pinned from `f03` and applied unchanged to every frame.
+  Valid only while the camera is fixed. Auxiliary, never a rubric number.
+- **The raw clipped-pixel count is creeping and `clip` rounds it away**: f03 1,
+  g01 1, g02 13, g03 33, g04 13, out of 360,000. Still fifty times inside D2's
+  threshold and never a patch - four specular glints of a dozen pixels each -
+  but a further output rise is where zero clipping stops being free.
+- **D3 is the only dimension left at 6 and it is not cheaply reachable.** `ff`
+  rose 0.7026 -> 0.7767 across the run and **every bit of it is the
+  denominator**: the floor got darker, the booth face tracked the room. D3 = 9
+  needs `ff` >= 1.0 and run e already showed the only lever that moves it, the
+  face wash, puts a hard-edged blown wedge on the wall (e05) well before that.
+  No cycle was spent re-proving it.
+
+**Tests.** `scripts/rbtest-lights.py` is green on 70 of 72 checks with two new
+hand-derived pins for `PANEL_APERTURE_SEEN` and `PANEL_APERTURE_INVISIBLE` (the
+second also asserts that the constant and the role's `:visible` flag agree, so
+the one visibility path cannot be bypassed). The two red checks are the
+inherited `fill` / `fillsmall` pins that still expect the six-row
+`FILL_SCATTER` run e replaced with fourteen; they are left red deliberately, as
+run f left them, because rewriting them to match what the code prints would be
+reading the answer off a run. `scripts/rbparse.py`: 75 files parse.
+
+**Operational.** V-Ray's deferred re-sync hit **four of the five drops** (2, 6,
+1 and 4 lights at factory 30 lm with `invisible` false). `d-repair.rb` restored
+the full parameter set each time and `audit_scene` came back clean before AND
+after every render. **No frame in this run was rendered on a failed audit.** The
+model is left in RENDER mode with the concrete floor applied, carrying the `g04`
+rig, which is the proposal package's own end-of-batch policy and the state
+Benton asked for.
+
+**Reproduction:** `rig` office - `mult` 1.0 - `panel` **x0.70** - `plenum` x1.0
+- `fill` x0.10 - `facewash` x1.00, `PANEL_FLUSH` true, `PANEL_VISIBLE_SHARE`
+0.08, `PANEL_APERTURE_SEEN` true, `PANEL_APERTURE_INVISIBLE` false,
+`PANEL_SPACING` 96, `FILL_SCATTER` 14 rows, `:facewash[:dir]` 0.5, render floor
+slot `Concrete Simple C01 200cm`. Harness `.forge/fixer/rank-loop/d-*.rb`,
+config `C:\Users\bento\AppData\Local\WhisperRoom\rank-loop-d.json`.
+
 ### 1.67.3 - RANK RUN f: ruling R5. The ceiling fixtures lose their housings entirely and their apertures come up to the ceiling's own brightness, so they stop competing with the booth. D6 5 -> 8 under the new anchor, D1-D5 unchanged or better, zero clipped pixels.
 
 Benton, on the `e04` frame: *"i love the lighting, but can the design be

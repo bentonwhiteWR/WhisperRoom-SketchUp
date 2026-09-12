@@ -385,7 +385,7 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            # 1.67.0 -- the office rig's placement logic
            'panel_grid', 'rot2', 'box_exit', 'fill_points', 'emitter_top_z',
            # 1.67.3 -- the flush aperture (ruling R5)
-           'panel_vis_recess']
+           'panel_vis_recess', 'panel_visible_share']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'WASH_MAX', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
@@ -428,7 +428,7 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'FACEWASH_AIM_DROP',
            # 1.67.3 -- the flush aperture (ruling R5)
            'PANEL_FLUSH_DROP', 'PANEL_FLUSH_HID']
-BOOLS = ['PANEL_FLUSH']
+BOOLS = ['PANEL_FLUSH', 'PANEL_APERTURE_SEEN', 'PANEL_APERTURE_INVISIBLE']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT', 'RIG_DEFAULT']
 # FILL_SCATTER BEFORE LIGHT_LAYERS: the :fill role's :n reads FILL_SCATTER.size,
 # and these are emitted in list order into one Ruby module body.
@@ -1203,10 +1203,22 @@ __METHODS__
     same = (ps[:u] == pl[:u] && ps[:v] == pl[:v] &&
             ps[:kelvin] == pl[:kelvin] && ps[:dir] == pl[:dir] &&
             ps[:emitter] == pl[:emitter])
-    out << format('split match%d vis%s hid%s share%.4g sum%.4g',
+    # `eff` is the share the RIG actually hands the visible aperture, which
+    # is 0 when PANEL_APERTURE_SEEN is false (ruling R6b) -- and `seen`
+    # says which case is in force, so a run cannot silently be the other
+    # one. The two must agree: seen0 with a non-zero eff would mean flux
+    # stranded in an emitter that is never created.
+    # `apinv` is ruling R6b's OTHER reading (1.67.5): the aperture is still
+    # created and still emits, V-Ray is simply told not to draw it. It must
+    # drive the role's own :visible flag and nothing else, so that the one
+    # visibility path -- write, read back, stamp, audit -- covers it.
+    out << format('split match%d vis%s hid%s share%.4g sum%.4g seen%d eff%.4g apinv%d/%s',
                   same ? 1 : 0, ps[:visible] ? 'VIS' : 'inv',
                   pl[:visible] ? 'VIS' : 'inv', PANEL_VISIBLE_SHARE,
-                  PANEL_VISIBLE_SHARE + (1.0 - PANEL_VISIBLE_SHARE))
+                  PANEL_VISIBLE_SHARE + (1.0 - PANEL_VISIBLE_SHARE),
+                  PANEL_APERTURE_SEEN ? 1 : 0, panel_visible_share,
+                  PANEL_APERTURE_INVISIBLE ? 1 : 0,
+                  ps[:visible] == !PANEL_APERTURE_INVISIBLE ? 'agree' : 'DISAGREE')
 
     # 29k -- THE FLUSH APERTURE (1.67.3, ruling R5). Three things have to
     # hold or the fixture is wrong in the picture rather than in a number:
@@ -1350,7 +1362,7 @@ EXPECT = ' | '.join([
     'auditseen ok0 seenG+H',
     'auditoff ok1 offA | auditmix ok0 offA deadB+C+F wrongE',
     'roles panel22/22/3600/4200/VIS fill10/2000/3500/inv rigoffice',
-    'split match1 visVIS hidinv share0.08 sum1',
+    'split match1 visVIS hidinv share0.08 sum1 seen1 eff0.08 apinv0/agree',
     # 1.67.3: aperture 1/4 in below the ceiling, hidden emitter 3/4 in below
     # it -> in front, and the recess between them is 0.75 - 0.25 = 0.50.
     'flush on1 drop0.25 hid0.75 order1 recess0.5',
