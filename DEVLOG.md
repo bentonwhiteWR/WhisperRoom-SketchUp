@@ -1,6 +1,149 @@
 # DEVLOG
 
 ## 2026-09-12
+### 1.69.0 - THE DOOR FRAME IS NOW THE FIRST WAY AUTO-SET FINDS THE FRONT, not a fallback. Includes a correction to 1.68.0: the door leaf on that booth was never "drawn open".
+
+Benton, 12 Sep, after 1.68.0:
+
+> *"For future reference, find the side the door frame is on. That side is the FRONT."*
+
+That rule is now the primary derivation. On the `MDL 4872 S` in `CSUSB Chaparral 106`
+it produces **identical** plates to 1.68.0. The point of the change is to get the
+correct answer from the right evidence, not to change this booth's answer.
+
+## CORRECTION TO 1.68.0 - the leaf was not open
+
+The 1.68.0 entry below, its commit message, and code and test comments all said the
+one-piece door's footprint read 46 x 32 *"because the leaf is drawn swung open."*
+**That is false.** It was a theory that got written down as a finding. **Benton caught
+it:** he confirmed the leaf is closed. It was then measured on the live model through
+the bridge (composed transformations, 12 Sep):
+
+| level (inside `S0  Left46Door`, own +90) | own x-axis | composed x-axis in booth space | own definition box |
+|---|---|---|---|
+| `Std door frame 46"#7` | [0, -1] | **[1, 0]** - in the wall line | 46.0 x 17.88 x 81 |
+| `Component#393` | [0.5, -0.866] (-60) | [0.866, 0.5] | 31.55 x 18.72 |
+| `Component#297` | [-0.94, 0.342] (+160) | [-0.985, -0.174] | 30.35 x 8.88 |
+| `Std door 30"  for 46" door frame#3` (the slab) | [-0.174, -0.985] (-100) | **[0, 1]** - in the wall line | 2.5 x 30.37 x 75.25 |
+
+The rotations cancel, and the slab sits in the wall. The 32 comes from how SketchUp
+boxes nested parts. A bounding box is axis-aligned in *its own level's* space, so each
+rotated level wraps the box of the level beneath it in a larger box. `Component#393`'s
+box, carried into the booth, is 36.69 x 31.99. Nothing is sticking out; the extra
+width is only boxes wrapped around rotated boxes.
+
+(A note on the numbers: the brief for this work gave the slab's composed axis as
+[-0.985, -0.174]. Measured again, that is `Component#297`'s composed axis. The slab's
+own composed axis is exactly [0, 1]. Either way the conclusion holds: the leaf is
+closed.)
+
+**The lesson, now in the code:** the bounds of an intermediate container are not an
+orientation signal. The composed transformation of the named part is.
+
+What 1.68.0 got **right** still stands. The door component was one piece, the
+`wall_axis` fallback was a 0.6 percent coin flip on a skewed union box, the frame was
+the answer, and `side_swung?` was correct. Only the reason given for the fat footprint
+was wrong. The false wording is corrected in `scripts/wr-autoset.rb` (the note on
+`inner_frame_pick`, and `plan_aspect`) and `scripts/rbtest-autoset.py` (the if-block
+comments). The 1.68.0 entry below is left as it was written, with this entry as the
+record of the correction.
+
+## WHAT CHANGED
+
+**The order.** Until now `tag_anchor` boxed the whole tagged door first and looked
+for the frame only when that box failed `ASPECT_MIN`. A door whose outer box happened
+to pass the shape test would have named a wall without the frame ever being
+consulted. Now, for `WR-Booth-Door`:
+
+1. **`frame_parts`** walks down from the booth, composing each level's
+   `transformation.to_a` in pure Ruby (`mat_mul`). It stops at every part under the
+   door tag (inherited from any ancestor) whose instance or definition name matches
+   `FRAME_RE`.
+2. **`frame_reading`** reads each frame's *own* definition box for the shape
+   (`wall_shape?`), and its long plan axis through the composed matrix for the wall
+   direction. The direction must lie within `FRAME_SNAP_DEG` = 20 of a booth axis and
+   must not tip out of plan. The sign comes from the frame centre's offset, as before.
+3. Only if there is no frame reading does the 1.68.0 path run unchanged:
+   `frame_hits` outer box, then the one-piece descent (`inner_frame_pick`), then
+   `wall_axis`.
+
+**The order is a pure function, `door_axis`**, so the tests pin the order itself and
+not just its parts. The vent keeps the 1.68.0 path; it has no frame to find.
+
+**A trap on this very booth: the leaf's name says frame.** The slab's definition is
+`Std door 30"  for 46" door frame#3`. **The shallowest match wins**: the real frame is
+one level below the door and the slab is three. Rows at that shallowest depth must
+agree, or there is no frame reading. On this booth the slab happens to agree too
+(it's closed). The shallowest-match rule is what stops an *open* one from voting.
+
+**It declines rather than guessing** when a frame is not wall-shaped, is skewed or
+tipped, or when frames at the same depth disagree. It then falls back to 1.68.0,
+never to an invented wall.
+
+## PROVEN ON THE LIVE MODEL
+
+- `frame_parts` on the live booth returned two rows. One is the frame at depth 1 with
+  composed x-axis [1.0, 0.0]; the other is the slab at depth 3 with [0.0, 1.0].
+  `frame_reading` gave the -Y wall at (25.00, 2.75), and `door_axis` reported
+  source `frame`.
+- `tag_anchor` returned exactly what it returned before the change: door -90 at the
+  same point to the last digit, vent 90. The side pick is +X, the window wall
+  (`E0  46Panel3236WDO`).
+- AUTO-SET re-applied, 9 scenes updated and 0 created. Every camera eye and target
+  was captured before and after, with a max delta of **0.0**. Azimuths: 01-angled
+  -55, 02-front -90, 03-high -55, 04-side 0, 05-ventilation 115, 06-plan 0,
+  identical to 1.68.0.
+- `audit_scene` ok **before and after** the render (rig 28, model 1, no
+  off/dead/wrong/ghosts). All 9 plates came back `ok`.
+- Pack exported to `Z:\Sketchup\Proposals\test3\t3-03`. **Checked by looking at the image, not
+  just the camera numbers:** `4_MDL 4872 S (components) 02-front.png` shows the door square-on
+  and centred, with the slab visibly closed in its frame. It matches the 1.68.0 `t3-02` front.
+  The only difference is the plain-image lane size (1600x605 now, 1600x634 then). The export
+  log attributes that to the SketchUp window's shape; the camera did not move.
+
+## TESTS
+
+`scripts/rbtest-autoset.py` has **303 checks, all green** (was 296), with new checks
+fd1-fd7. The nested door in fd1/fd2/fd4 is built from the **live** `to_a` arrays and
+definition boxes read off Benton's model, slab name included.
+
+- fd1: the walk composes the frame to [1, 0], keeps the slab as a deeper row, and
+  never picks up a window frame on the walls tag.
+- fd2: rotations that cancel. The slab is [0, 1], `#297` is [-0.985, -0.174], and
+  `#393`'s carried box names no wall, yet the frame reads -Y at (25.0, 2.75).
+- fd3: **the order.** The outer box passes the shape test and names +X, but the frame
+  reading wins and the inner descent is never called.
+- fd4: an open slab deeper down does not outvote the frame.
+- fd5: declines on skew, tip, a square frame, and disagreeing frames.
+- fd6: no frame gives a clean fallback, and every 1.68.0 answer (outer, inner, the
+  `wall_axis` coin flip, nil) comes back unchanged.
+- fd7: the matrix helpers, and the 1 in centre guard.
+
+Six mutations were **run**; each named check went red, the file was restored, and
+303 checks were green again. They are listed in the file's CHECKED AGAINST ITSELF
+block. Reverting to the 1.68.0 order fails fd3.
+
+`scripts/rbparse.py`: all 75 files parse.
+
+## KNOWN GAPS
+
+- **Proven on one booth.** The frame-first path has run live only on this
+  `MDL 4872 S`. A booth whose frame is its own tagged sibling takes the frame path too
+  (depth 0), but only if its instance or definition name matches `FRAME_RE`, and whether the
+  builders' names do was not checked here. That path is covered by the pure checks, not by a second
+  live booth. `verify-autoset.rb` section 10 was not extended.
+- **The margin on this frame is thin.** Its own box is 46 x 17.88 (aspect 2.57),
+  because the top adaptor inside it is rotated 15 degrees and deepens the box. A
+  narrower frame with the same adaptor could fall under `ASPECT_MIN`. It would then
+  decline to the 1.68.0 path, not misread, but it would not be frame-first.
+- **Two doors, or a frame split into separately named pieces** (jambs each matching
+  `FRM`), can disagree at the same depth. It declines to 1.68.0 in that case rather
+  than choosing one.
+- **The log does not say which reading was used.** `door side: READ -90.0 deg` looks
+  the same whether it came from the frame or the fallback. `door_axis` returns the
+  source; nothing prints it yet.
+- **The open sky item from 1.68.0 is untouched.**
+
 ### 1.68.0 - THE FRONT PLATE WAS NOT FACING THE DOOR. One coin flip in the door-wall derivation, decided by 0.6 percent, turned every door-referenced plate the wrong way. Fixed, and the three-quarter plates now swing toward the window like the side plate already did.
 
 Benton, 12 Sep, on the `t3-01` pack:

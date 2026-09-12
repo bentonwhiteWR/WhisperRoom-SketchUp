@@ -95,6 +95,14 @@ not assumed. Each of these reintroduced bugs makes the NAMED check fail:
                                                             it by name -- same
                                                             shape as sd16 below
     inner_frame_pick guessing when nothing is wall-shaped-> if9 FAIL
+    door_axis back to the 1.68.0 order (frame only after
+      the outer box fails the shape test)               -> fd3 FAIL
+    frame_reading keeping every depth (slab gets a vote) -> fd2, fd4 FAIL
+    frame_row_normal without the FRAME_SNAP_DEG test     -> fd5 FAIL
+    frame_parts not composing (own transformation only)  -> fd1, fd2, fd4 FAIL
+    frame_parts ignoring the door tag                    -> fd1, fd2 FAIL
+    door_axis running the inner descent eagerly          -> fd3, fd6 FAIL
+      (1.69.0, all six RUN on 12 Sep 2026, file restored, 303 green after)
 
     tag_anchor NOT descending into a one-piece door is the defect itself, and it
     is impure -- if4..if10 pin the pure half, and the live half was measured
@@ -294,6 +302,54 @@ class FakeEnt
   end
 end
 
+# 1.69.0: the minimum frame_parts walks -- a tag, a definition with a name,
+# its own box and its children, and a transformation that answers to_a.
+class FakeLayer
+  attr_reader :name
+  def initialize(name)
+    @name = name
+  end
+end
+
+class FakeTr
+  def initialize(a)
+    @a = a
+  end
+  def to_a; @a; end
+end
+
+class FakeBox3
+  attr_reader :min, :max
+  def initialize(mn, mx)
+    @min = FakePt.new(mn[0], mn[1], mn[2])
+    @max = FakePt.new(mx[0], mx[1], mx[2])
+  end
+end
+
+class FakeDef
+  attr_reader :name, :bounds, :entities
+  def initialize(name, mn, mx, entities = [])
+    @name = name
+    @bounds = FakeBox3.new(mn, mx)
+    @entities = entities
+  end
+end
+
+class FakeInst
+  attr_reader :name, :layer, :definition, :transformation
+  def initialize(name, layer, defn, to_a)
+    @name = name
+    @layer = FakeLayer.new(layer)
+    @definition = defn
+    @transformation = FakeTr.new(to_a)
+  end
+end
+
+# A loose face or edge: no transformation, no definition. The walk must step
+# over it rather than raise.
+class FakeLoose
+end
+
 class FakeView
   attr_reader :camera
   # `after_plan` hands back a view in the state 06-plan leaves it: parallel,
@@ -484,6 +540,22 @@ module WR_AutoSet
 %(plan_aspect)s
 
 %(inner_frame_pick)s
+
+%(frame_snap_deg)s
+
+%(frame_walk_depth)s
+
+%(mat_mul)s
+
+%(mat_apply)s
+
+%(frame_parts)s
+
+%(frame_row_normal)s
+
+%(frame_reading)s
+
+%(door_axis)s
 
 %(annot_cell)s
 
@@ -1803,9 +1875,12 @@ module T
     ck('wn9', WR_AutoSet::ASPECT_MIN == 2.0, WR_AutoSet::ASPECT_MIN.inspect)
 
     # ---------------------------------------------------------- 1.68.0: the
-    # ONE-PIECE DOOR. Benton's live MDL 4872 S carries its frame and its swung
-    # leaf inside a single "S0  Left46Door" component, so frame_hits returns
-    # the whole assembly and its 46.00 x 31.99 footprint names no wall --
+    # ONE-PIECE DOOR. Benton's live MDL 4872 S carries its frame and its leaf
+    # inside a single "S0  Left46Door" component, so frame_hits returns the
+    # whole assembly and its 46.00 x 31.99 footprint names no wall. (1.68.0
+    # said the 32 was a leaf "drawn swung open". It is not: the leaf is closed
+    # and in the wall, and the 32 is its nested containers' boxes re-boxed
+    # through rotations that cancel -- see fd2 and the 1.69.0 DEVLOG entry.) So
     # wall_normal declines, the pre-1.54.0 wall_axis fallback runs against the
     # skewed union box, and it called the door wall +/-X on a 0.6 percent
     # margin when the door is in the -Y wall. 02-front then photographed a
@@ -1834,9 +1909,10 @@ module T
               WR_AutoSet.plan_aspect(46.0, 0.0) == 1.0e9,
        [WR_AutoSet.plan_aspect(46.0, 17.88), WR_AutoSet.plan_aspect(36.69, 31.99)].inspect)
 
-    # THE LIVE PAIR. The frame is named and is the long thin one; the leaf is
-    # neither. Either signal alone picks the frame, which is the point of
-    # having two.
+    # THE LIVE PAIR. The frame is named and is the long thin one;
+    # Component#393 -- the leaf's outermost container, whose box the rotations
+    # below it inflated -- is neither. Either signal alone picks the frame,
+    # which is the point of having two.
     frm  = { 'name' => 'Std door frame 46"#7', 'span' => [46.0, 17.88], 'ctr' => [25.0, 2.75] }
     leaf = { 'name' => 'Component#393',        'span' => [36.69, 31.99], 'ctr' => [25.02, 0.91] }
     ck('if4', WR_AutoSet.inner_frame_pick([frm, leaf]) == frm &&
@@ -1887,6 +1963,166 @@ module T
                ('E1 46DRFRM' =~ WR_AutoSet::FRAME_RE ? true : false) &&
                ('Left46Door' =~ WR_AutoSet::FRAME_RE).nil?,
        'FRAME_RE no longer matches the frame names and only them')
+
+    # ---------------------------------------------------------- 1.69.0: THE
+    # DOOR FRAME COMES FIRST. Benton, 12 Sep 2026: "For future reference, find
+    # the side the door frame is on. That side is the FRONT." Until 1.69.0 the
+    # frame was a fallback, read only after the whole door's box failed the
+    # shape test.
+    #
+    # THE DOOR BELOW IS THE LIVE ONE. Every to_a array and every definition
+    # box was read out of Benton's model through the bridge on 12 Sep 2026:
+    # the door (own +90), its frame (own -90, so net 0), and the leaf's chain
+    # Component#393 (-60) > Component#297 (+160) > slab (-100), net +90, which
+    # is the slab lying in the wall. The slab's definition name says "door
+    # frame" -- a real trap, kept.
+    i16 = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+    t_door  = [0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 49.0, -1.2742, 0.0, 1.0]
+    t_frame = [0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.7742, 44.0, 0.0, 1.0]
+    t_393   = [0.5, -0.866, 0.0, 0.0, 0.866, 0.5, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -11.4776, 31.4434, 2.875, 1.0]
+    t_297   = [-0.9397, 0.342, 0.0, 0.0, -0.342, -0.9397, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 29.2549, 7.9825, 0.0, 1.0]
+    t_slab  = [-0.1736, -0.9848, 0.0, 0.0, 0.9848, -0.1736, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 3.253, 8.1214, 0.0, 1.0]
+    slab_d  = FakeDef.new('Std door 30"  for 46" door frame#3', [0.0, -3.0, 0.0], [2.5, 27.3729, 75.25])
+    d297    = FakeDef.new('Component#297', [-0.1355, 0.9062, 0.0], [30.2101, 9.7863, 75.25],
+                          [FakeInst.new('', 'Layer0', slab_d, t_slab)])
+    d393    = FakeDef.new('Component#393', [-2.4804, -1.2599, 0.0], [29.0723, 17.4635, 75.25],
+                          [FakeInst.new('', 'Layer0', d297, t_297)])
+    frame_d = FakeDef.new('Std door frame 46"#7', [-3.0, -6.6875, 0.0], [43.0, 11.1875, 81.0])
+    door_d  = FakeDef.new('Left46Door', [-13.8089, 1.0, 0.0], [18.1824, 47.0, 81.0],
+                          [FakeLoose.new,
+                           FakeInst.new('', 'Layer0', frame_d, t_frame),
+                           FakeInst.new('', 'Layer0', d393, t_393)])
+    wall_d  = FakeDef.new('46PanelSolid', [0.0, 0.0, 0.0], [46.0, 2.0, 81.0])
+    # A window frame on the WALLS tag: named frame, never the door's.
+    wdo_d   = FakeDef.new('WDO FRAME', [0.0, 0.0, 0.0], [2.0, 30.0, 40.0])
+    booth_ents = [FakeLoose.new,
+                  FakeInst.new('W0  46PanelSolid', 'WR-Booth-Walls', wall_d, i16),
+                  FakeInst.new('E1  WDO', 'WR-Booth-Walls', wdo_d, i16),
+                  FakeInst.new('S0  Left46Door', 'WR-Booth-Door', door_d, t_door)]
+    ocx = 49.69
+    ocy = 18.0
+    near = lambda { |a, b| (a.to_f - b.to_f).abs < 0.01 }
+
+    # THE WALK FINDS THE FRAME BY NAME UNDER THE DOOR TAG, composes every
+    # level, and lands on a frame whose NET x-axis is [1, 0] in booth space
+    # although its own is [0, -1]. It stops at the frame (the frame's
+    # adaptors and hinges are never rows), keeps the slab as a deeper row
+    # because its name says frame, and never returns the window frame.
+    rows = WR_AutoSet.frame_parts(booth_ents, 'WR-Booth-Door')
+    fr = rows.find { |r| r['name'] == 'Std door frame 46"#7' }
+    sl = rows.find { |r| r['name'] =~ /Std door 30/ }
+    ck('fd1', rows.length == 2 && !fr.nil? && !sl.nil? &&
+              fr['depth'] == 1 && sl['depth'] == 3 &&
+              near.call(fr['m'][0], 1.0) && near.call(fr['m'][1], 0.0) &&
+              rows.none? { |r| r['name'] =~ /WDO/ },
+       rows.map { |r| [r['name'], r['depth'], r['m'][0].round(3), r['m'][1].round(3)] }.inspect)
+
+    # ROTATIONS THAT CANCEL. The slab's composed x-axis is [0, 1] -- in the
+    # wall -- while one level up Component#297's is [-0.985, -0.174] and
+    # Component#393's own box, carried into the booth, is 36.69 x 31.99 and
+    # names no wall. That box is what 1.68.0 called an open leaf. The frame's
+    # composed reading still names the -Y wall, at the frame's live centre.
+    m297 = WR_AutoSet.mat_mul(WR_AutoSet.mat_mul(t_door, t_393), t_297)
+    m393 = WR_AutoSet.mat_mul(t_door, t_393)
+    xs = []
+    ys = []
+    [[-2.4804, -1.2599], [29.0723, -1.2599], [-2.4804, 17.4635], [29.0723, 17.4635]].each do |p|
+      q = WR_AutoSet.mat_apply(m393, p[0], p[1], 0.0)
+      xs << q[0]
+      ys << q[1]
+    end
+    got_fd2 = WR_AutoSet.frame_reading(rows, ocx, ocy)
+    ck('fd2', near.call(sl['m'][0], 0.0) && near.call(sl['m'][1], 1.0) &&
+              near.call(m297[0], -0.985) && near.call(m297[1], -0.174) &&
+              !WR_AutoSet.wall_shape?(xs.max - xs.min, ys.max - ys.min) &&
+              !got_fd2.nil? && got_fd2[0] == 0.0 && got_fd2[1] == -1.0 &&
+              near.call(got_fd2[2], 25.0) && near.call(got_fd2[3], 2.75),
+       [sl['m'][0, 2], m297[0, 2], [xs.max - xs.min, ys.max - ys.min], got_fd2].inspect)
+
+    # THE ORDER ITSELF. An outer door box that PASSES the shape test and
+    # names a different wall (+X here) must not be consulted when a frame
+    # reading exists, and the inner descent must not even run.
+    own4 = [ocx, ocy, 60.313, 42.0]
+    fake_outer = { 'span' => [20.0, 46.0], 'ctr' => [80.0, 10.0] }
+    calls = []
+    spy = lambda { calls << 1; nil }
+    via_frame = WR_AutoSet.door_axis([0.0, -1.0, 25.0, 2.75], fake_outer, spy, own4)
+    via_outer = WR_AutoSet.door_axis(nil, fake_outer, spy, own4)
+    ck('fd3', via_frame == [0.0, -1.0, 25.0, 2.75, 'frame'] &&
+              via_outer == [1.0, 0.0, 80.0, 10.0, 'outer'] &&
+              calls.empty?,
+       [via_frame, via_outer, calls.length].inspect)
+
+    # THE SHALLOWEST FRAME WINS. The same door with its slab genuinely swung
+    # 90 degrees open: the slab row now names the other wall. It is three
+    # levels down against the frame's one, so it does not get a vote.
+    open_slab = sl.merge('m' => WR_AutoSet.mat_mul(sl['m'],
+                  [0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]))
+    solo = WR_AutoSet.frame_row_normal(open_slab, ocx, ocy)
+    got_fd4 = WR_AutoSet.frame_reading([open_slab, fr], ocx, ocy)
+    ck('fd4', !solo.nil? && solo[1] == 0.0 &&
+              !got_fd4.nil? && got_fd4[0, 2] == [0.0, -1.0],
+       [solo, got_fd4].inspect)
+
+    # IT DECLINES RATHER THAN GUESSING. A frame 35 degrees off both booth
+    # axes, a frame tipped so its long axis is vertical, a square frame, and
+    # two frames at the same depth that disagree all give no reading.
+    rot35 = [Math.cos(35.0 * Math::PI / 180.0), Math.sin(35.0 * Math::PI / 180.0), 0.0, 0.0,
+             -Math.sin(35.0 * Math::PI / 180.0), Math.cos(35.0 * Math::PI / 180.0), 0.0, 0.0,
+             0.0, 0.0, 1.0, 0.0, 25.0, 2.75, 0.0, 1.0]
+    tipped = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 25.0, 2.75, 0.0, 1.0]
+    box46 = { 'min' => [-23.0, -9.0, 0.0], 'max' => [23.0, 9.0, 81.0], 'depth' => 1 }
+    skew  = box46.merge('m' => rot35)
+    tip   = box46.merge('m' => tipped)
+    sq    = { 'min' => [0.0, 0.0, 0.0], 'max' => [30.0, 29.0, 81.0], 'depth' => 1, 'm' => i16 }
+    east  = box46.merge('m' => [0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 100.0, 18.0, 0.0, 1.0])
+    ck('fd5', WR_AutoSet.frame_reading([skew], ocx, ocy).nil? &&
+              WR_AutoSet.frame_reading([tip], ocx, ocy).nil? &&
+              WR_AutoSet.frame_reading([sq], ocx, ocy).nil? &&
+              WR_AutoSet.frame_reading([fr, east], ocx, ocy).nil? &&
+              !WR_AutoSet.frame_reading([fr], ocx, ocy).nil? &&
+              WR_AutoSet::FRAME_SNAP_DEG == 20.0,
+       [WR_AutoSet.frame_reading([skew], ocx, ocy), WR_AutoSet.frame_reading([tip], ocx, ocy),
+        WR_AutoSet.frame_reading([fr, east], ocx, ocy)].inspect)
+
+    # NO FRAME, CLEAN FALLBACK, and every 1.68.0 answer comes back unchanged:
+    # a door with nothing named frame yields no rows and no reading; a
+    # wall-shaped outer box is read as before without the descent running;
+    # the one-piece door still opens up to its inner frame; nothing inside
+    # still ends at the wall_axis coin flip, pinned as it was in if6; and no
+    # outer box at all is nil, not a fabricated wall.
+    bare_d = FakeDef.new('Left46Door', [0.0, 0.0, 0.0], [46.0, 30.0, 81.0],
+                         [FakeInst.new('', 'Layer0', FakeDef.new('Component#1', [0.0, 0.0, 0.0], [30.0, 2.5, 75.0]), i16)])
+    bare = [FakeInst.new('S0  Left46Door', 'WR-Booth-Door', bare_d, t_door)]
+    calls2 = []
+    spy2 = lambda { calls2 << 1; nil }
+    frm_row = { 'name' => 'Std door frame 46"#7', 'span' => [46.0, 17.88], 'ctr' => [25.0, 2.75] }
+    ck('fd6', WR_AutoSet.frame_parts(bare, 'WR-Booth-Door') == [] &&
+              WR_AutoSet.frame_reading([], ocx, ocy).nil? &&
+              WR_AutoSet.frame_reading(nil, ocx, ocy).nil? &&
+              WR_AutoSet.door_axis(nil, { 'span' => [46.0, 17.88], 'ctr' => [25.0, 2.75] }, spy2, own4) ==
+                [0.0, -1.0, 25.0, 2.75, 'outer'] && calls2.empty? &&
+              WR_AutoSet.door_axis(nil, { 'span' => [46.0, 31.99], 'ctr' => [25.003, 0.913] },
+                                   lambda { frm_row }, own4) == [0.0, -1.0, 25.0, 2.75, 'inner'] &&
+              WR_AutoSet.door_axis(nil, { 'span' => [46.0, 31.99], 'ctr' => [25.003, 0.913] },
+                                   lambda { nil }, own4)[0, 2] == [-1.0, 0.0] &&
+              WR_AutoSet.door_axis(nil, { 'span' => [46.0, 31.99], 'ctr' => [25.003, 0.913] },
+                                   lambda { nil }, own4)[4] == 'axis' &&
+              WR_AutoSet.door_axis(nil, nil, spy2, own4).nil?,
+       [WR_AutoSet.frame_parts(bare, 'WR-Booth-Door').length,
+        WR_AutoSet.door_axis(nil, { 'span' => [46.0, 17.88], 'ctr' => [25.0, 2.75] }, spy2, own4),
+        calls2.length].inspect)
+
+    # THE MATRIX HELPERS: column-major like Geom::Transformation#to_a, a * b
+    # applies b first, [15] scale honoured; and a frame sitting on the booth
+    # centre names nothing (the same 1 in guard the old path had).
+    ident = WR_AutoSet.mat_mul(t_door, [0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.2742, 49.0, 0.0, 1.0])
+    ck('fd7', ident.each_with_index.all? { |v, i| near.call(v, i16[i]) } &&
+              WR_AutoSet.mat_apply(t_door, 1.0, 0.0, 0.0).map { |v| v.round(4) } == [49.0, -0.2742, 0.0] &&
+              WR_AutoSet.mat_apply([1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5],
+                                   2.0, 3.0, 0.0) == [4.0, 6.0, 0.0] &&
+              WR_AutoSet.door_axis([0.0, -1.0, ocx + 0.5, ocy], nil, nil, own4).nil?,
+       [ident.map { |v| v.round(3) }, WR_AutoSet.mat_apply(t_door, 1.0, 0.0, 0.0)].inspect)
 
     # ---- A LOOSE DIMENSION IS NOT AN ORANGE WARNING ----------------------
     # The orange cell says "untagged TEXT is about to reach a customer image".
@@ -2153,6 +2389,7 @@ NAMES = ('ts1 ts2 ts3 ts4 ts5 ts6 ts7 '
          'dr1 dr2 dr3 dr4 dr5 dr6 '
          'wn1 wn2 wn3 wn4 wn5 wn6 wn7 wn8 wn9 '
          'if1 if2 if3 if4 if5 if6 if7 if8 if9 if10 if11 '
+         'fd1 fd2 fd3 fd4 fd5 fd6 fd7 '
          'oc1 oc2 oc3 oc4 oc5 oc6 oc7 oc8 oc9 '
          'fm1 fm2 fm3 fm4 fm5 fm5b fm6 fm7 fm8 fm9 fm10 '
          'in1 in1b in1c in1d in2 in3 in4 in5 in6 in7 in8 in9 in10 '
@@ -2270,6 +2507,14 @@ def main():
         'wall_shape':      rbtest.method_source(SRC, 'wall_shape'),
         'plan_aspect':     rbtest.method_source(SRC, 'plan_aspect'),
         'inner_frame_pick': rbtest.method_source(SRC, 'inner_frame_pick'),
+        'frame_snap_deg':  const_line('FRAME_SNAP_DEG'),
+        'frame_walk_depth': const_line('FRAME_WALK_DEPTH'),
+        'mat_mul':         rbtest.method_source(SRC, 'mat_mul'),
+        'mat_apply':       rbtest.method_source(SRC, 'mat_apply'),
+        'frame_parts':     rbtest.method_source(SRC, 'frame_parts'),
+        'frame_row_normal': rbtest.method_source(SRC, 'frame_row_normal'),
+        'frame_reading':   rbtest.method_source(SRC, 'frame_reading'),
+        'door_axis':       rbtest.method_source(SRC, 'door_axis'),
         'annot_cell':      rbtest.method_source(SRC, 'annot_cell'),
         'frame_hits':      rbtest.method_source(SRC, 'frame_hits'),
         'interior_eye_dist': rbtest.method_source(SRC, 'interior_eye_dist'),

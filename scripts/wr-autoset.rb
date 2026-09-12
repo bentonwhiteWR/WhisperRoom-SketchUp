@@ -1815,20 +1815,37 @@ module WR_AutoSet
     best ? [best] : []
   end
 
-  # THE DOOR THAT IS ONE COMPONENT, FRAME AND SWUNG LEAF TOGETHER (1.68.0).
+  # THE DOOR THAT IS ONE COMPONENT, FRAME AND LEAF TOGETHER (1.68.0; the
+  # explanation corrected in 1.69.0, and this read demoted to SECOND -- see
+  # frame_parts below for the reading that now comes first).
   #
   # THE DEFECT, measured on Benton's live MDL 4872 S in CSUSB Chaparral 106 on
   # 12 Sep 2026. That booth's door is a SINGLE ComponentInstance on
   # WR-Booth-Door -- "S0  Left46Door" -- and both the frame and the leaf live
   # INSIDE it. frame_hits therefore has exactly one part to choose from and
-  # returns the whole assembly, whose booth-local footprint is 46.00 x 31.99:
-  # the 46 in door width along its wall, and 32 in ACROSS it because the leaf
-  # is drawn swung open. 46 is not 2x 32, so wall_normal rightly declines --
-  # that shape does not name a wall.
+  # returns the whole assembly, whose booth-local footprint is 46.00 x 31.99.
+  # 46 is not 2x 32, so wall_normal rightly declines -- that box does not
+  # name a wall.
+  #
+  # THE 32 IS NOT AN OPEN LEAF. 1.68.0 wrote here that it was "because the
+  # leaf is drawn swung open". That was a theory, and it was false: Benton
+  # confirmed the leaf is closed, and the composed transformations agree. The
+  # slab, 'Std door 30"  for 46" door frame#3', has a net x-axis of exactly
+  # [0, 1] in booth space -- it lies in the wall line. It is nested three
+  # deep (Component#393 > Component#297 > slab) under own rotations of -60,
+  # +160 and -100 degrees on top of the door's +90, and those cancel. But a
+  # SketchUp bounding box is axis-aligned in its OWN level's space, so every
+  # rotated level re-boxes the box beneath it: Component#297's box is
+  # 30.35 x 8.88 around a slab 2.5 thick, Component#393's is 31.55 x 18.72,
+  # and carried into the booth that is 36.69 x 31.99. The fat footprint is
+  # boxes boxed through rotations, not geometry sticking out.
+  #
+  # THE LESSON: THE BOUNDS OF AN INTERMEDIATE CONTAINER ARE NOT AN ORIENTATION
+  # SIGNAL. The composed transformation of the named part is.
   #
   # Then the pre-1.54.0 fallback ran, and it is the rule the 1.53.0 note above
   # says was wrong: it normalises the offset against the booth's UNION box,
-  # which the same swung leaf and the vent housing skew (own box 120.6 x 84.0
+  # which that inflated door box and the vent housing skew (own box 120.6 x 84.0
   # for a shell that is 72 x 48). It came out nx -0.40933 against ny -0.40684
   # and called the door wall +/-X on a margin of 0.6 percent. It was a coin
   # flip and it lost: the door is in the -Y wall, and the bearing came back
@@ -1850,12 +1867,11 @@ module WR_AutoSet
   # instance transform is applied, which wall_normal reads as the -Y wall
   # without hesitation (46 >= 2 x 17.87).
   #
-  # NOTHING THAT WORKS TODAY CHANGES. The descent is gated on the shape test:
-  # a booth whose door frame is its own tagged sibling (the DRFRM slot
-  # build-booth-components.rb produces) passes wall_shape? on the first read
-  # and never descends. When the descent finds nothing it can use, the old
-  # wall_axis fallback still runs -- so this can only turn a guess into a
-  # reading, never the other way round.
+  # SINCE 1.69.0 THIS IS THE SECOND READING, NOT THE FIRST. It runs only when
+  # frame_parts finds no usable door frame. Within it nothing changed: the
+  # descent is gated on the shape test, a booth whose outer door box passes
+  # wall_shape? never descends, and when the descent finds nothing it can use
+  # the old wall_axis fallback still runs.
 
   # The frame's name, when a builder gives it one. Kept separate from
   # frame_hits's own inline /FRM|FRAME/i on purpose: that one is pinned by
@@ -1875,7 +1891,9 @@ module WR_AutoSet
   end
 
   # Long over thin, in plan. A frame lies flat IN its wall and scores high; a
-  # leaf swung open sits at an angle across the room and scores near 1.
+  # box that is squarish in plan scores near 1 -- a leaf genuinely drawn
+  # open, or (the 12 Sep 2026 door) a container whose box was inflated by
+  # the rotations of the levels beneath it.
   # Capped rather than infinite so a zero-thickness face cannot poison a sort.
   def self.plan_aspect(span_x, span_y)
     sx = span_x.to_f.abs
@@ -1957,49 +1975,225 @@ module WR_AutoSet
     []
   end
 
-  # [centre, axis] for the tagged opening, in MODEL space: the frame's own
-  # centre point, and the unit outward normal of the wall it sits in. nil when
-  # there is nothing usable, and the caller says ASSUMED out loud.
-  def self.tag_anchor(booth, tag_name)
-    ents = container_entities(booth)
-    return nil if ents.nil?
-    hits = []
-    WR_ProposalScenes.walk(ents, tag_name, hits, 0)
-    return nil if hits.empty?
-    own = Geom::BoundingBox.new
-    ents.each { |e| own.add(e.bounds) }
-    picked = frame_hits(hits, own)
-    return nil if picked.empty?
-    tb = Geom::BoundingBox.new
-    picked.each { |e| tb.add(e.bounds) }
-    sx = (tb.max.x - tb.min.x).to_f
-    sy = (tb.max.y - tb.min.y).to_f
-    cx = tb.center.x.to_f
-    cy = tb.center.y.to_f
-    # A ONE-PIECE DOOR: frame and swung leaf in one component, so the outer
-    # footprint names no wall. Open it and read the frame instead. See the
-    # note on inner_frame_pick -- this is the 12 Sep 2026 wrong-front fix.
+  # ------------------------------------------- THE DOOR FRAME COMES FIRST --
+  #
+  # BENTON'S RULE, 12 Sep 2026, and it is the spec for this section: "For
+  # future reference, find the side the door frame is on. That side is the
+  # FRONT."
+  #
+  # Until 1.69.0 the frame was read only as a FALLBACK: tag_anchor boxed the
+  # whole tagged door first and opened it to look for the frame only when that
+  # box failed the shape test. A door whose outer box happened to pass -- one
+  # whose leaf or hardware stretches the box the wrong way -- named a wall
+  # without the frame ever being consulted. Now the frame is looked for
+  # FIRST, and the older readings run only when there is no usable frame.
+  #
+  # HOW THE FRAME IS READ: BY ITS COMPOSED TRANSFORMATION, NOT BY BOXES. The
+  # walk below descends from the booth, composing each level's transformation
+  # as it goes, and stops at the first part under the door tag whose instance
+  # or definition name says frame (FRAME_RE). That part's OWN definition box
+  # -- measured in its own space, where no rotation has inflated it -- gives
+  # the shape; its long plan axis, carried into booth space by the composed
+  # matrix, gives the wall's direction. No intermediate container's bounds
+  # are consulted, because on the 12 Sep 2026 door those bounds were the
+  # thing that misled (see the note on inner_frame_pick above).
+  #
+  # THE SHALLOWEST FRAME WINS. On that same door the slab's definition is
+  # named 'Std door 30"  for 46" door frame#3' -- a leaf whose name says
+  # frame. It sits three levels below the door; the real frame sits one. The
+  # walk stops descending at a match, so a frame's own sub-parts are never
+  # candidates, and only the matches at the shallowest depth are kept. Those
+  # must AGREE on the wall; if they do not, there is no frame reading.
+  #
+  # IT DECLINES RATHER THAN GUESSING, as the rest of this file does. A frame
+  # whose own box is not wall-shaped (ASPECT_MIN), or whose long axis lands
+  # more than FRAME_SNAP_DEG off both booth axes (or tips out of plan), gives
+  # no reading, and the older derivations run exactly as they did in 1.68.0.
+  FRAME_SNAP_DEG   = 20.0
+  FRAME_WALK_DEPTH = 8
+  DOOR_TAG         = 'WR-Booth-Door'.freeze
+
+  # 4x4 matrices as Geom::Transformation#to_a gives them: COLUMN-major, so
+  # [0..2] is the image of the x axis, [4..6] of y, [12..14] the origin, and
+  # [15] can carry a uniform scale. mat_mul(a, b) is a * b: b applied first.
+  # Pure Ruby on plain arrays so the composition the walk does is the
+  # composition the tests run.
+  def self.mat_mul(a, b)
+    out = Array.new(16, 0.0)
+    4.times do |c|
+      4.times do |r|
+        acc = 0.0
+        4.times { |k| acc += a[(k * 4) + r].to_f * b[(c * 4) + k].to_f }
+        out[(c * 4) + r] = acc
+      end
+    end
+    out
+  end
+
+  def self.mat_apply(m, x, y, z)
+    w = (m[3].to_f * x) + (m[7].to_f * y) + (m[11].to_f * z) + m[15].to_f
+    w = 1.0 if w.abs < 1.0e-12
+    [((m[0].to_f * x) + (m[4].to_f * y) + (m[8].to_f * z) + m[12].to_f) / w,
+     ((m[1].to_f * x) + (m[5].to_f * y) + (m[9].to_f * z) + m[13].to_f) / w,
+     ((m[2].to_f * x) + (m[6].to_f * y) + (m[10].to_f * z) + m[14].to_f) / w]
+  end
+
+  # Every door-frame part under `tag_name`, each as
+  #   { 'name', 'depth', 'm' (composed to_a, booth-local), 'min', 'max' }
+  # with min/max the frame DEFINITION's own box. Duck-typed on
+  # transformation/definition so a Group and a ComponentInstance are walked
+  # alike (and the tests can hand it plain objects). A part inherits the tag
+  # from any ancestor on it: the frame inside a one-piece door is on Layer0.
+  def self.frame_parts(ents, tag_name, m = nil, depth = 0, tagged = false, out = nil)
+    out ||= []
+    m ||= [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+    return out if ents.nil? || depth > FRAME_WALK_DEPTH
+    ents.each do |e|
+      next unless e.respond_to?(:transformation) && e.respond_to?(:definition)
+      d = e.definition
+      next if d.nil?
+      t = mat_mul(m, e.transformation.to_a)
+      lyr = e.layer.nil? ? '' : e.layer.name.to_s
+      on_tag = tagged || lyr == tag_name
+      label = "#{e.name} #{d.name}".strip
+      if on_tag && label =~ FRAME_RE
+        bb = d.bounds
+        out << { 'name' => label, 'depth' => depth, 'm' => t,
+                 'min' => [bb.min.x.to_f, bb.min.y.to_f, bb.min.z.to_f],
+                 'max' => [bb.max.x.to_f, bb.max.y.to_f, bb.max.z.to_f] }
+        next
+      end
+      frame_parts(d.entities, tag_name, t, depth + 1, on_tag, out)
+    end
+    out
+  end
+
+  # One frame row -> [ux, uy, cx, cy] in booth-local space, or nil. The wall
+  # normal is signed by the frame centre's offset from the booth centre, as
+  # wall_normal signs it; only the wall's DIRECTION comes off the matrix.
+  def self.frame_row_normal(r, own_cx, own_cy)
+    mn = r['min']
+    mx = r['max']
+    m  = r['m']
+    return nil if mn.nil? || mx.nil? || m.nil?
+    sx = mx[0].to_f - mn[0].to_f
+    sy = mx[1].to_f - mn[1].to_f
+    return nil unless wall_shape?(sx, sy)
+    ax = sx >= sy ? [m[0].to_f, m[1].to_f, m[2].to_f] : [m[4].to_f, m[5].to_f, m[6].to_f]
+    len = Math.sqrt((ax[0] * ax[0]) + (ax[1] * ax[1]) + (ax[2] * ax[2]))
+    return nil if len < 1.0e-9
+    lx = (ax[0] / len).abs
+    ly = (ax[1] / len).abs
+    return nil if (lx > ly ? lx : ly) < Math.cos(FRAME_SNAP_DEG * Math::PI / 180.0)
+    c = mat_apply(m, (mn[0].to_f + mx[0].to_f) / 2.0, (mn[1].to_f + mx[1].to_f) / 2.0,
+                  (mn[2].to_f + mx[2].to_f) / 2.0)
+    dx = c[0] - own_cx.to_f
+    dy = c[1] - own_cy.to_f
+    if lx >= ly
+      [0.0, dy >= 0 ? 1.0 : -1.0, c[0], c[1]]   # wall runs along x: normal +/-Y
+    else
+      [dx >= 0 ? 1.0 : -1.0, 0.0, c[0], c[1]]
+    end
+  end
+
+  # frame_parts's rows -> [ux, uy, cx, cy], or nil for "no frame reading".
+  # Shallowest depth only; every readable row there must name the same wall.
+  def self.frame_reading(rows, own_cx, own_cy)
+    return nil if rows.nil? || rows.empty?
+    top = rows.map { |r| r['depth'].to_i }.min
+    got = []
+    rows.each do |r|
+      next unless r['depth'].to_i == top
+      rd = frame_row_normal(r, own_cx, own_cy)
+      got << rd unless rd.nil?
+    end
+    return nil if got.empty?
+    return nil unless got.all? { |g| g[0] == got[0][0] && g[1] == got[0][1] }
+    cx = got.inject(0.0) { |acc, g| acc + g[2] } / got.length
+    cy = got.inject(0.0) { |acc, g| acc + g[3] } / got.length
+    [got[0][0], got[0][1], cx, cy]
+  end
+
+  # THE ORDER, as a pure function so the order itself is what the tests pin.
+  #   frame    frame_reading's answer, or nil
+  #   outer    { 'span' => [sx, sy], 'ctr' => [cx, cy] } of frame_hits's pick,
+  #            or nil when there is none
+  #   inner_fn called ONLY when the outer box names no wall; returns
+  #            inner_frame_pick's row or nil (a lambda, because the descent it
+  #            wraps reads the model and should not run when unneeded)
+  #   own      [centre x, centre y, half x, half y] of the booth's union box
+  # Returns [ux, uy, cx, cy, source], source one of 'frame', 'outer',
+  # 'inner', 'axis'; nil when nothing is usable.
+  def self.door_axis(frame, outer, inner_fn, own)
+    ocx, ocy, hx, hy = own
+    unless frame.nil?
+      ux, uy, cx, cy = frame
+      dx = cx.to_f - ocx.to_f
+      dy = cy.to_f - ocy.to_f
+      return nil if Math.sqrt((dx * dx) + (dy * dy)) < 1.0
+      return [ux, uy, cx, cy, 'frame']
+    end
+    return nil if outer.nil?
+    sx, sy = outer['span']
+    cx, cy = outer['ctr']
+    src = 'outer'
     unless wall_shape?(sx, sy)
-      inner = inner_frame_pick(inner_parts(picked))
+      inner = inner_fn.nil? ? nil : inner_fn.call
       unless inner.nil?
         sx, sy = inner['span']
         cx, cy = inner['ctr']
+        src = 'inner'
       end
     end
+    dx = cx.to_f - ocx.to_f
+    dy = cy.to_f - ocy.to_f
+    return nil if Math.sqrt((dx * dx) + (dy * dy)) < 1.0
+    # The part's OWN footprint names the wall plane; the offset only signs it.
+    ax = wall_normal(sx, sy, dx, dy)
+    src = 'axis' if ax.nil?
+    ax = wall_axis(dx, dy, hx, hy) if ax.nil?
+    [ax[0], ax[1], cx, cy, src]
+  end
+
+  # [centre, axis] for the tagged opening, in MODEL space: the frame's own
+  # centre point, and the unit outward normal of the wall it sits in. nil when
+  # there is nothing usable, and the caller says ASSUMED out loud.
+  #
+  # For the DOOR the frame is read first (1.69.0, Benton's rule above). The
+  # vent has no frame to find and keeps the 1.68.0 order untouched.
+  def self.tag_anchor(booth, tag_name)
+    ents = container_entities(booth)
+    return nil if ents.nil?
+    own = Geom::BoundingBox.new
+    ents.each { |e| own.add(e.bounds) }
+    ocx = own.center.x.to_f
+    ocy = own.center.y.to_f
     hx = (own.max.x - own.min.x).to_f / 2.0
     hy = (own.max.y - own.min.y).to_f / 2.0
-    dx = (cx - own.center.x).to_f
-    dy = (cy - own.center.y).to_f
-    return nil if Math.sqrt((dx * dx) + (dy * dy)) < 1.0
-    # The FRAME'S OWN footprint names the wall plane; the offset only signs it.
-    ax = wall_normal(sx, sy, dx, dy)
-    ax = wall_axis(dx, dy, hx, hy) if ax.nil?
-    ux, uy = ax
+    frame = nil
+    frame = frame_reading(frame_parts(ents, tag_name), ocx, ocy) if tag_name == DOOR_TAG
+    outer = nil
+    picked = []
+    if frame.nil?
+      hits = []
+      WR_ProposalScenes.walk(ents, tag_name, hits, 0)
+      return nil if hits.empty?
+      picked = frame_hits(hits, own)
+      return nil if picked.empty?
+      tb = Geom::BoundingBox.new
+      picked.each { |e| tb.add(e.bounds) }
+      outer = { 'span' => [(tb.max.x - tb.min.x).to_f, (tb.max.y - tb.min.y).to_f],
+                'ctr'  => [tb.center.x.to_f, tb.center.y.to_f] }
+    end
+    rd = door_axis(frame, outer, lambda { inner_frame_pick(inner_parts(picked)) },
+                   [ocx, ocy, hx, hy])
+    return nil if rd.nil?
+    ux, uy, cx, cy = rd
     v = Geom::Vector3d.new(ux, uy, 0).transform(booth.transformation)
     return nil if v.length < 1.0e-6
     # The frame's centre in model space, at the BOOTH centre's height: the eye
     # height is the plate's business (:el), not the frame's.
-    fc = Geom::Point3d.new(cx, cy, tb.center.z).transform(booth.transformation)
+    fc = Geom::Point3d.new(cx, cy, own.center.z).transform(booth.transformation)
     # The third element is the wall's normal in BOOTH-LOCAL space, which is
     # what pick_side sorts the side walls against (1.57.0). Callers that
     # read [0] and [1] are untouched.
