@@ -2057,18 +2057,57 @@ module WR_DropLights
                        WR-Doors-Leaf WR-Notes].freeze
   ROOM_CHILD_NAMES = %w[Floor Walls Doors].freeze
 
+  # THE PER-JOB TAG FAMILY (1.67.8). A room drawn by a one-off client script
+  # does not use the house tags at all. csusb-106.rb tags its children
+  # WR-106-Floor / WR-106-Walls / WR-106-Doors and names them "106 floor",
+  # "106 walls", "106 doors"; smith-studio.rb uses WR-Studio-*, and every
+  # client drawing copied from those does the same. Those are a room's own
+  # structure just as much as build-room.rb's "Floor" is.
+  #
+  # WHAT MATCHING ONLY THE HOUSE FORM COST, observed 12 Sep 2026 on
+  # `CSUSB Chaparral 106` and recorded here so the regression is legible:
+  # floor_child? did not recognise "106 floor", so room_info fell back to the
+  # room's BOUNDING BOX -- a 1445 sq ft rectangle standing in for a 575 sq ft
+  # L-shaped room. From that one miss: 16 of 25 ceiling panels landed outside
+  # the real walls, the wall scan found no wall on any bbox run so the rig
+  # BORROWED four walls of its own, the face wash landed outside the room, and
+  # room_structure_child? turned the room's own floor and walls into KEEP-OUTS
+  # covering the whole floor, which refused all 14 fill spheres. The borrowed
+  # walls then enclosed every render camera and all three V-Ray plates came
+  # back as flat wall colour.
+  #
+  # BOOTH TAGS ARE EXCLUDED DELIBERATELY. WR-Booth-Walls would otherwise match
+  # and a booth standing inside a room group would stop being a keep-out, which
+  # is the opposite of what this predicate is for.
+  ROOM_PART_TAG = /\AWR-(?!Booth-)(?:[A-Za-z0-9]+-)?(?:Floor|Room|Room-Upper|Walls|Doors|Doors-Leaf|Notes)\z/i.freeze
+  ROOM_FLOOR_TAG = /\AWR-(?!Booth-)(?:[A-Za-z0-9]+-)?Floor\z/i.freeze
+  ROOM_WALLS_TAG = /\AWR-(?!Booth-)(?:[A-Za-z0-9]+-)?(?:Room|Walls)\z/i.freeze
+  ROOM_DOORS_TAG = /\AWR-(?!Booth-)(?:[A-Za-z0-9]+-)?Doors\z/i.freeze
+  # "106 floor", "Floor", "floor" -- but never "Floor lamp" or "Floor box".
+  ROOM_PART_NAME = /(?:\A|\s)(?:floor|walls|doors)\z/i.freeze
+
   # Pure core of the obstruction child filter: is a child with this tag and
   # name part of the room's own structure?
   def self.room_structure_child?(tag_name, disp_name)
     return true if ROOM_CHILD_TAGS.include?(tag_name)
-    ROOM_CHILD_NAMES.any? { |n| n.casecmp(disp_name).zero? }
+    return true if tag_name =~ ROOM_PART_TAG
+    return true if ROOM_CHILD_NAMES.any? { |n| n.casecmp(disp_name).zero? }
+    disp_name =~ ROOM_PART_NAME ? true : false
   end
 
   # Pure core of the floor-child finder — the same predicate room_info uses
   # to read a room and obstructions() uses to recognize a sibling ROOM (a
   # thing with its own floor is a room, never a keep-out).
   def self.floor_child?(tag_name, disp_name)
-    tag_name == 'WR-Floor' || disp_name =~ /\Afloor\z/i ? true : false
+    return true if tag_name == 'WR-Floor' || tag_name =~ ROOM_FLOOR_TAG
+    disp_name =~ /(?:\A|\s)floor\z/i ? true : false
+  end
+
+  # Pure core of the walls-child finder, used by room_info for the wall-top
+  # height. Same family rule as the floor.
+  def self.walls_child?(tag_name, disp_name)
+    return true if tag_name == 'WR-Room' || tag_name =~ ROOM_WALLS_TAG
+    disp_name =~ /(?:\A|\s)walls\z/i ? true : false
   end
 
   # Booth-by-size: both plan sides inside the catalog band and the height
@@ -2175,7 +2214,8 @@ module WR_DropLights
   # leaf's width stands in for the opening's.
   def self.doors_container?(tag_name, disp_name)
     return false if disp_name =~ /\Aopening/i
-    disp_name =~ /\Adoors\z/i || tag_name == 'WR-Doors' ? true : false
+    return true if tag_name == 'WR-Doors' || tag_name =~ ROOM_DOORS_TAG
+    disp_name =~ /(?:\A|\s)doors\z/i ? true : false
   end
 
   # :opening (the real jamb-to-jamb marker), :leaf (the stand-in), or nil
@@ -3982,7 +4022,7 @@ module WR_DropLights
 
     walls_g = kids.find do |e|
       (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)) &&
-        (layer_name(e) == 'WR-Room' || display_name(e) =~ /\Awalls\z/i)
+        walls_child?(layer_name(e), display_name(e))
     end
     z_top = walls_g ? world_bounds(walls_g, tr).max.z : inst.bounds.max.z
 

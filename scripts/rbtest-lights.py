@@ -373,6 +373,7 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'accent_axis', 'subject_veto',
            'fallback_verdict', 'light_words?', 'room_structure_child?',
            'doors_container?', 'door_child_kind', 'tag', 'floor_child?',
+           'walls_child?',
            'booth_like?', 'grid_count', 'kelvin_rgb',
            'param_agrees?', 'in_box?', 'enclosure_trim', 'layer_lumens',
            'layer_kelvin', 'area_scale', 'ring_points', 'shell_faces', 'fixture_faces',
@@ -432,7 +433,9 @@ BOOLS = ['PANEL_FLUSH', 'PANEL_APERTURE_SEEN', 'PANEL_APERTURE_INVISIBLE']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT', 'RIG_DEFAULT']
 # FILL_SCATTER BEFORE LIGHT_LAYERS: the :fill role's :n reads FILL_SCATTER.size,
 # and these are emitted in list order into one Ruby module body.
-BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES', 'FILL_SCATTER',
+BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES',
+          'ROOM_PART_TAG', 'ROOM_FLOOR_TAG', 'ROOM_WALLS_TAG',
+          'ROOM_DOORS_TAG', 'ROOM_PART_NAME', 'FILL_SCATTER',
           'LIGHT_LAYERS', 'BOOTH_ROLES']
 
 
@@ -719,6 +722,18 @@ __METHODS__
                      room_structure_child?('Layer0', 'WhisperRoom 7272 E'),
                      room_structure_child?('WR-Booth-Walls', 'panel')]
                     .map { |b| b ? '1' : '0' }.join
+    # 16b (1.67.8) - THE PER-JOB TAG FAMILY. A client room drawn by
+    # csusb-106.rb tags its parts WR-106-Floor / -Walls / -Doors and names
+    # them "106 floor" / "106 walls" / "106 doors". Before 1.67.8 none of
+    # these matched, the room fell back to its bounding box, and the room's
+    # own floor and walls became KEEP-OUTS that refused every fill sphere.
+    out << 'rsc2 ' + [room_structure_child?('WR-106-Walls', '106 walls'),
+                      room_structure_child?('WR-106-Floor', '106 floor'),
+                      room_structure_child?('WR-Studio-Doors', 'studio doors'),
+                      room_structure_child?('Layer0', '106 floor'),
+                      room_structure_child?('WR-Booth-Walls', 'panel'),
+                      room_structure_child?('Layer0', 'floorboard')]
+                     .map { |b| b ? '1' : '0' }.join
 
     # 17 — the door classifiers against what the two generators REALLY
     # write: build-room.rb's untagged "Doors" container holding "Opening N"
@@ -918,6 +933,25 @@ __METHODS__
                     floor_child?('Layer0', 'floorboard'),
                     floor_child?('WR-Booth-Deck', 'panel')]
                    .map { |b| b ? '1' : '0' }.join
+    # 25b (1.67.8) - the same family on the floor finder, and on the walls
+    # finder room_info uses for the wall-top height. A BOOTH tag never reads
+    # as room structure however it is named.
+    out << 'fc2 ' + [floor_child?('WR-106-Floor', '106 floor'),
+                     floor_child?('Layer0', '106 floor'),
+                     floor_child?('WR-Studio-Floor', 'studio floor'),
+                     floor_child?('WR-Booth-Floor', 'deck'),
+                     floor_child?('Layer0', 'floor lamp')]
+                    .map { |b| b ? '1' : '0' }.join
+    out << 'wc ' + [walls_child?('WR-106-Walls', '106 walls'),
+                    walls_child?('WR-Room', 'anything'),
+                    walls_child?('Layer0', 'walls'),
+                    walls_child?('WR-Booth-Walls', 'panel')]
+                   .map { |b| b ? '1' : '0' }.join
+    out << 'dc2 ' + [doors_container?('WR-106-Doors', '106 doors'),
+                     doors_container?('Layer0', '106 doors'),
+                     doors_container?('WR-106-Doors', 'Opening 3'),
+                     doors_container?('WR-Booth-Door', 'door')]
+                    .map { |b| b ? '1' : '0' }.join
 
     # 26 — THE WALL SCAN. Faces are [nx, ny, pts_xy, z_top]; z_need is
     # halfway up a 96" room (WALL_MIN_SHARE 0.5 -> 48").
@@ -1283,6 +1317,7 @@ EXPECT = ' | '.join([
     'ubooth n8 fb0 keep1',
     'usuite 119.63,134.13 fb1 rej0,0,9',
     'rsc 111100',
+    'rsc2 111100',
     'dc 1100',
     'mount 0.0 6.0',
     'tag 1111 say1',
@@ -1318,6 +1353,9 @@ EXPECT = ' | '.join([
     'ib 111100',
     'bl 111000000',
     'fc 11100',
+    'fc2 11100',
+    'wc 1110',
+    'dc2 1100',
     'foe 100000',
     'oe 3 - 3 0 3 - 4',
     'rr W2/0/-/144 W1/0/4.0/180 W1/0/-/144 O0/1/-/180 oe3',

@@ -1,5 +1,252 @@
 # DEVLOG
 
+## 2026-09-12
+### 1.67.8 - AUTOMATION RUN on a real client room. The whole pipeline drives unattended in ~2.5 minutes, and it produced three BLANK frames on the shipped code. One predicate - `floor_child?` not knowing the tag name `WR-106-Floor` - made the rig light a bounding box 2.5x the size of the room.
+
+Benton, 12 Sep: *"This should be running the proposal package like auto set bank...
+I just want you to auto run this and see how automated you can make this and
+evaluate the lighting with a different size booth in a different room."*
+
+Two cycles, both driven entirely over the bridge. **Nobody touched SketchUp.** No
+dialog was cleared by hand, no command was re-issued after a failure, nothing was
+dragged, and no light state needed repairing.
+
+- `t3-00` - the shipped tool at 1.67.7, pressed as it stood.
+- `t3-01` - the same pipeline after the one-predicate fix below.
+
+Output at `Z:\Sketchup\Proposals\test3\`, scores and full measurement notes at
+`Z:\Sketchup\Proposals\test3\.rank\booth-render.scores.md`. Method
+`rank-measure/1`, unchanged, so the rows compare to runs d through i.
+
+## The layout, and why it is a harder test than it looks
+
+Booth `MDL 4872 S (components)`, 120.6 x 84.0 x 83.3 in, in `CSUSB Chaparral 106`.
+The room is **not a box**: an 8-vertex L/Z-shaped polygon of **574.9 sq ft** sitting
+inside a 468.1 x 444.4 in bounding box of **1444.6 sq ft**. The booth stands in a
+corner, 2 in off the west wall. Runs c-i were all tuned on a 96120 S centred in a
+40 x 40 ft box.
+
+## THE FINDING: one predicate, five consequences, three blank frames
+
+`WR_DropLights.floor_child?` accepted the tag `WR-Floor` or the exact name `floor`.
+This room was drawn by `csusb-106.rb`, which tags its children `WR-106-Floor` /
+`WR-106-Walls` / `WR-106-Doors` and names them `106 floor` / `106 walls` /
+`106 doors`. Nothing matched, so `room_info` fell back to the room's BOUNDING BOX
+and the rig lit a 1445 sq ft rectangle standing in for a 575 sq ft room. From that
+single miss, every one of these followed and each was printed on the console at the
+time:
+
+1. `CSUSB Chaparral 106: NO WR-Floor child found - using the BOUNDING-BOX rectangle.`
+2. The wall scan ran along the bbox edges, found no wall face on any of the four
+   runs, and the rig **borrowed four walls of its own** at the bbox edge - outside
+   the room's real walls.
+3. `room_structure_child?` missed the same three names, so **the room's own floor
+   and walls became KEEP-OUTS**. Their rects (`[-16, -16, 349.3, 384.4]` for the
+   walls alone) cover the entire floor, and **all 14 fill spheres were refused**:
+   *"every standoff from 72 down to 24 in lands outside the floor, within 40 in of a
+   wall, or inside the booth keep-out."*
+4. The 5 x 5 ceiling grid was laid on the bbox. **16 of its 25 panels land outside
+   the real walls**, lighting a dead pocket between the rig's borrowed wall and the
+   room's real one. (Derived by testing each grid point against the real polygon;
+   the placement itself is observed.)
+5. The face wash landed at x = -21 in, **outside the room**.
+
+And then the part that actually killed the run: **the four borrowed walls enclosed
+every render camera.** They sit on the `WR Lights` tag, which DRAFT mode hides and
+RENDER mode shows, so the six SketchUp image plates came out perfect and all three
+V-Ray plates came back as **flat dusk-blue wall colour** - per-channel standard
+deviation 1.6 to 7.2 across the whole 1600 x 900 frame. The tool warned about
+exactly this, in these words: *"If a camera is now outside the box, hide that
+'WR Lights Wall N' group on that scene."* Nothing acted on the warning, because
+nothing was there to act on it.
+
+### The fix
+
+`floor_child?`, `room_structure_child?`, `doors_container?` and a new
+`walls_child?` now accept the **per-job tag family** as well as the house one:
+`WR-<job>-Floor|Room|Walls|Doors|Notes` and a display name ENDING in
+`floor` / `walls` / `doors`. `WR-Booth-*` is excluded by an explicit negative
+lookahead, so a booth standing inside a room group still becomes a keep-out - that
+was the whole point of the predicate and it must not be softened. Four new pure-test
+rows (`rsc2`, `fc2`, `wc`, `dc2`) in `scripts/rbtest-lights.py` pin it.
+
+With the fix, on the identical model and settings: **0 borrowed walls** (8 of 8 wall
+runs found a real visible wall), 10 ceiling panels on a 4 x 4 grid with 6 positions
+correctly dropped for edge clearance, **7 of 14 fill spheres placed**, face wash at
+(62, 186, 48) inside the room, and three real frames.
+
+## The automation verdict - what still needs a person
+
+Twelve points, in the order they were hit. Three are now fixed; the rest are named
+with where they belong.
+
+1. **AUTO-SET has no headless entry point.** `WR_AutoSet.apply` is reachable only
+   through the `autosetapply` HtmlDialog action callback (`proposal-package.rb`
+   ~4737). An unattended caller has to re-implement that callback's body.
+   **Belongs in the shipped tool.**
+2. **AUTO-SET warns "NO wall units found" and names a remedy it cannot perform** -
+   run `wr-name-walls.rb`, then AUTO-SET again. Two presses and a re-run, both
+   scriptable, neither automatic. **Belongs in the shipped tool.**
+3. **`wr-name-walls.rb` cannot be pressed headless at all.** `UI.inputbox` on entry
+   and `UI.messagebox` on every one of four exits, and it defaults to a DRY RUN, so
+   even an answered dialog changes nothing on the first press. Had to call
+   `WR_NameWalls.scan` and write the names directly. **Belongs in the shipped tool.**
+4. **`wr-name-walls.rb` would have renamed two door leaves to "Wall 1" and
+   "Wall 2".** `NEVER_TAGS` lists `WR-Doors` and `WR-Doors-Leaf`, but this room's
+   doors are on `WR-106-Doors`, and `PIECE_RE` wants a NUMBER, so
+   `door leaf 35" out` does not read as already-named. The plan had to be filtered
+   to the walls container by hand. **This is the same tag-family blind spot fixed in
+   `wr-drop-lights.rb` today, and it is STILL OPEN in `wr-name-walls.rb`,
+   `wr-split-walls.rb` and `wr-lower-walls.rb`, which all carry their own copy of
+   `NEVER_TAGS` by deliberate duplication.**
+5. **V-Ray's `convert_to_vray` renamed every house drafting material in the model.**
+   `materials_helper.rbc` printed six renames: `[0128_White]` -> `0128_White1` and
+   `0128_White` -> `0128_White2`, and the same for `0099_LightSteelBlue` and
+   `0043_SaddleBrown`. `WR_MaterialsSwap`'s `DRAFT_FLOOR = '0128_White'` then matches
+   nothing in the model, so **the whole draft/render material swap silently finds
+   nothing to swap**. Recovered with the per-model `set_source` override, which is
+   the designed escape hatch - but nothing warns you that you need it.
+   **Belongs in the shipped tool: the swap should notice a source that has gone
+   missing and say so.**
+6. **The drop takes its subjects from the viewport selection.** `run(settings,
+   subjects)` accepts explicit subjects, but the caller has to find the room itself.
+   `WR_AutoSet.resolve_booth` exists for booths; **there is no `resolve_room`**, and
+   the committed harness `.forge/fixer/rank-loop/d-lib.rb` hard-codes the group name
+   `'Room'`, which does not exist in any client model. **Belongs in the shipped
+   tool.**
+7. **The room-recognition miss itself.** FIXED at 1.67.8.
+8. **Ordering nobody had written down: the rig must be dropped BEFORE the last
+   AUTO-SET.** The rig adds a tool-owned ceiling and (sometimes) borrowed walls,
+   and AUTO-SET's per-scene hide sets are computed from what exists when AUTO-SET
+   runs. Without a second AUTO-SET pass after the drop, `03-high` and `06-plan`
+   shoot straight through the rig's own ceiling. The working order is
+   **AUTO-SET -> drop -> AUTO-SET (update) -> export**. **Belongs in the shipped
+   tool - the drop could stamp its own ceiling into the existing scenes' hidden
+   sets.**
+9. **AUTO-SET's wall hiding opens the room to the sky for V-Ray.** On this layout
+   the camera has to stand outside the room, so the cone rule hides the wall it is
+   looking through and **22.3% of the hero frame is open V-Ray sky and an infinite
+   grey ground plane.** The image lane is unaffected and correct. This is the single
+   largest quality fault in the run and it costs five points of D6. **Open, and the
+   most valuable thing to fix next.**
+10. **`runStarted()` raises on every headless press**: `NoMethodError: undefined
+    method 'execute_script' for nil:NilClass`. Caught by an outer rescue and the
+    batch continues, so it is cosmetic - but it is an unguarded `execute_script` on
+    a nil dialog and it is a one-line fix. **Belongs in the shipped tool.**
+11. **The model is unsaved, so the manifest cannot name it.** `manifest.json` has
+    `"model": ""` and `"model_path": ""`. A delivered pack should be traceable to a
+    file. **Open.**
+12. **The pack's `width` argument is not what sets the render size.** The caller
+    passed `'width' => 800`; `render_size_gate` correctly honoured V-Ray's own
+    `/SettingsOutput` at 1600 x 900 (this is deliberate, 1.9.4). Not a fault - but
+    it means the rank-loop's frames are no longer the rubric's stated 800 x 450.
+    Checked: downsampling the hero to 800 x 450 moves `mean` not at all and `med` by
+    0.14, so **the comparison to runs d-i still holds.**
+
+Not an intervention, but it has to be said: **the `t3-00` renders finished in 41
+seconds because they were blank.** A batch that "succeeded" in a third of the normal
+time is the cheapest possible signal that something is wrong, and nothing in the
+pipeline noticed. There is no gate anywhere between "V-Ray returned a PNG" and "a
+human looks at it". `scripts/image-qa.py` exists and would not have caught this
+either - a flat dusk-blue frame measures mean 0.4534, clip 0.0000, dark 0.0000 and
+**passes its render profile.**
+
+## Timing - what an unattended pack actually costs
+
+| step | t3-01 |
+|---|---|
+| AUTO-SET (create, 9 scenes) | 0.75 s |
+| wall naming (scan + write, 15 walls) | 0.05 s |
+| AUTO-SET (update) | 0.52 s |
+| build the floor material + V-Ray convert | 4.88 s |
+| fill the render-material slots | 0.07 s |
+| `remove_rig!` + drop + audit (28 lights) | 1.44 s |
+| AUTO-SET (update, after the drop) | 0.52 s |
+| **export: 6 image plates** | **5 s** |
+| **export: 3 V-Ray renders at 1600 x 900** | **125 s** (52 + 41 + 32) |
+| post-render audit | 0.06 s |
+| **end to end** | **~2 min 20 s** |
+
+The renders are 89% of it. Everything else is under ten seconds put together.
+
+## The lighting evaluation: 7.2 here against 8.2 on the previous layout
+
+Scored on `Z:\Sketchup\Proposals\test3\t3-01\1_MDL 4872 S (components) 01-angled r.png`.
+Full evidence in the scores file; the short version:
+
+| dim | t3-01 | i02 | why |
+|---|---|---|---|
+| D1 exposure | 9 | 9 | mean 0.5114, med 121.8, dark 0.03% - all inside the 9 band |
+| D2 highlights | 9 | 9 | clip 0.0001 (104 px of 1.44 M), nb 0.0001 |
+| D3 booth as subject | 6 | 6 | door face 109.18 / floor in front 118.14 = 0.92 |
+| D4 colour of neutrals | 9 | 9 | clean ceiling patch R/B 1.207 (i02: 1.302) |
+| D5 distribution | 7 | 8 | one legible ceiling pool; 6 of 16 grid points dropped |
+| D6 believable cause | **3** | 8 | **22.3% of the frame is open sky** |
+| **overall** | **7.2** | **8.2** | |
+
+**The whole point-per-point loss is D6, and D6 is a camera-and-scene fault, not a
+lighting one.** Read D6 at 8 - what the same frame scores if that west wall is not
+hidden - and **the rig scores 8.0 on this layout against 8.2 on the previous one.**
+That is a counterfactual and is labelled as one, but it is the honest answer to
+"does the 8.2 rig hold at this scale": **yes, the rig holds. The frame does not.**
+
+Two numbers worth carrying forward:
+
+- **D3 moved for the wrong reason.** 0.92 looks like a big jump from i02's 0.57,
+  but the booth face is L 109 here against L 105 there - unchanged. What moved is
+  the denominator: the floor right at the booth is in the booth's own shadow in this
+  corner. D3 is still 6 and the side face is still dead flat (78.87 against 78.16
+  across its two halves).
+- **The face wash did NOT overshoot the 4 ft door face**, which was the specific
+  worry going in. It placed 96 in off the face, inside the room, and the door face
+  is the only surface in the frame with a real gradient on it.
+
+`03-high r` is a separate **R2 hard fail on its own plate**: clip 0.0140, 20,147
+clipped pixels in one flat patch on the booth's roof, L max 255 with a standard
+deviation of 71. AUTO-SET correctly hides the rig's ceiling for a top-down, and with
+the ceiling gone the sun lands on the roof. Not the scored plate, but it would ship
+in a pack.
+
+## Known issues and gotchas
+
+- **V-Ray's deferred re-sync did not fire once.** Both drops (51 lights, then 28)
+  audited `ok` before AND after every render; `d-repair.rb` was never needed. Runs
+  g and h saw 1 to 4 drifted lights per drop, run i saw 65 of 65. The one difference
+  this session is that **the V-Ray Asset Editor was never opened**, which is exactly
+  the trigger 1.67.7 named as a correlation. 0 occurrences in 2 drops is a second
+  data point for that correlation, not a fix, and `d-repair.rb` stays load-bearing.
+- **Two rows of `scripts/rbtest-lights.py` were already failing at HEAD** before any
+  change today: `fill` and `fillsmall` still expect the 6-row `FILL_SCATTER_6` while
+  the code ships the 14-row `FILL_SCATTER`. Verified by stashing the working tree
+  and re-running. Pre-existing, not touched, and it means the suite has not been
+  green since the scatter was widened.
+- **The fill scatter assumes a booth with room on BOTH sides.** 7 of 14 spheres were
+  refused on this layout, all on the +60 to +108 deg arc, because the booth is in a
+  corner. This is the one geometry assumption a real client room genuinely breaks,
+  and it is not a bug - the tool refused rather than putting a light in a wall, and
+  said so per sphere.
+- **A blank render passes every gate we have.** See the note above item 1.
+
+## New and changed files
+
+- `scripts/wr-drop-lights.rb` - the per-job tag family; new `walls_child?`; VERSION
+  1.67.8.
+- `scripts/rbtest-lights.py` - four new pure rows pinning it.
+- `.forge/fixer/rank-loop/t3-*.rb` - the eight entry points this run was driven
+  from, committed so it can be re-run: `t3-lib.rb` (a three-line override of
+  `d-lib.rb`'s hard-coded `'Room'` group name - it exists ONLY because of open
+  item 6 and should be deleted the day that is fixed), then `t3-autoset.rb`,
+  `t3-namewalls.rb`, `t3-floorslot.rb`, `t3-drop.rb`, `t3-audit.rb`,
+  `t3-export.rb`, `t3-poll.rb`. Each names the intervention it stands in for in
+  its own header.
+- `Z:\Sketchup\Proposals\test3\.rank\booth-render.scores.md` - the scores, the
+  contaminated-column warnings, and the stated per-layout crops.
+
+## State
+
+Model left in RENDER mode, rig standing (28 lights, audit `ok`), 9 AUTO-SET scenes,
+floor on `WR Plank Grey Wide 48`. The model is UNSAVED and has no path.
+
 ## 2026-09-11 — SESSION HANDOFF (read this first tomorrow)
 
 **Where we are.** The proposal render lighting went from 5.7 to **8.2** over 42 scored
