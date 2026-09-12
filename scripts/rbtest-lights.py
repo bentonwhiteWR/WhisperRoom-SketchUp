@@ -348,6 +348,15 @@ def lift_scalar(lines, name):
     raise SystemExit('wr-drop-lights.rb: no scalar constant %s' % name)
 
 
+def lift_bool(lines, name):
+    """Verbatim single-line `  NAME = true|false` assignment (comment ok)."""
+    pat = re.compile(r'^  %s\s*=\s*(true|false)\s*(#.*)?$' % re.escape(name))
+    for ln in lines:
+        if pat.match(ln):
+            return ln
+    raise SystemExit('wr-drop-lights.rb: no boolean constant %s' % name)
+
+
 def lift_string(lines, name):
     """Verbatim single-line `  NAME = '...'.freeze` assignment (comment ok)."""
     pat = re.compile(r"^  %s\s*=\s*'[^']*'\.freeze\s*(#.*)?$" % re.escape(name))
@@ -374,7 +383,9 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            'accent_standoff', 'walls_mode', 'default_settings',
            'door_face_normal', 'accent_place', 'audit_verdict',
            # 1.67.0 -- the office rig's placement logic
-           'panel_grid', 'rot2', 'box_exit', 'fill_points', 'emitter_top_z']
+           'panel_grid', 'rot2', 'box_exit', 'fill_points', 'emitter_top_z',
+           # 1.67.3 -- the flush aperture (ruling R5)
+           'panel_vis_recess']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'WASH_MAX', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
@@ -406,7 +417,18 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'PANEL_EMIT_UP', 'PANEL_SPACING', 'PANEL_MAX', 'PANEL_MIN_INSET',
            'FILL_D', 'FILL_EDGE', 'FILL_STEP', 'FILL_MIN',
            'CLAMP_TOL', 'CLAMP_FLOOR', 'PANEL_VISIBLE_SHARE',
-           'PANEL_VIS_RECESS', 'FILL_STANDOFF_K']
+           'PANEL_VIS_RECESS', 'FILL_STANDOFF_K',
+           # 1.67.2 added the :facewash role to LIGHT_LAYERS and did NOT add
+           # its constants here, so the whole suite raised NameError on
+           # FACEWASH_U from that commit onward -- the same trap LUMEN_GAIN
+           # fell into, in the same file, for the same reason. Found red at
+           # the start of rank run f and fixed before anything else.
+           'FACEWASH_U', 'FACEWASH_V', 'FACEWASH_OUT', 'FACEWASH_MIN',
+           'FACEWASH_STEP', 'FACEWASH_MARGIN', 'FACEWASH_Z',
+           'FACEWASH_AIM_DROP',
+           # 1.67.3 -- the flush aperture (ruling R5)
+           'PANEL_FLUSH_DROP', 'PANEL_FLUSH_HID']
+BOOLS = ['PANEL_FLUSH']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT', 'RIG_DEFAULT']
 # FILL_SCATTER BEFORE LIGHT_LAYERS: the :fill role's :n reads FILL_SCATTER.size,
 # and these are emitted in list order into one Ruby module body.
@@ -1186,6 +1208,21 @@ __METHODS__
                   pl[:visible] ? 'VIS' : 'inv', PANEL_VISIBLE_SHARE,
                   PANEL_VISIBLE_SHARE + (1.0 - PANEL_VISIBLE_SHARE))
 
+    # 29k -- THE FLUSH APERTURE (1.67.3, ruling R5). Three things have to
+    # hold or the fixture is wrong in the picture rather than in a number:
+    #   1. the visible aperture sits BELOW the ceiling plane, never in it
+    #      (coplanar with a real face is a coin toss in the ray tracer);
+    #   2. the hidden emitter sits BELOW the visible one -- IN FRONT of it,
+    #      never behind, which is the d04 occlusion bug that cost half the
+    #      room's light;
+    #   3. the recess handed to `place` is exactly the gap between them.
+    # Derived by hand from the two constants, not read off a run.
+    out << format('flush on%d drop%.4g hid%.4g order%d recess%.4g',
+                  PANEL_FLUSH ? 1 : 0, PANEL_FLUSH_DROP, PANEL_FLUSH_HID,
+                  (PANEL_FLUSH_DROP > 0.0 &&
+                   PANEL_FLUSH_HID > PANEL_FLUSH_DROP) ? 1 : 0,
+                  panel_vis_recess)
+
     out.join(' | ')
   end
 end
@@ -1313,7 +1350,10 @@ EXPECT = ' | '.join([
     'auditseen ok0 seenG+H',
     'auditoff ok1 offA | auditmix ok0 offA deadB+C+F wrongE',
     'roles panel22/22/3600/4200/VIS fill10/2000/3500/inv rigoffice',
-    'split match1 visVIS hidinv share0.05 sum1',
+    'split match1 visVIS hidinv share0.08 sum1',
+    # 1.67.3: aperture 1/4 in below the ceiling, hidden emitter 3/4 in below
+    # it -> in front, and the recess between them is 0.75 - 0.25 = 0.50.
+    'flush on1 drop0.25 hid0.75 order1 recess0.5',
 ])
 
 # ---- second program: wr-mode.rb's snapshot pins -------------------------
@@ -1491,6 +1531,7 @@ def compare(title, got, expect):
 def main():
     lines = open(SRC, encoding='utf-8').read().split('\n')
     consts = '\n'.join([lift_scalar(lines, c) for c in SCALARS] +
+                       [lift_bool(lines, c) for c in BOOLS] +
                        [lift_string(lines, c) for c in STRINGS] +
                        [lift_block(lines, c) for c in BLOCKS])
     prog = (FIXTURE

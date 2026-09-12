@@ -1,6 +1,107 @@
 # DEVLOG
 
 ## 2026-09-11
+### 1.67.3 - RANK RUN f: ruling R5. The ceiling fixtures lose their housings entirely and their apertures come up to the ceiling's own brightness, so they stop competing with the booth. D6 5 -> 8 under the new anchor, D1-D5 unchanged or better, zero clipped pixels.
+
+Benton, on the `e04` frame: *"i love the lighting, but can the design be
+invisible? or more 'generic' lighting? I dont want to take away from the
+whisperroom."* That is ruling **R5** in
+`Z:\Sketchup\Proposals\test2\.rank\booth-render.rubric.md`, and it is a
+change to how the fixtures LOOK, not to the light. Output, colour temperature,
+placement, cutoff, the fill scatter and the face wash were all frozen at their
+`e06` values for the whole run; the only cycle that crossed that freeze is
+labelled as such and was reverted.
+
+Four cycles, `f00`-`f03`, at
+`Z:\Sketchup\Proposals\test2\f<NN>-angled-r.png`. Every row written into
+the scores file as the cycle completed, method `rank-measure/1` unchanged so
+the rows compare to runs d and e.
+
+**Shipped frame: `f03` (identical to `f01`), overall 7.7** - D1 9 / D2 9 /
+D3 6 / D4 6 / D5 8 / D6 8. The control is **`e06` re-read under R5 = 7.2**,
+not the 7.7 in the e-table: R5 re-anchors D6 so that its 9 rewards a source
+accepted without examination, and under that anchor `e06`'s grey box with the
+glowing rim is a 5, not the 8 it was scored before the ruling existed.
+
+**THE FIXTURE CHANGE, in two steps.**
+
+1. **`PANEL_FLUSH` - the housing is not drawn at all** (`f00`). `build_f4`
+   returns an empty group in flush mode: no box, no frame, no rim, no
+   material. **Fixture geometry added 0 faces where `e06` drew 300.** The
+   visible aperture lies 0.25 in below the ceiling plane and the invisible
+   emitter 0.5 in in front of it - in FRONT, never behind, because a V-Ray
+   rectangle light with `invisible = 0` is rendered geometry and occludes rays
+   from behind it (rank cycle `d04` lost half the room's light to exactly
+   that).
+2. **`PANEL_VISIBLE_SHARE` 0.05 -> 0.08** (`f01`), and the direction is the
+   OPPOSITE of what the share was first lowered for. Without a housing the
+   emitter has to carry its own appearance, and at 5% behind a 0.6 cutoff,
+   seen at this camera's grazing angle, it came back at **0.641 of the
+   surrounding ceiling's linear brightness** - a flat neutral grey HOLE in a
+   peach ceiling, which is D6's own 3-anchor. In the old housing that same dim
+   face was flattered by a lit rim; **the rim, not the emitter, was making the
+   fixture look lit.** x1.60 puts the aperture at **lin_ratio 1.014** - the
+   ceiling's own brightness. It costs the room nothing: the position's total
+   is unchanged and the room budget is 17,948,800 lm in every f-cycle,
+   identical to `e06`.
+
+**WHAT IT COST: nothing on the shipped frame.** Against `e06`: `clip`
+**0.0008 -> 0.0000** (not one clipped pixel in the frame, which also retires
+the standing caveat that D2's 9 anchor was only met with an asterisk), `nb`
+0.0029 -> 0.0022, `dark` 2.80% -> 2.63%, `mean` 0.5413 -> 0.5564, ceil R/B
+1.5467 -> 1.5205, `ff` 0.7049 -> 0.7026 (noise). D1-D5 unchanged or better.
+
+**THE ONE REAL COST WAS REFUSED.** `f02` crossed the placement freeze
+deliberately to test whether 25 fixtures on a 5 x 5 grid is itself busy:
+`PANEL_SPACING` 96 -> 144 in (16 on a 4 x 4 grid), aperture 24 -> 30 in, panel
+scale x25/16, with total room flux and aperture surface luminance both held.
+**It did not read quieter - D6 did not move at all - and it charged
+face/floor 0.7026 -> 0.6097 and dark 2.64% -> 3.17%**, because
+`axis_points` leaves a half spacing at every wall, so the outer row moved 48 ->
+60 in and the whole grid slid off the booth's door face. Reverted. `f03` is a
+from-scratch re-drop that reproduces `f01` to every printed digit but one.
+
+**D6 IS 8 AND NOT 9, AND THE REASON IS OUT OF SCOPE.** The last visible
+separation between fixture and ceiling is colour, not brightness: the aperture
+is 4200 K, the ceiling is peach because the orange FLOOR bounces into it. That
+gap (`rb_gap` 0.445) did not move across any f-cycle and no legal lever can
+move it - matching them needs either Kelvin (barred by the rubric's Reversal 2)
+or the floor material (barred by Benton's own scope ruling). **The floor
+material is now the binding constraint on TWO dimensions, not one.** The shop
+default for the render floor slot is `0128_White`. This needs a ruling from
+him, not another render.
+
+**A FOURTH LEVER ON D4, found by the cycle that was reverted.** `f02` measured
+ceiling R/B **1.5205 -> 1.4534** - the first time under 1.50 in either run -
+with `clip` still exactly 0.0000. Panel SPACING moves D4 at no cost to
+highlights. As built it cost D1 and D3; a grid that keeps the 96 in rhythm near
+the booth and opens up elsewhere was not tried and is the best remaining
+untested thread.
+
+**`scripts/rbtest-lights.py` WAS FOUND RED AND INHERITED.** 1.67.2 added the
+`:facewash` role to `LIGHT_LAYERS` without adding `FACEWASH_*` to the constant
+lift list, so the whole suite raised `NameError` on every commit from then on -
+the same trap `LUMEN_GAIN` fell into, in the same file, for the same reason.
+Fixed, plus a `lift_bool` for `PANEL_FLUSH` and a new hand-derived pin
+(`flush on1 drop0.25 hid0.75 order1 recess0.5`) that holds the aperture below
+the ceiling plane and the hidden emitter in front of it. **Two checks are still
+RED on purpose:** `fill` and `fillsmall` expect the six-row `FILL_SCATTER` that
+run e replaced with fourteen. Their expected values are hand-derived geometry
+and rewriting them to match what the code now prints would be reading the
+answer off a run, which that file's own header forbids. They need re-deriving
+by hand.
+
+**Operational, unchanged from run e:** V-Ray's deferred re-sync hit three of
+the four drops (2, 6 and 3 lights at factory 30 lm with `invisible` false);
+`d-repair.rb` restored the full parameter set each time and `audit_scene` was
+clean before AND after every render. No frame was rendered on a failed audit.
+
+Files: `scripts/wr-drop-lights.rb` (flush aperture, share, the reverted-and-
+documented spacing experiment), `scripts/rbtest-lights.py`,
+`scripts/wr_tools/VERSION` 1.67.2 -> 1.67.3, and the run-f section of
+`Z:\Sketchup\Proposals\test2\.rank\booth-render.scores.md`.
+
+## 2026-09-11
 ### 1.67.2 - RANK RUN e: the fill scatter goes 6 -> 14 spheres, a new INVISIBLE `:facewash` role lights the booth face, and the render reaches 7.7 from 6.8. Both of run d's named routes are now tested - one works, one does not.
 
 Run d stalled at 6.8 (`d07`) against a target of 9.0 and named two untested

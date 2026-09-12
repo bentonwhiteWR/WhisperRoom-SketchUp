@@ -387,6 +387,12 @@ module WR_DropLights
   # local X. A square panel cannot disagree with itself. 2 x 2 lay-in flat
   # panels are as standard in a commercial ceiling as troffers are, and the
   # GRID RHYTHM is what reads as "office", not the aspect ratio.
+  # 24 -> 30 in was TRIED at rank cycle f02 and REVERTED. Sixteen 30 in
+  # apertures on a 4 x 4 grid, at the same total room flux and the same
+  # aperture surface luminance, did not read quieter (D6 unmoved at 8) and
+  # cost face/floor 0.7026 -> 0.6097 and dark 2.64% -> 3.17%, because the
+  # half-spacing wall gap moved the outer row 48 -> 60 in and slid the whole
+  # grid off the booth's door face. 25 on a 5 x 5 is not too busy.
   PANEL_U       = 24.0   # in — 2 ft
   PANEL_V       = 24.0   # in — 2 ft
   PANEL_DEPTH   = 2.0    # in — the housing hangs this far BELOW the ceiling
@@ -394,6 +400,8 @@ module WR_DropLights
   PANEL_FRAME   = 0.75   # in — frame wall thickness
   PANEL_EMIT_UP = 0.25   # in — emitter this far inside the open bottom
   PANEL_SPACING = 96.0   # in — 8 ft on centre, the ordinary office rhythm.
+                         #   144 in was tried and reverted at f02; see
+                         #   PANEL_U above for what it cost.
                          #   axis_points leaves a half spacing (4 ft) at
                          #   every wall, which is how a real ceiling is set
                          #   out.
@@ -422,7 +430,19 @@ module WR_DropLights
   # settings knob both stay where they were. And because the two emitters sit
   # at the same point, every pool in the room is still directly under a
   # visible fixture — the split costs nothing on "believable cause".
-  PANEL_VISIBLE_SHARE = 0.05
+  #
+  # 0.05 -> 0.08 at rank cycle f01, and the reason is the OPPOSITE of what
+  # the share was first lowered for. With the housing gone (PANEL_FLUSH) the
+  # emitter has to carry its own appearance, and at 5% behind a 0.6 cutoff,
+  # seen at this camera's grazing angle, it came back at 0.641 of the
+  # surrounding ceiling's linear brightness -- a flat neutral grey HOLE in a
+  # peach ceiling, which is D6's own 3-anchor. In the e06 housing that same
+  # dim face was flattered by a lit rim; without a box there is no rim.
+  # x1.60 puts the aperture at roughly the ceiling's own brightness, which is
+  # ruling R5's target: a rectangle of slightly brighter ceiling, not an
+  # object. It costs the room NOTHING -- the position's total is unchanged
+  # and the two emitters are identical but for being seen.
+  PANEL_VISIBLE_SHARE = 0.08
   PANEL_VIS_RECESS    = 0.75  # in — how far ABOVE the aperture plane the
                               #   VISIBLE emitter is recessed, so the
                               #   invisible one can have the aperture and
@@ -433,6 +453,51 @@ module WR_DropLights
                               #   is untroubled either way.
   PANEL_MIN_INSET = 12.0 # in — half the panel: a centre closer than this to
                          #   a floor edge would hang the housing in a wall.
+
+  # ======================================================================
+  # THE FLUSH APERTURE (1.67.3) — Benton's ruling R5, on the e04 frame:
+  #
+  #   "i love the lighting, but can the design be invisible? or more
+  #    'generic' lighting? I dont want to take away from the whisperroom."
+  #
+  # He is NOT asking for a different light. Output, colour, placement,
+  # cutoff, the fill scatter and the face wash are all unchanged by this
+  # block. He is asking for a fixture a viewer does not look at.
+  #
+  # What the e06 frame actually shows, read off the picture at 4x: an F4
+  # housing is a GREY ALUMINIUM BOX hanging 2 in below a peach ceiling, with
+  # a dark shadow line along its upper edge and a bright white glowing rim
+  # around a grey inner tray. Three separate high-contrast boundaries per
+  # fixture, twenty-five times over. That is an object, and it competes.
+  #
+  # So in flush mode NO HOUSING IS DRAWN AT ALL. The fixture is the lit
+  # aperture and nothing else: a rectangle of slightly brighter ceiling,
+  # sitting in the ceiling plane rather than hanging below it.
+  #
+  # THIS IS NOT "MAKE THE FIXTURE INVISIBLE", and the distinction is the
+  # whole point. A room lit from nowhere was this project's original fault —
+  # every pool of light with no cause, D6 pinned at 5 for two entire runs,
+  # which is why the office-ceiling rig exists. The visible aperture emitter
+  # STAYS. What goes is the box around it.
+  PANEL_FLUSH      = true
+  PANEL_FLUSH_DROP = 0.25  # in — the VISIBLE aperture this far below the
+                           #   ceiling plane. Not zero: a light coplanar
+                           #   with the ceiling face is a coin toss in the
+                           #   ray tracer. 1/4 in is under a pixel at this
+                           #   camera and reads flush.
+  PANEL_FLUSH_HID  = 0.75  # in — the INVISIBLE emitter this far below it,
+                           #   i.e. 1/2 in IN FRONT of the visible one.
+                           #   Never coplanar and never behind: rank cycle
+                           #   d04 put both at one z and lost over half the
+                           #   room's light, because a V-Ray rectangle light
+                           #   with invisible = 0 is rendered geometry and
+                           #   occludes rays from behind it. See d05.
+
+  # How far ABOVE the plenum emitter the visible aperture sits, in whichever
+  # mode is in force. One place, so the two modes cannot disagree.
+  def self.panel_vis_recess
+    PANEL_FLUSH ? (PANEL_FLUSH_HID - PANEL_FLUSH_DROP) : PANEL_VIS_RECESS
+  end
 
   # THE FILL SCATTER — "assorted places ... four or five feet away from the
   # booth, low level, high level". Each row is
@@ -2360,9 +2425,20 @@ module WR_DropLights
   # key light through the roof and a white streak across the frame. A
   # surface-mounted flat panel is just as ordinary in a commercial ceiling
   # and cannot do it. Returns [group, emitter_z].
+  #
+  # IN FLUSH MODE (PANEL_FLUSH, ruling R5) IT DRAWS NOTHING. No housing, no
+  # frame, no rim, no material — the group is returned empty and the two
+  # emitters are the whole fixture, so what the camera sees is a lit
+  # rectangle lying in the ceiling plane instead of a grey box hanging below
+  # it. The group still exists and is still stamped, because it is what the
+  # emitters travel with and what remove_rig! erases.
   def self.build_f4(ents, model, cx, cy, z_ceil, mat)
     g = ents.add_group
     g.name = 'WR Fixture F4 ceiling panel'
+    if PANEL_FLUSH
+      g.name = 'WR Fixture F4 flush aperture'
+      return [g, z_ceil - PANEL_FLUSH_HID]
+    end
     z_bot = z_ceil - PANEL_DEPTH
     ho = PANEL_U / 2.0
     hi = ho - PANEL_FRAME
@@ -5147,7 +5223,7 @@ paint(); drawPresets("");
             # now, and the camera still sees the lit aperture through it,
             # because an invisible light does not block camera rays.
             place.call(:plenum, [p[0], p[1], ez], hid_lm, nil, fg.entities)
-            place.call(:panel, [p[0], p[1], ez + PANEL_VIS_RECESS], vis_lm,
+            place.call(:panel, [p[0], p[1], ez + panel_vis_recess], vis_lm,
                        nil, fg.entities)
           end
           puts format('  %s: OFFICE RIG — ceiling panels: %d x F4 %g x %g in ' \
@@ -5159,7 +5235,19 @@ paint(); drawPresets("");
                       pgrid[:nx], pgrid[:ny], pgrid[:sx], pgrid[:sy],
                       pgrid[:sx] / 2.0, pgrid[:sy] / 2.0, panel_lm,
                       layer_kelvin(LIGHT_LAYERS[:panel][:kelvin], opts[:koffset]),
-                      PANEL_DEPTH, info[:z_top])
+                      PANEL_FLUSH ? PANEL_FLUSH_DROP : PANEL_DEPTH,
+                      info[:z_top])
+          puts format('  %s: fixtures are %s.', name,
+                      PANEL_FLUSH ?
+                        format('FLUSH — no housing is drawn at all; the ' \
+                               'aperture lies %g in below the ceiling plane ' \
+                               'and the hidden emitter %g in below that ' \
+                               '(ruling R5: the fixture must not compete ' \
+                               'with the booth)', PANEL_FLUSH_DROP,
+                               PANEL_FLUSH_HID - PANEL_FLUSH_DROP) :
+                        format('SURFACE-MOUNTED — a %g in open housing with ' \
+                               'a %g in frame hangs below the ceiling',
+                               PANEL_DEPTH, PANEL_FRAME))
           puts format('  %s: each panel is TWO emitters at one point — a ' \
                       'VISIBLE aperture at %.0f lm (%.0f%% of the position, so ' \
                       'its surface reads as a lamp instead of paper white) and ' \
