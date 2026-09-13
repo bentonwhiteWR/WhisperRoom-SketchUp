@@ -1,5 +1,61 @@
 # DEVLOG
 
+## 2026-09-12 — SESSION HANDOFF (read this first)
+
+**Where we are.** Plugin **1.69.0**, pushed. Two things shipped this session: AUTO-SET's
+camera orientation is fixed on one-piece door components, and the first full client-style
+proposal (placeholder client **Company A**) was built from a saved SketchUp file, ranked,
+and independently graded.
+
+**Done**
+- 1.67.8: unattended end-to-end run on a real client room (4872 S in CSUSB Chaparral 106).
+  Pipeline takes 2 min 20 s with no human touch. Fixed the rig treating the room's bounding
+  box as the room. Lighting holds at 8.0 on this layout (8.2 on the old one).
+- 1.68.0 / 1.69.0: the front plate faced a blank wall. AUTO-SET now finds the front from the
+  **door frame first** (Benton's rule: the side the door frame is on is the front), using the
+  frame's composed transformation, never intermediate container bounds. Side and angled
+  plates swing toward the side with a window. 303 autoset checks green.
+- Company A proposal: images and `HANDOFF.md` in `Z:\Sketchup\Proposals\Company A\`; PDFs v0-v4
+  in `C:\Users\bento\Desktop\ProposalFiles\Company A\`; rubric, scores, `versions.json` and
+  `cold.json` under that folder's `.rank\`. Baseline 5.6, final **6.8**, independent cold grade
+  **6.8**, target 8 not met. Loop stopped after 4 of 5 iterations: every remaining gain needs
+  SketchUp work, a new image, or a Benton decision. Accuracy gate never tripped.
+- Review page: https://claude.ai/code/artifact/7c78229e-b797-4686-b142-59c943b34689
+  Lighting proofs: https://claude.ai/code/artifact/bac063be-6ae4-4682-a992-8ca3384633ac
+
+**Open decisions (Benton)**
+1. Let proposals name WhisperRoom's own products (model, ventilation) from the quote/model,
+   cross-checked against renders. The pinned Company A rubric accepts only render-readable
+   facts, stricter than CLAUDE.md, which cost the model name and forced "grey boxes".
+2. Which way the booth door opens, so the swing can be drawn on the plan.
+3. Pick between the two grey-plank floors (`i02` brighter, `i04` calmer). Still open.
+4. Interior-plan scene (top-down, booth roof off, interior dims, before `06-plan`): the plate
+   id is the export filename, so inserting it either renumbers the plan or takes an
+   out-of-sequence id.
+
+**Next steps, in order**
+1. Get decision 1; if yes, amend the Company A rubric and re-run one iteration from v4.
+2. In SketchUp: make the height and footprint callouts end on the booth and label what they
+   measure (the `6' 11"` on the front plate sits on the room wall); draw the booth door swing
+   once decided; re-export back-wall and plan at 2400 px+.
+3. Code: AUTO-SET should switch off rig emitters over the booth when it hides the ceiling.
+   The `03-high r` roof blowout was two panels ~12 in above the roof, not the sun; this run
+   used a per-export override.
+4. Code: `wr-name-walls.rb`, `wr-split-walls.rb`, `wr-lower-walls.rb` still miss per-job tag
+   families (`WR-106-Doors`); `resolve_room` does not exist; AUTO-SET and wall naming have
+   no headless entry point. Full list in the 1.67.8 entry.
+5. Fix the example proposal config's invented captions ("door swing and ramp clearance",
+   "Enhanced · double-wall", "from every side") before it is copied again.
+6. Name the client copy `Company-A-Booth-Renderings.pdf`; versioned names fail the rubric.
+
+**Traps**
+- `Company A.skp` has **unsaved** in-memory changes (room-dims tag hidden on five plates,
+  side and plan cameras moved). Saving keeps them; re-running AUTO-SET may reset them.
+- Blank V-Ray frames pass `image-qa.py`. A batch finishing in a third of normal time is the
+  only current signal.
+- Two `rbtest-lights.py` rows (`fill`, `fillsmall`) have been red since the 14-row scatter.
+- Sub-agents run on opus; Benton's Fable allowance is exhausted.
+
 ## 2026-09-12
 ### 1.69.0 - THE DOOR FRAME IS NOW THE FIRST WAY AUTO-SET FINDS THE FRONT, not a fallback. Includes a correction to 1.68.0: the door leaf on that booth was never "drawn open".
 
