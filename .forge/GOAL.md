@@ -12,7 +12,12 @@ place the quoted booth in them.
   every assumed value noted in the model.
 - A viewport screenshot confirms the build; notes.md records the read; committed and pushed.
 
-## Now
+## Now (14 Sep, second unit)
+Proposal PDF for the client, Wyatt Shepherd, from `Z:/Sketchup/Proposals/WyattShepherd Audiology Basic Plus`:
+two options, RM 114 (plates 01-06) and RM 128 (plates 07-12, MISNAMED "Suite 114 (2)").
+Output `Desktop\ProposalFiles\Wyatt Shepherd\Wyatt Shepherd-Booth-Renderings.pdf`.
+
+## Earlier today
 Built and pushed (e0056ce, 9d5e7a1): three rooms plus the quoted MDL 4872 S placed in each,
 live model unsaved. Waiting on Benton: ceiling heights, which way the 114 east booth faces,
 review-sheet answers, and whether he deleted a pre-existing "Room" group between 10:06 and 10:14.

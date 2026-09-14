@@ -1,100 +1,59 @@
-# HANDOFF — Builder: Suites 128 & 114 take-off, built live (14 Sep 2026)
+# HANDOFF — Builder: Wyatt Shepherd booth-renderings proposal (14 Sep 2026)
 
-The previous builder handoff (AUTO-SET, 1.48.0) is preserved verbatim as
-`.forge/builder/HANDOFF-autoset.md`.
+History: earlier today the Suites 128 & 114 take-off was built live and the quoted MDL 4872 S
+was placed in all three rooms (commits e0056ce, 9d5e7a1). The detail is in
+`clients/suites-128-114/notes.md` and in git history for this file. The AUTO-SET handoff is
+still at `.forge/builder/HANDOFF-autoset.md`.
 
 ## Produced
-- `clients/suites-128-114/takeoff.json` — three rooms:
-  - "Suite 128 — 13'3 x 9'3 room": 6 runs, with the powder-room jog.
-  - "Suite 114 — 10'10 x 9'10 room" and "Suite 114 — 10'11 x 9'10 room": side by side
-    with the true scaled 7" partition offset.
-- `clients/suites-128-114/notes.md` — the read, px/in per room axis, provenance per
-  dimension, open questions.
-- Plans copied to `clients/suites-128-114/plans/` (gitignored, verified with
-  `git check-ignore`). The lock and review sheet are generated and gitignored.
-- Screenshots (not committed): `.forge/builder/suites-128-114/suite-128-top.png`,
-  `.forge/builder/suites-128-114/suite-114-top.png`.
-- No script under `scripts/` was changed, so there is no VERSION bump.
+- **PDF:** `C:\Users\bento\Desktop\ProposalFiles\Wyatt Shepherd\Wyatt Shepherd-Booth-Renderings.pdf`.
+  New folder, nothing overwritten. 10 pages, 2,961,480 bytes (2.96 MB).
+- **Config:** `WhisperRoom Proposals\examples\wyatt-shepherd\proposal-v2.json`.
+- **Web plates:** `WhisperRoom Proposals\examples\wyatt-shepherd\renders-web\` (10 JPEGs).
+- **The private repo was not committed** (as briefed). Its `assembly/` and `warranty/` folders
+  were not touched.
+- **Scratch:** HTML, image-prep script and check rasters are in
+  `scratchpad\wyatt\` and `scratchpad\wyatt\check\` (p01–p10.png, bottoms.png, callout-zoom.png).
+- No change to anything under `scripts/` or `proposals/`, so no VERSION bump and no public-repo commit.
 
-## Verified
-- **observed:** `takeoff-check.py --html` exit 0 on the first run. 18 flagged values and
-  3 assumed hinges. The door words line matches the intended corner for all three doors.
-- **observed:** built via the bridge with `WR_BuildTakeoff.build_from(lock)` into SketchUp
-  2026 Untitled.
-  - The job refuses if `model.path` is non-empty; it was empty.
-  - Report: 128 = 6 runs, 8 wall solids, 1 door; each 114 room = 4 runs, 6 solids, 1 door;
-    ceilings 8'-0". 20 dimension entities at model level.
-  - Model left unsaved.
-- **observed (screenshots):**
-  - 128: closed, jog present, door on the east wall at the north end, hinge at the north
-    jamb, swinging in.
-  - 114: both rooms closed and meeting in the partition (walls touch at x=833.5"); the
-    west door is hinged west, the east door hinged east, both swinging in.
-  - Every wall is dimensioned.
+## Structure
+- Cover: hero is plate 01 (the RM 114 V-Ray render), not trimmed.
+- Section 01, "Option 1 · RM 114", marked "Recommended layout": plates 03, 04, 05, 06.
+- Section 02, "Option 2 · RM 128", marked "Alternate layout": plates 07, 09, 10, 11, 12.
+- The generator carries two options without new CSS:
+  - `model` = "Option N · RM nnn", which becomes the section title and header line 2;
+  - `boothOf` = "MDL 4872 S", so header line 1 reads "BOOTH MDL 4872 S".
+  - The header's hard-coded "Booth" prefix can't be removed from config, which is why
+    `boothOf` holds the model rather than "1 of 2".
+- **Dropped plates:**
+  - Plate 02 uses the same camera as the hero and would have sat on page 2.
+  - Plate 08 uses the same camera as plate 07, which is on the page just before it.
+  - Each option still has three or more dimensioned views without them.
 
-## Not done / gaps
-- The model also contains a group named "Room" at x -184..304" that predates this job;
-  it was not touched and the new rooms are placed clear of it.
-- `WR-Ceiling` tag hidden for the shots (a model-state change, unsaved).
-- **No door corner → jamb dimensions** are drawn: `build-takeoff.rb` doesn't make them.
-- 114's dimensioner puts some 9'10" strings inside the neighbouring room, and 128's
-  1'8 3/4" jog label overlaps the wall. Both are cosmetic, and both come from the
-  dimensioner, which was not changed.
-- "Every assumed value noted in the model" (GOAL) is **not** how the builder works:
-  `NOTES_IN_MODEL = false` by Benton's 1 Sep rule. The assumptions are in the build
-  report, the lock and the review sheet.
-- Review sheet not published (orchestrator publishes).
+## Verified (observed)
+- The generator's fit table has no overflow; page 10 is `free 0px`.
+- PyMuPDF check:
+  - 10 pages, all 612×792.
+  - I looked at every page and at a stacked crop of all ten bottom edges.
+  - The footer is present on pages 1–9, and page 10 ends in the closing band.
+  - No wrapped headline pushes the footer.
+  - The generator sizes every plate from its real pixel ratio, so nothing is stretched.
+- Callouts were read at native 1600 px, and the small RM 128 ones were zoomed 4×. The RM 128
+  room runs match manifest `measured` values (9' 3", 4' 8 1/2", 8' 6 1/2", 7' 6 1/4", 13' 3").
 
-## Open questions
-Ceiling heights (both suites); the 128 jog; door hinges, widths and positions; the 114
-labels vs the drawing (the "10'11"" room draws narrower); which room is "far back".
-Full list in `clients/suites-128-114/notes.md`.
-
-## Follow-on: the quoted MDL 4872 S placed in all three rooms
-
-Link `#3=AQUkM4VkAQUHBAoBAAYA`. Full detail and per-side margin tables are in
-`clients/suites-128-114/notes.md` ("Booth placement").
-
-- **observed — build.** Built headlessly: load `booth-from-link.rb` with autorun
-  suppressed, `v3_payload`, `build_from_payload(payload, {'dir' => 'P:/Sketchup/NewMasterComponentList', 'dry' => false})`.
-  - No prompt fired; every part was present, 23 instances placed.
-  - Ceiling required: 83.00".
-  - One copy was moved and two `Group#copy` copies set by transformation. Names are
-    `MDL 4872 S (components) — in <room>`, with attribute `wr_booth_place/room`.
-- **derived and observed — the brief's footprint was wrong.** It said 129.6 × 65.
-  - The 4872's N/S walls are its 74" walls, so door+ramp (N0) and vent+EFS (S0) are on
-    opposite long walls.
-  - Footprint with clearances is 105.625" (door-to-vent) × 89" (desk-to-plain).
-  - Consequences:
-    - Suite 128 cannot take it long-axis N-S; it is placed long-axis E-W.
-    - Suite 114 is not a zero-margin fit.
-- **observed — margins, from model bounds after placement:**
-  - Suite 128, rotation 0, door faces north (entry end): W 1.0 to the jog wall, E 15.25
-    (1.25 spare), S 10.0 (EFS touches the wall), N 99.0 (53.4 spare past the ramp).
-  - Suite 114 west, rotation 180, door faces south (entry wall): E 1.0 to the partition,
-    W 55.0 (41 spare), N 10.0, S 58.0 (12.375 spare past the ramp).
-  - Suite 114 east, rotation −90, door faces **east**: W 10.0 to the partition, E 71.0
-    (25.375 spare), N 1.0, S 43.0 (29 spare).
-  - Every part is inside its room. No part overlaps any entry door's swing box.
-- **derived, not built — the east room's alternative.** Rotation 180, facing the south
-  entry wall, puts the ramp over the entry swing: a 2.25" band overlap, 0.25" of the
-  ramp part itself. That's why the two 114 rooms differ. Benton's call.
-- **observed — screenshots, looked at:**
-  - `.forge/builder/suites-128-114/suite-128-booth-top.png` (retaken once: the first
-    camera came out tilted).
-  - `.forge/builder/suites-128-114/suite-114-west-booth-top.png`
-  - `.forge/builder/suites-128-114/suite-114-east-booth-top.png`
-
-### UNEXPLAINED — the model lost geometry that was not ours
-Between 10:06 and 10:14, the pre-existing "Room" group (its definition too) and all 20
-room dimensions left the Untitled model.
-- The bridge log shows only this session's jobs, plus the coordinator's read-only
-  decode.
-- No job erases at model level, and the bridge wraps nothing in an undo operation.
-- The booth chain calls no dimensioner, and no plugin observers exist.
-- Cause not found. A human action in the live window is the one thing not ruled out.
-- The room dimensions were restored by re-running `build_from` (booth transforms
-  confirmed unchanged, 20 dims back). **The "Room" group was not restored.**
-
-- Hidden for the shots: `WR-Ceiling`, `WR-Booth-Deck`.
-- The model is still unsaved.
+## Open for Benton
+- **Wording of the RM 128 note, which is invented:**
+  "Layout note: RM 128 is a tight room for this booth, and in this position the booth
+  window would not be easily accessible."
+- **Section labels, which are invented:** "Recommended layout" / "Alternate layout".
+- **Cut-off callouts left in the plates as exported and left out of the captions:** a
+  partial "10…" at the edge of plate 05, a partial "…/2"" on plate 09, "…8 1/2"" behind
+  the room door leaf on plate 08 (plate not used), and "4' 8 1/2" with no inch mark on
+  plate 12. The last one is transcribed, because plates 09 and 10 and the manifest all
+  show 4' 8 1/2".
+- **Preflight "11 items outside the room":** no stray or unidentified geometry is visible
+  in any of the 12 plates. The cause was not found from the images.
+- **Hero dead space:** the hero has a lot of grey render background. It was left
+  untrimmed per playbook §5.
+- **Grey box at the booth base, window side, with a round opening:** not captioned. It
+  may be part of the ventilation or EFS, but I can't identify it from the images.
