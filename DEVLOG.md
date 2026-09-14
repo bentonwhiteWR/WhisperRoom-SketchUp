@@ -1,5 +1,62 @@
 # DEVLOG
 
+## 2026-09-14 — SESSION HANDOFF (read this first)
+
+**Where we are.** Plugin **1.71.1**, pushed; installed copies were 1.71.0 at last check.
+Today shipped two tools, a no-vent wall fix, three client proposal packs, and two take-offs
+built live through the bridge.
+
+**Done**
+- 1.70.0 Interior Lights panel (`scripts/wr-lights-panel.rb`, window in
+  `scripts/wr-drop-lights.rb`): per-room rig cards, master 10-300% log slider, per-type
+  sliders / on-off / Kelvin, booth light slider, Remove this rig, Drop in lights button,
+  in-plugin drift repair. 100% = the values the rig was dropped at. Benton used it on
+  14 Sep: "seems like its working pretty well". Never exercised yet: Ctrl+Z reconcile,
+  Remove this rig, the booth light slider.
+- 1.71.0 Dimension selected room (`scripts/dimension-room-now.rb`): one press, segment
+  chain 36" off the exterior wall face, rerun replaces its own stamped dims. Offline tests
+  only (`scripts/rbtest-roomdims.py`, 28 pass); not yet run in SketchUp.
+- 1.71.1 `scripts/booth-from-link.rb`: a VNT NV wall on a no-vent booth builds the plug
+  wall, not vent hardware.
+- Take-offs built live: `clients/suites-128-114/` (Wyatt Shepherd, RM 114 + RM 128,
+  MDL 4872 S) and `clients/intelligence-security-laboratories/` (Room 452, MDL 6060 ENV from
+  the client's tape measurements; fits only with the booth door facing the room door).
+- Proposal PDFs, all under `C:/Users/bento/Desktop/ProposalFiles/`:
+  - `Wyatt Shepherd/Wyatt Shepherd-Booth-Renderings.pdf` (10 pp, two options, 4872 S)
+  - `Wyatt Shepherd/Wyatt Shepherd-Audiology-Compact-Booth-Renderings.pdf` (5 pp, 4848 S, RM 128)
+  - `Intelligence Security Laboratories/Intelligence Security Laboratories-Booth-Renderings.pdf` (5 pp, 6060 ENV)
+  - Configs committed to the private `whisperroom-proposals` repo under `examples/`.
+
+**Open decisions (Benton)**
+1. Wyatt 4872 pack: the cover render is small in frame (re-crop or re-render?); the RM 128
+   layout-note wording; the "Recommended / Alternate layout" labels.
+2. Wyatt Compact pack: is "jack panel" right for the 4848? There is a stray dark line at the
+   right edge of the window-side plate (page 3).
+3. ISL pack: "ventilation" removed from the closing band; the plan caption calls the arc
+   "the room door and its swing"; two possible stray marks (a stub above 5' 2" on page 5,
+   text-less dims on the rear view).
+4. ISL site: tape the room door's jamb offset (the 18"-open case rests on an assumed 6"),
+   hinge side, pendant drop, and the delivery path (40" panels through a 36" door).
+5. Still open from earlier: Company A decisions (12 Sep handoff below); floor pick i02 vs
+   i04, and floors per room type (office carpet tile / LVT). Benton is testing floors.
+
+**Next steps, in order**
+1. Live-test 1.71.0 Dimension selected room in an Untitled model (steps in its entry below).
+2. Finish live-testing the lights panel: Ctrl+Z, Remove this rig, booth light slider.
+3. Fixer: room dimensions vanished mid-build on BOTH bridge take-off jobs (Suites 128/114,
+   10:06-10:14; ISL twice). Cause unknown; rebuilding the room restores them.
+4. AUTO-SET: a booth copied from another inherits its token, so its scenes carry the first
+   booth's label ("Suite 114 (2)" on an RM 128 booth). Guard: detect a token already owned by
+   a different booth instance and mint a fresh one.
+5. Apply Benton's answers to the pack decisions above; rebuild only what changes.
+
+**Traps**
+- Plate file names come from AUTO-SET labels and were wrong on both Wyatt exports. Caption
+  from the plan plate's own leader label and the manifest's hidden-group paths.
+- The bridge builds only into Untitled models unless Benton says the open saved file is for
+  the job. Never `file_new`: its save prompt hangs the bridge.
+- Sub-agents ran on opus (Fable allowance exhausted per 12 Sep).
+
 ## 2026-09-14
 ### 1.71.0 - DIMENSION SELECTED ROOM: one press, every wall dimensioned, rerun replaces. PARSED AND UNIT-TESTED ONLY: not run in SketchUp (a saved client model was open, so the bridge was not used).
 
