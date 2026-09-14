@@ -658,6 +658,19 @@ module WR_BoothLink
       # does. ENH 26.5Panel1648WDO, ENH 35.5Panel2648WDO (observed).
       w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
       w && "#{p}#{w}Panel#{Regexp.last_match(2)}WDO"
+    when /\ASTDWL(\d+)\s+VNT\s+NV\b/i
+      # "VNT NV" IS A NO-VENT PLUG WALL, NOT A VENT WALL. The portal emits it
+      # for the vent slots of an SNV / ENV booth (nv = 1), and its own renderer
+      # draws it as NV art (WhisperRoomQuote assets/layout-render.js, the
+      # `\bVNT\s+NV\b` test in the vent-wall art picker). It has to be tested
+      # BEFORE the VNT branch below, which also matches it: until 1.71.1 an
+      # ENV MDL 6060 E (link 187bf0c5c898, 14 Sep 2026) was built with two
+      # 40VNT walls, 6.4 in of vent housing apiece, on a booth quoted with no
+      # ventilation. No option suffixes: a plug wall carries no silencer or
+      # caster hardware. 40NV / 46NV / ENH 35.5NV / ENH 41.5NV are on the
+      # share (observed 2026-09-14).
+      w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
+      w && "#{p}#{w}NV"
     when /\ASTDWL(\d+)\s+VNT\b/i
       w = enh ? enh_width(Regexp.last_match(1)) : Regexp.last_match(1)
       return nil if w.nil?

@@ -1,3 +1,60 @@
+# HANDOFF — Builder: Intelligence Security Laboratories, MDL 6060 E ENV (14 Sep 2026)
+
+## Produced
+- `clients/intelligence-security-laboratories/takeoff.json`: one room, "ISL Room 452", 6 runs.
+  It uses the client's email numbers (65/67 x 100, ceiling 90/114) and supersedes the
+  booth-builder fields.
+- `clients/intelligence-security-laboratories/notes.md`: the client block verbatim,
+  provenance per dimension, the fit table, the two-door analysis and the open questions.
+- Photos are in `clients/intelligence-security-laboratories/plans/` (gitignored, checked
+  with `git check-ignore`). The lock file and review sheet are generated and gitignored.
+- Screenshots (not committed): `.forge/builder/isl-6060/isl-room452-top.png` and
+  `.forge/builder/isl-6060/isl-room452-angled.png`.
+- **Tool fix, 1.71.1.** `scripts/booth-from-link.rb` `component_for` now builds a
+  `STDWL<w> VNT NV` pack as the no-vent plug wall (`40NV` / `ENH 35.5NV`). Before, it built
+  a vented `40VNT`.
+  - Five cases were added to `scripts/rbtest-boothlink-cbl.py`: 0 failures.
+  - `rbparse.py`: all 77 files parse.
+  - `scripts/wr_tools/VERSION` bumped to 1.71.1.
+
+## Built live (observed)
+- **Model:** Benton's saved `Z:/Sketchup/ClientDrawings/Intelligence Security Laboratories MDL 6060 ENV.skp`
+  (0 entities at start). Not saved.
+- **Room:** `WR_BuildTakeoff.build_from(lock)` built 8 wall solids, 1 door and 8 dimensions.
+- **Booth:** `WR_BoothLink.build_from_payload` with parts from `P:/Sketchup/NewMasterComponentList`.
+  - 52 instances, ceiling required 85.00".
+  - Translated (1, -63, 0) in, no rotation: shell x 1..63, y -63..-1. The booth door faces the room door.
+- **Rebuild:** the first 100 x 65 room and the vented booth were erased (only this session's
+  entities) and rebuilt.
+
+## Fit (details in notes.md)
+- Gaps: west 1.0, north 1.0, east 2.0 (an interior light's bounding box reaches 0.78 from
+  the east wall).
+- Ceiling: 5.0 in against the 85 install height, 5.69 against the drawn top.
+- Room door fully open: 1.0 in clear of the booth corner seal.
+- Room door closed: the booth door opens fully, 9.6 in to the handle.
+- Room door at 18 in: the rule zone overlaps the client's 78 in line by 8.5 in. Geometrically,
+  the leaves miss by 2.1 in at the assumed 6 in jamb offset (0.9 at 8 in).
+- Sliding door: fits, with 9.5 in spare.
+
+## Not done / gaps
+- No booth-to-wall or door-to-corner dimensions. `dimension-whisperroom.rb` is a click-pick
+  tool, and `dimension-room-now.rb` would stack a second chain on the build's dimensions.
+- **Unexplained: the room dimensions left the model twice.**
+  - Once after the first booth build.
+  - Once between the placement job and the screenshot jobs.
+  - Ruled out by test: tag toggles, camera changes, `shot`, `DisplayText`.
+  - Restored by re-running `build_from`, with the booth transform unchanged; 8 dimensions at
+    hand-off.
+  - Same symptom as the Suites 128/114 loss. Cause not found.
+- **Not investigated:** the booth's "Standard Light" bounding box pokes 1.22 in past the shell
+  (x 64.22).
+- `WR-Ceiling` and `WR-Booth-Deck` are hidden, and the camera was changed. Both are unsaved
+  model state.
+- The review sheet was not published (the orchestrator publishes it).
+
+---
+
 # HANDOFF — Builder: Wyatt Shepherd proposal packs (14 Sep 2026)
 
 History: earlier today the Suites 128 & 114 take-off was built live and the quoted MDL 4872 S

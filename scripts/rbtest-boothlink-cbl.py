@@ -115,6 +115,14 @@ check('plain 46 wall',     WR_BoothLink.component_for('STDWL46', O, false), '46P
 check('CBL is not a pack prefix of anything else',
       WR_BoothLink.component_for('STDWL46 CBLX', O, false), nil)
 
+# 3b - "VNT NV" is the no-vent PLUG wall of an SNV / ENV booth, not a vent
+# wall (1.71.1; the ENV MDL 6060 E of 14 Sep 2026 was built with 40VNT walls)
+check('STD 40 VNT NV is the plug wall', WR_BoothLink.component_for('STDWL40 VNT NV', O, false), '40NV')
+check('ENH 40 VNT NV is the plug wall', WR_BoothLink.component_for('STDWL40 VNT NV', O, true),  'ENH 35.5NV')
+check('STD 46 VNT NV ignores VSS/EFS/CP', WR_BoothLink.component_for('STDWL46 VNT NV', OPT, false), '46NV')
+check('ENH 46 VNT NV', WR_BoothLink.component_for('stdwl46 vnt nv', O, true), 'ENH 41.5NV')
+check('a bare NV pack still translates', WR_BoothLink.component_for('STDWL40 NV', O, false), '40NV')
+
 # 4 - the roof-mount fence: a COUNT rule, not a per-slot identity rule
 $slots  = ['N0', 'E0']
 $panels = ['N0', 'E0', 'S0']

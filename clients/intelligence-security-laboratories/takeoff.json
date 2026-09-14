@@ -1,0 +1,54 @@
+{
+  "job": "intelligence-security-laboratories",
+  "title": "Intelligence Security Laboratories — Room 452, a small glass-front office; MDL 6060 E ENV quoted",
+  "sources": ["plans/IMG_3801.JPG", "plans/IMG_3802.JPG", "plans/IMG_3803.JPG", "plans/IMG_3804.JPG", "plans/IMG_3805.JPG"],
+  "anchor": "client email 14 Sep (widths 65\" / 67\", length 100\" at its longest, 96\" to the door handle, door 36\", ceiling 90\" lowest / 114\" over the first third). Supersedes the booth-builder room fields (100 x 65 x 7'6\", link 187bf0c5c898). Where the 67\" third sits and the door's jamb offset are read off the photos and assumed.",
+  "interpretations": [
+    "The five inputs are room PHOTOS with no measurements. All stated numbers come from the client's email of 14 Sep, which supersedes the booth-builder room fields sales typed (100\" x 65\" x 7'6\"). The email does not say WHICH third is 67\" wide, on which side, or where the ceiling steps; those are read off the photos and recorded as assumed.",
+    "Which way the 100\" and 65\" run: the glass front (door + sidelight) is the SHORT wall. IMG_3801/3802, from the doorway, look down a deep narrow room; IMG_3805, from inside, shows the front wall as one 36\" door leaf plus a sidelight about 21\" wide. So 65\"/67\" is across the room and 100\" runs away from the door.",
+    "Orientation is arbitrary (photos carry no north): the glass front is drawn as the SOUTH wall and the back wall NORTH. From inside looking out (IMG_3805) the door is at the left end of the front wall, so the solid hinge-side wall is EAST and the desk / glass-return side is WEST.",
+    "The 67\" third: placed at the FRONT (south) end, with the 2\" step in the WEST wall. At the SW corner the glass partition turns and runs north along the west wall before the wall becomes drywall (IMG_3804, IMG_3805). In IMG_3801 the glass-to-drywall junction shows a black end member facing the doorway, which reads as the drywall standing proud of the glass plane; so the room is wider along the glass return. It is also the same 'first third' as the client's 114\" ceiling, where IMG_3802 shows open deck above the doorway before the suspended cloud begins. The east wall shows no step in any photo.",
+    "Door swing: INTO the room, as the client's email implies ('not being able to open the door all the way to get in') and the photos show: IMG_3805 (inside) has the hinge knuckles on the east jamb, and IMG_3801 shows the leaf standing open inside the room.",
+    "Ceiling: built at the client's LOWEST figure, 90\", because a take-off room carries one ceiling. The client's 114\" over 'the first third' is the open-deck zone at the door end; its edge is put at the same assumed 33\" line as the width jump, 67\" from the back wall. Overhead in the 90\" zone: a suspended white cloud with a linear pendant light hung below it (IMG_3801/3802). Whether the pendant hangs below 90\" is not known.",
+    "Client furniture (desk, chair, bin along the west wall) is not modelled."
+  ],
+  "rooms": [
+    {
+      "name": "ISL Room 452",
+      "runs": [
+        {"d": "E", "v": "65\"", "src": "stated client email 14 Sep 'Width: 65\", expanding to 67\" for about 1/3 of the room'",
+         "note": "back (north) wall, solid; the 65\" part of the room"},
+        {"d": "S", "v": "100\"", "src": "stated client email 14 Sep 'Length: 96\" due to the door handle, 100\" at its longest'",
+         "note": "east wall, solid drywall, the room door's hinge side. 100\" is the wall; the door handle takes 4\" of it (96\" clear), see the door note"},
+        {"d": "W", "v": "67\"", "src": "stated client email 14 Sep 'expanding to 67\" for about 1/3 of the room'",
+         "note": "front (south) wall: full-height GLASS partition, black door frame and a fixed glass sidelight, facing the corridor. Which end is 67\" is assumed; see runs 3-4"},
+        {"d": "N", "assumed": "33\"",
+         "reason": "the client says 67\" wide for 'about 1/3 of the room' and does not say which third or how long; 1/3 of the stated 100\" is 33 1/3\", taken as 33\". Placed at the front (south) end on the west side along the glass return (see interpretations). Tape where the width steps."},
+        {"d": "E", "v": "2\"", "src": "derived closure",
+         "note": "the width step in the west wall, forced by run 2 (67\", stated) minus run 0 (65\", stated). Which side it is on is assumed."},
+        {"d": "N", "v": "67\"", "src": "derived closure",
+         "note": "west wall of the 65\" part, drywall, the client's desk against it; forced by run 1 (100\", stated) minus run 3 (33\", assumed)"}
+      ],
+      "ceiling": {"v": "90\"", "src": "stated client email 14 Sep 'Ceiling: Lowest is 90\", the first third of the room is 114\"'",
+                  "note": "built at the LOWEST figure, the governing one; the 114\" zone over the first third (door end) is noted, not built. Edge of that zone assumed at the same 33\" line as the width step."},
+      "origin": [0, 0],
+      "doors": [
+        {"run": 2,
+         "at": {"assumed": "6\"", "reason": "south wall, measured from its EAST end (run 2 heads W): east wall face to the near (hinge) jamb. IMG_3805 floor-line crop: the wall corner to the leaf edge is ~110 px against the leaf's ~560 px, scaled off the stated 36\" door = ~6\" (range 3-8\" allowing for perspective). Scaled, not measured."},
+         "w": {"v": "36\"", "src": "stated client email 14 Sep 'The door itself is 36\"'",
+               "note": "the door swings IN; its inside handle projects 4\" (100\" wall, 96\" clear to the handle, stated). The client accepts opening it only 18\" to get in, which they give as 'max length approx 78\"' for the booth run"},
+         "h": {"assumed": "84\"", "reason": "commercial door leaf 80-84\" tall; in IMG_3805 the leaf's width/height is ~0.42 against the stated 36\" width, which reads closer to 84\". Not measured."},
+         "hinge": {"assumed": "near", "reason": "IMG_3805 (inside) shows three hinge knuckles on the jamb next to the solid east wall, the near jamb from the run's east start, with the handle on the sidelight side; IMG_3801/3802 show the hinge side on the right looking in. The client confirms the door swings in but does not name the hinge side."}}
+      ],
+      "features": [],
+      "notes": [
+        "Room 452 (number on the frame, IMG_3804). Glass front faces the corridor.",
+        "Client email 14 Sep supersedes the booth-builder fields (100 x 65 x 7'6\"). The client also says: 'If we cannot switch to a sliding door this is reduced.' A sliding door gives the full 96-100\" back.",
+        "The door swings IN. The client measured an 18\" opening as enough to enter, and gives 'max length approx 78\"' for the booth with the door used that way.",
+        "Glass sidelight between the door frame and the SW corner is roughly 21-23\" by the photo scale; the glass returns north along the west wall for about the first third (assumed to be the 67\" part).",
+        "Ceiling: 90\" lowest (built), 114\" over the first third at the door end (not built; edge assumed at 67\" from the back wall). Overhead in the 90\" zone: a suspended cloud and a linear pendant light hung below it. The pendant's drop is unknown.",
+        "Client furniture not modelled: desk, chair, bin along the west wall."
+      ]
+    }
+  ]
+}
