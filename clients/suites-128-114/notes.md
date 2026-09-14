@@ -101,3 +101,125 @@ The partition thickness is **assumed** (scaled).
      or the 15'0" x 19'3" hall area. The email says it is "open to the hall".
    - 114 is probably the 17'1" x 19'11" or the 15'10" x 19'11" room.
    - This is **assumed**; ask the client.
+
+## Booth placement — the quoted MDL 4872 S (added 14 Sep 2026, same session)
+
+**Source.** Link `sales portal /booth-builder#3=AQUkM4VkAQUHBAoBAAYA`, decoded by
+`WR_BoothLink.v3_payload` (**observed**):
+
+| Wall (booth-local) | Pack | Part built |
+|---|---|---|
+| N0 | WA STDDRFRM R | RightWADoorWithRamp |
+| N1 | STDWL19 | 19Panel |
+| S0 | STDWL46 VNT | 46VNT_VSS_EFS |
+| S1 | STDWL22 | 22PanelSolid |
+| E0 | STDWL46 WDO3236 | 46Panel3236WDO, with the small desk outside |
+| W0 | STDWL46 | 46PanelSolid |
+
+Options: ramp, VSS, EFS, outside desk, MJP jack panel, elevated floor. Package
+"Audiology Basic Plus". Built headlessly from `P:/Sketchup/NewMasterComponentList`
+with every part present: 23 instances.
+
+**Ceiling the room must give: 83.00" (6'-11").** Printed by the build. Both suites are
+drawn at the 8'-0" default, which leaves 13" — but that ceiling is **assumed**.
+
+### Which walls carry what — this corrects the brief's 129.6 × 65 footprint
+
+- The 4872's **N and S walls are the 74" long walls**; E and W are the 50" ends.
+  **Observed** from `WR_BOOTH_DATA` (w=74 along x, N0/S0 span x 2..48) and from the
+  built parts.
+- The door with its ramp (N0) and the vent with its EFS (S0) are therefore on
+  **opposite long walls**. The desk (E0) is on a short end.
+
+Clearances, per CLAUDE.md / `layout-render.js` `clrIn`:
+
+| Side | Rule | Built part reaches |
+|---|---|---|
+| Door wall with ramp | 45.625" | 45.6" (**observed**) |
+| Vent wall with EFS | 10" | 10.0" |
+| Outside-desk wall | 14" | 13.75" |
+| Plain wall | 1" | — |
+
+Footprint with clearances (**derived**):
+- Across the booth, door side to vent side: **105.625"** (45.625 + 50 + 10).
+- Along the booth: **89"** (14 + 74 + 1).
+- The brief's 129.6 × 65 assumed the door and vent sat on the short ends. With the
+  real walls, Suite 128 cannot take the booth long-axis N-S: that needs 105.6" E-W
+  and the narrow part is 90.25". Suite 114 is not a zero-margin fit.
+
+### Placement rule used
+
+In each room the door and ramp face open floor toward that room's entry. Per axis the
+booth hugs the wall with the lower clearance and opens toward the higher one — the
+`layout-render.js` corner rule. Every clearance zone sits inside the room, and every
+booth part was checked against the entry door's swing box.
+
+Margins below are **observed** from model bounds after placement. Wall gap = booth shell
+to the interior face; spare = gap minus that side's clearance.
+
+**Suite 128 — 13'3 x 9'3 room.** Rotation 0: long axis E-W, door faces north (the entry
+end). Shell x 441.75..515.75, y −149..−99 (model).
+
+| Side | Faces | Wall gap | Rule | Spare |
+|---|---|---|---|---|
+| W | jog wall (narrow part) | 1.0" | 1 | 0 |
+| E | desk | 15.25" (desk tip 1.5" off the wall) | 14 | 1.25" |
+| S | EFS | 10.0" (EFS touches the wall) | 10 | 0 |
+| N | ramp | 99.0" (ramp tip 53.4" off the north wall) | 45.625 | 53.375" |
+
+- No overlap with the entry door swing: the ramp tip clears the swing box by 15.65" N-S.
+- The whole booth stands in the narrow south part, x ≥ the jog.
+- **Tight axis: E-W, 1.25" spare** against a scaled 90.25" width.
+
+**Suite 114 — 10'10 x 9'10 room.** Rotation 180: long axis E-W, door faces south (the
+entry wall). Shell x 755..829, y −60..−10.
+
+| Side | Faces | Wall gap | Rule | Spare |
+|---|---|---|---|---|
+| E | plain, to the partition | 1.0" | 1 | 0 |
+| W | desk | 55.0" | 14 | 41.0" |
+| N | EFS | 10.0" (EFS touches the wall) | 10 | 0 |
+| S | ramp | 58.0" | 45.625 | 12.375" |
+
+No overlap with the entry swing: the ramp part clears it by 34.25" E-W, the desk by
+33.75" N-S.
+
+**Suite 114 — 10'11 x 9'10 room.** Rotation −90: long axis N-S, door faces **east**
+(toward the entry end). Shell x 847..897, y −75..−1.
+
+| Side | Faces | Wall gap | Rule | Spare |
+|---|---|---|---|---|
+| W | EFS, to the partition | 10.0" | 10 | 0 |
+| E | ramp | 71.0" | 45.625 | 25.375" |
+| N | plain | 1.0" | 1 | 0 |
+| S | desk | 43.0" | 14 | 29.0" |
+
+- No overlap with the entry swing: the ramp clears it by 30.5" N-S, the desk by
+  35.75" E-W.
+- **Not placed — the alternative, rotation 180 (door facing the south entry wall):**
+  the ramp lands on the entry door's swing whichever wall it hugs. Hugging west, the
+  ramp's clearance band overlaps the swing box by 2.25" × 23.1" and the ramp part
+  itself by 0.25". Hugging east, the overlap is far larger. **Derived**, not built.
+  That is why this room differs from its neighbour. Choosing between the two is
+  Benton's call.
+
+### Model state
+
+- The booth groups are named `MDL 4872 S (components) — in <room>` and carry
+  `wr_booth_place/room` and `/link`.
+- The rooms were rebuilt once after placement to restore their dimensions (see below);
+  the booth transforms were confirmed unchanged.
+- `WR-Ceiling` and `WR-Booth-Deck` are hidden for the plan shots.
+- Model unsaved.
+
+**Unexplained loss — read this.** Between the room screenshots (10:06) and the booth
+placement readback (10:14), the Untitled model lost its pre-existing "Room" group (its
+definition went too) **and** all 20 room dimensions.
+- None of this session's bridge jobs erases at model level.
+- The bridge does not wrap jobs in undo operations.
+- The booth chain calls no dimensioner.
+- No plugin observers are registered.
+- The cause is not found. An action in the live SketchUp window is the remaining
+  possibility and was not checked.
+- The dimensions were restored by re-running `build_from`. **The "Room" group was not
+  restored** (it was not ours, and undo is off-limits).

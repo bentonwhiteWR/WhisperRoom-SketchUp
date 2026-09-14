@@ -50,6 +50,51 @@ Ceiling heights (both suites); the 128 jog; door hinges, widths and positions; t
 labels vs the drawing (the "10'11"" room draws narrower); which room is "far back".
 Full list in `clients/suites-128-114/notes.md`.
 
-## Follow-on in progress
-Coordinator asked for the quoted booth (MDL 4872 S, link `#3=AQUkM4VkAQUHBAoBAAYA`) to be
-placed in each target room. See the section appended below when done.
+## Follow-on: the quoted MDL 4872 S placed in all three rooms
+
+Link `#3=AQUkM4VkAQUHBAoBAAYA`. Full detail and per-side margin tables are in
+`clients/suites-128-114/notes.md` ("Booth placement").
+
+- **observed — build.** Built headlessly: load `booth-from-link.rb` with autorun
+  suppressed, `v3_payload`, `build_from_payload(payload, {'dir' => 'P:/Sketchup/NewMasterComponentList', 'dry' => false})`.
+  - No prompt fired; every part was present, 23 instances placed.
+  - Ceiling required: 83.00".
+  - One copy was moved and two `Group#copy` copies set by transformation. Names are
+    `MDL 4872 S (components) — in <room>`, with attribute `wr_booth_place/room`.
+- **derived and observed — the brief's footprint was wrong.** It said 129.6 × 65.
+  - The 4872's N/S walls are its 74" walls, so door+ramp (N0) and vent+EFS (S0) are on
+    opposite long walls.
+  - Footprint with clearances is 105.625" (door-to-vent) × 89" (desk-to-plain).
+  - Consequences:
+    - Suite 128 cannot take it long-axis N-S; it is placed long-axis E-W.
+    - Suite 114 is not a zero-margin fit.
+- **observed — margins, from model bounds after placement:**
+  - Suite 128, rotation 0, door faces north (entry end): W 1.0 to the jog wall, E 15.25
+    (1.25 spare), S 10.0 (EFS touches the wall), N 99.0 (53.4 spare past the ramp).
+  - Suite 114 west, rotation 180, door faces south (entry wall): E 1.0 to the partition,
+    W 55.0 (41 spare), N 10.0, S 58.0 (12.375 spare past the ramp).
+  - Suite 114 east, rotation −90, door faces **east**: W 10.0 to the partition, E 71.0
+    (25.375 spare), N 1.0, S 43.0 (29 spare).
+  - Every part is inside its room. No part overlaps any entry door's swing box.
+- **derived, not built — the east room's alternative.** Rotation 180, facing the south
+  entry wall, puts the ramp over the entry swing: a 2.25" band overlap, 0.25" of the
+  ramp part itself. That's why the two 114 rooms differ. Benton's call.
+- **observed — screenshots, looked at:**
+  - `.forge/builder/suites-128-114/suite-128-booth-top.png` (retaken once: the first
+    camera came out tilted).
+  - `.forge/builder/suites-128-114/suite-114-west-booth-top.png`
+  - `.forge/builder/suites-128-114/suite-114-east-booth-top.png`
+
+### UNEXPLAINED — the model lost geometry that was not ours
+Between 10:06 and 10:14, the pre-existing "Room" group (its definition too) and all 20
+room dimensions left the Untitled model.
+- The bridge log shows only this session's jobs, plus the coordinator's read-only
+  decode.
+- No job erases at model level, and the bridge wraps nothing in an undo operation.
+- The booth chain calls no dimensioner, and no plugin observers exist.
+- Cause not found. A human action in the live window is the one thing not ruled out.
+- The room dimensions were restored by re-running `build_from` (booth transforms
+  confirmed unchanged, 20 dims back). **The "Room" group was not restored.**
+
+- Hidden for the shots: `WR-Ceiling`, `WR-Booth-Deck`.
+- The model is still unsaved.
