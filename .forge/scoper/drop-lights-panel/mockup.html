@@ -1,0 +1,399 @@
+<title>Interior Lights Panel</title>
+<style>
+:root{
+  --bg:#f2f3f4;--surface:#ffffff;--ink:#20262a;--muted:#68737b;--faint:#9aa4ab;
+  --line:#e0e4e7;--rail:#e6e9eb;--hover:#f7f2ee;--accent:#ee6216;--accent-soft:#fdeee3;
+  --accent-ink:#ffffff;--warn:#9a6b00;--warn-bg:#fdf4dd;--bad:#93382a;--bad-bg:#fbeeec;
+  --ok:#2f6b3f;--ok-bg:#e8f3eb;--swoff:#ccd3d8;--knob:#ffffff;--frame:#d5dadd;--title:#e9ecee;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#24292d;--surface:#2d3338;--ink:#e7eaec;--muted:#9aa5ad;--faint:#6b767e;
+    --line:#3b4247;--rail:#383f45;--hover:#343a3f;--accent:#f47b35;--accent-soft:#453227;
+    --accent-ink:#1b1e21;--warn:#e3b34c;--warn-bg:#3a3423;--bad:#f0a396;--bad-bg:#3a2723;
+    --ok:#8fcf9e;--ok-bg:#243529;--swoff:#4a5359;--knob:#e7eaec;--frame:#15181a;--title:#1d2124;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#24292d;--surface:#2d3338;--ink:#e7eaec;--muted:#9aa5ad;--faint:#6b767e;
+  --line:#3b4247;--rail:#383f45;--hover:#343a3f;--accent:#f47b35;--accent-soft:#453227;
+  --accent-ink:#1b1e21;--warn:#e3b34c;--warn-bg:#3a3423;--bad:#f0a396;--bad-bg:#3a2723;
+  --ok:#8fcf9e;--ok-bg:#243529;--swoff:#4a5359;--knob:#e7eaec;--frame:#15181a;--title:#1d2124;
+}
+*{box-sizing:border-box;margin:0}
+body{font:13px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);
+  padding-inline:16px;padding-block:22px 40px}
+.wrap{max-width:1040px;margin:0 auto;display:grid;gap:18px}
+h1{font-size:19px;font-weight:600;text-wrap:balance}
+.lead{color:var(--muted);max-width:68ch}
+.lead b{color:var(--ink);font-weight:600}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.lab{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg button{font:inherit;font-size:12px;border:0;background:transparent;color:var(--muted);padding:4px 11px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.stage{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.stage{grid-template-columns:minmax(0,1fr)}}
+
+/* ---- faithful HtmlDialog frame ---- */
+.win{border:1px solid var(--frame);border-radius:6px;overflow:hidden;background:var(--bg);
+  box-shadow:0 8px 28px rgba(0,0,0,.14);display:flex;flex-direction:column;height:640px;max-width:100%}
+.tbar{background:var(--title);font-size:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--frame)}
+.tbar .x{margin-left:auto;color:var(--faint)}
+.dhead{padding:10px 12px 8px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--line);background:var(--surface)}
+.dhead h2{font-size:13px;font-weight:600}
+.dhead .sub{font-size:11px;color:var(--muted)}
+.scroll{flex:1 1 auto;overflow-y:auto;padding:8px}
+.btn{font:inherit;font-size:11.5px;padding:4px 10px;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.seg button:focus-visible,input:focus-visible,.sw:focus-visible,.rh:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn.prim{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn.q{border-color:transparent;background:transparent;color:var(--muted)}
+.gap{flex:1 1 auto}
+
+.rig{background:var(--surface);border:1px solid var(--line);border-radius:5px;margin-bottom:8px}
+.rig.sel{border-color:var(--accent)}
+.rh{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;width:100%;background:none;border:0;font:inherit;color:inherit;text-align:left}
+.rh .cv{font-size:9px;color:var(--faint);transition:transform .12s}
+.rig:not(.open) .cv{transform:rotate(-90deg)}
+.rh .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rh .meta{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;border-radius:20px;padding:0 7px;white-space:nowrap;border:1px solid currentColor}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.ok{color:var(--ok);background:var(--ok-bg)}
+.chip.busy{color:var(--warn);background:var(--warn-bg)}
+.chip.bad{color:var(--bad);background:var(--bad-bg)}
+.chip.legacy{color:var(--muted);background:transparent}
+.rb{padding:0 10px 10px;display:none}
+.rig.open .rb{display:block}
+
+.master{border-top:1px solid var(--line);padding-top:9px}
+.mrow{display:flex;align-items:baseline;gap:8px}
+.big{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stops{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.lm{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:1px}
+.lm b{color:var(--ink);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
+.ticks{display:flex;justify-content:space-between;font-size:9.5px;color:var(--faint);font-variant-numeric:tabular-nums;position:relative}
+.ticks .t100{position:absolute;left:var(--p100);transform:translateX(-50%);color:var(--muted);font-weight:600}
+.over{margin-top:5px;font-size:11px;color:var(--warn)}
+
+.roles{margin-top:10px;border:1px solid var(--line);border-radius:4px}
+.rolehd{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:10.5px;font-weight:700;letter-spacing:.1em;color:var(--faint);cursor:pointer;background:none;border:0;width:100%;font-family:inherit;text-align:left}
+.rolehd .cv{font-size:9px;transition:transform .12s}
+.roles.closed .rolehd .cv{transform:rotate(-90deg)}
+.roles.closed .rl{display:none}
+.role{border-top:1px solid var(--line);padding:7px 8px}
+.role .top{display:flex;align-items:center;gap:8px}
+.role .rn{font-weight:600;font-size:12.5px}
+.role .cnt{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.role .pct{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600;font-size:12px;min-width:44px;text-align:right}
+.role .d{font-size:10.5px;color:var(--muted);margin-top:1px}
+.role.off .rn,.role.off .pct{color:var(--faint)}
+.role.skip{opacity:.6}
+.sw{width:30px;height:17px;border-radius:9px;background:var(--swoff);position:relative;border:0;cursor:pointer;flex:0 0 auto}
+.sw i{position:absolute;top:3px;left:3px;width:11px;height:11px;border-radius:50%;background:var(--knob);transition:left .12s}
+.sw[aria-checked="true"]{background:var(--accent)}
+.sw[aria-checked="true"] i{left:16px}
+.sw[disabled]{opacity:.4;cursor:default}
+
+.dfoot{border-top:1px solid var(--line);background:var(--surface);padding:8px 10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:5px;padding:22px 16px;text-align:left;display:grid;gap:8px}
+.empty h3{font-size:13px;font-weight:600}
+.empty p{color:var(--muted);font-size:12px;max-width:44ch}
+
+/* ---- side column ---- */
+.side{display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:12px 14px;display:grid;gap:8px}
+table{width:100%;border-collapse:collapse;font-size:11.5px;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:9.5px;letter-spacing:.1em;color:var(--faint);font-weight:700;padding:0 6px 4px 0}
+td{padding:4px 6px 4px 0;border-top:1px solid var(--line)}
+td.n{text-align:right}
+.log{font:11px/1.5 Consolas,"Cascadia Mono",ui-monospace,monospace;color:var(--muted);max-height:190px;overflow:auto;display:grid;gap:2px}
+.log .w{color:var(--warn)}.log .g{color:var(--ok)}.log .a{color:var(--ink)}
+.fine{font-size:11.5px;color:var(--muted);max-width:75ch}
+.fine b{color:var(--ink);font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:6px">
+    <h1>Interior Lights: a panel for the rig already in the model</h1>
+    <p class="lead">This is a mockup of a new window that opens straight from the WhisperRoom panel. You don't need to select a room first. <b>It is clickable.</b> Drag a master slider and it rescales every light in that room's rig. Open <b>Adjust by type</b> to change one kind of light at a time. Nothing is sent to V-Ray until you let go of the slider. The log on the right shows what that write would do, including the check-and-repair after V-Ray's drift.</p>
+  </header>
+
+  <div class="ctl">
+    <span class="lab">Model state</span>
+    <div class="seg" role="group" aria-label="Model state">
+      <button id="st-many" aria-pressed="true">Three rigs</button>
+      <button id="st-one" aria-pressed="false">One rig</button>
+      <button id="st-none" aria-pressed="false">No rig yet</button>
+    </div>
+    <span class="lab">Writes to V-Ray</span>
+    <div class="seg" role="group" aria-label="Write timing">
+      <button id="wm-release" aria-pressed="true">On release (recommended)</button>
+      <button id="wm-live" aria-pressed="false">Live while dragging</button>
+    </div>
+    <button class="btn" id="resetDemo">Reset demo</button>
+  </div>
+
+  <div class="stage">
+    <div class="win" aria-label="Mock SketchUp dialog">
+      <div class="tbar"><span>Interior lights</span><span class="x">&#x2715;</span></div>
+      <div class="dhead">
+        <div style="display:grid">
+          <h2>Interior lights in this model</h2>
+          <span class="sub" id="hsub"></span>
+        </div>
+        <span class="gap"></span>
+        <button class="btn q" id="refresh" title="Re-read the model and the V-Ray scene">Refresh</button>
+      </div>
+      <div class="scroll" id="list"></div>
+      <div class="dfoot">
+        <button class="btn" id="checkAll" title="Audit every rig against V-Ray and repair lights that drifted">Check &amp; repair</button>
+        <span class="gap"></span>
+        <button class="btn prim" id="drop" title="Opens the existing Drop the lights settings for the selected room">Drop lights in selected room&hellip;</button>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <span class="lab">What V-Ray gets, selected rig</span>
+        <table>
+          <thead><tr><th>Type</th><th class="n">Lights</th><th class="n">Each (V-Ray lm)</th><th class="n">Total</th></tr></thead>
+          <tbody id="wt"></tbody>
+        </table>
+        <p class="fine">These are the figures written to V-Ray: product lumens &times; 10 (<code>LUMEN_GAIN</code>) &times; 32 (<code>CAMERA_GAIN</code>). They are not lumens you could quote from a spec sheet. <b>100%</b> is the rig as it was scored at 8.2: panels at &times;0.70, fill spheres at &times;0.10, face wash at &times;1.00. Fill spheres vary sphere to sphere, so their &ldquo;Each&rdquo; figure is an average.</p>
+      </div>
+      <div class="card">
+        <span class="lab">Write log (simulated)</span>
+        <div class="log" id="log" aria-live="polite"></div>
+      </div>
+      <p class="fine"><b>Real vs. mocked.</b> Role names, counts and lumen maths come from <code>scripts/wr-drop-lights.rb</code> (1.69.0). A 40&prime;&times;40&prime; room gets 25 panel positions, 14 fill spheres and 1 face wash, 65 emitters in all, which matches the DEVLOG&rsquo;s &ldquo;65 of 65&rdquo;. The room names are samples. The drift the log reports is simulated. Nothing here is wired to SketchUp.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var GAIN = 320; // LUMEN_GAIN 10 x CAMERA_GAIN 32
+  var MIN = 0.10, MAX = 3.00; // slider range, log scale
+  function seed(){
+    return [
+      { id:"r1", room:"Showroom A", dims:"40′×40′", booth:"MDL 96120 S", uuid:"1757627021-418223",
+        when:"11 Sep, 21:43", legacy:false, open:true, master:1, status:"ok",
+        roles:[
+          { key:"ceiling", label:"Ceiling panels", count:25, unit:"positions", emit:50, each:806400, pct:1, on:true,
+            d:"4200 K · each is a visible aperture (8%) plus a hidden emitter (92%), scaled together" },
+          { key:"fill", label:"Fill spheres", count:14, unit:"spheres", emit:14, each:25371, pct:1, on:true,
+            d:"3500 K · invisible · 14 of 14 placed around the booth, each at its own weight" },
+          { key:"facewash", label:"Booth face wash", count:1, unit:"panel", emit:1, each:313600, pct:1, on:true,
+            d:"4200 K · invisible · 60×48 in, 96 in off the door face" }
+        ]},
+      { id:"r2", room:"Room B", dims:"16′×12′", booth:"MDL 4872 S", uuid:"1757627021-418223",
+        when:"11 Sep, 21:43", legacy:false, open:false, master:1, status:"ok",
+        roles:[
+          { key:"ceiling", label:"Ceiling panels", count:4, unit:"positions", emit:8, each:806400, pct:1, on:true,
+            d:"4200 K · 2 × 2 grid · visible aperture + hidden emitter" },
+          { key:"fill", label:"Fill spheres", count:9, unit:"spheres", emit:9, each:24178, pct:1, on:true,
+            d:"3500 K · invisible · 9 of 14 placed; 5 had no legal standoff" },
+          { key:"facewash", label:"Booth face wash", count:0, unit:"panel", emit:0, each:313600, pct:1, on:false, skip:true,
+            d:"Skipped when dropped: no standoff from 96 to 48 in fits in front of the door" }
+        ]},
+      { id:"r3", room:"Break room", dims:"20′×14′", booth:null, uuid:"1757540210-090114",
+        when:"10 Sep, 21:36", legacy:true, open:false, master:1, status:"ok",
+        roles:[
+          { key:"ceiling", label:"Ceiling panels", count:6, unit:"positions", emit:12, each:806400, pct:1, on:true,
+            d:"4200 K · 3 × 2 grid" },
+          { key:"fill", label:"Fill spheres", count:0, unit:"spheres", emit:0, each:0, pct:1, on:false, skip:true,
+            d:"None: no booth in this room, so the fill scatter was skipped" }
+        ]}
+    ];
+  }
+  var S = { rigs: seed(), mode:"many", live:false, sel:"r1", rolesOpen:{r1:true}, applies:0, opened:null, pending:{} };
+  S.opened = JSON.parse(JSON.stringify(S.rigs));
+  var logLines = [];
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+  function fmt(n){ return Math.round(n).toLocaleString("en-US"); }
+  function fmtM(n){ return n >= 1e6 ? (n/1e6).toFixed(2)+"M" : fmt(n); }
+  function toPos(v){ return Math.round(1000*Math.log(v/MIN)/Math.log(MAX/MIN)); }
+  function fromPos(p){ var v = MIN*Math.pow(MAX/MIN, p/1000); return Math.abs(v-1) < 0.035 ? 1 : v; }
+  function stops(v){ var s = Math.log(v)/Math.LN2; return (s>=0?"+":"−")+Math.abs(s).toFixed(2)+" stops"; }
+  function visible(){ if(S.mode==="none") return []; if(S.mode==="one") return S.rigs.slice(0,1); return S.rigs; }
+  function rig(id){ return S.rigs.filter(function(r){return r.id===id;})[0]; }
+  function eff(r, ro){ return (ro.on && !ro.skip) ? ro.each*ro.pct*r.master : 0; }
+  function emitTotal(r){ return r.roles.reduce(function(a,ro){return a+ro.emit;},0); }
+  function lightsTotal(r, ro){ return ro.key==="ceiling" ? ro.count : ro.emit; }
+  function sumWritten(r){
+    return r.roles.reduce(function(a,ro){ return a + eff(r,ro)*lightsTotal(r,ro); },0);
+  }
+  function log(cls, msg){
+    var t = new Date(); var hh = String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0")+":"+String(t.getSeconds()).padStart(2,"0");
+    logLines.unshift('<div class="'+cls+'">'+hh+"  "+esc(msg)+"</div>");
+    logLines = logLines.slice(0,40);
+    $("log").innerHTML = logLines.join("");
+  }
+
+  function render(){
+    var rs = visible();
+    $("hsub").textContent = rs.length ? rs.length+" rig"+(rs.length===1?"":"s")+" · "+rs.reduce(function(a,r){return a+emitTotal(r);},0)+" V-Ray lights · tag “WR Lights”" : "No lights dropped yet";
+    $("checkAll").disabled = !rs.length;
+    if(!rs.length){
+      $("list").innerHTML = '<div class="empty"><h3>No interior lights in this model</h3>'+
+        '<p>Select the room group (the build-room group with a floor inside it) in the viewport. Then press <b>Drop lights in selected room</b>. That opens the same settings as today. When the drop finishes, the new rig shows up here.</p>'+
+        '<p style="color:var(--warn)">Nothing is selected right now.</p></div>';
+      $("drop").disabled = true;
+      $("wt").innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No rig to show.</td></tr>';
+      return;
+    }
+    $("drop").disabled = false;
+    if(!rs.some(function(r){return r.id===S.sel;})) S.sel = rs[0].id;
+    $("list").innerHTML = rs.map(rigHtml).join("");
+    wire();
+    table();
+  }
+
+  function chip(r){
+    if(S.pending[r.id]) return '<span class="chip busy">Changed · release to write</span>';
+    if(r.status==="busy") return '<span class="chip busy">Writing · checking V-Ray</span>';
+    if(r.status==="repaired") return '<span class="chip ok" title="'+esc(r.note||"")+'">Repaired · matches V-Ray</span>';
+    if(r.status==="bad") return '<span class="chip bad">Doesn’t match V-Ray</span>';
+    return '<span class="chip ok">Matches V-Ray</span>';
+  }
+
+  function rigHtml(r){
+    var p100 = (toPos(1)/10)+"%";
+    var over = r.roles.some(function(ro){ return ro.on && !ro.skip && ro.pct*r.master > 1.0001; });
+    var h = '<section class="rig'+(r.open?" open":"")+(S.sel===r.id?" sel":"")+'" data-rig="'+r.id+'">';
+    h += '<button class="rh" data-toggle="'+r.id+'" aria-expanded="'+r.open+'"><span class="cv">▼</span>'+
+         '<span style="display:grid;min-width:0;flex:1 1 auto"><span class="nm">'+esc(r.room)+' <span class="meta">'+r.dims+'</span></span>'+
+         '<span class="meta">'+(r.booth?esc(r.booth)+" · ":"no booth · ")+emitTotal(r)+' lights · dropped '+r.when+'</span></span>'+
+         '<span class="big" style="font-size:13px">'+Math.round(r.master*100)+'%</span></button>';
+    h += '<div class="rb">';
+    if(r.legacy) h += '<div style="margin-bottom:6px"><span class="chip legacy">Dropped before 1.70</span> <span class="lm">Its 100% is whatever the lights held when this window first opened.</span></div>';
+    h += '<div style="margin-bottom:6px">'+chip(r)+'</div>';
+    h += '<div class="master"><span class="lab">Whole rig brightness</span>'+
+         '<div class="mrow"><span class="big" id="mv-'+r.id+'">'+Math.round(r.master*100)+'%</span>'+
+         '<span class="stops" id="ms-'+r.id+'">'+(r.master===1?"tuned":stops(r.master))+'</span></div>'+
+         '<div class="lm" id="ml-'+r.id+'"><b>'+fmtM(sumWritten(r))+'</b> V-Ray lm across '+emitTotal(r)+' lights · '+fmt(sumWritten(r)/GAIN)+' lm as product figures</div>'+
+         '<input type="range" min="0" max="1000" step="1" id="m-'+r.id+'" value="'+toPos(r.master)+'" aria-label="Whole rig brightness for '+esc(r.room)+'">'+
+         '<div class="ticks" style="--p100:'+p100+'"><span>10%</span><span class="t100">100% tuned</span><span>300%</span></div>'+
+         (over ? '<div class="over">Above 100% is untested. The ceiling blows out before the room gets brighter.</div>' : '')+
+         '</div>';
+    var ro_open = !!S.rolesOpen[r.id];
+    h += '<div class="roles'+(ro_open?"":" closed")+'"><button class="rolehd" data-roles="'+r.id+'" aria-expanded="'+ro_open+'"><span class="cv">▼</span>ADJUST BY TYPE <span style="font-weight:400;letter-spacing:0;margin-left:auto">'+r.roles.length+' types</span></button><div class="rl">';
+    r.roles.forEach(function(ro, i){
+      var dis = ro.skip ? " disabled" : "";
+      h += '<div class="role'+(ro.on?"":" off")+(ro.skip?" skip":"")+'">'+
+        '<div class="top"><button class="sw" role="switch" aria-checked="'+(ro.on&&!ro.skip)+'" data-sw="'+r.id+':'+i+'" aria-label="'+esc(ro.label)+' on or off"'+dis+'><i></i></button>'+
+        '<span class="rn">'+esc(ro.label)+'</span><span class="cnt">'+(ro.skip?"—":ro.count+" "+ro.unit)+'</span>'+
+        '<span class="pct" id="rp-'+r.id+'-'+i+'">'+(ro.skip?"":(ro.on?Math.round(ro.pct*100)+"%":"off"))+'</span></div>'+
+        '<div class="d">'+esc(ro.d)+'</div>'+
+        (ro.skip?'':'<input type="range" min="0" max="1000" step="1" data-role="'+r.id+':'+i+'" value="'+toPos(ro.pct)+'" aria-label="'+esc(ro.label)+' brightness"'+(ro.on?"":" disabled")+'>')+
+        '</div>';
+    });
+    h += '</div></div>';
+    h += '<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap">'+
+         '<button class="btn" data-reset="'+r.id+'" title="Master and every type back to 100%, all types on">Reset to tuned</button>'+
+         '<button class="btn" data-revert="'+r.id+'" title="Back to the values this rig had when the window opened">Revert</button>'+
+         '<span class="gap"></span><button class="btn q" data-select="'+r.id+'" title="Select this rig’s lights in the viewport">Select in model</button></div>';
+    h += '</div></section>';
+    return h;
+  }
+
+  function table(){
+    var r = rig(S.sel);
+    $("wt").innerHTML = r.roles.map(function(ro){
+      var n = lightsTotal(r,ro), e = eff(r,ro);
+      var label = ro.label + (ro.key==="ceiling" ? " (per position)" : "");
+      return '<tr><td>'+esc(label)+'</td><td class="n">'+(ro.skip?"—":n)+'</td><td class="n">'+(ro.skip?"skipped":(ro.on?fmt(e):"0 (off)"))+'</td><td class="n">'+fmtM(e*n)+'</td></tr>';
+    }).join("") + '<tr><td><b>'+esc(r.room)+'</b></td><td class="n">'+emitTotal(r)+'</td><td></td><td class="n"><b>'+fmtM(sumWritten(r))+'</b></td></tr>';
+  }
+
+  function refreshReadouts(r){
+    $("mv-"+r.id).textContent = Math.round(r.master*100)+"%";
+    $("ms-"+r.id).textContent = r.master===1 ? "tuned" : stops(r.master);
+    $("ml-"+r.id).innerHTML = "<b>"+fmtM(sumWritten(r))+"</b> V-Ray lm across "+emitTotal(r)+" lights · "+fmt(sumWritten(r)/GAIN)+" lm as product figures";
+    r.roles.forEach(function(ro,i){ var el=$("rp-"+r.id+"-"+i); if(el&&!ro.skip) el.textContent = ro.on?Math.round(ro.pct*100)+"%":"off"; });
+    var head = document.querySelector('[data-toggle="'+r.id+'"] .big'); if(head) head.textContent = Math.round(r.master*100)+"%";
+    if(r.id===S.sel) table();
+  }
+
+  function apply(r, what){
+    delete S.pending[r.id];
+    S.applies++;
+    var n = emitTotal(r);
+    r.status = "busy"; render();
+    log("a", r.room+": "+what+" → wrote "+n+" lights in ONE V-Ray transaction; the lumens stored on each light updated in one SketchUp step");
+    var drift = S.applies % 2 === 1;
+    setTimeout(function(){
+      log("", r.room+": re-audit after a 4 s settle…");
+      if(drift){
+        var k = 1 + (S.applies % 3);
+        log("w", r.room+": DRIFT — "+k+" fill sphere"+(k===1?"":"s")+" back at factory 30 lm, invisible off");
+        log("g", r.room+": repaired "+k+" of "+k+" from the stored values · AUDIT OK");
+        r.status = "repaired"; r.note = k+" light(s) repaired";
+      } else {
+        log("g", r.room+": AUDIT OK — the V-Ray scene matches the rig");
+        r.status = "ok";
+      }
+      render();
+    }, 1100);
+  }
+
+  function wire(){
+    document.querySelectorAll("[data-toggle]").forEach(function(b){
+      b.onclick = function(){ var r = rig(b.dataset.toggle); r.open = !r.open; S.sel = r.id; render(); };
+    });
+    document.querySelectorAll("[data-roles]").forEach(function(b){
+      b.onclick = function(){ S.rolesOpen[b.dataset.roles] = !S.rolesOpen[b.dataset.roles]; render(); };
+    });
+    document.querySelectorAll('input[id^="m-"]').forEach(function(inp){
+      var r = rig(inp.id.slice(2));
+      inp.oninput = function(){ r.master = fromPos(+inp.value); S.sel = r.id;
+        if(S.live){ log("", r.room+": live write "+Math.round(r.master*100)+"% ("+emitTotal(r)+" lights)"); } else { S.pending[r.id]=true; }
+        refreshReadouts(r); var c = document.querySelector('[data-rig="'+r.id+'"] .chip'); if(c&&!S.live){ c.className="chip busy"; c.textContent="Changed · release to write"; } };
+      inp.onchange = function(){ if(Math.abs(r.master-1)<1e-9) inp.value = toPos(1); apply(r, "whole rig "+Math.round(r.master*100)+"%"); };
+    });
+    document.querySelectorAll("input[data-role]").forEach(function(inp){
+      var p = inp.dataset.role.split(":"), r = rig(p[0]), ro = r.roles[+p[1]];
+      inp.oninput = function(){ ro.pct = fromPos(+inp.value); S.sel = r.id; if(!S.live) S.pending[r.id]=true; refreshReadouts(r); };
+      inp.onchange = function(){ apply(r, ro.label+" "+Math.round(ro.pct*100)+"%"); };
+    });
+    document.querySelectorAll("[data-sw]").forEach(function(b){
+      var p = b.dataset.sw.split(":"), r = rig(p[0]), ro = r.roles[+p[1]];
+      b.onclick = function(){ ro.on = !ro.on; S.sel = r.id; apply(r, ro.label+(ro.on?" ON (back to its value)":" OFF (written as 0 lm on purpose)")); };
+    });
+    document.querySelectorAll("[data-reset]").forEach(function(b){
+      b.onclick = function(){ var r = rig(b.dataset.reset); r.master = 1; r.roles.forEach(function(ro){ ro.pct = 1; if(!ro.skip) ro.on = true; }); S.sel=r.id; apply(r, "reset to tuned (100%)"); };
+    });
+    document.querySelectorAll("[data-revert]").forEach(function(b){
+      b.onclick = function(){ var r = rig(b.dataset.revert), o = S.opened.filter(function(x){return x.id===r.id;})[0];
+        r.master = o.master; r.roles.forEach(function(ro,i){ ro.pct = o.roles[i].pct; ro.on = o.roles[i].on; }); S.sel=r.id; apply(r, "reverted to the values when the window opened"); };
+    });
+    document.querySelectorAll("[data-select]").forEach(function(b){
+      b.onclick = function(){ log("", rig(b.dataset.select).room+": selected "+emitTotal(rig(b.dataset.select))+" lights and their fixture groups in the viewport"); };
+    });
+  }
+
+  function setMode(m){ S.mode = m; ["many","one","none"].forEach(function(k){ $("st-"+k).setAttribute("aria-pressed", String(k===m)); }); render(); }
+  $("st-many").onclick = function(){ setMode("many"); };
+  $("st-one").onclick = function(){ setMode("one"); };
+  $("st-none").onclick = function(){ setMode("none"); };
+  function setLive(v){ S.live = v; $("wm-live").setAttribute("aria-pressed", String(v)); $("wm-release").setAttribute("aria-pressed", String(!v));
+    log(v?"w":"", v ? "Live mode: every slider step writes up to 65 lights to V-Ray. Each write is a transaction, and drift has hit nearly every drop." : "On release: while you drag, only the readout moves. One write when you let go."); }
+  $("wm-release").onclick = function(){ setLive(false); };
+  $("wm-live").onclick = function(){ setLive(true); };
+  $("refresh").onclick = function(){ log("", "Refresh: re-read the model and the V-Ray scene"); render(); };
+  $("checkAll").onclick = function(){ visible().forEach(function(r){ log("", r.room+": audit…"); }); log("g","All rigs: AUDIT OK — nothing to repair"); };
+  $("drop").onclick = function(){ log("", "Opens today’s Drop the lights settings for the selection. When it finishes, this list refreshes."); };
+  $("resetDemo").onclick = function(){ S.rigs = seed(); S.opened = JSON.parse(JSON.stringify(S.rigs)); S.sel="r1"; S.rolesOpen={r1:true}; S.applies=0; S.pending={}; logLines=[]; $("log").innerHTML=""; setMode("many"); log("","Demo reset."); };
+
+  log("", "Window opened from the panel. Nothing was selected, and nothing needed to be.");
+  render();
+})();
+</script>
