@@ -1,33 +1,27 @@
 # GOAL
 
 ## Mission
-Company A client proposal, built from the saved SketchUp file and improved
-through ranked iterations. **Delivered 12 Sep; awaiting Benton's decisions.**
+Take off the client's target rooms from two real-estate floor plans (suites 128 and
+114) and build them in the live SketchUp 2026 model through the bridge, so Benton can
+place the quoted booth in them.
 
-## Result
-- Images: 9 plates + 3 V-Ray renders in `Z:\Sketchup\Proposals\Company A\`,
-  hand-off in `HANDOFF.md` there.
-- PDFs: `C:\Users\bento\Desktop\ProposalFiles\Company A\Company A-Booth-Renderings-v0..v4.pdf`.
-- Rank: baseline 5.6 -> v4 6.8. Independent cold grade on v4 **6.8**, per-dim
-  gap <= 1 (no drift). Target 8 NOT met. Loop stopped after 4 of 5 iterations:
-  every remaining gain needs SketchUp work, a new image, or a Benton decision.
-- Review page: Company A Proposal Review artifact.
+## Done means
+- `clients/suites-128-114/takeoff.json` passes `takeoff-check.py`; lock + review sheet generated.
+- Built via `WR_BuildTakeoff.build_from` into the open Untitled model: 128's 13'3" x 9'3"
+  room, and 114's two adjacent rooms (10'10" x 9'10" and 10'11" x 9'10"), dimensioned,
+  every assumed value noted in the model.
+- A viewport screenshot confirms the build; notes.md records the read; committed and pushed.
 
-## Now — decisions only Benton can make
-1. Allow the proposal to name WhisperRoom's own products (model, ventilation)
-   from the quote/model, cross-checked against renders. The pinned rubric
-   accepts only render-readable facts, which is stricter than CLAUDE.md.
-2. Which way the booth door opens, so its swing can be drawn on the plan.
-3. Approve SketchUp work: height/footprint callouts ending on the booth and
-   labelled; back-wall and plan re-exported at 2400 px+.
+## Now
+Built and pushed (e0056ce, 9d5e7a1): three rooms plus the quoted MDL 4872 S placed in each,
+live model unsaved. Waiting on Benton: ceiling heights, which way the 114 east booth faces,
+review-sheet answers, and whether he deleted a pre-existing "Room" group between 10:06 and 10:14.
 
-## Known defects carried forward
-- AUTO-SET should switch off rig emitters over the booth when it hides the
-  ceiling (03-high r blowout); a per-export override was used instead.
-- Company A.skp is modified in memory (tag hides, side/plan cameras), unsaved.
-- Deferred: interior-plan scene (file-naming question open).
+## Out of scope
+- Choosing or placing a booth. No quote yet; the model comes off the quote.
+- The fallback "far back" rooms in either suite, unless Benton asks.
+- Proposal renders.
 
 ## History
-- Plugin 1.69.0 pushed, remote == local. Door frame is the front reference.
-- Lighting settled at 8.2 (i02 floor); holds at 8.0 on the 4872 layout.
-- Sub-agents run on opus.
+- Company A proposal delivered 12 Sep at 6.8/8; three Benton decisions still open
+  (see DEVLOG 2026-09-12 handoff). Floor pick i02/i04 open; Benton is testing floors.
