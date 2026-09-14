@@ -1,71 +1,55 @@
-# HANDOFF — Builder: AUTO-SET the proposal package from a selected booth (1.48.0)
+# HANDOFF — Builder: Suites 128 & 114 take-off, built live (14 Sep 2026)
 
-The previous mission's builder handoff (the step from the booth link, 1.45.0) is preserved
-verbatim as `.forge/builder/HANDOFF-booth-link-step.md` — the scoper's own convention for
-this baton pass.
-
-10 Sep 2026. Built from `.forge/scoper/proposal-autoset.md` (11 sections), artifact
-approved by Benton. Q1 = 2 renders (a knob, not a constant), Q2 = plate 3 is a FRONT
-elevation. Q3/Q4/Q5 taken at their defaults: interior plate off, no sun presets, the
-other booth stays visible.
+The previous builder handoff (AUTO-SET, 1.48.0) is preserved verbatim as
+`.forge/builder/HANDOFF-autoset.md`.
 
 ## Produced
-- `scripts/wr-autoset.rb` — **new.** `WR_AutoSet`: the resolver, the six plates, the
-  render ladder, the annotation allowlist, the camera-cone wall rule, the stamp and the
-  containment rule, the writer, the undo step, and `row_states` (the review columns).
-  A **library** — added to `wr_tools/main.rb`'s `SKIP` list, so no `@title`/`@cat`/`@rank`
-  and no `icon-map.json` entry. That is the `wr-scene-sun.rb` convention; the assignment's
-  guess (tool headers + icon) was wrong for a library and CLAUDE.md/`main.rb` settle it.
-- `scripts/proposal-package.rb` — loads `wr-autoset.rb`; `WR_AutoSet` joined `undo_mod`;
-  `state()` gained per-row `walls`/`annots` + a `deep` flag; new `row_states` /
-  `invalidate_rows!` / `rows_changed` / `log_row_cost` / `autoset_payload` /
-  `autoset_push`; four callbacks (`autosetopen`, `autosetpick`, `autosetapply`,
-  `autosetclose`); the AUTO-SET bar, the `#gwrap` popover, its CSS, and the
-  `wallsCell` / `annotsCell` renderers in `draw()`.
-- `scripts/proposal-scenes.rb` — two cosmetic changes only, no behaviour: `@title` says
-  "(legacy - fixed five, no booth)", and `report` points at AUTO-SET and names the
-  side-vs-front difference.
-- `scripts/rbtest-autoset.py` — **new**, 63 checks + an allowlist-vs-denylist source check.
-- `scripts/jstest-proposal-dialog.js` — 8 new checks for the review columns.
-- `scripts/wr_tools/VERSION` 1.47.0 → 1.48.0. `scripts/wr_tools/main.rb` SKIP list.
-- `.forge/builder/verify-autoset.rb` — **the live half. UNRUN.**
-- `DEVLOG.md` — entry on top.
+- `clients/suites-128-114/takeoff.json` — three rooms:
+  - "Suite 128 — 13'3 x 9'3 room": 6 runs, with the powder-room jog.
+  - "Suite 114 — 10'10 x 9'10 room" and "Suite 114 — 10'11 x 9'10 room": side by side
+    with the true scaled 7" partition offset.
+- `clients/suites-128-114/notes.md` — the read, px/in per room axis, provenance per
+  dimension, open questions.
+- Plans copied to `clients/suites-128-114/plans/` (gitignored, verified with
+  `git check-ignore`). The lock and review sheet are generated and gitignored.
+- Screenshots (not committed): `.forge/builder/suites-128-114/suite-128-top.png`,
+  `.forge/builder/suites-128-114/suite-114-top.png`.
+- No script under `scripts/` was changed, so there is no VERSION bump.
 
-## Read-first (whoever is next)
-1. The header of `scripts/wr-autoset.rb` — the allowlist and the containment rule, in full.
-   They are the two things that must not be "simplified".
-2. `scripts/rbtest-autoset.py`'s docstring — the nine mutants and which check each kills.
-3. **`.forge/builder/verify-autoset.rb` has not been run.** Everything about page
-   creation, the stamp across a re-run, what a scene actually saves, the undo step and
-   the measured cost of the deep read is UNVERIFIED until Benton pastes it into the Ruby
-   Console of an Untitled model.
-4. `main.rb` changed, so this release needs `git pull` + `install-plugin.py` + restart on
-   another machine, not just a pull.
+## Verified
+- **observed:** `takeoff-check.py --html` exit 0 on the first run. 18 flagged values and
+  3 assumed hinges. The door words line matches the intended corner for all three doors.
+- **observed:** built via the bridge with `WR_BuildTakeoff.build_from(lock)` into SketchUp
+  2026 Untitled.
+  - The job refuses if `model.path` is non-empty; it was empty.
+  - Report: 128 = 6 runs, 8 wall solids, 1 door; each 114 room = 4 runs, 6 solids, 1 door;
+    ceilings 8'-0". 20 dimension entities at model level.
+  - Model left unsaved.
+- **observed (screenshots):**
+  - 128: closed, jog present, door on the east wall at the north end, hinge at the north
+    jamb, swinging in.
+  - 114: both rooms closed and meeting in the partition (walls touch at x=833.5"); the
+    west door is hinged west, the east door hinged east, both swinging in.
+  - Every wall is dimensioned.
 
-## Assumptions
-- **observed (run, this session):** `rbparse.py` 75/75 clean; `rbtest-autoset.py` 63/63;
-  every other `rbtest-*.py` unchanged and exit 0 (`rbtest-live-booth.py` needs a live
-  SketchUp and a subcommand — pre-existing, untouched); `node --check` and
-  `jstest-proposal-dialog.js` PASS; nine Ruby mutants and four JS mutants each made the
-  NAMED check fail and were reverted.
-- **derived:** that `write_scene` (not `apply`) is the right seam for a multi-page run;
-  that a re-aim needs its own `page.update(PAGE_USE_CAMERA)` because the walls' mask saves
-  hidden state only; that the door heading must be read from the BOOTH's own subtree, or a
-  two-booth model averages both doors.
-- **assumed, and flagged:** that containers nested below the booth carry identity
-  transforms (`tag_az`'s stated caveat — the same one `side_of` documents); that
-  `Page#layers` returns the hidden tags (observed by others, 31 Aug 2026, not by me).
-- **NOT run, and must not be claimed as run:** anything in SketchUp. No dialog has been
-  opened, no scene created, no PNG exported. The D5 export check (§7's last line — open
-  every exported PNG and confirm no `Ceiling 8'-0" - HOUSE DEFAULT` banner) is Benton's.
+## Not done / gaps
+- The model also contains a group named "Room" at x -184..304" that predates this job;
+  it was not touched and the new rooms are placed clear of it.
+- `WR-Ceiling` tag hidden for the shots (a model-state change, unsaved).
+- **No door corner → jamb dimensions** are drawn: `build-takeoff.rb` doesn't make them.
+- 114's dimensioner puts some 9'10" strings inside the neighbouring room, and 128's
+  1'8 3/4" jog label overlaps the wall. Both are cosmetic, and both come from the
+  dimensioner, which was not changed.
+- "Every assumed value noted in the model" (GOAL) is **not** how the builder works:
+  `NOTES_IN_MODEL = false` by Benton's 1 Sep rule. The assumptions are in the build
+  report, the lock and the review sheet.
+- Review sheet not published (orchestrator publishes).
 
 ## Open questions
-- The deep read's cost is still a number nobody has: `verify-autoset.rb` prints it, and
-  `DEEP_BUDGET` (2.5 s) is a guess until it does. If it comes back slow, the fallback is
-  already built and automatic.
-- `06-interior`'s framing is a placeholder (eye 0.55·r inside, looking back across the
-  booth). It is off by default and nudge-and-re-save is the documented answer, but nobody
-  has looked at one.
-- Whether Benton wants AUTO-SET's plate 3 change reflected back into
-  `proposal-scenes.rb`'s own `03-side`. Left alone deliberately — §9 forbids behaviour
-  changes there — but both packs on disk want a front elevation, so it is worth asking.
+Ceiling heights (both suites); the 128 jog; door hinges, widths and positions; the 114
+labels vs the drawing (the "10'11"" room draws narrower); which room is "far back".
+Full list in `clients/suites-128-114/notes.md`.
+
+## Follow-on in progress
+Coordinator asked for the quoted booth (MDL 4872 S, link `#3=AQUkM4VkAQUHBAoBAAYA`) to be
+placed in each target room. See the section appended below when done.
