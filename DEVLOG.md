@@ -1,6 +1,35 @@
 # DEVLOG
 
 ## 2026-09-14
+### 1.71.0 - DIMENSION SELECTED ROOM: one press, every wall dimensioned, rerun replaces. PARSED AND UNIT-TESTED ONLY: not run in SketchUp (a saved client model was open, so the bridge was not used).
+
+Benton: "select a room, press the button, and it set all the dimensions of the walls. Maybe 3ft away from the edge on the outside ones." The old "Dimension the room..." ability is unchanged.
+
+## What shipped
+- **New TOOLS button** `scripts/dimension-room-now.rb` ("Dimension selected room", Add dimensions, icon dim-room). No ability, no prompts.
+  - Each selected group, component or face that holds a floor is one room; several selected rooms are each dimensioned. A floor picked while editing inside the room reads the walls of the room being edited.
+  - All rooms go in ONE undo step, `Dimension selected room`.
+- **Rows:** the chain sits 36" outside the wall's EXTERIOR face, which is interior face + thickness + 36. Doors sit 13" beyond it and the overall 28" beyond it (the ability's own 33-20 and 48-20 bands).
+- **Wall thickness is read**, per run, off the vertical faces on WR-Room (all vertical faces if the room has no WR-Room tag). It takes the nearest parallel face outside the interior line (0.5-24") that covers at least half the run, so door-split walls read and a jogged neighbour does not. Runs that disagree take the thickest and say so. **If nothing reads, it falls back to 4"**, printed on the console and in the result line.
+- **Ownership is a stamp:** `WR_RoomDims/own` + `WR_RoomDims/room` = room persistent id, on every dimension and construction point it draws. A rerun erases exactly that room's stamped entities first. Nothing unstamped is touched.
+- **Result:** one line per room (runs, dims, doors, closure, wall read) in the panel's existing 6-second note line when the panel is open, plus the status bar. The engine's full run table / closure report is still printed to the console per room. Nothing selected gives one message: the panel note, or a messagebox when no panel is showing (the bridge's ModalBlocked is rescued).
+
+## Engine changes (`scripts/auto-dimension.rb`), all additive with defaults unchanged
+- `pick_floor(pool)` split out of `floor_face` (same rule).
+- `door_bounds_on_run(bb, runs)`: `door_on_run` delegates to it.
+- `dimension_face` opts: `:seg_off / :door_off / :ovr_off`, `:doors` (world boxes), `:anchor => :cpoint`, `:own` (a callback on each created entity). The result gains `:created`. build-room, build-takeoff and the ability pass none of these.
+
+## Gotchas / known limits
+- **The old ability owns WR-Dims and WR-Dims-Doors outright**, so switching it on or off also clears this tool's dimensions. That is deliberate: sharing the tags keeps proposal scenes hiding these on non-dimensioned plates.
+- **Anchors are world ConstructionPoints** (the dimension-whisperroom.rb route), not nested vertices. The set does not follow a room moved afterwards; press again.
+- **Doors inside room groups are now found** by this tool (the long-standing `doors_on` top-level-only gap). The ability and the builders still use the top-level scan.
+- A rotated room keeps the engine's existing behaviour: the overalls are world extents, and closure reports angled runs as not proven.
+
+## Verified
+- `python scripts/rbparse.py`: 77 files parse (observed).
+- `python scripts/rbtest-roomdims.py`: 28 checks pass (observed): offsets (with the band steps read from the engine's constants), per-run thickness on 4/5.5/6" rectangles, reversed normals, a door-split wall, a jog, out-of-range and perpendicular faces, room agreement/fallback, verdict and line text. Mutation-checked: chain clearance 36->20, the half-coverage rule removed, and the inner-face exclusion removed each FAIL.
+- **Not verified live:** placement in SketchUp, rerun count, the note line, and the reads on a real build-room room. Manual check: build a room with Draw floor plan, select it, press twice, and count the dimensions (the count should be the same after both presses). Measure from the outer wall face to the chain (expect 36"), and confirm the console says the chains close.
+
 ### 1.70.0 - INTERIOR LIGHTS PANEL: a modeless window that adjusts a rig already in the model. It is now the main lights UI. PARSED AND UNIT-TESTED ONLY: no write path has run in SketchUp.
 
 Spec: `.forge/scoper/drop-lights-panel/SPEC.md`. Benton's answers are recorded in its §7 and override the Scoper's recommendations.

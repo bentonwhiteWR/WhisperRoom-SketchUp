@@ -96,6 +96,13 @@ module WR_AutoDimension
     sel = model.selection
     src = sel.empty? ? model.entities : sel.to_a
     collect(src, pool, 0, Geom::Transformation.new)
+    pick_floor(pool)
+  end
+
+  # The floor out of an already-collected [face, transform] pool. Split out of
+  # floor_face so dimension-room-now.rb can pick one floor PER selected room
+  # with exactly this rule, rather than one floor for the whole selection.
+  def self.pick_floor(pool)
     flat = pool.select do |f, tr|
       f.normal.transform(tr).parallel?(Z_AXIS) && f.area(tr) > 100.0
     end
@@ -321,7 +328,14 @@ module WR_AutoDimension
   # Which run does this door sit on, and where along it? Corner -> near jamb,
   # then the opening width, which is how a booth actually gets placed.
   def self.door_on_run(door, runs)
-    c = door.bounds.center
+    door_bounds_on_run(door.bounds, runs)
+  end
+
+  # The same test on a bounding box that is ALREADY in world space. A door
+  # nested inside a room group has bounds in its parent's space, so the caller
+  # that found it transforms them first (dimension-room-now.rb does).
+  def self.door_bounds_on_run(bb, runs)
+    c = bb.center
     best = nil
     runs.each_with_index do |r, i|
       v = r[:vec]
@@ -337,8 +351,7 @@ module WR_AutoDimension
     r = runs[best[1]]
     u = r[:vec].normalize
     # Project the door's own footprint onto the run to get both jambs.
-    bb = door.bounds
-    ts = [bb.min, bb.max,
+    ts =[bb.min, bb.max,
           Geom::Point3d.new(bb.min.x, bb.max.y, bb.min.z),
           Geom::Point3d.new(bb.max.x, bb.min.y, bb.min.z)].map { |p| (p - r[:a]).dot(u) }
     { :run => best[1], :t0 => ts.min, :t1 => ts.max }
@@ -386,9 +399,26 @@ module WR_AutoDimension
   # opts[:transform] is the face's local -> world transform. It defaults to
   # identity, which is exactly right for build-room.rb: it hands over a face in
   # a group it created moments earlier, whose transformation is still identity.
+  #
+  # Optional, all added for dimension-room-now.rb, and every one DEFAULTS TO
+  # WHAT THIS METHOD ALWAYS DID, so build-room, build-takeoff and the ability
+  # draw exactly as before:
+  #   :seg_off / :door_off / :ovr_off   standoffs in inches (SEG_OFF etc.)
+  #   :doors    world-space BoundingBoxes to dimension as doors, instead of
+  #             the top-level WR-Doors scan (which cannot see nested doors)
+  #   :anchor   :cpoint = hang every dimension on a ConstructionPoint in
+  #             model.entities at the WORLD point (one per position), the
+  #             route dimension-whisperroom.rb proved, instead of a bare
+  #             nested Vertex that carries its group's local coordinates
+  #   :own      called with every entity this draws (dimensions and
+  #             construction points), so a caller can stamp its ownership
+  # The result also carries :created, the same list.
   def self.dimension_face(face, opts = {})
     model = face.model
     tr    = opts[:transform] || Geom::Transformation.new
+    seg_off  = (opts[:seg_off]  || SEG_OFF).to_f
+    door_off = (opts[:door_off] || DOOR_OFF).to_f
+    ovr_off  = (opts[:ovr_off]  || OVR_OFF).to_f
     runs  = runs_of(face, tr)
     raise 'could not read a closed outer loop off that face' if runs.size < 3
 
@@ -410,7 +440,24 @@ module WR_AutoDimension
     made = 0
     loose = 0
     table = []
+    created = []
+    keep = lambda do |e|
+      if e
+        created << e
+        opts[:own].call(e) if opts[:own]
+      end
+      e
+    end
+    cpoints = []   # [world point, ConstructionPoint] — one per position
     at = lambda do |pt|
+      if opts[:anchor] == :cpoint
+        hit = cpoints.find { |p, _| p.distance(pt) <= ATTACH_TOL }
+        next hit[1] if hit
+        cp = keep.call(cpoint_for(ents, pt, nil, t_dim))
+        loose += 1 if cp.nil?
+        cpoints << [pt, cp] if cp
+        next cp || pt
+      end
       r = attach_for(pt, vidx, path)
       loose += 1 if r.nil?
       r || pt
@@ -419,45 +466,46 @@ module WR_AutoDimension
     # 1. The segment chain — one dimension per in-line run, on every side.
     runs.each_with_index do |r, i|
       n = outward(r, ccw)
-      off = Geom::Vector3d.new(n.x * SEG_OFF, n.y * SEG_OFF, 0)
-      made += 1 if dim(ents, at.call(r[:a]), at.call(r[:b]), off, t_dim)
+      off = Geom::Vector3d.new(n.x * seg_off, n.y * seg_off, 0)
+      made += 1 if keep.call(dim(ents, at.call(r[:a]), at.call(r[:b]), off, t_dim))
       table << [i + 1, r[:vec].length.to_f, direction_of(r[:vec])]
     end
 
     # 2. The overall, outside the chain. Two dimensions, not a bounding box.
     z = bb.min.z
-    ox = OVR_OFF
-    made += 1 if dim(ents,
+    ox = ovr_off
+    made += 1 if keep.call(dim(ents,
                      at.call(Geom::Point3d.new(bb.min.x, bb.min.y, z)),
                      at.call(Geom::Point3d.new(bb.max.x, bb.min.y, z)),
-                     Geom::Vector3d.new(0, -ox, 0), t_dim)
-    made += 1 if dim(ents,
+                     Geom::Vector3d.new(0, -ox, 0), t_dim))
+    made += 1 if keep.call(dim(ents,
                      at.call(Geom::Point3d.new(bb.min.x, bb.min.y, z)),
                      at.call(Geom::Point3d.new(bb.min.x, bb.max.y, z)),
-                     Geom::Vector3d.new(-ox, 0, 0), t_dim)
+                     Geom::Vector3d.new(-ox, 0, 0), t_dim))
 
     # 3. Doors, on their own tag so they read as secondary.
     doors = 0
-    doors_on(model).each do |d|
-      hit = door_on_run(d, runs)
+    boxes = opts[:doors] || doors_on(model).map(&:bounds)
+    boxes.each do |dbb|
+      hit = door_bounds_on_run(dbb, runs)
       next unless hit
       r = runs[hit[:run]]
       u = r[:vec].normalize
       n = outward(r, ccw)
-      off = Geom::Vector3d.new(n.x * DOOR_OFF, n.y * DOOR_OFF, 0)
+      off = Geom::Vector3d.new(n.x * door_off, n.y * door_off, 0)
       j0 = r[:a].offset(u, hit[:t0])
       j1 = r[:a].offset(u, hit[:t1])
       # The jambs are mid-edge, so there is no vertex to attach to: give them
       # construction points on the door tag, which move with the room.
-      c0 = cpoint_for(ents, j0, path, t_door) || j0
-      c1 = cpoint_for(ents, j1, path, t_door) || j1
-      made += 1 if dim(ents, at.call(r[:a]), c0, off, t_door)  # corner -> near jamb
-      made += 1 if dim(ents, c0, c1, off, t_door)              # opening width
+      c0 = keep.call(cpoint_for(ents, j0, path, t_door)) || j0
+      c1 = keep.call(cpoint_for(ents, j1, path, t_door)) || j1
+      made += 1 if keep.call(dim(ents, at.call(r[:a]), c0, off, t_door))  # corner -> near jamb
+      made += 1 if keep.call(dim(ents, c0, c1, off, t_door))              # opening width
       doors += 1
     end
 
     { :runs => runs, :table => table, :made => made, :doors => doors,
-      :loose => loose,
+      :loose => loose, :created => created,
       :closure => closure(runs, bb), :ccw => ccw, :bounds => bb }
   end
 
