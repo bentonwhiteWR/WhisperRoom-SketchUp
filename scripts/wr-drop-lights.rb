@@ -222,6 +222,7 @@
 # and never a silent no-op.
 
 require 'sketchup.rb'
+require 'json'
 
 # Reload guard. A console re-`load` of this file used to print ~20
 # "already initialized constant" warnings: the module body re-assigns every
@@ -2224,6 +2225,205 @@ module WR_DropLights
     return :opening if tag_name == 'WR-Doors' || disp_name =~ /\Aopening/i
     return :leaf if disp_name =~ /\Adoor leaf/i
     nil
+  end
+
+  # ======================================================================
+  # THE INTERIOR LIGHTS PANEL — the pure half (1.70.0)
+  #
+  # The window that adjusts a rig AFTER it is dropped (spec:
+  # .forge/scoper/drop-lights-panel/SPEC.md, Benton's answers in its §7).
+  # Everything here is maths on plain values, so rbtest-lights.py runs it.
+  #
+  # 100% IS WHAT THIS DROP WROTE (Benton, Q1). Not the office defaults, not
+  # the 8.2 scored rig: every light is stamped `lumens_base` at drop time, and
+  # a light from before 1.70.0 with no stamp takes its current `lumens` as its
+  # 100% (light_base). So "Reset to tuned" always means "exactly the drop".
+  # ======================================================================
+  PANEL_PCT_MIN = 0.10   # slider floor, 10% (Benton, Q2)
+  PANEL_PCT_MAX = 3.00   # slider ceiling, 300%
+  PANEL_STEPS = 1000     # <input type=range> resolution
+  PANEL_DETENT = 0.035   # within 3.5% of 100% the slider snaps to 100%
+  LIVE_GAP = 0.25        # s between live V-Ray writes: at most 4 a second (Q3)
+  AUDIT_SETTLE = 4.0     # s after a write before the audit reads V-Ray back
+
+  # How the panel groups roles for PEOPLE. The office rig's aperture and its
+  # hidden plenum emitter are one ceiling position and scale together, so the
+  # PANEL_VISIBLE_SHARE split holds. A role not named here (the classic rig's
+  # key / rim / foam ...) is its own group, labelled from LIGHT_LAYERS.
+  ROLE_GROUPS = { 'panel' => { :label => 'Ceiling panels', :roles => %w[panel plenum], :unit => 'positions' }, 'fill' => { :label => 'Fill spheres', :roles => %w[fill], :unit => 'spheres' }, 'facewash' => { :label => 'Booth face wash', :roles => %w[facewash], :unit => 'panel' } }.freeze
+
+  # A brightness multiplier forced into the slider's range. Anything that is
+  # not a finite number (a missing JSON field) reads as 100%, never as 10%.
+  def self.clamp_pct(v)
+    return 1.0 unless v.is_a?(Numeric) && (v * 1.0).finite?
+    [[v * 1.0, PANEL_PCT_MIN].max, PANEL_PCT_MAX].min
+  end
+
+  # Slider position (0..PANEL_STEPS) -> multiplier, LOG scale: equal travel is
+  # equal stops, which is the honest unit (DEVLOG 1.66.0: the encoded image
+  # does not move 1:1 with lumens). Snaps to exactly 1.0 near the middle.
+  def self.slider_pct(pos)
+    p = pos.is_a?(Numeric) ? pos * 1.0 : 0.0
+    p = 0.0 if p < 0.0
+    p = PANEL_STEPS * 1.0 if p > PANEL_STEPS
+    v = PANEL_PCT_MIN * ((PANEL_PCT_MAX / PANEL_PCT_MIN)**(p / PANEL_STEPS))
+    (v - 1.0).abs < PANEL_DETENT ? 1.0 : v
+  end
+
+  # Multiplier -> slider position; the inverse of slider_pct, clamped.
+  def self.slider_pos(pct)
+    v = clamp_pct(pct)
+    (PANEL_STEPS * Math.log(v / PANEL_PCT_MIN) / Math.log(PANEL_PCT_MAX / PANEL_PCT_MIN)).round
+  end
+
+  # "tuned", "+1.00 stops", "-0.74 stops".
+  def self.stops_text(v)
+    x = clamp_pct(v)
+    return 'tuned' if (x - 1.0).abs < 1e-9
+    s = Math.log(x) / Math.log(2.0)
+    format('%s%.2f stops', s >= 0 ? '+' : '-', s.abs)
+  end
+
+  # The one write rule: lumens = base x master x type %, or 0 when the type is
+  # switched off. 0 is what audit_verdict already reads as OFF, not DEAD.
+  def self.rig_lumens(base, master, pct, on)
+    return 0.0 unless on
+    return 0.0 unless base.is_a?(Numeric) && base > 0.0
+    base * 1.0 * clamp_pct(master) * clamp_pct(pct)
+  end
+
+  # [100% lumens, legacy?]. A light stamped at 1.70.0+ carries lumens_base; an
+  # older one falls back to what it holds now (Benton, Q1). [nil, true] when
+  # the light has neither stamp and cannot be scaled at all.
+  def self.light_base(base_stamp, lumens_stamp)
+    return [base_stamp * 1.0, false] if base_stamp.is_a?(Numeric)
+    return [lumens_stamp * 1.0, true] if lumens_stamp.is_a?(Numeric)
+    [nil, true]
+  end
+
+  # The panel group a light role belongs to; nil for a fixture group or an
+  # unstamped entity (those are not lights).
+  def self.role_group(role)
+    r = role.to_s
+    return nil if r.empty? || r.start_with?('fixture')
+    ROLE_GROUPS.each { |g, spec| return g if spec[:roles].include?(r) }
+    r
+  end
+
+  # The list unit is the ROOM. A light that knows its room (stamped, or found
+  # inside one) keys on the room's persistent id; one that does not falls back
+  # to its press, so a rig standing outside every room still gets a card.
+  def self.rig_key(room_pid, uuid)
+    return "room:#{room_pid}" if room_pid.is_a?(Integer) || room_pid.to_s =~ /\A\d+\z/
+    u = uuid.to_s
+    u.empty? ? 'loose' : "press:#{u}"
+  end
+
+  # rows: [{ 'key', 'role', 'base', 'lumens' }, ...] in model order. Returns
+  # the rigs in first-seen order: { 'key', 'count', 'legacy', 'groups' =>
+  # { group => { 'n', 'base_sum', 'lm_sum', 'roles' => { role => n } } } }.
+  def self.group_rows(rows)
+    rigs = {}
+    order = []
+    rows.each do |r|
+      g = role_group(r['role'])
+      next if g.nil?
+      k = r['key'].to_s
+      unless rigs.key?(k)
+        rigs[k] = { 'key' => k, 'count' => 0, 'legacy' => false, 'groups' => {} }
+        order << k
+      end
+      rig = rigs[k]
+      base, legacy = light_base(r['base'], r['lumens'])
+      rig['count'] += 1
+      rig['legacy'] ||= legacy
+      grp = (rig['groups'][g] ||= { 'n' => 0, 'base_sum' => 0.0, 'lm_sum' => 0.0, 'roles' => {} })
+      grp['n'] += 1
+      # No .to_f on a Float here: rbtest-lights.py runs this in a bare VM
+      # without the numeric prelude, where Float#to_f does not exist.
+      grp['base_sum'] += base.is_a?(Numeric) ? base : 0.0
+      grp['lm_sum'] += r['lumens'].is_a?(Numeric) ? r['lumens'] : 0.0
+      rn = r['role'].to_s
+      grp['roles'][rn] = (grp['roles'][rn] || 0) + 1
+    end
+    order.map { |k| rigs[k] }
+  end
+
+  # What a person counts: ceiling POSITIONS (one per plenum emitter, or per
+  # aperture on a rig with no plenum), otherwise lights.
+  def self.group_count(g, grp)
+    return 0 if grp.nil?
+    return (grp['roles']['plenum'] || grp['roles']['panel'] || 0) if g == 'panel'
+    grp['n']
+  end
+
+  # The stored per-rig state (a parsed Hash, or anything) made safe for the
+  # groups this rig really has. `k` is a per-type Kelvin override, nil = each
+  # light keeps the Kelvin it was dropped at.
+  def self.parse_rig_state(h, groups)
+    h = {} unless h.is_a?(Hash)
+    roles_in = h['roles'].is_a?(Hash) ? h['roles'] : {}
+    roles = {}
+    groups.each do |g|
+      o = roles_in[g].is_a?(Hash) ? roles_in[g] : {}
+      k = o['k']
+      k = nil unless k.is_a?(Numeric) && k >= 1000 && k <= 12_000
+      roles[g] = { 'pct' => o.key?('pct') ? clamp_pct(o['pct']) : 1.0,
+                   'on' => o.key?('on') ? (o['on'] ? true : false) : true,
+                   'k' => k.nil? ? nil : (k.is_a?(Integer) ? k : k.round) }
+    end
+    { 'master' => h.key?('master') ? clamp_pct(h['master']) : 1.0, 'roles' => roles }
+  end
+
+  # The Kelvin a light should carry: the type override, else its own drop
+  # Kelvin, else nil (unknown - and then no colour is written at all).
+  def self.light_kelvin(state_k, base_k)
+    return (state_k.is_a?(Integer) ? state_k : state_k.round) if state_k.is_a?(Numeric)
+    return (base_k.is_a?(Integer) ? base_k : base_k.round) if base_k.is_a?(Numeric)
+    nil
+  end
+
+  # THE LIVE-DRAG THROTTLE (Q3). One decision per slider event:
+  #   [:now, 0]      write this one immediately
+  #   [:arm, delay]  too soon - arm a one-shot timer that writes the LATEST
+  #                  pending value when it fires
+  #   [:coalesce, 0] a timer is already armed; it will pick this value up
+  # So at most one write per `gap`, nothing queued behind it, and the last
+  # value always lands. The release write is separate and unconditional.
+  def self.throttle_decision(now, last_at, gap, armed)
+    return [:coalesce, 0.0] if armed
+    return [:now, 0.0] if last_at.nil? || now - last_at >= gap
+    [:arm, gap - (now - last_at)]
+  end
+
+  # audit_verdict's fault lists cut down to one rig's plugins.
+  def self.rig_faults(verdict, plugins)
+    set = {}
+    Array(plugins).each { |p| set[p.to_s] = true }
+    pick = lambda { |list| Array(list).select { |x| set[(x.is_a?(Array) ? x[0] : x).to_s] } }
+    { 'dead' => pick.call(verdict['dead']), 'wrong' => pick.call(verdict['wrong']),
+      'seen' => pick.call(verdict['seen']), 'missing' => pick.call(verdict['missing']),
+      'off' => pick.call(verdict['off']) }
+  end
+
+  def self.fault_count(f)
+    %w[dead wrong seen missing].inject(0) { |a, k| a + Array(f[k]).size }
+  end
+
+  # THE AUTO-REPAIR FENCE. Should V-Ray be pushed back to this light's stamp?
+  # A visibility flip or a factory reset (<= FACTORY_INTENSITY) is always
+  # drift. An intensity that is only DIFFERENT is drift on a light the panel
+  # OWNS (stamped lumens_base, or written this session) but may be a HAND
+  # EDIT on an older rig -- observed 14 Sep 2026 on a client model, where
+  # seven emitters held exactly 1% of their stamps. Pushing those back on
+  # every Refresh would make the room 100x brighter unasked, so there only
+  # the explicit Check & repair (`force`) takes them.
+  def self.repairable(got, want, vis_bad, owned, force)
+    return true if vis_bad
+    return true unless got.is_a?(Numeric)
+    return false if want.is_a?(Numeric) && (got - want).abs <= 0.5
+    return true if got <= FACTORY_INTENSITY
+    force || owned ? true : false
   end
 
   # ======================================================================
@@ -4741,6 +4941,1210 @@ paint(); drawPresets("");
     format('(%.1f", %.1f", %.1f")', pt[0], pt[1], pt[2])
   end
 
+  # ==========================================================================
+  # THE INTERIOR LIGHTS PANEL (1.70.0) — the SketchUp / V-Ray half
+  #
+  # Spec: .forge/scoper/drop-lights-panel/SPEC.md, with Benton's §7 answers.
+  # The pure maths is above END OF THE PURE SECTION and is pinned by
+  # rbtest-lights.py. What lives here, and the rules it keeps:
+  #
+  #   THE STAMPS ARE THE TRUTH. Every write puts the intended value on the
+  #   light instance FIRST (one SketchUp operation, 'Adjust Interior Lights'),
+  #   and only then pushes V-Ray to it. audit_scene reads those same stamps,
+  #   so an adjusted rig audits exactly like a dropped one.
+  #
+  #   ATTRIBUTES FIRST, V-RAY AFTER THE COMMIT. scene.change closes the
+  #   SketchUp operation underneath it (DEVLOG 1.66.0 #7), so a V-Ray write
+  #   inside the attribute operation would split it.
+  #
+  #   NEVER Sketchup.undo. After a Ctrl+Z the stamps roll back and V-Ray does
+  #   not; onTransactionUndo/Redo (documented, SketchUp 6+ — NOT yet seen to
+  #   fire live on this build) schedules a reconcile that audits and pushes
+  #   V-Ray back to the stamps. Refresh does the same, as the fallback.
+  #
+  #   LIVE DRAG IS THROTTLED (Q3): intensity only, one batched scene.change,
+  #   at most one per LIVE_GAP, coalesced. The release write is the proven
+  #   per-light full write, then AUDIT_SETTLE seconds later the audit, and a
+  #   repair of anything that drifted. Closing the window mid-drag reconciles.
+  #
+  #   NO MODAL ON ANY PATH THE BRIDGE CAN DRIVE. Remove-this-rig is confirmed
+  #   inside the window (a JS confirm() does nothing in an HtmlDialog, 1.64.0),
+  #   and every backend method returns [ok, message] instead of a messagebox.
+  # ==========================================================================
+  RIG_STATE_PREFIX = 'rig:'.freeze
+
+  # Every stamped light (role + plugin) and every fixture group, anywhere in
+  # the model, with the world point used to find its room.
+  # Returns [[entity, world_point, :light | :fixture], ...].
+  def self.rig_entities(model)
+    out = []
+    walk = nil
+    walk = lambda do |ents, tr, depth|
+      next if depth > SWEEP_MAX_DEPTH
+      ents.each do |e|
+        next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+        wt = (tr * e.transformation rescue nil)
+        next if wt.nil?
+        kind = e.get_attribute(DICT, 'kind').to_s
+        next if kind == 'ceiling' || kind == 'wall'
+        if kind == 'fixture'
+          out << [e, sweep_point(e, tr, wt), :fixture]
+        elsif !e.get_attribute(DICT, 'role').to_s.empty? &&
+              !e.get_attribute(DICT, 'plugin').to_s.empty?
+          out << [e, wt.origin, :light]
+          next
+        end
+        kids = child_entities(e)
+        walk.call(kids, wt, depth + 1) if kids.respond_to?(:each)
+      end
+    end
+    walk.call(model.entities, IDENT, 0)
+    out
+  rescue StandardError
+    out || []
+  end
+
+  # Every room group in the model with its WORLD bounds, for placing a light
+  # that carries no room stamp (a rig dropped before 1.70.0).
+  def self.room_candidates(model)
+    out = []
+    walk = nil
+    walk = lambda do |ents, tr, depth|
+      next if depth > 6
+      ents.each do |e|
+        next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+        next if e.get_attribute(DICT, 'role') || e.get_attribute(DICT, 'kind')
+        next if booth?(e)
+        wt = (tr * e.transformation rescue nil)
+        next if wt.nil?
+        if room_group?(e)
+          out << [e, world_bounds(e, tr)]
+          next
+        end
+        kids = child_entities(e)
+        walk.call(kids, wt, depth + 1) if kids.respond_to?(:each)
+      end
+    end
+    walk.call(model.entities, IDENT, 0)
+    out
+  rescue StandardError
+    out || []
+  end
+
+  # The whole model read once: { :lights => [row...], :fixtures => [row...] }.
+  # A row is the Hash group_rows takes plus the entity and its stamps.
+  def self.rig_scan(model)
+    rooms = nil
+    lights = []
+    fixtures = []
+    rig_entities(model).each do |e, pt, kind|
+      next unless e.valid?
+      pid = e.get_attribute(DICT, 'room_pid')
+      name = e.get_attribute(DICT, 'room_name')
+      stamped = !pid.nil?
+      unless stamped
+        rooms ||= room_candidates(model)
+        host = rooms.select { |_, bb| bb.valid? && in_box?(pt.x, pt.y, pt.z, box_of(bb)) }
+                    .min_by { |_, bb| (bb.max.x - bb.min.x) * (bb.max.y - bb.min.y) }
+        if host
+          pid = (host[0].persistent_id rescue nil)
+          name = display_name(host[0])
+        end
+      end
+      uuid = e.get_attribute(DICT, 'uuid').to_s
+      row = { 'key' => rig_key(pid, uuid), 'ent' => e, 'uuid' => uuid,
+              'pid' => pid, 'room' => name, 'stamped' => stamped,
+              'role' => e.get_attribute(DICT, 'role').to_s,
+              'plugin' => e.get_attribute(DICT, 'plugin').to_s,
+              'lumens' => e.get_attribute(DICT, 'lumens'),
+              'base' => e.get_attribute(DICT, 'lumens_base'),
+              'kelvin' => e.get_attribute(DICT, 'kelvin'),
+              'kelvin_base' => e.get_attribute(DICT, 'kelvin_base'),
+              'invisible' => e.get_attribute(DICT, 'invisible') }
+      kind == :light ? lights << row : fixtures << row
+    end
+    { :lights => lights, :fixtures => fixtures }
+  end
+
+  def self.rig_state_of(model, key, groups)
+    raw = (model.get_attribute(DICT, RIG_STATE_PREFIX + key) rescue nil)
+    h = begin
+          raw.is_a?(String) && !raw.empty? ? JSON.parse(raw) : {}
+        rescue StandardError
+          {}
+        end
+    parse_rig_state(h, groups)
+  end
+
+  # The groups a card lists, in a stable order: the office rig's three types
+  # always (a type this drop skipped shows disabled), else LIGHT_LAYERS order.
+  def self.card_groups(present)
+    if present.key?('panel')
+      order = %w[panel fill facewash]
+    else
+      order = LIGHT_LAYERS.keys.map { |r| role_group(r) }.uniq
+    end
+    order + (present.keys - order)
+  end
+
+  def self.group_label(g)
+    return ROLE_GROUPS[g][:label] if ROLE_GROUPS[g]
+    spec = LIGHT_LAYERS[g.to_sym]
+    spec ? spec[:label] : g
+  end
+
+  def self.mode_of(list)
+    vals = list.compact
+    return nil if vals.empty?
+    vals.group_by { |v| v }.max_by { |_, a| a.size }[0]
+  end
+
+  # The booths standing in a room: siblings of the room whose bounds centre
+  # lies inside the room's bounds (same parent, so the same coordinates).
+  def self.booths_in_room(room)
+    return [] if room.nil? || !room.valid?
+    par = room.parent
+    ents = par.respond_to?(:entities) ? par.entities : []
+    rb = room.bounds
+    ents.to_a.select do |e|
+      (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)) &&
+        e != room && booth?(e) && rb.contains?(e.bounds.center)
+    end
+  rescue StandardError
+    []
+  end
+
+  def self.entity_by_pid(model, pid)
+    return nil if pid.nil?
+    model.find_entity_by_persistent_id(pid.to_i)
+  rescue StandardError
+    nil
+  end
+
+  # Everything the window draws, as one JSON-ready Hash. READ-ONLY: it
+  # stamps nothing and writes nothing to V-Ray.
+  def self.panel_state(model)
+    scan = rig_scan(model)
+    rigs = group_rows(scan[:lights]).map do |rig|
+      key = rig['key']
+      rows = scan[:lights].select { |r| r['key'] == key }
+      present = rig['groups']
+      groups = card_groups(present)
+      st = rig_state_of(model, key, groups)
+      room_ent = key.start_with?('room:') ? entity_by_pid(model, key.sub('room:', '')) : nil
+      room = rows.map { |r| r['room'] }.compact.first ||
+             (room_ent ? display_name(room_ent) : nil)
+      epochs = rows.map { |r| r['uuid'].split('-')[0].to_i }.select { |t| t > 0 }
+      booths = booths_in_room(room_ent).map { |b| display_name(b) }
+      roles = groups.map do |g|
+        grp = present[g]
+        n = grp ? grp['n'] : 0
+        rs = st['roles'][g]
+        grows = rows.select { |r| role_group(r['role']) == g }
+        kb = mode_of(grows.map { |r| r['kelvin_base'] || r['kelvin'] })
+        spec = LIGHT_LAYERS[(grows.first ? grows.first['role'] : g).to_sym]
+        inv = grows.map { |r| r['invisible'] }.compact
+        desc = []
+        desc << "#{kb} K" if kb
+        desc << "#{spec[:kelvin]} K (table)" if kb.nil? && spec
+        desc << (inv.all? { |v| v } ? 'invisible' : 'visible') unless inv.empty?
+        desc << format('%d of %d placed', n, FILL_SCATTER.size) if g == 'fill' && n > 0
+        desc << 'each position is a visible aperture plus a hidden emitter, scaled together' if g == 'panel' && grp && grp['roles']['panel'] && grp['roles']['plenum']
+        skip_why = nil
+        if n.zero?
+          skip_why = g == 'fill' || g == 'facewash' ?
+            'None in this rig: no booth in the room, no legal position, or the type was off when dropped.' :
+            'None in this rig.'
+        elsif grp['base_sum'] <= 0.0
+          skip_why = 'Dropped switched off (0 lm). Re-drop with this type on to light it.'
+        end
+        { 'g' => g, 'label' => group_label(g), 'count' => group_count(g, grp),
+          'unit' => ROLE_GROUPS[g] ? ROLE_GROUPS[g][:unit] : 'lights',
+          'n' => n, 'base_sum' => grp ? grp['base_sum'] : 0.0,
+          'lm_sum' => grp ? grp['lm_sum'] : 0.0,
+          'pct' => rs['pct'], 'on' => rs['on'], 'k' => rs['k'], 'k_base' => kb,
+          'skip' => !skip_why.nil?, 'why' => skip_why, 'd' => desc.join(' · ') }
+      end
+      { 'key' => key, 'room' => room || (key.start_with?('press:') ?
+          "Press of #{epochs.empty? ? '?' : Time.at(epochs.max).strftime('%-d %b %H:%M')}" : 'Lights outside any room'),
+        'booth' => booths.empty? ? nil : booths.join(', '),
+        'count' => rig['count'], 'legacy' => rig['legacy'],
+        'when' => epochs.empty? ? nil : Time.at(epochs.max).strftime('%-d %b, %H:%M'),
+        'epoch' => epochs.max || 0,
+        'fixtures' => scan[:fixtures].count { |r| r['key'] == key },
+        'master' => st['master'], 'roles' => roles,
+        'status' => (@rig_status || {})[key] || { 'kind' => 'idle', 'text' => 'Not checked yet' } }
+    end
+    subjects, excluded = split_selection(model)
+    sel_n = model.selection.size
+    sel = if subjects.empty?
+            { 'can' => false,
+              'text' => sel_n.zero? ? 'Nothing is selected.' :
+                (excluded.any? ? 'The selection holds only lights.' : 'The selection has no group in it.') }
+          else
+            { 'can' => true, 'text' => format('%d selected: %s', subjects.size,
+                                              subjects.first(3).map { |e| display_name(e) }.join(', ')) }
+          end
+    ctx, = vray_context unless vray_api_missing
+    sc = vray_scene(ctx)
+    { 'rigs' => rigs, 'booth' => booth_light_rows(model, sc), 'sel' => sel,
+      'focus' => @rig_focus, 'ghosts' => @rig_ghosts || 0,
+      'vray' => vray_api_missing }
+  end
+
+  def self.panel_scene
+    why = vray_api_missing
+    return [nil, why] if why
+    ctx, why = vray_context
+    return [nil, why] if why
+    sc = vray_scene(ctx)
+    sc ? [sc, nil] : [nil, 'no V-Ray scene']
+  end
+
+  # The V-Ray parameters a light's STAMPS call for — the one list both the
+  # adjust and the repair write. `colour_fallback`: a pre-1.70.0 light has no
+  # Kelvin stamp; the repair then uses the table colour (the old behaviour,
+  # and still better than V-Ray's factory white), the adjust writes no colour.
+  def self.stamp_wants(e, colour_fallback = false)
+    lm = e.get_attribute(DICT, 'lumens')
+    return [] unless lm.is_a?(Numeric)
+    role = e.get_attribute(DICT, 'role').to_s
+    spec = role.empty? ? nil : LIGHT_LAYERS[role.to_sym]
+    wants = [[:units, UNITS_LUMENS], [:intensity, lm * 1.0]]
+    inv = e.get_attribute(DICT, 'invisible')
+    wants << [:invisible, inv ? true : false] unless inv.nil?
+    k = e.get_attribute(DICT, 'kelvin')
+    k = layer_kelvin(spec[:kelvin], 0) if !k.is_a?(Numeric) && colour_fallback && spec
+    if k.is_a?(Numeric)
+      rgb = kelvin_rgb(k)
+      c = (VRay::Color.new(rgb[0], rgb[1], rgb[2]) rescue nil)
+      wants << [:color, c] unless c.nil?
+    end
+    if spec
+      wants << [:directional, spec[:dir]] unless spec[:dir].nil?
+      wants << [:is_disc, 1] if spec[:disc] && spec[:emitter] == :rect
+    end
+    wants
+  end
+
+  def self.truthy(v)
+    v == true || v == 1 || v == 1.0 || v.to_s == 'true' || v.to_s == '1'
+  end
+
+  # Push ONE light's plugin to its stamps (one scene.change, the drop's own
+  # proven path), read back intensity and visibility. true when both agree.
+  def self.push_light!(sc, e, colour_fallback = false)
+    return false if sc.nil?
+    pn = e.get_attribute(DICT, 'plugin').to_s
+    pl = (sc[pn] rescue nil)
+    return false if pl.nil?
+    wants = stamp_wants(e, colour_fallback)
+    return false if wants.empty?
+    write_params(sc, pl, wants)
+    w = e.get_attribute(DICT, 'lumens').to_f
+    got = (pl[:intensity] rescue nil)
+    wantv = e.get_attribute(DICT, 'invisible')
+    gotv = (pl[:invisible] rescue nil)
+    got.is_a?(Numeric) && (got - w).abs <= 0.5 &&
+      (wantv.nil? || gotv.nil? || truthy(wantv) == truthy(gotv))
+  end
+
+  # THE REPAIR, promoted from .forge/fixer/rank-loop/d-repair.rb. Every rig
+  # light whose V-Ray intensity or visibility no longer matches its stamps
+  # gets its WHOLE parameter set rewritten from the stamps (d05: the re-sync
+  # resets the plugin to factory, not one parameter). `only` limits it to a
+  # set of plugin names. Lights the rig does not own are never touched; a
+  # missing plugin cannot be rewritten and is left to the audit to report.
+  # Returns { 'drifted', 'fixed', 'lines' }. Never raises.
+  def self.repair_rig!(model, only = nil, force = true)
+    rep = { 'drifted' => 0, 'fixed' => 0, 'lines' => [] }
+    sc, why = panel_scene
+    if why
+      rep['lines'] << "REPAIR SKIPPED — #{why}"
+      return rep
+    end
+    limit = only ? only.each_with_object({}) { |p, h| h[p.to_s] = true } : nil
+    rig_scan(model)[:lights].each do |r|
+      n = r['plugin']
+      next if limit && !limit[n]
+      next unless r['lumens'].is_a?(Numeric)
+      pl = (sc[n] rescue nil)
+      next if pl.nil?
+      w = r['lumens'] * 1.0
+      got = (pl[:intensity] rescue nil)
+      gotv = (pl[:invisible] rescue nil)
+      wantv = r['invisible']
+      bad_v = !wantv.nil? && !gotv.nil? && truthy(wantv) != truthy(gotv)
+      owned = r['base'].is_a?(Numeric) || (@panel_touched || {})[n]
+      next unless repairable(got, w, bad_v, owned, force)
+      rep['drifted'] += 1
+      ok = push_light!(sc, r['ent'], true)
+      rep['fixed'] += 1 if ok
+      rep['lines'] << format('  %-22s intensity %s -> wanted %.0f, invisible %s -> wanted %s%s',
+                             n, got.inspect, w, gotv.inspect, wantv.inspect,
+                             ok ? '' : '  ** DID NOT TAKE')
+    end
+    rep['lines'].unshift(format('REPAIRED %d of %d drifted rig light%s', rep['fixed'],
+                                rep['drifted'], rep['drifted'] == 1 ? '' : 's'))
+    rep
+  rescue StandardError => e
+    rep['lines'] << "REPAIR FAILED — #{e.class}: #{e.message}"
+    rep
+  end
+
+  # THE ADJUST. `raw` is the window's state Hash for one rig. Stamps first
+  # (one operation), V-Ray after. Returns [ok, message].
+  def self.apply_rig!(model, key, raw)
+    rows = rig_scan(model)[:lights].select { |r| r['key'] == key }
+    return [false, 'That rig is no longer in the model. Press Refresh.'] if rows.empty?
+    st = parse_rig_state(raw, card_groups(group_rows(rows)[0]['groups']))
+    plan = rows.map do |r|
+      g = role_group(r['role'])
+      rs = st['roles'][g] || { 'pct' => 1.0, 'on' => true, 'k' => nil }
+      base, legacy = light_base(r['base'], r['lumens'])
+      kb = r['kelvin_base'].is_a?(Numeric) ? r['kelvin_base'] : r['kelvin']
+      [r, base, legacy, rig_lumens(base, st['master'], rs['pct'], rs['on']),
+       light_kelvin(rs['k'], kb), kb]
+    end
+    model.start_operation('Adjust Interior Lights', true)
+    begin
+      plan.each do |r, base, legacy, lm, k, kb|
+        e = r['ent']
+        next unless e.valid?
+        e.set_attribute(DICT, 'lumens_base', base * 1.0) if legacy && base
+        e.set_attribute(DICT, 'kelvin_base', kb.round) if kb.is_a?(Numeric) && !r['kelvin_base'].is_a?(Numeric)
+        e.set_attribute(DICT, 'lumens', lm * 1.0) if base
+        e.set_attribute(DICT, 'kelvin', k) if k
+      end
+      model.set_attribute(DICT, RIG_STATE_PREFIX + key, JSON.generate(st))
+      model.commit_operation
+    rescue StandardError => e
+      model.abort_operation
+      return [false, "Nothing was changed: #{e.class}: #{e.message}"]
+    end
+    sc, why = panel_scene
+    return [false, "Stored, but V-Ray was not written: #{why}. Check & repair once V-Ray is open."] if why
+    plan.each { |r, *| (@panel_touched ||= {})[r['plugin']] = true }
+    bad = plan.count { |r, *| r['ent'].valid? && !push_light!(sc, r['ent']) }
+    total = plan.inject(0.0) { |a, p| a + p[3] }
+    [bad.zero?, format('Wrote %d light%s, %s V-Ray lm in all%s.', plan.size,
+                       plan.size == 1 ? '' : 's', total.round.to_s.reverse.scan(/\d{1,3}/).join(',').reverse,
+                       bad.zero? ? '' : format(' — %d did not read back', bad))]
+  end
+
+  # LIVE: intensity only, one batched transaction, no stamps and no undo
+  # step. Batching many plugins in one scene.change is UNVERIFIED on this
+  # build (only per-light transactions have been observed); the release
+  # write and the audit behind it are what guarantee the end state.
+  def self.live_rig!(model, key, raw)
+    sc, why = panel_scene
+    return false if why
+    cache = (@live_cache ||= {})
+    rows = cache[key] ||= rig_scan(model)[:lights].select { |r| r['key'] == key }
+    return false if rows.empty?
+    st = parse_rig_state(raw, card_groups(group_rows(rows)[0]['groups']))
+    jobs = rows.map do |r|
+      next nil unless r['ent'].valid?
+      pl = (sc[r['plugin']] rescue nil)
+      next nil if pl.nil?
+      rs = st['roles'][role_group(r['role'])] || { 'pct' => 1.0, 'on' => true }
+      base, = light_base(r['base'], r['lumens'])
+      [pl, rig_lumens(base, st['master'], rs['pct'], rs['on'])]
+    end.compact
+    rows.each { |r| (@panel_touched ||= {})[r['plugin']] = true }
+    sc.change('WR Adjust Interior Lights (live)') do
+      jobs.each { |pl, lm| (pl[:intensity] = lm) rescue nil }
+    end
+    @live_dirty = true
+    true
+  rescue StandardError => e
+    puts "WR Lights panel: live write failed: #{e.class}: #{e.message}"
+    false
+  end
+
+  # ---- the booth's own interior light -------------------------------------
+  # OBSERVED (14 Sep 2026, read-only on a client model): BoothLighting.skp
+  # puts a V-Ray LightRectangle directly inside each booth group; its
+  # definition ("Standard Light") owns ONE plugin shared by every instance,
+  # intensity 2500 in units 0. So this light IS writable, but a write reaches
+  # every booth using that definition — the card says so. Its 100% is
+  # stamped on the DEFINITION (booth_base) at the first adjust.
+  def self.booth_light_rows(model, sc)
+    booths = []
+    walk = nil
+    walk = lambda do |ents, depth|
+      next if depth > 6
+      ents.each do |e|
+        next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+        next if e.get_attribute(DICT, 'role') || e.get_attribute(DICT, 'kind')
+        if booth?(e)
+          booths << e
+          next
+        end
+        kids = child_entities(e)
+        walk.call(kids, depth + 1) if kids.respond_to?(:each)
+      end
+    end
+    walk.call(model.entities, 0)
+    by = {}
+    booths.each do |b|
+      found = []
+      foreign_lights(child_entities(b), found)
+      found.each do |f|
+        pn = f[:plugin].to_s
+        next if pn.empty?
+        d = f[:ent].respond_to?(:definition) ? f[:ent].definition : nil
+        x = (by[pn] ||= { 'plugin' => pn, 'defn' => d, 'booths' => [] })
+        bn = display_name(b)
+        x['booths'] << bn unless x['booths'].include?(bn)
+      end
+    end
+    by.values.map do |x|
+      d = x['defn']
+      pl = sc ? (sc[x['plugin']] rescue nil) : nil
+      cur = pl ? (pl[:intensity] rescue nil) : nil
+      base = d ? d.get_attribute(DICT, 'booth_base') : nil
+      { 'plugin' => x['plugin'], 'name' => d ? d.name : x['plugin'],
+        'fixtures' => d ? d.instances.size : 0, 'booths' => x['booths'],
+        'cur' => cur, 'units' => pl ? (pl[:units] rescue nil) : nil,
+        'base' => base.is_a?(Numeric) ? base : cur, 'legacy' => !base.is_a?(Numeric),
+        'pct' => d && d.get_attribute(DICT, 'booth_pct').is_a?(Numeric) ? clamp_pct(d.get_attribute(DICT, 'booth_pct')) : 1.0,
+        'on' => d ? d.get_attribute(DICT, 'booth_on') != false : true,
+        'readable' => cur.is_a?(Numeric) }
+    end
+  rescue StandardError
+    []
+  end
+
+  def self.booth_row(model, plugin)
+    sc, = panel_scene
+    booth_light_rows(model, sc).find { |r| r['plugin'] == plugin.to_s }
+  end
+
+  def self.apply_booth_light!(model, plugin, raw, live = false)
+    raw = {} unless raw.is_a?(Hash)
+    row = booth_row(model, plugin)
+    return [false, 'That booth light is no longer in the model. Press Refresh.'] if row.nil?
+    return [false, 'V-Ray does not report this light\'s intensity, so it cannot be scaled.'] unless row['readable'] || row['base'].is_a?(Numeric)
+    d = row['defn'] || model.definitions[row['name']]
+    base = row['base'] * 1.0
+    pct = raw.key?('pct') ? clamp_pct(raw['pct']) : 1.0
+    on = raw.key?('on') ? (raw['on'] ? true : false) : true
+    v = rig_lumens(base, 1.0, pct, on)
+    sc, why = panel_scene
+    return [false, "V-Ray is not available: #{why}"] if why
+    pl = (sc[plugin.to_s] rescue nil)
+    return [false, "V-Ray has no light named #{plugin}"] if pl.nil?
+    if live
+      sc.change('WR Adjust Booth Light (live)') { (pl[:intensity] = v) rescue nil }
+      @live_dirty = true
+      return [true, '']
+    end
+    if d
+      model.start_operation('Adjust Booth Light', true)
+      begin
+        d.set_attribute(DICT, 'booth_base', base) if row['legacy']
+        d.set_attribute(DICT, 'booth_pct', pct)
+        d.set_attribute(DICT, 'booth_on', on)
+        d.set_attribute(DICT, 'booth_intensity', v)
+        model.commit_operation
+      rescue StandardError => e
+        model.abort_operation
+        return [false, "Nothing was changed: #{e.class}: #{e.message}"]
+      end
+    end
+    errs = write_params(sc, pl, [[:intensity, v]])
+    got = (pl[:intensity] rescue nil)
+    ok = got.is_a?(Numeric) && (got - v).abs <= 0.5
+    [ok, ok ? format('Booth light %s at %.0f (%d%%), shared by %d fixture%s.', row['name'], v,
+                     (pct * 100).round, row['fixtures'], row['fixtures'] == 1 ? '' : 's') :
+               "Booth light write did not read back (#{got.inspect}, wanted #{v.round}) #{errs.inspect}"]
+  end
+
+  # Booth lights whose V-Ray intensity is off their definition's stamp.
+  def self.reconcile_booth_lights!(model)
+    sc, why = panel_scene
+    return [] if why
+    fixed = []
+    booth_light_rows(model, sc).each do |r|
+      d = r['defn']
+      want = d ? d.get_attribute(DICT, 'booth_intensity') : nil
+      next unless want.is_a?(Numeric) && r['cur'].is_a?(Numeric)
+      next if (r['cur'] - want).abs <= 0.5
+      pl = (sc[r['plugin']] rescue nil)
+      next if pl.nil?
+      write_params(sc, pl, [[:intensity, want * 1.0]])
+      fixed << "#{r['name']}: #{r['cur'].round} -> #{want.round}"
+    end
+    fixed
+  end
+
+  # ---- remove ONE room's rig (Q5) -----------------------------------------
+  # Erases only the lights and fixture groups keyed to this rig, then reaps
+  # their definitions and V-Ray plugins AFTER the commit, the same order
+  # remove_rig! uses. Borrowed ceilings and walls are left standing (they are
+  # not lights); "Remove all lights" in the drop settings takes those.
+  # Never Sketchup.undo. Returns [ok, message].
+  def self.remove_room_rig!(model, key)
+    scan = rig_scan(model)
+    lights = scan[:lights].select { |r| r['key'] == key }
+    fixtures = scan[:fixtures].select { |r| r['key'] == key }
+    return [false, 'That rig is no longer in the model. Press Refresh.'] if lights.empty? && fixtures.empty?
+    room = (lights + fixtures).map { |r| r['room'] }.compact.first || key
+    cancel_live
+    model.start_operation('Remove Interior Lights (one room)', true)
+    begin
+      erased, pend = erase_lights((fixtures + lights).map { |r| [r['ent'], nil] })
+      (model.delete_attribute(DICT, RIG_STATE_PREFIX + key) rescue nil)
+      model.commit_operation
+    rescue StandardError => e
+      model.abort_operation
+      return [false, "Nothing was removed: #{e.class}: #{e.message}"]
+    end
+    sc, = panel_scene
+    gone, left = reap_lights(model, sc, pend)
+    (@rig_status ||= {}).delete(key)
+    (@live_cache ||= {}).delete(key)
+    msg = format('Removed %s: %d fixture group%s and light%s (%d emitter%s), %d V-Ray light record%s deleted',
+                 room, erased, erased == 1 ? '' : 's', erased == 1 ? '' : 's',
+                 lights.size, lights.size == 1 ? '' : 's', gone, gone == 1 ? '' : 's')
+    msg += format(', %d left in V-Ray', left) if left > 0
+    [left.zero?, msg + '. Ctrl+Z will not put them back.']
+  end
+
+  # ---- audit per rig, repair, and the chip ---------------------------------
+  # keys nil = every rig. repair false = read-only (used when the window
+  # opens, so opening it never writes anything).
+  def self.check_rigs!(model, keys = nil, repair = true, force = false)
+    lines = []
+    verdict = audit_scene(model)
+    by = Hash.new { |h, k| h[k] = [] }
+    rig_scan(model)[:lights].each { |r| by[r['key']] << r['plugin'] }
+    (keys || by.keys).each do |k|
+      plugs = by[k]
+      next if plugs.empty?
+      st = (@rig_status ||= {})
+      if verdict['why']
+        st[k] = { 'kind' => 'bad', 'text' => "Can't check: #{verdict['why']}" }
+        next
+      end
+      n = fault_count(rig_faults(verdict, plugs))
+      if n.zero?
+        st[k] = { 'kind' => 'ok', 'text' => 'Matches V-Ray' }
+      elsif !repair
+        st[k] = { 'kind' => 'bad', 'text' => format('V-Ray differs on %d light%s. Check & repair pushes the rig values', n, n == 1 ? '' : 's') }
+      else
+        rep = repair_rig!(model, plugs, force)
+        lines.concat(rep['lines'])
+        v2 = audit_scene(model)
+        n2 = fault_count(rig_faults(v2, plugs))
+        st[k] = n2.zero? ?
+          { 'kind' => 'ok', 'text' => format('Repaired %d · matches V-Ray', rep['fixed']) } :
+          { 'kind' => 'bad', 'text' => format(force ? 'Doesn\'t match V-Ray (%d light%s)' :
+            'V-Ray differs on %d light%s (hand edit?). Check & repair pushes the rig values', n2, n2 == 1 ? '' : 's') }
+        verdict = v2
+      end
+    end
+    @rig_ghosts = Array(verdict['ghosts']).size
+    booth_fixed = repair ? reconcile_booth_lights!(model) : []
+    lines << "booth light restored: #{booth_fixed.join('; ')}" unless booth_fixed.empty?
+    lines << (verdict['lines'] || []).last.to_s
+    lines
+  rescue StandardError => e
+    ["CHECK FAILED — #{e.class}: #{e.message}"]
+  end
+
+  # ---- the throttle's impure half ----------------------------------------
+  def self.on_live(job)
+    @live_pending = job
+    act, delay = throttle_decision(Time.now.to_f, @live_last_at, LIVE_GAP, !@live_timer.nil?)
+    if act == :now
+      flush_live
+    elsif act == :arm
+      @live_timer = UI.start_timer(delay, false) do
+        @live_timer = nil
+        flush_live
+      end
+    end
+  end
+
+  def self.flush_live
+    job = @live_pending
+    @live_pending = nil
+    return if job.nil?
+    @live_last_at = Time.now.to_f
+    model = Sketchup.active_model
+    if job['kind'] == 'booth'
+      apply_booth_light!(model, job['id'], job['state'], true)
+    else
+      live_rig!(model, job['id'].to_s, job['state'])
+    end
+  end
+
+  def self.cancel_live
+    (UI.stop_timer(@live_timer) rescue nil) if @live_timer
+    @live_timer = nil
+    @live_pending = nil
+  end
+
+  def self.schedule_check(delay = AUDIT_SETTLE)
+    (UI.stop_timer(@check_timer) rescue nil) if @check_timer
+    @check_timer = UI.start_timer(delay, false) do
+      @check_timer = nil
+      m = Sketchup.active_model
+      lines = check_rigs!(m, nil, true)
+      lines.each { |l| puts "  #{l}" unless l.to_s.empty? }
+      @live_dirty = false
+      push_rigs(m, lines.reject { |l| l.to_s.empty? }.last)
+    end
+  end
+
+  # ---- observers ----------------------------------------------------------
+  # Defined only where SketchUp is; rbtest-lights.py never loads this far.
+  if defined?(Sketchup::ModelObserver)
+    class RigUndoWatch < Sketchup::ModelObserver
+      def onTransactionUndo(model)
+        WR_DropLights.after_undo(model, 'undo')
+      end
+
+      def onTransactionRedo(model)
+        WR_DropLights.after_undo(model, 'redo')
+      end
+    end
+  end
+  if defined?(Sketchup::SelectionObserver)
+    class RigSelWatch < Sketchup::SelectionObserver
+      def onSelectionBulkChange(_s); WR_DropLights.sel_changed; end
+      def onSelectionCleared(_s); WR_DropLights.sel_changed; end
+      def onSelectionAdded(_s, _e); WR_DropLights.sel_changed; end
+      def onSelectionRemoved(_s, _e); WR_DropLights.sel_changed; end
+    end
+  end
+
+  # Never write from INSIDE the undo notification: a V-Ray transaction there
+  # would run in the middle of SketchUp's own undo. Arm a short timer instead.
+  def self.after_undo(_model, what)
+    return unless @rig_dlg && @rig_dlg.visible?
+    puts "WR Lights panel: #{what} seen — reconciling V-Ray to the stamps."
+    cancel_live
+    @live_cache = {}
+    schedule_check(0.5)
+  rescue StandardError
+    nil
+  end
+
+  def self.sel_changed
+    return unless @rig_dlg && @rig_dlg.visible?
+    return if @sel_timer
+    @sel_timer = UI.start_timer(0.3, false) do
+      @sel_timer = nil
+      push_rigs(Sketchup.active_model)
+    end
+  rescue StandardError
+    nil
+  end
+
+  def self.watch!(model)
+    unwatch!
+    @watch_model = model
+    @undo_watch = RigUndoWatch.new
+    @sel_watch = RigSelWatch.new
+    (model.add_observer(@undo_watch) rescue nil)
+    (model.selection.add_observer(@sel_watch) rescue nil)
+  end
+
+  def self.unwatch!
+    m = @watch_model
+    if m
+      (m.remove_observer(@undo_watch) rescue nil) if @undo_watch
+      (m.selection.remove_observer(@sel_watch) rescue nil) if @sel_watch
+    end
+    @watch_model = nil
+    @undo_watch = nil
+    @sel_watch = nil
+  end
+
+  # ---- the window ----------------------------------------------------------
+  def self.push_rigs(model, msg = nil)
+    return unless @rig_dlg && @rig_dlg.visible?
+    st = panel_state(model)
+    st['msg'] = msg if msg
+    st['booth'].each { |b| b.delete('defn') }
+    @rig_dlg.execute_script("setState(#{JSON.generate(st)})")
+  rescue StandardError => e
+    puts "WR Lights panel: could not refresh: #{e.class}: #{e.message}"
+  end
+
+  def self.focus_key(model, ents)
+    list = Array(ents)
+    return nil if list.empty?
+    scan = rig_scan(model)
+    hit = (scan[:lights] + scan[:fixtures]).find { |r| list.include?(r['ent']) }
+    hit ? hit['key'] : nil
+  rescue StandardError
+    nil
+  end
+
+  # OPEN (or bring to front and refresh). Modeless; a second press never
+  # makes a second window. `focus` = entities whose rig card should open.
+  def self.show_rigs(model = nil, focus = nil)
+    model ||= Sketchup.active_model
+    return nil unless model
+    @rig_focus = focus_key(model, focus)
+    if @rig_dlg && @rig_dlg.visible?
+      @rig_dlg.bring_to_front
+      push_rigs(model)
+      return @rig_dlg
+    end
+    @rig_status ||= {}
+    @live_cache = {}
+    dlg = UI::HtmlDialog.new(
+      :dialog_title    => 'Interior lights',
+      :preferences_key => 'WR_DropLightsPanel',
+      :scrollable      => false, :resizable => true,
+      :width           => 470, :height => 720,
+      :min_width       => 380, :min_height => 420,
+      :style           => UI::HtmlDialog::STYLE_DIALOG)
+    dlg.set_html(rigs_html)
+    wire_rigs_dialog(dlg)
+    dlg.set_on_closed { rigs_closed }
+    @rig_dlg = dlg
+    dlg.show
+    watch!(model)
+    dlg
+  end
+
+  def self.rigs_closed
+    cancel_live
+    unwatch!
+    m = Sketchup.active_model
+    # A drag that never reached its release (window closed mid-drag) leaves
+    # V-Ray off the stamps: put it back, now, not at the next render.
+    if @live_dirty && m
+      @live_dirty = false
+      UI.start_timer(0.1, false) { check_rigs!(m, nil, true) }
+    end
+    @rig_dlg = nil
+  rescue StandardError
+    @rig_dlg = nil
+  end
+
+  def self.parse_payload(payload)
+    h = JSON.parse(payload.to_s)
+    h.is_a?(Hash) ? h : {}
+  rescue StandardError
+    {}
+  end
+
+  def self.wire_rigs_dialog(dlg)
+    dlg.add_action_callback('ready') do |_c, _p|
+      m = Sketchup.active_model
+      push_rigs(m)
+      # Opening the window only READS: audit, no repair.
+      UI.start_timer(0.2, false) do
+        check_rigs!(m, nil, false)
+        push_rigs(m)
+      end
+    end
+    dlg.add_action_callback('refresh') do |_c, _p|
+      m = Sketchup.active_model
+      cancel_live
+      @live_cache = {}
+      lines = check_rigs!(m, nil, true)
+      lines.each { |l| puts "  #{l}" unless l.to_s.empty? }
+      push_rigs(m, 'Re-read the model and checked V-Ray. ' + lines.reject { |l| l.to_s.empty? }.last.to_s)
+    end
+    # CHECK & REPAIR is the explicit one: it also pushes hand-edited legacy
+    # lights back to their stamps (see repairable). Refresh does not.
+    dlg.add_action_callback('checkall') do |_c, _p|
+      m = Sketchup.active_model
+      cancel_live
+      @live_cache = {}
+      lines = check_rigs!(m, nil, true, true)
+      lines.each { |l| puts "  #{l}" unless l.to_s.empty? }
+      push_rigs(m, 'Checked and repaired against the rig values. ' + lines.reject { |l| l.to_s.empty? }.last.to_s)
+    end
+    dlg.add_action_callback('live') do |_c, payload|
+      on_live(parse_payload(payload))
+    end
+    dlg.add_action_callback('apply') do |_c, payload|
+      m = Sketchup.active_model
+      job = parse_payload(payload)
+      cancel_live
+      if job['kind'] == 'booth'
+        ok, msg = apply_booth_light!(m, job['id'], job['state'])
+      else
+        key = job['id'].to_s
+        ok, msg = apply_rig!(m, key, job['state'])
+        (@live_cache ||= {}).delete(key)
+        (@rig_status ||= {})[key] = ok ?
+          { 'kind' => 'busy', 'text' => format('Written · checking V-Ray in %g s', AUDIT_SETTLE) } :
+          { 'kind' => 'bad', 'text' => msg }
+      end
+      puts "WR Lights panel: #{msg}"
+      push_rigs(m, msg)
+      schedule_check
+    end
+    dlg.add_action_callback('remove') do |_c, key|
+      m = Sketchup.active_model
+      puts "WR Lights panel: REMOVE THIS RIG confirmed for #{key}"
+      ok, msg = remove_room_rig!(m, key.to_s)
+      puts "  #{msg}"
+      push_rigs(m, ok ? msg : '** ' + msg)
+    end
+    dlg.add_action_callback('select') do |_c, key|
+      m = Sketchup.active_model
+      scan = rig_scan(m)
+      picks = (scan[:fixtures] + scan[:lights]).select { |r| r['key'] == key.to_s }
+                                              .map { |r| r['ent'] }
+                                              .select { |e| e.valid? && e.parent == m }
+      m.selection.clear
+      m.selection.add(picks) unless picks.empty?
+      push_rigs(m, picks.empty? ? 'Those lights are inside a group; nothing at the top level to select.' :
+                               format('Selected %d top-level light%s and fixture%s.', picks.size,
+                                      picks.size == 1 ? '' : 's', picks.size == 1 ? '' : 's'))
+    end
+    # DROP IN LIGHTS: today's flow, unchanged, for the current selection.
+    dlg.add_action_callback('drop') do |_c, _p|
+      m = Sketchup.active_model
+      subjects, = split_selection(m)
+      if subjects.empty?
+        push_rigs(m, 'Select a room (or a booth) in the viewport first, then press Drop in lights.')
+        next
+      end
+      begin
+        run
+        push_rigs(m, 'Drop finished. The list is re-read from the model.')
+      rescue Exception => e
+        puts "WR Lights panel: drop failed: #{e.class}: #{e.message}"
+        puts e.backtrace.first(6).map { |l| "    #{l}" }.join("\n") if e.backtrace
+        push_rigs(m, "** Drop failed: #{e.message} (Ruby Console has the detail)")
+      end
+      UI.start_timer(AUDIT_SETTLE, false) do
+        check_rigs!(m, nil, false)
+        push_rigs(m)
+      end
+    end
+  end
+
+  def self.rigs_html
+    consts = { 'min' => PANEL_PCT_MIN, 'max' => PANEL_PCT_MAX, 'steps' => PANEL_STEPS,
+               'detent' => PANEL_DETENT, 'gain' => LUMEN_GAIN * CAMERA_GAIN,
+               'liveMs' => 100 }
+    RIGS_HTML.sub('__CONSTS__', JSON.generate(consts))
+  end
+
+  RIGS_HTML = <<~'HTML'.freeze
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+:root{
+  --bg:#f2f3f4;--surface:#ffffff;--ink:#20262a;--muted:#68737b;--faint:#9aa4ab;
+  --line:#e0e4e7;--accent:#ee6216;--accent-ink:#ffffff;--warn:#9a6b00;--warn-bg:#fdf4dd;
+  --bad:#93382a;--bad-bg:#fbeeec;--ok:#2f6b3f;--ok-bg:#e8f3eb;--swoff:#ccd3d8;--knob:#ffffff;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#24292d;--surface:#2d3338;--ink:#e7eaec;--muted:#9aa5ad;--faint:#6b767e;
+    --line:#3b4247;--accent:#f47b35;--accent-ink:#1b1e21;--warn:#e3b34c;--warn-bg:#3a3423;
+    --bad:#f0a396;--bad-bg:#3a2723;--ok:#8fcf9e;--ok-bg:#243529;--swoff:#4a5359;--knob:#e7eaec;
+  }
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font:13px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+.dhead{padding:10px 12px 8px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--line);background:var(--surface)}
+.dhead h2{font-size:13px;font-weight:600}
+.dhead .sub{font-size:11px;color:var(--muted)}
+.scroll{flex:1 1 auto;overflow-y:auto;padding:8px}
+.btn{font:inherit;font-size:11.5px;padding:4px 10px;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,input:focus-visible,.sw:focus-visible,.rh:focus-visible,.rolehd:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn.prim{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn.q{border-color:transparent;background:transparent;color:var(--muted)}
+.gap{flex:1 1 auto}
+.lab{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.rig{background:var(--surface);border:1px solid var(--line);border-radius:5px;margin-bottom:8px}
+.rig.sel{border-color:var(--accent)}
+.rh{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;width:100%;background:none;border:0;font:inherit;color:inherit;text-align:left}
+.cv{font-size:9px;color:var(--faint);transition:transform .12s}
+.rig:not(.open) .rh .cv{transform:rotate(-90deg)}
+.nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;border-radius:20px;padding:0 7px;white-space:nowrap;border:1px solid currentColor}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.ok{color:var(--ok);background:var(--ok-bg)}
+.chip.busy{color:var(--warn);background:var(--warn-bg)}
+.chip.bad{color:var(--bad);background:var(--bad-bg)}
+.chip.idle,.chip.legacy{color:var(--muted);background:transparent}
+.rb{padding:0 10px 10px;display:none}
+.rig.open .rb{display:block}
+.master{border-top:1px solid var(--line);padding-top:9px}
+.mrow{display:flex;align-items:baseline;gap:8px}
+.big{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.stops{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.lm{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:1px}
+.lm b{color:var(--ink);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
+.ticks{display:flex;justify-content:space-between;font-size:9.5px;color:var(--faint);position:relative}
+.ticks .t100{position:absolute;left:var(--p100);transform:translateX(-50%);color:var(--muted);font-weight:600}
+.over{margin-top:5px;font-size:11px;color:var(--warn)}
+.roles{margin-top:10px;border:1px solid var(--line);border-radius:4px}
+.rolehd{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:10.5px;font-weight:700;letter-spacing:.1em;color:var(--faint);cursor:pointer;background:none;border:0;width:100%;font-family:inherit;text-align:left}
+.roles.closed .rolehd .cv{transform:rotate(-90deg)}
+.roles.closed .rl{display:none}
+.role{border-top:1px solid var(--line);padding:7px 8px}
+.role .top{display:flex;align-items:center;gap:8px}
+.role .rn{font-weight:600;font-size:12.5px}
+.role .cnt{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.role .pct{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600;font-size:12px;min-width:44px;text-align:right}
+.role .d{font-size:10.5px;color:var(--muted);margin-top:1px}
+.role.off .rn,.role.off .pct{color:var(--faint)}
+.role.skip{opacity:.6}
+.kel{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:10.5px;color:var(--muted)}
+.kel input{width:64px;font:inherit;font-size:11px;padding:1px 4px;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink)}
+.sw{width:30px;height:17px;border-radius:9px;background:var(--swoff);position:relative;border:0;cursor:pointer;flex:0 0 auto}
+.sw i{position:absolute;top:3px;left:3px;width:11px;height:11px;border-radius:50%;background:var(--knob);transition:left .12s}
+.sw[aria-checked="true"]{background:var(--accent)}
+.sw[aria-checked="true"] i{left:16px}
+.sw[disabled]{opacity:.4;cursor:default}
+.confirm{margin-top:8px;border:1px solid var(--bad);background:var(--bad-bg);border-radius:4px;padding:8px;display:grid;gap:6px;font-size:12px}
+.dfoot{border-top:1px solid var(--line);background:var(--surface);padding:8px 10px;display:grid;gap:6px}
+.frow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.msg{font-size:11px;color:var(--muted);min-height:15px}
+.msg.bad{color:var(--bad)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:5px;padding:18px 14px;display:grid;gap:8px;margin-bottom:8px}
+.empty h3{font-size:13px;font-weight:600}
+.empty p{color:var(--muted);font-size:12px}
+.sect{margin:12px 2px 6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<div class="dhead">
+  <div style="display:grid;min-width:0">
+    <h2>Interior lights in this model</h2>
+    <span class="sub" id="hsub">Reading the model…</span>
+  </div>
+  <span class="gap"></span>
+  <button class="btn q" id="refresh" title="Re-read the model, check V-Ray, repair drift on lights this panel owns">Refresh</button>
+</div>
+<div class="scroll" id="list"></div>
+<div class="dfoot">
+  <div class="frow">
+    <button class="btn" id="checkAll" title="Audit every rig and push V-Ray back to the rig values, including hand edits on older rigs">Check &amp; repair</button>
+    <span class="gap"></span>
+    <button class="btn prim" id="drop" title="Opens the Drop the lights settings for the selected room or booth">Drop in lights&hellip;</button>
+  </div>
+  <div class="msg" id="msg"></div>
+</div>
+<script>
+(function(){
+  var C = __CONSTS__;
+  var S = { rigs:[], booth:[], sel:{can:false,text:""}, open:{}, rolesOpen:{}, opened:{}, confirm:null,
+            dragging:false, deferred:null, focus:null, seenFocus:null, cur:null, liveAt:0 };
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+  function call(name, arg){ if(window.sketchup && sketchup[name]) sketchup[name](arg == null ? "" : arg); }
+  function fmt(n){ return Math.round(n).toLocaleString("en-US"); }
+  function fmtM(n){ return n >= 1e6 ? (n/1e6).toFixed(2)+"M" : fmt(n); }
+  function clamp(v){ v = +v; if(!isFinite(v)) return 1; return Math.min(C.max, Math.max(C.min, v)); }
+  function toPos(v){ return Math.round(C.steps*Math.log(clamp(v)/C.min)/Math.log(C.max/C.min)); }
+  function fromPos(p){ var v = C.min*Math.pow(C.max/C.min, p/C.steps); return Math.abs(v-1) < C.detent ? 1 : v; }
+  function stops(v){ if(Math.abs(v-1) < 1e-9) return "tuned"; var s = Math.log(v)/Math.LN2; return (s>=0?"+":"−")+Math.abs(s).toFixed(2)+" stops"; }
+  function pct(v){ return Math.round(v*100)+"%"; }
+  function rig(key){ for(var i=0;i<S.rigs.length;i++){ if(S.rigs[i].key===key) return S.rigs[i]; } return null; }
+  function booth(p){ for(var i=0;i<S.booth.length;i++){ if(S.booth[i].plugin===p) return S.booth[i]; } return null; }
+  function live(ro){ return ro.on && !ro.skip; }
+  function sumWritten(r){ return r.roles.reduce(function(a,ro){ return a + (live(ro) ? ro.base_sum*r.master*ro.pct : 0); }, 0); }
+  function stateOf(r){ var o = {master:r.master, roles:{}}; r.roles.forEach(function(ro){ o.roles[ro.g] = {pct:ro.pct, on:ro.on, k:ro.k}; }); return o; }
+  function snap(r){ return JSON.parse(JSON.stringify(stateOf(r))); }
+
+  window.setState = function(st){
+    if(S.dragging){ S.deferred = st; return; }
+    S.rigs = st.rigs || []; S.booth = st.booth || []; S.sel = st.sel || S.sel; S.vray = st.vray; S.ghosts = st.ghosts || 0;
+    S.rigs.forEach(function(r){ if(!S.opened[r.key]) S.opened[r.key] = snap(r); });
+    if(st.focus && st.focus !== S.seenFocus){ S.seenFocus = st.focus; S.open[st.focus] = true; S.cur = st.focus; }
+    if(!S.rigs.some(function(r){ return S.open[r.key] !== undefined; }) && S.rigs.length){
+      var newest = S.rigs.slice().sort(function(a,b){ return b.epoch - a.epoch; })[0];
+      S.open[newest.key] = true; S.cur = newest.key;
+    }
+    if(st.msg != null) setMsg(st.msg);
+    render();
+  };
+  function setMsg(t){ var m = $("msg"); m.textContent = t || ""; m.className = "msg" + (/^\*\*/.test(t||"") ? " bad" : ""); }
+
+  function render(){
+    var n = S.rigs.reduce(function(a,r){ return a + r.count; }, 0);
+    var sub = S.rigs.length ? S.rigs.length+" rig"+(S.rigs.length===1?"":"s")+" · "+n+" V-Ray light"+(n===1?"":"s")+" · tag “WR Lights”" : "No lights dropped yet";
+    if(S.ghosts) sub += " · "+S.ghosts+" ghost light"+(S.ghosts===1?"":"s")+" in V-Ray";
+    if(S.vray) sub += " · V-Ray: "+S.vray;
+    $("hsub").textContent = sub;
+    $("checkAll").disabled = !S.rigs.length && !S.booth.length;
+    $("drop").disabled = !S.sel.can;
+    $("drop").title = S.sel.can ? "Drop the lights in: "+S.sel.text : S.sel.text+" Select a room or booth first.";
+    var h = "";
+    if(!S.rigs.length){
+      h += '<div class="empty"><h3>No interior lights in this model</h3>'+
+        '<p>Select the room group (the group with a floor inside it) in the viewport, then press <b>Drop in lights</b>. That opens the same settings as always. When the drop finishes, the new rig shows up here.</p>'+
+        '<p style="color:'+(S.sel.can?'var(--ok)':'var(--warn)')+'">'+esc(S.sel.text)+'</p></div>';
+    }
+    h += S.rigs.map(rigHtml).join("");
+    if(S.booth.length){
+      h += '<div class="sect lab">Booth interior light (the booth’s own, not the rig)</div>';
+      h += S.booth.map(boothHtml).join("");
+    }
+    $("list").innerHTML = h;
+    wire();
+  }
+
+  function chip(r){ var s = r.status || {kind:"idle", text:"Not checked yet"}; return '<span class="chip '+esc(s.kind)+'" id="chip-'+esc(r.key)+'">'+esc(s.text)+'</span>'; }
+
+  function rigHtml(r){
+    var k = esc(r.key), open = !!S.open[r.key];
+    var over = r.roles.some(function(ro){ return live(ro) && ro.pct*r.master > 1.0001; });
+    var h = '<section class="rig'+(open?" open":"")+(S.cur===r.key?" sel":"")+'">';
+    h += '<button class="rh" data-toggle="'+k+'" aria-expanded="'+open+'"><span class="cv">▼</span>'+
+      '<span style="display:grid;min-width:0;flex:1 1 auto"><span class="nm">'+esc(r.room)+'</span>'+
+      '<span class="meta">'+(r.booth?esc(r.booth)+" · ":"")+r.count+' lights'+(r.when?' · dropped '+esc(r.when):'')+'</span></span>'+
+      '<span class="big" style="font-size:13px" id="mh-'+k+'">'+pct(r.master)+'</span></button>';
+    h += '<div class="rb">';
+    if(r.legacy) h += '<div style="margin-bottom:6px"><span class="chip legacy">Dropped before 1.70</span> <span class="lm">Its 100% is what the lights held when first adjusted here.</span></div>';
+    h += '<div style="margin-bottom:6px">'+chip(r)+'</div>';
+    h += '<div class="master"><span class="lab">Whole rig brightness</span>'+
+      '<div class="mrow"><span class="big" id="mv-'+k+'">'+pct(r.master)+'</span><span class="stops" id="ms-'+k+'">'+stops(r.master)+'</span></div>'+
+      '<div class="lm" id="ml-'+k+'">'+lmLine(r)+'</div>'+
+      '<input type="range" min="0" max="'+C.steps+'" step="1" data-master="'+k+'" value="'+toPos(r.master)+'" aria-label="Whole rig brightness for '+esc(r.room)+'">'+
+      '<div class="ticks" style="--p100:'+(toPos(1)/C.steps*100)+'%"><span>10%</span><span class="t100">100% as dropped</span><span>300%</span></div>'+
+      '<div class="over" id="ov-'+k+'"'+(over?'':' hidden')+'>Above 100% is untested. The ceiling blows out before the room gets brighter.</div></div>';
+    var ro_open = S.rolesOpen[r.key] !== false;
+    h += '<div class="roles'+(ro_open?"":" closed")+'"><button class="rolehd" data-roles="'+k+'" aria-expanded="'+ro_open+'"><span class="cv">▼</span>ADJUST BY TYPE <span style="font-weight:400;letter-spacing:0;margin-left:auto">'+r.roles.length+' types</span></button><div class="rl">';
+    r.roles.forEach(function(ro, i){
+      var id = k+'|'+i, dis = ro.skip ? " disabled" : "";
+      h += '<div class="role'+(ro.on?"":" off")+(ro.skip?" skip":"")+'">'+
+        '<div class="top"><button class="sw" role="switch" aria-checked="'+live(ro)+'" data-sw="'+id+'" aria-label="'+esc(ro.label)+' on or off"'+dis+'><i></i></button>'+
+        '<span class="rn">'+esc(ro.label)+'</span><span class="cnt">'+(ro.skip&&!ro.n?"—":ro.count+" "+esc(ro.unit))+'</span>'+
+        '<span class="pct" id="rp-'+id+'">'+(ro.skip?"":(ro.on?pct(ro.pct):"off"))+'</span></div>'+
+        '<div class="d">'+esc(ro.skip ? ro.why : ro.d)+'</div>';
+      if(!ro.skip){
+        h += '<input type="range" min="0" max="'+C.steps+'" step="1" data-role="'+id+'" value="'+toPos(ro.pct)+'" aria-label="'+esc(ro.label)+' brightness"'+(ro.on?"":" disabled")+'>';
+        h += '<div class="kel"><span>Kelvin</span><input type="number" min="1000" max="12000" step="100" data-kel="'+id+'" value="'+(ro.k==null?"":ro.k)+'" placeholder="'+(ro.k_base==null?"":ro.k_base)+'" aria-label="'+esc(ro.label)+' colour temperature">'+
+             '<span>'+(ro.k==null?(ro.k_base==null?"as dropped":"as dropped ("+ro.k_base+" K)"):"override")+'</span></div>';
+      }
+      h += '</div>';
+    });
+    h += '</div></div>';
+    h += '<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap">'+
+      '<button class="btn" data-reset="'+k+'" title="Master and every type back to 100%, all on, Kelvin as dropped">Reset to dropped</button>'+
+      '<button class="btn" data-revert="'+k+'" title="Back to the values this rig had when the window opened">Revert</button>'+
+      '<button class="btn q" data-select="'+k+'" title="Select this rig’s top-level lights and fixtures in the viewport">Select in model</button>'+
+      '<span class="gap"></span><button class="btn q" data-remove="'+k+'" style="color:var(--bad)">Remove this rig…</button></div>';
+    if(S.confirm === r.key){
+      h += '<div class="confirm"><b>Remove the '+r.count+' light'+(r.count===1?"":"s")+(r.fixtures?' and '+r.fixtures+' fixture group'+(r.fixtures===1?"":"s"):'')+' in '+esc(r.room)+'?</b>'+
+        '<span>Only this rig. Other rooms, borrowed ceilings and walls stay. Ctrl+Z will not put them back.</span>'+
+        '<div style="display:flex;gap:6px"><button class="btn danger" data-remove-yes="'+k+'">Remove</button><button class="btn" data-remove-no="1">Keep</button></div></div>';
+    }
+    return h + '</div></section>';
+  }
+
+  function boothHtml(b){
+    var id = esc(b.plugin), readable = b.readable;
+    var h = '<section class="rig open"><div class="rb" style="padding-top:8px">';
+    h += '<div class="role" style="border:0;padding:0"><div class="top"><button class="sw" role="switch" aria-checked="'+(b.on&&readable)+'" data-bsw="'+id+'"'+(readable?"":" disabled")+'><i></i></button>'+
+      '<span class="rn">'+esc(b.name)+'</span><span class="cnt">'+b.fixtures+' fixture'+(b.fixtures===1?"":"s")+'</span>'+
+      '<span class="pct" id="bp-'+id+'">'+(readable?(b.on?pct(b.pct):"off"):"")+'</span></div>'+
+      '<div class="d">One V-Ray light shared by every copy, in: '+esc(b.booths.join(", "))+'. '+
+      (readable ? 'V-Ray intensity now '+fmt(b.cur)+' (units '+esc(b.units)+'); 100% = '+fmt(b.base)+'.' : 'V-Ray does not report its intensity, so it cannot be adjusted here.')+'</div>';
+    if(readable){
+      h += '<input type="range" min="0" max="'+C.steps+'" step="1" data-booth="'+id+'" value="'+toPos(b.pct)+'"'+(b.on?"":" disabled")+' aria-label="Booth light brightness">';
+      h += '<div style="display:flex;gap:6px;margin-top:6px"><button class="btn" data-breset="'+id+'">Reset to 100%</button></div>';
+    }
+    return h + '</div></div></section>';
+  }
+
+  function lmLine(r){ var w = sumWritten(r); return "<b>"+fmtM(w)+"</b> V-Ray lm across "+r.count+" lights · "+fmt(w/C.gain)+" lm as product figures (÷"+C.gain+")"; }
+
+  function readouts(r){
+    var k = r.key;
+    $("mv-"+k).textContent = pct(r.master); $("mh-"+k).textContent = pct(r.master);
+    $("ms-"+k).textContent = stops(r.master); $("ml-"+k).innerHTML = lmLine(r);
+    $("ov-"+k).hidden = !r.roles.some(function(ro){ return live(ro) && ro.pct*r.master > 1.0001; });
+    r.roles.forEach(function(ro,i){ var el = $("rp-"+k+"|"+i); if(el && !ro.skip) el.textContent = ro.on ? pct(ro.pct) : "off"; });
+    var c = $("chip-"+k); if(c){ c.className = "chip busy"; c.textContent = "Changed · release to store"; }
+  }
+
+  function sendLive(kind, id, state){
+    S.dragging = true;
+    var now = Date.now();
+    if(now - S.liveAt >= C.liveMs){ S.liveAt = now; call("live", JSON.stringify({kind:kind, id:id, state:state})); }
+  }
+  function sendApply(kind, id, state){
+    S.dragging = false;
+    call("apply", JSON.stringify({kind:kind, id:id, state:state}));
+    if(S.deferred){ var d = S.deferred; S.deferred = null; window.setState(d); }
+  }
+
+  function parts(s){ var i = s.lastIndexOf("|"); return [rig(s.slice(0,i)), +s.slice(i+1)]; }
+
+  function wire(){
+    document.querySelectorAll("[data-toggle]").forEach(function(b){ b.onclick = function(){ var k = b.getAttribute("data-toggle"); S.open[k] = !S.open[k]; S.cur = k; render(); }; });
+    document.querySelectorAll("[data-roles]").forEach(function(b){ b.onclick = function(){ var k = b.getAttribute("data-roles"); S.rolesOpen[k] = S.rolesOpen[k] === false; render(); }; });
+    document.querySelectorAll("[data-master]").forEach(function(inp){
+      var r = rig(inp.getAttribute("data-master"));
+      inp.oninput = function(){ r.master = fromPos(+inp.value); S.cur = r.key; readouts(r); sendLive("rig", r.key, stateOf(r)); };
+      inp.onchange = function(){ r.master = fromPos(+inp.value); inp.value = toPos(r.master); sendApply("rig", r.key, stateOf(r)); };
+    });
+    document.querySelectorAll("[data-role]").forEach(function(inp){
+      var p = parts(inp.getAttribute("data-role")), r = p[0], ro = r.roles[p[1]];
+      inp.oninput = function(){ ro.pct = fromPos(+inp.value); S.cur = r.key; readouts(r); sendLive("rig", r.key, stateOf(r)); };
+      inp.onchange = function(){ ro.pct = fromPos(+inp.value); inp.value = toPos(ro.pct); sendApply("rig", r.key, stateOf(r)); };
+    });
+    document.querySelectorAll("[data-sw]").forEach(function(b){
+      var p = parts(b.getAttribute("data-sw")), r = p[0], ro = r.roles[p[1]];
+      b.onclick = function(){ ro.on = !ro.on; S.cur = r.key; sendApply("rig", r.key, stateOf(r)); render(); };
+    });
+    document.querySelectorAll("[data-kel]").forEach(function(inp){
+      var p = parts(inp.getAttribute("data-kel")), r = p[0], ro = r.roles[p[1]];
+      inp.onchange = function(){ var v = inp.value.trim(); ro.k = v === "" ? null : Math.max(1000, Math.min(12000, Math.round(+v/100)*100)); sendApply("rig", r.key, stateOf(r)); };
+    });
+    document.querySelectorAll("[data-reset]").forEach(function(b){
+      b.onclick = function(){ var r = rig(b.getAttribute("data-reset")); r.master = 1; r.roles.forEach(function(ro){ ro.pct = 1; ro.on = true; ro.k = null; }); sendApply("rig", r.key, stateOf(r)); render(); };
+    });
+    document.querySelectorAll("[data-revert]").forEach(function(b){
+      b.onclick = function(){ var r = rig(b.getAttribute("data-revert")), o = S.opened[r.key]; if(!o) return;
+        r.master = o.master; r.roles.forEach(function(ro){ var x = o.roles[ro.g]; if(x){ ro.pct = x.pct; ro.on = x.on; ro.k = x.k; } }); sendApply("rig", r.key, stateOf(r)); render(); };
+    });
+    document.querySelectorAll("[data-select]").forEach(function(b){ b.onclick = function(){ call("select", b.getAttribute("data-select")); }; });
+    document.querySelectorAll("[data-remove]").forEach(function(b){ b.onclick = function(){ S.confirm = b.getAttribute("data-remove"); render(); }; });
+    // NO JS confirm() (1.64.0: CEF's HtmlDialog does not show one and the
+    // button did nothing). The confirmation is this inline row.
+    document.querySelectorAll("[data-remove-yes]").forEach(function(b){ b.onclick = function(){ var k = b.getAttribute("data-remove-yes"); S.confirm = null; setMsg("Removing…"); call("remove", k); }; });
+    document.querySelectorAll("[data-remove-no]").forEach(function(b){ b.onclick = function(){ S.confirm = null; render(); }; });
+    document.querySelectorAll("[data-booth]").forEach(function(inp){
+      var bl = booth(inp.getAttribute("data-booth"));
+      inp.oninput = function(){ bl.pct = fromPos(+inp.value); $("bp-"+bl.plugin).textContent = pct(bl.pct); sendLive("booth", bl.plugin, {pct:bl.pct, on:bl.on}); };
+      inp.onchange = function(){ bl.pct = fromPos(+inp.value); sendApply("booth", bl.plugin, {pct:bl.pct, on:bl.on}); };
+    });
+    document.querySelectorAll("[data-bsw]").forEach(function(b){
+      var bl = booth(b.getAttribute("data-bsw"));
+      b.onclick = function(){ bl.on = !bl.on; sendApply("booth", bl.plugin, {pct:bl.pct, on:bl.on}); render(); };
+    });
+    document.querySelectorAll("[data-breset]").forEach(function(b){
+      var bl = booth(b.getAttribute("data-breset"));
+      b.onclick = function(){ bl.pct = 1; bl.on = true; sendApply("booth", bl.plugin, {pct:1, on:true}); render(); };
+    });
+  }
+
+  $("refresh").onclick = function(){ setMsg("Refreshing…"); call("refresh"); };
+  $("checkAll").onclick = function(){ setMsg("Checking every rig against V-Ray…"); call("checkall"); };
+  $("drop").onclick = function(){ setMsg("Opening the drop settings…"); call("drop"); };
+  render();
+  call("ready");
+})();
+</script>
+</body></html>
+  HTML
+
   # ---- run ----------------------------------------------------------------
 
   # `given` SKIPS THE SETTINGS DIALOG (1.65.0). Benton, 11 Sep 2026, on
@@ -4785,6 +6189,17 @@ paint(); drawPresets("");
     end
 
     if subjects.empty?
+      # THE PANEL IS THE MAIN LIGHTS UI (1.70.0, Benton Q7). Pressed with
+      # nothing selected -- or with only this tool's own lights selected --
+      # the button opens the Interior Lights window instead of refusing. A
+      # selected hand-made light and a loose-geometry selection still get
+      # today's explanation. Interactive presses only: a headless caller
+      # handed its subjects never reaches here.
+      if subjects_given.nil? && given.nil? && handmade.empty? &&
+         (model.selection.empty? || (excluded.any? && excluded.all? { |_, r| r == :own || r == :tag }))
+        show_rigs(model, excluded.map { |e, _| e })
+        return
+      end
       if handmade.any?
         names = handmade.map { |e| "\"#{display_name(e)}\"" }.join(', ')
         puts ''
@@ -4947,12 +6362,27 @@ paint(); drawPresets("");
       fx_mat = borrow_material(model, ['Aluminum', 'WR Wall', 'Wall',
                                        'WR Panel', 'Metal'])
 
+      # THE ROOM A LIGHT BELONGS TO (1.70.0). Nothing recorded it before, so
+      # the Interior Lights panel had to guess by containment. Set per
+      # subject in the loop below and stamped on every light and fixture.
+      cur_room = nil
+      rooms_dropped = {}
+      stamp_room = lambda do |ent|
+        next if cur_room.nil?
+        pid = (cur_room.persistent_id rescue nil)
+        next if pid.nil?
+        ent.set_attribute(DICT, 'room_pid', pid)
+        ent.set_attribute(DICT, 'room_name', display_name(cur_room))
+        rooms_dropped[rig_key(pid, press_uuid)] = true
+      end
+
       stamp_own = lambda do |g, kind|
         g.layer = layer
         g.set_attribute(DICT, 'seed', "Fixture #{kind.to_s.upcase}")
         g.set_attribute(DICT, 'role', "fixture_#{kind}")
         g.set_attribute(DICT, 'kind', 'fixture')
         g.set_attribute(DICT, 'uuid', press_uuid)
+        stamp_room.call(g)
         n = 0
         begin
           n = g.entities.grep(Sketchup::Face).length
@@ -5067,6 +6497,15 @@ paint(); drawPresets("");
         # is meant to be unseen and is not is just as wrong as a light at
         # the wrong intensity, and is far more obvious in the picture.
         inst.set_attribute(DICT, 'invisible', !spec[:visible])
+        # THE PANEL'S STAMPS (1.70.0). `lumens_base` is this light's 100%
+        # (Benton: 100% = what the drop wrote). `kelvin` / `kelvin_base` are
+        # the colour ACTUALLY written, Warmth offset and per-layer nudge
+        # included -- the repair used to rebuild colour from the table at
+        # offset 0 and so undid every warmth choice it touched.
+        inst.set_attribute(DICT, 'lumens_base', lumens.to_f)
+        inst.set_attribute(DICT, 'kelvin', kelv.to_i)
+        inst.set_attribute(DICT, 'kelvin_base', kelv.to_i)
+        stamp_room.call(inst)
         placed += 1
         if spec[:budget] == :room
           room_lm += lumens
@@ -5086,6 +6525,7 @@ paint(); drawPresets("");
 
       subjects.each do |s|
         name = display_name(s)
+        cur_room = booth?(s) ? nil : s
         unless s.bounds.valid?
           puts "  SKIPPED #{name} — empty bounding box"
           next
@@ -5792,6 +7232,11 @@ paint(); drawPresets("");
                'Lights dropped before 1.8.0 shared a seed asset and never ' \
                'owned a plugin to delete.'
         end
+      end
+      # A fresh drop is 100% by definition: forget any panel state stored for
+      # the rooms this press just re-lit.
+      rooms_dropped.each_key do |k|
+        (model.delete_attribute(DICT, RIG_STATE_PREFIX + k) rescue nil)
       end
       model.commit_operation
 

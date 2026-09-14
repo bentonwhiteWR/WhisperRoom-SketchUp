@@ -386,7 +386,12 @@ METHODS = ['grid_spacing', 'axis_points', 'point_in_poly?', 'seg_dist',
            # 1.67.0 -- the office rig's placement logic
            'panel_grid', 'rot2', 'box_exit', 'fill_points', 'emitter_top_z',
            # 1.67.3 -- the flush aperture (ruling R5)
-           'panel_vis_recess', 'panel_visible_share']
+           'panel_vis_recess', 'panel_visible_share',
+           # 1.70.0 -- the Interior Lights panel's pure half
+           'clamp_pct', 'slider_pct', 'slider_pos', 'stops_text', 'rig_lumens',
+           'light_base', 'role_group', 'rig_key', 'group_rows', 'group_count',
+           'parse_rig_state', 'light_kelvin', 'throttle_decision',
+           'rig_faults', 'fault_count', 'repairable']
 SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'HEADROOM', 'TARGET_FC', 'CU', 'WASH_STANDOFF',
            'WASH_SPACING', 'WASH_MAX', 'ACCENT_OUT', 'ACCENT_AIM_DROP', 'ACCENT_MIN',
@@ -428,7 +433,10 @@ SCALARS = ['DROP', 'BOOTH_DROP', 'EDGE_MIN', 'EDGE_CAP', 'KEEPOUT_PAD',
            'FACEWASH_STEP', 'FACEWASH_MARGIN', 'FACEWASH_Z',
            'FACEWASH_AIM_DROP',
            # 1.67.3 -- the flush aperture (ruling R5)
-           'PANEL_FLUSH_DROP', 'PANEL_FLUSH_HID']
+           'PANEL_FLUSH_DROP', 'PANEL_FLUSH_HID',
+           # 1.70.0 -- the Interior Lights panel
+           'PANEL_PCT_MIN', 'PANEL_PCT_MAX', 'PANEL_STEPS', 'PANEL_DETENT',
+           'LIVE_GAP']
 BOOLS = ['PANEL_FLUSH', 'PANEL_APERTURE_SEEN', 'PANEL_APERTURE_INVISIBLE']
 STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT', 'RIG_DEFAULT']
 # FILL_SCATTER BEFORE LIGHT_LAYERS: the :fill role's :n reads FILL_SCATTER.size,
@@ -436,7 +444,7 @@ STRINGS = ['TAG', 'WR_MODE_DICT', 'DICT', 'WALLS_DEFAULT', 'RIG_DEFAULT']
 BLOCKS = ['ROOM_CHILD_TAGS', 'ROOM_CHILD_NAMES',
           'ROOM_PART_TAG', 'ROOM_FLOOR_TAG', 'ROOM_WALLS_TAG',
           'ROOM_DOORS_TAG', 'ROOM_PART_NAME', 'FILL_SCATTER',
-          'LIGHT_LAYERS', 'BOOTH_ROLES']
+          'LIGHT_LAYERS', 'BOOTH_ROLES', 'ROLE_GROUPS']
 
 
 def lift_block(lines, name):
@@ -1269,6 +1277,115 @@ __METHODS__
                    PANEL_FLUSH_HID > PANEL_FLUSH_DROP) ? 1 : 0,
                   panel_vis_recess)
 
+    # 30 -- THE INTERIOR LIGHTS PANEL (1.70.0). Expected values derived by
+    # hand from the formulas, not read off a run:
+    #   slider: v = 0.1 * 30^(p/1000); 100% sits at p = 1000 ln10/ln30 = 677;
+    #   p=650 -> 0.912 (outside the 3.5% detent), p=680 -> 1.0104 (snaps),
+    #   p=690 -> 1.045 (does not); pos(0.5) = 1000 ln5/ln30 = 473.
+    out << format('slider %.4g %.4g %.4g %.4g %.4g %.4g pos%d/%d/%d/%d',
+                  slider_pct(0), slider_pct(1000), slider_pct(650),
+                  slider_pct(680), slider_pct(690), slider_pct(-5),
+                  slider_pos(1.0), slider_pos(0.5), slider_pos(5.0), slider_pos(nil))
+    out << format('stops %s/%s/%s clamp%.4g/%.4g/%.4g',
+                  stops_text(0.5), stops_text(2.0), stops_text(1.0),
+                  clamp_pct(nil), clamp_pct(0.01), clamp_pct(0.0 / 0.0))
+    # 100% = what the drop wrote (Benton Q1); a legacy light falls back to its
+    # current lumens; off is 0 (audit OFF), and the master clamps at 300%.
+    out << format('lumens %.4g %.4g %.4g %.4g base%s/%s/%s',
+                  rig_lumens(1000.0, 0.5, 2.0, true), rig_lumens(1000.0, 0.5, 2.0, false),
+                  rig_lumens(1000.0, 5.0, 1.0, true), rig_lumens(nil, 1.0, 1.0, true),
+                  light_base(800.0, 400.0).inspect, light_base(nil, 400.0).inspect,
+                  light_base(nil, nil).inspect)
+    out << format('roles %s/%s/%s/%s/%s key%s/%s/%s',
+                  role_group('plenum'), role_group('panel'), role_group('fixture_f4').inspect,
+                  role_group('key'), role_group('').inspect,
+                  rig_key(123, 'u'), rig_key(nil, '1789-1'), rig_key(nil, ''))
+    # Grouping by room: two panel positions (aperture + plenum each) and one
+    # legacy fill in room 1; a stamped face wash in room 2; a fixture group
+    # is not a light and is skipped. Room 1 is legacy because ONE light
+    # lacks a base.
+    rows = [
+      { 'key' => 'room:1', 'role' => 'plenum', 'base' => 100.0, 'lumens' => 50.0 },
+      { 'key' => 'room:1', 'role' => 'panel', 'base' => 10.0, 'lumens' => 5.0 },
+      { 'key' => 'room:2', 'role' => 'facewash', 'base' => 20.0, 'lumens' => 20.0 },
+      { 'key' => 'room:1', 'role' => 'fixture_f4', 'base' => nil, 'lumens' => nil },
+      { 'key' => 'room:1', 'role' => 'plenum', 'base' => 100.0, 'lumens' => 50.0 },
+      { 'key' => 'room:1', 'role' => 'panel', 'base' => 10.0, 'lumens' => 5.0 },
+      { 'key' => 'room:1', 'role' => 'fill', 'base' => nil, 'lumens' => 7.0 }]
+    gr = group_rows(rows)
+    gtxt = gr.map do |r|
+      r['key'] + format('/%d%s ', r['count'], r['legacy'] ? 'L' : '') +
+        r['groups'].map { |g, x| format('%s%d/%.4g/%.4g/%d', g, x['n'], x['base_sum'], x['lm_sum'], group_count(g, x)) }.join(' ')
+    end
+    out << 'group ' + gtxt.join(';')
+    st = parse_rig_state({ 'master' => 0.5, 'roles' => { 'panel' => { 'pct' => 9, 'on' => false, 'k' => 3500 },
+                                                         'fill' => 'junk', 'facewash' => { 'k' => 50 } } },
+                         %w[panel fill facewash])
+    st0 = parse_rig_state(nil, %w[panel])
+    out << format('state m%.4g p%.4g/%s/%s f%.4g/%s/%s w%s d%.4g/%s/%s kel%s/%s/%s',
+                  st['master'], st['roles']['panel']['pct'], st['roles']['panel']['on'],
+                  st['roles']['panel']['k'].inspect, st['roles']['fill']['pct'],
+                  st['roles']['fill']['on'], st['roles']['fill']['k'].inspect,
+                  st['roles']['facewash']['k'].inspect,
+                  st0['master'], st0['roles']['panel']['on'], st0['roles']['panel']['k'].inspect,
+                  light_kelvin(nil, 4200).inspect, light_kelvin(3500, 4200).inspect,
+                  light_kelvin(nil, nil).inspect)
+    # THE THROTTLE, decisions and a simulated drag. Events at 0, .05, .10,
+    # .12, .40, .41 s with LIVE_GAP .25: write at 0; arm for .25; coalesce
+    # two; the timer at .25 writes the LATEST pending (4); .40 arms for .50;
+    # that timer writes 6. Never two writes closer than LIVE_GAP, nothing
+    # queued, and the last value always lands.
+    t1 = throttle_decision(10.0, nil, LIVE_GAP, false)
+    t2 = throttle_decision(10.0, 9.9, LIVE_GAP, false)
+    t3 = throttle_decision(10.0, 9.9, LIVE_GAP, true)
+    t4 = throttle_decision(10.0, 9.7, LIVE_GAP, false)
+    writes = []
+    last = nil
+    timer = nil
+    pending = nil
+    flush = lambda do |t|
+      if pending
+        writes << [t, pending]
+        last = t
+        pending = nil
+      end
+    end
+    [[0.00, 1], [0.05, 2], [0.10, 3], [0.12, 4], [0.40, 5], [0.41, 6]].each do |t, v|
+      if timer && timer <= t
+        flush.call(timer)
+        timer = nil
+      end
+      pending = v
+      act, d = throttle_decision(t, last, LIVE_GAP, !timer.nil?)
+      if act == :now
+        flush.call(t)
+      elsif act == :arm
+        timer = t + d
+      end
+    end
+    flush.call(timer) if timer
+    gaps_ok = writes.each_cons(2).all? { |a, b| b[0] - a[0] >= LIVE_GAP - 1e-9 }
+    out << format('thr %s %s/%.2f %s %s sim %s gap%d',
+                  t1[0], t2[0], t2[1], t3[0], t4[0],
+                  writes.map { |t, v| format('%.2f:%d', t, v) }.join(','), gaps_ok ? 1 : 0)
+    fv = { 'dead' => [['/a', 30.0]], 'wrong' => [['/b', 1.0, 2.0], ['/z', 1.0, 2.0]],
+           'seen' => [], 'missing' => ['/c', '/y'], 'off' => [['/d', 0.0]] }
+    rf = rig_faults(fv, ['/a', '/b', '/c', '/d'])
+    out << format('faults d%d w%d s%d m%d o%d n%d', rf['dead'].size, rf['wrong'].size,
+                  rf['seen'].size, rf['missing'].size, rf['off'].size, fault_count(rf))
+    # THE AUTO-REPAIR FENCE. A factory reset (<= 30 lm) or a visibility flip
+    # is always drift. An intensity that is merely DIFFERENT is repaired
+    # automatically only on a light the panel owns (stamped lumens_base, or
+    # written this session); on a legacy light it may be a hand edit in the
+    # Asset Editor, and only the explicit Check & repair (force) takes it.
+    out << format('fence f%d v%d wo%d wl%d wf%d ok%d',
+                  repairable(30.0, 5000.0, false, false, false) ? 1 : 0,
+                  repairable(5000.0, 5000.0, true, false, false) ? 1 : 0,
+                  repairable(10598.0, 1059840.0, false, true, false) ? 1 : 0,
+                  repairable(10598.0, 1059840.0, false, false, false) ? 1 : 0,
+                  repairable(10598.0, 1059840.0, false, false, true) ? 1 : 0,
+                  repairable(5000.2, 5000.0, false, false, true) ? 1 : 0)
+
     out.join(' | ')
   end
 end
@@ -1412,6 +1529,16 @@ EXPECT = ' | '.join([
     # 1.67.3: aperture 1/4 in below the ceiling, hidden emitter 3/4 in below
     # it -> in front, and the recess between them is 0.75 - 0.25 = 0.50.
     'flush on1 drop0.25 hid0.75 order1 recess0.5',
+    # 1.70.0 -- the Interior Lights panel (check 30 has the derivations)
+    'slider 0.1 3 0.9123 1 1.045 0.1 pos677/473/1000/677',
+    'stops -1.00 stops/+1.00 stops/tuned clamp1/0.1/1',
+    'lumens 1000 0 3000 0 base[800.0, false]/[400.0, true]/[nil, true]',
+    'roles panel/panel/nil/key/nil keyroom:123/press:1789-1/loose',
+    'group room:1/5L panel4/220/110/2 fill1/7/7/1;room:2/1 facewash1/20/20/1',
+    'state m0.5 p3/false/3500 f1/true/nil wnil d1/true/nil kel4200/3500/nil',
+    'thr now arm/0.15 coalesce now sim 0.00:1,0.25:4,0.50:6 gap1',
+    'faults d1 w1 s0 m1 o1 n3',
+    'fence f1 v1 wo1 wl0 wf1 ok0',
 ])
 
 # ---- second program: wr-mode.rb's snapshot pins -------------------------

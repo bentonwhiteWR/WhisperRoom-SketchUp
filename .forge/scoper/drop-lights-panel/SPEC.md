@@ -97,5 +97,16 @@ geometry he didn't want touched.
 6. **Should the booth's own BoothLighting light be listed (read-only)?** Recommended yes, greyed, "not this rig", so the interior isn't mistaken for unlit.
 7. **Should an empty selection reroute to the panel** (§2), or should the new button be the only way in? Recommended both.
 
+### Benton's answers (14 Sep 2026, recorded by the Builder; these override the recommendations above)
+1. **100% = the values the rig was dropped at.** Office defaults unchanged. Each light is stamped `lumens_base` at drop; a rig with no stamp takes its current stamped `lumens` as 100%.
+2. **Slider:** 10-300%, log scale, readout as % plus stops.
+3. **Writes:** live while dragging preferred if it can be throttled safely (at most ~4 V-Ray writes/s, coalesced, guaranteed final write on release, then audit/repair); otherwise on release.
+4. **Per-type Kelvin:** yes, if cheap and safe.
+5. **Remove this rig per room:** yes, with a confirm that works headless (no JS `confirm()`); erase only lights stamped for that rig; never `Sketchup.undo`.
+6. **The booth's own light is adjustable from the panel** if it is a V-Ray light the panel can write; otherwise report what it is.
+7. **Both ways in.** The panel is the main lights UI: a new panel button, the existing drop button with nothing selected, and a "Drop in lights" button in the panel that runs today's drop for the selection and refreshes. With a room selected the existing button works as today.
+
+As built (1.70.0): all seven shipped. Live drag writes intensity only, throttled to 4/s; release does the full per-light write. Kelvin is a per-type number box. The booth light is BoothLighting's V-Ray rectangle (one plugin shared by every copy), scaled as one. Builder addition: an auto-repair fence, so Refresh never overwrites a hand-edited older rig (only Check & repair does). See DEVLOG 1.70.0.
+
 ## 8. Out of scope
 Re-placing, adding or moving lights. Changing counts or grid spacing. The camera or ISO (`NEVER_WRITE`). Sun. Floor. Presets (they stay in the drop dialog). Classic-rig tuning figures. Fixing the flush aperture having no geometry (DEVLOG 09-11 #2). Any render or rank run.

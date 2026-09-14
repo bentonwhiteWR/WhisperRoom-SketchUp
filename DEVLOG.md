@@ -1,5 +1,67 @@
 # DEVLOG
 
+## 2026-09-14
+### 1.70.0 - INTERIOR LIGHTS PANEL: a modeless window that adjusts a rig already in the model. It is now the main lights UI. PARSED AND UNIT-TESTED ONLY: no write path has run in SketchUp.
+
+Spec: `.forge/scoper/drop-lights-panel/SPEC.md`. Benton's answers are recorded in its §7 and override the Scoper's recommendations.
+
+## What shipped
+- **New panel button** `scripts/wr-lights-panel.rb` ("Adjust interior lights..."). It loads `wr-drop-lights.rb` with both autorun flags up, then calls `WR_DropLights.show_rigs`. It needs no selection.
+- **The existing drop button, with nothing selected** (or only this tool's own lights), opens the same window instead of a messagebox. A selected hand-made light, or a selection of loose geometry, still gets the old explanation. With a room selected it works as before.
+- **One card per room.** A legacy rig (no room stamp) is grouped by which room group's world bounds contain each light. Each card has:
+  - a whole-rig slider: 10-300%, log scale, readout in % and stops, total V-Ray lm, and product lm (/320);
+  - per type (ceiling panels = aperture + plenum, fill spheres, face wash; classic roles one each): a slider, an on/off switch, and a Kelvin box;
+  - Reset to dropped, Revert (to the values when the window opened), Select in model;
+  - **Remove this rig...** with an inline confirm row (no JS `confirm()`, no messagebox).
+- **Booth interior light card.** Observed read-only on a client model: BoothLighting's light is a V-Ray `LightRectangle` whose definition (`Standard Light`) owns ONE plugin shared by every copy (intensity 2500, units 0). It is scaled as one light, and the card says every booth using it changes. Its 100% is stamped on the definition (`booth_base`) at the first adjust.
+- **Drop in lights...** in the footer runs the existing `run` (the modal settings dialog, unchanged) on the selection, then refreshes. It is disabled when nothing droppable is selected; a SelectionObserver keeps that state current.
+- **New stamps at drop**, on every light: `lumens_base` (= 100%), `kelvin` and `kelvin_base` (the colour actually written, Warmth and per-layer nudge included), and `room_pid` / `room_name` (on fixtures too). A new drop deletes the panel state (`rig:<key>`) for the rooms it re-lit.
+- **Repair promoted into the module:** `repair_rig!` (from `.forge/fixer/rank-loop/d-repair.rb`) rewrites the whole parameter set from the stamps. **The warmth bug is fixed:** colour comes from the `kelvin` stamp. Only a pre-1.70 light with no Kelvin stamp falls back to the table at offset 0, and the adjust writes no colour for those.
+
+## Write semantics
+- `lumens = lumens_base x master x type%` (0 when off, which the audit reads as OFF). **100% = what the drop wrote** (Q1). A legacy light with no base takes its current `lumens` stamp, which is stamped as its base on the first adjust.
+- **Release / switch / Kelvin / reset:**
+  1. Stamps go in one `Adjust Interior Lights` operation.
+  2. After the commit, each light gets its full per-light `write_params` (the drop's proven path), read back.
+  3. `AUDIT_SETTLE` (4 s) later: `audit_scene`, then `repair_rig!` on DEAD / SEEN / owned-WRONG, then a re-audit. The result lands on the card's chip.
+- **Live drag** (Q3 shipped live): intensity only, ONE batched `scene.change` for the rig. `throttle_decision` allows at most one write per `LIVE_GAP` 0.25 s: the first goes now, the next arms a one-shot timer, and later ones coalesce into it, so the latest value lands. Live writes touch no stamps and create no undo steps. The release does the real write. Closing the window mid-drag reconciles.
+- **Undo:** `onTransactionUndo` / `onTransactionRedo` on a ModelObserver (documented, SketchUp 6+) arm a 0.5 s timer that re-checks and repairs, so V-Ray is never written from inside the notification. Refresh does the same by hand. Never `Sketchup.undo`.
+- **Remove this rig:** erases that key's fixtures and lights, then reaps definitions and plugins AFTER the commit (the `remove_rig!` order). Borrowed ceilings and walls stay.
+
+## THE AUTO-REPAIR FENCE (a decision made while building; not in the spec)
+The read-only audit of the open client model (`WyattShepherd Audiology Basic Plus.skp`, two 1.69 rigs) failed: **7 plenum emitters hold exactly 1% of their stamps** (V-Ray 10,598 against a stamp of 1,059,840). That looks like a hand edit in the Asset Editor, not drift (drift = factory 30). Pushing "the stamps are the truth" on every Refresh would make that room 100x brighter unasked. So `repairable`:
+- always repairs a factory reset (<= 30), a visibility flip, or an unreadable intensity;
+- repairs a merely DIFFERENT intensity only on lights the panel owns (a `lumens_base` stamp, or written by the panel this session);
+- **Check & repair** (`force`) takes everything.
+
+Verified read-only on that model: auto would touch 0 lights, forced 7. The card says "V-Ray differs on N lights. Check & repair pushes the rig values". **Benton should know:** on that model, the first adjust uses the stamped 1,059,840 as 100% (his Q1 rule), not the 1% V-Ray holds.
+
+## Verified
+- `python scripts/rbparse.py`: 76 files parse, including both changed `.rb` files (observed).
+- `scripts/rbtest-lights.py` adds 9 panel rows, all passing against expectations derived by hand: log slider maths and detent, stops, the lumen rule, base fallback, role grouping and room keys, `group_rows` by room, `parse_rig_state` hardening, `light_kelvin`, the throttle (decisions plus a simulated drag: writes at 0.00 / 0.25 / 0.50, the latest value lands, no gap under 0.25), fault filtering, and the fence. **Not mutation-checked.**
+- **Still red and NOT touched:** `fill` and `fillsmall` (red since the 14-sphere scatter; the expectations still describe 6 spheres).
+- **Read-only bridge runs** on the open client model (loaded the new file with `$wr_no_autorun`, `modified?` stayed false):
+  - `panel_state` grouped both legacy rigs into their rooms (Suite 114: 4 positions / 8 lights; Suite 128: 3 / 6), found both booths and the shared booth light, in 0.29 s;
+  - `check_rigs!` read-only set the chips;
+  - the observer classes defined; the dialog HTML has its constants substituted.
+- Dialog HTML rendered in headless Chrome with sample state and looked at (not in SketchUp's CEF).
+
+## UNVERIFIED - nothing below has run
+- No write path has run live (apply, live drag, Kelvin, remove, booth write, repair from the module, Drop in lights from the panel). The open model was a saved client file, so under the brief it was not touched and `file_new` was not called.
+- Batching many plugins in ONE `scene.change` (the live path) has never been observed; only per-light transactions have.
+- Whether `onTransactionUndo` fires for an attribute-only operation on SketchUp 2026, and whether a `scene.change` right after an undo breaks the redo stack.
+- The HtmlDialog in CEF (tested only in Chrome); the SelectionObserver refresh; `find_entity_by_persistent_id` on a room nested in a group.
+- Whether V-Ray keeps up with 4 intensity writes a second on a 65-light rig with IPR running.
+
+## Traps
+- **rbtest's VM has no numeric prelude:** `Integer#to_i`, `Integer#round` and `Float#to_f` do not exist there. The pure panel helpers avoid them (commented), and new pure code must too.
+- Removing one rig leaves the `WR Lights` tag and any borrowed ceiling/walls; "Remove all lights" in the drop settings still does the whole job.
+- The booth light is per DEFINITION: two booths sharing `Standard Light` cannot differ.
+- The panel state lives in a model attribute `WR_DropLights / rig:room:<pid>`, so it saves with the model and rolls back with Ctrl+Z.
+
+## Files
+`scripts/wr-drop-lights.rb`, `scripts/wr-lights-panel.rb` (new), `scripts/rbtest-lights.py`, `scripts/wr_tools/VERSION`, `.forge/scoper/drop-lights-panel/SPEC.md`, `.forge/builder/HANDOFF.md`.
+
 ## 2026-09-12 — SESSION HANDOFF (read this first)
 
 **Where we are.** Plugin **1.69.0**, pushed. Two things shipped this session: AUTO-SET's

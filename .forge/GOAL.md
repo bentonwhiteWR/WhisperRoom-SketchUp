@@ -12,7 +12,12 @@ place the quoted booth in them.
   every assumed value noted in the model.
 - A viewport screenshot confirms the build; notes.md records the read; committed and pushed.
 
-## Now (14 Sep, second unit)
+## Now (14 Sep, third unit)
+Build the Interior Lights panel per `.forge/scoper/drop-lights-panel/SPEC.md` with Benton's
+answers to its section 7 (recorded there by the Builder). It becomes the main lights UI and
+carries a "Drop in lights" button for the selected room.
+
+## Done earlier today (second unit)
 Proposal PDF for the client, Wyatt Shepherd, from `Z:/Sketchup/Proposals/WyattShepherd Audiology Basic Plus`:
 two options, RM 114 (plates 01-06) and RM 128 (plates 07-12, MISNAMED "Suite 114 (2)").
 Output `Desktop\ProposalFiles\Wyatt Shepherd\Wyatt Shepherd-Booth-Renderings.pdf`.
