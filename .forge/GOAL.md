@@ -12,7 +12,13 @@ place the quoted booth in them.
   every assumed value noted in the model.
 - A viewport screenshot confirms the build; notes.md records the read; committed and pushed.
 
-## Now (14 Sep, third unit)
+## Now (14 Sep, fourth unit)
+Intelligence Security Laboratories: take off a tiny office from 5 photos + the booth-builder
+room fields (100 x 65 in, ceiling 7'6"), build it and the MDL 6060 ENV from the link into the
+open saved file `Z:/Sketchup/ClientDrawings/Intelligence Security Laboratories MDL 6060 ENV.skp`
+(Benton opened it for this; do not save it). Report fit margins, especially the room door swing.
+
+## Done earlier (third unit)
 Build the Interior Lights panel per `.forge/scoper/drop-lights-panel/SPEC.md` with Benton's
 answers to its section 7 (recorded there by the Builder). It becomes the main lights UI and
 carries a "Drop in lights" button for the selected room.
