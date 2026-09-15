@@ -1,6 +1,42 @@
 # DEVLOG
 
-## 2026-09-14 — SESSION HANDOFF (read this first)
+## 2026-09-15 — SESSION HANDOFF (read this first)
+
+**Where we are.** Plugin still **1.71.1**; no plugin changes today. One client pack built:
+the UT Health Sciences V3 mini revision.
+
+**Done**
+- UTHSC V3 pack: `C:/Users/bento/Desktop/ProposalFiles/UTHealthSciences/UTHealthSciences-Booth-RenderingsV3.pdf`
+  (8 pp, 1.54 MB), config + trimmed plates in `.../UTHealthSciences/source-v3/`. Pages 1-6:
+  MDL 7296 E in the client's smaller 10' x 11' 9" room (hero = V-Ray angled). Pages 7-8:
+  Room 1, now 18' 4 1/4" long after the client added a wall (V2 had 22' 4 1/4"), with the
+  drawn note that both booths still fit. V2 left untouched. Every page and bottom edge
+  rasterized and checked. Client facts recorded in `clients/uthsc-audiology/notes.md`.
+- Builder handoff: `.forge/builder/uthsc-v3/HANDOFF.md`.
+
+**Open decisions (Benton)**
+1. UTHSC V3: the white floor (0128_White) shows on every plain SketchUp page (3-8);
+   V-Ray pages show carpet. Re-texture and re-export, or ship as is?
+2. UTHSC V3: a sliver of the neighbouring room shows above the wall on page 7, and a wall
+   line above the outline on page 8 (13 items sit outside the room in the model).
+3. UTHSC V3 wording not read off a plate: "the smaller room", "lever handle", what the
+   8' 2" / 3' 9 5/8" / 7' 5/16" callouts span on page 7, "still takes two enclosures", and
+   the V2 cover sub-line. A 7' callout on pages 3 and 6 is cited "as drawn" only.
+4. UTHSC V3 is 1.54 MB because exports are 1600 px; a 2400 px export would print sharper.
+5. Everything under "Open decisions" in the 14 Sep handoff below is still open.
+
+**Next steps, in order**
+1. Get Benton's answers to the UTHSC V3 decisions above; if the floor or strays get fixed,
+   re-export and rebuild from `source-v3/proposal-v2.json` (build-v2.js, headless Chrome,
+   PyMuPDF check of every page and bottom edge).
+2. Then continue the 14 Sep next steps below (Dimension selected room live test, lights
+   panel tests, vanishing room dims, AUTO-SET token guard).
+
+**Traps**
+- `.forge/builder/isl-6060/` and `.forge/builder/suites-128-114/` hold client screenshots and
+  stay untracked on purpose (public repo).
+
+## 2026-09-14 — SESSION HANDOFF
 
 **Where we are.** Plugin **1.71.1**, pushed; installed copies were 1.71.0 at last check.
 Today shipped two tools, a no-vent wall fix, three client proposal packs, and two take-offs

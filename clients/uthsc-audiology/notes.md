@@ -243,3 +243,17 @@ load "C:/Users/bento/Documents/Claude/Sketchup/scripts/uthsc-audiology-rooms.rb"
 SketchUp. It passes a real syntax check (`scripts/rbparse.py`, which drives the CRuby 3.2
 library SketchUp ships) and the build is wrapped so it aborts the operation and prints one
 `FAILED:` line rather than leaving a half-built model — but nothing has executed it.
+
+## 2026-09-15 — Revision: wall added, smaller room, V3 pack
+
+- **Reported (client, via Benton):** a wall was placed in one of the rooms, shortening it by
+  4 ft. The client also gave a smaller room at **10' × 11' 9"**.
+- **Observed (V3 plates):** Room 1 is now drawn 19' 11 1/4" × 18' 4 1/4"; V2 had
+  22' 4 1/4" on that run — exactly the 4 ft. Which room took the wall was not stated by the
+  client; the model shows it as Room 1.
+- **Observed (plates 25/26):** Room 1 still fits both booths side by side with their ramps;
+  the drawing carries "Room 1 - Could fit both booths in with this layout."
+- MDL 7296 E drawn in the 10' × 11' 9" room (model `UTHealthSciencesAudiology Premium Enhanced
+  Proposal x5 SMALL BOOTH.skp`).
+- Pack: `Desktop/ProposalFiles/UTHealthSciences/UTHealthSciences-Booth-RenderingsV3.pdf`
+  (8 pp), config in `.../source-v3/`. Still unconfirmed by tape.
