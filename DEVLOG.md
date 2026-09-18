@@ -1,5 +1,43 @@
 # DEVLOG
 
+## 2026-09-18 — 1.72.0: Draw floor plan redesigned around the plan; mirror bug fixed
+
+**What changed.** `scripts/build-room.html` is now one screen built around the plan preview
+(Scoper spec `.forge/scoper/floorplan-redesign.md`, mockup approved by Benton 18 Sep). Hover a
+wall → ghost door; click → a 36" door drops there; drag it (whole-inch snap, clamped 1" off
+each corner) or type corner → near jamb; **Rotate door** (or `R`) cycles four states —
+hinge W/E jamb × opens in/out — and four clicks return to the start. Click a wall's dimension
+to edit/insert/delete that wall. Runs list kept as a collapsed "Walls, as a list".
+
+**Mirror bug fixed (Benton's ruling Q1).** The dialog used to swap N↔S on output. The preview
+draws north up and `WR_BuildRoom::DIR` has N=+y, so the swap built every room mirrored: a door
+on the preview's north wall landed on the model's south wall. Runs now go out as drawn —
+which is also what `build-takeoff.rb` has always fed `DIR` (clockwise from NW, run 0 heads E
+along the north wall). Checked: nothing else calls the dialog's payload or `WR_BuildRoom.build`;
+the dialog never persisted runs (Ruby remembers only `mode`); `takeoff-vectors.html` and
+`takeoff-check.py` only lift `parseLen`/`arch`, which are byte-identical.
+
+**Payload.** Same shape. Each door gains `swing: "in"|"out"` and, if dropped by click/drag and
+never typed, `placed: true`. `mode` is derived (detail once not a plain default rectangle) and
+still only decides how the dialog reopens. `door()` takes a trailing `swing = 'in'`: an
+outward door hangs its leaf from the exterior face (jambs + `thick` along the outward normal)
+and swings away from the room; the opening marker auto-dimension reads is unchanged. Missing
+`swing` = today's behaviour exactly; `build-takeoff.rb` passes none and is unaffected. The
+console report now names each `placed` door as "PLACED BY EYE, not measured". Placed doors
+warn in the footer but do NOT block Build (ruling Q2).
+
+**Verified.** `rbparse.py` 77 files parse; `rbtest-doorswing.py` extended to in/out/default ×
+near/far × CW/CCW, 0 failures; `rbtest-takeoff.py` and `takeoff-check.py --selftest` 0
+failures; `takeoff-vectors.html` 25 vectors 0 failed; `.forge/builder/floorplan-uitest.py`
+(headless Chrome, stubbed `window.sketchup`) 29 PASS, no JS errors.
+**Not run in SketchUp.** Live check: build 12'-0" × 5'-6" with a door clicked on the north
+wall — it must land on the north wall; rotate to "opens out" — leaf and arc outside the wall.
+
+**Traps.** Never write the literal opening line of `parseLen` anywhere else in
+`build-room.html`, even in a comment — two tools lift it by regex from the first match (the
+mockup had one in a comment; removed). `.forge/builder/build-room-uitest.py` tests the old
+two-mode dialog and is superseded by `floorplan-uitest.py`.
+
 ## 2026-09-15 — SESSION HANDOFF (read this first)
 
 **Where we are.** Plugin still **1.71.1**; no plugin changes today. One client pack built:

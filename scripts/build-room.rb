@@ -3,24 +3,32 @@
 #
 # Type a room, get it built and dimensioned.
 #
-# It opens on the case that is nearly always the case — a plain rectangle — so
-# it asks for a length and a width and nothing else, with a Build button that
-# works immediately. "More detail..." expands into the take-off: runs entered
-# the way you read them off a plan, a direction and a length each, with the
-# doors, the wall thickness and the room name. The dialog previews the polygon
-# and tells you whether it CLOSES before anything is built. A take-off that
-# does not close is the normal case, not the exception, and the gap is where
-# the misread wall is.
+# One screen, built around the plan preview. Length and width (and the ceiling)
+# sit on top, and a plain rectangle builds straight away. Everything else is
+# done ON the plan: hover a wall and a ghost door follows the cursor; click and
+# a 36" door drops there; drag it along the wall (whole inches), or type its
+# corner -> near jamb offset; "Rotate door" (or R) cycles the hinge jamb and
+# whether it swings in or out. Click a wall's dimension to change that wall,
+# or insert/delete one. The polygon is checked for closure before anything is
+# built — a take-off that does not close is the normal case, not the
+# exception, and the gap is where the misread wall is. The runs are also kept
+# as a collapsed list, for reading a take-off off a plan in order.
 #
-# Simple mode is not a second geometry routine. Length and width become the
-# four runs the take-off would have produced and go down the same build path,
-# because a parallel path is how two modes silently stop agreeing. Expanding
-# therefore costs nothing — the runs are already the ones being previewed.
-# Collapsing back is offered only while the take-off is still a rectangle with
-# no doors on it; otherwise the button says why it is off rather than dropping
-# geometry quietly.
+# The payload is unchanged in shape: {mode, name, runs, doors, thick, ceil,
+# door_h}. `mode` is DERIVED by the dialog ("detail" once the room is more than
+# a plain named rectangle) and only decides how the dialog reopens. Each door
+# carries {run, at, w, hinge} as before, plus `swing` ('in'/'out'; missing
+# means 'in') and, for a door dropped by click or drag and never typed,
+# `placed: true` — it builds, and the console report names it as not measured.
 #
-# Ceiling height stays on screen in both modes, pre-filled at the 8'-0" house
+# Runs go out AS DRAWN. Up to 1.71.1 the dialog swapped N and S on output,
+# which built every room mirrored against its preview (a door on the preview's
+# north wall landed on the model's south wall). The preview draws north up and
+# DIR below has N = +y, so the flip was double-correcting; removed in 1.72.0.
+# A rectangle is still the same four runs a take-off would produce, clockwise
+# from the NW corner, and goes down the same build path.
+#
+# Ceiling height stays on screen, pre-filled at the 8'-0" house
 # default, because it is the constraint that disqualifies a booth fastest and
 # the one clients forget.
 #
@@ -30,13 +38,13 @@
 #
 # Walls are built OUTWARD from the interior polygon, so wall thickness stays
 # cosmetic and changing it never moves a dimension already reported to a client.
-# That property is why the 4" default is safe to leave and safe to override in
-# detail mode: the interior polygon is the measured truth and it does not move.
+# That property is why the 4" default is safe to leave and safe to override: the interior polygon is the measured truth and it does not move.
 # Outer corners are mitred by intersecting adjacent offset edges — extending
 # each wall by its thickness at both ends makes them cross into an X.
 #
 # Doors are real openings: the wall is split around them, a header goes over,
-# and the leaf is drawn open 90 degrees with its swing arc.
+# and the leaf is drawn open 90 degrees with its swing arc — into the room,
+# or out of it from the wall's exterior face when the door says swing 'out'.
 #
 # Finishes by calling auto-dimension.rb, so the room arrives dimensioned.
 #
@@ -244,7 +252,14 @@ module WR_BuildRoom
   # sits exactly in the wall plane and spans exactly the opening. The leaf and
   # its swing go on their own tag — a leaf swung 90 degrees has bounds that
   # reach into the room and would give the wrong jamb.
-  def self.door(parent, pts, i, ccw, thick, at, w, door_h, hinge, t_door, t_leaf, mat)
+  #
+  # `swing` is 'in' (the default, and what a missing key means) or 'out'. An
+  # outward door is the inward one mirrored across the wall: the leaf hangs
+  # from the wall's EXTERIOR face (the interior jambs pushed out by `thick`)
+  # and opens away from the room. Only the leaf and arc move — the opening
+  # marker, which auto-dimension.rb reads for the jambs, is the same either way.
+  def self.door(parent, pts, i, ccw, thick, at, w, door_h, hinge, t_door, t_leaf, mat,
+                swing = 'in')
     n = pts.size
     a = pts[i]
     b = pts[(i + 1) % n]
@@ -264,15 +279,21 @@ module WR_BuildRoom
       g.erase! if g.valid?
     end
 
-    # Leaf, open 90 degrees on the hinge side, swinging into the room.
-    inward = Geom::Vector3d.new(-nv.x, -nv.y, 0)
+    # Leaf, open 90 degrees on the hinge side, swinging into the room — or,
+    # for an outward door, out of it from the exterior face.
+    out    = swing.to_s == 'out'
+    inward = out ? Geom::Vector3d.new(nv.x, nv.y, 0) : Geom::Vector3d.new(-nv.x, -nv.y, 0)
+    if out
+      j0 = j0.offset(nv, thick)
+      j1 = j1.offset(nv, thick)
+    end
     pivot  = (hinge == 'far') ? j1 : j0
-    swing  = (hinge == 'far') ? -1.0 : 1.0
+    lean   = (hinge == 'far') ? -1.0 : 1.0     # leaf thickness goes toward the opening
     tip    = pivot.offset(inward, w)
     lg = parent.entities.add_group
     lf = lg.entities.add_face([pivot, tip,
-                               tip.offset(u, 1.5 * swing),
-                               pivot.offset(u, 1.5 * swing)])
+                               tip.offset(u, 1.5 * lean),
+                               pivot.offset(u, 1.5 * lean)])
     if lf
       lf.reverse! if lf.normal.z < 0
       lf.pushpull(door_h)
@@ -417,7 +438,7 @@ module WR_BuildRoom
       i = d['run'].to_i
       next unless i >= 0 && i < pts.size
       door(dg, pts, i, ccw, thick, d['at'].to_f, d['w'].to_f, door_h,
-           d['hinge'].to_s, t_door, t_leaf, mat_door)
+           d['hinge'].to_s, t_door, t_leaf, mat_door, d['swing'].to_s)
     end
 
     # NO TEXT IN THE MODEL — same rule as build-takeoff.rb, and the same reason
@@ -458,7 +479,7 @@ module WR_BuildRoom
     end
 
     model.active_view.zoom_extents
-    report(pts, walls, doors.size, ceil, thick, house, dims)
+    report(pts, walls, doors, ceil, thick, house, dims)
   rescue StandardError => e
     model.abort_operation if model
     UI.messagebox("Build room failed:\n\n#{e.class}: #{e.message}")
@@ -466,11 +487,17 @@ module WR_BuildRoom
     puts e.backtrace.first(6)
   end
 
-  def self.report(pts, walls, ndoors, ceil, thick, house, dims)
+  def self.report(pts, walls, doors, ceil, thick, house, dims)
     puts ''
     puts 'BUILD ROOM'
     puts ''
-    puts "  #{pts.size} wall runs, #{walls} wall solids, #{ndoors} door(s)"
+    puts "  #{pts.size} wall runs, #{walls} wall solids, #{doors.size} door(s)"
+    # A door dropped by clicking the plan carries `placed` until its offset is
+    # typed. It builds — but it is a position nobody measured, so say so.
+    doors.each_with_index do |d, j|
+      next unless d['placed']
+      puts "  door #{j + 1} on run #{d['run']}: PLACED BY EYE, not measured"
+    end
     puts format('  walls %.2f" thick, built OUTWARD from the interior polygon and mitred', thick)
     puts format('  ceiling %s%s', WR_AutoDimension.arch(ceil),
                 house ? '  <- HOUSE DEFAULT, not measured' : '  (stated)')
@@ -514,7 +541,8 @@ module WR_BuildRoom
     )
     d.set_file(html)
     # Someone who lives in the take-off should not be re-simplified every time
-    # they open it. The dialog opens simple and is told otherwise once it is up.
+    # they open it. The dialog opens with "More" closed and is told to open it
+    # once it is up (WR_setMode("detail")).
     d.add_action_callback('ready') do |_c|
       begin
         d.execute_script("WR_setMode(#{last_mode.to_json})")

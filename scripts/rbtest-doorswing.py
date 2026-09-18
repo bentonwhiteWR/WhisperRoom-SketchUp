@@ -192,22 +192,29 @@ end
 results = []
 AT = 40.0
 W  = 36.0
+THICK = 4.0
 
 [['CW', CW], ['CCW', CCW]].each do |wname, pts|
   ccw = WR_BuildRoom.signed_area(pts) > 0
   check(results, wname + ' winding detected as ' + (ccw ? 'ccw' : 'cw'),
         ccw == (wname == 'CCW'), 'signed_area ' + WR_BuildRoom.signed_area(pts).to_s)
 
-  ['near', 'far'].each do |hinge|
+  # nil = the argument omitted, which is every caller before 1.72.0 and
+  # build-takeoff.rb still; it must behave exactly as 'in'.
+  [['near', nil], ['far', nil], ['near', 'in'], ['far', 'in'],
+   ['near', 'out'], ['far', 'out']].each do |hinge, swing|
     run_i = 0
     GROUPS.clear
     parent = GroupStub.new
-    WR_BuildRoom.door(parent, pts, run_i, ccw, 4.0, AT, W, 80.0, hinge,
-                      'tag_door', 'tag_leaf', 'mat')
+    args = [parent, pts, run_i, ccw, THICK, AT, W, 80.0, hinge,
+            'tag_door', 'tag_leaf', 'mat']
+    args << swing if swing
+    WR_BuildRoom.door(*args)
 
     leaf = named('Door leaf')
     arcg = named('Swing')
-    tag = wname + '/' + hinge + ': '
+    out = swing == 'out'
+    tag = wname + '/' + hinge + '/' + (swing || 'default') + ': '
 
     if leaf.nil? || arcg.nil? || leaf.faces.empty? || arcg.lines.empty?
       check(results, tag + 'leaf and arc were drawn', false,
@@ -231,7 +238,16 @@ W  = 36.0
     nv = WR_BuildRoom.outward(pts, run_i, ccw)
     j0 = a.offset(u, AT)
     j1 = a.offset(u, AT + W)
+    # an outward door hangs from the EXTERIOR face of the wall
+    if out
+      j0 = j0.offset(nv, THICK)
+      j1 = j1.offset(nv, THICK)
+    end
     closed = (hinge == 'far') ? j0 : j1
+    want_pivot = (hinge == 'far') ? j1 : j0
+    check(results, tag + 'leaf pivots on the hinge jamb' + (out ? ' at the exterior face' : ''),
+          near?(pivot, want_pivot),
+          'pivot (' + pivot.x.round(2).to_s + ',' + pivot.y.round(2).to_s + ')')
 
     # 1. the arc ENDS at the leaf's tip
     check(results, tag + 'arc endpoint is the leaf tip', near?(a_end, tip),
@@ -242,14 +258,17 @@ W  = 36.0
     check(results, tag + 'arc starts at the closed jamb', near?(a0, closed),
           'arc start (' + a0.x.round(2).to_s + ',' + a0.y.round(2).to_s + ')')
 
-    # 3. the arc's midpoint is INSIDE (negative along the outward normal)
+    # 3. the arc's midpoint is INSIDE (negative along the outward normal),
+    #    or for an outward door OUTSIDE the wall's exterior face
+    side = out ? 'exterior' : 'interior'
+    sgn = out ? 1.0 : -1.0
     dm = (a_mid - pivot).x * nv.x + (a_mid - pivot).y * nv.y
-    check(results, tag + 'arc midpoint is on the interior side', dm < -1.0,
+    check(results, tag + 'arc midpoint is on the ' + side + ' side', dm * sgn > 1.0,
           'dot with outward normal = ' + dm.round(2).to_s)
 
     # 4. and so is the leaf tip
     dt = (tip - pivot).x * nv.x + (tip - pivot).y * nv.y
-    check(results, tag + 'leaf tip is on the interior side', dt < -1.0,
+    check(results, tag + 'leaf tip is on the ' + side + ' side', dt * sgn > 1.0,
           'dot with outward normal = ' + dt.round(2).to_s)
   end
 end

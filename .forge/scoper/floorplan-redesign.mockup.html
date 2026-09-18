@@ -4,11 +4,17 @@
 <meta charset="utf-8">
 <title>Draw floor plan</title>
 <!--
-  Draw floor plan - the dialog behind build-room.rb.
-  Everything happens on the plan: click a wall to drop a door, drag it along the
-  wall, click a wall's dimension to change that wall. One state, one payload,
-  one build path in Ruby (sketchup.build). The runs go out exactly as previewed:
-  screen-up is north here and +y is north in the model, so there is no flip.
+  MOCKUP — Draw floor plan, redesigned around the plan itself.
+  Scoper deliverable, 18 Sep 2026. Opens in a plain browser: when window.sketchup
+  is absent a stub logs what Build WOULD send and shows it under the plan.
+
+  Structure is the shipped scripts/build-room.html (same CSS variables, same
+  parseLen / arch / rect / asRect helpers, same payload keys) so a Builder can
+  lift it nearly verbatim. Everything marked  MOCKUP-ONLY  is not for shipping.
+
+  Self-test:  open with ?test=1  — runs the acceptance scenario (12'-0" x 5'-6",
+  click north wall at 36", drag to 48", width 36", Build) and prints the payload
+  plus PASS/FAIL into #testout.
 -->
 <style>
   :root{--bg:#f2f3f5;--card:#fff;--ink:#14181c;--ink-2:#626c75;--ink-3:#949ea6;
@@ -123,12 +129,14 @@
   button.ghost:hover{border-color:var(--accent);color:var(--accent)}
   .hint{font-size:11px;color:var(--ink-3)}
   .hint.bad{color:var(--bad)} .hint.warn{color:var(--warn)}
-  .rot{display:flex;align-items:center;gap:8px}
-  .rot .add{width:auto;flex:0 0 auto}
-  .rot .echo{margin:0}
   kbd{font-family:Consolas,monospace;font-size:10px;border:1px solid var(--rule);border-radius:3px;
     padding:0 4px;color:var(--ink-2)}
 
+  /* MOCKUP-ONLY: payload viewer */
+  #payload{position:absolute;right:12px;bottom:10px;max-width:46%;max-height:45%;overflow:auto;
+    background:var(--card);border:1px solid var(--accent);border-radius:5px;padding:8px 10px;
+    font-family:Consolas,monospace;font-size:10.5px;white-space:pre;color:var(--ink);user-select:text}
+  #payload b{color:var(--accent);display:block;margin-bottom:4px;font-family:"Segoe UI",sans-serif;font-size:11px}
 </style>
 </head>
 <body>
@@ -146,6 +154,7 @@
       <span><i class="dr"></i>door opening &middot; leaf drawn open 90&deg;</span>
     </div>
     <span class="tip" id="tip"></span>
+    <div id="payload" hidden></div>
   </div>
 
   <div class="side">
@@ -225,6 +234,8 @@
   <button class="go" id="go">Build room</button>
 </footer>
 
+<div id="testout" hidden></div>
+
 <script>
 (function(){
   "use strict";
@@ -233,21 +244,19 @@
   var OPP={E:"W",W:"E",N:"S",S:"N"};
   var NEXT={E:"S",S:"W",W:"N",N:"E"};            // clockwise on screen
 
-  // NO N/S FLIP ON OUTPUT. The preview draws north up the screen (VEC.N is
-  // screen-up) and build-room.rb's DIR has N=[0,1], which is up the model's
-  // green axis in plan view - the same picture. Until 1.72.0 the payload
-  // swapped N and S on the way out, which built every room MIRRORED: a door on
-  // the preview's north wall landed on the model's south wall (fixed 18 Sep
-  // 2026 on Benton's ruling). The runs now go out as drawn, which is also the
-  // take-off convention build-takeoff.rb has always used: clockwise from the
-  // NW corner, so run 0 heads E along the north wall.
+  // OPEN QUESTION Q1 (spec §7). The shipped dialog flips N<->S on the way out.
+  // takeoff-format.md walks clockwise from the NW corner with N=[0,1] in model
+  // coords, which is what this preview already draws, so the flip appears to
+  // MIRROR the room (preview north wall builds as the model's south wall).
+  // Kept ON here to preserve today's payload byte-for-byte until Benton rules.
+  var FLIP_NS=true;
 
   var DOOR_W=36;      // width a clicked door starts at. A placement, not a measurement.
   var SNAP=1;         // drag snaps to whole inches; type the field for finer.
 
   var S={len:144,wid:120,ceil:96,thick:4,dh:80,name:"Room"};
   var runs=rect(S.len,S.wid);
-  var doors=[];       // {run, at, w, hinge:'near'|'far', swing:'in'|'out', placed:bool, anchor:'start'|'end'}
+  var doors=[];       // {run, at, w, hinge:'near'|'far', placed:bool, anchor:'start'|'end'}
   var sel=null;       // {kind:'wall'|'door', i}
   var hover=null;     // {i, at}  ghost door while hovering a wall
   var drag=null;
@@ -260,16 +269,8 @@
       $wrap=document.getElementById("planwrap");
 
   // ------------------------------------------------------------------ units --
-  // A dimension gets typed the way it gets read: 150, 150", 12'6", 12'-6",
-  // 12' 6 1/2", 12.5', 12 1/2. A BARE NUMBER IS INCHES — that is what the
-  // take-off has always meant, and every field has to agree on it or the same
-  // keystrokes would build two different rooms.
-  //
-  // scripts/takeoff-vectors.html and takeoff-check.py lift parseLen and arch
-  // out of this file BY TEXT (from the function keyword to the first line
-  // that is two spaces and a closing brace). Keep both at two-space indent,
-  // and never write the function's opening line anywhere else in this file —
-  // not even in a comment — or the lift grabs the wrong text.
+  // VERBATIM from build-room.html. scripts/takeoff-vectors.html extracts this
+  // function by regex (`function parseLen(s){` ... `\n  }`), so keep the text.
   function parseLen(s){
     if(typeof s==="number")return isFinite(s)?s:NaN;
     var t=String(s).trim().toLowerCase()
@@ -361,21 +362,6 @@
   function setOffset(d,off){ d.at = d.anchor==="end" ? runLen(d.run)-off-d.w : off; }
   function doorOk(d){ var L=runLen(d.run); return d.w>0.02&&d.at>0.02&&d.at+d.w<L-0.02; }
 
-  // "Rotate door" walks four states, one change per click, and four clicks
-  // come back round: hinge near/in -> far/in -> far/out -> near/out.
-  var ROT=[["near","in"],["far","in"],["far","out"],["near","out"]];
-  function rotState(d){
-    var h=d.hinge==="far"?"far":"near", w=d.swing==="out"?"out":"in";
-    for(var k=0;k<4;k++)if(ROT[k][0]===h&&ROT[k][1]===w)return k;
-    return 0;
-  }
-  function rotate(d){ var k=(rotState(d)+1)%4; d.hinge=ROT[k][0]; d.swing=ROT[k][1]; }
-  function rotLabel(d){
-    var r=runs[d.run]; if(!r)return "";
-    var jamb=endName(r.d,d.hinge==="far"?"end":"start").split(" ")[0];
-    return "hinge "+jamb+" jamb \u00b7 opens "+(d.swing==="out"?"out":"in");
-  }
-
   // ------------------------------------------------------------------- plan --
   var view={x0:0,y0:0,x1:0,y1:0};
   function draw(){
@@ -437,7 +423,7 @@
     // ghost door while hovering a wall with nothing being dragged
     if(hover&&!drag&&hover.at!=null){
       var gi=hover.i,ga=p[gi],gu=VEC[runs[gi].d],gn=inward(gu,sign);
-      $sv.appendChild(doorGlyph(ga,gu,gn,hover.at,DOOR_W,"near","in",sw,"ghost"));
+      $sv.appendChild(doorGlyph(ga,gu,gn,hover.at,DOOR_W,"near",sw,"ghost"));
     }
 
     // doors: opening, leaf, arc; selected one carries its dimensions
@@ -445,7 +431,7 @@
       var i=dr.run; if(i<0||i>=runs.length)return;
       var a=p[i],u=VEC[runs[i].d]||[0,0],n=inward(u,sign);
       var isSel=sel&&sel.kind==="door"&&sel.i===j, ok=doorOk(dr);
-      var g=doorGlyph(a,u,n,dr.at,dr.w,dr.hinge,dr.swing,sw,isSel?"sel":"",ok);
+      var g=doorGlyph(a,u,n,dr.at,dr.w,dr.hinge,sw,isSel?"sel":"",ok);
       $sv.appendChild(g);
       // hit
       var j0=[a[0]+u[0]*dr.at,a[1]+u[1]*dr.at], j1=[a[0]+u[0]*(dr.at+dr.w),a[1]+u[1]*(dr.at+dr.w)];
@@ -483,26 +469,17 @@
     renderInspector(names); renderDoorList(names); runRows();
   }
 
-  // opening (gap), leaf open 90 degrees, swing arc - same construction as
-  // build-room.rb `door`, so the preview cannot disagree: pivot on the hinge
-  // jamb, tip one door width out along the swing side, arc from the closed
-  // jamb to the tip. An OUTWARD door is the same glyph mirrored across the
-  // wall, hung from the wall's exterior face (the interior line plus the wall
-  // thickness), which is where the Ruby hangs it.
-  function doorGlyph(a,u,n,at,w,hinge,swing,sw,cls,ok){
+  // opening (gap), leaf open 90 degrees into the room, swing arc — same
+  // construction as build-room.rb `door`, so the preview cannot disagree.
+  function doorGlyph(a,u,n,at,w,hinge,sw,cls,ok){
     var g=el("g",{"class":cls||"","pointer-events":"none"});
     var j0=[a[0]+u[0]*at,a[1]+u[1]*at], j1=[a[0]+u[0]*(at+w),a[1]+u[1]*(at+w)];
     var col=ok===false?"var(--bad)":"var(--accent)";
     g.appendChild(el("path",{d:"M"+j0[0]+","+j0[1]+" L"+j1[0]+","+j1[1],stroke:"var(--bg)","stroke-width":sw*2.2,fill:"none"}));
     g.appendChild(el("path",{d:"M"+j0[0]+","+j0[1]+" L"+j1[0]+","+j1[1],stroke:col,"stroke-width":sw*1.6,
       "stroke-linecap":"butt",fill:"none",opacity:cls==="sel"?"1":".85"}));
-    var out=swing==="out", t=out?S.thick:0;
-    var sd=out?[-n[0],-n[1]]:n;                 // the side the leaf swings to
-    var k0=[j0[0]+sd[0]*t,j0[1]+sd[1]*t], k1=[j1[0]+sd[0]*t,j1[1]+sd[1]*t];
-    if(out)g.appendChild(el("path",{d:"M"+j0[0]+","+j0[1]+" L"+k0[0]+","+k0[1]+" M"+j1[0]+","+j1[1]+" L"+k1[0]+","+k1[1],
-      stroke:col,"stroke-width":sw*.4,fill:"none"}));
-    var piv=hinge==="far"?k1:k0, cl=hinge==="far"?k0:k1;
-    var tip=[piv[0]+sd[0]*w,piv[1]+sd[1]*w];
+    var piv=hinge==="far"?j1:j0, cl=hinge==="far"?j0:j1;
+    var tip=[piv[0]+n[0]*w,piv[1]+n[1]*w];
     g.appendChild(el("path",{d:"M"+piv[0]+","+piv[1]+" L"+tip[0]+","+tip[1],stroke:col,"stroke-width":sw*.9,fill:"none"}));
     // arc from closed jamb to tip, about the pivot
     var sweep=((cl[0]-piv[0])*(tip[1]-piv[1])-(cl[1]-piv[1])*(tip[0]-piv[0]))>0?1:0;
@@ -518,8 +495,8 @@
     var c=from==="start"?a:[a[0]+u[0]*L,a[1]+u[1]*L];
     var near=from==="start"?[a[0]+u[0]*dr.at,a[1]+u[1]*dr.at]:[a[0]+u[0]*(dr.at+dr.w),a[1]+u[1]*(dr.at+dr.w)];
     var far=from==="start"?[a[0]+u[0]*(dr.at+dr.w),a[1]+u[1]*(dr.at+dr.w)]:[a[0]+u[0]*dr.at,a[1]+u[1]*dr.at];
-    // sits past an inward leaf (one door width in) so the labels never cross it
-    var o=(dr.swing==="out"?0:dr.w)+fs*1.4, ox=n[0]*o, oy=n[1]*o;
+    // sits past the open leaf (one door width in) so the labels never cross it
+    var o=dr.w+fs*1.4, ox=n[0]*o, oy=n[1]*o;
     function seg(p,q,txt){
       $sv.appendChild(el("path",{d:"M"+(p[0]+ox)+","+(p[1]+oy)+" L"+(q[0]+ox)+","+(q[1]+oy),stroke:"var(--ink-2)","stroke-width":sw*.35,fill:"none"}));
       [p,q].forEach(function(r){$sv.appendChild(el("path",{d:"M"+r[0]+","+r[1]+" L"+(r[0]+ox*1.15)+","+(r[1]+oy*1.15),stroke:"var(--ink-2)","stroke-width":sw*.25,fill:"none"}));});
@@ -573,9 +550,7 @@
     if(t.classList&&t.classList.contains("door-hit")){
       var j=+t.dataset.door, q=svgPoint(ev);
       drag={j:j,grab:along(doors[j].run,q)-doors[j].at,moved:false};
-      // CEF is Chromium, so capture is expected to work; if it does not, the
-      // drag still tracks while the pointer stays over the plan.
-      try{ $sv.setPointerCapture(ev.pointerId); }catch(e){}
+      $sv.setPointerCapture(ev.pointerId);
       ev.preventDefault();
     }
   });
@@ -590,7 +565,7 @@
     var t=ev.target;
     if(t.classList&&t.classList.contains("w-hit")){
       var i=+t.dataset.wall, q=svgPoint(ev);
-      doors.push({run:i,at:clampAt(i,along(i,q)-DOOR_W/2,DOOR_W),w:DOOR_W,hinge:"near",swing:"in",placed:true,anchor:"start"});
+      doors.push({run:i,at:clampAt(i,along(i,q)-DOOR_W/2,DOOR_W),w:DOOR_W,hinge:"near",placed:true,anchor:"start"});
       hover=null; select({kind:"door",i:doors.length-1});
     }else if(t.classList&&t.classList.contains("dimtxt")){
       select({kind:"wall",i:+t.dataset.wall});
@@ -609,7 +584,6 @@
     if(!sel||sel.kind!=="door"||inField)return;
     var dr=doors[sel.i];
     if(ev.key==="Delete"||ev.key==="Backspace"){ doors.splice(sel.i,1); select(null); ev.preventDefault(); }
-    else if((ev.key==="r"||ev.key==="R")&&!ev.ctrlKey&&!ev.altKey&&!ev.metaKey){ rotate(dr); draw(); ev.preventDefault(); }
     else if(ev.key==="ArrowLeft"||ev.key==="ArrowRight"||ev.key==="ArrowUp"||ev.key==="ArrowDown"){
       var u=VEC[runs[dr.run].d], step=ev.shiftKey?12:1;
       var dirv={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[ev.key];
@@ -684,10 +658,10 @@
           '<select id="danchor"><option value="start"'+(d.anchor!=="end"?" selected":"")+'>from '+jambS+' corner</option>'+
           '<option value="end"'+(d.anchor==="end"?" selected":"")+'>from '+jambE+' corner</option></select></div>'+
           '<span class="echo'+(ok?"":" bad")+'" id="doff-e">'+(ok?esc(arch(offsetFor(d)))+" — measured on the plan as corner → near jamb":"touches a corner — build-room cannot cut a corner opening")+'</span></div>'+
-        '<div><span class="lab">Opening width</span><input id="dw" type="text" spellcheck="false" autocomplete="off" value="'+esc(fmtField(d.w))+'"><span class="echo" id="dw-e">'+esc(arch(d.w))+'</span></div>'+
-        '<div><span class="lab">Hinge &amp; swing</span><div class="rot"><button class="add" id="drot" title="cycle hinge jamb and swing direction (R)">&#8635; Rotate door</button>'+
-          '<span class="echo" id="drot-e">'+esc(rotLabel(d))+'</span></div></div>'+
-        '<p class="note">Drag the door on the plan, or <kbd>&larr;</kbd><kbd>&rarr;</kbd> nudge 1" (<kbd>Shift</kbd> 12"); <kbd>R</kbd> rotates it. Typing the offset marks it measured.</p>'+
+        '<div class="two"><div><span class="lab">Opening width</span><input id="dw" type="text" spellcheck="false" autocomplete="off" value="'+esc(fmtField(d.w))+'"><span class="echo" id="dw-e">'+esc(arch(d.w))+'</span></div>'+
+          '<div><span class="lab">Hinge</span><select id="dhinge"><option value="near"'+(d.hinge!=="far"?" selected":"")+'>'+jambS+' jamb</option><option value="far"'+(d.hinge==="far"?" selected":"")+'>'+jambE+' jamb</option></select>'+
+          '<span class="echo">leaf opens into the room</span></div></div>'+
+        '<p class="note">Drag the door on the plan, or <kbd>&larr;</kbd><kbd>&rarr;</kbd> nudge 1" (<kbd>Shift</kbd> 12"). Typing the offset marks it measured.</p>'+
         '<button class="add danger" id="ddel">delete door '+(j+1)+' <span class="code">(Del)</span></button>';
     }
     $insp.innerHTML=h;
@@ -712,7 +686,7 @@
       wire("doff",null,function(v){setOffset(doors[j2],v);doors[j2].placed=false;},-1);
       wire("dw","dw-e",function(v){doors[j2].w=v;},0);
       document.getElementById("danchor").addEventListener("change",function(){doors[j2].anchor=this.value;draw();});
-      document.getElementById("drot").addEventListener("click",function(){rotate(doors[j2]);draw();});
+      document.getElementById("dhinge").addEventListener("change",function(){doors[j2].hinge=this.value;draw();});
       document.getElementById("ddel").addEventListener("click",function(){doors.splice(j2,1);select(null);});
     }
     if(active){var f=document.getElementById(active);if(f&&f.tagName==="INPUT"){f.value=aVal;f.classList.toggle("bad",!!aBad);
@@ -778,19 +752,32 @@
     runs.push({d:NEXT[runs[runs.length-1].d],v:48});select({kind:"wall",i:runs.length-1});});
 
   // ---------------------------------------------------------------- bridge --
+  // MOCKUP-ONLY stub: in SketchUp `sketchup` is injected by UI::HtmlDialog.
+  if(!window.sketchup){
+    window.sketchup={
+      build:function(json){var p=document.getElementById("payload");p.hidden=false;
+        p.innerHTML="<b>sketchup.build(payload) — stub</b>"+esc(JSON.stringify(JSON.parse(json),null,1))+
+        (FLIP_NS?"\n\n(N/S flipped on output — status quo, see spec Q1)":"");},
+      cancel:function(){var p=document.getElementById("payload");p.hidden=false;p.innerHTML="<b>sketchup.cancel()</b>";},
+      ready:function(){}
+    };
+  }
+
   // `mode` is derived, not chosen: Ruby only uses it to reopen the dialog the
   // way it was left (WR_setMode), and it decides nothing else in the payload.
   function currentMode(){
     return (!asRect()||doors.length||S.name!=="Room"||S.thick!==4||S.dh!==80)?"detail":"simple";
   }
   function payload(){
-    var out=runs.map(function(r){ return {d:r.d,v:r.v}; });   // as drawn - no flip, see top
+    var out=runs.map(function(r){
+      return {d:FLIP_NS?(r.d==="N"?"S":(r.d==="S"?"N":r.d)):r.d,v:r.v};
+    });
     return {
       mode:currentMode(),
       name:S.name.trim()||"Room",
       runs:out,
       doors:doors.map(function(d){
-        var o={run:d.run,at:d.at,w:d.w,hinge:d.hinge,swing:d.swing==="out"?"out":"in"};
+        var o={run:d.run,at:d.at,w:d.w,hinge:d.hinge};
         if(d.placed)o.placed=true;     // additive; Ruby ignores keys it does not read
         return o;
       }),
@@ -806,6 +793,31 @@
   draw();
   try{ if(window.sketchup&&sketchup.ready)sketchup.ready(); }catch(e){}
 
+  // ------------------------------------------------------- MOCKUP-ONLY test --
+  // ?test=1 : 12'-0" x 5'-6", click the north wall at 36", drag to 48",
+  // width 36", Build. Asserts the payload build-room.rb expects.
+  if(/[?&]test=1/.test(location.search)){
+    var log=[]; function ok(c,msg){log.push((c?"PASS ":"FAIL ")+msg);}
+    var sl=document.getElementById("slen"), sw2=document.getElementById("swid");
+    sl.value="12'-0\"";sl.dispatchEvent(new Event("input"));
+    sw2.value="5'6\"";sw2.dispatchEvent(new Event("input"));
+    ok(runs.length===4&&runs[1].v===66,"5'6\" parses to 66 and rebuilds 4 runs");
+    // simulate: click north wall (run 0) with the pointer at x=36+18 (ghost centred on 36)
+    doors.push({run:0,at:clampAt(0,36,DOOR_W),w:DOOR_W,hinge:"near",placed:true,anchor:"start"}); select({kind:"door",i:0});
+    ok(doors[0].at===36,"click at 36\" drops door with at=36");
+    doors[0].at=clampAt(0,48,doors[0].w); draw();
+    ok(doors[0].at===48,"drag to 48\" moves it");
+    var dw=document.getElementById("dw"); dw.value="36"; dw.dispatchEvent(new Event("input"));
+    ok(doors[0].w===36,"width 36 (bare number = inches)");
+    var pl=payload();
+    var want={mode:"detail",name:"Room",runs:[{d:"E",v:144},{d:FLIP_NS?"N":"S",v:66},{d:"W",v:144},{d:FLIP_NS?"S":"N",v:66}],
+      doors:[{run:0,at:48,w:36,hinge:"near",placed:true}],thick:4,ceil:96,door_h:80};
+    ok(JSON.stringify(pl)===JSON.stringify(want),"payload matches build-room.rb contract: "+JSON.stringify(pl));
+    ok(!$go.disabled,"Build enabled");
+    $go.click();
+    var t=document.getElementById("testout"); t.hidden=false; t.style.cssText="position:fixed;left:8px;top:8px;background:#fff;color:#000;font:11px Consolas;padding:6px;z-index:9;white-space:pre";
+    t.textContent=log.join("\n");
+  }
 }());
 </script>
 </body>

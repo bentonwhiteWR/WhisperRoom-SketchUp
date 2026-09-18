@@ -1,31 +1,40 @@
-# HANDOFF — Scoper → Builder: Interior Lights panel (adjust a dropped rig)
+# HANDOFF — Scoper → Benton (approval), then Builder: Draw floor plan redesign
 
-14 Sep 2026 · plugin 1.69.0. The previous handoff (proposal AUTO-SET) is preserved verbatim at
-`.forge/scoper/HANDOFF-proposal-autoset.md`.
+18 Sep 2026 · plugin 1.71.1, ships as 1.72.0. The previous handoff (Interior Lights panel) is
+preserved at `.forge/scoper/HANDOFF-light-rig.md` / `drop-lights-panel/`.
 
-**Blocked on Benton for Q1 and Q7** in SPEC §7. Q1 decides what 100% writes. Everything in SPEC §2-§5
-that doesn't depend on Q1 can start: stamps, grouping, the window, apply-on-release, and the repair.
+**Approval gate: Benton opens the mockup and says yes/no.** Nothing is approved yet. Q1 in the
+spec is the one that changes where doors build; the rest is look-and-feel he can change by
+pointing at the mockup.
 
 ## Produced
-- `.forge/scoper/drop-lights-panel/SPEC.md`: the spec.
-- `.forge/scoper/drop-lights-panel/mockup.html`, published at
-  https://claude.ai/code/artifact/b988c58a-4c81-4e91-b03a-edc2c0ac359f. Republish the same path to keep the URL.
-- Nothing under `scripts/` was touched. VERSION is untouched.
+- `.forge/scoper/floorplan-redesign.mockup.html` — click a wall to add a door, drag it, edit
+  offset/width/hinge, click a dimension to edit a wall, chain closure, Build shows the payload.
+  Open in a browser; `?test=1` runs the acceptance scenario (six PASS lines observed in
+  headless Chrome). Same CSS variables and helpers as the shipped dialog; MOCKUP-ONLY blocks
+  are marked for removal.
+- `.forge/scoper/floorplan-redesign.md` — the spec: §3 contract, §4 ordered steps, §5 runnable
+  ACs, §7 questions.
+- Nothing under `scripts/` touched. VERSION untouched. Nothing committed.
 
-## Read-first
-1. SPEC §0-§1. Every claim there cites `scripts/wr-drop-lights.rb` lines at 1.69.0.
-2. `write_params` (`:3514`) and the transaction note above it. An un-transacted write is discarded.
-3. `audit_verdict` / `audit_scene` (`:3300-3418`), especially the intended-0 = OFF rule.
-4. `.forge/fixer/rank-loop/d-repair.rb`. Promote it to `WR_DropLights.repair_rig!`, and fix its Kelvin (it uses offset 0).
-5. DEVLOG 1.66.0 findings 6-7 and 1.67.1: drift, and never `Sketchup.undo`.
-6. The modeless dialog pattern in `scripts/wr-scene-walls.rb:1217`, and the `load_quietly` / `$wr_no_autorun` pattern in `scripts/wr_tools/main.rb:1404`.
+## Read-first (Builder)
+1. Spec §3 — the payload contract; the only change is the additive `placed:true` on a door.
+2. `scripts/build-room.rb:352-361` (`build` reads the cfg) and `:518-534` (callbacks).
+3. `scripts/takeoff-vectors.html:33` — the regex that lifts `parseLen` out of the HTML.
+4. Mockup `renderInspector` — the focus/caret guard for a card that redraws per keystroke.
+5. The `FLIP_NS` comment in the mockup, and spec Q1.
 
-## Assumptions (not checked)
-- `Sketchup::ModelObserver#onTransactionUndo` is usable for reconcile-after-undo. Verify it in the API docs, or fall back to reconcile on Refresh or focus.
-- Batching many plugins' writes inside one `scene.change` behaves like the per-light calls. Only per-light transactions have been observed.
-- A 4 s settle is enough for V-Ray's deferred re-sync to show. The observed drift appeared "between one job and the next"; the timing was never measured.
-- Fill "each" figures in the mockup are averages. The Room B and Break room counts are illustrative, derived from `panel_grid` and `grid_count`.
+## Assumptions (tagged)
+- **observed** the HTML flips N↔S on output while `takeoff-format.md` and the preview both
+  walk clockwise from NW with north up; **derived** that today's rooms with doors build mirrored
+  (preview north wall → model south wall). **Not verified live.** Kept as-is behind `FLIP_NS`.
+- **assumed** a clicked door warns rather than blocks Build (spec Q2).
+- **assumed** 36" default width, compass wall names, the list kept collapsed (Q3, Q4, Q6).
+- **assumed** CEF supports `setPointerCapture`/`getScreenCTM` (standard Chromium; fallback in
+  spec §6).
+- **observed** every AC-1 payload value against `build-room.rb` `door_errors`: at=48 > TOL and
+  48+36=84 < 144−TOL, so Ruby would cut it.
 
 ## Open questions
-SPEC §7 Q1-Q7. The one that changes numbers is **Q1**: shipped `default_settings` is all ×1.0, but the
-scored 8.2 rig was panel ×0.70 / fill ×0.10 / facewash ×1.00.
+Spec §7 Q1–Q6. Q1 (mirror) needs one live build with one door to answer; Q2 (warn vs block)
+is one line either way.
