@@ -97,6 +97,37 @@ module WR_BuildBoothComponents
   ENH_SEAL_COMP   = 'ENH MidWallSeamSeal'.freeze
   ENH_CORNER_COMP = 'ENH CornerSeamSeal'.freeze
 
+  # ---- THE WIDE-ACCESS JAMB ADAPTER (WAJMBAD) ----
+  #
+  # Benton, 2026-09-21, on an IEP booth with a wide-access door: "the IEP wall
+  # would actually be too small. We have a modified enhanced seam seal that is
+  # included. It's called the WAJMBAD (Wide access jamb adapter). It essentially
+  # replaces one of the mid wall seam seals, and adds this Z shaped seam seal
+  # that fits in snuggly to the IEP WA Door Jamb as well as the next IEP mid
+  # wall seam seal."
+  #
+  # So it is a SUBSTITUTION, not an addition: the inner mid-wall seal directly
+  # beside the WA door jamb takes this name instead of ENH_SEAL_COMP, and the
+  # run arithmetic (rebalance_walls, IEP_SEAL_W) is untouched. Wide-access door
+  # only - no narrower door pulls it. Inner shell only - the Standard shell has
+  # no such part.
+  #
+  # THE STANDARD-HEIGHT PART IS UNHANDED; THE HX PART IS HANDED. Three files on
+  # the share (observed 2026-09-21): 'ENH WAJMBAD.skp', 'ENH WAJMBAD L_HX.skp',
+  # 'ENH WAJMBAD R_HX.skp'. Benton: the standard one "just gets flipped one way
+  # or the other" to mate with the jamb; the HX ones are handed "purely because
+  # of where some of the holes are". The _HX suffix is appended by the same rule
+  # every other part gets, so the L/R bases below resolve to the HX files and
+  # the plain base to the standard one. There is no 'ENH WAJMBAD L.skp' and
+  # there must never be a reason to ask for one.
+  #
+  # L and R are read LOOKING AT THE BOOTH DOOR FROM OUTSIDE (Benton's
+  # convention): the adapter to the right of the door is the R part. See
+  # wajmbad_plan for how that becomes a run-end on each wall.
+  WAJMBAD_COMP   = 'ENH WAJMBAD'.freeze
+  WAJMBAD_COMP_L = 'ENH WAJMBAD L'.freeze
+  WAJMBAD_COMP_R = 'ENH WAJMBAD R'.freeze
+
   # Every ENH wall part measures 79.5 tall against a Standard 81 - 89.5 against
   # 91 on HX (observed, P: library probe, no exceptions in 112 parts). The 1.5
   # is not a discrepancy: an Enhanced wall is CAPTURED between the floor lip and
@@ -270,6 +301,34 @@ module WR_BuildBoothComponents
   # authored frame (see the corner block in build_booth); no heuristic, no
   # correction on top of one.
   IEP_SEAL_YAW   = 180.0   # the mid-wall seal, end for end
+
+  # THE WAJMBAD'S FLIP IS NOT FIT-TESTED. Same idiom as SEAL_PROUD and
+  # WR_Deck::SEAL_FL_DATUM_LIFT: one named constant, a loud line on every build
+  # that uses it, and the number changes here when a real booth says so.
+  #
+  # The adapter is placed exactly as the seal it replaces (same slot, same
+  # IEP_SEAL_YAW half turn). The unhanded standard part then "may just need to
+  # be flipped one way or another" (Benton) to mate with the jamb on the OTHER
+  # side of the door. What that flip can and cannot be is derived, not seen:
+  #
+  #   * A Z profile turned end for end about the vertical (a yaw) is still the
+  #     same Z - point symmetry - so the yaw that orients every other seal
+  #     cannot move the jamb leg to the other side.
+  #   * A mirror would, but a mirror is never used on a real part here (see
+  #     IEP_DOOR_YAW: "A HALF TURN, NOT A MIRROR").
+  #   * A half turn about a HORIZONTAL axis turns Z into S in plan while staying
+  #     a proper rotation - and that is what "flipping" a physical extrusion
+  #     means: upside down. Of the two horizontal axes, the WALL NORMAL is the
+  #     one that keeps the seal's cap on the face it was authored on (the
+  #     across-wall sense is preserved; ends and top/bottom swap). The wall-run
+  #     axis would put the cap on the wrong face.
+  #
+  # So the flip, when it fires, is 180 deg about the wall normal through the
+  # placed part's centre. WHICH SIDE needs it is unknown until a build is
+  # looked at. nil = flip neither side (the part goes in as authored on both).
+  # Set it to 'L' or 'R' - the side, read from outside, whose adapter came out
+  # with its jamb leg AWAY from the door - and only that side turns.
+  WAJMBAD_FLIP_SIDE = nil
 
   # THE INNER VENT WALL, end for end. 180, AND IT HAS NOW BEEN CONFIRMED TWICE
   # ON A RESTARTED SKETCHUP.
@@ -1414,6 +1473,122 @@ module WR_BuildBoothComponents
     end
   end
 
+  # Which inner seals become a WAJMBAD on this build, decided BEFORE pass 1
+  # names anything, from the layout polygons and the assignments alone.
+  #
+  # Returns [plan, notes]. plan is { seal slot id => { :name, :side, :door,
+  # :wall } }; notes are lines for the console, every one of them something
+  # the operator has to know about (an ambiguity, an override, a companion
+  # panel the adapter may or may not absorb).
+  #
+  # THE DOOR IS FOUND BY THE COMPONENT ASSIGNED, never by p[:sk] - the same
+  # reason is_door in pass 2 is: a customer can move the door into a slot the
+  # layout calls SOLID. guess_component never yields a WA door, so a slot
+  # with no assignment cannot be one.
+  #
+  # "ADJACENT" MEANS THE SEAL'S POLYGON STRADDLES THE DOOR'S END along the
+  # wall's run axis. Not "the edges touch": a seal polygon in the data is the
+  # 6.5 in stem PLUS its cap, and the cap overhangs each neighbour by 2.875 -
+  # on a 102102 E's S wall the door slot S0i runs 4.25..39.75 and S-seal0i
+  # runs 36.875..49.125, so an edge-touch test finds nothing (it did, in the
+  # first replay of this rule). The door's end at 39.75 falls inside the
+  # seal's span, and that is the test. The layout is still the module layout
+  # here (rebalance_walls runs after pass 1); a cap reaches under 3 in and a
+  # door is over 35, so a seal cannot straddle the far end of a door.
+  #
+  # A door at the end of a wall has ONE adjacent seal and the answer is
+  # unambiguous. A door in the middle of a wall has TWO, and Benton's "one of
+  # the mid wall seam seals" does not say which jamb the Z profile mates. That
+  # case substitutes NOTHING and says so loudly; cfg['wajmbad'] = '<seal slot
+  # id>' forces a particular seal on any build (and is the only way to build
+  # a middle-door booth with the adapter until the rule is known).
+  #
+  # SIDE, read from outside the booth. wr-overlays port_run_pos has the
+  # inside-view rule (standing inside facing a wall, left is N -> low run end,
+  # S -> high, E -> high, W -> low). From outside every wall mirrors, so the
+  # HIGH run end is the viewer's RIGHT on the S and E walls and the LOW run
+  # end is the right on the N and W walls.
+  def self.wajmbad_plan(spec, assign, cfg, shell)
+    plan  = {}
+    notes = []
+    return [plan, notes] if shell == 'outer'
+    assign ||= {}
+    parts = spec[:parts].select { |q| inner?(q) }
+    ext = lambda do |q|
+      run_x = %w[N S].include?(q[:id].to_s[0, 1])
+      vs = q[:poly].map { |v| (run_x ? v[0] : v[1]).to_f }
+      [vs.min, vs.max]
+    end
+    forced = cfg['wajmbad'].to_s
+    parts.each do |d|
+      next unless d[:k] == 'panel'
+      dname = assign[d[:id]].to_s
+      next unless dname =~ /WADoor/i
+      wall = d[:id].to_s[0, 1]
+      d0, d1 = ext.call(d)
+      cands = []
+      parts.each do |s|
+        next unless s[:k] == 'seal' && s[:id].to_s[0, 1] == wall
+        s0, s1 = ext.call(s)
+        if d1 > s0 && d1 < s1
+          cands << [s, :high]
+        elsif d0 > s0 && d0 < s1
+          cands << [s, :low]
+        end
+      end
+      if !forced.empty?
+        pick = cands.find { |s, _| s[:id].to_s == forced }
+        if pick.nil?
+          notes << "cfg['wajmbad'] = #{forced.inspect} is not a seal touching #{d[:id]} #{dname} " \
+                   "(touching: #{cands.map { |s, _| s[:id] }.join(', ')}) - no adapter placed"
+          next
+        end
+        notes << "cfg['wajmbad'] forced the adapter onto #{forced}"
+        cands = [pick]
+      end
+      if cands.empty?
+        notes << "#{d[:id]} #{dname} is a wide-access door with NO inner seal touching it - " \
+                 'no WAJMBAD placed. Check the layout.'
+        next
+      end
+      if cands.length > 1
+        notes << "#{d[:id]} #{dname} is a wide-access door with a seal on BOTH sides " \
+                 "(#{cands.map { |s, _| s[:id] }.join(' and ')}). Benton's rule names ONE " \
+                 "seal and does not say which jamb - NO WAJMBAD placed. Pass cfg['wajmbad'] " \
+                 '= the seal slot id to choose.'
+        next
+      end
+      seal, end_of = cands.first
+      high_is_right = %w[S E].include?(wall)
+      side = ((end_of == :high) == high_is_right) ? 'R' : 'L'
+      name = if cfg['hx']
+               side == 'L' ? WAJMBAD_COMP_L : WAJMBAD_COMP_R
+             else
+               WAJMBAD_COMP
+             end
+      plan[seal[:id]] = { :name => name, :side => side, :door => d[:id], :wall => wall }
+      # The inner panel on the far side of that seal. Beside a 44.5 in ENH WA
+      # door the inner wall closes on ENH 2.5Panel (booth-from-link, the
+      # STDWL7 branch). Benton's "the IEP wall would actually be too small"
+      # may mean the adapter's Z spans that 2.5 in and the sliver panel is not
+      # fitted at all - OR that the sliver stays and the Z only bridges seal to
+      # jamb. Not decided; the panel is still placed and this line says so.
+      s0, s1 = ext.call(seal)
+      beyond = parts.find do |q|
+        next false unless q[:k] == 'panel' && q[:id].to_s[0, 1] == wall && q[:id] != d[:id]
+        q0, q1 = ext.call(q)
+        # Same straddle test, for the panel on the seal's far side.
+        end_of == :high ? (q0 > s0 && q0 < s1) : (q1 > s0 && q1 < s1)
+      end
+      if beyond
+        bname = assign[beyond[:id]] || '(unassigned)'
+        notes << "#{seal[:id]} -> #{name}: the panel beyond it is #{beyond[:id]} #{bname}, " \
+                 'still placed. Whether the adapter absorbs a 2.5 in companion is NOT decided.'
+      end
+    end
+    [plan, notes]
+  end
+
   # ------------------------------------------------------------------- input --
 
   def self.ask
@@ -2341,6 +2516,15 @@ module WR_BuildBoothComponents
       end
       puts "  inner rotations: corners placed directly (SW 0 / SE 90 / NE 180 / NW 270), mid-wall seal #{IEP_SEAL_YAW}deg, door #{IEP_DOOR_YAW}deg"
     end
+    # The wide-access jamb adapter, decided here so pass 1 can name the seal
+    # slot it takes. Every note is printed now AND carried into the flagged
+    # list at the end of the build - the header scrolls away.
+    wajmbad, wajmbad_notes = wajmbad_plan(spec, assign, cfg, shell)
+    wajmbad.each do |sid, wj|
+      puts "  WAJMBAD  #{sid} -> #{wj[:name]}#{cfg['hx'] ? '_HX' : ''}  (#{wj[:side]} of #{wj[:door]}, read from outside) " \
+           '- REPLACES the IEP mid-wall seal beside the wide-access door'
+    end
+    wajmbad_notes.each { |n| puts "  WAJMBAD  #{n}" }
     puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"
     puts "  parts    #{cfg['dir']}"
     puts "  SHELL    #{shell.upcase} ONLY - the other shell and the deck are not placed" unless shell == 'all'
@@ -2352,6 +2536,7 @@ module WR_BuildBoothComponents
       next if shell == 'outer' && inner?(p)
       inn  = inner?(p)
       name = if p[:k] == 'corner' then (inn ? ENH_CORNER_COMP : CORNER_COMP)
+             elsif p[:k] == 'seal' && wajmbad[p[:id]] then wajmbad[p[:id]][:name]
              elsif p[:k] == 'seal' then (inn ? ENH_SEAL_COMP : SEAL_COMP)
              else assign[p[:id]]
              end
@@ -2537,6 +2722,9 @@ module WR_BuildBoothComponents
 
       placed = 0
       warn = []
+      # The WAJMBAD plan's notes go into the flagged list too - an ambiguity
+      # that stopped a substitution, or an override, must outlive the header.
+      warn.concat(wajmbad_notes.map { |n| "WAJMBAD #{n}" })
       # Same idiom as the room-proud warning below: a figure this booth has not
       # been measured for is used, and is NAMED so it cannot pass as measured.
       if spec[:eiw] && shell != 'outer' && !vent_drop_measured
@@ -2658,6 +2846,40 @@ module WR_BuildBoothComponents
           spiv = Geom::Point3d.new((sxs.min + sxs.max) / 2.0,
                                    (sys.min + sys.max) / 2.0, 0)
           tr = Geom::Transformation.rotation(spiv, VZ, IEP_SEAL_YAW.degrees) * tr
+        end
+
+        # The wide-access jamb adapter standing in that seal's slot. It has
+        # had the seal's own half turn above; now the not-fit-tested flip, and
+        # a flagged line on EVERY build until WAJMBAD_FLIP_SIDE is set from a
+        # real one. See the constant for what the flip is and is not.
+        if p[:k] == 'seal' && (wj = wajmbad[p[:id]])
+          flip = !WAJMBAD_FLIP_SIDE.nil? && wj[:side] == WAJMBAD_FLIP_SIDE.to_s.upcase
+          if flip
+            # 180 deg about the WALL NORMAL through the placed part's centre:
+            # ends and top/bottom swap, the across-wall sense stays. The pivot
+            # is the placed bounding box's centre, so the box does not move.
+            bb = r[:defn].bounds
+            cx = []
+            cy = []
+            cz = []
+            8.times do |i|
+              q = bb.corner(i).transform(tr)
+              cx << q.x.to_f
+              cy << q.y.to_f
+              cz << q.z.to_f
+            end
+            wpiv = Geom::Point3d.new((cx.min + cx.max) / 2.0, (cy.min + cy.max) / 2.0,
+                                     (cz.min + cz.max) / 2.0)
+            waxis = %w[N S].include?(wj[:wall]) ? VY : VX
+            tr = Geom::Transformation.rotation(wpiv, waxis, 180.0.degrees) * tr
+          end
+          puts format('  %-6s %-22s WAJMBAD %s of the door, %s',
+                      p[:id], r[:name], wj[:side],
+                      flip ? 'turned about the wall normal (WAJMBAD_FLIP_SIDE)' : 'placed as authored, no flip')
+          warn << "#{p[:id]} #{r[:name]}: WAJMBAD orientation is NOT FIT-TESTED. Placed like the " \
+                  "seal it replaces#{flip ? ' and turned about the wall normal' : ', no flip'}; " \
+                  "WAJMBAD_FLIP_SIDE = #{WAJMBAD_FLIP_SIDE.inspect}. Look at the jamb leg on a built " \
+                  'booth and set the constant to the side (L/R from outside) that came out wrong.'
         end
 
         # The IEP vent wall may go in end for end - see iep_vent_yaw(), which

@@ -1,5 +1,46 @@
 # DEVLOG
 
+## 2026-09-21 — 1.73.0: WAJMBAD (wide-access jamb adapter) on the IEP shell
+
+**What changed.** `scripts/build-booth-components.rb` now substitutes the **WAJMBAD** for the
+IEP mid-wall seam seal beside a wide-access door. Benton (21 Sep): it "essentially replaces one
+of the mid wall seam seals" with a Z profile that mates the IEP WA door jamb to the next seal.
+Substitution only — run arithmetic (`IEP_SEAL_W`, `rebalance_walls`) untouched. Inner shell
+only; WA door only (the door is found by the ASSIGNED name `/WADoor/`, never `p[:sk]`).
+
+**Names.** Non-HX → `ENH WAJMBAD` (unhanded; Benton: it just gets flipped one way or the
+other). HX → `ENH WAJMBAD L` / `ENH WAJMBAD R` + the existing `_HX` rule → `ENH WAJMBAD L_HX.skp`
+etc. All three files observed on `P:\Sketchup\NewMasterComponentList\`. L/R read looking at
+the door **from outside** (Benton's convention): high run end is the viewer's right on S and E
+walls, low end on N and W (the mirror of `wr-overlays` `port_run_pos`). Replayed offline
+against `wr-booth-data.rb` for a WA door at every wall end of a 102102 E — all eight sides
+check by hand.
+
+**Which seal.** The inner seal whose polygon *straddles* the door's end. Not an edge-touch:
+seal polygons carry the cap (2.875 in overhang each side) — the first replay of an edge-touch
+rule found nothing. A door mid-wall has a seal each side; Benton's rule names one and not
+which, so that case places **no** adapter and flags it; `cfg['wajmbad'] = '<seal id>'` forces one.
+
+**Orientation — NOT FIT-TESTED, warns on every build.** Placed exactly like the seal it
+replaces (same `IEP_SEAL_YAW`). `WAJMBAD_FLIP_SIDE = nil`: flip neither side. When set to
+`'L'`/`'R'`, that side turns 180° about the **wall normal** through the placed part's centre —
+derived, not seen: a yaw leaves a Z as a Z, a mirror is never used on a real part, and of the
+two horizontal axes only the normal keeps the seal's cap on its authored face. Same idiom as
+`SEAL_PROUD` / `WR_Deck::SEAL_FL_DATUM_LIFT`.
+
+**A build now prints.** Header: `WAJMBAD  S-seal0i -> ENH WAJMBAD  (R of S0i, read from
+outside) - REPLACES ...`; pass 2: `S-seal0i ENH WAJMBAD  WAJMBAD R of the door, placed as
+authored, no flip`; and in the flagged list at the end: `NOT FIT-TESTED ... set the constant to
+the side that came out wrong`, plus a note naming the panel beyond the seal (`ENH 2.5Panel` on a
+WA booth) because whether the adapter absorbs that sliver is **not decided**.
+
+**Verified.** `rbparse.py` 77 files parse (CRuby 3.2). Offline replay of the plan rule.
+**Not run in SketchUp.** Benton must confirm off a built booth: (1) the jamb leg faces the
+door on each side → set `WAJMBAD_FLIP_SIDE`; (2) the 2.5 in companion stays or goes;
+(3) mid-wall door: which jamb; (4) the part classifies at 79.5 (if the build refuses with
+"no axis of its box measures 79.5 in", the WAJMBAD is a different height and needs a
+`part_height` rule). Handoff: `.forge/builder/HANDOFF-wajmbad.md`.
+
 ## 2026-09-18 — 1.72.0: Draw floor plan redesigned around the plan; mirror bug fixed
 
 **What changed.** `scripts/build-room.html` is now one screen built around the plan preview
