@@ -1,5 +1,45 @@
 # DEVLOG
 
+## 2026-09-21 — 1.75.0: WAJMBAD orientation is a wall-plane MIRROR, measured off Benton's hand-fit
+
+**The fit-tested matrix.** Benton hand-fitted the adapter on the 102102 E test link (WA door
+`ENH RightWADoor` in S0i, adapter in S1i — the R case) and confirmed it. Read off the instance
+(observed): red→(1,0,0), green→(0,−1,0), blue→(0,0,1), origin (48.25, 2.0, 0); box x 45.875..57.75,
+y 2.25..4.25, z 0.75..80.25. **Determinant −1** — a reflection across the plane of the wall, which no
+rotation-only scheme (1.74.0's seal yaw + optional half turn about the wall normal) could ever have
+produced. `rotation()` builds a proper right-handed frame and nothing else scales, so 1.74.0 had no
+det −1 code path at all.
+
+**What changed in `build-booth-components.rb`, pass 2.** `WAJMBAD_YAW` and `WAJMBAD_FLIP_SIDE` are gone.
+After `place()` the adapter gets, about its slot centre: (1) a reflection across the wall plane,
+always — that alone reproduces the matrix above; (2) a reflection across the plane square to the run
+**only if** the measured lap (box overhang past the slot, bigger end) is not at the door end
+(`wj[:door_at]`, new, from `wajmbad_plan`). Both reflections are written out as explicit 16-element
+matrices. Nothing along the wall moved: `place()` centres the 9.000 in slab it finds in the part
+(authored x 0.5..9.5, measured on the loaded definition — the same 9 as `WAJMBAD_RUN_W`) on the
+re-walked slot, which already puts the box at 45.875..57.75 with the whole 2.875 lap (11.875 box −
+9 run, measured) at the door end. Benton's "move it 2 7/8 toward the door" was undoing the
+end-for-end half of the old yaw, not an offset to be added. `WAJMBAD_LAP_MIN = 1.0` is the only new
+constant: below that the two ends' laps are indistinguishable from trim and step 2 does not fire.
+
+**Acceptance (observed over the bridge).** A cleared-model rebuild of the test link now places S1i with
+exactly `[1,0,0,0, 0,-1,0,0, 0,0,1,0, 48.25,2,0,1]`, twice in a row, no manual intervention. The
+console line reads `FIT-TESTED (Benton, 21 Sep 2026, 102102 E S wall R)`.
+
+**Determinism finding.** Three back-to-back 1.74.0 rebuilds in one SketchUp session gave the identical
+matrix `[-1,0,0 / 0,-1,0 / 0,0,1 / 58.25,2,0]`, box x 48.75..60.625 — the "later" placement. `load DATA`
+reassigns `BOOTHS` fresh each build and the module constants are re-evaluated (the "already
+initialized constant" warnings are that), so no state drifts between builds. The report that an
+untouched first build had produced the det −1 target was an artefact — most likely a reading taken
+after the hand fix; the 1.74.0 code cannot emit it.
+
+**Still unproven — L case and E/W walls.** Only the S-wall R adapter has been seen. An L adapter on the
+S wall (or R on the N wall) has the door at the slot's high end, so step 2 fires and the part goes in
+end for end (a proper 180° yaw); E/W walls get the part a quarter turn from `place()` and the lap is
+measured there rather than seen. Every one of those builds with a `NOT FIT-TESTED` warning naming the
+wall, side and door end. Do not assume L mirrors R — see
+`.forge/fixer/DEFECT-side-wall-flip-2026-08-26.md`.
+
 ## 2026-09-21 — 1.74.0: WAJMBAD re-pointed — it IS the 2.5 in wall, not the seal beside it
 
 **1.73.0's premise was wrong.** It named the WAJMBAD into the IEP mid-wall *seal* slot beside a

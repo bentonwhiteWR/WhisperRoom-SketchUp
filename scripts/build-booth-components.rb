@@ -342,43 +342,70 @@ module WR_BuildBoothComponents
   # correction on top of one.
   IEP_SEAL_YAW   = 180.0   # the mid-wall seal, end for end
 
-  # THE WAJMBAD'S FLIP IS NOT FIT-TESTED. Same idiom as SEAL_PROUD and
-  # WR_Deck::SEAL_FL_DATUM_LIFT: one named constant, a loud line on every build
-  # that uses it, and the number changes here when a real booth says so.
+  # ---- THE WAJMBAD'S ORIENTATION: ONE CASE FIT-TESTED, THE REST DERIVED ----
   #
-  # The adapter stands in the 2.5 in void slot (see WAJMBAD_COMP), centred on
-  # its re-walked run like a seal is and given WAJMBAD_YAW below. The unhanded
-  # standard part then "may just need to be flipped one way or another"
-  # (Benton) to mate with the jamb on the OTHER side of the door. What that
-  # flip can and cannot be is derived, not seen:
+  # There is no yaw constant and no flip-side constant any more. 1.74.0 gave
+  # the adapter the seal's 180 deg yaw (assumed) plus an optional half turn
+  # about the wall normal (derived, never fired), and the derivation was wrong
+  # on both counts. What replaced it is measured, and this is the measurement.
   #
-  #   * A Z profile turned end for end about the vertical (a yaw) is still the
-  #     same Z - point symmetry - so the yaw that orients every other seal
-  #     cannot move the jamb leg to the other side.
-  #   * A mirror would, but a mirror is never used on a real part here (see
-  #     IEP_DOOR_YAW: "A HALF TURN, NOT A MIRROR").
-  #   * A half turn about a HORIZONTAL axis turns Z into S in plan while staying
-  #     a proper rotation - and that is what "flipping" a physical extrusion
-  #     means: upside down. Of the two horizontal axes, the WALL NORMAL is the
-  #     one that keeps the seal's cap on the face it was authored on (the
-  #     across-wall sense is preserved; ends and top/bottom swap). The wall-run
-  #     axis would put the cap on the wrong face.
+  # Benton hand-fitted the adapter on the 102102 E test link (wide-access door
+  # 'ENH RightWADoor' in S0i, adapter in S1i - the R case, read from outside)
+  # on 21 Sep 2026 and confirmed it mates with the jamb. Read straight off the
+  # placed instance (observed, Transformation#to_a):
   #
-  # So the flip, when it fires, is 180 deg about the wall normal through the
-  # placed part's centre. WHICH SIDE needs it is unknown until a build is
-  # looked at. nil = flip neither side (the part goes in as authored on both).
-  # Set it to 'L' or 'R' - the side, read from outside, whose adapter came out
-  # with its jamb leg AWAY from the door - and only that side turns.
-  WAJMBAD_FLIP_SIDE = nil
-
-  # The yaw the adapter gets about the vertical through its slot's centre.
-  # ASSUMED equal to the seal's: the part is "a modified enhanced seam seal"
-  # (Benton), so the working assumption is that it was authored in the same
-  # frame as ENH MidWallSeamSeal and needs the same end-for-end turn. Nothing
-  # in the placement path would otherwise turn it - a panel slot gets no yaw -
-  # so this is the one number to change if a build shows the caps on the
-  # wrong face. Reported on every build beside the flip.
-  WAJMBAD_YAW = IEP_SEAL_YAW
+  #     [ 1.0  0.0  0.0  0.0 ]        red   -> world ( 1, 0, 0)
+  #     [ 0.0 -1.0  0.0  0.0 ]        green -> world ( 0,-1, 0)
+  #     [ 0.0  0.0  1.0  0.0 ]        blue  -> world ( 0, 0, 1)
+  #     [48.25  2.0  0.0  1.0 ]       box x 45.875..57.75  y 2.25..4.25
+  #
+  # The determinant is -1. THE CORRECT PLACEMENT IS A REFLECTION, not a
+  # rotation: the authored part mirrored across the plane of its own wall.
+  # No proper rotation of the authored geometry reproduces it, which is why
+  # every rotation-only scheme tried before this one was a guess that could
+  # not have landed. (An extrusion that is the same top and bottom cannot tell
+  # a wall-plane mirror from a half turn about the wall-run axis - upside
+  # down - so this IS Benton's physical "flip"; it is only the matrix that
+  # has to be a mirror, because the file is authored one way up.)
+  #
+  # And the box did not move along the wall. place() centres the slab it
+  # finds in the part - a 9.000 in face at authored x 0.5..9.5, measured on
+  # the loaded definition, the same 9 the run is declared at (WAJMBAD_RUN_W)
+  # - on the re-walked slot 48.75..57.75, which puts the box at 45.875..57.75
+  # before anything turns it. That is the target box already. The 2.875 the
+  # box overhangs the slot (11.875 box against a 9 in run, measured) sits
+  # ENTIRELY at the authored low-run end and is the leg that laps the jamb:
+  # on this build the door is at the low end, so the lap was already facing
+  # it. The "move it 2 7/8 toward the door" in Benton's route was undoing the
+  # end-for-end half of the old yaw, not adding an offset - the yaw about the
+  # slot centre had carried the lap to the far end.
+  #
+  # So pass 2 now does exactly two things after place(), both about the slot
+  # centre, both measured rather than declared:
+  #
+  #   1. reflect across the WALL PLANE (y -> -y on an N/S wall, x -> -x on
+  #      E/W). Always. This alone reproduces the matrix above on the R case.
+  #   2. measure which end of the slot the box overhangs, and if that lap is
+  #      not at the DOOR end (wj[:door_at], from the layout), reflect across
+  #      the plane square to the run as well. The two reflections together are
+  #      a 180 deg yaw - a proper rotation - so the L case comes out as the
+  #      authored part turned end for end with its lap toward the door.
+  #
+  # ONLY STEP 1 ON AN N/S WALL IS FIT-TESTED. An adapter that needs step 2
+  # (the L side of a door on the S wall, or the R side on the N wall, where
+  # the door sits at the slot's high end), and any adapter on an E/W wall
+  # (place() rotates the part a quarter turn and where the lap lands is then
+  # measured, not seen), builds with a NOT FIT-TESTED line until a real booth
+  # says otherwise. Do NOT assume the L case is a mirror of the R one - this
+  # repo has been wrong about handedness before
+  # (.forge/fixer/DEFECT-side-wall-flip-2026-08-26.md).
+  #
+  # The one thing worth a constant: how big the lap has to be before it is
+  # believed to be the jamb leg rather than trim noise. ENH parts carry an
+  # eighth to a quarter inch of packaging proud of the panel (SLAB_NOISE);
+  # the leg is 2.875. Below this the lap is reported as unresolvable and
+  # step 2 does not fire.
+  WAJMBAD_LAP_MIN = 1.0
 
   # THE INNER VENT WALL, end for end. 180, AND IT HAS NOW BEEN CONFIRMED TWICE
   # ON A RESTARTED SKETCHUP.
@@ -1644,8 +1671,13 @@ module WR_BuildBoothComponents
              else
                WAJMBAD_COMP
              end
+      # :door_at is which END OF THE VOID SLOT the door is on, along the wall's
+      # run axis (booth coordinates, not the from-outside L/R). end_of is the
+      # void's end relative to the door, so the door is at the other end. Pass
+      # 2 uses this, and only this, to decide where the jamb lap must face.
       plan[v[:id]] = { :name => name, :side => side, :door => d[:id], :wall => wall,
-                       :seal => seal[:id], :was => vname }
+                       :seal => seal[:id], :was => vname,
+                       :door_at => (end_of == :high ? :low : :high) }
       claimed << v[:id]
       if WAJMBAD_ABSORBS_SEAL
         absorbed << seal[:id]
@@ -2949,49 +2981,87 @@ module WR_BuildBoothComponents
           tr = Geom::Transformation.rotation(spiv, VZ, IEP_SEAL_YAW.degrees) * tr
         end
 
-        # The wide-access jamb adapter standing in the void slot. First the
-        # seal's end-for-end turn it is assumed to share (WAJMBAD_YAW), about
-        # its own slot centre; then the not-fit-tested flip, and a flagged
-        # line on EVERY build until WAJMBAD_FLIP_SIDE is set from a real one.
-        # See the constants for what the flip is and is not.
+        # The wide-access jamb adapter standing in the void slot. Two
+        # reflections about the slot centre, both explained at WAJMBAD_LAP_MIN:
+        # across the wall plane always (that is the whole of the fit-tested R
+        # case - Benton's hand-fitted matrix of 21 Sep 2026), and across the
+        # plane square to the run only when the measured lap is not already
+        # at the door end. Nothing here is a rotation constant; the one thing
+        # declared is which end of the slot the door is on (wj[:door_at]).
         if wj
-          if WAJMBAD_YAW != 0.0
-            wxs = p[:poly].map { |q| q[0].to_f }
-            wys = p[:poly].map { |q| q[1].to_f }
-            ypiv = Geom::Point3d.new((wxs.min + wxs.max) / 2.0,
-                                     (wys.min + wys.max) / 2.0, 0)
-            tr = Geom::Transformation.rotation(ypiv, VZ, WAJMBAD_YAW.degrees) * tr
+          run_x = %w[N S].include?(wj[:wall])
+          wxs = p[:poly].map { |q| q[0].to_f }
+          wys = p[:poly].map { |q| q[1].to_f }
+          px = (wxs.min + wxs.max) / 2.0
+          py = (wys.min + wys.max) / 2.0
+          slot = run_x ? [wxs.min, wxs.max] : [wys.min, wys.max]
+          # Where the placed box sits along the run, BEFORE any reflection.
+          # place() centred the part's slab on the slot; whatever the box
+          # overhangs is the cap, and the bigger overhang is the jamb leg.
+          bb = r[:defn].bounds
+          cx = []
+          cy = []
+          8.times do |i|
+            q = bb.corner(i).transform(tr)
+            cx << q.x.to_f
+            cy << q.y.to_f
           end
-          flip = !WAJMBAD_FLIP_SIDE.nil? && wj[:side] == WAJMBAD_FLIP_SIDE.to_s.upcase
-          if flip
-            # 180 deg about the WALL NORMAL through the placed part's centre:
-            # ends and top/bottom swap, the across-wall sense stays. The pivot
-            # is the placed bounding box's centre, so the box does not move.
-            bb = r[:defn].bounds
-            cx = []
-            cy = []
-            cz = []
-            8.times do |i|
-              q = bb.corner(i).transform(tr)
-              cx << q.x.to_f
-              cy << q.y.to_f
-              cz << q.z.to_f
-            end
-            wpiv = Geom::Point3d.new((cx.min + cx.max) / 2.0, (cy.min + cy.max) / 2.0,
-                                     (cz.min + cz.max) / 2.0)
-            waxis = %w[N S].include?(wj[:wall]) ? VY : VX
-            tr = Geom::Transformation.rotation(wpiv, waxis, 180.0.degrees) * tr
+          box = run_x ? [cx.min, cx.max] : [cy.min, cy.max]
+          lap_lo = slot[0] - box[0]
+          lap_hi = box[1] - slot[1]
+          lap_at = if (lap_lo - lap_hi).abs < WAJMBAD_LAP_MIN then nil
+                   elsif lap_lo > lap_hi then :low
+                   else :high
+                   end
+          # A reflection is written out as its matrix rather than through
+          # Transformation.scaling, so that what the instance ends up carrying
+          # is exactly the four rows in the comment at WAJMBAD_LAP_MIN and
+          # nothing the API might normalise. Reflect across the wall plane
+          # through the slot centre: y -> 2*py - y on an N/S wall.
+          mirror_wall = if run_x
+                          Geom::Transformation.new([1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 2 * py, 0, 1])
+                        else
+                          Geom::Transformation.new([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2 * px, 0, 0, 1])
+                        end
+          tr = mirror_wall * tr
+          turned = false
+          if !lap_at.nil? && lap_at != wj[:door_at]
+            # The lap faces away from the door: reflect across the plane
+            # square to the run as well, x -> 2*px - x on an N/S wall. With
+            # the wall-plane mirror already applied this is a half turn about
+            # the vertical through the slot centre - the part goes in end for
+            # end, a proper rotation, lap toward the door. NOT FIT-TESTED.
+            mirror_run = if run_x
+                           Geom::Transformation.new([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2 * px, 0, 0, 1])
+                         else
+                           Geom::Transformation.new([1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 2 * py, 0, 1])
+                         end
+            tr = mirror_run * tr
+            turned = true
           end
-          puts format('  %-6s %-22s WAJMBAD %s of the door, yaw %g, %s',
-                      p[:id], r[:name], wj[:side], WAJMBAD_YAW,
-                      flip ? 'turned about the wall normal (WAJMBAD_FLIP_SIDE)' : 'no flip')
-          warn << "#{p[:id]} #{r[:name]}: WAJMBAD orientation is NOT FIT-TESTED. Centred on a " \
-                  "#{format('%g', WAJMBAD_RUN_W)} in run in the #{format('%g', WAJMBAD_VOID_W)} in void slot" \
-                  "#{WAJMBAD_ABSORBS_SEAL ? " over the absorbed #{wj[:seal]}" : ''}, turned " \
-                  "#{WAJMBAD_YAW} deg like a seal (WAJMBAD_YAW, assumed)" \
-                  "#{flip ? ' and turned about the wall normal' : ', no flip'}; " \
-                  "WAJMBAD_FLIP_SIDE = #{WAJMBAD_FLIP_SIDE.inspect}. Look at the jamb leg on a built " \
-                  'booth and set the constant to the side (L/R from outside) that came out wrong.'
+          # Only the exact combination Benton looked at counts as tested - the
+          # S wall's R adapter, no end-for-end turn. An N-wall R adapter takes
+          # the same code path with the part a half turn round from place(),
+          # and that has not been seen.
+          tested = wj[:wall] == 'S' && wj[:side] == 'R' && !turned && !lap_at.nil?
+          puts format('  %-6s %-22s WAJMBAD %s of the door, door at the slot\'s %s end, lap %.3f low / %.3f high, ' \
+                      'mirrored across the wall plane%s - %s',
+                      p[:id], r[:name], wj[:side], wj[:door_at], lap_lo, lap_hi,
+                      turned ? ' and turned end for end' : '',
+                      tested ? 'FIT-TESTED (Benton, 21 Sep 2026, 102102 E S wall R)' : 'NOT FIT-TESTED')
+          if lap_at.nil?
+            warn << "#{p[:id]} #{r[:name]}: WAJMBAD lap is #{format('%.3f', lap_lo)} low / " \
+                    "#{format('%.3f', lap_hi)} high against its slot - no end overhangs by " \
+                    "#{format('%g', WAJMBAD_LAP_MIN)} in more than the other, so the jamb leg cannot be " \
+                    'told from trim and the part was NOT turned toward the door. Check it on the build.'
+          elsif !tested
+            warn << "#{p[:id]} #{r[:name]}: WAJMBAD orientation is NOT FIT-TESTED on this wall/side. " \
+                    "The only fit-tested case is the R adapter on an N/S wall with the door at the " \
+                    "slot's low end (102102 E, S wall, 21 Sep 2026). This one is on the #{wj[:wall]} wall, " \
+                    "#{wj[:side]} of the door, door at the #{wj[:door_at]} end, mirrored across the wall " \
+                    "plane#{turned ? ' AND turned end for end so the lap faces the door' : ''}. Look at the " \
+                    'jamb leg on the built booth before trusting it.'
+          end
         end
 
         # The IEP vent wall may go in end for end - see iep_vent_yaw(), which
