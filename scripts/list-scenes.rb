@@ -39,9 +39,22 @@
 # the same camera-target rule angled-component-art.rb uses, so the list answers
 # "which numbers do I need" rather than only "what are they called".
 #
-# READ ONLY, with one deliberate exception: clicking a row's arrow ACTIVATES
-# that scene, which moves the camera exactly as clicking its tab would. Nothing
-# is written to the model.
+# CLICKING A ROW does two things at once: it ticks the row AND activates that
+# scene, so the viewport shows what you just ticked -- the two questions "which
+# number is this" and "is this the one I mean" get answered by one click. The
+# arrow at the end of a row still activates WITHOUT ticking, for looking without
+# choosing.
+#
+# SHIFT-CLICK ticks a run. Click one row, Shift-click another, and every row
+# between them IN THE ORDER SHOWN takes the ticked state of the first one. The
+# first row stays the anchor, so a second Shift-click re-sizes the run instead
+# of starting a new one. Shift-click never moves the camera -- it is a bulk
+# gesture, and firing a scene change per row across a run of forty would thrash
+# the viewport for nothing. Ctrl-click (Cmd on a Mac) ticks a single row without
+# moving the camera either, for when the view is where you want it.
+#
+# READ ONLY otherwise: activating a scene moves the camera exactly as clicking
+# its tab would. Nothing is written to the model.
 
 require 'sketchup.rb'
 require 'json'
@@ -274,8 +287,9 @@ module WR_ListScenes
 
 <div class="foot">
   # is the scene's position in the tabs, left to right — the same number the
-  exporters use. Sorting changes the view, never the number. The arrow jumps to
-  that scene.
+  exporters use. Sorting changes the view, never the number. Click a row to tick
+  it and jump there; Shift-click ticks the run since the last click; Ctrl-click
+  ticks without jumping. The arrow jumps without ticking.
 </div>
 
 <script>
@@ -283,6 +297,9 @@ module WR_ListScenes
   "use strict";
   var ROWS = #{data};
   var sel = {}, sortK = "n", sortA = true, view = ROWS.slice();
+  // The last row clicked WITHOUT Shift. A Shift-click ticks from here to the row
+  // clicked, and leaves this alone so the next Shift-click re-sizes the run.
+  var anchor = null;
 
   var $q = document.getElementById("q"), $b = document.getElementById("body"),
       $spec = document.getElementById("spec"), $pick = document.getElementById("pick"),
@@ -391,9 +408,37 @@ module WR_ListScenes
     }).join("");
 
     Array.prototype.forEach.call($b.querySelectorAll("tr"), function (tr) {
-      tr.addEventListener("click", function () {
+      tr.addEventListener("click", function (e) {
         var n = +tr.dataset.n;
+
+        // Shift-click: the run from the anchor to this row, in the order on
+        // screen right now (`view` is what draw() just sorted and filtered, not
+        // ROWS), all set to the anchor's ticked state. No camera move here on
+        // purpose: this is a bulk gesture, and activating a scene for every row
+        // it sweeps over would thrash the viewport. If the anchor has been
+        // filtered out of view there is no run to take, so this row becomes the
+        // anchor and is simply toggled instead.
+        if (e.shiftKey) {
+          if (window.getSelection) { window.getSelection().removeAllRanges(); }
+          var ns = view.map(function (r) { return r.n; });
+          var a = anchor == null ? -1 : ns.indexOf(anchor), b = ns.indexOf(n);
+          if (a < 0 || b < 0) {
+            if (sel[n]) { delete sel[n]; } else { sel[n] = 1; }
+            anchor = n;
+          } else {
+            var on = !!sel[anchor], lo = a < b ? a : b, hi = a < b ? b : a;
+            for (var k = lo; k <= hi; k++) { if (on) { sel[ns[k]] = 1; } else { delete sel[ns[k]]; } }
+          }
+          draw();
+          return;
+        }
+
+        // Plain click ticks the row AND shows it, so the viewport confirms the
+        // number just picked. Ctrl (Cmd on a Mac) ticks without moving the
+        // camera, for when the view is already where it should stay.
         if (sel[n]) { delete sel[n]; } else { sel[n] = 1; }
+        anchor = n;
+        if (!(e.ctrlKey || e.metaKey) && window.sketchup && sketchup.activate) sketchup.activate(n);
         draw();
       });
     });
@@ -423,6 +468,10 @@ module WR_ListScenes
       draw();
     });
   });
+  // Shift+mousedown is where the browser would START a text selection, before
+  // any click fires; stopping it here is what keeps a Shift-click from painting
+  // the rows blue. Registered once on the tbody, which survives every draw().
+  $b.addEventListener("mousedown", function (e) { if (e.shiftKey) e.preventDefault(); });
   $q.addEventListener("input", draw);
   document.getElementById("all").addEventListener("click", function () {
     view.forEach(function (r) { sel[r.n] = 1; }); draw();
