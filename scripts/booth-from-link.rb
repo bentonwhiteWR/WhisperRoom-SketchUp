@@ -118,8 +118,9 @@ module WR_BoothLink
   # builder knows the exact file that is absent, and it asks ONCE, with the
   # complete list, whether to build around it with orange placeholders — the
   # gate in build-booth-components.rb build_booth. Benton's 102102 E with a
-  # wide-access door needs ENH 2.5Panel.skp, which is not authored yet, and
-  # that is the case this exists for.
+  # wide-access door needs ENH 2.5Panel.skp, which does not exist (since
+  # 1.74.0 the builder stands the WAJMBAD in that slot instead), and that
+  # is the case this exists for.
   ENH_MISSING_ABORTS = true
 
   # What to do when a ROOF-MOUNTED booth's vent-wall swap arrives half applied.
@@ -643,10 +644,13 @@ module WR_BoothLink
       # 7 in wall and nothing else: 7Panel, or inboard ENH 2.5Panel — the
       # width the inner wall closes on beside the 44.5 in ENH WA door
       # (44.5 + 6.5 + 2.5 = 35.5 + 6.5 + 11.5; the door's 44.5 is measured,
-      # _enhanced-probe.tsv). ENH 2.5Panel.skp is NOT on the share as of
-      # 2026-09-10; it reaches the builder as an absent file, by name, and
-      # can be placeholdered. Before this branch the whole pack was
-      # untranslatable and the Enhanced build refused outright.
+      # _enhanced-probe.tsv). ENH 2.5Panel.skp is NOT on the share and never
+      # will be - Benton, 2026-09-21: "a 2.5\" wall doesnt exist", the WAJMBAD
+      # is the part that fills that void. The name still goes out from here
+      # unchanged: it is the builder's signal (wajmbad_void? in
+      # build-booth-components) to stand the adapter in that slot. Before
+      # this branch the whole pack was untranslatable and the Enhanced build
+      # refused outright.
       w = enh ? enh_width('7') : '7'
       "#{p}#{w}Panel"
     when /\ASTDWL(\d+)\s+DRFRM\s+([RL])\b/i

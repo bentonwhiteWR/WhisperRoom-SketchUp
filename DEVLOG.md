@@ -1,5 +1,52 @@
 # DEVLOG
 
+## 2026-09-21 — 1.74.0: WAJMBAD re-pointed — it IS the 2.5 in wall, not the seal beside it
+
+**1.73.0's premise was wrong.** It named the WAJMBAD into the IEP mid-wall *seal* slot beside a
+wide-access door and left the `ENH 2.5Panel` sliver in place. Benton, same day: "No the WAJMBAD
+IS the 2.5" wall. a 2.5" wall doesnt exist. This unique component fills the void where the logic
+says the 2.5" should exist." The share agrees — there is no `ENH 2.5Panel.skp` and never will be.
+
+**What the layout data says, and what changed.** On the 102102 E inner S wall the slots run
+`S0i` door 4.25..39.75 → `S-seal0i` → `S1i` 46.25..57.75 → `S-seal1i` → `S2i`. A WA link makes
+`S0i` a 44.5 in door and `S1i` the 2.5 in void — so the void is **not** against the jamb; a seal
+stands between. The part "fits snuggly to the IEP WA Door Jamb as well as the next IEP mid wall
+seam seal", and the only way one Z profile touches both is by occupying `S-seal0i` *and* `S1i`.
+So both of Benton's descriptions are true at once: it replaces the seal beside the door and it is
+the 2.5 in wall. Now, in `build-booth-components.rb`:
+- `wajmbad_plan` finds the **2.5 in ENH panel slot by assignment** (`wajmbad_void?`), the WA door
+  on the same wall, and the seal whose polygon straddles both — names the void slot `ENH WAJMBAD`
+  (`… L`/`… R` + `_HX` on HX builds) and returns that seal as **absorbed**.
+- Pass 1 gives the absorbed seal **no row** (printed: `absorbed by the WAJMBAD - not placed`), so
+  `rebalance_walls` does not count its joint and pass 2 never stands a seal under the adapter.
+- `rebalance_walls` re-walks the void slot at **`WAJMBAD_RUN_W` = 2.5 + 6.5 = 9** (declared, not
+  measured — the part's box will carry seal caps). 44.5 + 9 + 6.5 + 35.5 = 95.5, closes exactly.
+- Pass 2 places it **like a seal** (centred on its run, `SEAL_PROUD`, not flushed to the corner),
+  turns it `WAJMBAD_YAW` (= `IEP_SEAL_YAW`, **assumed**), then the `WAJMBAD_FLIP_SIDE` flip (still
+  `nil`). The FIT warning for that row says the overhang is expected caps, not a misfit.
+- **Mid-wall door is no longer ambiguous.** Benton: "whichever side the door is leaning more
+  into." The panel that gave up its width to the door is the one that came down to 2.5, so the
+  void's side *is* that side. Derived from the module arithmetic, not measured.
+- `WAJMBAD_ABSORBS_SEAL = true` is the one switch for the alternative reading (seal stays, adapter
+  takes only the 2.5). Every build prints which reading it used and that it is not a fit check.
+- `cfg['wajmbad']` now takes a **panel slot id** (was a seal id).
+- Height gate unchanged on purpose: Benton says the part matches the ENH mid-wall seal's height,
+  and the P: probe (`.forge/fixer/WIDTH-AXIS-FAMILY-2026-08-26.md`) has that seal at 79.5 / 89.5 —
+  the same figure as `ENH_WALL_H`, so `part_height` already asks for the right number.
+
+**Not a new bug, named anyway.** The missing `ENH 2.5Panel` was never silent: a link build listed
+it ABSENT, asked YES/NO, stood an orange placeholder and renamed the group INCOMPLETE. That slot
+now resolves to a real file, so a WA Enhanced booth builds complete.
+
+**Verified.** `rbparse.py` 77 files parse (CRuby 3.2). Offline replay of the new rule + closure
+against `wr-booth-data.rb`: door at either end and mid-wall on all four walls of a 102102 E, HX
+naming, forced slot, no-void and void-two-slots-away cases — every wall closes to 0.000.
+**Not run in SketchUp.** Benton confirms off a built booth: (1) no seal between jamb and adapter
+(else `WAJMBAD_ABSORBS_SEAL = false`); (2) caps on the right face (else `WAJMBAD_YAW`); (3) jamb
+leg toward the door on each side (else `WAJMBAD_FLIP_SIDE`); (4) HX holes on the R side for the
+R file; (5) the adapter's box against the 9 in run in the flagged list.
+Handoff: `.forge/fixer/HANDOFF-wajmbad.md`.
+
 ## 2026-09-21 — 1.73.0: WAJMBAD (wide-access jamb adapter) on the IEP shell
 
 **What changed.** `scripts/build-booth-components.rb` now substitutes the **WAJMBAD** for the

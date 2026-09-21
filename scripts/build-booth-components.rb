@@ -99,18 +99,34 @@ module WR_BuildBoothComponents
 
   # ---- THE WIDE-ACCESS JAMB ADAPTER (WAJMBAD) ----
   #
-  # Benton, 2026-09-21, on an IEP booth with a wide-access door: "the IEP wall
-  # would actually be too small. We have a modified enhanced seam seal that is
-  # included. It's called the WAJMBAD (Wide access jamb adapter). It essentially
-  # replaces one of the mid wall seam seals, and adds this Z shaped seam seal
-  # that fits in snuggly to the IEP WA Door Jamb as well as the next IEP mid
-  # wall seam seal."
+  # THE PREMISE 1.73.0 SHIPPED ON WAS WRONG, and it is worth keeping the
+  # correction next to the constants. 1.73.0 read Benton's "it essentially
+  # replaces one of the mid wall seam seals" as: name the seal slot beside the
+  # WA door WAJMBAD and leave everything else alone. Benton, 2026-09-21, on
+  # seeing that: "No the WAJMBAD IS the 2.5\" wall. a 2.5\" wall doesnt exist.
+  # This unique component fills the void where the logic says the 2.5\" should
+  # exist." And the share agrees - there is no 'ENH 2.5Panel.skp' and never
+  # will be; the 2.5 in slot booth-from-link names beside a 44.5 in ENH WA door
+  # (44.5 + 6.5 + 2.5 = 35.5 + 6.5 + 11.5) is a void the arithmetic leaves
+  # behind, and the WAJMBAD is the part that fills it.
   #
-  # So it is a SUBSTITUTION, not an addition: the inner mid-wall seal directly
-  # beside the WA door jamb takes this name instead of ENH_SEAL_COMP, and the
-  # run arithmetic (rebalance_walls, IEP_SEAL_W) is untouched. Wide-access door
-  # only - no narrower door pulls it. Inner shell only - the Standard shell has
-  # no such part.
+  # BOTH of his descriptions are true at once, and the layout data shows how.
+  # Read the 102102 E's inner S wall in wr-booth-data: S0i (door) 4.25..39.75,
+  # S-seal0i, S1i 46.25..57.75, S-seal1i, S2i. With the WA door S0i grows to
+  # 44.5 and S1i shrinks to 2.5 - so the void is NOT against the jamb; a seal
+  # stands between. The part "fits snuggly to the IEP WA Door Jamb as well as
+  # the next IEP mid wall seam seal" (Benton, same day), and the only way a
+  # single Z profile touches the jamb on one end and S-seal1i on the other is
+  # by occupying S-seal0i's 6.5 AND S1i's 2.5. So it is BOTH things he said:
+  # it replaces one seal (the one beside the door) and it is the 2.5 in wall.
+  # 44.5 + 9 + 6.5 + 35.5 = 95.5, and the inner wall closes.
+  #
+  # So in this file the adapter is NAMED INTO THE 2.5 IN PANEL SLOT (S1i in
+  # the example), the seal between it and the door is NOT PLACED, and the
+  # slot is re-walked at WAJMBAD_RUN_W. Wide-access door only, inner shell
+  # only, and only where the assignments actually carry a 2.5 in ENH panel
+  # name - a WA door with no such void beside it gets a flagged note and no
+  # adapter, because there is nothing for it to fill.
   #
   # THE STANDARD-HEIGHT PART IS UNHANDED; THE HX PART IS HANDED. Three files on
   # the share (observed 2026-09-21): 'ENH WAJMBAD.skp', 'ENH WAJMBAD L_HX.skp',
@@ -127,6 +143,21 @@ module WR_BuildBoothComponents
   WAJMBAD_COMP   = 'ENH WAJMBAD'.freeze
   WAJMBAD_COMP_L = 'ENH WAJMBAD L'.freeze
   WAJMBAD_COMP_R = 'ENH WAJMBAD R'.freeze
+
+  # The void the adapter fills, as the assignments name it. booth-from-link
+  # composes 'ENH 2.5Panel' for the STDWL7 / WL16 companion on an Enhanced
+  # build; nothing else in the pipeline produces a 2.5 in inner panel name.
+  WAJMBAD_VOID_W = 2.5
+
+  # DOES THE Z ABSORB THE SEAL BESIDE THE DOOR? true is the reading the layout
+  # data supports (the block above walks it through); it has NOT been seen on
+  # a built booth. If a real adapter turns out to sit against a seal that is
+  # still fitted between it and the jamb, set this false: the seal goes back
+  # in, the adapter takes only the 2.5 in void, and nothing else changes. The
+  # console names the absorbed seal on every build so the assumption cannot
+  # pass as a measurement.
+  WAJMBAD_ABSORBS_SEAL = true
+
 
   # Every ENH wall part measures 79.5 tall against a Standard 81 - 89.5 against
   # 91 on HX (observed, P: library probe, no exceptions in 112 parts). The 1.5
@@ -278,6 +309,15 @@ module WR_BuildBoothComponents
   # re-walks a run from real part widths and has to use the right joint.
   IEP_SEAL_W = 6.5
 
+  # The run the WAJMBAD takes when a wall is re-walked (rebalance_walls): the
+  # void plus the seal it absorbs. DERIVED from the layout arithmetic, not
+  # measured off the part - the part's own box will carry caps that overhang
+  # its neighbours exactly as the ENH seal's does (12.25 across a 6.5 joint),
+  # and re-walking a wall from that box would not close it. The FIT column
+  # still reports the raw box against this slot, so a part that measures
+  # something other than expected shows up there.
+  WAJMBAD_RUN_W = WAJMBAD_VOID_W + (WAJMBAD_ABSORBS_SEAL ? IEP_SEAL_W : 0.0)
+
   # How far a part's bounding box may disagree with its slot, when wall_slab
   # found no panel inside it, before rebalance_walls believes the part really
   # is a different size. See the note in rebalance_walls: ENH parts carry trim
@@ -306,10 +346,11 @@ module WR_BuildBoothComponents
   # WR_Deck::SEAL_FL_DATUM_LIFT: one named constant, a loud line on every build
   # that uses it, and the number changes here when a real booth says so.
   #
-  # The adapter is placed exactly as the seal it replaces (same slot, same
-  # IEP_SEAL_YAW half turn). The unhanded standard part then "may just need to
-  # be flipped one way or another" (Benton) to mate with the jamb on the OTHER
-  # side of the door. What that flip can and cannot be is derived, not seen:
+  # The adapter stands in the 2.5 in void slot (see WAJMBAD_COMP), centred on
+  # its re-walked run like a seal is and given WAJMBAD_YAW below. The unhanded
+  # standard part then "may just need to be flipped one way or another"
+  # (Benton) to mate with the jamb on the OTHER side of the door. What that
+  # flip can and cannot be is derived, not seen:
   #
   #   * A Z profile turned end for end about the vertical (a yaw) is still the
   #     same Z - point symmetry - so the yaw that orients every other seal
@@ -329,6 +370,15 @@ module WR_BuildBoothComponents
   # Set it to 'L' or 'R' - the side, read from outside, whose adapter came out
   # with its jamb leg AWAY from the door - and only that side turns.
   WAJMBAD_FLIP_SIDE = nil
+
+  # The yaw the adapter gets about the vertical through its slot's centre.
+  # ASSUMED equal to the seal's: the part is "a modified enhanced seam seal"
+  # (Benton), so the working assumption is that it was authored in the same
+  # frame as ENH MidWallSeamSeal and needs the same end-for-end turn. Nothing
+  # in the placement path would otherwise turn it - a panel slot gets no yaw -
+  # so this is the one number to change if a build shows the caps on the
+  # wrong face. Reported on every build beside the flip.
+  WAJMBAD_YAW = IEP_SEAL_YAW
 
   # THE INNER VENT WALL, end for end. 180, AND IT HAS NOW BEEN CONFIRMED TWICE
   # ON A RESTARTED SKETCHUP.
@@ -1473,45 +1523,59 @@ module WR_BuildBoothComponents
     end
   end
 
-  # Which inner seals become a WAJMBAD on this build, decided BEFORE pass 1
-  # names anything, from the layout polygons and the assignments alone.
+  # Which inner slots become a WAJMBAD on this build, and which seals it
+  # absorbs, decided BEFORE pass 1 names anything, from the layout polygons
+  # and the assignments alone.
   #
-  # Returns [plan, notes]. plan is { seal slot id => { :name, :side, :door,
-  # :wall } }; notes are lines for the console, every one of them something
-  # the operator has to know about (an ambiguity, an override, a companion
-  # panel the adapter may or may not absorb).
+  # Returns [plan, absorbed, notes]. plan is { void panel slot id => { :name,
+  # :side, :door, :wall, :seal, :was } }; absorbed is the list of seal slot
+  # ids that are NOT placed because the adapter covers them (empty when
+  # WAJMBAD_ABSORBS_SEAL is false); notes are lines for the console, every one
+  # of them something the operator has to know about.
   #
-  # THE DOOR IS FOUND BY THE COMPONENT ASSIGNED, never by p[:sk] - the same
-  # reason is_door in pass 2 is: a customer can move the door into a slot the
-  # layout calls SOLID. guess_component never yields a WA door, so a slot
-  # with no assignment cannot be one.
+  # THE VOID IS FOUND BY THE COMPONENT ASSIGNED, and so is the door - never by
+  # p[:sk], the same reason is_door in pass 2 is: a customer can move the door
+  # into a slot the layout calls SOLID, and guess_component never yields a WA
+  # door or a 2.5 in panel, so a slot with no assignment cannot be either.
   #
-  # "ADJACENT" MEANS THE SEAL'S POLYGON STRADDLES THE DOOR'S END along the
-  # wall's run axis. Not "the edges touch": a seal polygon in the data is the
-  # 6.5 in stem PLUS its cap, and the cap overhangs each neighbour by 2.875 -
-  # on a 102102 E's S wall the door slot S0i runs 4.25..39.75 and S-seal0i
-  # runs 36.875..49.125, so an edge-touch test finds nothing (it did, in the
-  # first replay of this rule). The door's end at 39.75 falls inside the
-  # seal's span, and that is the test. The layout is still the module layout
-  # here (rebalance_walls runs after pass 1); a cap reaches under 3 in and a
-  # door is over 35, so a seal cannot straddle the far end of a door.
+  # WHICH JAMB. Benton, on a mid-wall door: "Whichever side the door is
+  # leaning more into. The door is wider, so it must lean either into the
+  # adjacent left wall, or right wall." The assignments already say which:
+  # the panel that gave up its width to the 44.5 in door is the one that came
+  # down to 2.5 (11.5 - 9), and it is on the side the door grew into. So the
+  # side is the side of the door the VOID is on, and a door with a seal each
+  # side is no longer ambiguous - the void picks. That is derived from the
+  # module arithmetic in booth-from-link (component_for, the STDWL7 branch),
+  # not from anything measured.
   #
-  # A door at the end of a wall has ONE adjacent seal and the answer is
-  # unambiguous. A door in the middle of a wall has TWO, and Benton's "one of
-  # the mid wall seam seals" does not say which jamb the Z profile mates. That
-  # case substitutes NOTHING and says so loudly; cfg['wajmbad'] = '<seal slot
-  # id>' forces a particular seal on any build (and is the only way to build
-  # a middle-door booth with the adapter until the rule is known).
+  # "BETWEEN" is a straddle test on the layout polygons, the same one 1.73.0
+  # used: a seal polygon in the data is the 6.5 in stem PLUS its cap, and the
+  # cap overhangs each neighbour by 2.875, so an edge-touch test finds nothing
+  # (it did, in the first replay). On a 102102 E's S wall the door S0i runs
+  # 4.25..39.75, S-seal0i 36.875..49.125 and the void S1i 46.25..57.75: the
+  # door's end (39.75) and the void's start (46.25) both fall inside the seal's
+  # span, and that seal is the one the Z absorbs. The layout is still the
+  # module layout here (rebalance_walls runs after pass 1).
+  #
+  # cfg['wajmbad'] = '<panel slot id>' forces the void onto that slot whatever
+  # it was assigned - for a link whose packs did not carry the 2.5 in name.
+  # It still has to sit one seal away from a WA door on the same wall.
   #
   # SIDE, read from outside the booth. wr-overlays port_run_pos has the
   # inside-view rule (standing inside facing a wall, left is N -> low run end,
   # S -> high, E -> high, W -> low). From outside every wall mirrors, so the
   # HIGH run end is the viewer's RIGHT on the S and E walls and the LOW run
   # end is the right on the N and W walls.
+  def self.wajmbad_void?(name)
+    w = iep_nominal_width(name)
+    !w.nil? && (w - WAJMBAD_VOID_W).abs < 0.01 && !(name.to_s =~ /Panel/i).nil?
+  end
+
   def self.wajmbad_plan(spec, assign, cfg, shell)
-    plan  = {}
-    notes = []
-    return [plan, notes] if shell == 'outer'
+    plan     = {}
+    absorbed = []
+    notes    = []
+    return [plan, absorbed, notes] if shell == 'outer'
     assign ||= {}
     parts = spec[:parts].select { |q| inner?(q) }
     ext = lambda do |q|
@@ -1520,45 +1584,59 @@ module WR_BuildBoothComponents
       [vs.min, vs.max]
     end
     forced = cfg['wajmbad'].to_s
+    if !forced.empty? && parts.none? { |q| q[:k] == 'panel' && q[:id].to_s == forced }
+      notes << "cfg['wajmbad'] = #{forced.inspect} is not an inner panel slot on this booth - ignored"
+      forced = ''
+    end
+    claimed = []
     parts.each do |d|
       next unless d[:k] == 'panel'
       dname = assign[d[:id]].to_s
       next unless dname =~ /WADoor/i
       wall = d[:id].to_s[0, 1]
       d0, d1 = ext.call(d)
+      # The void candidates on this wall: a 2.5 in ENH panel by assignment, or
+      # the forced slot. Then the seal that straddles both the door's end and
+      # the void's near end - there is one or there is nothing.
       cands = []
-      parts.each do |s|
-        next unless s[:k] == 'seal' && s[:id].to_s[0, 1] == wall
-        s0, s1 = ext.call(s)
-        if d1 > s0 && d1 < s1
-          cands << [s, :high]
-        elsif d0 > s0 && d0 < s1
-          cands << [s, :low]
+      parts.each do |v|
+        next unless v[:k] == 'panel' && v[:id].to_s[0, 1] == wall && v[:id] != d[:id]
+        vname = assign[v[:id]].to_s
+        is_forced = !forced.empty? && v[:id].to_s == forced
+        next unless is_forced || wajmbad_void?(vname)
+        v0, v1 = ext.call(v)
+        end_of = v0 >= d1 ? :high : (v1 <= d0 ? :low : nil)
+        next if end_of.nil?
+        d_end  = end_of == :high ? d1 : d0
+        v_near = end_of == :high ? v0 : v1
+        seal = parts.find do |q|
+          next false unless q[:k] == 'seal' && q[:id].to_s[0, 1] == wall
+          s0, s1 = ext.call(q)
+          d_end > s0 && d_end < s1 && v_near > s0 && v_near < s1
         end
-      end
-      if !forced.empty?
-        pick = cands.find { |s, _| s[:id].to_s == forced }
-        if pick.nil?
-          notes << "cfg['wajmbad'] = #{forced.inspect} is not a seal touching #{d[:id]} #{dname} " \
-                   "(touching: #{cands.map { |s, _| s[:id] }.join(', ')}) - no adapter placed"
-          next
-        end
-        notes << "cfg['wajmbad'] forced the adapter onto #{forced}"
-        cands = [pick]
+        cands << [v, end_of, seal, vname, is_forced]
       end
       if cands.empty?
-        notes << "#{d[:id]} #{dname} is a wide-access door with NO inner seal touching it - " \
-                 'no WAJMBAD placed. Check the layout.'
+        voids = parts.select { |q| q[:k] == 'panel' && wajmbad_void?(assign[q[:id]].to_s) }
+        notes << "#{d[:id]} #{dname} is a wide-access door with NO #{format('%g', WAJMBAD_VOID_W)} in " \
+                 "inner panel on its wall#{voids.empty? ? '' : " (voids elsewhere: #{voids.map { |q| q[:id] }.join(', ')})"} " \
+                 '- no WAJMBAD placed. The adapter fills that void; with none there is nothing ' \
+                 "for it to fill. Pass cfg['wajmbad'] = '<panel slot id>' to force one."
         next
       end
       if cands.length > 1
-        notes << "#{d[:id]} #{dname} is a wide-access door with a seal on BOTH sides " \
-                 "(#{cands.map { |s, _| s[:id] }.join(' and ')}). Benton's rule names ONE " \
-                 "seal and does not say which jamb - NO WAJMBAD placed. Pass cfg['wajmbad'] " \
-                 '= the seal slot id to choose.'
+        notes << "#{d[:id]} #{dname} has a #{format('%g', WAJMBAD_VOID_W)} in void on BOTH sides " \
+                 "(#{cands.map { |v, *_| v[:id] }.join(' and ')}) - NO WAJMBAD placed. Pass " \
+                 "cfg['wajmbad'] = the panel slot id to choose."
         next
       end
-      seal, end_of = cands.first
+      v, end_of, seal, vname, is_forced = cands.first
+      if seal.nil?
+        notes << "#{v[:id]} #{vname} is the void beside #{d[:id]} #{dname} but no inner seal " \
+                 'lies between them in the layout - no WAJMBAD placed. Check the layout.'
+        next
+      end
+      notes << "cfg['wajmbad'] forced the void onto #{v[:id]} (assigned #{vname.empty? ? '(nothing)' : vname})" if is_forced
       high_is_right = %w[S E].include?(wall)
       side = ((end_of == :high) == high_is_right) ? 'R' : 'L'
       name = if cfg['hx']
@@ -1566,27 +1644,29 @@ module WR_BuildBoothComponents
              else
                WAJMBAD_COMP
              end
-      plan[seal[:id]] = { :name => name, :side => side, :door => d[:id], :wall => wall }
-      # The inner panel on the far side of that seal. Beside a 44.5 in ENH WA
-      # door the inner wall closes on ENH 2.5Panel (booth-from-link, the
-      # STDWL7 branch). Benton's "the IEP wall would actually be too small"
-      # may mean the adapter's Z spans that 2.5 in and the sliver panel is not
-      # fitted at all - OR that the sliver stays and the Z only bridges seal to
-      # jamb. Not decided; the panel is still placed and this line says so.
-      s0, s1 = ext.call(seal)
-      beyond = parts.find do |q|
-        next false unless q[:k] == 'panel' && q[:id].to_s[0, 1] == wall && q[:id] != d[:id]
-        q0, q1 = ext.call(q)
-        # Same straddle test, for the panel on the seal's far side.
-        end_of == :high ? (q0 > s0 && q0 < s1) : (q1 > s0 && q1 < s1)
-      end
-      if beyond
-        bname = assign[beyond[:id]] || '(unassigned)'
-        notes << "#{seal[:id]} -> #{name}: the panel beyond it is #{beyond[:id]} #{bname}, " \
-                 'still placed. Whether the adapter absorbs a 2.5 in companion is NOT decided.'
+      plan[v[:id]] = { :name => name, :side => side, :door => d[:id], :wall => wall,
+                       :seal => seal[:id], :was => vname }
+      claimed << v[:id]
+      if WAJMBAD_ABSORBS_SEAL
+        absorbed << seal[:id]
+        notes << "#{v[:id]} -> #{name} ABSORBS #{seal[:id]} (the seal between it and #{d[:id]}), " \
+                 "which is NOT placed, and takes #{format('%g', WAJMBAD_RUN_W)} in of run. That is " \
+                 'the reading of the layout data, NOT a fit check: if a built booth still wants ' \
+                 'a seal between the jamb and the adapter, set WAJMBAD_ABSORBS_SEAL = false.'
+      else
+        notes << "#{v[:id]} -> #{name} takes only the #{format('%g', WAJMBAD_VOID_W)} in void; " \
+                 "#{seal[:id]} is still placed beside it (WAJMBAD_ABSORBS_SEAL = false)."
       end
     end
-    [plan, notes]
+    # A 2.5 in void with no WA door on its wall is a layout oddity, not this
+    # rule's business - it stays named as assigned and the absent-file path
+    # reports it. Said here so it is not mistaken for a missed adapter.
+    parts.each do |q|
+      next unless q[:k] == 'panel' && wajmbad_void?(assign[q[:id]].to_s) && !claimed.include?(q[:id])
+      notes << "#{q[:id]} #{assign[q[:id]]} is a #{format('%g', WAJMBAD_VOID_W)} in inner panel with no " \
+               'wide-access door on its wall - left as assigned, no WAJMBAD.'
+    end
+    [plan, absorbed, notes]
   end
 
   # ------------------------------------------------------------------- input --
@@ -2286,6 +2366,12 @@ module WR_BuildBoothComponents
       # the part plus its packaging, and re-walking a wall from packaging is
       # what put the 6060 E's E inner wall 0.25 out of closure.
       pw_of = lambda do |r|
+        # THE WAJMBAD'S RUN IS DECLARED, NOT MEASURED (WAJMBAD_RUN_W): its box
+        # carries seal caps that overhang both neighbours, and a slab found
+        # inside a Z profile would be a flange, not the run. Checked before
+        # the slab and before the absent path so an absent adapter file
+        # re-walks the wall the same way a present one does.
+        next WAJMBAD_RUN_W if r[:wajmbad]
         next (r[:slab][:w1] - r[:slab][:w0]) if r[:slab]
         slot = ext.call(r[:part][:poly])
         want = slot[1] - slot[0]
@@ -2516,13 +2602,14 @@ module WR_BuildBoothComponents
       end
       puts "  inner rotations: corners placed directly (SW 0 / SE 90 / NE 180 / NW 270), mid-wall seal #{IEP_SEAL_YAW}deg, door #{IEP_DOOR_YAW}deg"
     end
-    # The wide-access jamb adapter, decided here so pass 1 can name the seal
-    # slot it takes. Every note is printed now AND carried into the flagged
-    # list at the end of the build - the header scrolls away.
-    wajmbad, wajmbad_notes = wajmbad_plan(spec, assign, cfg, shell)
-    wajmbad.each do |sid, wj|
-      puts "  WAJMBAD  #{sid} -> #{wj[:name]}#{cfg['hx'] ? '_HX' : ''}  (#{wj[:side]} of #{wj[:door]}, read from outside) " \
-           '- REPLACES the IEP mid-wall seal beside the wide-access door'
+    # The wide-access jamb adapter, decided here so pass 1 can name the void
+    # slot it takes and skip the seal it absorbs. Every note is printed now
+    # AND carried into the flagged list at the end of the build - the header
+    # scrolls away.
+    wajmbad, wajmbad_absorbed, wajmbad_notes = wajmbad_plan(spec, assign, cfg, shell)
+    wajmbad.each do |vid, wj|
+      puts "  WAJMBAD  #{vid} -> #{wj[:name]}#{cfg['hx'] ? '_HX' : ''}  (#{wj[:side]} of #{wj[:door]}, read from outside) " \
+           "- FILLS the #{format('%g', WAJMBAD_VOID_W)} in void the arithmetic left as #{wj[:was].empty? ? '(unassigned)' : wj[:was]}"
     end
     wajmbad_notes.each { |n| puts "  WAJMBAD  #{n}" }
     puts "  height   #{cfg['hx'] ? 'HX, 91 in panels' : 'Standard, 81 in panels'}"
@@ -2535,8 +2622,14 @@ module WR_BuildBoothComponents
       next if shell == 'inner' && !inner?(p)
       next if shell == 'outer' && inner?(p)
       inn  = inner?(p)
+      # A seal the WAJMBAD covers gets NO ROW: rebalance_walls must not count
+      # its joint and pass 2 must not stand a seal under the adapter.
+      if p[:k] == 'seal' && wajmbad_absorbed.include?(p[:id])
+        puts format('  %-16s %-22s absorbed by the WAJMBAD - not placed', p[:id], ENH_SEAL_COMP)
+        next
+      end
       name = if p[:k] == 'corner' then (inn ? ENH_CORNER_COMP : CORNER_COMP)
-             elsif p[:k] == 'seal' && wajmbad[p[:id]] then wajmbad[p[:id]][:name]
+             elsif p[:k] == 'panel' && wajmbad[p[:id]] then wajmbad[p[:id]][:name]
              elsif p[:k] == 'seal' then (inn ? ENH_SEAL_COMP : SEAL_COMP)
              else assign[p[:id]]
              end
@@ -2568,7 +2661,7 @@ module WR_BuildBoothComponents
         # and never silently.
         absent << "#{p[:id]}  #{name}.skp"
         rows << { :part => p, :name => name, :defn => nil, :cls => nil,
-                  :slab => nil, :absent => true }
+                  :slab => nil, :absent => true, :wajmbad => wajmbad[p[:id]] }
         next
       end
       want_h = part_height(p, cfg['hx'])
@@ -2601,7 +2694,8 @@ module WR_BuildBoothComponents
           slab = slab2
         end
       end
-      rows << { :part => p, :name => name, :defn => defn, :cls => cls, :slab => slab }
+      rows << { :part => p, :name => name, :defn => defn, :cls => cls, :slab => slab,
+                :wajmbad => wajmbad[p[:id]] }
     end
 
     # ---- THE GATE. Two kinds of miss, and they are not treated alike.
@@ -2760,7 +2854,14 @@ module WR_BuildBoothComponents
           next
         end
         rev = REVERSED.include?(r[:name])
-        proud = p[:k] == 'seal' ? SEAL_PROUD : 0.0
+        # The WAJMBAD stands in a PANEL slot but is a seal by construction
+        # (its caps overhang the neighbours), so it takes the seal's proud and
+        # is CENTRED on its re-walked run rather than flushed to the corner
+        # the way a wall panel is. Centring a box on the slot assumes the
+        # part's caps are symmetric about its run - the seal's are; whether
+        # the Z's are is one of the things a built booth has to show.
+        wj = p[:k] == 'panel' ? r[:wajmbad] : nil
+        proud = (p[:k] == 'seal' || wj) ? SEAL_PROUD : 0.0
         # A door's bulk is its swung leaf and belongs on the ROOM side, the
         # opposite of a vent housing. Which parts are doors is read from the
         # COMPONENT THAT WAS ASSIGNED, never from p[:sk].
@@ -2776,7 +2877,7 @@ module WR_BuildBoothComponents
         is_door = !(r[:name].to_s =~ /Door/i).nil?
         tr, slot_len, thickness, part_h, facing = place(r[:cls], p[:poly], centre,
                                                         rev, nominal, r[:slab], proud,
-                                                        p[:k] == 'panel',
+                                                        p[:k] == 'panel' && wj.nil?,
                                                         !is_door)
         drop = part_h - nominal
 
@@ -2848,11 +2949,19 @@ module WR_BuildBoothComponents
           tr = Geom::Transformation.rotation(spiv, VZ, IEP_SEAL_YAW.degrees) * tr
         end
 
-        # The wide-access jamb adapter standing in that seal's slot. It has
-        # had the seal's own half turn above; now the not-fit-tested flip, and
-        # a flagged line on EVERY build until WAJMBAD_FLIP_SIDE is set from a
-        # real one. See the constant for what the flip is and is not.
-        if p[:k] == 'seal' && (wj = wajmbad[p[:id]])
+        # The wide-access jamb adapter standing in the void slot. First the
+        # seal's end-for-end turn it is assumed to share (WAJMBAD_YAW), about
+        # its own slot centre; then the not-fit-tested flip, and a flagged
+        # line on EVERY build until WAJMBAD_FLIP_SIDE is set from a real one.
+        # See the constants for what the flip is and is not.
+        if wj
+          if WAJMBAD_YAW != 0.0
+            wxs = p[:poly].map { |q| q[0].to_f }
+            wys = p[:poly].map { |q| q[1].to_f }
+            ypiv = Geom::Point3d.new((wxs.min + wxs.max) / 2.0,
+                                     (wys.min + wys.max) / 2.0, 0)
+            tr = Geom::Transformation.rotation(ypiv, VZ, WAJMBAD_YAW.degrees) * tr
+          end
           flip = !WAJMBAD_FLIP_SIDE.nil? && wj[:side] == WAJMBAD_FLIP_SIDE.to_s.upcase
           if flip
             # 180 deg about the WALL NORMAL through the placed part's centre:
@@ -2873,11 +2982,14 @@ module WR_BuildBoothComponents
             waxis = %w[N S].include?(wj[:wall]) ? VY : VX
             tr = Geom::Transformation.rotation(wpiv, waxis, 180.0.degrees) * tr
           end
-          puts format('  %-6s %-22s WAJMBAD %s of the door, %s',
-                      p[:id], r[:name], wj[:side],
-                      flip ? 'turned about the wall normal (WAJMBAD_FLIP_SIDE)' : 'placed as authored, no flip')
-          warn << "#{p[:id]} #{r[:name]}: WAJMBAD orientation is NOT FIT-TESTED. Placed like the " \
-                  "seal it replaces#{flip ? ' and turned about the wall normal' : ', no flip'}; " \
+          puts format('  %-6s %-22s WAJMBAD %s of the door, yaw %g, %s',
+                      p[:id], r[:name], wj[:side], WAJMBAD_YAW,
+                      flip ? 'turned about the wall normal (WAJMBAD_FLIP_SIDE)' : 'no flip')
+          warn << "#{p[:id]} #{r[:name]}: WAJMBAD orientation is NOT FIT-TESTED. Centred on a " \
+                  "#{format('%g', WAJMBAD_RUN_W)} in run in the #{format('%g', WAJMBAD_VOID_W)} in void slot" \
+                  "#{WAJMBAD_ABSORBS_SEAL ? " over the absorbed #{wj[:seal]}" : ''}, turned " \
+                  "#{WAJMBAD_YAW} deg like a seal (WAJMBAD_YAW, assumed)" \
+                  "#{flip ? ' and turned about the wall normal' : ', no flip'}; " \
                   "WAJMBAD_FLIP_SIDE = #{WAJMBAD_FLIP_SIDE.inspect}. Look at the jamb leg on a built " \
                   'booth and set the constant to the side (L/R from outside) that came out wrong.'
         end
@@ -2954,7 +3066,14 @@ module WR_BuildBoothComponents
               else
                 'n/a'
               end
-        if p[:k] == 'panel' && (pw - slot_len).abs > 0.02
+        if wj && (pw - slot_len).abs > 0.02
+          # Expected, and said so: the adapter's slot is its DECLARED run
+          # (WAJMBAD_RUN_W) and its box carries caps that overhang both
+          # neighbours, as the ENH seal's does (12.25 box on a 6.5 joint). The
+          # figure is reported so a part that measures nothing like a
+          # 9 in run plus caps is caught, not so the overhang reads as a fault.
+          warn << "#{p[:id]} #{r[:name]}: box #{format('%.3f', pw)} against a #{format('%g', WAJMBAD_RUN_W)} in "                   'declared run (WAJMBAD_RUN_W) - the overhang is expected to be seal caps; '                   'confirm on the built booth that the run is right.'
+        elsif p[:k] == 'panel' && (pw - slot_len).abs > 0.02
           warn << "#{p[:id]} #{r[:name]}: #{fit} in against its slot"
         end
 
