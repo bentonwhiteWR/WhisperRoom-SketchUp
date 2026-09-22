@@ -1,5 +1,5 @@
 import sys, cv2, numpy as np, json
-P='C:/Users/bento/Documents/Claude/Sketchup/clients/community-music-school/plans/'
+P='C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/clients/community-music-school/plans/'
 def tile(im, cx, cy, half, zoom, step, clahe, label):
     h,w=im.shape[:2]
     x0,y0=max(0,cx-half),max(0,cy-half); x1,y1=min(w,cx+half),min(h,cy+half)

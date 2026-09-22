@@ -1,6 +1,6 @@
 # Community Music School (Allentown, PA) — MDL 96144 E drum studio renders
 
-**Status: PAUSED 22 Sep 2026 with the room shell built. Every host-room dimension is ESTIMATED
+**Status: 22 Sep 2026 — room (HANDOFF steps 1–3) built and saved on the desktop; booth next. Every host-room dimension is ESTIMATED
 from two phone photos and has not been confirmed with a tape measure.** Resume from the
 2026-09-22 "Community Music School" entry at the top of `DEVLOG.md`.
 
@@ -47,25 +47,49 @@ from two phone photos and has not been confirmed with a tape measure.** Resume f
 
 ## Host room estimate — ESTIMATED FROM PHOTOS, NOT FIELD MEASURED
 
-**Method (reported by the Builder; its fit files are in `.forge/builder/cms/fit/`).**
-- **Fit:** a two-camera line fit of both photos (the joint `f` is shared).
-- **Scale:** set from **one anchor**, the surface fluorescent run: two 4-ft wraparounds end to end, taken as **97 in**.
-- **Cross-checks:**
-  - The entry-door head reads 83.9 in, against a standard 7'-0".
-  - The switch plate reads 4.46 in, against the standard 4.5 in.
-- **Door width:** rejected as an anchor, because the casing edge and the jamb edge can't be told apart in the photos.
+**Status 22 Sep 2026 (desktop Builder): room built to HANDOFF steps 1–3 with the `joint7` fit.**
 
-| Dimension | In the model now (`fit.json`, 17:07) | Latest fit (`fit/final_fit.json`, 17:19, **not applied**) |
-|---|---|---|
-| Length, Wall D → Wall B | 269.1 in (22'-5") | 263.8 in (21'-11¾") |
-| Width, Wall C → Wall A | 182.4 in (15'-2⅜") | 184.4 in (15'-4⅜") |
-| Ceiling height | 123.8 in (10'-3¾") | 126.0 in (10'-6") |
-| Green stripe centre above floor | 58.0 in | 59.8 in |
+**Fit decision (derived, measured overlay error in full-res photo px).** Neither candidate
+lined up with both photos on both kinds of evidence, so the same picks + ties were refit jointly
+(`fit/joint7.py`, plain box, B's grazing-edge corner line down-weighted 0.25). Scores on
+identical evidence:
 
-**Tolerance.**
-- **Between the two fits (derived):** they disagree by up to 5.3 in on length.
-- **Scale risk:** the whole scale rides on the fixture length. Real 4-ft wraparounds with end caps run about 96–100 in for a pair, which is ±2–3 % on every dimension.
-- **Working tolerance (assumed):** ±1 ft on length and width, ±6 in on height. Ask the client for tape figures (length, width, ceiling height) before any dimension goes into the proposal as fact.
+| Fit | Room lines A (rms) | Room lines B (rms) | Wall-pinned feature ties (rms) | Render-measured room lines A / B |
+|---|---|---|---|---|
+| `fit.json` (built 17:07) | 11.1 | 26.1 | 12.7 | 8.5 / 24.7 |
+| `fit/final_fit.json` (17:19) | 12.9 | 37.5 | **4.6** | 9.8 / 40.1 |
+| **`joint7` (adopted)** | **7.0** | **18.6** | 8.5 | **6.2 / 16.7** |
+
+The render-measured column is the actual SketchUp render scored against the photo picks. B's rms
+is dominated by one line, the B/C corner at the far right edge of the ultrawide frame (53–128 px
+under every fit, with or without a lens-distortion term). final_fit's 8.7 in wall-A setback (`s1`)
+was tested and not adopted: only one floor line in B's corner supports it, and a joint refit
+shrinks it to 2.5–4.4 in.
+
+**Scale:** one anchor, the surface fluorescent run (two 4-ft wraparounds end to end) = **97 in**.
+joint7 gives h = 58.25 in per unit.
+**Cross-checks (derived):** entry-door head 85.0 in (standard 7'-0" + ~1 in); switch plate 4.5 in
+tall; photo A and photo B place the closet and whiteboard within 2 in of each other.
+
+| Dimension | Model now (`joint7`) | Tolerance (assumed) | Earlier fits |
+|---|---|---|---|
+| Length, Wall D → Wall B | **270.7 in (22'-7" on the drawing)** | ±1 ft | 269.1 / 263.8 |
+| Width, Wall C → Wall A | **182.6 in (15'-3")** | ±1 ft | 182.4 / 184.4 |
+| Ceiling height | **125.4 in (10'-5")** | ±6 in | 123.8 / 126.0 |
+| Green stripe centre above floor | 58.3 in | ±3 in | 58.0 / 59.8 |
+| Wall C: corner B/C → entry door opening | 85.5 in (7'-1"), opening 37.5 in (3'-2"), then 147.7 in (12'-4") to corner C/D | ±1 ft | |
+| Entry door opening head / transom top / casing top | 85.0 / 104.0 / 110 in | ±6 in | |
+| Wall B: corner B/C → closet opening | 144.2 in (12'-0"), opening 31.7 in (2'-8"), then 6.7 in (0'-7") to corner A/B | ±1 ft | |
+| Closet opening head | 86.3 in | ±6 in | |
+| Wall A: corner A/B → window 2 | 38.0 in (3'-2"), window 57.0 in (4'-9") | ±1 ft | |
+| Wall A: window 2 → pilaster | 39.0 in (3'-3"), pilaster 21.0 in (1'-9") wide, 7 in proud | ±1 ft (depth ±3 in) | |
+| Wall A: pilaster → window 1 | 24.0 in (2'-0"), window 55.5 in (4'-8"), then 36.2 in (3'-0") to corner A/D | ±1 ft | |
+| Windows: sill / head | 34.0 / 105.5 in; reveal 16 in to the glass; radiator niches 4 in deep | ±6 in | |
+| Whiteboard: X 49.3–134.0 from Wall C, top 79.6 in, tray top 32.2 in | | ±6 in | |
+| Closet depth | ~26 in | **assumed**, not visible | |
+
+Every chain on the drawing closes. The printed segments are rounded by largest remainder, so each
+chain sums to its printed overall: A 271 = 22'-7", B 183 = 15'-3", C 271 = 22'-7".
 
 **Wall frame used in the model (inches).**
 - X runs west to east and Y south to north.
@@ -104,13 +128,57 @@ from two phone photos and has not been confirmed with a tape measure.** Resume f
   - A smoke detector.
 - **Outside the windows:** a stone building with slate and green-copper roofs. Crop the view from the photos onto a backdrop if that helps.
 
-## Progress (observed 22 Sep 17:21 over the bridge)
+## Built vs. not built (HANDOFF steps 1–3, 22 Sep 2026, observed over the bridge after save)
 
-- **In the model:** the file holds one group, `CMS Classroom`: floor, walls with wainscot and stripe, and ceiling. It was saved at 17:10 and has 0 dimensions.
-- **Camera matches:** both photos were matched by overlay (reported by the Builder). `WR_CMS.match!(:A)` or `(:B)` puts the viewport on the matched camera.
-- **Not started:**
-  - openings and fixtures
-  - room dimensions
-  - booth, placement and the studio-light check
-  - lights, AUTO-SET and the booth dimension images
-  - renders
+**Built** (`.forge/builder/cms/room.rb` + `features.rb`; positions from ray casts or two-photo
+triangulation, materials from photo hue):
+- **Shell:** walls cut around real openings. Wall A is 20 in exterior masonry. Tan lower wall,
+  teal stripe, cream upper wall, cream ceiling. Blue-gray loop carpet with a fleck texture (the
+  tile's colours come from photo A).
+- **Wall A:**
+  - Two steel windows, 6 × 6 lights, with a heavier centre mullion, an operable centre vent and a
+    sash lock. Frames are dark green-gray.
+  - 16 in white reveals, oak stools with aprons, and 4 in radiator niches.
+  - Pilaster, 21 in wide and 7 in proud.
+  - Two cream cast-iron radiators (38 in and 44.5 in) with supply risers and valves.
+  - 26 paint-splatter decals, recast with joint7 (5 detections that were really the plaque were dropped).
+  - Rainbow plaque on the chair rail.
+  - Duplex outlet on the pilaster.
+  - A window backdrop: photo B's view through each window, mullions inpainted.
+- **Wall B:**
+  - Oak-cased closet opening. The oak two-panel door stands open, square to the wall, on the east hinge.
+  - Inside the closet: white shelves on the west side and a white PVC stack on the east.
+  - Oak-framed whiteboard with two tackboards and a deep tray.
+  - Duplex outlet on the baseboard.
+- **Wall C:**
+  - Oak entry door with a heavy casing and cap, a transom bar and a frosted transom sash.
+  - The leaf is swung back into the corridor, as in photo A.
+  - Switch plate and duplex outlet.
+  - White pipe riser with a coupling and three brackets.
+  - An unlit corridor volume beyond the door.
+- **Wall D:** aluminum tack strip with three clips.
+- **All walls:** oak baseboards with a cap, including in the niches and around the pilaster.
+- **Ceiling:**
+  - Run 1: two lensed 4-ft wraparounds (the scale anchor).
+  - Run 2: two 4-ft surface fixtures with a **parabolic egg-crate louver**. Photo B shows a louver,
+    not a lens, so the earlier note calling both runs "lensed wraparounds" was wrong (observed).
+  - Smoke detector.
+- **Drawing:**
+  - 23 dimensions on tag `CMS Room Dims (EST)`, every string ending `EST.`: chains, openings off
+    named corners, overalls, pilaster depth and ceiling height.
+  - Corner and wall labels, plus the plan note.
+- **Scenes:** "Photo A - long view" and "Photo B - corner view". They store camera only, with
+  the fit's fov and aspect, and are for photo matching (keep them; consider them for renders).
+
+**Not built / deviations:**
+- **Blue wall lettering on Wall C:** omitted (Benton's decision).
+- **Papers under the Wall D clips:** omitted (unreadable; the booth covers that wall).
+- **Window 2 light count:** its north third is hidden by the reveal in both photos, so it is
+  assumed to be the same 6 × 6 as window 1.
+- **Closet depth and interior layout:** assumed.
+- **Hall/corridor beyond the door:** only a plausible unlit volume.
+- **Wall A face offsets of 2–6 in between sections:** triangulation hints at them, but they are
+  not modelled. Wall A is a single plane plus the pilaster and niches.
+- **Tack strip west end:** out of frame, assumed at 60 in from Wall C.
+- **Colours:** photo hue lifted to plausible reflectances. They are estimates, not paint matches.
+- **Lights, booth, AUTO-SET, renders:** not started. That is HANDOFF steps 4–10.

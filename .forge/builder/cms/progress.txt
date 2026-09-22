@@ -7,3 +7,6 @@ CMS builder progress log (scratch; the HANDOFF.md is the deliverable)
 - SketchUp camera: with aspect_ratio set, fov is HORIZONTAL (fov_is_height? false for both 0.75 and 1.333). room.rb passes fov_h.
 - 17:10 shell built + saved (floor, walls w/ wainscot + stripe, ceiling). Camera match A and B verified by overlay: edges line up.
 - Placement (Benton): booth N/vent face 18 in off Wall D, centred, door+window into room; 18 in off side walls if near. No furniture. No drum kit.
+- 22 Sep desktop 18:50: HANDOFF steps 1-3 DONE. joint7 fit adopted (see notes.md table). features.rb + dims.rb built;
+  23 EST dims on tag "CMS Room Dims (EST)"; scenes "Photo A - long view"/"Photo B - corner view" (camera only).
+  Saved via bridge (write-root Z:/Sketchup/ClientDrawings) 18:47:41; check! after save OK. Next: step 4 booth.

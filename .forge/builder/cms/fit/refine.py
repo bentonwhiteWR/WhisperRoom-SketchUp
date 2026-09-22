@@ -2,7 +2,7 @@
 mode 'dark' = darkest crease, 'edge' = strongest step, 'bright' = brightest line.
 Returns refined sample points and a fitted line; writes a check tile."""
 import cv2, numpy as np, json, sys
-P='C:/Users/bento/Documents/Claude/Sketchup/clients/community-music-school/plans/'
+P='C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/clients/community-music-school/plans/'
 _cache={}
 def gray(photo):
     if photo not in _cache:

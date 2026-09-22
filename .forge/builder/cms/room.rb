@@ -2,7 +2,7 @@
 # client phone photos (no dimensions were supplied).
 #
 #   $wr_no_autorun = true
-#   load 'C:/Users/bento/Documents/Claude/Sketchup/.forge/builder/cms/room.rb'
+#   load 'C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/.forge/builder/cms/room.rb'
 #   WR_CMS.run!            # rebuild the room from fit.json + features.json
 #   WR_CMS.match!(:A)      # viewport = photo A's camera (or :B)
 #
@@ -29,10 +29,10 @@
 require 'json'
 
 module WR_CMS
-  DICT = 'wr_cms'.freeze
+  DICT = 'wr_cms'.freeze unless const_defined?(:DICT)
   # Resolved from this file so the laptop and desktop checkouts both work.
-  DIR  = File.dirname(File.expand_path(__FILE__)).freeze
-  T    = 4.0        # interior wall thickness (house default, cosmetic)
+  DIR  = File.dirname(File.expand_path(__FILE__)).freeze unless const_defined?(:DIR)
+  T    = 4.0 unless const_defined?(:T)        # interior wall thickness (house default, cosmetic)
 
   def self.model; Sketchup.active_model; end
   def self.fit;   @fit ||= JSON.parse(File.read(File.join(DIR, 'fit.json'))); end
@@ -140,11 +140,15 @@ module WR_CMS
     wg.layer = layer('WR-Room')
     we = wg.entities
     stripe = (feat['stripe_h'] || 1.25).to_f
-    (1..4).each do |n|
-      fp = footprint(n)
-      prism(we, fp, 0, zc - stripe / 2, m[:lower], "Wall #{n} lower")
-      prism(we, fp, zc - stripe / 2, zc + stripe / 2, m[:stripe], "Wall #{n} stripe")
-      prism(we, fp, zc + stripe / 2, h, m[:upper], "Wall #{n} upper")
+    if respond_to?(:walls_with_openings!)
+      walls_with_openings!(we)   # features.rb: bands cut round windows, niches and doors
+    else
+      (1..4).each do |n|
+        fp = footprint(n)
+        prism(we, fp, 0, zc - stripe / 2, m[:lower], "Wall #{n} lower")
+        prism(we, fp, zc - stripe / 2, zc + stripe / 2, m[:stripe], "Wall #{n} stripe")
+        prism(we, fp, zc + stripe / 2, h, m[:upper], "Wall #{n} upper")
+      end
     end
 
     cg = we.add_group
@@ -197,8 +201,10 @@ module WR_CMS
     model.start_operation('CMS: host classroom', true)
     begin
       materials!
+      feature_materials! if respond_to?(:feature_materials!)
       out << "erased #{erase_mine} old CMS groups"
-      build_shell!
+      root = build_shell!
+      build_features!(root) if respond_to?(:build_features!)
       model.commit_operation
     rescue Exception
       model.abort_operation
@@ -208,5 +214,8 @@ module WR_CMS
     out
   end
 end
+
+# The room's features (openings, fittings, fixtures) live in features.rb beside this file.
+load File.join(WR_CMS::DIR, 'features.rb') if File.exist?(File.join(WR_CMS::DIR, 'features.rb'))
 
 WR_CMS.run!.each { |l| puts l } unless $wr_no_autorun

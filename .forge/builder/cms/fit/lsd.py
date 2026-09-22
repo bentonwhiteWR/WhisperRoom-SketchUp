@@ -1,5 +1,5 @@
 import sys, cv2, numpy as np, json
-P='C:/Users/bento/Documents/Claude/Sketchup/clients/community-music-school/plans/'
+P='C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/clients/community-music-school/plans/'
 photo, out, minlen = sys.argv[1], sys.argv[2], float(sys.argv[3])
 im=cv2.imread(P+photo); g=cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 g=cv2.GaussianBlur(g,(5,5),1.5)

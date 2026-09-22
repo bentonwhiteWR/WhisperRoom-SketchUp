@@ -1,7 +1,7 @@
 import json, numpy as np, sys, cv2
 sys.path.insert(0,'.')
 from cam import rot, project
-PH='C:/Users/bento/Documents/Claude/Sketchup/clients/community-music-school/plans/'
+PH='C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/clients/community-music-school/plans/'
 def draw(photo, segs, C, R, f, cx, cy, out, scale=0.5, color=(0,255,255)):
     im=cv2.imread(PH+photo)
     for s in segs:

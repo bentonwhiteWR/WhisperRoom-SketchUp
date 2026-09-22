@@ -5,7 +5,7 @@ import json, numpy as np, sys
 sys.path.insert(0,'.')
 from cam import rot, ray, hit_plane, project
 import joint5 as J
-_p=np.array(json.load(open('final_fit.json'))['p']); h=json.load(open('scale.json'))['h']
+_p=np.array(json.load(open('joint7.json'))['p']); h=json.load(open('scale_joint7.json'))['h']
 L,W,H,zc,f=_p[:5]
 CAMS=dict(zip('AB',J.cams(_p)))
 Li,Wi,Hi=L*h,W*h,H*h
@@ -32,3 +32,16 @@ def proj(photo,P):
 def show(photo,pts,pl):
     for k,(u,v) in pts.items():
         P=cast(photo,u,v,pl); print(f'  {k:28s} X={P[0]:7.1f} Y={P[1]:7.1f} Z={P[2]:6.1f}')
+def tri(uvA, uvB):
+    """least-squares intersection of the two photo rays -> SU inches, plus miss distance (in)"""
+    CA,RA,cxa,cya=CAMS['A']; CB,RB,cxb,cyb=CAMS['B']
+    wa=ray(*uvA,RA,f,cxa,cya); wb=ray(*uvB,RB,f,cxb,cyb)
+    A=np.zeros((3,3)); b=np.zeros(3)
+    for C,w in ((CA,wa),(CB,wb)):
+        P=np.eye(3)-np.outer(w,w); A+=P; b+=P@C
+    X=np.linalg.solve(A,b)
+    miss=sum(np.linalg.norm((np.eye(3)-np.outer(w,w))@(X-C)) for C,w in ((CA,wa),(CB,wb)))*h/2
+    return su(X), miss
+def showtri(d):
+    for k,(a,b) in d.items():
+        P,m=tri(a,b); print(f'  {k:24s} X={P[0]:7.1f} Y={P[1]:7.1f} Z={P[2]:6.1f}   miss {m:4.1f} in')

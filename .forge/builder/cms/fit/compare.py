@@ -1,6 +1,6 @@
 """Side-by-side + blended overlay of a SketchUp shot against its photo."""
 import sys, cv2, numpy as np
-PH='C:/Users/bento/Documents/Claude/Sketchup/clients/community-music-school/plans/'
+PH='C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/clients/community-music-school/plans/'
 def compare(photo, shot, out, label=''):
     a=cv2.imread(PH+photo); b=cv2.imread(shot)
     b=cv2.resize(b,(int(a.shape[1]*b.shape[0]/a.shape[0]) if False else b.shape[1], b.shape[0]))

@@ -1,6 +1,6 @@
 import sys
 from PIL import Image, ImageDraw, ImageFont
-P='C:/Users/bento/Documents/Claude/Sketchup/clients/community-music-school/plans/'
+P='C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/clients/community-music-school/plans/'
 S='C:/Users/bento/AppData/Local/Temp/claude/C--Users-bento-Documents-Claude-Sketchup/3e3afa98-6775-4f3d-8c84-5a7779910ab6/scratchpad/cms/'
 def crop(photo, x0,y0,x1,y1, out, step=50, maxw=1400):
     im=Image.open(P+photo).convert('RGB').crop((x0,y0,x1,y1))

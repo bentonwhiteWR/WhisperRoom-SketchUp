@@ -18,7 +18,8 @@ two client photos (`clients/community-music-school/plans/`), no dimensions suppl
 5. Estimate + what didn't build written to `clients/community-music-school/notes.md`; committed.
 
 ## Now
-PAUSED 22 Sep 17:21 for the desktop. Room shell built + saved; everything else pending. Resume:
+RESUMED on the desktop 22 Sep; the .skp is open in SketchUp. A Builder is working HANDOFF steps 1-10 in order,
+starting with the photo-A/B camera check and the fit.json vs fit/final_fit.json decision. Resume:
 DEVLOG.md top entry → `.forge/builder/cms/HANDOFF.md` (steps 1-10) with `clients/community-music-school/notes.md`.
 Benton decided: booth backs onto the near end wall (photo A camera wall), 18 in off it, door/window
 into the room; no drum kit; 2 photos only; replicate the room as close as possible.

@@ -1,5 +1,5 @@
 import sys, cv2, numpy as np
-P='C:/Users/bento/Documents/Claude/Sketchup/clients/community-music-school/plans/'
+P='C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/clients/community-music-school/plans/'
 def crop(photo, x0,y0,x1,y1, out, step=25, target=1400, clahe=False):
     im=cv2.imread(P+photo)[y0:y1, x0:x1]
     if clahe:
