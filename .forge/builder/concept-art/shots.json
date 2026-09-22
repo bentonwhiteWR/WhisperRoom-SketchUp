@@ -1,0 +1,18 @@
+{
+  "_note": "Shot list. AUTO-SET pages render from their own camera and per-scene hidden walls; concept cameras are eye;target;vertical-fov in model inches (booth x -72..50, y -27.6..116, door centre x 23.5). sun = [az, el] in the model frame; light = the rig/booth light preset in lights.rb.",
+  "shots": [
+    {"id": "01-angled", "title": "Hero, angled three-quarter", "page": "MDL 96120 E (components) 01-angled r"},
+    {"id": "02-front", "title": "Front on, door and ramp", "page": "MDL 96120 E (components) 02-front r"},
+    {"id": "03-high", "title": "High angle over the loft", "page": "MDL 96120 E (components) 03-high r"},
+    {"id": "04-side", "title": "Side, the two east windows", "page": "MDL 96120 E (components) 04-side r"},
+    {"id": "05-ventilation", "title": "Rear, cable walls and roof vent", "page": "MDL 96120 E (components) 05-ventilation r"},
+    {"id": "06-plan", "title": "Plan, top down", "page": "MDL 96120 E (components) 06-plan r"},
+    {"id": "07-interior", "title": "Inside the booth, desk wall", "page": "MDL 96120 E (components) 07-interior"},
+    {"id": "c1-wide", "title": "Wide establishing, the whole loft", "cam": "285,-250,62;0,10,70;50"},
+    {"id": "c2-low", "title": "Low angle on the door and ramp", "cam": "72,-104,14;0,40,80;55"},
+    {"id": "c3-dusk", "title": "Dusk, the booth glowing", "cam": "205,-205,56;-10,40,60;42", "dusk": true},
+    {"id": "c4-door", "title": "Detail, door and window", "cam": "60,-64,54;-2,18,52;32"},
+    {"id": "c5-looking-out", "title": "From inside, looking out the east window", "cam": "-46,72,50;60,45,46;60"},
+    {"id": "c6-lounge", "title": "Lounge side, furniture in front", "cam": "86,-252,40;-24,16,52;46"}
+  ]
+}
