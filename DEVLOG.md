@@ -1,5 +1,72 @@
 # DEVLOG
 
+## 2026-09-22 — Design decision: openable booth doors need a NESTED hinge-axed leaf, not sibling components
+
+**No code changed in this entry.** This is the decision record for a library re-authoring job that
+has not started. Nothing under `scripts/` moved, so `wr_tools/VERSION` is deliberately NOT bumped.
+
+**The problem (Benton, 2026-09-22).** To open a door on a booth pulled from a quote link you have to
+explode the door component, because the frame and the leaf are one definition. Enhanced is worse: the
+standard door + frame are one component and the IEP jamb + IEP door are another, so you explode *both*
+and then hand-pick the two leaves to swing them together.
+
+**Decision — nest the leaf inside the existing door component; do not split into siblings.**
+`Right46Door` / `ENH Right41.5Door` stay exactly the parts the builder already names, and each gains
+two sub-components:
+- `<part> Frame` — jamb, stops, hardware plate
+- `<part> Leaf` — the slab, **component axes origin on the hinge centerline at the bottom of the leaf**,
+  blue vertical, red along the leaf width away from the hinge
+
+Opening a door becomes: double-click into the frame, click the leaf, rotate about blue. No explode, and
+because instance transformations are per-instance, swinging one booth's door does not swing every other
+instance of the same definition.
+
+**Why NOT two sibling components.** The builder places one part per slot. Siblings would mean two parts
+per slot plus a third part kind for everything that keys off a door name — `ASSIGN`
+(`build-booth-components.rb:1481`), `guess_component`'s `DRFRM` branch (`:1543`), the WA-door scan
+(`:1622`), the door tagging at `:2909` / `:3177`, and `wajmbad_plan`. Nesting gets the same openable
+leaf with **zero** builder changes.
+
+**Enhanced cannot be solved in geometry — it is two shells.** The standard leaf and the IEP leaf sit
+~4.5 in apart in different wall planes and will never be one component. Once both are hinge-axed
+instances the fix is a panel button ("Open doors") that walks the booth, matches leaf definitions by
+name, and rotates each about its own hinge by N degrees — one click swings standard + IEP together at a
+consistent angle, which is also what makes render scenes repeatable.
+
+**How to set the axes (SketchUp):** right-click the leaf → **Change Axes** → click origin on the hinge
+centerline → click red direction along the leaf width away from the hinge → click green. Geometry does
+not move. If Change Axes is absent the leaf is a group, not a component. Verify it took by hovering the
+Rotate tool over the leaf — the protractor should snap to the hinge, not the corner or the centre.
+
+The Ruby equivalent exists but is **unrun and unverified here** (no `ruby.exe` on this machine, no live
+SketchUp bridge in this session): transform the definition's entities by `t.inverse`, then set each
+instance's transformation to `i.transformation * t`. Try it on a throwaway copy of one door file before
+pointing it at the share.
+
+**Open decisions — need Benton.**
+1. **Leaf naming convention.** The panel tool will find leaves by regex the way `:1622` finds WA doors,
+   so this is decided once and applied to every door part. Proposed: a trailing ` Leaf` on the
+   definition name. Not yet agreed.
+2. **Scope.** Nobody has counted the door parts in the share — `Right<w>Door`, `ENH Right<w>Door`, the
+   WA doors, both hands, plus `_HX`. That count is what decides whether this is an afternoon or a week.
+3. Whether any existing library part already nests sub-components. If so, follow that convention
+   instead of inventing this one — **unchecked**.
+
+**Next steps (ordered, executable cold).**
+1. Count the door `.skp` files in the share and list them; check whether any library part already uses
+   nested sub-components.
+2. Benton picks the leaf naming convention (default proposal: trailing ` Leaf`).
+3. Re-author ONE door part by hand as the reference — nested `Leaf`, axes on the hinge — and confirm
+   the Rotate protractor snaps to the hinge.
+4. Write the "Open doors" panel tool in `scripts/` against that convention, bump
+   `scripts/wr_tools/VERSION`, push, and run `install-plugin.py`.
+5. Replicate the authoring across the rest of the door library.
+
+A batch re-authoring script is probably NOT worth it: it cannot infer which vertical edge is the hinge
+(that depends on swing, which is not in the geometry), so it needs a per-part hinge table anyway. Do
+the first few by hand and re-decide.
+
+
 ## 2026-09-21 — 1.75.0: WAJMBAD orientation is a wall-plane MIRROR, measured off Benton's hand-fit
 
 **The fit-tested matrix.** Benton hand-fitted the adapter on the 102102 E test link (WA door
