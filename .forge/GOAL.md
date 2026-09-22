@@ -1,42 +1,31 @@
 # GOAL
 
 ## Mission
-Concept art for WhisperRoom: build the booth from Benton's share link (MDL 96120 E, R-hand
-wide-access ADA door + ramp, elevated floor, height extension, 3 windows, desk, roof-mounted
-vent, purple foam) in the live SketchUp 2026 session over the bridge, inside a genuinely
-beautiful host room, lit with V-Ray, and render hero images good enough to be WhisperRoom
-concept art. Benton: "just playing around but let's see what you can do."
+Community Music School (Allentown PA, contact Deb Justice) — V-Ray renderings Benton will put
+into a proposal. Booth per quote W-1109222607 + link `?d=b31cfb67e46d`: **MDL 96144 E** (8'x12'
+Enhanced, "Drum Studio"), door L, gray foam, WDO3236 window on S1, vents N0/N1/N2/W1, caster
+plate + step, 3 x 52" studio lights, bass traps, Audimute package. Host room = the classroom in
+two client photos (`clients/community-music-school/plans/`), no dimensions supplied.
 
 ## Done means
-1. The booth is built from the link with the real components (`scripts/booth-from-link.rb`),
-   in an Untitled model — nothing hand-modelled in place of a real part.
-2. A designed host room around it (architecture, materials, furniture/props, windows/daylight)
-   plus a deliberate V-Ray lighting setup.
-3. At least three finished V-Ray renders (hero exterior, a second angle, one mood/detail shot),
-   each looked at and critiqued, iterated until they read as marketing-grade.
-4. Renders + a contact sheet on Benton's Desktop; the scene-build Ruby kept so it can be rerun.
+1. Built in Benton's open file `Z:/Sketchup/ClientDrawings/Community Music School CP SL MDL 96144 E.skp`
+   over the bridge: booth from the link (real components), host room matched to the photos
+   (fixtures, finishes, windows, radiators, doors, whiteboard, lights), every room dimension on
+   the drawing marked ESTIMATED with its tolerance.
+2. Booth dimension images via Dimension a WhisperRoom + Rotate booth dimensions.
+3. Lighting: drop-in lights + the room's own fixtures/daylight. Scenes via AUTO-SET ("auto fit").
+4. V-Ray renders of every scene, read and checked; model saved.
+5. Estimate + what didn't build written to `clients/community-music-school/notes.md`; committed.
 
 ## Now
-PAUSED 22 Sep 15:34 by Benton (CPU needed); resume 23 Sep. State, all observed:
-- Model saved: `Desktop\WhisperRoom Concept Art\96120-studio\WR-96120-concept-studio.skp` (15:34:31).
-  Booth in the NW corner, raytested 18.0 in off the west and north walls. Foam over the desk trimmed.
-  Loft + Cosmos furniture placed, drop-in lights rig re-dropped after the move, 13 AUTO-SET scenes.
-- 3 test renders in `...\96120-studio\work\` (t02-angled-final.png is the good one). ZERO finals,
-  no `review\` folder yet. A render was mid-flight at pause and was stopped (`:idleStopped`).
-- Pipeline the Builder left: `.forge\builder\concept-art\shots.json` (7 AUTO-SET + concept shots),
-  `batch.py ID ... --w 2560 --h 1440` renders, `finish.py` display-encodes, `scene-build.rb`
-  (`WR_Concept.run!(:all)`) rebuilds room/props. No HANDOFF.md was written before the stop.
-- NEXT: reopen the .skp in SketchUp 2026, spawn an opus Builder to read these files and render the
-  finals (consider 1920x1080 at ~12 min each vs 2560x1440 at ~20 — ask Benton), write `review\`
-  JPEGs + manifest.json, then the orchestrator publishes the review gallery artifact.
-- Bridge saves outside temp need `--write-root "<folder>"`.
+PAUSED 22 Sep 17:21 for the desktop. Room shell built + saved; everything else pending. Resume:
+DEVLOG.md top entry → `.forge/builder/cms/HANDOFF.md` (steps 1-10) with `clients/community-music-school/notes.md`.
+Benton decided: booth backs onto the near end wall (photo A camera wall), 18 in off it, door/window
+into the room; no drum kit; 2 photos only; replicate the room as close as possible.
 
 ## Out of scope
-Changing tool scripts under `scripts/` or the plugin (a bug found gets reported, not fixed);
-the WhisperRoomQuote repo; client proposals; prices anywhere in the images.
+Building the proposal PDF (Benton does it); prices anywhere; editing `scripts/`; WhisperRoomQuote.
 
 ## History
-- Parked 22 Sep, not finished: build-room redesign 1.72.0 (built and pushed 18 Sep), waiting on
-  Benton's one live build. State in `.forge/builder/HANDOFF-build-room.md` / `HANDOFF.md`.
-- 15 Sep: UTHSC V3 revision pack delivered; awaiting Benton's caption review.
-- 14 Sep: lights panel 1.70.0, Dimension selected room 1.71.0, no-vent wall fix 1.71.1.
+- Paused 22 Sep: WhisperRoom concept art (96120 E loft). Resume: `.forge/builder/concept-art/RESUME.md`.
+- Parked 22 Sep: build-room redesign 1.72.0, awaiting Benton's live build (`.forge/builder/HANDOFF-build-room.md`).

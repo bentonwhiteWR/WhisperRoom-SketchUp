@@ -1,5 +1,64 @@
 # DEVLOG
 
+## 2026-09-22 — PAUSED for the desktop: Community Music School 96144 E renders (room shell built), and the 96120 concept-art job (finals not rendered)
+
+**Two jobs paused mid-way at Benton's request so he can continue on the desktop. Nothing under
+`scripts/` changed, so `wr_tools/VERSION` is not bumped.** Both jobs ran over the bridge on the
+laptop's SketchUp 2026, with Opus 5.5 sub-agents (Fable credits exhausted; `~/.claude/settings.json`
+default model is now `opus`).
+
+**1. Community Music School (Allentown, PA). Client renders; Benton builds the proposal himself.**
+- **Booth:** MDL 96144 E "Drum Studio" per quote W-1109222607 and link `?d=b31cfb67e46d`, which agree (observed).
+- **Room:** estimated from two phone photos, with no dimensions supplied. Camera-fitted by the Builder,
+  scale from the 97 in fluorescent run: about **22'-5" × 15'-2" × 10'-4"** as built. A newer fit reads
+  21'-11¾" × 15'-4⅜" × 10'-6" and is NOT applied. Working tolerance ±1 ft (assumed).
+- **Model state (observed 17:21):** `P:\Sketchup\ClientDrawings\Community Music School CP SL MDL 96144 E.skp`
+  holds only the `CMS Classroom` shell (floor, walls with wainscot and stripe, ceiling), saved 17:10.
+- **Everything else is in `clients/community-music-school/notes.md`:** the quote and link facts, Benton's
+  decisions, the estimate table and the feature list. The how-to-continue is `.forge/builder/cms/HANDOFF.md`.
+
+**2. WhisperRoom concept art (96120 E in a loft).**
+- **State:** model saved, booth 18 in off two walls, lights and 13 AUTO-SET scenes done, 3 test renders,
+  **zero finals**.
+- **Resume:** `.forge/builder/concept-art/RESUME.md`.
+
+**Gotchas learned today**
+- **Bridge write fence:** it refuses a bare `model.save`. Pass `--write-root "<folder>"`
+  (`Z:/Sketchup/ClientDrawings`, or the concept folder on the Desktop).
+- **Drive letters:** on the laptop `Z:\` is a `subst` of `P:\`, and **P: is the pCloud Drive**. That is how
+  the `.skp` and the client photos reach the desktop. They are not in git, because the repo is public.
+- **Stopped agents leave jobs behind:** stopping an agent mid-render does not cancel bridge jobs it already
+  queued. The concept Builder's `rt.py` status polls ran an hour later when SketchUp restarted (harmless
+  reads). Check `%LOCALAPPDATA%\WhisperRoom\bridge\SketchUp 2026\in` after stopping one.
+- **Stale laptop plugin:** the laptop's installed plugin is **1.71.1** (bridge log "listener started, plugin 1.71.1")
+  while the repo is **1.75.0**. Tool scripts read live from the checkout; `wr_tools` did not.
+- **Hard-coded laptop paths:** `.forge/builder/concept-art/*` and `.forge/builder/cms/fit/*.py` contain
+  `C:/Users/bento/Documents/Claude/Sketchup`. `cms/room.rb` now resolves its own folder.
+- **Link builder foam bug (candidate):** it placed a full foam sheet straight through the desk on the 96120
+  (trimmed by hand in the concept model). This is likely `wr-overlays.rb` / `booth-from-link.rb` on any desk
+  wall. Not fixed.
+
+**Next steps, on the desktop, in order**
+1. `cd C:\Users\bento\OneDrive\Documents\Claude\Sketchup\WhisperRoom-SketchUp`, then `git pull`, then
+   `python scripts/install-plugin.py`, then restart SketchUp 2026.
+2. `python scripts/sketchup-bridge.py status`. If the desktop bridge is off, run
+   `python scripts/sketchup-bridge.py enable` and restart SketchUp.
+3. Wait for pCloud to sync, then open `P:\Sketchup\ClientDrawings\Community Music School CP SL MDL 96144 E.skp`.
+4. Make the `.forge` scripts point at this checkout. From the repo root:
+   `grep -rl "C:/Users/bento/Documents/Claude/Sketchup" .forge/builder/cms .forge/builder/concept-art | xargs sed -i "s#C:/Users/bento/Documents/Claude/Sketchup#C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp#g"`
+5. Paste into a new terminal: "check the dev log and continue the Community Music School job". The
+   orchestrator spawns an Opus Builder on `.forge/builder/cms/HANDOFF.md`, steps 1–10: fidelity, EST room
+   dims, booth, studio-light check, placement, lights, AUTO-SET, booth dims, renders.
+6. Later: the concept-art finals, per `.forge/builder/concept-art/RESUME.md`.
+
+**Open decisions for Benton**
+- **Community Music School:** ask the client for tape figures (length, width, ceiling height) before
+  anything dimensional goes in the proposal.
+- **Studio light:** is `P:\Sketchup\NewMasterComponentList\BoothLighting.skp` the 52 in studio light?
+  Unchecked.
+- **Concept-art finals:** 1920×1080 (about 12 min each) or 2560×1440 (about 20 min each)?
+- **Foam through the desk:** fix it in the link builder?
+
 ## 2026-09-22 — Design decision: openable booth doors need a NESTED hinge-axed leaf, not sibling components
 
 **No code changed in this entry.** This is the decision record for a library re-authoring job that

@@ -1,0 +1,9 @@
+CMS builder progress log (scratch; the HANDOFF.md is the deliverable)
+- Fit tools live in the session scratchpad cms/ (cam.py lm.py refine.py joint5.py rc.py compare.py). Copy to .forge/builder/cms/fit/ before finishing.
+- Camera fit: joint6.json (room box, no setback; f=1615.7 px; floor picks use carpet colour edge). Scale: fixture run (two 4ft wraparounds) = 97 in -> h(camA)=55.93 in.
+  Cross-checks: entry door head 83.9 in (7'-0"), switch plate 4.46 in (4.5 std). Door WIDTH anchor rejected: casing vs jamb edge ambiguous (0.63h vs 0.78h).
+- Room est: L(N-S, D->B)=269.1 in (22'-5"), W(E-W, C->A)=182.4 (15'-2"), H=123.8 (10'-4"), stripe centre 58.0.
+- SU frame: Wall 1 N = D (booth wall), Wall 2 E = A (windows), Wall 3 S = B (closet, whiteboard), Wall 4 W = C (entry door).
+- SketchUp camera: with aspect_ratio set, fov is HORIZONTAL (fov_is_height? false for both 0.75 and 1.333). room.rb passes fov_h.
+- 17:10 shell built + saved (floor, walls w/ wainscot + stripe, ceiling). Camera match A and B verified by overlay: edges line up.
+- Placement (Benton): booth N/vent face 18 in off Wall D, centred, door+window into room; 18 in off side walls if near. No furniture. No drum kit.
