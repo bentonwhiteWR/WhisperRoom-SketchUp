@@ -52,7 +52,10 @@ module WR_CMS
     d.text = "#{ftin(inches || pa.distance(pb).to_f)} EST."
     d.set_attribute(DDICT, 'inches', pa.distance(pb).to_f.round(1))
     # a short segment's text cannot fit between its own extension lines: put it past the end
-    if pa.distance(pb).to_f < 16.0 && d.respond_to?(:text_position=)
+    # ...and a HORIZONTAL one under 40 in too: its text runs along the line and is wider than the segment
+    # at Benton's window scale, so its own extension lines cut through it (the closet's 2'-8", 22 Sep).
+    horiz = (pb.x - pa.x).abs > (pb.y - pa.y).abs
+    if (pa.distance(pb).to_f < 16.0 || (horiz && pa.distance(pb).to_f < 40.0)) && d.respond_to?(:text_position=)
       d.text_position = Sketchup::DimensionLinear::TEXT_OUTSIDE_END
     end
     stamp(d, kind)
@@ -89,13 +92,21 @@ module WR_CMS
   # chain along a wall. pts = the u stations in order (corner ... corner); face(u) -> [x,y,0]
   # Rounded to the inch by largest remainder, so a chain's printed segments always sum to its
   # printed total (independent rounding put Wall C's chain 1 in over its overall).
+  # LAYOUT (Benton, 22 Sep, "text runs together"): a segment shorter than 16 in has its text outside its
+  # own extension lines, where it met its neighbour's text; such a segment's dimension line is pushed a
+  # further STAGGER in out from the wall, so its text sits on its own line. Values do not change.
+  STAGGER = 16.0 unless const_defined?(:STAGGER)
   def self.chain(stations, face, vec, kind)
     segs = stations.each_cons(2).map { |a, b| (b - a).abs }
+    vlen = Math.sqrt(vec.sum { |c| c * c })
     fl = segs.map(&:floor)
     short = (segs.sum.round - fl.sum)
     order = segs.each_index.sort_by { |i| -(segs[i] - fl[i]) }
     order.first(short).each { |i| fl[i] += 1 }
-    stations.each_cons(2).each_with_index.map { |(a, b), i| dline(face.call(a), face.call(b), vec, kind, fl[i]) }
+    stations.each_cons(2).each_with_index.map do |(a, b), i|
+      v = segs[i] < 16.0 ? vec.map { |c| c * (vlen + STAGGER) / vlen } : vec
+      dline(face.call(a), face.call(b), v, kind, fl[i])
+    end
   end
 
   def self.room_dims!
@@ -106,11 +117,13 @@ module WR_CMS
     begin
       out << "erased #{dim_erase!}"
       off = ->(n) { thick(n) + 36.0 }
-      # Wall A carries three rows (jog chain, windows, overall): 30 in apart so the texts clear.
-      e = [off.call(2), off.call(2) + 30.0, off.call(2) + 60.0]
+      # Wall A carries three rows (jog chain, windows, overall). 55 in apart (was 30): the strings are
+      # screen text ~85 px wide, ~40 in at Benton's 2169x859 window (~2.1 px/in), and at 30 in apart the
+      # rows' strings ran together.
+      e = [off.call(2), off.call(2) + 55.0, off.call(2) + 110.0]
       # Wall C's rows start beyond the corridor modelled behind the entry door (it reaches X -111).
       cc = 111.0 + 30.0
-      wv = [cc, cc + 13.0, cc + 28.0]
+      wv = [cc, cc + 13.0, cc + 55.0]   # overall 55 in outside the chain (was 28): same reason as Wall A
       s = [off.call(3), off.call(3) + 13.0, off.call(3) + 28.0]
       nn = [off.call(1), off.call(1) + 13.0, off.call(1) + 28.0]
       fa = ->(y) { [w, y, 0.0] }   # Wall A face, stations = Y from corner A/B

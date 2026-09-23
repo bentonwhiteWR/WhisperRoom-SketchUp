@@ -1,4 +1,7 @@
-# HANDOFF — Community Music School builder (desktop, 22 Sep 2026, 21:15; model saved 21:14:48)
+# HANDOFF — Community Music School builder (desktop, 22 Sep 2026, 21:30; model saved 21:28:22)
+
+**21:28, plan text layout fixed** (layout only; values, EST. and the dim set unchanged). Wall A rows are 55 in apart, and Wall C's overall is 55 in outside its chain. Horizontal dims under 40 in put their text outside the segment end; segments under 16 in are staggered 16 in further out. The plan frame is padded. Verified at 2169x859 with 3x crops and at 2400x1800 (paths in the report). **Benton deleted "06-plan r" and "07-interior" himself (19 scenes).**
+
 
 **State:** hold lifted. The V-Ray "rendering" was Benton's INTERACTIVE render; it read `idleStopped` when checked.
 - **Saved (21:14:48, check! all green):** the scene-camera fix, the halved backdrop lights, the restored photo scenes, floor-text labels and plan note, and the new scene **"08-interior corner"** (21 scenes now).
@@ -78,7 +81,7 @@ Facts, estimates and the built/omitted list are in `clients/community-music-scho
 - **V-Ray INTERACTIVE blocks work (Benton's standing rule):** if V-Ray sits in "rendering" well beyond the expected time (1-minute tests finish in about 65 s), it is probably an interactive render. Stop it with `VRay::Command.stop_current_render`, confirm `renderer.state` is idle in a later job, and carry on without asking. Never call `in_process?` / `dr_enabled?`.
 - **Photo-match scenes keep converting in-session:** their aspect-carrying cameras get re-expressed at the window aspect after scene selection or export passes (observed 3 times today). They are "skip" scenes; run `WR_CMS.photo_scenes!` before any save. Aspect-0 height cameras never convert.
 - **First light audit right after a save or render can read short** (19 of 21, twice); a later job reads all 21. Always re-read in a separate job.
-- **Plan labels and note are FLOOR TEXT** (3D, sized in inches, `dims.rb floor_text`). Screen text is a fixed pixel size and ran over the dims in Benton's wide window. The dimension strings are still screen text, so the two parallel Wall A rows touch at about 2 px/in (viewport); they are clean at 2400 x 1800.
+- **Plan labels and note are FLOOR TEXT** (3D, sized in inches, `dims.rb floor_text`). Screen text is a fixed pixel size and ran over the dims in Benton's wide window. The dimension strings are still screen text, so their spacing was sized for about 1.7 px/in (Benton's window). Any new row needs at least 50 in of clearance at that scale.
 - **Saving:** save with `m.save(m.path)` and `--write-root "Z:/Sketchup/ClientDrawings"`. Never use `file_new`.
 - **Second-press kill (V-Ray light plugins):** removing lights and creating new ones in ONE job kills the new ones. The freed plugin names get reused, and V-Ray's deferred purge-by-name runs after the job.
   - Observed today: an in-job audit passed, then all 20 plugins were gone in the next job.

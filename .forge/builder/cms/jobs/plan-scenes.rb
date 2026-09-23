@@ -16,6 +16,8 @@ photo = WR_CMS::SCENES.values
 bb = Geom::BoundingBox.new
 m.entities.each { |e| bb.add(e.bounds) if e.valid? && e.get_attribute(WR_CMS::DDICT, 'own', false) && !e.is_a?(Sketchup::Text) }
 m.entities.grep(Sketchup::Text).each { |t| bb.add(t.point) if t.get_attribute(WR_CMS::DDICT, 'own', false) }
+# screen-text strings overhang the outermost dimension lines (~40 in at Benton's window): pad the frame
+bb.add(bb.min.offset([-45, -24, 0])); bb.add(bb.max.offset([45, 24, 0]))
 c = bb.center
 aspect = 4.0 / 3.0
 ht = [bb.height.to_f, bb.width.to_f / aspect].max * 1.06
