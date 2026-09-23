@@ -62,6 +62,8 @@ Then added scene `InteriorAcousticRender` (`scene-interior.rb`, 11th of 13, befo
 
 Then 1 in vertical gaps between rows (top row fixed at 80.56; band 19.56-67.56; bottom row 6.56-18.56), and booth `Standard Light` V-Ray intensity 25 -> 35 (+40%), written inside scene.change and persisted in the definition JSON (`vgap-light.rb`). The definition is shared by all 3 booth copies.
 
+Right-door booth `Group#27` (Option 2, visible only in FrontRender/FrontDims RightDoor): 6 old foam deleted, all 25 acoustic pieces copied with identical local transforms (`g27copy.rb`); local wall frames verified identical. It still has NO MJP and NO HEPA.
+
 ## Original next steps (Benton, 23 Sep; 1 and 2 done)
 1. **HEPA: flip back 180°** (run `hepaflip.rb` again, which rotates each 180° about its own
    vertical centre). **Then move each one outward along its box axis until it touches the edge of the
