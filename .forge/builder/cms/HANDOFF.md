@@ -1,5 +1,9 @@
 # HANDOFF — Community Music School builder (desktop, 22 Sep 2026, 22:12; model saved 22:11:58)
 
+**22:15: BENTON IS RUNNING THE PROPOSAL PACKAGE EXPORT himself** (transparent background). Until he or the coordinator says it's finished:
+- no bridge jobs (no saves, checks or renders);
+- don't stop any V-Ray render, even one that looks interactive. The standing "stop interactive" rule does NOT apply while his export runs.
+
 **22:12 state:**
 - **Rig lights:** ALL 21 are invisible = true and affectReflections = false (lights.rb writes both on every re-place; `jobs/invisible-and-niches.rb`, verified with `jobs/lights-verify.rb` in a later job and after the save).
 - **Intensities changed outside this run** (left alone per Benton): daylight into-room w1/w2 at 888,000; backdrop #19/#21 at 96,000. lights.rb still holds the older values, so a re-place would restore them. ASK Benton before any re-place.
