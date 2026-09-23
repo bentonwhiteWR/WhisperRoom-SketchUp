@@ -106,6 +106,20 @@ Facts, estimates and the built/omitted list are in `clients/community-music-scho
 - **Hero tuning:** `compare/hero-light-tuning.png` (before vs best), plus the log in `progress.txt`.
 - **Scene plan:** `scene-plan.md`. Contact sheet: `compare/scene-contact-sheet.png` (gitignored; the window backdrops are photo-derived). Builder: `jobs/contact-sheet.py`; batch: `jobs/contact-tests.sh`.
 
+## 1.76.0 proposal-package 16:9 change (22 Sep, shipped)
+
+- **What changed.** Every plate, image and render alike, is now Width x round(Width x 9/16). The default is 2400x1350.
+  - V-Ray `/SettingsOutput` is forced and read back in each render row, after the scene switch.
+  - The user's size is put back at the end.
+  - The denoiser and effectsResult sidecars are deleted.
+  - Screen-anchored Text is warned about.
+  - See the DEVLOG entry at the top.
+- **Verified in the scratchpad test (`jobs/pkg-test-169.rb`):** 800x450 for both lanes, alpha kept, no sidecars, and the manifest correct.
+- **16:9 framing flags** (checked at a 1600x900 view; `jobs/frame169.rb`; not re-aimed):
+  - Fine: 01b-angled room r, 02-front r / 02-front, 08-interior corner, 06-plan, 09-interior dims.
+  - VOID or walls ending: 04-side r / 04-side (left and bottom). 05-ventilation r / pair (both sides, plus a wall stub at right). 03-high r / pair (all round, corridor at left). 01-angled image (left and bottom).
+- The sun test was cancelled and restored exactly (records in `env-backup-20260922-2228.json` and `scene-backup-20260922-2228-pre-sun.json`; restore with `jobs/env-restore.rb` / `jobs/scene-restore.rb`).
+
 ## Read-first
 
 1. `progress.txt` (the hero tuning log), then `scene-plan.md`, then notes.md "Booth, lights, scenes".

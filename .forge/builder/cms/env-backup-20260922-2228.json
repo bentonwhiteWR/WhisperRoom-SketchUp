@@ -1,0 +1,493 @@
+{
+  "written": "2026-09-22 22:28:45 -0400",
+  "SunLight": {
+    "is_default": 1,
+    "can_duplicate": 0,
+    "can_rename": 0,
+    "can_delete": 0,
+    "water_vapour": 2.0,
+    "use_global_light_level": true,
+    "use_custom_orientation": false,
+    "units": 0,
+    "turbidity": 2.5,
+    "transform": {
+      "inspect": "#<VRay::Transform:0x0000013d8fd2e588>"
+    },
+    "swatch_type": "sun",
+    "storeWithIrradianceMap": false,
+    "stars_time_zone": 0.0,
+    "stars_time_seconds": 0,
+    "stars_time_minutes": 0,
+    "stars_time_hours": 19,
+    "stars_time_dst": false,
+    "stars_size_multiplier": 1.0,
+    "stars_size_difference": 0.0,
+    "stars_north_vector": {
+      "inspect": "#<VRay::Vector:0x0000013d8fd2e010>"
+    },
+    "stars_milkyway_multiplier": 1.0,
+    "subdivs": 8,
+    "stars_longitude": 0.0,
+    "stars_latitude": 0.0,
+    "stars_date_year": 2025,
+    "stars_on": false,
+    "stars_date_month": 7,
+    "specular_contribution": 1.0,
+    "sky_model": 3,
+    "shadowColor_tex": {
+      "inspect": "nil"
+    },
+    "shadowColor": {
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        null
+      ]
+    },
+    "shadowBias": 0.009999999776482582,
+    "shadow_subdivs": 8,
+    "scene_name": {
+      "inspect": "[]"
+    },
+    "pivot_offset": {
+      "inspect": "#<VRay::Vector:0x0000013d8fd2d598>"
+    },
+    "photonSubdivs": 500,
+    "photon_radius": 50.0,
+    "ozone": 0.3499999940395355,
+    "override_location_and_time": false,
+    "noDecay": false,
+    "night_blueness": 0.0,
+    "moon_size_multiplier": 1.0,
+    "nsamples": 0,
+    "moon_rotation": 0.0,
+    "moon_phase": 0.0,
+    "moon_override_rotation": false,
+    "target_transform": {
+      "inspect": "#<VRay::Transform:0x0000013d8fd2d020>"
+    },
+    "moon_override_elevation": false,
+    "moon_override_azimuth": false,
+    "moon_on": false,
+    "moon_indirect_intensity_multiplier": 1.0,
+    "moon_glow_multiplier": 0.20000000298023224,
+    "moon_filter_color": {
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        null
+      ]
+    },
+    "moon_elevation": 0.0,
+    "moon_azimuth": 0.0,
+    "is_instance_prototype": 0,
+    "intensity_tex": {
+      "inspect": "nil"
+    },
+    "filter_color": {
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        null
+      ]
+    },
+    "stars_date_day": 10,
+    "doubleSided": false,
+    "stars_direct_intensity_multiplier": 1.0,
+    "diffuse_contribution": 1.0,
+    "cutoffThreshold": 0.0010000000474974513,
+    "custom_altitude": 0.0,
+    "stars_indirect_intensity_multiplier": 1.0,
+    "clouds_phase_velocity": 0.0010000000474974513,
+    "decay_near_on": false,
+    "clouds_wind_direction": 0.0,
+    "clouds_on": false,
+    "clouds_phase_x": 0.0,
+    "clouds_height": 1000.0,
+    "up_vector": {
+      "inspect": "#<VRay::Vector:0x0000013d8fd2a820>"
+    },
+    "decay_far_on": false,
+    "clouds_ground_shadows": false,
+    "clouds_density": 0.5,
+    "clouds_phase_y": 0.0,
+    "moon_direct_intensity_multiplier": 1.0,
+    "clouds_contrails_time": 0.0,
+    "size_multiplier": 1.0,
+    "clouds_contrails_phase_speed": 100.0,
+    "clouds_offset_y": 0.0,
+    "color": {
+      "inspect": "#<VRay::AColor:0x0000013d8fd28cc8>"
+    },
+    "clouds_contrails_on": false,
+    "clouds_contrails_offset_y": 0.0,
+    "decay_near_start": 0.0,
+    "custom_azimuth": 0.0,
+    "clouds_contrails_distortion": 0.5,
+    "clouds_seed": 0,
+    "shadows": true,
+    "clouds_thickness": 500.0,
+    "clouds_contrails_strength": 0.5,
+    "decay_far_end": 30.0,
+    "channels_specular": {
+      "inspect": "[]"
+    },
+    "horizon_offset": 0.0,
+    "channels_diffuse": {
+      "inspect": "[]"
+    },
+    "channels_raw": {
+      "inspect": "[]"
+    },
+    "horiz_illum": 25000.0,
+    "channels": {
+      "inspect": "[]"
+    },
+    "causticSubdivs": 1000,
+    "clouds_variety": 0.30000001192092896,
+    "blend_angle": 5.739170074462891,
+    "clouds_contrails_offset_x": 0.0,
+    "altitude": 0.0,
+    "affectDiffuse": true,
+    "bumped_below_surface_check": false,
+    "clouds_density_multiplier": 1.0,
+    "decay_near_end": 10.0,
+    "color_mode": 0,
+    "intensity_multiplier": 0.0,
+    "useMIS": true,
+    "clouds_offset_x": 0.0,
+    "clouds_contrails_num_planes": 5,
+    "moon_override_phase": false,
+    "enabled": true,
+    "color_tex": {
+      "inspect": "nil"
+    },
+    "affectAtmospherics": true,
+    "invisible": false,
+    "ground_albedo": {
+      "color": [
+        0.20000000298023224,
+        0.20000000298023224,
+        0.20000000298023224,
+        null
+      ]
+    },
+    "objectID": 0,
+    "clouds_cirrus_amount": 0.20000000298023224,
+    "affectSpecular": true,
+    "clouds_animation_on": false,
+    "clouds_enscape_compatibility": true,
+    "channels_full": {
+      "inspect": "[]"
+    },
+    "atmos_shadows": true,
+    "causticMult": 1.0,
+    "intensity": 1.0,
+    "diffuseMult": 1.0,
+    "ui_tags": {
+      "inspect": "[]"
+    },
+    "lpe_label": "",
+    "atmospherics_contribution": 1.0,
+    "decay_far_start": 20.0,
+    "affectReflections": true,
+    "clouds_wind_speed": 1.0
+  },
+  "EnvironmentSky": {
+    "water_vapour": 2.0,
+    "up_vector": {
+      "inspect": "#<VRay::Vector:0x0000013d8fd262c0>"
+    },
+    "turbidity": 3.0,
+    "transform": {
+      "inspect": "#<VRay::Transform:0x0000013d8fd25fa0>"
+    },
+    "swatch_type": "sun",
+    "sun_dir_only": 0,
+    "sky_model": 3,
+    "size_multiplier": 1.0,
+    "target_transform": {
+      "inspect": "#<VRay::Transform:0x0000013d8fd25af0>"
+    },
+    "night_blueness": 0.0,
+    "invisible": false,
+    "intensity_multiplier": 1.0,
+    "ozone": 0.3499999940395355,
+    "horizon_offset": 0.0,
+    "horiz_illum": 25000.0,
+    "filter_color": {
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        null
+      ]
+    },
+    "ground_albedo": {
+      "color": [
+        0.20000000298023224,
+        0.20000000298023224,
+        0.20000000298023224,
+        null
+      ]
+    },
+    "color_mode": 0,
+    "blend_angle": 5.739170074462891,
+    "explicit_sun_node": -1,
+    "ui_tags": {
+      "inspect": "[]"
+    },
+    "altitude": 0.0,
+    "sun": {
+      "plugin": "/SunLight"
+    }
+  },
+  "SettingsEnvironment": {
+    "volumetric_environment_type": 0,
+    "secondary_matte_tex_tex_mult": 1.0,
+    "secondary_matte_tex_tex": {
+      "inspect": "nil"
+    },
+    "use_refract": true,
+    "secondary_matte_tex": {
+      "plugin": "/Environment Sky"
+    },
+    "refract_tex_tex": {
+      "inspect": "nil"
+    },
+    "refract_tex_mult": 1.0,
+    "reflect_tex_tex_mult": 1.0,
+    "refract_tex": {
+      "plugin": "/Environment Sky"
+    },
+    "use_reflect": true,
+    "use_bg": true,
+    "reflect_tex_res_mult": 1.0,
+    "reflect_tex": {
+      "plugin": "/Environment Sky"
+    },
+    "reflect_color": {
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        null
+      ]
+    },
+    "override_refract": false,
+    "override_gi": false,
+    "texture_multiplier_mode": 0,
+    "num_environment_objects": 0,
+    "use_secondary_matte": true,
+    "override_reflect": false,
+    "global_light_level": {
+      "color": [
+        1.0,
+        1.0,
+        1.0,
+        null
+      ]
+    },
+    "gi_tex_res_mult": 1.0,
+    "reflect_tex_tex_on": true,
+    "use_gi": true,
+    "gi_tex_mult": 1.0,
+    "refract_tex_tex_on": true,
+    "override_secondary_matte": false,
+    "reflect_tex_mult": 1.0,
+    "reflect_tex_color": {
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        null
+      ]
+    },
+    "secondary_matte_tex_res_mult": 1.0,
+    "refract_tex_tex_mult": 1.0,
+    "gi_tex": {
+      "plugin": "/Environment Sky"
+    },
+    "reflect_tex_tex": {
+      "inspect": "nil"
+    },
+    "gi_color": {
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        null
+      ]
+    },
+    "gi_tex_tex": {
+      "inspect": "nil"
+    },
+    "volumetric_environment_on": false,
+    "environment_volume": {
+      "inspect": "[]"
+    },
+    "gi_tex_tex_on": true,
+    "refract_tex_color": {
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        null
+      ]
+    },
+    "bg_tex_tex_on": true,
+    "refract_color": {
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        null
+      ]
+    },
+    "refract_tex_res_mult": 1.0,
+    "secondary_matte_color": {
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        null
+      ]
+    },
+    "bg_tex_color": {
+      "inspect": "#<VRay::AColor:0x0000013d8fd0b7b8>"
+    },
+    "gi_tex_tex_mult": 1.0,
+    "bg_tex_tex_mult": 1.0,
+    "secondary_matte_tex_color": {
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        null
+      ]
+    },
+    "bg_tex_mult": 1.0,
+    "bg_tex_res_mult": 1.0,
+    "secondary_matte_tex_mult": 1.0,
+    "bg_color": {
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        null
+      ]
+    },
+    "bg_tex": {
+      "plugin": "/Environment Sky"
+    },
+    "ui_tags": {
+      "inspect": "[]"
+    },
+    "secondary_matte_tex_tex_on": true,
+    "bg_tex_tex": {
+      "plugin": "/Environment Sky"
+    },
+    "gi_tex_color": {
+      "color": [
+        0.800000011920929,
+        0.8999999761581421,
+        1.0,
+        null
+      ]
+    }
+  },
+  "shadow_info": {
+    "DisplayShadows": false,
+    "Latitude": 40.018309,
+    "Longitude": -105.242139,
+    "NorthAngle": 0.0,
+    "ShadowTime": "2026-11-08 13:30:00 UTC",
+    "TZOffset": -7.0,
+    "UseSunForAllShading": false,
+    "Light": 80,
+    "Dark": 45,
+    "DaylightSavings": false,
+    "City": "Boulder (CO)",
+    "Country": "USA"
+  },
+  "corridor_blocks": [
+    {
+      "name": "Door leaf 4 entry",
+      "pid": 3092662,
+      "global_hidden": false
+    },
+    {
+      "name": "corridor",
+      "pid": 3092696,
+      "global_hidden": false
+    }
+  ],
+  "corridor_hidden_per_scene": {
+    "Photo A - long view": [
+
+    ],
+    "Photo B - corner view": [
+
+    ],
+    "01-exterior": [
+
+    ],
+    "02-dimensioned": [
+
+    ],
+    "03-side": [
+
+    ],
+    "04-ventilation": [
+
+    ],
+    "05-plan": [
+
+    ],
+    "MDL 96144 E (components) 01-angled r": [
+
+    ],
+    "01b-angled room r": [
+
+    ],
+    "MDL 96144 E (components) 01-angled": [
+
+    ],
+    "MDL 96144 E (components) 02-front r": [
+
+    ],
+    "MDL 96144 E (components) 02-front": [
+
+    ],
+    "MDL 96144 E (components) 03-high r": [
+
+    ],
+    "MDL 96144 E (components) 03-high": [
+
+    ],
+    "MDL 96144 E (components) 04-side r": [
+
+    ],
+    "MDL 96144 E (components) 04-side": [
+
+    ],
+    "MDL 96144 E (components) 05-ventilation r": [
+
+    ],
+    "MDL 96144 E (components) 05-ventilation": [
+
+    ],
+    "09-interior dims": [
+
+    ],
+    "MDL 96144 E (components) 06-plan": [
+
+    ],
+    "08-interior corner": [
+
+    ]
+  }
+}

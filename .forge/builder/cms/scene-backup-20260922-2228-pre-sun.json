@@ -1,0 +1,2370 @@
+{
+  "written": "2026-09-22 22:28:31 -0400",
+  "model": "Z:\\Sketchup\\ClientDrawings\\Community Music School CP SL MDL 96144 E.skp",
+  "selected_page": "01b-angled room r",
+  "global_tags": {
+    "Layer0": true,
+    "WR-Floor": true,
+    "WR-Room": true,
+    "WR-Doors": true,
+    "WR-Doors-Leaf": true,
+    "WR-Notes": false,
+    "WR-Dims": false,
+    "WR-Dims-Doors": false,
+    "WR-Booth-Walls": true,
+    "WR-Booth-Door": true,
+    "WR-Booth-Vent": true,
+    "WR-Booth-Seals": true,
+    "WR-Booth-Corners": true,
+    "WR-Booth-Deck": true,
+    "WR Lights": true,
+    "WR-Booth-Foam": true,
+    "WR-Booth-Options": true,
+    "WR-Dims-Booth": false,
+    "WR-Ceiling": true,
+    "CMS Room Dims (EST)": false,
+    "WR-Booth-Casters": true,
+    "CMS Booth Interior Dims": false,
+    "CMS Booth 18in Perimeter": false
+  },
+  "wr_mode_current": "render",
+  "scenes": [
+    {
+      "name": "Photo A - long view",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": false,
+        "use_hidden_objects": false,
+        "use_hidden_geometry": false,
+        "use_rendering_options": false,
+        "use_shadow_info": false,
+        "use_axes": false,
+        "use_section_planes": false
+      },
+      "camera": {
+        "eye": [
+          78.16680125990253,
+          249.8877505228622,
+          58.25258833863871
+        ],
+        "target": [
+          73.5692315978936,
+          133.14684431198745,
+          30.858735556185454
+        ],
+        "up": [
+          0.013826650625046568,
+          -0.22894407957724458,
+          0.9733413749343143
+        ],
+        "perspective": true,
+        "fov": 40.4945552550181,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": null,
+      "hidden_entities": [
+
+      ],
+      "WR_ProposalPackage": null,
+      "WR_AutoSet": null,
+      "wr_cms": {
+        "photo": "A",
+        "role": "photo-match"
+      }
+    },
+    {
+      "name": "Photo B - corner view",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": false,
+        "use_hidden_objects": false,
+        "use_hidden_geometry": false,
+        "use_rendering_options": false,
+        "use_shadow_info": false,
+        "use_axes": false,
+        "use_section_planes": false
+      },
+      "camera": {
+        "eye": [
+          13.367649556916449,
+          261.8655901289721,
+          57.71163027332277
+        ],
+        "target": [
+          98.2109790197034,
+          180.19365025558193,
+          34.66160461202834
+        ],
+        "up": [
+          0.13417450151395144,
+          -0.13758181194192798,
+          0.9813605087664057
+        ],
+        "perspective": true,
+        "fov": 52.377825451219636,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": null,
+      "hidden_entities": [
+
+      ],
+      "WR_ProposalPackage": null,
+      "WR_AutoSet": null,
+      "wr_cms": {
+        "photo": "B",
+        "role": "photo-match"
+      }
+    },
+    {
+      "name": "01-exterior",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          204.64808113370475,
+          -169.45445934821032,
+          127.16990305371095
+        ],
+        "target": [
+          88.1046420442242,
+          201.45099373421914,
+          44.531249999999794
+        ],
+        "up": [
+          -0.062324388520303156,
+          0.19835055274505753,
+          0.9781476007338057
+        ],
+        "perspective": true,
+        "fov": 40.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Dims",
+        "WR-Dims-Booth",
+        "WR-Dims-Doors"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081100,
+          "path": "CMS Classroom/Walls/Ceiling",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3081002,
+          "path": "CMS Classroom/Walls/Wall 2 pilaster",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3081305,
+          "path": "CMS Classroom/Walls/Wall 2 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080608,
+          "path": "CMS Classroom/Walls/Wall 3 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080380,
+          "path": "CMS Classroom/Walls/Wall 2 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080282,
+          "path": "CMS Classroom/Walls/Wall 2 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080542,
+          "path": "CMS Classroom/Walls/Wall 3 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080674,
+          "path": "CMS Classroom/Walls/Wall 3 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080056,
+          "path": "CMS Classroom/Walls/Wall 2 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3093406,
+          "path": "CMS Classroom/Ceiling fixtures",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3089843,
+          "path": "CMS Classroom/Walls/Wall 3 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": null,
+      "WR_AutoSet": null,
+      "wr_cms": null
+    },
+    {
+      "name": "02-dimensioned",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          200.0662822212678,
+          -154.8726500689662,
+          180.47398535317816
+        ],
+        "target": [
+          88.1046420442242,
+          201.45099373421914,
+          44.531249999999794
+        ],
+        "up": [
+          -0.10252524141647726,
+          0.3262918223201495,
+          0.9396926207859085
+        ],
+        "perspective": false,
+        "fov": 40.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": 242.55653935325208
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Dims-Booth"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081100,
+          "path": "CMS Classroom/Walls/Ceiling",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3081002,
+          "path": "CMS Classroom/Walls/Wall 2 pilaster",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3081305,
+          "path": "CMS Classroom/Walls/Wall 2 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080608,
+          "path": "CMS Classroom/Walls/Wall 3 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080380,
+          "path": "CMS Classroom/Walls/Wall 2 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080282,
+          "path": "CMS Classroom/Walls/Wall 2 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080542,
+          "path": "CMS Classroom/Walls/Wall 3 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080674,
+          "path": "CMS Classroom/Walls/Wall 3 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080056,
+          "path": "CMS Classroom/Walls/Wall 2 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3093406,
+          "path": "CMS Classroom/Ceiling fixtures",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3089843,
+          "path": "CMS Classroom/Walls/Wall 3 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": null,
+      "WR_AutoSet": null,
+      "wr_cms": null
+    },
+    {
+      "name": "03-side",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          467.0602621626669,
+          81.55515026888511,
+          44.531249999999794
+        ],
+        "target": [
+          88.1046420442242,
+          201.45099373421914,
+          44.531249999999794
+        ],
+        "up": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "perspective": false,
+        "fov": 40.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": 242.55653935325208
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Dims",
+        "WR-Dims-Booth",
+        "WR-Dims-Doors"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081002,
+          "path": "CMS Classroom/Walls/Wall 2 pilaster",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3081305,
+          "path": "CMS Classroom/Walls/Wall 2 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080380,
+          "path": "CMS Classroom/Walls/Wall 2 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080282,
+          "path": "CMS Classroom/Walls/Wall 2 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080056,
+          "path": "CMS Classroom/Walls/Wall 2 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": null,
+      "WR_AutoSet": null,
+      "wr_cms": null
+    },
+    {
+      "name": "04-ventilation",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          195.4621746400187,
+          -168.96853441895206,
+          140.68793805310565
+        ],
+        "target": [
+          88.1046420442242,
+          201.45099373421914,
+          44.531249999999794
+        ],
+        "up": [
+          -0.06734405454761509,
+          0.23235959607389664,
+          0.9702957262759966
+        ],
+        "perspective": false,
+        "fov": 40.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": 242.55653935325208
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Dims",
+        "WR-Dims-Booth",
+        "WR-Dims-Doors"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081100,
+          "path": "CMS Classroom/Walls/Ceiling",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3081002,
+          "path": "CMS Classroom/Walls/Wall 2 pilaster",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3081305,
+          "path": "CMS Classroom/Walls/Wall 2 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080608,
+          "path": "CMS Classroom/Walls/Wall 3 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080380,
+          "path": "CMS Classroom/Walls/Wall 2 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080282,
+          "path": "CMS Classroom/Walls/Wall 2 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080542,
+          "path": "CMS Classroom/Walls/Wall 3 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080674,
+          "path": "CMS Classroom/Walls/Wall 3 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080056,
+          "path": "CMS Classroom/Walls/Wall 2 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3093406,
+          "path": "CMS Classroom/Ceiling fixtures",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3089843,
+          "path": "CMS Classroom/Walls/Wall 3 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": null,
+      "WR_AutoSet": null,
+      "wr_cms": null
+    },
+    {
+      "name": "05-plan",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          76.31552773946902,
+          121.3700540194871,
+          1500.0
+        ],
+        "target": [
+          76.31552773946902,
+          121.3700540194871,
+          0.0
+        ],
+        "up": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "perspective": false,
+        "fov": 30.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": 504.5316891057558
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "WR-Dims",
+        "WR-Dims-Booth",
+        "WR-Dims-Doors"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081100,
+          "path": "CMS Classroom/Walls/Ceiling",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3093406,
+          "path": "CMS Classroom/Ceiling fixtures",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": null,
+      "WR_AutoSet": null,
+      "wr_cms": null
+    },
+    {
+      "name": "MDL 96144 E (components) 01-angled r",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          -132.08969778397426,
+          -93.47066265295877,
+          61.0
+        ],
+        "target": [
+          70.56552773946788,
+          195.95099373421874,
+          44.531249999999794
+        ],
+        "up": [
+          0.026706326944345243,
+          0.03814058759296987,
+          0.9989154457105992
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3080608,
+          "path": "CMS Classroom/Walls/Wall 3 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080838,
+          "path": "CMS Classroom/Walls/Wall 4 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080542,
+          "path": "CMS Classroom/Walls/Wall 3 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080674,
+          "path": "CMS Classroom/Walls/Wall 3 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080772,
+          "path": "CMS Classroom/Walls/Wall 4 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080904,
+          "path": "CMS Classroom/Walls/Wall 4 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3089843,
+          "path": "CMS Classroom/Walls/Wall 3 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3092107,
+          "path": "CMS Classroom/Walls/Wall 4 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "01-angled r",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "01b-angled room r",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": false,
+        "use_shadow_info": false,
+        "use_axes": false,
+        "use_section_planes": false
+      },
+      "camera": {
+        "eye": [
+          9.0,
+          9.0,
+          60.0
+        ],
+        "target": [
+          118.0,
+          205.0,
+          62.0
+        ],
+        "up": [
+          -0.004334082191938861,
+          -0.00779339550110107,
+          0.9999602385685727
+        ],
+        "perspective": true,
+        "fov": 65.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Dims",
+        "WR-Dims-Booth",
+        "WR-Dims-Doors",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "ev": 14.73,
+        "mode": "render"
+      },
+      "WR_AutoSet": null,
+      "wr_cms": {
+        "role": "hero-in-room"
+      }
+    },
+    {
+      "name": "MDL 96144 E (components) 01-angled",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          -132.08969778397426,
+          -93.47066265295877,
+          61.0
+        ],
+        "target": [
+          70.56552773946788,
+          195.95099373421874,
+          44.531249999999794
+        ],
+        "up": [
+          0.026706326944345243,
+          0.03814058759296987,
+          0.9989154457105992
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3080608,
+          "path": "CMS Classroom/Walls/Wall 3 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080838,
+          "path": "CMS Classroom/Walls/Wall 4 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080542,
+          "path": "CMS Classroom/Walls/Wall 3 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080674,
+          "path": "CMS Classroom/Walls/Wall 3 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080772,
+          "path": "CMS Classroom/Walls/Wall 4 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080904,
+          "path": "CMS Classroom/Walls/Wall 4 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3089843,
+          "path": "CMS Classroom/Walls/Wall 3 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3092107,
+          "path": "CMS Classroom/Walls/Wall 4 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "image"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "01-angled",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "MDL 96144 E (components) 02-front r",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          70.56552773946791,
+          -157.36760982049736,
+          61.0
+        ],
+        "target": [
+          70.56552773946788,
+          195.95099373421874,
+          44.531249999999794
+        ],
+        "up": [
+          -3.745471958124996e-18,
+          0.046561060133928085,
+          0.9989154457105991
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3080608,
+          "path": "CMS Classroom/Walls/Wall 3 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080542,
+          "path": "CMS Classroom/Walls/Wall 3 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080674,
+          "path": "CMS Classroom/Walls/Wall 3 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3089843,
+          "path": "CMS Classroom/Walls/Wall 3 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "render"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "02-front r",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "MDL 96144 E (components) 02-front",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          70.56552773946791,
+          -157.36760982049736,
+          61.0
+        ],
+        "target": [
+          70.56552773946788,
+          195.95099373421874,
+          44.531249999999794
+        ],
+        "up": [
+          -3.745471958124996e-18,
+          0.046561060133928085,
+          0.9989154457105991
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3080608,
+          "path": "CMS Classroom/Walls/Wall 3 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080542,
+          "path": "CMS Classroom/Walls/Wall 3 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080674,
+          "path": "CMS Classroom/Walls/Wall 3 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3089843,
+          "path": "CMS Classroom/Walls/Wall 3 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "image"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "02-front",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "MDL 96144 E (components) 03-high r",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          84.05720424855573,
+          -117.48118959297948,
+          434.93352935117787
+        ],
+        "target": [
+          83.3406649192828,
+          152.65885841079373,
+          61.099278683329906
+        ],
+        "up": [
+          -0.0021498892225137066,
+          0.8105224012783097,
+          0.5857036921536124
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081100,
+          "path": "CMS Classroom/Walls/Ceiling",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3093406,
+          "path": "CMS Classroom/Ceiling fixtures",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "render"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "03-high r",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "MDL 96144 E (components) 03-high",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          84.05720424855573,
+          -117.48118959297948,
+          434.93352935117787
+        ],
+        "target": [
+          83.3406649192828,
+          152.65885841079373,
+          61.099278683329906
+        ],
+        "up": [
+          -0.0021498892225137066,
+          0.8105224012783097,
+          0.5857036921536124
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081100,
+          "path": "CMS Classroom/Walls/Ceiling",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3093406,
+          "path": "CMS Classroom/Ceiling fixtures",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "image"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "03-high",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "MDL 96144 E (components) 04-side r",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          -282.7530758152482,
+          195.95099373421868,
+          61.0
+        ],
+        "target": [
+          70.56552773946788,
+          195.95099373421874,
+          44.531249999999794
+        ],
+        "up": [
+          0.046561060133928085,
+          7.490943916249993e-18,
+          0.9989154457105991
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3080838,
+          "path": "CMS Classroom/Walls/Wall 4 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080772,
+          "path": "CMS Classroom/Walls/Wall 4 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080904,
+          "path": "CMS Classroom/Walls/Wall 4 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3092107,
+          "path": "CMS Classroom/Walls/Wall 4 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "render"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "04-side r",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "MDL 96144 E (components) 04-side",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          -282.7530758152482,
+          195.95099373421868,
+          61.0
+        ],
+        "target": [
+          70.56552773946788,
+          195.95099373421874,
+          44.531249999999794
+        ],
+        "up": [
+          0.046561060133928085,
+          7.490943916249993e-18,
+          0.9989154457105991
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3080838,
+          "path": "CMS Classroom/Walls/Wall 4 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080772,
+          "path": "CMS Classroom/Walls/Wall 4 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080904,
+          "path": "CMS Classroom/Walls/Wall 4 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3092107,
+          "path": "CMS Classroom/Walls/Wall 4 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "image"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "04-side",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "MDL 96144 E (components) 05-ventilation r",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          -78.7533663354775,
+          516.1663954407729,
+          71.0
+        ],
+        "target": [
+          70.56552773946788,
+          195.95099373421874,
+          44.531249999999794
+        ],
+        "up": [
+          0.031571841756384264,
+          -0.06770603313979874,
+          0.9972056517512236
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081111,
+          "path": "CMS Classroom/Walls/Wall 1 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3079954,
+          "path": "CMS Classroom/Walls/Wall 1 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080022,
+          "path": "CMS Classroom/Walls/Wall 1 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3079988,
+          "path": "CMS Classroom/Walls/Wall 1 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "render"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "05-ventilation r",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "MDL 96144 E (components) 05-ventilation",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          -78.7533663354775,
+          516.1663954407729,
+          71.0
+        ],
+        "target": [
+          70.56552773946788,
+          195.95099373421874,
+          44.531249999999794
+        ],
+        "up": [
+          0.031571841756384264,
+          -0.06770603313979874,
+          0.9972056517512236
+        ],
+        "perspective": true,
+        "fov": 35.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081111,
+          "path": "CMS Classroom/Walls/Wall 1 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3079954,
+          "path": "CMS Classroom/Walls/Wall 1 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080022,
+          "path": "CMS Classroom/Walls/Wall 1 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3079988,
+          "path": "CMS Classroom/Walls/Wall 1 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "image"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "05-ventilation",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "09-interior dims",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": false,
+        "use_shadow_info": false,
+        "use_axes": false,
+        "use_section_planes": false
+      },
+      "camera": {
+        "eye": [
+          91.31552773946902,
+          204.74010803897386,
+          1500.0
+        ],
+        "target": [
+          91.31552773946902,
+          204.74010803897386,
+          0.0
+        ],
+        "up": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "perspective": false,
+        "fov": 30.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": 176.00000000000068
+      },
+      "hidden_tags": [
+        "CMS Room Dims (EST)",
+        "WR-Dims-Booth",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3178351,
+          "path": "MDL 96144 E (components)/Component#127",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3178352,
+          "path": "MDL 96144 E (components)/Component#127",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3081100,
+          "path": "CMS Classroom/Walls/Ceiling",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080608,
+          "path": "CMS Classroom/Walls/Wall 3 stripe",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080542,
+          "path": "CMS Classroom/Walls/Wall 3 lower",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3080674,
+          "path": "CMS Classroom/Walls/Wall 3 upper",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3093406,
+          "path": "CMS Classroom/Ceiling fixtures",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3089843,
+          "path": "CMS Classroom/Walls/Wall 3 fittings",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3163629,
+          "path": "MDL 96144 E (components)/CLi  ENH 9648CL SIDE",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3163628,
+          "path": "MDL 96144 E (components)/CLi  ENH 9648CL CTR",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3163558,
+          "path": "MDL 96144 E (components)/CLi  ENH 9648CL SIDE",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3159542,
+          "path": "MDL 96144 E (components)/STD9648CL SIDE",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3156645,
+          "path": "MDL 96144 E (components)/STD9648CL SIDE",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3162165,
+          "path": "MDL 96144 E (components)/STDSS CL8",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3162166,
+          "path": "MDL 96144 E (components)/STDSS CL8",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3159541,
+          "path": "MDL 96144 E (components)/STD9648CL CTR",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3178329,
+          "path": "MDL 96144 E (components)/Component#127",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "image"
+      },
+      "WR_AutoSet": null,
+      "wr_cms": {
+        "role": "interior-dims"
+      }
+    },
+    {
+      "name": "MDL 96144 E (components) 06-plan",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": true,
+        "use_shadow_info": true,
+        "use_axes": false,
+        "use_section_planes": true
+      },
+      "camera": {
+        "eye": [
+          65.06488221581267,
+          116.84453985818344,
+          1500.0
+        ],
+        "target": [
+          65.06488221581267,
+          116.84453985818344,
+          0.0
+        ],
+        "up": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "perspective": false,
+        "fov": 30.0,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": 408.6706681756622
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3081100,
+          "path": "CMS Classroom/Walls/Ceiling",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3093406,
+          "path": "CMS Classroom/Ceiling fixtures",
+          "class": "Sketchup::Group"
+        },
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "mode": "image"
+      },
+      "WR_AutoSet": {
+        "centre": "70.566,195.951,44.531",
+        "plate": "06-plan",
+        "token": "MDL 96144 E (components)",
+        "version": 1
+      },
+      "wr_cms": null
+    },
+    {
+      "name": "08-interior corner",
+      "flags": {
+        "use_camera": true,
+        "use_hidden_layers": true,
+        "use_hidden_objects": true,
+        "use_hidden_geometry": true,
+        "use_rendering_options": false,
+        "use_shadow_info": false,
+        "use_axes": false,
+        "use_section_planes": false
+      },
+      "camera": {
+        "eye": [
+          31.0,
+          240.0,
+          64.52413027332257
+        ],
+        "target": [
+          101.70277455232245,
+          171.9400501055082,
+          45.31577555557722
+        ],
+        "up": [
+          0.13417450151395144,
+          -0.13758181194192798,
+          0.9813605087664057
+        ],
+        "perspective": true,
+        "fov": 85.93137713633631,
+        "aspect_ratio": 0.0,
+        "fov_is_height": true,
+        "height": null
+      },
+      "hidden_tags": [
+        "CMS Booth 18in Perimeter",
+        "CMS Booth Interior Dims",
+        "CMS Room Dims (EST)",
+        "WR-Notes"
+      ],
+      "hidden_entities": [
+        {
+          "pid": 3128843,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/Lockset cover plate",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3128842,
+          "path": "MDL 96144 E (components)/S0i  ENH Left41.5Door/Std door frame 46\"#2/IEP door 30\" & jamb (door closed)#1/IEP door 30\"#2",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154356,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154385,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154102,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154383,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154148,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        },
+        {
+          "pid": 3154322,
+          "path": "MDL 96144 E (components)/STD9648FL CTR/Floor component (7248 ctr)/Hinge (plastic for attaching ceilings & floors)",
+          "class": "Sketchup::ComponentInstance"
+        }
+      ],
+      "WR_ProposalPackage": {
+        "ev": 14.73,
+        "mode": "render"
+      },
+      "WR_AutoSet": null,
+      "wr_cms": {
+        "role": "interior-corner"
+      }
+    }
+  ]
+}

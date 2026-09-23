@@ -649,9 +649,9 @@ module WR_ProposalPackage
   ]
 
   SIZE_CASES = [
-    ['1200', [1200, 900]],
-    ['2400', [2400, 1800]],
-    ['0',    [1200, 900]],    # out of range -> the documented default
+    ['1200', [1200, 675]],     # 1.76.0: 16:9, default width 2400
+    ['2400', [2400, 1350]],
+    ['0',    [2400, 1350]],    # out of range -> the documented default
   ]
 
   # export-scenes.rb's out_height (D4). [width, requested, vp_w, vp_h,
@@ -778,8 +778,8 @@ module WR_ProposalPackage
     @vray_readable = true
     @size_source   = nil                    # a fresh load, nothing read yet
     sz1, why1 = render_size_gate('1200', true)
-    out << ((why1.nil? && sz1 == [1600, 900]) ? 'gate1 ok' :
-            "gate1 FAIL a readable V-Ray size was refused: #{why1.inspect} " \
+    out << ((why1.nil? && sz1 == [1200, 675]) ? 'gate1 ok' :
+            "gate1 FAIL a readable V-Ray size was refused or not FORCED (1.76.0): #{why1.inspect} " \
             "size #{sz1.inspect}")
 
     # gate2: press it again. The old bug was a CLOSED LOOP -- the refusal
@@ -794,7 +794,7 @@ module WR_ProposalPackage
     @vray_readable = false
     @size_source   = nil
     sz3, why3 = render_size_gate('1200', true)
-    out << ((why3.to_s.include?('could not be read') && sz3 == [1200, 900]) ?
+    out << ((why3.to_s.include?('could not be read') && sz3 == [1200, 675]) ?
             'gate3 ok' : "gate3 FAIL an unreadable render size was allowed: " \
                          "#{why3.inspect}")
 
@@ -803,7 +803,7 @@ module WR_ProposalPackage
     @vray_readable = false
     @size_source   = nil
     sz4, why4 = render_size_gate('2400', false)
-    out << ((why4.nil? && sz4 == [2400, 1800]) ? 'gate4 ok' :
+    out << ((why4.nil? && sz4 == [2400, 1350]) ? 'gate4 ok' :
             "gate4 FAIL image-only batch refused: #{why4.inspect} #{sz4.inspect}")
 
     # ================================================================
@@ -1285,7 +1285,7 @@ def main():
                                   ('EV_F_NUMBER', 'EV_ISO', 'EV_INTERIOR',
                                    'EV_ROOM', 'EV_MIN', 'EV_MAX', 'INTERIOR_RE')),
         'mode_fallback': const_line('MODE_FALLBACK'),
-        'aspect':      '\n'.join(const_line(c) for c in ('ASPECT_W', 'ASPECT_H')),
+        'aspect':      '\n'.join(const_line(c) for c in ('ASPECT_W', 'ASPECT_H', 'DEFAULT_WIDTH')),
         'ev_for':      rbtest.method_source(SRC, 'ev_for'),
         'shutter_for_ev': rbtest.method_source(SRC, 'shutter_for_ev'),
         'ev_of_camera':   rbtest.method_source(SRC, 'ev_of_camera'),

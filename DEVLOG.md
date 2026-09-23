@@ -1,5 +1,62 @@
 # DEVLOG
 
+## 2026-09-22 -- 1.76.0: proposal package plates are ONE fixed 16:9 size, both lanes, forced per render row
+
+**What changed (scripts/proposal-package.rb).** Benton: "make the package change for 16:9. I feel like it
+keeps changing every time I switch scenes."
+- **One size.** `ASPECT_W:ASPECT_H` is 16:9 (was 4:3), default Width 2400, so plates are 2400x1350.
+  Every plate, image AND render, is Width x round(Width x 9/16). The dialog's Width field still sets it.
+- **The V-Ray size is FORCED, not honoured** (reverses 1.9.4's "honour the Asset Editor" rule).
+  - `apply_output_size` writes `/SettingsOutput` img_width/img_height in each render row AFTER the scene
+    switch and immediately before `render_production`, then reads it back.
+  - A row whose size did not land FAILS by name and is not rendered.
+  - The operator's size is snapshotted once into `@vray_saved` and put back in `finish`, like exposure.
+  - The render gate still refuses a render batch when V-Ray's size cannot be read, because the forced size
+    could not be verified.
+- **Plain images use the same explicit size**, no longer the window's shape (1.31.0 withdrawn).
+  - The 1.31.0 risk, screen-anchored Text (no leader) moving in a differently shaped frame, is now CAUGHT:
+    `screen_notes` finds visible leaderless Text on each image row's scene.
+  - Any found is named in the row detail, the manifest (`screen_anchored_notes`) and claude-prompt.txt.
+  - It does not fall back to the window shape.
+- **Render-element sidecars deleted.** Only this row's exact `<base>.denoiser.png` and
+  `<base>.effectsResult.png`, and only if written since the row's render started. Each deletion is named in
+  the row detail and the log; any other `<base>.*.png` is still only named.
+- **Manifest and prompt.**
+  - Manifest: `image_shape` describes the fixed rule; render rows carry `size_forced` plus the PNG's own
+    IHDR size.
+  - Prompt: a "Plate size: ... (16:9)" line; the "Size mismatch" line cannot fire any more.
+  - A render file whose IHDR size is not the forced size is flagged NOT CLIENT-READY.
+
+**Diagnosis of "keeps changing" (observed over the bridge, 22 Sep).**
+- `/SettingsOutput` is ONE global plugin. No scene carries a V-Ray attribute dictionary, and
+  `/PersistentSceneStorage` is empty.
+- Selecting scenes does NOT change it. I set 1000x700, switched 08 -> Photo B -> back, and it stayed 1000x700.
+- BUT the live value and the copy stored in the model's `VRayPlugins` JSON can disagree: after the
+  scene.change write the live plugin read 1000x700 while the stored JSON still said 800x600.
+- The UI-side trigger Benton sees was not reproduced headlessly; forcing and re-reading per row makes the
+  plate independent of it either way.
+- Plain images also followed the window's shape, so the two lanes differed whenever the window was not 4:3.
+
+**Verified live (SketchUp 2026 / V-Ray 7, Community Music School model, scratch folder only).**
+- Headless run of `02-front r` (render) and `02-front` (image) at Width 800. Both files are exactly
+  800x450 RGBA with alpha.
+- Both render sidecars were deleted and named, and no other files were left.
+- The manifest records 800x450, `size_forced` [800, 450], and `screen_anchored_notes` [].
+- The prompt carries the plate-size line.
+- The operator's 800x600 was restored after the run and stayed through four scene switches.
+- A forced write for Width 2400 read back 2400x1350 and restored cleanly.
+- `python scripts/rbparse.py`: 77 files parse. `python scripts/rbtest-proposal.py`: PASS, with the
+  size and gate cases updated to 16:9 (1200 -> 1200x675, default 2400x1350).
+- `rbtest-lights.py` and `rbtest-boothdims.py` report failures on files this change does not touch
+  (identical to HEAD). They predate this change.
+
+**Install.** Machines whose SCRIPTS_DIR is a repo checkout (CANDIDATES in wr_tools/main.rb; true on the
+desktop) pick this up on the next package launch after `git pull`. Machines running the BUNDLED copy need
+Update now / `install-plugin.py`.
+
+**Gotcha.** agent_prompt is PURE and runs in rbtest's barebones VM, where `NilClass#to_i` is not defined,
+so the new plate-size line type-checks instead of calling `.to_i`.
+
 ## 2026-09-22 — PAUSED for the desktop: Community Music School 96144 E renders (room shell built), and the 96120 concept-art job (finals not rendered)
 
 **Two jobs paused mid-way at Benton's request so he can continue on the desktop. Nothing under

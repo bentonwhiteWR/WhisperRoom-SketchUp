@@ -27,3 +27,12 @@ CMS builder progress log (scratch; the HANDOFF.md is the deliverable)
 - 21:40 perimeter in 09 (report-only room contacts). Saved 21:40:14.
 - 21:55 lights restored + 5 fill spheres rewritten (gray-ball bug), 01b hero added, 09 perimeter orange, revert record written. Saved 21:52:01.
 - 22:12 all rig lights invisible + no reflections; niche carpet; 01b hero; saved 22:11:58.
+- 22:3x SUN TEST on 03-high r (Benton). i0: current (sun mult 0).
+  i1: V-Ray sun intensity_multiplier 0 -> 0.15 (sky follows the sun). Nothing else.
+  i2: + corridor hidden in 03-high r / 03-high (scene hidden sets). Sun 0.15 kept.
+- 22:4x SUN TEST CANCELLED (Benton: light looks good). Restored sun (mult 0.0), env and corridor from env-backup-20260922-2228.json + scene-backup-20260922-2228-pre-sun.json; all 21 scenes verified identical. Fixed scene-restore.rb (clears current hidden set first). Saved.
+- 22:5x PACKAGE 1.76.0 (Benton: 16:9 for all).
+  - Every plate is W x W*9/16. The V-Ray size is forced and read back per render row; the user's size is restored.
+  - Sidecars deleted; screen-note warning added.
+  - Live test (800x450 both lanes, alpha, no sidecars, manifest) OK.
+  - Framing flags are in HANDOFF. Committed and pushed.

@@ -167,8 +167,23 @@ module WR_ProposalPackage
   # was set to. Now both are derived from the Width field and this ratio --
   # export-scenes.rb gets an explicit cfg['height'], and the V-Ray SCENE's
   # /SettingsOutput is written to the same numbers (see apply_output_size).
-  ASPECT_W = 4
-  ASPECT_H = 3
+  #
+  # 16:9, ONE SIZE FOR BOTH LANES, FORCED (1.76.0). Benton, 22 Sep 2026:
+  # "make the package change for 16:9. I feel like it keeps changing every
+  # time I switch scenes." Measured that day: /SettingsOutput is ONE global
+  # plugin (no scene carries a V-Ray dictionary; /PersistentSceneStorage is
+  # empty), but its live value and the copy stored in the model's
+  # VRayPlugins JSON can disagree (a scene.change write read 1000x700 live
+  # while the stored copy still said 800x600 across three scene switches),
+  # and plain images followed the WINDOW's shape. Either way the plate size
+  # was never a number the operator set once. So now: every plate, render
+  # and image, is Width x round(Width x 9/16), the V-Ray size is WRITTEN at
+  # the start of every render row (after the scene switch, immediately
+  # before render_production) and READ BACK, a row whose size did not land
+  # fails by name, and the operator's /SettingsOutput is put back in finish.
+  ASPECT_W = 16
+  ASPECT_H = 9
+  DEFAULT_WIDTH = 2400
 
   # --------------------------------------------------- exposure (D2) --
   #
@@ -414,14 +429,25 @@ module WR_ProposalPackage
   # later log line can say WHERE the number came from rather than just quoting
   # it -- a size that silently fell back to a default and a size the operator
   # chose look identical on disk.
+  #
+  # SUPERSEDED 1.76.0: the V-Ray size is no longer HONOURED, it is FORCED to
+  # the Width field at ASPECT_W:ASPECT_H (see the 16:9 note above). What
+  # V-Ray was sitting at is still read here -- it is what finish restores and
+  # what the log reports -- and whether it could be read at all still decides
+  # the render gate below: a size this tool cannot read back is a size it
+  # cannot verify, so a render batch is still refused by name.
   def self.honoured_size(width_field)
     sz = output_size(vray_context)
-    if sz && sz[0] > 0 && sz[1] > 0
-      @size_source = 'the V-Ray Asset Editor (/SettingsOutput)'
-      return sz
-    end
-    @size_source = 'this tool\'s Width field - V-RAY\'S OWN SIZE COULD NOT BE READ'
-    package_size(width_field)
+    @vray_size_before = (sz && sz[0] > 0 && sz[1] > 0) ? sz : nil
+    want = package_size(width_field)
+    @size_source = if @vray_size_before
+                     "this tool's Width field at #{ASPECT_W}:#{ASPECT_H}, FORCED " \
+                       "(V-Ray was at #{sz[0]}x#{sz[1]}; put back at the end)"
+                   else
+                     "this tool's Width field at #{ASPECT_W}:#{ASPECT_H} - " \
+                       "V-RAY'S OWN SIZE COULD NOT BE READ"
+                   end
+    want
   end
 
   # A RENDER BATCH REFUSES TO GUESS ITS OWN SIZE.
@@ -432,12 +458,12 @@ module WR_ProposalPackage
   # chose, which is exactly the 1200x900-instead-of-1600x900 defect this
   # release exists to fix. Named refusal, not a substitution.
   def self.require_render_size!
-    return nil if @size_source.to_s.start_with?('the V-Ray')
+    return nil if @vray_size_before
     'V-Ray is being asked to render, but its output size could not be read ' \
-      "from /SettingsOutput (#{@size_source}). Open the V-Ray Asset Editor, " \
-      'confirm the render output size, and run this again. Nothing was ' \
-      'rendered, because a render at a size nobody chose is worse than no ' \
-      'render.'
+      "from /SettingsOutput (#{@size_source}), so the size this batch forces " \
+      'could not be verified either. Open the V-Ray Asset Editor once (it ' \
+      'loads the settings) and run this again. Nothing was rendered, because ' \
+      'a render at a size nobody can confirm is worse than no render.'
   end
 
   # THE ORDER IS THE FIX (D9, 1.9.6). require_render_size! judges @size_source;
@@ -470,7 +496,7 @@ module WR_ProposalPackage
   # there is no V-Ray to ask.
   def self.package_size(width)
     w = width.to_s.to_i
-    w = 1200 if w < 200 || w > 6000
+    w = DEFAULT_WIDTH if w < 200 || w > 6000
     [w, (w * ASPECT_H / ASPECT_W.to_f).round]
   end
 
@@ -770,6 +796,10 @@ module WR_ProposalPackage
       end
       # 1.30.0 — what the PNG on disk carries. null = not read.
       row['alpha_channel'] = (r && !r[:alpha_channel].nil?) ? r[:alpha_channel] : nil
+      # 1.76.0 -- the V-Ray size forced and read back before a render row;
+      # screen-anchored notes found on an image row's scene ([] = none).
+      row['size_forced'] = r[:size_forced] if r && r.key?(:size_forced)
+      row['screen_anchored_notes'] = r[:screen_notes] if r && r.key?(:screen_notes)
       row['annotation_tags_shown']  = p[:shown]
       row['annotation_tags_hidden'] = p[:hid]
       row['annotation_note'] = p[:shown_note] if p[:shown_note]
@@ -816,6 +846,11 @@ module WR_ProposalPackage
          "tool's own record, not a guess."
     l << ''
     l << "Model: #{m['model']} (#{m['model_path']})"
+    # type-checked, not .to_i: agent_prompt is PURE and runs in rbtest's
+    # barebones VM, where NilClass#to_i is not defined
+    if m['width'].is_a?(Integer) && m['height'].is_a?(Integer) && m['width'] > 0 && m['height'] > 0
+      l << "Plate size: every plate, image and render, is #{m['width']}x#{m['height']} (16:9)."
+    end
     l << 'Plates, in export order (the leading number is the scene tab ' \
          "position; a name ending ' render.png' is a V-Ray render, anything " \
          'else is a plain SketchUp image):'
@@ -873,6 +908,7 @@ module WR_ProposalPackage
       w << "WINDOW CHANGED: #{f['window_changed']}. Screen-anchored notes in " \
            'earlier plates of this folder may sit differently from these.' if f['window_changed']
       w << "Size mismatch: #{f['shape_note']}." if f['shape_note']
+      (f['screen_notes'] || []).each { |x| w << "Screen-anchored note (check it sits where intended): #{x}" }
       (f['quality'] || []).each { |x| w << "Render quality: #{x}" }
       (f['srgb'] || []).each { |x| w << "sRGB encode FAILED: #{x} - that file reads dark and is NOT client-ready" }
       (f['lost'] || []).each { |x| w << "Lost row (no file was written): #{x}" }
@@ -905,6 +941,7 @@ module WR_ProposalPackage
       'preflight'      => @preflight,
       'window_changed' => @window_changed,
       'shape_note'     => @shape_note,
+      'screen_notes'   => (@screen_note_rows || []),
       'quality'        => (@quality_problems || []),
       'srgb'           => (@srgb_problems || []),
       'lost'           => lost_rows(@plan_files, (@results || []).map { |r| r[:file] }),
@@ -1796,6 +1833,8 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     @vray_saved    = nil
     @quality_note  = nil
     @ev_used       = {}
+    # SUPERSEDED 1.76.0 -- the size below is now FORCED from the Width field
+    # at 16:9 (see ASPECT_W). The 1.9.4 history is kept for the record:
     # THE OUTPUT SIZE COMES FROM THE MODEL, NOT FROM THIS TOOL (1.9.4).
     #
     # Benton had the V-Ray Asset Editor set to 1600x900, 16:9. The package
@@ -1851,40 +1890,24 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     log(dlg, "files go to #{dir}  (#{dir_note})",
         (@per_model && dir == root) ? 'bad' : 'dim')
     puts "  output size #{out_w}x#{out_h} (both lanes), annotations: per scene"
-    # THE SHAPE OF THE PLAIN IMAGES, BY NAME (1.31.0). Read the window here
-    # so the log says what the plates will be BEFORE the first one lands,
-    # and how far from the V-Ray size they are.
+    # ONE SIZE, BOTH LANES (1.76.0). Plain images are written at the SAME
+    # width x height as the V-Ray renders -- no longer at the window's shape
+    # (1.31.0). The window is still recorded (manifest 'viewport') but it no
+    # longer shapes a plate, so a changed window is no longer a warning.
+    # Screen-anchored notes, the reason for 1.31.0, are now caught per row
+    # instead: see screen_notes / unit_image.
     begin
-      vw = model.active_view.vpwidth.to_i
-      vh = model.active_view.vpheight.to_i
-      @viewport = [vw, vh]
-      if vw > 0 && vh > 0 && image_rows.any?
-        ih = (out_w.to_i * vh / vw.to_f).round
-        puts "  plain images: #{out_w}x#{ih} - the window's shape "              "(#{vw}x#{vh}), so screen notes land where they were placed"
-        if (ih - out_h.to_i).abs > 2
-          @shape_note = "plain images are #{out_w}x#{ih} (the window's shape, " \
-                        "#{vw}x#{vh}); V-Ray renders are #{out_w}x#{out_h}"
-          log(dlg, "plain images will be #{out_w}x#{ih} (the SketchUp window "                    "is #{vw}x#{vh}); V-Ray renders stay #{out_w}x#{out_h}. "                    "Written at the window's shape so screen-anchored notes "                    'land where you placed them. For image and render plates '                    'of ONE shape, make the window '                    "#{out_w}:#{out_h} first (undock trays / resize) and run again.", 'bad')
-        end
-        # THE WINDOW IS AN INPUT NOW, SO A CHANGED WINDOW IS SAID OUT LOUD
-        # (1.31.1). Same scene, same model, different window shape =>
-        # screen notes sit differently against the geometry. The last
-        # run's manifest in this folder carries the window it used; if
-        # this one differs, every earlier plate in the folder with a
-        # no-leader note disagrees with the ones about to be written.
-        prev = prior_viewport(dir)
-        if prev && (prev[0] != vw || prev[1] != vh)
-          @window_changed = "this folder's earlier plates were written from a " \
-                            "#{prev[0]}x#{prev[1]} window; this run is #{vw}x#{vh}"
-          log(dlg, "WINDOW CHANGED: this folder's earlier plates were written "                    "from a #{prev[0]}x#{prev[1]} window; this run is #{vw}x#{vh}. "                    'Screen notes (no leader) will sit differently from those '                    'plates - re-export the whole folder from one window shape '                    'before nudging any note to fit.', 'bad')
-        end
-        if (ih - out_h.to_i).abs <= 2
-          log(dlg, "plain images: #{out_w}x#{ih}, the window's shape - same as "                    'the V-Ray size', 'dim')
-        end
-      end
+      @viewport = [model.active_view.vpwidth.to_i, model.active_view.vpheight.to_i]
     rescue Exception
       @viewport = nil
     end
+    @shape_note = nil
+    @window_changed = nil
+    @screen_note_rows = []
+    puts "  plates: #{out_w}x#{out_h} (#{ASPECT_W}:#{ASPECT_H}) for images AND renders"
+    log(dlg, "plates: #{out_w}x#{out_h} (#{ASPECT_W}:#{ASPECT_H}) for every image and " \
+             'every render; the V-Ray size is forced before each render row and ' \
+             'put back at the end', 'dim')
     if @transparent
       puts '  background: TRANSPARENT (alpha) - not for a proposal pack ' \
            'without flattening first'
@@ -2292,7 +2315,14 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
       # keeps the Asset Editor size: V-Ray does not draw screen text at
       # all, so nothing moves there. The two lanes now differ in shape
       # unless the window is made to match - start_run says so by name.
-      'height' => nil,
+      #
+      # WITHDRAWN 1.76.0: plain images are the SAME size as the renders
+      # (Benton: one 16:9 size for everything). The screen-note risk above
+      # is real and is now CAUGHT rather than designed around: unit_image
+      # looks for visible screen-anchored Text on the scene and names it in
+      # the row, the manifest and claude-prompt.txt -- it does not fall back
+      # to the window's shape.
+      'height' => @cfg['height'],
       # 'Transparent' makes export_pages pass :transparent => true to
       # write_image and switch DrawGround / DrawHorizon / DisplayFog off
       # after each scene switch, restoring them in its ensure (export-
@@ -2349,6 +2379,17 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
       p[:groups_hidden] = nil
       p[:annotations_hidden] = nil
     end
+    # SCREEN-ANCHORED NOTES ON THIS SCENE (1.76.0). The frame is no longer the
+    # window's shape, so a note placed as a fraction of the screen may land
+    # over different geometry. Named, never silently worked around.
+    p[:screen_notes] = screen_notes(model)
+    unless p[:screen_notes].empty?
+      (@screen_note_rows ||= []) << "#{p[:file]}: #{p[:screen_notes].join(' | ')}"
+      log(dlg, "        #{p[:file]}  SCREEN-ANCHORED NOTE(S) on this scene - " \
+               'placed as a fraction of the screen, they may sit over different ' \
+               "geometry in a #{@cfg['width']}x#{@cfg['height']} frame: " \
+               "#{p[:screen_notes].join(' | ')}", 'bad')
+    end
     present = hide.select { |n| model.layers[n] }
     log(dlg, "re-hiding after the scene switch: #{present.join(', ')}", 'dim') unless present.empty?
     x = WR_ExportScenes.export_pages(model, plan, cfg)
@@ -2373,6 +2414,9 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
       alpha = png_alpha(p[:path])
       det = "image, #{x[:width]}x#{x[:height]} (height #{x[:height_source]})"
       det += alpha_note(alpha)
+      unless (p[:screen_notes] || []).empty?
+        det += ", SCREEN-ANCHORED NOTE(S) - check placement: #{p[:screen_notes].join(' | ')}"
+      end
       @results << { :file => p[:file], :lane => 'image', :status => 'ok',
                     # :width/:height feed manifest.json — the size the export
                     # ACTUALLY used, not the size that was asked for.
@@ -2382,6 +2426,7 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
                     :two_point_view  => p[:two_point_view],
                     :two_point_after => p[:two_point_after],
                     :alpha_channel => alpha,
+                    :screen_notes => p[:screen_notes],
                     :width => x[:width].to_i, :height => x[:height].to_i,
                     :detail => det }
       log(dlg, "ok      #{p[:file]}  (#{det})", alpha_mismatch?(alpha) ? 'bad' : 'ok')
@@ -2404,6 +2449,100 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
   # already parses it). true / false / nil (unreadable). A requested
   # transparency that came back RGB, or an unrequested alpha, is logged as
   # 'bad' and named in the row detail — never quietly 'ok'.
+  # Visible screen-anchored Text in the current scene state: Sketchup::Text
+  # with no leader (display_leader false / leader_type 0) is drawn at a
+  # fraction of the SCREEN, not at a model point. Top level and one level of
+  # visible groups/components; hidden entities and hidden tags are skipped.
+  # Returns short descriptions; [] when there is none. Never raises.
+  def self.screen_notes(model)
+    found = []
+    vis = lambda { |e| !(e.hidden? rescue false) && (e.layer.visible? rescue true) }
+    look = lambda do |ents, depth|
+      ents.each do |e|
+        if e.is_a?(Sketchup::Text)
+          next unless vis.call(e)
+          lead = (e.display_leader? rescue true)
+          lt = (e.leader_type rescue nil)
+          next if lead && lt != 0
+          found << e.text.to_s.gsub(/\s+/, ' ')[0, 60]
+        elsif depth < 1 && (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)) && vis.call(e)
+          look.call(e.definition.entities, depth + 1)
+        end
+      end
+    end
+    look.call(model.entities, 0)
+    found
+  rescue Exception
+    []
+  end
+
+  # FORCE THIS ROW'S V-RAY OUTPUT SIZE (1.76.0). Called in unit_render AFTER
+  # the scene switch and immediately before render_production, because the
+  # switch (and whatever the Asset Editor holds) must not decide the plate.
+  # Snapshot ONCE per batch into @vray_saved (finish puts it back), write
+  # inside scene.change via write_params, then READ BACK with output_size.
+  # Returns [true, [w, h]] or [false, reason]. Never raises.
+  def self.apply_output_size(ctx, dlg, p)
+    scene = vray_scene(ctx)
+    return [false, 'no V-Ray scene to write the output size into'] if scene.nil?
+    want = [@cfg['width'].to_i, @cfg['height'].to_i]
+    triples = [['/SettingsOutput', :img_width,  want[0]],
+               ['/SettingsOutput', :img_height, want[1]]]
+    @vray_saved ||= {}
+    read_params(scene, triples.map { |pl, k, _v| [pl, k] }).each do |k, v|
+      @vray_saved[k] = v unless @vray_saved.key?(k)
+    end
+    _applied, problems = write_params(scene, triples)
+    got = output_size(ctx)
+    p[:size_forced] = got
+    unless got == want
+      return [false, "V-Ray output size did not land: wrote #{want[0]}x#{want[1]}, " \
+                     "V-Ray reads #{got ? got.join('x') : 'nothing'}" \
+                     "#{problems.empty? ? '' : ' (' + problems.join('; ') + ')'}"]
+    end
+    [true, got]
+  rescue Exception => e
+    [false, "forcing the output size raised #{e.class}: #{e.message}"]
+  end
+
+  # The pixel size recorded in a PNG's IHDR, or nil. Read-only.
+  def self.png_size(path)
+    return nil unless path && File.exist?(path)
+    head = File.binread(path, 24)
+    return nil unless head && head.bytesize >= 24 && head[0, 8].bytes == [137, 80, 78, 71, 13, 10, 26, 10]
+    head[16, 8].unpack('NN')
+  rescue Exception
+    nil
+  end
+
+  # THIS ROW'S render-element sidecars, deleted (1.76.0): exactly
+  # <base>.denoiser.png and <base>.effectsResult.png beside the plate, and
+  # only if written since this row's render started (p[:t_render]). Nothing
+  # else is touched. Returns the names deleted.
+  def self.delete_row_sidecars(dlg, p)
+    dir  = File.dirname(p[:path])
+    base = File.basename(p[:path], '.png')
+    t0   = p[:t_render]
+    gone = []
+    %w[denoiser effectsResult].each do |el|
+      f = File.join(dir, "#{base}.#{el}.png")
+      next unless File.exist?(f)
+      next if t0 && File.mtime(f) < (t0 - 2)
+      begin
+        File.delete(f)
+        gone << File.basename(f)
+      rescue Exception => e
+        log(dlg, "        #{p[:file]}  could not delete sidecar #{File.basename(f)} " \
+                 "(#{e.class}: #{e.message})", 'bad')
+      end
+    end
+    log(dlg, "        #{p[:file]}  deleted this row's render-element sidecar(s): " \
+             "#{gone.join(', ')}", 'dim') unless gone.empty?
+    gone
+  rescue Exception
+    []
+  end
+
   def self.png_alpha(path)
     return nil unless path && File.exist?(path)
     head = File.binread(path, 33)
@@ -2593,6 +2732,19 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
     end
     @ev_used[p[:file]] = ev_landed
 
+    # THE PLATE SIZE, FORCED AFTER THE SCENE SWITCH (1.76.0) -- see ASPECT_W.
+    size_ok, size_got = apply_output_size(ctx, dlg, p)
+    unless size_ok
+      @results << { :file => p[:file], :lane => 'render', :status => 'failed',
+                    :detail => "not rendered: #{size_got} - a wrong-shaped plate " \
+                               'is worse than a missing one' }
+      log(dlg, "FAILED  #{p[:file]}  (#{size_got})", 'bad')
+      return
+    end
+    log(dlg, "        #{p[:file]}  output size forced and read back: " \
+             "#{size_got[0]}x#{size_got[1]}", 'dim')
+    p[:t_render] = Time.now
+
     progress(dlg, "Rendering #{p[:file]}…")
 
     @rend = rend
@@ -2773,10 +2925,11 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
   # next to it. Two consequences worth stating plainly:
   #
   #  1. Nothing in the collision map, the Ask/Overwrite/Skip policy or the
-  #     summary knows these exist, so they accumulate in the output folder and
-  #     could reach a client pack. They are NAMED in the row detail and in the
-  #     log instead of being silently left -- deleting another program's
-  #     output is not this tool's call.
+  #     summary knows these exist, so they accumulated in the output folder and
+  #     could reach a client pack. SINCE 1.76.0 THEY ARE DELETED (Benton, 22
+  #     Sep 2026): exactly <base>.denoiser.png and <base>.effectsResult.png,
+  #     only when written during this row, logged by name in the row detail
+  #     (delete_row_sidecars). Any OTHER <base>.*.png is still only named.
   #  2. The file this tool saves is the VFB's RGB channel, and the denoiser
   #     result is the SIDECAR. Measured on 01 Booth Exterior Three-Quarter,
   #     1200x900: mean neighbour-pixel difference 0.0444 in the saved .png
@@ -2959,10 +3112,17 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
       # switched the denoiser on itself; now that the denoiser is the
       # operator's setting, claiming anything about it would be a guess.
       evv = @ev_used[p[:file]]
+      disk = png_size(p[:path])
       det = format('V-Ray %sx%s (size from %s), EV %s',
                    @cfg['width'], @cfg['height'], @size_source,
                    evv.nil? ? 'unreadable' : format('%.2f', evv.to_f))
       det += enc_note
+      gone = delete_row_sidecars(dlg, p)
+      det += ", render-element sidecars deleted: #{gone.join(', ')}" unless gone.empty?
+      want_wh = [@cfg['width'].to_i, @cfg['height'].to_i]
+      if disk && disk != want_wh
+        det += ", *** FILE IS #{disk.join('x')}, NOT #{want_wh.join('x')} - wrong shape, NOT CLIENT-READY"
+      end
       side = sidecars(p)
       det += format(', plus %d render-element sidecar(s): %s',
                     side.size, side.join(', ')) unless side.empty?
@@ -2976,9 +3136,14 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
                     :two_point_scene => p[:two_point_scene],
                     :two_point_view  => p[:two_point_view],
                     :alpha_channel => alpha,
-                    :width => @cfg['width'].to_i, :height => @cfg['height'].to_i,
+                    # 1.76.0: the size ON DISK (PNG IHDR); the forced size
+                    # if the file could not be read
+                    :width => (disk ? disk[0] : @cfg['width'].to_i),
+                    :height => (disk ? disk[1] : @cfg['height'].to_i),
+                    :size_forced => p[:size_forced],
                     :detail => det }
-      log(dlg, "ok      #{p[:file]}  (#{det})", alpha_mismatch?(alpha) ? 'bad' : 'ok')
+      log(dlg, "ok      #{p[:file]}  (#{det})",
+          (alpha_mismatch?(alpha) || (disk && disk != want_wh)) ? 'bad' : 'ok')
       unless side.empty?
         log(dlg, "        #{p[:file]}  these sidecars are NOT in the " \
                  'collision plan and must not go to a client: ' \
@@ -3220,9 +3385,11 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
              'width'       => @cfg['width'].to_i,
              'height'      => @cfg['height'].to_i,
              'size_source' => @size_source.to_s,
-             # 1.31.0: width/height above are the V-RAY size. Image rows
-             # carry their own width/height, written at the window's shape.
-             'image_shape' => 'viewport - plain images are written at the SketchUp '                               "window's aspect so screen-anchored notes stay put; "                               "see each image row's width/height",
+             # 1.76.0: width/height above are EVERY plate's size, both lanes.
+             'image_shape' => "fixed - every plate, image and render, is width x height " \
+                              "(#{ASPECT_W}:#{ASPECT_H}); the V-Ray size is forced before " \
+                              'each render row and restored afterwards; screen-anchored ' \
+                              "notes are named per row in 'screen_anchored_notes'",
              'viewport'    => @viewport,
              'transparent_background' => (@transparent ? true : false),
              'annotation_scope' => 'model-space top level (model.entities) - ' \
@@ -5278,7 +5445,7 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
   <span class="lbl">IMAGES</span>
   <div class="half">
     <span class="lbl">WIDTH</span><input type="text" id="width" value="#{escAttr(width)}">
-    <span class="lbl">PX — plain images: width from the V-Ray Asset Editor when it can be read (this field is the fallback), height follows the SketchUp window's shape so screen notes land where you placed them. V-Ray renders use the Asset Editor size exactly; make the window that shape for plates of one size.</span>
+    <span class="lbl">PX — every plate, image and render, is this width at 16:9 (2400 → 2400×1350). The V-Ray output size is set to it before each render and put back afterwards; a scene with a screen-anchored note is named in the log.</span>
   </div>
   <span></span>
 

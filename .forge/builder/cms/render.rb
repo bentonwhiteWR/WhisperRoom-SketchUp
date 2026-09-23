@@ -125,7 +125,9 @@ module WR_CMSRender
     return [] if room.nil?
     walls = room.entities.find { |c| c.is_a?(Sketchup::Group) && c.name == 'Walls' }
     fix = room.entities.find { |c| c.is_a?(Sketchup::Group) && c.name == 'Ceiling fixtures' }
-    (walls ? walls.entities.grep(Sketchup::Group) : []) + [fix].compact
+    f4 = walls && walls.entities.find { |c| c.is_a?(Sketchup::Group) && c.name == 'Wall 4 fittings' }
+    corr = f4 ? f4.entities.select { |c| c.is_a?(Sketchup::Group) && c.name == 'corridor' } : []   # nested; hidden per scene (03-high)
+    (walls ? walls.entities.grep(Sketchup::Group) : []) + [fix].compact + corr
   end
 
   # A page's scene state WITHOUT selecting the page. Selecting it applies the
@@ -222,6 +224,11 @@ module WR_CMSRender
     hdr = path.sub(/\.png\z/i, '.hdr')
     File.delete(hdr) if File.exist?(hdr)
     ok3 = (rend.save_vfb_image(hdr, :skip_alpha => true, :no_alpha => true) rescue "RAISED #{$!.class}")
+    # an ALPHA copy too, saved the way the proposal package saves a transparent run (skip_alpha, no
+    # no_alpha), so a test can check the background stays transparent
+    apng = path.sub(/\.png\z/i, '-alpha.png')
+    File.delete(apng) if File.exist?(apng)
+    (rend.save_vfb_image(apng, :skip_alpha => true) rescue nil)
     { 'png' => ok, 'png_bytes' => (File.exist?(path) ? File.size(path) : -1),
       'exr' => ok2, 'exr_bytes' => (File.exist?(exr) ? File.size(exr) : -1),
       'hdr' => ok3, 'hdr_bytes' => (File.exist?(hdr) ? File.size(hdr) : -1),

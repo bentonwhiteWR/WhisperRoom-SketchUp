@@ -35,6 +35,10 @@ begin
     end
     ps.selected_page = pg
     v.camera = cam
+    # FIRST clear what the page hides NOW (selecting it just re-applied that set); otherwise anything
+    # hidden after the record was written stays hidden and gets stored again (bug found 22 Sep, corridor)
+    now_hidden = ((pg.hidden_entities rescue nil) || []).select(&:valid?)
+    now_hidden.each { |e| e.hidden = false if e.respond_to?(:hidden=) }
     ents = (s['hidden_entities'] || []).map { |h| (m.find_entity_by_persistent_id(h['pid']) rescue nil) }
     out['unfound_entities'] += ents.count(&:nil?)
     ents.compact.each { |e| e.hidden = true if e.respond_to?(:hidden=) }
