@@ -1,5 +1,45 @@
 # DEVLOG
 
+## 2026-09-23 -- People's Space revision (acoustic package, HEPA, MJP) and the Rev4 proposal; accessory importer plan
+
+**Done (live model over the bridge; the working scripts are in `.forge/builder/peoplesspace-ap/`, see its HANDOFF.md).**
+- Client file `Z:/Sketchup/ClientDrawings/PeoplesSpace MDL 96120 E ADA RM VSS WDO RAISED FLOOR AP MJP HEPA.skp`:
+  - MJP inside and outside on the window wall, flush with the ray-tested wall faces.
+  - 4 HEPA filters on the INTAKE duct boxes, butted to the open end. The fan hose passes through 3 of them,
+    which was reported to Benton and accepted as drawn.
+  - The Audimute acoustic package (3 x 2x4, 4 x 1x4, 12 x 1x2) with the 6 foam sheets. Every wall has a 1x2
+    row at the top and bottom with the 48 in band between them, 1 in gaps, and the whole stack 1 in below
+    the ceiling seam seals. The back band is 1x4|foam|2x4|foam|1x4; the side walls match each other. The
+    same layout was copied into the right-door booth copy (Option 2).
+  - New scene `InteriorAcousticRender`, and the booth `Standard Light` V-Ray intensity went from 25 to 35
+    (written inside `scene.change`, so it persists).
+- Proposal Rev4 (13 pages, new interior acoustic page) built by a Builder at
+  `C:/Users/bento/Desktop/ProposalFiles/PeoplesSpace/PeoplesSpace-Booth-Renderings-Rev4.pdf`. The first
+  draft was kept as `...-Rev4-draft1.pdf`.
+- Gabe's link-built booths had no floors or ceilings. The parts were built but sat on tags hidden in his
+  model; the code is fine.
+- Accessory rules from Benton are saved to memory: HEPA on the intake only; SL52 for the 84-series and up,
+  SL29 for the 60-series and down; bass traps in 2-packs; Audimute count per model with no placement pattern.
+
+**Next steps.**
+1. Booth-link importer (`scripts/booth-from-link.rb` ~line 1127 skips `sl`/`ac`/`bt`; `hp` = HEPA):
+   - swap `Standard Light` for SL29/SL52 by model;
+   - place a HEPA on each intake duct box (reuse the `.forge/builder/peoplesspace-ap/hepaout.rb` geometry);
+   - place 2 bass traps in the upper corners by default;
+   - load the Audimute count per model from Benton's table as a staged kit beside the booth (no auto-layout).
+   Parts: `P:/Sketchup/NewMasterComponentList` (SL29, SL52, HEPA, Audimute2x4/1x4/1x2, Bass Trap).
+2. Optional hardening: warn at the end of a build when a tag it placed parts on is hidden (Gabe's case).
+
+**Open decisions (Benton).**
+- SL for MDL 7272 (one SL52?) and MDL 7296 (two SL29?), and the count on the largest booths. The bass-trap
+  counts in the drum and practice packages.
+- People's Space: the Option 2 booth has no MJP or HEPA; the "WhisperRoom Exterior/Interior Dimensions"
+  note gives the interior as 11'5.5" (it should be 9'5.5"); an Audimute panel may cover the cable passage
+  plugs; there is a stray leader on the TopDown scene.
+- `proposals/examples/peoplesspace/proposal-v2.json` holds client material in this PUBLIC repo (CLAUDE.md
+  says per-client configs belong in the private `whisperroom-proposals` repo). It is left uncommitted until
+  Benton decides.
+
 ## 2026-09-22 -- 1.76.1: new skill `whisperroom-photo-job` (client photos to proposal)
 
 **What.** `skills/whisperroom-photo-job/SKILL.md` records how the Community Music School job went from

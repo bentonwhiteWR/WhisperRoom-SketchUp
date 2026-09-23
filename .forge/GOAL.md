@@ -14,9 +14,8 @@ People's Space revision: add the Audimute acoustic package, 4 HEPA filters and a
 4. The .skp is saved only when Benton says so.
 
 ## Now
-Rev4 PDF built (13 pp, `C:/Users/bento/Desktop/ProposalFiles/PeoplesSpace/PeoplesSpace-Booth-Renderings-Rev4.pdf`).
-Waiting on Benton: Option 2 booth copy (pages 8-9) lacks the AP/MJP/HEPA; the note on plates 02/12 gives the wrong
-interior length; a panel may cover the cable passage plugs. See `.forge/builder/HANDOFF.md`.
+DONE for 23 Sep: Rev4 final is on the Desktop (the first draft is kept as -Rev4-draft1). The open decisions are in the
+DEVLOG top entry. Next mission candidate: accessories in the booth-link importer (DEVLOG Next steps 1).
 
 ## Out of scope
 Prices; WhisperRoomQuote (read-only); re-rendering until Benton asks; importer changes before this revision is done.
