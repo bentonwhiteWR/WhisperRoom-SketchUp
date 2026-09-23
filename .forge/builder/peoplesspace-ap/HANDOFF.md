@@ -58,6 +58,8 @@ Then lowered all 25 acoustic pieces 1 in (`ap-lower.rb`) because they hit the ce
 
 Then spread every row 1 in apart, each about its own centre (`ap-spread.rb`); the rows still touch vertically.
 
+Then added scene `InteriorAcousticRender` (`scene-interior.rb`, 11th of 13, before InteriorDims): eye (91.5, 118, 64) in the window corner, aimed at the back-left corner, fov 70, style Interior, tags hidden like OverviewRender plus WR-Notes.
+
 ## Original next steps (Benton, 23 Sep; 1 and 2 done)
 1. **HEPA: flip back 180°** (run `hepaflip.rb` again, which rotates each 180° about its own
    vertical centre). **Then move each one outward along its box axis until it touches the edge of the
