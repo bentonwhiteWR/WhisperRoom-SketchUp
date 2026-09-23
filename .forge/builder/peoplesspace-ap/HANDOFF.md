@@ -56,6 +56,8 @@ raised 3.75 to line up. Panels were pressed so the BODY touches the ray-tested w
 
 Then lowered all 25 acoustic pieces 1 in (`ap-lower.rb`) because they hit the ceiling seam seals.
 
+Then spread every row 1 in apart, each about its own centre (`ap-spread.rb`); the rows still touch vertically.
+
 ## Original next steps (Benton, 23 Sep; 1 and 2 done)
 1. **HEPA: flip back 180°** (run `hepaflip.rb` again, which rotates each 180° about its own
    vertical centre). **Then move each one outward along its box axis until it touches the edge of the
