@@ -28,7 +28,8 @@ Benton decided: booth backs onto the near end wall (photo A camera wall), 18 in 
 into the room; no drum kit; 2 photos only; replicate the room as close as possible.
 
 ## Out of scope
-Building the proposal PDF (Benton does it); prices anywhere; editing `scripts/`; WhisperRoomQuote.
+Building the proposal PDF (Benton does it); prices anywhere; WhisperRoomQuote; editing `scripts/` EXCEPT the
+Benton-approved proposal-package.rb change (16:9 both lanes, forced output size, sidecar cleanup) with VERSION bump.
 
 ## History
 - Paused 22 Sep: WhisperRoom concept art (96120 E loft). Resume: `.forge/builder/concept-art/RESUME.md`.
