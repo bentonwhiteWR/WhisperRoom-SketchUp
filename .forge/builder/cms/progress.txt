@@ -23,3 +23,5 @@ CMS builder progress log (scratch; the HANDOFF.md is the deliverable)
 - 20:30 SCENE-CAMERA FIX (AUTO-SET reaim from clean camera): plates 14.24 -> 35 height, interior 31 -> 70. Backdrop lights halved (#9, #11: 1.92M -> 0.96M). 20:47 ON HOLD per coordinator (V-Ray 'rendering' 20+ min, maybe Benton's). UNSAVED.
 - 21:15 hold lifted (Benton's V-Ray interactive, idleStopped). Saved 21:10 + 21:14:48. Floor-text plan note/labels. 08-interior corner built + tested. Hero re-test after cam fix: framing OK, void 29% (issue C).
 - 21:3x plan layout: Wall A rows 55 in apart, Wall C overall +55, short/closet horizontal strings outside+staggered, plan frame padded. Benton deleted '06-plan r' and '07-interior' himself (19 scenes). Saved.
+- 21:37 09-interior dims built (137.50 x 89.50 IEP faces; catalog has none). WR Lights found hidden everywhere (not us). Saved 21:37:32.
+- 21:40 perimeter in 09 (report-only room contacts). Saved 21:40:14.

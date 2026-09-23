@@ -1,4 +1,19 @@
-# HANDOFF — Community Music School builder (desktop, 22 Sep 2026, 21:30; model saved 21:28:22)
+# HANDOFF — Community Music School builder (desktop, 22 Sep 2026, 21:42; model saved 21:40:14)
+
+**21:40, 18 in clearance perimeter added to "09-interior dims"** (`jobs/perimeter-09.rb`).
+- **Geometry:** the rectangle is 18 in outside the panel faces (X 19.32-163.32, Y 156.74-252.74; the door part is excluded because its leaf stands 1.27 in proud), giving X 1.32-181.32, Y 138.74-270.74. It is dashed, sits in the booth group on tag "CMS Booth 18in Perimeter" (09 only), with 18" dims front and west plus a floor label.
+- **Room contacts (report only):** it lies exactly on Wall D; it crosses Wall A's pilaster and outlet, radiator 1 (3.7 in) and window 1's stool (0.4 in); it is 1.32 in inside Walls A and C. All vent hoods are inside it.
+- **Global tag state:** photo_scenes! re-selects the current scene, so if that is 09, the perimeter and interior-dims tags come back on globally. Turn them off before saving (done).
+
+
+**21:37, scene "09-interior dims" built** (`jobs/scene-09.rb`; interior faces measured by `jobs/interior-faces.rb`). It is a plain image, a parallel top view with no AUTO-SET stamp.
+- **Dims:** interior clear 137.50 x 89.50 in (11' 5 1/2" x 7' 5 1/2") between the IEP inner wall faces. They sit inside the booth group on tag "CMS Booth Interior Dims", which is shown only in 09 and off globally.
+- **Catalog:** models.json has NO interior dims. The model matches wr-booth-data's "IEP room 137.5 x 89.5". Question open to Benton: is there a published figure, and IEP face or foam face?
+- **Hidden in 09:** booth ceilings, ceiling seam seals, Component#127, the room ceiling and fixtures, the light widgets.
+- **Gotchas:** add_dimension_linear inside a group refuses the cpoint-attach form and a zero offset vector. Photo pages return nil for hidden_entities.
+
+**WR Lights tag: hidden globally and in all 18 tagged scenes since about 21:15.** Not done by this run; most likely the package's Draft toggle. Before any V-Ray render, make sure it is visible, or renders come out UNLIT.
+
 
 **21:28, plan text layout fixed** (layout only; values, EST. and the dim set unchanged). Wall A rows are 55 in apart, and Wall C's overall is 55 in outside its chain. Horizontal dims under 40 in put their text outside the segment end; segments under 16 in are staggered 16 in further out. The plan frame is padded. Verified at 2169x859 with 3x crops and at 2400x1800 (paths in the report). **Benton deleted "06-plan r" and "07-interior" himself (19 scenes).**
 
