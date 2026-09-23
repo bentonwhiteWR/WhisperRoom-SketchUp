@@ -54,6 +54,8 @@ middle foam), with 4 x 1x2 above and 4 below. LEFT and RIGHT are identical: 2 x 
 raised 3.75 to line up. Panels were pressed so the BODY touches the ray-tested wall face (moved
 0.12-0.23); the clips sit 0.12 into the wall. Where a panel crosses a seam seal, it rests on the seal.
 
+Then lowered all 25 acoustic pieces 1 in (`ap-lower.rb`) because they hit the ceiling seam seals.
+
 ## Original next steps (Benton, 23 Sep; 1 and 2 done)
 1. **HEPA: flip back 180°** (run `hepaflip.rb` again, which rotates each 180° about its own
    vertical centre). **Then move each one outward along its box axis until it touches the edge of the
