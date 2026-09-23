@@ -64,9 +64,7 @@
         "height": null
       },
       "hidden_tags": null,
-      "hidden_entities": [
-
-      ],
+      "hidden_entities": [],
       "WR_ProposalPackage": null,
       "WR_AutoSet": null,
       "wr_cms": {
@@ -109,9 +107,7 @@
         "height": null
       },
       "hidden_tags": null,
-      "hidden_entities": [
-
-      ],
+      "hidden_entities": [],
       "WR_ProposalPackage": null,
       "WR_AutoSet": null,
       "wr_cms": {
@@ -2272,6 +2268,23 @@
       "wr_cms": {
         "role": "interior-corner"
       }
+    }
+  ],
+  "changes_after_record": [
+    {
+      "at": "2026-09-22 ~21:52",
+      "scene": "01b-angled room r",
+      "change": "ADDED (new in-room hero); not in this record, so scene-restore.rb leaves it alone"
+    },
+    {
+      "at": "2026-09-22 ~21:52",
+      "scene": "08-interior corner",
+      "change": "WR_ProposalPackage ev 14.73 added (mode was already render)"
+    },
+    {
+      "at": "2026-09-22 ~22:00",
+      "scene": "MDL 96144 E (components) 01-angled r",
+      "change": "package mode found ALREADY skip (key absent) at ~22:00 -- set by Benton; confirmed, not changed. Restoring this record puts it back to its 21:48 value."
     }
   ]
 }

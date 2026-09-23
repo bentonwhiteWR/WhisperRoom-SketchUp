@@ -1,4 +1,27 @@
-# HANDOFF — Community Music School builder (desktop, 22 Sep 2026, 21:42; model saved 21:40:14)
+# HANDOFF — Community Music School builder (desktop, 22 Sep 2026, 22:12; model saved 22:11:58)
+
+**22:12 state:**
+- **Rig lights:** ALL 21 are invisible = true and affectReflections = false (lights.rb writes both on every re-place; `jobs/invisible-and-niches.rb`, verified with `jobs/lights-verify.rb` in a later job and after the save).
+- **Intensities changed outside this run** (left alone per Benton): daylight into-room w1/w2 at 888,000; backdrop #19/#21 at 96,000. lights.rb still holds the older values, so a re-place would restore them. ASK Benton before any re-place.
+- **Carpet in both radiator niches:** features.rb `niche_floors!`, applied in place; the floor is one face to X = W+4.
+- **Hero:** 01b-angled room r is the COVER HERO (render, ev 14.73). 01-angled r is skip (Benton), kept. Test: `tests/t01b-angled-room-v3-final.png`.
+
+
+**21:55 state (all saved, check! green, 21 scenes):**
+- **Lights incident:**
+  - Scene 09's stored hidden set hid every light while 09 was active. 09 now hides the WR Lights TAG instead; other scenes restore it.
+  - 2 daylight panels had been deleted between 20:15 and 20:35 (cause unproven).
+  - Re-placed the rig (daylight into-room panels are now Rectangle Light#18/#20, backdrop #19/#21 at 960,000). Ran WR_Mode.to_render headless.
+  - The re-place then lost 5 fill spheres' writes (factory invisible false / intensity 30 = gray balls in renders). Rewritten with `jobs/fill-rewrite.rb`; 21/21 verified in a later job and after the save.
+- **New scene "01b-angled room r":** a hero from inside the room, candidate against 01-angled r (Benton picks). It has no AUTO-SET stamp; mode render, ev 14.73.
+  - Tests: `tests/t01b-angled-room-v2-final.png`, `tests/t01-angled-spheres-fixed-final.png`.
+- **Scene 09:** perimeter is orange #ee6216 dashes (flat strips). Interior numbers confirmed by Benton.
+- **Scene 08:** mode render, ev 14.73.
+- **Revert:**
+  - Scenes: `scene-backup-20260922-2148.json` + `jobs/scene-restore.rb` (`$cms_restore_path`, optional `$cms_restore_only`).
+  - Model: `Z:/.../Community Music School CP SL MDL 96144 E - backup 2026-09-22 2140.skp`.
+  - The WR Lights tag state before the light restore was visible in all 18 tag-storing scenes (from the read-only diag); after it, the same, except 09 hides it.
+
 
 **21:40, 18 in clearance perimeter added to "09-interior dims"** (`jobs/perimeter-09.rb`).
 - **Geometry:** the rectangle is 18 in outside the panel faces (X 19.32-163.32, Y 156.74-252.74; the door part is excluded because its leaf stands 1.27 in proud), giving X 1.32-181.32, Y 138.74-270.74. It is dashed, sits in the booth group on tag "CMS Booth 18in Perimeter" (09 only), with 18" dims front and west plus a floor label.
@@ -95,7 +118,8 @@ Facts, estimates and the built/omitted list are in `clients/community-music-scho
 
 - **V-Ray INTERACTIVE blocks work (Benton's standing rule):** if V-Ray sits in "rendering" well beyond the expected time (1-minute tests finish in about 65 s), it is probably an interactive render. Stop it with `VRay::Command.stop_current_render`, confirm `renderer.state` is idle in a later job, and carry on without asking. Never call `in_process?` / `dr_enabled?`.
 - **Photo-match scenes keep converting in-session:** their aspect-carrying cameras get re-expressed at the window aspect after scene selection or export passes (observed 3 times today). They are "skip" scenes; run `WR_CMS.photo_scenes!` before any save. Aspect-0 height cameras never convert.
-- **First light audit right after a save or render can read short** (19 of 21, twice); a later job reads all 21. Always re-read in a separate job.
+- **A light audit that reads SHORT is REAL, not a race** (21:45: 16 of 21 = 5 fill spheres reverted to factory values). Fix it with `jobs/fill-rewrite.rb` and re-verify in a later job and after a save.
+- **Never hide rig lights as hidden OBJECTS in a scene:** entity hidden flags are global while that scene is active. Hide the WR Lights TAG in the scene instead.
 - **Plan labels and note are FLOOR TEXT** (3D, sized in inches, `dims.rb floor_text`). Screen text is a fixed pixel size and ran over the dims in Benton's wide window. The dimension strings are still screen text, so their spacing was sized for about 1.7 px/in (Benton's window). Any new row needs at least 50 in of clearance at that scale.
 - **Saving:** save with `m.save(m.path)` and `--write-root "Z:/Sketchup/ClientDrawings"`. Never use `file_new`.
 - **Second-press kill (V-Ray light plugins):** removing lights and creating new ones in ONE job kills the new ones. The freed plugin names get reused, and V-Ray's deferred purge-by-name runs after the job.

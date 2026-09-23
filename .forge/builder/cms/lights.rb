@@ -77,7 +77,10 @@ module WR_CMS_Lights
 
   def self.write!(plug, invisible, lm, kelvin)
     rgb = WR_DropLights.kelvin_rgb(kelvin)
-    wants = [[:invisible, invisible], [:units, WR_DropLights::UNITS_LUMENS],
+    # EVERY rig light is camera-invisible AND out of reflections (Benton, 22 Sep: "these lights need to be
+    # transparent" -- the lens rectangles showed on the ceiling and invisible lights showed as discs in the
+    # window glass). The `invisible` argument is kept for the stamp, but the write is always true.
+    wants = [[:invisible, true], [:affectReflections, false], [:units, WR_DropLights::UNITS_LUMENS],
              [:intensity, lm * GAIN], [:color, VRay::Color.new(*rgb)]]
     errs = WR_DropLights.write_params(ctx.scene, plug, wants)
     bad = wants.reject { |k, v| WR_DropLights.read_param(plug, k, v, errs[k])[0] }.map(&:first)
@@ -119,8 +122,10 @@ module WR_CMS_Lights
     fx.each_with_index do |(nm, xa, xb, ya, yb, zb), i|
       c = [(xa + xb) / 2.0, (ya + yb) / 2.0]
       sz = [xb - xa - 0.2, yb - ya - 0.2]   # create_rectangle_light width -> local X, height -> local Y
+      # (was a VISIBLE lens emitter; Benton 22 Sep: the fixture's own geometry is the visible fixture,
+      # so this emitter is now camera-invisible like every other rig light -- same output, same place)
       rows << add(e, :rect, "#{nm} #{i} lens (visible)", Geom::Transformation.translation([c[0], c[1], zb - 0.05]),
-                  false, FIX_LM * VIS_SHARE, FIX_K, sz)
+                  true, FIX_LM * VIS_SHARE, FIX_K, sz)
       rows << add(e, :rect, "#{nm} #{i} emitter", Geom::Transformation.translation([c[0], c[1], zb - 0.55]),
                   true, FIX_LM * (1.0 - VIS_SHARE), FIX_K, sz)
     end

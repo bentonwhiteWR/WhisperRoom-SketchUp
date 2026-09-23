@@ -5,6 +5,11 @@
 - Viewport check at Benton's window size: `compare/viewport-scenes-contact.png`.
 - The fixed scenes need a fresh test before finals; the hero re-test is pending.
 
+**UPDATE 22:10, Benton: "01b-angled room r" is the COVER HERO.**
+- 01b: package mode render, ev 14.73. It is a camera inside the room, all walls shown, no void. Test: `tests/t01b-angled-room-v3-final.png`.
+- "01-angled r": package mode skip (Benton had already set it; the scene is kept). It is logged in the revert record.
+- No image pair was made for 01b: the dimensioned lane is 03-high (image), and the hero lane is a render.
+
 Nothing below has been applied. The scene set, the scene names and every stored mark are exactly what AUTO-SET and the proposal package created. Benton decides.
 
 **Sources:**
@@ -53,7 +58,8 @@ Types: **beauty** (V-Ray, perspective), **dimensioned** (plain SketchUp image wi
 | 5 | 03-side (legacy) | beauty (parallel) | **skip** | Tiny in V-Ray (parallel framing does not carry over); duplicates 04-side. | — | — |
 | 6 | 04-ventilation (legacy) | beauty (parallel) | **skip** | Shows the door side, not the vents; tiny; black slabs. | — | — |
 | 7 | 05-plan (legacy) | plan | **skip** | Same framing, room dims and note as AUTO-SET 06-plan; keep one. | — | — |
-| 8 | MDL 96144 E (components) 01-angled r | beauty | **render — COVER HERO**, `ev` 14.73 | Door, window and entry step face the camera; foam and Audimute visible through the glass; neutral light, no blooms (tuned frame). | *(cover)* `captionLead`: "MDL 96144 E." | "Exterior render in the Community Music School classroom: the door with its window, a second window and the entry step, with the interior foam and panels visible through the glass." |
+| 8a | 01b-angled room r (new) | beauty | **render — COVER HERO** (Benton, 22:10), `ev` 14.73 | Inside the room, every wall shown, no void; the booth's door and window side, the daylit window wall and a fixture. | *(cover)* `captionLead`: "MDL 96144 E." | "The booth in the Community Music School classroom: the door with its window and a second window facing the room, with the classroom's windows beyond." |
+| 8 | MDL 96144 E (components) 01-angled r | beauty | **skip** (was the hero; replaced by 01b; kept) | The camera stands outside the room and sees a black void past the hidden walls. | Door, window and entry step face the camera; foam and Audimute visible through the glass; neutral light, no blooms (tuned frame). | *(cover)* `captionLead`: "MDL 96144 E." | "Exterior render in the Community Music School classroom: the door with its window, a second window and the entry step, with the interior foam and panels visible through the glass." |
 | 9 | MDL 96144 E (components) 01-angled | dimensioned | **skip** | Its height string is clipped at the frame edge; 03-high shows all three strings in full. | — | — |
 | 10 | MDL 96144 E (components) 02-front r | beauty | **render**, `ev` 14.73 | Square-on to the door wall; everything on that wall reads; test clip 1.9 %, acceptable. | "Front View" | "Front view of the door wall: door with window, a second window, and the entry step. Acoustic foam and Audimute panels are visible inside." |
 | 11 | MDL 96144 E (components) 02-front | dimensioned | **skip** | Shows only the width string; 03-high carries all three. | — | — |
@@ -69,7 +75,7 @@ Types: **beauty** (V-Ray, perspective), **dimensioned** (plain SketchUp image wi
 | 20 | MDL 96144 E (components) 07-interior | beauty (interior) | **render**, `ev` 14.73 | Back wall flat-on: acoustic foam with two Audimute panels between the sheets. The test reads well at 14.73; the package default for this name would be EV 9, which would blow it out. | "Interior" | "Interior back wall: acoustic foam with Audimute panels between the sheets." |
 
 Resulting pack, in the house order:
-1. hero, 01-angled r
+1. hero, 01b-angled room r
 2. dimensioned, 03-high image
 3. front, 02-front r
 4. side, 04-side r

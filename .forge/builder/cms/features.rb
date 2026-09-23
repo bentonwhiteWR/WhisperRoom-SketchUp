@@ -518,11 +518,32 @@ module WR_CMS
     cyl(e, 45.0, 86.6, h - 1.6, h, 5.5, @m[:metal], 24)
   end
 
+  # CARPET INTO THE RADIATOR NICHES (Benton, 22 Sep: "no carpet under the radiators"). The shell's floor
+  # face stops at Wall A's line (X = W); each window niche is NICHE_D deep below the stool, so the floor is
+  # extended into it (same Floor group -> same carpet and texture mapping) and the seam with the main floor
+  # is erased so it is one continuous face. The niche baseboard + oak returns are in wall2_fittings!.
+  def self.niche_floors!(root)
+    l, w, = dims
+    fl = root.entities.grep(Sketchup::Group).find { |g| g.name == 'Floor' }
+    return 0 unless fl
+    n = 0
+    WIN.each do |wi|
+      f = fl.entities.add_face([w, wi[:y0], 0], [w + NICHE_D, wi[:y0], 0], [w + NICHE_D, wi[:y1], 0], [w, wi[:y1], 0])
+      next unless f
+      f.reverse! if f.normal.z < 0
+      n += 1
+    end
+    seams = fl.entities.grep(Sketchup::Edge).select { |ed| ed.faces.size == 2 && ed.faces.all? { |ff| ff.normal.z.abs > 0.99 } }
+    fl.entities.erase_entities(seams) unless seams.empty?
+    n
+  end
+
   def self.build_features!(root)
     feature_materials!
     root.entities.grep(Sketchup::Group).find { |gg| gg.name == 'Floor' }&.material = @m[:carpet]
     walls = root.entities.grep(Sketchup::Group).find { |gg| gg.name == 'Walls' }
     we = walls.entities
+    niche_floors!(root)
     wall1_fittings!(we)
     wall2_fittings!(we)
     wall3_fittings!(we)
