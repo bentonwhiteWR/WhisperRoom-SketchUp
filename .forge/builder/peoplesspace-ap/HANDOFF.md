@@ -46,6 +46,14 @@ file is already approved; change only what is inside the booth plus the HEPAs.
   Usable runs are limited by the corner seals: back 107.7, left 83.8.
 - Next: Benton evaluates the layout and the HEPA clash; save only on his word.
 
+## Layout v2 (Benton, 23 Sep) - `ap-v2.rb` then `ap-press.rb`; file still UNSAVED
+Every wall, top down: a 1x2 row at z 69.56-81.56, the 48 band at z 21.56-69.56, and a bottom row at
+z 9.56-21.56. BACK band 1x4|foam|2x4|foam|1x4 (its two outer 2x4s swapped with the side walls'
+middle foam), with 4 x 1x2 above and 4 below. LEFT and RIGHT are identical: 2 x 1x2 on top
+(x 27-75), band foam|2x4|foam (x 15-87), and a 1x4 laid flat below (x 27-75). The right band was
+raised 3.75 to line up. Panels were pressed so the BODY touches the ray-tested wall face (moved
+0.12-0.23); the clips sit 0.12 into the wall. Where a panel crosses a seam seal, it rests on the seal.
+
 ## Original next steps (Benton, 23 Sep; 1 and 2 done)
 1. **HEPA: flip back 180°** (run `hepaflip.rb` again, which rotates each 180° about its own
    vertical centre). **Then move each one outward along its box axis until it touches the edge of the
