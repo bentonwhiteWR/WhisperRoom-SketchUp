@@ -15,7 +15,11 @@
 module WR_CMS
   DDICT = 'wr_cms_dims'.freeze
   DTAG  = 'CMS Room Dims (EST)'.freeze
-  NOTE  = "HOST ROOM DIMENSIONS ESTIMATED FROM CLIENT PHOTOS — NOT FIELD MEASURED (±1 ft)".freeze
+  # Benton, 22 Sep: the top-down view carries this, verbatim.
+  NOTE  = "HOST ROOM DIMENSIONS NOT PROVIDED. ALL ROOM DIMENSIONS ARE ESTIMATED FROM CLIENT PHOTOS (±1 FT) AND MUST BE CONFIRMED ON SITE.".freeze
+  # the same words, broken into lines so the note stays inside the free floor south of the booth
+  NOTE_LINES = ["HOST ROOM DIMENSIONS NOT PROVIDED.", "ALL ROOM DIMENSIONS ARE ESTIMATED", "FROM CLIENT PHOTOS (±1 FT) AND MUST",
+                "BE CONFIRMED ON SITE."].freeze
   SCENES = { 'A' => 'Photo A - long view', 'B' => 'Photo B - corner view' }.freeze
 
   def self.ftin(v)
@@ -111,16 +115,17 @@ module WR_CMS
       # ceiling height (vertical, at corner C/D)
       dline([0.0, l, 0.0], [0.0, l, h], [-30.0, 30.0, 0], 'ceiling height')
       # labels + the plan note
-      label('CORNER B/C', [-thick(4) - 20, -thick(3) - 16, 0])
-      label('CORNER A/B', [w + thick(2) + 4, -thick(3) - 16, 0])
-      label('CORNER A/D', [w + thick(2) + 4, l + thick(1) + 16, 0])
-      label('CORNER C/D', [-thick(4) - 20, l + thick(1) + 16, 0])
-      label("WALL A (exterior, 2 windows)", [w - 95, l / 2 + 40, 0])
-      label("WALL B (closet, whiteboard)", [w / 2 - 30, 18, 0])
-      label("WALL C (entry door)", [8, l / 2 + 40, 0])
-      label("WALL D (booth wall)", [w / 2 - 25, l - 18, 0])
-      label("#{NOTE}\nCeiling height #{ftin(h)} EST. (±6 in).  Scale anchor: fluorescent run of two 4-ft wraparounds = 97 in.",
-            [-thick(4) - 60, -thick(3) - s[2] - 40, 0], 'plan note')
+      # Corner name labels REMOVED (Benton, 22 Sep). The chains still dimension doors and windows
+      # off the room's corners; only the CORNER x/y text is gone.
+      # Wall labels sit on FREE floor or outside the wall: the booth (X 18-164, Y 155-254) covers the
+      # room's north half, and a label under it cannot be read in the top-down scene.
+      label("WALL A (exterior, 2 windows)", [w - 76, 104, 0])
+      label("WALL B (closet, whiteboard)", [w / 2 - 30, 14, 0])
+      label("WALL C (entry door)", [8, 58, 0])
+      label("WALL D (booth wall)", [w / 2 - 25, l + thick(1) + 12, 0])
+      # the plan note: free floor between Wall B's whiteboard and the booth's door swing
+      label("#{NOTE_LINES.join("\n")}\nCeiling height #{ftin(h)} EST. (±6 in).",
+            [22, 92, 0], 'plan note')
       model.commit_operation
     rescue Exception
       model.abort_operation
@@ -153,7 +158,7 @@ module WR_CMS
     mine = ents.select { |e| e.valid? && e.get_attribute(DDICT, 'own', false) }
     dimsn = mine.grep(Sketchup::Dimension)
     bad = dimsn.reject { |d| d.text.to_s.end_with?('EST.') }
-    note = mine.grep(Sketchup::Text).any? { |t| t.text.include?('NOT FIELD MEASURED') }
+    note = mine.grep(Sketchup::Text).any? { |t| t.text.gsub("\n", ' ').include?(NOTE) }
     sc = SCENES.map do |k, name|
       pg = model.pages[name]
       next [name, false] unless pg

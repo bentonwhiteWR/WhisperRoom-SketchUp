@@ -1,6 +1,6 @@
 # Community Music School (Allentown, PA) — MDL 96144 E drum studio renders
 
-**Status: 22 Sep 2026 — room (HANDOFF steps 1–3) built and saved on the desktop; booth next. Every host-room dimension is ESTIMATED
+**Status: 22 Sep 2026, 19:27 — room, booth, lights, scenes and booth dimension images built and saved on the desktop (HANDOFF steps 1–8). V-Ray renders (step 9) are ON HOLD until Benton says go; he is adding his last features first. The 3 x 52 in studio lights are Benton's to load himself.** Every host-room dimension is ESTIMATED
 from two phone photos and has not been confirmed with a tape measure.** Resume from the
 2026-09-22 "Community Music School" entry at the top of `DEVLOG.md`.
 
@@ -140,7 +140,13 @@ triangulation, materials from photo hue):
     sash lock. Frames are dark green-gray.
   - 16 in white reveals, oak stools with aprons, and 4 in radiator niches.
   - Pilaster, 21 in wide and 7 in proud.
-  - Two cream cast-iron radiators (38 in and 44.5 in) with supply risers and valves.
+  - Two cream cast-iron radiators (38 in and 37 in) with supply risers and valves.
+  - **Radiator 2 (under window 2) is at Y 43.5–80.5 by BENTON'S RULING, 22 Sep: "about 1 ft to the right" as seen facing the window wall. This OVERRIDES the photo measurement.** History, all 22 Sep:
+    1. Built at Y 57–101.5 (44.5 in); its north end ran 6.5 in past the niche's north jamb (Y 95).
+    2. Re-triangulated to Y 55–95.
+    3. Re-measured by its relationship to the niche. Photo B: centre 8.5 in north of the niche centre, 2.2 in inset from the N jamb. Photo A: 6.6 in north, −0.6 in. Both read it as about 37 in long. Moved to Y 55.5–92.5.
+    4. Benton then ruled a further 12 in south, to 43.5–80.5 at 37 in long. Its S end is 5.5 in clear of the S niche jamb (Y 38); the supply riser moved with it.
+  - The window 2 niche (Y 38–95) was not moved: the two photos put its N jamb at 94.3 and 97.6, and the model sits between them.
   - 26 paint-splatter decals, recast with joint7 (5 detections that were really the plaque were dropped).
   - Rainbow plaque on the chair rail.
   - Duplex outlet on the pilaster.
@@ -181,4 +187,68 @@ triangulation, materials from photo hue):
   not modelled. Wall A is a single plane plus the pilaster and niches.
 - **Tack strip west end:** out of frame, assumed at 60 in from Wall C.
 - **Colours:** photo hue lifted to plausible reflectances. They are estimates, not paint matches.
-- **Lights, booth, AUTO-SET, renders:** not started. That is HANDOFF steps 4–10.
+- **Renders:** not started. They are on hold for Benton's go-ahead (step 9).
+
+## Booth, lights, scenes, dimension images (HANDOFF steps 4–8, 22 Sep 2026, desktop, observed over the bridge)
+
+**Booth (built).**
+- Source: MDL 96144 E from `?d=b31cfb67e46d`. The payload was the portal's own answer to `GET /api/booth-design/b31cfb67e46d`, and it matches the quote facts above. It was built headless with `booth-from-link.rb` (`.forge/builder/cms/jobs/booth.rb`).
+- Parts: real components only. 79 instances: both shells, door L on S0, WDO3236 on S1, vents on N0/N1/N2/W1, foam and duct covers, the CP9648 caster plate (booth lifted 4.75 in) and the step.
+- Builder flags (13, reported, not errors):
+  - The ENH inner panels read +0.125 to +0.234 in against their slots.
+  - IEP wall lift and vent drop are house defaults; this booth has never been measured.
+  - The caster plates measure 5.37 / 5.44 in against the 5.50 in stack.
+- **NOT built: bass traps (bt).** No `.skp` exists.
+- **Audimute (ac): partly added by hand.** Benton added a 2 x 4 Audimute panel component ("Component#11", 24 x 48 x 1.62 in, [Formica Blue]); the definition is unmodified. His original instance stands in the corridor west of Wall C.
+  - Four copies were added inside the booth group, hangers against the IEP inner wall faces, vertical, in the 24 in foam gaps: back (N) wall x2, E wall x1, W wall x1.
+  - The S door wall has no gap wide enough.
+  - Each N panel touches the duct covers at two corners (0.8 x 0.41 in): the covers straddle every N foam gap and leave 47.2 in for a 48 in panel. Benton accepted the contact.
+  - Whether these four are the full AP 96144 package is not known.
+- **Studio lights (sl): Benton's.** He loaded 3 x "Component#127" (55.2 x 22.3 in) into the booth himself.
+  - The builder refuses `sl`, and this run never searched for the part.
+  - They glow in the V-Ray tests, visible through the booth windows (observed).
+  - Their LED spheres use definition "Sphere Light#8". Its plugin read intensity 243,200, invisible = true, which exactly matches one of this rig's fill values: a possible name collision with a test sphere deleted minutes earlier. **Not edited; Benton to check it in the Asset Editor.**
+- **Foam:** `[Color_I06]` (used only by the Foam definition, checked) is set to neutral gray RGB 96,96,98, because the stock foam renders blue.
+
+**Placement (built, Benton's decision).**
+- Booth-local X 0–146 runs along the door wall; the door and window face south into the room.
+- **Rule (Benton, corrected 22 Sep): 18 in from the booth's STRUCTURE, i.e. the wall-panel exterior faces. Hoods, silencers and seam seals don't count.**
+- North panel face is **18.0 in** off Wall D (before the correction it was 19.0 in; the seam seal was then at 18.0). Seal to Wall D is 17.0 in, and the vent-hood assembly 10.6 in.
+- Panel faces are **19.3 in** off Walls A and C, centred at X 91.3: a 144 in panel span cannot be 18 in from both walls of a 182.6 in room. The W vent hood is 11.9 in off Wall C, and the E seal is 13.3 in from radiator 1's front.
+- The booth is placed by measuring its parts, not the group origin: the group origin was found reset to (0, 0, 6.06) after the dimension tools wrote into it.
+- Top of booth 89.1 in. Ceiling 125.4 in EST, so fixture run 2 clears it by about 32 in.
+- Door swing (29.5 in) plus the step (12 in): the step front is at about Y 144.7 and the floor in front of it is open to Wall B.
+- The tack strip on Wall D is behind the booth.
+
+**Lights (built, and tuned on one hero scene with 800 px V-Ray tests, 22 Sep).**
+- Built by `.forge/builder/cms/lights.rb` using the house tool's own V-Ray primitives (WR_DropLights `create_light` / `create_sphere` / `write_params`). Every figure is product lumens x 320, the tool's calibration.
+- **Render settings the rig was tuned at: EV 14.73 and the V-Ray sun OFF.** `.forge/builder/cms/rt.py --ev 14.73 --sunmult 0` writes both on every frame.
+  - The sun is off because the camera sees through AUTO-SET's hidden walls, which let in a sun wedge the real room cannot get.
+  - The proposal package would render at EV 12 by default and would not turn the sun off (see `.forge/builder/cms/scene-plan.md`).
+- **Room fixtures:** the four existing 4-ft fluorescents. Each has a visible emitter on its lens face at 8% plus an invisible one below it at 92%: 4,000 lm per fixture, 5000 K. The tool's Kelvin conversion reads warm; at 4000 K the foam went brown. No new visible fixtures were added.
+- **Daylight:** per window, an invisible 6500 K panel just inside the glass facing into the room (9,000 lm), and one between the glass and the backdrop lighting the outside view (6,000 lm). The V-Ray sun is not used, because the backdrops sit outside the windows and block it.
+- **Fill:** 8 invisible spheres, 10 in diameter, 5000 K, placed irregularly 43–65 in in front of the door face at heights of 20–88 in. None is closer than 43 in to any wall. Outputs vary per sphere, 600–1,480 lm.
+- **Wall C bounce stand-in:** an invisible 104 x 135 in panel inside Wall C's own thickness (X −2), facing into the room, 3,000 lm.
+  - It stands in for the wall's bounce when a scene hides Wall C; it is sealed in the solid when the wall is shown.
+  - Without it the booth's vent end went black once the sun was off.
+- **Not used from the house tool, and why:**
+  - The office rig's panel grid would add new ceiling fixtures.
+  - Its fill scatter placed 0 of 14 spheres in this room ("nowhere legal").
+  - The key / rim / face-wash roles are photo-studio lighting.
+
+**Scenes (built).** 20 in total:
+- The 2 photo-match scenes, kept. Photo A's camera now stands inside the booth and Photo B's behind it, so neither shows the booth usefully (expected).
+- The proposal package's legacy five (`01-exterior` … `05-plan`, WR_ProposalScenes). Those cameras stand outside the room, so the walls they look through (and the ceiling from above) were hidden per plate so the booth shows.
+- AUTO-SET's 13: `MDL 96144 E (components) 01-angled` … `06-plan`, each as an image plate and an `r` render plate, plus `07-interior`.
+- `CMS Room Dims (EST)` is **shown** in the three top-down scenes (`05-plan`, AUTO-SET `06-plan` and `06-plan r`) and hidden in the other 15 non-photo scenes. The state is stored in each scene.
+- The plan cameras were reframed so every dimension row is in frame; an AUTO-SET "update" with re-aim would undo this, so rerun `jobs/plan-scenes.rb` after one.
+- **Plan note (Benton, verbatim):** "HOST ROOM DIMENSIONS NOT PROVIDED. ALL ROOM DIMENSIONS ARE ESTIMATED FROM CLIENT PHOTOS (±1 FT) AND MUST BE CONFIRMED ON SITE." It sits on clear floor south of the booth.
+- The CORNER name labels were removed (Benton). All 23 EST dims are unchanged; 5 labels remain (4 walls plus the note).
+- Known issue: in `03-high` (ceiling hidden) the visible fixture lens emitters show their black backs from above. Fix proposed in the scene plan, not applied.
+
+**Booth dimension images (built).**
+- Dimension a WhisperRoom, then Rotate once (FR → FL), which puts the set on the west side. The angled, high, side and ventilation cameras all see that side.
+- Measured 12'-7 1/2" x 8'-7 1/2" x 7'-5 1/16", which agrees with the catalogue within 1/4 in (height includes the 4 3/4 in plate).
+- Six viewport exports (not V-Ray), 2400 x 1800, in `Z:\Sketchup\ClientDrawings\Community Music School - renders\dimension-images\`.
+- Known flaw: on `01-angled` the height string is clipped at the left frame edge. The same figure reads in full on `03-high` and `04-side`.
+

@@ -18,8 +18,11 @@ two client photos (`clients/community-music-school/plans/`), no dimensions suppl
 5. Estimate + what didn't build written to `clients/community-music-school/notes.md`; committed.
 
 ## Now
-RESUMED on the desktop 22 Sep; the .skp is open in SketchUp. A Builder is working HANDOFF steps 1-10 in order,
-starting with the photo-A/B camera check and the fit.json vs fit/final_fit.json decision. Resume:
+Room (HANDOFF steps 1-3) DONE and approved by Benton 22 Sep: joint7 fit, EST. dims, photo-match scenes "Photo A - long view" /
+"Photo B - corner view" (commit 9a6ff7c). Booth placed (18 in panel-face off Wall D), 4 Audimute
+panels, radiator 2 moved per Benton's ruling; Benton added the studio lights himself. Now: lighting TEST renders (~800 px
+only) + a scene plan (`.forge/builder/cms/scene-plan.md`: render/skip + text per scene) for Benton to decide. NO final
+renders until he says. Renders go to `Z:/Sketchup/ClientDrawings/Community Music School - renders/`. Resume:
 DEVLOG.md top entry → `.forge/builder/cms/HANDOFF.md` (steps 1-10) with `clients/community-music-school/notes.md`.
 Benton decided: booth backs onto the near end wall (photo A camera wall), 18 in off it, door/window
 into the room; no drum kit; 2 photos only; replicate the room as close as possible.

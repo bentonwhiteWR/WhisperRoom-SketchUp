@@ -229,9 +229,21 @@ module WR_CMS
     WIN.each { |wi| window!(ge, wi) }
 
     # radiators (photo B casts on the radiator front plane; w2 also triangulated):
-    # rad 1 Y 190-228 (38 in), top 26.5; rad 2 Y 57-101.5 (44.5 in), top 25.0
+    # rad 1 Y 190-228 (38 in), top 26.5; rad 2 Y 43.5-80.5 (37 in), top 25.0
+    # rad 2 RE-SEATED 22 Sep, twice, on Benton's word ("too far left" in the photos). Second pass
+    # measured RELATIONSHIPS to its niche on the wall planes, not pixel error:
+    #   photo B: niche jambs 39.3 / 97.6, radiator front 58.7-95.4 -> centre 8.5 in N of the niche
+    #            centre, N end 2.2 in inside the N jamb, S end 19.4 in off the S jamb;
+    #   photo A (grazing, weaker along the wall): jambs 44.2 / 94.3, radiator 56.8-94.9 -> 6.6 in N,
+    #            N end 0.6 in proud of the jamb, S end 12.6 in off it.
+    # Both put it ~37 in long (not 40) and inset from the N jamb (the 55-95 seat was flush with it,
+    # which is what read as "too far left"). Seated at the mean: 7.5 in N of the niche centre, N end
+    # 2.5 in inside the jamb. The niche (38-95) sits between the two photos' jambs and is NOT moved.
     radiator!(ge, 190.0, 228.0, 26.5)
-    radiator!(ge, 57.0, 101.5, 25.0)
+    # BENTON'S RULING, 22 Sep: shift radiator 2 about 1 ft to the RIGHT as seen facing the window wall
+    # (photo B's view) = 12 in SOUTH, 55.5-92.5 -> 43.5-80.5, length kept at 37 in. This OVERRIDES the
+    # photo measurement above. S end 5.5 in clear of the S niche jamb (38); riser at Y 83.1, in the niche.
+    radiator!(ge, 43.5, 80.5, 25.0)
 
     # pilaster outlet (photo B cast on the pilaster face; photo A triangulation agrees on Y)
     plate(ge, 2, 145.5, 17.3, 2.75, 4.5, PIL[:d])

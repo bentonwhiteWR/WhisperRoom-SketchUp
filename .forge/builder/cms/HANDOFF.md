@@ -1,127 +1,72 @@
-# HANDOFF — Community Music School builder (desktop, 22 Sep 2026, 18:50)
+# HANDOFF — Community Music School builder (desktop, 22 Sep 2026, 20:15; model saved 20:15:05)
 
-Steps 1–3 (the room) are DONE and saved. Next run starts at step 4 (booth). Facts, the
-estimate table and the built/omitted list are in `clients/community-music-school/notes.md`.
+Steps 1–8 are DONE and saved, and the hero lighting is tuned on 800 px tests.
+- **STEP 9 (final renders) IS PENDING BENTON'S GO-AHEAD.** He decides from `scene-plan.md`.
+- **The 3 x 52 in studio lights are Benton's.** He loaded them himself; never search for or hand-model the part.
+
+Facts, estimates and the built/omitted list are in `clients/community-music-school/notes.md`.
 
 ## Produced
 
-- **Model:** `Z:/Sketchup/ClientDrawings/Community Music School CP SL MDL 96144 E.skp`, saved via
-  the bridge at 18:47:41 (4.2 MB). Re-checked after the save: `CMS Classroom` present, 23 dims
-  (all ending `EST.`), 9 labels and plan note, and both photo scenes.
-- **Fit:** `fit/joint7.py` → `fit/joint7.json` + `fit/scale_joint7.json` (h = 58.25 in/unit) →
-  `fit.json` (via `fit/export_fit.py joint7.json scale_joint7.json`). The old `fit.json` is kept
-  as `fit/fit_joint6_as_built.json`. The decision table is in notes.md.
-- **Room builder:**
-  - `room.rb` (shell; now calls `features.rb` hooks).
-  - `features.rb`: openings, every fitting, fixtures, materials. Its textures are in `tex/`, and
-    the backdrops are made by `fit/textures.py`.
-  - `dims.rb`: `WR_CMS.room_dims!`, `photo_scenes!` and `check!`.
-- **Tools:**
-  - `fit/crop.py` (gridded photo crops).
-  - `fit/rc.py` (now joint7, plus `tri()`/`showtri()` two-photo triangulation).
-  - `fit/sbs.py` (side-by-side + measured error).
-  - `fit/evalfits.py`, `fit/distort_check.py`.
-  - `jobs/shots.rb` (photo-match shots, dims tag hidden then restored).
-  - `jobs/plan.rb` (top-down plan, fully rolled back).
-- **Deliverables:** `compare/final-A-sidebyside.png`, `compare/final-B-sidebyside.png`,
-  `compare/plan-top-EST.png`, and `final-*-errors.json`. Final measured error, room lines then
-  features, in rms px: A 5.1 / 4.7, B 12.4 / 12.0 (B's rms is mostly the grazing B/C corner line).
-- **Photo-match scenes:** **"Photo A - long view"** and **"Photo B - corner view"**. They are
-  camera only (no tags, style or shadows stored) and are built from `WR_CMS.camera_for` with the
-  fit's fov and aspect.
-  - **The later AUTO-SET step (7) must keep them and must not overwrite them.**
-  - Consider them for renders.
-  - If the fit ever changes, rerun `WR_CMS.photo_scenes!`.
+- **Model:** `Z:/Sketchup/ClientDrawings/Community Music School CP SL MDL 96144 E.skp`, saved via the bridge. After every save `WR_CMS.check!` reads 23 dims (all EST.), 5 labels, the plan note, and both photo scenes.
+- **Booth:** MDL 96144 E from `?d=b31cfb67e46d`.
+  - Build: `jobs/booth.rb`, with the payload pasted in, because the tool's `?d=` path fetches asynchronously.
+  - Foam: `[Color_I06]` set to RGB 96,96,98.
+  - Placement: `jobs/place.rb`. It measures the booth's parts, never the group origin. The north panel face is 18.0 in off Wall D; the panel faces are 19.3 in off Walls A and C.
+- **Audimute:** 4 copies of Benton's "Component#11" inside the booth (`jobs/audimute.rb`).
+- **Radiator 2:** Y 43.5–80.5 by Benton's ruling (`features.rb`; re-seat in place with `jobs/radiator2.rb`). Close-up comparison: `compare/radiator2-closeup.png`, showing the 55.5–92.5 seat, before the ruling.
+- **Lights:** `lights.rb` (`WR_CMS_Lights.place!` / `remove!` / `audit`), run by `jobs/lights.rb`. 21 lights, listed in notes.md. Hero-tuned values are in the constants; the log is in `progress.txt`.
+- **Scenes:** 20 in total.
+  - Photo A/B (kept).
+  - The legacy five (`WR_ProposalScenes`, occluding walls hidden per plate by `jobs/legacy-walls.rb`).
+  - AUTO-SET's 13.
+  - `jobs/plan-scenes.rb` redraws the room dims, shows `CMS Room Dims (EST)` in the 3 plan scenes, hides it in the rest, and reframes the plan cameras.
+- **Room dims:** `dims.rb`. New note text (Benton, verbatim), corner labels removed, wall labels moved onto clear floor.
+- **Dimension images:** `Z:/Sketchup/ClientDrawings/Community Music School - renders/dimension-images/` (6 viewport PNGs, 2400 x 1800).
+- **Render pipeline:** `render.rb` (WR_CMSRender) and `rt.py`.
+  - `rt.py` renders one frame: `python rt.py OUT.png --page "NAME" --w 800 --h 600 --min 1 --thr 0.05 --ev 14.73 --sunmult 0`.
+  - It never overwrites (it appends -2, -3 ...) and hands the frame to `../concept-art/finish.py`.
+  - Tests are in `Z:/.../Community Music School - renders/tests/`.
+- **Hero tuning:** `compare/hero-light-tuning.png` (before vs best), plus the log in `progress.txt`.
+- **Scene plan:** `scene-plan.md`. Contact sheet: `compare/scene-contact-sheet.png` (gitignored; the window backdrops are photo-derived). Builder: `jobs/contact-sheet.py`; batch: `jobs/contact-tests.sh`.
 
 ## Read-first
 
-1. `clients/community-music-school/notes.md`: estimate table, fit decision, built/omitted list.
-2. `features.rb` header (naming rules) and `dims.rb` header (tag choice).
-3. Rebuild everything, room + dims + scenes, in one bridge eval:
-   `$wr_no_autorun=true; load ".../cms/room.rb"; load ".../cms/dims.rb"; WR_CMS.run!; WR_CMS.room_dims!; WR_CMS.photo_scenes!`
-   `run!` erases only `wr_cms` role groups, so the dims (stamp `wr_cms_dims`) and scenes survive it.
+1. `progress.txt` (the hero tuning log), then `scene-plan.md`, then notes.md "Booth, lights, scenes".
+2. `lights.rb` header and `render.rb` (`match_width!` and the reverted-background note).
 
-## Continue in this order (placement-dependent work last)
+## Continue in this order
 
-1–3. DONE (camera check + fit decision, fidelity, EST room dims). Re-verify with
-   `WR_CMS.check!` after every save.
-4. Booth: `scripts/booth-from-link.rb` headless with link `?d=b31cfb67e46d`.
-   - Example call: `.forge/builder/concept-art/booth-build.rb`; cfg dir `P:/Sketchup/NewMasterComponentList`
-     (on this desktop, check which of `P:`/`Z:` resolves).
-   - Inspect `BoothLighting.skp` for the 52 in studio light (×3, on the ceiling panels).
-     WhisperRoomQuote's booth-builder shows where `sl` goes; that repo is read-only. If you
-     can't confirm the part or its position, leave it off. Never hand-model it.
-   - Give the foam a neutral gray, because the stock foam renders as pure blue.
-5. Placement:
-   - Vent (north) face **18 in** off Wall D (Y = L = 270.7), centred on it (X = W/2 = 91.3),
-     with the door and window into the room.
-   - The tack strip on Wall D (X 60–167, Z ~59) ends up behind the booth, which is fine.
-   - Keep the door-swing clearance and the 12 in step clearance from CLAUDE.md.
-   - Check that run 2 of the ceiling fixtures (Y 202–212.5, Z 121) clears the booth top.
-6. Lights: `scripts/wr-drop-lights.rb` headless. Working calls: `.forge/builder/concept-art/drop-lights.rb` and `remove-rig.rb`.
-   - Read `.forge/builder/HANDOFF-lights-api.md` and `HANDOFF-lights-run.md` first.
-   - The visible fixtures are the room's own surface fixtures, and there are TWO types. Run 1
-     (Y 68.5–78.5) is a lensed wraparound; run 2 (Y 202–212.5) is a parabolic egg-crate louver.
-     Their lens/lamp faces are `CMS Fixture Lens`. No extra drums.
-   - Add daylight through the windows. The backdrops (`CMS Backdrop w1/w2`) sit 6 in outside
-     Wall A's exterior face and are plain textured materials, not emitters.
-   - The key light needs 42–96 in of floor in front of the booth door.
-7. Scenes: AUTO-SET, which is Benton's "auto fit". Working calls: `.forge/builder/concept-art/autoset-*.rb`.
-   **Keep "Photo A - long view" and "Photo B - corner view"; never overwrite them.**
-8. Booth dimension images: `scripts/dimension-whisperroom.rb`, then
-   `scripts/rotate-whisperroom-dimensions.rb`, so the set sits on the camera side of each
-   dimensioned view. Both are click tools, so find their headless entry points.
-9. Renders: every scene in V-Ray, through the proposal package export or the concept-art
-   pipeline (`rt.py` / `render.rb` / `finish.py`).
-   - At least 2000 px wide. Never overwrite existing files.
-   - Test at ~800 px; Benton's CPU is shared.
-   - Read every frame.
-   - The room-dims tag `CMS Room Dims (EST)` is NOT a `WR-Dims*` tag, so scene tools that hide
-     dimensions by that name will not hide it. Hide it explicitly in every render scene.
-10. Update `clients/community-music-school/notes.md` with the booth, lights and renders.
+1. Benton reads `scene-plan.md` and the contact sheet, then decides render/skip, EV, and the caption text.
+2. If he approves the fixes proposed there, apply them. The main one: `03-high` shows the lens emitters' black backs.
+3. **Step 9, finals:** render the approved scenes at 2000 px or wider, one at a time. Use `rt.py` (EV 14.73, sun off) or the package with a per-row EV of 14.73 and the sun set off first. Read every frame. Never overwrite.
+4. Step 10: update notes.md with the finals.
 
-## Hazards (all paid for already)
+## Hazards (all paid for)
 
-- **Saving:** the bridge refuses a bare save. Use `m.save(m.path)` with
-  `--write-root "Z:/Sketchup/ClientDrawings"` (worked on the desktop 22 Sep). Never
-  `file_new`, which hangs the bridge on its save prompt.
-- **Modals:** a modal wedges the bridge's `@busy` flag. Load tools with `$wr_no_autorun = true`,
-  pass settings in, and wrap builds in `start_operation` / `abort_operation`.
-- **V-Ray renderer calls:**
-  - Never call `in_process?` or `dr_enabled?`; both raise.
-  - Only `:idleDone` means a frame exists.
-  - Start the render, then poll it in short jobs.
-- **Rolled-back lights:** a rolled-back light drop orphans V-Ray lights, and the next render goes dark.
-- **SketchUp camera FOV:** once `aspect_ratio` is set, `fov` is HORIZONTAL (`room.rb` passes `fov_h`;
-  re-confirmed on the desktop: `fov_is_height?` false for both photos).
-- **Stopping an agent mid-render:** its queued bridge jobs still run later. Check
-  `%LOCALAPPDATA%\WhisperRoom\bridge\SketchUp 2026\in` after stopping one.
-- **Dims vanishing (probable cause, derived):**
-  - The desktop's installed plugin is **1.67.7**, older than the auto-dimension exact-tag fix.
-    Toggling "Dimension the room" there can erase every `WR-Dims*` tag's dimensions.
-  - The room dims therefore live on `CMS Room Dims (EST)`. Keep them off `WR-Dims*` names.
-  - Re-check with `WR_CMS.check!` after every save.
-- **Public repo:**
-  - `compare/` and `tex/backdrop-*` embed or crop the client photos. They are gitignored now; keep it that way.
-  - The photos themselves are copied into the gitignored `clients/community-music-school/plans/`.
-- **Photo A's frame edges carry ~100 px of lens distortion** (kA ≈ 0.075). Trust photo B for
-  wall A, and don't place anything from photo A's outer 10%.
-- **Desktop Python:** OpenCV was missing. `opencv-python-headless` 5.0 is installed with `--user`.
+- **Saving:** save with `m.save(m.path)` and `--write-root "Z:/Sketchup/ClientDrawings"`. Never use `file_new`.
+- **Second-press kill (V-Ray light plugins):** removing lights and creating new ones in ONE job kills the new ones. The freed plugin names get reused, and V-Ray's deferred purge-by-name runs after the job.
+  - Observed today: an in-job audit passed, then all 20 plugins were gone in the next job.
+  - `place!` now places first and reaps last. **Always verify with `WR_CMS_Lights.audit` in a LATER job.**
+- **Never hide the `WR Lights` tag in a job that can raise.** Always use `ensure`. It happened once today (dim-images); the tag was restored.
+- **V-Ray framing:** AUTO-SET's 35 deg lens is applied across the SketchUp window's width (2169 x 859 here). V-Ray keeps the vertical fov, so a 4:3 frame is a 2x crop. `render.rb match_width!` fixes this at render time. The package's own render lane may still crop: unverified.
+- **Environment:** do NOT override the V-Ray background. `override_gi/reflect/refract` are false, so a background write propagates into GI, reflection and refraction (observed, reverted). `bg_tex_color` is left at 0.7: inert, original value not recorded.
+- **Global hidden state:** selecting any AUTO-SET or legacy scene leaves its walls hidden globally, and the photo scenes store no hidden state. `jobs/shots-nobooth.rb` shows every room piece before a photo-match shot.
+- **Never `WR_CMS.run!` now:** a room rebuild makes new wall groups, and every scene's stored hidden walls would point at erased ones. Edit fittings in place, as `jobs/radiator2.rb` does.
+- **Photo scenes after a render test of them, or after reopen:** their cameras come back with aspect 0 and a converted fov, so `check!` flags them. `WR_CMS.photo_scenes!` restores them. Both photo cameras are now inside or behind the booth.
+- **Benton edits live:** re-read the model before each step. He loaded the studio lights and the Audimute panel mid-run.
+- From the earlier run, still true: modals wedge the bridge; never call `in_process?` / `dr_enabled?`; only `:idleDone` means a frame; the desktop plugin is 1.67.7 (`CMS Room Dims (EST)` is kept off `WR-Dims*`); `compare/` and `tex/backdrop-*` are gitignored because they contain photo-derived imagery.
 
 ## Assumptions
 
-- `joint7` was adopted, which deviates from "choose fit.json or final_fit". The task said to
-  pick one of the two; joint7 beats fit.json on every measure and final_fit on room lines in both
-  photos. The numbers are in notes.md.
-- The closet depth (~26 in), the tack strip's west end, window 2's hidden third (assumed 6 × 6),
-  and the corridor volume are assumptions.
-- Wall A is modelled as one plane at the fitted W plus the pilaster and niches. Triangulation hints
-  at 2–6 in offsets between sections that are not modelled.
-- Dimension text shows the inch-rounded value + ` EST.`, which I read as the meaning of "override
-  to EST." (a bare "EST." would drop the number). The model's global precision is left at 1/16 in.
+- **Hero scene = `01-angled r`.** No existing scene shows the door side, the daylit window wall and a fixture together.
+- **Sun off is correct for this room.** The windows are backed by the photo backdrops, so no sun can enter.
+- The fill, daylight and bounce outputs are by eye at 800 px, not measured.
+- Audimute placement is installer judgement; the N-wall contact is accepted by Benton.
+- `Component#11` is taken to be the 2 x 4 Audimute panel.
 
 ## Open-questions
 
-- Should the client be asked for tape figures (length, width, ceiling height)? These are still
-  the biggest risk to anything dimensional in the proposal.
-- `BoothLighting.skp` / 52 in studio light: still unchecked (step 4).
+- **EV and sun for finals:** EV 14.73 with the sun off (this run), versus the package defaults (EV 12, sun untouched).
+- **"Sphere Light#8"** (Benton's studio light LEDs) reads 243,200 / invisible = true. His lights do glow in the tests; he should check the value in the Asset Editor.
+- **Tape figures** for the room: still the biggest dimensional risk.
