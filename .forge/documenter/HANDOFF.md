@@ -1,58 +1,40 @@
-# HANDOFF — Documenter, 1 Sep 2026 evening (DEVLOG for 1.19.3 and the full audit)
+# HANDOFF — Documenter, 22 Sep 2026 late (skill `whisperroom-photo-job`, 1.76.1)
 
 ## Produced
 
-- `DEVLOG.md`, `## 2026-09-01` section, DEVLOG-only change (no source edit, no VERSION
-  bump — VERSION stays 1.19.3):
-  - New `### Two audit findings closed: the lights harness, and shading undone by every
-    scene switch — 1.19.3` at the top of the section, above the 1.19.0 render-lane entry.
-  - New `### The 1 Sep full audit` directly after it.
-  - The section intro sentence extended so it no longer stops at 1.19.2.
-  - `## Next steps` and `## Open decisions` replaced (not appended): next steps are the
-    five unblocked audit fixes Benton has not picked plus his five-minute shading check;
-    open decisions are the audit's five. The three `#3=` format questions are kept as one
-    trailing line, since they are open with the portal's owner, not Benton.
-- Committed with the orchestrator's `.forge/GOAL.md` edit and `.forge/ROLE-documenter-library.md`
-  as `DEVLOG 2026-09-01: 1.19.3 and the full audit`, pushed to `origin/main`.
-  `.forge/auditor/eval-run/` and `.forge/auditor/proposal-run/` left untracked on purpose.
+- `skills/whisperroom-photo-job/SKILL.md`: a new skill covering client photos to proposal.
+  It has the 13-stage concept, "Traps we already paid for" and "How Benton works on these jobs".
+  It points to `whisperroom-takeoff` and `whisperroom-proposal` rather than duplicating them.
+- `scripts/wr_tools/VERSION` 1.76.0 -> 1.76.1, which triggers the update banner.
+- `DEVLOG.md`: a 1.76.1 entry at the top.
+- `python scripts/install-plugin.py` ran without a prompt while SketchUp was open. The skill is
+  installed at `~/.claude/skills/whisperroom-photo-job/SKILL.md` (observed). The SketchUp
+  2024 and 2026 plugin folders were refreshed too; a SketchUp restart picks up the VERSION.
 
-## Read-first (what I verified myself, not relayed)
+## Read-first
 
-- `python scripts/rbtest-lights.py` — PASS 43 + PASS 10, exit 0 (observed).
-- `python scripts/rbtest-proposal.py` — 107 checks ok incl. shade1–4, exit 0 (observed).
-- `python .forge/fixer/repro-shading-contract.py` — with the 1.19.2 `export-scenes.rb`
-  swapped in, shade1/shade2/shade4 FAIL and shade3 ok; with the 1.19.2
-  `proposal-package.rb`, the lift fails by name; with the 1.19.2 `rbtest-lights.py` under
-  the new `rbparse.py`, the error names `WR_DropLights::LUMEN_GAIN`; real tree green
-  (observed). So "red on 1.19.2, green now" is observed, not the Fixer's word.
-- `python scripts/rbparse.py` — 66 files parse (observed).
-- `git log -S LUMEN_GAIN -- scripts/wr-drop-lights.rb` — introduced in 722992c, 1.10.0,
-  **2026-08-31**; `rbtest-lights.py` last touched f80ae5b, 1.9.9, 2026-08-30; 53 commits
-  between 1.10.0 and 14197b9 (observed). **The brief and the Fixer's code comment in
-  `scripts/rbparse.py` say the harness sat red "for two weeks"; the git history says about
-  a day, across 53 commits.** The DEVLOG carries the dated fact. The stale "two weeks" in
-  the `rbparse.py` comment is a source file, so I did not touch it — one-line fix for
-  whoever next edits that file.
-- Audit shape re-counted from `.forge/auditor/full-audit-2026-09-01.md`: 22 numbered
-  findings, HIGH on 1–10 (9 is "HIGH-latent"), five decisions (observed).
+- The skill's sources: `.forge/builder/cms/HANDOFF.md` (hazards),
+  `clients/community-music-school/notes.md`, `.forge/builder/cms/scene-plan.md` and
+  `progress.txt`.
+- Every path and function the skill cites was checked with ls or grep (for example
+  `WR_CMS.photo_scenes!`/`check!`/`floor_text` in `dims.rb`, `niche_floors!` in `features.rb`,
+  `WR_CMS_Lights.place!`/`audit`, and `scripts/booth-from-link.rb`).
 
 ## Assumptions
 
-- "Published as an artifact and emailed to Benton" for the audit is **reported** (the
-  orchestrator's previous GOAL.md text); I did not see the artifact or the email.
-- The Fixer's statement that every other offline harness is green after the `rb_eval`
-  change is **reported**; I re-ran only lights, proposal, the repro and rbparse.
-- The timeline behind the 1.12.9 gap (Update-now at 21:30 on 31 Aug, no restart, SketchUp
-  closed for the 1 Sep pushes) is **reported** from Auditor A via the consolidated report.
-- Live SketchUp Page behaviour on `selected_page=` for shadow info / rendering options
-  remains **assumed** (as the Fixer states); the DEVLOG says so and names Benton's check.
+- Several items came from the coordinator's brief, not from repo files. I could not verify them
+  in the HANDOFF, notes or progress, so the skill attributes them or states them as Benton's
+  rules:
+  - "the dark high and ventilation renders were dropped from the final pack" (attributed in the skill);
+  - "the 86° lens stretches the inside-booth scene" (attributed; the HANDOFF records only the 85.93° height fov);
+  - "include every plate; flatten onto white; keep dims visible over transparency" (stated as the procedure);
+  - "back up before scene-changing rounds" (supported by the HANDOFF's revert records).
+- On the zoom trap, the brief said "stored as HORIZONTAL fov at 2.5:1 (14.24°)". The HANDOFF is
+  more precise: 35° was taken as horizontal, then re-expressed as a 14.24° HEIGHT fov at the
+  2.525:1 window. The skill follows the HANDOFF.
 
 ## Open-questions
 
-- Benton's five-minute check (one scene, shadows ON, SHADING ticked, export as Image; look
-  for shadows and the per-row "shading re-applied" log line) is the only thing standing
-  between "harness green" and "fixed in the model". Recorded as Next steps item 0.
-- The `#3=` open questions and the MJP guessed-8.0 (`axes_for`) item dropped out of the
-  Open decisions block by the brief's instruction; the former survive as one line, the
-  latter lives in the audit as finding 20. If Benton wants them back in the block, that is
-  a two-line edit.
+- CLAUDE.md line ~323 still says the installer carries "currently `whisperroom-proposal` and
+  `whisperroom-takeoff`". I did not edit it because it was outside the commit scope I was given.
+  It is a one-line fix.

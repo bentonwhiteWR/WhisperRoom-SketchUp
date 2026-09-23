@@ -1,5 +1,25 @@
 # DEVLOG
 
+## 2026-09-22 -- 1.76.1: new skill `whisperroom-photo-job` (client photos to proposal)
+
+**What.** `skills/whisperroom-photo-job/SKILL.md` records how the Community Music School job went from
+two client photos with no dimensions to renders and a proposal package, so the next job like it runs the
+same way. Benton: "keep the concept the same and remember the little things we fixed along the way".
+- **The concept, in 13 stages:** orient, camera-fit (judged by measured overlay error on both photos),
+  shell and features, EST. dims with the verbatim plan note, photo-match scenes, the booth from its link,
+  placement to the panel faces, extras, lighting (one hero, one change per test), scenes, the
+  interior-dims scene, the 16:9 package, and the proposal.
+- **"Traps we already paid for":** symptom, cause and fix for each hazard in the job's HANDOFF.
+- It points to `whisperroom-takeoff` (dimensioned plans) and `whisperroom-proposal` (the PDF) and does
+  not duplicate them. The job's tools stay in `.forge/builder/cms/`.
+
+**Ship.** `install-plugin.py` installed it to `~/.claude/skills/` on the desktop. VERSION was bumped
+so other machines see the update banner; they need `git pull` + `install-plugin.py` (Update now).
+Nothing under `scripts/` changed apart from VERSION.
+
+**Known gap.** CLAUDE.md's list of installed skills ("currently whisperroom-proposal and
+whisperroom-takeoff") does not name the new skill yet.
+
 ## 2026-09-22 -- 1.76.0: proposal package plates are ONE fixed 16:9 size, both lanes, forced per render row
 
 **What changed (scripts/proposal-package.rb).** Benton: "make the package change for 16:9. I feel like it
