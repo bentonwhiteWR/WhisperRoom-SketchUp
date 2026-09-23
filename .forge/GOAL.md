@@ -14,8 +14,8 @@ People's Space revision: add the Audimute acoustic package, 4 HEPA filters and a
 4. The .skp is saved only when Benton says so.
 
 ## Now
-Paused for a Forge restart. Resume with `.forge/builder/peoplesspace-ap/HANDOFF.md`, "Next steps":
-first flip the HEPAs back 180 and push them out to the duct-box edge, then place the Audimute panels.
+HEPA butted + Audimute placed (see HANDOFF "Update"). Waiting on Benton: the layout look, and the
+HEPA/hose clash in 3 of 4 sets. File unsaved.
 
 ## Out of scope
 Prices; WhisperRoomQuote (read-only); re-rendering until Benton asks; importer changes before this revision is done.

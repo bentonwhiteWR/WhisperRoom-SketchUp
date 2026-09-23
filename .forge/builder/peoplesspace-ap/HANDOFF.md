@@ -32,7 +32,21 @@ file is already approved; change only what is inside the booth plus the HEPAs.
   - An earlier try butted against the OUTSIDE of the open end (y 62.3–73) and collided with three
     hoses, which is why it was moved inside.
 
-## Next steps (Benton, 23 Sep)
+## Update 23 Sep, after the restart (all observed over the bridge; file still UNSAVED)
+- HEPA: flipped back, then butted 10.7 in outward along each box axis so the end plate touches the
+  open end (`hepaout.rb`); world y 62.3-73. The part is symmetric end to end, so the 180 flip was
+  never visible. **Clash** (`clash.rb`, hose vertices tested against the actual geometry): in 3 of 4
+  sets the fan hose passes through the butted HEPA, 4.6 in deep on the two outer sets and a 1.6 in
+  sliver on the angled one. The fourth set is 2.45 in clear. Awaiting Benton: reroute the hose or accept.
+- Audimute (`audimute.rb`, then `apflip.rb`, whose fabric faces -y local, and `apseat.rb`, gap 0.00),
+  tag `WR-Booth-Acoustic`, top-aligned to ceiling z 81.56, no cuts. BACK: 96 wide at y 17.75-113.75,
+  band 1x4|2x4|2x4|2x4|1x4 plus 2 rows of 4 x 1x2. LEFT: foam band x 15-87 (the 2 left sheets plus 1
+  from the back wall), rows below 1x4 flat + 1x2 staggered. RIGHT (far short wall): the 2 spare 1x2
+  top-aligned, plus the 2nd back-wall foam sheet filling the x 39-63 gap between the existing two.
+  Usable runs are limited by the corner seals: back 107.7, left 83.8.
+- Next: Benton evaluates the layout and the HEPA clash; save only on his word.
+
+## Original next steps (Benton, 23 Sep; 1 and 2 done)
 1. **HEPA: flip back 180°** (run `hepaflip.rb` again, which rotates each 180° about its own
    vertical centre). **Then move each one outward along its box axis until it touches the edge of the
    duct box.** Right now it is "blended into" the box. Read "outward" off the box's own axis `a`
