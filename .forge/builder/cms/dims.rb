@@ -58,6 +58,28 @@ module WR_CMS
     stamp(d, kind)
   end
 
+  # FLOOR TEXT (22 Sep): the wall labels and the plan note are 3D text lying flat on the floor, sized in
+  # INCHES. Screen text (Sketchup::Text) is a fixed pixel size, so in Benton's 2169x859 window (about 2 px
+  # per inch on the plan) the note grew to ~165 in across and ran over WALL A and the dimension text; floor
+  # text scales with the drawing, so it lands the same at every output size. Each block is one group,
+  # stamped like the dimensions (wr_cms_dims own / kind / text) on the CMS dims tag. Left-aligned: `pt` is
+  # the lower-left of the LAST line; `lines` run upward from it in reverse.
+  def self.floor_text(lines, pt, hgt, kind)
+    g = model.entities.add_group
+    y = 0.0
+    lines.reverse_each do |ln|
+      tg = g.entities.add_group
+      tg.entities.add_3d_text(ln, TextAlignLeft, 'Arial', true, false, hgt, 0.0, 0.0, true, 0.0)
+      tg.transform!(Geom::Transformation.translation([0, y, 0]))
+      y += hgt * 1.55
+    end
+    g.transform!(Geom::Transformation.translation([pt[0], pt[1], 0.05]))
+    g.material = (model.materials['CMS Floor Text'] || model.materials.add('CMS Floor Text')).tap { |mm| mm.color = Sketchup::Color.new(20, 20, 20) }
+    stamp(g, kind)
+    g.set_attribute(DDICT, 'text', lines.join(' '))
+    g
+  end
+
   def self.label(txt, pt, kind = 'label')
     t = model.entities.add_text(txt, Geom::Point3d.new(*pt))
     t.display_leader = false rescue nil
@@ -119,13 +141,14 @@ module WR_CMS
       # off the room's corners; only the CORNER x/y text is gone.
       # Wall labels sit on FREE floor or outside the wall: the booth (X 18-164, Y 155-254) covers the
       # room's north half, and a label under it cannot be read in the top-down scene.
-      label("WALL A (exterior, 2 windows)", [w - 76, 104, 0])
-      label("WALL B (closet, whiteboard)", [w / 2 - 30, 14, 0])
-      label("WALL C (entry door)", [8, 58, 0])
-      label("WALL D (booth wall)", [w / 2 - 25, l + thick(1) + 12, 0])
-      # the plan note: free floor between Wall B's whiteboard and the booth's door swing
-      label("#{NOTE_LINES.join("\n")}\nCeiling height #{ftin(h)} EST. (±6 in).",
-            [22, 92, 0], 'plan note')
+      # Floor text, 3.5 in labels / 4 in note. Clear floor only: the booth covers Y 155-254, its step and
+      # door swing reach ~Y 125, the booth width dimension runs near Y 131; Wall B's label sits at the
+      # bottom, the note between it and the door swing.
+      floor_text(["WALL A (exterior, 2 windows)"], [w - 92, 110, 0], 3.5, 'label')
+      floor_text(["WALL B (closet, whiteboard)"], [w / 2 - 42, 8, 0], 3.5, 'label')
+      floor_text(["WALL C (entry door)"], [8, 110, 0], 3.5, 'label')
+      floor_text(["WALL D (booth wall)"], [w / 2 - 30, l + thick(1) + 10, 0], 3.5, 'label')
+      floor_text(NOTE_LINES + ["Ceiling height #{ftin(h)} EST. (±6 in)."], [24, 30, 0], 4.0, 'plan note')
       model.commit_operation
     rescue Exception
       model.abort_operation
@@ -158,7 +181,7 @@ module WR_CMS
     mine = ents.select { |e| e.valid? && e.get_attribute(DDICT, 'own', false) }
     dimsn = mine.grep(Sketchup::Dimension)
     bad = dimsn.reject { |d| d.text.to_s.end_with?('EST.') }
-    note = mine.grep(Sketchup::Text).any? { |t| t.text.gsub("\n", ' ').include?(NOTE) }
+    note = mine.any? { |e| e.get_attribute(DDICT, 'kind') == 'plan note' && e.get_attribute(DDICT, 'text').to_s.include?(NOTE) }
     sc = SCENES.map do |k, name|
       pg = model.pages[name]
       next [name, false] unless pg
@@ -168,7 +191,7 @@ module WR_CMS
        c.fov.round(2) == ref.fov.round(2), c.aspect_ratio.round(4) == ref.aspect_ratio.round(4),
        c.eye.distance(ref.eye).to_f < 0.01]
     end
-    { 'dims' => dimsn.length, 'dims_not_EST' => bad.length, 'labels' => mine.grep(Sketchup::Text).length,
+    { 'dims' => dimsn.length, 'dims_not_EST' => bad.length, 'labels' => mine.count { |e| %w[label plan\ note].include?(e.get_attribute(DDICT, 'kind').to_s) && !e.is_a?(Sketchup::Dimension) },
       'plan_note' => note, 'scenes' => sc }
   end
 end

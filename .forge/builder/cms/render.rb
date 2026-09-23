@@ -157,37 +157,15 @@ module WR_CMSRender
   # near-black at EV 14.73). Restored by bg_tex_tex_on=true (all five read /Environment Sky again).
   # bg_tex_color was left at 0.7 (inert while the texture is on; its original value was not recorded).
 
-  # KEEP THE SCENE'S HORIZONTAL EXTENT AT THE OUTPUT ASPECT (observed 22 Sep): AUTO-SET's 35 deg lens is
-  # applied by SketchUp ACROSS THE WINDOW (2169x859 here: stored height-fov 14.2 = 35 across 2.52:1), and
-  # SketchUp's own image exports keep that width, but V-Ray keeps the vertical fov -- a 4:3 frame came out
-  # a ~2x crop of the booth face. So, at render time only (pages untouched): the view camera's vertical
-  # fov (perspective) or frame height (parallel) is re-solved so the output frame spans the same width.
+  # RENDER = SCENE, NO LENS CORRECTION (changed 22 Sep, after the scene-camera fix). Until then this
+  # re-solved the view fov at render time because the AUTO-SET scenes stored a 14.24 deg height-fov (their
+  # 35 deg lens squeezed by the 2.525:1 window) -- a compensation that hid the scene bug from the tests
+  # while Benton's viewport and the package showed the close-up. The scenes now store AUTO-SET's intended
+  # 35 deg HEIGHT fov (jobs/autoset-reaim.rb), and V-Ray keeps the vertical fov, so the render frames
+  # exactly what the scene does at the output aspect. Report only; the camera is not touched.
   def self.match_width!
-    v = model.active_view
-    so = scene['/SettingsOutput']
-    ow, oh = so[:img_width].to_f, so[:img_height].to_f
-    vw, vh = v.vpwidth.to_f, v.vpheight.to_f
-    c = v.camera
-    if c.perspective?
-      hf = 2.0 * Math.atan(Math.tan(c.fov.degrees / 2.0) * vw / vh)
-      want = (2.0 * Math.atan(Math.tan(hf / 2.0) * oh / ow)).radians
-      x = want
-      3.times do
-        cc = v.camera
-        cc.fov = x
-        v.camera = cc
-        got = v.camera.fov
-        break if (got - want).abs < 0.01
-        x = (2.0 * Math.atan(Math.tan(x.degrees / 2.0) * Math.tan(want.degrees / 2.0) / Math.tan(got.degrees / 2.0))).radians
-      end
-      { 'h_fov' => hf.radians.round(2), 'v_fov_set' => v.camera.fov.round(2), 'want' => want.round(2) }
-    else
-      h0 = c.height
-      cc = v.camera
-      cc.height = h0 * (vw / vh) * (oh / ow)
-      v.camera = cc
-      { 'parallel_height' => [h0.to_f.round(1), v.camera.height.to_f.round(1)] }
-    end
+    c = model.active_view.camera
+    c.perspective? ? { 'v_fov' => c.fov.round(2), 'is_height' => c.fov_is_height? } : { 'parallel_height' => c.height.to_f.round(1) }
   end
 
   # Everything back on, for whoever is watching the viewport.

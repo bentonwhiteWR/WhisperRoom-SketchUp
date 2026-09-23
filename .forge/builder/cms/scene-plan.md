@@ -1,5 +1,10 @@
 # Community Music School — scene plan (proposal for Benton, 22 Sep 2026)
 
+**UPDATE 20:30, scene-camera fix.** The AUTO-SET plates had stored a 14.24 deg lens (a close-up in the viewport). They were re-aimed by AUTO-SET itself and now store its intended 35 deg (07-interior 70).
+- The contact-sheet tests below were rendered with a render-time compensation. They show roughly the framing the fixed scenes now give in a 4:3 frame, but not exactly: the fixed scenes are somewhat wider.
+- Viewport check at Benton's window size: `compare/viewport-scenes-contact.png`.
+- The fixed scenes need a fresh test before finals; the hero re-test is pending.
+
 Nothing below has been applied. The scene set, the scene names and every stored mark are exactly what AUTO-SET and the proposal package created. Benton decides.
 
 **Sources:**
@@ -33,9 +38,7 @@ The proposed text below is for `view` and `caption`, plus `captionLead` for the 
 1. **Set the V-Ray sun off.** It is off in the saved model now, and `rt.py --sunmult 0` sets it on every frame. The package never touches it.
    - With AUTO-SET's hidden walls it throws a sun wedge onto Wall D. The real room cannot get one, because the windows are backed by the photo backdrops.
 2. **Render at EV 14.73**: either the package's `ev` on each render row, or `rt.py --ev 14.73`.
-3. **Framing:** AUTO-SET's lens is applied across the SketchUp window, which is 2169 x 859 here. `rt.py` corrects this for V-Ray at render time.
-   - Whether the package's render lane crops the same way is **unverified**.
-   - Either render finals with `rt.py`, or size the SketchUp window to 4:3 first.
+3. **Framing:** FIXED at the source (the scenes now store a 35 deg height lens). Viewport, package and V-Ray keep the same vertical fov. A 4:3 output shows less width than the very wide 2169 x 859 window, and nothing is cropped vertically.
 
 ## Plan, one row per scene
 
@@ -62,6 +65,7 @@ Types: **beauty** (V-Ray, perspective), **dimensioned** (plain SketchUp image wi
 | 17 | MDL 96144 E (components) 05-ventilation | dimensioned | **skip** | Duplicate camera. | — | — |
 | 18 | MDL 96144 E (components) 06-plan r | plan | **skip** | V-Ray draws no dimensions or notes, and its parallel framing renders the room tiny in a black void. | — | — |
 | 19 | MDL 96144 E (components) 06-plan | plan | **image — CLOSES THE PACK** | Every room dimension is shown, each marked EST., with the note. | "Top-Down Floor Plan" | "Top-down plan of the booth in the classroom. Host room dimensions were not provided: all room dimensions are estimated from client photos (±1 ft) and must be confirmed on site." |
+| 21 | 08-interior corner (new, Benton) | beauty (interior) | **render**, `ev` 14.73 | Photo B's angle from the booth's back corner. Door and window with the classroom readable through both; the Audimute panel and foam read. Watch-out: Benton's studio lights glow lavender and clip the ceiling near them (6.2% clipped at EV 14.73). Not a package row yet (no `mode` set). | "Interior" | "Interior from a back corner of the booth, looking toward the door and window, with the classroom visible through the glass." |
 | 20 | MDL 96144 E (components) 07-interior | beauty (interior) | **render**, `ev` 14.73 | Back wall flat-on: acoustic foam with two Audimute panels between the sheets. The test reads well at 14.73; the package default for this name would be EV 9, which would blow it out. | "Interior" | "Interior back wall: acoustic foam with Audimute panels between the sheets." |
 
 Resulting pack, in the house order:
@@ -81,7 +85,11 @@ Resulting pack, in the house order:
 - **B. Dark rear face in 05-ventilation.**
   - Cause: Wall D is hidden, so the 17 in gap behind the booth gets no bounce.
   - Fix: a Wall D bounce stand-in, the same device as the tuned Wall C one (an invisible panel inside Wall D's thickness, facing the room).
-- **C. Black void where a camera sees past the room's floor edge** (bottom-left of the hero; around the high, plan and legacy views).
+- **C. (NOW THE TOP BLOCKER FOR THE HERO) Black void where a camera sees past the room's floor edge.** After the camera fix the hero is framed correctly and wider, so the void is about 29% of `hero-after-camfix` (left and bottom). Options for Benton:
+  - a hand-set hero camera INSIDE the room, so no walls need hiding (it would not be an AUTO-SET plate);
+  - the sun back on, which brings a light-gray sky background but also the sun wedge;
+  - crop in post.
+- Original note on C: (bottom-left of the hero; around the high, plan and legacy views).
   - Cause: with the sun off, V-Ray's sun-linked sky background is black.
   - A background override was tried in tuning and REVERTED: V-Ray propagated it into the GI and reflection environments.
   - Options: accept it, crop it in post, or tighten the framing.

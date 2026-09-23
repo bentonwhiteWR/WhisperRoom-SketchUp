@@ -52,7 +52,7 @@ module WR_CMS_Lights
   FIX_K  = 5000   # hero tuning i2 (was 4000)
   VIS_SHARE = 0.08
   DAY_IN_LM  = 9000.0
-  DAY_OUT_LM = 6000.0
+  DAY_OUT_LM = 3000.0   # Benton, 22 Sep: halved (was 6000) so the window backdrop detail reads, not blown
   DAY_K = 6500
   WALLC_LM = 3000.0   # hero tuning i4
 

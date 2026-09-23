@@ -252,3 +252,15 @@ triangulation, materials from photo hue):
 - Six viewport exports (not V-Ray), 2400 x 1800, in `Z:\Sketchup\ClientDrawings\Community Music School - renders\dimension-images\`.
 - Known flaw: on `01-angled` the height string is clipped at the left frame edge. The same figure reads in full on `03-high` and `04-side`.
 
+
+## Evening fixes, 22 Sep 2026 (desktop, observed over the bridge; saved 21:14:48, check! green)
+
+- **Scene zoom fixed.**
+  - Cause: the AUTO-SET scenes had stored a 14.24 deg lens, which is their intended 35 deg re-expressed across the 2.525:1 SketchUp window. The interior plate stored 31 deg, its 70 deg squeezed the same way.
+  - Effect: clicking a scene showed a close-up, and the package would have captured one.
+  - Fix: AUTO-SET's own update and re-aim, run from a clean camera. All plates now store 35 / 70 deg as height lenses.
+  - The same conversion keeps hitting the two photo-match scenes, so they are restored before every save.
+- **Window backdrop lights halved** (Benton): V-Ray "Rectangle Light#9" and "#11" (daylight on the w1/w2 backdrops) went from 1,920,000 to 960,000. The window view now holds detail in the hero test.
+- **Plan labels and note are now floor text** (3D, sized in inches), so they never run over the dimensions at any output size. The CORNER labels stay removed.
+- **New scene "08-interior corner"** (Benton): the camera is in the booth's NW back corner, 57.7 in above the booth floor, with photo B's heading 133.9, pitch −11.07, roll −0.34 and lens (85.93 deg height). The 800 px test shows the classroom readable through the window and the door window, and the Audimute panels and foam read. Benton's studio lights glow lavender and clip the ceiling near them.
+- **Scenes: 21**, none deleted.
