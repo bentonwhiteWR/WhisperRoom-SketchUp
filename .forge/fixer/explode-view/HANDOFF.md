@@ -58,3 +58,50 @@ distance from the centre (`reach`). A fan then scaled it about whatever co-plana
   Std skin, that is a new layer offset, not in this change.
 - Radial / Vertical: kept and working, but per-part by design. On a booth they scatter. No booth use
   is known; candidates to hide from the panel.
+
+---
+
+# Round 2 — Benton's decisions (24 Sep 2026, after e480576). Uncommitted, VERSION not bumped.
+
+## Produced
+- `scripts/explode-view.rb`
+  - **Ceiling layer.** booth_plan step 8 (new `subs` argument, `:sub` result, `BP_LAYER` 0.25, `BP_LAYER_GAP` 0.5).
+    A ceiling part holding at least 2 panel-sized children is treated as a layer. It lifts above every
+    other ceiling part (plus 0.25 x travel), and its children open out at half the Std ceiling gap.
+    The children move inside the component by translation only. The vector goes through the parent's
+    inverse transform, because the IEP ceiling sits turned 90 degrees in the booth.
+  - New helpers: `kid_box`, `kids_home` and `placed_copies`. Kids with a home go back to it at the start of
+    every plan (all modes) and on Reset. Measuring a kid writes no attribute; only kids that move get one.
+  - The report names the layer and warns when its definition has more than one placed copy.
+  - **Default Fan 150 -> 200**, in three places: the `@setting` header, `DEFAULTS` and the perform fallback.
+  - Header comment updated: Radial and Vertical are kept as the scatter option.
+- `scripts/rbtest-explode.py`: 8 runs, two new checks.
+  - Check 11: the IEP layer is above the Std ceiling and its pieces open evenly.
+  - Check 12: at the panel's own defaults (read from the `@setting` header), every mid-wall seal is
+    clear of its panels.
+  - IEP piece fixture added.
+- `.forge/fixer/explode-view/dump-iep.rb` and `.forge/fixer/explode-view/iep-ceiling-kids.json`.
+- `.forge/fixer/explode-view/live-check.rb` and `.forge/fixer/explode-view/live-toggle.rb` extended. The toggle
+  test deletes any home attributes it created.
+
+## Verified (observed, live, Benton's model left as found)
+- **144 E at defaults:** 0 new overlaps and 0 overlaps involving the six IEP pieces. The IEP layer's
+  underside is 10.95 in above the Std ceiling's top. Pieces return home exactly.
+- **7272 S at defaults:** 0 new overlaps, and no mid-wall seal is left on its panels.
+- **Toggle path:** the 60 -> 90 -> 60 re-explode is exact, including pieces. Reset with nothing selected
+  returns all parts and pieces home. Radial and Vertical run and reset.
+- **Offline and parse:** `rbtest-explode.py` passes; `rbparse.py` parses all 78 files.
+- **Mutations caught:** Fan 150 fails check 12 on both booths; disabling the layer or its extra lift fails 11.
+- **Shots:** `ev3-144-iso.png`, `ev3-144-high.png` and `ev3-7272-iso.png` in the bridge art folder.
+- **Panel settings:** the live `abilities` data shows mode (choice: Axis/Radial/Vertical), spread (number, 60)
+  and fan (number, 200 after reload). `panel.html` draws number settings as editable text fields. No per-user
+  or shop-default value is stored for this ability on this machine, so the header default is what Benton
+  gets.
+
+## Shared definition
+- `GoPro Iep ceiling (192192) assembled` has 2 instances in this model. The second sits inside
+  `GoPro Ceiling (192192) std/iep/vnt sys#1` -> `12ftx14ftCustom#1` -> `12ftx12ftCustomBoothAssemblyStandardCompleteskp`,
+  which has **0 placed instances**, so nothing visible changes.
+- In general, every placed copy of that definition (e.g. two Enhanced booths sharing it) shows its IEP
+  pieces opened out while one booth is exploded, until Reset. Reset (or re-explode) puts them back for all.
+- The home attributes live on the piece instances inside the definition, so they are shared too.

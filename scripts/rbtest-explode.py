@@ -36,6 +36,10 @@ WHAT IT ASSERTS, per booth:
   8. along each wall, panel columns open by the same gap at every joint
   9. named pairs move together (door leaf with its frame, lockset with door)
  10. the same input gives the same answer, and travel scales with Spread
+ 11. the Enhanced one-piece IEP ceiling lifts ABOVE the Std ceiling and its
+     own six panels open out evenly (it is exploded as a layer of pieces)
+ 12. at the panel's own default Spread / Fan (read from the @setting header),
+     every mid-wall seal is clear of the panels it laps
 
 MUTATION-CHECKED: see .forge/fixer/explode-view/HANDOFF.md for which
 deliberate breaks of booth_plan this was seen to catch.
@@ -81,9 +85,11 @@ module T
     [(0..2).map { |i| b[0][i] + o[i] }, (0..2).map { |i| b[1][i] + o[i] }]
   end
 
-  def self.run(label, rows, spread, fan, want_counts, same)
+  def self.run(label, rows, spread, fan, want_counts, same, subs_by_name = {}, seal_re = nil)
     boxes = rows.map { |r| [r[1], r[2]] }
-    bp = WR_ExplodeView.booth_plan(boxes, spread, fan)
+    subs = {}
+    subs_by_name.each { |nm, kb| subs[rows.index { |r| r[0] == nm }] = kb }
+    bp = WR_ExplodeView.booth_plan(boxes, spread, fan, subs)
     return label + ': FAIL not read as a booth' if bp.nil?
     n = rows.length
     off = bp[:off]
@@ -112,7 +118,9 @@ module T
         fails << "floor moves vertically: #{nm}" if o[2] != 0.0
         fails << "floor drifts #{o[0].round(1)},#{o[1].round(1)}: #{nm}" if o[0].abs > g || o[1].abs > g
       when :ceiling
-        fails << "ceiling lift #{o[2]} != #{d}: #{nm}" if (o[2] - d).abs > 1e-9
+        lay = bp[:sub].key?(i) || (own[i] && bp[:sub].key?(own[i]))
+        fails << "ceiling lift #{o[2]} != #{d}: #{nm}" if !lay && (o[2] - d).abs > 1e-9
+        fails << "ceiling layer lift #{o[2]} < #{d}: #{nm}" if lay && o[2] < d
       when :wall
         u = WR_ExplodeView::OUTWARD[sid[i]]
         out = o[0] * u[0] + o[1] * u[1]
@@ -122,15 +130,78 @@ module T
       fails << "follower off its owner: #{nm}" if own[i] && off[i] != off[own[i]]
     end
 
-    # 6 + 7
-    exp = (0...n).map { |i| moved(boxes[i], off[i]) }
+    # 6 + 7. A one-piece ceiling layer is checked as its PIECES, not as the
+    # single box round them - that box is what it looked like before.
+    hb = []
+    xb = []
+    nms = []
+    kys = []
+    (0...n).each do |i|
+      if bp[:sub].key?(i)
+        subs[i].each_with_index do |kb, j|
+          so = bp[:sub][i][j]
+          hb << kb
+          xb << moved(kb, (0..2).map { |a| off[i][a] + so[a] })
+          nms << "#{rows[i][0]} piece #{j}"
+          kys << 'ceiling layer'
+        end
+      else
+        hb << boxes[i]
+        xb << moved(boxes[i], off[i])
+        nms << rows[i][0]
+        kys << key[i]
+      end
+    end
     newov = []
     cross = []
-    (0...n).each do |i|
-      ((i + 1)...n).each do |j|
-        next unless ov(exp[i], exp[j])
-        newov << "#{rows[i][0]} X #{rows[j][0]}" unless ov(boxes[i], boxes[j])
-        cross << "#{rows[i][0]} [#{key[i]}] X #{rows[j][0]} [#{key[j]}]" if key[i] != key[j]
+    m = hb.length
+    (0...m).each do |i|
+      ((i + 1)...m).each do |j|
+        next unless ov(xb[i], xb[j])
+        newov << "#{nms[i]} X #{nms[j]}" unless ov(hb[i], hb[j])
+        cross << "#{nms[i]} [#{kys[i]}] X #{nms[j]} [#{kys[j]}]" if kys[i] != kys[j]
+      end
+    end
+
+    # 12. Mid-wall seals clear the panels they lap (checked at the panel's
+    # own defaults - Benton, 24 Sep 2026: a seal still lying on its panels
+    # reads as one part in a manual).
+    if seal_re
+      (0...n).each do |i|
+        next unless rows[i][0] =~ seal_re && kind[i] == :wall
+        ax = WR_ExplodeView::OUTWARD[sid[i]][0] == 0.0 ? 0 : 1
+        (0...n).each do |j|
+          next if j == i || kind[j] != :wall || sid[j] != sid[i]
+          next if (boxes[j][1][ax] - boxes[j][0][ax]) < WR_ExplodeView::BP_PANEL_MIN
+          next unless ov(boxes[i], boxes[j])
+          if ov(moved(boxes[i], off[i]), moved(boxes[j], off[j]))
+            fails << "seal still on its panel: #{rows[i][0]} X #{rows[j][0]}"
+          end
+        end
+      end
+    end
+
+    # 11. The one-piece ceiling: found, above every other ceiling part, and its
+    # pieces opened out evenly in both directions.
+    subs.each_key do |ci|
+      unless bp[:sub].key?(ci)
+        fails << "#{rows[ci][0]} not treated as a ceiling layer"
+        next
+      end
+      low = (0...m).select { |q| kys[q] == 'ceiling layer' }.map { |q| xb[q][0][2] }.min
+      high = (0...m).select { |q| kys[q] == 'ceiling' }.map { |q| xb[q][1][2] }.max
+      fails << "ceiling layer not above the Std ceiling (#{low.round(2)} vs #{high.round(2)})" unless low > high
+      [0, 1].each do |a|
+        cs = subs[ci].each_index.map { |j| [((subs[ci][j][0][a] + subs[ci][j][1][a]) * 0.5).round(3), bp[:sub][ci][j][a]] }
+        cols = cs.map { |c| c[0] }.uniq.sort
+        gaps = cols.each_cons(2).map do |c0, c1|
+          a0 = subs[ci].each_index.find { |j| ((subs[ci][j][0][a] + subs[ci][j][1][a]) * 0.5).round(3) == c0 }
+          a1 = subs[ci].each_index.find { |j| ((subs[ci][j][0][a] + subs[ci][j][1][a]) * 0.5).round(3) == c1 }
+          (subs[ci][a1][0][a] + bp[:sub][ci][a1][a]) - (subs[ci][a0][1][a] + bp[:sub][ci][a0][a])
+        end
+        uneven = gaps.any? { |gp| (gp - gaps[0]).abs > 0.05 }
+        fails << "ceiling layer opens unevenly on axis #{a}: #{gaps.map { |gp| gp.round(2) }.inspect}" if uneven
+        fails << "ceiling layer pieces do not open on axis #{a}" if g > 0 && gaps.any? { |gp| gp <= 0.05 }
       end
     end
     fails << "new overlaps (#{newov.length}): #{newov.first(4).join('; ')}" unless newov.empty?
@@ -161,8 +232,9 @@ module T
     end
 
     # 10
-    fails << 'not deterministic' if WR_ExplodeView.booth_plan(boxes, spread, fan)[:off] != off
-    d2 = WR_ExplodeView.booth_plan(boxes, spread * 1.5, fan)[:d]
+    again = WR_ExplodeView.booth_plan(boxes, spread, fan, subs)
+    fails << 'not deterministic' if again[:off] != off || again[:sub] != bp[:sub]
+    d2 = WR_ExplodeView.booth_plan(boxes, spread * 1.5, fan, subs)[:d]
     fails << 'travel does not scale with spread' if (d2 - 1.5 * d).abs > 1e-9
 
     head = format('%s: %d parts, walls out %.1f in, ceiling up %.1f in, joint gap %.1f in',
@@ -170,6 +242,10 @@ module T
     fails.empty? ? head + ' - PASS' : head + ' - FAIL ' + fails.join(' | ')
   end
 
+  SEAL = /mid-?wall ?seam ?seal/i
+  DEF_SPREAD = @@DEF_SPREAD@@
+  DEF_FAN = @@DEF_FAN@@
+  IEP = { 'GoPro Iep ceiling (192192) assembled' => ENH144_IEP_KIDS }.freeze
   ENH_COUNTS = 'ceiling=12 corner=8 floor=34 wall e=10 wall n=11 wall s=15 wall w=10'.freeze
 
   def self.all
@@ -177,12 +253,20 @@ module T
          [['WA door', 'WA door frame with HX'], ['WA IEP door', 'WA door frame with HX'],
           ['Lockset with IEP spacer', 'WA door'],
           ['WA door frame adaptor (right)', 'WA door frame with HX'],
-          ['WA IEP jamb', 'WA door frame with HX']]),
-     run('ENH144 spread 150 fan 0', ENH144, 1.5, 0.0, ENH_COUNTS, []),
-     run('ENH144 spread 20 fan 400', ENH144, 0.2, 4.0, ENH_COUNTS, []),
+          ['WA IEP jamb', 'WA door frame with HX']],
+         IEP),
+     run('ENH144 spread 150 fan 0', ENH144, 1.5, 0.0, ENH_COUNTS, [], IEP),
+     run('ENH144 spread 20 fan 400', ENH144, 0.2, 4.0, ENH_COUNTS, [], IEP),
      # Fan at the tool's own ceiling (1000%): only the gap cap keeps each
      # wall's end panels out of the next wall.
-     run('ENH144 spread 20 fan 1000', ENH144, 0.2, 10.0, ENH_COUNTS, []),
+     run('ENH144 spread 20 fan 1000', ENH144, 0.2, 10.0, ENH_COUNTS, [], IEP),
+     # The same booth with the IEP ceiling left as one piece (no children
+     # offered): must still pass exactly as before the layer rule existed.
+     run('ENH144 no sub-parts', ENH144, 0.6, 1.5, ENH_COUNTS, []),
+     # At the panel's OWN defaults, lifted from the @setting header.
+     run('ENH144 panel defaults', ENH144, DEF_SPREAD, DEF_FAN, ENH_COUNTS, [], IEP, SEAL),
+     run('STD7272 panel defaults', STD7272, DEF_SPREAD, DEF_FAN,
+         'ceiling=3 corner=4 floor=3 wall e=6 wall n=6 wall s=3 wall w=3', [], {}, SEAL),
      run('STD7272', STD7272, 0.6, 1.5,
          'ceiling=3 corner=4 floor=3 wall e=6 wall n=6 wall s=3 wall w=3',
          [['Duct Cover lo  N0', 'N0  46VNT_VSS'], ['Foam  E0', 'E0  46VNT_VSS']])].join("\n")
@@ -208,6 +292,18 @@ def consts(path):
     return '\n'.join(out)
 
 
+def header_defaults(path):
+    """Spread and Fan as the panel will offer them: the @setting defaults."""
+    out = {}
+    for ln in open(path, encoding='utf-8').read().splitlines():
+        m = re.match(r'^# @setting (spread|fan)\s+number\s+(\S+)', ln)
+        if m:
+            out[m.group(1)] = float(m.group(2)) / 100.0
+    if set(out) != {'spread', 'fan'}:
+        raise SystemExit('explode-view.rb: no spread/fan @setting defaults found')
+    return out
+
+
 def main():
     src = os.path.join(HERE, 'explode-view.rb')
     prog = SHIMS + (CHECK
@@ -215,6 +311,8 @@ def main():
                     .replace('@@BOOTH_PLAN@@', method_source(src, 'booth_plan'))
                     .replace('@@BP_SHIFT@@', method_source(src, 'bp_shift'))
                     .replace('@@FIXTURES@@', FIXTURES))
+    for key, val in header_defaults(src).items():
+        prog = prog.replace('@@DEF_%s@@' % key.upper(), repr(val))
     lib = rbparse.boot()
     got = rbparse.rb_eval(lib, prog)
     print('booth_plan: two real booths exploded by assembly')
@@ -227,7 +325,18 @@ def main():
 
 
 # Home boxes, [name, [min xyz], [max xyz]], inches, in each booth's own frame.
+# ENH144_IEP_KIDS are the six panels INSIDE 'GoPro Iep ceiling (192192)
+# assembled', carried into the booth's frame (that component sits turned 90
+# degrees in the booth, so this is not its own local frame).
 FIXTURES = r'''
+  ENH144_IEP_KIDS = [
+    [[62.333, 34.279, 93.563], [110.333, 107.279, 95.313]],
+    [[62.333, 107.279, 93.563], [110.333, 180.279, 95.313]],
+    [[110.333, 34.279, 93.563], [159.333, 107.279, 95.313]],
+    [[110.333, 107.279, 93.563], [159.333, 180.279, 95.313]],
+    [[13.333, 107.279, 93.563], [62.333, 180.279, 95.313]],
+    [[13.333, 34.279, 93.563], [62.333, 107.279, 95.313]],
+  ].freeze
   ENH144 = [
     ['GoPro Iep ceiling (192192) assembled', [13.333, 34.279, 93.563], [159.333, 180.279, 95.313]],
     ['WA door frame with HX', [108.333, 34.779, 2.312], [157.333, 37.529, 93.313]],

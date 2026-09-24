@@ -1,5 +1,44 @@
 # DEVLOG
 
+## 2026-09-24 -- 1.77.4: Exploded view: Enhanced IEP ceiling as its own layer, default Fan 200
+
+Benton's decisions on the 1.77.2 open items, all in `scripts/explode-view.rb`.
+
+**IEP ceiling lifted and opened out.** A ceiling part that holds at least two panel-sized children is
+treated as a LAYER. On an Enhanced booth that is the one-piece `GoPro Iep ceiling (192192) assembled`.
+- It lifts above every other ceiling part, clear by 0.25 x travel (`BP_LAYER`).
+- Its own panels open out at half the Std ceiling's gap (`BP_LAYER_GAP`), so from above the Std panels
+  still show round the IEP ones.
+- Pieces are only TRANSLATED inside the component, never edited. Offsets go through the parent's inverse
+  transform, because the IEP ceiling sits turned 90 degrees in the booth.
+- Moved pieces store their home like every other part. They go home at the start of every plan (any
+  mode) and on Reset, including toggle-off with nothing selected. Measuring writes no attribute; only
+  pieces that move get one.
+- The pure planner gains a `subs` argument and a `:sub` result, still SketchUp-free.
+
+**Shared-definition warning.** Pieces move inside the definition, so every PLACED copy of that ceiling
+opens out until Reset. `placed_copies` counts copies through nesting, and the report warns when there is
+more than one. In Benton's current model the second instance sits in an unplaced library definition, so
+the count is 1.
+
+**Default Fan 150 -> 200** (the `@setting` header, `DEFAULTS` and the perform fallback). At 150 every
+7272 S mid-wall seal still lay on its panels, and so did one IEP seal on the 144 E door frame. At 200 all
+are clear. The 144 E joint gap goes from 9.9 to 13.1 in. No per-user or shop value overrides it on this
+machine.
+
+**Radial / Vertical kept** as the scatter option (Benton). Spread and Fan are confirmed as editable number
+fields in the panel's ability settings.
+
+**Verified live** in Benton's open model, which was left exactly as found:
+- **144 E at defaults:** 0 new overlaps and 0 overlaps involving any IEP piece. The IEP underside is
+  10.95 in above the Std ceiling.
+- **7272 S at defaults:** 0 new overlaps, and no seal is left on a panel.
+- **Toggle path:** re-exploding 60 -> 90 -> 60 is exact, pieces included. Reset returns everything.
+  Radial and Vertical run and reset.
+- **Offline and parse:** `rbtest-explode.py` does 8 runs with two new checks (the IEP layer is above and
+  opens evenly; at the header defaults every mid-wall seal clears its panels). Both new checks were
+  mutation-checked. `rbparse.py` is clean.
+
 ## 2026-09-24 -- 1.77.3: a package link loads its accessories; AP runs automatically after the import
 
 **Ask (Benton).** "When I provide you a floor plan/photos and a booth builder link, it should be able to

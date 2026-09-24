@@ -4,7 +4,7 @@
 # @ability-blurb Pull the selected assembly apart; switch off to put it back.
 # @setting mode   choice  Axis|Radial|Vertical  Direction
 # @setting spread number  60                   Spread (%)
-# @setting fan    number  150                  Fan (%)
+# @setting fan    number  200                  Fan (%)
 # @on  WR_ExplodeView.ability_on(opts)
 # @off WR_ExplodeView.ability_off(opts)
 #
@@ -22,7 +22,11 @@
 #   * each WALL moves straight out along its own outward normal as ONE unit —
 #     door, frame, window, both skins of an Enhanced wall — and its panels open
 #     out along the wall with the same gap at every joint;
-#   * the CEILING lifts straight up, its panels opened out the same way;
+#   * the CEILING lifts straight up, its panels opened out the same way; a
+#     ceiling layer that arrives as ONE assembled piece (the Enhanced IEP
+#     ceiling) lifts clear above the rest and its own panels open out a bit —
+#     moved inside that component, so every placed copy of it opens too until
+#     Reset (the report says so when there is more than one);
 #   * corner seals go out diagonally, clear of both walls they join;
 #   * hardware and trim (seals, strips, locksets, duct covers, brackets) move
 #     with the part they are fixed to, never on their own.
@@ -33,9 +37,8 @@
 # falls back to the older per-part rule: each part along its own flattest axis,
 # with co-planar parts fanned apart (see fan_in_plane).
 #
-# Radial and Vertical are per-part and have no structure. They are kept for
-# small assemblies; on a booth they scatter by design and are not what a manual
-# or a proposal wants.
+# Radial and Vertical are per-part and have no structure: on a booth they
+# scatter, on purpose. Benton keeps them as the scatter option (24 Sep 2026).
 #
 # Pair with Orbit Export for angles: explode, then orbit, and every frame is of
 # the exploded assembly.
@@ -56,7 +59,7 @@ module WR_ExplodeView
     'action' => 'Explode',
     'mode'   => 'Axis (one axis per part)',
     'spread' => '60',
-    'fan'    => '150',
+    'fan'    => '200',
     'frames' => '0',
     'dir'    => 'C:/Users/bento/Desktop/ProposalFiles/PartArt'
   }.freeze
@@ -347,6 +350,9 @@ module WR_ExplodeView
   BP_GAP       = 0.15  # in-plane gap = travel x fan x this
   BP_FLOOR_GAP = 0.35  # the floor opens out this fraction of the wall gap — "slightly"
   BP_CLEAR     = 6.0   # a wall's end panels never slide further than travel - this
+  BP_LAYER     = 0.25  # a one-piece ceiling layer clears the layer below by this x travel
+  BP_LAYER_GAP = 0.5   # ...and opens out this fraction of the ceiling gap ("a bit"), so the
+                       # layer below still shows round its pieces when seen from above
 
   OUTWARD = { :w => [-1.0, 0.0], :e => [1.0, 0.0], :s => [0.0, -1.0], :n => [0.0, 1.0] }.freeze
 
@@ -356,8 +362,10 @@ module WR_ExplodeView
   #   :kind  :floor / :wall / :corner / :ceiling / :attached
   #   :side  :w/:e/:s/:n for a wall part, [sx, sy] for a corner
   #   :owner the part an :attached part follows (nil for the rest)
+  #   :sub   { part index => [[dx, dy, dz] per child] } for a one-piece ceiling
+  #          layer (see step 8); `subs` is { part index => [child boxes] }
   # plus :d (wall/ceiling travel) and :g (in-plane gap between wall panels).
-  def self.booth_plan(boxes, spread, fan)
+  def self.booth_plan(boxes, spread, fan, subs = {})
     n = boxes.length
     return nil if n < 4
     mn  = boxes.map { |b| b[0].map(&:to_f) }
@@ -527,7 +535,44 @@ module WR_ExplodeView
       off[i] = off[best].dup
     end
 
-    { :off => off, :kind => kind, :side => side, :owner => owner, :d => d, :g => g }
+    # 8. A ceiling LAYER that arrives as one assembled piece — the Enhanced IEP
+    # ceiling is a single component holding six panels, lying over the whole
+    # Std ceiling. Moved as one part it cannot open out, and from above it hides
+    # the Std layer. So (Benton, 24 Sep 2026) it lifts ABOVE everything else in
+    # the ceiling, clear by BP_LAYER of the travel, and its own panels open out
+    # "a bit" — BP_LAYER_GAP of the Std ceiling's gap, so from above the Std
+    # panels still show round the edges of the IEP ones. `subs` carries the boxes of each part's
+    # child parts, in this same frame, at home; :sub returns their offsets
+    # RELATIVE TO THE PART (the part itself only lifts).
+    sub = {}
+    layers = (0...n).select do |i|
+      kind[i] == :ceiling && subs[i] &&
+        subs[i].count { |b| (b[1][0] - b[0][0]) >= BP_PANEL_MIN && (b[1][1] - b[0][1]) >= BP_PANEL_MIN } >= 2
+    end
+    unless layers.empty?
+      rest = (0...n).select do |i|
+        o = owner[i]
+        !layers.include?(i) && !layers.include?(o) && (kind[i] == :ceiling || (o && kind[o] == :ceiling))
+      end
+      top = rest.map { |i| mx[i][2] + off[i][2] }.max
+      layers.sort_by { |i| mn[i][2] }.each do |i|
+        lift = top ? top - mn[i][2] + BP_LAYER * d : d
+        lift = d if lift < d
+        kb = subs[i]
+        kk = [0, 1].map do |a|
+          w = kb.map { |b| b[1][a] - b[0][a] }.select { |x| x >= BP_PANEL_MIN }.sort
+          w.empty? ? 0.0 : g * BP_LAYER_GAP / w[w.length / 2]
+        end
+        off[i] = [0.0, 0.0, lift]
+        sub[i] = kb.map do |b|
+          [kk[0] * ((b[0][0] + b[1][0]) * 0.5 - fc[0]), kk[1] * ((b[0][1] + b[1][1]) * 0.5 - fc[1]), 0.0]
+        end
+        (0...n).each { |j| off[j] = off[i].dup if owner[j] == i }
+        top = mx[i][2] + lift
+      end
+    end
+
+    { :off => off, :kind => kind, :side => side, :owner => owner, :d => d, :g => g, :sub => sub }
   end
 
   # How far a wall part slides ALONG its wall. Column k of n moves (k - mid) x g,
@@ -551,7 +596,48 @@ module WR_ExplodeView
     0.0
   end
 
+  # A child part's box in its parent's parent frame (the booth's), AT HOME:
+  # its own home box in the parent's frame, carried through the parent's
+  # transformation, then shifted by however far the parent is from its home.
+  def self.kid_box(par, par_home, kid)
+    t = par.transformation
+    d = par_home - t.origin
+    a = kid.get_attribute(DICT, 'home')
+    kh = a.is_a?(Array) && a.size == 3 ? Geom::Point3d.new(a[0], a[1], a[2]) : kid.transformation.origin
+    kb = home_bounds(kid, kh)   # read only: a home is written only on a piece that moves
+    bb = Geom::BoundingBox.new
+    8.times { |c| bb.add(kb.corner(c).transform(t).offset(d)) }
+    [bb.min.to_a, bb.max.to_a]
+  end
+
+  # Children of a part that carry a home, put back there. Only ever children
+  # this script moved — anything without a home attribute is left alone.
+  def self.kids_home(e)
+    children_of(e).each do |k|
+      a = k.get_attribute(DICT, 'home')
+      move_to(k, Geom::Point3d.new(a[0], a[1], a[2])) if a.is_a?(Array) && a.size == 3
+    end
+  end
+
+  # How many copies of a definition are actually PLACED in the model, counting
+  # through nesting. Moving a piece inside a definition moves it in every one
+  # of these, which is worth saying out loud when it is more than one.
+  def self.placed_copies(defn, depth = 0)
+    return 0 if depth > 8
+    defn.instances.inject(0) do |sum, inst|
+      par = inst.parent
+      sum + (par.is_a?(Sketchup::Model) ? 1 : (par.is_a?(Sketchup::ComponentDefinition) ? placed_copies(par, depth + 1) : 0))
+    end
+  rescue StandardError
+    1
+  end
+
   def self.plan_for(parts, mode, spread, fan = 0.0)
+    # Pieces moved INSIDE a part (a one-piece ceiling opened out) go home first.
+    # A part's bounds include its pieces, so measuring with them still out would
+    # read an opened ceiling as a bigger one — and switching mode without a
+    # Reset must not leave them open.
+    parts.each { |e| kids_home(e) }
     homes = parts.map { |e| [e, home_of(e)] }
 
     # EVERY measurement below is taken from HOME, never from where a part happens
@@ -572,7 +658,15 @@ module WR_ExplodeView
     # including the ones that stay put — a part left out of the plan would keep
     # whatever offset the LAST explode gave it.
     if mode == :axis
-      bp = booth_plan(boxes.map { |b| [b.min.to_a, b.max.to_a] }, spread, fan)
+      subs = {}
+      kidmap = {}
+      homes.each_with_index do |(e, h), i|
+        ks = children_of(e)
+        next if ks.length < 2
+        kidmap[i] = ks
+        subs[i] = ks.map { |k| kid_box(e, h, k) }
+      end
+      bp = booth_plan(boxes.map { |b| [b.min.to_a, b.max.to_a] }, spread, fan, subs)
       if bp
         up = Geom::Vector3d.new(0, 0, 1)
         plan = homes.each_with_index.map do |(e, h), i|
@@ -588,6 +682,20 @@ module WR_ExplodeView
           { :ent => e, :home => h, :dir => dir, :dist => (dir ? bp[:d] : 0.0),
             :off => Geom::Vector3d.new(o[0], o[1], o[2]), :box => boxes[i],
             :group => k, :side => bp[:side][bp[:owner][i] || i] }
+        end
+        # The pieces inside a one-piece ceiling. Their offsets are in the booth's
+        # frame; a piece moves in its PARENT's frame, and the IEP ceiling sits
+        # turned 90 degrees in the booth, so the vector is carried through the
+        # parent's inverse rotation. Translation only, as everywhere here.
+        bp[:sub].each do |i, offs|
+          par = homes[i][0]
+          inv = par.transformation.inverse
+          kidmap[i].each_with_index do |k, j|
+            v = Geom::Vector3d.new(offs[j][0], offs[j][1], offs[j][2]).transform(inv)
+            plan << { :ent => k, :home => home_of(k), :dir => nil, :dist => 0.0,
+                      :off => v, :box => nil, :group => :ceiling_piece, :side => nil,
+                      :shared => placed_copies(par.definition) }
+          end
         end
         return [plan, centre, size, bp]
       end
@@ -736,7 +844,7 @@ module WR_ExplodeView
     # 0 is a legitimate fan — it is the old sheet-of-panels behaviour — so only
     # a negative or a silly number falls back to the default.
     fan    = cfg['fan'].to_f / 100.0
-    fan    = 1.5 if fan < 0 || fan > 10
+    fan    = 2.0 if fan < 0 || fan > 10   # the @setting default; 200 clears a Std mid-wall seal
     frames = cfg['frames'].to_i
     frames = 0 if frames < 0 || frames > 60
 
@@ -747,7 +855,7 @@ module WR_ExplodeView
       # Straight home, with no planning at all: a reset must never depend on
       # classifying the parts the same way the explode did.
       plan = ps.map { |e| { :ent => e, :home => home_of(e) } }
-      plan.each { |p| move_to(p[:ent], p[:home]) }
+      plan.each { |p| move_to(p[:ent], p[:home]); kids_home(p[:ent]) }
       model.commit_operation
       puts ''
       puts "EXPLODED VIEW — reset #{plan.size} part(s) to home, #{cleared} leader group(s) removed"
@@ -788,6 +896,7 @@ module WR_ExplodeView
         label = case k
                 when :wall then "wall #{s.to_s.upcase}"
                 when :corner then 'corner seals'
+                when :ceiling_piece then 'ceiling layer pieces'
                 when nil, :attached then 'unplaced (stays)'
                 else k.to_s
                 end
@@ -800,8 +909,17 @@ module WR_ExplodeView
       puts format('  walls out %.1f", ceiling up %.1f", floor stays; %.1f" gap at every wall joint',
                   bp[:d], bp[:d], bp[:g])
       puts ''
-      groups.sort.each { |k, v| puts format('    %-18s %d part(s)', k, v) }
+      groups.sort.each { |k, v| puts format('    %-20s %d part(s)', k, v) }
       puts '  (seals, strips and hardware are counted with the part they move with)'
+      unless bp[:sub].empty?
+        puts ''
+        puts "  #{bp[:sub].size} one-piece ceiling layer(s) lifted above the rest and opened out."
+        shared = plan.map { |p| p[:shared].to_i }.max.to_i
+        if shared > 1
+          puts "  NOTE: that ceiling is a component placed #{shared} times in this model. Its pieces"
+          puts '  moved inside the definition, so every copy shows them opened out until Reset.'
+        end
+      end
       puts ''
       puts '  Reset puts every part back exactly; re-exploding measures from home.'
       puts ''

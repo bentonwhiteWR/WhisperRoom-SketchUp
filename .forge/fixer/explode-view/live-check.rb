@@ -71,10 +71,29 @@ begin
       hidden.each { |e| e.visible = true }
     end
   end
+  # Ceiling-layer pieces, in the booth frame, exploded: clear of each other and
+  # above every other ceiling part?
+  pcs = plan.select { |p| p[:group] == :ceiling_piece }
+  if pcs.any?
+    kb = pcs.map do |p|
+      t = ps.find { |e| e.definition.name =~ /Iep ceiling/ }.transformation
+      bb = Geom::BoundingBox.new
+      8.times { |c| bb.add(p[:ent].bounds.corner(c).transform(t)) }
+      [bb.min.to_a.map(&:to_f), bb.max.to_a.map(&:to_f)]
+    end
+    others = ps.each_index.reject { |i| plan[i][:ent].definition.name =~ /Iep ceiling/ rescue false }
+    out['layer_pieces'] = pcs.length
+    out['layer_piece_overlaps'] = kb.combination(2).count { |a, b| ov(a, b) } +
+                                  kb.sum { |a| others.count { |i| ov(a, exp[i]) } }
+    ceil_top = ps.each_index.select { |i| plan[i][:group] == :ceiling && plan[i][:ent].definition.name !~ /Iep ceiling/ }.map { |i| exp[i][1][2] }.max
+    out['layer_bottom_minus_std_ceiling_top'] = (kb.map { |b| b[0][2] }.min - ceil_top).round(2)
+    out['layer_shared_copies'] = pcs.first[:shared]
+  end
   # reset path: every part exactly home?
   WR_ExplodeView.place(plan, 0.0)
   back = boxes(ps)
   out['max_home_err'] = ps.length.times.map { |i| (0..1).map { |k| (0..2).map { |a| (back[i][k][a] - home[i][k][a]).abs }.max }.max }.max
+  out['pieces_home_err'] = pcs.map { |p| (p[:ent].transformation.origin - p[:home]).length.to_f }.max if pcs.any?
 ensure
   m.abort_operation
   v.camera = saved_cam
