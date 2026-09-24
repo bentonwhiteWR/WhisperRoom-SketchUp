@@ -17,14 +17,25 @@
 # homes travel with it.
 #
 # AXIS mode is the default and it is the one that reads properly in a manual.
-# Parts move along ONE axis each — off the face they are flattest against — so a
-# booth's panels come straight off their walls and the ceiling straight up.
-# Radial drift looks fine in a viewport and awful on a page.
+# On a BOOTH it works by assembly, not by part (see booth_plan):
+#   * the FLOOR stays where it is, its pieces opened out a little in-plane;
+#   * each WALL moves straight out along its own outward normal as ONE unit —
+#     door, frame, window, both skins of an Enhanced wall — and its panels open
+#     out along the wall with the same gap at every joint;
+#   * the CEILING lifts straight up, its panels opened out the same way;
+#   * corner seals go out diagonally, clear of both walls they join;
+#   * hardware and trim (seals, strips, locksets, duct covers, brackets) move
+#     with the part they are fixed to, never on their own.
+# Spread (%) sets how far walls and ceiling travel; Fan (%) sets how far apart
+# the parts WITHIN a wall, floor or ceiling open (0 keeps each one a sheet).
 #
-# On top of that outward move, parts that share a wall FAN apart from each other
-# in the plane of that wall (see fan_in_plane). Without it a wall slides away as
-# one sheet and its own panels never separate, which is the thing that made the
-# first version of this look wrong.
+# Anything that does not read as a booth — no floor/walls around a footprint —
+# falls back to the older per-part rule: each part along its own flattest axis,
+# with co-planar parts fanned apart (see fan_in_plane).
+#
+# Radial and Vertical are per-part and have no structure. They are kept for
+# small assemblies; on a booth they scatter by design and are not what a manual
+# or a proposal wants.
 #
 # Pair with Orbit Export for angles: explode, then orbit, and every frame is of
 # the exploded assembly.
@@ -308,6 +319,238 @@ module WR_ExplodeView
     end
   end
 
+  # ------------------------------------------------------- booth structure --
+  #
+  # WHY THIS EXISTS. The per-part rule below (direction + fan_in_plane) gave
+  # every part its OWN travel: distance grew with how far the part sat from the
+  # centre, direction came from its own flattest axis, and the fan scaled it
+  # about whatever run it fell into. On a real booth (144144 E, Sep 2026) that
+  # meant the three panels of one wall went out 127, 144 and 134 in and slid
+  # +20, +64 and -23 in along it; the open door leaf — thinnest in X — was sent
+  # east as if it were an E-wall panel while its frame went south; the six
+  # ceiling panels lifted anywhere from 103 to 133 in; the floor dropped over
+  # 100 in and fanned 30-40 in sideways. No wall read as a wall.
+  #
+  # So a booth is planned as assemblies. Everything here is PURE — arrays of
+  # [min, max] home boxes in, offsets out, no SketchUp API — so it runs outside
+  # SketchUp (scripts/rbtest-explode.py lifts these methods verbatim).
+  #
+  # All of it is in the parent's frame, which for a booth is the booth's own
+  # axes: walls run along X and Y there whatever way the booth is turned in the
+  # model.
+
+  BP_SMALL     = 12.0  # no bigger than this in any direction: hardware, follows its owner
+  BP_PANEL_MIN = 15.0  # a wall part at least this wide along the wall is a panel; seals are 2-12.3
+  BP_TALL      = 0.4   # of the assembly height: a part this tall is wall
+  BP_WIDE      = 0.35  # of the smaller plan side: a flat part this wide is floor or ceiling
+  BP_REACH     = 0.5   # wall/ceiling travel = spread x this x the booth's biggest dimension
+  BP_GAP       = 0.15  # in-plane gap = travel x fan x this
+  BP_FLOOR_GAP = 0.35  # the floor opens out this fraction of the wall gap — "slightly"
+  BP_CLEAR     = 6.0   # a wall's end panels never slide further than travel - this
+
+  OUTWARD = { :w => [-1.0, 0.0], :e => [1.0, 0.0], :s => [0.0, -1.0], :n => [0.0, 1.0] }.freeze
+
+  # Offsets for a booth, or nil when the parts do not read as one. `boxes` is
+  # [[min xyz], [max xyz]] per part AT HOME. Returns a hash of parallel arrays:
+  #   :off   [dx, dy, dz] per part
+  #   :kind  :floor / :wall / :corner / :ceiling / :attached
+  #   :side  :w/:e/:s/:n for a wall part, [sx, sy] for a corner
+  #   :owner the part an :attached part follows (nil for the rest)
+  # plus :d (wall/ceiling travel) and :g (in-plane gap between wall panels).
+  def self.booth_plan(boxes, spread, fan)
+    n = boxes.length
+    return nil if n < 4
+    mn  = boxes.map { |b| b[0].map(&:to_f) }
+    mx  = boxes.map { |b| b[1].map(&:to_f) }
+    ext = (0...n).map { |i| (0..2).map { |a| mx[i][a] - mn[i][a] } }
+    ctr = (0...n).map { |i| (0..2).map { |a| (mx[i][a] + mn[i][a]) * 0.5 } }
+    lo  = (0..2).map { |a| mn.map { |p| p[a] }.min }
+    hi  = (0..2).map { |a| mx.map { |p| p[a] }.max }
+    h   = hi[2] - lo[2]
+    return nil if h < 1.0
+    plan_min = [hi[0] - lo[0], hi[1] - lo[1]].min
+
+    # 1. What each part IS, from its shape and height. Floor and ceiling parts
+    # must be flat (Z their thinnest axis) as well as wide: a door threshold is
+    # low and long but thinnest across the wall, and belongs to the door.
+    kind = Array.new(n, :attached)
+    (0...n).each do |i|
+      e = ext[i]
+      next if e.max <= BP_SMALL
+      if e[2] >= BP_TALL * h
+        kind[i] = :wall
+      elsif e[2] <= [e[0], e[1]].min && [e[0], e[1]].max >= BP_WIDE * plan_min
+        rel = (ctr[i][2] - lo[2]) / h
+        kind[i] = :floor   if rel < 0.25
+        kind[i] = :ceiling if rel > 0.75
+      end
+    end
+
+    # 2. The footprint the walls stand round: the floor's, else the ceiling's,
+    # else the walls' own. NOT the whole assembly's — an open door leaf or a
+    # duct stack standing proud would pull the centre off.
+    src = (0...n).select { |i| kind[i] == :floor }
+    src = (0...n).select { |i| kind[i] == :ceiling } if src.empty?
+    src = (0...n).select { |i| kind[i] == :wall } if src.empty?
+    return nil if src.empty?
+    f0 = [0, 1].map { |a| src.map { |i| mn[i][a] }.min }
+    f1 = [0, 1].map { |a| src.map { |i| mx[i][a] }.max }
+    fc = [0, 1].map { |a| (f0[a] + f1[a]) * 0.5 }
+    fh = [0, 1].map { |a| [(f1[a] - f0[a]) * 0.5, 1.0].max }
+
+    # 3. Which wall each tall part belongs to — by WHERE it stands relative to
+    # the footprint, not by which way it is thin. A door leaf standing open is
+    # thin across the wall it hangs in; its position still says which wall.
+    side = Array.new(n)
+    (0...n).each do |i|
+      next unless kind[i] == :wall
+      u = (ctr[i][0] - fc[0]) / fh[0]
+      v = (ctr[i][1] - fc[1]) / fh[1]
+      if u.abs < 0.5 && v.abs < 0.5
+        kind[i] = :attached            # free-standing inside the room
+        next
+      end
+      pmax = [ext[i][0], ext[i][1]].max
+      pmin = [[ext[i][0], ext[i][1]].min, 0.01].max
+      if pmax < 2.0 * pmin && u.abs > 0.75 && v.abs > 0.75
+        kind[i] = :corner
+        side[i] = [u < 0 ? -1.0 : 1.0, v < 0 ? -1.0 : 1.0]
+      elsif u.abs >= v.abs
+        side[i] = u < 0 ? :w : :e
+      else
+        side[i] = v < 0 ? :s : :n
+      end
+    end
+    walls = [:w, :e, :s, :n].select { |sd| side.include?(sd) }
+    return nil if walls.length < 2
+
+    # 4. Travel and gap.
+    base = [2.0 * fh[0], 2.0 * fh[1], h].max
+    d = spread.to_f * BP_REACH * base
+    g = d * fan.to_f * BP_GAP
+
+    # 5. Each wall's panel columns along it. Outer panel, inner skin panel and
+    # anything else as wide that stands over the same stretch are ONE column,
+    # so the two skins of an Enhanced wall open out together and stay aligned.
+    cols = {}
+    walls.each do |sd|
+      ax  = OUTWARD[sd][0] == 0.0 ? 0 : 1
+      mem = (0...n).select { |i| kind[i] == :wall && side[i] == sd }
+      pan = mem.select { |i| ext[i][ax] >= BP_PANEL_MIN }.sort_by { |i| ctr[i][ax] }
+      cl = []
+      pan.each do |i|
+        a0 = mn[i][ax]
+        a1 = mx[i][ax]
+        hit = cl.find do |c|
+          ov = [a1, c[3]].min - [a0, c[2]].max
+          ov >= 0.5 * [a1 - a0, c[3] - c[2]].min
+        end
+        if hit
+          hit[0] = [hit[0], a0].min
+          hit[1] = [hit[1], a1].max
+        else
+          cl << [a0, a1, a0, a1]
+        end
+      end
+      cols[sd] = [ax, cl.sort_by { |c| c[0] + c[1] }]
+    end
+    # A wall's end panels must stay inside its neighbours' travel, or they
+    # would slide into the next wall. Cap the gap rather than the travel —
+    # Spread is the number the user asked for.
+    most = cols.values.map { |c| c[1].length }.max.to_i
+    g = [g, (d - BP_CLEAR) / ((most - 1) * 0.5)].min if most > 1
+    g = 0.0 if g < 0.0
+
+    off = Array.new(n) { [0.0, 0.0, 0.0] }
+    (0...n).each do |i|
+      if kind[i] == :wall
+        sd = side[i]
+        ax, cl = cols[sd]
+        off[i] = [OUTWARD[sd][0] * d, OUTWARD[sd][1] * d, 0.0]
+        off[i][ax] += bp_shift(cl, ctr[i][ax], g)
+      elsif kind[i] == :corner
+        sx, sy = side[i]
+        xw = sx < 0 ? :w : :e          # the wall this corner closes in X...
+        yw = sy < 0 ? :s : :n          # ...and in Y
+        # Out with BOTH walls, and along each as far as that wall's end panel,
+        # so it sits off the corner clear of the two it joins.
+        ex = cols[yw] ? bp_shift(cols[yw][1], ctr[i][0], g) : 0.0
+        ey = cols[xw] ? bp_shift(cols[xw][1], ctr[i][1], g) : 0.0
+        off[i] = [sx * d + ex, sy * d + ey, 0.0]
+      end
+    end
+
+    # 6. Floor and ceiling open out about the footprint centre. Scaling keeps
+    # every piece in order and only ever widens a gap, so it cannot make a new
+    # overlap; dividing by the typical panel size makes the gap about the same
+    # between rows as between columns.
+    [[:floor, g * BP_FLOOR_GAP, 0.0], [:ceiling, g, d]].each do |k, gap, lift|
+      mem = (0...n).select { |i| kind[i] == k }
+      next if mem.empty?
+      kk = [0, 1].map do |a|
+        w = mem.map { |i| ext[i][a] }.select { |x| x >= BP_PANEL_MIN }.sort
+        w.empty? ? 0.0 : gap / w[w.length / 2]
+      end
+      mem.each do |i|
+        off[i] = [kk[0] * (ctr[i][0] - fc[0]), kk[1] * (ctr[i][1] - fc[1]), lift]
+      end
+    end
+
+    # 7. Everything else follows the part it is fixed to: the one its box
+    # overlaps most (touching counts), else the nearest. Owners are never
+    # themselves followers, so nothing chains and nothing is left behind.
+    anchors = (0...n).reject { |i| kind[i] == :attached }
+    owner = Array.new(n)
+    (0...n).each do |i|
+      next unless kind[i] == :attached
+      best = nil
+      bv = 0.0
+      bd = nil
+      anchors.each do |j|
+        vol = 1.0
+        gap2 = 0.0
+        (0..2).each do |a|
+          o = [mx[i][a], mx[j][a]].min - [mn[i][a], mn[j][a]].max
+          vol *= [o + 0.25, 0.0].max
+          gap2 += o * o if o < 0
+        end
+        if vol > bv
+          best = j
+          bv = vol
+        elsif bv == 0.0 && (bd.nil? || gap2 < bd)
+          best = j
+          bd = gap2
+        end
+      end
+      next if best.nil?
+      owner[i] = best
+      off[i] = off[best].dup
+    end
+
+    { :off => off, :kind => kind, :side => side, :owner => owner, :d => d, :g => g }
+  end
+
+  # How far a wall part slides ALONG its wall. Column k of n moves (k - mid) x g,
+  # so every joint opens by the same g. A part standing over a column (panel,
+  # window, door leaf) moves with it exactly; one standing in a joint (a seal)
+  # moves in proportion across the gap, which keeps it centred in the widened
+  # joint; anything beyond the ends moves with the end column.
+  def self.bp_shift(cl, c, g)
+    k = cl.length
+    return 0.0 if k.zero?
+    mid = (k - 1) * 0.5
+    cl.each_with_index { |col, j| return (j - mid) * g if c >= col[0] && c <= col[1] }
+    return -mid * g if c < cl[0][0]
+    return mid * g if c > cl[k - 1][1]
+    (0...(k - 1)).each do |j|
+      a = cl[j][1]
+      b = cl[j + 1][0]
+      next unless c > a && c < b
+      return (j - mid + (c - a) / (b - a)) * g
+    end
+    0.0
+  end
+
   def self.plan_for(parts, mode, spread, fan = 0.0)
     homes = parts.map { |e| [e, home_of(e)] }
 
@@ -324,6 +567,31 @@ module WR_ExplodeView
     boxes.each { |b| bb.add(b) }
     centre = bb.center
     size   = bb.diagonal.to_f
+
+    # A booth is planned by assembly (booth_plan). Every part gets a plan entry,
+    # including the ones that stay put — a part left out of the plan would keep
+    # whatever offset the LAST explode gave it.
+    if mode == :axis
+      bp = booth_plan(boxes.map { |b| [b.min.to_a, b.max.to_a] }, spread, fan)
+      if bp
+        up = Geom::Vector3d.new(0, 0, 1)
+        plan = homes.each_with_index.map do |(e, h), i|
+          o = bp[:off][i]
+          k = bp[:kind][i]
+          k = bp[:kind][bp[:owner][i]] if k == :attached && bp[:owner][i]
+          dir = case k
+                when :wall
+                  s = bp[:side][bp[:owner][i] || i]
+                  Geom::Vector3d.new(OUTWARD[s][0], OUTWARD[s][1], 0)
+                when :ceiling then up
+                end
+          { :ent => e, :home => h, :dir => dir, :dist => (dir ? bp[:d] : 0.0),
+            :off => Geom::Vector3d.new(o[0], o[1], o[2]), :box => boxes[i],
+            :group => k, :side => bp[:side][bp[:owner][i] || i] }
+        end
+        return [plan, centre, size, bp]
+      end
+    end
 
     vecs = boxes.map { |b| b.center - centre }
     far  = vecs.map { |v| v.length.to_f }.max
@@ -348,7 +616,7 @@ module WR_ExplodeView
     # sliding panels sideways there would be answering a question nobody asked.
     fan_in_plane(plan, size, spread * fan) if mode == :axis
 
-    [plan, centre, size]
+    [plan, centre, size, nil]
   end
 
   # Leader lines are gone as a feature, but models drawn before they were
@@ -435,7 +703,10 @@ module WR_ExplodeView
         if e.get_attribute(DICT, 'home').is_a?(Array)
           found << e
         else
-          kids = (e.respond_to?(:entities) ? e.entities : nil) rescue nil
+          # entities_of, not respond_to?(:entities): a ComponentInstance keeps
+          # its parts on its definition, so a booth that is a component was
+          # never searched and switching Exploded off put nothing back.
+          kids = entities_of(e)
           scan.call(kids, depth + 1) if kids
         end
       end
@@ -472,10 +743,11 @@ module WR_ExplodeView
     model.start_operation(reset ? 'Reset assembly' : 'Exploded view', true)
     cleared = clear_leaders(model)
 
-    plan, centre, size = plan_for(ps, mode, spread, fan)
-
     if reset
-      place(plan, 0.0)
+      # Straight home, with no planning at all: a reset must never depend on
+      # classifying the parts the same way the explode did.
+      plan = ps.map { |e| { :ent => e, :home => home_of(e) } }
+      plan.each { |p| move_to(p[:ent], p[:home]) }
       model.commit_operation
       puts ''
       puts "EXPLODED VIEW — reset #{plan.size} part(s) to home, #{cleared} leader group(s) removed"
@@ -484,6 +756,7 @@ module WR_ExplodeView
       return true
     end
 
+    plan, _centre, size, bp = plan_for(ps, mode, spread, fan)
     place(plan, 1.0)
     model.commit_operation
 
@@ -496,7 +769,7 @@ module WR_ExplodeView
     end
 
     model.active_view.zoom_extents
-    report(plan, mode, spread, fan, size, cleared, swept, cfg['dir'])
+    report(plan, mode, spread, fan, size, cleared, swept, cfg['dir'], bp)
     true
   rescue StandardError => e
     model.abort_operation if model
@@ -506,7 +779,35 @@ module WR_ExplodeView
     false
   end
 
-  def self.report(plan, mode, spread, fan, size, cleared, swept, dir)
+  def self.report(plan, mode, spread, fan, size, cleared, swept, dir, bp = nil)
+    if bp
+      groups = Hash.new(0)
+      plan.each do |p|
+        k = p[:group]
+        s = p[:side]
+        label = case k
+                when :wall then "wall #{s.to_s.upcase}"
+                when :corner then 'corner seals'
+                when nil, :attached then 'unplaced (stays)'
+                else k.to_s
+                end
+        groups[label] += 1
+      end
+      puts ''
+      puts 'EXPLODED VIEW — booth'
+      puts ''
+      puts "  #{plan.size} parts, spread #{(spread * 100).round}%, fan #{(fan * 100).round}%"
+      puts format('  walls out %.1f", ceiling up %.1f", floor stays; %.1f" gap at every wall joint',
+                  bp[:d], bp[:d], bp[:g])
+      puts ''
+      groups.sort.each { |k, v| puts format('    %-18s %d part(s)', k, v) }
+      puts '  (seals, strips and hardware are counted with the part they move with)'
+      puts ''
+      puts '  Reset puts every part back exactly; re-exploding measures from home.'
+      puts ''
+      return
+    end
+
     axes = Hash.new(0)
     plan.each do |p|
       d = p[:dir]

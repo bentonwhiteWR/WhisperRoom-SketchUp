@@ -1,5 +1,58 @@
 # DEVLOG
 
+## 2026-09-24 -- 1.77.2: Exploded view explodes a booth by assembly, not by part
+
+**Symptom (Benton, screenshots).** Exploding a WhisperRoom booth gave a scramble. Wall panels crossed, each
+wall's inner and outer skins interpenetrated, the door frame was left behind by its door, the floor scattered
+sideways, the ceiling panels piled up at different heights, and seals flew off on their own.
+
+**Root cause.** `explode-view.rb` planned every part alone. Direction came from the part's own thinnest axis,
+distance grew with its distance from the centre (`reach`), and then a fan scaled it about whatever co-planar
+run it fell into. Measured on a live 144144 E at spread 60 / fan 150:
+- the three E-wall panels went out 127, 144 and 134 in and slid +20, +64 and -23 in along the wall;
+- the open door leaf (thinnest in X) went +X like an E-wall panel while its frame went -Y;
+- the ceiling panels lifted anywhere from 103 to 133 in;
+- the floor dropped 105 to 131 in and fanned 30 to 41 in sideways.
+
+A second bug: `homed_parts` only descended into things that `respond_to?(:entities)`. A ComponentInstance does
+not, so switching Exploded off with nothing selected never found the parts of a component booth.
+
+**Fix.** Axis mode now plans a booth by assembly: new pure `booth_plan` / `bp_shift` plus the `BP_*` constants.
+Parts are classified by shape and by position against the footprint (floor, ceiling, each wall), not by
+orientation.
+- The **floor** stays at its height and opens out slightly and evenly.
+- Each **wall** goes out along its outward normal by one distance, door, window and both Enhanced skins
+  included. Panel columns along the wall open by the same gap at every joint, and the gap is capped so a
+  wall's end panels never reach the next wall.
+- **Corner seals** go out diagonally.
+- The **ceiling** lifts by the same distance and opens out evenly.
+- **Seals, strips, locksets, brackets and duct covers** move exactly with the part they overlap most.
+
+Assemblies that do not read as a booth fall back to the old per-part rule, unchanged. Reset now moves each
+part straight to its stored home without planning, and `homed_parts` uses `entities_of`. Spread sets the wall
+and ceiling travel; Fan sets the in-plane gap. The `@setting` header is unchanged.
+
+**Verified live over the bridge**, in Benton's open model:
+- **144144 E** (one component, 100 parts) and **7272 S** (builder group, 28 parts): 0 new overlaps and 0
+  overlaps between different groups. Every surviving overlap also exists assembled (door on frame, skin on
+  skin, seal on its panel).
+- **Toggle path**: explode at 60, re-explode at 90, back at 60 gives identical positions (6e-14). Reset with
+  nothing selected returned all 100 parts home (2e-13). Radial and Vertical still run and reset exactly.
+- **Offline**: `scripts/rbtest-explode.py` lifts the planner verbatim and runs 10 assertions on both booths
+  at five spread/fan settings. It was mutation-checked: five deliberate breaks, all caught.
+- `rbparse.py` is clean.
+- Repro jobs and notes: `.forge/fixer/explode-view/`.
+
+**Open.**
+- The Enhanced IEP ceiling is one assembled piece. It lifts with the Std ceiling panels but does not open
+  out, and from above it hides the Std layer. Stacking the layers, or exploding into that shared definition,
+  is Benton's call.
+- At default Fan the Standard mid-wall seals still lap their panels by about 0.1 in. Raise Fan (or
+  `BP_GAP`) if they should read fully clear.
+- Radial and Vertical are per-part by design and scatter a booth. They are candidates to hide from the panel.
+- The travel and gap constants are the fixer's choice, not Benton's. A booth rotated inside its container is
+  untested.
+
 ## 2026-09-24 -- 1.77.1: new skill `whisperroom-acoustic-package` (Audimute AP laid out in a booth)
 
 **What.** `skills/whisperroom-acoustic-package/SKILL.md` teaches a session to load the Acoustic Package into a
