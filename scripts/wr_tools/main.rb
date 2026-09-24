@@ -62,7 +62,7 @@ module WhisperRoom
     # package window rather than from a button of its own (1.48.0).
     SKIP     = ['wr_tools.rb', 'wr-booth-data.rb', 'wr-shading.rb',
                 'wr-folder.rb', 'wr-deck.rb', 'wr-overlays.rb',
-                'wr-roof-vent.rb', 'wr-bridge-lib.rb',
+                'wr-roof-vent.rb', 'wr-accessories.rb', 'wr-bridge-lib.rb',
                 'wr-png-srgb.rb', 'wr-scene-sun.rb', 'wr-autoset.rb'].freeze
     PREF_KEY = 'WR_Tools'.freeze
     RECENT_N = 5

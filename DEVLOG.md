@@ -1,5 +1,41 @@
 # DEVLOG
 
+## 2026-09-24 -- 1.77.0: booth-from-link places studio lights, HEPA and bass traps from the quote
+
+**What.** `scripts/booth-from-link.rb` no longer refuses `sl` / `bt`, and now reads `hp` (it was silently
+dropped before). New pure library `scripts/wr-accessories.rb` holds the tables and plan rules (in wr_tools'
+SKIP); `scripts/wr-overlays.rb` places the parts (`place_studio_lights`, `place_hepa`, `place_bass_traps`),
+fenced, after the roof unit and before the caster lift. Parts load from the parts folder: `SL29`, `SL52`,
+`HEPA`, `Bass Trap` (filenames checked on P:).
+- **Studio lights (sl):** the booth's Standard Light fixtures (everything on the `WR Lights` tag inside the
+  new booth group) are removed and the packing-list count goes in, from `sl_by_model` in
+  `WhisperRoomQuote/lib/pl-data/feature-rules.json`, embedded with its source named (7272 = 1 x SL52,
+  7296 = 2 x SL29, 96120 = 2 x SL52, 96144 = 3 x SL52). Top flush to the standard ceiling tile underside,
+  the same datum as the Standard Light. The PLAN layout is assumed: spaced evenly along the long axis,
+  laid across the booth when it clears 6 in each side, otherwise along it.
+- **HEPA (hp):** placed ONLY on a seated roof unit, one per `VSS duct box` directly inside the RM part,
+  with the People's Space geometry (butted to the open end, filter up). A WALL-vented booth is refused by
+  name, with the vent walls and the count: the intake box inside a vent-wall part has never been measured.
+- **Bass traps (bt):** 2 per pack. The link carries `bt` as a bare flag, so packs come from the link's
+  package `pk` via the quote builder's `PRESET_QTY_OVERRIDES` (Practice/Recording 3, Drum 4, else 1). A
+  hand-edited quote quantity is NOT in the link; the console says so. Standing in the upper interior
+  corners, back corners (opposite the door) first, top against the lowest deck part overhead (ceiling
+  tile, IEP tray or ceiling seal). A 5th+ trap starts a second tier under the first (assumed).
+- **MDL 127 LP** is refused by name for every accessory; an unknown model is refused by name for sl.
+- **Audimute (ac) is still refused**, by name: staged kit beside the booth vs the People's Space wall
+  layout is Benton's decision, pending. `AP_PACKAGES` is not embedded yet.
+
+**Verified.** `rbparse.py`: 78 files parse. New `scripts/rbtest-accessories.py`: 43 checks pass, plus drift
+checks against feature-rules.json and quote-builder.html (mutation-checked: a changed 7272 row and a
+changed Drum Studio count both fail). `rbtest-overlays`, `rbtest-boothlink-cbl`, `rbtest-boothlink-v3`,
+`rbtest-roofvent`, `rbtest-part-orientation` pass. `rbtest-lights` exits 1 on HEAD as well (pre-existing).
+**NOT RUN IN SKETCHUP**: the bridge was down. Nothing in the placement half has been seen in a model.
+
+**Check on the first live build** (a link with sl + bt, and an RM + VSS link with hp):
+the studio-light orientation and spacing; that the old Standard Lights are gone; Bass Trap.skp's authored
+orientation (its low-x/low-y corner is assumed to be the back corner, and z up); traps against corner posts
+and seals (the summary names any bounding-box overlap); the HEPA seat on an RM part other than RM96120VSS.
+
 ## 2026-09-23 -- People's Space revision (acoustic package, HEPA, MJP) and the Rev4 proposal; accessory importer plan
 
 **Done (live model over the bridge; the working scripts are in `.forge/builder/peoplesspace-ap/`, see its HANDOFF.md).**

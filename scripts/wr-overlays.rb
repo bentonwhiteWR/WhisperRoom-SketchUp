@@ -63,6 +63,14 @@
 #               manifest is missing the same sizes) refuses BY NAME and the
 #               booth is NOT lifted. The vent-wall _CP art swap is separate
 #               and already handled by booth-from-link.rb.
+#   ACCESSORIES payload sl / hp / bt (1.77.0). The counts and plan rules live
+#               in wr-accessories.rb (pure, rbtest-accessories.py); the
+#               placing is place_studio_lights / place_hepa /
+#               place_bass_traps below. Studio lights REPLACE the Standard
+#               Light fixtures; HEPA is built only on a seated roof unit's
+#               intake boxes (wall-vented booths are refused by name); bass
+#               traps stand in the upper interior corners. Audimute (ac) is
+#               not built yet — booth-from-link refuses it by name.
 #
 # THE STEP (payload sp) BUILDS SINCE 1.45.0 — see place_step and the STEP_*
 # constants. It was refused by name from 1.9.x to 1.43.0 for want of two
@@ -1278,6 +1286,34 @@ module WR_Overlays
       placed += place_roof_unit(model, booth, key, spec, cfg, cache, t_opt, warns)
     end
 
+    # -------------------------------- quote accessories (sl / hp / bt) --
+    #
+    # AFTER the roof unit, because a roof-mounted booth's HEPAs go on its
+    # intake boxes, and BEFORE the caster plate, so the booth lift carries them
+    # up with everything else. Each is FENCED like the step: a broken
+    # accessory is a missing accessory, said by name in the build summary,
+    # never a booth grounded on the wrong datum. The rules and tables are in
+    # wr-accessories.rb; this file only places.
+    acc = [['studio_light', 'STUDIO LIGHTS (sl)'], ['hepa', 'HEPA (hp)'],
+           ['bass_traps', 'BASS TRAPS (bt)']]
+    acc.each do |k, label|
+      next unless ov[k]
+      begin
+        placed += case k
+                  when 'studio_light'
+                    place_studio_lights(model, booth, key, cfg, cache, deck, warns)
+                  when 'hepa'
+                    place_hepa(model, booth, key, spec, cfg, cache, panels, t_opt, warns)
+                  else
+                    place_bass_traps(model, booth, key, cfg, cache, panels, centre, ph,
+                                     t_opt, warns)
+                  end
+      rescue StandardError => e
+        warns << "#{label} NOT placed: raised #{e.class}: #{e.message}. Report this."
+        puts((e.backtrace || []).first(4).map { |l| "    #{l}" }.join("\n"))
+      end
+    end
+
     # --------------------------------------- caster plate + the booth lift --
     casters_in = false
     if ov['casters_plate']
@@ -1422,6 +1458,375 @@ module WR_Overlays
     at = add(booth, defn, tr, "#{name} roof unit", layer)
     puts "    #{at}"
     1
+  end
+
+  # ---- quote accessories: studio lights, HEPA, bass traps -----------------
+  #
+  # The counts, tables and plan rules are WR_Accessories (wr-accessories.rb,
+  # pure, tested outside SketchUp by rbtest-accessories.py). What is here is
+  # only the SketchUp half: load the part, measure it, put it where the plan
+  # says. Every refusal goes into `warns`, which build_booth prints in its
+  # flagged-items summary, so nothing asked for goes missing quietly.
+
+  # A part's measured box (geom_extents) turned by `rot`, as [min, max] per axis.
+  def self.turned_span(gx, rot)
+    xs = []
+    ys = []
+    zs = []
+    [gx[:lo], gx[:hi]].each do |px|
+      [gx[:lo], gx[:hi]].each do |py|
+        [gx[:lo], gx[:hi]].each do |pz|
+          q = Geom::Point3d.new(px[0], py[1], pz[2]).transform(rot)
+          xs << q.x.to_f
+          ys << q.y.to_f
+          zs << q.z.to_f
+        end
+      end
+    end
+    [[xs.min, xs.max], [ys.min, ys.max], [zs.min, zs.max]]
+  end
+
+  def self.quarter_turn(k)
+    Geom::Transformation.rotation(Geom::Point3d.new(0, 0, 0),
+                                  Geom::Vector3d.new(0, 0, 1), (90 * k).degrees)
+  end
+
+  # STUDIO LIGHTS (payload sl). The booth's blank Standard Light fixtures
+  # (BoothLighting.skp, one per standard ceiling tile — build_booth's lighting
+  # pass) come OUT and the packing list's studio lights go IN: SL29 / SL52, the
+  # count from sl_by_model. Hung the same way the Standard Light is: top flush
+  # to the standard ceiling tile's underside (the deck's measured CL bounds),
+  # on the same WR Lights tag so the Draft/Render toggle still hides them.
+  # Only the plan layout is assumed — see WR_Accessories::SL_EDGE_CLEAR.
+  def self.place_studio_lights(model, booth, key, cfg, cache, deck, warns)
+    plan = WR_Accessories.sl_plan(key)
+    puts ''
+    puts '  ---- studio lights (sl) ' + '-' * 52
+    if plan[:error]
+      warns << "STUDIO LIGHTS (sl) NOT placed: #{plan[:error]}"
+      puts "    NOT PLACED — #{plan[:error]}"
+      return 0
+    end
+    puts "    #{plan[:count]} x #{plan[:part]} replacing #{plan[:remove]} Standard Light " \
+         '(feature-rules.json sl_by_model, embedded in wr-accessories.rb)'
+    return 0 if cfg['dry']
+
+    cl = deck && deck['CL']
+    if cl.nil?
+      warns << 'STUDIO LIGHTS (sl) NOT placed: no standard ceiling deck was measured, ' \
+               'so there is no ceiling to hang them from'
+      return 0
+    end
+    sd = WR_BuildBoothComponents.load_def(model, cfg['dir'], plan[:part], cache)
+    if sd.nil?
+      warns << "STUDIO LIGHTS (sl) NOT placed: #{plan[:part]}.skp not found in " \
+               "#{cfg['dir']} — the booth keeps its Standard Light fixture(s)"
+      return 0
+    end
+    gx = geom_extents(sd)
+    if gx.nil?
+      warns << "STUDIO LIGHTS (sl) NOT placed: #{plan[:part]}.skp holds no measurable faces"
+      return 0
+    end
+    part_long = gx[:e][0] >= gx[:e][1] ? :x : :y
+    len = [gx[:e][0], gx[:e][1]].max
+    lay = WR_Accessories.sl_layout(plan[:count], len,
+                                   [cl.min.x.to_f, cl.min.y.to_f, cl.max.x.to_f, cl.max.y.to_f])
+    if lay[:error]
+      warns << "STUDIO LIGHTS (sl) NOT placed: #{lay[:error]} — the booth keeps its " \
+               'Standard Light fixture(s)'
+      return 0
+    end
+
+    # The fixtures build_booth's lighting pass just hung: everything on the
+    # WR Lights tag directly inside this freshly built booth group. Matched on
+    # the tag, not the definition name, because the name the loaded
+    # BoothLighting.skp ends up with ('BoothLighting' or its inner 'Standard
+    # Light') has been read both ways and is not pinned.
+    ltag = WR_BuildBoothComponents::LIGHT_TAG
+    olds = booth.entities.grep(Sketchup::ComponentInstance).select do |e|
+      e.layer.name == ltag
+    end
+    unless olds.length == plan[:remove]
+      warns << "STUDIO LIGHTS: the booth had #{olds.length} Standard Light fixture(s); " \
+               "the packing list replaces #{plan[:remove]}. All #{olds.length} were removed " \
+               "and #{plan[:count]} #{plan[:part]} placed — check the count."
+    end
+    booth.entities.erase_entities(olds) unless olds.empty?
+
+    layer = model.layers[ltag] || model.layers.add(ltag)
+    rot = part_long == lay[:orient] ? Geom::Transformation.new : quarter_turn(1)
+    sx, sy, sz = turned_span(gx, rot)
+    z_top = cl.min.z.to_f
+    puts format('    %s measures %.2f x %.2f x %.2f; %s; top at the ceiling tile ' \
+                'underside z %.2f', plan[:part], gx[:e][0], gx[:e][1], gx[:e][2],
+                lay[:how], z_top)
+    puts "    removed #{olds.length} Standard Light fixture(s)"
+    n = 0
+    lay[:centres].each_with_index do |(cx, cy), i|
+      tr = Geom::Transformation.translation(
+        Geom::Vector3d.new(cx - (sx[0] + sx[1]) / 2.0, cy - (sy[0] + sy[1]) / 2.0,
+                           z_top - sz[1])) * rot
+      at = add(booth, sd, tr, "Studio Light #{plan[:part]} (#{i + 1} of #{plan[:count]})", layer)
+      puts "    #{at}"
+      n += 1
+    end
+    n
+  end
+
+  # HEPA (payload hp). One per vent set, on each INTAKE duct box, butted to
+  # its open end, filter side up. Built ONLY where that is proven: the 'VSS
+  # duct box' instances directly inside a seated roof unit. See the HEPA block
+  # of wr-accessories.rb for the evidence and for why a wall-vented booth is
+  # refused by name instead of guessed at.
+  def self.place_hepa(model, booth, key, spec, cfg, cache, panels, layer, warns)
+    puts ''
+    puts '  ---- HEPA filters (hp) ' + '-' * 53
+    if WR_Accessories.excluded(key)
+      warns << "HEPA (hp) NOT placed: #{key} is excluded from accessories (MDL 127 LP)"
+      return 0
+    end
+    ov = cfg['overlay'] || {}
+    sets = (spec[:parts] || []).count do |p|
+      p[:k] == 'panel' && p[:sh] != 'in' && p[:sk] == 'VNT'
+    end
+    unless ov['roof_vent']
+      vents = panels.reject { |p| p[:inner] }.select { |p| kind_of(p[:name]) == :vnt }
+      warns << "HEPA (hp) NOT placed: this booth is WALL-vented (#{vents.length} vent " \
+               "wall(s): #{vents.map { |p| "#{p[:id]} #{p[:name]}" }.join(', ')}). The " \
+               'intake duct box inside a vent-wall part has never been measured, so ' \
+               "there is no proven seat for the filter. #{sets} HEPA wanted (one per " \
+               'vent set) — place them by hand on the intake boxes.'
+      puts "    NOT PLACED — wall-vented booth; #{sets} wanted, by hand (see the summary)"
+      return 0
+    end
+    if cfg['dry']
+      puts "    would place one HEPA per intake box of the roof unit (#{sets} vent set(s))"
+      return 0
+    end
+    rm = booth.entities.grep(Sketchup::ComponentInstance).find do |e|
+      e.name.to_s.end_with?(' roof unit')
+    end
+    if rm.nil?
+      warns << 'HEPA (hp) NOT placed: the roof unit was not placed (see its own ' \
+               'refusal above), so there are no intake boxes to put filters on'
+      return 0
+    end
+    boxes = rm.definition.entities.grep(Sketchup::ComponentInstance).select do |e|
+      e.definition.name =~ WR_Accessories::HEPA_BOX_NAME
+    end
+    if boxes.empty?
+      warns << "HEPA (hp) NOT placed: #{rm.definition.name} holds no 'VSS duct box' " \
+               'directly inside it — not the roof-unit shape the HEPA seat was proven on'
+      return 0
+    end
+    unless boxes.length == sets
+      warns << "HEPA: #{rm.definition.name} holds #{boxes.length} intake box(es) but the " \
+               "layout has #{sets} vent set(s). One HEPA was placed per BOX — check the count."
+    end
+
+    hd = WR_BuildBoothComponents.load_def(model, cfg['dir'], 'HEPA', cache)
+    if hd.nil?
+      warns << "HEPA (hp) NOT placed: HEPA.skp not found in #{cfg['dir']}"
+      return 0
+    end
+    gx = geom_extents(hd)
+    if gx.nil?
+      warns << 'HEPA (hp) NOT placed: HEPA.skp holds no measurable faces'
+      return 0
+    end
+    # The open-end point must lie on the box it was measured on. A re-authored
+    # box that no longer contains it is a different box, and is refused.
+    bb = boxes.first.definition.bounds
+    pe = WR_Accessories::HEPA_OPEN_END
+    inside = (0..2).all? do |i|
+      pe[i] >= bb.min[i].to_f - 0.25 && pe[i] <= bb.max[i].to_f + 0.25
+    end
+    unless inside
+      warns << "HEPA (hp) NOT placed: #{boxes.first.definition.name} no longer contains " \
+               "the measured open-end point #{pe.inspect} — the box was re-authored; " \
+               're-measure it (.forge/builder/peoplesspace-ap/place-hepa.rb)'
+      return 0
+    end
+    n = 0
+    boxes.each_with_index do |bx, i|
+      t = rm.transformation * bx.transformation
+      p_end = Geom::Point3d.new(*pe).transform(t)
+      bottom = Geom::Point3d.new(WR_Accessories::HEPA_BOX_FLOOR, pe[1], pe[2]).transform(t).z
+      a = Geom::Vector3d.new(0, 0, 1).transform(t)
+      a.z = 0
+      if a.length.to_f < 1e-6
+        warns << "HEPA #{i + 1}: its intake box does not run horizontally — NOT placed"
+        next
+      end
+      a.normalize!
+      u = Geom::Vector3d.new(0, 0, 1)
+      y = a * u
+      org = Geom::Point3d.new(p_end.x, p_end.y, bottom).offset(y, -gx[:e][1] / 2.0)
+      tr = Geom::Transformation.axes(org, u, y, a) *
+           Geom::Transformation.translation(Geom::Vector3d.new(-gx[:lo][0], -gx[:lo][1],
+                                                               -gx[:lo][2]))
+      at = add(booth, hd, tr, "HEPA (intake) #{i + 1}", layer)
+      puts "    #{at}"
+      n += 1
+    end
+    puts "    #{n} HEPA on the roof unit's intake boxes, butted to the open end, filter up."
+    puts '    The fan hose may pass through a filter (it did on 3 of 4 at People\'s Space,'
+    puts '    accepted as drawn) — look before rendering.'
+    n
+  end
+
+  # The lowest thing overhead: the underside of the deck parts (ceiling tiles,
+  # the IEP tray, the ceiling seam seals) over a plan rectangle. Only parts
+  # whose bottom is in the upper half of the booth count, which excludes the
+  # floor and the full-height corner pieces. nil when nothing is overhead.
+  def self.ceiling_over(booth, fp, ph)
+    zs = []
+    booth.entities.each do |e|
+      next unless e.respond_to?(:layer) && e.layer.name == 'WR-Booth-Deck'
+      b = e.bounds
+      next if b.min.z.to_f < ph / 2.0
+      next if b.max.x.to_f <= fp[0] || b.min.x.to_f >= fp[2]
+      next if b.max.y.to_f <= fp[1] || b.min.y.to_f >= fp[3]
+      zs << b.min.z.to_f
+    end
+    zs.min
+  end
+
+  # BASS TRAPS (payload bt). 2 per pack; packs from the link's package (see
+  # WR_Accessories.bass_trap_plan — the link carries no quantity). Standing
+  # in the upper interior corners, back corners first, the part's top against
+  # whatever is lowest overhead there. The room faces are the same ones the
+  # foam sits on (host_frame + the IEP stand-off on Enhanced).
+  def self.place_bass_traps(model, booth, key, cfg, cache, panels, centre, ph, layer, warns)
+    ov = cfg['overlay'] || {}
+    puts ''
+    puts '  ---- bass traps (bt) ' + '-' * 55
+    if WR_Accessories.excluded(key)
+      warns << "BASS TRAPS (bt) NOT placed: #{key} is excluded from accessories (MDL 127 LP)"
+      return 0
+    end
+    plan = WR_Accessories.bass_trap_plan(ov['package'])
+    puts "    #{plan[:traps]} trap(s) = #{plan[:packs]} pack(s) of " \
+         "#{WR_Accessories::BT_PER_PACK} — #{plan[:source]}."
+    puts '    The link carries bt as ON/OFF only: a quantity changed by hand on the'
+    puts '    quote is NOT in it. Check the quote line before trusting this count.'
+
+    outer = panels.reject { |p| p[:inner] }
+    door = outer.find { |p| kind_of(p[:name]) == :door }
+    back = door ? OPPOSITE_WALL[wall_of(door[:id])] : 'N'
+    order = WR_Accessories.corner_order(back)
+    # The most roomward face on each wall, so no trap sinks into any panel.
+    faces = {}
+    outer.each do |p|
+      w = wall_of(p[:id])
+      next unless %w[N S E W].include?(w)
+      hf = host_frame(panels, p, centre)
+      f = hf[:face] + hf[:room] * host_proud(hf[:host_name], hf[:moved])
+      cur = faces[w]
+      faces[w] = [f, hf[:room], hf[:naxis]] if cur.nil? || (f - cur[0]) * hf[:room] > 0
+    end
+    gone = %w[N S E W].reject { |w| faces[w] }
+    unless gone.empty?
+      warns << "BASS TRAPS (bt) NOT placed: no wall panels read on the #{gone.join('/')} " \
+               'wall(s), so the corners cannot be found'
+      return 0
+    end
+    # N/S walls must face along y and E/W along x (wr-roof-vent.rb's header:
+    # S at low y, N high, W low x, E high). Anything else is a layout this
+    # corner rule was not written for.
+    askew = %w[N S E W].reject { |w| faces[w][2] == (%w[N S].include?(w) ? :y : :x) }
+    unless askew.empty?
+      warns << "BASS TRAPS (bt) NOT placed: the #{askew.join('/')} wall(s) do not run " \
+               'the way the N/S/E/W convention says, so the corners cannot be trusted'
+      return 0
+    end
+    slots = WR_Accessories.trap_slots(plan[:traps], order)
+    puts "    corners, back (#{back}) first: " +
+         slots.map { |c, t| t.zero? ? c : "#{c} tier #{t + 1}" }.join(', ')
+    return 0 if cfg['dry']
+
+    bd = WR_BuildBoothComponents.load_def(model, cfg['dir'], 'Bass Trap', cache)
+    if bd.nil?
+      warns << "BASS TRAPS (bt) NOT placed: Bass Trap.skp not found in #{cfg['dir']}"
+      return 0
+    end
+    gx = geom_extents(bd)
+    if gx.nil?
+      warns << 'BASS TRAPS (bt) NOT placed: Bass Trap.skp holds no measurable faces'
+      return 0
+    end
+    h = gx[:e][2]
+    puts format('    Bass Trap.skp measures %.2f x %.2f x %.2f (z up, as authored)', *gx[:e])
+    if h < [gx[:e][0], gx[:e][1]].max
+      warns << format('BASS TRAPS: Bass Trap.skp is not authored standing (%.2f tall, ' \
+                      '%.2f x %.2f in plan). Placed as authored — they may be lying down.',
+                      h, gx[:e][0], gx[:e][1])
+    end
+    n = 0
+    slots.each_with_index do |(corner, tier), i|
+      ns, ew = WR_Accessories::BT_CORNERS[corner]
+      fy, ry = faces[ns]
+      fx, rx = faces[ew]
+      # Turn the part so its own low-x/low-y corner goes INTO the room corner
+      # (ASSUMED to be the trap's back corner).
+      rot = nil
+      span = nil
+      4.times do |k|
+        r = quarter_turn(k)
+        s = turned_span(gx, r)
+        q = Geom::Point3d.new(gx[:lo][0], gx[:lo][1], gx[:lo][2]).transform(r)
+        wx = rx > 0 ? s[0][0] : s[0][1]
+        wy = ry > 0 ? s[1][0] : s[1][1]
+        next unless (q.x.to_f - wx).abs < 1e-3 && (q.y.to_f - wy).abs < 1e-3
+        rot = r
+        span = s
+        break
+      end
+      if rot.nil?
+        warns << "BASS TRAP #{i + 1} (#{corner}) NOT placed: no quarter turn puts the " \
+                 "part's corner into the room corner"
+        next
+      end
+      dx = fx - (rx > 0 ? span[0][0] : span[0][1])
+      dy = fy - (ry > 0 ? span[1][0] : span[1][1])
+      fp = [span[0][0] + dx, span[1][0] + dy, span[0][1] + dx, span[1][1] + dy]
+      ceil = ceiling_over(booth, fp, ph)
+      if ceil.nil?
+        warns << "BASS TRAP #{i + 1} (#{corner}) NOT placed: nothing on WR-Booth-Deck " \
+                 'overhead to stand it against'
+        next
+      end
+      top = ceil - tier * h
+      if top - h < WR_Deck::DECK_TOP_Z
+        warns << "BASS TRAP #{i + 1} (#{corner}, tier #{tier + 1}) NOT placed: the stack " \
+                 'would reach below the floor'
+        next
+      end
+      tr = Geom::Transformation.translation(Geom::Vector3d.new(dx, dy, top - span[2][1])) * rot
+      at = add(booth, bd, tr, "Bass Trap #{i + 1} #{corner}", layer)
+      puts "    #{corner}#{tier.zero? ? '' : " tier #{tier + 1}"}  #{at}"
+      n += 1
+      # Name any corner post or seal the trap's box runs into. Boxes, not
+      # geometry, so an L-shaped part can over-report; it never under-reports.
+      tb = Geom::BoundingBox.new
+      tb.add(Geom::Point3d.new(fp[0], fp[1], top - h))
+      tb.add(Geom::Point3d.new(fp[2], fp[3], top))
+      hits = booth.entities.select do |e|
+        next false unless e.respond_to?(:layer) &&
+                          %w[WR-Booth-Corners WR-Booth-Seals].include?(e.layer.name)
+        b = e.bounds
+        b.max.x.to_f > fp[0] + 0.01 && b.min.x.to_f < fp[2] - 0.01 &&
+          b.max.y.to_f > fp[1] + 0.01 && b.min.y.to_f < fp[3] - 0.01 &&
+          b.max.z.to_f > top - h + 0.01 && b.min.z.to_f < top - 0.01
+      end
+      unless hits.empty?
+        warns << "BASS TRAP #{i + 1} (#{corner}) overlaps " +
+                 hits.map { |e| e.respond_to?(:definition) ? e.definition.name : e.to_s }.uniq.join(', ') +
+                 ' (bounding boxes) — look at that corner before rendering'
+      end
+    end
+    n
   end
 
   # Lay the EFP slab flat, centred in plan, bottom on the carpet floor.

@@ -53,12 +53,18 @@
 # places the foam sheets and duct covers every booth ships with. Foam colour
 # (f) is read and REPORTED — Foam.skp has no colour variants to apply.
 #
+# THE QUOTE ACCESSORIES BUILD SINCE 1.77.0 (wr-accessories.rb has the tables
+# and rules, wr-overlays.rb places them): studio lights (sl) replace the
+# booth's Standard Light fixtures with the packing list's SL29 / SL52 count;
+# bass traps (bt) stand in the upper interior corners, 2 per pack; HEPA (hp)
+# goes on a roof unit's intake boxes and is refused BY NAME on a wall-vented
+# booth, whose intake box has never been measured. MDL 127 LP is excluded
+# from all of them, by name.
+#
 # What still does NOT build, each named LOUDLY below rather than dropped:
-# bass traps (bt) and the Audimute package
-# (ac) — no .skp exists for either — the studio light (sl, no fixture .skp),
-# and the ROOF UNIT of a roof-mounted booth (rv — the part exists on the share
-# and has now been measured, but its seating is not confirmed; wr-roof-vent.rb
-# names the part, the ceiling it needs, and every blocker, per booth).
+# the Audimute package (ac — whether the kit is staged beside the booth or
+# laid out on the walls is Benton's decision, pending), and the ROOF UNIT of
+# a roof-mounted booth where wr-roof-vent.rb still names a blocker.
 #
 # ROOF-MOUNTED VENTILATION, precisely. On an rv = 1 booth the WALLS are built
 # correctly and completely: the former vent walls are cable walls, which is what
@@ -92,6 +98,10 @@ load File.join(File.dirname(__FILE__), 'wr-folder.rb')
 # What a roof-mounted booth's roof unit is, how much ceiling it needs, and every
 # reason it is not seated yet. Read its header before changing anything rv.
 load File.join(File.dirname(__FILE__), 'wr-roof-vent.rb')
+
+# The quote accessories (sl / hp / bt): which part, how many, and the plan.
+# Printed here before the build; wr-overlays places them.
+load File.join(File.dirname(__FILE__), 'wr-accessories.rb')
 
 module WR_BoothLink
   PREF = 'WR_BoothLink'.freeze
@@ -1093,6 +1103,12 @@ module WR_BoothLink
     # the builder's overlay pass or refused BY NAME with the reason. The keys
     # that used to be dropped silently — f, ep, ad, dl/ds/dox, ms, ac, and the
     # caster-plate half of cs — are all accounted for below.
+    # ---- the quote accessories: decided HERE, placed by wr-overlays -------
+    lp = WR_Accessories.excluded(key)
+    sl_plan = WR_Accessories.sl_plan(key)
+    acc_sl = payload['sl'].to_i == 1 && sl_plan[:error].nil?
+    acc_hp = payload['hp'].to_i == 1 && !lp
+    acc_bt = payload['bt'].to_i == 1 && !lp
     overlay = {
       'foam_color'    => payload['f'].to_s,                 # report-only downstream
       'desk'          => payload['dk'].to_i == 1,
@@ -1112,21 +1128,56 @@ module WR_BoothLink
       # (wr-roof-vent.rb).
       'roof_vent'     => roof && rm_block.empty?,
       'roof_vss'      => opts[:vss] ? true : false,
-      'roof_efs'      => opts[:efs] ? true : false
+      'roof_efs'      => opts[:efs] ? true : false,
+      # The quote accessories (1.77.0). Never handed over for MDL 127 LP or a
+      # model the studio-light table does not carry — those are refused by
+      # name below instead. `package` is the link's pk, the only thing the
+      # bass-trap count can be read from (bt itself is a bare flag).
+      'studio_light'  => acc_sl,
+      'hepa'          => acc_hp,
+      'bass_traps'    => acc_bt,
+      'package'       => payload['pk'].to_s
     }
     built_opts = { 'desk' => 'desk', 'mjp' => 'MJP jack panel',
                    'efp' => 'elevated floor',
                    'casters_plate' => 'caster plate (CP set + 4.75 in booth lift)',
                    'step' => 'exterior step (Step.skp, 12 in in front of the door frame; casters only)',
-                   'roof_vent' => 'roof unit (RM assembly, seated on the roof)'
-                 }.select { |k, _| overlay[k] }.values
-    puts "  option parts to build: #{built_opts.join(', ')}" unless built_opts.empty?
+                   'roof_vent' => 'roof unit (RM assembly, seated on the roof)',
+                   'studio_light' => "studio lights (#{sl_plan[:count]} x #{sl_plan[:part]}, " \
+                                     "replacing the #{sl_plan[:remove]} Standard Light)",
+                   'hepa' => 'HEPA filters (one per intake box of the roof unit)',
+                   'bass_traps' => begin
+                     bp = WR_Accessories.bass_trap_plan(payload['pk'])
+                     "bass traps (#{bp[:traps]} = #{bp[:packs]} pack(s); #{bp[:source]})"
+                   end
+                 }.select { |k, _| overlay[k] && (k != 'hepa' || overlay['roof_vent']) }.values
+    puts "  option parts to build:#{built_opts.join(', ')}" unless built_opts.empty?
     refused = []
     # sp (the step) BUILDS since 1.45.0 - wr-overlays place_step, which refuses
     # by name on its own when there is no plate or the door carries the ramp.
-    refused << 'bt: bass traps (no .skp exists — Benton to author)' if payload['bt'].to_i == 1
-    refused << 'ac: Audimute panels (no .skp exists — Benton to author)' if payload['ac'].to_i == 1
-    refused << 'sl: studio light (no fixture .skp exists — Benton to author)' if payload['sl'].to_i == 1
+    # The accessories build since 1.77.0. What is left refused is refused BY
+    # NAME: MDL 127 LP (excluded from every accessory, Benton), a model the
+    # studio-light table does not carry, and Audimute, whose placement is
+    # still Benton's call (staged kit beside the booth, or laid out on the
+    # walls the way People's Space was).
+    %w[sl hp bt ac].each do |k|
+      next unless payload[k].to_i == 1 && lp
+      refused << "#{k}: #{key} is excluded from accessories (MDL 127 LP, Benton)"
+    end
+    if payload['sl'].to_i == 1 && !lp && sl_plan[:error]
+      refused << "sl: studio lights — #{sl_plan[:error]}"
+    end
+    # HEPA is still HANDED OVER on a wall-vented booth, so the overlay pass can
+    # name the vent walls and the count in the build summary; it places none.
+    if acc_hp && !overlay['roof_vent']
+      refused << 'hp: HEPA filters — only a roof unit\'s intake box has a proven seat; ' \
+                 'on this booth the intake boxes are inside the vent-wall parts, never ' \
+                 'measured. Place one per vent set by hand (the summary names the walls).'
+    end
+    if payload['ac'].to_i == 1 && !lp
+      refused << 'ac: Audimute acoustic package — not built yet: staged kit vs ' \
+                 "wall layout is Benton's decision, pending"
+    end
     # The ROOF UNIT now BUILDS (Benton settled the seating on 31 Aug 2026), so
     # this is a refusal only in the one case wr-roof-vent still names: a model
     # with no RM part at all. Listing it unconditionally, as this used to,

@@ -60,6 +60,9 @@ load File.join(File.dirname(__FILE__), 'wr-deck.rb')
 # The roof unit of a roof-mounted booth: which part, how it is seated, and what
 # is still refused. Pure logic, no SketchUp API — wr-overlays applies it.
 load File.join(File.dirname(__FILE__), 'wr-roof-vent.rb')
+# The quote accessories (studio lights, HEPA, bass traps): which part, how
+# many, and where. Pure logic, no SketchUp API — wr-overlays places them.
+load File.join(File.dirname(__FILE__), 'wr-accessories.rb')
 # Foam, duct covers and the option parts (desk, MJP, elevated floor). Kept
 # separate for the same reason wr-deck is: every number in it is portal-sourced
 # and documented in .forge/researcher/portal-part-placement.md, and inlining
