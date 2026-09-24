@@ -9,9 +9,9 @@
 # the whole file outside SketchUp. Keep it that way: the SketchUp half lives in
 # wr-overlays.rb (place_studio_lights / place_hepa / place_bass_traps).
 #
-# The Audimute acoustic package (ac) is NOT here yet: whether the importer
-# stages the kit beside the booth or lays it out on the walls is Benton's
-# decision, pending (24 Sep 2026). booth-from-link refuses ac by name until then.
+# The Audimute acoustic package (ac) is NOT here: it is laid out on the booth's
+# interior walls by the whisperroom-acoustic-package skill (skills/), not by the
+# importer. booth-from-link refuses ac by name and points at that skill.
 #
 # THE TABLES ARE EMBEDDED, NOT READ. The plugin runs on machines that have no
 # WhisperRoomQuote checkout (Gabe's), so the figures are copied here with the

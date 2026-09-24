@@ -321,7 +321,8 @@ ramps to the clearance rules above, tags, materials, and dimension entities.
   the installer.
 - **Skills travel with the installer too.** `install-plugin.py` copies every
   `skills/<name>/` directory in this repo into `~/.claude/skills/` (currently
-  `whisperroom-proposal`, `whisperroom-takeoff` and `whisperroom-photo-job`), keeps a manifest of what it
+  `whisperroom-proposal`, `whisperroom-takeoff`, `whisperroom-photo-job` and
+  `whisperroom-acoustic-package`), keeps a manifest of what it
   installed, and never touches skills it didn't install. Never copy skills by hand —
   that instruction used to exist and nobody performed it; this machine was missing
   `whisperroom-proposal` until the installer took the job over. A changed skill

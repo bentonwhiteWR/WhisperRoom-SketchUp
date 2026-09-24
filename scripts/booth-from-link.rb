@@ -62,8 +62,8 @@
 # from all of them, by name.
 #
 # What still does NOT build, each named LOUDLY below rather than dropped:
-# the Audimute package (ac — whether the kit is staged beside the booth or
-# laid out on the walls is Benton's decision, pending), and the ROOF UNIT of
+# the Audimute package (ac — laid out on the interior walls by the
+# whisperroom-acoustic-package skill, not by the importer), and the ROOF UNIT of
 # a roof-mounted booth where wr-roof-vent.rb still names a blocker.
 #
 # ROOF-MOUNTED VENTILATION, precisely. On an rv = 1 booth the WALLS are built
@@ -1157,9 +1157,9 @@ module WR_BoothLink
     # by name on its own when there is no plate or the door carries the ramp.
     # The accessories build since 1.77.0. What is left refused is refused BY
     # NAME: MDL 127 LP (excluded from every accessory, Benton), a model the
-    # studio-light table does not carry, and Audimute, whose placement is
-    # still Benton's call (staged kit beside the booth, or laid out on the
-    # walls the way People's Space was).
+    # studio-light table does not carry, and Audimute, which the
+    # whisperroom-acoustic-package skill lays out on the walls afterwards
+    # (the People's Space method).
     %w[sl hp bt ac].each do |k|
       next unless payload[k].to_i == 1 && lp
       refused << "#{k}: #{key} is excluded from accessories (MDL 127 LP, Benton)"
@@ -1175,8 +1175,8 @@ module WR_BoothLink
                  'measured. Place one per vent set by hand (the summary names the walls).'
     end
     if payload['ac'].to_i == 1 && !lp
-      refused << 'ac: Audimute acoustic package — not built yet: staged kit vs ' \
-                 "wall layout is Benton's decision, pending"
+      refused << 'ac: Audimute acoustic package — not placed by the importer; ' \
+                 'lay it out with the whisperroom-acoustic-package skill'
     end
     # The ROOF UNIT now BUILDS (Benton settled the seating on 31 Aug 2026), so
     # this is a refusal only in the one case wr-roof-vent still names: a model

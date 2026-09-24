@@ -1,5 +1,29 @@
 # DEVLOG
 
+## 2026-09-24 -- 1.77.1: new skill `whisperroom-acoustic-package` (Audimute AP laid out in a booth)
+
+**What.** `skills/whisperroom-acoustic-package/SKILL.md` teaches a session to load the Acoustic Package into a
+booth in the live model over the bridge, generalised from People's Space (96120 E, 23 Sep). It covers the
+per-model counts (`AP_PACKAGES` from `WhisperRoomQuote/lib/ap-packages.js`, copied 24 Sep without the cost
+column; MDL 127 LP listed but "ask Benton"), the parts (`Audimute2x4/1x4/1x2.skp`, `Foam`), the order of
+work (survey, name walls from inside, plan, place, press flush, space, verify, report), the layout rules
+(back wall first, then mirrored sides, door wall last; 1x2 row / 48 in band interleaving panels and foam /
+bottom row, 1 in below the lowest ceiling part; no cut panels; foam may move but is never deleted silently;
+1/2 in minimum gap, 1 in preferred), leftovers staged beside the booth and reported (no invented exterior
+mounting), and the traps (fabric on local -y, 1x2's 7.9 in internal offset, press the BODY on a ray-tested
+face with the panels hidden, ceiling seals as the top datum, corner seals shorten the run). It points at the
+worked-example scripts in `.forge/builder/peoplesspace-ap/` rather than copying them.
+- `booth-from-link.rb` still refuses `ac` by name; the refusal and header now point at the skill instead of
+  "Benton's decision, pending". Same wording change in `wr-accessories.rb`'s header.
+- CLAUDE.md's installed-skills list names the new skill. `install-plugin.py` needed no change (it installs
+  every `skills/<name>/` with a SKILL.md).
+
+**Verified.** `rbparse.py`: 78 files parse. `rbtest-accessories`, `rbtest-boothlink-v3`, `rbtest-boothlink-cbl`
+exit 0. Installer run on the laptop: the skill is in `~/.claude/skills/whisperroom-acoustic-package/`,
+byte-identical to the repo copy. **The skill itself has not been exercised on a booth**: the first real use is
+its test. The 1x2's 7.9 in offset and the fabric-on-local-y facts are carried from the People's Space
+HANDOFF, not re-measured.
+
 ## 2026-09-24 -- 1.77.0: booth-from-link places studio lights, HEPA and bass traps from the quote
 
 **What.** `scripts/booth-from-link.rb` no longer refuses `sl` / `bt`, and now reads `hp` (it was silently
