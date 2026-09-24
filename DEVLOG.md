@@ -1,5 +1,39 @@
 # DEVLOG
 
+## 2026-09-24 -- Session close: accessories 1.77.0-1.77.4, Tampa Preparatory proposal
+
+**Done (all pushed).**
+- 1.77.0 booth-from-link places studio lights (packing-list `sl_by_model` counts), HEPA (roof-unit booths only)
+  and bass traps (2 per pack; package pack counts from the quote builder). Mounted to the STANDARD ceiling,
+  Enhanced too (Benton confirmed).
+- 1.77.1 new skill `whisperroom-acoustic-package` (Audimute laid out on the interior walls, interleaved with
+  foam, 1/2 in minimum gap). 1.77.3: package links already carry their accessory flags; photo-job and takeoff
+  run the AP skill automatically after the import.
+- 1.77.2 / 1.77.4 Exploded view explodes a booth by assembly (walls out as units, ceiling up, floor stays),
+  Enhanced IEP ceiling lifted above the Std ceiling and opened out, default Fan 200, Radial/Vertical kept.
+  Verified live on the Tampa 144144 E and a 7272 S.
+- Tampa Preparatory proposal (9 pages) built to
+  `C:/Users/bento/Desktop/ProposalFiles/TampaPrepatory/TampaPrepatory-Booth-Renderings.pdf`; its config is in
+  the session scratchpad only (client material, public repo). Notes: `.forge/builder/tampa-proposal/HANDOFF.md`.
+- Tampa exterior lighting: a Builder started and Benton stopped it to do it himself. It had already placed
+  V-Ray sphere lights on the tag `WR Exterior Lights` in his model; he decides whether to keep them. Its
+  helper scripts are in `.forge/builder/tampa-lighting/` (renders and model survey left out of git).
+
+**Next steps.**
+1. Live package-link test: Benton sends a Drum Booth link with SketchUp on an EMPTY model (the Tampa file had
+   unsaved changes, which blocked every live build today). Check studio-light direction and spacing, the
+   `Bass Trap.skp` orientation and corner clashes, then that the AP skill runs and reports per-wall counts.
+2. HEPA on wall-vented booths: measure the duct boxes inside the vent-wall parts in SketchUp, then extend
+   `place_hepa` (today it refuses by name).
+
+**Open decisions (Benton).**
+- Tampa proposal before it goes out: client spelling ("Tampa Preparatory" on the cover), drawn size
+  12' 7 1/2" square used instead of "12'x12'", the exporter's "31 items outside the room" warning, pages 2/4
+  repeating the render angles as dimensioned views, and no door-swing arc on the plan.
+- `proposals/examples/peoplesspace/proposal-v2.json` is client material in this PUBLIC repo; still uncommitted.
+- Whether the importer should ever lay out AP itself instead of handing off to the skill. MDL 127 LP takes AP
+  but stays excluded until Benton raises it.
+
 ## 2026-09-24 -- 1.77.4: Exploded view: Enhanced IEP ceiling as its own layer, default Fan 200
 
 Benton's decisions on the 1.77.2 open items, all in `scripts/explode-view.rb`.
