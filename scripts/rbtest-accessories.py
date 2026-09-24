@@ -22,7 +22,10 @@ WHAT IT ASSERTS
 DRIFT CHECKS, run when the WhisperRoomQuote checkout is beside this repo: the
 embedded SL table is compared row for row against lib/pl-data/
 feature-rules.json `sl_by_model`, and the bass-trap packs against
-quote-builder.html PRESET_QTY_OVERRIDES. The plugin cannot read that repo at
+quote-builder.html PRESET_QTY_OVERRIDES. A third check guards the premise
+that a PACKAGE link needs no expanding: booth-builder.html's applyPackage()
+turns on every accessory the package bills, so pk arrives WITH sl/ac/bt/vs/
+ef/dk (see package_flags). The plugin cannot read that repo at
 runtime (Gabe's machine has no checkout), which is why the figures are copied
 - and a copy is exactly what drifts. Absent checkout: said, not failed.
 """
@@ -162,6 +165,60 @@ def drift(lib):
             bad.append('bass-trap packs: embedded %r, quote-builder %r' % (have, src))
         else:
             notes.append('PASS drift: bass-trap packs match PRESET_QTY_OVERRIDES')
+    notes2, bad2 = package_flags(txt if os.path.exists(qb) else None)
+    return notes + notes2, bad + bad2
+
+
+# The quote SKU that means each accessory, and the booth-builder state key
+# applyPackage() turns on for it (which designPayload() emits as the link flag).
+PKG_SKU_TO_KEY = [('AP ', 'ap'), ('SL ', 'studioLight'), ('BASS TRAPS', 'bassTraps'),
+                  ('VSS ', 'vss'), ('EFS ', 'efs'), ('Office Desk', 'desk'), ('HEPA ', 'hepa')]
+
+
+def package_flags(qb_txt):
+    """THE PREMISE the importer rests on (1.77.3): a package link does NOT need
+    expanding, because booth-builder.html's applyPackage() switches on every
+    accessory the package contains and designPayload() emits them as sl / ac /
+    bt / vs / ef / dk / hp beside pk. Checked three ways, so a change to the
+    encoder that would make pk-only links possible fails here, not in a model:
+      a. applyPackage() still does `for (const k in p.o) state[k] = true`;
+      b. designPayload() still maps ap->ac, studioLight->sl, bassTraps->bt;
+      c. every BOOTH_PRESETS package SKU list (quote-builder.html) that bills
+         AP / SL / BASS TRAPS / VSS / EFS / a desk / HEPA has the matching key
+         in booth-builder PACKAGES[..].o, and no key the quote does not bill."""
+    notes, bad = [], []
+    bb = os.path.join(QUOTE, 'booth-builder.html')
+    if qb_txt is None or not os.path.exists(bb):
+        return ['SKIP drift (package flags): booth-builder.html / quote-builder.html not found'], []
+    btxt = open(bb, encoding='utf-8').read()
+    if not re.search(r'for \(const k in p\.o\) state\[k\] = true;', btxt):
+        bad.append('applyPackage() no longer sets state[k] for every package content - '
+                   'a package link may now carry pk WITHOUT sl/ac/bt; the importer must expand pk')
+    for flag, key in (('ac', 'ap'), ('sl', 'studioLight'), ('bt', 'bassTraps'),
+                      ('vs', 'vss'), ('ef', 'efs'), ('dk', 'desk')):
+        if not re.search(r'\b%s: state\.%s \? 1 : 0' % (flag, key), btxt):
+            bad.append('designPayload() no longer emits %s from state.%s' % (flag, key))
+    rows = dict(re.findall(r"^\s*'([^']+)':\s*\{\s*m: '[^']+',\s*v: '[SE]',\s*o: \{([^}]*)\}",
+                           btxt, re.M))
+    pm = re.search(r'const BOOTH_PRESETS = \{(.*?)\n\};', qb_txt, re.S)
+    presets = dict(re.findall(r'^\s*"([^"]+)":\s*\[(.*)\],?\s*$', pm.group(1) if pm else '', re.M))
+    if len(rows) != 19:
+        bad.append('booth-builder PACKAGES: read %d rows, expected 19' % len(rows))
+    for name, o in sorted(rows.items()):
+        keys = set(re.findall(r'(\w+): 1', o))
+        skus = re.findall(r'"((?:[^"\\]|\\.)*)"', presets.get(name, ''))
+        if not skus:
+            bad.append('package %r has no BOOTH_PRESETS row in quote-builder.html' % name)
+            continue
+        for prefix, key in PKG_SKU_TO_KEY:
+            billed = any(s.startswith(prefix) for s in skus)
+            if billed != (key in keys):
+                bad.append('package %r: quote %s %s, booth-builder o.%s %s'
+                           % (name, 'bills' if billed else 'does not bill', prefix.strip(),
+                              key, 'set' if key in keys else 'absent'))
+    if not bad:
+        notes.append('PASS drift: %d package links carry their accessory flags '
+                     '(applyPackage + designPayload + BOOTH_PRESETS agree)' % len(rows))
     return notes, bad
 
 

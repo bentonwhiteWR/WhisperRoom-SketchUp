@@ -1,5 +1,37 @@
 # DEVLOG
 
+## 2026-09-24 -- 1.77.3: a package link loads its accessories; AP runs automatically after the import
+
+**Ask (Benton).** "When I provide you a floor plan/photos and a booth builder link, it should be able to
+recognize when a package is available and go ahead and load the components in too", including the Audimute AP.
+
+**Finding: the importer needed no change.** A booth-builder package link already carries every content flag
+beside `pk`. `applyPackage()` in `WhisperRoomQuote/booth-builder.html` does `for (const k in p.o) state[k] = true`,
+and `designPayload()` emits `sl` / `ac` / `bt` / `vs` / `ef` / `dk` from that state (the `#3=` codec carries them
+as flag bits). Run for real, not just read: a scratch harness executing the page's own `applyPackage` +
+`designPayload` for all 19 packages gave, for example, Drum Booth `sl ac bt`, Recording Studio `sl ac bt vs ef`,
+Creator Basic `sl ac bt vs ef dk dl`. Expanding `pk` in the importer would have been wrong: `setOpt()` never clears
+`pk`, so a customer who picks Practice Basic and un-ticks AP sends `pk` with `ac` off, and the flag is the truth.
+`booth-from-link.rb` already builds sl / bt / hp and lists `ac: Audimute acoustic package` under "NOT built" by name.
+
+**What changed.**
+- `scripts/rbtest-accessories.py`: new drift check `package_flags` guards that premise. It fails if `applyPackage`
+  stops setting the content flags, if `designPayload` stops emitting them, or if any `BOOTH_PRESETS` package in
+  quote-builder.html bills AP / SL / BASS TRAPS / VSS / EFS / desk / HEPA without the matching key in
+  booth-builder `PACKAGES.o`, or the reverse. Mutation-checked on scratch copies: Drum Booth without `ap`, and a broken
+  `applyPackage` loop, both fail.
+- `skills/whisperroom-photo-job` stage 6: read the importer's build summary. sl / bt / hp are placed by the importer.
+  If `ac` is listed, run `whisperroom-acoustic-package` next without being asked and report the per-wall counts,
+  leftovers and foam moves. Removed the stale "Benton places the studio lights himself". Stage 8 is now for extras
+  beyond the quote.
+- `skills/whisperroom-takeoff`: the same step after the room build, when a booth-builder link came with the plan.
+- `skills/whisperroom-acoustic-package`: says it is invoked automatically by those two skills.
+
+**Verified.** `rbparse.py`: 78 files parse. `rbtest-accessories` (now 3 drift checks), `rbtest-boothlink-v3`,
+`rbtest-boothlink-cbl` exit 0. Installer run; the three skills in `~/.claude/skills` match the repo.
+**Not built in SketchUp.** The bridge was up, but Benton's open model (a client drawing) had unsaved changes, and a
+new model on Windows would have prompted over it. The automatic AP step has not run end to end in a session yet.
+
 ## 2026-09-24 -- 1.77.2: Exploded view explodes a booth by assembly, not by part
 
 **Symptom (Benton, screenshots).** Exploding a WhisperRoom booth gave a scramble. Wall panels crossed, each

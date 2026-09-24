@@ -42,15 +42,23 @@ All model work runs over the bridge (`scripts/sketchup-bridge.py`) in Benton's o
    `WR_CMS.check!` after every save.
 6. **Place the booth from the quote link, headless** (`scripts/booth-from-link.rb`; the
    example is `jobs/booth.rb`). Paste the payload into the job, because the `?d=` path
-   fetches asynchronously. Use real components only, and set the foam to gray. **Benton
-   places the studio lights himself.** Never search for or hand-model that part.
+   fetches asynchronously. Use real components only, and set the foam to gray. Then **read
+   the build summary in the console**. The importer places the studio lights (`sl`), bass
+   traps (`bt`) and HEPA filters (`hp`) itself, and a package link (`pk`) already carries
+   those flags, so there is nothing to expand. Report what each section placed or refused
+   by name. If the summary lists `ac: Audimute acoustic package`, AP is on, whether by
+   flag or by package. **Run the `whisperroom-acoustic-package` skill on that booth as the
+   next stage without waiting to be asked**, and report its per-wall counts, its leftovers
+   and every foam move. Its panels go inside the booth group, so the stage 7 move carries
+   them. After the move, check that any leftovers staged beside the booth came with it.
 7. **Placement** (`jobs/place.rb`). The offset from a wall, such as 18 in, is measured from
    the booth STRUCTURE (the wall-panel faces). It is NOT measured from the vent hoods, seam
    seals or silencers. Measure the booth's parts, never the group origin, and report both
    numbers (panel face and hood) for each side.
-8. **Add extras such as Audimute** (`jobs/audimute.rb`). Copy Benton's own component into
-   the gaps between the foam panels. Report any contact with other parts, and let him
-   accept it.
+8. **Add any other extras.** The quoted Audimute package has already gone in at stage 6
+   through its skill. For extra Audimute beyond the quote (`jobs/audimute.rb`), copy
+   Benton's own component into the gaps between the foam panels. Report any contact with
+   other parts, and let him accept it.
 9. **Light it** (`lights.rb`, which provides `WR_CMS_Lights.place!` / `audit`; the renders
    come from `rt.py`). Follow his standing rules:
    - Light it like a real room: office-style fixtures and daylight through the windows.

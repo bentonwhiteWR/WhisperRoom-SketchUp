@@ -5,6 +5,12 @@ description: Load the WhisperRoom Acoustic Package (AP, Audimute 2x4 / 1x4 / 1x2
 
 # WhisperRoom acoustic package: Audimute panels in a booth
 
+**Invoked automatically** by `whisperroom-photo-job` (stage 6) and `whisperroom-takeoff`
+right after `booth-from-link.rb` runs, when the build summary lists
+`ac: Audimute acoustic package`. That happens when the link carries `ac`, which every
+AP-carrying package link does (the booth builder sets `ac` beside `pk`). Run it on the
+booth the importer just built, then report without being asked.
+
 **Worked example: People's Space, 96120 E (Sept 2026).** Its scripts are in
 `.forge/builder/peoplesspace-ap/` and the story is in that folder's `HANDOFF.md` and in
 the DEVLOG entry dated 2026-09-23. Those scripts are one-offs with that booth's wall

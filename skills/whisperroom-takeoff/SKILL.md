@@ -80,6 +80,15 @@ SketchUp: load scripts/build-takeoff.rb, pick the lock file
 Nothing builds from `takeoff.json` directly — `build-takeoff.rb` consumes only the
 lock, so an unchecked take-off cannot reach the model.
 
+**When Benton also sent a booth-builder link**, place the booth with
+`scripts/booth-from-link.rb` once the room is built, then read its build summary in the
+console. The importer places studio lights (`sl`), bass traps (`bt`) and HEPA (`hp`)
+itself. A package link (`pk`) already carries those flags, so there is nothing to expand.
+If the summary lists `ac: Audimute acoustic package` (by flag or by package), **run the
+`whisperroom-acoustic-package` skill on that booth next without waiting to be asked**, and
+report its per-wall counts, its leftovers and every foam move. The booth's position in
+the room is still Benton's. Never invent a placement number (below).
+
 ## What Gabe sees on the review sheet
 
 Full detail in `reference/takeoff-format.md`; the things that matter:
