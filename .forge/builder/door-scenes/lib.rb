@@ -16,11 +16,20 @@ module DS
     m
   end
   def self.top(m, n)
-    a = m.entities.select { |e| e.respond_to?(:definition) && e.definition.name == n }
-    raise "#{n}: no top-level instance" if a.empty?
-    # Several copies: take the one the scene's camera is aimed at (x,z nearest the eye line).
+    # The door the scene's camera is aimed at. Prefer an exact definition name;
+    # a Right door may instead be a mirrored copy of its Left twin ("Left40Door#1").
     e = m.pages[n].camera.eye
-    a.min_by { |i| c = i.bounds.center; (c.x - e.x)**2 + (c.z - e.z)**2 }
+    h = m.pages[n].camera.height
+    twin = /\A#{Regexp.escape(n.sub('Right', 'Left'))}(#\d+)?\z/
+    near = lambda do |re|
+      m.entities.select do |i|
+        next false unless i.respond_to?(:definition) && i.definition.name =~ re
+        c = i.bounds.center
+        (c.x - e.x).abs < h && (c.z - e.z).abs < h
+      end.min_by { |i| c = i.bounds.center; (c.x - e.x)**2 + (c.z - e.z)**2 }
+    end
+    near.call(/\A#{Regexp.escape(n)}\z/) || near.call(twin) ||
+      raise("#{n}: no door component in the scene's frame")
   end
   def self.wbox(inst, tw)
     b = Geom::BoundingBox.new

@@ -71,7 +71,7 @@ module DS
   end
 
   # [pivot point, axis, signed angle in radians]
-  def self.hinge(s, cam_dir)
+  def self.hinge(s, cam_dir, root = nil)
     sb = slab_box(s[:slabs])
     cx = sb.center.x
     side = if s[:hinges].any?
@@ -85,12 +85,22 @@ module DS
     # exterior face = the face toward the camera
     py = cam_dir.y > 0 ? sb.min.y : sb.max.y
     pivot = Geom::Point3d.new(px, py, sb.min.z)
+    src = :derived
+    if root
+      # Benton's axis point: the origin of the main leaf, when it sits on the hinge
+      main = s[:leaves].max_by { |lp| t = parent_world(root, lp); wbox(lp[-1], t).width }
+      o = (parent_world(root, main) * main[-1].transformation).origin
+      if (o.x - px).abs < 3 && (o.y - py).abs < 3
+        pivot = Geom::Point3d.new(o.x, o.y, sb.min.z)
+        src = :axis
+      end
+    end
     axis = Geom::Vector3d.new(0, 0, 1)
     ang = OPEN_DEG.degrees
     [ang, -ang].each do |a|
       c = sb.center.transform(Geom::Transformation.rotation(pivot, axis, a))
       toward_cam = (c.y - py) * cam_dir.y < 0
-      return [pivot, axis, a, side] if toward_cam
+      return [pivot, axis, a, side, src] if toward_cam
     end
     raise 'could not pick a swing direction'
   end
@@ -134,10 +144,10 @@ module DS
         cam_dir = page.camera.direction
         if dry
           s = survey2(orig, enh)
-          pv, _, a, side = hinge(s, cam_dir)
+          pv, _, a, side, src = hinge(s, cam_dir, orig)
           ob = orig.bounds.min
-          report << format('%-28s leaves=%s hinge=%s pivot x%.1f y%.1f swing %+.0f deg',
-                           pname, s[:leaves].map { |p| p[-1].definition.name }.inspect, side,
+          report << format('%-28s leaves=%s hinge=%s pivot(%s) x%.1f y%.1f swing %+.0f deg',
+                           pname, s[:leaves].map { |p| p[-1].definition.name }.inspect, side, src,
                            pv.x - ob.x, pv.y - ob.y, a.radians)
           next
         end
@@ -149,7 +159,7 @@ module DS
         s = make_unique_to_leaves(copy, enh)
         raise "#{pname}: no leaf found" if s[:leaves].empty?
         if v == :open
-          pv, ax, a, = hinge(s, cam_dir)
+          pv, ax, a, _side, src = hinge(s, cam_dir, copy)
           rw = Geom::Transformation.rotation(pv, ax, a)
           s[:leaves].each do |lp|
             tp = parent_world(copy, lp)
@@ -165,7 +175,7 @@ module DS
         if c.perspective? then cam.fov = c.fov else cam.height = c.height end
         m.active_view.camera = cam
         np = m.pages.add(pname)
-        report << "#{pname}: added (#{s[:leaves].size} leaf part#{s[:leaves].size == 1 ? '' : 's'} #{v == :open ? 'rotated' : 'erased'})"
+        report << "#{pname}: added (#{s[:leaves].size} leaf part#{s[:leaves].size == 1 ? '' : 's'} #{v == :open ? "rotated about #{src} pivot" : 'erased'})"
       end
       m.commit_operation unless dry
     rescue Exception => e
