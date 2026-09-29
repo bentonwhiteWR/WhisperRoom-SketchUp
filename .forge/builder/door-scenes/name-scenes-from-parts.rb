@@ -1,4 +1,4 @@
-# Renames scene POSITIONS 355..422 of "Master Component List AM" to the name
+# Renames scene POSITIONS 355..422 (or $DSR_RANGE, e.g. $DSR_RANGE = 423..426) of "Master Component List AM" to the name
 # of the part each one looks at -- the COMPONENT IT LOOKS AT column of the
 # Master Component List, resolved by the same rule (list-scenes.rb): nearest
 # top-level instance to the camera target; definition name, else instance name.
@@ -6,9 +6,10 @@
 # refuse the whole run. Table first, Yes to apply, one undo step.
 #
 #   load "C:/Users/bento/Documents/Claude/Sketchup/.forge/builder/door-scenes/name-scenes-from-parts.rb"
+#   $DSR_RANGE = 423..426; load "C:/.../name-scenes-from-parts.rb"   # other positions
 module DSR
   TITLE = 'Master Component List AM'
-  FIRST, LAST = 355, 422
+  RANGE = 355..422
   AUTONAME = /\A(Component|Group)#\d+\z/
 
   def self.subject(m, page)
@@ -32,8 +33,9 @@ module DSR
     m = Sketchup.active_model
     raise "Bring #{TITLE} to the front (got #{m.title.inspect})" unless m.title == TITLE
     pages = m.pages.to_a
-    raise "Model has only #{pages.size} scenes" if pages.size < LAST
-    rows = (FIRST..LAST).map { |i| pg = pages[i - 1]; [i, pg, part_name(subject(m, pg))] }
+    range = $DSR_RANGE || RANGE
+    raise "Model has only #{pages.size} scenes" if pages.size < range.last
+    rows = range.map { |i| pg = pages[i - 1]; [i, pg, part_name(subject(m, pg))] }
     todo = rows.select { |_, pg, n| n && n != pg.name }
     newnames = rows.map { |_, pg, n| n || pg.name }
     bad = todo.select do |_, pg, n|
@@ -47,7 +49,7 @@ module DSR
     return 'Name clash above. Nothing renamed.' unless bad.empty?
     ok = UI.messagebox("Rename #{todo.size} scenes to the part they look at?\n\n" + lines.join("\n"), MB_YESNO)
     return 'Cancelled. Nothing renamed.' unless ok == IDYES
-    m.start_operation('Name scenes 355-422 after their parts', true)
+    m.start_operation("Name scenes #{range.first}-#{range.last} after their parts", true)
     begin
       # two passes so a swap (A->B, B->A) never collides mid-way
       todo.each_with_index { |(_, pg, _), k| pg.name = "__tmp_rename_#{k}" }
@@ -60,4 +62,8 @@ module DSR
     "Renamed #{todo.size} scenes. Ctrl+Z undoes all of them."
   end
 end
-puts DSR.run
+begin
+  puts DSR.run
+ensure
+  $DSR_RANGE = nil
+end
