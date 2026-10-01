@@ -44,7 +44,7 @@
 #   staging group, and everything else at top level is hidden. A part comes
 #   from, first that resolves:
 #     def   a definition already in the open model, placed at its own origin
-#     file  MasterComponentFolder\<file>.skp, loaded and placed at its origin
+#     file  <component_root>\<file>.skp (NewMasterComponentList), loaded at its origin
 #     find  an instance anywhere in the open model (nested too), copied at its
 #           WORLD position — this is how Benton's posed models are reused
 #   "split": n explodes the staged copy n levels so its children can be moved,
@@ -86,7 +86,7 @@ require 'json'
 require 'fileutils'
 
 module WR_AmCloseups
-  RIG_VERSION = '1.0.0'.freeze
+  RIG_VERSION = '1.1.0'.freeze
   PREF = 'WR_AmCloseups'.freeze
   DEF_OUT = 'Z:/Sketchup/BoothBuilderViews/AssemblyCloseups'.freeze
 
@@ -98,7 +98,13 @@ module WR_AmCloseups
   # Saved, read back and restored like the rest.
   SECTION_RO = { 'DisplaySectionPlanes' => false,
                  'DisplaySectionCuts'   => true,
-                 'SectionCutFilled'     => true }.freeze
+                 'SectionCutFilled'     => true,
+                 'SectionDefaultFillColor' => Sketchup::Color.new(150, 152, 156),
+                 'Texture'              => true,
+                 'DrawSilhouettes'      => true,
+                 'SilhouetteWidth'      => 2,
+                 'RenderMode'           => 2,
+                 'SectionCutDrawEdges'  => true }.freeze
 
   # ------------------------------------------------------------- locations --
 
@@ -388,6 +394,11 @@ module WR_AmCloseups
     Geom::Transformation.new
   end
 
+  def self.axis_vec(ax)
+    return v3(ax) if ax.is_a?(Array)
+    { 'x' => X_AXIS, 'y' => Y_AXIS, 'z' => Z_AXIS }[ax.to_s.downcase] || Z_AXIS
+  end
+
   def self.ent_name(e)
     if e.is_a?(Sketchup::ComponentInstance)
       (e.definition.name.to_s rescue '')
@@ -462,10 +473,13 @@ module WR_AmCloseups
   # with its WORLD transformation and the names of its ancestors. The staging
   # group is skipped. Built once per run: shots are aborted, so the model the
   # index describes does not change between them.
-  def self.instance_index(model, skip)
+  def self.instance_index(model, skip, ents = nil)
     out = []
     st = { :n => 0 }
-    walk = lambda do |ents, tr, path, depth|
+    # :mat is the material the instance RENDERS with: its own, else the
+    # nearest painted ancestor's (SketchUp paints default faces that way).
+    # A re-instanced copy has to carry it, or a painted wall comes out white.
+    walk = lambda do |ents, tr, path, depth, pmat|
       ents.each do |e|
         break if st[:n] >= WALK_MAX_NODES
         next unless inst?(e)
@@ -473,11 +487,12 @@ module WR_AmCloseups
         st[:n] += 1
         wtr = tr * e.transformation
         nm = ent_name(e)
-        out << { :ent => e, :tr => wtr, :ptr => tr, :name => nm, :path => path }
-        walk.call(sub_ents(e), wtr, path + [nm], depth + 1) if depth < WALK_MAX_DEPTH
+        mat = (e.material rescue nil) || pmat
+        out << { :ent => e, :tr => wtr, :ptr => tr, :name => nm, :path => path, :mat => mat }
+        walk.call(sub_ents(e), wtr, path + [nm], depth + 1, mat) if depth < WALK_MAX_DEPTH
       end
     end
-    walk.call(model.entities, ident, [], 0)
+    walk.call(ents || model.entities, ident, [], 0, nil)
     [out, st[:n] >= WALK_MAX_NODES]
   end
 
@@ -556,8 +571,10 @@ module WR_AmCloseups
   def self.restore_camera(view, s)
     return if s.nil?
     c = view.camera
-    c.set(s[:eye], s[:target], s[:up])
+    # Projection FIRST: switching parallel -> perspective after set() lets
+    # SketchUp re-derive the eye distance, and the restored camera drifted.
     c.perspective = s[:persp]
+    c.set(s[:eye], s[:target], s[:up])
     (c.aspect_ratio = s[:aspect].to_f) rescue nil
     if s[:persp]
       (c.fov = s[:fov]) rescue nil if s[:fov]
@@ -607,7 +624,12 @@ module WR_AmCloseups
     end
     if src['file']
       path = src['file'].to_s
-      path = File.join(ctx[:root], path) unless path =~ /\A[A-Za-z]:[\\\/]/ || path.start_with?('/')
+      unless path =~ /\A[A-Za-z]:[\\\/]/ || path.start_with?('/')
+        # component_root first, then any component_fallback_roots (the
+        # shipped poses use none: NewMasterComponentList only, per Benton).
+        cands = Array(ctx[:roots] || [ctx[:root]]).map { |r| File.join(r, path) }
+        path = cands.find { |c| File.exist?(c) } || cands.first || path
+      end
       if File.exist?(path)
         d = (model.definitions.load(path) rescue nil)
         if d
@@ -626,13 +648,26 @@ module WR_AmCloseups
   # matches, filtered by ancestor ("within") and distance ("near"), then
   # picked. Returns [[definition, world transformation, how], ...].
   def self.resolve_find(ctx, src, part)
-    ctx[:index] ||= begin
-      idx, capped = instance_index(ctx[:model], ctx[:s])
-      ctx[:warnings] << "the model walk stopped at #{WALK_MAX_NODES} nodes; a find may miss parts" if capped
-      idx
-    end
+    index = if src['in_file']
+              # A find inside a FILE (an assembled booth on disk) rather than the
+              # open model. run() loaded it once, outside every operation; its
+              # instances are walked from the definition at the identity.
+              key = src['in_file'].to_s
+              d = (ctx[:infile] || {})[key]
+              if d.nil? || !d.valid?
+                ctx[:warnings] << "#{part['role']}: in_file #{key} was not preloaded"
+                return []
+              end
+              (ctx[:infile_index] ||= {})[key] ||= instance_index(ctx[:model], nil, d.entities)[0]
+            else
+              ctx[:index] ||= begin
+                idx, capped = instance_index(ctx[:model], ctx[:s])
+                ctx[:warnings] << "the model walk stopped at #{WALK_MAX_NODES} nodes; a find may miss parts" if capped
+                idx
+              end
+            end
     re = rx(src['find'])
-    hits = ctx[:index].select { |it| name_hit?(re, it[:name]) }
+    hits = index.select { |it| name_hit?(re, it[:name]) }
     hits = hits.select { |it| it[:ent].valid? }
     if src['within']
       wre = rx(src['within'])
@@ -646,6 +681,15 @@ module WR_AmCloseups
     hits = hits.reject { |it| it[:ent].is_a?(Sketchup::Group) }
     hits.each { |it| it[:box] ||= raw_box(it[:ent], it[:ptr]) }
     hits = hits.select { |it| it[:box] }
+    # "region": [[x0, y0, z0], [x1, y1, z1]] keeps the hits whose box centre
+    # lies inside — for picking one copy out of an assembled booth by place.
+    if src['region'].is_a?(Array) && src['region'].length == 2
+      lo, hi = src['region']
+      hits = hits.select do |it|
+        c = box_centre(it[:box])
+        (0..2).all? { |i| c[i] >= lo[i].to_f && c[i] <= hi[i].to_f }
+      end
+    end
     # Coincident copies (a posed model can hold the same booth several times
     # over, one per scene) would stage twice on the same spot and z-fight.
     seen = {}
@@ -677,7 +721,8 @@ module WR_AmCloseups
     picked.map do |it|
       [it[:ent].definition, it[:tr],
        "found #{it[:name]} at #{arr(it[:tr].origin).map { |v| v.round(2) }.inspect} " \
-       "in #{it[:path].empty? ? 'top level' : it[:path].join(' > ')} (#{hits.length} candidate(s))"]
+       "in #{it[:path].empty? ? 'top level' : it[:path].join(' > ')} (#{hits.length} candidate(s))" \
+       "#{it[:mat] ? ", material #{it[:mat].name}" : ''}", it[:mat]]
     end
   end
 
@@ -693,13 +738,35 @@ module WR_AmCloseups
               r ? [r] : []
             end
       next if got.empty?
-      got.each do |defn, tr, h|
-        inst = ctx[:s].entities.add_instance(defn, tr)
-        if src['at']
-          inst.transform!(Geom::Transformation.translation(v3(src['at'])))
+      # "at" is one offset [x, y, z] or a list of them (one copy per offset);
+      # "rot" is a list of [axis, degrees] turns about the part's own origin,
+      # applied before the offset; "mirror" is an axis to reflect across.
+      ats = src['at'] || part['at']
+      ats = [ats] if ats.is_a?(Array) && ats.first.is_a?(Numeric)
+      ats = [nil] if ats.nil? || ats.empty?
+      rots = src['rot'] || part['rot'] || []
+      mir = src['mirror'] || part['mirror']
+      got.each do |defn, tr, h, fmat|
+        ats.each do |at|
+          host = part['level'] ? (ctx[:levels][part['level'].to_i] || ctx[:s]) : ctx[:s]
+          inst = host.entities.add_instance(defn, tr)
+          inst.material = fmat if fmat && fmat.valid?
+          if mir
+            sv = [1.0, 1.0, 1.0]
+            sv[%w[x y z].index(mir.to_s)] = -1.0
+            inst.transform!(Geom::Transformation.scaling(ORIGIN, sv[0], sv[1], sv[2]))
+          end
+          rots.each do |ax, deg|
+            inst.transform!(Geom::Transformation.rotation(ORIGIN, axis_vec(ax), deg.to_f * Math::PI / 180.0))
+          end
+          inst.transform!(Geom::Transformation.translation(v3(at))) if at
+          inst.material = paint_material(ctx[:model], part['paint']) if part['paint']
+          placed << { :ent => inst, :name => defn.name, :role => part['role'] }
         end
-        placed << { :ent => inst, :name => defn.name, :role => part['role'] }
         how = h
+      end
+      if part['generated'] && !got.empty?
+        ctx[:generated] << (part['generated'].is_a?(String) ? part['generated'] : got.first[0].name)
       end
       break
     end
@@ -710,13 +777,13 @@ module WR_AmCloseups
   # The set difference of the staging group's entities before and after is
   # the truth about what appeared — not explode's return value.
   def self.split!(ctx, pieces, levels, keep)
-    s = ctx[:s]
     keep_re = keep ? rx(keep) : nil
     levels.to_i.times do
       nxt = []
       pieces.each do |pc|
         e = pc[:ent]
         if e.valid? && inst?(e) && !(keep_re && name_hit?(keep_re, pc[:name]))
+          s = e.parent
           before = s.entities.to_a
           e.explode
           fresh = s.entities.to_a - before
@@ -760,15 +827,138 @@ module WR_AmCloseups
             else
               pcs.select { |pc| pc[:ent].valid? }.map { |pc| { :ent => pc[:ent], :ptr => ident, :name => pc[:name], :pc => pc } }
             end
-    if spec['match']
+    if spec['loose']
+      # The faces and edges a split left behind (the parent's own geometry,
+      # e.g. a door frame once its nested hinges and adaptors are split out).
+      items = items.reject { |it| inst?(it[:ent]) }
+    elsif spec['name']
+      # Exact definition name, "#n" kept: the only handle on Benton's unnamed
+      # "Component#223"-style children, which base_name would collapse.
+      want = Array(spec['name']).map(&:to_s)
+      items = items.select { |it| inst?(it[:ent]) && want.include?(it[:name].to_s) }
+    elsif spec['match']
       re = rx(spec['match'])
       items = items.select { |it| inst?(it[:ent]) && name_hit?(re, it[:name]) }
+    end
+    if spec['not']
+      nre = rx(spec['not'])
+      items = items.reject { |it| inst?(it[:ent]) && name_hit?(nre, it[:name]) }
     end
     items.each { |it| it[:box] ||= vis_box(it[:ent], it[:ptr]) }
     items = items.select { |it| it[:box] }
     cam = ctx[:cam]
     idx = spec.key?('index') ? spec['index'] : default_index
     rank_pick(items, spec['rank'] || 'xyz', idx, cam && cam[:fwd], cam && cam[:eye])
+  end
+
+  # ------------------------------------------------------------- holes --
+  #
+  # Bolt holes are modelled in the library as full circles (ArcCurves) of
+  # radius ~0.25 in, one at each face a hole passes through. holes_in returns
+  # them in world space: [centre, unit normal, radius].
+  def self.holes_in(pieces, rmin, rmax)
+    out = []
+    st = { :n => 0 }
+    walk = lambda do |ents, tr, depth|
+      seen = {}
+      ents.grep(Sketchup::Edge).each do |e|
+        c = e.curve
+        next unless c.is_a?(Sketchup::ArcCurve) && !seen[c]
+        seen[c] = true
+        next unless (c.end_angle - c.start_angle).abs > 6.0
+        r = c.radius.to_f * (c.xaxis.transform(tr).length.to_f / [c.xaxis.length.to_f, 1e-9].max)
+        next if r < rmin || r > rmax
+        out << [arr(c.center.transform(tr)), vnorm(arr(c.normal.transform(tr))), r]
+      end
+      return if depth > WALK_MAX_DEPTH
+      ents.each do |e|
+        next unless inst?(e)
+        st[:n] += 1
+        break if st[:n] > WALK_MAX_NODES
+        walk.call(sub_ents(e), tr * e.transformation, depth + 1)
+      end
+    end
+    pieces.each do |it|
+      e = it[:ent]
+      next unless e.valid?
+      if inst?(e)
+        walk.call(sub_ents(e), it[:ptr] * e.transformation, 0)
+      elsif e.is_a?(Sketchup::Edge)
+        walk.call([e], it[:ptr], 0)
+      end
+    end
+    out
+  end
+
+  # One hole per bolt line: circles whose centres lie on one line along
+  # `into` are the same hole seen at each face it passes through; the ENTRY
+  # circle is the one furthest back against `into` (where the head bears).
+  def self.hole_lines(holes, into)
+    lines = []
+    holes.each do |c, n, r|
+      next if vdot(n, into).abs < 0.9
+      off = vsub(c, vscale(into, vdot(c, into)))
+      ln = lines.find { |l| vlen(vsub(l[:off], off)) < 0.08 }
+      if ln
+        ln[:pts] << c
+      else
+        lines << { :off => off, :pts => [c], :r => r }
+      end
+    end
+    lines.map do |l|
+      entry = l[:pts].min_by { |q| vdot(q, into) }
+      exit_ = l[:pts].max_by { |q| vdot(q, into) }
+      { :entry => entry, :exit => exit_, :r => l[:r], :depth => vdot(vsub(exit_, entry), into) }
+    end
+  end
+
+  # A "bolts" entry: {role, of: selector, into: [x,y,z] (shank direction, world),
+  #   r: [min, max], region: [[lo], [hi]], rank, pick, lift (in, back along -into),
+  #   seat (in, head bearing face sits this far back from the entry circle),
+  #   source: {file: ...}, generated: name}
+  # Places one bolt per hole line found in the selected pieces.
+  def self.place_bolts!(ctx, rec, bs)
+    into = vnorm(bs['into'].map(&:to_f))
+    sel = select(ctx, bs['of'] || {}, 'all')
+    rr = bs['r'] || [0.15, 0.32]
+    lines = hole_lines(holes_in(sel, rr[0].to_f, rr[1].to_f), into)
+    if bs['region'].is_a?(Array)
+      lo, hi = bs['region']
+      lines = lines.select { |l| (0..2).all? { |i| l[:entry][i] >= lo[i].to_f && l[:entry][i] <= hi[i].to_f } }
+    end
+    items = lines.map { |l| { :box => [l[:entry], l[:entry]], :line => l } }
+    picked = rank_pick(items, bs['rank'] || 'xyz', bs.key?('pick') ? bs['pick'] : 'all')
+    role = (bs['role'] || 'bolts').to_s
+    if picked.empty?
+      msg = "#{role}: no bolt hole found in #{(bs['of'] || {}).to_json} along #{bs['into'].inspect}"
+      return rec['warnings'] << "optional #{msg}" if bs['optional']
+      rec['missing'] << msg
+      return
+    end
+    src = bs['source'] || {}
+    d, = resolve_source(ctx, src, { 'role' => role })
+    if d.nil?
+      rec['missing'] << "#{role}: bolt part did not load: #{src.to_json}"
+      return
+    end
+    xa = v3(into)
+    ya = (xa.parallel?(Z_AXIS) ? X_AXIS : Z_AXIS) * xa
+    za = xa * ya
+    placed = []
+    picked.each do |it|
+      l = it[:line]
+      o = vsub(l[:entry], vscale(into, (bs['lift'] || 0).to_f + (bs['seat'] || 0).to_f))
+      tr = Geom::Transformation.axes(p3(o), xa, ya.normalize, za.normalize)
+      inst = ctx[:s].entities.add_instance(d, tr)
+      pc = { :ent => inst, :name => d.name, :role => role }
+      pc[:box] = vis_box(inst, ident)
+      placed << pc
+    end
+    ctx[:roles][role] = (ctx[:roles][role] || []) + placed
+    ctx[:generated] << (bs['generated'].is_a?(String) ? bs['generated'] : d.name) if bs['generated']
+    rec['generated'] = ctx[:generated].uniq
+    rec['bolts'] = (rec['bolts'] || []) << { 'role' => role, 'n' => placed.length,
+                                             'holes_found' => lines.length, 'lift' => (bs['lift'] || 0) }
   end
 
   # A point spec -> [x, y, z] or nil. Forms:
@@ -938,10 +1128,171 @@ module WR_AmCloseups
       :azim => azim, :elev => elev, :dist => dist, :how => how }
   end
 
-  def self.ghost_material(model, alpha)
-    nm = format('WR_CU_ghost_%02d', (alpha * 100).round)
+  # "paint" on a part: the material its default-material faces take, as the
+  # library does by painting the INSTANCE (a part loaded on its own arrives
+  # unpainted and renders white). A name already in the model, or [r, g, b].
+  def self.paint_material(model, spec)
+    if spec.is_a?(String)
+      m = model.materials[spec]
+      return m if m
+    end
+    rgb = spec.is_a?(Array) ? spec.map(&:to_i) : [72, 72, 74]
+    nm = format('WR_CU_paint_%02x%02x%02x', *rgb)
     m = model.materials[nm] || model.materials.add(nm)
-    m.color = Sketchup::Color.new(205, 208, 212)
+    m.color = Sketchup::Color.new(*rgb)
+    m
+  end
+
+  # THE FLAT STYLE (rig 1.1). Library parts carry a dark speckled felt
+  # texture ("Booth Builder SRO") that swallows every edge at close-up
+  # scale. Inside the shot's operation — so the abort takes it back — every
+  # material the shot LOADED (never one the open model already had) loses
+  # its texture and becomes a light panel grey, except the near-black ones
+  # (black parts stay black) and the metals (a light silver).
+  def self.flatten_materials!(model, before, rig)
+    grey = Sketchup::Color.new(*(rig_value(rig, 'flat_grey', [214, 216, 219])))
+    metal = Sketchup::Color.new(*(rig_value(rig, 'flat_metal', [188, 192, 198])))
+    n = 0
+    model.materials.each do |m|
+      next if before.include?(m.name)
+      next if m.name.start_with?('WR_CU_') || m.name.start_with?('WR GEN')
+      c = m.color
+      luma = (0.2126 * c.red + 0.7152 * c.green + 0.0722 * c.blue) / 255.0
+      nm = m.name.downcase
+      black = nm.include?('black') || (m.texture.nil? && luma < 0.18)
+      next if black
+      metallic = nm =~ /alumin|silver|chrome|metal|steel/
+      m.texture = nil if m.texture
+      m.color = metallic ? metal : grey
+      n += 1
+    end
+    n
+  rescue StandardError => e
+    "flatten failed: #{e.class}: #{e.message}"
+  end
+
+  # The default from rig 1.1: every shot is FITTED (the subject fills
+  # fit_fill of the frame, centred) unless the pose pins a numeric height.
+  def self.fit_wanted?(p)
+    c = p['camera'] || {}
+    return false if c['height'].is_a?(Numeric) || c['fit'] == false
+    return true if c['fit'] || c['height'] == 'fit'
+    !p['scale'].is_a?(Numeric)
+  end
+
+  # Every visible leaf box of the shown pieces, as corner points. Hidden
+  # pieces are skipped; a piece wholly on the removed side of an
+  # axis-aligned section is skipped and a straddling one is clamped.
+  def self.shown_points(ctx, sec_cut, only = nil)
+    pts = []
+    ctx[:roles].each do |role, pcs|
+      next if only && !only.include?(role)
+      pcs.each do |pc|
+        e = pc[:ent]
+        next unless e.valid?
+        next if (e.hidden? rescue false)
+        boxes = []
+        if inst?(e)
+          sub_ents(e).each do |c|
+            next if (c.hidden? rescue false)
+            b = inst?(c) ? vis_box(c, e.transformation) : nil
+            boxes << b if b
+          end
+          fb = []
+          sub_ents(e).grep(Sketchup::Face).each { |f| f.vertices.each { |v| q = arr(v.position.transform(e.transformation)); fb << [q, q] } }
+          boxes << box_union(fb) unless fb.empty?
+          boxes = [vis_box(e, ident)].compact if boxes.empty?
+        else
+          b = vis_box(e, ident)
+          boxes << b if b
+        end
+        boxes.each do |b|
+          b = [b[0].dup, b[1].dup]
+          if sec_cut
+            i, keep_hi, at = sec_cut
+            if keep_hi
+              next if b[1][i] < at
+              b[0][i] = [b[0][i], at].max
+            else
+              next if b[0][i] > at
+              b[1][i] = [b[1][i], at].min
+            end
+          end
+          [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]].each do |m|
+            pts << [b[m[0]][0], b[m[1]][1], b[m[2]][2]]
+          end
+        end
+      end
+    end
+    pts
+  end
+
+  def self.fit_camera!(ctx, cam, p)
+    c = p['camera'] || {}
+    fill = (c['fill'] || 0.8).to_f
+    sec_cut = nil
+    if ctx[:sec]
+      n = ctx[:sec][:axis]
+      n = vscale(n, -1.0) if vdot(n, vsub(cam[:eye], ctx[:sec][:point])) < 0.0
+      n = vscale(n, -1.0) if (p['section'] || {})['flip']
+      i = (0..2).max_by { |k| n[k].abs }
+      # The plane removes the side its normal points to (toward the camera);
+      # what stays is the far side.
+      sec_cut = [i, n[i] < 0, ctx[:sec][:point][i]] if n[i].abs > 0.99
+    end
+    pts = if c['fit_box'].is_a?(Array)
+            # An explicit world box: the shot frames a REGION (the joint, the
+            # hinge column), and parts may run out of frame beyond it.
+            lo, hi = c['fit_box']
+            [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]].map do |m|
+              [(m[0] == 0 ? lo : hi)[0].to_f, (m[1] == 0 ? lo : hi)[1].to_f, (m[2] == 0 ? lo : hi)[2].to_f]
+            end
+          else
+            shown_points(ctx, sec_cut, c['fit_roles'])
+          end
+    return cam if pts.empty?
+    us = pts.map { |q| vdot(q, cam[:right]) }
+    vs = pts.map { |q| vdot(q, cam[:up]) }
+    w, h = cam[:w].to_f, cam[:h].to_f
+    du = us.max - us.min
+    dv = vs.max - vs.min
+    height = [dv, du * h / w].max / fill
+    height = [height, (c['min_height'] || 4.0).to_f].max
+    mid_u = (us.max + us.min) / 2.0
+    mid_v = (vs.max + vs.min) / 2.0
+    t0 = cam[:target]
+    shift = vadd(vscale(cam[:right], mid_u - vdot(t0, cam[:right])), vscale(cam[:up], mid_v - vdot(t0, cam[:up])))
+    target = vadd(t0, shift)
+    out = cam.dup
+    out[:target] = target
+    out[:eye] = vadd(target, vscale(cam[:dir], cam[:dist]))
+    out[:height] = height unless cam[:persp]
+    out[:how] = "#{cam[:how]}, fitted #{(fill * 100).round}%"
+    out
+  end
+
+  # A ghost is the part's OWN material made translucent: a clone carrying
+  # the same colour and texture, with alpha. Default-material faces (which
+  # render in the style's front colour) clone that colour.
+  def self.ghost_material(model, alpha, base = nil)
+    key = base ? base.name : '(default)'
+    nm = format('WR_CU_ghost_%02d %s', (alpha * 100).round, key)
+    m = model.materials[nm]
+    return m if m
+    m = model.materials.add(nm)
+    if base
+      m.color = base.color
+      if base.texture
+        begin
+          m.texture = base.texture.image_rep
+          m.texture.size = [base.texture.width, base.texture.height]
+        rescue StandardError
+          nil
+        end
+      end
+    else
+      m.color = (model.rendering_options['FaceFrontColor'] rescue nil) || Sketchup::Color.new(255, 255, 255)
+    end
     m.alpha = alpha
     m
   end
@@ -956,19 +1307,21 @@ module WR_AmCloseups
   # group is never the active context. An empty group filled with
   # add_instance is the safe form. All of it is on a STAGED copy and aborted.
   def self.ghost!(ctx, pcs, alpha, edges)
-    mat = ghost_material(ctx[:model], alpha.to_f)
+    model = ctx[:model]
     pcs.each do |pc|
       e = pc[:ent]
       next unless e.valid?
       if e.is_a?(Sketchup::Face)
-        e.material = mat
-        e.back_material = mat
+        gm = ghost_material(model, alpha.to_f, e.material)
+        e.material = gm
+        e.back_material = gm
         next
       end
       next unless inst?(e)
-      g = ctx[:s].entities.add_group
+      g = e.parent.entities.add_group
       begin
-        g.entities.add_instance(defn_of(e), e.transformation)
+        ni = g.entities.add_instance(defn_of(e), e.transformation)
+        ni.material = e.material if (e.material rescue nil)
       rescue StandardError => ex
         g.erase! if g.valid?
         ctx[:warnings] << "ghost: could not re-instance #{pc[:name]} (#{ex.class}); left solid"
@@ -981,8 +1334,9 @@ module WR_AmCloseups
         nested.each { |x| x.explode if x.valid? }
       end
       g.entities.grep(Sketchup::Face).each do |f|
-        f.material = mat
-        f.back_material = mat
+        gm = ghost_material(model, alpha.to_f, f.material)
+        f.material = gm
+        f.back_material = gm
       end
       g.entities.grep(Sketchup::Edge).each { |ed| ed.hidden = true } unless edges
       pc[:ent] = g
@@ -1015,9 +1369,10 @@ module WR_AmCloseups
   def self.anchor_check!(ctx, cam, anchors_world, path, dot_px)
     s = ctx[:s]
     view = ctx[:model].active_view
-    shown = s.entities.reject { |e| (e.hidden? rescue true) }
+    lv = ctx[:levels] || [s]
+    shown = lv.flat_map { |g| g.entities.reject { |e| (e.hidden? rescue true) || lv.include?(e) } }
     shown.each { |e| (e.hidden = true) rescue nil }
-    (s.entities.active_section_plane = nil) rescue nil
+    lv.each { |g| (g.entities.active_section_plane = nil) rescue nil }
     red = ctx[:model].materials['WR_CU_anchor'] || ctx[:model].materials.add('WR_CU_anchor')
     red.color = Sketchup::Color.new(255, 0, 0)
     d = s.entities.add_group
@@ -1079,7 +1434,9 @@ module WR_AmCloseups
 
     p = merge_pose(pose['base'], vpose)
     w, h = Array(rig_value(rig, 'canvas', [2400, 1553])).map(&:to_i)
-    ctx = { :model => model, :root => run[:root], :warnings => rec['warnings'], :loaded => [],
+    ctx = { :model => model, :root => run[:root], :roots => run[:roots], :generated => [],
+            :infile => run[:infile], :infile_index => run[:infile_index],
+            :warnings => rec['warnings'], :loaded => [],
             :roles => {}, :index => run[:index], :w => w, :h => h }
 
     model.start_operation("WR close-up #{sid} #{var}", false)
@@ -1102,9 +1459,21 @@ module WR_AmCloseups
       end
       ctx[:s] = model.entities.add_group
       ctx[:s].name = 'WR_CU_STAGE'
+      ctx[:outer] = ctx[:s]
+      # CLIPS: one active section plane per entity context, so each extra
+      # bounding plane gets its own nested group: outer -> clip 1 -> clip 2 ...
+      # and parts are staged into the innermost level unless they name one
+      # ("level": 0 = outside every clip). Planes are added before the render.
+      ctx[:levels] = [ctx[:s]]
+      Array(p['clips']).each_with_index do |_c, i|
+        g = ctx[:levels].last.entities.add_group
+        g.name = "WR_CU_CLIP#{i + 1}"
+        ctx[:levels] << g
+      end
+      ctx[:s] = ctx[:levels].last
       (model.entities.active_section_plane = nil) rescue nil
       model.entities.each do |e|
-        next if e == ctx[:s]
+        next if e == ctx[:outer]
         (e.hidden = true) rescue nil
       end
 
@@ -1135,6 +1504,8 @@ module WR_AmCloseups
         rec['parts'] << row
       end
       ctx[:index] = run[:index] = ctx[:index] || run[:index]
+      rec['generated'] = ctx[:generated].uniq
+      rec['flattened'] = flatten_materials!(model, run[:mats0], rig) unless run[:dry] || rig_value(rig, 'flat_style', true) == false
       unless rec['missing'].empty?
         rec['status'] = 'model-gap'
         rec['reason'] = 'MODEL GAP — part(s) not found; the shot is skipped, not drawn half-empty'
@@ -1151,6 +1522,19 @@ module WR_AmCloseups
           rec['warnings'] << "move matched nothing: #{mv.to_json}"
           next
         end
+        if mv['rotate']
+          rt = mv['rotate']
+          about = rt['about'] ? point(ctx, rt['about']) : box_centre(box_union(pcs.map { |it| it[:box] }))
+          if about.nil?
+            rec['warnings'] << "rotate: about-point did not resolve: #{mv.to_json}"
+            next
+          end
+          rtr = Geom::Transformation.rotation(p3(about), axis_vec(rt['axis'] || 'z'), rt['deg'].to_f * Math::PI / 180.0)
+          pcs.group_by { |it| it[:ent].parent }.each { |par, its| par.entities.transform_entities(rtr, its.map { |it| it[:ent] }) }
+          pcs.each { |it| it[:pc][:box] = vis_box(it[:pc][:ent], ident) }
+          rec['moves'] = (rec['moves'] || []) << { 'pieces' => pcs.map { |it| it[:name] }, 'rotate' => rt }
+          next unless mv['by'] || mv['away_from']
+        end
         vec = if mv['by']
                 mv['by'].map(&:to_f)
               elsif mv['away_from']
@@ -1165,18 +1549,32 @@ module WR_AmCloseups
                 vscale(vnorm(d), (mv['dist'] || 3).to_f)
               end
         next if vec.nil?
-        ctx[:s].entities.transform_entities(Geom::Transformation.translation(v3(vec)),
-                                            pcs.map { |it| it[:ent] })
+        mtr = Geom::Transformation.translation(v3(vec))
+        pcs.group_by { |it| it[:ent].parent }.each { |par, its| par.entities.transform_entities(mtr, its.map { |it| it[:ent] }) }
         pcs.each { |it| it[:pc][:box] = vis_box(it[:pc][:ent], ident) }
         rec['moves'] = (rec['moves'] || []) << { 'pieces' => pcs.map { |it| it[:name] }, 'by' => vec.map { |v| r3(v) } }
       end
       rec['explode'] = p.key?('explode') ? !!p['explode'] : !(p['moves'] || []).empty?
+
+      # ---- bolts IN THEIR HOLES (after the explode, so they follow the part)
+      (p['bolts'] || []).each { |bs| place_bolts!(ctx, rec, bs) }
 
       # ---- section axis, camera, anchors
       ctx[:sec] = section_geom(ctx, p['section'])
       rec['warnings'] << 'section selector matched nothing; rendered without a section' if p['section'] && ctx[:sec].nil?
       cam = build_camera(ctx, p, rig)
       ctx[:cam] = cam
+      # Hides come before the anchors and the fit (they may rank by view, so
+      # they need the first camera); the fit then frames what is SHOWN.
+      (p['hide'] || []).each do |hd|
+        pcs = select(ctx, hd, hd.key?('index') ? hd['index'] : 'all')
+        rec['warnings'] << "hide matched nothing: #{hd.to_json}" if pcs.empty?
+        pcs.each { |it| (it[:ent].hidden = true) rescue nil }
+      end
+      if fit_wanted?(p)
+        cam = fit_camera!(ctx, cam, p)
+        ctx[:cam] = cam
+      end
       worlds = {}
       (p['anchors'] || {}).each do |nm, sp|
         info = {}
@@ -1193,12 +1591,7 @@ module WR_AmCloseups
         worlds[nm] = pt if inf
       end
 
-      # ---- hides and ghosts (after anchors: ghosting flattens named children)
-      (p['hide'] || []).each do |hd|
-        pcs = select(ctx, hd, hd.key?('index') ? hd['index'] : 'all')
-        rec['warnings'] << "hide matched nothing: #{hd.to_json}" if pcs.empty?
-        pcs.each { |it| (it[:ent].hidden = true) rescue nil }
-      end
+      # ---- ghosts (after anchors: ghosting flattens named children)
       (p['ghost'] || []).each do |gh|
         pcs = select(ctx, gh, gh.key?('index') ? gh['index'] : 'all').map { |it| it[:pc] }.compact
         if pcs.empty?
@@ -1214,12 +1607,25 @@ module WR_AmCloseups
         n = ctx[:sec][:axis]
         n = vscale(n, -1.0) if vdot(n, vsub(cam[:eye], ctx[:sec][:point])) < 0.0
         n = vscale(n, -1.0) if p['section']['flip']
+        # Observed in the 2026-10-01 pilot: SketchUp keeps the side the plane's
+        # normal points to. So the plane is given the normal pointing AWAY from
+        # the camera, which removes the near half and shows the cut face.
+        n = vscale(n, -1.0)
         sp = ctx[:s].entities.add_section_plane([p3(ctx[:sec][:point]), v3(n)])
         sp.activate
         sec_rec = { 'point' => ctx[:sec][:point].map { |v| r3(v) }, 'normal' => n.map { |v| r3(v) },
                     'flip' => !!p['section']['flip'], 'active' => (sp.active? rescue nil) }
       end
       rec['section'] = sec_rec
+      # ---- clip planes: world point + normal; SketchUp keeps the side the
+      # normal points to (observed), so "normal" names the side to KEEP.
+      rec['clips'] = []
+      Array(p['clips']).each_with_index do |c, i|
+        lv = ctx[:levels][i]
+        cp = lv.entities.add_section_plane([p3(c['point']), v3(c['keep'] || c['normal'])])
+        cp.activate
+        rec['clips'] << { 'level' => i, 'point' => c['point'], 'keep' => (c['keep'] || c['normal']), 'active' => (cp.active? rescue nil) }
+      end
 
       # ---- what the subject spans, against the frame
       all = box_union(ctx[:roles].values.flatten.select { |pc| pc[:ent].valid? && !(pc[:ent].hidden? rescue false) }
@@ -1285,7 +1691,9 @@ module WR_AmCloseups
   # first, only if nothing uses them and they were not in the model before.
   def self.cleanup_defs(model, before_ids)
     gone = []
-    5.times do
+    # One pass per nesting level: a child only loses its last instance when
+    # its parent goes. Assembled booths nest ten and more deep.
+    40.times do
       extra = model.definitions.to_a.reject { |d| before_ids.include?(d.persistent_id) }
       extra = extra.select { |d| d.instances.empty? }
       break if extra.empty?
@@ -1299,6 +1707,60 @@ module WR_AmCloseups
     gone
   rescue StandardError => e
     ["cleanup failed: #{e.class}: #{e.message}"]
+  end
+
+  # Every in_file a picked shot names, loaded once before the shots and
+  # OUTSIDE every operation (an aborted load would take the definition with
+  # it). They place no instance, so cleanup_defs removes them at the end.
+  def self.preload_files(run, poses, jobs)
+    want = []
+    scan = lambda do |o|
+      case o
+      when Hash
+        want << o['in_file'].to_s if o['in_file']
+        o.each { |k, v| scan.call(v) unless k.to_s.start_with?('_') }
+      when Array then o.each { |v| scan.call(v) }
+      end
+    end
+    jobs.each do |sid, var|
+      pz = poses[sid] || {}
+      scan.call(merge_pose(pz['base'], (pz['variants'] || {})[var]))
+    end
+    want.uniq.each do |f|
+      path = f
+      unless path =~ /\A[A-Za-z]:[\\\/]/
+        path = run[:roots].map { |r| File.join(r, f) }.find { |c| File.exist?(c) } || f
+      end
+      d = File.exist?(path) ? (run[:model].definitions.load(path) rescue nil) : nil
+      run[:infile][f] = d if d
+      puts "  preload #{f}: #{d ? d.name : 'FAILED'}"
+    end
+  end
+
+  # Materials a file load brought in that outlived the aborts: removed again
+  # when nothing in the model uses them and they were not there before.
+  def self.cleanup_materials(model, before_names)
+    extra = model.materials.to_a.reject { |m| before_names.include?(m.name) }
+    return [] if extra.empty?
+    used = {}
+    model.definitions.each do |d|
+      d.entities.each do |e|
+        used[e.material] = true if e.respond_to?(:material) && e.material
+        used[e.back_material] = true if e.is_a?(Sketchup::Face) && e.back_material
+      end
+    end
+    model.entities.each { |e| used[e.material] = true if e.respond_to?(:material) && e.material }
+    gone = []
+    model.start_operation('WR close-up material cleanup', true)
+    extra.each do |m|
+      next if used[m]
+      nm = m.name
+      gone << "material #{nm}" if (model.materials.remove(m) rescue false)
+    end
+    model.commit_operation
+    gone
+  rescue StandardError => e
+    ["material cleanup failed: #{e.class}: #{e.message}"]
   end
 
   # run(opts) — no dialogs; returns a summary hash (the bridge returns it as
@@ -1317,14 +1779,21 @@ module WR_AmCloseups
     out = (opts['out'] || rig_value(rig, 'out_dir', DEF_OUT)).to_s.tr('\\', '/')
     run = { :model => model, :spec => spec, :dry => dry, :out => out,
             :over => !!opts['over'], :check => opts.key?('check') ? !!opts['check'] : true,
-            :root => (opts['component_root'] || rig_value(rig, 'component_root', 'Z:/Sketchup/MasterComponentFolder')).to_s,
+            :root => (opts['component_root'] || rig_value(rig, 'component_root', 'Z:/Sketchup/NewMasterComponentList')).to_s,
+            :roots => ([opts['component_root'] || rig_value(rig, 'component_root', 'Z:/Sketchup/NewMasterComponentList')] +
+                       Array(rig_value(rig, 'component_fallback_roots', []))).map(&:to_s).uniq,
             :index => nil, :written => [], :loaded => [], :stuck => [],
             :style_used => nil, :shading_lines => [] }
     FileUtils.mkdir_p(out)
 
     fp0 = fingerprint(model)
     defs0 = model.definitions.map(&:persistent_id)
+    mats0 = model.materials.map(&:name)
+    run[:mats0] = mats0
     closed = close_contexts(model)
+    run[:infile] = {}
+    run[:infile_index] = {}
+    preload_files(run, poses, jobs)
     view = model.active_view
     cam0 = save_camera(view)
     results = []
@@ -1342,6 +1811,7 @@ module WR_AmCloseups
     shading_lines = run[:shading_lines]
 
     removed = cleanup_defs(model, defs0)
+    removed += cleanup_materials(model, mats0)
     recovered = nil
     if !dry && !run[:written].empty? && rig_value(rig, 'recover', true) && opts['recover'] != false
       recovered = WR_Shading.recover(out)
@@ -1365,7 +1835,7 @@ module WR_AmCloseups
       'shots' => results.map do |r|
         { 'shot' => r['shot'], 'variant' => r['variant'], 'status' => r['status'], 'file' => r['file'],
           'reason' => r['reason'], 'missing' => r['missing'], 'anchors' => r['anchors'],
-          'anchors_missing' => r['anchors_missing'], 'warnings' => r['warnings'],
+          'anchors_missing' => r['anchors_missing'], 'warnings' => r['warnings'], 'generated' => r['generated'],
           'parts' => r['parts'], 'subject_corners_outside' => r['subject_corners_outside'] }
       end,
       'unmatched_tokens' => miss, 'restored' => diffs.empty?, 'restore_diffs' => diffs,
@@ -1394,6 +1864,7 @@ module WR_AmCloseups
         'section' => r['section'], 'explode' => r['explode'], 'anchors' => r['anchors'],
         'anchors_meta' => r['anchors_meta'], 'anchors_missing' => r['anchors_missing'],
         'missing' => r['missing'], 'warnings' => r['warnings'], 'anchor_check' => r['anchor_check'],
+        'generated' => r['generated'] || [], 'parts' => r['parts'], 'moves' => r['moves'],
         'subject_corners_outside' => r['subject_corners_outside'],
         'model' => meta['model'], 'model_path' => meta['model_path'], 'sketchup' => meta['sketchup'],
         'style' => meta['style'], 'dark' => meta['dark'], 'ao' => meta['ao'],
@@ -1420,7 +1891,7 @@ module WR_AmCloseups
       f.puts "spec         #{meta['spec']}"
       f.puts "spec source  #{meta['spec_source'].to_json}"
       f.puts "out          #{run[:out]}   overwrite #{run[:over]}   anchor check #{run[:check]}"
-      f.puts "components   #{run[:root]}"
+      f.puts "components   #{run[:roots].join('  then  ')}"
       f.puts "contexts closed on entry: #{closed}"
       f.puts format('elapsed      %.1f s', secs.to_f)
       f.puts "unmatched shot tokens: #{miss.join(', ')}" unless miss.empty?

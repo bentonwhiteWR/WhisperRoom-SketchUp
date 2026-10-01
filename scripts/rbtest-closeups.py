@@ -168,13 +168,13 @@ module T
     poses = {}
     SPEC['shots'].each { |id, s| poses[id] = s['pose'] if s['pose'] }
     pl, miss = M.pick_shots(poses, 'pilot')
-    want = [['CU-01', 'corner'], ['CU-03', 'w46'], ['CU-03', 'w40'], ['CU-06', 'exploded'],
-            ['CU-06', 'seated'], ['CU-08', 'L-std'], ['CU-19', 'section']]
+    # Expected = each posed shot's pilot_variants, in id order (derived from the spec, not hard-coded).
+    want = poses.keys.sort.flat_map { |id| (Array(poses[id]['pilot_variants']) & (poses[id]['variants'] || {}).keys).map { |v| [id, v] } }
     f << "pick_shots pilot #{pl.inspect}" unless pl == want && miss.empty?
     one, m1 = M.pick_shots(poses, 'cu-06:seated, CU-99, CU-03:w99')
     f << "pick_shots tokens #{one.inspect} #{m1.inspect}" unless one == [['CU-06', 'seated']] && m1 == ['CU-99', 'CU-03:w99']
     every, = M.pick_shots(poses, 'CU-08')
-    f << "pick_shots all variants of CU-08 #{every.inspect}" unless every.length == 4
+    f << "pick_shots all variants of CU-08 #{every.inspect}" unless every.length == (poses['CU-08']['variants'] || {}).length
     # 9
     mp = M.merge_pose({ 'scale' => 'M', 'parts' => [1], '_c' => 'x' }, { 'parts' => [2], '_d' => 1, 'scale' => 'L' })
     f << "merge_pose #{mp.inspect}" unless mp == { 'scale' => 'L', 'parts' => [2] }

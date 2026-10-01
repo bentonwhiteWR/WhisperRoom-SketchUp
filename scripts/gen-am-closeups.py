@@ -114,6 +114,7 @@ def validate(rows, poses):
                         errs.append('%s:%s: part %s is near %r, which is not staged before it'
                                     % (sid, vn, p.get('role'), near.get('role')))
                 roles.append(p.get('role'))
+            roles += [b.get('role', 'bolts') for b in merged.get('bolts') or []]
             for sel in selectors({k: v for k, v in merged.items() if k != 'parts'}):
                 if sel['part'] not in roles:
                     errs.append('%s:%s: selector names role %r; staged roles are %s'
