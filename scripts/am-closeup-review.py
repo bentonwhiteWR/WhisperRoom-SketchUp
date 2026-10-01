@@ -1,17 +1,32 @@
 # -*- coding: utf-8 -*-
-"""BUILD a self-contained review page of the close-up pilot.
+"""BUILD the self-contained close-up review page.
 
-    python scripts/am-closeup-review.py OUT.html [--folder DIR] [--spec JSON] [--shots pilot]
+    python scripts/am-closeup-review.py [OUT.html] [--folder DIR] [--spec JSON]
 
-Reads the export folder's _closeups.json and PNGs (default
-Z:/Sketchup/BoothBuilderViews/AssemblyCloseups) and scripts/am-closeups.json,
-and writes one HTML file with every image embedded (downscaled to 1600 px wide)
-and the anchor points drawn over it as an SVG layer in the image's own pixel
-space, so the overlay is exactly what the app will receive. Shots that have no
-image yet appear as a "not rendered" card naming their anchors and the steps
-to render them. Re-run it after every pilot pass; it never touches the folder.
+OUT defaults to <folder>/Close-up Review.html. Reads, from the export folder
+(default Z:/Sketchup/BoothBuilderViews/AssemblyCloseups):
+
+    _closeups.json          the rig's rows (anchors, generated parts, camera)
+    <shot>_<variant>.png    the renders (embedded, downscaled to 1400 px)
+    _review/verdicts/       the reviewer's verdicts — THE STATUS COMES FROM THESE
+    _review/queue/          attempt numbers
+    _review/storyboard/     the storyboard panel per shot (embedded)
+    _missing.json           missing-parts table (part, scenes, expected file, state)
+    _generated/_generated.json + _generated/thumbs/  the generated stand-ins
+
+and scripts/am-closeups.json for every shot and variant. Status per image:
+
+    rendered               the reviewer passed it
+    rendered-needs-tuning  three attempts, last verdict "revise" (issues listed)
+    unreviewed             a render exists but no verdict arrived
+    skipped                a part is missing (named)
+    blocked                any other reason (named)
+
+One HTML file, every image embedded, opens from the Z: drive with no network
+(fonts fall back to system fonts).
 """
 import base64
+import glob
 import html
 import io
 import json
@@ -28,231 +43,205 @@ def esc(s):
     return html.escape(str(s if s is not None else ''), quote=True)
 
 
-def embed(path, width=1600):
+def embed(path, width=1400, fmt='PNG'):
     im = Image.open(path).convert('RGBA')
     if im.width > width:
         im = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
+    bg = Image.new('RGBA', im.size, (255, 255, 255, 255))
+    bg.alpha_composite(im)
     buf = io.BytesIO()
-    im.save(buf, 'PNG', optimize=True)
+    if fmt == 'JPEG':
+        bg.convert('RGB').save(buf, 'JPEG', quality=86)
+        return 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
+    bg.save(buf, 'PNG', optimize=True)
     return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
 
 
+def attempts(qdir, key):
+    out = []
+    for f in glob.glob(os.path.join(qdir, key + '.a*.json')):
+        try:
+            out.append(int(f.rsplit('.a', 1)[1].split('.')[0]))
+        except ValueError:
+            pass
+    return sorted(out)
+
+
+def verdict(folder, key):
+    rv = os.path.join(folder, '_review')
+    a = attempts(os.path.join(rv, 'queue'), key)
+    if not a:
+        return 0, None
+    f = os.path.join(rv, 'verdicts', '%s.a%d.json' % (key, a[-1]))
+    v = json.load(open(f, encoding='utf-8')) if os.path.isfile(f) else None
+    return a[-1], v
+
+
+def status_of(folder, key, vpose, png_exists):
+    if vpose.get('blocked'):
+        txt = str(vpose['blocked'])
+        return ('skipped' if txt.upper().startswith('MISSING PART') else 'blocked'), txt, [], 0
+    n, v = verdict(folder, key)
+    if v is None:
+        return ('unreviewed' if png_exists else 'not-rendered'), ('attempt %d has no verdict' % n if n else ''), [], n
+    vd = v.get('verdict')
+    if vd == 'pass':
+        return 'rendered', '', [], n
+    if vd == 'unfixable':
+        r = v.get('reason') or '; '.join(v.get('issues') or [])
+        return ('skipped' if 'missing' in r.lower() else 'blocked'), r, v.get('issues') or [], n
+    return 'rendered-needs-tuning', 'last verdict: revise (attempt %d of 3)' % n, v.get('issues') or [], n
+
+
 CSS = r'''
-:root {
-  /* Layout: one column of shot sheets, each a picture on paper with its data beside it. */
-  --bg: #f3f2ef; --fg: #1d1f22; --muted: #5d636b; --rule: #d9d6cf;
-  --sheet: #ffffff; --paper: #ffffff; --grid: #e7e4dd;
-  --accent: #ee6216; --accent-ink: #b8460a;
-  --ok: #2f7d4f; --warn: #a86a00; --bad: #b3261e;
-  --display: "Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
-  --body: "Barlow", "Segoe UI", Arial, sans-serif;
-  --mono: "JetBrains Mono", Consolas, "Courier New", monospace;
-}
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #17191c; --fg: #e9e7e3; --muted: #a3a8af; --rule: #33373d;
-  --sheet: #1f2226; --paper: #eceae6; --grid: #d6d3cc;
-  --accent: #ff7a33; --accent-ink: #ff9a5e;
-  --ok: #5fbf86; --warn: #e0a640; --bad: #f2867d; color-scheme: dark } }
-:root[data-theme="dark"] {
-  --bg: #17191c; --fg: #e9e7e3; --muted: #a3a8af; --rule: #33373d;
-  --sheet: #1f2226; --paper: #eceae6; --grid: #d6d3cc;
-  --accent: #ff7a33; --accent-ink: #ff9a5e;
-  --ok: #5fbf86; --warn: #e0a640; --bad: #f2867d; color-scheme: dark }
-body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); }
-.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
-header { display: grid; gap: 6px; }
-.eyebrow { font: 600 12px/1 var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); }
-h1 { font: 700 34px/1.1 var(--display); margin: 0; text-wrap: balance; }
-h2 { font: 700 22px/1.2 var(--display); margin: 0; text-wrap: balance; }
-h3 { font: 600 13px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
-p { margin: 0; max-width: 70ch; }
-.lede { color: var(--muted); }
-.tally { display: flex; flex-wrap: wrap; gap: 8px; }
-.pill { font: 600 12px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--rule); }
-.pill.ok { color: var(--ok); border-color: currentColor; }
-.pill.wait { color: var(--warn); border-color: currentColor; }
-.pill.bad { color: var(--bad); border-color: currentColor; }
-.sheet { min-width: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 18px; display: grid; gap: 14px; }
-.sheet-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
-.sid { font: 700 14px/1 var(--mono); color: var(--accent-ink); }
-.body { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 18px; }
-@media (max-width: 820px) { .body { grid-template-columns: minmax(0, 1fr); } }
-figure { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
-.paper { position: relative; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden;
-  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 24px 24px; aspect-ratio: 2400 / 1553; max-width: 100%; }
-.paper img, .paper svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.paper .empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 6px; color: #5d636b; padding: 16px; }
-.paper .empty b { font: 700 18px/1.2 var(--display); color: #1d1f22; }
-.anchor-dot { fill: var(--accent); stroke: #fff; stroke-width: 4; }
-.anchor-ring { fill: none; stroke: var(--accent); stroke-width: 3; }
-.anchor-label { font: 600 44px var(--mono); fill: #1d1f22; paint-order: stroke; stroke: #fff; stroke-width: 8; }
-.hide-overlay svg { display: none; }
-figcaption { overflow-wrap: anywhere; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
-label.toggle { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; color: var(--fg); }
-input[type=checkbox] { accent-color: var(--accent); }
-input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; min-width: 0; }
-table { border-collapse: collapse; width: 100%; font: 13px/1.4 var(--mono); font-variant-numeric: tabular-nums; }
-th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-th { font: 600 11px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.tbl { overflow-x: auto; }
-.note { font-size: 14px; overflow-wrap: anywhere; }
-.sheet-head h2 { min-width: 0; overflow-wrap: anywhere; }
-.note.differs { border-left: 3px solid var(--accent); padding-left: 10px; }
-.steps { min-width: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-.steps ol { margin: 0; padding-left: 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
-.steps li { min-width: 0; }
-code, pre { font: 12.5px/1.5 var(--mono); }
-pre { margin: 0; padding: 10px 12px; background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; overflow-x: auto; white-space: pre; }
-.muted { color: var(--muted); }
+:root { --bg:#f3f2ef; --fg:#1d1f22; --muted:#5d636b; --rule:#d9d6cf; --sheet:#fff; --accent:#ee6216;
+  --ok:#2f7d4f; --warn:#a86a00; --bad:#b3261e; --gen:#6b3fa0;
+  --body: "Segoe UI", Arial, sans-serif; --mono: Consolas, "Courier New", monospace; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#17191c; --fg:#e9e7e3; --muted:#a3a8af;
+  --rule:#33373d; --sheet:#1f2226; --ok:#5fbf86; --warn:#e0a640; --bad:#f2867d; --gen:#c4a2f0; color-scheme: dark } }
+:root[data-theme="dark"] { --bg:#17191c; --fg:#e9e7e3; --muted:#a3a8af; --rule:#33373d; --sheet:#1f2226;
+  --ok:#5fbf86; --warn:#e0a640; --bad:#f2867d; --gen:#c4a2f0; color-scheme: dark }
+* { box-sizing: border-box }
+body { margin:0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); overflow-x: hidden }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 22px; grid-template-columns: minmax(0,1fr) }
+h1 { font-size: 30px; margin: 0 } h2 { font-size: 21px; margin: 0; overflow-wrap: anywhere } h3 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 }
+p { margin: 0; max-width: 80ch } .muted { color: var(--muted) }
+.tally { display: flex; flex-wrap: wrap; gap: 8px }
+.pill { font: 600 12px/1 var(--body); letter-spacing: .04em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap }
+.ok { color: var(--ok) } .warn { color: var(--warn) } .bad { color: var(--bad) } .gen { color: var(--gen) } .mut { color: var(--muted) }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 16px; display: grid; gap: 12px; min-width: 0 }
+.head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline }
+.sid { font: 700 14px var(--mono); color: var(--accent) }
+.pair { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.6fr); gap: 14px }
+@media (max-width: 820px) { .pair { grid-template-columns: minmax(0,1fr) } }
+figure { margin: 0; display: grid; gap: 6px; min-width: 0 }
+figure img { width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 4px; background: #fff; display: block }
+figcaption { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere }
+.empty { border: 1px dashed var(--rule); border-radius: 4px; padding: 18px; aspect-ratio: 2400/1553; display: grid; place-content: center; text-align: center; gap: 6px; overflow-wrap: anywhere }
+table { border-collapse: collapse; width: 100%; font-size: 13px }
+th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--rule); vertical-align: top; overflow-wrap: anywhere }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted) }
+.tbl { overflow-x: auto }
+ul { margin: 0; padding-left: 18px } li { overflow-wrap: anywhere }
+.variants { display: grid; gap: 14px }
+.thumbs { display: flex; flex-wrap: wrap; gap: 10px } .thumbs figure { width: 150px }
+code { font: 12.5px var(--mono) }
 '''
 
 
 def main(argv):
-    if not argv or argv[0].startswith('--'):
-        print(__doc__)
-        return 2
-    out = argv[0]
-    opt = {'--folder': DEF_FOLDER, '--spec': os.path.join(HERE, 'am-closeups.json'), '--shots': 'pilot'}
-    i = 1
+    opt = {'--folder': DEF_FOLDER, '--spec': os.path.join(HERE, 'am-closeups.json')}
+    out = None
+    i = 0
     while i < len(argv):
-        opt[argv[i]] = argv[i + 1]
-        i += 2
-    spec = json.load(open(opt['--spec'], encoding='utf-8'))
-    jpath = os.path.join(opt['--folder'], '_closeups.json')
-    rows = {}
-    if os.path.isfile(jpath):
-        for r in json.load(open(jpath, encoding='utf-8')).get('images', []):
-            rows[(r['shot'], r['variant'])] = r
-
-    jobs = []
-    for sid in sorted(spec['shots']):
-        pose = spec['shots'][sid].get('pose')
-        if not pose:
-            continue
-        vs = pose.get('pilot_variants', []) if opt['--shots'] == 'pilot' else list(pose['variants'])
-        for v in vs:
-            jobs.append((sid, v))
-
-    sheets = []
-    done = 0
-    for sid, var in jobs:
-        shot = spec['shots'][sid]
-        pose = shot['pose']
-        vp = pose['variants'][var]
-        base = pose.get('base', {})
-        anchors_spec = dict(base.get('anchors', {}))
-        anchors_spec.update(vp.get('anchors', {}))
-        r = rows.get((sid, var))
-        png = os.path.join(opt['--folder'], r['file']) if r else None
-        if r and os.path.isfile(png):
-            done += 1
-            w, h = r['w'], r['h']
-            marks = []
-            for nm, xy in (r.get('anchors') or {}).items():
-                if xy is None:
-                    continue
-                x, y = xy
-                anchor = 'end' if x > w * 0.75 else 'start'
-                dx = -22 if anchor == 'end' else 22
-                marks.append('<circle class="anchor-ring" cx="%.1f" cy="%.1f" r="22"/>'
-                             '<circle class="anchor-dot" cx="%.1f" cy="%.1f" r="9"/>'
-                             '<text class="anchor-label" x="%.1f" y="%.1f" text-anchor="%s">%s</text>'
-                             % (x, y, x, y, x + dx, y - 26, anchor, esc(nm)))
-            pic = ('<img src="%s" alt="%s %s close-up render">'
-                   '<svg viewBox="0 0 %d %d" aria-hidden="true">%s</svg>'
-                   % (embed(png), esc(sid), esc(var), w, h, ''.join(marks)))
-            state = '<span class="pill ok">rendered</span>'
-            rows_html = ''.join(
-                '<tr><td>%s</td><td>%s</td><td>%s</td></tr>'
-                % (esc(nm), esc('%.1f, %.1f' % tuple(xy)) if xy else '-',
-                   'in frame' if (r.get('anchors_meta', {}).get(nm, {}).get('in_frame')) else 'OUTSIDE')
-                for nm, xy in (r.get('anchors') or {}).items())
-            rows_html += ''.join('<tr><td>%s</td><td>-</td><td>did not resolve</td></tr>' % esc(nm)
-                                 for nm in r.get('anchors_missing') or [])
-            cam = r.get('camera') or {}
-            ipp = r.get('in_per_px')
-            capt = '%s x %s px' % (w, h)
-            if ipp:
-                capt += ' &middot; %.4f in/px (%.0f in view)' % (ipp, ipp * h)
-            if cam.get('azimuth') is not None:
-                capt += ' &middot; azimuth %.0f, elevation %.0f' % (cam['azimuth'], cam['elevation'])
-            warn = ''.join('<li>%s</li>' % esc(x) for x in r.get('warnings') or [])
+        if argv[i].startswith('--'):
+            opt[argv[i]] = argv[i + 1]
+            i += 2
         else:
-            blocked = vp.get('blocked')
-            pic = ('<div class="empty"><b>%s</b><span>%s</span></div>'
-                   % ('Blocked' if blocked else 'Not rendered yet',
-                      esc(blocked) if blocked else 'Run the pilot (steps at the bottom), then rebuild this page.'))
-            state = '<span class="pill wait">waiting</span>' if not blocked else '<span class="pill bad">blocked</span>'
-            rows_html = ''.join('<tr><td>%s</td><td>-</td><td>pending</td></tr>' % esc(nm) for nm in anchors_spec)
-            capt = '2400 x 1553 px canvas, transparent PNG'
-            warn = ''
-        file_name = '%s_%s.png' % (sid, var)
-        sheets.append('''
-<section class="sheet" id="%(id)s">
-  <div class="sheet-head"><span class="sid">%(sid)s &middot; %(var)s</span><h2>%(title)s</h2>%(state)s</div>
-  <div class="body">
-    <figure>
-      <div class="paper">%(pic)s</div>
-      <figcaption><span>%(file)s &middot; %(capt)s</span>
-        <label class="toggle"><input type="checkbox" id="ov-%(id)s" checked> anchor points</label></figcaption>
-    </figure>
-    <div class="side">
-      <div class="tbl"><table><thead><tr><th>Anchor</th><th>Pixel x, y</th><th>State</th></tr></thead><tbody>%(rows)s</tbody></table></div>
-      <div><h3>Model vs storyboard</h3><p class="note differs">%(differs)s</p></div>
-      <div><h3>Storyboard</h3><p class="note muted">%(story)s</p></div>
-      %(warn)s
-    </div>
-  </div>
-</section>''' % {
-            'id': esc((sid + '-' + var).lower()), 'sid': esc(sid), 'var': esc(var), 'title': esc(shot['title']),
-            'state': state, 'pic': pic, 'file': esc(file_name), 'capt': capt, 'rows': rows_html,
-            'differs': esc(pose.get('_differs', '')), 'story': esc(pose.get('_storyboard', '')),
-            'warn': ('<div><h3>Warnings from the run</h3><ul class="note">%s</ul></div>' % warn) if warn else ''})
+            out = argv[i]
+            i += 1
+    folder = opt['--folder']
+    out = out or os.path.join(folder, 'Close-up Review.html')
+    spec = json.load(open(opt['--spec'], encoding='utf-8'))
+    rows = {}
+    jp = os.path.join(folder, '_closeups.json')
+    if os.path.isfile(jp):
+        for r in json.load(open(jp, encoding='utf-8')).get('images', []):
+            rows[(r['shot'], r['variant'])] = r
+    missing = []
+    mp = os.path.join(folder, '_missing.json')
+    if os.path.isfile(mp):
+        missing = json.load(open(mp, encoding='utf-8')).get('parts', [])
+    gens = []
+    gp = os.path.join(folder, '_generated', '_generated.json')
+    if os.path.isfile(gp):
+        gens = json.load(open(gp, encoding='utf-8')).get('parts', [])
 
-    total = len(jobs)
-    pills = ('<span class="pill %s">%d of %d rendered</span>' % ('ok' if done == total else 'wait', done, total))
-    page = '''<title>Close-up Pilot</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Semi+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;600&display=swap">
-<style>%(css)s</style>
-<div class="wrap">
-<header>
-  <span class="eyebrow">Assembly manual &middot; close-up insets</span>
-  <h1>Close-up Pilot</h1>
-  <p class="lede">The five pilot shots from the SketchUp close-up rig: CU-03 door-frame adaptors, CU-01 seam-seal bolt line,
-  CU-06 HX H-strip and extension, CU-08 hanging the door, CU-19 roof-mount duct box on the port tube.
-  Orange points are the anchor pixels the app will draw its callout labels at. No text is baked into the renders.</p>
-  <div class="tally">%(pills)s</div>
-</header>
-%(sheets)s
-<section class="steps" id="run">
-  <h2>Render the pilot</h2>
-  <p>SketchUp 2026 must be open with the WhisperRoom bridge on. Each command runs only the shots that belong to the open model and restores the model exactly. Nothing is saved.</p>
-  <ol>
-    <li>Open <code>Z:\\Sketchup\\BoothBuilderClaude\\Master Component List AM.skp</code> (CU-03, CU-06, CU-08). Dry run first, then render:
-<pre>python scripts/sketchup-bridge.py eval "load File.join(WhisperRoom::Tools::SCRIPTS_DIR, 'am-closeup-export.rb'); WR_AmCloseups.run('shots' =&gt; 'pilot', 'dry' =&gt; true)" --timeout 600 --write-root "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups"
-python scripts/sketchup-bridge.py eval "load File.join(WhisperRoom::Tools::SCRIPTS_DIR, 'am-closeup-export.rb'); WR_AmCloseups.run('shots' =&gt; 'pilot', 'dry' =&gt; false)" --timeout 900 --write-root "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups"</pre></li>
-    <li>Open <code>Z:\\Sketchup\\Assembly\\RM Detailed Assembly.skp</code> (CU-01, CU-19) and run the same two commands.</li>
-    <li>Check the folder, then rebuild this page:
-<pre>python scripts/am-closeup-check.py
-python scripts/am-closeup-review.py "&lt;this file&gt;"</pre></li>
-  </ol>
-</section>
-</div>
-<script>
-document.querySelectorAll('.toggle input').forEach(function (cb) {
-  cb.addEventListener('change', function () {
-    cb.closest('figure').classList.toggle('hide-overlay', !cb.checked);
-  });
-});
-</script>
-''' % {'css': CSS, 'pills': pills, 'sheets': ''.join(sheets)}
-    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    counts = {}
+    by_pri = {}
+    cards = []
+    gen_use = {}
+    for sid in sorted(spec['shots']):
+        shot = spec['shots'][sid]
+        pri = shot.get('priority', '')
+        pose = shot.get('pose') or {}
+        variants = pose.get('variants') or {}
+        if not variants:
+            variants = {'(all)': {'blocked': shot.get('blocked_by') or 'not posed'}}
+        sb = os.path.join(folder, '_review', 'storyboard', sid + '.png')
+        sb_html = ('<figure><img src="%s" alt="%s storyboard panel"><figcaption>Storyboard panel</figcaption></figure>'
+                   % (embed(sb, 700), esc(sid))) if os.path.isfile(sb) else '<div class="empty">No storyboard panel</div>'
+        vblocks = []
+        for var, vp in variants.items():
+            key = '%s_%s' % (sid, var)
+            png = os.path.join(folder, key + '.png')
+            st, why, issues, n = status_of(folder, key, vp, os.path.isfile(png))
+            counts[st] = counts.get(st, 0) + 1
+            by_pri.setdefault(pri, {}).setdefault(st, 0)
+            by_pri[pri][st] += 1
+            r = rows.get((sid, var)) or {}
+            gl = r.get('generated') or []
+            for g in gl:
+                gen_use.setdefault(g, set()).add(key)
+            cls = {'rendered': 'ok', 'rendered-needs-tuning': 'warn', 'unreviewed': 'warn'}.get(st, 'bad')
+            tags = '<span class="pill %s">%s</span>' % (cls, esc(st))
+            tags += ''.join('<span class="pill gen">GENERATED: %s</span>' % esc(g.replace('GEN ', '')) for g in gl)
+            if st in ('skipped', 'blocked', 'not-rendered') or not os.path.isfile(png):
+                pic = '<div class="empty"><b>%s</b><span>%s</span></div>' % (esc(st), esc(why))
+            else:
+                pic = ('<figure><img src="%s" alt="%s render"><figcaption>%s.png &middot; attempt %d%s</figcaption></figure>'
+                       % (embed(png, 1400, 'JPEG'), esc(key), esc(key), n, (' &middot; ' + esc(why)) if why else ''))
+            iss = ''
+            if issues:
+                iss = '<div><h3>Reviewer issues (last verdict)</h3><ul>%s</ul></div>' % ''.join('<li>%s</li>' % esc(x) for x in issues)
+            vblocks.append('<div class="variant"><div class="head"><span class="sid">%s</span>%s</div>%s%s</div>'
+                           % (esc(var), tags, pic, iss))
+        cards.append('''<section class="card" id="%(id)s"><div class="head"><span class="sid">%(sid)s</span><span class="pill mut">%(pri)s</span><h2>%(title)s</h2></div>
+<div class="pair">%(sb)s<div class="variants">%(v)s</div></div>
+<div><h3>Model vs storyboard</h3><p class="muted">%(diff)s</p></div></section>''' % {
+            'id': esc(sid.lower()), 'sid': esc(sid), 'pri': esc(pri), 'title': esc(shot.get('title')), 'sb': sb_html,
+            'v': ''.join(vblocks), 'diff': esc(pose.get('_differs', '') or shot.get('blocked_by', ''))})
+
+    order = ['rendered', 'rendered-needs-tuning', 'unreviewed', 'skipped', 'blocked', 'not-rendered']
+    pills = ''.join('<span class="pill %s">%d %s</span>' % (
+        {'rendered': 'ok', 'rendered-needs-tuning': 'warn', 'unreviewed': 'warn'}.get(k, 'bad'), counts[k], k)
+        for k in order if counts.get(k))
+    pri_rows = ''.join('<tr><td>%s</td>%s</tr>' % (esc(p), ''.join('<td>%d</td>' % by_pri[p].get(k, 0) for k in order))
+                       for p in sorted(by_pri))
+    miss_rows = ''.join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td><code>%s</code></td></tr>' % (
+        esc(m.get('part')), esc(', '.join(m.get('scenes', []))), esc(m.get('p1', '')), esc(m.get('state')), esc(m.get('expected_file')))
+        for m in missing)
+    gen_rows = []
+    thumbs = []
+    for g in gens:
+        nm = g.get('name')
+        tp = os.path.join(folder, '_generated', 'thumbs', nm + '.png')
+        src = g.get('spec', {}).get('source', {})
+        gen_rows.append('<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
+            esc(os.path.basename(g.get('file', ''))), esc(' x '.join('%.3f' % v for v in g.get('size_in', []))),
+            esc('; '.join('%s: %s' % (k, v) for k, v in src.items())), esc(', '.join(sorted(gen_use.get(nm, []))) or 'none yet')))
+        if os.path.isfile(tp):
+            thumbs.append('<figure><img src="%s" alt="%s"><figcaption>%s</figcaption></figure>' % (embed(tp, 300), esc(nm), esc(nm)))
+
+    page = '''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Close-up Review</title><style>%(css)s</style></head><body><div class="wrap">
+<header style="display:grid;gap:8px"><h1>Close-up Review</h1>
+<p class="muted">Every assembly-manual close-up next to its storyboard panel. Status comes from the reviewer's verdict files
+(<code>_review/verdicts</code>); "rendered" means the reviewer passed it. Images tagged GENERATED use a modelled stand-in from
+<code>_generated/</code>, not a library part. Components come only from <code>Z:\\Sketchup\\NewMasterComponentList</code>.</p>
+<div class="tally">%(pills)s</div>
+<div class="tbl"><table><thead><tr><th>Priority</th>%(ph)s</tr></thead><tbody>%(prow)s</tbody></table></div></header>
+<section class="card"><h2>Missing parts</h2><p class="muted">Sorted by how many P1 scenes each part unblocks. "Expected file" is the name the rig will load from NewMasterComponentList.</p>
+<div class="tbl"><table><thead><tr><th>Part</th><th>Scenes</th><th>P1 unblocked</th><th>State</th><th>Expected file</th></tr></thead><tbody>%(miss)s</tbody></table></div></section>
+<section class="card"><h2>Generated stand-in parts</h2><p class="muted">Saved only to <code>AssemblyCloseups\\_generated\\</code>, never to a library. Dimensions marked "guess" are not sourced.</p>
+<div class="thumbs">%(thumbs)s</div>
+<div class="tbl"><table><thead><tr><th>File</th><th>Size (in)</th><th>Dimension sources</th><th>Used in</th></tr></thead><tbody>%(gens)s</tbody></table></div></section>
+%(cards)s
+</div></body></html>''' % {'css': CSS, 'pills': pills, 'ph': ''.join('<th>%s</th>' % esc(k) for k in order), 'prow': pri_rows,
+                          'miss': miss_rows, 'gens': ''.join(gen_rows), 'thumbs': ''.join(thumbs), 'cards': ''.join(cards)}
     with open(out, 'w', encoding='utf-8', newline='\n') as f:
         f.write(page)
-    print('wrote %s  (%d of %d pilot images embedded, %.0f KB)' % (out, done, total, os.path.getsize(out) / 1024))
+    print('wrote %s (%.0f KB); %s' % (out, os.path.getsize(out) / 1024, json.dumps(counts)))
     return 0
 
 

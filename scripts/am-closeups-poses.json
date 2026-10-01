@@ -934,7 +934,7 @@
      },
      {
       "role": "seals",
-      "level": 1,
+      "level": 0,
       "sources": [
        {
         "file": "MidWallSeamSeal_HX.skp",
@@ -1297,6 +1297,3684 @@
     },
     "section": {
      "blocked": "MISSING PART: RM port tube (expected NewMasterComponentList/RM Port Tube.skp). The duct box could be split out of RM4872 (VSS duct box#13), but the tube it drops onto is not in the new library."
+    }
+   }
+  },
+  "CU-02": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 150 el 14, interior low (12 in), 30 deg off the wall; vertical section through the bracket; panel 2 in up; 3/4 in black bolt, started loose.",
+   "_differs": "STD4848FL (its nested \"Hinge (plastic for attaching ceilings & floors)\" is the hinged bracket) and 46PanelSolid placed so the panel's bottom inserts meet the bracket holes (read off both parts). The section is a clip through the bracket's middle; the GENERATED 3/4 in black bolt sits in the bracket's real hole, started 0.4 in.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "floor",
+      "sources": [
+       {
+        "file": "STD4848FL.skp"
+       }
+      ]
+     },
+     {
+      "role": "panel",
+      "sources": [
+       {
+        "file": "46PanelSolid.skp",
+        "at": [
+         43.11,
+         -3,
+         0.99
+        ]
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "panel",
+      "by": [
+       0,
+       0,
+       2
+      ]
+     }
+    ],
+    "bolts": [
+     {
+      "role": "bolt",
+      "generated": "GEN Bolt 3-4 black",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt 3-4 black.skp"
+      },
+      "of": {
+       "part": "floor"
+      },
+      "into": [
+       1,
+       0,
+       0
+      ],
+      "r": [
+       0.1,
+       0.14
+      ],
+      "region": [
+       [
+        40,
+        33,
+        0
+       ],
+       [
+        46,
+        34,
+        5
+       ]
+      ],
+      "lift": 0.4
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       34.0,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       0,
+       16
+      ],
+      "keep": [
+       0,
+       0,
+       -1
+      ]
+     },
+     {
+      "point": [
+       36,
+       0,
+       0
+      ],
+      "keep": [
+       1,
+       0,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       25,
+       0
+      ],
+      "keep": [
+       0,
+       1,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "xyz": [
+       44,
+       30,
+       3
+      ]
+     },
+     "azimuth": 150,
+     "elevation": 14,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       36,
+       25,
+       -0.2
+      ],
+      [
+       45.2,
+       34,
+       16
+      ]
+     ]
+    },
+    "anchors": {
+     "bracket": {
+      "part": "floor",
+      "deep": true,
+      "match": "^Hinge \\(plastic",
+      "rank": "y_desc",
+      "index": 0
+     },
+     "insert": {
+      "xyz": [
+       44.11,
+       33.44,
+       4.74
+      ]
+     },
+     "bolt": {
+      "part": "bolt",
+      "index": 0
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-04": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 25 el 52, from above-front; ceiling lying on the floor, bracket side up; ceiling adaptor 6 in above its spot; 3/4 in chrome bolts.",
+   "_differs": "STD4848CL is used for both the 46 and the 40 in adaptor (their slot spacing is the same 26 in, so the holes line up; the 40 in booth's own ceiling was not identified). The adaptor is the library floor adapter (Benton: the top adapter is the same part); lying on the upside-down ceiling it keeps the floor orientation. The GENERATED 3/4 in chrome bolts are on the adaptor's slot axes, one per slot.",
+   "base": {
+    "explode": true,
+    "moves": [
+     {
+      "part": "adaptor",
+      "by": [
+       0,
+       0,
+       6
+      ]
+     }
+    ],
+    "bolts": [
+     {
+      "role": "bolts",
+      "generated": "GEN Bolt 3-4 chrome",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt 3-4 chrome.skp"
+      },
+      "of": {
+       "part": "adaptor"
+      },
+      "into": [
+       0,
+       0,
+       -1
+      ],
+      "r": [
+       0.14,
+       0.17
+      ],
+      "rank": "x_asc",
+      "pick": [
+       0,
+       2
+      ],
+      "lift": 1.25
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "adaptor"
+     },
+     "azimuth": -65,
+     "elevation": 52,
+     "fill": 0.85
+    },
+    "anchors": {
+     "adaptor": {
+      "part": "adaptor"
+     },
+     "landing": {
+      "xyz": [
+       24.0,
+       1.88,
+       1.75
+      ]
+     },
+     "bolt": {
+      "part": "bolts",
+      "index": 0
+     },
+     "bracket": {
+      "part": "ceiling",
+      "deep": true,
+      "match": "^Hinge \\(plastic",
+      "rank": "y_asc",
+      "index": 0
+     }
+    }
+   },
+   "variants": {
+    "w46": {
+     "parts": [
+      {
+       "role": "ceiling",
+       "sources": [
+        {
+         "file": "STD4848CL.skp"
+        }
+       ]
+      },
+      {
+       "role": "adaptor",
+       "sources": [
+        {
+         "file": "46 Door Frame Adapter.skp",
+         "at": [
+          8.48,
+          1.3,
+          1.75
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "w40": {
+     "parts": [
+      {
+       "role": "ceiling",
+       "sources": [
+        {
+         "file": "STD4848CL.skp"
+        }
+       ]
+      },
+      {
+       "role": "adaptor",
+       "sources": [
+        {
+         "file": "40 Door Frame Adapter.skp",
+         "at": [
+          8.48,
+          1.3,
+          1.75
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "w49": {
+     "blocked": "BLOCKED: no WA/ADA ceiling with the 38 3/4 in adaptor slot spacing was identified in NewMasterComponentList (STD4848CL matches the 46/40 adaptors only)."
+    }
+   }
+  },
+  "CU-05": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 160 el 20, interior at the frame foot; adjacent wall panels ghosted 35%; section through the jamb at the adaptor; nothing exploded.",
+   "_differs": "No adjacent wall panels are staged (the shot is the jamb foot). The adaptor is the library 46 Door Frame Adapter seated on the frame's own hole line with GENERATED 3/4 in chrome bolts fully seated (tight). The section is a clip 3 in in from the jamb.",
+   "base": {
+    "explode": false,
+    "parts": [
+     {
+      "role": "frame",
+      "split": 2,
+      "sources": [
+       {
+        "file": "Left46Door_NoDoor.skp"
+       }
+      ]
+     },
+     {
+      "role": "floorAd",
+      "sources": [
+       {
+        "file": "46 Door Frame Adapter.skp",
+        "rot": [
+         [
+          "z",
+          -90
+         ]
+        ],
+        "at": [
+         3.52,
+         39.5,
+         0.75
+        ]
+       }
+      ]
+     },
+     {
+      "role": "slab",
+      "sources": [
+       {
+        "file": "STD4848FL.skp",
+        "at": [
+         4.77,
+         3.0,
+         -2.36
+        ]
+       }
+      ]
+     }
+    ],
+    "hide": [
+     {
+      "part": "frame",
+      "match": "adaptor \\((top|bottom)\\)"
+     }
+    ],
+    "bolts": [
+     {
+      "role": "bolts",
+      "generated": "GEN Bolt 3-4 chrome",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt 3-4 chrome.skp"
+      },
+      "of": {
+       "part": "floorAd"
+      },
+      "into": [
+       -1,
+       0,
+       0
+      ],
+      "r": [
+       0.17,
+       0.2
+      ],
+      "lift": 0
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       0,
+       18
+      ],
+      "keep": [
+       0,
+       0,
+       -1
+      ]
+     },
+     {
+      "point": [
+       16,
+       0,
+       0
+      ],
+      "keep": [
+       -1,
+       0,
+       0
+      ]
+     },
+     {
+      "point": [
+       -2,
+       0,
+       0
+      ],
+      "keep": [
+       1,
+       0,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       30,
+       0
+      ],
+      "keep": [
+       0,
+       1,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "xyz": [
+       4.5,
+       37,
+       2
+      ]
+     },
+     "azimuth": 20,
+     "elevation": 20,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       -2,
+       30,
+       -2.4
+      ],
+      [
+       16,
+       48,
+       18
+      ]
+     ]
+    },
+    "anchors": {
+     "adaptor": {
+      "part": "floorAd",
+      "at": [
+       0.5,
+       0.5,
+       0.5
+      ]
+     },
+     "bolt": {
+      "part": "bolts",
+      "rank": "y_desc",
+      "index": 0
+     },
+     "frameFoot": {
+      "part": "frame",
+      "loose": true,
+      "at": [
+       0.5,
+       0.9,
+       0.02
+      ]
+     }
+    }
+   },
+   "variants": {
+    "standard": {},
+    "HX": {
+     "parts": [
+      {
+       "role": "frame",
+       "split": 1,
+       "sources": [
+        {
+         "file": "Left46Door_HX_NoDoor.skp"
+        }
+       ]
+      },
+      {
+       "role": "floorAd",
+       "sources": [
+        {
+         "file": "46 Door Frame Adapter.skp",
+         "rot": [
+          [
+           "z",
+           -90
+          ]
+         ],
+         "at": [
+          3.52,
+          38.5,
+          0.75
+         ]
+        }
+       ]
+      },
+      {
+       "role": "slab",
+       "sources": [
+        {
+         "file": "STD4848FL.skp",
+         "at": [
+          4.77,
+          2.0,
+          -2.36
+         ]
+        }
+       ]
+      }
+     ],
+     "hide": [],
+     "bolts": [
+      {
+       "role": "bolts",
+       "generated": "GEN Bolt 3-4 chrome",
+       "source": {
+        "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt 3-4 chrome.skp"
+       },
+       "of": {
+        "part": "floorAd"
+       },
+       "into": [
+        -1,
+        0,
+        0
+       ],
+       "r": [
+        0.17,
+        0.2
+       ],
+       "lift": 0
+      }
+     ],
+     "camera": {
+      "target": {
+       "xyz": [
+        4.5,
+        36,
+        2
+       ]
+      },
+      "azimuth": 20,
+      "elevation": 20,
+      "fill": 0.85,
+      "fit_box": [
+       [
+        -2,
+        29,
+        -2.4
+       ],
+       [
+        16,
+        47,
+        18
+       ]
+      ]
+     },
+     "clips": [
+      {
+       "point": [
+        0,
+        0,
+        18
+       ],
+       "keep": [
+        0,
+        0,
+        -1
+       ]
+      },
+      {
+       "point": [
+        16,
+        0,
+        0
+       ],
+       "keep": [
+        -1,
+        0,
+        0
+       ]
+      },
+      {
+       "point": [
+        -2,
+        0,
+        0
+       ],
+       "keep": [
+        1,
+        0,
+        0
+       ]
+      },
+      {
+       "point": [
+        0,
+        29,
+        0
+       ],
+       "keep": [
+        0,
+        1,
+        0
+       ]
+      }
+     ],
+     "anchors": {
+      "adaptor": {
+       "part": "floorAd",
+       "at": [
+        0.5,
+        0.5,
+        0.5
+       ]
+      },
+      "bolt": {
+       "part": "bolts",
+       "rank": "y_desc",
+       "index": 0
+      }
+     }
+    }
+   }
+  },
+  "CU-07": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 160 el -16, interior looking up at the frame head; ceiling lifted 6 in; black plastic hinges replace the ceiling adaptor.",
+   "_differs": "Black Hinge placed on the extension's real hinge-bolt holes (derived from the hole pairs; the base sits 0.75 in under the extension top, read off the parts). Ceiling edge = STD4848CL lifted 6 in. GENERATED 3/4 in black bolts seated in the hinge leaves.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "frame",
+      "sources": [
+       {
+        "file": "Left46Door_HX_NoDoor.skp"
+       }
+      ]
+     },
+     {
+      "role": "hinges",
+      "sources": [
+       {
+        "file": "Black Hinge.skp",
+        "rot": [
+         [
+          "x",
+          180
+         ],
+         [
+          "z",
+          -90
+         ]
+        ],
+        "at": [
+         [
+          4.5,
+          10.94,
+          90.25
+         ],
+         [
+          4.5,
+          36.94,
+          90.25
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "role": "ceiling",
+      "sources": [
+       {
+        "file": "STD4848CL.skp",
+        "rot": [
+         [
+          "x",
+          180
+         ]
+        ],
+        "at": [
+         1.77,
+         48,
+         94.11
+        ]
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "ceiling",
+      "by": [
+       0,
+       0,
+       6
+      ]
+     }
+    ],
+    "bolts": [
+     {
+      "role": "bolts",
+      "generated": "GEN Bolt 3-4 black",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt 3-4 black.skp"
+      },
+      "of": {
+       "part": "hinges"
+      },
+      "into": [
+       -1,
+       0,
+       0
+      ],
+      "r": [
+       0.1,
+       0.14
+      ],
+      "lift": 0
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       0,
+       60
+      ],
+      "keep": [
+       0,
+       0,
+       1
+      ]
+     },
+     {
+      "point": [
+       24,
+       0,
+       0
+      ],
+      "keep": [
+       -1,
+       0,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "xyz": [
+       4,
+       23,
+       88
+      ]
+     },
+     "azimuth": 10,
+     "elevation": -16,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       -1,
+       -1,
+       66
+      ],
+      [
+       24,
+       47,
+       101
+      ]
+     ]
+    },
+    "anchors": {
+     "hinge": {
+      "part": "hinges",
+      "rank": "y_asc",
+      "index": 0
+     },
+     "ceiling": {
+      "part": "ceiling",
+      "at": [
+       0.2,
+       0.5,
+       0.0
+      ]
+     },
+     "extension": {
+      "part": "frame",
+      "deep": true,
+      "name": "Component#223",
+      "at": [
+       0.5,
+       0.5,
+       0.5
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-24": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 135 el 48, interior corner, eye at 48 in; Std shell 35%; horizontal section at 40 in; IEP seal 4 in out of the corner; six isolator pads.",
+   "_differs": "Std corner = CornerSeamSeal + two 46PanelSolid (ghosted 35% in their own material); IEP seal = ENH CornerSeamSeal / ENH MidWallSeamSeal (\"... (with pads)\": the pads are part of the library seal, not loose). Section = a clip at 40 in. No floor/ceiling edges (the cut is at 40 in).",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "stdseal",
+      "sources": [
+       {
+        "file": "CornerSeamSeal.skp"
+       }
+      ]
+     },
+     {
+      "role": "panels",
+      "sources": [
+       {
+        "file": "46PanelSolid.skp",
+        "at": [
+         0,
+         1,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "role": "panels2",
+      "sources": [
+       {
+        "file": "46PanelSolid.skp",
+        "rot": [
+         [
+          "z",
+          -90
+         ]
+        ],
+        "at": [
+         1,
+         3,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "role": "iep",
+      "sources": [
+       {
+        "file": "ENH CornerSeamSeal.skp"
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "iep",
+      "by": [
+       2.83,
+       2.83,
+       0
+      ]
+     }
+    ],
+    "ghost": [
+     {
+      "part": "panels",
+      "alpha": 0.35
+     },
+     {
+      "part": "panels2",
+      "alpha": 0.35
+     },
+     {
+      "part": "stdseal",
+      "alpha": 0.35
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       0,
+       40
+      ],
+      "keep": [
+       0,
+       0,
+       -1
+      ]
+     },
+     {
+      "point": [
+       16,
+       0,
+       0
+      ],
+      "keep": [
+       -1,
+       0,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       16,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "iep"
+     },
+     "azimuth": 45,
+     "elevation": 48,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       -0.5,
+       -0.5,
+       26
+      ],
+      [
+       16,
+       16,
+       40
+      ]
+     ]
+    },
+    "anchors": {
+     "iepSeal": {
+      "part": "iep",
+      "at": [
+       0.5,
+       0.5,
+       0.45
+      ]
+     },
+     "pads": {
+      "part": "iep",
+      "at": [
+       0.2,
+       0.2,
+       0.45
+      ]
+     },
+     "stdSeal": {
+      "part": "stdseal",
+      "at": [
+       0.5,
+       0.5,
+       0.45
+      ]
+     }
+    }
+   },
+   "variants": {
+    "corner": {},
+    "mid-wall": {
+     "parts": [
+      {
+       "role": "stdseal",
+       "sources": [
+        {
+         "file": "MidWallSeamSeal.skp"
+        }
+       ]
+      },
+      {
+       "role": "panels",
+       "sources": [
+        {
+         "file": "46PanelSolid.skp",
+         "rot": [
+          [
+           "z",
+           90
+          ]
+         ],
+         "at": [
+          [
+           3.88,
+           -1,
+           0
+          ],
+          [
+           51.88,
+           -1,
+           0
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "role": "iep",
+       "sources": [
+        {
+         "file": "ENH MidWallSeamSeal.skp"
+        }
+       ]
+      }
+     ],
+     "ghost": [
+      {
+       "part": "panels",
+       "alpha": 0.35
+      },
+      {
+       "part": "stdseal",
+       "alpha": 0.35
+      }
+     ],
+     "moves": [
+      {
+       "part": "iep",
+       "by": [
+        0,
+        -4,
+        0
+       ]
+      }
+     ],
+     "clips": [
+      {
+       "point": [
+        0,
+        0,
+        40
+       ],
+       "keep": [
+        0,
+        0,
+        -1
+       ]
+      },
+      {
+       "point": [
+        -10,
+        0,
+        0
+       ],
+       "keep": [
+        1,
+        0,
+        0
+       ]
+      },
+      {
+       "point": [
+        18,
+        0,
+        0
+       ],
+       "keep": [
+        -1,
+        0,
+        0
+       ]
+      }
+     ],
+     "camera": {
+      "target": {
+       "part": "iep"
+      },
+      "azimuth": -90,
+      "elevation": 48,
+      "fill": 0.85,
+      "fit_box": [
+       [
+        -10,
+        -8,
+        26
+       ],
+       [
+        18,
+        2.5,
+        40
+       ]
+      ]
+     }
+    }
+   }
+  },
+  "CU-25": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 135 el 20, interior 3/4; Std wall 35%; vertical section through the H-strip; top half 8 in up, strip 4 in up.",
+   "_differs": "ENH 41.5PanelSolid split three levels into its two IEP wall halves and the H - strip 41.5; the Std wall behind is 46PanelSolid ghosted 35%. The vertical section is a clip across the wall at mid-length.",
+   "base": {
+    "parts": [
+     {
+      "role": "std",
+      "sources": [
+       {
+        "file": "46PanelSolid.skp",
+        "at": [
+         0,
+         1,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "role": "iep",
+      "split": 3,
+      "sources": [
+       {
+        "file": "ENH 41.5PanelSolid.skp"
+       }
+      ]
+     }
+    ],
+    "ghost": [
+     {
+      "part": "std",
+      "alpha": 0.35
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       24,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       0,
+       20
+      ],
+      "keep": [
+       0,
+       0,
+       1
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "iep",
+      "match": "^H - strip"
+     },
+     "azimuth": 55,
+     "elevation": 20,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       0.5,
+       2,
+       20
+      ],
+      [
+       5,
+       24,
+       90
+      ]
+     ]
+    },
+    "anchors": {
+     "hStrip": {
+      "part": "iep",
+      "match": "^H - strip",
+      "at": [
+       0.5,
+       1.0,
+       0.5
+      ]
+     },
+     "topHalf": {
+      "part": "iep",
+      "match": "^IEP wall 41.5 panel",
+      "rank": "z_desc",
+      "index": 0,
+      "at": [
+       0.5,
+       0.8,
+       0.5
+      ]
+     },
+     "bottomHalf": {
+      "part": "iep",
+      "match": "^IEP wall 41.5 panel",
+      "rank": "z_desc",
+      "index": 1,
+      "at": [
+       0.5,
+       0.8,
+       0.8
+      ]
+     },
+     "stdWall": {
+      "part": "std",
+      "at": [
+       0.5,
+       0.8,
+       0.6
+      ]
+     }
+    }
+   },
+   "variants": {
+    "exploded": {
+     "explode": true,
+     "moves": [
+      {
+       "part": "iep",
+       "match": "^IEP wall 41.5 panel",
+       "rank": "z_desc",
+       "index": 0,
+       "by": [
+        0,
+        0,
+        8
+       ]
+      },
+      {
+       "part": "iep",
+       "match": "^H - strip",
+       "by": [
+        0,
+        0,
+        4
+       ]
+      }
+     ]
+    },
+    "seated": {
+     "explode": false
+    }
+   }
+  },
+  "CU-26": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 160 el 20, interior at the frame foot; vertical section through frame / adaptor / jamb; the long bolt on its axis 4 in out.",
+   "_differs": "Std frame + library 46 floor adapter + the IEP jamb split out of ENH Left41.5Door_NoDoor (its other parts hidden). The longer bolt is a GENERATED stand-in (length a guess: 3 in) on the shared hole line (frame, adaptor web and jamb holes coincide at y 24.0, z 2), 4 in out of the jamb. The section is a clip through that bolt line. Framed on the floor end for both variants.",
+   "base": {
+    "explode": true,
+    "bolts": [
+     {
+      "role": "bolt",
+      "generated": "GEN Bolt IEP jamb long chrome",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt IEP jamb long chrome.skp"
+      },
+      "of": {
+       "part": "jamb"
+      },
+      "into": [
+       -1,
+       0,
+       0
+      ],
+      "r": [
+       0.2,
+       0.3
+      ],
+      "region": [
+       [
+        0,
+        23,
+        1
+       ],
+       [
+        9,
+        25,
+        3
+       ]
+      ],
+      "lift": 4
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       24.0,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       0,
+       14
+      ],
+      "keep": [
+       0,
+       0,
+       -1
+      ]
+     },
+     {
+      "point": [
+       0,
+       14,
+       0
+      ],
+      "keep": [
+       0,
+       1,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "xyz": [
+       5,
+       24,
+       2
+      ]
+     },
+     "azimuth": 60,
+     "elevation": 20,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       1.5,
+       14,
+       -0.2
+      ],
+      [
+       11,
+       24,
+       14
+      ]
+     ]
+    },
+    "anchors": {
+     "frame": {
+      "part": "frame",
+      "loose": true,
+      "at": [
+       0.2,
+       0.5,
+       0.05
+      ]
+     },
+     "adaptor": {
+      "part": "floorAd",
+      "at": [
+       0.5,
+       0.5,
+       0.5
+      ]
+     },
+     "jamb": {
+      "part": "jamb",
+      "match": "^IEP jamb",
+      "at": [
+       0.5,
+       0.4,
+       0.05
+      ]
+     },
+     "bolt": {
+      "part": "bolt",
+      "index": 0
+     }
+    }
+   },
+   "variants": {
+    "standard": {
+     "parts": [
+      {
+       "role": "frame",
+       "split": 2,
+       "sources": [
+        {
+         "file": "Left46Door_NoDoor.skp"
+        }
+       ]
+      },
+      {
+       "role": "floorAd",
+       "sources": [
+        {
+         "file": "46 Door Frame Adapter.skp",
+         "rot": [
+          [
+           "z",
+           -90
+          ]
+         ],
+         "at": [
+          3.52,
+          39.5,
+          0.75
+         ]
+        }
+       ]
+      },
+      {
+       "role": "jamb",
+       "split": 3,
+       "sources": [
+        {
+         "file": "ENH Left41.5Door_NoDoor.skp"
+        }
+       ]
+      },
+      {
+       "role": "topAd",
+       "sources": [
+        {
+         "file": "46 Door Frame Adapter.skp",
+         "rot": [
+          [
+           "x",
+           180
+          ],
+          [
+           "z",
+           -90
+          ]
+         ],
+         "at": [
+          5.4,
+          39.5,
+          80.25
+         ]
+        }
+       ]
+      }
+     ],
+     "hide": [
+      {
+       "part": "frame",
+       "match": "adaptor \\((top|bottom)\\)"
+      },
+      {
+       "part": "jamb",
+       "not": "^IEP jamb",
+       "match": "."
+      }
+     ]
+    },
+    "HX": {
+     "parts": [
+      {
+       "role": "frame",
+       "split": 2,
+       "sources": [
+        {
+         "file": "Left46Door_HX_NoDoor.skp"
+        }
+       ]
+      },
+      {
+       "role": "floorAd",
+       "sources": [
+        {
+         "file": "46 Door Frame Adapter.skp",
+         "rot": [
+          [
+           "z",
+           -90
+          ]
+         ],
+         "at": [
+          3.52,
+          38.5,
+          0.75
+         ]
+        }
+       ]
+      },
+      {
+       "role": "jamb",
+       "split": 4,
+       "sources": [
+        {
+         "file": "ENH Left41.5Door_HX_NoDoor.skp"
+        }
+       ]
+      }
+     ],
+     "hide": [
+      {
+       "part": "jamb",
+       "not": "^IEP jamb",
+       "match": "."
+      }
+     ],
+     "bolts": [
+      {
+       "role": "bolt",
+       "generated": "GEN Bolt IEP jamb long chrome",
+       "source": {
+        "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt IEP jamb long chrome.skp"
+       },
+       "of": {
+        "part": "jamb"
+       },
+       "into": [
+        -1,
+        0,
+        0
+       ],
+       "r": [
+        0.2,
+        0.3
+       ],
+       "region": [
+        [
+         0,
+         22,
+         1
+        ],
+        [
+         9,
+         24,
+         3
+        ]
+       ],
+       "lift": 4
+      }
+     ],
+     "clips": [
+      {
+       "point": [
+        0,
+        23.0,
+        0
+       ],
+       "keep": [
+        0,
+        -1,
+        0
+       ]
+      },
+      {
+       "point": [
+        0,
+        0,
+        14
+       ],
+       "keep": [
+        0,
+        0,
+        -1
+       ]
+      },
+      {
+       "point": [
+        0,
+        13,
+        0
+       ],
+       "keep": [
+        0,
+        1,
+        0
+       ]
+      }
+     ],
+     "camera": {
+      "target": {
+       "xyz": [
+        5,
+        23,
+        2
+       ]
+      },
+      "azimuth": 60,
+      "elevation": 20,
+      "fill": 0.85,
+      "fit_box": [
+       [
+        1.5,
+        13,
+        -0.2
+       ],
+       [
+        11,
+        23,
+        14
+       ]
+      ]
+     }
+    }
+   }
+  },
+  "CU-28": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 135 el 20, interior 3/4 at the wall top; Std wall 35%; vertical section through the H-strip; extension 6 in up.",
+   "_differs": "ENH 41.5PanelSolid_HX split: Component#80 holds the IEP wall 41.5 HX extension and its H - strip 41.5; Component#90 the IEP wall set. Std wall behind = 46PanelSolid_HX ghosted 35%. The section is a clip at mid-length; framed on the wall top (z >= 60).",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "std",
+      "sources": [
+       {
+        "file": "46PanelSolid_HX.skp",
+        "at": [
+         0.94,
+         2,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "role": "iep",
+      "split": 2,
+      "sources": [
+       {
+        "file": "ENH 41.5PanelSolid_HX.skp"
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "iep",
+      "match": "^IEP wall 41.5 HX",
+      "by": [
+       0,
+       0,
+       6
+      ]
+     }
+    ],
+    "ghost": [
+     {
+      "part": "std",
+      "alpha": 0.35
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       23,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       0,
+       60
+      ],
+      "keep": [
+       0,
+       0,
+       1
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "iep",
+      "match": "^IEP wall 41.5 HX"
+     },
+     "azimuth": 55,
+     "elevation": 20,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       0.5,
+       2,
+       60
+      ],
+      [
+       5,
+       23,
+       98
+      ]
+     ]
+    },
+    "anchors": {
+     "extension": {
+      "part": "iep",
+      "match": "^IEP wall 41.5 HX",
+      "at": [
+       0.5,
+       0.8,
+       0.5
+      ]
+     },
+     "iepWall": {
+      "part": "iep",
+      "match": "^Std wall",
+      "at": [
+       0.5,
+       0.8,
+       0.9
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-29": {
+   "pilot_variants": [],
+   "model": "any",
+   "base": {},
+   "_differs": "Not posed.",
+   "variants": {
+    "one": {
+     "blocked": "BLOCKED: how IEP Beam Bracket meets the ceiling seam seal cannot be read off the parts (the bracket's bolt holes are horizontal, STDSS CL8's end holes vertical); a posed example (e.g. NewMasterComponentList/IEP Beam Assembled.skp) is needed so the 3 1/2 in bolts can be placed in real holes."
+    }
+   }
+  },
+  "CU-34": {
+   "pilot_variants": [],
+   "model": "any",
+   "base": {},
+   "_differs": "Not posed.",
+   "variants": {
+    "standard": {
+     "blocked": "BLOCKED: needs an assembled multi-bay bridge (bay-1 walls, the two mid-wall seals on the floor seam, STDSS CL8) to place the seals; NewMasterComponentList holds parts only (expected e.g. ASSEMBLED 96xx S bridge.skp)."
+    },
+    "WA": {
+     "blocked": "BLOCKED: needs an assembled multi-bay bridge (bay-1 walls, the two mid-wall seals on the floor seam, STDSS CL8) to place the seals; NewMasterComponentList holds parts only (expected e.g. ASSEMBLED 96xx S bridge.skp)."
+    }
+   }
+  },
+  "CU-30": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 160 el 15, interior; IEP door 6 in off the Std door; 12 plugs out; 3 centre bolts first.",
+   "_differs": "Std leaf (Left46Door, split) + IEP door 30\" (ENH Left41.5Door, split; jamb hidden), shown closed rather than open 90 deg. The 12 GENERATED insert plugs are pulled 3 in out of the Std door's 12 inserts; the three GENERATED 1 5/8 in bolts sit in the IEP door's middle-row holes (which three are \"centre\" is derived: the middle row).",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "std",
+      "split": 1,
+      "sources": [
+       {
+        "file": "Left46Door.skp"
+       }
+      ]
+     },
+     {
+      "role": "enh",
+      "split": 2,
+      "sources": [
+       {
+        "file": "ENH Left41.5Door.skp"
+       }
+      ]
+     }
+    ],
+    "hide": [
+     {
+      "part": "std",
+      "match": "^Std door frame"
+     },
+     {
+      "part": "enh",
+      "not": "^IEP door 30\"$",
+      "match": "."
+     }
+    ],
+    "moves": [
+     {
+      "part": "enh",
+      "match": "^IEP door 30\"$",
+      "by": [
+       6,
+       0,
+       0
+      ]
+     }
+    ],
+    "bolts": [
+     {
+      "role": "plugs",
+      "generated": "GEN Insert plug black",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Insert plug black.skp"
+      },
+      "of": {
+       "part": "std",
+       "not": "^Std door frame",
+       "match": "."
+      },
+      "into": [
+       -1,
+       0,
+       0
+      ],
+      "r": [
+       0.2,
+       0.3
+      ],
+      "region": [
+       [
+        3,
+        0,
+        0
+       ],
+       [
+        5,
+        50,
+        82
+       ]
+      ],
+      "lift": 3
+     },
+     {
+      "role": "bolts",
+      "generated": "GEN Bolt 1-5-8 black",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt 1-5-8 black.skp"
+      },
+      "of": {
+       "part": "enh",
+       "match": "^IEP door 30\"$",
+       "rank": "x_desc",
+       "index": 0
+      },
+      "into": [
+       -1,
+       0,
+       0
+      ],
+      "r": [
+       0.2,
+       0.3
+      ],
+      "region": [
+       [
+        0,
+        0,
+        35
+       ],
+       [
+        20,
+        50,
+        46
+       ]
+      ],
+      "lift": 0.5
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "enh",
+      "match": "^IEP door 30\"$",
+      "rank": "x_desc",
+      "index": 0
+     },
+     "azimuth": 35,
+     "elevation": 15,
+     "fill": 0.85
+    },
+    "anchors": {
+     "iepDoor": {
+      "part": "enh",
+      "match": "^IEP door 30\"$",
+      "rank": "x_desc",
+      "index": 0,
+      "at": [
+       0.5,
+       0.5,
+       0.5
+      ]
+     },
+     "stdDoor": {
+      "part": "std",
+      "not": "^Std door frame",
+      "match": ".",
+      "at": [
+       0.9,
+       0.5,
+       0.7
+      ]
+     },
+     "centreBolt": {
+      "part": "bolts",
+      "index": 0
+     },
+     "plug": {
+      "part": "plugs",
+      "index": 0
+     }
+    }
+   },
+   "variants": {
+    "standard": {},
+    "WA": {
+     "blocked": "BLOCKED (not attempted this run): the WA IEP door's fit on the WA Std leaf was not verified against the library holes."
+    }
+   }
+  },
+  "CU-32": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 30 el 45, from above 3/4; plate 3 in up; 3/4 in black bolts.",
+   "_differs": "CP9648 SIDE + CP9648 CTR placed so their bracket slots sit 2.5 in apart across the joint (read off the slots); the library Caster Plate Attachment Plate over them, lifted 3 in; GENERATED 3/4 in black bolts in the plate's two holes over the slots.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "side",
+      "sources": [
+       {
+        "file": "CP9648 SIDE.skp"
+       }
+      ]
+     },
+     {
+      "role": "ctr",
+      "sources": [
+       {
+        "file": "CP9648 CTR.skp",
+        "at": [
+         50,
+         -48,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "role": "plate",
+      "sources": [
+       {
+        "file": "Caster Plate Attachment Plate.skp",
+        "at": [
+         47.99,
+         -38.01,
+         5.44
+        ]
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "plate",
+      "by": [
+       0,
+       0,
+       3
+      ]
+     }
+    ],
+    "bolts": [
+     {
+      "role": "bolts",
+      "generated": "GEN Bolt 3-4 black",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt 3-4 black.skp"
+      },
+      "of": {
+       "part": "plate"
+      },
+      "into": [
+       0,
+       0,
+       -1
+      ],
+      "r": [
+       0.2,
+       0.3
+      ],
+      "region": [
+       [
+        40,
+        -38,
+        0
+       ],
+       [
+        60,
+        -37,
+        20
+       ]
+      ],
+      "lift": 1.5
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       38,
+       0,
+       0
+      ],
+      "keep": [
+       1,
+       0,
+       0
+      ]
+     },
+     {
+      "point": [
+       62,
+       0,
+       0
+      ],
+      "keep": [
+       -1,
+       0,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       -48,
+       0
+      ],
+      "keep": [
+       0,
+       1,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       -26,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "plate"
+     },
+     "azimuth": -60,
+     "elevation": 45,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       38,
+       -48,
+       0
+      ],
+      [
+       62,
+       -26,
+       12
+      ]
+     ]
+    },
+    "anchors": {
+     "plate": {
+      "part": "plate"
+     },
+     "bolt": {
+      "part": "bolts",
+      "index": 0
+     },
+     "joint": {
+      "xyz": [
+       50,
+       -37,
+       5.4
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-33": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 210 el 20, low 3/4 across the seam; vertical section across the seam; floors 4 in apart.",
+   "_differs": "STDSS FL8 between STD9648FL CTR and STD9648FL SIDE, each floor placed so its strap receiver sits on the seam seal's Floor connector plate (read off the parts); floors pulled 4 in apart. Section = a clip through the connector plate.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "seam",
+      "sources": [
+       {
+        "file": "STDSS FL8.skp"
+       }
+      ]
+     },
+     {
+      "role": "floorL",
+      "sources": [
+       {
+        "file": "STD9648FL CTR.skp",
+        "at": [
+         -47.94,
+         -21.25,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "role": "floorR",
+      "sources": [
+       {
+        "file": "STD9648FL SIDE.skp",
+        "at": [
+         -11.53,
+         -62.0,
+         0
+        ]
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "floorL",
+      "by": [
+       -4,
+       0,
+       0
+      ]
+     },
+     {
+      "part": "floorR",
+      "by": [
+       4,
+       0,
+       0
+      ]
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       -19.12,
+       0
+      ],
+      "keep": [
+       0,
+       1,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       -6,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     },
+     {
+      "point": [
+       -18,
+       0,
+       0
+      ],
+      "keep": [
+       1,
+       0,
+       0
+      ]
+     },
+     {
+      "point": [
+       24,
+       0,
+       0
+      ],
+      "keep": [
+       -1,
+       0,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "seam"
+     },
+     "azimuth": -110,
+     "elevation": 20,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       -18,
+       -19.2,
+       -1
+      ],
+      [
+       24,
+       -6,
+       3.2
+      ]
+     ]
+    },
+    "anchors": {
+     "seam": {
+      "part": "seam",
+      "at": [
+       0.5,
+       0.1,
+       0.5
+      ]
+     },
+     "plate": {
+      "part": "seam",
+      "deep": true,
+      "match": "^Floor connector plate",
+      "rank": "y_asc",
+      "index": 0
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-40": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 200 el 15, exterior low 3/4 at the threshold; door ghosted 35%; vertical section through plate + insert; ramp 4 in out; 3/4 in black bolts.",
+   "_differs": "LeftWADoorWithRamp_NoDoor split three levels (ramp pieces, RAMP 1 plates, the WA frame). The ramp is pulled 4 in out (-x); GENERATED 3/4 in black bolts on the plates' top holes. The frame is ghosted (no leaf in this file). Section = a clip through one plate's hole line.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "set",
+      "split": 3,
+      "keep": "^WA door frame",
+      "sources": [
+       {
+        "file": "LeftWADoorWithRamp_NoDoor.skp"
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "set",
+      "not": "^WA door frame",
+      "match": ".",
+      "by": [
+       -4,
+       0,
+       0
+      ]
+     },
+     {
+      "part": "set",
+      "loose": true,
+      "by": [
+       -4,
+       0,
+       0
+      ]
+     }
+    ],
+    "bolts": [
+     {
+      "role": "bolts",
+      "generated": "GEN Bolt 3-4 black",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt 3-4 black.skp"
+      },
+      "of": {
+       "part": "set",
+       "match": "^Component$"
+      },
+      "into": [
+       1,
+       0,
+       0
+      ],
+      "r": [
+       0.14,
+       0.17
+      ],
+      "region": [
+       [
+        30,
+        5,
+        4
+       ],
+       [
+        50,
+        6,
+        5.5
+       ]
+      ],
+      "lift": 1.0
+     }
+    ],
+    "ghost": [
+     {
+      "part": "set",
+      "match": "^WA door frame",
+      "alpha": 0.35
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       5.4,
+       0
+      ],
+      "keep": [
+       0,
+       1,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       0,
+       14
+      ],
+      "keep": [
+       0,
+       0,
+       -1
+      ]
+     },
+     {
+      "point": [
+       0,
+       16,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     },
+     {
+      "point": [
+       28,
+       0,
+       0
+      ],
+      "keep": [
+       1,
+       0,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "xyz": [
+       44,
+       8,
+       3
+      ]
+     },
+     "azimuth": -150,
+     "elevation": 15,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       28,
+       5.4,
+       0
+      ],
+      [
+       50,
+       16,
+       14
+      ]
+     ]
+    },
+    "anchors": {
+     "plate": {
+      "xyz": [
+       42.5,
+       5.5,
+       3.6
+      ]
+     },
+     "bolt": {
+      "part": "bolts",
+      "index": 0
+     },
+     "frameInsert": {
+      "xyz": [
+       46.6,
+       5.4,
+       4.8
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-09": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 140 el 20, perspective; interior close at the latch, door ajar 10 deg; a dollar bill at the strike / seal.",
+   "_differs": "Left46Door (closed) split one level; the leaf turned 10 deg open about its hinge pins (x 2.15, y 39.04, read off the frame). The GENERATED dollar bill stands in the gap at the latch edge. Parallel projection (the rig's anchors are exact only for parallel); the storyboard asks for perspective.",
+   "base": {
+    "explode": false,
+    "parts": [
+     {
+      "role": "door",
+      "split": 1,
+      "sources": [
+       {
+        "file": "Left46Door.skp"
+       }
+      ]
+     },
+     {
+      "role": "bill",
+      "generated": "GEN Dollar bill",
+      "sources": [
+       {
+        "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Dollar bill.skp",
+        "rot": [
+         [
+          "x",
+          90
+         ]
+        ],
+        "at": [
+         0.5,
+         8.75,
+         36.5
+        ]
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "door",
+      "not": "^Std door frame",
+      "match": ".",
+      "rotate": {
+       "axis": "z",
+       "deg": -10,
+       "about": {
+        "xyz": [
+         2.15,
+         39.04,
+         0
+        ]
+       }
+      }
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       0,
+       28
+      ],
+      "keep": [
+       0,
+       0,
+       1
+      ]
+     },
+     {
+      "point": [
+       0,
+       0,
+       52
+      ],
+      "keep": [
+       0,
+       0,
+       -1
+      ]
+     },
+     {
+      "point": [
+       0,
+       20,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "bill"
+     },
+     "azimuth": 35,
+     "elevation": 20,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       -4,
+       0,
+       28
+      ],
+      [
+       10,
+       20,
+       52
+      ]
+     ]
+    },
+    "anchors": {
+     "bill": {
+      "part": "bill",
+      "at": [
+       0.8,
+       0.5,
+       0.5
+      ]
+     },
+     "strike": {
+      "part": "door",
+      "deep": true,
+      "match": "^Strike plate"
+     },
+     "doorEdge": {
+      "part": "door",
+      "not": "^Std door frame",
+      "match": ".",
+      "at": [
+       0.5,
+       0.0,
+       0.5
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-13": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az -35 el 20, exterior 3/4 behind the vent wall; duct boxes 6 in off the wall; hoses to the fan unit.",
+   "_differs": "46VNT split two levels: \"Std wall (46\" Vnt)\" and \"Diagram: Vent duct boxes only\" (the boxes, hoses and the RFU fan unit, which is nested in it and moves with it). The boxes are pulled 6 in off the wall.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "set",
+      "split": 2,
+      "keep": "^Diagram|^Std wall \\(46\" Vnt\\)$",
+      "sources": [
+       {
+        "file": "46VNT.skp"
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "set",
+      "match": "^Diagram",
+      "by": [
+       -6,
+       0,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "set"
+     },
+     "azimuth": 215,
+     "elevation": 20,
+     "fill": 0.85
+    },
+    "anchors": {
+     "exhaustBox": {
+      "part": "set",
+      "match": "^Diagram",
+      "at": [
+       0.5,
+       0.5,
+       0.9
+      ]
+     },
+     "intakeBox": {
+      "part": "set",
+      "match": "^Diagram",
+      "at": [
+       0.5,
+       0.5,
+       0.1
+      ]
+     },
+     "fan": {
+      "part": "set",
+      "deep": true,
+      "match": "^RFU"
+     },
+     "wall": {
+      "part": "set",
+      "match": "^Std wall",
+      "at": [
+       0.0,
+       0.5,
+       0.6
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-14": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam side-on to the wall, interior; vertical section through the cover showing the L standing off; L right | flat crossed out.",
+   "_differs": "The wall is 46VNT's \"Std wall (46\" Vnt)\" (duct boxes hidden); Duct Cover turned onto its interior face (x 8.55) over the duct openings. The section is a clip through the lower cover.",
+   "base": {
+    "parts": [
+     {
+      "role": "wall",
+      "split": 2,
+      "keep": "^Diagram|^Std wall \\(46\" Vnt\\)$",
+      "sources": [
+       {
+        "file": "46VNT.skp"
+       }
+      ]
+     },
+     {
+      "role": "cover",
+      "sources": [
+       {
+        "file": "Duct Cover.skp",
+        "rot": [
+         [
+          "z",
+          -90
+         ]
+        ],
+        "at": [
+         8.55,
+         35.875,
+         0
+        ]
+       }
+      ]
+     }
+    ],
+    "hide": [
+     {
+      "part": "wall",
+      "match": "^Diagram"
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       18,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       0,
+       20
+      ],
+      "keep": [
+       0,
+       0,
+       -1
+      ]
+     },
+     {
+      "point": [
+       0,
+       6,
+       0
+      ],
+      "keep": [
+       0,
+       1,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "cover"
+     },
+     "azimuth": 70,
+     "elevation": 12,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       5.5,
+       6,
+       0
+      ],
+      [
+       13,
+       18,
+       20
+      ]
+     ]
+    },
+    "anchors": {
+     "cover": {
+      "part": "cover",
+      "at": [
+       0.5,
+       0.75,
+       0.1
+      ]
+     },
+     "wall": {
+      "part": "wall",
+      "match": "^Std wall",
+      "at": [
+       0.5,
+       0.3,
+       0.1
+      ]
+     }
+    }
+   },
+   "variants": {
+    "L-right": {},
+    "flat": {
+     "blocked": "BLOCKED: what \"lying flat\" means for this L profile is not defined by any part or drawing; needs Benton to say which face goes against the wall in the wrong position."
+    }
+   }
+  },
+  "CU-11": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "cam az 160 el -16, interior looking up at one wall top; vertical section through the bracket; ceiling lifted 4 in; 3/4 in black.",
+   "_differs": "STD4848CL (its nested hinged brackets) over 46PanelSolid, placed so a bracket's holes meet the panel's wall-top inserts (read off both parts); ceiling lifted 4 in; GENERATED 3/4 in black bolt in the bracket hole, started. The section is a clip through the bracket.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "ceiling",
+      "sources": [
+       {
+        "file": "STD4848CL.skp",
+        "rot": [
+         [
+          "x",
+          180
+         ]
+        ],
+        "at": [
+         0,
+         48,
+         81.99
+        ]
+       }
+      ]
+     },
+     {
+      "role": "panel",
+      "sources": [
+       {
+        "file": "46PanelSolid.skp",
+        "at": [
+         46.11,
+         0,
+         0
+        ]
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "ceiling",
+      "by": [
+       0,
+       0,
+       4
+      ]
+     }
+    ],
+    "bolts": [
+     {
+      "role": "bolt",
+      "generated": "GEN Bolt 3-4 black",
+      "source": {
+       "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Bolt 3-4 black.skp"
+      },
+      "of": {
+       "part": "ceiling"
+      },
+      "into": [
+       1,
+       0,
+       0
+      ],
+      "r": [
+       0.1,
+       0.14
+      ],
+      "region": [
+       [
+        40,
+        36,
+        80
+       ],
+       [
+        48,
+        37,
+        90
+       ]
+      ],
+      "lift": 0.4
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       37.0,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       0,
+       64
+      ],
+      "keep": [
+       0,
+       0,
+       1
+      ]
+     },
+     {
+      "point": [
+       38,
+       0,
+       0
+      ],
+      "keep": [
+       1,
+       0,
+       0
+      ]
+     },
+     {
+      "point": [
+       0,
+       28,
+       0
+      ],
+      "keep": [
+       0,
+       1,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "xyz": [
+       46,
+       34,
+       82
+      ]
+     },
+     "azimuth": 160,
+     "elevation": -16,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       38,
+       28,
+       64
+      ],
+      [
+       48.2,
+       37,
+       90
+      ]
+     ]
+    },
+    "anchors": {
+     "bracket": {
+      "part": "ceiling",
+      "deep": true,
+      "match": "^Hinge \\(plastic",
+      "rank": "x_desc",
+      "index": 0
+     },
+     "bolt": {
+      "part": "bolt",
+      "index": 0
+     },
+     "wallTop": {
+      "xyz": [
+       47.6,
+       33,
+       81
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-12": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "exterior low; floor edge + shims.",
+   "_differs": "STD4848FL with two GENERATED shims under its outside edge (positions a guess).",
+   "base": {
+    "parts": [
+     {
+      "role": "floor",
+      "sources": [
+       {
+        "file": "STD4848FL.skp",
+        "at": [
+         0,
+         0,
+         0.25
+        ]
+       }
+      ]
+     },
+     {
+      "role": "shims",
+      "generated": "GEN Shim",
+      "sources": [
+       {
+        "file": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups/_generated/GEN Shim.skp",
+        "at": [
+         [
+          -7,
+          6,
+          0
+         ],
+         [
+          -7,
+          33,
+          0
+         ]
+        ]
+       }
+      ]
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       8,
+       0,
+       0
+      ],
+      "keep": [
+       -1,
+       0,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "shims"
+     },
+     "azimuth": 200,
+     "elevation": 10,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       -7.5,
+       -3,
+       0
+      ],
+      [
+       8,
+       45,
+       4
+      ]
+     ]
+    },
+    "anchors": {
+     "shim": {
+      "part": "shims",
+      "rank": "y_asc",
+      "index": 0
+     },
+     "floorEdge": {
+      "xyz": [
+       -3,
+       21,
+       2
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-17": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "exterior; SNV/ENV vent panel; rubber plugs in the duct openings.",
+   "_differs": "46NV as drawn in the library (the black discs are part of the panel model).",
+   "base": {
+    "parts": [
+     {
+      "role": "panel",
+      "sources": [
+       {
+        "file": "46NV.skp"
+       }
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "panel"
+     },
+     "azimuth": 200,
+     "elevation": 15,
+     "fill": 0.85
+    },
+    "anchors": {
+     "panel": {
+      "part": "panel",
+      "at": [
+       0.5,
+       0.5,
+       0.5
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-35": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "from above; floor edge + hinged brackets; one bracket lifted, arrow to a vacant spot.",
+   "_differs": "STD4848FL split one level; the bracket lifted 3 in is the one nearest the y = -3 edge centre - which bracket sits in the door spot depends on the booth, so this is illustrative.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "floor",
+      "split": 1,
+      "sources": [
+       {
+        "file": "STD4848FL.skp"
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "floor",
+      "match": "^Hinge",
+      "rank": "y_asc",
+      "index": 0,
+      "by": [
+       0,
+       0,
+       3
+      ]
+     }
+    ],
+    "clips": [
+     {
+      "point": [
+       0,
+       14,
+       0
+      ],
+      "keep": [
+       0,
+       -1,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "floor"
+     },
+     "azimuth": -70,
+     "elevation": 55,
+     "fill": 0.85,
+     "fit_box": [
+      [
+       -3,
+       -3,
+       0
+      ],
+      [
+       45,
+       14,
+       7
+      ]
+     ]
+    },
+    "anchors": {
+     "lifted": {
+      "part": "floor",
+      "match": "^Hinge",
+      "rank": "z_desc",
+      "index": 0
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-41": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "exterior side 3/4; RAMP 1-3 pieces 6 in apart; order numbers 1-6.",
+   "_differs": "RAMP split one level into its seven pieces (top bar with plates + six wedges, ordered by x); each piece pulled 6 in further out than the one before it.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "ramp",
+      "split": 1,
+      "sources": [
+       {
+        "file": "RAMP.skp"
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 1,
+      "by": [
+       -6,
+       0,
+       0
+      ]
+     },
+     {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 2,
+      "by": [
+       -12,
+       0,
+       0
+      ]
+     },
+     {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 3,
+      "by": [
+       -18,
+       0,
+       0
+      ]
+     },
+     {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 4,
+      "by": [
+       -24,
+       0,
+       0
+      ]
+     },
+     {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 5,
+      "by": [
+       -30,
+       0,
+       0
+      ]
+     },
+     {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 6,
+      "by": [
+       -36,
+       0,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "ramp"
+     },
+     "azimuth": -120,
+     "elevation": 25,
+     "fill": 0.85
+    },
+    "anchors": {
+     "piece0": {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 0
+     },
+     "piece1": {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 1
+     },
+     "piece2": {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 2
+     },
+     "piece3": {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 3
+     },
+     "piece4": {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 4
+     },
+     "piece5": {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 5
+     },
+     "piece6": {
+      "part": "ramp",
+      "match": ".",
+      "rank": "x_desc",
+      "index": 6
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-43": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "from below 3/4; caster plate underside; casters 3 in off; braked at the corners; 3/4 in chrome.",
+   "_differs": "CP4848 split one level; casters (Caster / Caster (with brake)) lowered 3 in. No bolts drawn: which side the 3/4 in chrome bolts go in from is not readable off the parts.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "cp",
+      "split": 1,
+      "sources": [
+       {
+        "file": "CP4848.skp"
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "cp",
+      "match": "^Caster",
+      "by": [
+       0,
+       0,
+       -3
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "cp"
+     },
+     "azimuth": -50,
+     "elevation": -30,
+     "fill": 0.85
+    },
+    "anchors": {
+     "braked": {
+      "part": "cp",
+      "match": "^Caster \\(with brake\\)",
+      "index": 0
+     },
+     "caster": {
+      "part": "cp",
+      "match": "^Caster$",
+      "index": 0
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-44": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "interior; foam sheet 3 in off the wall, Velcro side to the wall, top first.",
+   "_differs": "Foam (48 x 24 x 2) stood up against 46PanelSolid's interior face, 3 in off; its Velcro side is not modelled separately.",
+   "base": {
+    "explode": true,
+    "parts": [
+     {
+      "role": "wall",
+      "sources": [
+       {
+        "file": "46PanelSolid.skp"
+       }
+      ]
+     },
+     {
+      "role": "foam",
+      "sources": [
+       {
+        "file": "Foam.skp",
+        "rot": [
+         [
+          "y",
+          90
+         ]
+        ],
+        "at": [
+         2,
+         11,
+         65
+        ]
+       }
+      ]
+     }
+    ],
+    "moves": [
+     {
+      "part": "foam",
+      "by": [
+       3,
+       0,
+       0
+      ]
+     }
+    ],
+    "camera": {
+     "target": {
+      "part": "foam"
+     },
+     "azimuth": 35,
+     "elevation": 15,
+     "fill": 0.85
+    },
+    "anchors": {
+     "foam": {
+      "part": "foam",
+      "at": [
+       0.5,
+       0.5,
+       0.5
+      ]
+     },
+     "wall": {
+      "part": "wall",
+      "at": [
+       0.5,
+       0.1,
+       0.5
+      ]
+     }
+    }
+   },
+   "variants": {
+    "one": {}
+   }
+  },
+  "CU-15": {
+   "pilot_variants": [],
+   "model": "any",
+   "base": {},
+   "_differs": "Not posed.",
+   "variants": {
+    "one": {
+     "blocked": "MISSING PART: VSS mounting plates (expected NewMasterComponentList/VSS Mounting Plate.skp); the VSS boxes, hoses and RFU can be split out of 46VNT_VSS, but the shot's explode is the plates."
+    }
+   }
+  },
+  "CU-37": {
+   "pilot_variants": [],
+   "model": "any",
+   "base": {},
+   "_differs": "Not posed.",
+   "variants": {
+    "end-wall": {
+     "blocked": "BLOCKED: needs the WA frame posed with its companion panel and seals (expected NewMasterComponentList/WA Wall Assembled (end).skp / (long).skp); the WA frame and the Std panels sit in different bands and their joint is not readable off the parts."
+    },
+    "long-wall": {
+     "blocked": "BLOCKED: needs the WA frame posed with its companion panel and seals (expected NewMasterComponentList/WA Wall Assembled (end).skp / (long).skp); the WA frame and the Std panels sit in different bands and their joint is not readable off the parts."
+    }
+   }
+  },
+  "CU-42": {
+   "pilot_variants": [],
+   "model": "any",
+   "base": {},
+   "_differs": "Not posed.",
+   "variants": {
+    "one": {
+     "blocked": "BLOCKED: where the Step meets the caster plate and the door frame foot is not readable off Step / StepFront / CP files (no shared holes); needs a posed example (expected NewMasterComponentList/Step Assembled.skp)."
+    }
+   }
+  },
+  "CU-45": {
+   "pilot_variants": [],
+   "model": "any",
+   "base": {},
+   "_differs": "Not posed.",
+   "variants": {
+    "one": {
+     "blocked": "MISSING PART: Cable passage plug (expected NewMasterComponentList/Cable Passage Plug.skp; MasterComponentFolder has one) and the ceiling's cable hole / light pass-through positions are not in STD...CL."
+    }
+   }
+  },
+  "CU-18": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "MISSING PART: RM port tube (expected NewMasterComponentList/RM Port Tube.skp) and an RM ceiling with its port openings (expected NewMasterComponentList/STD4872CL RM.skp, one per RM ceiling size). Neither exists in the new library.",
+   "base": {},
+   "variants": {
+    "ports": {
+     "blocked": "MISSING PART: RM port tube (expected NewMasterComponentList/RM Port Tube.skp) and an RM ceiling with its port openings (expected NewMasterComponentList/STD4872CL RM.skp, one per RM ceiling size). Neither exists in the new library."
+    }
+   }
+  },
+  "CU-20": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "MISSING PART: an RM ceiling with its port openings (expected STD4872CL RM.skp) and the RM port tube (RM Port Tube.skp): the roof set (RM4872, RMVentilationExhaustBox) exists but must sit on its ports; without them the boxes float.",
+   "base": {},
+   "variants": {
+    "one-set": {
+     "blocked": "MISSING PART: an RM ceiling with its port openings (expected STD4872CL RM.skp) and the RM port tube (RM Port Tube.skp): the roof set (RM4872, RMVentilationExhaustBox) exists but must sit on its ports; without them the boxes float."
+    },
+    "two-sets": {
+     "blocked": "MISSING PART: an RM ceiling with its port openings (expected STD4872CL RM.skp) and the RM port tube (RM Port Tube.skp): the roof set (RM4872, RMVentilationExhaustBox) exists but must sit on its ports; without them the boxes float."
+    }
+   }
+  },
+  "CU-21": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "MISSING PART: RM port tube (expected NewMasterComponentList/RM Port Tube.skp), the black tube that plugs into the EFS end.",
+   "base": {},
+   "variants": {
+    "efs": {
+     "blocked": "MISSING PART: RM port tube (expected NewMasterComponentList/RM Port Tube.skp), the black tube that plugs into the EFS end."
+    }
+   }
+  },
+  "CU-22": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "MISSING PART: RM interior C-shaped duct cover (expected NewMasterComponentList/RM Duct Cover.skp) and the RM ceiling interior with the port opening (STD4872CL RM.skp). Duct Cover.skp is the wall (L) cover.",
+   "base": {},
+   "variants": {
+    "cover": {
+     "blocked": "MISSING PART: RM interior C-shaped duct cover (expected NewMasterComponentList/RM Duct Cover.skp) and the RM ceiling interior with the port opening (STD4872CL RM.skp). Duct Cover.skp is the wall (L) cover."
+    }
+   }
+  },
+  "CU-23": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "MISSING PART: VSS attachment ring (expected NewMasterComponentList/VSS Attachment Ring.skp) and the RM port tube (RM Port Tube.skp). The RM VSS stack exists only as the assembled RMVSS_Stack files.",
+   "base": {},
+   "variants": {
+    "chain": {
+     "blocked": "MISSING PART: VSS attachment ring (expected NewMasterComponentList/VSS Attachment Ring.skp) and the RM port tube (RM Port Tube.skp). The RM VSS stack exists only as the assembled RMVSS_Stack files."
+    }
+   }
+  },
+  "CU-38": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "MISSING PART: elevated-floor tiles as separate parts (expected EFI CNR.skp, EFI SIDE.skp, EFI CTR.skp). EFP<size>.skp are single slabs with no nested tiles.",
+   "base": {},
+   "variants": {
+    "S": {
+     "blocked": "MISSING PART: elevated-floor tiles as separate parts (expected EFI CNR.skp, EFI SIDE.skp, EFI CTR.skp). EFP<size>.skp are single slabs with no nested tiles."
+    },
+    "E": {
+     "blocked": "MISSING PART: elevated-floor tiles as separate parts (expected EFI CNR.skp, EFI SIDE.skp, EFI CTR.skp). EFP<size>.skp are single slabs with no nested tiles."
+    }
+   }
+  },
+  "CU-39": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "MISSING PART: EFI perimeter strips incl. the 38 3/4 in doorframe strip (expected EFI PERIM CNR.skp, EFI PERIM SIDE.skp, EFI DOORFRAME STRIP 38.75.skp) and the EFI tiles (EFI CNR/SIDE/CTR.skp).",
+   "base": {},
+   "variants": {
+    "strips": {
+     "blocked": "MISSING PART: EFI perimeter strips incl. the 38 3/4 in doorframe strip (expected EFI PERIM CNR.skp, EFI PERIM SIDE.skp, EFI DOORFRAME STRIP 38.75.skp) and the EFI tiles (EFI CNR/SIDE/CTR.skp)."
+    }
+   }
+  },
+  "CU-16": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "MISSING PART: EFS diffusers (expected NewMasterComponentList/EFS Diffuser.skp). The EFS halves and fan unit can be split out of 46VNT_EFS, but the annotation is about the diffusers.",
+   "base": {},
+   "variants": {
+    "stack": {
+     "blocked": "MISSING PART: EFS diffusers (expected NewMasterComponentList/EFS Diffuser.skp). The EFS halves and fan unit can be split out of 46VNT_EFS, but the annotation is about the diffusers."
+    }
+   }
+  },
+  "CU-10": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "BLOCKED: needs an assembled single-bay booth per size (7 sizes); NewMasterComponentList holds parts only. Expected e.g. NewMasterComponentList/ASSEMBLED 4872 S.skp.",
+   "base": {},
+   "variants": {
+    "4848": {
+     "blocked": "BLOCKED: needs an assembled single-bay booth per size (7 sizes); NewMasterComponentList holds parts only. Expected e.g. NewMasterComponentList/ASSEMBLED 4872 S.skp."
+    },
+    "4872": {
+     "blocked": "BLOCKED: needs an assembled single-bay booth per size (7 sizes); NewMasterComponentList holds parts only. Expected e.g. NewMasterComponentList/ASSEMBLED 4872 S.skp."
+    },
+    "4896": {
+     "blocked": "BLOCKED: needs an assembled single-bay booth per size (7 sizes); NewMasterComponentList holds parts only. Expected e.g. NewMasterComponentList/ASSEMBLED 4872 S.skp."
+    },
+    "6072": {
+     "blocked": "BLOCKED: needs an assembled single-bay booth per size (7 sizes); NewMasterComponentList holds parts only. Expected e.g. NewMasterComponentList/ASSEMBLED 4872 S.skp."
+    },
+    "6096": {
+     "blocked": "BLOCKED: needs an assembled single-bay booth per size (7 sizes); NewMasterComponentList holds parts only. Expected e.g. NewMasterComponentList/ASSEMBLED 4872 S.skp."
+    },
+    "7272": {
+     "blocked": "BLOCKED: needs an assembled single-bay booth per size (7 sizes); NewMasterComponentList holds parts only. Expected e.g. NewMasterComponentList/ASSEMBLED 4872 S.skp."
+    },
+    "7296": {
+     "blocked": "BLOCKED: needs an assembled single-bay booth per size (7 sizes); NewMasterComponentList holds parts only. Expected e.g. NewMasterComponentList/ASSEMBLED 4872 S.skp."
+    }
+   }
+  },
+  "CU-27": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "BLOCKED: needs an assembled Standard shell interior (e.g. ASSEMBLED 4872 S.skp) to lean the IEP jamb against; NewMasterComponentList holds parts only.",
+   "base": {},
+   "variants": {
+    "staged": {
+     "blocked": "BLOCKED: needs an assembled Standard shell interior (e.g. ASSEMBLED 4872 S.skp) to lean the IEP jamb against; NewMasterComponentList holds parts only."
+    }
+   }
+  },
+  "CU-36": {
+   "pilot_variants": [],
+   "model": "any",
+   "_storyboard": "",
+   "_differs": "BLOCKED: needs an assembled multi-bay shell (end wall, seals, both ceilings) - parts only in the new library; not composed in this run.",
+   "base": {},
+   "variants": {
+    "end-wall": {
+     "blocked": "BLOCKED: needs an assembled multi-bay shell (end wall, seals, both ceilings) - parts only in the new library; not composed in this run."
     }
    }
   }

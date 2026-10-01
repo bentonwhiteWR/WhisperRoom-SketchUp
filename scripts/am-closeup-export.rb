@@ -893,7 +893,7 @@ module WR_AmCloseups
   # One hole per bolt line: circles whose centres lie on one line along
   # `into` are the same hole seen at each face it passes through; the ENTRY
   # circle is the one furthest back against `into` (where the head bears).
-  def self.hole_lines(holes, into)
+  def self.hole_lines(holes, into, gap = 2.5)
     lines = []
     holes.each do |c, n, r|
       next if vdot(n, into).abs < 0.9
@@ -905,10 +905,25 @@ module WR_AmCloseups
         lines << { :off => off, :pts => [c], :r => r }
       end
     end
-    lines.map do |l|
-      entry = l[:pts].min_by { |q| vdot(q, into) }
-      exit_ = l[:pts].max_by { |q| vdot(q, into) }
-      { :entry => entry, :exit => exit_, :r => l[:r], :depth => vdot(vsub(exit_, entry), into) }
+    # One line can carry several separate holes (two brackets 46 in apart on
+    # one axis): split it wherever consecutive circles are more than `gap`
+    # apart along the axis, and treat each run as its own hole.
+    out = []
+    lines.each do |l|
+      pts = l[:pts].sort_by { |q| vdot(q, into) }
+      run = [pts.first]
+      pts.drop(1).each do |q|
+        if vdot(vsub(q, run.last), into) > gap
+          out << [run, l[:r]]
+          run = [q]
+        else
+          run << q
+        end
+      end
+      out << [run, l[:r]]
+    end
+    out.map do |run, r|
+      { :entry => run.first, :exit => run.last, :r => r, :depth => vdot(vsub(run.last, run.first), into) }
     end
   end
 
@@ -1558,6 +1573,11 @@ module WR_AmCloseups
 
       # ---- bolts IN THEIR HOLES (after the explode, so they follow the part)
       (p['bolts'] || []).each { |bs| place_bolts!(ctx, rec, bs) }
+      unless rec['missing'].empty?
+        rec['status'] = 'model-gap'
+        rec['reason'] = 'MODEL GAP — a bolt found no hole; the shot is skipped, not drawn half-empty'
+        return rec
+      end
 
       # ---- section axis, camera, anchors
       ctx[:sec] = section_geom(ctx, p['section'])
