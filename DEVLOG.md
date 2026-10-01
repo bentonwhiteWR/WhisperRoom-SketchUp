@@ -1,5 +1,63 @@
 # DEVLOG
 
+## 2026-10-01 -- 1.80.0 / 1.81.0: close-up rig 1.1, pilot run through the review loop, P1 paused for Benton
+
+**Status at sign-off.** The pilot was rendered live in SketchUp 2026 over the bridge and reviewed image by image.
+3 images passed (CU-03 w40/w46/w49). 5 still need tuning after 3 attempts each: CU-01 corner/mid-wall,
+CU-06 exploded/seated, CU-08 L-std. CU-19 is skipped because the RM port tube is missing. The other P1-P3 shots
+are posed, and only pre-rendered to the Builder's scratch folder: none were queued, reviewed or written to Z:.
+**Waiting on Benton:** how to run P1 (see Open decisions).
+
+**Benton's rules, now in the rig (1.80.0 `0f9c468`, 1.81.0 `b6c3458`).**
+- Components load ONLY from `Z:\Sketchup\NewMasterComponentList`, with no fallback root. The CU-01 assembled
+  booths (VentilationSweepBolts.skp), the CU-03 posed exploded sets and the old VSS duct box/port tube are gone.
+- Simple hardware that is missing (bolts, plug, shim, dollar bill) is modelled by
+  `scripts/am-closeup-genparts.rb` into `Z:\...\AssemblyCloseups\_generated\GEN <part>.skp` and never into a
+  library. Anything larger gets skipped and listed in `Missing Components.md`, and Benton adds the part himself.
+- Real colours only. `flat_style` is false, and the instance material is carried onto re-instanced copies; losing it
+  is what made the panels render white. Ghosts are the part's own material made translucent, and the section fill is
+  neutral (150,152,156).
+- The top door-frame adapter is the floor adapter rotated 180 degrees about its long axis (40/46/WA).
+- A library part that is a group of components (e.g. RAMP.skp) may be split and posed per sub-part, but only
+  inside the rig's undone operation.
+
+**The review loop.** `Z:\...\AssemblyCloseups\_review\PROTOCOL.md`: the renderer queues
+`queue/<shot>_<variant>.a<N>.json`, a reviewer agent writes `verdicts/...a<N>.json` (pass / revise / unfixable,
+8-point rubric vs the storyboard crop in `_review/storyboard/<id>.png`), max 3 attempts, `_review/DONE` ends
+the run. The interim summary is in `_review/REVIEW-SUMMARY.md`.
+
+**Outputs.** `Z:\...\AssemblyCloseups\Close-up Review.html` (the review page; `_review/storyboard-single.html` is the
+reviewer's scratch, not the review), `Missing Components.md`, `_generated/Generated Parts.md`. The full results handoff
+is `WhisperRoomQuote/.forge/builder/HANDOFF-sketchup-closeups-run-results.md`.
+
+**Gotchas.**
+- The fingerprint check failed twice on an empty Untitled model: cleanup missed nested definitions, and the camera
+  restore order was wrong. Both are fixed and every run since reads "identical". The brief says STOP on a mismatch;
+  hold to that on a real model.
+- The canvas is fixed at 2400x1553 landscape, so tall subjects (seal lines, hinge columns) come out too small. This
+  is the top recurring review failure.
+- Library seam-seal bolt holes go through the panel FACE into the seal leg, not edge inserts, so the CU-01 explode
+  gap hides from the storyboard's interior angle.
+- The HX H-strip is misnamed `H - strip 22#1` in the library.
+- Guessed: WA Door Frame Adapter A = floor and B = top; bolt diameters, plug and shim sizes; the long IEP bolt is 3 in.
+
+**Open decisions (Benton).**
+1. How P1 runs. Either start P1 and tune the 5 at the end, or tune them first. Also: allow a portrait canvas for
+   tall shots, or split them into two close-ups.
+2. Confirm or swap the WA adapter A/B floor/top guess.
+3. Add the missing parts listed in `Missing Components.md`. Top five: `RM Port Tube.skp`, `STD4872CL RM.skp`,
+   `EFI CNR/SIDE/CTR.skp`, `RM Duct Box Exhaust/Intake.skp`, `RM Duct Cover.skp`.
+
+**Next steps.**
+1. Open SketchUp 2026 with the bridge on and an empty model, then run `python scripts/sketchup-bridge.py ping`.
+2. With Benton's answer to decision 1, start a Builder (opus) on
+   `WhisperRoomQuote/.forge/builder/HANDOFF-sketchup-closeups-run.md` plus this entry, together with a reviewer
+   agent (opus) on `_review/PROTOCOL.md`. Run P1, then P2, then P3 through the loop.
+3. Re-pose CU-08 R-std, L-wa and R-wa; they fell out of the poses during the pilot rebuild.
+4. Fix CU-06: the near seal clip nesting (level 0) and a grey section cap on the black H-strip.
+5. When the run ends: write `_review/DONE`, rebuild `Close-up Review.html` with `am-closeup-review.py`, and refresh
+   `Missing Components.md`.
+
 ## 2026-10-01 -- 1.79.0: Name scenes after their parts (name-scenes-after-parts.rb), not yet run in SketchUp
 
 **Ask (Benton).** A panel button that is the reverse of bulk-name-after-scenes.rb: rename SCENES after the part
