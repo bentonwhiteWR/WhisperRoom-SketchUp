@@ -1,5 +1,36 @@
 # DEVLOG
 
+## 2026-10-01 -- 1.79.0: Name scenes after their parts (name-scenes-after-parts.rb), not yet run in SketchUp
+
+**Ask (Benton).** A panel button that is the reverse of bulk-name-after-scenes.rb: rename SCENES after the part
+each camera looks at, instead of naming parts after scenes. Replaces the door-scene one-off
+(`.forge/builder/door-scenes/name-scenes-from-parts.rb`) with a general tool.
+
+**What shipped.**
+- `scripts/name-scenes-after-parts.rb` (TOOLS, Tidy up the model, icon `scene-parts`). Scope in the window:
+  every unnamed scene (`Scene 12`, `Scene 12 (2)`; exact, case-sensitive) or a list of 1-based positions
+  (`355-422, 430`, export-scenes.rb's clamping rule, misses reported). The resolver is the bulk tool's
+  verbatim copy (RAY / BOUNDS / OFF-AXIS / TARGET / NAME / NONE); name = definition name, else instance name,
+  Component#/Group# placeholders are no name. Review table, only clean RAY rows pre-ticked, NONE never
+  tickable, Show activates the scene and selects the part. Apply: two passes (temp names, then final),
+  names read back, any mismatch aborts the whole batch; one undo step. Scope is remembered.
+- Collision rule: scenes sharing one part are numbered `Name`, `Name (2)`, `Name (3)` in position order,
+  shown in the table; names held by scenes that are not being renamed are skipped over; a scene already
+  called `Name` / `Name (k)` for its own part keeps it (a re-run is a no-op); case-insensitive. At Apply a
+  ticked row whose name is held by an unticked/out-of-scope scene is SKIPPED with a reason, never renumbered.
+- `scripts/rbtest-name-scenes.py`: lifts the pure block (unnamed_scene?, parse_positions, part_label,
+  assign_names) into SketchUp's CRuby, checks the resolver copy is still byte-identical to the bulk tool's,
+  and catches 5 mutants.
+
+**Verified.** `rbparse.py`: 80 files parse. `rbtest-name-scenes.py` PASS, 5/5 mutants caught, resolver copy
+verbatim. **Not run in SketchUp** (no SketchUp here): the dialog, the resolver on a real model, and whether
+`Page#name=` uniquifies silently (the read-back covers either answer).
+
+**Gotchas.**
+- A non-English SketchUp names scenes `Szene 12` etc.; those are not "unnamed" here. Use Positions.
+- The resolver now lives in three files (save-scene-components, bulk-name-after-scenes, this). The rbtest
+  fails if this copy drifts from the bulk tool's.
+
 ## 2026-10-01 -- 1.78.0: assembly-manual close-up export (am-closeup-export.rb), pilot NOT yet run
 
 **Ask (Benton, approved 2026-10-01).** Build the close-up export for the assembly manual, starting with a 5-shot
