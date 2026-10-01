@@ -1,5 +1,44 @@
 # DEVLOG
 
+## 2026-10-01 -- 1.78.0: assembly-manual close-up export (am-closeup-export.rb), pilot NOT yet run
+
+**Ask (Benton, approved 2026-10-01).** Build the close-up export for the assembly manual, starting with a 5-shot
+pilot: CU-03 door-frame adaptors, CU-01 seam-seal bolt line, CU-06 HX H-strip + extension, CU-08 hanging the door,
+CU-19 RM duct box onto the port tube. Callout labels are drawn by the app, so no text is baked into the images;
+the export writes the pixel position of each named point instead. Plan:
+`WhisperRoomQuote/.forge/scoper/HANDOFF-am-closeups.md` + `am-closeups/shot-list.csv` + the storyboard.
+
+**What shipped (all in scripts/).**
+- `am-closeup-export.rb` (panel: Component art). Per shot and variant, inside its own start/abort operation:
+  stage named parts as fresh instances in one group (from a definition in the open model, a MasterComponentFolder
+  file, or `find` = copy an instance from anywhere in the model at its world position), split them, move (explode),
+  resolve camera + anchors, hide, ghost (flatten + translucent paint), section plane facing the camera, render
+  2400 x 1553 transparent in the Iso30 contract (Style: Interior, Dark 45, Light 80, no AO, fix-angled-alpha), then a
+  red-dot anchor-check render. Writes `<shot>_<variant>.png`, `_closeups.json` (anchors in image pixels, merged
+  across passes) and `_diagnostics.txt` (appended per run, with a before/after model fingerprint). A missing part is
+  a MODEL GAP and the shot is skipped. `WR_AmCloseups.survey('regex')` lists matching definitions for fixing a gap.
+- `am-closeups-poses.json` (hand-edited poses: 5 pilot shots, 7 pilot images) + `gen-am-closeups.py` (merges the
+  scoper's CSV with the poses into `am-closeups.json`; `--check` validates roles, regexes, scale classes).
+- `am-closeup-check.py` (sizes, blank frames, style, red dots within 6 px of the JSON anchors, one scale per shot,
+  optional luma vs an Iso30 sprite). `am-closeup-review.py` (self-contained review page with the anchor overlay).
+- `rbtest-closeups.py`: lifts the pure block into SketchUp's CRuby. cam_dir(38, 30) reproduces the DoorCombos ExtR
+  vector exactly; parallel/perspective projection, fit, ranking, name matching, shot picking on the real spec.
+  Three mutants (y axis flipped, underscore fallback removed, mid off by one) are all caught.
+
+**Verified.** `rbparse.py`: 79 files parse. `rbtest-closeups.py` PASS with mutants caught. `gen-am-closeups.py
+--check` OK (44 shots in the CSV now; the scoper dropped CU-31 and CU-46 at 13:00). The checker fails a fixture dot
+placed 10 px off and passes exact ones. **Not run in SketchUp**: SketchUp was closed and the bridge silent (heartbeat
+79 min old), so no image exists yet. The pilot steps are in `WhisperRoomQuote/.forge/builder/HANDOFF-sketchup-closeups.md`.
+
+**Gotchas.**
+- `Entities#add_group(existing_entities)` outside the active context is a known SketchUp crash. Ghosting re-instances
+  into an empty group instead.
+- Style, shading, section display and tag visibility are set inside each shot's operation, so the abort takes them back.
+- The installer bundles `.rb` only, so the spec JSON is read from a repo checkout (`'spec' => path` overrides).
+- Component file names use `_` where the definition has an inch mark; matching tries both spellings and drops `#1`.
+- Unverified until the pilot: that Camera#height is the vertical extent of a non-square export (the anchor check
+  measures it) and which side of a section plane SketchUp removes (`"flip": true` per shot if the cut faces away).
+
 ## 2026-09-24 -- Session close: accessories 1.77.0-1.77.4, Tampa Preparatory proposal
 
 **Done (all pushed).**

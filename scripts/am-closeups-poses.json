@@ -1,0 +1,168 @@
+{
+  "_about": "Machine poses for the assembly-manual close-ups. Hand-edited. scripts/gen-am-closeups.py merges this with the scoper's shot-list.csv into scripts/am-closeups.json, which scripts/am-closeup-export.rb reads. Keys starting with _ are comments. Every value here is a PROPOSAL for the pilot to tune, not a measurement.",
+  "version": 1,
+  "rig": {
+    "component_root": "Z:/Sketchup/MasterComponentFolder",
+    "out_dir": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups",
+    "canvas": [2400, 1553],
+    "scale_classes": {"S": 24, "M": 48, "L": 96},
+    "style": "Style: Interior",
+    "dark": 45,
+    "recover": true,
+    "azimuth": 38,
+    "elevation": 30,
+    "anchor_dot_px": 5
+  },
+  "poses": {
+    "CU-03": {
+      "pilot_variants": ["w46", "w40"],
+      "model": "any",
+      "_storyboard": "cam az 38 el 26; frame ghosted, floor adaptor at the opening, ceiling adaptor off the frame's inside face; assumed: adaptor drawn as a plain bar.",
+      "_differs": "Posed from Benton's own exploded sets in MasterComponentFolder, which also carry Hinge (door frame) and Strike plate (ghosted with the frame). The 40 in set names its top adaptor 'Door frame adaptor (top)', not 'Std door frame 40\" adaptor (top)'. Storyboard frames both adaptors, so this is scale L (96 in), not the plan's M.",
+      "base": {
+        "scale": "L",
+        "explode": true,
+        "ghost": [
+          {"part": "set", "match": "^Std door frame 4[06]\"$|^Hinge \\(door frame\\)|^Strike plate", "alpha": 0.35}
+        ],
+        "camera": {"target": {"part": "set"}, "azimuth": 38, "elevation": 26},
+        "anchors": {
+          "floorAdaptor": {"part": "set", "match": "adaptor \\(bottom\\)"},
+          "ceilingAdaptor": {"part": "set", "match": "adaptor \\(top\\)"},
+          "frameFoot": {"part": "set", "match": "^Std door frame 4[06]\"$", "at": [0.5, 0.5, 0.0]}
+        }
+      },
+      "variants": {
+        "w46": {
+          "parts": [{"role": "set", "split": 1, "sources": [
+            {"def": "Std door frame 46\" with adaptors (exploded)", "file": "Std door frame 46_ with adaptors (exploded)_1.skp"}]}]
+        },
+        "w40": {
+          "parts": [{"role": "set", "split": 1, "sources": [
+            {"def": "Std door frame 40\" with adaptors (exploded)", "file": "Std door frame 40_ with adaptors (exploded).skp"}]}]
+        },
+        "w49": {
+          "blocked": "No posed exploded WA set exists in MasterComponentFolder. Pose 'WA door frame.skp' with 'WA door frame adaptor(A).skp' and '(B).skp' by hand, save it as one component, and point this variant at it."
+        }
+      }
+    },
+    "CU-06": {
+      "pilot_variants": ["exploded", "seated"],
+      "model": "any",
+      "_storyboard": "cam az 30 el 20; section at mid-width with its normal along the wall; extension pushed down level with the tall seal tops; plugs into the top inserts; assumed: H-strip drawn as a plain bar.",
+      "_differs": "The real sets ('Std wall (46\") with HX' and its exploded twin) hold three parts: Std wall (46\"), H - strip 46 and Std wall (46\") HX (the extension). Neither carries the two tall seam seals or the black plastic plugs the storyboard draws; no plug component was found anywhere. The real H - strip 46 is a modelled component, so the section shows its true profile.",
+      "base": {
+        "scale": "M",
+        "section": {"part": "wall", "match": "^H - strip 46", "axis": "long", "at": 0.5},
+        "camera": {"target": {"part": "wall", "match": "^H - strip 46"}, "azimuth_along": "section", "azimuth_offset": 30, "elevation": 20},
+        "anchors": {
+          "hStrip": {"part": "wall", "match": "^H - strip 46"},
+          "extTop": {"part": "wall", "match": "\\) HX$", "at": [0.5, 0.5, 1.0]},
+          "panelTop": {"part": "wall", "match": "^Std wall \\(46\"\\)$", "at": [0.5, 0.5, 1.0]}
+        }
+      },
+      "variants": {
+        "exploded": {
+          "explode": true,
+          "parts": [{"role": "wall", "split": 1, "sources": [
+            {"def": "Std wall (46\") with HX (exploded)", "file": "Std wall (46_) with HX (exploded).skp"}]}]
+        },
+        "seated": {
+          "explode": false,
+          "parts": [{"role": "wall", "split": 1, "sources": [
+            {"def": "Std wall (46\") with HX", "file": "Std wall (46_) with HX.skp"}]}]
+        }
+      }
+    },
+    "CU-08": {
+      "pilot_variants": ["L-std"],
+      "model": "Master Component List AM",
+      "_storyboard": "cam az 55 el 14; hinge column, leaf at 90 deg; three hinges at about 8 / 40 / 72 in; assumed: knuckle sizes and positions schematic.",
+      "_differs": "Uses the DoorCombos open door (Left46Door_Open) in the AM master. Its children are not known offline: the AM master's thumbnail census lists 'Std door 30\" for 46\" door frame' but no 'Hinge (door)' / 'Hinge (door frame)'. Those hinge names are real in MasterComponentFolder's 'Std door frame 46_ and door 30_.skp'. If the dry run shows other names, edit the matches; if no hinge resolves, the hinge anchors are reported missing, never guessed.",
+      "base": {
+        "scale": "L",
+        "explode": true,
+        "parts": [{"role": "door", "split": 1, "sources": [{"def": "Left46Door_Open"}]}],
+        "moves": [{"part": "door", "match": "^Std door 30", "by": [0, 0, 1]}],
+        "ghost": [{"part": "door", "match": "^Std door frame 46\"$", "alpha": 0.5}],
+        "camera": {
+          "target": {"part": "door", "deep": true, "match": "^Hinge \\(door( frame)?\\)", "fallback": {"part": "door"}},
+          "azimuth_toward": [{"part": "door", "match": "^Std door 30"}, {"part": "door", "match": "^Std door frame 46\"$"}],
+          "azimuth": 38,
+          "elevation": 14
+        },
+        "anchors": {
+          "topHinge": {"part": "door", "deep": true, "match": "^Hinge \\(door frame\\)", "rank": "z_desc", "index": 0},
+          "midHinge": {"part": "door", "deep": true, "match": "^Hinge \\(door frame\\)", "rank": "z_desc", "index": "mid"},
+          "bottomHinge": {"part": "door", "deep": true, "match": "^Hinge \\(door frame\\)", "rank": "z_desc", "index": "last"}
+        }
+      },
+      "variants": {
+        "L-std": {},
+        "R-std": {"parts": [{"role": "door", "split": 1, "sources": [{"def": "Right46Door_Open"}]}]},
+        "L-wa": {"parts": [{"role": "door", "split": 1, "sources": [{"def": "LeftWADoor_Open"}]}],
+                 "ghost": [{"part": "door", "match": "^WA door frame", "alpha": 0.5}],
+                 "moves": [{"part": "door", "match": "^WA door$|^WA door ", "by": [0, 0, 1]}]},
+        "R-wa": {"parts": [{"role": "door", "split": 1, "sources": [{"def": "RightWADoor_Open"}]}],
+                 "ghost": [{"part": "door", "match": "^WA door frame", "alpha": 0.5}],
+                 "moves": [{"part": "door", "match": "^WA door$|^WA door ", "by": [0, 0, 1]}]}
+      }
+    },
+    "CU-01": {
+      "pilot_variants": ["corner"],
+      "model": "RM Detailed Assembly",
+      "_storyboard": "cam az 150 el 22; seal pulled 3 in off the panel, two 1 5/8 in bolts in the air on their axis; assumed: seal drawn as a plain square post, bolt spacing unconfirmed.",
+      "_differs": "The real corner seal is L-shaped in plan (4 7/8 in legs, 1 in thick, a 1 x 1 in inner block the panel ends butt into; reference/seam-seal-attachment.md). No 1 5/8 in bolt is in either model; a '1 5/8\" bolt' component exists only inside MasterComponentFolder/History/Diagram_ RM images.skp, and the bolt spacing is unknown, so bolts are NOT drawn and the bolt callout anchors on the seal itself. Posed from a real assembled 4848 S in RM Detailed Assembly.",
+      "base": {
+        "scale": "S",
+        "explode": true,
+        "parts": [
+          {"role": "seal", "sources": [{"find": "^Std corner seam seal$", "within": "^4848 S Color$", "pick": 0}]},
+          {"role": "panels", "sources": [{"find": "^Std wall \\(46\"\\)$", "near": {"role": "seal", "gap": 1.5}, "pick": "all"}]},
+          {"role": "floor", "optional": true, "sources": [{"find": "^Floor component", "near": {"role": "seal", "gap": 3}, "pick": 0}]}
+        ],
+        "moves": [{"part": "seal", "away_from": {"part": "panels"}, "dist": 3}],
+        "camera": {"target": {"part": "seal"}, "azimuth_toward": [{"part": "panels"}], "azimuth_offset": 30, "elevation": 22},
+        "hide": [{"part": "panels", "rank": "view_near", "index": 0}],
+        "ghost": [{"part": "floor", "alpha": 0.35}],
+        "anchors": {
+          "seal": {"part": "seal"},
+          "panel": {"x": {"part": "panels", "rank": "view_far", "index": 0}, "y": {"part": "panels", "rank": "view_far", "index": 0}, "z": {"part": "seal"}}
+        }
+      },
+      "variants": {
+        "corner": {},
+        "mid-wall": {"blocked": "Pose after the corner variant is checked: same rig with 'Std mid-wall seam seal' and the two panels either side."}
+      }
+    },
+    "CU-19": {
+      "pilot_variants": ["section"],
+      "model": "RM Detailed Assembly",
+      "_storyboard": "ident view: cam az 30 el 40, exhaust and intake boxes at opposite ends over the ceiling; assumed: duct box about 46 x 6.5 x 6.5 in, side hole about 3.25 in from the far end.",
+      "_differs": "No component is named 'RM duct box' anywhere. The roof-mount diagrams in MasterComponentFolder/History (Diagram_ RM MDL 4896 S) use 'VSS duct box', and RM Detailed Assembly holds three 'VSS duct box' definitions, so this pose finds a box whose name ends 'duct box' next to a 'Port tube' (derived, not confirmed). Which box carries the black ring is not visible in any name, so the identification variant is blocked.",
+      "base": {
+        "scale": "S",
+        "parts": [
+          {"role": "tube", "sources": [{"find": "^Port tube$", "pick": 0}]},
+          {"role": "box", "sources": [{"find": "duct box$", "near": {"role": "tube", "gap": 2}, "pick": 0}]},
+          {"role": "ceiling", "optional": true, "sources": [{"find": "^Ceiling component", "near": {"role": "tube", "gap": 1}, "pick": 0}]}
+        ],
+        "ghost": [{"part": "ceiling", "alpha": 0.35}],
+        "anchors": {
+          "portTop": {"part": "tube", "at": [0.5, 0.5, 1.0]},
+          "sideHole": {"x": {"part": "tube"}, "y": {"part": "tube"}, "z": {"part": "box", "at": [0.5, 0.5, 0.0]}}
+        }
+      },
+      "variants": {
+        "section": {
+          "explode": true,
+          "moves": [{"part": "box", "by": [0, 0, 8]}],
+          "section": {"part": "tube", "axis": "short", "axis_of": {"part": "box"}, "at": 0.5},
+          "camera": {"target": {"x": {"part": "tube"}, "y": {"part": "tube"}, "z": {"part": "box", "at": [0.5, 0.5, 0.0]}},
+                     "azimuth_along": "section", "azimuth_offset": 0, "elevation": 8}
+        },
+        "ident": {"blocked": "Needs the exhaust/intake pair chosen by hand: which duct box carries the black ring is not in any definition name."}
+      }
+    }
+  }
+}

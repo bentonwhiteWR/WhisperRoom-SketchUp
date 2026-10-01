@@ -1,0 +1,1646 @@
+{
+ "_generated": "by scripts/gen-am-closeups.py. Do not edit; edit am-closeups-poses.json or the shot list and re-run.",
+ "version": 1,
+ "source": {
+  "csv": "C:/Users/bento/Documents/Claude/WhisperRoomQuote/.forge/scoper/am-closeups/shot-list.csv",
+  "csv_sha256": "d982ba035430d68a6770d3d7af6c6eb8fe9a15b22e0c004a66a047f1abae510e",
+  "poses": "scripts/am-closeups-poses.json"
+ },
+ "rig": {
+  "component_root": "Z:/Sketchup/MasterComponentFolder",
+  "out_dir": "Z:/Sketchup/BoothBuilderViews/AssemblyCloseups",
+  "canvas": [
+   2400,
+   1553
+  ],
+  "scale_classes": {
+   "S": 24,
+   "M": 48,
+   "L": 96
+  },
+  "style": "Style: Interior",
+  "dark": 45,
+  "recover": true,
+  "azimuth": 38,
+  "elevation": 30,
+  "anchor_dot_px": 5
+ },
+ "shots": {
+  "CU-01": {
+   "title": "Seam seal to wall: the 1 5/8 in bolt line, left loose",
+   "group": "shell",
+   "priority": "P1",
+   "steps": "wall-*; last-seals; walls-bK; close; bridge-bK; tighten",
+   "booth_variants": "all S/E/SNV/ENV, single + multi",
+   "variants_text": "corner seal | mid-wall seal",
+   "images": 2,
+   "prose": {
+    "show": "CornerSeamSeal / MidWallSeamSeal + 46PanelSolid (one panel each side)",
+    "ghost": "floor slab",
+    "hide": "everything else",
+    "camera": "interior, eye at seal mid-height, 3/4 view along the wall; target = seal centre",
+    "projection": "parallel",
+    "section": "none (hide the far panel instead)",
+    "explode": "seal pulled 3 in off the panel, bolts in the air on their axis",
+    "annotations": "bolt callout \"1 5/8 in black, LOOSE\"; arrow seal to panel"
+   },
+   "existing_source": "series-manual-review B19",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "posed",
+   "pose": {
+    "pilot_variants": [
+     "corner"
+    ],
+    "model": "RM Detailed Assembly",
+    "_storyboard": "cam az 150 el 22; seal pulled 3 in off the panel, two 1 5/8 in bolts in the air on their axis; assumed: seal drawn as a plain square post, bolt spacing unconfirmed.",
+    "_differs": "The real corner seal is L-shaped in plan (4 7/8 in legs, 1 in thick, a 1 x 1 in inner block the panel ends butt into; reference/seam-seal-attachment.md). No 1 5/8 in bolt is in either model; a '1 5/8\" bolt' component exists only inside MasterComponentFolder/History/Diagram_ RM images.skp, and the bolt spacing is unknown, so bolts are NOT drawn and the bolt callout anchors on the seal itself. Posed from a real assembled 4848 S in RM Detailed Assembly.",
+    "base": {
+     "scale": "S",
+     "explode": true,
+     "parts": [
+      {
+       "role": "seal",
+       "sources": [
+        {
+         "find": "^Std corner seam seal$",
+         "within": "^4848 S Color$",
+         "pick": 0
+        }
+       ]
+      },
+      {
+       "role": "panels",
+       "sources": [
+        {
+         "find": "^Std wall \\(46\"\\)$",
+         "near": {
+          "role": "seal",
+          "gap": 1.5
+         },
+         "pick": "all"
+        }
+       ]
+      },
+      {
+       "role": "floor",
+       "optional": true,
+       "sources": [
+        {
+         "find": "^Floor component",
+         "near": {
+          "role": "seal",
+          "gap": 3
+         },
+         "pick": 0
+        }
+       ]
+      }
+     ],
+     "moves": [
+      {
+       "part": "seal",
+       "away_from": {
+        "part": "panels"
+       },
+       "dist": 3
+      }
+     ],
+     "camera": {
+      "target": {
+       "part": "seal"
+      },
+      "azimuth_toward": [
+       {
+        "part": "panels"
+       }
+      ],
+      "azimuth_offset": 30,
+      "elevation": 22
+     },
+     "hide": [
+      {
+       "part": "panels",
+       "rank": "view_near",
+       "index": 0
+      }
+     ],
+     "ghost": [
+      {
+       "part": "floor",
+       "alpha": 0.35
+      }
+     ],
+     "anchors": {
+      "seal": {
+       "part": "seal"
+      },
+      "panel": {
+       "x": {
+        "part": "panels",
+        "rank": "view_far",
+        "index": 0
+       },
+       "y": {
+        "part": "panels",
+        "rank": "view_far",
+        "index": 0
+       },
+       "z": {
+        "part": "seal"
+       }
+      }
+     }
+    },
+    "variants": {
+     "corner": {},
+     "mid-wall": {
+      "blocked": "Pose after the corner variant is checked: same rig with 'Std mid-wall seam seal' and the two panels either side."
+     }
+    }
+   }
+  },
+  "CU-02": {
+   "title": "Wall base onto the floor hinged bracket, 3/4 in black bolt",
+   "group": "shell",
+   "priority": "P1",
+   "steps": "wall-* (first + later); walls-bK; close",
+   "booth_variants": "all",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "floor corner + 46PanelSolid + hinged bracket",
+    "ghost": "-",
+    "hide": "ceiling, seals",
+    "camera": "interior, low eye (12 in off floor), 30 deg off the wall",
+    "projection": "parallel",
+    "section": "vertical section through the bracket, normal along the wall",
+    "explode": "panel lifted 2 in",
+    "annotations": "bracket, threaded insert, bolt; \"START loose on the first panel\""
+   },
+   "existing_source": "series-manual-review B28",
+   "blocked_by": "C3 hinged bracket as its own component (baked into floor art today)",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-03": {
+   "title": "Door-frame adaptors: off the frame, floor adaptor bolted at the opening",
+   "group": "shell",
+   "priority": "P1",
+   "steps": "adaptors; door-first",
+   "booth_variants": "every booth; ADA/WA uses the 38 3/4 in box",
+   "variants_text": "40 in frame (27 3/4 in adaptor) | 46 in (33 3/4) | 49 in WA/ADA (38 3/4)",
+   "images": 3,
+   "prose": {
+    "show": "door frame only (no leaf) + both adaptors + floor slab edge",
+    "ghost": "frame at 35 pct",
+    "hide": "walls, ceiling",
+    "camera": "exterior-front 3/4, eye at 30 in, target = floor adaptor",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "frame lifted 18 in and pulled out 12 in; adaptors on their bolt axes",
+    "annotations": "\"inside face of the frame\", \"3/4 in chrome\", adaptor length; ADA: \"replaces the standard adaptor\""
+   },
+   "existing_source": "series-manual-review B1/B2/B3",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "posed",
+   "pose": {
+    "pilot_variants": [
+     "w46",
+     "w40"
+    ],
+    "model": "any",
+    "_storyboard": "cam az 38 el 26; frame ghosted, floor adaptor at the opening, ceiling adaptor off the frame's inside face; assumed: adaptor drawn as a plain bar.",
+    "_differs": "Posed from Benton's own exploded sets in MasterComponentFolder, which also carry Hinge (door frame) and Strike plate (ghosted with the frame). The 40 in set names its top adaptor 'Door frame adaptor (top)', not 'Std door frame 40\" adaptor (top)'. Storyboard frames both adaptors, so this is scale L (96 in), not the plan's M.",
+    "base": {
+     "scale": "L",
+     "explode": true,
+     "ghost": [
+      {
+       "part": "set",
+       "match": "^Std door frame 4[06]\"$|^Hinge \\(door frame\\)|^Strike plate",
+       "alpha": 0.35
+      }
+     ],
+     "camera": {
+      "target": {
+       "part": "set"
+      },
+      "azimuth": 38,
+      "elevation": 26
+     },
+     "anchors": {
+      "floorAdaptor": {
+       "part": "set",
+       "match": "adaptor \\(bottom\\)"
+      },
+      "ceilingAdaptor": {
+       "part": "set",
+       "match": "adaptor \\(top\\)"
+      },
+      "frameFoot": {
+       "part": "set",
+       "match": "^Std door frame 4[06]\"$",
+       "at": [
+        0.5,
+        0.5,
+        0.0
+       ]
+      }
+     }
+    },
+    "variants": {
+     "w46": {
+      "parts": [
+       {
+        "role": "set",
+        "split": 1,
+        "sources": [
+         {
+          "def": "Std door frame 46\" with adaptors (exploded)",
+          "file": "Std door frame 46_ with adaptors (exploded)_1.skp"
+         }
+        ]
+       }
+      ]
+     },
+     "w40": {
+      "parts": [
+       {
+        "role": "set",
+        "split": 1,
+        "sources": [
+         {
+          "def": "Std door frame 40\" with adaptors (exploded)",
+          "file": "Std door frame 40_ with adaptors (exploded).skp"
+         }
+        ]
+       }
+      ]
+     },
+     "w49": {
+      "blocked": "No posed exploded WA set exists in MasterComponentFolder. Pose 'WA door frame.skp' with 'WA door frame adaptor(A).skp' and '(B).skp' by hand, save it as one component, and point this variant at it."
+     }
+    }
+   }
+  },
+  "CU-04": {
+   "title": "Ceiling adaptor bolted to the ceiling while it lies on the floor",
+   "group": "shell",
+   "priority": "P1",
+   "steps": "adaptors; door-first; ceiling / ceiling-bK that carries it",
+   "booth_variants": "every booth except HX",
+   "variants_text": "40 | 46 | 49",
+   "images": 3,
+   "prose": {
+    "show": "ceiling component (bracket side up) + ceiling adaptor + 3/4 in chrome bolts",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "from above-front, ceiling lying on the floor",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "adaptor 6 in above its spot",
+    "annotations": "\"lands directly above the floor adaptor\"; ADA: \"take out the hinged bracket here\""
+   },
+   "existing_source": "series-manual-review B27",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-05": {
+   "title": "Door frame on the floor adaptor, then bolted to both adaptors",
+   "group": "shell",
+   "priority": "P1",
+   "steps": "door-frame; frame-bolt",
+   "booth_variants": "every booth",
+   "variants_text": "standard | HX (floor adaptor + plastic hinges)",
+   "images": 2,
+   "prose": {
+    "show": "door frame (no leaf) + floor adaptor + ceiling adaptor + floor/ceiling edges",
+    "ghost": "adjacent wall panels at 35 pct",
+    "hide": "leaf",
+    "camera": "interior, at the frame foot",
+    "projection": "parallel",
+    "section": "vertical section through the jamb at the adaptor",
+    "explode": "none",
+    "annotations": "\"3/4 in chrome, tight\"; E: \"one chrome bolt through the centre hole, then take it out\""
+   },
+   "existing_source": "DoorCombos _NoDoor families (observed)",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-06": {
+   "title": "HX: plugs, H-strip widest side out, 10 in extension pushed down level with the tall seals",
+   "group": "shell",
+   "priority": "P1",
+   "steps": "hx; hx-bK; close (HX)",
+   "booth_variants": "every +HX booth",
+   "variants_text": "exploded | seated",
+   "images": 2,
+   "prose": {
+    "show": "H - strip 46 + 46PanelSolid top + 46 in height extension + two tall seam seals + black plastic plugs",
+    "ghost": "-",
+    "hide": "panel below 60 in",
+    "camera": "exterior 3/4 at the wall top, eye 10 in above the seal tops",
+    "projection": "parallel",
+    "section": "vertical section through the H-strip (shows the H, wide side out)",
+    "explode": "extension 8 in up, H-strip 4 in up (exploded variant only)",
+    "annotations": "\"widest side OUT\"; \"top level with the seam seal\"; \"plugs into the top inserts\""
+   },
+   "existing_source": "series-manual-review B4/B5; Z:/Sketchup/New Assembly Manual/HX Assembly Manual Sheet.skp",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "posed",
+   "pose": {
+    "pilot_variants": [
+     "exploded",
+     "seated"
+    ],
+    "model": "any",
+    "_storyboard": "cam az 30 el 20; section at mid-width with its normal along the wall; extension pushed down level with the tall seal tops; plugs into the top inserts; assumed: H-strip drawn as a plain bar.",
+    "_differs": "The real sets ('Std wall (46\") with HX' and its exploded twin) hold three parts: Std wall (46\"), H - strip 46 and Std wall (46\") HX (the extension). Neither carries the two tall seam seals or the black plastic plugs the storyboard draws; no plug component was found anywhere. The real H - strip 46 is a modelled component, so the section shows its true profile.",
+    "base": {
+     "scale": "M",
+     "section": {
+      "part": "wall",
+      "match": "^H - strip 46",
+      "axis": "long",
+      "at": 0.5
+     },
+     "camera": {
+      "target": {
+       "part": "wall",
+       "match": "^H - strip 46"
+      },
+      "azimuth_along": "section",
+      "azimuth_offset": 30,
+      "elevation": 20
+     },
+     "anchors": {
+      "hStrip": {
+       "part": "wall",
+       "match": "^H - strip 46"
+      },
+      "extTop": {
+       "part": "wall",
+       "match": "\\) HX$",
+       "at": [
+        0.5,
+        0.5,
+        1.0
+       ]
+      },
+      "panelTop": {
+       "part": "wall",
+       "match": "^Std wall \\(46\"\\)$",
+       "at": [
+        0.5,
+        0.5,
+        1.0
+       ]
+      }
+     }
+    },
+    "variants": {
+     "exploded": {
+      "explode": true,
+      "parts": [
+       {
+        "role": "wall",
+        "split": 1,
+        "sources": [
+         {
+          "def": "Std wall (46\") with HX (exploded)",
+          "file": "Std wall (46_) with HX (exploded).skp"
+         }
+        ]
+       }
+      ]
+     },
+     "seated": {
+      "explode": false,
+      "parts": [
+       {
+        "role": "wall",
+        "split": 1,
+        "sources": [
+         {
+          "def": "Std wall (46\") with HX",
+          "file": "Std wall (46_) with HX.skp"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   }
+  },
+  "CU-07": {
+   "title": "HX: black plastic hinges at the frame top replace the ceiling adaptor",
+   "group": "shell",
+   "priority": "P1",
+   "steps": "adaptors (HX); frame-bolt (HX)",
+   "booth_variants": "every +HX booth",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "door frame top + extension + black plastic hinge + ceiling edge",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "interior, looking up at the frame head",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "ceiling lifted 6 in",
+    "annotations": "\"no ceiling adaptor on HX\""
+   },
+   "existing_source": "series-manual-review B6",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-08": {
+   "title": "Hang the door: top and bottom hinges onto the pins, then the short middle pin",
+   "group": "shell",
+   "priority": "P1",
+   "steps": "door",
+   "booth_variants": "every booth",
+   "variants_text": "L | R  x  standard (3 hinges) | WA (4 hinges)",
+   "images": 4,
+   "prose": {
+    "show": "door frame + leaf at about 90 deg + hinge knuckles",
+    "ghost": "frame at 50 pct",
+    "hide": "walls",
+    "camera": "exterior, hinge side, eye at 40 in, tight on the hinge column",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "leaf raised 1 in above seated",
+    "annotations": "\"top + bottom first\", \"middle pin is shorter: push near the middle hinge\", \"never remove a hinge bolt\""
+   },
+   "existing_source": "series-manual-review B10; Assorted/Door Installation.pdf (observed)",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "posed",
+   "pose": {
+    "pilot_variants": [
+     "L-std"
+    ],
+    "model": "Master Component List AM",
+    "_storyboard": "cam az 55 el 14; hinge column, leaf at 90 deg; three hinges at about 8 / 40 / 72 in; assumed: knuckle sizes and positions schematic.",
+    "_differs": "Uses the DoorCombos open door (Left46Door_Open) in the AM master. Its children are not known offline: the AM master's thumbnail census lists 'Std door 30\" for 46\" door frame' but no 'Hinge (door)' / 'Hinge (door frame)'. Those hinge names are real in MasterComponentFolder's 'Std door frame 46_ and door 30_.skp'. If the dry run shows other names, edit the matches; if no hinge resolves, the hinge anchors are reported missing, never guessed.",
+    "base": {
+     "scale": "L",
+     "explode": true,
+     "parts": [
+      {
+       "role": "door",
+       "split": 1,
+       "sources": [
+        {
+         "def": "Left46Door_Open"
+        }
+       ]
+      }
+     ],
+     "moves": [
+      {
+       "part": "door",
+       "match": "^Std door 30",
+       "by": [
+        0,
+        0,
+        1
+       ]
+      }
+     ],
+     "ghost": [
+      {
+       "part": "door",
+       "match": "^Std door frame 46\"$",
+       "alpha": 0.5
+      }
+     ],
+     "camera": {
+      "target": {
+       "part": "door",
+       "deep": true,
+       "match": "^Hinge \\(door( frame)?\\)",
+       "fallback": {
+        "part": "door"
+       }
+      },
+      "azimuth_toward": [
+       {
+        "part": "door",
+        "match": "^Std door 30"
+       },
+       {
+        "part": "door",
+        "match": "^Std door frame 46\"$"
+       }
+      ],
+      "azimuth": 38,
+      "elevation": 14
+     },
+     "anchors": {
+      "topHinge": {
+       "part": "door",
+       "deep": true,
+       "match": "^Hinge \\(door frame\\)",
+       "rank": "z_desc",
+       "index": 0
+      },
+      "midHinge": {
+       "part": "door",
+       "deep": true,
+       "match": "^Hinge \\(door frame\\)",
+       "rank": "z_desc",
+       "index": "mid"
+      },
+      "bottomHinge": {
+       "part": "door",
+       "deep": true,
+       "match": "^Hinge \\(door frame\\)",
+       "rank": "z_desc",
+       "index": "last"
+      }
+     }
+    },
+    "variants": {
+     "L-std": {},
+     "R-std": {
+      "parts": [
+       {
+        "role": "door",
+        "split": 1,
+        "sources": [
+         {
+          "def": "Right46Door_Open"
+         }
+        ]
+       }
+      ]
+     },
+     "L-wa": {
+      "parts": [
+       {
+        "role": "door",
+        "split": 1,
+        "sources": [
+         {
+          "def": "LeftWADoor_Open"
+         }
+        ]
+       }
+      ],
+      "ghost": [
+       {
+        "part": "door",
+        "match": "^WA door frame",
+        "alpha": 0.5
+       }
+      ],
+      "moves": [
+       {
+        "part": "door",
+        "match": "^WA door$|^WA door ",
+        "by": [
+         0,
+         0,
+         1
+        ]
+       }
+      ]
+     },
+     "R-wa": {
+      "parts": [
+       {
+        "role": "door",
+        "split": 1,
+        "sources": [
+         {
+          "def": "RightWADoor_Open"
+         }
+        ]
+       }
+      ],
+      "ghost": [
+       {
+        "part": "door",
+        "match": "^WA door frame",
+        "alpha": 0.5
+       }
+      ],
+      "moves": [
+       {
+        "part": "door",
+        "match": "^WA door$|^WA door ",
+        "by": [
+         0,
+         0,
+         1
+        ]
+       }
+      ]
+     }
+    }
+   }
+  },
+  "CU-09": {
+   "title": "The dollar-bill test at the strike plate, and moving the plate",
+   "group": "shell",
+   "priority": "P1",
+   "steps": "lockset",
+   "booth_variants": "every booth",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "door edge + frame jamb at the strike + rubber seal + a bill",
+    "ghost": "-",
+    "hide": "rest of booth",
+    "camera": "interior close at the latch, door ajar 10 deg",
+    "projection": "perspective (depth cue on the seal)",
+    "section": "none",
+    "explode": "none",
+    "annotations": "\"slight drag = OK\"; arrow \"move the plate toward the seal\"; \"do not over-tighten\""
+   },
+   "existing_source": "series-manual-review B9; 4872 S manual STEP 10",
+   "blocked_by": "C6 a bill (trivial)",
+   "video_qr": "yes",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-10": {
+   "title": "Tighten-all map: every 1 5/8 in bolt line inside the booth",
+   "group": "shell",
+   "priority": "P2",
+   "steps": "tighten; frame-bolt (E)",
+   "booth_variants": "single-bay, per model family",
+   "variants_text": "one per single-bay size (7)",
+   "images": 7,
+   "prose": {
+    "show": "whole booth interior, ceiling hidden",
+    "ghost": "-",
+    "hide": "ceiling",
+    "camera": "interior, elevation 60 deg",
+    "projection": "parallel",
+    "section": "horizontal section at 60 in",
+    "explode": "none",
+    "annotations": "dots on every seal line (drawn by the app from anchors)"
+   },
+   "existing_source": "-",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-11": {
+   "title": "Ceiling hinged brackets bolted to the wall tops",
+   "group": "shell",
+   "priority": "P2",
+   "steps": "ceiling; ceiling-bK",
+   "booth_variants": "every booth",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "ceiling edge + bracket + wall top",
+    "ghost": "-",
+    "hide": "floor",
+    "camera": "interior, looking up at one wall top",
+    "projection": "parallel",
+    "section": "vertical section through the bracket",
+    "explode": "ceiling lifted 4 in",
+    "annotations": "\"3/4 in black\""
+   },
+   "existing_source": "-",
+   "blocked_by": "C3",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-12": {
+   "title": "Level the floor: shim under the WhisperRoom floor",
+   "group": "shell",
+   "priority": "P3",
+   "steps": "floor",
+   "booth_variants": "every booth",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "floor edge + shims",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "exterior low",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "none",
+    "annotations": "\"level first\""
+   },
+   "existing_source": "-",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-13": {
+   "title": "Wall vent: duct boxes on the outside of the vent wall, hoses to the fan unit",
+   "group": "vent",
+   "priority": "P1",
+   "steps": "vent",
+   "booth_variants": "every vented booth (not RM)",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "Std wall (46 Vnt) with duct boxes + RFU",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "exterior 3/4 behind the vent wall",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "boxes 6 in off the wall",
+    "annotations": "\"DO NOT push or pull a duct box once attached\"; exhaust vs intake"
+   },
+   "existing_source": "series-manual-review B11/B12; Ventilation System Installation.pdf",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-14": {
+   "title": "Interior duct cover: the L shape (right) and lying flat (wrong)",
+   "group": "vent",
+   "priority": "P1",
+   "steps": "vent; iep-walls (covers sentence)",
+   "booth_variants": "every vented booth (not RM)",
+   "variants_text": "L right | flat crossed out",
+   "images": 2,
+   "prose": {
+    "show": "Vent duct cover set for Standard wall (+ Enhanced twin) + vent wall interior",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "interior, side-on to the wall",
+    "projection": "parallel",
+    "section": "vertical section through the cover (shows the L standing off)",
+    "explode": "none",
+    "annotations": "green tick / red cross; \"air keeps moving\""
+   },
+   "existing_source": "series-manual-review B13/B14/B16",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-15": {
+   "title": "Wall VSS: mounting plates, short and long hoses, fan hose to the second VSS box",
+   "group": "vent",
+   "priority": "P2",
+   "steps": "vent (+VSS)",
+   "booth_variants": "vented +VSS",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "VSS duct box x2 + VSS hoses + duct boxes + RFU",
+    "ghost": "vent wall 35 pct",
+    "hide": "booth",
+    "camera": "exterior 3/4",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "plates lifted 3 in",
+    "annotations": "hose lengths; wood screws"
+   },
+   "existing_source": "series-manual-review B15; Ventilation Upgrades.pdf",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-16": {
+   "title": "EFS stack on the floor: bottom half + diffusers, fan in the middle, top half",
+   "group": "vent",
+   "priority": "P2",
+   "steps": "vent (+EFS)",
+   "booth_variants": "vented +EFS",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "EFS halves + RFU + diffusers",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "exterior 3/4, eye 30 in",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "halves 8 in apart",
+    "annotations": "\"diffusers on the BOTTOM\""
+   },
+   "existing_source": "series-manual-review B29",
+   "blocked_by": "C5 standalone EFS component",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-17": {
+   "title": "SNV/ENV vent panel: rubber plugs in the duct openings, port tubes face out",
+   "group": "vent",
+   "priority": "P3",
+   "steps": "wall-* (NV vent panel)",
+   "booth_variants": "SNV/ENV",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "VNT NV panel",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "exterior",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "none",
+    "annotations": "\"faces OUT\""
+   },
+   "existing_source": "-",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-18": {
+   "title": "RM: push a port tube into each ceiling opening; its top stands proud of the ceiling",
+   "group": "rm",
+   "priority": "P1",
+   "steps": "NEW rm-ports (RM section)",
+   "booth_variants": "every RM booth",
+   "variants_text": "one (+ inset of the tube)",
+   "images": 1,
+   "prose": {
+    "show": "RM ceiling component + port tubes",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "interior looking up + over the ceiling edge (two panes, one image)",
+    "projection": "perspective",
+    "section": "vertical section through one port",
+    "explode": "tube 6 in below its hole",
+    "annotations": "\"top must stick out above the ceiling\""
+   },
+   "existing_source": "Z:/Sketchup/Assembly/RM Detailed Assembly.skp p.1-2 (seen in its PDF)",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-19": {
+   "title": "RM: drop the duct box side hole onto the port tube; exhaust (no black ring) and intake (black ring) at opposite ends",
+   "group": "rm",
+   "priority": "P1",
+   "steps": "vent-rm-unit (rewritten: seat the duct boxes)",
+   "booth_variants": "every RM booth",
+   "variants_text": "box identification | seated on the tube (section)",
+   "images": 2,
+   "prose": {
+    "show": "RM exhaust duct box + intake duct box + port tubes + ceiling slab",
+    "ghost": "booth at 35 pct",
+    "hide": "-",
+    "camera": "over the roof, 3/4; section variant side-on",
+    "projection": "parallel",
+    "section": "vertical section through box + tube (variant 2)",
+    "explode": "box 8 in above the tube",
+    "annotations": "\"exhaust = NO ring\", \"intake = black ring\", \"opposite ends\""
+   },
+   "existing_source": "RM Detailed Assembly.skp p.3-5",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "posed",
+   "pose": {
+    "pilot_variants": [
+     "section"
+    ],
+    "model": "RM Detailed Assembly",
+    "_storyboard": "ident view: cam az 30 el 40, exhaust and intake boxes at opposite ends over the ceiling; assumed: duct box about 46 x 6.5 x 6.5 in, side hole about 3.25 in from the far end.",
+    "_differs": "No component is named 'RM duct box' anywhere. The roof-mount diagrams in MasterComponentFolder/History (Diagram_ RM MDL 4896 S) use 'VSS duct box', and RM Detailed Assembly holds three 'VSS duct box' definitions, so this pose finds a box whose name ends 'duct box' next to a 'Port tube' (derived, not confirmed). Which box carries the black ring is not visible in any name, so the identification variant is blocked.",
+    "base": {
+     "scale": "S",
+     "parts": [
+      {
+       "role": "tube",
+       "sources": [
+        {
+         "find": "^Port tube$",
+         "pick": 0
+        }
+       ]
+      },
+      {
+       "role": "box",
+       "sources": [
+        {
+         "find": "duct box$",
+         "near": {
+          "role": "tube",
+          "gap": 2
+         },
+         "pick": 0
+        }
+       ]
+      },
+      {
+       "role": "ceiling",
+       "optional": true,
+       "sources": [
+        {
+         "find": "^Ceiling component",
+         "near": {
+          "role": "tube",
+          "gap": 1
+         },
+         "pick": 0
+        }
+       ]
+      }
+     ],
+     "ghost": [
+      {
+       "part": "ceiling",
+       "alpha": 0.35
+      }
+     ],
+     "anchors": {
+      "portTop": {
+       "part": "tube",
+       "at": [
+        0.5,
+        0.5,
+        1.0
+       ]
+      },
+      "sideHole": {
+       "x": {
+        "part": "tube"
+       },
+       "y": {
+        "part": "tube"
+       },
+       "z": {
+        "part": "box",
+        "at": [
+         0.5,
+         0.5,
+         0.0
+        ]
+       }
+      }
+     }
+    },
+    "variants": {
+     "section": {
+      "explode": true,
+      "moves": [
+       {
+        "part": "box",
+        "by": [
+         0,
+         0,
+         8
+        ]
+       }
+      ],
+      "section": {
+       "part": "tube",
+       "axis": "short",
+       "axis_of": {
+        "part": "box"
+       },
+       "at": 0.5
+      },
+      "camera": {
+       "target": {
+        "x": {
+         "part": "tube"
+        },
+        "y": {
+         "part": "tube"
+        },
+        "z": {
+         "part": "box",
+         "at": [
+          0.5,
+          0.5,
+          0.0
+         ]
+        }
+       },
+       "azimuth_along": "section",
+       "azimuth_offset": 0,
+       "elevation": 8
+      }
+     },
+     "ident": {
+      "blocked": "Needs the exhaust/intake pair chosen by hand: which duct box carries the black ring is not in any definition name."
+     }
+    }
+   }
+  },
+  "CU-20": {
+   "title": "RM: fan hose 1 in into the exhaust box end; fan unit on the roof away from the intake opening; sets grouped by side",
+   "group": "rm",
+   "priority": "P1",
+   "steps": "vent-rm-hose (rewritten)",
+   "booth_variants": "every RM booth",
+   "variants_text": "1 vent set | 2 vent sets (4284/4896)",
+   "images": 2,
+   "prose": {
+    "show": "duct boxes + RFU + hose on the ceiling",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "over the roof, 3/4",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "none",
+    "annotations": "\"about 1 in\", \"keep clear of the intake end\", \"all exhausts on one side\""
+   },
+   "existing_source": "RM Detailed Assembly.skp p.6-7",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-21": {
+   "title": "RM: EFS halves around the fan unit ON THE ROOF, then the black port tube into the EFS end",
+   "group": "rm",
+   "priority": "P1",
+   "steps": "vent-rm-efs (rewritten)",
+   "booth_variants": "every RM booth",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "EFS halves + RFU + EFS port tube on the ceiling",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "over the roof, 3/4",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "top half 8 in up",
+    "annotations": "\"every roof-mount booth gets this\""
+   },
+   "existing_source": "RM 4872 sheet steps 4-6 (text only)",
+   "blocked_by": "C5 standalone EFS component",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-22": {
+   "title": "RM: interior C-shaped duct cover centred on the port tube, cloth grain parallel",
+   "group": "rm",
+   "priority": "P1",
+   "steps": "vent-rm-covers; iep-ceiling (RM)",
+   "booth_variants": "every RM booth",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "ceiling interior + RM duct cover",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "interior looking up",
+    "projection": "perspective",
+    "section": "none",
+    "explode": "cover 4 in down",
+    "annotations": "\"C shape\", \"grain parallel to the ceiling cloth\""
+   },
+   "existing_source": "RM Duct Cover.pdf; Roof Mount Duct Cover installation.pdf",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-23": {
+   "title": "RM VSS chain: VSS hose, attachment ring, second VSS box, fan hose into it",
+   "group": "rm",
+   "priority": "P2",
+   "steps": "vent-rm-vss (rewritten)",
+   "booth_variants": "RM +VSS",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "exhaust box + 2 VSS boxes + ring + hoses + RFU",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "over the roof",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "ring 4 in out",
+    "annotations": "order 1-2-3-4"
+   },
+   "existing_source": "RM 4872 sheet (VSS variant)",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-24": {
+   "title": "IEP seam seal: isolator pads on, wedged floor-to-ceiling, touching but not squashed",
+   "group": "iep",
+   "priority": "P1",
+   "steps": "iep-seals",
+   "booth_variants": "every E/ENV",
+   "variants_text": "corner | mid-wall",
+   "images": 2,
+   "prose": {
+    "show": "ENH CornerSeamSeal / IEP mid seal + isolator pads + Std wall + Std floor/ceiling edges",
+    "ghost": "Std shell 35 pct",
+    "hide": "-",
+    "camera": "interior corner, eye at 48 in",
+    "projection": "parallel",
+    "section": "horizontal section at 40 in (shows the pad gap)",
+    "explode": "seal 4 in out of the corner",
+    "annotations": "\"six pads\", \"touch, do not squash\""
+   },
+   "existing_source": "series-manual-review B20",
+   "blocked_by": "C4 isolator pad",
+   "video_qr": "yes",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-25": {
+   "title": "IEP wall: bottom half, H-strip widest side out, top half pressed toward the Std wall",
+   "group": "iep",
+   "priority": "P1",
+   "steps": "iep-walls",
+   "booth_variants": "every E/ENV",
+   "variants_text": "exploded | seated",
+   "images": 2,
+   "prose": {
+    "show": "IEP wall 41.5 bottom + top + H-strip + Std wall behind",
+    "ghost": "Std wall 35 pct",
+    "hide": "-",
+    "camera": "interior 3/4",
+    "projection": "parallel",
+    "section": "vertical section through the H-strip",
+    "explode": "top half 8 in up, strip 4 in up",
+    "annotations": "\"widest side OUT\", \"it rubs the Std ceiling going in: that is right\""
+   },
+   "existing_source": "series-manual-review B21/B22",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-26": {
+   "title": "IEP jamb: ONE longer bolt through door frame, adaptor and jamb",
+   "group": "iep",
+   "priority": "P1",
+   "steps": "iep-jamb",
+   "booth_variants": "every E/ENV",
+   "variants_text": "standard (top + bottom) | HX (floor only)",
+   "images": 2,
+   "prose": {
+    "show": "Std door frame + adaptor + IEP jamb + longer bolt",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "interior at the frame foot",
+    "projection": "parallel",
+    "section": "vertical section through frame/adaptor/jamb",
+    "explode": "bolt on its axis 4 in out",
+    "annotations": "\"frame -> adaptor -> jamb\""
+   },
+   "existing_source": "-",
+   "blocked_by": "C7 non-WA IEP jamb (verify)",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-27": {
+   "title": "IEP jamb staged inside, leaning on the rear wall, rubber seal toward the opening",
+   "group": "iep",
+   "priority": "P2",
+   "steps": "iep-jamb-in",
+   "booth_variants": "single-bay E",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "IEP jamb + Std shell interior",
+    "ghost": "Std shell 35 pct",
+    "hide": "ceiling",
+    "camera": "interior from the door opening",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "none",
+    "annotations": "\"no bolts yet\""
+   },
+   "existing_source": "series-manual-review A7",
+   "blocked_by": "C7",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-28": {
+   "title": "IEP extension on the IEP wall with its H-strip",
+   "group": "iep",
+   "priority": "P1",
+   "steps": "iep-hx",
+   "booth_variants": "E +HX",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "IEP wall top + H-strip + IEP extension",
+    "ghost": "Std wall 35 pct",
+    "hide": "-",
+    "camera": "interior 3/4 at the wall top",
+    "projection": "parallel",
+    "section": "vertical section through the H-strip",
+    "explode": "extension 6 in up",
+    "annotations": "\"widest side OUT\""
+   },
+   "existing_source": "-",
+   "blocked_by": "IEP extension component (verify)",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-29": {
+   "title": "IEP ceiling beam: brackets with 3 1/2 in chrome, about 2 in past each bracket",
+   "group": "iep",
+   "priority": "P1",
+   "steps": "iep-beam",
+   "booth_variants": "multi-bay E, 96/102 families",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "IEP beam + 2 brackets + ceiling seam seal",
+    "ghost": "Std ceiling 35 pct",
+    "hide": "walls",
+    "camera": "interior looking up along the seam",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "bracket 3 in down",
+    "annotations": "\"one person holds the beam the whole time\""
+   },
+   "existing_source": "-",
+   "blocked_by": "IEP beam + bracket components (engine artNote: no art)",
+   "video_qr": "yes",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-30": {
+   "title": "IEP door onto the Std door: 12 plugs out, 3 centre bolts first, centred on the ridge",
+   "group": "iep",
+   "priority": "P1",
+   "steps": "iep-door",
+   "booth_variants": "every E/ENV",
+   "variants_text": "standard | WA/ADA",
+   "images": 2,
+   "prose": {
+    "show": "IEP door (WA IEP door) + Std door inside face",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "interior, door open 90 deg",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "IEP door 6 in off",
+    "annotations": "\"3 centre bolts first\", \"edge on the ridge all round\""
+   },
+   "existing_source": "series-manual-review B23",
+   "blocked_by": "C8 non-WA IEP door (verify)",
+   "video_qr": "yes",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-32": {
+   "title": "Caster-plate pieces locked with attachment plates across the joint",
+   "group": "multibay",
+   "priority": "P1",
+   "steps": "casters (multi-bay)",
+   "booth_variants": "multi-bay +CP",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "two CP pieces + L Brackets CP + 3/4 in black",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "from above, 3/4",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "plate 3 in up",
+    "annotations": "\"braked casters at the four OUTSIDE corners\""
+   },
+   "existing_source": "series-manual-review B26",
+   "blocked_by": "C1 caster",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-33": {
+   "title": "Floor seam seal between floor components, connector plates in the slots",
+   "group": "multibay",
+   "priority": "P1",
+   "steps": "floor (multi-bay)",
+   "booth_variants": "every multi-bay",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "STDSS FL8 + two STD9648FL edges + connector plates",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "low 3/4 across the seam",
+    "projection": "parallel",
+    "section": "vertical section across the seam",
+    "explode": "floors 4 in apart",
+    "annotations": "\"push tight into the seal\""
+   },
+   "existing_source": "series-manual-review B17",
+   "blocked_by": "C2 floor connector plate",
+   "video_qr": "yes",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-34": {
+   "title": "Bridge: mid-wall seals centred on the floor seam; ceiling seam seal ends aligned with them",
+   "group": "multibay",
+   "priority": "P1",
+   "steps": "bridge-bK",
+   "booth_variants": "every multi-bay",
+   "variants_text": "standard | WA long wall (seal 3 in off the seam)",
+   "images": 2,
+   "prose": {
+    "show": "two mid-wall seals + STDSS CL8 + bay-1 walls + ceiling edge",
+    "ghost": "bay 1 at 35 pct",
+    "hide": "bay 2",
+    "camera": "exterior 3/4 at the seam",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "seals 6 in out",
+    "annotations": "alignment marks"
+   },
+   "existing_source": "series-manual-review B18",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-35": {
+   "title": "Move the hinged bracket out of the door spot (floor and ceiling)",
+   "group": "multibay",
+   "priority": "P2",
+   "steps": "door-first; adaptors (ADA)",
+   "booth_variants": "multi-bay; ADA/WA",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "floor edge + hinged brackets",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "from above",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "bracket lifted, arrow to a vacant spot",
+    "annotations": "\"one bracket was left off on purpose\""
+   },
+   "existing_source": "-",
+   "blocked_by": "C3",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-36": {
+   "title": "Far end wall comes in from the side under the ceilings; brackets top and bottom",
+   "group": "multibay",
+   "priority": "P2",
+   "steps": "close",
+   "booth_variants": "multi-bay (door not in the end wall)",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "end wall panels + seals + ceiling edges",
+    "ghost": "booth 35 pct",
+    "hide": "-",
+    "camera": "exterior end-on 3/4",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "wall slid out 18 in along x",
+    "annotations": "\"top AND bottom brackets\""
+   },
+   "existing_source": "-",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-37": {
+   "title": "Wide access: the 49 in frame and its companion seated together",
+   "group": "multibay",
+   "priority": "P2",
+   "steps": "door-frame (WA); walls-bK / close (WA)",
+   "booth_variants": "WA/ADA",
+   "variants_text": "end wall | long wall",
+   "images": 2,
+   "prose": {
+    "show": "WA door frame + companion (43/7/19 in) + seals",
+    "ghost": "-",
+    "hide": "-",
+    "camera": "exterior front",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "pair pulled 6 in out",
+    "annotations": "\"seat the pair before bolting either\""
+   },
+   "existing_source": "ADA Door Upgrade sheets (observed)",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-38": {
+   "title": "Elevated floor: first tiles at the rear, corner-tile bolt head toward the centre",
+   "group": "ada",
+   "priority": "P1",
+   "steps": "NEW efp (ADA section)",
+   "booth_variants": "ADA, EFP (S and E)",
+   "variants_text": "S (inside the alignment strip) | E (against the IEP walls)",
+   "images": 2,
+   "prose": {
+    "show": "EFI CNR + EFI SIDE + EFI CTR tiles + floor + 2 walls",
+    "ghost": "walls 35 pct",
+    "hide": "ceiling",
+    "camera": "interior from the door, elevation 45",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "next tile 6 in up",
+    "annotations": "\"bolt head toward the centre (it lifts the tile out later)\", \"tap with a rubber mallet\""
+   },
+   "existing_source": "New EFP Manuals/4872 S EFP.pdf, 9696 E EFP.pdf (text observed); efp-* sprites ship (observed)",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-39": {
+   "title": "Elevated floor (S only): corner and perimeter strips, the 38 3/4 in doorframe strip in front of the frame",
+   "group": "ada",
+   "priority": "P1",
+   "steps": "NEW efp",
+   "booth_variants": "ADA, EFP on S/SNV",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "EFI PERIM strips + tiles + door frame foot",
+    "ghost": "walls 35 pct",
+    "hide": "ceiling",
+    "camera": "interior at the door, low",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "strip 3 in up",
+    "annotations": "\"the doorframe strip goes in front of the frame\""
+   },
+   "existing_source": "4872 S EFP.pdf steps 5-6",
+   "blocked_by": "EFI strip component",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-40": {
+   "title": "Ramp: RAMP 1 plates flipped into the channel, bolted into the door-frame inserts",
+   "group": "ada",
+   "priority": "P1",
+   "steps": "NEW ramp",
+   "booth_variants": "ADA, WA RAMP",
+   "variants_text": "one (the ramp is symmetric)",
+   "images": 1,
+   "prose": {
+    "show": "RAMP 1 + its black plates + WA door frame foot",
+    "ghost": "door 35 pct",
+    "hide": "walls",
+    "camera": "exterior low 3/4 at the threshold",
+    "projection": "parallel",
+    "section": "vertical section through plate + insert",
+    "explode": "ramp 4 in out",
+    "annotations": "\"3/4 in black bolts\", \"top holes line up with the frame inserts\""
+   },
+   "existing_source": "New ADA Multi Piece Ramp.pdf (observed)",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-41": {
+   "title": "Ramp: middle and lower pieces join in order",
+   "group": "ada",
+   "priority": "P2",
+   "steps": "NEW ramp",
+   "booth_variants": "ADA, WA RAMP",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "RAMP 1-3 pieces",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "exterior side 3/4",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "pieces 6 in apart",
+    "annotations": "order numbers 1-6"
+   },
+   "existing_source": "New ADA Multi Piece Ramp.pdf p.2",
+   "blocked_by": "",
+   "video_qr": "yes",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-42": {
+   "title": "Step: metal strip up, centred on the door, pushed tight to the caster plate",
+   "group": "ada",
+   "priority": "P2",
+   "steps": "NEW step (ADA section)",
+   "booth_variants": "CP + STEP",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "STEP + caster plate edge + door frame foot",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "exterior low",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "step 6 in out",
+    "annotations": "\"Velcro on the back\""
+   },
+   "existing_source": "STEP Installation.pdf (observed)",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-43": {
+   "title": "Casters to the bottom of the plate, braked casters at the corners",
+   "group": "ada",
+   "priority": "P2",
+   "steps": "casters (single-bay)",
+   "booth_variants": "+CP",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "caster plate underside + casters",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "from below 3/4",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "casters 3 in off",
+    "annotations": "\"braked at the corners\", \"3/4 in chrome\""
+   },
+   "existing_source": "MDL 4872 S Caster Plate.pdf",
+   "blocked_by": "C1 caster",
+   "video_qr": "no",
+   "status": "blocked",
+   "pose": null
+  },
+  "CU-44": {
+   "title": "Foam: press the Velcro side to the wall, top first",
+   "group": "extras",
+   "priority": "P3",
+   "steps": "foam",
+   "booth_variants": "every booth",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "Foam sheet + wall",
+    "ghost": "-",
+    "hide": "booth",
+    "camera": "interior",
+    "projection": "parallel",
+    "section": "none",
+    "explode": "sheet 3 in off",
+    "annotations": "-"
+   },
+   "existing_source": "series-manual-review B24",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  },
+  "CU-45": {
+   "title": "Studio light: Velcro + 2 1/2 in screws through the pass-through holes; cable to the cable passage plug",
+   "group": "extras",
+   "priority": "P3",
+   "steps": "NEW light (not in the engine)",
+   "booth_variants": "+SL",
+   "variants_text": "one",
+   "images": 1,
+   "prose": {
+    "show": "Studio Light + ceiling + cable passage plug",
+    "ghost": "-",
+    "hide": "walls",
+    "camera": "interior looking up",
+    "projection": "perspective",
+    "section": "none",
+    "explode": "none",
+    "annotations": "\"the screw goes through 1 in of foam first\""
+   },
+   "existing_source": "Studio Light Installation.pdf; B25",
+   "blocked_by": "",
+   "video_qr": "no",
+   "status": "unposed",
+   "pose": null
+  }
+ }
+}
