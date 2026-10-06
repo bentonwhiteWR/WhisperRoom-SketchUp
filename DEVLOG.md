@@ -1,5 +1,49 @@
 # DEVLOG
 
+## 2026-10-06 -- session close: ISL v2 proposal, CCU Sands Hall 113 layout, PeoplesSpace R booth accessories
+
+**State at sign-off (all over the bridge in SketchUp 2026, every model saved).**
+- **ISL MDL 6060 E (Custom RM Ventilation), proposal revision 2:** finished and approved.
+  - PDF: `Desktop\ProposalFiles\Intelligence Security Laboratories\...-Booth-Renderings-V2.pdf`.
+  - Config: the private `WhisperRoom Proposals` repo, `examples/intelligence-security-laboratories-rev2/` (pushed cd3a360).
+- **CCU Sands Hall 113, quote W-1110062608 (Coastal Carolina University):**
+  - Room taken off from the vector plan A1, ½" = 1'-0", in `clients/ccu-sands-hall-113/`. The scale was checked against both dimension strings.
+  - 8 booths built from Benton's ADA + RM booth-builder links and placed after the client's sheet A2:
+    - south row: 5 × MDL 7272 E;
+    - north-west: one MDL 7296 E on the north wall and two MDL 7296 E below it (booths 6–8).
+  - The north-east corner is reserved for the 16'×16' booth (192192 E on the quote; Benton called it "96192 E"). Benton is drawing that one himself.
+  - Model: `Z:\Sketchup\ClientDrawings\Coastal Carolina University Sands Hall 113.skp`. Notes and clearances: `clients/ccu-sands-hall-113/notes.md`.
+- **PeoplesSpace REVISED `.skp`, visible R booth (MDL 96120 E):**
+  - 2 × SL52 studio lights replace the 3 Standard Lights, on the new `WR Studio Lights` tag (1.81.1).
+  - 6 bass traps, 3 stacked in each back corner (3 packs).
+  - All 19 Audimute panels and 7 foam sheets re-laid over 4 walls, with nothing left over and the clash check clean.
+  - 1 foam sheet added on the door wall.
+  - Full moved-piece table: `.forge/builder/HANDOFF.md`.
+
+**Open decisions (Benton):**
+1. **CCU:**
+   - Room 113's real ceiling height. It is assumed to be 8'-0"; the RM roof units top out at 94⅝", and the importer wants 95.31".
+   - The booth 6 ramp lands next to the room entry door's swing: the ramp clears it by 7⅜", but the landing at the ramp foot is only 49" deep.
+   - Is Audimute (`ac`) meant to be on the CCU links? It isn't on the quote.
+2. **PeoplesSpace IEP beam:**
+   - It now lives INSIDE the shared `STDSS CL8` ceiling-seal component, so it repeats under all 4 seals, including the hidden L booth, and runs ~4½" into the back wall.
+   - `IEP BEAM 8.skp` measures 94". The catalogue U101 "IEP BEAM 8 (82")" matches `IEP BEAM 7.skp`, so the files look mislabelled by one size.
+   - The BOM wants 2 per 96120 E. Proposed fix: two separate 82" beams under the R booth's seams only.
+3. **PeoplesSpace email items not yet done:** remove the MJP, switch the door and swing, and turn every 46" wall into a cable wall. Check them against the file before assuming.
+
+**Next steps:**
+1. Get Benton's answers to the open decisions above, then apply the beam fix in the PeoplesSpace R booth over the bridge (`python scripts/sketchup-bridge.py status`).
+2. CCU: once the ceiling height is known, re-check the RM fit, and Benton draws the 192192 E in the reserved zone.
+3. Fix the importer's bass-trap orientation (`wr-overlays.rb` / `place_bass_traps`): it seats the part's (0,0) corner into the room corner, but `Bass Trap.skp`'s right angle is at the part's (0,12), so traps it places would face the wrong way.
+4. Fix the importer's studio-light height: it reads the ceiling bounding box including hinges, which hangs the lights 1.36" low on a 96120 E. Also make its light spacing check for roof-unit rods.
+5. Two `build-takeoff.rb` / dimension-engine issues seen on CCU:
+   - it lays no door dimensions;
+   - it gives a false "DOES NOT CLOSE" when a free-standing pilaster's faces fall in the vertical chain.
+
+**Left uncommitted on purpose:**
+- `proposals/examples/peoplesspace/proposal-v2.json` was already modified before this session. It is not mine, and client configs belong in the private repo.
+- `.forge/builder/*` scratch and screenshots are client imagery and stay out of this public repo.
+
 ## 2026-10-06 -- 1.81.1: studio lights get their own always-visible tag
 
 **What.** Benton: "studio lights should always be visible". `wr-overlays.rb` `place_studio_lights` put the
