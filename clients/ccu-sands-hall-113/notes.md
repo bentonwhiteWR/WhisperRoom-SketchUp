@@ -15,7 +15,7 @@ The 192192 E is Benton's to draw and is not in this job.
 
 - The sheet arrived as two PDFs: `plans/A1-prelim.pdf` and `plans/A1-workorder.pdf`. Both are gitignored.
 - Their geometry is **identical**: all 22,762 path items match to 0.01 pt. Only the metadata differs (Distiller vs a PDFium re-save).
-- **Sheet 2, the A–I practice-room layout, was not supplied.** No booth is placed.
+- **Sheet 2 (A2, the practice-room arrangement) arrived later in the session.** It is `plans/A2-prelim.pdf`, a 612×792 pt re-scaled page, so it was **not** scaled from. The layout below follows its arrangement.
 
 Take-off: `takeoff.json`. The checker is clean: 1 room, 10 runs, 1 door, closure 0.00". Two values are flagged DEFAULT: the ceiling and the door height.
 
@@ -79,9 +79,7 @@ Each wall face is drawn as two lines 0.62" apart. The **light-grey line on the r
   - So its 12 wall dimensions were replaced by `WR_RoomDimsNow`'s set. That set has every run, both overalls and the door: 34'-8" from the NE corner, plus 3'-0" for the opening.
   - One 6 1/8" NW-corner → near-jamb dimension was added by hand on `WR-Dims-Doors`, stamped so a rerun clears it.
   - Its console says "CHAINS DO NOT CLOSE … y +18"". That is a **false alarm** from the free-standing pilaster: its two N/S faces get counted into the vertical chain. The geometry closes to 0.00".
-- **Booths:** one MDL 7272 E and one MDL 7296 E, built with `booth-from-link.rb` from Benton's links.
-  - Both are **staged south of the room**, at y −600 and beyond, and are **not placed in it**.
-  - Groups are named `… - STAGED, not placed`, with a text label each on `WR-Notes`.
+- **Booths:** one MDL 7272 E and one MDL 7296 E were built with `booth-from-link.rb` from Benton's links. The other six are copies of those two groups, and every booth was placed by translation and rotation only, so each keeps its link's door hand. The layout is below.
 - **Display:** `WR-Ceiling` is hidden.
 - **Saved:** `Z:/Sketchup/ClientDrawings/Coastal Carolina University Sands Hall 113.skp`.
 
@@ -105,7 +103,7 @@ Both links decode to the same configuration apart from the wall layout:
 | Ramp projects | 45.6" past the door wall | 45.6" past the door wall |
 | Ceiling the room must give (importer) | **95.31" (7'-11 5/16")** | **95.31" (7'-11 5/16")** |
 
-**Not built: Audimute (`ac`) on both.** The importer refuses it by name. The `whisperroom-acoustic-package` skill was not run, because the booths are only staged.
+**Not built: Audimute (`ac`) on both.** The importer refuses it by name. The `whisperroom-acoustic-package` skill has not been run; that waits on Benton.
 
 **Flagged by the builder on both booths:**
 - No WAJMBAD.
@@ -121,6 +119,62 @@ Both links decode to the same configuration apart from the wall layout:
    - Against the assumed 8'-0" (96") that leaves **0.69"**.
    - As built, the RM top sits at 94 5/8", 1 3/8" under 96".
    - Any soffit, sprinkler head, light fixture or duct below 8'-0" kills it. Field-verify it.
-2. **Sheet 2 of 2.** It holds the room A–I layout. Without it the placement of 8 booths is unknown.
+2. **The two ramp landings below.** B5's and B6's landings are short of 60" × 60".
 3. **North door clear width and height.** It is the only opening into 113 on this sheet, so it is the delivery path for every panel. Its frame opening is drawn at 36"; the clear passage and the height are not on the plan.
 4. **North arrow.** None is on the sheet; plan-up is assumed to be north.
+
+## Layout — 8 booths + the reserved zone (placed 6 Oct 2026)
+
+**Provenance.** This is Claude's adaptation of the client's sheet A2, which Benton approved as "best as possible". It is **not** the client's own layout.
+- It follows A2's arrangement with WhisperRoom sizes:
+  - a row of 5 rooms on the south wall, doors facing north;
+  - the big room against the north wall, east of centre;
+  - a north-west cluster: one long room on the north wall with its door at its west end, and two small rooms below it with doors facing south.
+- The quote mapping is **derived** from the sizes: the client's three ~55/56 isf rooms are the 3 × MDL 7296 E, and the five 44/38 isf rooms are the 5 × MDL 7272 E.
+- The coordinates came from the coordinator. The booths are numbered B1–B8. **The client's A–I letters are not used**, because the mapping between the two is unknown.
+
+**Frame.** x is measured from the west interior face and y from the south interior face. Both faces were read back off the model's floor polygon: 458 1/8" × 421 1/8", with the pilasters at x 0–7 1/8 and x 268 1/8–280 1/8, each 18" deep. Positions are exterior shells, not ramps. Every value in the table is **observed** from the model after placement.
+
+| Booth | Model | Door faces | Shell x | Shell y | Ramp end |
+|---|---|---|---|---|---|
+| B1 | MDL 7296 E, long axis N-S | N | 8 1/8–82 1/8 | 1–99 | y 144.6 |
+| B2 | MDL 7272 E | N | 84 1/8–158 1/8 | 1–75 | y 120.6 |
+| B3 | MDL 7272 E | N | 160 1/8–234 1/8 | 1–75 | y 120.6 |
+| B4 | MDL 7272 E | N | 307 1/8–381 1/8 | 1–75 | y 120.6 |
+| B5 | MDL 7296 E, long axis N-S | N | 383 1/8–457 1/8 | 1–99 | y 144.6 |
+| B6 | MDL 7296 E, long axis E-W | W | 95–193 | 346 1/8–420 1/8 | x 49.4 |
+| B7 | MDL 7272 E | S | 80–154 | 270 1/8–344 1/8 | y 224.5 |
+| B8 | MDL 7272 E | S | 156–230 | 270 1/8–344 1/8 | y 224.5 |
+
+**Reserved zone,** tag `WR-Reserved`, drawn as outlines with a label. Benton is to draw it.
+- It is for the 16'×16' booth: MDL 192192 E on the quote, which Benton called "MDL 96192 E". **It is not built.**
+- The inner footprint is x 248 1/8–440 1/8, y 211 1/8–403 1/8, 18" off the north and east walls.
+- The outer 18" clearance boundary is x 230 1/8–458 1/8, y 193 1/8–421 1/8.
+
+**Clearances, read back from the model:**
+- **Aisle from the south ramps to the north-west ramps:** 103.9" (8'-7 15/16"). This is the B2 → B7 and B3 → B8 ramp ends. B1's ramp end to B7's shell is 125.5".
+- **B5's ramp end:** 48.5" (4'-0 1/2") to the reserved outer boundary, and 66.5" (5'-6 1/2") to the inner footprint.
+- **B6's ramp end:** 7 3/8" from the room-door swing arc, and 49.4" (4'-1 3/8") to the west wall.
+- **West aisle at the bottom of B6's ramp:** 80" (6'-8") from the west wall to B7's west face.
+- **Booth to booth, shell to shell:** 2" for B1-B2, B2-B3, B4-B5, B6-B7, B6-B8 and B7-B8. B3 to B4 is 73".
+  - Next to each other, the ramps run 27" apart.
+  - A ramp's side edge sits 4" from the neighbouring shell.
+- **Booth to wall:** the south row is 1" off the south wall. B5 is 1" off the east wall and B6 1" off the north wall. B1 is 8 1/8" off the west wall above the corner pilaster.
+- **Booth to pilaster:** B1 is 1" from the south-west corner pilaster. B3 is 34" (2'-10") from the free pilaster, and the free pilaster is 27" (2'-3") from B4.
+- **Booth to the reserved zone:** B6's east end is 37 1/8" from the outer boundary. B8's east face is **1/8"** from it, so B8 effectively touches it.
+- **Pilasters:** both sit outside the reserved zone, which is now in the north-east corner.
+
+**Flags:**
+- No named aisle is under 36".
+- **B5's ramp landing is short.** A 60"×60" landing centred on the ramp would cross the east wall by 2.5" and run 11.5" into the reserved outer zone. The depth available is 48.5" to the outer boundary and 66.5" to the inner footprint.
+- **B6's ramp landing is short.** Only 49.4" lies between the ramp end and the west wall, and the landing area overlaps the room-door swing. The ramp itself clears the swing by 7 3/8".
+- The other six landings are clear at 60"×60".
+
+**Heights:** every roof unit tops out at 94 5/8", which is 1 3/8" under the **assumed** 8'-0" ceiling. The importer's ceiling requirement is 95.31", which leaves 0.69". Field-verify the ceiling.
+
+**Model:**
+- Groups are named `Booth 1 – MDL 7296 E` … `Booth 8 – MDL 7272 E`, with a text label each on `WR-Notes`.
+- Placement dimensions are on `WR-Dims-Booth`, drawn at z 96 so they read over the booth roofs in plan.
+- The staged labels were removed.
+- Audimute is **not** laid out (pending Benton).
+- Saved over `Z:/Sketchup/ClientDrawings/Coastal Carolina University Sands Hall 113.skp`.
