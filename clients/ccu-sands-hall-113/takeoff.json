@@ -1,0 +1,61 @@
+{
+  "job": "ccu-sands-hall-113",
+  "title": "Coastal Carolina University, Sands Hall, Room 113 'New Music Room' (open room) — sheet A1 of 2, no booth placed",
+  "sources": ["plans/A1-prelim.pdf", "plans/A1-workorder.pdf"],
+  "anchor": "plan-vector: the sheet's own dimension string 38'-2 1/8\" (E-W, north wall face to face). The stated drawing scale 1/2\" = 1'-0\" on a 24x36 sheet gives 1 pt = 1/3\"; the vector faces measure 1374.42 pt = 458.14\" against the stated 458.125\" (0.015\" apart), and the 35'-1 1/8\" string measures 1263.42 pt = 421.14\" against 421.125\" — both strings confirm the scale independently.",
+  "interpretations": [
+    "Plan is a vector PDF (one page, /Rotate 270, outlined text, ~4600 paths). Coordinates were read from PyMuPDF get_drawings() and mapped through page.rotation_matrix so plan-up is page-up. Plan-up is taken as north: the sheet carries no north arrow.",
+    "Every wall face is drawn as a pair of lines 1.86 pt (0.62\") apart, light grey (0.65) on the room side and darker grey (0.41) behind it. The light line is taken as the interior finished face: with it, both stated strings reproduce to 0.015\". Using the dark line would make the room 1.24\" larger on each axis and contradict both strings.",
+    "Both client PDFs carry identical geometry: 22,762 path items, every one matching in kind and coordinates to 0.01 pt after rotation. They differ only in metadata (one Acrobat Distiller, one PDFium re-save). The take-off is from A1-prelim.pdf.",
+    "Sub-runs on the south and west walls are scaled from the vector faces at 1 pt = 1/3\" and rounded to the nearest 1/8\". Each reading was within 0.02\" of the recorded value (178.00, 12.00, 18.00, 261.02, 7.12, 403.14), and the rounded south-side runs sum EXACTLY to the stated 38'-2 1/8\" and the west-side runs EXACTLY to 35'-1 1/8\" — an independent cross-check, since nothing forced them to.",
+    "The stated 38'-2 1/8\" string sits at y = 1238 pt, above the pilasters, so it is the full north-wall width face to face. The 35'-1 1/8\" string sits at x = 1805 pt, clear of the pilasters, so it is the full east-wall height face to face.",
+    "Two pilasters on the south wall, both 18\" deep (N-S): one filling the south-west corner (7 1/8\" wide E-W, so the west wall's lower 18\" steps east by 7 1/8\"), and one free-standing 12\" wide, whose east face is 14'-10\" from the east wall. They are recorded as runs (notches in the polygon), not features.",
+    "One door, north wall near the north-west corner. The wall break in the drawing is 40.02\" (599.58 to 719.64 pt), with a 2\" frame at each side; the leaf is drawn open 90 deg into room 113 at 36\" x 1 3/4\" (108 x 5.28 pt), hinged at the west jamb, and the arc closes on the east jamb. Recorded as the 36\" frame opening, 6 1/8\" from the north-west corner (wall break begins 4 1/8\" from the corner). Clear passage through the frame for delivery is less than 36\" and is NOT on the plan.",
+    "Room 113's east wall (to 112 / 113A / 113B) has no opening on this sheet; the door drawn near it belongs to the 113A/113B partition. The north wall's exterior face has a small stub wall in the corridor at about 1658-1673 pt; it is outside room 113 and not modelled. The north wall is drawn with a dashed hatch (likely a rated wall) — not modelled.",
+    "Wall thickness on the plan reads 14.64 pt = 4 7/8\" (north, west and east walls). Built at the 4\" house default because thickness is cosmetic and never moves an interior dimension.",
+    "The sheet's notes say every dimension is to be field verified by the manufacturer. Both stated strings are tagged '(SEE NOTES BELOW)'. Every number here is therefore a plan reading, not a site measurement.",
+    "Sheet 2 (the A-I practice-room layout) was not supplied. No booth is placed."
+  ],
+  "rooms": [
+    {
+      "name": "Sands Hall 113",
+      "runs": [
+        {"d": "E", "v": "38'-2 1/8\"", "src": "plan-vector dimension string 38'-2 1/8\" (SEE NOTES BELOW), sheet A1",
+         "note": "north wall, interior face west to east; vector faces read 458.14\""},
+        {"d": "S", "v": "35'-1 1/8\"", "src": "plan-vector dimension string 35'-1 1/8\" (SEE NOTES BELOW), sheet A1",
+         "note": "east wall (to 112 / 113A / 113B), north face to south face; vector faces read 421.14\""},
+        {"d": "W", "v": "14'-10\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+         "note": "south wall from the south-east corner to the free-standing pilaster; reads 178.00\""},
+        {"d": "N", "v": "18\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+         "note": "east face of the free-standing south pilaster; reads 18.00\""},
+        {"d": "W", "v": "12\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+         "note": "north face of the free-standing south pilaster; reads 12.00\""},
+        {"d": "S", "v": "18\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+         "note": "west face of the free-standing south pilaster; reads 18.00\""},
+        {"d": "W", "v": "21'-9\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+         "note": "south wall between the two pilasters; reads 261.02\""},
+        {"d": "N", "v": "18\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+         "note": "east face of the south-west corner pilaster; reads 18.00\""},
+        {"d": "W", "v": "7 1/8\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+         "note": "north face of the south-west corner pilaster; reads 7.12\""},
+        {"d": "N", "v": "33'-7 1/8\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+         "note": "west wall above the corner pilaster; reads 403.14\". With run 7 it makes the stated 35'-1 1/8\" exactly"}
+      ],
+      "ceiling": {"v": "96\"", "src": "default",
+                  "note": "8'-0\" house default — no ceiling height on the plan. Matters doubly here: the booths are roof-vented (RM), so the vent sits on the booth roof"},
+      "doors": [
+        {"run": 0,
+         "at": {"v": "6 1/8\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+                "note": "north-west corner to the west jamb of the 36\" frame opening; reads 6.12\". The drawn wall break starts 4 1/8\" from the corner (2\" frame)"},
+         "w": {"v": "36\"", "src": "plan-vector scaled 1 pt = 1/3\" (anchor 38'-2 1/8\" string)",
+               "note": "drawn leaf 108 pt = 36.0\"; the arc closes on the east jamb at the same 36\". Wall break is 40.02\" including two 2\" frames"},
+         "hinge": {"v": "near", "src": "plan-vector leaf symbol, sheet A1 — leaf drawn at the west jamb, swinging into room 113"}}
+      ],
+      "notes": [
+        "Door height not on the plan: builds 6'-8\" and flags DEFAULT.",
+        "Ceiling not on the plan: 8'-0\" house default. Ask for the real height before quoting — the booths are ADA + roof-mounted ventilation.",
+        "All dimensions to be field verified per the sheet's manufacturer notes."
+      ]
+    }
+  ]
+}
