@@ -95,6 +95,10 @@ module WR_Overlays
   FOAM_H = 48.0
   FOAM_T = 2.0
 
+  # Studio lights' own tag. NOT in WR_Mode::LIGHT_TAGS on purpose: the fixtures
+  # stay visible in every mode and scene (see place_studio_lights).
+  STUDIO_LIGHT_TAG = 'WR Studio Lights'.freeze
+
   # Duct port centres, wall-local inches, measured off the delivered vent-wall
   # interior renders (portal assets/iso-render.js OV_DUCT_POS, re-measured four
   # times there). x is from the panel's LEFT EDGE AS SEEN FROM INSIDE the
@@ -1554,7 +1558,12 @@ module WR_Overlays
     end
     booth.entities.erase_entities(olds) unless olds.empty?
 
-    layer = model.layers[ltag] || model.layers.add(ltag)
+    # Studio lights are a product the customer bought, not part of the render
+    # rig: they go on their OWN tag, which no mode switch or scene hides
+    # (Benton, 2026-10-06: "studio lights should always be visible"). On the
+    # WR Lights tag the Draft toggle and the scenes hid them with the rig.
+    layer = model.layers[STUDIO_LIGHT_TAG] || model.layers.add(STUDIO_LIGHT_TAG)
+    layer.visible = true
     rot = part_long == lay[:orient] ? Geom::Transformation.new : quarter_turn(1)
     sx, sy, sz = turned_span(gx, rot)
     z_top = cl.min.z.to_f

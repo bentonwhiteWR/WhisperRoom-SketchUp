@@ -1,5 +1,24 @@
 # DEVLOG
 
+## 2026-10-06 -- 1.81.1: studio lights get their own always-visible tag
+
+**What.** Benton: "studio lights should always be visible". `wr-overlays.rb` `place_studio_lights` put the
+SL29/SL52 fixtures on the `WR Lights` tag, the render rig's tag, which Draft mode (`WR_Mode::LIGHT_TAGS`) and
+saved scenes hide. Benton couldn't find the new SL52s in the PeoplesSpace R booth for that reason. They now
+go on `WR Studio Lights` (`WR_Overlays::STUDIO_LIGHT_TAG`), which is deliberately NOT in `LIGHT_TAGS`, and
+the tag is forced visible when it is created.
+
+**Not changed:** the Standard Light fixtures (`BoothLighting`) still ride `WR Lights`. The importer finds the
+fixtures it replaces by that tag, so the studio lights it places are never matched as "old" lights.
+
+**Live model:** in the PeoplesSpace REVISED `.skp`, both SL52s were retagged to `WR Studio Lights` over the
+bridge. The tag is visible in every scene, and the file is saved.
+
+**Also found in the same job, not fixed:**
+- `place_studio_lights` sets the light height from the ceiling part's bounding box. On a 96120 E that box
+  includes the hinges, so the lights would hang 1.36" below the ceiling.
+- Its even spacing doesn't check for roof-unit rods.
+
 ## 2026-10-01 -- 1.80.0 / 1.81.0: close-up rig 1.1, pilot run through the review loop, P1 paused for Benton
 
 **Status at sign-off.** The pilot was rendered live in SketchUp 2026 over the bridge and reviewed image by image.
