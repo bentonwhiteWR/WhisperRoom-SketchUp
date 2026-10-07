@@ -146,3 +146,27 @@ modified, but its content is the same as the saved file. **I did not save.**
   - none of the 9 scenes hides a tag or an entity.
 - **Importer defect (still open):** `place_bass_traps` puts the part's (0,0) corner into the room corner.
   For `Bass Trap.skp` that is the end of the hypotenuse, not the right angle.
+
+## Round 5 (7 Oct, 09:22 save): one new foam sheet cut in two
+- **Pieces** (both on `WR-Booth-Foam`; each is its own definition, cut from a copy of `Foam`):
+  - `Foam (cut) back`: 21.49 wide x 14.0 tall x 2. It sits on the back wall at x 50.51–72.00, z 64.75–78.75,
+    between the beams. It is 0.50 from beam 1 (x 50.001), beam 2 (x 72.501), the 2x4 band top (64.25) and the
+    seal bottoms (79.25).
+  - `Foam (cut) front`: 29.69 long x 11.0 tall x 2, laid landscape. It sits on the front wall at
+    x 43.06–72.75, z 64.75–75.75, above the S1i column and under the beams. It is 0.50 from the window trim
+    (42.5625), the door jamb (73.25), the beam bottoms (76.25) and the S1i top (64.25).
+- **Use of the sheet:** the back piece is cut from x 0–14, y 0–21.49 of the 48x24 sheet, and the front piece
+  from x 14–43.69, y 0–11. Together they use 627.4 of 1152 sq in. The offcut of 524.6 sq in is NOT placed.
+- **Why "between the beams" on the back wall:** it gives 301 sq in, against 286 for spanning under the beams
+  (26 x 11).
+- **How it was cut:** the foam is not a solid, so Solid Tools could not be used. Instead, a box was intersected
+  with a copy of the geometry, everything outside the box was deleted, and the box's inner side faces were
+  kept as end caps. A few slab-side caps then had to be closed by hand (`find_faces` and polygons through the
+  existing vertices). Both pieces end with 0 open edges. The pyramids keep their real size; nothing was scaled.
+- **Checks:**
+  - geometry clashes: none;
+  - seating: 167 rays, all 0.000;
+  - the pyramids face into the room;
+  - none of the 9 scenes hides either piece.
+- **Scripts:** `r5-cut.rb`, `r5-caps.rb`, `r5-close.rb`, `r5-close3.rb`, `r5-verify.rb`, `r5-seat.rb`.
+- **Screenshots:** `r5-wall-back.png`, `r5-wall-front.png`.
