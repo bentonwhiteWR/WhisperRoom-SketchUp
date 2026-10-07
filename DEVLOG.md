@@ -1,5 +1,20 @@
 # DEVLOG
 
+## 2026-10-07 -- 1.81.2: client script for Virsono Holmdel, Private Office (option 2)
+
+**What.** `scripts/holmdel-private-office-option-2-gabe.rb` (`@tab client`) finishes the room built from
+the Holmdel take-off lock, adding finishes, east windows cut through the wall, the ASSUMED desk and chair,
+and the 2x2 ceiling. It also places the quoted MDL 4872 S Audiology Basic Plus without the ramp in the NW
+corner (window wall east), dimensions everything, lights it for V-Ray and builds the proposal scenes.
+Proposal sent to the client 7 Oct.
+
+**Known gaps.**
+- It needs `clients/holmdel/takeoff.lock.json` (gitignored), built locally from the take-off, and textures
+  from `ClientDrawings/holmdel-textures` on Gabe's machine.
+- It has not been run in one clean pass from scratch; it was built up stage by stage in the model.
+- The booth is 11" off the north wall, not 2-3", because the vent hood is 10" deep.
+- The tester gap between the booth's outside desk and the room desk is 1'-9 1/2".
+
 ## 2026-10-06 -- session close: ISL v2 proposal, CCU Sands Hall 113 layout, PeoplesSpace R booth accessories
 
 **State at sign-off (all over the bridge in SketchUp 2026, every model saved).**
