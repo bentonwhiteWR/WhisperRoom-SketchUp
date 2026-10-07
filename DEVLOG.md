@@ -13,7 +13,7 @@ window wall facing the room's east windows. The job script is pushed as 1.81.2 (
 - **Images:** `ClientDrawings\holmdel-renders\` holds 01-03 V-Ray, plus 04 plan, 04b parallel-projection
   plan, 05 elevation and 06 interior plan. I looked at 04, 04b and 06; the Builder looked at the rest.
 - **PDF:** `Desktop\ProposalFiles\Virsono Holmdel\Virsono-Holmdel-Private-Office-4872S-Booth-Renderings.pdf`.
-  Build files are in `ClientDrawingsirsono-holmdel-proposal\`.
+  Build files are in `ClientDrawings\virsono-holmdel-proposal\`.
 - **Script:** `scripts/holmdel-private-office-option-2-gabe.rb`.
   - Stages: `WR_Holmdel.run` (finishes, windows, desk and chair, notes, room dims), `booth!`, `fit_report`,
     `lights!` and `scenes!`.
@@ -30,7 +30,7 @@ window wall facing the room's east windows. The job script is pushed as 1.81.2 (
 - **V-Ray resets reflections on converted SketchUp materials.** It overwrites direct BRDF writes on its
   next material sync. What sticks: edit the JSON in the material's `VRayPlugins` dictionary
   (`params.reflect` / `reflect_glossiness` and the matching `userData` fields), then call
-  `VRay::MaterialSync.to_vray(mat)`. That is `jobsray-setrefl.rb` in the job's notes folder.
+  `VRay::MaterialSync.to_vray(mat)`. That is `jobs\vray-setrefl.rb` in the job's notes folder.
 - **Dimension-view floor overlays must copy the material they cover.** The light overlay laid over the
   booth floor for 06 was painted with the room's LVT, so the booth looked wood-floored. It is now a
   lightened WhisperRoom carpet (`holmdel-textures\hl-wr-carpet-light.png`).
