@@ -1,19 +1,51 @@
 # DEVLOG
 
-## 2026-10-07 -- 1.81.2: client script for Virsono Holmdel, Private Office (option 2)
+## 2026-10-07 -- 1.81.2: Virsono Holmdel, Private Office (option 2): proposal sent, client script shipped
 
-**What.** `scripts/holmdel-private-office-option-2-gabe.rb` (`@tab client`) finishes the room built from
-the Holmdel take-off lock, adding finishes, east windows cut through the wall, the ASSUMED desk and chair,
-and the 2x2 ceiling. It also places the quoted MDL 4872 S Audiology Basic Plus without the ramp in the NW
-corner (window wall east), dimensions everything, lights it for V-Ray and builds the proposal scenes.
-Proposal sent to the client 7 Oct.
+**Outcome.** Gabe sent the 7-page proposal to the client on 7 Oct. The room was built from the client's
+dimensioned plan, with the quoted MDL 4872 S Audiology Basic Plus (no ramp) in the NW corner and its
+window wall facing the room's east windows. The job script is pushed as 1.81.2 (`@tab client`).
 
-**Known gaps.**
-- It needs `clients/holmdel/takeoff.lock.json` (gitignored), built locally from the take-off, and textures
-  from `ClientDrawings/holmdel-textures` on Gabe's machine.
-- It has not been run in one clean pass from scratch; it was built up stage by stage in the model.
-- The booth is 11" off the north wall, not 2-3", because the vent hood is 10" deep.
-- The tester gap between the booth's outside desk and the room desk is 1'-9 1/2".
+**State now.**
+- **Take-off:** `clients/holmdel/takeoff.json`. `takeoff-check` passed (Builder reports exit 0). The lock
+  and the review sheet are gitignored, local only.
+- **Model:** `ClientDrawings\Virsono Holmdel - 4872 S - option 2.skp`. Gabe copied it to P:.
+- **Images:** `ClientDrawings\holmdel-renders\` holds 01-03 V-Ray, plus 04 plan, 04b parallel-projection
+  plan, 05 elevation and 06 interior plan. I looked at 04, 04b and 06; the Builder looked at the rest.
+- **PDF:** `Desktop\ProposalFiles\Virsono Holmdel\Virsono-Holmdel-Private-Office-4872S-Booth-Renderings.pdf`.
+  Build files are in `ClientDrawingsirsono-holmdel-proposal\`.
+- **Script:** `scripts/holmdel-private-office-option-2-gabe.rb`.
+  - Stages: `WR_Holmdel.run` (finishes, windows, desk and chair, notes, room dims), `booth!`, `fit_report`,
+    `lights!` and `scenes!`.
+  - `scenes!` deletes every scene before rebuilding its 6.
+  - It has never been run in one clean pass from scratch, and it needs the local lock file plus
+    `ClientDrawings/holmdel-textures`.
+- **Job notes:** `.forge/builder/holmdel/HANDOFF.md` (local, not committed).
+
+**Gotchas.**
+- **The 2-3" wall gap meets the vent hood.** Gabe asked for 2-3" off the wall, but the 4872 S vent
+  (46VNT_VSS_EFS) faces the north wall, and the hood measures 10.0" beyond the booth exterior. The booth
+  sits 11" off the north wall (1" behind the hood) and 2" off the west wall. On any vent-side wall, plan
+  for about 11".
+- **V-Ray resets reflections on converted SketchUp materials.** It overwrites direct BRDF writes on its
+  next material sync. What sticks: edit the JSON in the material's `VRayPlugins` dictionary
+  (`params.reflect` / `reflect_glossiness` and the matching `userData` fields), then call
+  `VRay::MaterialSync.to_vray(mat)`. That is `jobsray-setrefl.rb` in the job's notes folder.
+- **Dimension-view floor overlays must copy the material they cover.** The light overlay laid over the
+  booth floor for 06 was painted with the room's LVT, so the booth looked wood-floored. It is now a
+  lightened WhisperRoom carpet (`holmdel-textures\hl-wr-carpet-light.png`).
+- **Left and right WA doors are the same part.** `Left/RightWADoor.skp` are geometrically identical, so the
+  door was mirrored to draw the quoted right hinge ("h":"R"). It is the same open question as on the UT job.
+- **SketchUp can leave a group open for editing.** It had 'Booth annotations' open, which blocked a
+  rebuild; the Builder closed it. Check `active_path` before running a rebuild stage.
+
+**Open, waiting on the client or Gabe.**
+- What the desk rectangle is. It is kept on the east wall at its scaled plan position, on Gabe's call.
+- The tester gap is 1'-9 1/2" between the booth's outside desk and the room desk. A south-wall desk gives
+  about 4'-4".
+- Whether 11" off the north wall is acceptable.
+- Values the plan does not give, labelled in the model: ceiling 8'-0" (DEFAULT), window sills and heads,
+  the upper window and pier widths, and the desk size (ASSUMED).
 
 ## 2026-10-06 -- session close: ISL v2 proposal, CCU Sands Hall 113 layout, PeoplesSpace R booth accessories
 
