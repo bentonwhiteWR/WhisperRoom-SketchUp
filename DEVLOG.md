@@ -1,5 +1,50 @@
 # DEVLOG
 
+## 2026-10-07 -- session close: PeoplesSpace Rev 5 sent-ready, CCU Sands 113 re-placed, scenes and proposal
+
+**State at sign-off (all models saved over the bridge, SketchUp 2026).**
+- **PeoplesSpace REVISED (R booth, MDL 96120 E):**
+  - One extra blue foam sheet cut in two: one piece on the back wall between the IEP beams, one on the door
+    wall above the foam column.
+  - **Revision 5 proposal:** `Desktop\ProposalFiles\PeoplesSpace\PeoplesSpace-Booth-Renderings-Rev5.pdf`,
+    8 pages. Config in the private repo, `examples/peoplespace-rev5/`.
+  - Benton confirmed the changes since Rev 4: door at one end with a right hinge, studio lights, 6 bass traps,
+    more foam, every wall a cable wall, MJP removed.
+- **CCU Sands Hall 113** (`ClientDrawings\Coastal Carolina University Sands Hall 113 192192 E MDL 7296 E  MDL 7272 E.skp`):
+  - **Booths re-placed:** Benton lost the 8 booths. They were rebuilt from the two quote links and placed with
+    the 6 Oct transforms. The layout record is `.forge/builder/ccu-sands-113/place3-dry.json`; the slot table
+    is in `place3.rb`. Shells match to 0.000".
+  - **Walls:** raised 8'-0" -> 10'-0" (120"). The ceiling slab moved up with them, to 120–124".
+  - **Lighting:** 20 V-Ray rectangle lights on `WR Lights`. V-Ray upgraded the file's data, so older V-Ray
+    versions can't open it.
+  - **Scenes:** 10 proposal scenes (5 V-Ray, 5 image) plus Scene 1, which is kept last and not exported.
+  - **Proposal:** `Desktop\ProposalFiles\Coastal Carolina University\Coastal Carolina University-Booth-Renderings.pdf`,
+    8 pages, with the floor overview render on the cover. Config: `examples/coastal-carolina-sands-113/`.
+- **Booth-link hinge question (16' booth on CCU):** the link decodes to a right hinge, and a fresh import places
+  `RightWADoor` unmirrored. The instance in the CCU file is mirrored (determinant -1), cause unknown.
+  Benton: "maybe it was fine, ignore for now."
+
+**Gotchas learned:**
+- The bridge refuses a bare `m.save`. Use `m.save(m.path)` with `--write-root`.
+- `definitions.purge_unused` purges EVERYTHING unused in the model, not just the test leftovers.
+  Collect the specific definitions and remove those instead.
+- `boothOf` in a proposal section prints as "BOOTH <value>" in the page header. Write it as "Type 1 of 3",
+  "Overview" or "Plan".
+
+**Open decisions (Benton):**
+1. **CCU ceiling height:** still unconfirmed (walls drawn at 10'-0").
+2. **CCU aisle renders:** AisleEastRender failed in the export (V-Ray never started) and AisleWestRender
+   was not exported. Re-render them if they're wanted in the pack.
+3. **PeoplesSpace IEP beam:** still unresolved. The 94" part file sits inside the shared ceiling-seal
+   component; the catalogue length is 82".
+
+**Next steps:**
+1. If Benton re-renders the aisle scenes, add them to the CCU pack. Config:
+   `WhisperRoom Proposals/examples/coastal-carolina-sands-113/proposal-v2.json`. Build with
+   `proposals/build-v2.js`, print with headless Chrome, and save as a revision. Don't overwrite the delivered PDF.
+2. The importer fixes carried over from 6 Oct (bass-trap orientation, studio-light height, the two
+   dimension-engine issues on CCU) are still open. See the 6 Oct entry.
+
 ## 2026-10-07 -- 1.81.2: Virsono Holmdel, Private Office (option 2): proposal sent, client script shipped
 
 **Outcome.** Gabe sent the 7-page proposal to the client on 7 Oct. The room was built from the client's
