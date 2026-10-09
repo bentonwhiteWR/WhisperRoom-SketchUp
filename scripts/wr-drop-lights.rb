@@ -2242,6 +2242,13 @@ module WR_DropLights
   PANEL_PCT_MIN = 0.10   # slider floor, 10% (Benton, Q2)
   PANEL_PCT_MAX = 3.00   # slider ceiling, 300%
   PANEL_STEPS = 1000     # <input type=range> resolution
+  # THE DROP'S MASTER (1.82.0). Benton, 9 Oct 2026: "whenever I use drop in
+  # lights ... I ALWAYS have to lower the light % to 30%. Lets make that the
+  # default." So every press finishes by setting each rig it lit to 30% on the
+  # Whole rig brightness slider, through apply_rig! -- the same write the panel
+  # makes. lumens_base still holds the full table output, so dragging back to
+  # 100% gives exactly the old drop, and "Reset to dropped" lands here, not 100%.
+  DROP_MASTER = 0.30
   PANEL_DETENT = 0.035   # within 3.5% of 100% the slider snaps to 100%
   LIVE_GAP = 0.25        # s between live V-Ray writes: at most 4 a second (Q3)
   AUDIT_SETTLE = 4.0     # s after a write before the audit reads V-Ray back
@@ -5829,7 +5836,7 @@ paint(); drawPresets("");
 
   def self.rigs_html
     consts = { 'min' => PANEL_PCT_MIN, 'max' => PANEL_PCT_MAX, 'steps' => PANEL_STEPS,
-               'detent' => PANEL_DETENT, 'gain' => LUMEN_GAIN * CAMERA_GAIN,
+               'detent' => PANEL_DETENT, 'drop' => DROP_MASTER, 'gain' => LUMEN_GAIN * CAMERA_GAIN,
                'liveMs' => 100 }
     RIGS_HTML.sub('__CONSTS__', JSON.generate(consts))
   end
@@ -6035,7 +6042,7 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
     });
     h += '</div></div>';
     h += '<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap">'+
-      '<button class="btn" data-reset="'+k+'" title="Master and every type back to 100%, all on, Kelvin as dropped">Reset to dropped</button>'+
+      '<button class="btn" data-reset="'+k+'" title="Master back to the drop default ('+pct(C.drop)+'), every type to 100%, all on, Kelvin as dropped">Reset to dropped</button>'+
       '<button class="btn" data-revert="'+k+'" title="Back to the values this rig had when the window opened">Revert</button>'+
       '<button class="btn q" data-select="'+k+'" title="Select this rig’s top-level lights and fixtures in the viewport">Select in model</button>'+
       '<span class="gap"></span><button class="btn q" data-remove="'+k+'" style="color:var(--bad)">Remove this rig…</button></div>';
@@ -6108,7 +6115,7 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
       inp.onchange = function(){ var v = inp.value.trim(); ro.k = v === "" ? null : Math.max(1000, Math.min(12000, Math.round(+v/100)*100)); sendApply("rig", r.key, stateOf(r)); };
     });
     document.querySelectorAll("[data-reset]").forEach(function(b){
-      b.onclick = function(){ var r = rig(b.getAttribute("data-reset")); r.master = 1; r.roles.forEach(function(ro){ ro.pct = 1; ro.on = true; ro.k = null; }); sendApply("rig", r.key, stateOf(r)); render(); };
+      b.onclick = function(){ var r = rig(b.getAttribute("data-reset")); r.master = C.drop; r.roles.forEach(function(ro){ ro.pct = 1; ro.on = true; ro.k = null; }); sendApply("rig", r.key, stateOf(r)); render(); };
     });
     document.querySelectorAll("[data-revert]").forEach(function(b){
       b.onclick = function(){ var r = rig(b.getAttribute("data-revert")), o = S.opened[r.key]; if(!o) return;
@@ -7233,12 +7240,21 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
                'owned a plugin to delete.'
         end
       end
-      # A fresh drop is 100% by definition: forget any panel state stored for
-      # the rooms this press just re-lit.
+      # A fresh drop forgets any panel state stored for the rooms this press
+      # just re-lit; DROP_MASTER is applied after the commit, below.
       rooms_dropped.each_key do |k|
         (model.delete_attribute(DICT, RIG_STATE_PREFIX + k) rescue nil)
       end
       model.commit_operation
+
+      # DROP_MASTER (1.82.0): every rig this press made goes to the house 30%,
+      # keyed the way the panel keys it (room, or press when no room), and
+      # written by apply_rig! so the stamps, stored state and V-Ray all agree.
+      master_notes = rig_scan(model)[:lights].select { |r| r['uuid'] == press_uuid }
+                                             .map { |r| r['key'] }.uniq.map do |k|
+        ok, msg = apply_rig!(model, k, { 'master' => DROP_MASTER })
+        format('%s %s -- %s', ok ? 'set' : 'NOT SET', k, msg)
+      end
 
       probe_after = model_probe(model)
       print_light_report(layers_rep, opts,
@@ -7260,6 +7276,8 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
              "#{bad.map(&:to_s).join(', ')} did not read back — check those " \
              'in the Asset Editor before rendering (details above).'
       end
+      puts format('  BRIGHTNESS: every rig set to %d%% (the drop default; the lumens '                   'above are 100%%). Raise it in Interior Lights.', (DROP_MASTER * 100).round)
+      master_notes.each { |l| puts "    #{l}" }
       vis = layers_rep.keys.select { |r| LIGHT_LAYERS[r][:visible] }
       puts format('  %d light instance%s across %d role%s, %d of them VISIBLE ' \
                   'fixtures, in %d container%s.', placed,
