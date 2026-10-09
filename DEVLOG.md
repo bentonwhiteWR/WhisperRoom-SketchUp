@@ -1,5 +1,37 @@
 # DEVLOG
 
+## 2026-10-09 -- session close: Drop in the lights defaults to 30% (1.82.0), MW stamp Rev B (other repo)
+
+**State at sign-off.**
+- **1.82.0, pushed (`0405360`): Drop in the lights now sets every new rig to 30%.** Benton: "whenever I use drop in
+  lights ... I ALWAYS have to lower the light % to 30%. Lets make that the default."
+  - `DROP_MASTER = 0.30` sits next to `PANEL_STEPS` in `scripts/wr-drop-lights.rb`.
+  - After the drop commits, every rig the press made (rows whose `uuid` == `press_uuid`, keyed like the panel) goes
+    through `apply_rig!(model, key, {'master' => DROP_MASTER})`. That is the same write the Interior Lights panel's
+    Whole rig brightness slider makes, so the stamps, the stored `rig:` state and V-Ray all agree.
+  - `lumens_base` still records the full table output, so 100% on the slider is exactly the old drop.
+  - "Reset to dropped" now returns the master to 30% (`C.drop` in the panel JS), with every type at 100%.
+  - The console report still lists lumens at 100%, followed by a `BRIGHTNESS:` line and one line per rig.
+  - **Unrun in SketchUp.** `scripts/rbparse.py` parses all 82 files. `scripts/rbtest-lights.py` has 2 FAILs
+    (`fill`, `fillsmall`), and they are identical on 1.81.2. The test still expects 6 fill spheres, but `FILL_SCATTER`
+    now has 14 rows. That failure was already there; this change didn't touch it.
+- **Not this repo:** the MW Drilling stamp Rev B lives in `bentonwhiteWR/mw-drilling-stamp` (its own DEVLOG). The
+  `print-showcase` skill was installed by hand into both of Benton's `~/.claude/skills/` folders on the laptop.
+  It isn't in any repo and isn't managed by `install-plugin.py`.
+
+**Gotchas learned:**
+- `apply_rig!` opens its own undo operation, so it can't run inside the drop's operation. It runs after
+  `commit_operation`, which makes a drop two undo steps (drop, then "Adjust Interior Lights").
+
+**Left uncommitted on purpose (not from this session):** `proposals/examples/peoplesspace/proposal-v2.json`
+(modified) and several `.forge/builder/<client>/` folders. These are client material and may include renders, and
+this repo is public. Check them before committing anything.
+
+**Next steps:**
+1. On the next drop, confirm the Interior Lights panel opens reading 30% and the render matches what 30% used to give.
+2. If wanted, fix `rbtest-lights.py`'s fill expectations for the 14-row `FILL_SCATTER` (separate from 1.82.0).
+3. On Gabe's machine, or the desktop: panel **Update now**, then restart SketchUp, to get 1.82.0.
+
 ## 2026-10-07 -- session close: PeoplesSpace Rev 5 sent-ready, CCU Sands 113 re-placed, scenes and proposal
 
 **State at sign-off (all models saved over the bridge, SketchUp 2026).**
