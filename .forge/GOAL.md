@@ -19,7 +19,9 @@ Benton to render.
    screenshot; model saved under the client name, not over anything.
 
 ## Now
-Paused 12 Oct (laptop sign-off). Build done and saved; acoustic layout pass stopped mid-planning. Resume from DEVLOG top entry + .forge/builder/HANDOFF-walsh-ap.md on the desktop.
+12 Oct evening (desktop): model open in SU 2026 as the front doc. Composition check done: all 9 foam + full AP
+(5/2/14) fit on cell count with NO foam cut. Builder is drafting the per-wall layout + a wall-elevation review
+artifact. No model edits until Benton approves the elevations.
 
 ## Out of scope
 The extra platform / side ramp (Benton adds it). Rendering (Benton). Proposal PDF (later). Prices.
