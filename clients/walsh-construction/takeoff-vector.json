@@ -1,0 +1,51 @@
+{
+  "job": "walsh-construction",
+  "title": "PHAME, 2446 SE Ladd Ave, Portland - Tech Lab (room 13), for Walsh Construction",
+  "format_note": "NOT a takeoff.json. reference/takeoff-format.md runs are rectilinear E/S/W/N only and reserve angled walls as 'not in v1'; this room has three angled walls, so takeoff-check.py cannot validate it and build-takeoff.rb cannot build it. This file records the same facts (every value with its source) as a polygon, and clients/walsh-construction/build-techlab.rb builds it with WR_BuildRoom's own polygon/mitre/wall_run/door code and the shared dimension engine.",
+  "sources": ["plans/A1.1-code-study.pdf (Carleton Hart Architecture, sheet A1.1, 2448 x 1584 pt = 34 x 22 in, code study 09.22.2026)",
+              "plans/sarah-ramp-sketch.png (Sarah's red Ramp + PL mark, cropped from the same sheet)"],
+  "anchor": "plan-vector: stated drawing scale 1/8\" = 1'-0\" at native 34x22 (text 'SCALE: 1/8\"' bottom left; sheet note says half scale only when printed at 11x17) => 9.000 pt per foot, 0.75 in per pt... i.e. 1 pt = 1.3333 in.",
+  "anchor_checks": [
+    "dashed 'Prefab Recording Studio 8' X 14'' rectangle: 125.88 x 71.88 pt = 13'-11.8\" x 7'-11.8\" at 9 pt/ft (stated 14' x 8'); 0.12 pt = 0.16 in short, within the 0.24 pt dash stroke",
+    "red 15'-2 1/2\" callout: extension lines 136.75 pt apart = 15'-2.3\" at 9 pt/ft (stated 15'-2.5\"); 0.2 in",
+    "room area: polygon below = 478.7 SF; plan states TECH LAB 479 SQ FT"
+  ],
+  "units": "inches, origin = Tech Lab interior SW corner, +x = plan right ('east'), +y = plan up ('north'). Plan-up is NOT true north; the sheet's north arrow was not used.",
+  "face_choice": "New walls are black FILLED polygons with no stroke (3.6 pt = 4.8 in thick); the room face is the fill edge on the Tech Lab side. The existing exterior wall is two 0.84 pt stroked lines; the room face is the INNER line's centre. Tolerance from line weight: +/-0.6 in (half of a 0.84 pt stroke = 0.56 in), plus whatever the architect's own drafting carries (unknown).",
+  "walk": "clockwise from the NW-most corner (the apex where the NW angled wall meets the exterior wall)",
+  "points": [
+    {"i": 0, "xy": [104.41, 332.71], "what": "apex: NW angled wall meets exterior wall inner face", "src": "plan-vector intersection of lines #9638 and #6002"},
+    {"i": 1, "xy": [292.96, 178.40], "what": "east angled wall meets exterior wall inner face", "src": "plan-vector intersection of #9655/#9659 extended and #6002/#6003"},
+    {"i": 2, "xy": [243.52, 118.08], "what": "east angled wall meets east vertical wall", "src": "plan-vector #9655 end (738.84, 614.16)"},
+    {"i": 3, "xy": [243.52, 0.00], "what": "SE corner", "src": "plan-vector fill #15 top edge x #16 west edge"},
+    {"i": 4, "xy": [0.00, 0.00], "what": "SW corner", "src": "plan-vector fill #13 east edge x #15 top edge"},
+    {"i": 5, "xy": [0.00, 205.12], "what": "west wall meets NW angled wall", "src": "plan-vector #9638 start (556.2, 548.88)"}
+  ],
+  "runs": [
+    {"run": 0, "name": "exterior diagonal (existing)", "len_in": 243.65, "v": "20'-3.6\"", "bearing_deg": -39.30, "src": "plan-vector"},
+    {"run": 1, "name": "east angled (new)", "len_in": 77.99, "v": "6'-6.0\"", "bearing_deg": -129.34, "src": "plan-vector"},
+    {"run": 2, "name": "east (new)", "len_in": 118.08, "v": "9'-10.1\"", "bearing_deg": -90.0, "src": "plan-vector"},
+    {"run": 3, "name": "south (new)", "len_in": 243.52, "v": "20'-3.5\"", "bearing_deg": 180.0, "src": "plan-vector"},
+    {"run": 4, "name": "west (new)", "len_in": 205.12, "v": "17'-1.1\"", "bearing_deg": 90.0, "src": "plan-vector"},
+    {"run": 5, "name": "NW angled (new)", "len_in": 164.87, "v": "13'-8.9\"", "bearing_deg": 50.71, "src": "plan-vector"}
+  ],
+  "closure": "closes by construction (polygon of intersected face lines); area 478.7 SF vs stated 479 SF. Both angled new walls are square (90.0 deg) to the exterior wall.",
+  "ceiling": {"v": "96\"", "src": "default", "note": "8'-0\" house default - not on the plan; Benton asked for the real height"},
+  "thick": {"v": "4\"", "src": "default", "note": "house default (Benton Aug 2026); the plan's new walls draw 4.8 in. Cosmetic: walls build outward from the room face"},
+  "doors": [
+    {"plan_tag": "24", "run": 3, "at": {"v": "203.52\"", "src": "plan-vector swing arc #9701-9709 centre (559.2, 702.72), radius 27 pt"},
+     "from_sw_corner": "4.0\" (3.0 pt) corner -> near jamb",
+     "w": {"v": "36\"", "src": "stated plan note '(3) new doors at 3-0 x 6-8'; arc radius 27 pt = 36.0 in agrees"},
+     "h": {"v": "80\"", "src": "stated plan note 3-0 x 6-8"},
+     "hinge": {"v": "far", "src": "plan-vector: arc centre at the WEST jamb; run 3 heads west, so the hinge is at the run's far end"},
+     "swing": "in (leaf drawn inside the Tech Lab)"}
+  ],
+  "not_in_tech_lab": [
+    "Door 1 (the brief's 'SE' door): its swing arc #9834-9842 is centred at (749.64, 702.72), 10.8 pt = 14.4 in EAST of the Tech Lab's east wall interior face (738.84) and 7.2 pt east of its exterior face (742.44). It opens into STORAGE 17, not the Tech Lab. Not built. The polygon area matching 479 SF confirms the east wall is the boundary."
+  ],
+  "ignored": [
+    "Exterior wall inner face carries a 1.0-1.3 in projection, 23.6 in long, at about (217-236, 224-239) in room coords (line #9533). Not modelled; it sits on the exterior diagonal, well away from the booth.",
+    "Dashed 'Future kitchenette' outline west of the west wall is in Student Lounge 11, not here."
+  ],
+  "booth_plan_position": "dashed rectangle x 72.64-240.48, y 2.88-98.72 in room coords: 2.9 in off the south wall, 3.0 in off the east wall (plan-vector, +/-0.2 in)."
+}
