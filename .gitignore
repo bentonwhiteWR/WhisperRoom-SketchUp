@@ -65,3 +65,8 @@ proposals/examples/peoplesspace/renders-web/
 # Community Music School photo-match outputs embed/crop the client photos -- never commit them
 .forge/builder/cms/compare/
 .forge/builder/cms/tex/
+
+# Walsh review page + elevation PNGs show the client; the stopped Sonnet run is unverified scratch
+.forge/builder/walsh/ap9/elev/
+.forge/builder/walsh/ap9/review-*.html
+.forge/builder/walsh/ap9/stale-sonnet-run/

@@ -1,61 +1,90 @@
-# Builder handoff: Walsh AP + 9-foam layout pass (12 Oct 2026, paused mid-planning)
+# Builder handoff: Walsh AP + 9-foam layout (Phase A done 12 Oct 2026 evening, desktop; Phase B waits on Benton)
 
 ## Model state: UNCHANGED
-- `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E.skp` is still the v7 layout from `HANDOFF-walsh.md`. No wall was edited in this pass.
-- SketchUp shows the file as modified (observed). The only cause is the ray survey: it hid the 29 foam and AP pieces (21 AP + 6 Foam + 2 squares) and then unhid them. No geometry moved. Closing without saving is safe. So is saving.
-- Still 7 sheets' worth of foam: 4 placed (S0i, S3i, E0i, W0i), plus E1i, W1i and two 2x2 squares from S1i staged outside the west wall. **The 2 missing sheets are NOT added yet.** Add them by copying a `Foam` instance (same definition, tag `WR-Booth-Foam`).
-- Scope (Benton, reported): touch ONLY the foam and the Audimute. **All 9 foam sheets must end up inside the booth.** A layout that leaves a sheet out is not acceptable. Use 2x2 squares or horizontal sheets if needed.
+- `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E.skp` is still the v7 layout from `HANDOFF-walsh.md`.
+- Re-checked read-only over the bridge (12 Oct, ~19:00, observed): front doc path matches, `modified? false`, 16 scenes,
+  booth transform +61.89/+11.63/+1.3125. All 33 survey pieces and covers match `ap9-survey.json` within 0.01. Nothing hidden.
+- **Foam in the model (observed):** 6 `Foam` instances (S0i, S3i, E0i, W0i placed; E1i, W1i staged as NOT PLACED) plus the two
+  2x2 squares cut from S1i (`Foam (2x2) back left` / `back right`, 1 instance each). That is 6 full sheets, not 7.
+  **A no-cut layout therefore needs 3 new copies of `Foam`, not 2**, and the two S1i squares retire (see Phase B).
+- AP: 5 x `Audimute2x4`, 2 x `Audimute1x4`, 14 x `Audimute1x2` (observed). Traps: 6.
 
-## Files (all in `.forge/builder/walsh/`)
-- `ap9-survey.json`: per-wall survey in wall-local 2D: every foam, AP, trap, cover, beam, seal, window and door rect, plus the observed face planes and usable runs.
-- `ap9-dump.rb`: read-only bounds dump. `ap9-rays.rb`: the 0.5 in ray grid over the 4 wall faces.
-- `ap9/walls.py`: **the wall model used by the search** (keep-outs, s-limits, z-limits). Start here.
-- `ap9/capacity.py`: column-block DP (2-stage). `ap9/guill.py`: 4-stage row/column (guillotine) DP, called as `python guill.py <depth> [walls]`. `ap9/combine.py`: matches the per-wall Pareto sets against the piece requirement.
-- `ap9/gcaps3.json`: the depth-3 Pareto sets per wall (count vectors B, F4, H, Q). `ap9/caps.json`: same from the 2-stage DP.
-- `ap9/mksurvey.py`, `raymap.py`, `edges.py`: survey tooling. The raw `rays.json` stayed in the scratchpad. Re-run `ap9-rays.rb` (60 s) if needed.
+## Produced (Phase A, offline, all in `.forge/builder/walsh/ap9/`)
+- `v8model.py`: wall model built from the survey's exact rects (not `walls.py`'s rounded ones) + `check()`
+  (2D gaps per wall, 3D gaps across corners, counts). `v8solve.py`: CP-SAT (OR-Tools 9.15) capacity / symmetry / row-line search.
+  `v8cut.py`: "no piece crosses z = L" feasibility. `layout8.py`: builds the candidates, runs `check()`, writes the JSON.
+  `render8.py`: review page + PNGs.
+- `layout-v8.json` (recommended), `layout-v8-alt1.json`, `layout-v8-alt2.json`: wall-local rects, face plane per wall,
+  nearest-fixed gap per piece, checker result. All three: check PASSED, min gap 0.50 piece-piece and piece-fixed,
+  0.625 across the NW corner in 3D, counts 9 foam / AP 5-2-14.
+- `review-v8.html` (unpublished; orchestrator publishes) and `elev/S.png, E.png, W.png, N.png, S-opt2.png, E-opt2.png`.
 
-## Measured this pass (observed by ray, booth-local inches)
-- **Face planes:**
-  - S and W: 4.25, H-strip 4.313 at z ~40-41.5.
-  - E: 165.75, H-strip 165.688.
-  - N: 93.75.
-  - Seat each piece on the most proud face under its footprint, not at its centre.
-- **Usable runs** (larger than the corner-seal bounding boxes suggest):
-  - E: y 16.38 (trap) to 93.0 (door frame).
-  - W: y 16.38 to 92.5 (N0i panel edge).
-  - S: x 16.38 to 153.69 (traps).
-  - N: x 4.25 to 121.25 (door frame).
-- Keep-outs matched the notes table: covers, beams (top 75.75 when crossing), seals at 79.25, window trims x 7.5-42.5 and 55.5-90.5 at z 37.2-76.1, tile at 80.25, EFP at 2.75.
-- **Door:** the swing is outward (the quote tool puts the swing clearance outside the booth). Only the frame matters inside.
+## Read first
+1. `review-v8.html` (or the PNGs): the four elevations as seen from inside the booth.
+2. `layout-v8.json`: `walls.<W>.pieces[]` = id, part, material, orient, s0/s1, z0/z1 (wall-local: S/N s = booth x, E/W s = booth y;
+   s0 is the MIN booth coordinate, which is the viewer's RIGHT on S and E).
+3. This file's Phase B steps.
 
-## Capacity finding (derived, the key result so far)
-- **Unit:** 1 cell = 24x24. The requirement is 37 cells: 14 sheets x 2 (9 foam + 5 2x4), 2 x 1x4 at 1 cell, 14 x 1x2 at 0.5 cell.
-- **Rules applied:** gaps >= 0.5 everywhere, z 3.25 to 79.75 (0.5 off the floor and tile), no piece cut except foam into 2x2 squares.
-- **Column-only DP:** S 11.5, E 9.0, W 7.5, N 7.0 = **35.0** cells. Short.
-- **3-stage row/column search:** S 13.0, E 9.0, W 8.0, N 7.5 = **37.5** cells. So a full fit is **possible on cell count**.
-- **Next step:** the composition check, i.e. whether some combination of the Pareto vectors gives B >= 14-c, F4 >= 2, H >= 14, Q >= 2c, where c is the number of foam sheets cut into squares. I stopped it mid-run because it enumerates the full product and needs pruning (iterate walls with a dict of partial sums).
-- S at depth 3 took 505 s. Depth 4 was not run.
-- **Constraint lessons:**
-  - S's covers allow at most 3 vertical 48-tall pieces there (proved by interval analysis). S gains through 24-tall rows (horizontal sheets and squares).
-  - W's back column can't take a 48-tall piece between its covers (46.86 clear). Its 3rd column is a 12-wide one (a 1x4) at the front corner.
-  - N holds about 7.5 cells: a 24-tall row under the windows, a 1x4 between the windows (z 27.75-75.75), and a big piece plus a 24-tall piece beside the door (z 3.25-75.75, exactly 72.5).
+## Result (derived)
+- **Proved exact (CP-SAT, OPTIMAL/INFEASIBLE, 0.01 in, keep-outs rounded outward):** max sheets E 4, W 3, N 3, S 4 = 14 =
+  9 foam + 5 AP 2x4, so every wall must carry its maximum. With that, S takes at most 9 1x2 (or 1x4 + 7 1x2); 10 and 1x4+8
+  are infeasible. Only two no-cut compositions exist:
+  A: E 4+0+2, W 3+1+2, N 3+1+1, S 4+0+9 (sheets + 1x4 + 1x2); B: E 4+0+2, W 3+0+4, N 3+1+1, S 4+1+7.
+  Agrees with the earlier depth-3 grid search (`gcaps3.json`).
+- Only A lets S keep a clean two-tier scheme (no piece crosses z 27.5); W follows no clean scheme in A or B. **v8 uses A.**
+- Minimum standing 1x2s at full count: S 3, W 1, N 1, E 0 (2 if E is kept symmetric). v8 has 7 (= minimum + E's 2).
+- **v8 per wall (wall-local inches):**
+  - S back: bottom row z 3.25-27.25 = 1x2 pair (standing) between the S0/S1 low covers + foam 2x4 lying flat between the
+    S1/S3 low covers. Band from z 27.75 (sheet tops 75.75, 0.50 under the IEP beams): stack of 3 flat 1x2 under the S0 high
+    cover | foam | stack of 3 under S1 | AP 2x4 | foam | standing 1x2 under S3 (top 64.75). One 0.759 clearance everywhere in
+    the band, traps included. Not mirror-symmetric (vent columns aren't).
+  - E left: symmetric about y 54.6875. Band z 30.625-78.625 = AP 2x4 | foam | AP 2x4; row z 3.25-27.25 = 1x2 | foam flat | 1x2.
+  - W right: back cluster (flat 1x2 z 18.125-30.125 over the W0 low cover; standing 1x2 + 1x4 from z 30.625), then foam | AP 2x4
+    on the same column grid as E, foam flat in the bottom row. Band can't start below 30.571.
+  - N front: row = foam flat | standing 1x2 | foam flat (z 3.25-27.25); 1x4 between the windows and AP 2x4 by the door, both
+    z 27.75-75.75.
+- **Options on the page (any combination passes the checker):** S1 (recommended, AP 2x4 in the band) vs S2 (foam band, AP 2x4
+  flat in the bottom row); E1 (recommended, band level with W) vs E2 (band 27.75-75.75, level with S and N).
+  v8 = S1+E1, alt1 = S2+E1, alt2 = S1+E2; S2+E2 = S from alt1 + E from alt2 (checked: PASSED).
+- Exactly-0.50 spots (no margin): sheet tops under the beams on S and N, the 1x2 stacks, every bottom-row/band boundary on S
+  and N, N03 to the door frame. Floor clearance is the rule's 3.25 exactly.
 
-## To resume
-1. Confirm the active document path (`python scripts/sketchup-bridge.py eval "Sketchup.active_model.path"`).
-2. In `ap9/`, fix `combine.py`, either by pruning or by running a small ILP with scipy `milp` over the Pareto vectors. Find which cut count c works.
-3. Extend `guill.py` to return the placements (not only counts) for the chosen per-wall vectors. Check them against Benton's rules:
-   - each wall symmetric about its centre where features allow;
-   - foam and AP interleaved on the back wall;
-   - full sheets before squares;
-   - small pieces high and low on the back.
-4. If no symmetric version exists, draw 2-3 candidates as PIL elevations and apply the recommended one.
-5. Apply in small per-wall jobs, saving after each:
-   - add the 2 foam copies;
-   - seat each piece by multi-ray;
-   - fabric (local -y) faces the room;
-   - no whole-model `add_group`.
-6. Verify, using the `verify.py` method:
-   - min gap >= 0.5;
-   - covers, traps, beams, trims and door clear;
-   - counts: 9 foam, AP 5/2/14, 6 traps.
-7. Finish with screenshots of the 4 walls, a re-check of the 16 scenes, and updates to notes.md and this handoff.
+## Phase B steps (only after Benton's copy-back block approves the walls)
+1. Read Benton's block; pick the JSON per wall (table above). If anything is edited, change `layout8.py` and re-run it; it
+   must print `ok=True`.
+2. Read-only first: assert `Sketchup.active_model.path` ends with `Walsh Construction Tech Lab MDL 96168 E.skp`, booth group
+   `Booth - MDL 96168 E`, counts as above. **Save before the first edit** (`m.save`), then after every wall.
+3. Load helpers from THIS machine's checkout: `C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/`
+   (`build-booth-components.rb`, `wr-overlays.rb` with `$wr_no_autorun = true`). `ap9-dump.rb` still points at the laptop paths.
+   The v7 job scripts (`v7.rb`, `press.rb`, `boxes.rb`, `verify.py`) are laptop-only and untracked; use
+   `.forge/builder/peoplesspace-ap/ap-v2.rb` (place), `ap-press.rb` (seat), `clash.rb` as the method.
+4. One job per wall, one undo operation each, inside the booth group's entities (never a whole-model `add_group`, never a
+   blind `abort_operation`):
+   - Fill each JSON slot with an instance of its part. Reuse existing instances; suggested foam reuse: S0i -> S04, S3i -> S09,
+     E0i -> E02, W0i -> W04, E1i -> E05 (spin flat), W1i -> W06 (spin flat). Add **3** copies of the `Foam` definition
+     (same definition, tag `WR-Booth-Foam`, copied from an existing Foam instance) for S13, N01, N03.
+     With option S2 the S foam slots are S04, S08, S09 and S13 is the AP 2x4; the copy then goes to S08.
+   - **Erase the two S1i squares** (`Foam (2x2) back left/right`): S1i is restored as a full sheet. Report it as a foam move.
+   - Orientation: fabric = local -y into the room. Into-room normals: S +y, N -y, E -x, W +x. Rotation as in the skill
+     (`ya = n.reverse`; standing: `za = up, xa = ya*za`; lying flat: `xa = up, za = xa*ya`); foam takes the same half-turn.
+   - Position from `WR_Overlays.geom_extents(defn)` corners pushed through the rotation, then translate so the extents hit
+     (s0, z0) and the back meets the face (S/W face 4.25, E 165.75, N 93.75).
+   - Seat by multi-ray on the most proud face under the footprint (hide pieces first): S/W H-strip 4.313 at z ~40-41.5,
+     E 165.688 at z ~40-41, N window-panel strip 93.688 at z ~22.5-23 (N01 and N03 cross it).
+   - Names `<part> <wall>` (back/left/right/front); AP on `WR-Booth-Acoustic`, foam stays on `WR-Booth-Foam`.
+5. Verify measured, not by eye: world boxes from geom extents, min gap >= 0.50 to pieces and to the survey's fixed items
+   (feed wall-local rects to `v8model.check()`), counts 9 full `Foam` + 0 squares + AP 5/2/14 + 6 traps, fabric normals into
+   the room, seat re-check 0.000.
+6. Screenshots of the 4 walls, re-check the 16 scenes (InteriorAcousticRender / InteriorBackRender especially), update
+   `clients/walsh-construction/notes.md` (AP section, foam moves), this file and the DEVLOG.
+
+## Assumptions
+- Standing 1x2s (12 x 24) and sheets lying flat are acceptable: v7 used both, and the DEVLOG allows horizontal sheets (reported).
+- Piece sizes 24x48 / 12x48 / 24x12 and depth 2.125 (observed on v7 bodies). Wall centre = middle of the usable run.
+- The foam/Audimute assignment (Audimute at the ends and vent columns, foam between) is my design call; Benton can swap it.
+
+## Open questions (for Benton, via the page)
+1. S1 or S2; E1 or E2.
+2. 7 of 14 1x2s stand on end (minimum 5). OK?
+3. OK to erase the two S1i squares in favour of a full sheet?
+4. The orchestrator brief said "add 2 foam copies"; it is 3 (see Model state).
