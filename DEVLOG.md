@@ -1,5 +1,60 @@
 # DEVLOG
 
+## 2026-10-12 -- session close (laptop): Walsh Construction Tech Lab built; acoustic layout pass stopped mid-planning
+
+**State at sign-off.**
+- **Walsh Construction (Sarah's request):** `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E.skp`
+  is saved. It holds the Tech Lab (room 13), measured from the vector plan at 1/8" = 1'-0", with all 6 runs
+  closing. It also holds MDL 96168 E from the CORRECTED (Enhanced) link with its standard ADA ramp (= Option 2),
+  6 bass traps (3 per back corner, top flush to the ceiling at 80.25, bottom on the floor at 2.75, middle
+  centred), the full AP (5 x 2x4, 2 x 1x4, 14 x 1x2), studio lights, IEP beams, 8 V-Ray room lights, and two
+  identical 8-scene series (`Opt2 ...`, `Opt1 ...`). Room and booth share the tag `Walsh Assembly`.
+  - Benton: booth position OK (shell 11-5/8" off the S and E walls so the vent silencers clear); ceiling
+    unknown, keep 8'-0" ASSUMED.
+  - Option 1: Benton duplicates the Walsh Assembly, adds the side ramp + platform, and sets the Opt1 scenes'
+    visibility himself.
+  - Duct covers: 3 moved off their ports for the renders only (see `clients/walsh-construction/notes.md`);
+    all high covers flush to the ceiling, all low covers on the floor.
+  - Details: `.forge/builder/HANDOFF-walsh.md` and `clients/walsh-construction/notes.md`.
+- **Acoustic layout pass (the only thing left):** it was STOPPED at Benton's request while still planning
+  offline. Its state is in `.forge/builder/HANDOFF-walsh-ap.md`, with the survey JSON in `.forge/builder/walsh/`.
+  The model is at layout v7: 4 foam sheets placed, and E1i, W1i and two 2x2 squares (cut from S1i) staged
+  outside the room.
+- **SketchUp crash, lesson:** a whole-model `add_group` hung SketchUp and it crashed while the build was
+  unsaved. It was recovered from the autosave. Live builds now save first and after every step.
+
+**Next steps (desktop):**
+1. `git pull`. Open `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E.skp` in SketchUp 2026
+   and keep it as the front document (the bridge only reaches the front document).
+2. Read `.forge/builder/HANDOFF-walsh-ap.md`, then finish the acoustic layout. Touch ONLY foam + Audimute.
+   Hard rules (Benton, 12 Oct):
+   - ALL 9 foam sheets inside the booth: the BOM gives 96168 E 3 x FOAM3 (E02). The model has 7, so copy 2
+     more from an existing sheet.
+   - The full AP stays (5/2/14).
+   - Every wall mirror-symmetric where possible.
+   - Back wall gets foam AND Audimute, with small 1x2s placed high and low.
+   - Full 2x4 sheets first. A cut is across the length into two 24x24 squares, never a 1x4 strip.
+   - At least 1/2 in between pieces, every piece seated flush with the fabric facing in.
+   - Traps, duct covers, door and windows are FIXED.
+   - Known limits: 47.86 in between a low and a high cover, so a full sheet can't stand over a vent panel
+     (use horizontal sheets or squares); 75.75 top under an IEP beam; 13.0 in between the front windows.
+   - If it can't all fit, show 2-3 wall-elevation options; don't pick.
+3. Re-check the 16 scenes for clashes, save, and render (Benton).
+
+**Open decisions:** none blocking. Ceiling height unknown (8'-0" assumed). Bass trap count (6) comes from the
+"Recording Studio" package name, not from the link.
+
+**Separate bugs found today (not started):**
+- The importer places 7 foam on a 96168 E where the BOM says 9. It gives foam only to full-width solid and
+  vent panels.
+- Standard BoothLighting fixtures still hang 1.36 in low (bounding box including the hinges). Benton is
+  undecided whether to fix.
+- `Right46Door`, `Right40Door` and `RightWADoor` on the share are left doors with mirrored logos. The importer
+  now corrects them on the fly, but the files themselves should be re-saved.
+- Benton's installed panel reads 1.79.0. Run **Update now** + restart on each machine to get 1.84.0.
+- `proposals/examples/peoplesspace/proposal-v2.json` has been modified and uncommitted since before this session.
+  It is client material, so it probably belongs in the private proposals repo.
+
 ## 2026-10-12 -- 1.84.0: studio lights mount on the tile face, clear of roof-unit rods; take-off dimensions its doors and stops the false DOES NOT CLOSE
 
 Two importer / take-off bugs from the 6-7 Oct next-steps list, plus one comment correction. Pure halves tested
