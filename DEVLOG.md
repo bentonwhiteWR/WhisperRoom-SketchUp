@@ -1,5 +1,34 @@
 # DEVLOG
 
+## 2026-10-12 -- 1.83.2: IEP beam lengths are Benton's (76 / 88 / 94), not the quote repo's
+
+- **Benton, 12 Oct (reported, supersedes all earlier figures): IEP BEAM 7 = 76 in, 8 = 88 in, 8.5 = 94 in.**
+  - These now sit in `WR_Accessories::IEP_BEAM_SERIES` as `:length`, with Benton cited. The importer's length
+    guard checks against them.
+  - The quote repo's L figures (70 / 82 / 88) are kept as `:bom_l`, for the drift check only.
+  - WhisperRoomQuote is untouched; fixing it there is Benton's call.
+- **Share files re-measured (observed): 76.000 / 88.000 / 94.000 x 3.000 x 1.500, saved 13:46:34.**
+  - Every vertex sits at z 0 or z L, with a 2.1 sq in end cap at each end and no child components. That was
+    checked on a fresh copy loaded under a unique name, so no cached definition could answer.
+  - The 4 in question is moot. The 80 / 92 / 98 reading was the 13:23:28 save, and that save is gone. The
+    92 was a face measurement (faces only, not edges or guides), so it was real beam geometry in that save.
+- **Fit (derived from wr-booth-data, checked live on the 9696 E):**
+  - Each beam is 6 in shorter than its seal (88/94, 94/100, 76/82), so it sits 3 in in from each seal end.
+  - Enhanced: the IEP interiors are 89.5 / 95.5 / 77.5, so every beam clears the IEP inner face by
+    0.75 in at each end. The IEP mid-wall seam seals sit flush with that face (an earlier ray test put them
+    at y 4.25 on a 96).
+  - Standard RM: the interiors are 94 / 100 / 82, a 3.0 in clearance.
+  - 9696 E re-placed with the 88 in part: y 5.0-93.0, centred and flush (0.000 / 0.000 / 0.000), and the
+    face-level clash check is empty.
+  - Benton's document still holds three unused stale beam definitions: `IEP BEAM 8` (94), `#1` (92) and
+    `#2` (82). Purge Unused clears them. Not saved.
+- **`rbtest-accessories.py`:**
+  - The quote-repo L gap prints as `WARN drift: quote repo L differs from Benton's lengths (known, 12 Oct)`
+    and does not fail the suite.
+  - Codes, counts, the embedded BOM L against the quote repo, and Benton's figures are all still checked
+    strictly.
+  - All PASS. `rbparse.py`: 82 files parse.
+
 ## 2026-10-12 -- 1.83.0 / 1.83.1: booth-from-link places IEP ceiling beams; bass traps, studio lights and right-hand doors fixed
 
 1.83.0 (`6f30c66`) had the beams, traps and lights. 1.83.1 (`1d9eda5` + this bump) adds Benton's 84 E / 72-and-under

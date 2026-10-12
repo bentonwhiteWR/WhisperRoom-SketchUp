@@ -124,11 +124,11 @@ check('a zero count is refused', A.sl_tile_layout(0, 29.0, t96120)[:error].nil?,
 
 # --- 5. IEP ceiling beams (1.83.0) ----------------------------------------
 b = A.iep_beam_plan('MDL 96120 E', true, false)
-check('96120 E: 2 x U101 82 in under 94 in seals',
-      [b[:count], b[:code], b[:length], b[:seal_len], b[:derived]], [2, 'U101', 82.0, 94.0, false])
+check('96120 E: 2 x U101, 88 in (Benton) under 94 in seals',
+      [b[:count], b[:code], b[:length], b[:seal_len], b[:derived]], [2, 'U101', 88.0, 94.0, false])
 b = A.iep_beam_plan('MDL 102144 E', true, false)
-check('102144 E: 3 x U01 88 in under 100 in seals',
-      [b[:count], b[:code], b[:length], b[:seal_len]], [3, 'U01', 88.0, 100.0])
+check('102144 E: 3 x U01, 94 in (Benton) under 100 in seals',
+      [b[:count], b[:code], b[:length], b[:seal_len]], [3, 'U01', 94.0, 100.0])
 check('102186 E: 4 beams', A.iep_beam_plan('MDL 102186 E', true, false)[:count], 4)
 check('9696 E: 1 beam', A.iep_beam_plan('MDL 9696 E', true, false)[:count], 1)
 b = A.iep_beam_plan('MDL 10284 E', true, false)
@@ -245,16 +245,31 @@ def beam_drift(lib):
             bad.append('base-bom %s: E and ENV beam counts differ' % row['size'])
     if have != want:
         bad.append('IEP beam table: embedded %r, base-bom.json %r' % (have, want))
-    for code, length in (('U101', 82), ('U01', 88), ('U02', 70)):
-        if cm.get(code, {}).get('L') != length:
-            bad.append('components-master %s length %r, embedded %d' % (code, cm.get(code, {}).get('L'), length))
+    # LENGTHS: the importer guards on BENTON's lengths (76 / 88 / 94, 12 Oct
+    # 2026), which the quote repo's L does not match. That is a KNOWN
+    # discrepancy, his to resolve there, so it is reported and does not fail
+    # the suite. What IS strict: the embedded BOM L still matches the quote
+    # repo (so a change there is noticed), and Benton's figures are unchanged.
+    blk2 = re.search(r'IEP_BEAM_SERIES = \{(.*?)\}\.freeze', lib, re.S)
+    rows = re.findall(r":code => '(U\d+)'.*?:length => ([\d.]+), :bom_l => ([\d.]+)", blk2.group(1), re.S)
+    true_len = {c: float(t) for c, t, _ in rows}
+    bom_l = {c: float(l) for c, _, l in rows}
+    if true_len != {'U101': 88.0, 'U01': 94.0, 'U02': 76.0}:
+        bad.append("Benton's beam lengths changed in the code: %r" % true_len)
+    for code in ('U101', 'U01', 'U02'):
+        src_l = cm.get(code, {}).get('L')
+        if src_l != bom_l.get(code):
+            bad.append('components-master %s L %r, embedded :bom_l %r' % (code, src_l, bom_l.get(code)))
+    if any(bom_l[c] != true_len[c] for c in bom_l):
+        notes.append("WARN drift: quote repo L differs from Benton's lengths (known, 12 Oct): %s"
+                     % ', '.join('%s L %g vs %g' % (c, bom_l[c], true_len[c]) for c in sorted(bom_l)))
     pl = os.path.join(QUOTE, 'lib', 'packing-list.js')
     if os.path.exists(pl):
         t = open(pl, encoding='utf-8').read()
         if not re.search(r"bom\.D101 \|\| 0\); i\+\+\) additions\.push\(\{ code: 'U101'", t) or            not re.search(r"bom\.D12  \|\| 0\); i\+\+\) additions\.push\(\{ code: 'U01'", t):
             bad.append('packing-list.js RM rule no longer adds U101 per D101 / U01 per D12 on an S booth')
     if not bad:
-        notes.append('PASS drift: IEP beam table matches base-bom.json (%d models), part lengths and '
+        notes.append('PASS drift: IEP beam table matches base-bom.json (%d models), codes, counts, embedded BOM L and '
                      'the RM rule match' % len(want))
     return notes, bad
 

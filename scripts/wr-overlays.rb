@@ -128,11 +128,12 @@ module WR_Overlays
 
   # Along the seal: the beam's centre sits this far from the seal's own centre,
   # along the seal. 0.0 centres it (Benton, 12 Oct 2026: centre it along the
-  # seal). The beam is 12 in shorter than its seal (82 under a 94 STDSS CL8,
-  # 88 under 100, 70 under 82), so a centred beam leaves 6 in at each seal end
-  # and clears an Enhanced booth's IEP inner walls by (eih - beam) / 2 = 3.75
-  # in. Nothing here depends on that: any clash is reported, never avoided by
-  # moving or shortening the beam.
+  # seal). The beam is 6 in shorter than its seal (Benton's lengths: 88 under
+  # a 94 STDSS CL8, 94 under 100, 76 under 82), so a centred beam leaves 3 in
+  # at each seal end and clears an Enhanced booth's IEP inner faces by
+  # (eih - beam) / 2 = 0.75 in (eih 89.5 / 95.5 / 77.5, wr-booth-data). That is
+  # tight, and nothing here depends on it: any clash is reported, never
+  # avoided by moving or shortening the beam.
   IEP_BEAM_ALONG_OFFSET = 0.0
 
   # Tolerance for the seal-length check (the seal placed must be the series
@@ -1740,18 +1741,20 @@ module WR_Overlays
   #
   # CLASHES ARE REPORTED, NOT AVOIDED. Every part the placed beam's faces run
   # into is named in the summary, and the beam stays where the rule put it
-  # (Benton, 12 Oct 2026: report it, still place it). With the corrected
-  # parts (82 under a 94 seal) nothing should be listed; the old 94 in file
-  # reached 2.25 into the IEP mid-wall seam seals. A LIGHT in the list is a
-  # real fault (a fixture crossing the seam), and is said so.
+  # (Benton, 12 Oct 2026: report it, still place it). With Benton's lengths
+  # (88 under a 94 seal) a centred beam clears the IEP inner face by 0.75 in
+  # and nothing should be listed; the old 94 in file reached 2.25 into the
+  # IEP mid-wall seam seals. A LIGHT in the list is a real fault (a fixture
+  # crossing the seam), and is said so.
   def self.place_iep_beams(model, booth, key, spec, cfg, cache, deck, layer, warns)
     ov = cfg['overlay'] || {}
     plan = ov['iep_beams']
     label = "#{plan[:file]} seam"
     puts ''
     puts '  ---- IEP ceiling beams ' + '-' * 53
-    puts format('    %d x %s (%s) = %s.skp, one centred under each ceiling seam seal',
-                plan[:count], plan[:pack], plan[:code], plan[:file])
+    puts format('    %d x %s (%s) = %s.skp, %.0f in long (Benton), one centred under each ' +
+                'ceiling seam seal', plan[:count], plan[:pack], plan[:code], plan[:file],
+                plan[:length])
     puts "    why: #{plan[:why]}.  count from: #{plan[:source]}"
     puts '    pose: on edge (1.5 wide x 3 tall), top flush with the seal underside, ' \
          'centred both ways - Benton, 12 Oct 2026' if
@@ -1811,9 +1814,10 @@ module WR_Overlays
 
     defn = WR_BuildBoothComponents.load_def(model, cfg['dir'], plan[:file], cache)
     gx = defn ? geom_extents(defn) : nil
-    # THE LENGTH GUARD. The part must measure the BOM's L (70 / 82 / 88). The
-    # share's files once measured 82 / 94 / 100 (each named one size up), and
-    # Benton re-cut them on 12 Oct 2026; a bad file is caught here next time.
+    # THE LENGTH GUARD. The part must measure BENTON's length for it
+    # (plan[:length]: 76 / 88 / 94, WR_Accessories::IEP_BEAM_SERIES, 12 Oct
+    # 2026) - NOT the quote repo's L, which is wrong. The share's files went
+    # 82/94/100 -> 80/92/98 -> 76/88/94 that day; a bad file is caught here.
     # A model that loaded the OLD file keeps that definition — definitions.load
     # hands back the one already in the model — so a stale one that nothing
     # uses yet is removed and the file read again. One that something already
@@ -1829,7 +1833,7 @@ module WR_Overlays
                     plan[:file], stale)
       end
       if gx && (gx[:e].max - plan[:length]).abs > IEP_BEAM_LEN_TOL
-        msg = format('IEP BEAM LENGTH MISMATCH: %s measures %.3f, the BOM (%s) says %.1f. %s ' \
+        msg = format('IEP BEAM LENGTH MISMATCH: %s measures %.3f; Benton gives %s as %.1f. %s ' \
                      'Placed anyway, centred on its seal; check the part file.',
                      plan[:file], gx[:e].max, plan[:code], plan[:length],
                      defn.count_instances > 0 ? 'The model already uses this definition, so it ' \

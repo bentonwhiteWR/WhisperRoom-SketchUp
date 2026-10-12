@@ -33,8 +33,10 @@
 - 84 series: Enhanced (RM or not) and RM Standard get IEP BEAM 7 (Benton, 12 Oct, reported). The count =
   D11 (one per ceiling seam seal); the BOM itself is silent. 72-series and smaller get none (Benton).
 - Series = the model number's first figure (Benton): 10284 -> 102, 84102 -> 84.
-- Part files are picked by NAME (Benton): IEP BEAM 7 / 8 / 8.5. True lengths are the BOM's 70 / 82 / 88
-  (Benton); a mismatch is warned, never scaled.
+- Part files are picked by NAME (Benton): IEP BEAM 7 / 8 / 8.5. True lengths are 76 / 88 / 94 (Benton,
+  12 Oct, superseding the BOM's 70 / 82 / 88). A mismatch is warned, never scaled.
+- Fit: each beam sits 0.75 in clear of the IEP inner face at each end on Enhanced booths, and 3 in clear on
+  Standard RM booths (derived from wr-booth-data interiors; 9696 E measured live).
 - Studio lights:
   - Which tiles get a fixture (widest first) and where across the tile (evenly spaced) are **assumed**.
   - Only the orientation (longwise on the tile, never across a seam) is Benton's.
@@ -42,8 +44,9 @@
   wr-booth-data. Checked on 96120 E only.
 
 ## Open questions
-0. **The share's beam files measure 80 / 92 / 98 (observed), not Benton's 70 / 82 / 88.** The length guard
-   warns on every build until they are re-cut.
+0. Beam lengths (1.83.2): Benton's 76 / 88 / 94 are in the code. The share files measure exactly that
+   (observed, saved 13:46). The quote repo's L (70 / 82 / 88) is wrong; Benton decides there. The drift
+   check warns, it doesn't fail.
 1. **Importer bug, MDL 10284 ceiling.** The BOM has A21 STD10242CL SIDE x2 + D12 FLCL8.5 x1, a 102 cross. The
    importer builds 8442 + 8418 + 8442 with 2 x CL7, an 84 cross: the 84102's ceiling. Until the deck is
    fixed, its 1 x IEP BEAM 8.5 is withheld with a loud KNOWN IMPORTER BUG message.

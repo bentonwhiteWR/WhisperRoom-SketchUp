@@ -148,15 +148,20 @@ module WR_Accessories
   # U02 "IEP BEAM 7'", U101 "IEP BEAM 8'", U01 "IEP BEAM 8.5'" — and the share's
   # files carry the same names, so code -> description -> file is the mapping.
   #
-  # The BOM's L figures (70 / 82 / 88, components-master.json) are the TRUE
-  # lengths (Benton, 12 Oct 2026: "IEP Beam 8 is 82" total, IEP Beam 8.5 is
-  # 88" total, IEP Beam 7 is 70" total"). The share's files measured 82 / 94 /
-  # 100 until he re-cut them that day, each one size long, which is why a
-  # first cut of 1.83.0, matching on length, put IEP BEAM 7 on a 96120 E. The
-  # NAME picks the part; the length is only a guard (wr-overlays
-  # place_iep_beams warns loudly when a file does not measure its L).
+  # THE TRUE LENGTHS ARE BENTON'S, NOT THE BOM'S. Benton, 12 Oct 2026
+  # (reported, superseding every figure before it): IEP BEAM 7 = 76 in,
+  # IEP BEAM 8 = 88 in, IEP BEAM 8.5 = 94 in. So the quote repo's L figures
+  # (70 / 82 / 88, components-master.json) are wrong too; whether they are
+  # fixed there is his call, and this repo never writes to WhisperRoomQuote.
+  # :length below is Benton's figure and is what the importer's length guard
+  # checks a loaded part against; :bom_l is the quote repo's, kept only so
+  # the drift check can say the two differ. History: the share's files
+  # measured 82 / 94 / 100, then 80 / 92 / 98, before he re-saved them at
+  # 13:46 that day measuring exactly 76 / 88 / 94 (observed). The NAME picks
+  # the part; the length only guards it (wr-overlays place_iep_beams).
   #
-  #   series => code, pack name (the BOM's), part file, BOM L, source
+  #   series => code, pack name (the BOM's), part file, Benton's length,
+  #             BOM L, source
   #
   # '84' -> U02: Benton put beams on Enhanced 84s (12 Oct 2026, see
   # IEP_BEAMS_84). U02 is in the master but NO model in base-bom.json carries
@@ -164,11 +169,11 @@ module WR_Accessories
   # CL7, 82 long), as 8 ft fits the 96 and 8.5 ft the 102.
   IEP_BEAM_SERIES = {
     '96'  => { :code => 'U101', :pack => 'IEP BEAM 8 (82")',   :file => 'IEP BEAM 8',
-               :length => 82.0, :src  => 'components-master.json U101' },
+               :length => 88.0, :bom_l => 82.0, :src => 'components-master.json U101' },
     '102' => { :code => 'U01',  :pack => 'IEP BEAM 8.5 (88")', :file => 'IEP BEAM 8.5',
-               :length => 88.0, :src  => 'components-master.json U01' },
+               :length => 94.0, :bom_l => 88.0, :src => 'components-master.json U01' },
     '84'  => { :code => 'U02',  :pack => 'IEP BEAM 7 (70")',   :file => 'IEP BEAM 7',
-               :length => 70.0,
+               :length => 76.0, :bom_l => 70.0,
                :src  => 'components-master.json U02 — the 84 series by Benton, ' \
                         '12 Oct 2026; no BOM row carries U02' }
   }.freeze
