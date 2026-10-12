@@ -1,6 +1,9 @@
 # DEVLOG
 
-## 2026-10-12 -- 1.83.0: booth-from-link places IEP ceiling beams; bass traps, studio lights and right-hand doors fixed
+## 2026-10-12 -- 1.83.0 / 1.83.1: booth-from-link places IEP ceiling beams; bass traps, studio lights and right-hand doors fixed
+
+1.83.0 (`6f30c66`) had the beams, traps and lights. 1.83.1 (`1d9eda5` + this bump) adds Benton's 84 E / 72-and-under
+rules, the beam length guard and the door-hand fix; it was bumped so the update banner shows it.
 
 **What changed (scripts/wr-accessories.rb, wr-overlays.rb, build-booth-components.rb, booth-from-link.rb).**
 - **IEP ceiling beams, automatic.** One beam centred directly below each ceiling seam seal (Benton, 12 Oct), on
