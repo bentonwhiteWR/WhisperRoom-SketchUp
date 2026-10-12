@@ -128,11 +128,11 @@ module WR_Overlays
 
   # Along the seal: the beam's centre sits this far from the seal's own centre,
   # along the seal. 0.0 centres it (Benton, 12 Oct 2026: centre it along the
-  # seal). The part files measure the seal's own length (94.0 under a 94.0
-  # STDSS CL8), so a centred beam spans the seal end to end — and on an
-  # Enhanced booth that runs it into the IEP mid-wall seam seals at each end.
-  # That matches Benton's own hand placement, so it is REPORTED, never
-  # avoided by moving or shortening the beam.
+  # seal). The beam is 12 in shorter than its seal (82 under a 94 STDSS CL8,
+  # 88 under 100, 70 under 82), so a centred beam leaves 6 in at each seal end
+  # and clears an Enhanced booth's IEP inner walls by (eih - beam) / 2 = 3.75
+  # in. Nothing here depends on that: any clash is reported, never avoided by
+  # moving or shortening the beam.
   IEP_BEAM_ALONG_OFFSET = 0.0
 
   # Tolerance for the seal-length check (the seal placed must be the series
@@ -1738,12 +1738,12 @@ module WR_Overlays
   # file the BOM description names: IEP BEAM 7 / 8 / 8.5. Never scaled. A
   # file that is not on the share is refused by name.
   #
-  # CLASHES ARE REPORTED, NOT AVOIDED. The 94.0 beam spans its 94.0 seal end
-  # to end, so on an Enhanced booth it reaches past the IEP interior face into
-  # the IEP mid-wall seam seals — exactly what Benton's own hand placement on
-  # People's Space did. Every part the placed beam's faces run into is named
-  # in the summary, and the beam stays where the rule put it. A LIGHT in that
-  # list is a real fault (a fixture crossing the seam), and is said so.
+  # CLASHES ARE REPORTED, NOT AVOIDED. Every part the placed beam's faces run
+  # into is named in the summary, and the beam stays where the rule put it
+  # (Benton, 12 Oct 2026: report it, still place it). With the corrected
+  # parts (82 under a 94 seal) nothing should be listed; the old 94 in file
+  # reached 2.25 into the IEP mid-wall seam seals. A LIGHT in the list is a
+  # real fault (a fixture crossing the seam), and is said so.
   def self.place_iep_beams(model, booth, key, spec, cfg, cache, deck, layer, warns)
     ov = cfg['overlay'] || {}
     plan = ov['iep_beams']
@@ -1811,6 +1811,33 @@ module WR_Overlays
 
     defn = WR_BuildBoothComponents.load_def(model, cfg['dir'], plan[:file], cache)
     gx = defn ? geom_extents(defn) : nil
+    # THE LENGTH GUARD. The part must measure the BOM's L (70 / 82 / 88). The
+    # share's files once measured 82 / 94 / 100 (each named one size up), and
+    # Benton re-cut them on 12 Oct 2026; a bad file is caught here next time.
+    # A model that loaded the OLD file keeps that definition — definitions.load
+    # hands back the one already in the model — so a stale one that nothing
+    # uses yet is removed and the file read again. One that something already
+    # uses is not touched, and is named instead.
+    if gx && (gx[:e].max - plan[:length]).abs > IEP_BEAM_LEN_TOL
+      stale = gx[:e].max
+      if defn.count_instances.zero? && model.definitions.respond_to?(:remove)
+        cache.delete(plan[:file])
+        model.definitions.remove(defn)
+        defn = WR_BuildBoothComponents.load_def(model, cfg['dir'], plan[:file], cache)
+        gx = defn ? geom_extents(defn) : nil
+        puts format('    %s in the model measured %.3f (stale); removed and re-read from the share',
+                    plan[:file], stale)
+      end
+      if gx && (gx[:e].max - plan[:length]).abs > IEP_BEAM_LEN_TOL
+        msg = format('IEP BEAM LENGTH MISMATCH: %s measures %.3f, the BOM (%s) says %.1f. %s ' \
+                     'Placed anyway, centred on its seal; check the part file.',
+                     plan[:file], gx[:e].max, plan[:code], plan[:length],
+                     defn.count_instances > 0 ? 'The model already uses this definition, so it ' \
+                     'was NOT re-read: purge it (Components > In Model) and rebuild.' : '')
+        warns << msg
+        puts "    #{msg}"
+      end
+    end
     if gx.nil?
       msg = "IEP BEAMS NOT placed: #{plan[:file]}.skp (#{plan[:code]}) is " +
             (defn ? 'on the share but holds no measurable faces' : "not in #{cfg['dir']}") +
@@ -1832,7 +1859,6 @@ module WR_Overlays
     end
     # On edge: the 3 in face vertical. Flat: the 1.5 in face vertical.
     up_i, across_i = IEP_BEAM_ON_EDGE ? [tall_i, thin_i] : [thin_i, tall_i]
-    enh = !spec[:eiw].nil?
     light_tags = [WR_BuildBoothComponents::LIGHT_TAG, STUDIO_LIGHT_TAG]
 
     n = 0
@@ -1890,9 +1916,8 @@ module WR_Overlays
       unless others.empty?
         txt = others.map { |h| h[:name] }.uniq.join(', ')
         puts "      runs into: #{txt} (reported; placed as the rule puts it)"
-        warns << "IEP BEAM seam #{i + 1} runs into #{txt}. REPORTED, not moved: the beam " \
-                 'spans its seal end to end, as Benton\'s own hand placement does' +
-                 (enh ? ' (on an Enhanced booth that reaches the IEP mid-wall seam seals).' : '.')
+        warns << "IEP BEAM seam #{i + 1} runs into #{txt}. REPORTED, not moved (Benton: " \
+                 'report it, still place it). Check the part length and the wall it meets.'
       end
       unless lights.empty?
         txt = lights.map { |h| h[:name] }.uniq.join(', ')

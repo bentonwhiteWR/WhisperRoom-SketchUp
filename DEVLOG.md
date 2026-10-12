@@ -1,6 +1,6 @@
 # DEVLOG
 
-## 2026-10-12 -- 1.83.0: booth-from-link places IEP ceiling beams; bass traps and studio lights re-oriented
+## 2026-10-12 -- 1.83.0: booth-from-link places IEP ceiling beams; bass traps, studio lights and right-hand doors fixed
 
 **What changed (scripts/wr-accessories.rb, wr-overlays.rb, build-booth-components.rb, booth-from-link.rb).**
 - **IEP ceiling beams, automatic.** One beam centred directly below each ceiling seam seal (Benton, 12 Oct), on
@@ -13,9 +13,13 @@
     silent (no 84 model carries a U-code). The count is the D11 seal-pack quantity (8484 1, 84102 2, 84126 2):
     one per ceiling seam seal. **72-series and smaller get none, Enhanced or RM.** That is an explicit rule.
   - Series = the model number's FIRST figure (Benton): 10284 -> 102 -> IEP BEAM 8.5, 84102 -> 84 -> IEP BEAM 7.
-  - Part file by NAME (Benton's correction, 12 Oct): U101 -> `IEP BEAM 8.skp` (94.0 long), U01 ->
-    `IEP BEAM 8.5.skp` (100.0), U02 -> `IEP BEAM 7.skp` (82.0). Each one is the length of its series'
-    ceiling seal, so a beam spans the seal end to end. The BOM's L figures (70/82/88) do not pick the part.
+  - Part file by NAME (Benton's correction, 12 Oct): U101 -> `IEP BEAM 8.skp`, U01 -> `IEP BEAM 8.5.skp`,
+    U02 -> `IEP BEAM 7.skp`. True lengths are the BOM's L, 70 / 82 / 88 (Benton). After loading, the length is
+    checked against L: a stale definition nothing uses is removed and re-read, and any mismatch is a loud
+    `IEP BEAM LENGTH MISMATCH` warning (placed anyway, centred).
+  - **The share's beam files are STILL WRONG (observed 13:2x, files saved 13:23:28):** IEP BEAM 7 / 8 / 8.5
+    measure **80.0 / 92.0 / 98.0**, each 10 in over Benton's 70 / 82 / 88. They measured 82 / 94 / 100
+    before that. The guard catches it; nothing is scaled.
   - Pose confirmed by Benton (12 Oct): on edge, 1.5 wide x 3 tall, top flush to the seal underside, centred.
     These are the `IEP_BEAM_*` constants in wr-overlays.rb. Tag `WR-Booth-Options`, names `IEP BEAM 8 seam 1..n`.
   - Two cross-checks refuse by name: the BOM count must equal the CL seals placed, and the seals must be the
@@ -27,8 +31,9 @@
     - The deck pass (replay-iep-deck.py, from the wr-booth-data 86 x 104 layout) builds STD8442CL SIDE +
       8418 CTR + 8442 SIDE. That is an 84 cross tiled along the 102 side, with two 82 in CL7 seals: the
       84102's ceiling.
-  - Clashes are reported, not avoided. On an Enhanced 96 the 94 beam reaches 2.25 into the ENH mid-wall seam
-    seals at the ends, the same as Benton's hand placement. Any light fixture a beam meets is flagged.
+  - Clashes are reported, not avoided (Benton). An 82 beam on a 96 seal clears the IEP walls by 3.75 a side.
+    With the current 92 file it reaches 1.25 into the ENH mid-wall seam seals (observed, 9696 E), and the
+    old 94 reached 2.25. Any light fixture a beam meets is flagged.
 - **Bass traps:** the right-angle corner is now MEASURED (`trap_right_angle`: the plan-box corner opposite
   the one the triangle leaves empty; Bass Trap.skp reads (0, 12)). That corner goes into the room corner, so
   both legs sit on the walls. Before this the part's (0,0), a hypotenuse end, went in: "rotated like -90".
@@ -37,6 +42,18 @@
   before any doubles up. The tile rectangle is cut back to the room and off the seals (`sl_tile_rects`), and a
   fixture overhanging its tile is warned. Lights stay on `WR Studio Lights`.
 - `build_booth` now hands the CL seal and CL tile instances to the overlays (`host['CL_seals']`, `['CL_tiles']`).
+- **Right-hand doors were built backwards** (Benton: "You are importing the right 46 door backwards ... See
+  the logo? Hinges are also on the left but the name is Right46Door").
+  - Cause, observed on the share's files: seen from the logo side, `Right46Door`, `Right40Door` and
+    `RightWADoor` have their hinges on the LEFT, exactly like their Left twins, and their logo texture reads
+    MIRRORED. `Right46Door_HX` and `RightWADoorWithRamp` are authored right. `place()` only rotates
+    (det +1), so it can't change a part's hand. On Benton's 9696 E the S0 door had det +1, logo facing out,
+    hinges LEFT from outside, logo mirrored.
+  - Fix (`door_hand` plus a block in `build_booth`): for any Left/Right door carrying the WR logo, the hinge
+    side is measured from the logo side. If that isn't the hand the name asks for, the door is reflected
+    across the plane square to its run through the slot centre. The logo still faces out, the hinges change
+    sides, and the text reads correctly. Left files and correctly-authored Right files measure their own
+    hand and are untouched. ENH inner doors carry no logo and are left as placed (said so).
 
 **Verified.**
 - `rbparse.py`: 82 files parse.
@@ -45,20 +62,26 @@
   beam table with base-bom.json, components-master.json and the RM rule text.
 - `rbtest-overlays.py`: PASS.
 
-**Live check (SketchUp 2026, Benton's Untitled window, not saved): 96120 E** built from a link payload, then
-the beams re-placed after the name fix as 2 x IEP BEAM 8.
-- Measured twice with SketchUp's own bounds (13:09 and 13:15): d_across 0.000, d_along 0.000, top 79.250
-  against the seal underside at 79.250.
-- Span y 2.0-96.0, exactly under the STDSS CL8s at x 49 and 73.
-- Face-level clashes: only the ENH mid-wall seam seals at the beam ends.
-- That booth was built with sl = 0 and bt = 0, so it has no traps and no studio lights to check. Its three
-  standard BoothLighting fixtures each sit inside one tile. The centre one (x 49.8-72.2) clears both beams
-  by 0.05 in.
-- Screenshots: bridge `art/ps96120E-up.png` and `ps96120E-xray.png`.
+**Live checks (SketchUp 2026, Benton's two Untitled documents, nothing saved).**
+- 96120 E (built from a link payload): 2 x IEP BEAM 8 re-placed after the name fix. d_across, d_along and
+  d_top are all 0.000, at x 49 and 73. The geometry is the old 94 file's.
+- **Benton's drum booth, MDL 9696 E:**
+  - Beam: re-placed with the share's current IEP BEAM 8 (92.0) as `IEP BEAM 8 seam 1`. d_across, d_along and
+    d_top are 0.000, top 80.5625 = seal underside. The length warning fired, and the beam runs into the ENH
+    mid-wall seam seals at both ends (reported).
+  - Bass traps (8, built by the new code): ray tests from both legs of every trap hit the wall 0.0625 away
+    (IEP panel) or 0.125 away (IEP vent panel). The right angle is in each corner.
+  - Studio lights: 2 x SL52, long axis on y = the seal axis, 0 seal overlaps, 0 beam clashes.
+  - Door S0 Right46Door: mirrored by the same rule. After the fix, from outside: hinges RIGHT, logo reads
+    correctly, det -1, box unchanged.
+  - Screenshots, bridge `art/`: `drum9696E-door-outside.png`, `drum9696E-plan-noceiling.png`,
+    `drum9696E-ceiling-up.png`, `ps96120E-up.png`, `ps96120E-xray.png`.
+  - Seen in passing: the SW tier of traps stands in the door corner, in front of the IEP door jamb.
 
 **NOT verified live:**
 - 102144 E, any RM booth, an 84 E, and the no-beam booths in a real build;
-- the bass-trap and studio-light changes.
+- the door-hand rule on a fresh build: only the in-place mirror of the 9696 E door was run, and no Left door
+  was built.
 
 Pure tests cover these, nothing more. Why the live checks stopped:
 - SketchUp 2026 here keeps several models in one window: `active_model` follows the document Benton has in
@@ -84,6 +107,9 @@ Pure tests cover these, nothing more. Why the live checks stopped:
    - 4872 E and 96120 S (both should get no beams);
    - a drum booth (sl + bt).
 2. Fix the MDL 10284 ceiling (the importer bug above). Its beam is then placed by the existing rule.
+3. Benton: re-cut IEP BEAM 7 / 8 / 8.5 to 70 / 82 / 88. The files on the share measure 80 / 92 / 98.
+4. Decide whether the 72-series and smaller rules (no beams) and the SW trap in front of a door need
+   anything more.
 
 ## 2026-10-09 -- session close: Drop in the lights defaults to 30% (1.82.0), MW stamp Rev B (other repo)
 

@@ -1,4 +1,4 @@
-# HANDOFF: IEP ceiling beams, bass-trap and studio-light orientation (1.83.0)
+# HANDOFF: IEP ceiling beams, bass traps, studio lights, right-hand doors (1.83.0)
 
 ## Produced
 - `scripts/wr-accessories.rb`: the beam table and rule.
@@ -12,7 +12,10 @@
   - Traps: `trap_right_angle`, and `place_bass_traps` now seats the measured right angle in the corner.
   - Lights: `sl_tile_rects`, and `place_studio_lights` lays each fixture longwise inside one tile.
   - The beam pass is called from `place_all` after the accessories.
-- `scripts/build-booth-components.rb`: `host['CL_seals']` and `host['CL_tiles']`.
+- `scripts/build-booth-components.rb`:
+  - `host['CL_seals']` and `host['CL_tiles']`;
+  - `door_hand`, plus the door-hand block in `build_booth`, which mirrors a door whose measured hinge side
+    (from the logo side) is not its name's hand.
 - `scripts/booth-from-link.rb`: computes `beam_plan`, prints it, and passes `overlay['iep_beams']`.
 - `scripts/rbtest-accessories.py`: beam-plan and tile-layout cases, and a `beam_drift` check against the quote
   repo.
@@ -30,7 +33,8 @@
 - 84 series: Enhanced (RM or not) and RM Standard get IEP BEAM 7 (Benton, 12 Oct, reported). The count =
   D11 (one per ceiling seam seal); the BOM itself is silent. 72-series and smaller get none (Benton).
 - Series = the model number's first figure (Benton): 10284 -> 102, 84102 -> 84.
-- Part files by NAME (Benton): IEP BEAM 7 / 8 / 8.5, which measure 82 / 94 / 100 (= the seal lengths).
+- Part files are picked by NAME (Benton): IEP BEAM 7 / 8 / 8.5. True lengths are the BOM's 70 / 82 / 88
+  (Benton); a mismatch is warned, never scaled.
 - Studio lights:
   - Which tiles get a fixture (widest first) and where across the tile (evenly spaced) are **assumed**.
   - Only the orientation (longwise on the tile, never across a seam) is Benton's.
@@ -38,6 +42,8 @@
   wr-booth-data. Checked on 96120 E only.
 
 ## Open questions
+0. **The share's beam files measure 80 / 92 / 98 (observed), not Benton's 70 / 82 / 88.** The length guard
+   warns on every build until they are re-cut.
 1. **Importer bug, MDL 10284 ceiling.** The BOM has A21 STD10242CL SIDE x2 + D12 FLCL8.5 x1, a 102 cross. The
    importer builds 8442 + 8418 + 8442 with 2 x CL7, an 84 cross: the 84102's ceiling. Until the deck is
    fixed, its 1 x IEP BEAM 8.5 is withheld with a loud KNOWN IMPORTER BUG message.
@@ -50,3 +56,6 @@
    - a drum booth (sl + bt) for the trap-leg ray check and the lights-inside-one-tile check.
 3. On Benton's 96120 E the centre standard BoothLighting clears the two beams by only 0.05 in in plan.
    That's legal, but tight.
+4. The door-hand rule is verified only by the in-place mirror on the 9696 E. Build a Left46Door and a
+   Right40Door fresh to confirm that Left files are untouched and Right files are mirrored.
+5. The SW bass-trap tier on the 9696 E stands in the door corner, in front of the IEP jamb.

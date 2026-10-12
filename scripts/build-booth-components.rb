@@ -2582,6 +2582,68 @@ module WR_BuildBoothComponents
   # an explicit slot->component map. This is where a decoded booth-builder link
   # lands (booth-from-link.rb), with `assign` built from the customer's packs.
   # cfg needs 'dir', 'hx' (bool) and 'dry' (bool).
+  # WHICH HAND A DOOR PART IS AUTHORED AS, measured off its own geometry
+  # (1.83.0; see the door-hand block in build_booth for why). Seen from the
+  # side the WR logo faces - the outside of the booth - are the frame hinges
+  # ("Hinge (door frame)") to the right of the part's centre or the left, and
+  # does the logo texture read the right way round (its u running to the
+  # viewer's right)? WhisperRoom names a door by where its hinges are seen
+  # from outside (Benton, 12 Oct 2026: hinges on the left "but the name is
+  # Right46Door").
+  #
+  # Returns { :hinge => :left|:right, :reads => true|false }, or nil when the
+  # part carries no logo or no frame hinges (the ENH inner doors), so nothing
+  # is decided on a guess. Cached per definition for the build.
+  DOOR_LOGO  = /logo/i.freeze
+  DOOR_HINGE = /\AHinge \(door frame\)/.freeze
+
+  def self.door_hand(defn, cache)
+    k = "door_hand:#{defn.entityID}"
+    return cache[k] if cache.key?(k)
+    hinges = []
+    logos = []
+    walk = lambda do |ents, tr, depth|
+      next if depth > 7
+      ents.each do |e|
+        if e.is_a?(Sketchup::ComponentInstance)
+          if e.definition.name =~ DOOR_HINGE
+            bb = Geom::BoundingBox.new
+            8.times { |i| bb.add(e.bounds.corner(i).transform(tr)) }
+            hinges << bb.center
+          end
+          walk.call(e.definition.entities, tr * e.transformation, depth + 1)
+        elsif e.is_a?(Sketchup::Group)
+          walk.call(e.entities, tr * e.transformation, depth + 1)
+        elsif e.is_a?(Sketchup::Face) && e.material && e.material.texture &&
+              e.material.name =~ DOOR_LOGO
+          logos << [e, tr]
+        end
+      end
+    end
+    walk.call(defn.entities, IDENTITY, 0)
+    if hinges.empty? || logos.empty?
+      cache[k] = nil
+      return nil
+    end
+    face, ftr = logos.max_by { |f, _| f.area }
+    n = face.normal.transform(ftr)
+    n.normalize!
+    right = n.reverse * VZ               # the viewer on the logo side looks along -n
+    c = defn.bounds.center
+    hc = Geom::Point3d.new(hinges.map(&:x).sum / hinges.length,
+                           hinges.map(&:y).sum / hinges.length,
+                           hinges.map(&:z).sum / hinges.length)
+    side = ((hc - c) % right) > 0 ? :right : :left
+    uvh = face.get_UVHelper(true, false, Sketchup.create_texture_writer)
+    p0 = face.bounds.center
+    rl = right.transform(ftr.inverse)
+    rl.normalize!
+    q0 = uvh.get_front_UVQ(p0)
+    q1 = uvh.get_front_UVQ(p0.offset(rl, 1.0))
+    reads = (q1.x / q1.z - q0.x / q0.z) > 0
+    cache[k] = { :hinge => side, :reads => reads }
+  end
+
   def self.build_booth(key, assign, cfg)
     load DATA   # every build: rebalance_walls edits the loaded polygons in place
     spec = WR_BOOTH_DATA::BOOTHS[key]
@@ -3064,6 +3126,54 @@ module WR_BuildBoothComponents
                     "#{wj[:side]} of the door, door at the #{wj[:door_at]} end, mirrored across the wall " \
                     "plane#{turned ? ' AND turned end for end so the lap faces the door' : ''}. Look at the " \
                     'jamb leg on the built booth before trusting it.'
+          end
+        end
+
+        # THE DOOR'S HAND, MEASURED (1.83.0). Benton, 12 Oct 2026: "You are
+        # importing the right 46 door backwards. It needs to be mirrored. See
+        # the logo? Hinges are also on the left but the name is Right46Door."
+        # place() only ever ROTATES, so it cannot fix a part that is authored
+        # as the wrong hand. Measured on the share that day (observed): seen
+        # from the logo side, Right46Door / Right40Door / RightWADoor carry
+        # their hinges on the LEFT - the same as their Left twins - and their
+        # logo texture reads MIRRORED. Right46Door_HX and RightWADoorWithRamp
+        # are authored right (hinges right, logo reads). So the RIGHT files of
+        # three families are the left door with a flipped logo.
+        #
+        # The rule, from the part and never from a list of names: a door that
+        # carries the WR logo (an exterior door) has its hinge side read from
+        # the logo side (door_hand). If that is not the hand its name asks for,
+        # it is reflected across the plane square to its wall run through the
+        # slot centre: the logo still faces out, the hinges change sides and
+        # the logo text reads the right way round - both of Benton's tells
+        # fixed by the one reflection. A door with no logo (the ENH inner
+        # doors) is left as placed and said so.
+        if is_door && !cfg['dry'] && r[:name].to_s =~ /(?:Left|Right)\S*Door/i
+          want = r[:name].to_s =~ /\A(?:ENH\s+)?Left/i ? :left : :right
+          dh = door_hand(r[:defn], cache)
+          if dh.nil?
+            puts format('  %-6s %-22s door hand NOT MEASURED (no WR logo or no frame hinges in the part) - placed as authored',
+                        p[:id], r[:name]) unless inner?(p)
+          else
+            dxs = p[:poly].map { |q| q[0].to_f }
+            dys = p[:poly].map { |q| q[1].to_f }
+            drun_x = (dxs.max - dxs.min) >= (dys.max - dys.min)
+            dpx = (dxs.min + dxs.max) / 2.0
+            dpy = (dys.min + dys.max) / 2.0
+            if dh[:hinge] != want
+              mirror_run = if drun_x
+                             Geom::Transformation.new([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2 * dpx, 0, 0, 1])
+                           else
+                             Geom::Transformation.new([1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 2 * dpy, 0, 1])
+                           end
+              tr = mirror_run * tr
+              puts format('  %-6s %-22s door authored %s-hand (logo %s) under a %s name - MIRRORED along its run',
+                          p[:id], r[:name], dh[:hinge], dh[:reads] ? 'reads' : 'mirrored', want)
+              warn << "#{p[:id]} #{r[:name]}: logo reads mirrored even after the hand was fixed - check the part" if dh[:reads]
+            elsif !dh[:reads]
+              warn << "#{p[:id]} #{r[:name]}: hinges are on the #{want} as named, but the part's WR logo " \
+                      'reads MIRRORED - the file needs its logo fixed; the importer cannot fix both.'
+            end
           end
         end
 

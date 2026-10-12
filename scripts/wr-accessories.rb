@@ -148,12 +148,13 @@ module WR_Accessories
   # U02 "IEP BEAM 7'", U101 "IEP BEAM 8'", U01 "IEP BEAM 8.5'" — and the share's
   # files carry the same names, so code -> description -> file is the mapping.
   #
-  # The BOM's L figures (70 / 82 / 88, components-master.json) DO NOT DECIDE
-  # THE PART and are kept only as a reported figure. The files measure 82.0 /
-  # 94.0 / 100.0 (observed 6 Oct and 12 Oct 2026) — exactly the ceiling seal
-  # each series takes (STDSS CL7 / CL8 / 8.5CL), so a beam spans its seal end
-  # to end. A first cut of 1.83.0 matched the BOM length instead and put the
-  # 82 in IEP BEAM 7 on a 96120 E; that is the mistake the name rule fixes.
+  # The BOM's L figures (70 / 82 / 88, components-master.json) are the TRUE
+  # lengths (Benton, 12 Oct 2026: "IEP Beam 8 is 82" total, IEP Beam 8.5 is
+  # 88" total, IEP Beam 7 is 70" total"). The share's files measured 82 / 94 /
+  # 100 until he re-cut them that day, each one size long, which is why a
+  # first cut of 1.83.0, matching on length, put IEP BEAM 7 on a 96120 E. The
+  # NAME picks the part; the length is only a guard (wr-overlays
+  # place_iep_beams warns loudly when a file does not measure its L).
   #
   #   series => code, pack name (the BOM's), part file, BOM L, source
   #
