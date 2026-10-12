@@ -71,6 +71,14 @@
 #               intake boxes (wall-vented booths are refused by name); bass
 #               traps stand in the upper interior corners. Audimute (ac) is
 #               not built yet — booth-from-link refuses it by name.
+#   IEP BEAMS   1.83.0. Not a payload option: part of the booth's own bill of
+#               materials. One beam centred directly below each CEILING SEAM
+#               SEAL the deck pass placed (Benton, 12 Oct 2026), on Enhanced
+#               booths and on 84-series-and-bigger booths with rv = 1. Which
+#               part, how many and the rule are in wr-accessories.rb
+#               (iep_beam_plan); the part file is picked BY NAME (IEP BEAM
+#               7 / 8 / 8.5, Benton 12 Oct 2026) and never scaled; the pose
+#               is the IEP_BEAM_* constants below. See place_iep_beams.
 #
 # THE STEP (payload sp) BUILDS SINCE 1.45.0 — see place_step and the STEP_*
 # constants. It was refused by name from 1.9.x to 1.43.0 for want of two
@@ -98,6 +106,48 @@ module WR_Overlays
   # Studio lights' own tag. NOT in WR_Mode::LIGHT_TAGS on purpose: the fixtures
   # stay visible in every mode and scene (see place_studio_lights).
   STUDIO_LIGHT_TAG = 'WR Studio Lights'.freeze
+
+  # ------------------------------------------------------- IEP beam pose --
+  #
+  # CONFIRMED BY BENTON, 12 Oct 2026: on edge, 1.5 wide x 3 tall, top flush to
+  # the ceiling seam seal's underside. It is also what his own hand edit of
+  # People's Space's 96120 E did on 6 Oct (.forge/builder/
+  # HANDOFF-peoplesspace-accessories.md, Round 4: "stands on edge at 1.5 x 3",
+  # z 76.25-79.25 under STDSS CL8 seals whose undersides are at 79.25). Each
+  # figure is still a named constant so a later correction is one line.
+  #
+  # true  — on edge: the part's 3 in face is vertical and its 1.5 in face runs
+  #         across the seal. Benton's ruling.
+  # false — laid flat: 3 in across the seal, 1.5 in tall (the Round 3
+  #         placement, which Benton replaced).
+  IEP_BEAM_ON_EDGE = true
+
+  # The beam's TOP sits this far below the seal's measured UNDERSIDE. 0.0 is
+  # flush, Benton's ruling. Positive lowers the beam.
+  IEP_BEAM_TOP_GAP = 0.0
+
+  # Along the seal: the beam's centre sits this far from the seal's own centre,
+  # along the seal. 0.0 centres it (Benton, 12 Oct 2026: centre it along the
+  # seal). The part files measure the seal's own length (94.0 under a 94.0
+  # STDSS CL8), so a centred beam spans the seal end to end — and on an
+  # Enhanced booth that runs it into the IEP mid-wall seam seals at each end.
+  # That matches Benton's own hand placement, so it is REPORTED, never
+  # avoided by moving or shortening the beam.
+  IEP_BEAM_ALONG_OFFSET = 0.0
+
+  # Tolerance for the seal-length check (the seal placed must be the series
+  # the beam was chosen for) and for the cross-section check below.
+  IEP_BEAM_LEN_TOL = 0.05
+
+  # The cross-section the BOM gives all three beams (components-master.json,
+  # W 3 x T 1.5). Checked against the part, reported if it disagrees.
+  IEP_BEAM_TALL = 3.0
+  IEP_BEAM_THIN = 1.5
+
+  # Tolerance for the post-placement check: the beam must land centred under
+  # its seal and flush to it within 1/32 in, re-measured off the placed
+  # instance, or the build says so.
+  IEP_BEAM_CHECK_TOL = 1.0 / 32.0
 
   # Duct port centres, wall-local inches, measured off the delivered vent-wall
   # interior renders (portal assets/iso-render.js OV_DUCT_POS, re-measured four
@@ -1305,7 +1355,7 @@ module WR_Overlays
       begin
         placed += case k
                   when 'studio_light'
-                    place_studio_lights(model, booth, key, cfg, cache, deck, warns)
+                    place_studio_lights(model, booth, key, spec, cfg, cache, deck, warns)
                   when 'hepa'
                     place_hepa(model, booth, key, spec, cfg, cache, panels, t_opt, warns)
                   else
@@ -1314,6 +1364,23 @@ module WR_Overlays
                   end
       rescue StandardError => e
         warns << "#{label} NOT placed: raised #{e.class}: #{e.message}. Report this."
+        puts((e.backtrace || []).first(4).map { |l| "    #{l}" }.join("\n"))
+      end
+    end
+
+    # ---------------------------------------------------- IEP ceiling beams --
+    #
+    # After the roof unit and the accessories, before the caster plate, like
+    # them: the beams live in the booth group, so the one booth lift carries
+    # them up with everything else. FENCED the same way — a broken beam pass
+    # is missing beams, said by name, never a booth grounded on the wrong
+    # datum. Only a plan WITH a count reaches here; a booth that gets no beams
+    # was already told so by booth-from-link.
+    if ov['iep_beams'].is_a?(Hash) && ov['iep_beams'][:count]
+      begin
+        placed += place_iep_beams(model, booth, key, spec, cfg, cache, deck, t_opt, warns)
+      rescue StandardError => e
+        warns << "IEP BEAMS NOT placed: raised #{e.class}: #{e.message}. Report this."
         puts((e.backtrace || []).first(4).map { |l| "    #{l}" }.join("\n"))
       end
     end
@@ -1495,6 +1562,50 @@ module WR_Overlays
                                   Geom::Vector3d.new(0, 0, 1), (90 * k).degrees)
   end
 
+  # The usable plan rectangle of each STANDARD ceiling tile, for the studio
+  # lights: the tile's own placed box (deck['CL_tiles'], captured by
+  # build_booth), cut back to the room (the IEP interior on an Enhanced booth,
+  # the standard one otherwise, centred on the booth like every layout in
+  # wr-booth-data) and back off every ceiling seam seal it meets
+  # (deck['CL_seals']), so a fixture inside the rectangle can neither cross a
+  # seam nor meet the seal or the IEP beam hung under it. In tiling order.
+  def self.sl_tile_rects(deck, spec)
+    tiles = ((deck && deck['CL_tiles']) || []).select { |e| e.valid? rescue false }
+    enh = !spec[:eiw].nil?
+    iw = (enh ? spec[:eiw] : spec[:iw]).to_f
+    ih = (enh ? spec[:eih] : spec[:ih]).to_f
+    room = [spec[:w] / 2.0 - iw / 2.0, spec[:h] / 2.0 - ih / 2.0,
+            spec[:w] / 2.0 + iw / 2.0, spec[:h] / 2.0 + ih / 2.0]
+    seals = ((deck && deck['CL_seals']) || []).select { |e| e.valid? rescue false }.map(&:bounds)
+    rects = tiles.map do |t|
+      b = t.bounds
+      r = [[b.min.x.to_f, room[0]].max, [b.min.y.to_f, room[1]].max,
+           [b.max.x.to_f, room[2]].min, [b.max.y.to_f, room[3]].min]
+      seals.each do |sb|
+        along_x = (sb.max.x - sb.min.x) >= (sb.max.y - sb.min.y)
+        if along_x
+          next if sb.max.y.to_f <= r[1] || sb.min.y.to_f >= r[3]
+          mid = (r[1] + r[3]) / 2.0
+          if sb.min.y.to_f >= mid
+            r[3] = [r[3], sb.min.y.to_f].min
+          else
+            r[1] = [r[1], sb.max.y.to_f].max
+          end
+        else
+          next if sb.max.x.to_f <= r[0] || sb.min.x.to_f >= r[2]
+          mid = (r[0] + r[2]) / 2.0
+          if sb.min.x.to_f >= mid
+            r[2] = [r[2], sb.min.x.to_f].min
+          else
+            r[0] = [r[0], sb.max.x.to_f].max
+          end
+        end
+      end
+      r
+    end
+    rects.select { |r| r[2] > r[0] && r[3] > r[1] }.sort_by { |r| [r[0], r[1]] }
+  end
+
   # STUDIO LIGHTS (payload sl). The booth's blank Standard Light fixtures
   # (BoothLighting.skp, one per standard ceiling tile — build_booth's lighting
   # pass) come OUT and the packing list's studio lights go IN: SL29 / SL52, the
@@ -1502,7 +1613,7 @@ module WR_Overlays
   # to the standard ceiling tile's underside (the deck's measured CL bounds),
   # on the same WR Lights tag so the Draft/Render toggle still hides them.
   # Only the plan layout is assumed — see WR_Accessories::SL_EDGE_CLEAR.
-  def self.place_studio_lights(model, booth, key, cfg, cache, deck, warns)
+  def self.place_studio_lights(model, booth, key, spec, cfg, cache, deck, warns)
     plan = WR_Accessories.sl_plan(key)
     puts ''
     puts '  ---- studio lights (sl) ' + '-' * 52
@@ -1534,10 +1645,10 @@ module WR_Overlays
     end
     part_long = gx[:e][0] >= gx[:e][1] ? :x : :y
     len = [gx[:e][0], gx[:e][1]].max
-    lay = WR_Accessories.sl_layout(plan[:count], len,
-                                   [cl.min.x.to_f, cl.min.y.to_f, cl.max.x.to_f, cl.max.y.to_f])
+    rects = sl_tile_rects(deck, spec)
+    lay = WR_Accessories.sl_tile_layout(plan[:count], len, rects)
     if lay[:error]
-      warns << "STUDIO LIGHTS (sl) NOT placed: #{lay[:error]} — the booth keeps its " \
+      warns << "STUDIO LIGHTS (sl) NOT placed: #{lay[:error]} — the booth keeps its " +
                'Standard Light fixture(s)'
       return 0
     end
@@ -1564,23 +1675,262 @@ module WR_Overlays
     # WR Lights tag the Draft toggle and the scenes hid them with the rig.
     layer = model.layers[STUDIO_LIGHT_TAG] || model.layers.add(STUDIO_LIGHT_TAG)
     layer.visible = true
-    rot = part_long == lay[:orient] ? Geom::Transformation.new : quarter_turn(1)
-    sx, sy, sz = turned_span(gx, rot)
     z_top = cl.min.z.to_f
-    puts format('    %s measures %.2f x %.2f x %.2f; %s; top at the ceiling tile ' \
+    puts format('    %s measures %.2f x %.2f x %.2f; %s; top at the ceiling tile ' +
                 'underside z %.2f', plan[:part], gx[:e][0], gx[:e][1], gx[:e][2],
                 lay[:how], z_top)
     puts "    removed #{olds.length} Standard Light fixture(s)"
     n = 0
-    lay[:centres].each_with_index do |(cx, cy), i|
+    lay[:lights].each_with_index do |lt, i|
+      cx, cy = lt[:centre]
+      # The fixture's LENGTH onto the tile's long axis — turned per light,
+      # since two tiles need not run the same way (they do on every deck
+      # today; a single-tile deck is the one case that decides it alone).
+      rot = part_long == lt[:orient] ? Geom::Transformation.new : quarter_turn(1)
+      sx, sy, sz = turned_span(gx, rot)
       tr = Geom::Transformation.translation(
         Geom::Vector3d.new(cx - (sx[0] + sx[1]) / 2.0, cy - (sy[0] + sy[1]) / 2.0,
                            z_top - sz[1])) * rot
       at = add(booth, sd, tr, "Studio Light #{plan[:part]} (#{i + 1} of #{plan[:count]})", layer)
-      puts "    #{at}"
+      puts "    #{at}  tile #{lt[:tile] + 1}, length on #{lt[:orient]}"
       n += 1
+      # Inside its tile, re-measured: a fixture that pokes past the tile's
+      # usable rectangle reaches a seam seal (or an IEP beam under it).
+      r = rects[lt[:tile]]
+      lx0 = cx - (sx[1] - sx[0]) / 2.0
+      lx1 = cx + (sx[1] - sx[0]) / 2.0
+      ly0 = cy - (sy[1] - sy[0]) / 2.0
+      ly1 = cy + (sy[1] - sy[0]) / 2.0
+      if lx0 < r[0] - 0.01 || lx1 > r[2] + 0.01 || ly0 < r[1] - 0.01 || ly1 > r[3] + 0.01
+        warns << format('STUDIO LIGHT %d overhangs its ceiling tile (fixture %.2f..%.2f x ' +
+                        '%.2f..%.2f, tile %.2f..%.2f x %.2f..%.2f) — it will meet the seam ' +
+                        'seal or beam. Check it.', i + 1, lx0, lx1, ly0, ly1, *r)
+      end
     end
     n
+  end
+
+  # IEP CEILING BEAMS (1.83.0). One beam centred directly below each ceiling
+  # seam seal (Benton, 12 Oct 2026). The plan — whether this booth gets any,
+  # which BOM part, which file, how many — was decided by booth-from-link from
+  # WR_Accessories.iep_beam_plan and handed over as ov['iep_beams']; this is
+  # only the SketchUp half, and it follows place_booth_lighting's precedent
+  # ("one light under each ceiling tile"): find the parts the deck pass
+  # ACTUALLY placed, measure them, hang one thing under each.
+  #
+  # THE SEALS ARE MEASURED, NOT TABULATED. deck['CL_seals'] is the list of
+  # STDSS CL* instances WR_Deck.seals put in this booth group, captured by
+  # build_booth. Each one's plan centre, length, long axis and underside are
+  # read off its own faces (geom_extents through its placed transform), so a
+  # change to the deck tiling moves the beams with it and no model is
+  # hard-coded here.
+  #
+  # TWO CROSS-CHECKS, AND EITHER FAILING PLACES NOTHING. The BOM count must
+  # equal the number of seals placed, and every seal must measure the length
+  # the beam's series hangs under (series - 2). A disagreement means the BOM
+  # and the deck describe different ceilings, and choosing between them is
+  # not this method's call: it is named in the build summary and left for a
+  # person. (MDL 10284 is the known case: the BOM ships 2 x STD10242CL SIDE
+  # and ONE STDSS FLCL8.5, the deck pass tiles it 8442 + 8418 + 8442 with two
+  # CL7 seals.)
+  #
+  # THE PART IS PICKED BY NAME (Benton, 12 Oct 2026) — plan[:file], the
+  # file the BOM description names: IEP BEAM 7 / 8 / 8.5. Never scaled. A
+  # file that is not on the share is refused by name.
+  #
+  # CLASHES ARE REPORTED, NOT AVOIDED. The 94.0 beam spans its 94.0 seal end
+  # to end, so on an Enhanced booth it reaches past the IEP interior face into
+  # the IEP mid-wall seam seals — exactly what Benton's own hand placement on
+  # People's Space did. Every part the placed beam's faces run into is named
+  # in the summary, and the beam stays where the rule put it. A LIGHT in that
+  # list is a real fault (a fixture crossing the seam), and is said so.
+  def self.place_iep_beams(model, booth, key, spec, cfg, cache, deck, layer, warns)
+    ov = cfg['overlay'] || {}
+    plan = ov['iep_beams']
+    label = "#{plan[:file]} seam"
+    puts ''
+    puts '  ---- IEP ceiling beams ' + '-' * 53
+    puts format('    %d x %s (%s) = %s.skp, one centred under each ceiling seam seal',
+                plan[:count], plan[:pack], plan[:code], plan[:file])
+    puts "    why: #{plan[:why]}.  count from: #{plan[:source]}"
+    puts '    pose: on edge (1.5 wide x 3 tall), top flush with the seal underside, ' \
+         'centred both ways - Benton, 12 Oct 2026' if
+      IEP_BEAM_ON_EDGE && IEP_BEAM_TOP_GAP.zero? && IEP_BEAM_ALONG_OFFSET.zero?
+    return 0 if cfg['dry']
+
+    seals = ((deck && deck['CL_seals']) || []).select do |e|
+      e.is_a?(Sketchup::ComponentInstance) && e.valid?
+    end
+    if seals.length != plan[:count]
+      msg = "IEP BEAMS NOT placed: the BOM gives #{key} #{plan[:count]} x #{plan[:code]}, " \
+            "but the deck pass placed #{seals.length} ceiling seam seal(s). One beam per " \
+            'seal is the rule, so the two must agree, and nothing was guessed. The ' \
+            "ceiling this tool builds for #{key} does not match the production BOM."
+      # The one KNOWN case, named so nobody reads it as a beam problem: the
+      # importer builds MDL 10284's ceiling as the 84102's (an 84 cross, two
+      # CL7 seals); the BOM's is a 102 cross, 2 x STD10242CL SIDE and ONE
+      # STDSS FLCL8.5. Fix the deck and this beam places by the same rule.
+      if WR_Accessories.digits(key) == '10284'
+        msg += ' KNOWN IMPORTER BUG: the MDL 10284 ceiling is built 84-cross ' \
+               '(8442 + 8418 + 8442, two CL7 seals); the BOM ships a 102-cross ceiling ' \
+               '(2 x STD10242CL SIDE, one STDSS 8.5CL). Its 1 x IEP BEAM 8.5 is withheld ' \
+               'until the deck is fixed.'
+      end
+      warns << msg
+      puts "    #{msg}"
+      return 0
+    end
+
+    rows = seals.map do |s|
+      sg = geom_extents(s.definition)
+      next nil if sg.nil?
+      sx, sy, sz = turned_span(sg, s.transformation)
+      along_x = (sx[1] - sx[0]) >= (sy[1] - sy[0])
+      { :inst => s, :along_x => along_x,
+        :len => along_x ? sx[1] - sx[0] : sy[1] - sy[0],
+        :cx => (sx[0] + sx[1]) / 2.0, :cy => (sy[0] + sy[1]) / 2.0,
+        :under => sz[0] }
+    end
+    if rows.include?(nil)
+      msg = 'IEP BEAMS NOT placed: a ceiling seam seal holds no measurable faces'
+      warns << msg
+      puts "    #{msg}"
+      return 0
+    end
+    off = rows.reject { |r| (r[:len] - plan[:seal_len]).abs <= IEP_BEAM_LEN_TOL }
+    unless off.empty?
+      msg = format('IEP BEAMS NOT placed: a %s-series beam (%s) hangs under a %.1f in ' \
+                   'ceiling seal, but the seal(s) placed measure %s. The deck was ' \
+                   'tiled at a different cross from the BOM\'s, and which is right is ' \
+                   'not this tool\'s call.', plan[:series], plan[:code], plan[:seal_len],
+                   off.map { |r| format('%.3f (%s)', r[:len], r[:inst].definition.name) }.uniq.join(', '))
+      warns << msg
+      puts "    #{msg}"
+      return 0
+    end
+
+    defn = WR_BuildBoothComponents.load_def(model, cfg['dir'], plan[:file], cache)
+    gx = defn ? geom_extents(defn) : nil
+    if gx.nil?
+      msg = "IEP BEAMS NOT placed: #{plan[:file]}.skp (#{plan[:code]}) is " +
+            (defn ? 'on the share but holds no measurable faces' : "not in #{cfg['dir']}") +
+            ". #{plan[:count]} beam(s) wanted. Nothing was substituted or scaled."
+      warns << msg
+      puts "    #{msg}"
+      return 0
+    end
+    e = gx[:e]
+    li = (0..2).max_by { |i| e[i] }
+    tall_i, thin_i = ([0, 1, 2] - [li]).sort_by { |i| -e[i] }
+    puts format('    %s.skp measures %.3f long x %.3f x %.3f; the ceiling seal(s) measure %.3f',
+                plan[:file], e[li], e[tall_i], e[thin_i], rows.first[:len])
+    if (e[tall_i] - IEP_BEAM_TALL).abs > IEP_BEAM_LEN_TOL ||
+       (e[thin_i] - IEP_BEAM_THIN).abs > IEP_BEAM_LEN_TOL
+      warns << format('IEP BEAM %s.skp: cross-section measures %.3f x %.3f, the BOM says ' \
+                      '%.1f x %.1f — placed by its measured box; check the part.',
+                      plan[:file], e[tall_i], e[thin_i], IEP_BEAM_TALL, IEP_BEAM_THIN)
+    end
+    # On edge: the 3 in face vertical. Flat: the 1.5 in face vertical.
+    up_i, across_i = IEP_BEAM_ON_EDGE ? [tall_i, thin_i] : [thin_i, tall_i]
+    enh = !spec[:eiw].nil?
+    light_tags = [WR_BuildBoothComponents::LIGHT_TAG, STUDIO_LIGHT_TAG]
+
+    n = 0
+    rows.sort_by { |r| r[:along_x] ? r[:cy] : r[:cx] }.each_with_index do |r, i|
+      a = r[:along_x] ? Geom::Vector3d.new(1, 0, 0) : Geom::Vector3d.new(0, 1, 0)
+      c = r[:along_x] ? Geom::Vector3d.new(0, 1, 0) : Geom::Vector3d.new(1, 0, 0)
+      img = []
+      img[li] = a
+      img[up_i] = Geom::Vector3d.new(0, 0, 1)
+      img[across_i] = c
+      # Right-handed or nothing: a reflection would mirror the part. The beam
+      # is symmetric across its thickness, so reversing that one axis is free.
+      if (img[0] * img[1]) % img[2] < 0
+        img[across_i] = c.reverse
+      end
+      rot = Geom::Transformation.axes(Geom::Point3d.new(0, 0, 0), img[0], img[1], img[2])
+      bx, by, bz = turned_span(gx, rot)
+      tx = r[:cx] + (r[:along_x] ? IEP_BEAM_ALONG_OFFSET : 0.0)
+      ty = r[:cy] + (r[:along_x] ? 0.0 : IEP_BEAM_ALONG_OFFSET)
+      tz = r[:under] - IEP_BEAM_TOP_GAP
+      tr = Geom::Transformation.translation(
+        Geom::Vector3d.new(tx - (bx[0] + bx[1]) / 2.0, ty - (by[0] + by[1]) / 2.0,
+                           tz - bz[1])) * rot
+      # Not add(): it returns only the bounds text, and the checks below need
+      # the instance itself. Same three steps, same name and tag discipline.
+      inst = booth.entities.add_instance(defn, tr)
+      inst.name = "#{label} #{i + 1}"
+      inst.layer = layer if layer
+      n += 1
+      ib = inst.bounds
+      at = format('%7.2f %7.2f %7.2f to %7.2f %7.2f %7.2f', ib.min.x.to_f, ib.min.y.to_f,
+                  ib.min.z.to_f, ib.max.x.to_f, ib.max.y.to_f, ib.max.z.to_f)
+
+      # RE-MEASURED off the placed instance, not trusted from the arithmetic.
+      px, py, pz = turned_span(gx, inst.transformation)
+      d_across = r[:along_x] ? (py[0] + py[1]) / 2.0 - r[:cy] : (px[0] + px[1]) / 2.0 - r[:cx]
+      d_along  = r[:along_x] ? (px[0] + px[1]) / 2.0 - tx : (py[0] + py[1]) / 2.0 - ty
+      d_top    = pz[1] - tz
+      puts format('    %-18s %s  under %s at %s %.3f, top %.3f', "#{label} #{i + 1}", at,
+                  r[:inst].definition.name, r[:along_x] ? 'y' : 'x',
+                  r[:along_x] ? r[:cy] : r[:cx], pz[1])
+      if [d_across, d_along, d_top].any? { |v| v.abs > IEP_BEAM_CHECK_TOL }
+        warns << format('IEP BEAM seam %d landed off its seal by %.4f across, %.4f along, ' \
+                        '%.4f at the top (tolerance 1/32) — check it.', i + 1, d_across,
+                        d_along, d_top)
+      end
+
+      # What the beam's own box is run into, FACE by face (a part's bounding
+      # box over-reports: the ceiling tiles' boxes reach under the seam but
+      # their faces do not). The seal above only touches, so the box is
+      # shrunk by IEP_BEAM_CHECK_TOL before the test.
+      hits = iep_beam_clashes(booth, inst, [px, py, pz])
+      lights = hits.select { |h| light_tags.include?(h[:tag]) }
+      others = hits - lights
+      unless others.empty?
+        txt = others.map { |h| h[:name] }.uniq.join(', ')
+        puts "      runs into: #{txt} (reported; placed as the rule puts it)"
+        warns << "IEP BEAM seam #{i + 1} runs into #{txt}. REPORTED, not moved: the beam " \
+                 'spans its seal end to end, as Benton\'s own hand placement does' +
+                 (enh ? ' (on an Enhanced booth that reaches the IEP mid-wall seam seals).' : '.')
+      end
+      unless lights.empty?
+        txt = lights.map { |h| h[:name] }.uniq.join(', ')
+        puts "      LIGHT CLASH: #{txt}"
+        warns << "IEP BEAM seam #{i + 1} CLASHES with light fixture(s) #{txt} - a fixture " \
+                 'crosses the ceiling seam. Fix the light layout before rendering.'
+      end
+    end
+    n
+  end
+
+  # Every instance in the booth (other than the beam) with a face reaching
+  # INSIDE the beam's box, shrunk by IEP_BEAM_CHECK_TOL so a face that only
+  # touches it is not a clash. Face boxes, one per face: a large diagonal face
+  # can still over-report, never under-report. Returns [{ :name, :tag }].
+  def self.iep_beam_clashes(booth, beam, span)
+    t = IEP_BEAM_CHECK_TOL
+    lo = [span[0][0] + t, span[1][0] + t, span[2][0] + t]
+    hi = [span[0][1] - t, span[1][1] - t, span[2][1] - t]
+    out = []
+    booth.entities.each do |o|
+      next if o == beam
+      next unless o.is_a?(Sketchup::ComponentInstance) || o.is_a?(Sketchup::Group)
+      ob = o.bounds
+      next if ob.max.x.to_f < lo[0] || ob.min.x.to_f > hi[0] ||
+              ob.max.y.to_f < lo[1] || ob.min.y.to_f > hi[1] ||
+              ob.max.z.to_f < lo[2] || ob.min.z.to_f > hi[2]
+      ents = o.respond_to?(:definition) ? o.definition.entities : o.entities
+      boxes = []
+      WR_BuildBoothComponents.collect_faces(ents, o.transformation, boxes)
+      hit = boxes.any? do |b|
+        (0..2).all? { |k| b[k][1] > lo[k] && b[k][0] < hi[k] }
+      end
+      next unless hit
+      nm = o.respond_to?(:definition) ? o.definition.name : o.name
+      out << { :name => o.name.to_s.empty? ? nm : "#{o.name} [#{nm}]", :tag => o.layer.name }
+    end
+    out
   end
 
   # HEPA (payload hp). One per vent set, on each INTAKE duct box, butted to
@@ -1702,6 +2052,41 @@ module WR_Overlays
     zs.min
   end
 
+  # The RIGHT-ANGLE corner of a triangular-prism part, in its own plan
+  # coordinates, MEASURED: of the four corners of its plan box, a right
+  # triangle with its legs on the box edges occupies exactly three (the right
+  # angle and the two hypotenuse ends) and leaves one empty; the right angle
+  # is the corner diagonally opposite the empty one. Bass Trap.skp reads
+  # (0, 12): People's Space Round 4 found the same by hand.
+  # Returns [[x, y], how] or [nil, why].
+  def self.trap_right_angle(defn, gx)
+    pts = []
+    walk = lambda do |ents, tr, depth|
+      next if depth > 6
+      ents.each do |e|
+        if e.is_a?(Sketchup::Face)
+          e.vertices.each { |v| pts << v.position.transform(tr) }
+        elsif e.is_a?(Sketchup::ComponentInstance)
+          walk.call(e.definition.entities, tr * e.transformation, depth + 1)
+        elsif e.is_a?(Sketchup::Group)
+          walk.call(e.entities, tr * e.transformation, depth + 1)
+        end
+      end
+    end
+    walk.call(defn.entities, Geom::Transformation.new, 0)
+    tol = 0.05
+    corners = [[gx[:lo][0], gx[:lo][1]], [gx[:hi][0], gx[:lo][1]],
+               [gx[:hi][0], gx[:hi][1]], [gx[:lo][0], gx[:hi][1]]]
+    empty = corners.each_index.reject do |i|
+      pts.any? { |q| (q.x.to_f - corners[i][0]).abs < tol && (q.y.to_f - corners[i][1]).abs < tol }
+    end
+    unless empty.length == 1
+      return [nil, "Bass Trap.skp's plan box has #{4 - empty.length} occupied corner(s), " \
+                   'not the 3 a right-triangle prism has']
+    end
+    [corners[(empty[0] + 2) % 4], 'opposite the empty corner of its plan box']
+  end
+
   # BASS TRAPS (payload bt). 2 per pack; packs from the link's package (see
   # WR_Accessories.bass_trap_plan — the link carries no quantity). Standing
   # in the upper interior corners, back corners first, the part's top against
@@ -1772,19 +2157,32 @@ module WR_Overlays
                       '%.2f x %.2f in plan). Placed as authored — they may be lying down.',
                       h, gx[:e][0], gx[:e][1])
     end
+    ra, ra_why = trap_right_angle(bd, gx)
+    if ra.nil?
+      warns << "BASS TRAPS (bt) NOT placed: #{ra_why} - without the right-angle corner " \
+               'there is no telling which way a trap faces'
+      return 0
+    end
+    puts format('    right angle measured at part plan (%.2f, %.2f) - %s', ra[0], ra[1], ra_why)
     n = 0
     slots.each_with_index do |(corner, tier), i|
       ns, ew = WR_Accessories::BT_CORNERS[corner]
       fy, ry = faces[ns]
       fx, rx = faces[ew]
-      # Turn the part so its own low-x/low-y corner goes INTO the room corner
-      # (ASSUMED to be the trap's back corner).
+      # Turn the part so its RIGHT-ANGLE corner goes INTO the room corner, so
+      # both legs lie flat on the two walls and the hypotenuse faces the room.
+      # The corner is MEASURED (trap_right_angle). Until 1.83.0 this put the
+      # part's low-x/low-y corner there on an assumption, and in Bass Trap.skp
+      # that corner is a hypotenuse end: every trap stood a quarter turn out
+      # (People's Space Round 4; Benton, 12 Oct 2026: "all need to be rotated
+      # like -90 degrees"). Measuring it means a re-authored part is still
+      # seated right, with no turn hard-coded per corner.
       rot = nil
       span = nil
       4.times do |k|
         r = quarter_turn(k)
         s = turned_span(gx, r)
-        q = Geom::Point3d.new(gx[:lo][0], gx[:lo][1], gx[:lo][2]).transform(r)
+        q = Geom::Point3d.new(ra[0], ra[1], gx[:lo][2]).transform(r)
         wx = rx > 0 ? s[0][0] : s[0][1]
         wy = ry > 0 ? s[1][0] : s[1][1]
         next unless (q.x.to_f - wx).abs < 1e-3 && (q.y.to_f - wy).abs < 1e-3

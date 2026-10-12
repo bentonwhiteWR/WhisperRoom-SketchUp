@@ -1,5 +1,90 @@
 # DEVLOG
 
+## 2026-10-12 -- 1.83.0: booth-from-link places IEP ceiling beams; bass traps and studio lights re-oriented
+
+**What changed (scripts/wr-accessories.rb, wr-overlays.rb, build-booth-components.rb, booth-from-link.rb).**
+- **IEP ceiling beams, automatic.** One beam centred directly below each ceiling seam seal (Benton, 12 Oct), on
+  84-series-and-bigger booths that are Enhanced or have `rv = 1` (rv alone means RM).
+  No link flag; it follows from what the booth is. Table and sources: `WR_Accessories.iep_beam_plan`.
+  - Counts: `base-bom.json` E rows (9696 1, 96120 2, 96144 2, 96168 3, 96192 3, 10284 1, 102102 2, 102126 2,
+    102144 3, 102168 3, 102186 4). Every one equals the model's D101/D12 seal-pack count. RM Standard booths
+    take the same count, from `packing-list.js`'s RM rule ("one U101 per D101 / one U01 per D12").
+  - 84 series (Benton, 12 Oct): Enhanced 84s get beams, RM or not, and so do RM Standard 84s. The BOM is
+    silent (no 84 model carries a U-code). The count is the D11 seal-pack quantity (8484 1, 84102 2, 84126 2):
+    one per ceiling seam seal. **72-series and smaller get none, Enhanced or RM.** That is an explicit rule.
+  - Series = the model number's FIRST figure (Benton): 10284 -> 102 -> IEP BEAM 8.5, 84102 -> 84 -> IEP BEAM 7.
+  - Part file by NAME (Benton's correction, 12 Oct): U101 -> `IEP BEAM 8.skp` (94.0 long), U01 ->
+    `IEP BEAM 8.5.skp` (100.0), U02 -> `IEP BEAM 7.skp` (82.0). Each one is the length of its series'
+    ceiling seal, so a beam spans the seal end to end. The BOM's L figures (70/82/88) do not pick the part.
+  - Pose confirmed by Benton (12 Oct): on edge, 1.5 wide x 3 tall, top flush to the seal underside, centred.
+    These are the `IEP_BEAM_*` constants in wr-overlays.rb. Tag `WR-Booth-Options`, names `IEP BEAM 8 seam 1..n`.
+  - Two cross-checks refuse by name: the BOM count must equal the CL seals placed, and the seals must be the
+    series' length.
+  - **IMPORTER BUG, MDL 10284 ceiling (not fixed here):** the 10284's ceiling is built wrong, so the build
+    withholds its 1 x IEP BEAM 8.5 and says so loudly.
+    - The BOM ceiling is A21 STD10242CL SIDE x2 + D12 STDSS FLCL8.5 x1: a 102 cross, tiled 42 + 42 along the
+      84 in side, with one 100 in seal.
+    - The deck pass (replay-iep-deck.py, from the wr-booth-data 86 x 104 layout) builds STD8442CL SIDE +
+      8418 CTR + 8442 SIDE. That is an 84 cross tiled along the 102 side, with two 82 in CL7 seals: the
+      84102's ceiling.
+  - Clashes are reported, not avoided. On an Enhanced 96 the 94 beam reaches 2.25 into the ENH mid-wall seam
+    seals at the ends, the same as Benton's hand placement. Any light fixture a beam meets is flagged.
+- **Bass traps:** the right-angle corner is now MEASURED (`trap_right_angle`: the plan-box corner opposite
+  the one the triangle leaves empty; Bass Trap.skp reads (0, 12)). That corner goes into the room corner, so
+  both legs sit on the walls. Before this the part's (0,0), a hypotenuse end, went in: "rotated like -90".
+- **Studio lights:** `sl_tile_layout` replaces `sl_layout`. Each fixture lies longwise on ONE standard
+  ceiling tile, parallel to the seam seals, never across a seam. Every fitting tile takes one, widest first,
+  before any doubles up. The tile rectangle is cut back to the room and off the seals (`sl_tile_rects`), and a
+  fixture overhanging its tile is warned. Lights stay on `WR Studio Lights`.
+- `build_booth` now hands the CL seal and CL tile instances to the overlays (`host['CL_seals']`, `['CL_tiles']`).
+
+**Verified.**
+- `rbparse.py`: 82 files parse.
+- `rbtest-accessories.py`: all PASS, 0 FAIL. That covers the beam-plan cases (including 10284 E, 84102 E,
+  8484 E, 4872 E, 7272 E, 7296 S+RM, first-figure series) and the tile layout. A new drift check compares the
+  beam table with base-bom.json, components-master.json and the RM rule text.
+- `rbtest-overlays.py`: PASS.
+
+**Live check (SketchUp 2026, Benton's Untitled window, not saved): 96120 E** built from a link payload, then
+the beams re-placed after the name fix as 2 x IEP BEAM 8.
+- Measured twice with SketchUp's own bounds (13:09 and 13:15): d_across 0.000, d_along 0.000, top 79.250
+  against the seal underside at 79.250.
+- Span y 2.0-96.0, exactly under the STDSS CL8s at x 49 and 73.
+- Face-level clashes: only the ENH mid-wall seam seals at the beam ends.
+- That booth was built with sl = 0 and bt = 0, so it has no traps and no studio lights to check. Its three
+  standard BoothLighting fixtures each sit inside one tile. The centre one (x 49.8-72.2) clears both beams
+  by 0.05 in.
+- Screenshots: bridge `art/ps96120E-up.png` and `ps96120E-xray.png`.
+
+**NOT verified live:**
+- 102144 E, any RM booth, an 84 E, and the no-beam booths in a real build;
+- the bass-trap and studio-light changes.
+
+Pure tests cover these, nothing more. Why the live checks stopped:
+- SketchUp 2026 here keeps several models in one window: `active_model` follows the document Benton has in
+  front. `Sketchup.file_new` under the bridge did not produce a separate scratch model on the second and
+  third tries, and building in his window was out of bounds.
+- SketchUp 2024 can't load the share's parts. They are a newer format, and every part reads as "not in" the
+  folder.
+
+**Gotchas.**
+- **SketchUp 2026 holds several documents in one window.** `Sketchup.active_model` follows whichever one
+  Benton has in front, so a job sent a minute later can land in `Master Component List AM.skp`. Guard every
+  live job on path and contents before it touches anything.
+- An upward ray started 0.0005 above a face is already inside the seal. To check flush, use the seal's faces.
+- The Bash tool removes backslash-newline even inside a quoted heredoc. Python splices of Ruby `\`
+  continuations came out joined (still valid Ruby, but ugly). Fix them with Edit.
+
+**Next steps.**
+1. In a fresh model (File > New by hand, then the bridge), live-build these, then ray-check that the trap
+   legs touch the walls and the lights sit inside one tile:
+   - 102144 E;
+   - 96120 S rv=1;
+   - 8484 E or 84102 E;
+   - 4872 E and 96120 S (both should get no beams);
+   - a drum booth (sl + bt).
+2. Fix the MDL 10284 ceiling (the importer bug above). Its beam is then placed by the existing rule.
+
 ## 2026-10-09 -- session close: Drop in the lights defaults to 30% (1.82.0), MW stamp Rev B (other repo)
 
 **State at sign-off.**

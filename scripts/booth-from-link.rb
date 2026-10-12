@@ -61,6 +61,15 @@
 # booth, whose intake box has never been measured. MDL 127 LP is excluded
 # from all of them, by name.
 #
+# IEP CEILING BEAMS BUILD SINCE 1.83.0, with no link flag: the beam is in the
+# booth's own bill of materials. One is centred directly below each ceiling
+# seam seal (Benton, 12 Oct 2026) on an Enhanced booth whose BOM carries one
+# (the 96 and 102 series), and on an 84-series-or-bigger booth with rv = 1.
+# WR_Accessories.iep_beam_plan holds the table and every source; wr-overlays
+# place_iep_beams measures the placed seals and hangs the part file the BOM
+# description NAMES (IEP BEAM 7 / 8 / 8.5, Benton 12 Oct 2026). A file absent
+# from the share is named in the build summary; nothing is ever scaled.
+#
 # What still does NOT build, each named LOUDLY below rather than dropped:
 # the Audimute package (ac — laid out on the interior walls by the
 # whisperroom-acoustic-package skill, not by the importer), and the ROOF UNIT of
@@ -1109,6 +1118,13 @@ module WR_BoothLink
     acc_sl = payload['sl'].to_i == 1 && sl_plan[:error].nil?
     acc_hp = payload['hp'].to_i == 1 && !lp
     acc_bt = payload['bt'].to_i == 1 && !lp
+    # ---- the IEP ceiling beams (1.83.0): decided HERE, placed by wr-overlays
+    #
+    # NOT a link flag. The beam is in the booth's own bill of materials, so it
+    # follows from what the booth IS: Enhanced, or roof-mounted (rv = 1, and
+    # rv alone — see the header) on an 84-series-or-bigger booth. Count, part
+    # and every source are WR_Accessories.iep_beam_plan's; this only asks.
+    beam_plan = WR_Accessories.iep_beam_plan(key, enh, roof)
     overlay = {
       'foam_color'    => payload['f'].to_s,                 # report-only downstream
       'desk'          => payload['dk'].to_i == 1,
@@ -1136,7 +1152,10 @@ module WR_BoothLink
       'studio_light'  => acc_sl,
       'hepa'          => acc_hp,
       'bass_traps'    => acc_bt,
-      'package'       => payload['pk'].to_s
+      'package'       => payload['pk'].to_s,
+      # The IEP beam plan, whole, or nil when this booth gets none (the
+      # reason is printed below either way).
+      'iep_beams'     => beam_plan[:count] ? beam_plan : nil
     }
     built_opts = { 'desk' => 'desk', 'mjp' => 'MJP jack panel',
                    'efp' => 'elevated floor',
@@ -1152,6 +1171,19 @@ module WR_BoothLink
                    end
                  }.select { |k, _| overlay[k] && (k != 'hepa' || overlay['roof_vent']) }.values
     puts "  option parts to build:#{built_opts.join(', ')}" unless built_opts.empty?
+    if beam_plan[:count]
+      puts format('  IEP ceiling beams: %d x %s (%s), one centred under each ceiling seam ' \
+                  'seal — %s.', beam_plan[:count], beam_plan[:pack], beam_plan[:code],
+                  beam_plan[:why])
+      puts "    count from #{beam_plan[:source]}"
+      puts "    part file: #{beam_plan[:file]}.skp (picked by name, never scaled)."
+    elsif beam_plan[:note]
+      # Benton's rule and the BOM disagree for this booth. Said on its own
+      # line, because "no beams" here is a decision someone may want to undo.
+      puts "  IEP ceiling beams: NONE — #{beam_plan[:none]}"
+    else
+      puts "  IEP ceiling beams: none (#{beam_plan[:none]})."
+    end
     refused = []
     # sp (the step) BUILDS since 1.45.0 - wr-overlays place_step, which refuses
     # by name on its own when there is no plate or the door carries the ramp.

@@ -2,6 +2,12 @@
 # studio lights (sl), HEPA filters (hp) and bass traps (bt). Which part, how
 # many, and the plan for where each goes.
 #
+# SINCE 1.83.0 IT ALSO HOLDS THE IEP CEILING BEAM TABLE (iep_beam_plan). The
+# beam is not a quote accessory — it is in the booth's own bill of materials —
+# but it is the same kind of thing for this file: a part, a count copied from
+# the quote repo's data, and a rule, with the placing done in wr-overlays.rb
+# (place_iep_beams).
+#
 # NOT A COMMAND. A library, `load`ed by booth-from-link.rb (to print the plan
 # before the build) and build-booth-components.rb (for wr-overlays, which does
 # the placing), and in wr_tools' SKIP so it never appears in the panel.
@@ -57,14 +63,17 @@ module WR_Accessories
   # Used only to report; placement measures the loaded .skp.
   SL_NOMINAL = { 'SL29' => 29.0, 'SL52' => 52.0 }.freeze
 
-  # Plan layout of the fixtures under the ceiling. ASSUMED, not sourced — no
-  # drawing or rule was found for where studio lights hang, so this is the
-  # simplest even rule: centres spaced evenly along the ceiling's LONG axis at
-  # (i + 0.5) / n, centred on the short axis, each fixture laid ACROSS the
-  # booth when it clears the ceiling edge by SL_EDGE_CLEAR on both sides, and
-  # along it otherwise (a 52 in fixture cannot lie across a 48 in booth).
+  # Plan layout of the fixtures under the ceiling: LONGWISE ON A CEILING TILE
+  # (Benton, 12 Oct 2026: "They should be rotated 90 so they are longwise on
+  # the ceiling component. Not crossing from ceiling piece to ceiling piece").
+  # Each fixture's length runs along its tile's long side — which on every
+  # multi-tile deck is the seam direction, parallel to the ceiling seam seals
+  # (tile widths 18-48 against crosses 60-102) — and it sits inside one tile,
+  # never across a seam. The widest tiles take a fixture first, one each; a
+  # count beyond the tiles that fit doubles up, spaced evenly across the tile.
+  # Which tiles, and where across the tile, is still ASSUMED (no drawing).
+  # SL_EDGE_CLEAR is the room a fixture must leave at each end of its tile.
   SL_EDGE_CLEAR = 6.0
-  SL_GAP        = 2.0
 
   # ---------------------------------------------------------------- HEPA --
   #
@@ -120,6 +129,92 @@ module WR_Accessories
   BT_CORNERS = {
     'NW' => %w[N W], 'NE' => %w[N E], 'SW' => %w[S W], 'SE' => %w[S E]
   }.freeze
+
+  # ------------------------------------------------------------- IEP beams --
+  #
+  # ONE IEP BEAM CENTRED DIRECTLY BELOW EACH CEILING SEAM SEAL (Benton, 12 Oct
+  # 2026). Fitted on Enhanced booths, and on 84-series-and-bigger booths with
+  # roof-mounted ventilation — and in the importer "roof-mounted" is rv = 1
+  # and NOTHING else (booth-from-link.rb's header says why CBL packs are not
+  # evidence of it).
+  #
+  # Unlike the other accessories this is NOT a quote line. The beam is part of
+  # the booth's own bill of materials, so the importer places it whenever the
+  # booth carries one — no link flag turns it on or off.
+  #
+  # THE THREE PARTS, AND THE FILE EACH ONE IS. The PART FILE is chosen BY NAME
+  # (Benton, 12 Oct 2026: "You pulled the IEP Beam 7 for this one. It should
+  # have been IEP Beam 8."). The BOM descriptions name the size in feet —
+  # U02 "IEP BEAM 7'", U101 "IEP BEAM 8'", U01 "IEP BEAM 8.5'" — and the share's
+  # files carry the same names, so code -> description -> file is the mapping.
+  #
+  # The BOM's L figures (70 / 82 / 88, components-master.json) DO NOT DECIDE
+  # THE PART and are kept only as a reported figure. The files measure 82.0 /
+  # 94.0 / 100.0 (observed 6 Oct and 12 Oct 2026) — exactly the ceiling seal
+  # each series takes (STDSS CL7 / CL8 / 8.5CL), so a beam spans its seal end
+  # to end. A first cut of 1.83.0 matched the BOM length instead and put the
+  # 82 in IEP BEAM 7 on a 96120 E; that is the mistake the name rule fixes.
+  #
+  #   series => code, pack name (the BOM's), part file, BOM L, source
+  #
+  # '84' -> U02: Benton put beams on Enhanced 84s (12 Oct 2026, see
+  # IEP_BEAMS_84). U02 is in the master but NO model in base-bom.json carries
+  # it; the 7 ft beam is the one that fits under the 84-series seal (STDSS
+  # CL7, 82 long), as 8 ft fits the 96 and 8.5 ft the 102.
+  IEP_BEAM_SERIES = {
+    '96'  => { :code => 'U101', :pack => 'IEP BEAM 8 (82")',   :file => 'IEP BEAM 8',
+               :length => 82.0, :src  => 'components-master.json U101' },
+    '102' => { :code => 'U01',  :pack => 'IEP BEAM 8.5 (88")', :file => 'IEP BEAM 8.5',
+               :length => 88.0, :src  => 'components-master.json U01' },
+    '84'  => { :code => 'U02',  :pack => 'IEP BEAM 7 (70")',   :file => 'IEP BEAM 7',
+               :length => 70.0,
+               :src  => 'components-master.json U02 — the 84 series by Benton, ' \
+                        '12 Oct 2026; no BOM row carries U02' }
+  }.freeze
+
+  # HOW MANY. SOURCE: WhisperRoomQuote lib/pl-data/base-bom.json, the U-code
+  # quantity on each model's E row (observed 12 Oct 2026; the ENV row is
+  # identical on every one). No other model in base-bom.json carries a U-code.
+  #
+  # On every one of these rows the beam count EQUALS the model's STDSS FLCL8
+  # (D101) or STDSS FLCL8.5 (D12) count — one floor + one ceiling seal per
+  # pack — so "one beam per ceiling seam seal" is the BOM's own arithmetic as
+  # well as Benton's rule. build-time code cross-checks it against the seals
+  # the importer ACTUALLY placed and refuses to guess when they disagree.
+  #
+  # ROOF-MOUNTED STANDARD BOOTHS take the SAME count. lib/packing-list.js's RM
+  # rule (observed 12 Oct 2026): "Standard (S) booths omit the IEP beam that E
+  # booths carry; under Roof Mount the ceiling bears the roof-mount load, so add
+  # it back: one U101 per D101 (96-series) / one U01 per D12 (102-series).
+  # Count matches the E variant's beam count. E/SNV/ENV are unaffected."
+  IEP_BEAMS_BY_MODEL = {
+    '9696'   => 1, '96120'  => 2, '96144'  => 2, '96168'  => 3, '96192'  => 3,
+    '10284'  => 1, '102102' => 2, '102126' => 2, '102144' => 3, '102168' => 3,
+    '102186' => 4
+  }.freeze
+
+  # THE 84 SERIES. Benton, 12 Oct 2026 (reported): "Enhanced 84 series should
+  # get IEP beams. There are no beams for 72 series or smaller." So an
+  # Enhanced 84 gets IEP BEAM 7 whether or not it is roof-mounted, and so does
+  # a roof-mounted Standard 84 (his RM rule, 84-series and bigger). That
+  # OVERRIDES the BOM, which is silent: no 84 model in base-bom.json carries a
+  # U-code and the RM rule in packing-list.js adds none for D11.
+  #
+  # The COUNT is still the BOM's arithmetic, not a guess: the model's STDSS
+  # FLCL7 (D11) quantity in base-bom.json — one floor + one ceiling seal per
+  # pack — which is "one beam per ceiling seam seal" exactly as on the 96 and
+  # 102 series, and is cross-checked at build time against the seals placed.
+  IEP_BEAMS_84 = { '8484' => 1, '84102' => 2, '84126' => 2 }.freeze
+
+  # 72-SERIES AND SMALLER GET NO BEAMS, Enhanced or roof-mounted (Benton, 12
+  # Oct 2026, above). iep_series returns nil for them and iep_beam_plan says
+  # so by name; this is the rule, not a gap in the table.
+
+  # A ceiling seal is the deck's cross less this (WR_Deck::SEAL_LEN_INSET['CL'],
+  # copied — this file must load without wr-deck.rb). So the seal a series'
+  # beam hangs under measures (series - 2): 94 / 100 / 82. Used to check the
+  # seal the importer placed is the series the beam was chosen for.
+  IEP_SEAL_INSET = 2.0
 
   # ---------------------------------------------------------------- logic --
 
@@ -177,35 +272,125 @@ module WR_Accessories
     (0...n).map { |i| [order[i % order.length], i / order.length] }
   end
 
-  # Studio-light plan layout. box = [x0, y0, x1, y1], the ceiling's plan
-  # extent in booth coordinates; len = the fixture's measured length.
-  # Returns { :orient => :x|:y (the axis the fixture's LENGTH runs on),
-  # :centres => [[x, y], ...], :how } or { :error }.
-  def self.sl_layout(count, len, box)
-    x0, y0, x1, y1 = box.map { |v| v * 1.0 }
-    wx = x1 - x0
-    wy = y1 - y0
-    long = wx >= wy ? :x : :y
-    lng  = long == :x ? wx : wy
-    crs  = long == :x ? wy : wx
+  # Studio-light plan layout over the ceiling TILES. rects = one
+  # [x0, y0, x1, y1] per standard ceiling tile, in booth coordinates, already
+  # cut back to the room and clear of the seam seals (wr-overlays does that);
+  # len = the fixture's measured length.
+  # Returns { :lights => [{ :centre => [x, y], :orient => :x|:y (the axis the
+  # fixture's LENGTH runs on), :tile => index into rects }], :how }
+  # or { :error }.
+  def self.sl_tile_layout(count, len, rects)
     if count < 1
       return { :error => "a studio-light count of #{count} is not a count" }
     end
-    step = lng / count
-    centres = (0...count).map do |i|
-      a = (long == :x ? x0 : y0) + (i + 0.5) * step
-      c = long == :x ? (y0 + y1) / 2.0 : (x0 + x1) / 2.0
-      long == :x ? [a, c] : [c, a]
+    return { :error => 'no ceiling tiles to hang studio lights from' } if rects.nil? || rects.empty?
+    info = rects.each_with_index.map do |r, i|
+      x0, y0, x1, y1 = r.map { |v| v * 1.0 }
+      wx = x1 - x0
+      wy = y1 - y0
+      { :i => i, :box => [x0, y0, x1, y1], :long => wx >= wy ? :x : :y,
+        :lng => [wx, wy].max, :crs => [wx, wy].min }
     end
-    if len <= crs - 2 * SL_EDGE_CLEAR
-      return { :orient => (long == :x ? :y : :x), :centres => centres,
-               :how => 'across the booth, spaced evenly along its length' }
+    fit = info.select { |t| len <= t[:lng] - 2 * SL_EDGE_CLEAR }
+              .sort_by { |t| [-t[:crs].round(3), t[:i]] }
+    if fit.empty?
+      longest = info.map { |t| t[:lng] }.max.round(1)
+      return { :error => "a #{len.round(1)} in fixture fits longwise on none of the " \
+                         "#{rects.length} ceiling tile(s) (longest #{longest} in, less " \
+                         "#{SL_EDGE_CLEAR} in at each end)" }
     end
-    if count * len + (count - 1) * SL_GAP + 2 * SL_EDGE_CLEAR <= lng
-      return { :orient => long, :centres => centres,
-               :how => 'end to end along the booth (too long to lie across it)' }
+    per = Hash.new(0)
+    count.times { |j| per[fit[j % fit.length][:i]] += 1 }
+    lights = []
+    info.each do |t|
+      k = per[t[:i]]
+      next if k.zero?
+      x0, y0, x1, y1 = t[:box]
+      k.times do |j|
+        c = if t[:long] == :x
+              [(x0 + x1) / 2.0, y0 + (j + 0.5) * (y1 - y0) / k]
+            else
+              [x0 + (j + 0.5) * (x1 - x0) / k, (y0 + y1) / 2.0]
+            end
+        lights << { :centre => c, :orient => t[:long], :tile => t[:i] }
+      end
     end
-    { :error => "#{count} x #{len.round(1)} in of fixture fits neither across " \
-                "(#{crs.round(1)} in) nor along (#{lng.round(1)} in) this ceiling" }
+    { :lights => lights,
+      :how => 'longwise on its ceiling tile, inside one tile, widest tiles first' }
+  end
+
+  # The beam series of a model's digits: '84', '96', '102', or nil for a booth
+  # smaller than the 84 series. The leading digits are the CEILING CROSS in the
+  # BOM's naming (MDL 10284 is a 102 cross, STD10242CL SIDE x 2; MDL 84102 an
+  # 84 cross) — so this reads the front of the number, never the back.
+  def self.iep_series(d)
+    s = d.to_s
+    return '102' if s.start_with?('102')
+    return '96'  if s.start_with?('96')
+    return '84'  if s.start_with?('84')
+    nil
+  end
+
+  # What IEP beams this booth gets. model is the layout key ('MDL 96120 E'),
+  # enh true on an Enhanced booth, rv true when the link says roof-mounted.
+  #
+  # Returns { :count, :code, :pack, :file, :length, :seal_len, :series, :why,
+  #           :source, :derived } when beams belong,
+  #      or { :none => reason, :note => true|false } when they do not.
+  # :note true means the rule and the BOM DISAGREE and the reason is worth a
+  # line of its own in the console (Benton's rule says yes, the BOM says
+  # nothing); false is the ordinary "this booth has no beams".
+  def self.iep_beam_plan(model, enh, rv)
+    if excluded(model)
+      return { :none => "#{model} is excluded (MDL 127 LP, Benton) — no IEP beams",
+               :note => false }
+    end
+    d = digits(model)
+    series = iep_series(d)
+    if series.nil?
+      # THE RULE, not a gap: 72-series and smaller carry no beam, Enhanced or
+      # roof-mounted (Benton, 12 Oct 2026).
+      return { :none => '72-series and smaller carry no IEP beams, Enhanced or ' +
+                        'roof-mounted (Benton, 12 Oct 2026)', :note => false }
+    end
+    unless enh || rv
+      return { :none => 'a Standard booth without roof-mounted ventilation (rv = 0)',
+               :note => false }
+    end
+    part = IEP_BEAM_SERIES[series]
+    base = { :code => part[:code], :pack => part[:pack], :file => part[:file],
+             :length => part[:length],
+             :seal_len => series.to_f - IEP_SEAL_INSET, :series => series }
+    if series == '84'
+      n = IEP_BEAMS_84[d]
+      if n.nil?
+        return { :none => "#{model} is not in the 84-series beam table — no count to place",
+                 :note => true }
+      end
+      why = if enh && rv then 'Enhanced 84 series (and roof-mounted)'
+            elsif enh    then 'Enhanced 84 series'
+            else              'roof-mounted (rv = 1) 84 series'
+            end
+      return base.merge(:count => n, :derived => true, :why => why,
+                        :source => "Benton, 12 Oct 2026 (the BOM carries no 84-series " +
+                                   "beam). Count = #{model}'s STDSS FLCL7 (D11) quantity " +
+                                   "in base-bom.json, one per ceiling seam seal")
+    end
+    n = IEP_BEAMS_BY_MODEL[d]
+    if n.nil?
+      return { :none => "#{model} is not in the IEP beam table (base-bom.json) — " \
+                        'no count to place', :note => true }
+    end
+    why = if enh && rv then 'Enhanced, and roof-mounted (rv = 1)'
+          elsif enh    then 'Enhanced'
+          else              'roof-mounted (rv = 1) Standard booth'
+          end
+    src = if enh
+            "base-bom.json #{model} E row: #{part[:code]} x#{n}"
+          else
+            "packing-list.js RM rule: one #{part[:code]} per ceiling seal pack, = " \
+            "the E row's #{part[:code]} x#{n} in base-bom.json"
+          end
+    base.merge(:count => n, :derived => false, :why => why, :source => src)
   end
 end

@@ -15,9 +15,10 @@ WHAT IT ASSERTS
   2. the bass-trap count: the link's bt is a bare flag, so the count comes
      from the package name alone; one pack when there is none
   3. the corner fill order (the wall opposite the door first) and the tiers
-  4. the studio-light plan layout: across the booth when the fixture clears
-     it, along it when it cannot (a 52 in fixture in a 48 in booth), and a
-     refusal when neither fits
+  4. the studio-light plan layout (1.83.0): each fixture longwise on ONE
+     ceiling tile, never across a seam, every fitting tile once (widest first) before any doubles up, and a refusal
+     when no tile is long enough
+  5. the IEP beam plan: BOM counts, the RM rule, the derived 84 series
 
 DRIFT CHECKS, run when the WhisperRoomQuote checkout is beside this repo: the
 embedded SL table is compared row for row against lib/pl-data/
@@ -98,22 +99,64 @@ check('8 traps: two full tiers', A.trap_slots(8, o).map { |c, t| t }, [0, 0, 0, 
 check('every corner names two walls, one N/S and one E/W',
       A::BT_CORNERS.values.all? { |ns, ew| %w[N S].include?(ns) && %w[E W].include?(ew) }, true)
 
-# --- 4. studio-light layout ------------------------------------------------
-l = A.sl_layout(2, 52.0, [1, 1, 95, 119])          # 96120-ish ceiling
-check('96120: across the booth (length on x)', l[:orient], :x)
-check('96120: centres at 1/4 and 3/4 of the long side',
-      l[:centres], [[48.0, 30.5], [48.0, 89.5]])
-l = A.sl_layout(1, 52.0, [1, 1, 47, 95])           # 4896: 48 wide
-check('4896: a 52 in fixture cannot lie across 46, so it runs along y', l[:orient], :y)
-check('4896: centred', l[:centres], [[24.0, 48.0]])
-l = A.sl_layout(1, 52.0, [1, 1, 83, 41])           # long side on x
-check('long side on x: along x', l[:orient], :x)
-l = A.sl_layout(3, 52.0, [1, 1, 95, 143])          # 96144
-check('96144: across', l[:orient], :x)
-check('96144: three centres', l[:centres].length, 3)
-l = A.sl_layout(4, 52.0, [0, 0, 40, 100])
-check('4 x 52 in a 40 x 100 ceiling fits nowhere', l[:error].nil?, false)
-check('a zero count is refused', A.sl_layout(0, 29.0, [0, 0, 50, 50])[:error].nil?, false)
+# --- 4. studio-light layout: longwise on a tile, never across a seam ------
+# 96120 E: tiles 48 + 24 + 48 along x, seals at x 49 and 73 (6.5 wide), room
+# 4.25..117.75 x 4.25..93.75. Usable rects as wr-overlays cuts them.
+t96120 = [[4.25, 4.25, 45.75, 93.75], [52.25, 4.25, 69.75, 93.75], [76.25, 4.25, 117.75, 93.75]]
+l = A.sl_tile_layout(2, 52.0, t96120)
+check('96120: both fixtures run along y (the seam direction)', l[:lights].map { |x| x[:orient] }, [:y, :y])
+check('96120: the two wide tiles, one each, centred in them',
+      l[:lights].map { |x| [x[:tile], x[:centre]] }, [[0, [25.0, 49.0]], [2, [97.0, 49.0]]])
+l = A.sl_tile_layout(2, 52.0, [[4.25, 4.25, 45.75, 93.75], [52.25, 4.25, 93.75, 93.75]])  # 9696-ish
+check('9696: one per tile, along y', l[:lights].map { |x| [x[:tile], x[:orient]] }, [[0, :y], [1, :y]])
+l = A.sl_tile_layout(1, 52.0, [[4.25, 4.25, 69.75, 45.75]])       # 4872 E, one tile, long on x
+check('single tile: along its long side', l[:lights].map { |x| x[:orient] }, [:x])
+l = A.sl_tile_layout(3, 52.0, t96120)
+check('3 fixtures, 3 tiles that fit: every tile takes one before any doubles up',
+      l[:lights].map { |x| x[:tile] }, [0, 1, 2])
+l = A.sl_tile_layout(4, 52.0, t96120)
+check('4 fixtures on 3 tiles: the widest tile doubles up, spaced across it',
+      l[:lights].map { |x| [x[:tile], x[:centre]] },
+      [[0, [14.625, 49.0]], [0, [35.375, 49.0]], [1, [61.0, 49.0]], [2, [97.0, 49.0]]])
+check('a fixture too long for every tile is refused',
+      A.sl_tile_layout(1, 90.0, t96120)[:error].nil?, false)
+check('a zero count is refused', A.sl_tile_layout(0, 29.0, t96120)[:error].nil?, false)
+
+# --- 5. IEP ceiling beams (1.83.0) ----------------------------------------
+b = A.iep_beam_plan('MDL 96120 E', true, false)
+check('96120 E: 2 x U101 82 in under 94 in seals',
+      [b[:count], b[:code], b[:length], b[:seal_len], b[:derived]], [2, 'U101', 82.0, 94.0, false])
+b = A.iep_beam_plan('MDL 102144 E', true, false)
+check('102144 E: 3 x U01 88 in under 100 in seals',
+      [b[:count], b[:code], b[:length], b[:seal_len]], [3, 'U01', 88.0, 100.0])
+check('102186 E: 4 beams', A.iep_beam_plan('MDL 102186 E', true, false)[:count], 4)
+check('9696 E: 1 beam', A.iep_beam_plan('MDL 9696 E', true, false)[:count], 1)
+b = A.iep_beam_plan('MDL 10284 E', true, false)
+check('10284 E: 1 x IEP BEAM 8.5 (first figure 102, Benton)', [b[:count], b[:file], b[:seal_len]], [1, 'IEP BEAM 8.5', 100.0])
+b = A.iep_beam_plan('MDL 84102 E', true, false)
+check('84102 E: 2 x IEP BEAM 7 (first figure 84, 3 ceiling components)', [b[:count], b[:file]], [2, 'IEP BEAM 7'])
+check('iep_series reads the FIRST figure', %w[10284 84102 96120 102186 8484 7296 4872].map { |d| A.iep_series(d) },
+      ['102', '84', '96', '102', '84', nil, nil])
+b = A.iep_beam_plan('MDL 96120 S', false, true)
+check('96120 S + RM: the E count, from the RM rule', [b[:count], b[:code]], [2, 'U101'])
+check('  and says the RM rule', b[:source].include?('RM rule'), true)
+check('96120 S without RM: none', A.iep_beam_plan('MDL 96120 S', false, false)[:count], nil)
+check('4872 E: none (72-series and smaller), not a note',
+      [A.iep_beam_plan('MDL 4872 E', true, false)[:count], A.iep_beam_plan('MDL 4872 E', true, false)[:note]], [nil, false])
+check('7272 E: none', A.iep_beam_plan('MDL 7272 E', true, false)[:count], nil)
+check('7272 E + RM: none', A.iep_beam_plan('MDL 7272 E', true, true)[:count], nil)
+check('7296 S + RM: none (below the 84 series)', A.iep_beam_plan('MDL 7296 S', false, true)[:count], nil)
+b = A.iep_beam_plan('MDL 84102 S', false, true)
+check('84102 S + RM: 2 x U02 = IEP BEAM 7 under 82 in seals', [b[:count], b[:code], b[:file], b[:seal_len]],
+      [2, 'U02', 'IEP BEAM 7', 82.0])
+b = A.iep_beam_plan('MDL 8484 E', true, false)
+check('8484 E without RM: 1 x IEP BEAM 7 (Benton, 12 Oct)', [b[:count], b[:file]], [1, 'IEP BEAM 7'])
+check('  and cites Benton', b[:source].include?('Benton'), true)
+check('84126 E: 2', A.iep_beam_plan('MDL 84126 E', true, false)[:count], 2)
+check('84102 S without RM: none', A.iep_beam_plan('MDL 84102 S', false, false)[:count], nil)
+check('96120 E: IEP BEAM 8 by name', A.iep_beam_plan('MDL 96120 E', true, false)[:file], 'IEP BEAM 8')
+check('102144 E: IEP BEAM 8.5 by name', A.iep_beam_plan('MDL 102144 E', true, false)[:file], 'IEP BEAM 8.5')
+check('127 LP: none', A.iep_beam_plan('MDL 127 LP E', true, true)[:count], nil)
 
 out = $results.map { |(n, ok, d)| (ok ? 'PASS ' : 'FAIL ') + n + (ok ? '' : '   ' + d) }
 (out.join("\n") + "\n" + $results.count { |r| !r[1] }.to_s + ' failure(s)').dup
@@ -166,7 +209,54 @@ def drift(lib):
         else:
             notes.append('PASS drift: bass-trap packs match PRESET_QTY_OVERRIDES')
     notes2, bad2 = package_flags(txt if os.path.exists(qb) else None)
-    return notes + notes2, bad + bad2
+    notes3, bad3 = beam_drift(lib)
+    return notes + notes2 + notes3, bad + bad2 + bad3
+
+
+def beam_drift(lib):
+    """The IEP beam table against base-bom.json and components-master.json:
+    every model's U-code count on its E row (and ENV identical), no U-code on
+    any S row, the beam count equal to the model's D101 / D12 seal packs, and
+    the three parts' lengths. Plus the RM rule's text in packing-list.js, which
+    is the only source for a roof-mounted Standard booth's count."""
+    notes, bad = [], []
+    bp = os.path.join(QUOTE, 'lib', 'pl-data', 'base-bom.json')
+    cp = os.path.join(QUOTE, 'lib', 'pl-data', 'components-master.json')
+    if not (os.path.exists(bp) and os.path.exists(cp)):
+        return ['SKIP drift (IEP beams): base-bom.json / components-master.json not found'], []
+    bom = json.load(open(bp, encoding='utf-8'))['models']
+    cm = json.load(open(cp, encoding='utf-8'))['components']
+    blk = re.search(r'IEP_BEAMS_BY_MODEL = \{(.*?)\}', lib, re.S)
+    have = {k: int(n) for k, n in re.findall(r"'(\d+)'\s*=>\s*(\d+)", blk.group(1))}
+    want = {}
+    for name, row in bom.items():
+        u = {c: q for c, q in row['components'].items() if c.startswith('U')}
+        if not u:
+            continue
+        if row['variant'] not in ('E', 'ENV'):
+            bad.append('base-bom %s (a %s row) carries %r - the table assumes only E/ENV do'
+                       % (name, row['variant'], u))
+            continue
+        (code, n), = u.items()
+        seals = row['components'].get('D101', 0) + row['components'].get('D12', 0)
+        if seals != n:
+            bad.append('base-bom %s: %s x%d but %d D101/D12 seal pack(s)' % (name, code, n, seals))
+        if want.setdefault(row['size'], n) != n:
+            bad.append('base-bom %s: E and ENV beam counts differ' % row['size'])
+    if have != want:
+        bad.append('IEP beam table: embedded %r, base-bom.json %r' % (have, want))
+    for code, length in (('U101', 82), ('U01', 88), ('U02', 70)):
+        if cm.get(code, {}).get('L') != length:
+            bad.append('components-master %s length %r, embedded %d' % (code, cm.get(code, {}).get('L'), length))
+    pl = os.path.join(QUOTE, 'lib', 'packing-list.js')
+    if os.path.exists(pl):
+        t = open(pl, encoding='utf-8').read()
+        if not re.search(r"bom\.D101 \|\| 0\); i\+\+\) additions\.push\(\{ code: 'U101'", t) or            not re.search(r"bom\.D12  \|\| 0\); i\+\+\) additions\.push\(\{ code: 'U01'", t):
+            bad.append('packing-list.js RM rule no longer adds U101 per D101 / U01 per D12 on an S booth')
+    if not bad:
+        notes.append('PASS drift: IEP beam table matches base-bom.json (%d models), part lengths and '
+                     'the RM rule match' % len(want))
+    return notes, bad
 
 
 # The quote SKU that means each accessory, and the booth-builder state key

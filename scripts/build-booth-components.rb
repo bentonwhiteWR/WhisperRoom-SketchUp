@@ -3238,12 +3238,17 @@ module WR_BuildBoothComponents
         # every build until WR_Deck::SEAL_FL_DATUM_LIFT is set from a real one.
         # The ceiling's -1.75 was NOT reused — see the constant's comment.
         seal_added = []
+        # The CEILING seals on their own, for the IEP beam pass (1.83.0):
+        # one beam hangs centred under each, and wr-overlays measures them
+        # off these very instances rather than re-deriving where they went.
+        cl_seals = []
         %w[CL FL].each do |skind|
           before = booth.entities.length
           sn, swarn, snote = WR_Deck.seals(model, booth, spec, cfg['dir'], wall_h, skind)
           added = booth.entities.to_a[before..-1].to_a
           added.each { |e| (e.layer = t_deck) rescue nil }
           seal_added.concat(added)
+          cl_seals = added.grep(Sketchup::ComponentInstance) if skind == 'CL'
           deck_note = "#{deck_note}; #{skind} seals #{sn}#{snote ? " (#{snote})" : ''}"
           placed += sn
           (swarn || []).each { |w| puts "  DECK SEAL #{skind}: #{w}" }
@@ -3251,7 +3256,11 @@ module WR_BuildBoothComponents
 
         # Where the standard deck landed, per kind, read off the placed parts.
         host = { 'FL' => union_bounds(deck_added['FL']),
-                 'CL' => union_bounds(deck_added['CL']) }
+                 'CL' => union_bounds(deck_added['CL']),
+                 'CL_seals' => cl_seals,
+                 # The standard ceiling tiles themselves, for the studio
+                 # lights: each fixture lies longwise inside ONE tile.
+                 'CL_tiles' => deck_added['CL'].to_a.grep(Sketchup::ComponentInstance) }
         if host['FL']
           fl_bottom = host['FL'].min.z.to_f
           stack_bottom = fl_bottom
