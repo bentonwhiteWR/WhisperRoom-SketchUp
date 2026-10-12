@@ -1,0 +1,938 @@
+{
+ "meta": {
+  "units": "inches, booth-local (booth group transform is a pure translation: +61.89,+11.63,+1.3125 in room coords)",
+  "wall_local": "S,N: run = booth x; E,W: run = booth y; z = booth z. From inside facing a wall, S runs right-to-left in x, E runs right-to-left in y (back corner at y 0 is on the right), W runs left-to-right in y, N runs left-to-right in x.",
+  "faces_observed": {
+   "S": "4.25 (H-strip 4.313 at z ~40-41.5)",
+   "N": "93.75 (window-panel H-strip 93.688 at z ~22.5-23; N2i strip at z ~40)",
+   "E": "165.75 (H-strip 165.688 at z ~40-41)",
+   "W": "4.25 (H-strip 4.313)"
+  },
+  "floor_top": 2.75,
+  "ceiling_tile_underside": 80.25,
+  "usable_run": {
+   "S": [
+    16.38,
+    153.69
+   ],
+   "N": [
+    4.25,
+    121.25
+   ],
+   "E": [
+    16.38,
+    93.0
+   ],
+   "W": [
+    16.38,
+    92.5
+   ]
+  },
+  "staged_outside": [
+   {
+    "name": "Foam NOT PLACED (was E1i)",
+    "def": "Foam",
+    "box": [
+     -101.89,
+     -99.89,
+     8.37,
+     32.37,
+     -1.313,
+     46.688
+    ]
+   },
+   {
+    "name": "Foam NOT PLACED (was W1i)",
+    "def": "Foam",
+    "box": [
+     -131.89,
+     -129.89,
+     8.37,
+     32.37,
+     -1.313,
+     46.688
+    ]
+   },
+   {
+    "name": "Foam (2x2) NOT PLACED 1 (S1i cut)",
+    "def": "Foam (2x2) back left",
+    "box": [
+     -101.89,
+     -77.89,
+     128.37,
+     130.37,
+     -1.313,
+     22.688
+    ]
+   },
+   {
+    "name": "Foam (2x2) NOT PLACED 2 (S1i cut)",
+    "def": "Foam (2x2) back right",
+    "box": [
+     -131.89,
+     -107.89,
+     128.37,
+     130.37,
+     -1.313,
+     22.688
+    ]
+   }
+  ],
+  "source": "ap9-dump.rb (bounds, Audimute body boxes) + ap9-rays.rb (0.5 in ray grid, foam+AP hidden) on the live model, 12 Oct 2026"
+ },
+ "walls": {
+  "S": {
+   "pieces": [
+    {
+     "name": "Foam  S0i",
+     "def": "Foam",
+     "rect": [
+      38.29,
+      62.29,
+      18.57,
+      66.57
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": null
+    },
+    {
+     "name": "Foam  S3i",
+     "def": "Foam",
+     "rect": [
+      107.71,
+      131.71,
+      18.57,
+      66.57
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": null
+    },
+    {
+     "name": "Audimute2x4 back",
+     "def": "Audimute2x4",
+     "rect": [
+      73.0,
+      97.0,
+      15.75,
+      63.75
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 back",
+     "def": "Audimute1x2",
+     "rect": [
+      73.0,
+      97.0,
+      3.25,
+      15.25
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 back",
+     "def": "Audimute1x2",
+     "rect": [
+      21.36,
+      33.36,
+      29.5,
+      53.5
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 back",
+     "def": "Audimute1x2",
+     "rect": [
+      136.64,
+      148.64,
+      29.5,
+      53.5
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    }
+   ],
+   "fixed": [
+    {
+     "kind": "ceiling seal",
+     "name": "STDSS CL8",
+     "rect": [
+      45.75,
+      52.25,
+      79.25,
+      81.0
+     ]
+    },
+    {
+     "kind": "ceiling seal",
+     "name": "STDSS CL8",
+     "rect": [
+      93.75,
+      100.25,
+      79.25,
+      81.0
+     ]
+    },
+    {
+     "kind": "ceiling seal",
+     "name": "STDSS CL8",
+     "rect": [
+      117.75,
+      124.25,
+      79.25,
+      81.0
+     ]
+    },
+    {
+     "kind": "cover",
+     "name": "Duct Cover hi  S0i",
+     "rect": [
+      25.912,
+      37.788,
+      65.429,
+      80.25
+     ]
+    },
+    {
+     "kind": "cover",
+     "name": "Duct Cover lo  S0i",
+     "rect": [
+      16.88,
+      28.755,
+      2.75,
+      17.571
+     ]
+    },
+    {
+     "kind": "cover",
+     "name": "Duct Cover hi  S1i",
+     "rect": [
+      73.912,
+      85.788,
+      65.429,
+      80.25
+     ]
+    },
+    {
+     "kind": "cover",
+     "name": "Duct Cover lo  S1i",
+     "rect": [
+      60.162,
+      72.038,
+      2.75,
+      17.571
+     ]
+    },
+    {
+     "kind": "cover",
+     "name": "Duct Cover hi  S3i",
+     "rect": [
+      141.315,
+      153.19,
+      65.429,
+      80.25
+     ]
+    },
+    {
+     "kind": "cover",
+     "name": "Duct Cover lo  S3i",
+     "rect": [
+      132.162,
+      144.038,
+      2.75,
+      17.571
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 1 SW",
+     "rect": [
+      4.375,
+      16.375,
+      56.25,
+      80.25
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 2 SE",
+     "rect": [
+      153.688,
+      165.688,
+      56.25,
+      80.25
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 3 SW",
+     "rect": [
+      4.375,
+      16.375,
+      2.75,
+      26.75
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 4 SE",
+     "rect": [
+      153.688,
+      165.688,
+      2.75,
+      26.75
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 5 SW",
+     "rect": [
+      4.375,
+      16.375,
+      29.5,
+      53.5
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 6 SE",
+     "rect": [
+      153.688,
+      165.688,
+      29.5,
+      53.5
+     ]
+    },
+    {
+     "kind": "beam",
+     "name": "IEP BEAM 8 seam 1",
+     "rect": [
+      48.25,
+      49.75,
+      76.25,
+      79.25
+     ]
+    },
+    {
+     "kind": "beam",
+     "name": "IEP BEAM 8 seam 2",
+     "rect": [
+      96.25,
+      97.75,
+      76.25,
+      79.25
+     ]
+    },
+    {
+     "kind": "beam",
+     "name": "IEP BEAM 8 seam 3",
+     "rect": [
+      120.25,
+      121.75,
+      76.25,
+      79.25
+     ]
+    }
+   ]
+  },
+  "N": {
+   "pieces": [
+    {
+     "name": "Audimute2x4 front",
+     "def": "Audimute2x4",
+     "rect": [
+      93.88,
+      117.88,
+      18.57,
+      66.57
+     ],
+     "depth": [
+      91.75,
+      93.75
+     ],
+     "fabric": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute2x4 front",
+     "def": "Audimute2x4",
+     "rect": [
+      12.2,
+      60.2,
+      12.7,
+      36.7
+     ],
+     "depth": [
+      91.75,
+      93.75
+     ],
+     "fabric": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 front",
+     "def": "Audimute1x2",
+     "rect": [
+      64.8,
+      88.8,
+      24.7,
+      36.7
+     ],
+     "depth": [
+      91.75,
+      93.75
+     ],
+     "fabric": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 front",
+     "def": "Audimute1x2",
+     "rect": [
+      64.8,
+      88.8,
+      12.2,
+      24.2
+     ],
+     "depth": [
+      91.75,
+      93.75
+     ],
+     "fabric": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 front",
+     "def": "Audimute1x2",
+     "rect": [
+      43.0,
+      55.0,
+      51.75,
+      75.75
+     ],
+     "depth": [
+      91.75,
+      93.75
+     ],
+     "fabric": [
+      0.0,
+      -1.0,
+      0.0
+     ]
+    }
+   ],
+   "fixed": [
+    {
+     "kind": "ceiling seal",
+     "name": "STDSS CL8",
+     "rect": [
+      45.75,
+      52.25,
+      79.25,
+      81.0
+     ]
+    },
+    {
+     "kind": "ceiling seal",
+     "name": "STDSS CL8",
+     "rect": [
+      93.75,
+      100.25,
+      79.25,
+      81.0
+     ]
+    },
+    {
+     "kind": "ceiling seal",
+     "name": "STDSS CL8",
+     "rect": [
+      117.75,
+      124.25,
+      79.25,
+      81.0
+     ]
+    },
+    {
+     "kind": "beam",
+     "name": "IEP BEAM 8 seam 1",
+     "rect": [
+      48.25,
+      49.75,
+      76.25,
+      79.25
+     ]
+    },
+    {
+     "kind": "beam",
+     "name": "IEP BEAM 8 seam 2",
+     "rect": [
+      96.25,
+      97.75,
+      76.25,
+      79.25
+     ]
+    },
+    {
+     "kind": "beam",
+     "name": "IEP BEAM 8 seam 3",
+     "rect": [
+      120.25,
+      121.75,
+      76.25,
+      79.25
+     ]
+    },
+    {
+     "kind": "window trim",
+     "name": "N0i window trim (glass inside)",
+     "rect": [
+      7.5,
+      42.5,
+      37.2,
+      76.1
+     ]
+    },
+    {
+     "kind": "window trim",
+     "name": "N1i window trim (glass inside)",
+     "rect": [
+      55.5,
+      90.5,
+      37.2,
+      76.1
+     ]
+    },
+    {
+     "kind": "door",
+     "name": "N3i door frame + leaf + glass",
+     "rect": [
+      121.25,
+      165.75,
+      0.75,
+      80.25
+     ]
+    }
+   ]
+  },
+  "E": {
+   "pieces": [
+    {
+     "name": "Foam  E0i",
+     "def": "Foam",
+     "rect": [
+      29.26,
+      53.26,
+      18.57,
+      66.57
+     ],
+     "depth": [
+      163.75,
+      165.75
+     ],
+     "fabric": null
+    },
+    {
+     "name": "Audimute2x4 left",
+     "def": "Audimute2x4",
+     "rect": [
+      53.76,
+      77.76,
+      18.57,
+      66.57
+     ],
+     "depth": [
+      163.75,
+      165.75
+     ],
+     "fabric": [
+      -1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x4 left",
+     "def": "Audimute1x4",
+     "rect": [
+      78.26,
+      90.26,
+      18.57,
+      66.57
+     ],
+     "depth": [
+      163.75,
+      165.75
+     ],
+     "fabric": [
+      -1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 left",
+     "def": "Audimute1x2",
+     "rect": [
+      33.63,
+      57.63,
+      67.07,
+      79.07
+     ],
+     "depth": [
+      163.75,
+      165.75
+     ],
+     "fabric": [
+      -1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 left",
+     "def": "Audimute1x2",
+     "rect": [
+      62.0,
+      86.0,
+      67.07,
+      79.07
+     ],
+     "depth": [
+      163.75,
+      165.75
+     ],
+     "fabric": [
+      -1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 left",
+     "def": "Audimute1x2",
+     "rect": [
+      39.67,
+      63.67,
+      3.25,
+      15.25
+     ],
+     "depth": [
+      163.75,
+      165.75
+     ],
+     "fabric": [
+      -1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 left",
+     "def": "Audimute1x2",
+     "rect": [
+      65.0,
+      89.0,
+      3.25,
+      15.25
+     ],
+     "depth": [
+      163.75,
+      165.75
+     ],
+     "fabric": [
+      -1.0,
+      0.0,
+      0.0
+     ]
+    }
+   ],
+   "fixed": [
+    {
+     "kind": "trap",
+     "name": "Bass Trap 2 SE",
+     "rect": [
+      4.375,
+      16.375,
+      56.25,
+      80.25
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 4 SE",
+     "rect": [
+      4.375,
+      16.375,
+      2.75,
+      26.75
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 6 SE",
+     "rect": [
+      4.375,
+      16.375,
+      29.5,
+      53.5
+     ]
+    },
+    {
+     "kind": "door frame return",
+     "name": "N3i frame face (ray: flat to y 93.0, blocked at 93.5)",
+     "rect": [
+      93.0,
+      93.75,
+      0.75,
+      80.25
+     ]
+    }
+   ]
+  },
+  "W": {
+   "pieces": [
+    {
+     "name": "Foam  W0i",
+     "def": "Foam",
+     "rect": [
+      29.26,
+      53.26,
+      18.57,
+      66.57
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": null
+    },
+    {
+     "name": "Audimute2x4 right",
+     "def": "Audimute2x4",
+     "rect": [
+      53.76,
+      77.76,
+      18.57,
+      66.57
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x4 right",
+     "def": "Audimute1x4",
+     "rect": [
+      78.26,
+      90.26,
+      18.57,
+      66.57
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 right",
+     "def": "Audimute1x2",
+     "rect": [
+      33.63,
+      57.63,
+      67.07,
+      79.07
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 right",
+     "def": "Audimute1x2",
+     "rect": [
+      62.0,
+      86.0,
+      67.07,
+      79.07
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 right",
+     "def": "Audimute1x2",
+     "rect": [
+      39.67,
+      63.67,
+      3.25,
+      15.25
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "Audimute1x2 right",
+     "def": "Audimute1x2",
+     "rect": [
+      65.0,
+      89.0,
+      3.25,
+      15.25
+     ],
+     "depth": [
+      4.25,
+      6.25
+     ],
+     "fabric": [
+      1.0,
+      0.0,
+      0.0
+     ]
+    }
+   ],
+   "fixed": [
+    {
+     "kind": "cover",
+     "name": "Duct Cover hi  W0i",
+     "rect": [
+      16.88,
+      28.755,
+      65.429,
+      80.25
+     ]
+    },
+    {
+     "kind": "cover",
+     "name": "Duct Cover lo  W0i",
+     "rect": [
+      25.962,
+      37.838,
+      2.75,
+      17.571
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 1 SW",
+     "rect": [
+      4.375,
+      16.375,
+      56.25,
+      80.25
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 3 SW",
+     "rect": [
+      4.375,
+      16.375,
+      2.75,
+      26.75
+     ]
+    },
+    {
+     "kind": "trap",
+     "name": "Bass Trap 5 SW",
+     "rect": [
+      4.375,
+      16.375,
+      29.5,
+      53.5
+     ]
+    },
+    {
+     "kind": "window panel return",
+     "name": "N0i panel edge (ray: flat to y 92.5 at z>=37.5, 93.0 below)",
+     "rect": [
+      92.5,
+      93.75,
+      0.75,
+      80.25
+     ]
+    }
+   ]
+  }
+ }
+}
