@@ -15,9 +15,10 @@ Two importer/take-off fixes, shipped as one plugin release:
 3. `scripts/rbparse.py` + the relevant rbtest scripts pass; VERSION bumped; DEVLOG; committed and pushed.
 
 ## Now
-1.84.0 shipped (code + pure tests). Done-means 3 met. Done-means 2 met for the pure halves (closure, door
-corner, jambs); the take-off build itself is unrun. Done-means 1 is NOT met: the live 96120 E / rv=1
-measurements are still owed (no clean model; see `.forge/fixer/HANDOFF-sl-height-takeoff.md`).
+1.84.0 shipped and verified live on 12 Oct: 96120 E and 96120 S rv=1 lights flush (+0.0000), above the beam,
+no clash; rods proven with stand-ins (the current RM parts have none below the roof); the CCU 113 take-off
+gives a 6 1/8" + 3' door and CLOSES. Open: the panel install here reads 1.79.0 (reinstall), and BoothLighting is
+Benton's call.
 
 ## Out of scope
 WhisperRoomQuote (read only). Daisy stamp (dropped by Benton 12 Oct). Re-saving share part files.

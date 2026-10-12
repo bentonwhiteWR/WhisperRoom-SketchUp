@@ -2,9 +2,8 @@
 
 ## 2026-10-12 -- 1.84.0: studio lights mount on the tile face, clear of roof-unit rods; take-off dimensions its doors and stops the false DOES NOT CLOSE
 
-Two importer / take-off bugs from the 6-7 Oct next-steps list, plus one comment correction. **Nothing here was run
-live in SketchUp** (see "Not verified live" below). The pure halves are tested; the SketchUp halves parse and
-are unrun.
+Two importer / take-off bugs from the 6-7 Oct next-steps list, plus one comment correction. Pure halves tested
+offline; all three live checks then run and PASSED in a blank scratch doc (see "Verified live" below).
 
 **1. Studio lights hung below the ceiling (`wr-overlays.rb` `place_studio_lights`).**
 - Benton, 12 Oct (reported): the studio light "should not be hanging lower than the beam. It should be mounted
@@ -98,18 +97,42 @@ unconfirmed theory. On a 10284 the generic seal-count message now adds that the 
 - `rbtest-lights.py`: the same 2 FAILs as before (`fill`, `fillsmall`, the 14-row `FILL_SCATTER`), identical
   on the untouched tree. Not this change.
 
-**Not verified live (no clean model):**
+**Verified live, later on 12 Oct (SketchUp 2026, Benton's blank Untitled scratch doc, NOT saved).**
+- Every job first checked that the doc had no path and held only the fixer's own entities. Every build job
+  confirmed the new methods were the ones loaded (`ceiling_underside`, `sl_keepouts`, `sl_clear_keepouts`,
+  `door_jambs`, `door_corner`, `coverage` all true).
+- The installed panel `VERSION` reads 1.79.0. The tool scripts load live from the repo, so these checks ran
+  1.84.0 code. The panel itself needs `install-plugin.py` and a restart.
+- **96120 E, `sl=1` (observed):**
+  - tile underside face 80.2500; the deck bounding box reads 78.8920 (the hinges, 1.358 lower);
+  - both SL52 at z 79.4688..80.2500, top minus tile underside +0.0000 at 9/9 points. A separate
+    `model.raytest` up from inside each fixture first meets `STD9648CL SIDE > Face` at +0.0000;
+  - 2 x IEP BEAM 8 at z 76.25..79.25 under STDSS CL8 (seal bottom 79.25). The fixture bottom 79.4688 is
+    3.22 above the beam bottom, and 0.22 above the seal bottom;
+  - face clash against beams, seals, tiles and hinges: none. 0 keep-outs. No Standard Lights left.
+- **96120 S `rv=1`, flat and VSS (observed):** 2 x IEP BEAM 8 present (the RM rule), same z as above. Both
+  fixtures flush (+0.0000), not below the beam, no clash.
+  - The current share's `RM96120.skp` and `RM96120VSS.skp` have NOTHING below the roof: every nested part sits
+    at z 82.000 and up, so no rod comes through the ceiling. The rods People's Space measured down to z 77.15
+    were in that file's older roof-unit copy.
+  - To exercise the rod avoidance anyway, two stand-in rods were hung at the People's Space positions inside
+    this scratch booth and the live `sl_keepouts` / `sl_clear_keepouts` were run. Both rods were found (4 faces
+    each), and the fixtures moved 6.400 / 4.550 in to a plan gap of exactly 0.500 to the rods, neither blocked.
+    The stand-ins were then removed (operation aborted).
+  - The S booth's 1293 keep-out faces are tile hinges and the door frame top. No fixture had to move for them.
+- **CCU Sands Hall 113 take-off (observed):** 10 runs, 12 wall solids, 1 door, 14 dimensions,
+  `1 door(s) dimensioned`. The two WR-Dims-Doors dimensions read 6 1/8" (NW corner (0, 0) to (6.125, 0)) and
+  3' ((6.125, 0) to (42.125, 0)). The face loop ran the other way from the lock (west first), and the near
+  corner was still chosen. Closure: x +0.000, y +0.000, doubled-back y 18.00, `CLOSES`.
+- Screenshots, bridge `art/`: `fix184-96120E-sl-up.png`, `fix184-96120E-sl-xray.png`,
+  `fix184-96120S-rv1-sl-up.png`, `fix184-96120S-rv1-sl-xray.png`, `fix184-96120S-rv1-vss-sl-up.png`,
+  `fix184-96120S-rv1-vss-sl-xray.png`, `fix184-ccu113-takeoff-top.png`, `fix184-ccu113-door-closeup.png`.
+- Cosmetic, not fixed: on the CCU plan the 6 1/8" and 3' labels crowd each other at the default standoff.
+
+**What the first pass could not verify (superseded by the block above):**
 - SketchUp 2026 had two documents open: Benton's Untitled 10284 E room and `Master Component List AM.skp`.
-  `active_model` flipped between them while this ran.
-- `Sketchup.file_new` was called 3 times. No blank document ever became active, and nothing visible changed.
-- `WRB.scratch!` would wipe Benton's Untitled document, so it was not used. Nothing was built, and nothing in
-  either document was changed.
-- Still owed, from a fresh File > New:
-  - 96120 E with `sl`: each fixture top against the tile underside (1/32), bottom against the beam bottom, and
-    no beam clash;
-  - 96120 S or E rv=1 with `sl`: no fixture on a rod;
-  - a take-off build of `clients/ccu-sands-hall-113` (door dims 6 1/8 + 3'-0", CLOSES).
-- No screenshots of the fix exist.
+  `active_model` flipped between them while this ran, and `Sketchup.file_new` (called 3 times) never gave a
+  blank document. Nothing was built then.
 
 **Gotchas:**
 - The Bash tool eats `\`-newline even inside a quoted heredoc. That broke two Python patch heredocs outright
@@ -118,8 +141,8 @@ unconfirmed theory. On a 10284 the generic seal-count message now adds that the 
   the tile bounding box, so the same 1.36 applies to them. Not touched (not asked).
 
 **Next steps:**
-1. Run the three live checks above in a fresh model.
-2. Decide whether `place_booth_lighting` should use `ceiling_underside` as well.
+1. Decide whether `place_booth_lighting` should use `ceiling_underside` as well.
+2. Reinstall the panel (`install-plugin.py`, restart) on this machine: it reads 1.79.0.
 
 ## 2026-10-12 -- 1.83.2: IEP beam lengths are Benton's (76 / 88 / 94), not the quote repo's
 

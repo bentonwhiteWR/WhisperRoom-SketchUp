@@ -40,21 +40,19 @@
 
 ## Assumptions
 - `SL_KEEP_CLEAR` = 0.5 in from any keep-out. It's the acoustic package's gap; no drawing gives one.
-- The tile's lowest big horizontal level is its mounting face. This was checked on stubs only, not on a real
-  CL part.
+- The tile's lowest big horizontal level is its mounting face. Confirmed live on STD9648CL SIDE: 80.25 against a box
+  of 78.892.
 - Anything hanging into the fixture band inside the tile rectangle should be avoided, including hinges, not
   just rods.
 - Near corner is the right corner for door dimensions. It's the drafting norm, CLAUDE.md says "corner -> near
   jamb", and it's what Benton drew by hand on CCU.
 - The CL tiles are direct children of the booth group, so their `transformation` is booth-local. That follows
-  from how `build_booth` captures `deck_added['CL']`, but it has not been re-checked live.
+  from how `build_booth` captures `deck_added['CL']`, and the live 96120 builds confirmed it.
 
 ## Open questions
-1. **Every live check is still owed.** SketchUp 2026 only had Benton's two documents open, and `active_model`
-   flipped between them. `file_new` never gave a blank document. Nothing was built. In a fresh model:
-   - 96120 E `sl=1`: fixture top against the tile underside (1/32), bottom against the beam bottom, no clash;
-   - 96120 rv=1 `sl=1`: no fixture on a rod;
-   - a take-off build of CCU 113: the door gets 6 1/8 + 3'-0", and the report says CLOSES with an 18 jog.
+1. **Live checks: DONE, all passed** (12 Oct, blank scratch doc, not saved; numbers in the DEVLOG 1.84.0
+   "Verified live" block). The current RM96120 / RM96120VSS parts have no rods below the roof, so rod
+   avoidance was proven with stand-in rods only. A roof unit that really has rods has not been built.
 2. `place_booth_lighting` (standard BoothLighting) still mounts off the tile bounding box, so the same 1.36 in
    low. Does Benton want it moved to `ceiling_underside` too?
 3. The near-corner rule changes the door dimension on every room `dimension-room-now.rb` dimensions. Re-press
