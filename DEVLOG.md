@@ -1,5 +1,126 @@
 # DEVLOG
 
+## 2026-10-12 -- 1.84.0: studio lights mount on the tile face, clear of roof-unit rods; take-off dimensions its doors and stops the false DOES NOT CLOSE
+
+Two importer / take-off bugs from the 6-7 Oct next-steps list, plus one comment correction. **Nothing here was run
+live in SketchUp** (see "Not verified live" below). The pure halves are tested; the SketchUp halves parse and
+are unrun.
+
+**1. Studio lights hung below the ceiling (`wr-overlays.rb` `place_studio_lights`).**
+- Benton, 12 Oct (reported): the studio light "should not be hanging lower than the beam. It should be mounted
+  right on the ceiling component."
+- **Root cause, confirmed in the code:** the fixture top was set to `deck['CL'].min.z`. That is
+  `union_bounds(deck_added['CL'])`, the bounding box of the CL tiles, and the box reaches down to the plastic
+  hinges under the tile edges. The 1.83.0 rewrite (`sl_tile_rects`, longwise in one tile) changed the plan
+  layout only. The height line `z_top = cl.min.z` survived it unchanged.
+  - People's Space 96120 E, 6 Oct (observed then): the box read 78.89 and upward rays met the tile at 80.25,
+    so the fixtures hung 1.36 low.
+  - Benton's open 10284 E today (read-only probe, observed): its SL52 tops sit at 80.2045, 1.36 under the ENH
+    wall tops at 81.5625. The beam there is 77.5625-80.5625. Its CL tiles had been deleted from the booth group,
+    so the tile face itself could not be read.
+- **Fix:**
+  - `ceiling_underside(tile)` reads the tile's own horizontal faces. Normal direction is ignored, because parts
+    are not reliably authored outward. Areas are summed per height, and the lowest "big" level is the underside.
+    A hinge is never big, so it can't set the height.
+  - Each fixture's top goes flush with the underside of the tile it sits in (`sl_tile_rects_with_tiles` pairs
+    each rectangle with its tile).
+  - After placing, the top is re-measured off the placed instance and compared with `underside_at`, a ray test
+    limited to that one tile, at 9 points over the footprint. More than 1/32 off is warned by name, and so is a
+    point with no tile above it.
+  - A tile with no horizontal face is refused BEFORE the Standard Lights come out.
+  - The 1.83.0 orientation (longwise, inside one tile) is unchanged. The tag is still `WR Studio Lights`.
+- **Rods:** the old even spacing ignored the roof-unit rods. 1.83.0's 96120 tile centres, x 25 and x 97, both
+  land on People's Space's measured rods (x 22.5-24.4 and 95.2-96.8, y 48.2-49.8).
+  - `wr-roof-vent.rb` does not place rods. They are geometry inside the `RM*.skp` part
+    (`Component#69 > Component#68`). So they are measured, not tabulated.
+  - `sl_keepouts` collects every face in the booth that hangs into the fixture's band (tile underside down by
+    the fixture height), strictly inside the tile rectangle. That covers rods, hinges and anything else.
+    Containers whose box misses the band are skipped whole, so the ducting is never walked.
+  - `WR_Accessories.sl_clear_keepouts` (pure) moves each fixture the smallest distance that clears every
+    keep-out and every fixture already placed, by `SL_KEEP_CLEAR` = 0.5 (ASSUMED). It moves inside its own tile
+    only. Where no spot exists, the fixture stays put and is warned by name as blocked.
+- **Beam check:** after the beam pass, each studio light's bottom is measured against the lowest beam bottom,
+  and a fixture below it is warned (reported, never moved).
+  - Derived from the 10284 E numbers: a 1.2242 SL52 flush at 81.5625 bottoms at 80.34, which is 2.78 above
+    the 77.5625 beam bottom. Unverified on a fresh build.
+
+**2. `build-takeoff.rb` laid no door dimensions, and reported a false DOES NOT CLOSE.**
+- **(a) Doors. Root cause:** `dimension_face(floor)` was called with no `:doors`, so the engine fell back to
+  `doors_on(model)`, which only scans top-level `model.entities`. Take-off doors sit two groups down
+  (room > `Doors` > `Opening n`), so it found 0. The same defect was already logged as finding 6 (DEVLOG
+  1.19.x).
+  - **Fix:** `door_jambs` (pure) computes each door's jambs from the lock (`at_in`, `at_in + w_in`, on the
+    stated run, interior face), and they're handed over as `:doors`.
+  - The per-room dimension report (previously collected in `floors` and never printed) now prints, followed by
+    a `*** n of m door(s) dimensioned` line if any are missing.
+  - **Also in the shared engine (`auto-dimension.rb`):** doors are now dimensioned off the NEARER corner of
+    their run (`door_corner`). This always used `r[:a]`, the run start in the face's loop order. On CCU that
+    gave the door 34'-8" off the far NE corner when the plan states 6 1/8" off NW, and Benton drew the 6 1/8"
+    by hand. This changes `dimension-room-now.rb` and the Dimensioned ability too.
+- **(b) False DOES NOT CLOSE. Root cause:** `closure` compared the plain sum of north runs with the overall.
+  That only holds for a room with no wall that doubles back.
+  - On CCU, the free pilaster's N 18 and S 18 both counted: 439.125 against 421.125, so y +18 on a polygon that
+    closes to 0.00.
+  - **Fix:** `coverage` lays each axis's forward runs on the axis and measures the length covered more than once
+    (`:jog_x/:jog_y`). The gap is sum - overall - jog. For a closed loop that is minus the overall that no run
+    covers.
+  - `:dx/:dy` (loop closure) are untouched, so a real misread still fails.
+  - The report names the doubled-back length. `dimension-room-now.rb` `verdict` uses the same fields and gets
+    the fix too.
+
+**3. Comment correction.** `place_iep_beams` no longer asserts a "KNOWN IMPORTER BUG" for MDL 10284. Benton
+imported a 10284 on 12 Oct and it came in correctly with its IEP BEAM 8.5. The comment now calls it an
+unconfirmed theory. On a 10284 the generic seal-count message now adds that the mismatch is new.
+
+**Verified (observed, this session):**
+- `rbparse.py`: 82 files parse.
+- `rbtest-takeoff.py`: 31 PASS, 0 FAIL. New cases:
+  - dj1-3: door jambs from the lock.
+  - dc1-3: near corner, including the CCU door read from either loop direction: 6 1/8 off NW, then 36.
+  - cl1-6: CCU closes with an 18 in doubled-back length reported. Also the CCU loop reversed, a plain L, and
+    another notch.
+  - nc1-5: genuinely unclosed chains still give `:open` and "CHAINS DO NOT CLOSE": a wall 4 in short, CCU
+    with one run misread by exactly the pilaster depth, a side 10 in short, and runs covering 40 of 100 in.
+- `rbtest-accessories.py`: all PASS (beam-length drift WARN, known). The new 4b block covers the 1.83.0 layout
+  landing on both rods (the bug), each fixture moved the smallest slide across its tile (5.275 / 5.675),
+  >= 0.5 clear of every rod, still inside its tile, no keep-outs = unmoved, blocked = left in place and flagged,
+  and 4 fixtures with rods (none overlapping, none on a rod).
+- New `rbtest-sl-mount.py`: 13 PASS. It runs `ceiling_underside` / `underside_at` / `sl_keepouts` verbatim
+  against small SketchUp stubs: a tile with hinges 1.36 under it, a reversed underside, a split underside, and
+  a roof unit with two rods and a duct box.
+- Mutation-checked:
+  - The old closure formula fails cl1/cl3/cl4/cl6 with y +18.
+  - Always measuring from `r[:a]` fails dc2.
+  - A keep-out pass that never moves anything fails 3 cases.
+  - Hinge-lowest, downward-only and no-area-sum each fail their case (s1-s3).
+- `rbtest-roomdims.py`, `rbtest-overlays.py`, `rbtest-roofvent.py`, `rbtest-boothlink-v3.py`,
+  `rbtest-boothlink-cbl.py`: PASS. `takeoff-check.py --selftest`: 0 failures.
+- `rbtest-lights.py`: the same 2 FAILs as before (`fill`, `fillsmall`, the 14-row `FILL_SCATTER`), identical
+  on the untouched tree. Not this change.
+
+**Not verified live (no clean model):**
+- SketchUp 2026 had two documents open: Benton's Untitled 10284 E room and `Master Component List AM.skp`.
+  `active_model` flipped between them while this ran.
+- `Sketchup.file_new` was called 3 times. No blank document ever became active, and nothing visible changed.
+- `WRB.scratch!` would wipe Benton's Untitled document, so it was not used. Nothing was built, and nothing in
+  either document was changed.
+- Still owed, from a fresh File > New:
+  - 96120 E with `sl`: each fixture top against the tile underside (1/32), bottom against the beam bottom, and
+    no beam clash;
+  - 96120 S or E rv=1 with `sl`: no fixture on a rod;
+  - a take-off build of `clients/ccu-sands-hall-113` (door dims 6 1/8 + 3'-0", CLOSES).
+- No screenshots of the fix exist.
+
+**Gotchas:**
+- The Bash tool eats `\`-newline even inside a quoted heredoc. That broke two Python patch heredocs outright
+  (unbalanced quote). Write patch scripts with the Write tool and run them.
+- The standard `BoothLighting` fixtures (`place_booth_lighting`, build-booth-components.rb) still hang from
+  the tile bounding box, so the same 1.36 applies to them. Not touched (not asked).
+
+**Next steps:**
+1. Run the three live checks above in a fresh model.
+2. Decide whether `place_booth_lighting` should use `ceiling_underside` as well.
+
 ## 2026-10-12 -- 1.83.2: IEP beam lengths are Benton's (76 / 88 / 94), not the quote repo's
 
 - **Benton, 12 Oct (reported, supersedes all earlier figures): IEP BEAM 7 = 76 in, 8 = 88 in, 8.5 = 94 in.**

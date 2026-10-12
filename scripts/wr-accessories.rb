@@ -75,6 +75,19 @@ module WR_Accessories
   # SL_EDGE_CLEAR is the room a fixture must leave at each end of its tile.
   SL_EDGE_CLEAR = 6.0
 
+  # KEEP-OUTS UNDER THE CEILING (1.84.0). Anything that hangs below a ceiling
+  # tile's underside inside the usable tile rectangle is a keep-out for the
+  # fixture flush on that underside: on a roof-mounted (rv = 1) booth that is
+  # the roof unit's hanger rods, which come down THROUGH the ceiling (People's
+  # Space RM96120VSS > Component#69 > Component#68, about 2 in round, to booth
+  # z 77.15 against a ceiling face at 80.25, at x ~23 and x ~96, y ~49 —
+  # .forge/builder/HANDOFF-peoplesspace-accessories.md, observed 6 Oct 2026).
+  # 1.83.0's tile centres on a 96120 are x 25 and x 97: both on a rod.
+  # wr-overlays measures the keep-outs off the placed geometry; this only
+  # moves fixtures off them. SL_KEEP_CLEAR is the gap left to a keep-out:
+  # ASSUMED (no drawing gives one), the same 1/2 in the acoustic package keeps.
+  SL_KEEP_CLEAR = 0.5
+
   # ---------------------------------------------------------------- HEPA --
   #
   # ONE PER VENT SET, on the INTAKE duct box — the box the fan hose does NOT
@@ -323,6 +336,83 @@ module WR_Accessories
     end
     { :lights => lights,
       :how => 'longwise on its ceiling tile, inside one tile, widest tiles first' }
+  end
+
+  # Move each fixture of a sl_tile_layout off the keep-outs (1.84.0) — the
+  # roof-unit rods, or anything else wr-overlays measured hanging below the
+  # ceiling inside a tile rectangle. Never across a seam: a fixture only moves
+  # INSIDE its own tile, so 1.83.0's rule (longwise, one tile) still holds.
+  #
+  #   lights    sl_tile_layout's :lights (not modified; copies come back)
+  #   len, wid  the fixture's measured length and width
+  #   rects     the same tile rectangles the layout was made on
+  #   keepouts  [[x0, y0, x1, y1], ...] plan boxes, booth coordinates
+  #
+  # A fixture already clear stays exactly where the layout put it. One that
+  # is not tries every position that just clears an obstacle — slid ACROSS
+  # its tile, or ALONG it (still SL_EDGE_CLEAR from each tile end) — and
+  # takes the smallest move that stays inside the tile and clears every
+  # keep-out and every fixture already settled. Fixtures settle in layout
+  # order. Each light comes back with :moved (the plan distance, 0.0 when
+  # it did not move) and :blocked (true when no clear position exists in
+  # its tile — it is then left where the layout put it, for the caller to
+  # report by name; nothing is ever placed on a rod silently).
+  def self.sl_clear_keepouts(lights, len, wid, rects, keepouts)
+    c = SL_KEEP_CLEAR
+    obs = (keepouts || []).map { |k| k.map { |v| v * 1.0 } }
+    hits = lambda do |fp, list|
+      list.any? do |o|
+        fp[0] < o[2] + c - 1e-6 && fp[2] > o[0] - c + 1e-6 &&
+          fp[1] < o[3] + c - 1e-6 && fp[3] > o[1] - c + 1e-6
+      end
+    end
+    settled = []
+    out = []
+    lights.each do |lt|
+      r = rects[lt[:tile]].map { |v| v * 1.0 }
+      along_x = lt[:orient] == :x
+      hx = (along_x ? len : wid) / 2.0
+      hy = (along_x ? wid : len) / 2.0
+      fp_at = lambda { |x, y| [x - hx, y - hy, x + hx, y + hy] }
+      cx, cy = lt[:centre].map { |v| v * 1.0 }
+      others = obs + settled
+      best = nil
+      if hits.call(fp_at.call(cx, cy), others)
+        # The x and y bounds a centre may take, per axis: across the tile it
+        # may go edge to edge; along it, SL_EDGE_CLEAR from each end.
+        ex = along_x ? SL_EDGE_CLEAR : 0.0
+        ey = along_x ? 0.0 : SL_EDGE_CLEAR
+        lo_x = r[0] + ex + hx
+        hi_x = r[2] - ex - hx
+        lo_y = r[1] + ey + hy
+        hi_y = r[3] - ey - hy
+        xs = [cx]
+        ys = [cy]
+        others.each do |o|
+          xs << o[0] - c - hx << o[2] + c + hx
+          ys << o[1] - c - hy << o[3] + c + hy
+        end
+        cands = []
+        xs.each { |x| ys.each { |y| cands << [x, y] } }
+        cands.each do |x, y|
+          next if x < lo_x - 1e-6 || x > hi_x + 1e-6 || y < lo_y - 1e-6 || y > hi_y + 1e-6
+          next if hits.call(fp_at.call(x, y), others)
+          d = Math.sqrt((x - cx)**2 + (y - cy)**2)
+          best = [d, x, y] if best.nil? || d < best[0] - 1e-9
+        end
+      end
+      if best.nil? && hits.call(fp_at.call(cx, cy), others)
+        out << lt.merge(:moved => 0.0, :blocked => true)
+        settled << fp_at.call(cx, cy)
+      elsif best
+        out << lt.merge(:centre => [best[1], best[2]], :moved => best[0], :blocked => false)
+        settled << fp_at.call(best[1], best[2])
+      else
+        out << lt.merge(:moved => 0.0, :blocked => false)
+        settled << fp_at.call(cx, cy)
+      end
+    end
+    out
   end
 
   # The beam series of a model's digits: '84', '96', '102', or nil for a booth

@@ -1571,6 +1571,14 @@ module WR_Overlays
   # (deck['CL_seals']), so a fixture inside the rectangle can neither cross a
   # seam nor meet the seal or the IEP beam hung under it. In tiling order.
   def self.sl_tile_rects(deck, spec)
+    sl_tile_rects_with_tiles(deck, spec).map { |r, _t| r }
+  end
+
+  # The same rectangles, each paired with the CL tile instance it was cut
+  # from: [[rect, tile], ...], in the same order. The tile is what the
+  # fixture's top is measured against (1.84.0: its own underside FACE, not the
+  # deck's bounding box).
+  def self.sl_tile_rects_with_tiles(deck, spec)
     tiles = ((deck && deck['CL_tiles']) || []).select { |e| e.valid? rescue false }
     enh = !spec[:eiw].nil?
     iw = (enh ? spec[:eiw] : spec[:iw]).to_f
@@ -1602,18 +1610,158 @@ module WR_Overlays
           end
         end
       end
-      r
+      [r, t]
     end
-    rects.select { |r| r[2] > r[0] && r[3] > r[1] }.sort_by { |r| [r[0], r[1]] }
+    rects.select { |r, _t| r[2] > r[0] && r[3] > r[1] }.sort_by { |r, _t| [r[0], r[1]] }
+  end
+
+  # THE CEILING TILE'S UNDERSIDE, MEASURED OFF ITS FACES (1.84.0).
+  #
+  # Benton, 12 Oct 2026: the studio light "should not be hanging lower than
+  # the beam. It should be mounted right on the ceiling component." Up to
+  # 1.83.2 the fixture top went to deck['CL'].min.z — the union BOUNDING BOX
+  # of the CL tiles — and that box reaches down to the bottom of the plastic
+  # hinges that hang under the tile edges. On People's Space's 96120 E the box
+  # read z 78.89 where upward rays met the tile face at 80.25: the fixtures
+  # hung 1.36 in low (.forge/builder/HANDOFF-peoplesspace-accessories.md,
+  # observed 6 Oct 2026). A bounding box over-reports by construction; a face
+  # does not.
+  #
+  # Every HORIZONTAL face of the tile, in booth coordinates: [[face,
+  # local->booth transform, z]]. Which way a face's normal points is NOT used:
+  # the library's parts are not reliably authored outward, and a reversed
+  # underside would otherwise vanish from the search. :z is the LOWEST big
+  # horizontal LEVEL — a height whose faces add up to at least half the area
+  # of the biggest level — which is the panel's underside (its top skin is the
+  # other big level, higher up); a hinge's faces are small and never make a
+  # big level, so they can never set :z.
+  # nil when the tile has no horizontal face at all (then nothing is guessed:
+  # the caller refuses).
+  def self.ceiling_underside(tile)
+    faces = []
+    walk = lambda do |ents, tr, depth|
+      next if depth > 8
+      ents.each do |e|
+        case e
+        when Sketchup::Face
+          n = e.normal.transform(tr)
+          next if n.length.to_f < 1e-9
+          n.normalize!
+          next unless n.z.to_f.abs > 0.999
+          v = e.outer_loop.vertices.first
+          next unless v
+          faces << [e, tr, v.position.transform(tr).z.to_f, e.area(tr).to_f]
+        when Sketchup::ComponentInstance
+          walk.call(e.definition.entities, tr * e.transformation, depth + 1)
+        when Sketchup::Group
+          walk.call(e.entities, tr * e.transformation, depth + 1)
+        end
+      end
+    end
+    walk.call(tile.definition.entities, tile.transformation, 0)
+    return nil if faces.empty?
+    # Area summed PER HEIGHT (to 1/64 in), so an underside split into strips
+    # by hinge cut-outs still counts as one big level against the top skin.
+    level = Hash.new(0.0)
+    faces.each { |f| level[(f[2] * 64.0).round] += f[3] }
+    big = level.values.max * 0.5
+    k = level.select { |_k, a| a >= big }.keys.min
+    z = faces.select { |f| (f[2] * 64.0).round == k }.max_by { |f| f[3] }[2]
+    { :z => z, :faces => faces.map { |f, tr, fz, _a| [f, tr, fz] } }
+  end
+
+  # What an upward ray at plan (x, y) meets first on the tile: the LOWEST of
+  # its horizontal faces whose polygon holds the point. It is a ray test
+  # restricted to the one tile, so nothing else in the booth (a beam, a rod, a
+  # light) can answer for it. nil when no face of the tile is over the point.
+  def self.underside_at(faces, x, y)
+    hit = nil
+    faces.each do |f, tr, z|
+      q = Geom::Point3d.new(x, y, z).transform(tr.inverse)
+      c = f.classify_point(q)
+      next unless [Sketchup::Face::PointInside, Sketchup::Face::PointOnEdge,
+                   Sketchup::Face::PointOnVertex].include?(c)
+      hit = z if hit.nil? || z < hit
+    end
+    hit
+  end
+
+  # KEEP-OUTS FOR ONE TILE (1.84.0): the plan box of every face in the booth
+  # that hangs into the band a fixture will occupy — from the tile underside
+  # z_under down by the fixture's height — strictly inside the tile's usable
+  # rectangle. On a roof-mounted booth those are the roof unit's hanger rods
+  # (they come down through the ceiling); a hinge under the tile, or any
+  # other part reaching into the band, is one too, because a fixture flush on
+  # the underside would run into it just the same. Containers whose own box
+  # misses the band are skipped whole, so the ducting above the ceiling is
+  # never walked face by face. `skip` holds the instances never to count (the
+  # fixtures being placed). Plan boxes [x0, y0, x1, y1], booth coordinates.
+  def self.sl_keepouts(booth, rect, z_under, depth, skip = [])
+    t = IEP_BEAM_CHECK_TOL
+    lo = [rect[0] + t, rect[1] + t, z_under - depth]
+    hi = [rect[2] - t, rect[3] - t, z_under - t]
+    meets = lambda do |b|
+      b[0][1] > lo[0] && b[0][0] < hi[0] && b[1][1] > lo[1] && b[1][0] < hi[1] &&
+        b[2][1] > lo[2] && b[2][0] < hi[2]
+    end
+    out = []
+    walk = lambda do |ents, tr, d|
+      next if d > 8
+      ents.each do |e|
+        next if skip.include?(e)
+        case e
+        when Sketchup::Face
+          xs = []
+          ys = []
+          zs = []
+          e.vertices.each do |v|
+            p = v.position.transform(tr)
+            xs << p.x.to_f
+            ys << p.y.to_f
+            zs << p.z.to_f
+          end
+          b = [[xs.min, xs.max], [ys.min, ys.max], [zs.min, zs.max]]
+          out << [b[0][0], b[1][0], b[0][1], b[1][1]] if meets.call(b)
+        when Sketchup::ComponentInstance, Sketchup::Group
+          bb = e.bounds
+          xs = []
+          ys = []
+          zs = []
+          8.times do |i|
+            p = bb.corner(i).transform(tr)
+            xs << p.x.to_f
+            ys << p.y.to_f
+            zs << p.z.to_f
+          end
+          next unless meets.call([[xs.min, xs.max], [ys.min, ys.max], [zs.min, zs.max]])
+          sub = e.is_a?(Sketchup::Group) ? e.entities : e.definition.entities
+          walk.call(sub, tr * e.transformation, d + 1)
+        end
+      end
+    end
+    walk.call(booth.entities, Geom::Transformation.new, 0)
+    out.map { |b| b.map { |v| v.round(3) } }.uniq
   end
 
   # STUDIO LIGHTS (payload sl). The booth's blank Standard Light fixtures
   # (BoothLighting.skp, one per standard ceiling tile — build_booth's lighting
   # pass) come OUT and the packing list's studio lights go IN: SL29 / SL52, the
-  # count from sl_by_model. Hung the same way the Standard Light is: top flush
-  # to the standard ceiling tile's underside (the deck's measured CL bounds),
-  # on the same WR Lights tag so the Draft/Render toggle still hides them.
-  # Only the plan layout is assumed — see WR_Accessories::SL_EDGE_CLEAR.
+  # count from sl_by_model. On their own WR Studio Lights tag (STUDIO_LIGHT_TAG,
+  # never hidden — Benton, 6 Oct 2026). Only the plan layout is assumed — see
+  # WR_Accessories::SL_EDGE_CLEAR and SL_KEEP_CLEAR.
+  #
+  # HEIGHT (1.84.0): each fixture's top goes FLUSH WITH THE UNDERSIDE FACE OF
+  # THE TILE IT SITS IN — measured off that tile's own faces
+  # (ceiling_underside), never off a bounding box, which reaches down to the
+  # hinges and hung every fixture 1.36 in low on a 96120 E. After placing,
+  # the top is re-measured off the placed instance and checked against what an
+  # upward ray meets on the tile at nine points over the fixture's footprint
+  # (underside_at); more than 1/32 off anywhere is warned by name.
+  #
+  # PLAN (1.84.0): longwise inside one tile as 1.83.0 laid it, then moved off
+  # anything that hangs into the fixture's band inside the tile — the roof
+  # unit's rods on an rv = 1 booth (sl_keepouts measures them,
+  # WR_Accessories.sl_clear_keepouts moves the fixture, inside its own tile).
   def self.place_studio_lights(model, booth, key, spec, cfg, cache, deck, warns)
     plan = WR_Accessories.sl_plan(key)
     puts ''
@@ -1646,12 +1794,30 @@ module WR_Overlays
     end
     part_long = gx[:e][0] >= gx[:e][1] ? :x : :y
     len = [gx[:e][0], gx[:e][1]].max
-    rects = sl_tile_rects(deck, spec)
+    wid = [gx[:e][0], gx[:e][1]].min
+    pairs = sl_tile_rects_with_tiles(deck, spec)
+    rects = pairs.map { |r, _t| r }
     lay = WR_Accessories.sl_tile_layout(plan[:count], len, rects)
     if lay[:error]
       warns << "STUDIO LIGHTS (sl) NOT placed: #{lay[:error]} — the booth keeps its " +
                'Standard Light fixture(s)'
       return 0
+    end
+
+    # Every tile that takes a fixture must show a measurable underside face;
+    # one that does not is refused by name BEFORE the old fixtures come out,
+    # so a refusal leaves the booth with its Standard Lights, never with none.
+    unders = {}
+    lay[:lights].map { |lt| lt[:tile] }.uniq.each do |ti|
+      u = ceiling_underside(pairs[ti][1])
+      if u.nil?
+        warns << "STUDIO LIGHTS (sl) NOT placed: ceiling tile #{ti + 1} " +
+                 "(#{pairs[ti][1].definition.name}) has no horizontal face to " +
+                 'mount on, and its bounding box is not used (it reaches down to the ' +
+                 'hinges) — the booth keeps its Standard Light fixture(s)'
+        return 0
+      end
+      unders[ti] = u
     end
 
     # The fixtures build_booth's lighting pass just hung: everything on the
@@ -1664,11 +1830,20 @@ module WR_Overlays
       e.layer.name == ltag
     end
     unless olds.length == plan[:remove]
-      warns << "STUDIO LIGHTS: the booth had #{olds.length} Standard Light fixture(s); " \
-               "the packing list replaces #{plan[:remove]}. All #{olds.length} were removed " \
+      warns << "STUDIO LIGHTS: the booth had #{olds.length} Standard Light fixture(s); " +
+               "the packing list replaces #{plan[:remove]}. All #{olds.length} were removed " +
                "and #{plan[:count]} #{plan[:part]} placed — check the count."
     end
     booth.entities.erase_entities(olds) unless olds.empty?
+
+    # Keep-outs, measured AFTER the old fixtures are gone (they hang in the
+    # very band being searched and would otherwise push the new ones away).
+    keep = []
+    unders.each do |ti, u|
+      keep.concat(sl_keepouts(booth, rects[ti], u[:z], gx[:e][2]))
+    end
+    keep.uniq!
+    lights = WR_Accessories.sl_clear_keepouts(lay[:lights], len, wid, rects, keep)
 
     # Studio lights are a product the customer bought, not part of the render
     # rig: they go on their OWN tag, which no mode switch or scene hides
@@ -1676,14 +1851,20 @@ module WR_Overlays
     # WR Lights tag the Draft toggle and the scenes hid them with the rig.
     layer = model.layers[STUDIO_LIGHT_TAG] || model.layers.add(STUDIO_LIGHT_TAG)
     layer.visible = true
-    z_top = cl.min.z.to_f
-    puts format('    %s measures %.2f x %.2f x %.2f; %s; top at the ceiling tile ' +
-                'underside z %.2f', plan[:part], gx[:e][0], gx[:e][1], gx[:e][2],
-                lay[:how], z_top)
+    puts format('    %s measures %.2f x %.2f x %.2f; %s', plan[:part], gx[:e][0],
+                gx[:e][1], gx[:e][2], lay[:how])
+    unders.each do |ti, u|
+      puts format('    tile %d (%s): underside face at z %.4f (the deck bounding box ' +
+                  'reads %.4f - the hinges; not used)', ti + 1, pairs[ti][1].definition.name,
+                  u[:z], cl.min.z.to_f)
+    end
+    puts "    #{keep.length} keep-out face(s) hang into the fixture band inside the tiles" +
+         (keep.empty? ? '' : ' (roof-unit rods, hinges or parts reaching below the ceiling)')
     puts "    removed #{olds.length} Standard Light fixture(s)"
     n = 0
-    lay[:lights].each_with_index do |lt, i|
+    lights.each_with_index do |lt, i|
       cx, cy = lt[:centre]
+      z_top = unders[lt[:tile]][:z]
       # The fixture's LENGTH onto the tile's long axis — turned per light,
       # since two tiles need not run the same way (they do on every deck
       # today; a single-tile deck is the one case that decides it alone).
@@ -1692,20 +1873,48 @@ module WR_Overlays
       tr = Geom::Transformation.translation(
         Geom::Vector3d.new(cx - (sx[0] + sx[1]) / 2.0, cy - (sy[0] + sy[1]) / 2.0,
                            z_top - sz[1])) * rot
-      at = add(booth, sd, tr, "Studio Light #{plan[:part]} (#{i + 1} of #{plan[:count]})", layer)
-      puts "    #{at}  tile #{lt[:tile] + 1}, length on #{lt[:orient]}"
+      # Not add(): it returns only the bounds text, and the checks below need
+      # the instance itself. Same three steps, same name and tag discipline.
+      inst = booth.entities.add_instance(sd, tr)
+      inst.name = "Studio Light #{plan[:part]} (#{i + 1} of #{plan[:count]})"
+      inst.layer = layer
       n += 1
+
+      # RE-MEASURED off the placed instance, not trusted from the arithmetic.
+      px, py, pz = turned_span(gx, inst.transformation)
+      ins = 0.25
+      samples = [px[0] + ins, (px[0] + px[1]) / 2.0, px[1] - ins].product(
+        [py[0] + ins, (py[0] + py[1]) / 2.0, py[1] - ins])
+      hitz = samples.map { |x, y| underside_at(unders[lt[:tile]][:faces], x, y) }
+      dev = hitz.compact.map { |z| (z - pz[1]).abs }.max || 0.0
+      puts format('    %-26s x %7.2f..%7.2f y %7.2f..%7.2f z %7.3f..%7.3f  tile %d, length ' +
+                  'on %s; top - underside %+.4f over %d/9 ray points%s',
+                  inst.name, px[0], px[1], py[0], py[1], pz[0], pz[1], lt[:tile] + 1,
+                  lt[:orient], dev, hitz.compact.length,
+                  lt[:moved] > 0.0 ? format(', moved %.2f off a keep-out', lt[:moved]) : '')
+      if hitz.include?(nil)
+        warns << format('STUDIO LIGHT %d: %d of 9 points over its footprint have no ceiling ' +
+                        'tile face above them - it is not fully under its tile. Check it.',
+                        i + 1, hitz.count(nil))
+      end
+      if dev > IEP_BEAM_CHECK_TOL
+        warns << format('STUDIO LIGHT %d top is %.4f off the tile underside somewhere over ' +
+                        'its footprint (tolerance 1/32) - something under the tile (a hinge?) ' +
+                        'is in its way. Check it.', i + 1, dev)
+      end
+      if lt[:blocked]
+        warns << "STUDIO LIGHT #{i + 1} could not be moved clear of a keep-out inside its " +
+                 'ceiling tile (a roof-unit rod, a hinge or a part hanging below the ' +
+                 'ceiling) and was left where the layout put it - it runs into it. ' +
+                 'Move it by hand.'
+      end
       # Inside its tile, re-measured: a fixture that pokes past the tile's
       # usable rectangle reaches a seam seal (or an IEP beam under it).
       r = rects[lt[:tile]]
-      lx0 = cx - (sx[1] - sx[0]) / 2.0
-      lx1 = cx + (sx[1] - sx[0]) / 2.0
-      ly0 = cy - (sy[1] - sy[0]) / 2.0
-      ly1 = cy + (sy[1] - sy[0]) / 2.0
-      if lx0 < r[0] - 0.01 || lx1 > r[2] + 0.01 || ly0 < r[1] - 0.01 || ly1 > r[3] + 0.01
+      if px[0] < r[0] - 0.01 || px[1] > r[2] + 0.01 || py[0] < r[1] - 0.01 || py[1] > r[3] + 0.01
         warns << format('STUDIO LIGHT %d overhangs its ceiling tile (fixture %.2f..%.2f x ' +
-                        '%.2f..%.2f, tile %.2f..%.2f x %.2f..%.2f) — it will meet the seam ' +
-                        'seal or beam. Check it.', i + 1, lx0, lx1, ly0, ly1, *r)
+                        '%.2f..%.2f, tile %.2f..%.2f x %.2f..%.2f) - it will meet the seam ' +
+                        'seal or beam. Check it.', i + 1, px[0], px[1], py[0], py[1], *r)
       end
     end
     n
@@ -1731,9 +1940,11 @@ module WR_Overlays
   # the beam's series hangs under (series - 2). A disagreement means the BOM
   # and the deck describe different ceilings, and choosing between them is
   # not this method's call: it is named in the build summary and left for a
-  # person. (MDL 10284 is the known case: the BOM ships 2 x STD10242CL SIDE
-  # and ONE STDSS FLCL8.5, the deck pass tiles it 8442 + 8418 + 8442 with two
-  # CL7 seals.)
+  # person. (MDL 10284 was once SUSPECTED of this — a replay of the deck pass
+  # read an 84-cross ceiling with two CL7 seals against the BOM's one STDSS
+  # FLCL8.5 — but that was never confirmed: Benton imported a 10284 on
+  # 12 Oct 2026 and it came in correctly, WITH its IEP BEAM 8.5. No model is
+  # a known case today.)
   #
   # THE PART IS PICKED BY NAME (Benton, 12 Oct 2026) — plan[:file], the
   # file the BOM description names: IEP BEAM 7 / 8 / 8.5. Never scaled. A
@@ -1769,15 +1980,15 @@ module WR_Overlays
             "but the deck pass placed #{seals.length} ceiling seam seal(s). One beam per " \
             'seal is the rule, so the two must agree, and nothing was guessed. The ' \
             "ceiling this tool builds for #{key} does not match the production BOM."
-      # The one KNOWN case, named so nobody reads it as a beam problem: the
-      # importer builds MDL 10284's ceiling as the 84102's (an 84 cross, two
-      # CL7 seals); the BOM's is a 102 cross, 2 x STD10242CL SIDE and ONE
-      # STDSS FLCL8.5. Fix the deck and this beam places by the same rule.
+      # MDL 10284 used to get an extra "KNOWN IMPORTER BUG" sentence here,
+      # claiming its ceiling is built 84-cross with two CL7 seals. That was a
+      # theory from a deck replay, never confirmed, and Benton's own 10284
+      # import on 12 Oct 2026 came in correctly with its 1 x IEP BEAM 8.5 (the
+      # seal count agreed). So nothing is asserted about any model: if this
+      # fires on a 10284 now it is NEW, and the line below says so.
       if WR_Accessories.digits(key) == '10284'
-        msg += ' KNOWN IMPORTER BUG: the MDL 10284 ceiling is built 84-cross ' \
-               '(8442 + 8418 + 8442, two CL7 seals); the BOM ships a 102-cross ceiling ' \
-               '(2 x STD10242CL SIDE, one STDSS 8.5CL). Its 1 x IEP BEAM 8.5 is withheld ' \
-               'until the deck is fixed.'
+        msg += ' (MDL 10284: a 12 Oct 2026 import placed its one IEP BEAM 8.5 ' \
+               'correctly, so this mismatch is new - report it with the deck print.)'
       end
       warns << msg
       puts "    #{msg}"
@@ -1866,6 +2077,7 @@ module WR_Overlays
     light_tags = [WR_BuildBoothComponents::LIGHT_TAG, STUDIO_LIGHT_TAG]
 
     n = 0
+    beam_bottoms = []
     rows.sort_by { |r| r[:along_x] ? r[:cy] : r[:cx] }.each_with_index do |r, i|
       a = r[:along_x] ? Geom::Vector3d.new(1, 0, 0) : Geom::Vector3d.new(0, 1, 0)
       c = r[:along_x] ? Geom::Vector3d.new(0, 1, 0) : Geom::Vector3d.new(1, 0, 0)
@@ -1901,6 +2113,7 @@ module WR_Overlays
       d_across = r[:along_x] ? (py[0] + py[1]) / 2.0 - r[:cy] : (px[0] + px[1]) / 2.0 - r[:cx]
       d_along  = r[:along_x] ? (px[0] + px[1]) / 2.0 - tx : (py[0] + py[1]) / 2.0 - ty
       d_top    = pz[1] - tz
+      beam_bottoms << pz[0]
       puts format('    %-18s %s  under %s at %s %.3f, top %.3f', "#{label} #{i + 1}", at,
                   r[:inst].definition.name, r[:along_x] ? 'y' : 'x',
                   r[:along_x] ? r[:cy] : r[:cx], pz[1])
@@ -1928,6 +2141,28 @@ module WR_Overlays
         puts "      LIGHT CLASH: #{txt}"
         warns << "IEP BEAM seam #{i + 1} CLASHES with light fixture(s) #{txt} - a fixture " \
                  'crosses the ceiling seam. Fix the light layout before rendering.'
+      end
+    end
+
+    # NO STUDIO LIGHT BELOW THE BEAM (Benton, 12 Oct 2026: the light "should
+    # not be hanging lower than the beam"). Measured, not predicted: each
+    # fixture's bottom off its own placed faces against the lowest beam bottom
+    # just re-measured above. Reported, never moved — the fixture's top is
+    # already on the tile underside (place_studio_lights), so a fixture that
+    # still reaches below the beam is a part that is too deep, not a pose.
+    unless beam_bottoms.empty?
+      low = beam_bottoms.min
+      booth.entities.grep(Sketchup::ComponentInstance).each do |sl|
+        next unless sl.layer && sl.layer.name == STUDIO_LIGHT_TAG
+        sg = geom_extents(sl.definition)
+        next if sg.nil?
+        bot = turned_span(sg, sl.transformation)[2][0]
+        puts format('    %-26s bottom z %.4f, lowest beam bottom z %.4f (%s)', sl.name, bot,
+                    low, bot >= low - IEP_BEAM_CHECK_TOL ? 'not below the beam' : 'BELOW THE BEAM')
+        next if bot >= low - IEP_BEAM_CHECK_TOL
+        warns << format('%s hangs %.4f in BELOW the IEP beam bottom (z %.4f vs %.4f), ' +
+                        'with its top on the ceiling tile underside. Check the part depth.',
+                        sl.name, low - bot, bot, low)
       end
     end
     n

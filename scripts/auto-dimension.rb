@@ -357,30 +357,103 @@ module WR_AutoDimension
     { :run => best[1], :t0 => ts.min, :t1 => ts.max }
   end
 
+  # Which corner a door is dimensioned from (1.84.0): the NEARER end of its
+  # run, the way a drafter does it and the way the take-off states it ("6 1/8"
+  # from the north-west corner"). len is the run length, t0 < t1 the jambs'
+  # distances from the run's start (r[:a]). Returns { :from => :a | :b,
+  # :near, :far } with :near / :far still measured from r[:a], so the caller
+  # offsets both jambs off the same point. A dead-centre door ties to :a.
+  # PURE — rbtest-takeoff.py lifts it verbatim.
+  def self.door_corner(len, t0, t1)
+    if t0 <= len - t1 + TOL
+      { :from => :a, :near => t0, :far => t1 }
+    else
+      { :from => :b, :near => t1, :far => t0 }
+    end
+  end
+
   # ------------------------------------------------------------------ closure --
 
   # Segments must sum to the overall. Reported per axis, and reported as a
   # FAILURE when it fails rather than quietly drawing something plausible.
+  #
+  # TWO TESTS PER AXIS, and the second was wrong until 1.84.0:
+  #
+  #   1. THE LOOP CLOSES: east runs sum to the west runs, north to south
+  #      (:dx, :dy). A run list that does not return to its start fails here.
+  #
+  #   2. THE CHAIN COVERS THE OVERALL (:gap_x, :gap_y). This used to be the
+  #      plain sum of the east (north) runs minus the overall — true only for
+  #      a room with no wall that doubles back on itself. A notch does: CCU
+  #      Sands Hall 113's free-standing south pilaster is N 18, W 12, S 18,
+  #      so its two 18" faces were added into the vertical chain and the
+  #      report said DOES NOT CLOSE, y +18", on a polygon that closes to 0.00
+  #      (DEVLOG 6 Oct 2026). A drafter dimensions those faces in place, on
+  #      the pilaster, not as part of the side's chain.
+  #
+  #      So the doubled-back length is now MEASURED, on its own route: the
+  #      east runs' spans are laid on the x axis and every stretch covered
+  #      more than once is counted (:jog_x; :jog_y the same for north runs).
+  #      The gap is then sum - overall - jog. For a closed loop that is
+  #      exactly minus the stretch of the overall NO east run covers — zero
+  #      when the chain spans the room, and not zero when a run is missing
+  #      or misread, which is the failure this exists to catch.
+  #
+  # Only r[:a] / r[:b] / r[:vec] .x / .y and bb.width / .height / .min are
+  # read, so rbtest-takeoff.py lifts this verbatim and runs it on plain
+  # stand-ins for the CCU outline and a deliberately broken chain.
   def self.closure(runs, bb)
     ex = 0.0; wx = 0.0; ny = 0.0; sy = 0.0
     skew = 0
+    spans_x = []
+    spans_y = []
     runs.each do |r|
       v = r[:vec]
       if v.y.abs < TOL
-        v.x > 0 ? ex += v.x : wx += -v.x
+        if v.x > 0
+          ex += v.x
+          spans_x << [r[:a].x.to_f, r[:b].x.to_f]
+        else
+          wx += -v.x
+        end
       elsif v.x.abs < TOL
-        v.y > 0 ? ny += v.y : sy += -v.y
+        if v.y > 0
+          ny += v.y
+          spans_y << [r[:a].y.to_f, r[:b].y.to_f]
+        else
+          sy += -v.y
+        end
       else
         skew += 1
       end
     end
+    cov_x = coverage(spans_x, bb.min.x.to_f, bb.min.x.to_f + bb.width.to_f)
+    cov_y = coverage(spans_y, bb.min.y.to_f, bb.min.y.to_f + bb.height.to_f)
     {
       :east => ex, :west => wx, :north => ny, :south => sy,
       :dx => (ex - wx), :dy => (ny - sy),
       :overall_x => bb.width.to_f, :overall_y => bb.height.to_f,
-      :gap_x => (ex - bb.width.to_f), :gap_y => (ny - bb.height.to_f),
+      :jog_x => cov_x[:jog], :jog_y => cov_y[:jog],
+      :gap_x => (ex - bb.width.to_f - cov_x[:jog]),
+      :gap_y => (ny - bb.height.to_f - cov_y[:jog]),
       :skew => skew
     }
+  end
+
+  # Spans [[p, q], ...] (either order) laid on one axis between lo and hi.
+  # :jog is the length covered MORE than once, counted once per extra layer
+  # — the doubled-back wall. Pure arithmetic on breakpoints.
+  def self.coverage(spans, lo, hi)
+    segs = spans.map { |p, q| p < q ? [p, q] : [q, p] }
+    cuts = (segs.flatten + [lo, hi]).sort.uniq
+    jog = 0.0
+    cuts.each_cons(2) do |p, q|
+      next if q - p < 1e-9
+      m = (p + q) / 2.0
+      k = segs.count { |s0, s1| s0 <= m && m <= s1 }
+      jog += (k - 1) * (q - p) if k > 1
+    end
+    { :jog => jog }
   end
 
   # World-space bounding box of the traced perimeter. For a floor face the
@@ -493,14 +566,21 @@ module WR_AutoDimension
       u = r[:vec].normalize
       n = outward(r, ccw)
       off = Geom::Vector3d.new(n.x * door_off, n.y * door_off, 0)
-      j0 = r[:a].offset(u, hit[:t0])
-      j1 = r[:a].offset(u, hit[:t1])
+      # Off the NEARER corner of its run (door_corner). This always measured
+      # from r[:a], the run's start in the face's own loop order — which is
+      # an accident of winding, not a choice: on CCU Sands 113 it gave the
+      # door as 34'-8" off the far (NE) corner while the plan states 6 1/8"
+      # off the NW one, and Benton drew that one by hand.
+      dc = door_corner(r[:vec].length.to_f, hit[:t0], hit[:t1])
+      corner = dc[:from] == :a ? r[:a] : r[:b]
+      jn = r[:a].offset(u, dc[:near])
+      jf = r[:a].offset(u, dc[:far])
       # The jambs are mid-edge, so there is no vertex to attach to: give them
       # construction points on the door tag, which move with the room.
-      c0 = keep.call(cpoint_for(ents, j0, path, t_door)) || j0
-      c1 = keep.call(cpoint_for(ents, j1, path, t_door)) || j1
-      made += 1 if keep.call(dim(ents, at.call(r[:a]), c0, off, t_door))  # corner -> near jamb
-      made += 1 if keep.call(dim(ents, c0, c1, off, t_door))              # opening width
+      cn = keep.call(cpoint_for(ents, jn, path, t_door)) || jn
+      cf = keep.call(cpoint_for(ents, jf, path, t_door)) || jf
+      made += 1 if keep.call(dim(ents, at.call(corner), cn, off, t_door))  # corner -> near jamb
+      made += 1 if keep.call(dim(ents, cn, cf, off, t_door))               # opening width
       doors += 1
     end
 
@@ -652,6 +732,11 @@ module WR_AutoDimension
     puts format('    north %9.2f"   south %9.2f"   difference %+.3f"', c[:north], c[:south], c[:dy])
     puts format('    overall %.2f" x %.2f"', c[:overall_x], c[:overall_y])
     puts format('    chain vs overall:  x %+.3f"   y %+.3f"', c[:gap_x], c[:gap_y])
+    if c[:jog_x].to_f > 0.05 || c[:jog_y].to_f > 0.05
+      puts format('    doubled-back runs: x %.2f"   y %.2f" — a notch or pilaster whose faces ' \
+                  'are dimensioned in place, not part of the side chain (already left out ' \
+                  'of "chain vs overall")', c[:jog_x].to_f, c[:jog_y].to_f)
+    end
     ok = c[:dx].abs < 0.05 && c[:dy].abs < 0.05 &&
          c[:gap_x].abs < 0.05 && c[:gap_y].abs < 0.05
     if c[:skew] > 0

@@ -301,10 +301,31 @@ module WR_BuildTakeoff
       place_notes(model, g, pts, ccw, room, data['assumed_inventory'] || [],
                   name, t_note)
 
-      # Dimension it, the way build-room finishes.
+      # Dimension it, the way build-room finishes — WITH ITS DOORS (1.84.0).
+      #
+      # Up to 1.83.2 this called dimension_face(floor) bare, so the engine
+      # fell back to its own door scan, doors_on(model): WR-Doors-tagged
+      # entities DIRECTLY in model.entities. Every door this script builds
+      # sits two groups down (room group > 'Doors' > 'Opening n'), so the
+      # scan returned [] and not one door was ever dimensioned — on CCU Sands
+      # Hall 113 (6 Oct 2026) the 6 1/8" corner -> jamb had to be drawn by
+      # hand. CLAUDE.md requires every door off its wall corner.
+      #
+      # The doors are handed over from the LOCK, not re-found in the model:
+      # the jambs are the stated at_in / at_in + w_in along the stated run,
+      # on the interior face, in the same world space the floor polygon was
+      # just built in (the room group is new, so its transform is identity).
+      # A dimension then measures exactly what the take-off said.
       if floor
         begin
-          dims = ::WR_AutoDimension.dimension_face(floor)
+          boxes = door_jambs(pts.map { |p| [p.x.to_f, p.y.to_f] },
+                             room['doors'] || []).map do |_i, j0, j1|
+            bb = Geom::BoundingBox.new
+            bb.add(Geom::Point3d.new(j0[0], j0[1], pts[0].z.to_f))
+            bb.add(Geom::Point3d.new(j1[0], j1[1], pts[0].z.to_f))
+            bb
+          end
+          dims = ::WR_AutoDimension.dimension_face(floor, :doors => boxes)
           floors << [name, dims]
         rescue StandardError => e
           puts "  (#{name}: dimensioning skipped: #{e.class}: #{e.message})"
@@ -315,10 +336,51 @@ module WR_BuildTakeoff
     model.commit_operation
     model.active_view.zoom_extents
     report(data, built)
+    # The dimension report per room — run table, chain closure, doors. It was
+    # collected into `floors` and never printed, so a build said nothing at
+    # all about whether its chains closed or its doors were dimensioned.
+    floors.each do |name, dims|
+      puts "  #{name}:"
+      ::WR_AutoDimension.report(dims)
+      want = (data['rooms'].find { |r| r['name'].to_s == name }['doors'] || []).size
+      if dims[:doors] != want
+        puts "  *** #{name}: #{dims[:doors]} of #{want} door(s) dimensioned — a door " \
+             'missed its run. Check the WR-Dims-Doors tag before this goes out.'
+      end
+    end
     { 'rooms' => built.map { |b| b[0] }, 'count' => built.size }
   rescue Refused
     model.abort_operation if model
     raise
+  end
+
+  # Each door's two jambs on the interior face, from the lock's own numbers:
+  # [[run, [x0, y0], [x1, y1]], ...], j0 at at_in from the run's start corner,
+  # j1 a full opening width further along. PURE — plan points are [x, y]
+  # arrays — so rbtest-takeoff.py lifts it verbatim and runs it on the CCU
+  # geometry. A door on a run that does not exist is skipped here; the lock
+  # re-check (lock_errors) has already refused that by name before anything
+  # is built.
+  def self.door_jambs(pts, doors)
+    n = pts.size
+    out = []
+    doors.each do |d|
+      i = d['run'].to_i
+      next if i < 0 || i >= n
+      a = pts[i]
+      b = pts[(i + 1) % n]
+      dx = (b[0] - a[0]) * 1.0
+      dy = (b[1] - a[1]) * 1.0
+      len = Math.sqrt(dx * dx + dy * dy)
+      next if len < TOL
+      ux = dx / len
+      uy = dy / len
+      at = d['at_in'].to_f
+      w = d['w_in'].to_f
+      out << [i, [a[0] + ux * at, a[1] + uy * at],
+              [a[0] + ux * (at + w), a[1] + uy * (at + w)]]
+    end
+    out
   end
 
   def self.build_feature(br, parent, pts, ccw, f, j, ceil, t_obst, name)

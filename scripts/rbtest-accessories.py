@@ -122,6 +122,49 @@ check('a fixture too long for every tile is refused',
       A.sl_tile_layout(1, 90.0, t96120)[:error].nil?, false)
 check('a zero count is refused', A.sl_tile_layout(0, 29.0, t96120)[:error].nil?, false)
 
+# --- 4b. keep-outs (1.84.0): roof-unit rods on an rv = 1 booth -----------
+# The rods are People's Space's RM96120VSS rods as measured live on 6 Oct
+# 2026 (.forge/builder/peoplesspace-accessories/r4-layout.rb): x 22.5-24.4
+# and x 95.2-96.8, y 48.2-49.8. SL52 measures 53.88 x 10.75. 1.83.0's
+# layout centres the two fixtures at x 25 and x 97 - both ON a rod.
+rods = [[22.5, 48.2, 24.4, 49.8], [95.2, 48.2, 96.8, 49.8]]
+fp = lambda do |lt, len, wid|
+  hx = (lt[:orient] == :x ? len : wid) / 2.0
+  hy = (lt[:orient] == :x ? wid : len) / 2.0
+  [lt[:centre][0] - hx, lt[:centre][1] - hy, lt[:centre][0] + hx, lt[:centre][1] + hy]
+end
+gap = lambda do |a, b|   # plan gap between two boxes (negative = overlap)
+  [b[0] - a[2], a[0] - b[2], b[1] - a[3], a[1] - b[3]].max
+end
+base = A.sl_tile_layout(2, 53.88, t96120)[:lights]
+check('96120 rv=1: 1.83.0 layout really does land on both rods (the bug)',
+      base.each_with_index.map { |lt, i| gap.call(fp.call(lt, 53.88, 10.75), rods[i]) < 0 }, [true, true])
+k = A.sl_clear_keepouts(base, 53.88, 10.75, t96120, rods)
+check('96120 rv=1: both fixtures moved off their rod by the smallest slide across the tile',
+      k.map { |lt| [lt[:tile], lt[:orient], lt[:centre].map { |v| v.round(3) }, lt[:moved].round(3), lt[:blocked]] },
+      [[0, :y, [30.275, 49.0], 5.275, false], [2, :y, [102.675, 49.0], 5.675, false]])
+check('  and every fixture clears every rod by at least SL_KEEP_CLEAR',
+      k.all? { |lt| rods.all? { |r| gap.call(fp.call(lt, 53.88, 10.75), r) >= A::SL_KEEP_CLEAR - 1e-9 } }, true)
+check('  and stays inside its own tile (never across a seam)',
+      k.all? { |lt| f = fp.call(lt, 53.88, 10.75); r = t96120[lt[:tile]]
+                    f[0] >= r[0] - 1e-9 && f[2] <= r[2] + 1e-9 && f[1] >= r[1] - 1e-9 && f[3] <= r[3] + 1e-9 }, true)
+k = A.sl_clear_keepouts(base, 53.88, 10.75, t96120, [])
+check('no keep-outs: the layout is returned unmoved',
+      k.map { |lt| [lt[:centre], lt[:moved], lt[:blocked]] }, [[[25.0, 49.0], 0.0, false], [[97.0, 49.0], 0.0, false]])
+k = A.sl_clear_keepouts(base, 53.88, 10.75, t96120, [[60.0, 10.0, 62.0, 12.0]])
+check('a keep-out nowhere near a fixture moves nothing', k.map { |lt| lt[:moved] }, [0.0, 0.0])
+bar = [[4.25, 48.0, 45.75, 50.0]]   # a part spanning the whole tile across the fixture's length
+k = A.sl_clear_keepouts(base, 53.88, 10.75, t96120, bar)
+check('no clear spot in the tile: left in place and flagged blocked (reported, never silent)',
+      [k[0][:blocked], k[0][:centre], k[1][:blocked]], [true, [25.0, 49.0], false])
+four = A.sl_tile_layout(4, 53.88, t96120)[:lights]
+k = A.sl_clear_keepouts(four, 53.88, 10.75, t96120, rods)
+fps = k.map { |lt| fp.call(lt, 53.88, 10.75) }
+check('4 fixtures (one tile doubled) with rods: no two fixtures overlap, none on a rod',
+      [fps.combination(2).all? { |a, b| gap.call(a, b) >= A::SL_KEEP_CLEAR - 1e-9 },
+       fps.all? { |f| rods.all? { |r| gap.call(f, r) >= A::SL_KEEP_CLEAR - 1e-9 } },
+       k.map { |lt| lt[:blocked] }.uniq], [true, true, [false]])
+
 # --- 5. IEP ceiling beams (1.83.0) ----------------------------------------
 b = A.iep_beam_plan('MDL 96120 E', true, false)
 check('96120 E: 2 x U101, 88 in (Benton) under 94 in seals',
