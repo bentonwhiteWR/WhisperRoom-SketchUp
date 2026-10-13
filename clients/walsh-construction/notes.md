@@ -188,7 +188,9 @@ Booth-local inches below. Along the wall, S and N run in booth x and E and W in 
 
 ## Scenes
 
-There are two identical series, `Opt2 ..` and `Opt1 ..`, with lanes marked for the proposal package (`WR_ProposalPackage/mode`).
+**Current (12 Oct evening, observed):** Benton cut the set to 9 scenes and renamed the series: `Opt2` is now `Ramp` (the link's ADA ramp, Option 2) and `Opt1` is now `Platform` (side ramp + platform, Option 1). In the model now: Ramp 01 HeroRender, Ramp 03 BoothDims, Ramp 06 TopDown, Platform 01 HeroRender, Platform 03 BoothDims, Platform 06 TopDown, Ramp 05 VentView, Ramp 07 InteriorAcousticRender, Ramp 08 InteriorBackRender. Both TopDowns were re-framed to fit every floor dimension.
+
+Originally there were two identical series, `Opt2 ..` and `Opt1 ..`, with lanes marked for the proposal package (`WR_ProposalPackage/mode`).
 
 | # | Scene | Lane |
 |---|---|---|

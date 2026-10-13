@@ -7,7 +7,7 @@
   - MDL 96168 E from the corrected link, with the link's ADA ramp (that ramp is Option 2);
   - 6 bass traps, the full AP, studio lights and IEP beams;
   - 8 V-Ray room lights;
-  - 16 scenes: `Opt2 01..08` and an identical `Opt1 01..08` series.
+  - Scenes: now 9, named `Ramp ..` (Option 2) and `Platform ..` (Option 1) since 12 Oct evening; originally `Opt2 01..08` + `Opt1 01..08`. See notes.md "Scenes".
 - **SUPERSEDED (12 Oct evening): the AP/foam layout is now v8** (9 foam + AP 5/2/14, applied and verified). See `.forge/builder/HANDOFF-walsh-ap.md` and `.forge/builder/walsh/ap9/layout-v8.json`. The v7 notes below are history.
 - **Full notes, constraints table and per-wall layout:** `clients/walsh-construction/notes.md` (read it first).
 - **Take-off:** `clients/walsh-construction/takeoff-vector.json`, built by `clients/walsh-construction/build-techlab.rb`.
