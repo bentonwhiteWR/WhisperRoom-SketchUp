@@ -1,5 +1,58 @@
 # DEVLOG
 
+## 2026-10-12 -- session close (desktop): Walsh Construction done -- acoustics placed, dimensions on the floor, proposal PDF built
+
+**Outcome.** The Walsh Construction Tech Lab job is finished. Benton, sign-off: "The drawing is fine btw we are
+done working on it." The model holds the approved acoustic layout and every dimension sits on the floor. The
+client pack is built and is waiting on Benton to send it. This entry supersedes the laptop entry below, which
+recorded the acoustic pass as stopped.
+
+**State at sign-off.**
+- **Model:** `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E.skp`, saved, no unsaved changes
+  (observed through the bridge).
+  - **Acoustic layout v8, Benton chose S1 + E1:** 9 foam (no squares), Audimute 5/2/14, 6 traps (observed, by a
+    read-only count). Placed per wall from `.forge/builder/walsh/ap9/layout-v8.json`. The Builder reports for each
+    wall and the whole booth: min gap 0.50 in, every piece flush, fabric facing in. The live back-wall screenshot
+    matched the drawing (observed). Details are in `.forge/builder/HANDOFF-walsh-ap.md` and `clients/walsh-construction/notes.md`.
+  - **Dimensions, all at z 0 (observed):** 13 booth placement dimensions (were at z 90); 6 room runs + 2 overalls
+    on `WR-Dims`; door 24's 4" + 3' on `WR-Dims-Doors`. The room and door dimensions were MISSING at session start
+    even though the notes listed them. They were redrawn with `WR_AutoDimension.dimension_face` and read back equal
+    to the take-off. Scripts are in `.forge/builder/walsh/dims/`.
+  - **Scenes:** Benton cut them to 9 and they were renamed `Opt2` -> `Ramp` and `Opt1` -> `Platform`. Both TopDowns
+    were re-framed to fit every dimension (camera only). Benton keeps the scenes as they are, including the
+    parallel VentView and TopDowns ("I like the scenes").
+  - **Left as is, by Benton's call:** the 14' 2" booth callout sits about 10.7 in off the shell ends in both plans.
+- **Proposal pack:** `C:\Users\bento\Desktop\ProposalFiles\Walsh Construction\Walsh Construction-Booth-Renderings.pdf`
+  (9 pages, 3.33 MB, plates in Benton's export order, white floor sent as is by Benton's call).
+  - Review page https://claude.ai/artifact/4BD1zWw9SLWffB58SQ6xUq, emailed to Benton.
+  - Config + web renders are in the private `whisperroom-proposals` repo, `examples/walsh-construction/` (pushed).
+  - Open in the review list: the interior renders show the three duct covers moved for the renders only. "ADA" is
+    not in the captions. The pack makes no acoustic claim.
+
+**Gotchas.**
+- **The bridge refuses `model.save` with no path** (exit 6, a safety fence). To save the open client file, use
+  `m.save(m.path)` and run with `--write-root "Z:/Sketchup/ClientDrawings"`.
+- **Count dimensions before trusting notes about them.** The Walsh notes said the room runs were in the model; the
+  model had none. They were probably lost on the laptop to the stray `abort_operation` already recorded in
+  `HANDOFF-walsh.md` (assumed, not traced).
+- **Seating rays skip coplanar faces.** A flush piece's back is coplanar with the wall, so rays stepping through
+  pieces also step through the wall. The Builder hides the pieces inside its own operation while it measures.
+- **Sub-agents here run on Opus 5.5 at xhigh.** Benton retired the Sonnet default today; the memory is updated.
+- **The private proposals repo was 8 commits behind on this desktop.** Pull it before reading or writing configs:
+  the Builder only saw `integrated-ent` as a prior example.
+- **A `Z:` listing from Git Bash stalled once for over 120 s.** Wrap `Z:` reads in a timeout (a PowerShell job
+  with `Wait-Job -Timeout`).
+
+**Next steps (any machine):**
+1. Benton sends the Walsh pack to the client himself. Nothing is left in the model.
+2. Desktop: press **Update now** + restart SketchUp. The installed plugin is 1.76.1 (observed); the repo is 1.84.0.
+3. Carried over from the laptop entry, none started: the importer places 7 foam on a 96168 E where the BOM says 9;
+   BoothLighting fixtures hang 1.36 in low (Benton undecided); the `Right46Door` / `Right40Door` / `RightWADoor`
+   files on the share are mirrored; `proposals/examples/peoplesspace/proposal-v2.json` is client material in this
+   PUBLIC repo and belongs in `whisperroom-proposals`.
+
+**Open decisions:** none for Walsh.
+
 ## 2026-10-12 -- session close (laptop): Walsh Construction Tech Lab built; acoustic layout pass stopped mid-planning
 
 **State at sign-off.**
