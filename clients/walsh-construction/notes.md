@@ -11,7 +11,7 @@ Provenance labels used below: **observed** (I read or measured it myself), **der
 1. **Ceiling height is ASSUMED at 8'-0".** It is not on the plan. Benton (reported): "assume 8' ceiling but we don't know". A note on `WR-Notes` in the model says the same. The Enhanced install clearance is 7'-1" (85 in, from the catalog), so the booth fits under 96 in with 11 in to spare (derived). A ceiling under 85 in disqualifies it.
 2. **Door 1 is not in the Tech Lab.** Its swing arc is centred 14.4 in east of the Tech Lab's east wall (observed, vector), so it opens into STORAGE 17. The Tech Lab's only door is **door 24** at the SW corner. The plan's dashed booth and Sarah's ramp/PL sketch both sit at the east end, against the east wall. Nothing else depends on door 1.
 3. **Booth position differs from the dashed rectangle.** The plan draws the booth 2.9 in off the south wall and 3.0 in off the east wall (observed). The link puts EFS vents on the booth's south wall and on W0. The quote tool's rule (`layout-render.js`) is that EFS reaches out 10 in. The S3 EFS box also overhangs the booth's SE corner by 10.6 in, and the W0 EFS overhangs the SW corner by 10.6 in (observed, model geometry). I placed the booth so its outermost hardware sits 1 in off the south and east walls. That puts the shell **11 5/8 in** off both walls (derived). If the room must match the dashed rectangle, the EFS boxes go through the walls.
-4. **Foam not placed (4 pieces, staged outside the room's west wall, named NOT PLACED):** E1i and W1i (full sheets) and the two 2x2 squares cut from S1i. Every slot that fits a full sheet is taken by a 2x4 or a sheet (Benton: full sheets come first). Each square would cost a 1x2 its place. Benton's call: drop an AP piece, cut E1i/W1i, or leave them out.
+4. **Resolved 12 Oct (layout v8):** all 9 foam sheets are now inside the booth, uncut, with the full AP. E1i and W1i were placed; the two S1i squares were replaced by a full sheet and erased. See the acoustic section.
 5. **Three duct covers moved off their ports, at Benton's request, for the renders only.** This is NOT a real duct layout. Each one is tagged `wr_walsh/moved_off_port`:
    - Duct Cover hi W0i: y 12.21-24.09 -> 16.88-28.76 (+4.67 along the wall)
    - Duct Cover hi S3i: x 145.91-157.79 -> 141.31-153.19 (-4.60)
@@ -21,7 +21,7 @@ Provenance labels used below: **observed** (I read or measured it myself), **der
 6. **Bass trap count comes from the package name, not the link.** The link carries `bt` as on/off with no package (`pk`). I used Sarah's "Recording Studio" (reported), which the quote presets give as 3 packs = **6 traps**. If the quote line says otherwise, the count changes.
 7. **The take-off is not on the review-sheet pipeline.** `takeoff-check.py` and `build-takeoff.rb` handle only rectilinear E/S/W/N runs, and this room has three angled walls. The take-off lives in `takeoff-vector.json` and was built by `build-techlab.rb`, which uses WR_BuildRoom's own polygon, mitre, wall and door code plus the shared dimension engine. No review sheet exists for this job, and the auto-dimension "chain closure" check can't prove angled runs. Closure was checked separately (below).
 
-8. **Foam count: the importer placed 7 sheets where the BOM gives 9** (MDL 96168 E: 3 x FOAM3 = 9 sheets; reported by the coordinator, not re-checked here). This is likely an importer bug. A separate layout pass is to place all 9 sheets plus the full AP. **The layout above is frozen at v7 until then.**
+8. **Foam count: the importer placed 7 sheets where the BOM gives 9** (MDL 96168 E: 3 x FOAM3 = 9 sheets; reported by the coordinator, not re-checked here). This model is fixed by hand (layout v8, 9 sheets). The importer bug itself is still open.
 
 ## Measured constraints (booth-local inches, observed by ray or bounds)
 
@@ -119,43 +119,65 @@ Measured by ray: the tile underside is 80.25 and the EFP floor top is 2.75 (boot
 - Right angle in the corner, legs on the walls.
 - They no longer stand in front of the N0 window or the door. That was the original importer placement.
 
-## Acoustic package, AP 96168 (5 x 2x4, 2 x 1x4, 14 x 1x2): all placed
+## Acoustic package + 9 foam sheets, layout v8: applied and verified (12 Oct 2026, desktop)
 
-Counts are from `ap-packages.js`, read with node (observed).
-- Every gap is at least 0.50 in, piece to piece.
-- Every piece is seated by ray: 0.000 on re-check, pieces crossing an H-strip rest on it.
-- Every piece's fabric normal points into the room.
-- Nothing clashes with the traps, duct covers, beams, seals, studio lights, window trim or door.
-- The 1x4/2x4 near the S1 covers clear them by 0.28-1.68 in.
+AP 96168 = 5 x 2x4, 2 x 1x4, 14 x 1x2 (`ap-packages.js`, observed earlier). Foam = 9 full sheets, none cut (BOM 3 x FOAM3, reported). The layout is `.forge/builder/walsh/ap9/layout-v8.json`, options S1 + E1. Benton approved it as drawn, including the 7 standing 1x2s and the sheets lying flat (reported, 12 Oct).
 
-**Back (S), mirror-symmetric about x 85, left to right:**
-- end column: 1x2 vertical, mid height (z 29.5-53.5);
-- full foam sheet (18.57-66.57);
-- centre: 2x4 (15.75-63.75) over a 1x2 (3.25-15.25);
-- full foam sheet;
-- end column: 1x2 vertical.
-- The vent columns' covers and the IEP beam leave no clean spot for high or low side 1x2s while full sheets flank the centre.
-- Totals: 1 x 2x4, 3 x 1x2, 2 foam.
+Verified live after the final save (observed, `b-verify.rb` + `b-verify.py`; result in `.forge/builder/walsh/ap9/b-verify-final.json`):
+- All 30 pieces sit within 0.0000 in of their slots.
+- Every gap is at least 0.50 in: to other pieces, to the survey keep-outs, and in 3D to the live traps, duct covers, IEP beams and ceiling seals. Across the NW corner it is 0.625.
+- **The tightest spots are exactly 0.50:** sheet tops under the IEP beams (S and N, top 75.75), the 1x2 stacks, and the row/band seams.
+- Every piece is seated by multi-ray on the most proud face under it: air 0.0000, none buried. Pieces crossing an H-strip (z ~40-41.5) rest on it: S/W 4.3125, E 165.6875, N 93.6875. The Audimute hang clips sit about 0.12 into the wall, as on v7.
+- Audimute fabric (local -y) and foam profile (local +z) face the room. Audimute is on `WR-Booth-Acoustic`, foam on `WR-Booth-Foam`.
+- Counts: Foam 9 (no squares), Audimute 5/2/14, traps 6. Nothing hidden. All 16 scenes are unchanged; no camera sits within 12 in of a piece.
 
-**Left (E) and right (W), identical:**
-- band foam | 2x4 | 1x4 (18.57-66.57);
-- 2 x 1x2 high (67.07-79.07);
-- 2 x 1x2 low (3.25-15.25).
-- Totals per wall: 1 x 2x4, 1 x 1x4, 4 x 1x2, 1 foam.
+Booth-local inches below. Along the wall, S and N run in booth x and E and W in booth y. The z values run up from the booth origin. Positions are derived (layout v8) and verified live.
 
-**Front (N, door wall):**
-- under the windows: a horizontal 2x4 (12.7-36.7) and two stacked 1x2s;
-- between the windows: one vertical 1x2 (51.75-75.75);
-- beside the door: a 2x4 (18.57-66.57).
-- Totals: 2 x 2x4, 3 x 1x2.
+**Back (S), seen from inside, left to right (booth x falling):**
+- standing 1x2 under the S3 high cover: x 140.93-152.93, z 40.75-64.75;
+- foam `S3i`: x 116.17-140.17, z 27.75-75.75;
+- AP 2x4: x 91.41-115.41, z 27.75-75.75;
+- three flat 1x2s under the S1 high cover: x 66.65-90.65, z 27.75-39.75 / 40.25-52.25 / 52.75-64.75;
+- foam `S0i`: x 41.89-65.89, z 27.75-75.75;
+- three flat 1x2s under the S0 high cover: x 17.13-41.13, same z values;
+- bottom row, z 3.25-27.25:
+  - foam `S1i` lying flat, x 78.10-126.10, between the S1 and S3 low covers;
+  - two standing 1x2s, x 31.96-43.96 and 44.96-56.96, between the S0 and S1 low covers.
+- Totals: 3 foam, 1 x 2x4, 9 x 1x2.
+- The wall is not mirror-symmetric, because the vent columns aren't. Every band gap is 0.76, including the gaps to the trap stacks.
 
-**Foam moves (from the importer's positions), all on WR-Booth-Foam:**
-- E0i y 13-37 -> 29.26-53.26.
-- W0i y 13-37 -> 29.26-53.26.
-- S0i and S3i moved off their vent panels to x 38.29-62.29 and 107.71-131.71.
-- All bands z 18.57-66.57, no spins.
-- S1i was cut across its length into two 24 x 24 squares (r5-cut.rb method), not placed.
-- E1i and W1i not placed (item 4).
+**Left (E), symmetric about y 54.69, seen from inside, front (left) to back (right):**
+- band z 30.625-78.625: AP 2x4 y 67.69-91.69 | foam `E0i` y 42.69-66.69 | AP 2x4 y 17.69-41.69;
+- row z 3.25-27.25: standing 1x2 y 79.69-91.69 | foam `E1i` lying flat y 30.69-78.69 | standing 1x2 y 17.69-29.69.
+- Totals: 2 foam, 2 x 2x4, 2 x 1x2.
+
+**Right (W), seen from inside, back (left) to front (right):**
+- back cluster:
+  - flat 1x2, y 17.44-41.44, z 18.125-30.125 (0.55 above the W0 low cover);
+  - standing 1x2, y 17.19-29.19, z 30.625-54.625;
+  - 1x4, y 29.69-41.69, z 30.625-78.625.
+- foam `W0i` y 42.69-66.69 and AP 2x4 y 67.69-91.69, both z 30.625-78.625;
+- foam `W1i` lying flat, y 43.19-91.19, z 3.25-27.25.
+- Totals: 2 foam, 1 x 2x4, 1 x 1x4, 2 x 1x2.
+
+**Front (N, door wall), seen from inside, left to right:**
+- row z 3.25-27.25: foam `N0i` lying flat x 7.00-55.00 | standing 1x2 x 57.875-69.875 | foam `N1i` lying flat x 72.75-120.75 (0.50 off the door frame);
+- 1x4 between the windows: x 43.00-55.00, z 27.75-75.75;
+- AP 2x4 beside the door: x 96.75-120.75, z 27.75-75.75.
+- Totals: 2 foam, 1 x 2x4, 1 x 1x4, 1 x 1x2.
+
+**Moves from v7:**
+- Foam:
+  - S0i, S3i, E0i and W0i were moved.
+  - E1i and W1i were placed from staging and renamed `Foam  E1i` / `Foam  W1i`.
+  - Three copies of the `Foam` definition were added: `Foam  S1i` (restores the cut S1i), `Foam  N0i` and `Foam  N1i`.
+  - The two S1i 2x2 squares were erased after the full sheet was placed and verified.
+- Audimute pieces that changed wall were renamed `<part> <wall>` and their `wr_walsh/wall` updated:
+  - 1x2s to the back: 2 from the left wall, 2 from the right wall, 2 from the front wall;
+  - one 2x4 from the front wall to the left wall;
+  - one 1x4 from the left wall to the front wall.
+- Every placed piece carries `wr_walsh/v8_slot`, its id in `layout-v8.json`.
+- Each wall was one undo step, and the model was saved before the first edit and after each wall.
 
 ## Studio lights, IEP beams, lighting
 

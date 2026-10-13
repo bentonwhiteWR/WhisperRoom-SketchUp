@@ -1,90 +1,72 @@
-# Builder handoff: Walsh AP + 9-foam layout (Phase A done 12 Oct 2026 evening, desktop; Phase B waits on Benton)
+# Builder handoff: Walsh AP + 9-foam layout (12 Oct 2026, desktop): v8 APPLIED AND VERIFIED
 
-## Model state: UNCHANGED
-- `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E.skp` is still the v7 layout from `HANDOFF-walsh.md`.
-- Re-checked read-only over the bridge (12 Oct, ~19:00, observed): front doc path matches, `modified? false`, 16 scenes,
-  booth transform +61.89/+11.63/+1.3125. All 33 survey pieces and covers match `ap9-survey.json` within 0.01. Nothing hidden.
-- **Foam in the model (observed):** 6 `Foam` instances (S0i, S3i, E0i, W0i placed; E1i, W1i staged as NOT PLACED) plus the two
-  2x2 squares cut from S1i (`Foam (2x2) back left` / `back right`, 1 instance each). That is 6 full sheets, not 7.
-  **A no-cut layout therefore needs 3 new copies of `Foam`, not 2**, and the two S1i squares retire (see Phase B).
-- AP: 5 x `Audimute2x4`, 2 x `Audimute1x4`, 14 x `Audimute1x2` (observed). Traps: 6.
+## Model state
+- `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E.skp` now carries **layout v8** (`.forge/builder/walsh/ap9/layout-v8.json`,
+  options S1 + E1, Benton-approved as drawn, reported). It was saved before the first edit, after each wall, and once more at the end
+  (20:02, `modified? false`).
+- **Live counts (observed, final verify after the last save):** Foam 9 full sheets (no 2x2 squares left), Audimute 5 x 2x4 / 2 x 1x4 / 14 x 1x2,
+  traps 6. 0 hidden entities in the booth before and after. 16 scenes unchanged; the active scene is still `Opt2 07 InteriorAcousticRender`.
+- Per-wall notes and coordinates: `clients/walsh-construction/notes.md`, section "Acoustic package + 9 foam sheets, layout v8".
 
-## Produced (Phase A, offline, all in `.forge/builder/walsh/ap9/`)
-- `v8model.py`: wall model built from the survey's exact rects (not `walls.py`'s rounded ones) + `check()`
-  (2D gaps per wall, 3D gaps across corners, counts). `v8solve.py`: CP-SAT (OR-Tools 9.15) capacity / symmetry / row-line search.
-  `v8cut.py`: "no piece crosses z = L" feasibility. `layout8.py`: builds the candidates, runs `check()`, writes the JSON.
-  `render8.py`: review page + PNGs.
-- `layout-v8.json` (recommended), `layout-v8-alt1.json`, `layout-v8-alt2.json`: wall-local rects, face plane per wall,
-  nearest-fixed gap per piece, checker result. All three: check PASSED, min gap 0.50 piece-piece and piece-fixed,
-  0.625 across the NW corner in 3D, counts 9 foam / AP 5-2-14.
-- `review-v8.html` (unpublished; orchestrator publishes) and `elev/S.png, E.png, W.png, N.png, S-opt2.png, E-opt2.png`.
+## Produced
+- **Phase A (design, offline):**
+  - `v8model.py`, `v8solve.py` (CP-SAT), `v8cut.py`, `layout8.py`, `render8.py`;
+  - `layout-v8*.json`, `review-v8.html`, `elev/{S,E,W,N,S-opt2,E-opt2}.png`.
+  - Result: proved per-wall maxima E 4 / W 3 / N 3 / S 4 sheets, so every wall is full. Composition A was chosen because only it keeps the
+    back wall regular.
+- **Phase B (live), all in `.forge/builder/walsh/ap9/`:**
+  - `b-probe.rb`: read-only probe of the transforms and conventions.
+  - `b-plan.py` -> `b-plan.json`: which instance (persistent id) fills each slot.
+  - `b-lib.rb`: helpers.
+  - `b-wall.rb` with the wrappers `b-job-<W>.rb` (commit) and `b-dry-<W>.rb` (the same job, aborted at the end).
+  - `b-verify.rb` + `b-verify-job.rb` + `b-verify.py`: independent verify; the final result is kept in `b-verify-final.json`.
+  - `b-erase-squares.rb` + `b-erase-job.rb`, `b-save.rb`, `b-shots.rb` (+ `-job`), `b-scenes.rb` (+ `-job`).
+- **Screenshots:** `elev/live-S.png`, `live-E.png`, `live-W.png`, `live-N.png` (temporary camera, restored) and `elev/scene-01.png` ... `scene-16.png`.
+  All of them were looked at.
 
-## Read first
-1. `review-v8.html` (or the PNGs): the four elevations as seen from inside the booth.
-2. `layout-v8.json`: `walls.<W>.pieces[]` = id, part, material, orient, s0/s1, z0/z1 (wall-local: S/N s = booth x, E/W s = booth y;
-   s0 is the MIN booth coordinate, which is the viewer's RIGHT on S and E).
-3. This file's Phase B steps.
+## How it was applied (so it can be repeated)
+- **Order: S, then the squares, then E, W, N.** Each wall was one `start_operation(..., true)` (one Ctrl+Z), with `abort_operation` on any
+  exception. Each ran as a dry run first.
+- **Sources were chosen to avoid any temporary staging.** The S job borrowed 6 1x2s (2 from E, 2 from W, 2 from N). The E job also put E's 1x4
+  straight into the free N04 slot, which breaks a circular dependency (E03 -> N04 -> N02 -> E03).
+- **Transforms copy the v7 conventions (observed):**
+  - Audimute: body back at local y 1.5, fabric local -y. It stands with local z up; a lying 2x4 or a standing 1x2 has local x up.
+  - Foam: 48 x 24 x 2 in local x/y/z; profile local +z to the room, back z = 0 on the wall.
+- **Seating:** a ray grid every ~3 in along the wall and 0.5 in up, cast with all foam/Audimute hidden INSIDE the operation and unhidden before
+  commit. The piece's back goes on the most proud hit.
+- **New foam:** `add_instance` of the `Foam` definition into the booth group, tagged like `Foam  S0i`.
+  - Names: `Foam  S1i`, `Foam  N0i`, `Foam  N1i`.
+  - Staged sheets renamed `Foam  E1i` / `Foam  W1i`.
+  - Audimute that changed wall renamed `<part> <wall>`, with `wr_walsh/wall` updated.
+  - Every piece has `wr_walsh/v8_slot`.
+- **The S1i squares were erased** only after S verified with the full `Foam  S1i` in place.
 
-## Result (derived)
-- **Proved exact (CP-SAT, OPTIMAL/INFEASIBLE, 0.01 in, keep-outs rounded outward):** max sheets E 4, W 3, N 3, S 4 = 14 =
-  9 foam + 5 AP 2x4, so every wall must carry its maximum. With that, S takes at most 9 1x2 (or 1x4 + 7 1x2); 10 and 1x4+8
-  are infeasible. Only two no-cut compositions exist:
-  A: E 4+0+2, W 3+1+2, N 3+1+1, S 4+0+9 (sheets + 1x4 + 1x2); B: E 4+0+2, W 3+0+4, N 3+1+1, S 4+1+7.
-  Agrees with the earlier depth-3 grid search (`gcaps3.json`).
-- Only A lets S keep a clean two-tier scheme (no piece crosses z 27.5); W follows no clean scheme in A or B. **v8 uses A.**
-- Minimum standing 1x2s at full count: S 3, W 1, N 1, E 0 (2 if E is kept symmetric). v8 has 7 (= minimum + E's 2).
-- **v8 per wall (wall-local inches):**
-  - S back: bottom row z 3.25-27.25 = 1x2 pair (standing) between the S0/S1 low covers + foam 2x4 lying flat between the
-    S1/S3 low covers. Band from z 27.75 (sheet tops 75.75, 0.50 under the IEP beams): stack of 3 flat 1x2 under the S0 high
-    cover | foam | stack of 3 under S1 | AP 2x4 | foam | standing 1x2 under S3 (top 64.75). One 0.759 clearance everywhere in
-    the band, traps included. Not mirror-symmetric (vent columns aren't).
-  - E left: symmetric about y 54.6875. Band z 30.625-78.625 = AP 2x4 | foam | AP 2x4; row z 3.25-27.25 = 1x2 | foam flat | 1x2.
-  - W right: back cluster (flat 1x2 z 18.125-30.125 over the W0 low cover; standing 1x2 + 1x4 from z 30.625), then foam | AP 2x4
-    on the same column grid as E, foam flat in the bottom row. Band can't start below 30.571.
-  - N front: row = foam flat | standing 1x2 | foam flat (z 3.25-27.25); 1x4 between the windows and AP 2x4 by the door, both
-    z 27.75-75.75.
-- **Options on the page (any combination passes the checker):** S1 (recommended, AP 2x4 in the band) vs S2 (foam band, AP 2x4
-  flat in the bottom row); E1 (recommended, band level with W) vs E2 (band 27.75-75.75, level with S and N).
-  v8 = S1+E1, alt1 = S2+E1, alt2 = S1+E2; S2+E2 = S from alt1 + E from alt2 (checked: PASSED).
-- Exactly-0.50 spots (no margin): sheet tops under the beams on S and N, the 1x2 stacks, every bottom-row/band boundary on S
-  and N, N03 to the door frame. Floor clearance is the rule's 3.25 exactly.
+## Verify results (observed, per wall, each run straight after that wall's commit; tolerance 0.02 on position)
+| Wall | Pieces | Max position error | Seat air (min/max) | Min gap piece / fixed | Fabric into room | Result |
+|---|---|---|---|---|---|---|
+| S | 13 | 0.0000 | 0.0000 / 0.0000 | 0.50 / 0.50 (beam 1) | all | PASS |
+| E (+ N04) | 6 (+1) | 0.0000 | 0.0000 / 0.0000 | 1.00 / 1.31 (E); N04 0.50 to beam 1 | all | PASS |
+| W | 6 | 0.0000 | 0.0000 / 0.0000 | 0.50 / 0.55 | all | PASS |
+| N | 5 | 0.0000 | 0.0000 / 0.0000 | 0.50 / 0.50 | all | PASS |
+| Whole booth (final) | 30 | 0.0000 | 0.0000 | 0.50 / 0.50; 3D to live fixed 0.50; NW corner 0.625 | all | PASS |
 
-## Phase B steps (only after Benton's copy-back block approves the walls)
-1. Read Benton's block; pick the JSON per wall (table above). If anything is edited, change `layout8.py` and re-run it; it
-   must print `ok=True`.
-2. Read-only first: assert `Sketchup.active_model.path` ends with `Walsh Construction Tech Lab MDL 96168 E.skp`, booth group
-   `Booth - MDL 96168 E`, counts as above. **Save before the first edit** (`m.save`), then after every wall.
-3. Load helpers from THIS machine's checkout: `C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/scripts/`
-   (`build-booth-components.rb`, `wr-overlays.rb` with `$wr_no_autorun = true`). `ap9-dump.rb` still points at the laptop paths.
-   The v7 job scripts (`v7.rb`, `press.rb`, `boxes.rb`, `verify.py`) are laptop-only and untracked; use
-   `.forge/builder/peoplesspace-ap/ap-v2.rb` (place), `ap-press.rb` (seat), `clash.rb` as the method.
-4. One job per wall, one undo operation each, inside the booth group's entities (never a whole-model `add_group`, never a
-   blind `abort_operation`):
-   - Fill each JSON slot with an instance of its part. Reuse existing instances; suggested foam reuse: S0i -> S04, S3i -> S09,
-     E0i -> E02, W0i -> W04, E1i -> E05 (spin flat), W1i -> W06 (spin flat). Add **3** copies of the `Foam` definition
-     (same definition, tag `WR-Booth-Foam`, copied from an existing Foam instance) for S13, N01, N03.
-     With option S2 the S foam slots are S04, S08, S09 and S13 is the AP 2x4; the copy then goes to S08.
-   - **Erase the two S1i squares** (`Foam (2x2) back left/right`): S1i is restored as a full sheet. Report it as a foam move.
-   - Orientation: fabric = local -y into the room. Into-room normals: S +y, N -y, E -x, W +x. Rotation as in the skill
-     (`ya = n.reverse`; standing: `za = up, xa = ya*za`; lying flat: `xa = up, za = xa*ya`); foam takes the same half-turn.
-   - Position from `WR_Overlays.geom_extents(defn)` corners pushed through the rotation, then translate so the extents hit
-     (s0, z0) and the back meets the face (S/W face 4.25, E 165.75, N 93.75).
-   - Seat by multi-ray on the most proud face under the footprint (hide pieces first): S/W H-strip 4.313 at z ~40-41.5,
-     E 165.688 at z ~40-41, N window-panel strip 93.688 at z ~22.5-23 (N01 and N03 cross it).
-   - Names `<part> <wall>` (back/left/right/front); AP on `WR-Booth-Acoustic`, foam stays on `WR-Booth-Foam`.
-5. Verify measured, not by eye: world boxes from geom extents, min gap >= 0.50 to pieces and to the survey's fixed items
-   (feed wall-local rects to `v8model.check()`), counts 9 full `Foam` + 0 squares + AP 5/2/14 + 6 traps, fabric normals into
-   the room, seat re-check 0.000.
-6. Screenshots of the 4 walls, re-check the 16 scenes (InteriorAcousticRender / InteriorBackRender especially), update
-   `clients/walsh-construction/notes.md` (AP section, foam moves), this file and the DEVLOG.
+Nothing deviated from the JSON. Seats: S/W 4.25 or the H-strip at 4.3125, E 165.75 / 165.6875, N 93.75 / 93.6875.
+
+## Gotchas learned (this session)
+- **SketchUp `Length` compares with model tolerance.** `x.length < 1e-9` is false even for 0, so compare `.to_f`. A right-handedness guard
+  tripped on this.
+- **A flush piece's back is coplanar with the wall face.** Rays that step through pieces then also step past the wall and read
+  0.06-1.0 in "air". Measure seats with the pieces hidden inside an operation instead (the verify aborts its operation, so there is no net change).
+- **A bridge job that `load`s a file returns `true`.** Store the result in a global (`$b8_result`) and end the wrapper with it.
+- **Setting `camera.aspect_ratio` against a different viewport aspect makes `write_image` crop.** Render at the viewport aspect instead.
+  Scene shots set `PageOptions['TransitionTime']` to 0 and restore it (the scene-export tool's method).
+- Saving needs `--write-root Z:/Sketchup/ClientDrawings` and `m.save(m.path)`; a bare `m.save` is refused by the bridge.
 
 ## Assumptions
-- Standing 1x2s (12 x 24) and sheets lying flat are acceptable: v7 used both, and the DEVLOG allows horizontal sheets (reported).
-- Piece sizes 24x48 / 12x48 / 24x12 and depth 2.125 (observed on v7 bodies). Wall centre = middle of the usable run.
-- The foam/Audimute assignment (Audimute at the ends and vent columns, foam between) is my design call; Benton can swap it.
+- Ray-measured faces are the truth for seating (S/W 4.25 with the H-strip at 4.3125, E 165.75, N 93.75).
+- Benton's approval and the S1i square removal are as relayed by the coordinator (reported).
 
-## Open questions (for Benton, via the page)
-1. S1 or S2; E1 or E2.
-2. 7 of 14 1x2s stand on end (minimum 5). OK?
-3. OK to erase the two S1i squares in favour of a full sheet?
-4. The orchestrator brief said "add 2 foam copies"; it is 3 (see Model state).
+## Open questions
+- None blocking. `.forge/builder/HANDOFF-walsh.md` still says the AP/foam layout is "frozen at v7"; that line is now stale.
+- Renders are Benton's.
+- The importer bug (7 foam where the BOM gives 9) is still open in `wr-overlays.rb`.

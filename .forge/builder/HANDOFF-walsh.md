@@ -8,7 +8,7 @@
   - 6 bass traps, the full AP, studio lights and IEP beams;
   - 8 V-Ray room lights;
   - 16 scenes: `Opt2 01..08` and an identical `Opt1 01..08` series.
-- **The AP/foam layout is FROZEN at v7**, on the coordinator's instruction. A separate pass will place all 9 foam sheets plus the full AP.
+- **SUPERSEDED (12 Oct evening): the AP/foam layout is now v8** (9 foam + AP 5/2/14, applied and verified). See `.forge/builder/HANDOFF-walsh-ap.md` and `.forge/builder/walsh/ap9/layout-v8.json`. The v7 notes below are history.
 - **Full notes, constraints table and per-wall layout:** `clients/walsh-construction/notes.md` (read it first).
 - **Take-off:** `clients/walsh-construction/takeoff-vector.json`, built by `clients/walsh-construction/build-techlab.rb`.
 - **Job scripts:** `.forge/builder/walsh/` (untracked).

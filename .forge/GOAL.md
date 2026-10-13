@@ -19,9 +19,9 @@ Benton to render.
    screenshot; model saved under the client name, not over anything.
 
 ## Now
-12 Oct evening (desktop): model open in SU 2026 as the front doc. Composition check done: all 9 foam + full AP
-(5/2/14) fit on cell count with NO foam cut. Builder is drafting the per-wall layout + a wall-elevation review
-artifact. No model edits until Benton approves the elevations.
+12 Oct evening (desktop): Benton APPROVED layout v8 = S1 + E1 (`.forge/builder/walsh/ap9/layout-v8.json`,
+review https://claude.ai/artifact/5P796spUWJ1CXnFYPH2Jeh). Builder is applying it wall by wall in the Walsh file
+(remove the 2 S1i squares, add 3 foam copies), saving after each wall, then verifying gaps/counts and the 16 scenes.
 
 ## Out of scope
 The extra platform / side ramp (Benton adds it). Rendering (Benton). Proposal PDF (later). Prices.
