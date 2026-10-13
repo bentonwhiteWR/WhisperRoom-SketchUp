@@ -74,7 +74,7 @@ Provenance labels used below: **observed** (I read or measured it myself), **der
 - **Closure:** the polygon is built from intersected face lines, so it closes by construction. The run vectors read back from the model also sum to (0.000, 0.000) (observed).
 - **Area:** 478.7 SF, against the plan's stated 479 SF (derived).
 - **Angles:** both angled new walls are square (90.0 deg) to the exterior wall.
-- **In the model:** the 6 runs are dimensioned in place, with overall extents 24'-4 15/16" x 27'-8 11/16".
+- **In the model (MISSING as of 12 Oct evening, observed):** the 6 run dimensions are NOT in the model; `WR-Dims` holds 0 dimensions and `WR-Dims-Doors` holds only the 3' door dimension (the 4" one is gone). They were said to be in place, with overall extents 24'-4 15/16" x 27'-8 11/16".
 - **Not modelled:** a 1-1.3 in, 23.6 in long projection on the exterior wall's inner face. It is far from the booth.
 - **Defaults:** wall thickness 4 in (cosmetic), ceiling 96 in (assumed, see item 1).
 
@@ -91,7 +91,7 @@ All values are in room coordinates and derived from model geometry.
 - **EFS to walls:** S3 EFS 1 in to the east wall, south EFS row 1 in to the south wall, W0 EFS 4'-3 7/8" to the west wall.
 - **Door 24:** its far jamb to the W0 EFS is 11 7/8 in. The 36 in swing stays clear of the booth.
 - **Height:** booth top 84.31 in (IEP tray top). Under the assumed 96 in ceiling that leaves 11.7 in.
-- **Placement dimensions:** 13 of them, on `WR-Dims-Booth` at z 90.
+- **Placement dimensions:** 13 of them, on `WR-Dims-Booth`, moved from z 90 to the floor (z 0) on 12 Oct evening at Benton's request (`.forge/builder/walsh/dims/booth-dims-to-floor.rb`).
 
 ## Option 2: the link's ADA ramp, straight out from the door
 
