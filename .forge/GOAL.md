@@ -19,12 +19,12 @@ Benton to render.
    screenshot; model saved under the client name, not over anything.
 
 ## Now
-12 Oct evening (desktop): Benton APPROVED layout v8 = S1 + E1 (`.forge/builder/walsh/ap9/layout-v8.json`,
-review https://claude.ai/artifact/5P796spUWJ1CXnFYPH2Jeh). Builder is applying it wall by wall in the Walsh file
-(remove the 2 S1i squares, add 3 foam copies), saving after each wall, then verifying gaps/counts and the 16 scenes.
+12 Oct night: model done (acoustics v8, dims on the floor, 9 scenes renamed Ramp/Platform, Benton keeps the scenes as-is).
+Building the client proposal PDF (new pack, 9 plates in Benton's export order) from
+`Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 E`. Open: the floor is still drafting white in the plates.
 
 ## Out of scope
-The extra platform / side ramp (Benton adds it). Rendering (Benton). Proposal PDF (later). Prices.
+The extra platform / side ramp (Benton adds it). Rendering (Benton). Prices.
 WhisperRoomQuote. Standard BoothLighting 1.36 in drop (Benton undecided).
 
 ## History
