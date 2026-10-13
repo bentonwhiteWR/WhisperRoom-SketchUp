@@ -9,7 +9,7 @@ begin
   ['Opt2 03 BoothDims', 'Opt2 06 TopDown', 'Opt1 03 BoothDims'].each do |n|
     pg = m.pages[n] or next
     m.pages.selected_page = pg
-    f = "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/.forge/builder/walsh/ap9/elev/dims-floor-#{n.gsub(/\W+/, '_')}.png"
+    f = "C:/Users/bento/OneDrive/Documents/Claude/Sketchup/WhisperRoom-SketchUp/.forge/builder/walsh/ap9/elev/dims-all-#{n.gsub(/\W+/, '_')}.png"
     res << [n, m.active_view.write_image(filename: f, width: 1800, height: 1100, antialias: true)]
   end
 ensure

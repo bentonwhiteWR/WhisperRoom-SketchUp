@@ -74,7 +74,7 @@ Provenance labels used below: **observed** (I read or measured it myself), **der
 - **Closure:** the polygon is built from intersected face lines, so it closes by construction. The run vectors read back from the model also sum to (0.000, 0.000) (observed).
 - **Area:** 478.7 SF, against the plan's stated 479 SF (derived).
 - **Angles:** both angled new walls are square (90.0 deg) to the exterior wall.
-- **In the model (MISSING as of 12 Oct evening, observed):** the 6 run dimensions are NOT in the model; `WR-Dims` holds 0 dimensions and `WR-Dims-Doors` holds only the 3' door dimension (the 4" one is gone). They were said to be in place, with overall extents 24'-4 15/16" x 27'-8 11/16".
+- **In the model:** the 6 runs, the 2 overalls (24'-4 15/16" x 27'-8 11/16") and both door-24 dimensions (4" and 3') were REDRAWN on 12 Oct evening at the floor (z 0) by `.forge/builder/walsh/dims/room-dims-redraw.rb` after they were found missing; all read back equal to the take-off.
 - **Not modelled:** a 1-1.3 in, 23.6 in long projection on the exterior wall's inner face. It is far from the booth.
 - **Defaults:** wall thickness 4 in (cosmetic), ceiling 96 in (assumed, see item 1).
 
