@@ -27,8 +27,8 @@ company name.
 8. Drop-in interior lights from `wr-drop-lights.rb` (the plugin's tool, no hand-placed lights) (Benton, 16 Oct).
 
 ## Now
-Builder sub-agent building room + custom booth through the bridge (16 Oct). Room ceiling tag
-(WR-Ceiling) hidden at Benton's request.
+Build done and saved (Builder, 16 Oct 16:23; STATUS READY 67ecec9). Waiting on Benton's review of the .skp
+and the client's real room size, ceiling, entry door and second-door hand.
 
 ## Out of scope
 Rendering and export (Benton). Proposal PDF. Prices. Changes to plugin/tool code or the
