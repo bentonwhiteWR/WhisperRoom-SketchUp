@@ -22,8 +22,8 @@ company name.
    (new file, nothing overwritten); screenshots taken; notes in
    `clients/intelligence-security-laboratories/notes-7296.md`, committed and pushed.
 6. All dimensions lie on the floor plane only (Benton, 16 Oct).
-7. A handful of scenes (about 5–6: plan, both doors, seam/interior, vent side, eye level), with the
-   room ceiling hidden in every one (Benton, 16 Oct).
+7. Scenes set with AUTO-SET in the proposal package (not by hand), plus one marked extra only for a
+   view the plates miss (the second door); room ceiling hidden in every one (Benton, 16 Oct).
 
 ## Now
 Builder sub-agent building room + custom booth through the bridge (16 Oct). Room ceiling tag

@@ -1,5 +1,15 @@
 # DEVLOG
 
+## 2026-10-16 -- 1.84.2: scenes come from the proposal package (docs and skills only)
+
+**What.** On ISL 7296 the scenes were first hand-built. Benton: "note it should use the proposal package, but im
+sure yuou alredy know that". The rule existed only in `skills/whisperroom-photo-job` step 10. It is now also in
+CLAUDE.md's SketchUp section and in a new "Scenes come from the proposal package" section of
+`skills/whisperroom-takeoff`. Scenes are set with AUTO-SET (`scripts/wr-autoset.rb` via
+`scripts/proposal-package.rb`). A hand scene is used only for a view the plates miss, and it is marked and reported.
+
+**No code changed.** VERSION was bumped for the update banner.
+
 ## 2026-10-16 -- 1.84.1: minimal annotation is the rule (docs and skills only)
 
 **What.** On the ISL 7296 top view Benton said: "the text is pretty intense, I want it cleaned up and quite a

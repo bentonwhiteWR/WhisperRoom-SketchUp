@@ -201,6 +201,16 @@ This covers the non-numeric values too:
   flags as DERIVED and gets a tape put on it. Two `derived closure` runs on one
   axis fail by name — closure forces exactly one unknown per axis.
 
+## Scenes come from the proposal package
+
+When the job goes on to scenes, set them with **AUTO-SET** (`scripts/wr-autoset.rb`, driven
+by `scripts/proposal-package.rb`) on the placed booth, never by hand (Benton, 16 Oct 2026).
+AUTO-SET makes the stamped plate scenes and marks each one Skip, Image or Render, with its
+WALLS and ANNOTATIONS answers. A hand scene is only for a view the plates miss, such as a
+second door; mark it in the package and report it. Before AUTO-SET, give the view a fresh
+camera with aspect 0 (see "Scenes opened super zoomed in" in `whisperroom-photo-job`). Do
+not export or render unless asked; Benton runs the package export.
+
 ## Keep the plan minimal
 
 Benton reads the plan, not text (16 Oct 2026: "the text is pretty intense … quite a bit

@@ -295,6 +295,11 @@ ramps to the clearance rules above, tags, materials, and dimension entities.
 - Imperial / Architectural units, 8'-0" default ceilings, walls built outward and mitred at
   the corners, floor `0128_White`, walls `0099_LightSteelBlue`, doors `0043_SaddleBrown`.
 - Dimension **all four sides** plus every door off its wall corner.
+- **Scenes come from the proposal package, never by hand** (Benton, 16 Oct 2026). Use
+  AUTO-SET (`scripts/wr-autoset.rb`, driven by `scripts/proposal-package.rb`) on the booth.
+  It makes the stamped plate scenes and marks each one Skip, Image or Render, with its WALLS
+  and ANNOTATIONS answers. Add a hand scene only for a view the plates miss, mark it in the
+  package, and say so. Method and traps: `skills/whisperroom-photo-job/SKILL.md` step 10.
 - **I can't RUN a script here, but I can now PARSE one.** There is still no `ruby.exe` on
   this machine, so nothing gets executed outside SketchUp — say plainly that a script is
   unrun, wrap the build so it fails loudly, and list everything in the model that isn't
