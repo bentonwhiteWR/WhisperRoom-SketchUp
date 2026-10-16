@@ -1,0 +1,53 @@
+{
+  "job": "intelligence-security-laboratories",
+  "title": "Intelligence Security Laboratories — office for MDL 7296 E + EXP 7224 E + ADD ENHDOOR 30 (from the client's hand sketch, 15 Oct 2026). EVERY ROOM FIGURE IS ESTIMATED.",
+  "sources": ["plans/isl-7296-sketch-2026-10-15.png"],
+  "anchor": "ESTIMATE, not a measurement. The sketch carries NO dimensions. Scale anchor = the client's own booth outline (dark blue rectangle, 140 x 249.5 px between line centres) read as the quoted booth's expanded exterior, 74 x 122 in (MDL 7296 E 74 x 98 from models.json / wr-booth-data.rb, plus the 24 in EXP 7224 E). Anchored PER AXIS: 1.892 px/in across, 2.045 px/in down, because the hand-drawn booth is ~8% off true proportion and a single scale would push the booth out of its drawn place in the room. Using the other axis's scale moves the room width to 114-123 in and the length to 180-195 in; hand-sketch error comes on top of that. Confirm with a tape measure.",
+  "interpretations": [
+    "The sketch is hand-drawn on a dot grid (no ruler, no numbers). Line centres were read in pixels: outer walls left x 80.5, right x 313.5, top y 79.5, bottom y 448.5; the left-wall jog faces y 229.5 and y 279.5, its end face x 149; booth outline x 157-297, y 96-345.5. Every room run is that pixel distance divided by the per-axis scale and rounded to the inch.",
+    "Plan up = the top of the sketch, drawn as model +y. It is NOT true north; the sketch carries no north.",
+    "The dark-blue rectangle is the booth; the two red marks on it are the booth's two doors (client, 15 Oct: 'doors marked in red'); the cyan fill is the back-left alcove the client says would be inaccessible without the second door.",
+    "The jog in the left wall is read as a solid wall return (a pier or closet corner) standing 36 in into the room, 24 in long. What it is in the building is not known.",
+    "The room's own entry door is NOT on the sketch. It is ASSUMED: a 3'-0\" x 6'-8\" door in the bottom wall at its right end, 4 in from the right corner to the near jamb, hinged on that jamb and swinging into the room toward the right wall. The open floor below the booth is the only space the sketch leaves for an entry. Move it once the client says where the door is.",
+    "Ceiling 8'-0\" is the house default; the client gave no height. It is the figure that disqualifies a booth fastest, so it must be asked.",
+    "No windows, furniture, columns or services are drawn because none are on the sketch. The room is a plain office."
+  ],
+  "rooms": [
+    {
+      "name": "ISL Office (7296 E)",
+      "runs": [
+        {"d": "E", "v": "123\"", "src": "derived scaled off the client's hand sketch",
+         "note": "ESTIMATED top wall: 233 px / 1.892 px/in = 123.2 in (range 114-123 in on the other axis's scale, plus sketch error). The booth's W wall stands 1 in off it."},
+        {"d": "S", "v": "180\"", "src": "derived scaled off the client's hand sketch",
+         "note": "ESTIMATED right wall: 369 px / 2.045 px/in = 180.4 in (range 180-195 in on the other axis's scale, plus sketch error). The booth's vent wall faces it."},
+        {"d": "W", "v": "123\"", "src": "derived scaled off the client's hand sketch",
+         "note": "ESTIMATED bottom wall, same left and right wall lines as the top wall (123.2 in). The ASSUMED room door is in it."},
+        {"d": "N", "v": "83\"", "src": "derived scaled off the client's hand sketch",
+         "note": "ESTIMATED left wall below the jog: 169 px / 2.045 = 82.6 in. Left chain 83 + 24 + 73 = 180."},
+        {"d": "E", "v": "36\"", "src": "derived scaled off the client's hand sketch",
+         "note": "ESTIMATED: the jog stands 68.5 px / 1.892 = 36.2 in into the room (bottom face)."},
+        {"d": "N", "v": "24\"", "src": "derived scaled off the client's hand sketch",
+         "note": "ESTIMATED: the jog's end face, 50 px / 2.045 = 24.4 in long."},
+        {"d": "W", "v": "36\"", "src": "derived scaled off the client's hand sketch",
+         "note": "ESTIMATED: the jog's top face, 36.2 in back to the left wall. It is the bottom of the client's blue alcove."},
+        {"d": "N", "v": "73\"", "src": "derived scaled off the client's hand sketch",
+         "note": "ESTIMATED left wall above the jog (the alcove's back wall): 150 px / 2.045 = 73.3 in."}
+      ],
+      "ceiling": {"assumed": "96\"", "reason": "8'-0\" house default; the client gave no ceiling height. Ask for it: it disqualifies a booth faster than floor area (the 7296 E needs 7'-1\" install clearance)."},
+      "origin": [0, 180],
+      "doors": [
+        {"run": 2,
+         "at": {"assumed": "4\"", "reason": "the room door is not on the client's sketch. Placed in the bottom wall at its right end, 4 in from the right (SE) corner to the near jamb, the only open floor the sketch leaves for an entry. Move it once the client says where the door is."},
+         "w": {"assumed": "36\"", "reason": "3'-0\" door, typical office door; not on the sketch."},
+         "h": {"assumed": "80\"", "reason": "6'-8\" door leaf, house default; not on the sketch."},
+         "hinge": {"assumed": "near", "reason": "not on the sketch. Hinged on the jamb nearest the right wall so the leaf opens into the room against the right wall, away from the booth's main door."}}
+      ],
+      "features": [],
+      "notes": [
+        "ROOM DIMENSIONS ESTIMATED from the client's hand sketch (no measurements), scaled off the booth outline (74 x 122 in). Could be off by a foot or more. Ceiling 8'-0\" assumed. Room door location assumed. Confirm with a tape measure.",
+        "Booth as quoted (W-1110152608): MDL 7296 E + EXP 7224 E (24 in expansion) + ADD ENHDOOR 30. Expanded exterior 74 x 122 in.",
+        "Client (Gregory Shelby, 15 Oct): 'there is a space in the back left (marked in blue) that would be inaccessible without a second door (doors marked in red).'"
+      ]
+    }
+  ]
+}
