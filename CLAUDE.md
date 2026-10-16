@@ -259,6 +259,11 @@ see Working conventions; do not copy them by hand.
   a booth fastest.
 - **Dimension the doors off their wall corners.** Corner → near jamb, then the opening width.
   This is how a booth actually gets placed against a wall, so it is not optional.
+- **Keep the annotation minimal** (Benton, 16 Oct 2026). Dimensions and notes go on the floor
+  plane only. Dimension text is the number only, with no labels. The dimension set is short:
+  wall chains, doors off their corners, and the booth's overall size, wall gaps and doors. Use
+  at most one short note, set clear of the drawing, and let nothing overlap. The full rule is
+  in `reference/sketchup-drawing.md`, section "Annotation — keep it minimal".
 - **Square the wall corners.** Mitre the outside face where two walls meet — never let wall
   solids cross and overshoot each other into an X.
 - Wall thickness is cosmetic: build outward from the measured interior face so it never moves

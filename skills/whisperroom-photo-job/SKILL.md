@@ -32,10 +32,14 @@ All model work runs over the bridge (`scripts/sketchup-bridge.py`) in Benton's o
 3. **Build the shell, then the features** (`room.rb`, then `features.rb`). The test for each
    piece is a side-by-side of photo, model and overlay (`fit/sbs.py`, kept in `compare/`).
    It is done when those line up.
-4. **Dimension the room** (`dims.rb`). Dimensions are chained, the runs close, and every
-   one is marked EST. with its tolerance. Add this plan note word for word:
+4. **Dimension the room** (`dims.rb`). Dimensions are chained and the runs close. The
+   dimension text is the **number only**, with no `EST.` on each string; the one plan note
+   carries the estimate. Add this plan note word for word:
    "HOST ROOM DIMENSIONS NOT PROVIDED. ALL ROOM DIMENSIONS ARE ESTIMATED FROM CLIENT PHOTOS
    (±1 FT) AND MUST BE CONFIRMED ON SITE."
+   - Keep annotation minimal (Benton, 16 Oct 2026). Follow `reference/sketchup-drawing.md`,
+     section "Annotation — keep it minimal", for the dimension set, the single note, and the
+     no-overlap check.
    - Notes and labels are **3D floor text** (`WR_CMS.floor_text`), never screen text.
    - Do not add "CORNER A/B" labels.
 5. **Save one photo-match scene per client photo** (`WR_CMS.photo_scenes!`). Run

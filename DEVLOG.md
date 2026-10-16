@@ -1,5 +1,27 @@
 # DEVLOG
 
+## 2026-10-16 -- 1.84.1: minimal annotation is the rule (docs and skills only)
+
+**What.** On the ISL 7296 top view Benton said: "the text is pretty intense, I want it cleaned up and quite a
+bit more minimal". The cleaned-up plan had 17 dimensions showing numbers only and one two-line floor note. He
+approved it as "much better" and asked for it to become the rule. The rule now lives in:
+
+- `reference/sketchup-drawing.md`, new section "Annotation — keep it minimal". It sets these points:
+  - dimensions and notes go on the floor plane only;
+  - dimension text is the number only;
+  - a fixed short dimension set;
+  - at most one short note, set clear of the drawing;
+  - nothing overlaps, checked on a top-view screenshot.
+- `CLAUDE.md` drawing conventions carry a one-paragraph summary.
+- `skills/whisperroom-takeoff`: a new "Keep the plan minimal" section. Two stale claims that assumed values are
+  "noted IN THE MODEL" are corrected. `build-takeoff.rb` has had `NOTES_IN_MODEL = false` since Benton's 1 Sep
+  "no text" ruling.
+- `skills/whisperroom-photo-job` step 4: the per-dimension `EST.` marks are dropped. The word-for-word plan
+  note stays and carries the estimate.
+
+**No code changed.** VERSION was bumped so the panel's banner tells other machines the skills changed. Reaching
+them takes `git pull` + `install-plugin.py`.
+
 ## 2026-10-12 -- session close (desktop): Walsh Construction done -- acoustics placed, dimensions on the floor, proposal PDF built
 
 **Outcome.** The Walsh Construction Tech Lab job is finished. Benton, sign-off: "The drawing is fine btw we are

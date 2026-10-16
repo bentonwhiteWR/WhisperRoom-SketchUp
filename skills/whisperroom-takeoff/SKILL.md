@@ -74,7 +74,7 @@ Gabe reads the review sheet, answers the ASSUMED flags
 python scripts/takeoff-check.py clients/<job>/takeoff.json --apply-patch patch.json
     -> refuses stale or sourceless edits by name; clean edits re-run the full check
 SketchUp: load scripts/build-takeoff.rb, pick the lock file
-    -> every room built and dimensioned; every ASSUMED value noted IN THE MODEL
+    -> every room built and dimensioned; every ASSUMED value listed in the build report
 ```
 
 Nothing builds from `takeoff.json` directly — `build-takeoff.rb` consumes only the
@@ -177,7 +177,9 @@ Every dimension is a `{v, src}` pair; `src` is mandatory and its first word is
 closed vocabulary (`pen` / `plan-vector` / `stated` / `assumed` / `default`). A
 missing dimension fails by name; a guess is legal only as explicit
 `{"assumed": ..., "reason": ...}` and is flagged on the review sheet, in the
-build report, and as a text note in the model at the feature itself. This is
+build report, and in the lock file. It is **not** written into the model as text
+(`NOTES_IN_MODEL = false` in `build-takeoff.rb`; Benton, 1 Sep 2026: no text on
+the plan). This is
 enforced in code — the old dialog's silent `at:36"` door seed is the defect the
 rule exists to prevent. Review-sheet edits obey the same rule: an edit with no
 source is refused.
@@ -198,6 +200,20 @@ This covers the non-numeric values too:
   `"src": "derived closure"` with a note naming the runs that force it; it
   flags as DERIVED and gets a tape put on it. Two `derived closure` runs on one
   axis fail by name — closure forces exactly one unknown per axis.
+
+## Keep the plan minimal
+
+Benton reads the plan, not text (16 Oct 2026: "the text is pretty intense … quite a bit
+more minimal"). The full rule is in `reference/sketchup-drawing.md`, section "Annotation —
+keep it minimal". Read it before adding anything by hand on top of a take-off build. In
+short:
+
+- Dimensions and any note sit on the floor plane.
+- Dimension text is the number only, with no labels.
+- Dimensions go only on the wall chains, the doors off their corners, and, when a booth is
+  placed, its overall size, its wall gaps and its doors off a booth corner.
+- At most one short note, set clear of the drawing. None on a measured plan.
+- Nothing overlaps. Check a top-view screenshot before saying done.
 
 ## Machine facts — reuse these, don't rediscover them
 

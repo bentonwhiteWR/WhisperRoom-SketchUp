@@ -103,6 +103,40 @@ dimensions on two sides is half-finished; that has already come back once.
 
 ---
 
+## Annotation — keep it minimal
+
+Benton reads the plan, and text he has to read around is noise. His rulings: "I don't want any
+text, we just want the floor plan and the dimensions" (1 Sep 2026, take-off), and "the text is
+pretty intense, I want it cleaned up and quite a bit more minimal" (16 Oct 2026, ISL 7296). The
+cleaned-up ISL plan, with 17 dimensions showing numbers only and one two-line floor note, was
+approved as "much better".
+
+- **Everything sits on the floor plane** (z = 0): dimensions and any note. Nothing goes on a
+  wall face, at door height, or at the ceiling.
+- **Dimension text is the number only.** No label overrides: no `BOOTH`, `LEAF`, `CL`, part
+  codes, `CORNER A`, or `EST.` on each string.
+- **The dimension set for a booth in a room** is this, and nothing else unless asked:
+  - each room wall's chain, one segment row plus the overall, including every notch;
+  - each room door off its corner (corner to near jamb, then the opening);
+  - the booth's overall width and length;
+  - the booth-to-wall gaps that fix its position;
+  - each booth door off a booth corner.
+  Leaf widths, centrelines, clearance gaps that don't place anything, and duplicates are left
+  off.
+- **Notes:** none by default. An estimated room may carry **one** short note, two lines at
+  most, set clear of the drawing (beside it or below it), for example: `Room dims estimated from
+  client sketch, confirm on site. Ceiling 8'-0" assumed.` Never put text on the booth.
+- **Provenance belongs in `clients/<slug>/notes.md`**, the console report and the review sheet,
+  not in the model. Taking it out of the drawing does not make it silent; it moves where it is
+  said.
+- **Nothing touches.** Text never overlaps other text, a dimension line or geometry. Keep the
+  dimension rows evenly spaced (about 55 in apart at a wide window), and put the text for short
+  segments outside the extension lines.
+- **Check it before calling it done.** Take a top-view screenshot and look at it. If anything
+  overlaps or runs off the drawing, the plan is not done.
+
+---
+
 ## Traps that have already cost time
 
 - **Polygon winding.** Which side is "outside" cannot be hard-coded. Two rooms in the same
