@@ -24,13 +24,14 @@ company name.
 6. All dimensions lie on the floor plane only (Benton, 16 Oct).
 7. Scenes set with AUTO-SET in the proposal package (not by hand), plus one marked extra only for a
    view the plates miss (the second door); room ceiling hidden in every one (Benton, 16 Oct).
+8. Drop-in interior lights from `wr-drop-lights.rb` (the plugin's tool, no hand-placed lights) (Benton, 16 Oct).
 
 ## Now
 Builder sub-agent building room + custom booth through the bridge (16 Oct). Room ceiling tag
 (WR-Ceiling) hidden at Benton's request.
 
 ## Out of scope
-V-Ray lights and rendering (Benton). Proposal PDF. Prices. Changes to plugin/tool code or the
+Rendering and export (Benton). Proposal PDF. Prices. Changes to plugin/tool code or the
 parts share. WhisperRoomQuote. Placing the 2 extra expansion foam sheets beyond what the importer does
 (report the count instead).
 

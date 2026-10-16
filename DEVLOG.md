@@ -1,5 +1,24 @@
 # DEVLOG
 
+## 2026-10-16 -- 1.84.3: a drawing is finished with the plugin's own tools (take-off skill)
+
+**What.** Benton: "when making a drawing, it should always use this skill (and the drop in the lights) and other
+skills that may be useful inside of the plugin. Please write that into our takeoff skill". `skills/whisperroom-takeoff`
+replaces its 1.84.2 scenes section with "A drawing is finished with the plugin's own tools", an ordered list:
+
+- the room (`build-takeoff.rb` / `auto-dimension.rb`);
+- the booth (`booth-from-link.rb`, plus `whisperroom-acoustic-package` when `ac` is set);
+- booth dimensions (`dimension-whisperroom.rb`, `rotate-whisperroom-dimensions.rb`);
+- the interior lights, always (`wr-drop-lights.rb`, headless `WR_DropLights.run(opts, subjects)`);
+- scenes, always (`proposal-package.rb` + AUTO-SET, headless `WR_AutoSet.apply(model, booth, opts)`);
+- `wr-preflight.rb`;
+- the `whisperroom-proposal` skill.
+
+A job script is the last resort, and the report must name what it covered. Both headless entry points were confirmed in the
+source, not run, for this entry.
+
+**No code changed.** VERSION was bumped for the update banner.
+
 ## 2026-10-16 -- 1.84.2: scenes come from the proposal package (docs and skills only)
 
 **What.** On ISL 7296 the scenes were first hand-built. Benton: "note it should use the proposal package, but im

@@ -201,15 +201,37 @@ This covers the non-numeric values too:
   flags as DERIVED and gets a tape put on it. Two `derived closure` runs on one
   axis fail by name — closure forces exactly one unknown per axis.
 
-## Scenes come from the proposal package
+## A drawing is finished with the plugin's own tools
 
-When the job goes on to scenes, set them with **AUTO-SET** (`scripts/wr-autoset.rb`, driven
-by `scripts/proposal-package.rb`) on the placed booth, never by hand (Benton, 16 Oct 2026).
-AUTO-SET makes the stamped plate scenes and marks each one Skip, Image or Render, with its
-WALLS and ANNOTATIONS answers. A hand scene is only for a view the plates miss, such as a
-second door; mark it in the package and report it. Before AUTO-SET, give the view a fresh
-camera with aspect 0 (see "Scenes opened super zoomed in" in `whisperroom-photo-job`). Do
-not export or render unless asked; Benton runs the package export.
+Benton, 16 Oct 2026: when making a drawing, always use the proposal package, the drop-in
+lights, and any other plugin tool or skill that does the job. Do not hand-roll what a
+tool already does. A job script in `.forge/builder/<job>/` is the last resort, used only
+for the part no tool covers, and the report says which part that was. Every tool below is
+read live from the repo, and the ones marked headless can be driven over the bridge.
+
+1. **Room:** `build-takeoff.rb`, this skill. `auto-dimension.rb` re-chains a room.
+2. **Booth:** `booth-from-link.rb`, from the quote's booth link. When its build summary
+   lists `ac`, run the `whisperroom-acoustic-package` skill on that booth.
+3. **Booth dimensions:** `dimension-whisperroom.rb` (click the booth), and
+   `rotate-whisperroom-dimensions.rb` to move the set to another corner.
+   `dimension-booth.rb` is retired. Plan annotation follows "Keep the plan minimal" below.
+4. **Interior lights, always:** `wr-drop-lights.rb` ("Drop the interior lights"). It lays
+   the room's lighting rig over the floor polygon and works around the booth. Headless:
+   `WR_DropLights.run(opts, subjects)` skips its settings dialog.
+5. **Scenes, always:** the proposal package (`proposal-package.rb`) with **AUTO-SET**
+   (`wr-autoset.rb`) on the placed booth, never hand-made pages. AUTO-SET makes the stamped
+   plate scenes and marks each one Skip, Image or Render, with its WALLS and ANNOTATIONS
+   answers. Headless: `WR_AutoSet.apply(model, booth, opts)`.
+   - Before it runs, give the view a fresh camera with aspect 0 (see "Scenes opened super
+     zoomed in" in `whisperroom-photo-job`).
+   - A hand scene is only for a view the plates miss, such as a second door. Mark it in the
+     package and report it.
+6. **Before handing over for render:** `wr-preflight.rb` (read-only until a Fix is
+   pressed). Do not export or render unless asked; Benton runs the package export.
+7. **Proposal PDF:** the `whisperroom-proposal` skill, when asked.
+
+For anything else, look at the panel's tool list first. It is the `# @title` and `# @cat`
+header of each `scripts/*.rb`. Check it before writing anything new.
 
 ## Keep the plan minimal
 
