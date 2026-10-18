@@ -1,5 +1,63 @@
 # DEVLOG
 
+## 2026-10-18 -- 1.84.4: Standard corner seals load elbow-out again (corner_yaw reads the L's area, not its edge ends)
+
+**What.** Benton: "the standard corner seam seals all need to be rotated 180 degrees. I modified them and now they
+are loading in flipped." Every booth-from-link build since he chamfered `CornerSeamSeal` / `CornerSeamSeal_HX`
+on 18 Oct put all four outer corner seals elbow-IN, with the 1x1 block facing out. Re-axing both parts 180 deg
+and re-exporting them to the share at 12:07 did not help: the 12:08 screenshot is still flipped.
+
+**Root cause.** `corner_yaw` picked the corner's turn by aiming the plain average of the part's edge END POINTS at
+the booth's middle. On a corner seal that average is only 0.0035 in off centre on each axis (0.022 on the HX),
+because the points are mostly screw-mark 24-gons. It leaned toward the notch, so the elbow went outboard by luck.
+The 3/8 in chamfers tipped it 0.045 in toward the elbow (0.013 on the HX), and every corner turned 180 deg.
+`corner_yaw` tries all four turns itself, so it cannot see any rotation of the part's own frame; Benton's
+re-axe could never change the result.
+
+All of this is from SketchUpAPI.dll (SketchUp 2026 C SDK, via ctypes) reading the real files:
+- the share parts;
+- the master model at 11:59 and 12:02;
+- the plain-L definitions in the 23 Sep master and in the Walsh and ISL 7296 models.
+
+Replaying the OLD method on that geometry reproduces both observed builds transform for transform:
+- the 12:02 flipped one (SW 180 / SE -90 / NE 0 / NW 90 on the SW-frame chamfered part);
+- the Walsh/ISL correct one.
+
+**Fix.** `corner_yaw` now uses the L's plan centre of MASS. The new `plan_mass` takes every face loop
+projected onto the floor, area-weighted, with holes subtracted; walls project to a line and add nothing. It keeps
+the turn that puts that mass FURTHEST from the booth's middle, as `reference/seam-seal-attachment.md` already
+said: elbow at the booth's outside corner. That centroid leans about 0.87 in per axis toward the elbow, plain or
+chamfered, in either frame, which is about 20x the swing that flipped it. No constant and no frame assumption,
+so a future re-axe of the part cannot flip it either. The `ENH CornerSeamSeal` inner corners (placed directly),
+the mid-wall seals and `place()` are untouched. The share's `.skp` files were not touched.
+
+**Verified offline.**
+- New `scripts/rbtest-corner-seal.py` lifts `corner_yaw` + `plan_mass` verbatim and covers 128 cases: the real
+  plain / chamfered / share / share-HX outlines, x 4 corners x 4 starting turns x 2 booths. All land elbow-out
+  and on their polygon.
+- The test's built-in mutant (back to "nearest") fails all 128.
+- A full-geometry before/after replay (`.forge/fixer/corner-seam-seal-flip/`) gives:
+  - OLD: plain = right, chamfered = flipped, share = flipped, for both heights;
+  - NEW: right on all 24 corner cases.
+- `rbparse.py` is clean.
+- `rbtest.py`, `rbtest-part-orientation.py`, `rbtest-side-wall-order.py`, `rbtest-overlays.py`,
+  `rbtest-wall-part.py` and `rbtest-boothlink-cbl.py` still pass.
+
+**Gotchas.**
+- Do not judge an L's orientation by averaging vertices or edge ends. Screw marks and chamfers dominate the
+  count, and the signal is thousandths of an inch. Use area.
+- Re-axing a corner seal part no longer matters to the builder, by design. Benton's 12:07 re-axed files can stay
+  or be reverted.
+- The chamfer cuts left tiny stray floor-level triangles (0.07 sq in) on the bottom face of the share parts:
+  1 on `CornerSeamSeal`, 3 on `_HX`. They are harmless to placement, but are leftover geometry Benton may want
+  to delete next time he has the parts open.
+
+**Benton must check (1 min, in an Untitled model).**
+1. Build one Standard booth from a link (e.g. 4872 S) and one Enhanced or HX.
+2. On all four outer corners, the chamfered elbow should sit at the booth's outside corner, with the legs and the
+   1x1 block in against the panels.
+3. The inner `ENH CornerSeamSeal` corners should look exactly as before.
+
 ## 2026-10-16 -- 1.84.3: a drawing is finished with the plugin's own tools (take-off skill)
 
 **What.** Benton: "when making a drawing, it should always use this skill (and the drop in the lights) and other

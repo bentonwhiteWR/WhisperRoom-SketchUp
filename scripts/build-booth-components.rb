@@ -332,9 +332,9 @@ module WR_BuildBoothComponents
   #
   # The IEP seam seals are not the Standard ones turned around. A Standard seal
   # wraps a CONVEX corner from outside the booth; an IEP seal sits in a CONCAVE
-  # corner and is fitted from inside the room. corner_yaw aims the L's centre of
-  # mass at the booth's middle, which is right for the outer shell and a quarter
-  # turn short for the inner one.
+  # corner and is fitted from inside the room. corner_yaw turns the L's elbow
+  # away from the booth's middle, which is right for the outer shell only; the
+  # inner corners are placed directly (below).
   #
   # Both are degrees about the vertical, applied only to inner parts and only
   # after the normal placement. They are ONE NUMBER EACH on purpose - if a build
@@ -2285,41 +2285,42 @@ module WR_BuildBoothComponents
   end
 
   # Corner seals are an L, and which way the L faces cannot be read from a
-  # bounding box — it is square. It IS readable from the geometry: the L hugs one
-  # corner of that square, so the average of its vertices sits off centre toward
-  # that corner. Compare that against the corner the layout wants and rotate.
-  # Measured in WORLD space, after the placement transform has been applied.
+  # bounding box - it is square. It IS readable from the geometry. There are
+  # only FOUR orientations a corner seal can legally have, all square with the
+  # walls, so try all four about the corner's own centre and keep the one that
+  # puts the L's centre of MASS furthest from the booth's middle. The L's mass
+  # sits in the elbow where its two legs meet, and the elbow wraps the booth's
+  # outside corner (reference/seam-seal-attachment.md, "Orientation").
+  # Measured in WORLD space, after place() has done its turn, so there is no
+  # handedness of the part's own axes to reason about (measured in the part's
+  # own axes, two corners once came out reversed). Four candidates rather than
+  # an angle computed from the centroid, which lands 45 deg off whenever the
+  # mass sits on the diagonal.
   #
-  # The first version measured the L's lean in the definition's own width and
-  # thickness axes and compared that to the target. That is only correct when
-  # those two axes map to world in the orientation you assumed, and on two of the
-  # four corners they do not — which is exactly why two corners came out right
-  # and two came out reversed.
-  #
-  # Transforming the centroid first removes the assumption. Where the L actually
-  # leans, once placed, against where it should lean. No handedness to reason
-  # about.
-  # A corner seal is an L that must hug the booth's outside corner. There are
-  # only FOUR orientations it can legally have, so rather than compute an angle
-  # and trust it, try all four and keep whichever puts the L's centre of mass
-  # nearest the corner it is supposed to wrap.
-  #
-  # Computing the angle from a centroid, which is what this did before, is off by
-  # 45 degrees whenever the L's mass sits diagonally but the reference vector
-  # does not — and it lands nowhere near a right angle, which a corner seal must
-  # always be at. Four candidates cannot do that: every answer is square with the
-  # walls by construction.
+  # "Mass" means AREA - every face projected onto the floor (plan_mass). Until
+  # 1.84.4 it was the plain average of every edge END POINT, and that is what
+  # flipped all four corners on 18 Oct 2026. On a 4 7/8 corner seal the end
+  # points are mostly the 24-gon screw marks down the inner legs and the
+  # outline's own corners, and they averaged out only 0.0035 in off centre on
+  # each axis (0.022 on the HX) - toward the NOTCH, not the elbow. The old code
+  # aimed that point at the booth's middle, which put the elbow outboard by
+  # luck of the sign. Benton's 3/8 in chamfers on the outside corners added
+  # enough end points at the elbow to tip the average 0.045 in the other way
+  # (0.013 on the HX) and every corner came out 180 deg round. Re-axing the
+  # part 180 deg cannot undo that: this test turns the part through all four
+  # yaws itself, so ANY rotation of the part's own frame lands the same way.
+  # That is also why re-axing does not matter now. The area centroid leans
+  # about 0.87 in toward the elbow on each axis, plain or chamfered, in either
+  # frame - some twenty times the 0.045 that flipped it.
+  # scripts/rbtest-corner-seal.py runs this on the real outlines.
   def self.corner_yaw(defn, tr, pivot, target)
-    pts = []
-    collect_points(defn.entities, tr, pts)
-    return 0.0 if pts.empty?
-    sx = 0.0
-    sy = 0.0
-    pts.each do |p|
-      sx += p.x.to_f
-      sy += p.y.to_f
+    acc = [0.0, 0.0, 0.0]
+    plan_mass(defn.entities, tr, acc)
+    if acc[2] < 1e-6
+      puts "  *** #{defn.name}: no plan area to read the L from - corner left at the turn place() gave it. CHECK IT."
+      return 0.0
     end
-    cen = Geom::Point3d.new(sx / pts.length, sy / pts.length, 0)
+    cen = Geom::Point3d.new(acc[0] / acc[2], acc[1] / acc[2], 0)
 
     best = 0.0
     bestd = nil
@@ -2327,12 +2328,54 @@ module WR_BuildBoothComponents
       yaw = i * Math::PI / 2.0
       c = cen.transform(Geom::Transformation.rotation(pivot, VZ, yaw))
       d = Math.hypot(c.x.to_f - target[0], c.y.to_f - target[1])
-      if bestd.nil? || d < bestd
+      # FURTHEST: the elbow goes away from the booth's middle, the legs and the
+      # 1x1 block in toward the panels.
+      if bestd.nil? || d > bestd
         bestd = d
         best = yaw
       end
     end
     best
+  end
+
+  # A part's centre of mass in PLAN, in world x/y once `tr` is applied, added
+  # into acc = [sum of area*x, sum of area*y, sum of area]. Every face loop is
+  # projected onto the floor and weighted by the area it covers there; holes
+  # (inner loops) subtract. A vertical face projects to a line and adds
+  # nothing, so screw marks, chamfers and the L's walls drop out and what is
+  # left is the L's footprint - top and bottom - which is its real mass.
+  def self.plan_mass(ents, tr, acc, depth = 0)
+    return if depth > 8
+    ents.each do |e|
+      if e.is_a?(Sketchup::Face)
+        e.loops.each do |lp|
+          pts = lp.vertices.map { |v| v.position.transform(tr) }
+          n = pts.length
+          next if n < 3
+          a2 = 0.0   # twice the signed area
+          sx = 0.0
+          sy = 0.0
+          n.times do |i|
+            p = pts[i]
+            q = pts[(i + 1) % n]
+            cr = p.x.to_f * q.y.to_f - q.x.to_f * p.y.to_f
+            a2 += cr
+            sx += (p.x.to_f + q.x.to_f) * cr
+            sy += (p.y.to_f + q.y.to_f) * cr
+          end
+          next if a2.abs < 1e-9
+          # The loop's centroid is (sx, sy) / (3 * a2), whichever way it winds.
+          w = (lp.outer? ? 0.5 : -0.5) * a2.abs
+          acc[0] += w * sx / (3.0 * a2)
+          acc[1] += w * sy / (3.0 * a2)
+          acc[2] += w
+        end
+      elsif e.is_a?(Sketchup::ComponentInstance)
+        plan_mass(e.definition.entities, tr * e.transformation, acc, depth + 1)
+      elsif e.is_a?(Sketchup::Group)
+        plan_mass(e.entities, tr * e.transformation, acc, depth + 1)
+      end
+    end
   end
 
   # ------------------------------------------------- wide-access rebalance --
@@ -2982,20 +3025,21 @@ module WR_BuildBoothComponents
           xs = p[:poly].map { |q| q[0].to_f }
           ys = p[:poly].map { |q| q[1].to_f }
           pivot = Geom::Point3d.new((xs.min + xs.max) / 2.0, (ys.min + ys.max) / 2.0, 0)
-          # Aim the L's centre of mass at the BOOTH'S MIDDLE.
+          # The reference point is the BOOTH'S MIDDLE; corner_yaw turns the
+          # L's mass (its elbow) as far from it as it will go.
           #
-          # Two earlier versions aimed it at a vertex of the corner polygon —
-          # first the one furthest from the middle, then the one nearest. Those
-          # made no difference, and it took a screenshot to see why: every vertex
-          # of that polygon lies on the same diagonal from the polygon's own
-          # centre, so "nearest" and "furthest" point the SAME way and pick the
-          # same orientation. Aiming at the booth's middle is the direction that
-          # is genuinely opposite, and it is the 180 the corners needed.
+          # Two earlier versions measured against a vertex of the corner
+          # polygon - first the one furthest from the middle, then the one
+          # nearest. Those made no difference, and it took a screenshot to see
+          # why: every vertex of that polygon lies on the same diagonal from
+          # the polygon's own centre, so "nearest" and "furthest" point the
+          # SAME way and pick the same orientation. The booth's middle is the
+          # direction that is genuinely opposite.
           target = [centre[0], centre[1]]
           if inner?(p)
             # THE INNER CORNER IS PLACED DIRECTLY, WITH NO HEURISTIC.
             #
-            # corner_yaw aims the L's mass at the booth middle, then the IEP
+            # corner_yaw used to aim the L's mass at the booth middle, then the IEP
             # quarter turn went on top. On Benton's probed 4872 E that left
             # each corner 0.25 outboard on one axis - the slab search finds a
             # 4.875 leg inside the 5.375 part and place() centred THAT, so the

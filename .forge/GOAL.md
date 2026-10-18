@@ -1,29 +1,25 @@
 # GOAL
 
 ## Mission
-Build the client-facing booth-renderings proposal PDF for Intelligence Security Laboratories,
-MDL 7296 E + 24 in expansion + second door, from the 10 plates in
-`Z:/Sketchup/Proposals/Intelligence Security Laboratories MDL 7296 E EXP 2ft` (16 Oct 2026).
+Booth-from-link places the four STANDARD (outer-shell) corner seam seals turned 180 deg from
+correct, since Benton edited `CornerSeamSeal.skp` and `CornerSeamSeal_HX.skp` on the share
+(P:/Z: `Sketchup\NewMasterComponentList`, both saved 18 Oct 2026 12:07). Make every standard
+corner seal load the right way round on every booth, robustly against future edits to the part.
 
 ## Done means
-1. PDF built with `proposals/build-v2.js` (no hand-made layout) at
-   `C:\Users\bento\Desktop\ProposalFiles\Intelligence Security Laboratories\Intelligence Security Laboratories-Booth-Renderings.pdf`
-   (new folder, nothing overwritten), 2.5-3.6 MB.
-2. Hero is the 01-angled render; slot order hero, dimensioned view, side, rear/second door, plan.
-3. The pack states plainly that the host room's dimensions are unknown (estimated from the client's
-   hand sketch, ceiling assumed) and every room dimension must be verified on site (Benton, 16 Oct).
-4. Captions follow the playbook: no left/right claims, callouts transcribed exactly or left out,
-   acoustics only as the website's ASTM E336 dB range, no prices / lead times / freight.
-5. Every page rasterized and checked, bottom edges included.
-6. Proposal JSON + renders-web saved in the PRIVATE `whisperroom-proposals` repo, never in this public repo.
-7. Invented lines and omissions listed for Benton; review artifact published and emailed to him.
+1. Root cause stated with evidence: why Benton's edit changed the placed orientation.
+2. Standard corner seals (`CornerSeamSeal`, `CornerSeamSeal_HX`) land correctly on all four
+   corners, Standard and Enhanced/IEP outer shells, HX and non-HX.
+3. IEP inner corners (`ENH CornerSeamSeal`) and mid-wall seals unchanged.
+4. `scripts/rbparse.py` clean, `scripts/wr_tools/VERSION` bumped, DEVLOG entry, committed and pushed.
+5. Anything that only a live SketchUp build can confirm is listed for Benton as a short check.
 
 ## Now
-Builder building the pack (16 Oct).
+Fixer root-causing and fixing the flip (18 Oct).
 
 ## Out of scope
-Changing the model, scenes or renders. Prices. WhisperRoomQuote. Sending anything to the client.
+Editing the .skp parts on the share. Other parts' orientation. Proposals, renders, client models.
 
 ## History
-- 16 Oct: ISL 7296 model built (Builder, STATUS READY 67ecec9), sun set, render rows at EV 13, package exported 19:18.
+- 16 Oct: ISL 7296 E proposal PDF built, READY a970dd2, waiting on Benton's review (two calls on the map).
 - 12 Oct: Walsh Construction Tech Lab MDL 96168 E DONE, proposal PDF on the Desktop. See DEVLOG.

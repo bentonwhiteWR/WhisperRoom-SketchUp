@@ -1,0 +1,80 @@
+plain L, 23 Sep master (=Walsh/ISL)      box x -0.000..4.875 y 0.000..4.875  edge-endpoint centroid -0.0049 in toward elbow   plan-area centroid +1.2250 in toward elbow  (area 19.500 = top+bottom)
+plain L HX, 23 Sep master                box x -0.000..4.875 y 0.000..4.875  edge-endpoint centroid -0.0306 in toward elbow   plan-area centroid +1.2250 in toward elbow  (area 19.500 = top+bottom)
+chamfered, SW frame, master 11:59        box x -0.000..4.875 y -0.000..4.875  edge-endpoint centroid +0.0631 in toward elbow   plan-area centroid +1.2355 in toward elbow  (area 19.148 = top+bottom)
+chamfered HX, SW frame, master 11:59     box x -0.000..4.875 y -0.000..4.875  edge-endpoint centroid +0.0178 in toward elbow   plan-area centroid +1.2264 in toward elbow  (area 19.289 = top+bottom)
+chamfered, re-axed, SHARE 12:07          box x -0.875..4.000 y -0.875..4.000  edge-endpoint centroid +0.0631 in toward elbow   plan-area centroid +1.2355 in toward elbow  (area 19.148 = top+bottom)
+chamfered HX, re-axed, SHARE 12:07       box x -0.875..4.000 y -0.875..4.000  edge-endpoint centroid +0.0178 in toward elbow   plan-area centroid +1.2264 in toward elbow  (area 19.289 = top+bottom)
+
+plain L, 23 Sep master (=Walsh/ISL)
+    OLD
+    SW OUT elbow->outer corner 0.00 in, frame yaw 0 deg, T (0.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE OUT elbow->outer corner 0.00 in, frame yaw 90 deg, T (146.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE OUT elbow->outer corner 0.00 in, frame yaw 180 deg, T (146.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW OUT elbow->outer corner 0.00 in, frame yaw -90 deg, T (0.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+plain L, 23 Sep master (=Walsh/ISL)
+    NEW
+    SW OUT elbow->outer corner 0.00 in, frame yaw 0 deg, T (0.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE OUT elbow->outer corner 0.00 in, frame yaw 90 deg, T (146.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE OUT elbow->outer corner 0.00 in, frame yaw 180 deg, T (146.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW OUT elbow->outer corner 0.00 in, frame yaw -90 deg, T (0.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+plain L HX, 23 Sep master
+    OLD
+    SW OUT elbow->outer corner 0.00 in, frame yaw 0 deg, T (0.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE OUT elbow->outer corner 0.00 in, frame yaw 90 deg, T (146.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE OUT elbow->outer corner 0.00 in, frame yaw 180 deg, T (146.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW OUT elbow->outer corner 0.00 in, frame yaw -90 deg, T (0.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+plain L HX, 23 Sep master
+    NEW
+    SW OUT elbow->outer corner 0.00 in, frame yaw 0 deg, T (0.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE OUT elbow->outer corner 0.00 in, frame yaw 90 deg, T (146.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE OUT elbow->outer corner 0.00 in, frame yaw 180 deg, T (146.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW OUT elbow->outer corner 0.00 in, frame yaw -90 deg, T (0.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+chamfered, SW frame, master 11:59
+    OLD
+    SW IN elbow->outer corner 6.89 in, frame yaw 180 deg, T (4.875,4.875), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE IN elbow->outer corner 6.89 in, frame yaw -90 deg, T (141.125,4.875), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE IN elbow->outer corner 6.89 in, frame yaw 0 deg, T (141.125,93.125), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW IN elbow->outer corner 6.89 in, frame yaw 90 deg, T (4.875,93.125), off-footprint 0.0000  [same for all 4 start turns: yes]
+chamfered, SW frame, master 11:59
+    NEW
+    SW OUT elbow->outer corner 0.00 in, frame yaw 0 deg, T (0.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE OUT elbow->outer corner 0.00 in, frame yaw 90 deg, T (146.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE OUT elbow->outer corner 0.00 in, frame yaw 180 deg, T (146.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW OUT elbow->outer corner 0.00 in, frame yaw -90 deg, T (0.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+chamfered HX, SW frame, master 11:59
+    OLD
+    SW IN elbow->outer corner 6.89 in, frame yaw 180 deg, T (4.875,4.875), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE IN elbow->outer corner 6.89 in, frame yaw -90 deg, T (141.125,4.875), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE IN elbow->outer corner 6.89 in, frame yaw 0 deg, T (141.125,93.125), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW IN elbow->outer corner 6.89 in, frame yaw 90 deg, T (4.875,93.125), off-footprint 0.0000  [same for all 4 start turns: yes]
+chamfered HX, SW frame, master 11:59
+    NEW
+    SW OUT elbow->outer corner 0.00 in, frame yaw 0 deg, T (0.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE OUT elbow->outer corner 0.00 in, frame yaw 90 deg, T (146.000,0.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE OUT elbow->outer corner 0.00 in, frame yaw 180 deg, T (146.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW OUT elbow->outer corner 0.00 in, frame yaw -90 deg, T (0.000,98.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+chamfered, re-axed, SHARE 12:07
+    OLD
+    SW IN elbow->outer corner 6.89 in, frame yaw 0 deg, T (0.875,0.875), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE IN elbow->outer corner 6.89 in, frame yaw 90 deg, T (145.125,0.875), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE IN elbow->outer corner 6.89 in, frame yaw 180 deg, T (145.125,97.125), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW IN elbow->outer corner 6.89 in, frame yaw -90 deg, T (0.875,97.125), off-footprint 0.0000  [same for all 4 start turns: yes]
+chamfered, re-axed, SHARE 12:07
+    NEW
+    SW OUT elbow->outer corner 0.00 in, frame yaw 180 deg, T (4.000,4.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE OUT elbow->outer corner 0.00 in, frame yaw -90 deg, T (142.000,4.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE OUT elbow->outer corner 0.00 in, frame yaw 0 deg, T (142.000,94.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW OUT elbow->outer corner 0.00 in, frame yaw 90 deg, T (4.000,94.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+chamfered HX, re-axed, SHARE 12:07
+    OLD
+    SW IN elbow->outer corner 6.89 in, frame yaw 0 deg, T (0.875,0.875), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE IN elbow->outer corner 6.89 in, frame yaw 90 deg, T (145.125,0.875), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE IN elbow->outer corner 6.89 in, frame yaw 180 deg, T (145.125,97.125), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW IN elbow->outer corner 6.89 in, frame yaw -90 deg, T (0.875,97.125), off-footprint 0.0000  [same for all 4 start turns: yes]
+chamfered HX, re-axed, SHARE 12:07
+    NEW
+    SW OUT elbow->outer corner 0.00 in, frame yaw 180 deg, T (4.000,4.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    SE OUT elbow->outer corner 0.00 in, frame yaw -90 deg, T (142.000,4.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NE OUT elbow->outer corner 0.00 in, frame yaw 0 deg, T (142.000,94.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+    NW OUT elbow->outer corner 0.00 in, frame yaw 90 deg, T (4.000,94.000), off-footprint 0.0000  [same for all 4 start turns: yes]
+
