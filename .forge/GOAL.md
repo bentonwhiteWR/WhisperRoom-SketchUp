@@ -15,7 +15,7 @@ corner seal load the right way round on every booth, robustly against future edi
 5. Anything that only a live SketchUp build can confirm is listed for Benton as a short check.
 
 ## Now
-Fixer root-causing and fixing the flip (18 Oct).
+1.84.4 pushed (95ba408). Waiting on Benton's live booth build check (18 Oct).
 
 ## Out of scope
 Editing the .skp parts on the share. Other parts' orientation. Proposals, renders, client models.
