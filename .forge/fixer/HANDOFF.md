@@ -1,38 +1,46 @@
-# Fixer handoff — list-scenes.rb row click / Shift-click (2026-09-21)
+STATUS: READY 95ba408
+
+# Fixer handoff: Standard corner seam seals loading flipped (18 Oct 2026, 1.84.4)
 
 ## Produced
-- `scripts/list-scenes.rb` — dialog JS only (plus header comment + footer text):
-  - Plain row click now ticks the row AND calls `sketchup.activate(n)`; the existing
-    Ruby `activate` callback is untouched.
-  - Shift-click ticks/unticks the run from the anchor (last plain-clicked row) to the
-    clicked row across the CURRENT `view` order, to the anchor's ticked state; anchor
-    stays put. No camera move on Shift-click (comment explains why).
-  - Ctrl/Cmd-click ticks without navigating (one condition, no extra branch).
-  - `mousedown` with Shift is `preventDefault`ed on the tbody so shift-drag never
-    starts a text selection; the click handler also clears any live selection.
-  - The `→` button is unchanged: activates without ticking.
-- `scripts/wr_tools/VERSION` 1.72.0 -> 1.72.1.
+- `scripts/build-booth-components.rb`
+  - `corner_yaw` now reads the L's plan centre of mass from the new `plan_mass`: face loops projected to plan,
+    area-weighted, holes subtracted. It keeps the turn that puts that mass FURTHEST from the booth's middle,
+    which leaves the elbow at the outside corner.
+  - It used to aim the edge-endpoint mean NEAREST the middle.
+  - Comments are updated at the IEP orientation block and the corner block.
+  - Inner `ENH CornerSeamSeal` placement, mid-wall seals and `place()` are untouched.
+- `scripts/rbtest-corner-seal.py`: new regression test. It covers 128 cases on the real plain, chamfered, share
+  and share-HX outlines and carries a built-in mutant check.
+- `scripts/wr_tools/VERSION` goes from 1.84.3 to 1.84.4. `DEVLOG.md` has a 1.84.4 entry on top.
+- `.forge/fixer/corner-seam-seal-flip-notes.md`: evidence, timeline, numbers and the before/after per corner.
+- `.forge/fixer/corner-seam-seal-flip/`: the C-SDK probe tools and `replay-before-after.txt`. The part
+  geometry JSON is not committed.
+- `.forge/GOAL.md` (the orchestrator's mission file) is committed as it was given.
 
 ## Read-first
-- `scripts/list-scenes.rb` lines ~42-58 (behaviour contract) and the row `click`
-  handler inside `draw()`.
+- `.forge/fixer/corner-seam-seal-flip-notes.md`
+- `scripts/build-booth-components.rb`, `corner_yaw` / `plan_mass` (~l.2287–2379)
+- `.forge/fixer/corner-seam-seal-flip/replay-before-after.txt`
 
 ## Assumptions
-- "Same ticked state" for a Shift range = the anchor row's current state. Anchor
-  ticked -> range ticks; anchor unticked -> range unticks.
-- Anchor filtered out of view (or none yet) -> Shift-click degrades to a plain toggle
-  and becomes the anchor, no navigation.
+- place() hands `corner_yaw` a box centred on the corner polygon. This was observed in the 12:02 build and in
+  the Walsh/ISL builds; place() itself was not re-run offline.
+- `Face#loops`, `Loop#outer?` and `Loop#vertices` behave as documented in the SketchUp Ruby API. They are
+  stubbed offline.
+- Elbow-out is correct. Three sources agree: the reference doc, Benton's screenshot complaint, and the shipped
+  Walsh/ISL models.
 
-## Verified (real)
-- `python scripts/rbparse.py` (CRuby 3.2): all 77 files ok, list-scenes.rb ok.
-- Heredoc body extracted, `\`->`\` and `#{}` substituted, `<script>` body passed
-  `node --check`.
-- Shift-range index arithmetic copied verbatim into a Node assert script: 5 cases pass
-  (extend down, re-size up from same anchor, untick range, anchor filtered out, no anchor).
-
-## Open questions / not verified
-- Not run inside SketchUp (no ruby.exe, no SketchUp here). Benton must click: plain
-  row -> ticks + camera moves; Shift-click -> run ticks, camera does NOT move, no blue
-  text; Ctrl-click -> ticks, no camera move; arrow -> camera moves, no tick.
-- Whether `sketchup.activate` firing on every plain click feels too eager when
-  ticking many rows one by one (Ctrl-click is the escape hatch).
+## Open-questions
+- Not built live: there is no bridge and no SketchUp was driven. Benton's 1-minute check, in an Untitled
+  model:
+  1. Build a Standard booth from a link (e.g. 4872 S) and an Enhanced or HX one.
+  2. On all four outer corners the chamfered elbow should be at the booth's outside corner, with the legs and
+     the 1x1 block against the panels.
+  3. The inner ENH corners should be unchanged.
+- Optional for Benton:
+  - His 12:07 re-axe of the two parts no longer matters; keep it or revert it.
+  - The chamfer cuts left stray 0.07 sq in floor triangles on the bottom face: one on `CornerSeamSeal`, three
+    on `_HX`. They are harmless, and he may want to delete them.
+- The mid-wall seals were re-exported at 12:07 with their frame unchanged. They were not re-checked live and
+  are out of scope.
