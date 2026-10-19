@@ -21,5 +21,6 @@ corner seal load the right way round on every booth, robustly against future edi
 Editing the .skp parts on the share. Other parts' orientation. Proposals, renders, client models.
 
 ## History
+- 19 Oct: ISL 7296 room revised to the client's stated dims (Gregory email), saved; room door still assumed; renders need redoing. See notes-7296.md.
 - 16 Oct: ISL 7296 E proposal PDF built, READY a970dd2, waiting on Benton's review (two calls on the map).
 - 12 Oct: Walsh Construction Tech Lab MDL 96168 E DONE, proposal PDF on the Desktop. See DEVLOG.

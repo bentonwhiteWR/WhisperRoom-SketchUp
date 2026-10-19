@@ -14,33 +14,47 @@ The model is `Z:\Sketchup\ClientDrawings\Intelligence Security Laboratories MDL 
 
 Take-off: `takeoff-7296.json` in this folder. `python scripts/takeoff-check.py clients/intelligence-security-laboratories/takeoff-7296.json` exits 0. It reports 1 room and 1 door, the 8 runs as DERIVED, 4 ASSUMED values (ceiling, door width, door offset, door height) and 1 assumed hinge.
 
-## How the room was read
+## Room revised 19 Oct 2026 to the client's stated dimensions
 
-- **Scale (derived, ESTIMATE).** The sketch has no numbers. The only anchor is the client's own booth outline, the dark-blue rectangle (140 x 249.5 px between line centres). It was read as the quoted booth's expanded exterior, 74 x 122".
-  - The scale is per axis: 1.892 px/in across and 2.045 px/in down. The hand-drawn booth is about 8% off true proportion, and a single scale would push the booth out of its drawn place in the room.
-  - On the other axis's scale the room reads 114–123" wide and 180–195" long. Hand-sketch error comes on top of that.
-- **Marks (reported by the client).** The red marks are the booth's two doors. The cyan fill is the back-left alcove.
-- **The jog in the left wall** is read as a solid wall return standing 36" into the room, 24" long (derived). What it is in the building (a pier, a closet corner) is not known.
-- **Plan up = the top of the sketch = model +y.** This is **not** true north; the sketch carries no north.
-- **The room's entry door is not on the sketch.** It is **assumed** in the bottom wall at its right end, the only open floor the sketch leaves for an entry.
-- **Not modelled:** windows, furniture, columns and services. None are drawn.
-
-## Room dimensions and provenance
+The room is no longer scaled off the sketch. Gregory Shelby emailed Jill the real dimensions (19 Oct). The room was rebuilt from them through the take-off (`takeoff-7296.json`, which closes with no error) and the floor-plan dimensions were redrawn. No scene was updated except to put back each scene's hidden room walls on the rebuilt pieces.
 
 | Item | Value | Provenance |
 |---|---|---|
-| Top and bottom walls (width) | 123" (range 114–123") | derived — 233 px / 1.892 px/in, scaled off the sketch |
-| Right wall (length) | 180" (range 180–195") | derived — 369 px / 2.045 px/in |
-| Left wall below the jog | 83" | derived — 169 px / 2.045 |
-| Jog end face | 24" | derived — 50 px / 2.045 |
-| Left wall above the jog (alcove back wall) | 73" | derived — 150 px / 2.045 |
-| Jog depth (both faces) | 36" | derived — 68.5 px / 1.892 |
-| Jog position | y 83..107 from the bottom wall | derived |
-| Ceiling | 96" (8'-0") | **assumed** — house default; the client gave no height |
-| Room door | 3'-0" x 6'-8", bottom wall, 4" from the SE corner to the near jamb, hinged on that jamb, swinging in toward the right wall | **assumed** — not on the sketch |
-| Wall thickness | 4", built outward | assumed — house default, cosmetic |
+| Top (back) and bottom (entrance) walls | 115.5" | stated — "the widest part of the room is 115.5"" |
+| Right wall (length) | 177" | stated — "the total length of the room is 177"" |
+| Left wall, bottom wall to the beam | 78" | stated — "the entrance to the beam is 78"" |
+| Beam end face | 28" | stated — "the wall where the support beam is enclosed is 28"" |
+| Left wall, beam to the top wall (alcove) | 71" | stated — "the back wall to the beam is 71"" |
+| Beam depth (both faces) | 27.5" | stated — "the support beam juts out 27.5"" |
+| Narrowest width | 88" | stated; matches 115.5 − 27.5 (derived) |
+| Ceiling | 96" | stated — "the height of the room is 96"" |
+| Room door | 3'-0" x 6'-8", bottom wall, 4" from the SE corner, hinged on that jamb | **assumed**; still not given |
+| Wall thickness | 4", built outward | assumed, cosmetic |
 
-**Closure:** left chain 83 + 24 + 73 = 180 = right wall. Bottom chain 83 + 36 + 4 = 123 = top wall. The jog runs 36 out and 36 back.
+**Closure (observed in the model, read back off the floor face):** runs 115.5 / 71 / 27.5 / 28 / 27.5 / 78 / 115.5 / 177. The left chain is 71 + 28 + 78 = 177 = the right wall, and the narrow width is 115.5 − 27.5 = 88.
+
+**How the email was read (assumed).**
+- "Back wall" is taken as the top of the sketch (the alcove end) and "entrance" as the bottom. If the client meant it the other way round, the beam moves 7" along the left wall and nothing else changes.
+- One width (115.5) is used for both the top and bottom walls, so the room is taken as square-cornered.
+
+**Placement.** The take-off origin is [7.5, 180], so the top wall (y 180) and the right wall (x 123) stay exactly where the 16 Oct estimate had them. The booth, its dimensions and every scene camera did not move; the script checked that the booth bounds were unchanged. In model coordinates the room interior is x 7.5..123, y 3..180, and the beam is x 7.5..35, y 81..109.
+
+**Clearances, measured in the model after the revision (observed):**
+
+| Gap | Value |
+|---|---|
+| Booth W shell → top wall | 1" |
+| Booth vent-side shell → right wall | 7.422" (vent hardware 1" off the wall) |
+| Booth S-side shell → beam end face | 6.578" |
+| Booth S-side shell → left wall (alcove depth) | 34.078" |
+| S0 (second door) swing → left wall | 3.93" clear; the arc reaches x 11.43 |
+| Booth E shell (main door side) → bottom wall | 54" |
+| E0 (main door) swing → bottom wall | 23.85" clear; the arc reaches y 26.85 |
+| Ceiling 96" vs install clearance 85" (Enhanced, catalog) | 11" spare |
+
+**Backup before the revision:** `Z:\Sketchup\ClientDrawings\Intelligence Security Laboratories MDL 7296 E EXP 2ft - backup 2026-10-19 1535 pre-room-revision.skp` and its `scenes.json`.
+
+**Superseded:** the 16 Oct estimate scaled the room off the client's booth outline: 123 x 180, a jog 36 deep x 24 long at y 83..107, and an assumed 8'-0" ceiling.
 
 ## Axes
 
@@ -95,24 +109,19 @@ Take-off: `takeoff-7296.json` in this folder. `python scripts/takeoff-check.py c
 
 **Booth lights.** The booth carries its own **2** interior lights (`/Standard Light`), placed by the importer. The quote lists 2 x 18in LED.
 
-## Dimensions (all on the floor plane, z 0)
+## Dimensions
 
-There are 17 number-only dimensions, with 0 off the floor (observed):
+**As of 19 Oct.** Before the revision the model no longer carried the 16 Oct set of 17 dimensions. It held a shorter hand set (observed 19 Oct), which the revision kept:
+- **Booth:** width 6'-7½" (to the vent hardware), length 10'-2" and height 7'-0 5/16". These sit on Layer0 and are anchored to the booth. They were not touched.
+- **Room:** the left chain plus its overall and the bottom overall, all on Layer0, and the beam depth on WR-Dims. These were redrawn with the new numbers, on the same tags and at the same offsets off the wall face:
+  - left chain 5'-11" / 2'-4" / 6'-6", overall 14'-9";
+  - bottom 9'-7½";
+  - beam depth 2'-3½".
+- **Removed:** the 12 dimensions the take-off rebuild added (anchored to vertices, which are lost on save) and its 2 construction points.
+- **Floor note** (WR-Notes, edited in place): "Room dims from client email (Gregory Shelby), 19 Oct. Ceiling 96" stated. Room door assumed." / "MDL 7296 E + 24" expansion + 2nd door".
+- **Provenance attributes** (`wr_isl/provenance`): room, Walls and Ceiling are STATED; Doors is ASSUMED. The leaf is still named "Door leaf 3 - room door ASSUMED (3-0, 4 in off SE corner)" and the container is still named `Doors`.
 
-| Tag | Count | Dimensions |
-|---|---|---|
-| WR-Dims | 9 | room walls: left 83 / 24 / 73 + 180; jog 36; top 123; right 180; bottom 83 + 123 |
-| WR-Dims-Doors | 2 | the room door in the bottom chain: opening 36, and 4 off the SE corner |
-| WR-Dims-Booth | 6 | booth 74 and 122; 1 to the top wall; 7.422 to the right wall; E0 8.125 from corner A (41.578, 57) and S0 8.125 from corner B (41.578, 179) |
-
-- **Jamb definition.** Each booth door is dimensioned from the booth corner to the near edge of the frame opening. The opening is 33.75" (E0 x 49.703..83.453; S0 y 137.125..170.875).
-- **Floor note.** One floor note on WR-Notes, two lines: "Room dims estimated from client sketch, confirm on site. Ceiling 8'-0" assumed." / "MDL 7296 E + 24" expansion + 2nd door".
-- **Provenance in the model** is kept as attributes rather than drawing text, under `wr_isl/provenance`:
-  - the room: ESTIMATED;
-  - Walls: ESTIMATED, 4" cosmetic;
-  - Ceiling: ASSUMED 8'-0";
-  - Doors: room door ASSUMED.
-- **The ASSUMED label in the Outliner** sits on the leaf: "Door leaf 3 - room door ASSUMED (3-0, 4 in off SE corner)". The container stays named `Doors` because the plugin recognises the room's door container by name; see the open questions.
+**Jamb definition (unchanged).** Each booth door is dimensioned from the booth corner to the near edge of the frame opening. The opening is 33.75" (E0 x 49.703..83.453; S0 y 137.125..170.875).
 
 ## Scenes (AUTO-SET from the proposal package, headless)
 
@@ -156,6 +165,10 @@ Names are prefixed `Booth - MDL 7296 E EXP 2ft (custom) `. Nothing is marked Ski
 - **Not re-run: AUTO-SET.** Its header does not say it reads the rig, and the rig changed none of its inputs. The page tags were checked instead.
 - **In images:** the light rectangles show in the viewport and in scene screenshots. The proposal package's image lane hides WR Lights on export.
 
+**Re-pressed 19 Oct on the revised room (observed):** 4 F4 fixtures and 8 emitters, all on WR Lights, with no ceilings and no walls borrowed.
+- The first re-press used the default walls setting, "open". Because the selected scene hides Wall 2 and Wall 3, it borrowed 2 walls, which the saved scenes do not hide and which would block the cameras.
+- It was pressed again with walls "none", which gives the same rig shape as 16 Oct.
+
 ## Preflight (`WR_Preflight.check`, read only)
 
 | Check | Result |
@@ -171,8 +184,9 @@ The two FAILs are what the draft-to-render toggle (`WR_Mode.to_render`) clears. 
 
 ## Open questions
 
-- **Room.** The real dimensions, the ceiling height and the entry door's position, width, hand and swing. All are estimated or assumed, and the room could be off by a foot or more.
-- **Ceiling.** It is the figure that disqualifies fastest: the booth needs 85" install clearance.
+- **Room (19 Oct).** The dimensions and the 96" ceiling are now stated. Still open: the entry door's position, width, hand and swing; and whether "back wall" and "entrance" are read the right way round (a 7" beam shift).
+- **Renders and the proposal PDF** (`Intelligence Security Laboratories-Booth-Renderings.pdf`) still show the 16 Oct room and need re-rendering.
+- **Client questions (Gregory, 19 Oct).** Door widths and swing, answered from the model: each booth door's leaf is 30.373" wide in a 33.75" clear frame opening (46" frame panel), and the E0 swing reaches about 30.2–30.4" out from the booth face. Time for the expansion goes to sales.
 - **Second door (S0).** Its hand, L, is assumed to match E0. Which way should it swing into the alcove?
 - **Foam.** 4 sheets placed, 7 quoted.
 - **Cable passages.** The 4 quoted cable passages are not placed; there is no position for them.
