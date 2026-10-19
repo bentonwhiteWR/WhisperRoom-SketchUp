@@ -117,6 +117,7 @@ The room is no longer scaled off the sketch. Gregory Shelby emailed Jill the rea
   - left chain 5'-11" / 2'-4" / 6'-6", overall 14'-9";
   - bottom 9'-7½";
   - beam depth 2'-3½".
+- **Added by hand after the revision (observed 19 Oct, saved 15:5x):** 7'-4" (88", the narrowest width, from the beam face to the right wall) on Layer0, 91.33" off the beam face. That makes 10 top-level dimensions.
 - **Removed:** the 12 dimensions the take-off rebuild added (anchored to vertices, which are lost on save) and its 2 construction points.
 - **Floor note** (WR-Notes, edited in place): "Room dims from client email (Gregory Shelby), 19 Oct. Ceiling 96" stated. Room door assumed." / "MDL 7296 E + 24" expansion + 2nd door".
 - **Provenance attributes** (`wr_isl/provenance`): room, Walls and Ceiling are STATED; Doors is ASSUMED. The leaf is still named "Door leaf 3 - room door ASSUMED (3-0, 4 in off SE corner)" and the container is still named `Doors`.
