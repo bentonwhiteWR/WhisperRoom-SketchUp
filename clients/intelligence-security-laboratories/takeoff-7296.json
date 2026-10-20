@@ -1,7 +1,11 @@
 {
   "job": "intelligence-security-laboratories",
-  "title": "Intelligence Security Laboratories — office for MDL 7296 E + EXP 7224 E + ADD ENHDOOR 30. Room revised 19 Oct 2026 to the client's stated dimensions (Gregory Shelby's email to Jill). Supersedes the 16 Oct sketch estimate.",
-  "sources": ["Gregory Shelby email to Jill, received 19 Oct 2026 (room dimensions)", "plans/isl-7296-sketch-2026-10-15.png (shape only)"],
+  "title": "Intelligence Security Laboratories — office for MDL 7296 E + 48 in expansion + 2nd door (quote W-1110202602, 20 Oct; was EXP 7224 E on W-1110152608). Room revised 19 Oct 2026 to the client's stated dimensions (Gregory Shelby's email to Jill). Supersedes the 16 Oct sketch estimate. Room door moved 20 Oct 2026 to the client's new layout sketch.",
+  "sources": [
+    "Gregory Shelby email to Jill, received 19 Oct 2026 (room dimensions)",
+    "plans/isl-7296-sketch-2026-10-15.png (shape only)",
+    "plans/isl-7296-layout-sketch-2026-10-20.png (client layout sketch sent 20 Oct; shape and door positions only, not to scale)"
+  ],
   "anchor": "STATED, not scaled. Every wall run is a number from the client's email; the hand sketch supplies only the shape and which wall carries the beam. Email: narrowest 88 in; total length 177 in; the support beam juts out 27.5 in; widest 115.5 in; back wall to the beam 71 in; the wall where the beam is enclosed 28 in; entrance to the beam 78 in; height 96 in. Closures: 71 + 28 + 78 = 177 (left chain = total length); 88 + 27.5 = 115.5 (narrow + beam = widest).",
   "interpretations": [
     "The 'support beam' is the return in the left wall drawn on the client's sketch (the jog). It juts 27.5 in into the room and its end face is 28 in long.",
@@ -9,43 +13,96 @@
     "The widest part, 115.5 in, is used for both the top and the bottom wall. The client gave one width for the full-width part of the room, so the room is taken as square-cornered.",
     "Plan up = the top of the sketch, drawn as model +y. It is NOT true north; the sketch carries no north.",
     "Origin [7.5, 180]: the room is placed so its top and right walls sit exactly where the 16 Oct estimate put them. The booth, its dimensions and every scene camera stay put; the booth keeps its 1 in gap to the top wall and its vent hardware stays 1 in off the right wall.",
-    "The room's own entry door is still NOT given. It stays ASSUMED: a 3'-0\" x 6'-8\" door in the bottom (entrance) wall at its right end, 4 in from the right corner to the near jamb, hinged on that jamb and swinging into the room toward the right wall.",
-    "No windows, furniture, columns or services are drawn because none were given."
+    "The room's own entry door is placed from the client's 20 Oct layout sketch: in the bottom (entrance) wall at its LEFT end, hinged on the jamb nearest the left wall, swinging into the room. The sketch is not to scale, so its offset (~8 in off the left corner, scaled) and width (3'-0\") stay ASSUMED.",
+    "No windows, furniture, columns or services are drawn because none were given.",
+    "The 20 Oct sketch labels the left wall below the beam 6'-3\" (75 in); the 19 Oct email says 78 in. 78 is kept because it is the number that closes the stated 177 in chain (71 + 28 + 78); the sketch is a hand drawing and not to scale."
   ],
   "rooms": [
     {
       "name": "ISL Office (7296 E)",
       "runs": [
-        {"d": "E", "v": "115.5\"", "src": "stated Gregory Shelby email 19 Oct: 'the widest part of the room is 115.5\"'",
-         "note": "Top (back) wall. The booth's W wall stands 1 in off it."},
-        {"d": "S", "v": "177\"", "src": "stated Gregory Shelby email 19 Oct: 'the total length of the room is 177\"'",
-         "note": "Right wall. The booth's vent wall faces it."},
-        {"d": "W", "v": "115.5\"", "src": "stated Gregory Shelby email 19 Oct: 'the widest part of the room is 115.5\"'",
-         "note": "Bottom (entrance) wall. The ASSUMED room door is in it."},
-        {"d": "N", "v": "78\"", "src": "stated Gregory Shelby email 19 Oct: 'the entrance to the beam is 78\"'",
-         "note": "Left wall from the bottom wall to the beam. Left chain 78 + 28 + 71 = 177."},
-        {"d": "E", "v": "27.5\"", "src": "stated Gregory Shelby email 19 Oct: 'the support beam juts out 27.5\"'",
-         "note": "Beam's bottom face. 115.5 - 27.5 = 88, the client's narrowest width."},
-        {"d": "N", "v": "28\"", "src": "stated Gregory Shelby email 19 Oct: 'the length of the wall where the support beam is enclosed is 28\"'",
-         "note": "Beam's end face."},
-        {"d": "W", "v": "27.5\"", "src": "stated Gregory Shelby email 19 Oct: 'the support beam juts out 27.5\"'",
-         "note": "Beam's top face, back to the left wall. It is the bottom of the client's blue alcove."},
-        {"d": "N", "v": "71\"", "src": "stated Gregory Shelby email 19 Oct: 'the back wall to the beam is 71\"'",
-         "note": "Left wall above the beam (the alcove)."}
+        {
+          "d": "E",
+          "v": "115.5\"",
+          "src": "stated Gregory Shelby email 19 Oct: 'the widest part of the room is 115.5\"'",
+          "note": "Top (back) wall. The booth's W wall stands 1 in off it."
+        },
+        {
+          "d": "S",
+          "v": "177\"",
+          "src": "stated Gregory Shelby email 19 Oct: 'the total length of the room is 177\"'",
+          "note": "Right wall. The booth's vent wall faces it."
+        },
+        {
+          "d": "W",
+          "v": "115.5\"",
+          "src": "stated Gregory Shelby email 19 Oct: 'the widest part of the room is 115.5\"'",
+          "note": "Bottom (entrance) wall. The ASSUMED room door is in it."
+        },
+        {
+          "d": "N",
+          "v": "78\"",
+          "src": "stated Gregory Shelby email 19 Oct: 'the entrance to the beam is 78\"'",
+          "note": "Left wall from the bottom wall to the beam. Left chain 78 + 28 + 71 = 177."
+        },
+        {
+          "d": "E",
+          "v": "27.5\"",
+          "src": "stated Gregory Shelby email 19 Oct: 'the support beam juts out 27.5\"'",
+          "note": "Beam's bottom face. 115.5 - 27.5 = 88, the client's narrowest width."
+        },
+        {
+          "d": "N",
+          "v": "28\"",
+          "src": "stated Gregory Shelby email 19 Oct: 'the length of the wall where the support beam is enclosed is 28\"'",
+          "note": "Beam's end face."
+        },
+        {
+          "d": "W",
+          "v": "27.5\"",
+          "src": "stated Gregory Shelby email 19 Oct: 'the support beam juts out 27.5\"'",
+          "note": "Beam's top face, back to the left wall. It is the bottom of the client's blue alcove."
+        },
+        {
+          "d": "N",
+          "v": "71\"",
+          "src": "stated Gregory Shelby email 19 Oct: 'the back wall to the beam is 71\"'",
+          "note": "Left wall above the beam (the alcove)."
+        }
       ],
-      "ceiling": {"v": "96\"", "src": "stated Gregory Shelby email 19 Oct: 'the height of the room is 96\"'"},
-      "origin": [7.5, 180],
+      "ceiling": {
+        "v": "96\"",
+        "src": "stated Gregory Shelby email 19 Oct: 'the height of the room is 96\"'"
+      },
+      "origin": [
+        7.5,
+        180
+      ],
       "doors": [
-        {"run": 2,
-         "at": {"assumed": "4\"", "reason": "the room door is not on the sketch or in the email. Placed in the bottom (entrance) wall at its right end, 4 in from the right (SE) corner to the near jamb. Move it once the client says where the door is."},
-         "w": {"assumed": "36\"", "reason": "3'-0\" door, typical office door; not given."},
-         "h": {"assumed": "80\"", "reason": "6'-8\" door leaf, house default; not given."},
-         "hinge": {"assumed": "near", "reason": "not given. Hinged on the jamb nearest the right wall so the leaf opens into the room against the right wall, away from the booth's main door."}}
+        {
+          "run": 2,
+          "at": {
+            "assumed": "71.5\"",
+            "reason": "client's 20 Oct sketch puts the door at the LEFT (SW) end of the bottom wall, about 8 in off the left corner (scaled off a hand sketch). Run 2 starts at the SE corner, so at = 115.5 - 8 - 36 = 71.5. Confirm the offset with the client."
+          },
+          "w": {
+            "assumed": "36\"",
+            "reason": "3'-0\" door, typical office door; not given. The sketch's arc is drawn about 20% larger than the 30 in booth door leaves, consistent with 36."
+          },
+          "h": {
+            "assumed": "80\"",
+            "reason": "6'-8\" door leaf, house default; not given."
+          },
+          "hinge": {
+            "assumed": "far",
+            "reason": "client's 20 Oct sketch: hinged on the jamb nearest the left (SW) corner, which is the FAR jamb of run 2 (the run heads W from the SE corner). Swings into the room."
+          }
+        }
       ],
       "features": [],
       "notes": [
-        "ROOM DIMENSIONS STATED by the client (Gregory Shelby email, 19 Oct 2026). Ceiling 96 in stated. Room entry door location and size still assumed.",
-        "Booth as quoted (W-1110152608): MDL 7296 E + EXP 7224 E (24 in expansion) + ADD ENHDOOR 30. Expanded exterior 74 x 122 in.",
+        "ROOM DIMENSIONS STATED by the client (Gregory Shelby email, 19 Oct 2026). Ceiling 96 in stated. Room entry door position from the client's 20 Oct sketch; its offset and width are still assumed.",
+        "Booth (quote W-1110202602, 20 Oct, per Benton): MDL 7296 E with a 48 in expansion (46 in wall panels) and a second door. Expanded exterior 74 x 146 in. Supersedes the 24 in expansion on W-1110152608.",
         "Client (Gregory Shelby, 15 Oct): 'there is a space in the back left (marked in blue) that would be inaccessible without a second door (doors marked in red).'"
       ]
     }

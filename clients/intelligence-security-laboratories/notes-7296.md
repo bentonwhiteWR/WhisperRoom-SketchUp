@@ -1,4 +1,4 @@
-# Intelligence Security Laboratories — office for MDL 7296 E + 24" expansion + second door
+# Intelligence Security Laboratories — office for MDL 7296 E + 48" expansion (was 24") + second door
 
 16 Oct 2026. Inputs:
 - The client's hand sketch, `plans/isl-7296-sketch-2026-10-15.png` (gitignored). It carries **no dimensions**.
@@ -13,6 +13,25 @@
 The model is `Z:\Sketchup\ClientDrawings\Intelligence Security Laboratories MDL 7296 E EXP 2ft.skp`. It is a new file, saved after every step; the last save was 16 Oct 16:23. It is **not rendered and not exported**.
 
 Take-off: `takeoff-7296.json` in this folder. `python scripts/takeoff-check.py clients/intelligence-security-laboratories/takeoff-7296.json` exits 0. It reports 1 room and 1 door, the 8 runs as DERIVED, 4 ASSUMED values (ceiling, door width, door offset, door height) and 1 assumed hinge.
+
+## 4 ft expansion and new door layout, 20 Oct 2026
+
+Benton, 20 Oct: the client now wants a 4' expansion (46" walls) in place of the 2' one, one more vent on the same wall, and the layout in their new hand sketch (`plans/isl-7296-layout-sketch-2026-10-20.png`, gitignored). New quote link: W-1110202602.
+
+New file: `Z:\Sketchup\ClientDrawings\Intelligence Security Laboratories MDL 7296 E EXP 4ft.skp` (copied first, saved 20 Oct 14:00). The 2 ft file is untouched. Scripts: `.forge/builder/isl-7296-4ft/` (untracked).
+
+What changed in the model (observed in SketchUp after each step):
+- **Booth** `Booth - MDL 7296 E EXP 4ft (custom)`: shell 146 x 74 in (was 122 x 74), still 1 in off the top wall; it now runs model y 33..179, so the E end is 30 in off the bottom wall. The 22 in mid section is replaced by a 46 in one: `N-MID 46VNT` (third vent, same wall), `S-MID 46PanelSolid`, inner ENH parts, duct covers, foam.
+- **Centre strips** are custom 72 x 48 pieces cut from the 9648 FL/CL CTR library parts. The ceiling strip keeps **one** 35.5 in square cutout of the library's two.
+- **Doors** per the sketch: E0 is now a solid 46 in panel. Upper door `S0 Right46Door`, hinged at its beam-side end; lower door `S1 Left46Door`, hinged at its beam-side end. The library Right46Door is authored left-handed, so S0 is reflected across its slot centre (the booth builder's own fix). ENH inner doors match their outer hands (lockset checked).
+- **Room door** moved to the sketch: bottom wall, left end, hinged on the jamb nearest the left wall, swinging in. Width 36 in and offset 8 in off the SW corner are **assumed** (sketch not to scale). Its swing clears the booth corner by 4.4 in and the lower booth door's swing by 8.7 in.
+- Dimensions: booth length 12'-2", booth width 6'-7 1/2" moved above the top wall. Room dims and Benton's 7'-4" kept. Scenes renamed `EXP 4ft`; lights re-pressed. Unused CTR templates and the 7224 customs purged.
+
+Open on the 4 ft file:
+- Room door offset and width (assumed). The sketch writes 6'-3" for the left wall below the beam; the email said 78 in (6'-6"). 78 is kept because it closes the 177 in chain.
+- Foam: 6 sheets placed. Check against the new quote.
+- Lights: the booth still carries 2 Standard Lights. Check against the new quote.
+- Scene cameras were framed for the 2 ft booth. Re-run AUTO-SET, then render; the proposal PDF must be redone.
 
 ## Room revised 19 Oct 2026 to the client's stated dimensions
 
