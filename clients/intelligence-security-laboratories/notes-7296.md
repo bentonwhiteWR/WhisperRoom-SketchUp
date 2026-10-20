@@ -27,7 +27,13 @@ What changed in the model (observed in SketchUp after each step):
 - **Room door** moved to the sketch: bottom wall, left end, hinged on the jamb nearest the left wall, swinging in. Width 36 in and offset 8 in off the SW corner are **assumed** (sketch not to scale). Its swing clears the booth corner by 4.4 in and the lower booth door's swing by 8.7 in.
 - Dimensions: booth length 12'-2", booth width 6'-7 1/2" moved above the top wall. Room dims and Benton's 7'-4" kept. Scenes renamed `EXP 4ft`; lights re-pressed. Unused CTR templates and the 7224 customs purged.
 
+Benton's review, 20 Oct (s47d, s47f; saved):
+- **Floor hinges.** The 3 hinges on the 4 ft floor strip's edge against SIDE R were erased from its body definition. No wall attaches there. The wall-edge hinges stay.
+- **Interior scene.** The two new CL CTR ceiling strips moved from tag WR-Booth-Deck to WR-Booth-Ceiling, like the side ceilings. 09-interior hides that tag, so the inside now shows; no other scene hides it.
+- **Hand scene `10-overhead r`** (render, ev 13, copied from 03-high r; no AUTO-SET plate). It is a high view from above the alcove side with every room wall, the header, the opening and the room door leaf shown. Swing 3 stays hidden.
+
 Open on the 4 ft file:
+- The pages' WR_AutoSet token still reads `EXP 2ft`. Check that re-running AUTO-SET keeps `10-overhead r`.
 - Room door offset and width (assumed). The sketch writes 6'-3" for the left wall below the beam; the email said 78 in (6'-6"). 78 is kept because it closes the 177 in chain.
 - Foam: 6 sheets placed. Check against the new quote.
 - Lights: the booth still carries 2 Standard Lights. Check against the new quote.
