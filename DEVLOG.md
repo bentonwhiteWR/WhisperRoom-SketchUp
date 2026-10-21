@@ -1,5 +1,41 @@
 # DEVLOG
 
+## 2026-10-21 -- Walsh Tech Lab v3: MDL 96168 S roof-mount in the corner (model done, proposal PAUSED)
+
+**What.** The client revised the Tech Lab layout again. The platform, ramp, old booth and all black walls are gone.
+The new booth is an MDL 96168 S with roof-mount ventilation, a wide access door and an elevated floor, from the link
+`https://test-sales-portal-production.up.railway.app/booth-builder#3=ARIEQaAgAAgIAAICAgACAAAMBA`.
+It sits in the bottom-right corner, back 1 in off the diagonal wall, angled toward the host-room doors.
+
+- **Model:** `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 S - Corner RM.skp`, saved as a new file.
+- **Images:** `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 S - Corner RM\`. These are six plain SketchUp exports, not V-Ray:
+  - 11: hero
+  - 13: front
+  - 15: high / dimensioned
+  - 16: side
+  - 17: ventilation
+  - 18: plan
+- **Job scripts:** `.forge/builder/walsh/rm/`. Notes: `clients/walsh-construction/notes.md`.
+- **Panel layout:** matches the booth builder. North wall: 46 window, 46 window, 22, 46 cable. The 2' section is always a middle section; an early build put it at the end and was redone straight from the link.
+
+**Decided (Benton, 21 Oct).** No ADA. The elevated floor and the wide door are all it needs, and the link is
+accurate as-is. That also settles the cable wall: it stays where the link puts it, not beside the window.
+
+**Next steps.**
+1. Build the client proposal PDF with the `whisperroom-proposal` skill.
+   - Images, in order: 11, 15, 16, 17, 18. Image 13 is optional.
+   - Product: MDL 96168 S with roof-mount ventilation, wide access door and elevated floor. No ADA.
+   - Output folder: `C:\Users\bento\Desktop\ProposalFiles\Walsh Construction\`. No Walsh folder existed there on 21 Oct, so create it.
+   - Do not caption the acoustic package; it is not modelled.
+   - The first attempt was stopped before it produced anything.
+2. Later, as Benton deferred it: the acoustic package (onyx Audimute plus gray studio foam), using the `whisperroom-acoustic-package` skill. The onyx Audimute material wasn't found on P:.
+3. After Walsh: a simple PDF with front views of a 46 CBL wall and a 46 VNT wall, showing the exact cable-passage locations.
+
+**Known issues.**
+- The ceiling is assumed to be 8'-0". The booth needs 93.31 in.
+- The second host door's position is estimated from the client sketch.
+- The booth builder's own top-down view and its 3D view disagree on which half of the end wall the door is in. The model follows the 3D view.
+
 ## 2026-10-18 -- 1.84.4: Standard corner seals load elbow-out again (corner_yaw reads the L's area, not its edge ends)
 
 **What.** Benton: "the standard corner seam seals all need to be rotated 180 degrees. I modified them and now they
