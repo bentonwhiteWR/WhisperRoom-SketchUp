@@ -1,92 +1,74 @@
-STATUS: BLOCKED SketchUp bridge never answered (polled 09:47-10:35, 21 Oct). Geometry, wall table, scripts and an offline to-scale plan are done; nothing has been built in the .skp.
+STATUS: READY
 
 # Builder handoff: Walsh Construction Tech Lab, corner platform layout (21 Oct 2026)
 
-Brief rev 2 (Benton: "Idk just draw the room as close to their drawing as possible. The black walls can move."). Only the platform + ramp option is drawn. Sarah's Zoom is at 1:30 pm.
-
-**Disclosure.** I overwrote the previous working-tree HANDOFF.md before reading it. It had uncommitted changes, so git cannot restore that version. HEAD still holds the CCU Sands 113 handoff. The ISL handoffs are untouched in `.forge/builder/HANDOFF-isl-*.md`.
+Brief rev 2 (Benton: "Idk just draw the room as close to their drawing as possible. The black walls can move."). Only the platform + ramp option is drawn. Sarah's Zoom is at 1:30 pm. Built live over the bridge, saved as a new file, and surveyed. Nothing is committed.
 
 ## Produced
-- **Offline plan:** `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 E - Corner Platform\Corner Platform plan (offline, not SketchUp).png`.
-  - Drawn to scale, top-down, from the same geometry the SketchUp scripts use.
-  - Every black-wall run is dimensioned, plus doors, booth, platform and ramp.
-  - It also has the one note, a scale bar and a legend.
-  - Regenerate with `python .forge/builder/walsh/corner/plan_svg.py out.svg`, then screenshot it with Chrome headless.
-- **Scripts:** `.forge/builder/walsh/corner/`. All of them pass `scripts/rbparse.py`, and none has been run.
-  - `geom.rb`: the geometry, mirroring `arch_geom.py`. Override with `$walsh_cfg`, e.g. `{'RAMP_DIR'=>'corner'}`.
-  - `survey.rb`: read-only survey.
-  - `s0-saveas.rb`: saves as the new file. It refuses to overwrite.
-  - `s2-retag.rb`:
-    - finds the Platform copy using the scene tags;
-    - hides the Ramp copy's tag;
-    - parks the old room and dims on hidden `Walsh Old Room 12 Oct` / `Walsh Old Dims 12 Oct`.
-    - `$walsh_dry = true` previews without changing anything.
-  - `s3-room.rb`:
-    - builds the new room `Tech Lab 13 - Corner 21 Oct` at the old room's origin;
-    - black walls go on `WR-Room-New`;
-    - includes the pocket stub, south run and approximate pocket door.
-  - `s4-booth.rb`:
-    - one rigid move of the Platform copy's booth, platform, ramp and lights;
-    - with `RAMP_DIR 'open'`, mirrors everything in front of the N face about booth x = 144;
-    - prints the s/d extents for verification.
-  - `s6-dims.rb`:
-    - one `Corner Dims 21 Oct` group, laid out to the same placement as the offline plan;
-    - the door and platform chains sit on the platform top, because z-0 dims are hidden under it.
-  - `s7-scenes.rb`:
-    - re-aims `Platform 06 TopDown` and `Platform 01 HeroRender`;
-    - exports SketchUp PNGs (not V-Ray);
-    - lists the stale scenes.
-  - `flatten.py`: flattens the PNGs onto white and trims them.
-- **Notes:** "21 Oct revision: corner platform layout" appended to `clients/walsh-construction/notes.md`, with the wall table, assumptions and run order.
+- **Model (new file):** `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E - Corner Platform.skp`. It was saved after every step.
+- **Original:** `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E.skp` is untouched (12 Oct 22:13, 9,291,234 bytes).
+- **Images** in `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 E - Corner Platform\`. I flattened both onto white and viewed both.
+  - `6_Platform 06 TopDown.png` (1899x1898): the dimensioned SketchUp top-down, with 27 dims. It is legible. There is minor crowding at the top "11 5/8"" and at "2' 9 5/16"".
+  - `1_Platform 01 HeroRender (SketchUp, not V-Ray).png` (1920x1080): a plain SketchUp export, not a V-Ray render. It shows the open end of the booth with the platform and ramp.
+  - `Corner Platform plan (offline, not SketchUp).png`: SUPERSEDED. Its walls are the same, but it draws a 48" ramp and a 44" platform. The measured values are 45 5/8" and 46".
+- **Notes:** the "21 Oct revision" section of `clients/walsh-construction/notes.md` was rewritten with the as-found structure, measured values, wall table, moves, assumptions, open questions, scenes and run order.
+- **Scripts** in `.forge/builder/walsh/corner/`.
+  - Steps that ran: `survey.rb`, `s0-saveas.rb`, `s2b-retag.rb`, `s4b-booth.rb`, `s3-room.rb`, `s6-dims.rb`, `s7-scenes.rb` and `flatten.py`.
+  - `s2-retag.rb` and `s4-booth.rb` assumed the wrong structure and were NOT run.
 
-## Wall table (interior faces) — ours vs architect
-
+### Wall table (interior faces, as built)
 | Run | Ours | Architect |
 |---|---|---|
-| Exterior wall, apex to corner wall | 32'-0" | 32'-0" stated |
-| NEW corner wall, exterior to front wall | 9'-2 5/8" | 9'-1" MIN CLR |
-| NEW corner wall, front wall to south wall | 2'-9 1/4" | not dimensioned |
+| Exterior, apex to corner wall | 32'-0" | 32'-0" |
+| NEW corner wall | 9'-2 5/8" + 2'-9 5/16" = 11'-11 15/16" | 9'-1" MIN CLR (first run) |
 | NEW front wall | 7'-0" | ~7'-0" |
 | NEW step wall | 3'-10" | ~3'-3" |
-| NEW zone wall | 4'-7 5/8" | ~4'-8" scaled |
-| NEW angled wall, zone wall to south wall | 8'-5 1/2" | not dimensioned |
-| South wall, SW corner to angled wall | 10'-10" | not dimensioned |
-| South wall, angled wall to corner wall (pocket) | 15'-0 3/8" | not dimensioned |
-| West wall | 18'-11" | 18'-11" stated |
-| NW angled wall | 13'-8 7/8" | take-off |
+| NEW zone wall | 4'-7 5/8" | ~4'-8" |
+| NEW angled wall | 8'-5 9/16" | not dimensioned |
+| South wall | 10'-10" + 15'-0 3/8" = 25'-10 7/16" | not dimensioned |
+| West wall | 18'-11" | 18'-11" |
+| NW angled wall | 13'-8 7/8" | not dimensioned |
 
-The booth runs 11 5/8" to 15'-1 5/8" along the exterior wall. The architect's booth zone is 14'-8".
+**Moves away from the architect:**
+- The front wall moves +1 5/8", from 9'-1" to 9'-2 5/8". The shell face is at 9'-1 5/8".
+- The zone wall moves +8 5/8". This makes the step wall 3'-10" instead of about 3'-3", so it clears the 46"-deep platform by 1".
+
+The measured values moved no black wall.
 
 ## Read-first
-- `clients/walsh-construction/notes.md`, both the 21 Oct section and the 12 Oct "Shell" facts. s4 relies on the shell being at room-local (61.89, 11.63).
-- Run order:
-  1. `python scripts/sketchup-bridge.py run .forge/builder/walsh/corner/survey.rb`. Read it and confirm two `Tech Lab` rooms and the Platform copy's members.
-  2. `s0-saveas.rb` with `--write-root "Z:/Sketchup/ClientDrawings"`.
-  3. `s2-retag.rb`, after a `$walsh_dry = true` preview.
-  4. `s3-room.rb`, then `s4-booth.rb`, then `s6-dims.rb`.
-  5. `s7-scenes.rb` with `--write-root "Z:/Sketchup"`.
-  6. `flatten.py` on the PNGs.
-  7. Look at every image.
-- Never call `add_group` on the whole model. Every step saves.
+- `clients/walsh-construction/notes.md`, section "21 Oct revision".
+- **Live structure:** ONE room at the origin, and TWO booths at the same spot. The scenes switched between the booths with entity-hidden flags.
+  - Old room and lights: hidden tag `Walsh Old Room 12 Oct`.
+  - Old dims: hidden tag `Walsh Old Dims 12 Oct`.
+  - Door-ramp booth: hidden tag `Walsh Ramp Option 12 Oct`.
+  - Nothing was deleted.
+- **Ramp direction:** the ramp runs toward the booth's open end. `Component#17` was mirrored about booth-local x 143.37. The coordinator confirmed this direction on 21 Oct.
+- **Bridge traps:**
+  - `run` copies the script, so load each step through a one-line `load "<abs path>"` wrapper.
+  - A bare `m.save` is refused. Every step saves through `WalshCorner.save`, which writes only to the Corner Platform path.
+  - Pass `--write-root Z:/Sketchup/ClientDrawings`, and `Z:/Sketchup` for s7.
+- **Disclosure:** earlier this session I overwrote the previous working-tree `HANDOFF.md` without reading it. Its contents cannot be recovered.
+- **Disclosure:** while splicing the notes, a failed `cat` truncated `notes.md`. Lines 1-212 were restored from `HEAD`, which matched the pre-edit file (275 lines with the 21 Oct section at line 213). The diff touches only the 21 Oct section.
 
 ## Assumptions
-- **Ramp direction: open end, NOT the corner.**
-  - The coordinator's "drop the flip, ramp toward the corner" rests on my earlier misread of the markup.
-  - Zoomed, the markup has the platform at a door near the step, with the ramp descending toward the open (NW) end.
-  - A ramp toward the corner would also dead-end into the step wall.
-  - So the default stays `RAMP_DIR 'open'`, which is architect-faithful and usable. `'corner'` is a one-line switch, but the dim offsets are only tuned for `'open'`.
-- **Architect's stated figures:** 32'-0" is apex to the corner-wall interior face, and 18'-11" is between interior faces. The south wall moves about 22" south of our take-off.
-- **Scaled positions:** the step wall (7'-0") and angled wall (11'-7 5/8" along the exterior wall) are scaled from a 239 px capture, ±6".
-- **Pocket door:** 3'-0", 1'-0" off the corner wall, swinging into the pocket. Estimated.
-- **Platform and ramp:** platform 44" × 46", ramp 48" × 46", scaled from the 12 Oct TopDown. s4 and s6 measure the live extents.
-- **Front hardware:** FP = 0. If the live FP is more than 0, the front wall moves out by FP.
-- **Door 24:** stays at x 4-40 on the moved south wall.
-- **Ceiling:** 8'-0", the house default.
-- **Rounding:** the plan shows 1/8" fractions, not the house round-to-inch. It is a build sheet, and rounding would show the 11 5/8" gaps as 1'-0".
+| Value | Provenance |
+|---|---|
+| Platform 3'-10" x 46", top 3.73" above the floor | observed (live model) |
+| Ramp 45.61" (3'-9 5/8") x 46" | observed |
+| Door N3: 3'-8 1/2" opening, 4 1/4" off the open-end corner | observed |
+| Front hardware FP = 0 (N0/N1 end at y 97.75) | observed |
+| EFS 10" proud on the S face and the W0 end, 1 5/8" to each wall | observed |
+| Shell 11 5/8" off both walls | derived (layout choice) |
+| 32'-0" is the apex to the corner wall's interior face; 18'-11" is interior to interior | assumed (architect figures) |
+| Step wall at 7'-0" and angled wall at 11'-7 5/8" along the exterior wall | derived (scaled from a 239 px capture, +/-6") |
+| Zone wall 4'-7 5/8" | assumed (scaled) |
+| Pocket door 3'-0", 1'-0" off the corner wall, swinging into the pocket | estimated |
+| Door 24 at 4" to 3'-4" from the SW corner | assumed |
+| Ceiling 8'-0" | assumed (house default) |
 
 ## Open-questions
-- **Platform exposure.** With the minimum moves, the platform and ramp sit mostly outside the alcove, in the open Tech Lab, and the alcove is mostly empty.
-  - Option T moves the zigzag with our door: step about 11'-0 5/8", angled wall about 15'-6 5/8", foot about 5'-9" from SW, still clear of door 24.
-  - Benton or the client to choose.
-- **V-Ray hero:** not attempted, because there was no bridge. s7 makes a SketchUp PNG labelled "not V-Ray".
-- **Ceiling and pocket door:** both need real figures from the client.
+- **Platform exposure.** Door N3 is at the open end of the booth. As a result, most of the platform and all of the ramp sit in the open Tech Lab. The architect's alcove holds only the first 7 5/8" of the platform.
+  - **Option T** shifts the zigzag to follow our door: step wall at about 11'-0 5/8", angled wall at about 15'-6 5/8", and the angled wall's foot about 5'-9" from the SW corner. Door 24 is still clear.
+  - Benton to choose.
+- **Stale scenes:** `Platform 03 BoothDims` and every `Ramp ...` scene are still aimed at the 12 Oct layout.
+- **Client figures still needed:** the real ceiling height and the pocket door's size and position.

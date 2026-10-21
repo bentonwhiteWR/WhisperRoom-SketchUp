@@ -18,8 +18,8 @@ module WalshCorner
   SLAB  = 4.0
   DOOR_H = 80.0
 
-  CFG = { 'FP' => 0.0, 'SHELL_OFF' => 11.625, 'BL' => 170.0, 'BD' => 98.0, 'PLAT' => [122.0, 166.0],
-          'RAMP' => 48.0, 'PLAT_D' => 46.0, 'RAMP_DIR' => 'open', 'S_STEP_ARCH' => 84.0,
+  CFG = { 'FP' => 0.0, 'SHELL_OFF' => 11.625, 'BL' => 170.0, 'BD' => 98.0, 'PLAT' => [120.37, 166.37],
+          'RAMP' => 45.61, 'PLAT_D' => 46.0, 'RAMP_DIR' => 'open', 'S_STEP_ARCH' => 84.0,
           'S_ANG_ARCH' => 139.6, 'D_F_ARCH' => 109.0, 'D_Z_ARCH' => 148.0,
           'POCKET_DOOR_FROM_G' => 12.0, 'POCKET_DOOR_W' => 36.0 }
   # Set $walsh_cfg = { 'RAMP_DIR' => 'corner', 'FP' => 1.5, ... } before loading to override.
@@ -98,5 +98,15 @@ module WalshCorner
       ['NW angled wall', Math.hypot(A[0] - WTOP[0], A[1] - WTOP[1]), 'take-off']
     ]
     rows.map { |n, v, a| format('%-50s %12s %8.2f  arch %s', n, ft(v), v, a) }
+  end
+end
+
+# Save the corner copy only, by explicit path (the bridge refuses a bare save). Never the 12 Oct original.
+module WalshCorner
+  NEW_SKP = 'Z:/Sketchup/ClientDrawings/Walsh Construction Tech Lab MDL 96168 E - Corner Platform.skp'
+  def self.save(m)
+    pth = m.path.to_s.gsub(92.chr, '/')
+    raise "refusing to save: open model is #{pth}" unless pth.casecmp?(NEW_SKP)
+    m.save(NEW_SKP)
   end
 end

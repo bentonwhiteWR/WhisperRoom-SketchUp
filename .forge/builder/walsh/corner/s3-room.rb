@@ -116,7 +116,7 @@ rescue Exception => e
   puts e.backtrace.first(6)
   raise
 end
-m.save
+WalshCorner.save(m)
 puts "built #{NAME}: #{g.entities.size} groups, walls=#{wg.entities.size}, new-tag walls=#{wg.entities.count { |e| e.layer == t_new } + 1}"
 puts "bounds #{g.bounds.min.to_a.map { |v| v.to_f.round(1) }} .. #{g.bounds.max.to_a.map { |v| v.to_f.round(1) }}"
 puts wc.table

@@ -37,6 +37,7 @@ dim = lambda do |a, b, dir, dist, tag|
   d.layer = tag
   made << [tag.name, a.distance(b).to_f.round(2)]
   d
+  d
 end
 begin
   sa = g[:s_ang]
@@ -60,7 +61,8 @@ begin
   # south chain: doors row, walls row, overall
   sw = [0.0, wc::Y_S]
   dn = Geom::Vector3d.new(0, -1, 0)
-  dim.(W.(sw), W.([4.0, wc::Y_S]), dn, 20, t_d)
+  d4 = dim.(W.(sw), W.([4.0, wc::Y_S]), dn, 20, t_d)
+  d4.text_position = Sketchup::DimensionLinear::TEXT_OUTSIDE_START if d4.respond_to?(:text_position=)
   dim.(W.([4.0, wc::Y_S]), W.([40.0, wc::Y_S]), dn, 20, t_d)
   dx1 = k[:gi][0] - c['POCKET_DOOR_FROM_G']
   dx0 = dx1 - c['POCKET_DOOR_W']
@@ -92,29 +94,42 @@ begin
     y = pt.y - o[1] - wc::C[1]
     [x * wc::SH[0] + y * wc::SH[1], x * wc::NH[0] + y * wc::NH[1]]
   end
-  front = m.entities.select { |e| pids.include?(e.persistent_id) }.map do |e|
-    b = e.definition.bounds
-    (0..7).map { |i| sd.(b.corner(i).transform(e.transformation)) }
-  end.select { |cs| cs.map(&:last).min > ds - 2 }.flatten(1)
+  pbk = m.entities.find { |e| pids.include?(e.persistent_id) }
+  c17 = pbk && pbk.entities.find { |e| e.respond_to?(:definition) && e.definition.name == 'Component#17' }
+  front = []
+  ztop = nil
+  if c17
+    tr = pbk.transformation * c17.transformation
+    c17.definition.entities.each do |e|
+      next unless e.respond_to?(:definition)
+      t2 = tr * e.transformation
+      cs = (0..7).map { |i| e.definition.bounds.corner(i).transform(t2) }
+      front.concat(cs.map { |q| sd.(q) })
+      ztop = [ztop || -1e9, cs.map(&:z).max].max if e.definition.name == 'Component#14'   # platform tiles
+    end
+  end
   if front.empty?
     puts 'WARNING: no platform/ramp found in front of the N face; platform dims skipped'
   else
-    ztop = m.entities.select { |e| pids.include?(e.persistent_id) }.select { |e| e.bounds.min.z >= o[2] - 1 }
-            .map { |e| e.bounds.max.z }.select { |zz| zz < o[2] + 24 }.max || (o[2] + 8.0)
+    ztop ||= o[2] + 4.0
     up = ->(q) { Geom::Point3d.new(q.x, q.y, ztop + 0.1) }
     ds_ = g[:d_shell]
     # booth door N3 off the booth's NE corner (observed booth-local x 121.25-165.75), on the platform top
-    dim.(up.(S.(so + 165.75, ds_ + 6)), up.(S.(se, ds_ + 6)), NHv, 1, t_d)
-    dim.(up.(S.(so + 121.25, ds_ + 6)), up.(S.(so + 165.75, ds_ + 6)), NHv, 1, t_d)
+    # drawn on the booth roof (z above the ceiling) just inside the N face, so the platform below stays clear
+    zr = pbk.bounds.max.z + 0.5
+    rf = ->(q) { Geom::Point3d.new(q.x, q.y, zr) }
+    dn3 = dim.(rf.(S.(so + 165.75, ds_)), rf.(S.(se, ds_)), NHv.reverse, 12, t_d)
+    dn3.text_position = Sketchup::DimensionLinear::TEXT_OUTSIDE_END if dn3.respond_to?(:text_position=)
+    dim.(rf.(S.(so + 121.25, ds_)), rf.(S.(so + 165.75, ds_)), NHv.reverse, 12, t_d)
     z0 = front.map(&:first).min
     z1 = front.map(&:first).max
     d1 = front.map(&:last).max
-    pb = c['RAMP_DIR'] == 'open' ? so + c['PLAT'][1] : so + c['PLAT'][0]   # platform/ramp joint (scaled)
-    dim.(up.(S.(z0, ds_ + 36)), up.(S.(pb, ds_ + 36)), NHv, 1, t_b)
-    dim.(up.(S.(pb, ds_ + 36)), up.(S.(z1, ds_ + 36)), NHv, 1, t_b)
+    pb = c['RAMP_DIR'] == 'open' ? so + c['PLAT'][1] : so + c['PLAT'][0]   # platform/ramp joint (measured tile edge)
+    dim.(up.(S.(z0, ds_ + 28)), up.(S.(pb, ds_ + 28)), NHv, 1, t_b)
+    dim.(up.(S.(pb, ds_ + 28)), up.(S.(z1, ds_ + 28)), NHv, 1, t_b)
     puts format('platform-top dims at z %.2f above floor (measured max of the platform/ramp groups)', ztop - o[2])
     dim.(S.(z1, ds), S.(z1, d1), SHv, 20, t_b)
-    puts format('platform+ramp measured: s %.2f..%.2f, d %.2f..%.2f (joint at s %.2f is the scaled 12 Oct figure)', z0, z1, ds, d1, pb)
+    puts format('platform+ramp measured: s %.2f..%.2f, d %.2f..%.2f (joint at s %.2f, measured tiles)', z0, z1, ds, d1, pb)
   end
   # one note, clear of the drawing
   t = E.add_text(%(New walls square to the exterior wall. Walls the architect did not dimension are approximate. Ceiling 8'-0" assumed.),
@@ -127,6 +142,6 @@ rescue Exception => e
   puts e.backtrace.first(5)
   raise
 end
-m.save
+WalshCorner.save(m)
 made.each { |tg, v| puts "  #{tg.ljust(14)} #{wc.ft(v)}  (#{v})" }
 puts "#{made.size} dims; saved #{m.path}"
