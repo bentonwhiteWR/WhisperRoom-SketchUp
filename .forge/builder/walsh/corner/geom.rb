@@ -18,7 +18,7 @@ module WalshCorner
   SLAB  = 4.0
   DOOR_H = 80.0
 
-  CFG = { 'FP' => 0.0, 'SHELL_OFF' => 11.625, 'BL' => 170.0, 'BD' => 98.0, 'PLAT' => [120.37, 166.37],
+  CFG = { 'FP' => 0.0, 'SHELL_OFF' => 11.625, 'BL' => 170.0, 'BD' => 98.0, 'PLAT' => [72.37, 118.37],
           'RAMP' => 45.61, 'PLAT_D' => 46.0, 'RAMP_DIR' => 'open', 'S_STEP_ARCH' => 84.0,
           'S_ANG_ARCH' => 139.6, 'D_F_ARCH' => 109.0, 'D_Z_ARCH' => 148.0,
           'POCKET_DOOR_FROM_G' => 12.0, 'POCKET_DOOR_W' => 36.0 }

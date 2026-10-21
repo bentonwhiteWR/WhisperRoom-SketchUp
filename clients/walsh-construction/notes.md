@@ -216,6 +216,8 @@ Originally there were two identical series, `Opt2 ..` and `Opt1 ..`, with lanes 
 
 **Status (11:30, 21 Oct):** built in SketchUp over the bridge and saved as a new file. The 12 Oct original is untouched: still 12 Oct 22:13, 9,291,234 bytes. The top-down and a plain SketchUp hero are exported, and I looked at both.
 
+**Superseded in part (afternoon, 21 Oct):** the booth sections were reordered and the door moved one section in. See "v2: section reorder" at the end of this section. The v2 wall table replaces the one below, and Option T is no longer needed.
+
 ### What the live file actually held (survey, 21 Oct)
 The 12 Oct file was not two copies side by side, which is what the first s2 script assumed.
 - **Room:** ONE room, `Tech Lab 13`, at the origin. The take-off frame is the world frame, so O = (0, 0, 0).
@@ -320,3 +322,67 @@ None of these values moved a black wall. The zone wall sits at d 156.63, so it c
   - `1_Platform 01 HeroRender (SketchUp, not V-Ray).png`
   - `Corner Platform plan (offline, not SketchUp).png`: SUPERSEDED. Its walls are identical, but it draws a 48" ramp (measured 45 5/8") and a 44" platform (measured 46").
 - **Scripts:** `.forge/builder/walsh/corner/`
+
+### v2: section reorder (afternoon, 21 Oct)
+**Request (Benton):** "the 2' section needs to be closer on the other side. The door needs to be shifted one section in." Then: "the 2' section doesnt go direclty up against the corner, its still a center section, but it would be the closest section other than the 'side' section."
+
+**Section survey (observed, booth-local x from the corner-wall end, 0-170):**
+
+| Wall | Before | After |
+|---|---|---|
+| Order | SIDE 48 / CTR 48 / CTR 24 / SIDE 48 | SIDE 48 / CTR 24 / CTR 48 / SIDE 48 |
+| Front (N) | N0 46 window / N1 46 window / N2 19 / N3 49 WA door | N0 46 window / N2 19 / N3 49 WA door / N1 46 window |
+| Back (S) | S0 vent / S1 vent + EFS / S2 22 solid / S3 vent | S0 vent / S2 22 solid / S1 vent + EFS / S3 vent |
+
+- **Door N3:** the opening moved from x 121.25-165.75 to 73.25-117.75. It is now in the third module, one section in from the open end.
+- **Vent walls are unchanged:** back wall S0/S1/S3, plus W0 on the corner end, all with EFS. S1 (vent + EFS) moved one section, +24". The W0 EFS did not move.
+- **EFS proximity (FLAG):** with S1 now beside S3, the two silencer boxes sit about 1/2" apart vertically with about 2" of x overlap. I could see no intersection in a close-up, but I could not measure the nested sub-bounds. Check this in SketchUp.
+- **BOM:** no part was added or removed. The 49" WA frame keeps its 19" companion directly beside it (46+22 becomes 49+19, the layout-render.js rule).
+- **Wide-panel rule (FLAG, not blocking):** the memory rule puts the wide floor section, the door frame and the wide side-wall panel at the door end. The door is now in a centre module, not at an end. The rule is written for split-run 6060/6084/7272/7296 side walls, so whether it applies to a 96168 front wall needs Benton or the quote tool to confirm.
+
+**What s8 moved (inside the PLATFORM booth only):**
+- Wall sections and seals, per the table above.
+- Deck: the CTR48 and CTR24 tiles and the STDSS strip, 10 pieces in all.
+- Platform and ramp (`Component#17`): -48", following the door. The ramp still runs toward the open end.
+- Fittings: Studio Light SL52 (2 of 3), Duct Covers lo/hi on S1i, IEP BEAM 8 seam 2, and Foam N1i (now x 117.75-165.75).
+- **Hidden, not deleted:** Audimute2x4 front, Audimute2x4 back and Foam S1i. They had no free spot after the reorder and carry the attribute `WalshCorner/hidden_by`. **The interior needs an AP/foam re-layout pass (whisperroom-acoustic-package).**
+
+**Re-fit of the black walls:**
+- The platform now sits inside the architect's alcove: s 7'-0" to 10'-10" (84-130), with the alcove running to s 11'-7 5/8".
+- The ramp runs s 10'-10" to 14'-7 5/8" (130-175.6) toward the open end. It clears the start of the angled wall (s 139.6, d 156.63) by 1".
+- The only wall that moved is the step wall, from s 84 to s 83. That leaves 1" clear of the platform, and it falls out of `geom.solve` automatically.
+- Door 24 is unchanged and clear. Option T is no longer needed.
+- The v1 room and dims were renamed `(v1 21 Oct)` and moved to the hidden tag `Walsh Corner v1 21 Oct`.
+- The NEW walls now carry the material `WR New Wall (to build)`, near-black (38,38,38), on the tag `WR-Room-New`, so they read dark in the top-down.
+
+### Wall table v2 (interior faces, as built)
+
+| Run | Ours | Architect | Provenance |
+|---|---|---|---|
+| Exterior wall, apex to corner wall | 32'-0" | 32'-0" | reported (architect) |
+| NEW corner wall | 9'-2 5/8" + 2'-9 5/16" = 11'-11 15/16" | 9'-1" MIN CLR (first run) | derived |
+| NEW front wall, corner to step | 6'-11" | ~7'-0" | derived (platform west edge - 1") |
+| NEW step wall | 3'-10" | ~3'-3" | derived (platform 46 deep + 1") |
+| NEW zone wall, step to angled wall | 4'-8 5/8" | ~4'-8" | derived (angled-wall start, scaled, less step) |
+| NEW angled wall | 8'-5 9/16" | not dimensioned | derived |
+| South wall | 10'-10" + 15'-0 3/8" = 25'-10 7/16" | not dimensioned | derived |
+| West wall | 18'-11" | 18'-11" | reported (architect) |
+| NW angled wall | 13'-8 7/8" | not dimensioned | observed (take-off) |
+
+**Moves away from the architect (v2):**
+- Front wall depth +1 5/8" (9'-1" to 9'-2 5/8").
+- Step wall position -1" (about 7'-0" to 6'-11").
+- Zone wall +8 5/8" in depth, so the step wall is 3'-10", not about 3'-3".
+
+**Door dims on the top-down:** booth corner to jamb 6'-1 1/4", opening 3'-8 1/2", jamb to open end 4'-4 1/4". Total 14'-2", which closes.
+
+### v2 run order (after the v1 order above)
+1. `s8-sections.rb`. `$walsh_dry = true` gives a plan-only run.
+2. `s9-retire-v1.rb`
+3. `s3-room.rb` (now applies the dark wall material)
+4. `s6-dims.rb`: 28 dims. The front-wall dim is on the booth roof, and the step dim is on the pocket side.
+5. `s7-scenes.rb`, with `$walsh_hero_eye = [40, 165]` and `$walsh_hero_tgt = [125, 120]`.
+6. `flatten.py`
+
+**Top-down legibility:** acceptable. The top "11 5/8"" label crosses the exterior wall line.
+

@@ -1,5 +1,49 @@
 STATUS: READY
 
+# v2 update (afternoon, 21 Oct): sections reordered, door one section in
+Benton: "the 2' section needs to be closer on the other side. The door needs to be shifted one section in." The 2' section stays a centre section, next to the corner-end side section.
+
+## Produced (v2)
+- **Model:** the same Corner Platform `.skp`, saved after every step. The original is still untouched.
+- **Images:** both re-exported, flattened and viewed. The top-down has 28 dims, and the NEW walls are near-black on `WR-Room-New`. The hero is still a SketchUp export, labelled as not V-Ray.
+- **New scripts:** `s8-sections.rb` (the reorder) and `s9-retire-v1.rb` (moves the v1 room and dims to the hidden tag `Walsh Corner v1 21 Oct`).
+- **Edited scripts:**
+  - `geom.rb`: PLAT is now 72.37-118.37.
+  - `s3-room.rb`: applies the dark material.
+  - `s6-dims.rb`: the door chain now reads live from N3i, and two dims were relocated.
+- **Notes:** `clients/walsh-construction/notes.md` gains the section "v2: section reorder". It has the survey table, the moves, the hidden pieces, wall table v2 and the run order.
+
+## Sections (observed)
+- **Front:** N0 window / N1 window / N2 19 / N3 door became N0 window / N2 19 / N3 door / N1 window.
+- **Back:** S0 / S1+EFS / S2 22 / S3 became S0 / S2 22 / S1+EFS / S3.
+- **Vent walls:** unchanged. S1's EFS moved +24". The W0 EFS did not move.
+- **BOM:** unchanged.
+
+## Wall table v2
+| Run | Ours | Architect |
+|---|---|---|
+| Exterior | 32'-0" | 32'-0" |
+| NEW corner wall | 9'-2 5/8" + 2'-9 5/16" = 11'-11 15/16" | 9'-1" MIN CLR |
+| NEW front wall | 6'-11" | ~7'-0" |
+| NEW step wall | 3'-10" | ~3'-3" |
+| NEW zone wall | 4'-8 5/8" | ~4'-8" |
+| NEW angled wall | 8'-5 9/16" | not dimensioned |
+| South wall | 10'-10" + 15'-0 3/8" | not dimensioned |
+| West wall | 18'-11" | 18'-11" |
+| NW angled wall | 13'-8 7/8" | not dimensioned |
+
+- **Fit:** the platform (s 84-130) is now inside the alcove. The ramp (s 130-175.6) runs toward the open end and clears the start of the angled wall by 1".
+- **Option T:** moot.
+
+## Open-questions (v2)
+- **Interior AP/foam:** needs a re-layout. Audimute2x4 front, Audimute2x4 back and Foam S1i are HIDDEN, not deleted, and carry the attribute `WalshCorner/hidden_by`.
+- **EFS proximity:** the S1 and S3 silencer boxes are about 1/2" apart, with about 2" of x overlap. I saw no intersection visually, but did not measure it.
+- **Wide-panel memory rule:** the door is now in a centre module, not at an end. Confirm whether this matters for a 96168.
+- **Still needed from the client:** the ceiling height and the pocket door.
+
+---
+# v1 handoff (morning, 21 Oct). Superseded where v2 differs.
+
 # Builder handoff: Walsh Construction Tech Lab, corner platform layout (21 Oct 2026)
 
 Brief rev 2 (Benton: "Idk just draw the room as close to their drawing as possible. The black walls can move."). Only the platform + ramp option is drawn. Sarah's Zoom is at 1:30 pm. Built live over the bridge, saved as a new file, and surveyed. Nothing is committed.

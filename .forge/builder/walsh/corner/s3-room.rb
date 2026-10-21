@@ -22,6 +22,9 @@ t_ceil  = br.tag(m, 'WR-Ceiling', [200, 205, 212])
 mat_w = br.material(m, br::MAT_WALL)
 mat_f = br.material(m, br::MAT_FLOOR)
 mat_d = br.material(m, br::MAT_DOOR)
+# NEW (to-build) walls read dark in every view, so the client sees what to build (21 Oct).
+mat_n = m.materials['WR New Wall (to build)'] || m.materials.add('WR New Wall (to build)')
+mat_n.color = Sketchup::Color.new(38, 38, 38)
 T = wc::THICK
 NEW_RUNS = [1, 2, 3, 4, 5].freeze     # corner, front, step, zone, angled
 m.start_operation('Walsh corner: room', true)
@@ -50,6 +53,7 @@ begin
       e.material = mat_w
       next unless NEW_RUNS.include?(i)
       e.layer = t_new
+      e.material = mat_n
       e.name = "NEW #{e.name}"
     end
   end
@@ -82,7 +86,7 @@ begin
     s.material = mat_w
     s
   end
-  solid.(k[:stub], 0.0, wc::CEIL, 'NEW Corner wall stub', t_new)
+  solid.(k[:stub], 0.0, wc::CEIL, 'NEW Corner wall stub', t_new).material = mat_n
   ys = wc::Y_S
   gx = k[:gi][0]
   dx1 = gx - wc::CFG['POCKET_DOOR_FROM_G']

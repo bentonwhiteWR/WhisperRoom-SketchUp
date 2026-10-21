@@ -37,7 +37,6 @@ dim = lambda do |a, b, dir, dist, tag|
   d.layer = tag
   made << [tag.name, a.distance(b).to_f.round(2)]
   d
-  d
 end
 begin
   sa = g[:s_ang]
@@ -53,8 +52,8 @@ begin
   dim.(S.(0, 0), S.(0, dG), out_c, 48, t_w)
   # zigzag
   # Placement worked out on plan_svg.py so no two dim lines cross and none runs into the pocket's far wall.
-  dim.(S.(0, g[:d_f]), S.(g[:s_step], g[:d_f]), NHv, 14, t_w)          # front wall, pocket side
-  dim.(S.(g[:s_step], g[:d_f]), S.(g[:s_step], g[:d_z]), SHv, 20, t_w) # step, alcove side
+  # front wall: drawn on the booth roof (below), so the step dim can sit on the pocket side without crossing it
+  dim.(S.(g[:s_step], g[:d_f]), S.(g[:s_step], g[:d_z]), SHv.reverse, 20, t_w) # step, pocket side (platform fills the alcove)
   dim.(S.(g[:s_step], g[:d_z]), S.(sa, g[:d_z]), NHv, 20, t_w)         # zone, pocket side
   dim.(S.(sa, g[:d_z]), S.(sa, dA), SHv, 20, t_w)                      # angled, Tech Lab side
   puts 'WARNING RAMP_DIR corner: placement tuned for open; check the top-down for crossings' unless c['RAMP_DIR'] == 'open'
@@ -118,9 +117,17 @@ begin
     # drawn on the booth roof (z above the ceiling) just inside the N face, so the platform below stays clear
     zr = pbk.bounds.max.z + 0.5
     rf = ->(q) { Geom::Point3d.new(q.x, q.y, zr) }
-    dn3 = dim.(rf.(S.(so + 165.75, ds_)), rf.(S.(se, ds_)), NHv.reverse, 12, t_d)
-    dn3.text_position = Sketchup::DimensionLinear::TEXT_OUTSIDE_END if dn3.respond_to?(:text_position=)
-    dim.(rf.(S.(so + 121.25, ds_)), rf.(S.(so + 165.75, ds_)), NHv.reverse, 12, t_d)
+    # door jambs measured live from N3i (booth-local x), chained corner-wall end -> jamb -> jamb -> open end
+    n3i = pbk.entities.find { |e| e.name.split(' ').first == 'N3i' } or raise 'N3i not found'
+    jb = Geom::BoundingBox.new
+    (0..7).each { |i| jb.add(n3i.definition.bounds.corner(i).transform(n3i.transformation)) }
+    j0 = jb.min.x.to_f.round(3)
+    j1 = jb.max.x.to_f.round(3)
+    puts format('door N3 opening booth-local x %.2f..%.2f', j0, j1)
+    dim.(rf.(S.(0, g[:d_f])), rf.(S.(g[:s_step], g[:d_f])), NHv.reverse, 34, t_w)   # front wall, on the roof
+    dim.(rf.(S.(so, ds_)), rf.(S.(so + j0, ds_)), NHv.reverse, 12, t_d)
+    dim.(rf.(S.(so + j0, ds_)), rf.(S.(so + j1, ds_)), NHv.reverse, 12, t_d)
+    dim.(rf.(S.(so + j1, ds_)), rf.(S.(se, ds_)), NHv.reverse, 12, t_d)
     z0 = front.map(&:first).min
     z1 = front.map(&:first).max
     d1 = front.map(&:last).max
