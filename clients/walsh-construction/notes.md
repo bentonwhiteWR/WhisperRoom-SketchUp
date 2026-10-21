@@ -417,3 +417,5 @@ None of these values moved a black wall. The zone wall sits at d 156.63, so it c
 **Still to do:** the acoustic package (5x 2x4, 2x 1x4, 14x 1x2 for 96168), Onyx Audimute material not found on P:; V-Ray renders; the real ceiling height.
 
 **Scripts:** `.forge/builder/walsh/rm/` s0-s10b, all run over the bridge.
+
+**Decided 21 Oct (Benton):** no ADA; elevated floor + wide door is all it needs, and the link is accurate as-is. The cable wall stays where the link puts it. Proposal PDF paused, not started; see the DEVLOG entry for 2026-10-21.
