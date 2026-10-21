@@ -1,26 +1,29 @@
 # GOAL
 
 ## Mission
-Booth-from-link places the four STANDARD (outer-shell) corner seam seals turned 180 deg from
-correct, since Benton edited `CornerSeamSeal.skp` and `CornerSeamSeal_HX.skp` on the share
-(P:/Z: `Sketchup\NewMasterComponentList`, both saved 18 Oct 2026 12:07). Make every standard
-corner seal load the right way round on every booth, robustly against future edits to the part.
+Walsh Construction Tech Lab, revised layout for Sarah's 1:30 pm Zoom (21 Oct): the MDL 96168 E PLATFORM + RAMP
+version placed in the new corner from the architect's markup (`C:\Users\bento\Pictures\Forge Captures\Forge\capture-2026-10-21_090305.png`),
+booth back on the diagonal exterior wall, west end into the new corner wall. Show the exact dimensions of the
+new (unbuilt, black) walls they must build.
 
 ## Done means
-1. Root cause stated with evidence: why Benton's edit changed the placed orientation.
-2. Standard corner seals (`CornerSeamSeal`, `CornerSeamSeal_HX`) land correctly on all four
-   corners, Standard and Enhanced/IEP outer shells, HX and non-HX.
-3. IEP inner corners (`ENH CornerSeamSeal`) and mid-wall seals unchanged.
-4. `scripts/rbparse.py` clean, `scripts/wr_tools/VERSION` bumped, DEVLOG entry, committed and pushed.
-5. Anything that only a live SketchUp build can confirm is listed for Benton as a short check.
+1. New SketchUp file saved beside the original (original `.skp` untouched), saved first and after every step.
+2. Booth back (S, EFS) on the exterior wall, W0 end at the new corner wall; platform at the door, ramp FLIPPED to
+   run down toward the booth's open (east) end (Benton, 21 Oct).
+3. New walls placed from OUR clearance rules (1" past every EFS / hardware, 1" nominal elsewhere), not the
+   architect's 9'-1" / 14'-8"; differences noted. Corner exact; rest of the Tech Lab roughed from the 32'-0" and
+   18'-11" callouts and labelled approximate.
+4. Top-down with chain dimensions of every new wall run + overall, door/platform/ramp dims; a Platform hero render.
+5. Images exported where Benton can grab them for Sarah; every invented/estimated value listed.
 
 ## Now
-1.84.4 pushed (95ba408). Waiting on Benton's live booth build check (18 Oct).
+Waiting on Benton to enable the SketchUp bridge with the Walsh file open; Builder brief next.
 
 ## Out of scope
-Editing the .skp parts on the share. Other parts' orientation. Proposals, renders, client models.
+The "Ramp" (straight-out ramp) version. Acoustics, scenes other than Platform hero + TopDown. Prices. Proposal PDF
+unless Benton asks.
 
 ## History
-- 19 Oct: ISL 7296 room revised to the client's stated dims (Gregory email), saved; room door still assumed; renders need redoing. See notes-7296.md.
-- 16 Oct: ISL 7296 E proposal PDF built, READY a970dd2, waiting on Benton's review (two calls on the map).
-- 12 Oct: Walsh Construction Tech Lab MDL 96168 E DONE, proposal PDF on the Desktop. See DEVLOG.
+- 20 Oct: ISL 7296 4 ft proposal 9-page PDF built (private repo bc98a7b), waiting on Benton's review.
+- 18 Oct: corner seam seal flip, 1.84.4 pushed (95ba408).
+- 12 Oct: Walsh Construction Tech Lab MDL 96168 E DONE (first version).

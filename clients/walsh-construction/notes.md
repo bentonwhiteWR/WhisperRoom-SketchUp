@@ -209,3 +209,67 @@ Originally there were two identical series, `Opt2 ..` and `Opt1 ..`, with lanes 
 - `build-techlab.rb`: builds the room. Call `WR_WalshTechLab.build`.
 - Job scripts and screenshots: `.forge/builder/walsh/`. These are untracked and stay out of git (client imagery).
 - The client plan and sketch: `clients/walsh-construction/plans/` (gitignored).
+
+## 21 Oct revision: corner platform layout
+
+**Request (Sarah, via Benton, 21 Oct):** "They want it to fit in the below corner with the platform and ramp. The black walls are not constructed yet so if you can just show the exact dimensions of what they would need to build." Benton, on the brief: "Idk just draw the room as close to their drawing as possible. The black walls can move." Only the platform + ramp option is drawn.
+
+**Status:** the geometry, the wall table and the SketchUp scripts are done. An offline to-scale plan has been drawn from the same geometry. SketchUp was not reachable over the bridge, so **nothing has been built in the .skp yet**. Every script below is unrun; each one passes `scripts/rbparse.py`.
+
+### Layout
+- Booth MDL 96168 E. The back (S face, EFS) is on the exterior wall, the W0 end faces the new corner wall, and door N3 is at the open end. The shell is 11 5/8" off both walls (same rule as 12 Oct: EFS 1" off each wall).
+- The new walls are all square to the exterior wall.
+- The ramp runs toward the open end (`RAMP_DIR 'open'`, a one-line switch in `geom.rb`). The zoomed architect markup shows their ramp descending toward the open end. The coordinator's "toward the corner" came from my own earlier misread. A ramp toward the corner would dead-end into the step wall.
+
+### Wall table (interior faces)
+
+| Run | Ours | Architect | Provenance |
+|---|---|---|---|
+| Exterior wall, apex to corner wall | 32'-0" | 32'-0" | reported (architect) |
+| NEW corner wall, exterior to front wall | 9'-2 5/8" | 9'-1" MIN CLR | derived (booth 11 5/8 + 98 + 1) |
+| NEW corner wall, front wall to south wall | 2'-9 1/4" | not dimensioned | derived |
+| NEW front wall, corner to step | 7'-0" | ~7'-0" | derived (14'-8" - 7'-8") |
+| NEW step wall | 3'-10" | ~3'-3" | derived (platform 46 deep + 1) |
+| NEW zone wall, step to angled wall | 4'-7 5/8" | ~4'-8" | assumed (scaled from markup) |
+| NEW angled wall, zone wall to south wall | 8'-5 1/2" | not dimensioned | derived from the scaled position |
+| South wall, SW corner to angled wall | 10'-10" | not dimensioned | derived |
+| South wall, angled wall to corner wall (pocket) | 15'-0 3/8" | not dimensioned | derived |
+| West wall | 18'-11" | 18'-11" | reported (architect); our take-off read 17'-1 1/8" |
+| NW angled wall | 13'-8 7/8" | not dimensioned | observed (take-off) |
+
+### Moves away from the architect's drawing
+- The front wall moves from 9'-1" to 9'-2 5/8", +1 5/8". The shell face sits at 9'-1 5/8", so 9'-1" would cut it.
+- The step/zone wall moves from about 12'-4" to 13'-0 5/8", +8 5/8". The platform is 46" deep and passes under the zone wall by 6".
+- The step and angled walls stay where the architect drew them.
+- The angled wall's foot lands 10'-10" from the SW corner, so door 24 (4" to 3'-4") is clear.
+
+### Assumed or estimated values
+- The 32'-0" is taken as apex to corner-wall interior face, and the 18'-11" as interior faces. Both are assumed.
+- The step wall at 7'-0" and the angled wall at 11'-7 5/8" along the exterior wall are scaled from a 239 px capture (~6 px/ft), ±6".
+- The pocket door is 3'-0", 1'-0" off the corner wall, hinged at the east jamb and swinging into the pocket. Estimated.
+- The platform is 44" wide (booth x 122-166) and the ramp is 48" long; both are 46" deep. Scaled from the 12 Oct Platform TopDown. s4 measures the real extents live.
+- FP (front hardware beyond the N face) is taken as 0; s4 measures it live. If FP is more than 0, the front wall moves out by FP.
+- The ceiling is 8'-0", the house default. Assumed.
+
+### Open questions
+- **Platform exposure.** With the minimum moves, most of the platform and all of the ramp sit outside the alcove, in the open Tech Lab, and the alcove between the step and the angled wall is mostly empty. **Option T** shifts the whole zigzag with our door: step about 11'-0 5/8" and angled wall about 15'-6 5/8" along the exterior wall, foot about 5'-9" from the SW corner, still clear of door 24. Benton to choose.
+
+### Run order (bridge)
+Run `survey.rb` first. Then:
+1. `s0-saveas.rb`
+2. `s2-retag.rb` (set `$walsh_dry = true` first to preview)
+3. `s3-room.rb`
+4. `s4-booth.rb`
+5. `s6-dims.rb`
+6. `s7-scenes.rb`, with `--write-root Z:/Sketchup`
+7. `flatten.py` on the PNGs
+
+Every step saves.
+
+### Paths
+- **New model (not yet created):** `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E - Corner Platform.skp`
+- **Images:** `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 E - Corner Platform\`. Holds `Corner Platform plan (offline, not SketchUp).png` so far.
+- **Scripts:** `.forge/builder/walsh/corner/`
+  - Geometry: `geom.rb` and `arch_geom.py`
+  - SketchUp steps: `s0`-`s7`
+  - Offline plan: `plan_svg.py`
