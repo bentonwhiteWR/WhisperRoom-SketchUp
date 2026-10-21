@@ -386,3 +386,34 @@ None of these values moved a black wall. The zone wall sits at d 156.63, so it c
 
 **Top-down legibility:** acceptable. The top "11 5/8"" label crosses the exterior wall line.
 
+
+## v3 (21 Oct, evening): Sarah's final plan, MDL 96168 S roof mount, corner RM
+
+**Request (Sarah, verbatim):** "Ok. Here's the final plan. Remove platform and ramp (leave ADA Door and Elevated Floor). Add Roof Mount ventilation. Gray studio foam, onyx Audimute panels. Will you also place one of the cable walls to the left, beside the wall window?" Benton: drop the old booth and all black walls, back to the full Tech Lab outline; RM not wall vents; bottom-right corner, back on the diagonal exterior wall, angled toward the host doors; 1" nominal, door swing respected, no EFS clearance. Later: "dont worry about the acoustic package right now."
+
+**Link (staging builder):** `#3=ARIEQaAgAAgIAAICAgACAAAMBA` -> MDL 96168 S, Wide Access door hinge R, foam Gray, flags wideDoor / efp / roofVent / ap; ramp, ada, efs all false. Builder: interior 94 x 166, exterior 98 x 170, "vent on the roof - nothing sticks out".
+
+**Panels, matched to the builder (verified headless, iso captures in the session scratchpad):**
+
+| Wall | Panels (booth-local inches) |
+|---|---|
+| N | 46 WDO, 46 WDO, **22 (centre)**, 46 CBL |
+| S | 46 CBL, 46 CBL, 22, 46 CBL |
+| E | 46, 46 |
+| W | 43, Wide Access door frame (49) |
+
+**The "small side section" Benton caught (root cause):** my own `rm/s3-booth.rb` swapped N2/N3 to move a cable wall beside the window, and `rebalance_walls` then made the 22" an END section, which is not offered on this size. `scripts/booth-from-link.rb` / `build-booth-components.rb` are not at fault. Fixed by `s3b-rebuild.rb`, which rebuilds straight from the link. The wrong booth is hidden on tag `Walsh RM swapped N 21 Oct`, not deleted. The v2 Corner Platform export did NOT have this mistake (its 2' stayed a centre section).
+
+**Sarah's cable-wall request is NOT met as she worded it:** the link's N3 CBL sits beside the 22", not beside the window. A 46 CBL can only sit beside the window by making the 22" an end section. The builder layout was kept; the open question is for Sarah/sales.
+
+**Placement (corner frame s along the exterior wall from the corner, d off it):** booth s 47-145, d 1-171 (hardware to 172.27). Back 1" off the diagonal exterior wall; door end faces the host doors. s0 = 47 because the host Door 2 swing reaches s 45.3. Booth door: frame s 94-143, leaf 35.37 wide, hinge on the S side, outswing; arc reaches d 205.87 against room depth 226.37 there. The ceiling must give 93.31" (catalog Std 6'-11" install figure applies); the room height is still the 8'-0" house default, **assumed**.
+
+**Dims (`RM Dims 21 Oct`, now on tag `Walsh RM Dims 21 Oct`, hidden only on the 01-angled hero):** 17 dims + the booth door swing. Room 32'-0" (reported), corner wall 11'-11 15/16", south 25'-10 7/16", west 18'-11", NW 13'-8 7/8"; exterior chain 3'-11 / 8'-2 / 19'-11; booth 1" gap, 14'-2" length; door chain 3'-11 / 4'-1 / 2". Host Door 2 figures are **estimated**.
+
+**Scenes:** AUTO-SET, 9 stamped pages (01-angled r/02-front r/03-high r are render plates, not rendered). Fixed by hand after the first export, and marked here: 01-angled camera moved inside the room (AUTO-SET's eye sat outside and a host door leaf filled the frame); 06-plan reframed on the whole room. All old v1/v2 pages are set to Skip.
+
+**Images (SketchUp exports, NOT V-Ray, 1920x1080 opaque RGB)** in `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 S - Corner RM\`. `manifest.json` only lists 11 and 18 (the last run).
+
+**Still to do:** the acoustic package (5x 2x4, 2x 1x4, 14x 1x2 for 96168), Onyx Audimute material not found on P:; V-Ray renders; the real ceiling height.
+
+**Scripts:** `.forge/builder/walsh/rm/` s0-s10b, all run over the bridge.

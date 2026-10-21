@@ -1,5 +1,30 @@
 STATUS: READY
 
+# v3 (21 Oct evening): Walsh MDL 96168 S, corner RM, images ready for the proposal
+
+## Produced
+- `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 S - Corner RM.skp` (Save As from Corner Platform; originals untouched)
+- `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 S - Corner RM\` - 6 SketchUp exports (NOT V-Ray), 1920x1080 opaque, proposal order:
+  1. hero: `11_Booth - MDL 96168 S RM (21 Oct link) 01-angled.png`
+  2. dimensioned: `15_... 03-high.png`
+  3. side elevation: `16_... 04-side.png`
+  4. rear/ventilation: `17_... 05-ventilation.png`
+  5. top-down plan + door swing: `18_... 06-plan.png`
+  - extra: `13_... 02-front.png` (door end, dimensioned)
+
+## Read-first
+- `clients/walsh-construction/notes.md`, section "v3".
+
+## Assumptions
+- Ceiling 8'-0" house default (booth needs 93.31"). Host Door 2 position estimated. Vent plate side assumed (roof mount, no wall vent part).
+
+## Open-questions
+- Sarah's "cable wall beside the window" conflicts with the builder layout (kept builder).
+- Link has no ADA flag (WA door + elevated floor present) vs "leave ADA Door".
+- Acoustic package not placed (Onyx material not found). Skipped per Benton.
+
+# Earlier (v2)
+
 # v2 update (afternoon, 21 Oct): sections reordered, door one section in
 Benton: "the 2' section needs to be closer on the other side. The door needs to be shifted one section in." The 2' section stays a centre section, next to the corner-end side section.
 
