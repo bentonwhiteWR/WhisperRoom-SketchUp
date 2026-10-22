@@ -134,8 +134,25 @@ def copy_scripts(dst):
     return len(shipping), stale, foreign
 
 
-def install_skills():
-    """Repo skills/ -> ~/.claude/skills/, same manifest discipline as scripts.
+def skill_roots():
+    """Every Claude config folder on this machine that should get the skills.
+
+    The default account is ~/.claude. Forge keeps each extra Claude account
+    (for example a separate WhisperRoom login) in its own config folder under
+    %APPDATA%/Forge/claude-accounts/<id>/; Claude Code reads skills from
+    <that folder>/skills, so each one needs its own copy.
+    """
+    roots = [os.path.join(os.path.expanduser('~'), '.claude', 'skills')]
+    accounts = os.path.join(os.environ.get('APPDATA', ''), 'Forge', 'claude-accounts')
+    if os.environ.get('APPDATA') and os.path.isdir(accounts):
+        for a in sorted(os.listdir(accounts)):
+            if os.path.isdir(os.path.join(accounts, a)):
+                roots.append(os.path.join(accounts, a, 'skills'))
+    return roots
+
+
+def install_skills(dst_root):
+    """Repo skills/ -> <dst_root>/, same manifest discipline as scripts.
 
     Only directories that carry a SKILL.md count as skills. The manifest in the
     destination records which skill folders THIS installer put there; a skill
@@ -148,7 +165,6 @@ def install_skills():
     if not os.path.isdir(src):
         return None  # running from a bundled copy with no repo — nothing to do
 
-    dst_root = os.path.join(os.path.expanduser('~'), '.claude', 'skills')
     os.makedirs(dst_root, exist_ok=True)
     mf = os.path.join(dst_root, MANIFEST)
 
@@ -226,8 +242,10 @@ def main():
             print('     survive every install and reach anyone else, put them in the')
             print('     repo scripts/ folder and commit them.')
 
-    skills = install_skills()
-    if skills:
+    for root in skill_roots():
+        skills = install_skills(root)
+        if not skills:
+            break
         dst_root, shipping, stale, foreign = skills
         print('')
         print('skills    -> %s' % dst_root)
