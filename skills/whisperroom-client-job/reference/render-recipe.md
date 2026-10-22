@@ -13,6 +13,12 @@ listed first and the variant after it.
 All of this runs through the bridge (`scripts/sketchup-bridge.py`). Bridge jobs never
 open a modal, never block, and only write inside the `write_roots` they are given.
 
+**Two files open (1.85.0).** With more than one SketchUp window open, every bridge call needs
+`--model <path, unique file-name fragment, or pid:N>` (or `WR_BRIDGE_MODEL` set for the session,
+which `submit()` callers such as `render/` follow); without it the job is refused, exit 6, and the
+open files are listed. `ping` lists them too. With one window open nothing changes. After a
+Save As the file's name changes, so address it by the new name or by `pid:N`.
+
 ## 0. Realism floor (every first delivery; reference: WC round 3)
 
 Look at `<WORK>\weather-company-renders-r3\01-hero-both-booths-and-doors.png` before

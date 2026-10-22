@@ -18,6 +18,12 @@ This skill is the order of work and the traps. Two other skills own their parts:
 
 All model work runs over the bridge (`scripts/sketchup-bridge.py`) in Benton's open file.
 
+**Two files open (1.85.0).** With more than one SketchUp window open, every bridge call needs
+`--model <path, unique file-name fragment, or pid:N>` (or `WR_BRIDGE_MODEL` set for the session,
+which `submit()` callers such as `render/` follow); without it the job is refused, exit 6, and the
+open files are listed. `ping` lists them too. With one window open nothing changes. After a
+Save As the file's name changes, so address it by the new name or by `pid:N`.
+
 ## The stages, in order
 
 1. **Resume and orient.** Run `git pull` first. Handoffs live on GitHub, and a machine that

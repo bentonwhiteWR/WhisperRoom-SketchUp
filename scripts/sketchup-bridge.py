@@ -9,6 +9,7 @@
     python sketchup-bridge.py log [--lines 40]
 
     common flags:  --su 2024|2026   --timeout N   --label "..."
+                   --model PATH|FRAGMENT|pid:N   (which open file; see below)
                    --modal allow    --no-suppress  --write-root DIR
                    --json           --quiet
 
@@ -58,6 +59,23 @@ EXIT CODES -- they are the point of the tool, so they are specific:
     6  a safety fence refused the job before any of its code ran
     7  a result file was there but could not be read as a result
 
+TWO FILES OPEN AT ONCE (1.85.0). Each SketchUp process listens in its own
+slot, <root>/inst-<pid>/, and publishes the file it has open. `ping` lists them.
+--model picks one: a full path, or a fragment of the file name, title or path
+that matches exactly one open file, or pid:N. With ONE window open, --model is
+not needed and nothing changes. With two or more and no --model, the job is
+REFUSED (exit 6, no job code runs) and the open files are listed. A --model
+that matches none, or more than one, is refused the same way. The environment
+variable WR_BRIDGE_MODEL sets the default --model, so a session driving one
+file can set it once and every submit() (render/, rbtest-live-*) follows it.
+The job carries the model it was resolved against, and the listener refuses it
+(reason wrong-model) if the window opened another file in the meantime.
+
+An OLDER listener (pre-1.85, one shared in/ and no slots) is still driven for
+the one-window case: with no live slot the job goes to the shared in/ exactly as
+before. --model cannot be honoured by an old listener and is refused there;
+reinstall the plugin and restart SketchUp.
+
 VERSION SELECTION. 2024 and 2026 are both installed here and each gets its own
 bridge root, so they cannot race for the same job. When both are listening this
 defaults to 2026 (Benton, 30 Aug 2026); --su picks the other. When only one is
@@ -65,6 +83,8 @@ listening, that one is used whatever it is.
 """
 import json
 import os
+import re
+import shutil
 import sys
 import time
 
@@ -150,13 +170,159 @@ def known_versions():
     return sorted(vs, reverse=True)
 
 
-def heartbeat_age(version):
-    """Seconds since the listener last ticked, or None if it never has."""
-    p = os.path.join(root_for(version), 'alive')
+def file_age(path):
     try:
-        return time.time() - os.path.getmtime(p)
+        return time.time() - os.path.getmtime(path)
     except OSError:
         return None
+
+
+def legacy_age(version):
+    """Heartbeat age of a PRE-1.85 listener (root/alive), or None. A 1.85
+    listener writes its heartbeat into its slot instead, so a fresh root/alive
+    means an old plugin is running."""
+    return file_age(os.path.join(root_for(version), 'alive'))
+
+
+# ----------------------------------------------------------------- slots --
+#
+# A slot's heartbeat goes stale whenever its SketchUp is busy -- the listener
+# cannot tick while a job, a render or a native operation holds the
+# interpreter. So a stale heartbeat does NOT mean the window is gone, and
+# treating it as gone would let a second job slip past the "two windows open"
+# refusal onto the other window. Liveness is asked of Windows instead: is that
+# pid still a running SketchUp.exe.
+
+SLOT_PREFIX = 'inst-'
+OPEN_STATES = ('listening', 'busy', 'stalled')
+GONE_SWEEP_S = 60        # ping removes a gone slot silent at least this long
+
+
+def _pid_image(pid):
+    """(running, image_path) for a pid on Windows; (None, None) when unknown.
+
+    NEVER os.kill(pid, 0) HERE: on Windows that calls TerminateProcess and
+    would kill the SketchUp it was meant to ask about."""
+    if os.name != 'nt':
+        return None, None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        k32.QueryFullProcessImageNameW.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        h = k32.OpenProcess(0x1000, False, int(pid))   # QUERY_LIMITED_INFORMATION
+        if not h:
+            # 87 ERROR_INVALID_PARAMETER: no such pid. Anything else (access
+            # denied) means it exists but we may not look.
+            return (False, None) if ctypes.get_last_error() == 87 else (None, None)
+        try:
+            code = wintypes.DWORD()
+            if not k32.GetExitCodeProcess(h, ctypes.byref(code)):
+                return None, None
+            if code.value != 259:                       # STILL_ACTIVE
+                return False, None
+            buf = ctypes.create_unicode_buffer(1024)
+            n = wintypes.DWORD(1024)
+            if k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(n)):
+                return True, buf.value
+            return True, None
+        finally:
+            k32.CloseHandle(h)
+    except Exception:
+        return None, None
+
+
+def pid_is_sketchup(pid):
+    """True: a running SketchUp. False: gone, or the pid now belongs to some
+    other program. None: Windows would not say."""
+    running, image = _pid_image(pid)
+    if running is not True:
+        return running
+    if image is None:
+        return True
+    return 'sketchup' in os.path.basename(image).lower()
+
+
+def read_card(slot_dir):
+    """The slot's model.json, or {} while it is missing or mid-replace."""
+    try:
+        with open(os.path.join(slot_dir, 'model.json'), 'r', encoding='utf-8') as fh:
+            got = json.load(fh)
+        return got if isinstance(got, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def slot_info(slot_dir, pid_check=None):
+    """One slot as a dict: name, dir, pid, age, state, title, path, guid, card.
+
+    state is listening (fresh heartbeat), busy (stale, a job is running),
+    stalled (stale, the pid is still a SketchUp), stopped (bridge switched off
+    in that window) or gone (the process has exited)."""
+    pid_check = pid_check or pid_is_sketchup
+    name = os.path.basename(slot_dir)
+    pid = int(name[len(SLOT_PREFIX):])
+    age = file_age(os.path.join(slot_dir, 'alive'))
+    card = read_card(slot_dir)
+    try:
+        running = any(f.endswith('.running')
+                      for f in os.listdir(os.path.join(slot_dir, 'run')))
+    except OSError:
+        running = False
+    if age is not None and age < FRESH_S:
+        state = 'listening'
+    elif os.path.isfile(os.path.join(slot_dir, 'stopped')):
+        state = 'stopped'
+    else:
+        alive = pid_check(pid)
+        if alive is True:
+            state = 'busy' if running else 'stalled'
+        elif alive is None and running:
+            state = 'busy'          # Windows would not say; trust the marker
+        else:
+            state = 'gone'
+    return {'name': name, 'dir': slot_dir, 'pid': pid, 'age': age, 'state': state,
+            'title': str(card.get('title', '')), 'path': str(card.get('path', '')),
+            'guid': str(card.get('guid', '')), 'card': card}
+
+
+def slots(version, pid_check=None):
+    """Every slot under a version root, open or not, sorted by pid."""
+    root = root_for(version)
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return []
+    out = []
+    for n in names:
+        d = os.path.join(root, n)
+        if re.match(r'^inst-\d+$', n) and os.path.isdir(d):
+            out.append(slot_info(d, pid_check))
+    return sorted(out, key=lambda s: s['pid'])
+
+
+def open_slots(version, pid_check=None):
+    return [s for s in slots(version, pid_check) if s['state'] in OPEN_STATES]
+
+
+def heartbeat_age(version):
+    """Seconds since ANY listener of this version last ticked, or None."""
+    ages = [a for a in [legacy_age(version)] + [s['age'] for s in slots(version)]
+            if a is not None]
+    return min(ages) if ages else None
+
+
+def version_live(version, pid_check=None):
+    """An open slot, or a fresh pre-1.85 heartbeat."""
+    if open_slots(version, pid_check):
+        return True
+    age = legacy_age(version)
+    return age is not None and age < FRESH_S
 
 
 def is_enabled(version):
@@ -166,6 +332,74 @@ def is_enabled(version):
 def survey():
     """[(version, enabled, heartbeat_age_or_None)] for everything we know of."""
     return [(v, is_enabled(v), heartbeat_age(v)) for v in known_versions()]
+
+
+def sweep_gone(version, pid_check=None):
+    """Remove slots whose process Windows says has EXITED and that have been
+    silent GONE_SWEEP_S. Only a definite answer deletes; 'unknown' keeps the
+    slot. Returns the names removed."""
+    pid_check = pid_check or pid_is_sketchup
+    gone = []
+    for s in slots(version, pid_check):
+        if s['state'] != 'gone' or (s['age'] is not None and s['age'] < GONE_SWEEP_S):
+            continue
+        if pid_check(s['pid']) is not False:
+            continue
+        try:
+            shutil.rmtree(s['dir'])
+            gone.append(s['name'])
+        except OSError:
+            pass
+    return gone
+
+
+def describe_slot(s):
+    return '    pid %-6d  %-9s  %-30s  %s' % (
+        s['pid'], s['state'], s['title'] or '(no model reported yet)',
+        s['path'] or '(untitled / unsaved)')
+
+
+def _np(p):
+    return str(p).replace('\\', '/').strip().lower()
+
+
+def match_slots(cands, query):
+    """The slots `query` names, by tier: pid:N; an exact path; a whole file
+    name (with or without .skp) or title; then any fragment of path or title.
+    Returns the first tier that hits -- the caller insists on exactly one."""
+    q = str(query).strip()
+    m = re.match(r'(?i)^pid:(\d+)$', q)
+    if m:
+        return [s for s in cands if s['pid'] == int(m.group(1))]
+    qn = _np(q)
+    if not qn:
+        return []
+    paths = {qn}
+    if '/' in q or '\\' in q:
+        paths.add(_np(os.path.abspath(q)))
+
+    def whole(s):
+        base = os.path.basename(s['path'].replace('\\', '/'))
+        names = {_np(base), _np(os.path.splitext(base)[0]), _np(s['title'])}
+        return qn in (names - {''})
+
+    tiers = (
+        lambda s: bool(s['path']) and _np(s['path']) in paths,
+        whole,
+        lambda s: qn in _np(s['path']) or qn in _np(s['title']),
+    )
+    for t in tiers:
+        hit = [s for s in cands if t(s)]
+        if hit:
+            return hit
+    return []
+
+
+def target_of(s):
+    """What the job carries so the listener can re-check its active model."""
+    if not s['card']:
+        return None
+    return {'pid': s['pid'], 'title': s['title'], 'path': s['path'], 'guid': s['guid']}
 
 
 def pick_version(wanted):
@@ -181,7 +415,7 @@ def pick_version(wanted):
     if os.environ.get('WR_BRIDGE_DIR'):
         return 'override', 'WR_BRIDGE_DIR is set'
 
-    live = [v for (v, _e, age) in survey() if age is not None and age < FRESH_S]
+    live = [v for v in known_versions() if version_live(v)]
     if len(live) == 1:
         return live[0], 'the only SketchUp listening'
     if len(live) > 1:
@@ -328,9 +562,77 @@ class NotListening(Exception):
         self.message = message
 
 
+def resolve(version=None, model=None, pid_check=None):
+    """Where a job goes: (box_dir, target_or_None, slot_or_None, version).
+
+    Raises NotListening(EXIT_REFUSED) when the target is ambiguous or names no
+    open file -- before anything is written, so no job code can run -- and
+    NotListening(EXIT_NOT_LISTENING) when --model has nothing to match against.
+    """
+    if model:
+        if version:
+            versions = [version]
+        elif os.environ.get('WR_BRIDGE_DIR'):
+            versions = ['override']
+        else:
+            versions = known_versions()
+        cands = []
+        for v in versions:
+            cands += [dict(s, version=v) for s in open_slots(v, pid_check)]
+        if not cands:
+            old = [v for v in versions
+                   if legacy_age(v) is not None and legacy_age(v) < FRESH_S]
+            if old:
+                raise NotListening(EXIT_REFUSED, (
+                    'REFUSED -- no job code ran. --model %r was given, but the SketchUp '
+                    'listening (%s) runs a bridge older than 1.85.0, which cannot say '
+                    'which file it has open, so the job could not be guaranteed to land '
+                    'on that file.\n    Reinstall (python scripts/install-plugin.py) and '
+                    'restart SketchUp, or drop --model if only one window is open.'
+                    % (model, ', '.join(old))))
+            raise NotListening(EXIT_NOT_LISTENING, (
+                'SKETCHUP IS NOT LISTENING, so there is no open file for --model %r '
+                'to match.\n    python scripts/sketchup-bridge.py ping   shows what '
+                'the bridge can see.' % model))
+        hit = match_slots(cands, model)
+        if len(hit) == 1:
+            s = hit[0]
+            return s['dir'], target_of(s), s, s['version']
+        if not hit:
+            raise NotListening(EXIT_REFUSED, (
+                'REFUSED -- no job code ran. --model %r matches none of the open '
+                'files:\n%s\n    Pass a full path, a fragment unique to one file, or '
+                'pid:N.' % (model, '\n'.join(describe_slot(s) for s in cands))))
+        raise NotListening(EXIT_REFUSED, (
+            'REFUSED -- no job code ran. --model %r matches %d open files:\n%s\n'
+            '    Pass a full path, a fragment unique to one file, or pid:N.'
+            % (model, len(hit), '\n'.join(describe_slot(s) for s in hit))))
+
+    version, _why = pick_version(version)
+    open_ = open_slots(version, pid_check)
+    if len(open_) == 1:
+        s = open_[0]
+        return s['dir'], target_of(s), s, version
+    if len(open_) > 1:
+        raise NotListening(EXIT_REFUSED, (
+            'REFUSED -- no job code ran. %d SketchUp windows are open (%s) and the '
+            'job names no model, so it could land on the wrong file:\n%s\n'
+            '    Pass --model <path, file-name fragment, or pid:N>, or set '
+            'WR_BRIDGE_MODEL.'
+            % (len(open_), version, '\n'.join(describe_slot(s) for s in open_))))
+    # No slot: an older listener on the shared inbox, or nothing yet. Exactly
+    # the pre-1.85 behaviour -- submit and let diagnose() explain a timeout.
+    return root_for(version), None, None, version
+
+
 def submit(ruby, timeout=DEFAULT_TIMEOUT, version=None, label=None,
-           modal='raise', suppress_autorun=True, write_roots=None):
+           modal='raise', suppress_autorun=True, write_roots=None, model=None):
     """Run `ruby` inside SketchUp and return its result dict.
+
+    `model` picks the open file (a path, a fragment unique to one file, or
+    pid:N) and defaults to $WR_BRIDGE_MODEL. With one window open it can be
+    left out. An ambiguous or unmatched target raises
+    NotListening(EXIT_REFUSED) before any job file is written.
 
     Raises NotListening (carrying the CLI exit code) for every outcome that is
     not a job result: nothing listening, wedged, still running, corrupt. A job
@@ -338,11 +640,14 @@ def submit(ruby, timeout=DEFAULT_TIMEOUT, version=None, label=None,
     'error' -- because a raise is a result, and the caller asserting on status
     is exactly the discipline this bridge exists to make possible.
     """
-    version, _why = pick_version(version)
-    root = root_for(version)
+    if model is None:
+        model = os.environ.get('WR_BRIDGE_MODEL') or None
+    # `root` from here on is the job's BOX: a slot, or the shared inbox of an
+    # older listener. Every path below, diagnose() included, is relative to it.
+    root, target, _slot, version = resolve(version, model)
     jid = new_id()
 
-    for sub in ('in', 'run', 'out', 'art'):
+    for sub in ('in', 'run', 'out'):
         try:
             os.makedirs(os.path.join(root, sub), exist_ok=True)
         except OSError:
@@ -358,6 +663,8 @@ def submit(ruby, timeout=DEFAULT_TIMEOUT, version=None, label=None,
         'modal': modal,
         'write_roots': list(write_roots or []),
     }
+    if target:
+        job['target'] = target
 
     # WRITE TO .tmp AND RENAME, so the listener can never glob a half-written
     # job. os.replace is atomic within a directory on NTFS. Same trick the
@@ -473,21 +780,47 @@ def cmd_ping(opts):
         return EXIT_NOT_LISTENING
 
     live = 0
-    for (v, enabled, age) in rows:
-        if age is None:
-            state = 'never started'
-        elif age < FRESH_S:
-            state = 'LISTENING (heartbeat %.1fs)' % age
-            live += 1
+    for (v, enabled, _age) in rows:
+        swept = sweep_gone(v)
+        all_ = slots(v)
+        open_ = [s for s in all_ if s['state'] in OPEN_STATES]
+        lage = legacy_age(v)
+        old = lage is not None and lage < FRESH_S
+        if open_:
+            state = '%d window%s open' % (len(open_), '' if len(open_) == 1 else 's')
+        elif old:
+            state = 'LISTENING, pre-1.85 listener (heartbeat %.1fs)' % lage
+        elif all_ or lage is not None:
+            state = 'silent'
         else:
-            state = 'silent (heartbeat %.0fs old)' % age
+            state = 'never started'
+        if open_ or old:
+            live += 1
         print('  SketchUp %-6s  marker:%-8s  %s' % (v, 'on' if enabled else 'OFF', state))
         print('                  %s' % root_for(v))
+        for s in all_:
+            beat = ('heartbeat %.1fs' % s['age']) if s['age'] is not None else 'no heartbeat'
+            print('%s   %s' % (describe_slot(s), beat))
+        if open_ and old:
+            print('    ALSO a pre-1.85 listener (heartbeat %.1fs): a SketchUp started before '
+                  'the plugin was updated. Restart it; it still serves the old shared '
+                  'inbox only.' % lage)
+        for n in swept:
+            print('    swept %s (its SketchUp has exited)' % n)
 
     if live:
         v, why = pick_version(opts.get('su'))
         print('')
         print('A job with no --su goes to SketchUp %s (%s).' % (v, why))
+        try:
+            _box, _t, s, _v = resolve(opts.get('su'), opts.get('model') or
+                                      os.environ.get('WR_BRIDGE_MODEL') or None)
+            if s:
+                print('A job%s would run in pid %d: %s' % (
+                    ' with --model %s' % opts['model'] if opts.get('model') else '',
+                    s['pid'], s['path'] or s['title'] or '(untitled)'))
+        except NotListening as exc:
+            print(exc.message.replace('REFUSED -- no job code ran. ', 'A job would be REFUSED: '))
         return EXIT_OK
 
     print('')
@@ -631,7 +964,7 @@ def main(argv):
     try:
         res = submit(ruby, timeout=timeout, version=opts.get('su'), label=label,
                      modal=modal, suppress_autorun=not opts.get('no_suppress'),
-                     write_roots=opts.get('write_roots'))
+                     write_roots=opts.get('write_roots'), model=opts.get('model'))
     except NotListening as exc:
         print(exc.message, file=sys.stderr)
         return exc.code

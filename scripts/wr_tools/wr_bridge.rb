@@ -23,13 +23,29 @@
 # that claims one job per tick, evaluates it, and writes one result file.
 #
 #     %LOCALAPPDATA%\WhisperRoom\bridge\SketchUp 2026\
-#         enabled     marker — no marker, no polling
-#         alive       heartbeat, rewritten first thing every tick
-#         in/         <id>.job.json      the client writes
-#         run/        <id>.job.rb, <id>.running    the listener owns
-#         out/        <id>.result.json   the listener writes, the client reads
-#         art/        default sink for job-written PNGs
-#         bridge.log  one line per job
+#         enabled     marker — no marker, no polling (one switch for every window)
+#         art/        default sink for job-written PNGs (shared)
+#         bridge.log  one line per job, tagged with the listener's pid
+#         inst-<pid>/ ONE SLOT PER SKETCHUP PROCESS (1.85.0)
+#             alive       heartbeat, rewritten first thing every tick
+#             model.json  the active model's title/path/guid, rewritten on change
+#             stopped     present while this listener is stopped
+#             in/         <id>.job.json      the client writes
+#             run/        <id>.job.rb, <id>.running    the listener owns
+#             out/        <id>.result.json   the listener writes, the client reads
+#         in/ run/ out/  the pre-1.85 shared inbox, still served — see below
+#
+# TWO FILES OPEN AT ONCE (1.85.0). Every SketchUp of one version used to poll
+# the same in/, so with two files open a job ran in whichever window claimed it
+# first. Now each process polls only its own inst-<pid>/ slot and publishes
+# which file it has open; the client resolves `--model <path|fragment>` to
+# exactly one slot, or refuses and lists the open files. With one window open
+# and no --model nothing changes for the caller. The job also carries the
+# `target` model it was resolved against, and run_job re-checks active_model
+# before any job code runs, so a window that switched files in between refuses
+# (status refused, reason wrong-model) instead of running on the wrong drawing.
+# The shared in/ is still served for an OLD client, but only while this is the
+# only listening window; with two it refuses the job as ambiguous-target.
 #
 # %LOCALAPPDATA% and never OneDrive: a synced folder puts a second writer and a
 # replication delay into exactly the read this whole protocol depends on. A
@@ -99,8 +115,38 @@ module WhisperRoom
       File.join(base, 'WhisperRoom', 'bridge', version_name)
     end
 
+    # The VERSION root: enabled, art/, bridge.log. Shared by every window.
     def self.dir(*parts)
       File.join(root, *parts)
+    end
+
+    # ------------------------------------------------------------ the slot --
+    #
+    # ONE SLOT PER PROCESS, named by pid. A single process only ever has one
+    # active_model, so a slot never has to say which of its windows a job is
+    # for; and if SketchUp ever hosts two files in one process, the target
+    # check in run_job still refuses a job for the file that is not active.
+
+    SLOT_PREFIX   = 'inst-'
+    PEER_FRESH_S  = 5.0            # a peer heartbeat younger than this is listening
+    SWEEP_AFTER_S = 24 * 3600      # a peer slot silent this long is a relic
+
+    def self.slot_name
+      "#{SLOT_PREFIX}#{Process.pid}"
+    end
+
+    def self.slot_root
+      File.join(root, slot_name)
+    end
+
+    def self.slot(*parts)
+      File.join(slot_root, *parts)
+    end
+
+    # Where the job being run lives: this slot, or the version root for a job
+    # that came in through the pre-1.85 shared inbox. Set for one job only.
+    def self.box(*parts)
+      File.join(@box || slot_root, *parts)
     end
 
     def self.enabled?
@@ -109,8 +155,8 @@ module WhisperRoom
 
     def self.ensure_tree
       require 'fileutils'
-      ['', 'in', 'run', 'out', 'art'].each do |sub|
-        d = sub.empty? ? root : dir(sub)
+      [root, dir('art'), dir('in'), dir('run'), dir('out'),
+       slot_root, slot('in'), slot('run'), slot('out')].each do |d|
         FileUtils.mkdir_p(d) unless File.directory?(d)
       end
       root
@@ -118,9 +164,103 @@ module WhisperRoom
 
     def self.log(line)
       File.open(dir('bridge.log'), 'a') do |f|
-        f.write("#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}  #{line}\n")
+        f.write("#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}  [#{Process.pid}] #{line}\n")
       end
     rescue Exception
+      nil
+    end
+
+    # Write a small file so a reader sees the old content or the new, never a
+    # half. Ruby's rename on Windows replaces an existing target; the delete
+    # fallback is for an antivirus or indexer briefly holding the old one.
+    def self.atomic_write(path, text)
+      tmp = path + '.tmp'
+      File.open(tmp, 'wb') { |f| f.write(text) }
+      begin
+        File.rename(tmp, path)
+      rescue Exception
+        begin; File.delete(path); rescue Exception; nil; end
+        File.rename(tmp, path)
+      end
+    end
+
+    # The slot's identity card: which file this process has open. Rewritten
+    # only when it changes (or goes missing), not four times a second.
+    def self.publish_identity
+      m = model_hash
+      key = JSON.generate(m)
+      return if key == @identity_key && File.exist?(slot('model.json'))
+      card = m.merge('pid' => Process.pid,
+                     'sketchup' => scrub(Sketchup.version.to_s),
+                     'plugin' => plugin_version,
+                     'updated' => stamp(Time.now))
+      atomic_write(slot('model.json'), JSON.generate(card))
+      @identity_key = key
+    rescue Exception
+      nil
+    end
+
+    # Every OTHER slot whose heartbeat is fresh: [{name, title, path}].
+    def self.live_peers
+      now = Time.now
+      Dir.glob(File.join(root, "#{SLOT_PREFIX}*")).map do |d|
+        name = File.basename(d)
+        next nil if name == slot_name || !File.directory?(d)
+        age = (now - File.mtime(File.join(d, 'alive')) rescue nil)
+        next nil unless age && age < PEER_FRESH_S
+        card = (JSON.parse(File.read(File.join(d, 'model.json'))) rescue {})
+        { 'name' => name, 'title' => card['title'].to_s, 'path' => card['path'].to_s }
+      end.compact
+    rescue Exception
+      []
+    end
+
+    def self.same_path?(a, b)
+      a.to_s.tr('\\', '/').downcase == b.to_s.tr('\\', '/').downcase
+    end
+
+    # Nil when the job may run here; otherwise [reason, sentence].
+    #
+    # THE TARGET CHECK. The client resolved this job against the model.json it
+    # read a moment ago. If the window has since opened another file, the path
+    # (or, for an untitled model, the guid) no longer matches and the job is
+    # refused before any of its code runs.
+    def self.target_refusal(job)
+      t = job['target']
+      if t.is_a?(Hash)
+        now = model_hash
+        want_p = t['path'].to_s
+        ok = if !want_p.empty?
+               same_path?(want_p, now['path'])
+             else
+               now['path'].to_s.empty? &&
+                 (t['guid'].to_s.empty? || t['guid'].to_s == now['guid'].to_s)
+             end
+        return nil if ok
+        return ['wrong-model',
+                "this job was addressed to #{t['title'].to_s.inspect} " \
+                "(#{want_p.empty? ? 'untitled' : want_p}) but this SketchUp " \
+                "(pid #{Process.pid}) now has #{now['title'].to_s.inspect} " \
+                "(#{now['path'].to_s.empty? ? 'untitled' : now['path']}) open. " \
+                'The window switched files after the client resolved it. ' \
+                'Run `python scripts/sketchup-bridge.py ping` and resubmit.']
+      end
+
+      # An untargeted job from the shared inbox is a pre-1.85 client. It is
+      # only safe while this is the one window listening.
+      if @box && @box == root
+        peers = live_peers
+        unless peers.empty?
+          files = ([model_hash] + peers).map do |p|
+            "#{p['title'].inspect} #{p['path'].to_s.empty? ? '(untitled)' : p['path']}"
+          end
+          return ['ambiguous-target',
+                  "#{peers.length + 1} SketchUp windows are listening and this job " \
+                  'names no model, so it could land on the wrong one. Open files: ' +
+                  files.join('; ') + '. Update the client (git pull) and pass ' \
+                  '--model <path or file-name fragment>.']
+        end
+      end
       nil
     end
 
@@ -469,10 +609,13 @@ module WhisperRoom
         'ruby'     => scrub(RUBY_VERSION),
         'plugin'   => plugin_version,
         'os'       => (Sketchup.platform.to_s rescue 'unknown'),
-        'bridge'   => scrub(root)
+        'bridge'   => scrub(root),
+        'pid'      => Process.pid,
+        'slot'     => scrub(box)
       }
     rescue Exception
-      { 'sketchup' => '?', 'ruby' => '?', 'plugin' => '?', 'os' => '?', 'bridge' => '?' }
+      { 'sketchup' => '?', 'ruby' => '?', 'plugin' => '?', 'os' => '?', 'bridge' => '?',
+        'pid' => nil, 'slot' => '?' }
     end
 
     def self.model_hash
@@ -511,8 +654,8 @@ module WhisperRoom
         )
       end
 
-      tmp  = dir('out', "#{id}.result.tmp")
-      fin  = dir('out', "#{id}.result.json")
+      tmp  = box('out', "#{id}.result.tmp")
+      fin  = box('out', "#{id}.result.json")
       File.open(tmp, 'wb') { |f| f.write(json) }
       File.rename(tmp, fin)
     rescue Exception => e
@@ -526,10 +669,13 @@ module WhisperRoom
       # is not there" from "SketchUp is wedged", and it must never be skipped by
       # a job's own failure.
       begin
-        File.open(dir('alive'), 'wb') { |f| f.write(stamp(Time.now)) }
+        File.open(slot('alive'), 'wb') { |f| f.write(stamp(Time.now)) }
       rescue Exception
-        nil
+        # The slot was swept or deleted from outside: rebuild it rather than
+        # go silently invisible for the rest of the session.
+        begin; ensure_tree; rescue Exception; nil; end
       end
+      publish_identity
 
       # The marker is re-read every tick so `disable` takes effect at once, from
       # the menu or from outside. The reverse — a marker appearing while nothing
@@ -550,22 +696,33 @@ module WhisperRoom
       end
     end
 
+    # This slot's inbox first, then the pre-1.85 shared one (target_refusal
+    # decides whether a shared-inbox job may run here).
     def self.claim_and_run
-      jobs = Dir.glob(dir('in', '*.job.json'))
-      return if jobs.empty?
-      path = jobs.min_by { |p| File.mtime(p) rescue Time.now }
+      [slot_root, root].each do |b|
+        jobs = Dir.glob(File.join(b, 'in', '*.job.json'))
+        next if jobs.empty?
+        path = jobs.min_by { |p| File.mtime(p) rescue Time.now }
 
-      # CLAIM BY RENAME. A second listener — the other SketchUp version, a stale
-      # session — loses the race instead of running the job a second time.
-      id    = File.basename(path, '.job.json')
-      claim = dir('run', "#{id}.job.json")
-      begin
-        File.rename(path, claim)
-      rescue Exception
-        return                      # somebody else got it; nothing to report
+        # CLAIM BY RENAME. A second listener — another window on the shared
+        # inbox, a stale session — loses the race instead of running the job a
+        # second time.
+        id    = File.basename(path, '.job.json')
+        claim = File.join(b, 'run', "#{id}.job.json")
+        begin
+          File.rename(path, claim)
+        rescue Exception
+          next                      # somebody else got it; nothing to report
+        end
+
+        @box = b
+        begin
+          run_job(id, claim)
+        ensure
+          @box = nil
+        end
+        return
       end
-
-      run_job(id, claim)
     end
 
     def self.run_job(id, claim)
@@ -584,6 +741,14 @@ module WhisperRoom
         return refuse(id, started, 'empty-job', 'the job carried no Ruby source.')
       end
 
+      # Before ANY job code: is this still the model the job was addressed to?
+      wrong = begin
+        target_refusal(job)
+      rescue Exception => e
+        ['target-check', "the target check itself failed: #{e.class}: #{e.message}"]
+      end
+      return refuse(id, started, wrong[0], wrong[1]) if wrong
+
       # NAMED MODELS ARE ALLOWED (Benton, 30 Aug 2026 — this overrides the
       # spec's pre-flight refusal). A job may run against a real drawing that is
       # open. What stays, in full, is every WRITE fence: no save over any model,
@@ -591,8 +756,8 @@ module WhisperRoom
       # bridge-mediated write. Running against a real drawing is fine;
       # overwriting one is not.
 
-      rb_path = dir('run', "#{id}.job.rb")
-      running = dir('run', "#{id}.running")
+      rb_path = box('run', "#{id}.job.rb")
+      running = box('run', "#{id}.running")
       begin
         File.open(rb_path, 'wb') { |f| f.write(src) }
         File.open(running, 'wb') do |f|
@@ -727,10 +892,12 @@ module WhisperRoom
       return false if @timer
       ensure_tree
       sweep_stale
+      begin; File.delete(slot('stopped')); rescue Exception; nil; end
+      @identity_key = nil
       @busy = false
       @timer = UI.start_timer(POLL_S, true) { tick }
-      log("listener started (#{version_name}, plugin #{plugin_version})")
-      puts "WR BRIDGE listening — #{root}"
+      log("listener started (#{version_name}, plugin #{plugin_version}, #{slot_name})")
+      puts "WR BRIDGE listening — #{slot_root}"
       true
     end
 
@@ -742,19 +909,53 @@ module WhisperRoom
         nil
       end
       @timer = nil
+      # Tells the client this slot is switched off, not busy: a stale heartbeat
+      # alone cannot tell the two apart while the process is still running.
+      begin
+        File.open(slot('stopped'), 'wb') { |f| f.write(stamp(Time.now)) }
+      rescue Exception
+        nil
+      end
       log('listener stopped')
       puts 'WR BRIDGE stopped.'
       true
     end
 
-    # Only one listener exists per version, so a leftover .running can only be a
-    # crash relic. Leaving it would make the very NEXT timeout misreport as
-    # "a job is wedged" when nothing is running at all.
+    # Only one listener owns this slot, so a leftover .running in it can only be
+    # a crash relic (a reused pid). Leaving it would make the very NEXT timeout
+    # misreport as "a job is wedged" when nothing is running at all. Leftover
+    # jobs in a reused slot were addressed to a dead process and are dropped.
+    #
+    # The shared inbox's run/ is left alone: another window may be running a
+    # shared-inbox job right now, and a marker there is only ever read by its
+    # own job id, so a relic cannot mislead a later job.
+    #
+    # PEER SLOTS are removed only after SWEEP_AFTER_S of silence. Time alone,
+    # deliberately: Ruby's Process.kill(0, pid) on Windows is not something to
+    # trust near another running SketchUp. The client's `ping` sweeps sooner,
+    # because it can ask Windows whether the pid is still a SketchUp.
     def self.sweep_stale
-      Dir.glob(dir('run', '*.running')).each do |f|
+      require 'fileutils'
+      marks = Dir.glob(slot('run', '*.running')) + Dir.glob(slot('in', '*.job.json'))
+      marks.each do |f|
         begin
           File.delete(f)
-          log("swept stale marker #{File.basename(f)}")
+          log("swept stale #{File.basename(f)}")
+        rescue Exception
+          nil
+        end
+      end
+
+      now = Time.now
+      Dir.glob(File.join(root, "#{SLOT_PREFIX}*")).each do |d|
+        next unless File.basename(d) =~ /\A#{SLOT_PREFIX}\d+\z/
+        next if File.basename(d) == slot_name || !File.directory?(d)
+        beat = File.join(d, 'alive')
+        seen = File.exist?(beat) ? File.mtime(beat) : File.mtime(d)
+        next unless now - seen > SWEEP_AFTER_S
+        begin
+          FileUtils.rm_rf(d)
+          log("swept silent slot #{File.basename(d)}")
         rescue Exception
           nil
         end

@@ -1,5 +1,44 @@
 # DEVLOG
 
+## 2026-10-22 -- 1.85.0: bridge works with two SketchUp files open
+
+**What.** Two Claude sessions can now each drive their own SketchUp file over the bridge.
+Until now every SketchUp of one version polled the same `in/`, so with two files open a job
+ran in whichever window claimed it first.
+
+- **One slot per process.** Each listening SketchUp polls its own
+  `%LOCALAPPDATA%\WhisperRoom\bridge\SketchUp 20xx\inst-<pid>\` (`alive`, `model.json`,
+  `in/ run/ out/`, `stopped` while switched off). `model.json` holds the open file's title, path
+  and guid. The `enabled` marker, `art/` and `bridge.log` stay at the version root.
+- **`--model`.** `scripts/sketchup-bridge.py ... --model <path | unique fragment | pid:N>`,
+  `submit(model=...)`, or `WR_BRIDGE_MODEL` for a whole session. With one window open nothing
+  changes. With two or more and no `--model`, or a `--model` that matches none or several, the job
+  is refused (exit 6) before any job file is written, and the open files are listed.
+- **Listener guard.** The job carries the model it was resolved against. `run_job` re-checks
+  `active_model` before any job code runs and refuses with `wrong-model` if the window opened
+  another file. Path is compared case- and slash-insensitively; an untitled model is compared by guid.
+- **`ping`** lists every slot: pid, state (listening / busy / stalled / stopped / gone), title,
+  path, heartbeat. It also removes slots whose process Windows says has exited.
+- **Back-compat.** A new client with an OLD listener (no slots) sends to the shared `in/` as
+  before; `--model` is refused there with a reinstall hint. A new listener still serves the shared
+  `in/` for an OLD client, but only while it is the only window listening; otherwise it refuses
+  the job as `ambiguous-target`.
+- **Tests.** `scripts/rbtest-bridge-slots.py` (pure): client resolution on a fake tree, submit()
+  end to end against a fake listener, the real Windows pid check, and `target_refusal` lifted
+  verbatim into SketchUp's CRuby. It was mutation-checked.
+
+**Known issues / gotchas.**
+- **Not yet run live.** SketchUp was closed while this was built. The two-window procedure is in
+  `.forge/builder/HANDOFF.md`. Benton has to restart SketchUp to pick up the reinstalled plugin.
+- **A busy window's heartbeat is stale**, because the listener cannot tick mid-job. So liveness
+  comes from Windows (is that pid still SketchUp.exe), never from heartbeat age alone. Never use
+  `os.kill(pid, 0)` on Windows; it terminates the process.
+- **One process per file is assumed**, not verified. The guard makes it safe either way.
+- **After a Save As the file name changes**, so a `--model` fragment for the old name stops
+  matching. Use the new name or `pid:N`.
+- **Slots of crashed SketchUps** are removed by `ping` once Windows confirms the pid has exited,
+  and by the listener after 24 h of silence.
+
 ## 2026-10-22 -- Walsh v3: proposal package re-export PAUSED mid-fix
 
 **State.**
@@ -3330,7 +3369,7 @@ no SketchUp restart. VERSION moved so the update banner fires for Gabe.
 **THE BIG ONE: the bridge is on.** `scripts/wr_tools/wr_bridge.rb` +
 `scripts/sketchup-bridge.py` have existed for a while and had never been
 switched on. They are now enabled for SketchUp 2026 on the laptop
-(`%LOCALAPPDATA%\WhisperRoomridge\SketchUp 2026\enabled`). Claude can
+(`%LOCALAPPDATA%\WhisperRoom\bridge\SketchUp 2026\enabled`). Claude can
 run Ruby in the live model (~1 ms round trip), read any model state, take
 viewport screenshots, drive AUTO-SET and the light rig, start a proposal
 export, poll it to completion and read the PNGs back. A full

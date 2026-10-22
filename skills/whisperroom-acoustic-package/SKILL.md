@@ -22,6 +22,12 @@ All model work runs over the bridge in Benton's open file:
 `python scripts/sketchup-bridge.py run <job.rb> --su 2026` (also `eval "<ruby>"` and
 `shot out.png --width 1400`). A scene change animates, so take the screenshot twice.
 
+**Two files open (1.85.0).** With more than one SketchUp window open, every bridge call needs
+`--model <path, unique file-name fragment, or pid:N>` (or `WR_BRIDGE_MODEL` set for the session,
+which `submit()` callers such as `render/` follow); without it the job is refused, exit 6, and the
+open files are listed. `ping` lists them too. With one window open nothing changes. After a
+Save As the file's name changes, so address it by the new name or by `pid:N`.
+
 ## What goes in: the counts
 
 The model comes from the quote's AP line (`AP 96120`) or the booth link's model. The source
