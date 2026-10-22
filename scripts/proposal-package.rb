@@ -1610,6 +1610,32 @@ This cannot be undone "                         "with Ctrl+Z — scene state is 
       return
     end
 
+    # OPEN-GROUP GUARD (1.84.5). With a group or component open for editing,
+    # SketchUp fades everything outside it (rendering option InactiveFade,
+    # 0.25 here) and write_image exports that fade. The Walsh v3 plates came
+    # out washed out this way on 21 Oct 2026: pale booth, pale dimension text,
+    # nothing wrong with the materials or the style. Close the edit context
+    # before any row runs, and say so.
+    ap = (model.active_path rescue nil)
+    if ap && !ap.empty?
+      begin
+        model.active_path = nil
+      rescue StandardError
+        ap.size.times { break unless (model.close_active rescue false) }
+      end
+      left = ((model.active_path rescue nil) || []).size
+      note = "closed #{ap.size - left} open group edit(s) before export - " \
+             'an open edit fades the rest of the model in every image'
+      puts "  #{note}"
+      log(dlg, note, 'bad')
+      if left > 0
+        box("A group is still open for editing (#{left} level(s)), and it would " \
+            'fade every exported plate. Close it (click outside the group) and ' \
+            'export again.')
+        return
+      end
+    end
+
     rows  = gather(model)
     files = plan_names(rows)
     live  = rows.reject { |r| r['mode'] == 'skip' }
