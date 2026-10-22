@@ -1,143 +1,57 @@
-STATUS: READY
+STATUS: READY 3d33cfa
 
-# v3 (21 Oct evening): Walsh MDL 96168 S, corner RM, images ready for the proposal
-
-## Produced
-- `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 S - Corner RM.skp` (Save As from Corner Platform; originals untouched)
-- `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 S - Corner RM\` - 6 SketchUp exports (NOT V-Ray), 1920x1080 opaque, proposal order:
-  1. hero: `11_Booth - MDL 96168 S RM (21 Oct link) 01-angled.png`
-  2. dimensioned: `15_... 03-high.png`
-  3. side elevation: `16_... 04-side.png`
-  4. rear/ventilation: `17_... 05-ventilation.png`
-  5. top-down plan + door swing: `18_... 06-plan.png`
-  - extra: `13_... 02-front.png` (door end, dimensioned)
-
-## Read-first
-- `clients/walsh-construction/notes.md`, section "v3".
-
-## Assumptions
-- Ceiling 8'-0" house default (booth needs 93.31"). Host Door 2 position estimated. Vent plate side assumed (roof mount, no wall vent part).
-
-## Open-questions
-- Sarah's "cable wall beside the window" conflicts with the builder layout (kept builder).
-- Link has no ADA flag (WA door + elevated floor present) vs "leave ADA Door".
-- Acoustic package not placed (Onyx material not found). Skipped per Benton.
-
-# Earlier (v2)
-
-# v2 update (afternoon, 21 Oct): sections reordered, door one section in
-Benton: "the 2' section needs to be closer on the other side. The door needs to be shifted one section in." The 2' section stays a centre section, next to the corner-end side section.
-
-## Produced (v2)
-- **Model:** the same Corner Platform `.skp`, saved after every step. The original is still untouched.
-- **Images:** both re-exported, flattened and viewed. The top-down has 28 dims, and the NEW walls are near-black on `WR-Room-New`. The hero is still a SketchUp export, labelled as not V-Ray.
-- **New scripts:** `s8-sections.rb` (the reorder) and `s9-retire-v1.rb` (moves the v1 room and dims to the hidden tag `Walsh Corner v1 21 Oct`).
-- **Edited scripts:**
-  - `geom.rb`: PLAT is now 72.37-118.37.
-  - `s3-room.rb`: applies the dark material.
-  - `s6-dims.rb`: the door chain now reads live from N3i, and two dims were relocated.
-- **Notes:** `clients/walsh-construction/notes.md` gains the section "v2: section reorder". It has the survey table, the moves, the hidden pieces, wall table v2 and the run order.
-
-## Sections (observed)
-- **Front:** N0 window / N1 window / N2 19 / N3 door became N0 window / N2 19 / N3 door / N1 window.
-- **Back:** S0 / S1+EFS / S2 22 / S3 became S0 / S2 22 / S1+EFS / S3.
-- **Vent walls:** unchanged. S1's EFS moved +24". The W0 EFS did not move.
-- **BOM:** unchanged.
-
-## Wall table v2
-| Run | Ours | Architect |
-|---|---|---|
-| Exterior | 32'-0" | 32'-0" |
-| NEW corner wall | 9'-2 5/8" + 2'-9 5/16" = 11'-11 15/16" | 9'-1" MIN CLR |
-| NEW front wall | 6'-11" | ~7'-0" |
-| NEW step wall | 3'-10" | ~3'-3" |
-| NEW zone wall | 4'-8 5/8" | ~4'-8" |
-| NEW angled wall | 8'-5 9/16" | not dimensioned |
-| South wall | 10'-10" + 15'-0 3/8" | not dimensioned |
-| West wall | 18'-11" | 18'-11" |
-| NW angled wall | 13'-8 7/8" | not dimensioned |
-
-- **Fit:** the platform (s 84-130) is now inside the alcove. The ramp (s 130-175.6) runs toward the open end and clears the start of the angled wall by 1".
-- **Option T:** moot.
-
-## Open-questions (v2)
-- **Interior AP/foam:** needs a re-layout. Audimute2x4 front, Audimute2x4 back and Foam S1i are HIDDEN, not deleted, and carry the attribute `WalshCorner/hidden_by`.
-- **EFS proximity:** the S1 and S3 silencer boxes are about 1/2" apart, with about 2" of x overlap. I saw no intersection visually, but did not measure it.
-- **Wide-panel memory rule:** the door is now in a centre module, not at an end. Confirm whether this matters for a 96168.
-- **Still needed from the client:** the ceiling height and the pocket door.
-
----
-# v1 handoff (morning, 21 Oct). Superseded where v2 differs.
-
-# Builder handoff: Walsh Construction Tech Lab, corner platform layout (21 Oct 2026)
-
-Brief rev 2 (Benton: "Idk just draw the room as close to their drawing as possible. The black walls can move."). Only the platform + ramp option is drawn. Sarah's Zoom is at 1:30 pm. Built live over the bridge, saved as a new file, and surveyed. Nothing is committed.
+# 1.85.0: bridge safe with two SketchUp files open
 
 ## Produced
-- **Model (new file):** `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E - Corner Platform.skp`. It was saved after every step.
-- **Original:** `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 E.skp` is untouched (12 Oct 22:13, 9,291,234 bytes).
-- **Images** in `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 E - Corner Platform\`. I flattened both onto white and viewed both.
-  - `6_Platform 06 TopDown.png` (1899x1898): the dimensioned SketchUp top-down, with 27 dims. It is legible. There is minor crowding at the top "11 5/8"" and at "2' 9 5/16"".
-  - `1_Platform 01 HeroRender (SketchUp, not V-Ray).png` (1920x1080): a plain SketchUp export, not a V-Ray render. It shows the open end of the booth with the platform and ramp.
-  - `Corner Platform plan (offline, not SketchUp).png`: SUPERSEDED. Its walls are the same, but it draws a 48" ramp and a 44" platform. The measured values are 45 5/8" and 46".
-- **Notes:** the "21 Oct revision" section of `clients/walsh-construction/notes.md` was rewritten with the as-found structure, measured values, wall table, moves, assumptions, open questions, scenes and run order.
-- **Scripts** in `.forge/builder/walsh/corner/`.
-  - Steps that ran: `survey.rb`, `s0-saveas.rb`, `s2b-retag.rb`, `s4b-booth.rb`, `s3-room.rb`, `s6-dims.rb`, `s7-scenes.rb` and `flatten.py`.
-  - `s2-retag.rb` and `s4-booth.rb` assumed the wrong structure and were NOT run.
 
-### Wall table (interior faces, as built)
-| Run | Ours | Architect |
-|---|---|---|
-| Exterior, apex to corner wall | 32'-0" | 32'-0" |
-| NEW corner wall | 9'-2 5/8" + 2'-9 5/16" = 11'-11 15/16" | 9'-1" MIN CLR (first run) |
-| NEW front wall | 7'-0" | ~7'-0" |
-| NEW step wall | 3'-10" | ~3'-3" |
-| NEW zone wall | 4'-7 5/8" | ~4'-8" |
-| NEW angled wall | 8'-5 9/16" | not dimensioned |
-| South wall | 10'-10" + 15'-0 3/8" = 25'-10 7/16" | not dimensioned |
-| West wall | 18'-11" | 18'-11" |
-| NW angled wall | 13'-8 7/8" | not dimensioned |
+Code commit `3d33cfa` on main:
+- `scripts/wr_tools/wr_bridge.rb`: per-process slot `inst-<pid>/` (alive, model.json, stopped, in/ run/ out/), `target_refusal` guard before any job code, shared-inbox serving for old clients only while alone, peer-slot sweep after 24 h. Header documents the layout.
+- `scripts/sketchup-bridge.py`: slot survey (states listening / busy / stalled / stopped / gone; liveness from a Windows pid check, never from heartbeat alone), `--model`, `submit(model=)`, `WR_BRIDGE_MODEL`, `resolve()`, `ping` lists slots and sweeps exited ones. Docstring documents the usage.
+- `scripts/rbtest-bridge-slots.py`: new, pure tests (36 checks).
+- `scripts/wr_tools/VERSION` 1.84.7 -> 1.85.0. `DEVLOG.md` entry. A short `--model` note in `skills/whisperroom-acoustic-package/SKILL.md`, `skills/whisperroom-photo-job/SKILL.md` and `skills/whisperroom-client-job/reference/render-recipe.md`.
 
-**Moves away from the architect:**
-- The front wall moves +1 5/8", from 9'-1" to 9'-2 5/8". The shell face is at 9'-1 5/8".
-- The zone wall moves +8 5/8". This makes the step wall 3'-10" instead of about 3'-3", so it clears the 46"-deep platform by 1".
+Done-means, with evidence:
+1. **Each process polls its own slot; two files never race.** Code is in place. The listener only globs `inst-<pid>/in` plus the shared inbox, and the shared inbox refuses untargeted jobs when a peer is live. Parsed by `python scripts/rbparse.py` (all 82 files ok). The guard was run verbatim in SketchUp's CRuby by the test (observed). **Two real processes: not verified**, because SketchUp was not running.
+2. **`--model`, refusal, ping lists files.** Observed in `rbtest-bridge-slots.py`:
+   - exact path, whole name or title, fragment and `pid:N` matching all work;
+   - ambiguous, unmatched and two-windows-without-`--model` cases are refused with exit 6, the files are listed, and no job file is written;
+   - `ping` against the real empty tree runs and exits 3 (observed). Ping's slot listing against a live slot is not verified.
+3. **One window, no `--model`, unchanged.** submit() goes end to end through a fake listener thread into the single slot and returns (observed). Back-compat with an old listener (no slots, fresh root `alive`) routes to the shared `in/` with no target (observed in test). A real SketchUp is not verified.
+4. **Listener re-checks the open file.** `target_refusal` was lifted verbatim and passes 10 cases: a different path and a File > New on an untitled model are refused `wrong-model`; the same path in another case or with other slashes runs (observed in CRuby). It is wired into `run_job` before the job is staged (read). Live: not verified.
+5. **rbparse clean (observed). Pure tests (observed, and mutation-checked):** breaking the guard, the two-window refusal or the pid exit-code check each turns tests red. VERSION is bumped. It is pushed and installed (see the report). DEVLOG is written. **The live single-window check is NOT done.** It needs SketchUp; run the procedure below.
 
-The measured values moved no black wall.
+Also ran `scripts/rbtest.py`, `rbtest-autoset.py` and `rbtest-proposal.py`: all exit 0. In passing, the DEVLOG fix also repaired an older entry's `WhisperRoom<backspace>ridge` path typo.
 
 ## Read-first
-- `clients/walsh-construction/notes.md`, section "21 Oct revision".
-- **Live structure:** ONE room at the origin, and TWO booths at the same spot. The scenes switched between the booths with entity-hidden flags.
-  - Old room and lights: hidden tag `Walsh Old Room 12 Oct`.
-  - Old dims: hidden tag `Walsh Old Dims 12 Oct`.
-  - Door-ramp booth: hidden tag `Walsh Ramp Option 12 Oct`.
-  - Nothing was deleted.
-- **Ramp direction:** the ramp runs toward the booth's open end. `Component#17` was mirrored about booth-local x 143.37. The coordinator confirmed this direction on 21 Oct.
-- **Bridge traps:**
-  - `run` copies the script, so load each step through a one-line `load "<abs path>"` wrapper.
-  - A bare `m.save` is refused. Every step saves through `WalshCorner.save`, which writes only to the Corner Platform path.
-  - Pass `--write-root Z:/Sketchup/ClientDrawings`, and `Z:/Sketchup` for s7.
-- **Disclosure:** earlier this session I overwrote the previous working-tree `HANDOFF.md` without reading it. Its contents cannot be recovered.
-- **Disclosure:** while splicing the notes, a failed `cat` truncated `notes.md`. Lines 1-212 were restored from `HEAD`, which matched the pre-edit file (275 lines with the 21 Oct section at line 213). The diff touches only the 21 Oct section.
+- `scripts/wr_tools/wr_bridge.rb` header (the slot layout) and `target_refusal`.
+- `scripts/sketchup-bridge.py` docstring "TWO FILES OPEN AT ONCE", plus `slot_info` and `resolve`.
 
 ## Assumptions
-| Value | Provenance |
-|---|---|
-| Platform 3'-10" x 46", top 3.73" above the floor | observed (live model) |
-| Ramp 45.61" (3'-9 5/8") x 46" | observed |
-| Door N3: 3'-8 1/2" opening, 4 1/4" off the open-end corner | observed |
-| Front hardware FP = 0 (N0/N1 end at y 97.75) | observed |
-| EFS 10" proud on the S face and the W0 end, 1 5/8" to each wall | observed |
-| Shell 11 5/8" off both walls | derived (layout choice) |
-| 32'-0" is the apex to the corner wall's interior face; 18'-11" is interior to interior | assumed (architect figures) |
-| Step wall at 7'-0" and angled wall at 11'-7 5/8" along the exterior wall | derived (scaled from a 239 px capture, +/-6") |
-| Zone wall 4'-7 5/8" | assumed (scaled) |
-| Pocket door 3'-0", 1'-0" off the corner wall, swinging into the pocket | estimated |
-| Door 24 at 4" to 3'-4" from the SW corner | assumed |
-| Ceiling 8'-0" | assumed (house default) |
+- **assumed:** SketchUp 2026 on Windows runs each open file as its own process. If it is one process, a slot still only has one `active_model` and the guard refuses a job for the file that is not active, so it stays safe. But the client would show one slot, not two.
+- **assumed:** Ruby's `File.rename` replaces an existing `model.json` on Windows. There is a delete-then-rename fallback.
+- **assumed:** `Sketchup::Model#guid` is stable for an untitled model between resolve and run (under 1 s). If it changes on edit, the cost is a rare spurious `wrong-model` refusal on an untitled scratch model, which is safe.
+- **Design choice:** liveness comes from the Windows pid check (OpenProcess + image name contains "sketchup"), because a busy listener cannot heartbeat. Treating stale as gone would let a second job slip onto the other window.
+- **Design choice:** the Ruby side deliberately never calls `Process.kill`.
 
 ## Open-questions
-- **Platform exposure.** Door N3 is at the open end of the booth. As a result, most of the platform and all of the ramp sit in the open Tech Lab. The architect's alcove holds only the first 7 5/8" of the platform.
-  - **Option T** shifts the zigzag to follow our door: step wall at about 11'-0 5/8", angled wall at about 15'-6 5/8", and the angled wall's foot about 5'-9" from the SW corner. Door 24 is still clear.
-  - Benton to choose.
-- **Stale scenes:** `Platform 03 BoothDims` and every `Ramp ...` scene are still aimed at the 12 Oct layout.
-- **Client figures still needed:** the real ceiling height and the pocket door's size and position.
+- None blocking. `WR_BRIDGE_MODEL` was added beyond the brief, so that `render/*.py` and `rbtest-live-*` (which call `submit()` without a model) can be pointed at one file per session.
+
+## Supervised two-window test (Benton, about 10 minutes)
+Do these after `install-plugin.py` (already run) and a full SketchUp restart.
+
+1. Open SketchUp 2026 with file A (any saved .skp, or a copy). Run `python scripts/sketchup-bridge.py ping`.
+   - Expect one slot: `pid N listening A-title A-path`.
+2. Run `python scripts/sketchup-bridge.py eval "Sketchup.active_model.title"`.
+   - Expect A's title and exit 0, with no `--model`. That is the single-window back-compat check.
+3. Open file B in a **second window**. Use File > Open from the Windows Start menu / a new SketchUp, not File > Open inside window A. Run `ping`.
+   - Expect two slots with different pids, each with its own file. If only one slot shows and its title flipped to B, SketchUp is one process: report that.
+4. Run `eval "1"` with no `--model`.
+   - Expect REFUSED, exit 6, both files listed, and nothing in either Ruby Console.
+5. Run `eval "Sketchup.active_model.title" --model <fragment of A>`, then the same with `--model <fragment of B>`.
+   - Each must return its own title. Then try `--model pid:<A's pid>`.
+6. Guard check: in window A, File > Open file C (same window). Within a second, run `eval "Sketchup.active_model.title" --model <A fragment>`.
+   - Expect either a refusal "matches none" (the card already updated) or `REFUSED (wrong-model)`. Never C's title.
+7. Busy check: in window A, run `eval "sleep 15; 1" --model <A> --timeout 30`. After about 5 s (while it is still running), from a second terminal, run `eval "1"` with no `--model`.
+   - Expect REFUSED, listing A as `busy`. It must not go to B.
+8. Close window B and run `ping`.
+   - Expect B's slot gone, swept once its pid has exited (it may show `gone` until 60 s have passed).
