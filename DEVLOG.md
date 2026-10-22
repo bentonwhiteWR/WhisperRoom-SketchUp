@@ -1,5 +1,28 @@
 # DEVLOG
 
+## 2026-10-22 -- Walsh v3: proposal package re-export PAUSED mid-fix
+
+**State.**
+- **Package 1 (done).** It ran through the plugin's proposal package and exported 9 images, 3 of them V-Ray renders, to `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 S - Corner RM - Package\`.
+- **Washed-out exports (fixed).** A group left open for editing faded every export. In 1.84.5, `scripts/proposal-package.rb` closes any open group before it exports.
+- **Old scenes.** All 18 old scenes are deleted. The model was backed up to `Z:\Sketchup\ClientDrawings\Backups\` before that.
+- **The PDF built on 21 Oct is obsolete.** It used the first, washed-out exports. Do not send `C:\Users\bento\Desktop\ProposalFiles\Walsh Construction\Walsh Construction-Booth-Renderings.pdf`.
+- **Package 2 (stopped mid-way).** The agent was making Benton's requested fixes when it was stopped. It had started a re-export to `...Corner RM - Package 2\`, which so far holds only the 6 Image PNGs and none of the renders. Its scripts are `.forge/builder/walsh/pkg/s5`–`s12`. It may have been mid-way through a full re-export, so treat Package 2 as incomplete.
+- **The model file on Z: may not be saved.** The bridge refuses to save over the open model, so Benton has to press Ctrl+S in SketchUp before closing.
+
+**Next steps.**
+1. Open `Z:\Sketchup\ClientDrawings\Walsh Construction Tech Lab MDL 96168 S - Corner RM.skp`. Check that the scenes are the AUTO-SET set: `01-angled r`, `02-front r` and `03-high r`, then 01 through 06.
+2. Finish the fixes, then re-export Package 2 through the proposal package:
+   - Renders: no sky or grey ground showing.
+   - Drop the dark `03-high r`.
+   - `01-angled`: the 25'... dimension is cut off at the right edge.
+   - `04-side`: the long wall dimensions run off the left edge.
+   - `05-ventilation`: one pair of dimensions overlaps at the bottom.
+   - `06-plan`: three labels overlap; keep the values unchanged.
+3. Open every PNG and check it.
+4. Run the `whisperroom-proposal` skill on Package 2. Image order: hero render 01-angled r, then 03-high, 04-side, 05-ventilation, 06-plan. Booth: MDL 96168 S RM, wide access door, elevated floor, no ADA. Don't caption the acoustic package.
+5. Then the 46 CBL / 46 VNT cable-passage PDF.
+
 ## 2026-10-21 -- Walsh Tech Lab v3: MDL 96168 S roof-mount in the corner (model done, proposal PAUSED)
 
 **What.** The client revised the Tech Lab layout again. The platform, ramp, old booth and all black walls are gone.
