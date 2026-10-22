@@ -81,3 +81,113 @@ Prefix: `Booth - MDL 96168 S RM (21 Oct link) `
 - `scripts/wr_tools/VERSION` (1.84.5)
 - New job scripts in `.forge/builder/walsh/pkg/`: s1-cleanup.rb, s2-autoset.rb, s3-fix.rb, s4-export.rb, and read-only checks q7–q14.
 - Client renders stay on Z:, out of the repo.
+
+---
+
+# Package 2 (22 Oct 2026): fix, then re-export
+
+**Folder:** `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 S - Corner RM - Package 2\`
+
+It holds 8 PNGs plus `manifest.json` and `claude-prompt.txt` (09:38–09:49). Every PNG is 1920x1080 and opaque (observed).
+
+The first Package 1 folder is left untouched, as instructed.
+
+The PDF was NOT built.
+
+## Scenes and marks (observed, q28 recheck before export)
+
+| # | Scene | Mark | File |
+|---|---|---|---|
+| 1 | 01-angled r | Render | 1_… 01-angled r.png (hero) |
+| 2 | 01-angled | Image | 2_… |
+| 3 | 02-front r | Render | 3_… 02-front r.png |
+| 4 | 02-front | Image | 4_… |
+| 5 | 03-high r | **Skip (dropped)** | none |
+| 6 | 03-high | Image | 6_… |
+| 7 | 04-side | Image | 7_… |
+| 8 | 05-ventilation | Image | 8_… |
+| 9 | 06-plan | Image | 9_… |
+
+The booth is unchanged: N 46 win / 46 win / 22 / 46 cbl, no ADA, wide access door, elevated floor. No acoustic package.
+
+## What changed in the model
+
+All of these changes are in the saved `.skp`. The file was saved at 00:09:23, and q28 confirmed the state after the reopen.
+
+### Lights (s5)
+- 12 V-Ray rect lights.
+- 4000 lm × 320, 5000 K, invisible.
+- Camera EV 14.23.
+
+### Render pages (s6)
+- Ceiling (WR-Ceiling), WR Lights and all walls are shown, so the room is closed.
+- 02-front r camera: eye [22,−2,60], target [218,18,44], fov 45. This is a 3/4 view from inside the SW corner. A true head-on view does not fit inside the room.
+
+### Render backdrop (s12)
+- Top-level group "Door 2 render backdrop" on tag "Walsh Render Backdrop".
+- It is a 5-face box behind the Door 2 opening: x 256–305, y −25.88 to −60, z 0–84.
+- Materials: floor 0128_White, the rest 0099_LightSteelBlue.
+- **The size is ASSUMED.** It is cosmetic and only fills the opening.
+- It is visible only on 01-angled r and 02-front r.
+
+### Per-scene dims via tags (s9, s10)
+The 17 dim VALUES are unchanged (verified, q28). Only tags and the per-page visibility changed.
+
+| Tag | Dims | Hidden on |
+|---|---|---|
+| WR-Dims-Long | 19'11", 32', 18'11", 13'8 7/8" | 01-angled, 02-front, 03-high, 04-side, 05-ventilation |
+| WR-Dims-South | 4", 3', 3', 1', 25'10 7/16" | 01-angled, 02-front, 03-high, 04-side |
+| WR-Dims-W1-Corner | 3'11" (W1) | 02-front, 04-side |
+| WR-Dims-W1-Far | 11'11 15/16", 8'2" | 01-angled, 02-front, 03-high |
+
+- Render rows and 06-plan show every set.
+- The manifest's `annotation_tags_hidden` matches this table (observed).
+
+### Trap: per-entity dim hiding
+Hiding a single DimensionLinear (`hidden=`) is NOT restored per scene on this model (q25). Use tags plus `page.set_visibility` instead (s8 was the failed attempt).
+
+## Every PNG checked by eye (observed)
+
+1. **01-angled r (hero):**
+   - Closed room: ceiling, walls, wood floor.
+   - No sky and no grey ground.
+   - Door 2 opening crop: the backdrop fills it with blue-grey.
+2. **01-angled:** all dims in frame (1", 14'2", 3'11", 4'1", 2"). The `25' 1…` clip is gone.
+3. **02-front r:**
+   - Closed room, no sky and no ground.
+   - The far opening shows a SaddleBrown door leaf against a lit wall.
+4. **02-front:** the dims are legible. The "1"" at the booth's left corner is partly occluded by the booth (minor).
+5. **03-high:** good. The 3'11" sits just clear of the wall line.
+6. **04-side:**
+   - Dims in frame: 8'2", 1", 14'2", 3'11", 4'1", 2".
+   - The long chains are gone.
+   - The 3'11" text is partly clipped by the wall plane (minor).
+7. **05-ventilation:**
+   - Roof-mount vents read clearly.
+   - The bottom-corner overlap is gone.
+   - The 3' / small 1' pair at the far door is cramped (minor).
+8. **06-plan:** whole room with all dims, no overlaps.
+
+## Leftovers (flag only, not fixed)
+- **Salmon ceiling in both renders:** colour bleed from the wood floor. The ceiling group has no material (q22, q23). Fix by giving the ceiling a white material with a low-GI-bleed override if Benton wants it.
+- Minor occlusions on 02-front, 04-side and 05 (listed above).
+- **Preflight warnings, forced past:**
+  - The floor is 0128_White (intentional).
+  - 4 items sit outside the room: the 3 dims groups and the backdrop.
+- **Bridge:** it can no longer save over the open model. Changes need Benton to press Ctrl+S. Nothing changed this phase after the 00:09:23 save. q28 showed `modified=false`; the export itself was not checked for dirtying the model.
+- The vent side is still ASSUMED. Room dims are still from the v3 build (reported/derived).
+
+## Scratch (session scratchpad, not deleted)
+- `pkg2-try1\`: first Package 2 output (before the backdrop).
+- `pkg2-try2\`: 6 image PNGs plus the 08:28 manifest/prompt from the interrupted run.
+- `chk3\`: copies and door crops used for this check.
+- `test1\`, `prev2\`: test renders and previews.
+
+## Job files to commit (orchestrator)
+All in `.forge/builder/walsh/pkg/`:
+- s5-lights, s6-scenes, s7-front-dim, s8-dimsets, s9-dimtags, s10-w1far, s11-export2, s12-backdrop.
+- s13-export3 (the export with the save removed).
+- t1-testrender, t1-restore, t1-poll.
+- q15–q28.
+
+No change under `scripts/` this phase, so there was no VERSION bump. Next step: the PDF, when Benton asks.
