@@ -1,29 +1,24 @@
 # GOAL
 
 ## Mission
-Walsh Construction Tech Lab, revised layout for Sarah's 1:30 pm Zoom (21 Oct): the MDL 96168 E PLATFORM + RAMP
-version placed in the new corner from the architect's markup (`C:\Users\bento\Pictures\Forge Captures\Forge\capture-2026-10-21_090305.png`),
-booth back on the diagonal exterior wall, west end into the new corner wall. Show the exact dimensions of the
-new (unbuilt, black) walls they must build.
+Let two SketchUp files be worked at once through the bridge: each running SketchUp gets its own job
+folder, every job names the file it is for, and a job can never run on the wrong model.
 
 ## Done means
-1. New SketchUp file saved beside the original (original `.skp` untouched), saved first and after every step.
-2. Booth back (S, EFS) on the exterior wall, W0 end at the new corner wall; platform at the door, ramp FLIPPED to
-   run down toward the booth's open (east) end (Benton, 21 Oct).
-3. New walls placed from OUR clearance rules (1" past every EFS / hardware, 1" nominal elsewhere), not the
-   architect's 9'-1" / 14'-8"; differences noted. Corner exact; rest of the Tech Lab roughed from the 32'-0" and
-   18'-11" callouts and labelled approximate.
-4. Top-down with chain dimensions of every new wall run + overall, door/platform/ramp dims; a Platform hero render.
-5. Images exported where Benton can grab them for Sarah; every invented/estimated value listed.
+1. Each SketchUp process polls its own slot folder; two open files never race for one job.
+2. `sketchup-bridge.py` takes a target file (`--model`), refuses to run elsewhere, and `ping` lists open files.
+3. With one SketchUp open, every existing command works unchanged (no `--model` needed).
+4. The listener re-checks the open file before running, so a window that switched files refuses the job.
+5. rbparse clean, pure tests for the client side, a live single-window check, VERSION bumped, pushed, DEVLOG.
 
 ## Now
-Waiting on Benton to enable the SketchUp bridge with the Walsh file open; Builder brief next.
+Built and pushed as 1.85.0 (3d33cfa); waiting on Benton for the supervised two-window test.
 
 ## Out of scope
-The "Ramp" (straight-out ramp) version. Acoustics, scenes other than Platform hero + TopDown. Prices. Proposal PDF
-unless Benton asks.
+Changing the job protocol beyond addressing. Write-fence rules. Anything in WhisperRoomQuote.
 
 ## History
+- 22 Oct: Walsh Construction Tech Lab v3 proposal DONE and approved; 1.84.7 installer covers every Forge account.
 - 20 Oct: ISL 7296 4 ft proposal 9-page PDF built (private repo bc98a7b), waiting on Benton's review.
 - 18 Oct: corner seam seal flip, 1.84.4 pushed (95ba408).
 - 12 Oct: Walsh Construction Tech Lab MDL 96168 E DONE (first version).

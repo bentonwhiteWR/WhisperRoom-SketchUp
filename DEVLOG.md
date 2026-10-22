@@ -1,5 +1,36 @@
 # DEVLOG
 
+## 2026-10-22 -- Session end: Walsh v3 delivered, 1.84.7 + 1.85.0 shipped
+
+State at sign-off (laptop):
+- **Walsh Construction Tech Lab v3 is DONE and approved.** Send
+  `C:\Users\bento\Desktop\ProposalFiles\Walsh Construction\Walsh Construction-Booth-Renderings-v2.pdf`
+  (6 pages). The older `...-Booth-Renderings.pdf` in that folder is the washed-out one; do not send it.
+  The two Walsh "PAUSED" entries below are superseded.
+- **1.84.7:** `install-plugin.py` now installs the skills into every Forge Claude account
+  (`%APPDATA%\Forge\claude-accounts\<id>\skills`) as well as `~/.claude/skills`. The WhisperRoom
+  account had only stale hand copies before.
+- **1.85.0:** bridge works with two SketchUp files open (entry below). Offline tests pass; the live
+  two-window test has NOT been run.
+- Gabe's `whisperroom-client-job` skill is installed on both accounts. Compared with our flow, its
+  gain is the realism floor + render lane (`skills/whisperroom-client-job/reference/render-recipe.md`
+  section 0); use it on the next client job. It conflicts with CLAUDE.md on the ceiling default
+  (9'-0" commercial vs 8'-0"), vented-wall gap (8" / 2 1/2" vs 6" / 1") and commit posture, and needs
+  a `<WORK>` folder set on this machine. V-Ray here is 7.40.02 (Gabe's is 7.30.01), untested.
+
+Next steps:
+1. Restart SketchUp, enable the bridge, and run the supervised two-window test: the 8 steps are in
+   the 1.85.0 entry's handoff, `.forge/builder/HANDOFF.md` section "Supervised two-window test"
+   (committed in 1eece9b). Report whether `ping` shows two slots (one process per file) or one.
+2. 46 CBL / 46 VNT PDF: a simple front view of one 46 CBL wall and one 46 VNT wall showing the exact
+   cable-passage locations.
+3. Walsh acoustic package (Onyx Audimute + gray studio foam) when Benton asks.
+
+Open decisions (Benton):
+- Accept client-job's 9'-0" commercial ceiling and 8" / 2 1/2" vent-wall gaps as house rules, or
+  keep CLAUDE.md's 8'-0" and 6" / 1"?
+- Where is `<WORK>` (the client-job working folder) on this machine?
+
 ## 2026-10-22 -- 1.85.0: bridge works with two SketchUp files open
 
 **What.** Two Claude sessions can now each drive their own SketchUp file over the bridge.
