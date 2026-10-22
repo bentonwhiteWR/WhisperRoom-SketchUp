@@ -1,34 +1,49 @@
 STATUS: READY
 
-# Walsh Construction Tech Lab, Rev 3: booth-renderings proposal
+# Walsh Construction Tech Lab, Rev 3: booth-renderings proposal (v2 build, Package 2 images)
 
 ## Produced
-- PDF: `C:\Users\bento\Desktop\ProposalFiles\Walsh Construction\Walsh Construction-Booth-Renderings.pdf`. 5 pages, US Letter portrait, 863 KB. The folder was new, so nothing was overwritten.
-- Config: `C:\Users\bento\Documents\Claude\WhisperRoom Proposals\examples\walsh-construction-rev3\proposal-v2.json` (private proposals repo, not committed)
-- Prepped images: `...\walsh-construction-rev3\renders-web\01-hero.jpg` through `05-top-down-plan.jpg`
+- PDF: `C:\Users\bento\Desktop\ProposalFiles\Walsh Construction\Walsh Construction-Booth-Renderings-v2.pdf`. 6 pages, US Letter portrait, 1.98 MB.
+- The first PDF, `Walsh Construction-Booth-Renderings.pdf`, is obsolete because it was built from washed-out exports. It is still in the folder, untouched.
+- Config, updated in place: `C:\Users\bento\Documents\Claude\WhisperRoom Proposals\examples\walsh-construction-rev3\proposal-v2.json`. Not committed. A copy of the first-build config is in the scratchpad as `proposal-v2.first-build.json`.
+- Images: `...\walsh-construction-rev3\renders-web-v2\` (01–06). The old `renders-web\` folder is kept.
+- Source: `Z:\Sketchup\Proposals\Walsh Construction Tech Lab MDL 96168 S - Corner RM - Package 2\`. The images were used as they are. The plates are opaque, so no flattening was needed. The technical plates were trimmed to content plus a 2% pad, and the two V-Ray renders were not trimmed.
 - Page list:
-  1. Cover: hero, plate 11 (01-angled)
-  2. Image 01, Dimensioned View: plate 15 (03-high)
-  3. Image 02, Side Elevation: plate 16 (04-side)
-  4. Image 03, Rear View & Ventilation: plate 17 (05-ventilation)
-  5. Image 04, Top-Down Plan: plate 18 (06-plan), plus the closing band
-- Plate 13 (02-front) was left out. The hero and plate 15 already show the door end.
-- Verified: every page was rasterized with PyMuPDF and inspected, along with crops of every bottom edge. The hero appears only on the cover. No headline wraps and nothing overflows. The footer is intact on pages 1–4, and page 5 ends in the closing band with the address visible.
+  1. Cover: hero, `1_… 01-angled r.png` (V-Ray)
+  2. Image 01, Door End: `3_… 02-front r.png` (V-Ray, extra page)
+  3. Image 02, Dimensioned View: `6_… 03-high.png`
+  4. Image 03, Side Elevation: `7_… 04-side.png`
+  5. Image 04, Rear View & Ventilation: `8_… 05-ventilation.png`
+  6. Image 05, Top-Down Plan: `9_… 06-plan.png`, plus the closing band
+- Verified: every page was rasterized with PyMuPDF and inspected, plus stacked bottom-edge crops and a 300 dpi crop of page 6's address.
+  - The hero appears only on the cover.
+  - Footers are intact on pages 1–5.
+  - Page 6 ends in the closing band with both address lines visible. It is tight: the plate has 1 px free.
+  - No headline wraps and nothing overflows.
 
 ## Read-first
-- `clients/walsh-construction/notes.md` (v3 section)
-- The render folder's `manifest.json`. It lists only plates 11 and 18. Its preflight found one floor surface still on 0128_White and 3 items outside the room.
+- The package's `manifest.json` and `claude-prompt.txt`.
+  - The preflight says **4 items sit outside the room**. I have not raised these with Benton and nothing in the captions describes them.
+  - The manifest's annotation list only covers the old `Walsh Old Dims 12 Oct` tag. The WR-Dims callouts are not listed, so every caption figure was transcribed from 2–4× zoomed crops of the plates.
+- Walls hidden by design, per the manifest's `groups_hidden` for the RM room:
+  - Side view: RM walls 1 and 5.
+  - Ventilation view: RM wall 1.
+  - Hero, front render, high view and plan: none (the plan hides only the ceiling).
+  - The captions follow this.
 
 ## Assumptions
-- MDL 96168 S with Roof Mount ventilation, taken from the brief and the quote link. The renders carry no model label. The 14' 2" × 8' 2" callouts match the catalog 96168 exterior. S versus E cannot be checked, because no plate has a height callout.
-- The Wide Access door and the elevated floor are confirmed by Benton but cannot be seen on the renders, so neither is captioned. ADA is not mentioned anywhere. The cable wall is left as the link has it and is not captioned.
-- Room dimensions are estimates: 32' and 18' 11" are reported by the architect, and the rest are derived from the take-off. The ceiling is assumed at 8' 0". The pack says both must be confirmed on site.
-- Every caption figure is transcribed from a zoomed crop. Callouts that were overstruck or partly hidden are left out of the captions.
+- Booth facts are as reported by Benton: MDL 96168 S, Roof Mount ventilation, Wide Access door, elevated floor, no ADA.
+  - These are stated only in the cover callout and the booth card.
+  - The Wide Access door and the elevated floor are not identifiable on the renders, so no image caption describes them.
+  - S versus E cannot be checked, because no plate has a height callout. The 14' 2" × 8' 2" callouts match the catalog 96168 exterior.
+- Room dimensions are estimated and the ceiling is assumed at 8' 0". The pack says both must be confirmed on site.
+  - The plan's 32' chain closes: 19' 11" + 8' 2" + 3' 11".
+- Per the coordinator, the captions do not mention the ceiling or wall colour, the foam colour, or the acoustic package.
 
 ## Open-questions
 1. Ceiling height and room dimensions need confirming on site.
-2. Should the booth card sub-line read "Wide Access door · elevated floor"? Benton confirmed both, but neither is visible on the renders. It currently reads "Roof Mount ventilation".
-3. The foam seen through the windows looks blue/purple. The client asked for gray studio foam and onyx Audimute, and the acoustic package is not modelled. The captions make no foam claim.
-4. The hero is a plain SketchUp export, not V-Ray, and looks flat. Re-render it before sending?
-5. A small stray white triangle sits at floor level by a booth corner in the hero. It may be one of the preflight's "3 items outside room". Fix it in the model and re-export?
-6. The model still holds a hidden wrong booth on tag `Walsh RM swapped N 21 Oct`. Delete it before the next export.
+2. The preflight found 4 items outside the room. Confirm none of them is visible in a plate.
+3. The renders show a pinkish ceiling and blue foam, while the client ordered gray foam and onyx Audimute. Benton said to build with these images as they are. Re-render later?
+4. The Door End page (front render) is optional and the composition is close to the hero's. Drop it if Benton wants the standard 5 pages; set "In this pack" back to 5 images.
+5. The booth card sub-line reads only "Roof Mount ventilation". Add "Wide Access door"?
+6. The hidden wrong booth on tag `Walsh RM swapped N 21 Oct` should still be cleaned out of the model.
